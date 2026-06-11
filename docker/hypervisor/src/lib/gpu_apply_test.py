@@ -171,6 +171,8 @@ class _Host:
         busy=False,
         profiles=None,
         apply_works=True,
+        numvfs=0,
+        avail=None,
     ):
         self.driver = driver
         self.mig = mig
@@ -178,6 +180,10 @@ class _Host:
         self.busy = busy
         self.profiles = profiles or []
         self.apply_works = apply_works
+        self.numvfs = numvfs
+        # VF basename -> available_instances string the carve readback should see
+        # (default: unset -> "" -> treated as usable, the pre-guard behaviour).
+        self.avail = avail or {}
         self.mdev_count = 0
         self.cmds = []
         # VF paths a MIG->vGPU teardown re-creates (sriov-manage -e); the carve
@@ -198,7 +204,18 @@ class _Host:
                     self.mig = "Enabled"
                 elif "-mig 0" in c:
                     self.mig = "Disabled"
-        return [{"out": "", "err": ""} for _ in cmds]
+        # The warm-repartition detection reads live sriov_numvfs via run(); the
+        # carve reads each VF's available_instances before creating its mdev.
+        out = []
+        for c in cmds:
+            if "sriov_numvfs" in c:
+                out.append({"out": f"{self.numvfs}\n", "err": ""})
+            elif "available_instances" in c:
+                val = next((v for vf, v in self.avail.items() if vf in c), "")
+                out.append({"out": f"{val}", "err": ""})
+            else:
+                out.append({"out": "", "err": ""})
+        return out
 
 
 def _patch_host(monkeypatch, host):
@@ -597,6 +614,185 @@ def test_apply_targets_orders_non_mig_before_mig(monkeypatch):
     ga.apply_targets(gpus, targets)
     # ...but the non-MIG card is applied first (MIG --gpu-reset comes last).
     assert order == ["0000:06:00.0", "0000:c5:00.0"]
+
+
+def test_apply_mig_vgpu_carves_gfx_gis_and_caps_mdevs_per_count(monkeypatch):
+    # A MIG-backed vGPU target (annotated mig_profile_id=47, mig_count=4) must:
+    #  - create 4 +gfx GPU-instances with compute instances (-cgi 47,..,47 -C),
+    #  - re-enable SR-IOV, and
+    #  - carve exactly `mig_count` mdevs (one per GI), capped even when more VFs
+    #    exist, each tagged mig=True/mig_profile_id.
+    h = _Host(
+        driver="nvidia",
+        mig="Disabled",
+        live=None,
+        profiles=[{"name": "RTXPro6000BlackwellDC-1_24Q", "type_id": "nvidia-1561"}],
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:05:00.{i}" for i in range(1, 7)]  # 6 VFs
+    _patch_host(monkeypatch, h)
+    gpu = {
+        "pci_bus_id": "0000:05:00.0",
+        "sriov_totalvfs": 12,
+        "vgpu_profiles": [
+            {
+                "name": "RTXPro6000BlackwellDC-1_24Q",
+                "type_id": "nvidia-1561",
+                "mig": True,
+                "mig_profile_id": 47,
+                "mig_count": 4,
+            },
+        ],
+    }
+    rep = ga.apply_target(
+        gpu, {"target_profile": "1_24Q", "action": "apply"}, run=h.run
+    )
+    assert rep["result"] == "applied", rep
+    pool = rep["mdevs"]["1_24Q"]
+    assert len(pool) == 4  # capped at mig_count, not the 6 VFs
+    entry = next(iter(pool.values()))
+    assert entry["mig"] is True
+    assert entry["mig_profile_id"] == 47
+    assert any("-cgi 47,47,47,47 -C" in c for c in h.cmds)
+    assert any("-mig 1" in c for c in h.cmds)
+    assert any("sriov-manage -e" in c for c in h.cmds)
+    # ORDER IS LOAD-BEARING: sriov-manage -e rebinds the PF driver, which wipes
+    # any existing GPU-instances. It MUST run BEFORE -cgi or the GIs are
+    # destroyed and the VF DC-N-Q mdev type stays at available_instances=0
+    # (0 bookable). Validated on Blackwell hardware.
+    sriov_e_idx = next(i for i, c in enumerate(h.cmds) if "sriov-manage -e" in c)
+    cgi_idx = next(i for i, c in enumerate(h.cmds) if "-cgi 47,47,47,47 -C" in c)
+    assert sriov_e_idx < cgi_idx, h.cmds
+
+
+def test_apply_mig_vgpu_errors_on_short_carve(monkeypatch):
+    # If fewer slices carve than mig_count (e.g. a racy SR-IOV re-enable left
+    # only some VFs exposing the type), the apply must ERROR -- not publish a
+    # partial MIG pool as "applied". Here only 2 VFs are available, mig_count=4.
+    h = _Host(
+        driver="nvidia",
+        mig="Disabled",
+        live=None,
+        profiles=[{"name": "RTXPro6000BlackwellDC-1_24Q", "type_id": "nvidia-1561"}],
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:05:00.{i}" for i in range(1, 3)]  # 2 VFs
+    _patch_host(monkeypatch, h)
+    gpu = {
+        "pci_bus_id": "0000:05:00.0",
+        "sriov_totalvfs": 12,
+        "vgpu_profiles": [
+            {
+                "name": "RTXPro6000BlackwellDC-1_24Q",
+                "type_id": "nvidia-1561",
+                "mig": True,
+                "mig_profile_id": 47,
+                "mig_count": 4,
+            },
+        ],
+    }
+    rep = ga.apply_target(
+        gpu, {"target_profile": "1_24Q", "action": "apply"}, run=h.run
+    )
+    assert rep["result"] == "error", rep
+    assert "2/4" in (rep.get("error") or ""), rep
+
+
+def test_build_mig_transition_cmds_carves_one_gi_per_slice():
+    # The engine inline fallback must carve `mig_count` +gfx GPU-instances (one
+    # per bookable slice) with -C, matching the CLI carve path -- NOT a single
+    # GI + separate -cci, which under-carves a multi-slice MIG-vGPU profile.
+    bmt = ga._cmds.build_mig_transition_cmds
+    for old_is_mig, old_profile in ((True, "2_24Q"), (False, "4Q")):
+        cmds = bmt("0000:05:00.0", old_is_mig, True, old_profile, "1_24Q", 47, 4)
+        assert "nvidia-smi mig -i 0000:05:00.0 -cgi 47,47,47,47 -C" in cmds, cmds
+        assert not any(c.rstrip().endswith("-cci") for c in cmds), cmds
+    # Default count == 1 -> a single GI (a 1-slice profile is unchanged in shape).
+    cmds = bmt("0000:05:00.0", True, True, "x", "y", 9)
+    assert "nvidia-smi mig -i 0000:05:00.0 -cgi 9 -C" in cmds, cmds
+    # The MIG->non-MIG teardown branch carves nothing and is left untouched.
+    cmds = bmt("0000:05:00.0", True, False, "1_24Q", "4Q", None, 4)
+    assert any("-mig 0" in c for c in cmds)
+    assert not any("-cgi" in c for c in cmds), cmds
+
+
+def test_apply_mig_vgpu_skips_vf_with_zero_available_instances(monkeypatch):
+    # A VF whose available_instances reads 0 has no backing GPU-instance, so the
+    # carve must skip it (its create would fail) and surface a precise reason.
+    # 4 VFs, mig_count=4, but VF .3 reports 0 -> 3 carve -> MIG short-carve error
+    # that names available_instances.
+    h = _Host(
+        driver="nvidia",
+        mig="Disabled",
+        live=None,
+        profiles=[{"name": "RTXPro6000BlackwellDC-1_24Q", "type_id": "nvidia-1561"}],
+        avail={
+            "0000:05:00.1": 1,
+            "0000:05:00.2": 1,
+            "0000:05:00.3": 0,  # no backing GPU-instance
+            "0000:05:00.4": 1,
+        },
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:05:00.{i}" for i in range(1, 5)]  # 4 VFs
+    _patch_host(monkeypatch, h)
+    gpu = {
+        "pci_bus_id": "0000:05:00.0",
+        "sriov_totalvfs": 12,
+        "vgpu_profiles": [
+            {
+                "name": "RTXPro6000BlackwellDC-1_24Q",
+                "type_id": "nvidia-1561",
+                "mig": True,
+                "mig_profile_id": 47,
+                "mig_count": 4,
+            },
+        ],
+    }
+    rep = ga.apply_target(
+        gpu, {"target_profile": "1_24Q", "action": "apply"}, run=h.run
+    )
+    assert rep["result"] == "error", rep
+    assert "available_instances=0" in (rep.get("error") or ""), rep
+    # The zero-available VF is never echoed a create (in any retry attempt).
+    assert not any(
+        "0000:05:00.3/mdev_supported_types" in c and c.rstrip().endswith("/create'")
+        for c in h.cmds
+    ), h.cmds
+
+
+def test_apply_mig_vgpu_warm_repartition_skips_sriov_reset(monkeypatch):
+    # Switching a MIG-vGPU profile on an ALREADY-MIG-enabled card with SR-IOV VFs
+    # up must re-lay-out the GPU-instances at the GI level ONLY: NO sriov-manage,
+    # NO -mig toggle, NO gpu reset (dynamic symmetric repartition; validated on HW).
+    h = _Host(
+        driver="nvidia",
+        mig="Enabled",
+        numvfs=12,
+        profiles=[{"name": "RTXPro6000BlackwellDC-2_24Q", "type_id": "nvidia-1570"}],
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:05:00.{i}" for i in range(1, 7)]
+    _patch_host(monkeypatch, h)
+    gpu = {
+        "pci_bus_id": "0000:05:00.0",
+        "sriov_totalvfs": 12,
+        "sriov_numvfs": 12,
+        "vgpu_profiles": [
+            {
+                "name": "RTXPro6000BlackwellDC-2_24Q",
+                "type_id": "nvidia-1570",
+                "mig": True,
+                "mig_profile_id": 35,
+                "mig_count": 2,
+            },
+        ],
+    }
+    rep = ga.apply_target(
+        gpu, {"target_profile": "2_24Q", "action": "apply"}, run=h.run
+    )
+    assert rep["result"] == "applied", rep
+    joined = "\n".join(h.cmds)
+    assert "sriov-manage" not in joined  # warm: no SR-IOV re-cycle
+    assert "-mig 1" not in joined  # no MIG-mode toggle
+    assert "--gpu-reset" not in joined  # no GPU reset
+    assert any("-cgi 35,35 -C" in c for c in h.cmds)  # GI-level recarve to 2 slices
 
 
 def test_apply_normalizes_8digit_bdf_for_sysfs(monkeypatch):

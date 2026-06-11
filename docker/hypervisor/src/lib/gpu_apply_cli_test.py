@@ -52,6 +52,7 @@ def test_cli_passes_args_through(monkeypatch, capsys):
         action,
         mdevs_reset_at,
         mig_profile_id=None,
+        mig_count=None,
         deliberate=False,
     ):
         seen.update(
@@ -60,6 +61,7 @@ def test_cli_passes_args_through(monkeypatch, capsys):
             action=action,
             mdevs_reset_at=mdevs_reset_at,
             mig_profile_id=mig_profile_id,
+            mig_count=mig_count,
         )
         return {"result": "noop"}
 
@@ -82,10 +84,11 @@ def test_cli_passes_args_through(monkeypatch, capsys):
         "action": "seed_and_apply",
         "mdevs_reset_at": "2026-06-05T00:00:00",
         "mig_profile_id": None,  # absent flag -> None -> CLI omits it downstream
+        "mig_count": None,
     }
 
 
-def test_cli_parses_mig_profile_id_as_int(monkeypatch):
+def test_cli_parses_mig_profile_id_and_count_as_int(monkeypatch):
     seen = {}
 
     def capture(
@@ -94,9 +97,11 @@ def test_cli_parses_mig_profile_id_as_int(monkeypatch):
         action,
         mdevs_reset_at,
         mig_profile_id=None,
+        mig_count=None,
         deliberate=False,
     ):
         seen["mig_profile_id"] = mig_profile_id
+        seen["mig_count"] = mig_count
         return {"result": "applied"}
 
     monkeypatch.setattr(cli, "_build_report", capture)
@@ -105,12 +110,15 @@ def test_cli_parses_mig_profile_id_as_int(monkeypatch):
             "--pci-bdf",
             "0000:c5:00.0",
             "--target-profile",
-            "1g.24gb_me",
+            "1_24Q",
             "--mig-profile-id",
-            "19",
+            "47",
+            "--mig-count",
+            "4",
         ]
     )
-    assert seen["mig_profile_id"] == 19
+    assert seen["mig_profile_id"] == 47
+    assert seen["mig_count"] == 4
 
 
 def test_build_report_seeds_mig_profile_id_when_descriptor_has_none(
@@ -162,3 +170,38 @@ def test_build_report_does_not_override_live_mig_profiles(monkeypatch, tmp_path)
     cli._build_report("0000:c5:00.0", "1g.24gb_me", "apply", None, mig_profile_id=99)
     # The live -lgip row wins: profile_id stays 7, nothing appended.
     assert captured["desc"]["mig_profiles"] == live
+
+
+def test_build_report_seeds_mig_vgpu_count_so_multi_gi_branch_runs(
+    monkeypatch, tmp_path
+):
+    """A MIG-backed vGPU target must seed a vgpu_profiles entry carrying the
+    slice count, so apply_target takes the multi-GI branch and carves N GIs --
+    NOT the single-GI plain MIG path. The read-only descriptor's vgpu_profiles
+    is empty when the VFs aren't live, so the count cannot be re-derived on the
+    hypervisor: the engine passes it via --mig-count."""
+    import gpu_apply
+    import gpu_discovery
+
+    monkeypatch.setattr(cli, "SETUP_GPU_LOCK", str(tmp_path / "lock"))
+    monkeypatch.setattr(
+        gpu_discovery,
+        "build_card_descriptor",
+        lambda pci_bdf, mdevs_reset_at=None: {
+            "pci_bus_id": pci_bdf
+        },  # no vgpu_profiles
+    )
+    captured = {}
+    monkeypatch.setattr(
+        gpu_apply,
+        "apply_target",
+        lambda desc, target, deliberate=False: captured.update(desc=desc)
+        or {"result": "applied"},
+    )
+    cli._build_report(
+        "0000:05:00.0", "1_24Q", "apply", None, mig_profile_id=47, mig_count=4
+    )
+    entry = gpu_apply._mig_vgpu_entry(captured["desc"], "1_24Q")
+    assert entry is not None
+    assert entry["mig_profile_id"] == 47
+    assert entry["mig_count"] == 4

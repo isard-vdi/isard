@@ -2162,6 +2162,7 @@ def recreate_xml_if_gpu(
     pci_bus_id=None,
     is_passthrough=False,
     companion_pci_bdfs=None,
+    is_mig=False,
     guest_index=0,
 ):
     """Inject the appropriate GPU hostdev(s) into a domain XML.
@@ -2279,7 +2280,11 @@ def recreate_xml_if_gpu(
             )
         xpath_parent = "/domain/devices"
     else:
-        xml_hostdev = f"""  <hostdev mode='subsystem' type='mdev' model='vfio-pci'>
+        # MIG-backed mdevs are compute slices with no display engine, so the
+        # guest hostdev MUST set display='off' (display='on' would fail to
+        # start). Plain vGPU mdevs keep libvirt's default (unchanged behaviour).
+        display_attr = " display='off'" if is_mig else ""
+        xml_hostdev = f"""  <hostdev mode='subsystem' type='mdev' model='vfio-pci'{display_attr}>
         <source>
           <address uuid='{uid}'/>
         </source>

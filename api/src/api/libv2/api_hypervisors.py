@@ -28,6 +28,12 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+# MIG-backed vGPU profile suffix: "<slices>_<framebuffer><series>" (e.g. "1_24Q",
+# "2_48Q"). Groups: slices, framebuffer-GB, series-letter. Slice separator "_" or
+# "-" (canonical uses "_"; legacy dash form "1-2Q" also matched). Used to keep
+# only the full-memory (max framebuffer) variant per slice-tier as bookable.
+_MIG_BACKED_SUFFIX_RE = re.compile(r"^(\d+)[-_](\d+)([ABCQ])$")
+
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb.errors import ReqlNonExistenceError
@@ -980,10 +986,27 @@ class ApiHypervisors:
                     }
                 )
 
-            # Add vGPU profiles (deduplicated across multiple physical cards)
+            # Add vGPU profiles (deduplicated across multiple physical cards).
+            # MIG-backed vGPU profiles ("<slices>_<fb>Q") come in several
+            # framebuffer sizes per slice-tier (e.g. 1_2Q..1_24Q all on the 1g
+            # GI). Only the LARGEST framebuffer per tier uses the GI's full
+            # memory; the smaller ones strand the rest of the GI (one vGPU per
+            # GI), so they are not full utilization and are excluded. Time-sliced
+            # vGPU ("<fb>Q") and whole-card "passthrough" partition the card's
+            # memory fully and are kept.
+            mig_max_fb = {}  # (slices, series-letter) -> max framebuffer
+            for prof in vgpu_profiles:
+                mm = _MIG_BACKED_SUFFIX_RE.match(prof["name"].split("-", 1)[1])
+                if mm:
+                    key = (mm.group(1), mm.group(3))
+                    mig_max_fb[key] = max(mig_max_fb.get(key, 0), int(mm.group(2)))
+
             existing_suffixes = {p["profile"] for p in models[model]["profiles"]}
             for prof in vgpu_profiles:
-                suffix = prof["name"].split("-", 1)[1]  # "4Q"
+                suffix = prof["name"].split("-", 1)[1]  # "4Q" or "1_24Q"
+                mm = _MIG_BACKED_SUFFIX_RE.match(suffix)
+                if mm and int(mm.group(2)) < mig_max_fb[(mm.group(1), mm.group(3))]:
+                    continue  # non-max MIG-backed fb -> strands GI memory, skip
                 if suffix not in existing_suffixes:
                     models[model]["profiles"].append(
                         {
@@ -999,23 +1022,18 @@ class ApiHypervisors:
                     )
                     existing_suffixes.add(suffix)
 
-            # Add MIG profiles (deduplicated across multiple physical cards)
-            for mig_prof in gpu.get("mig_profiles", []):
-                suffix = mig_prof["name"]  # "1g.24gb", "2g.48gb+gfx", "1g.24gb_me"
-                if suffix not in existing_suffixes:
-                    models[model]["profiles"].append(
-                        {
-                            "id": f"NVIDIA-{model}-{suffix}",
-                            "name": f"NVIDIA {model} MIG {suffix}",
-                            "profile": suffix,
-                            "mode": "mig",
-                            "mig_profile_id": mig_prof["profile_id"],
-                            "memory": int(mig_prof["memory_gib"] * 1024),
-                            "units": mig_prof["max_instances"],
-                            "description": f"MIG GPU Instance ({mig_prof['max_instances']}x)",
-                        }
-                    )
-                    existing_suffixes.add(suffix)
+            # Plain GI-name MIG profiles ("1g.24gb", "2g.48gb", "4g.96gb" and
+            # their "+gfx"/"+me"/"+me.all"/"-me" variants) are deliberately NOT
+            # exposed as bookable reservables. A plain GI carve creates a single
+            # GPU-instance and wastes the rest of the card, and the plain compute
+            # GIs do not expose a usable vGPU mdev at all (only the "+gfx"
+            # variants do, and those serve only as carve targets). The bookable
+            # GPU modes are restricted to full-utilization profiles: whole-card
+            # "passthrough", time-sliced vGPU ("<mem>Q"), and the
+            # fully-splitting MIG-backed vGPU profiles ("<slices>_<mem>Q", e.g.
+            # "1_24Q"/"2_48Q"/"4_96Q") — the latter enter the catalog via the
+            # vGPU loop above (discovered as Q-series mdev types). So the former
+            # "mig_profiles" loop is intentionally dropped.
 
         # Upsert each model into gpu_profiles
         for model, data in models.items():

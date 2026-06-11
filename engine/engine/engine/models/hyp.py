@@ -666,8 +666,17 @@ class hyp(object):
 
         if new_is_mig:
             new_mig_profile_id = old_types[new_profile].get("mig_profile_id")
+            # One +gfx GPU-instance per bookable slice (same source the CLI path
+            # uses in _apply_via_cli); without it the inline carve under-creates
+            # a single GI for a multi-slice MIG-vGPU profile.
+            new_mig_count = (
+                old_types[new_profile].get("mig_count")
+                or old_types[new_profile].get("max")
+                or 1
+            )
         else:
             new_mig_profile_id = None
+            new_mig_count = 1
 
         if old_is_mig and new_is_mig:
             logs.main.info(
@@ -691,6 +700,7 @@ class hyp(object):
             old_profile,
             new_profile,
             new_mig_profile_id,
+            new_mig_count,
         )
         if cmds is None:
             # Should not happen — caller should not route here
@@ -719,7 +729,12 @@ class hyp(object):
 
         ``mig_profile_id`` (the durable GPU-instance profile id) is passed for a
         MIG target so the CLI can seed it into the read-only descriptor on a
-        MIG-disabled card, where ``nvidia-smi mig -lgip`` lists nothing."""
+        MIG-disabled card, where ``nvidia-smi mig -lgip`` lists nothing. For a
+        MIG-backed vGPU profile we also pass ``--mig-count`` (the per-card slice
+        count = info.types max), so the CLI seeds a vgpu_profiles entry and the
+        apply carves N graphics GPU-instances + mdevs -- not a single one (the
+        read-only descriptor's vgpu_profiles is empty when the VFs aren't live,
+        so the count cannot be re-derived on the hypervisor)."""
         from datetime import datetime, timezone
 
         from isardvdi_common.vgpu_state import parse_apply_report
@@ -728,6 +743,8 @@ class hyp(object):
         # Fresh reset timestamp = the no-fight key: ingested as
         # mdevs_last_synced_at so the next reconcile confirms (does not rebuild).
         reset_at = datetime.now(timezone.utc).isoformat()
+        target_type = (pci_info.get("types") or {}).get(new_profile) or {}
+        mig_count = target_type.get("mig_count") or target_type.get("max")
         # --deliberate: this is an operator/scheduler-initiated runtime change,
         # so the hypervisor force-stops any qemu still holding the card before
         # teardown (defense-in-depth; the engine already quiesced inline) instead
@@ -742,6 +759,8 @@ class hyp(object):
         )
         if mig_profile_id is not None:
             cmd += f" --mig-profile-id {shlex.quote(str(mig_profile_id))}"
+            if mig_count:
+                cmd += f" --mig-count {shlex.quote(str(int(mig_count)))}"
         try:
             result = execute_commands(self.hostname, [cmd], port=self.port, timeout=240)
         except Exception as e:
@@ -2099,6 +2118,17 @@ class hyp(object):
                         "memory": profile.get("framebuffer_mb", 0),
                         "max": profile.get("max_instances", 0),
                     }
+                    # A MIG-backed vGPU profile (DC-N-<mem>Q, suffix like "1_24Q")
+                    # is realized via N graphics MIG GPU-instances; discovery
+                    # annotated it with the +gfx GI id and per-card count (already
+                    # reflected in max_instances above). Carry the mig flag + GI
+                    # id so the runtime routing treats it as MIG and the apply CLI
+                    # has the id; the per-card count (max) is the bookable units.
+                    if profile.get("mig"):
+                        d_types[profile_suffix]["mig"] = True
+                        d_types[profile_suffix]["mig_profile_id"] = profile.get(
+                            "mig_profile_id"
+                        )
 
                 if not d_types:
                     continue

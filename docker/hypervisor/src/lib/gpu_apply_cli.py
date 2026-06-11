@@ -44,6 +44,7 @@ def _build_report(
     action,
     mdevs_reset_at,
     mig_profile_id=None,
+    mig_count=None,
     deliberate=False,
 ):
     # Imports are deferred so an argparse/usage error doesn't depend on the
@@ -63,6 +64,22 @@ def _build_report(
         if gpu_apply.canonical_suffix(target_profile) not in have:
             desc["mig_profiles"] = existing + [
                 {"name": target_profile, "profile_id": mig_profile_id}
+            ]
+        # Seed the MIG-backed vGPU profile into vgpu_profiles so apply_target
+        # takes the multi-GI MIG-vGPU branch and carves `mig_count` slices. The
+        # read-only descriptor's vgpu_profiles is EMPTY when the VFs aren't
+        # currently live (passthrough / MIG card), so _mig_vgpu_entry would
+        # otherwise find nothing and the apply would fall back to a single-GI
+        # plain MIG transition. The engine passes the durable count (info.types
+        # max); default to 1 only if it didn't.
+        if gpu_apply._mig_vgpu_entry(desc, target_profile) is None:
+            desc["vgpu_profiles"] = (desc.get("vgpu_profiles") or []) + [
+                {
+                    "name": target_profile,
+                    "mig": True,
+                    "mig_profile_id": mig_profile_id,
+                    "mig_count": int(mig_count) if mig_count else 1,
+                }
             ]
 
     target = {"target_profile": target_profile, "action": action}
@@ -109,6 +126,7 @@ def main(argv=None):
     parser.add_argument("--action", default="apply")
     parser.add_argument("--mdevs-reset-at", default=None)
     parser.add_argument("--mig-profile-id", default=None, type=int)
+    parser.add_argument("--mig-count", default=None, type=int)
     parser.add_argument(
         "--deliberate",
         action="store_true",
@@ -124,6 +142,7 @@ def main(argv=None):
             args.action,
             args.mdevs_reset_at,
             args.mig_profile_id,
+            args.mig_count,
             deliberate=args.deliberate,
         )
         print(json.dumps(report))

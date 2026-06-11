@@ -177,6 +177,28 @@ def _mig_profile_ids(gpu):
     return out
 
 
+def _mig_vgpu_entry(gpu, suffix):
+    """The MIG-backed vGPU profile entry for ``suffix`` (canonical), or None.
+
+    Discovery (``_annotate_mig_backed_vgpu_profiles``) tags each vGPU mdev
+    profile that is realized via MIG slices (the ``DC-N-<mem>Q`` family, suffix
+    like ``"1_24Q"``) with ``mig=True`` plus ``mig_profile_id`` (the matching
+    ``+gfx`` GPU-instance profile to create) and ``mig_count`` (how many GIs /
+    bookable slices the card yields). This looks that entry up so ``_apply``
+    knows to carve N GIs + re-enable SR-IOV before the per-VF mdev carve. Returns
+    None for plain (non-MIG) vGPU profiles like the full-card ``"24Q"``."""
+    if not suffix:
+        return None
+    want = canonical_suffix(suffix)
+    for prof in gpu.get("vgpu_profiles") or []:
+        if not prof.get("mig"):
+            continue
+        name = prof.get("name") or ""
+        if canonical_suffix(name.rsplit("-", 1)[-1]) == want:
+            return prof
+    return None
+
+
 def _report(pci_bdf, result, applied=None, previous=None, **extra):
     rep = {"applied_profile": applied, "previous_profile": previous, "result": result}
     rep.update({k: v for k, v in extra.items() if v is not None})
@@ -332,11 +354,68 @@ def _apply(gpu, current, wanted, run):
     sriov_numvfs = gpu.get("sriov_numvfs", 0) or 0
     companions = gpu.get("companion_pci_bdfs") or []
     mig_ids = _mig_profile_ids(gpu)
-    new_is_mig = wanted in mig_ids
-    old_is_mig = current == MIG_CURRENT or (current in mig_ids if current else False)
+    mig_vgpu = _mig_vgpu_entry(gpu, wanted)
+    # A MIG-backed vGPU target (DC-N-<mem>Q, e.g. "1_24Q") is recognised via the
+    # discovery annotation, NOT mig_ids (which is keyed by the GI name like
+    # "1g.24gb+gfx"). Both forms count as "MIG" for the transition decision.
+    new_is_mig = wanted in mig_ids or mig_vgpu is not None
+    old_is_mig = (
+        current == MIG_CURRENT
+        or (current in mig_ids if current else False)
+        or _mig_vgpu_entry(gpu, current) is not None
+    )
 
-    # MIG on either side: handle the MIG mode transition up front.
-    if new_is_mig or old_is_mig:
+    # vf_cap / mig_meta drive the shared vGPU carve below: a MIG-backed vGPU
+    # carves one mdev per GI (capped at the slice count) and tags each entry.
+    vf_cap = None
+    mig_meta = {}
+
+    if mig_vgpu is not None:
+        # MIG-backed vGPU: create `mig_count` graphics GPU-instances of the +gfx
+        # profile, then FALL THROUGH to the per-VF vGPU carve (tagged mig=True,
+        # capped at the slice count). The VF DC-N-Q mdev type only exposes
+        # available_instances once the GIs exist.
+        gfx_id = mig_vgpu.get("mig_profile_id")
+        count = mig_vgpu.get("mig_count") or 1
+        # WARM repartition: if the card is ALREADY MIG-enabled with SR-IOV VFs up
+        # (a MIG-vGPU -> MIG-vGPU profile switch), re-lay-out the GIs at the GI
+        # level ONLY -- no sriov-manage / -mig toggle / GPU reset (validated on
+        # Blackwell: SR-IOV/VFs and the PF binding stay intact). Otherwise COLD:
+        # from passthrough / MIG-off, do the full enable-MIG + re-enable-SR-IOV
+        # carve. (mig.mode is the reliable signal; numvfs is read live so a card
+        # with VFs torn down still takes the cold path.)
+        mig_mode = _read_mig_mode(pci_bdf, run)
+        nv = _out(
+            run(
+                [f"cat /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs 2>/dev/null"],
+                timeout=10,
+            )
+        ).strip()
+        warm = (
+            current != "passthrough"
+            and isinstance(mig_mode, str)
+            and "enabled" in mig_mode.lower()
+            and nv.isdigit()
+            and int(nv) > 0
+        )
+        if warm:
+            run(_cmds.build_mig_clear_card_mdevs_cmds(pci_bdf), timeout=60)
+            run(_cmds.build_mig_recarve_cmds(pci_bdf, gfx_id, count), timeout=180)
+        else:
+            if current == "passthrough":
+                # reverse passthrough first so the PF is nvidia-bound for MIG enable
+                pre = _cmds.build_vfio_unbind_cmds(pci_bdf, sriov_totalvfs)
+                for cbdf in companions:
+                    pre += _cmds.build_companion_release_cmds(cbdf)
+                run(pre, timeout=180)
+            run(_cmds.build_mig_vgpu_carve_cmds(pci_bdf, gfx_id, count), timeout=240)
+        # (re-)enumerate the VFs for the carve.
+        sub_paths = _enumerate_vf_sub_paths(pci_bdf, run) or sub_paths
+        vf_cap = count
+        mig_meta = {"mig": True, "mig_profile_id": gfx_id}
+        current = None  # now a MIG-enabled card; carve the vGPU mdevs on its VFs
+    elif new_is_mig or old_is_mig:
+        # Plain (GI-name) MIG transition, or tearing MIG down to a vGPU/PT target.
         cmds = _cmds.build_mig_transition_cmds(
             pci_bdf, old_is_mig, new_is_mig, current, wanted, mig_ids.get(wanted)
         )
@@ -407,13 +486,44 @@ def _apply(gpu, current, wanted, run):
     # phantom mdevs nor orphans the ones that did get created (those are tracked
     # and the engine reconcile can fill the rest). Only a total failure errors.
     planned = []  # (uuid, entry, create_cmd)
+    first_err = None
     if sub_paths:
-        for vf_path in sub_paths:
-            uuid, entry = new_mdev_pool_entry(os.path.basename(vf_path), type_id)
+        # A MIG-backed vGPU carves exactly `vf_cap` mdevs (one per GI); a plain
+        # SR-IOV vGPU carves one per VF. mig_meta tags MIG entries (mig=True,
+        # mig_profile_id) so the engine emits display='off' for them.
+        carve_vfs = sub_paths[:vf_cap] if vf_cap else sub_paths
+        # Read each VF's available_instances for this type first: a VF reporting
+        # 0 has no backing GPU-instance (a racy/short MIG carve, or SR-IOV not
+        # settled) so its create would fail -- skip it with a precise reason
+        # instead of an opaque create stderr. Unreadable (attr absent / older
+        # driver) -> "x", treated as usable (unchanged behaviour).
+        avail_res = (
+            run(
+                [
+                    f"cat '{vf}/mdev_supported_types/{type_id}/available_instances' "
+                    "2>/dev/null || echo x"
+                    for vf in carve_vfs
+                ],
+                timeout=30,
+            )
+            or []
+        )
+        for idx, vf_path in enumerate(carve_vfs):
+            out = (avail_res[idx].get("out") if idx < len(avail_res) else "") or ""
+            out = out.strip()
+            if out.isdigit() and int(out) == 0:
+                first_err = first_err or (
+                    f"available_instances=0 on {os.path.basename(vf_path)} "
+                    f"(no backing GPU-instance for {type_id})"
+                )
+                continue
+            uuid, entry = new_mdev_pool_entry(
+                os.path.basename(vf_path), type_id, **mig_meta
+            )
             planned.append((uuid, entry, build_mdev_create_cmd(vf_path, type_id, uuid)))
     else:
         for _ in range(_pool_size(pci_bdf, wanted)):
-            uuid, entry = new_mdev_pool_entry(pci_bdf, type_id)
+            uuid, entry = new_mdev_pool_entry(pci_bdf, type_id, **mig_meta)
             planned.append(
                 (uuid, entry, build_mdev_create_cmd(base_path, type_id, uuid))
             )
@@ -428,7 +538,6 @@ def _apply(gpu, current, wanted, run):
             f"mdev create result count {len(results)} != {len(planned)} planned"
         )
     mdevs = {wanted: {}}
-    first_err = None
     for (uuid, entry, _), res in zip(planned, results):
         err = (res.get("err") or "").strip()
         if err:
@@ -437,6 +546,17 @@ def _apply(gpu, current, wanted, run):
         mdevs[wanted][uuid] = entry
     if not mdevs[wanted]:
         return {}, f"mdev create failed: {(first_err or 'no mdev created')[:160]}"
+    # A MIG-backed vGPU must carve EXACTLY `vf_cap` slices (one mdev per +gfx
+    # GPU-instance). A short carve means some GIs/VFs didn't materialise (e.g. a
+    # racy SR-IOV re-enable) -> the pool would be silently under-provisioned yet
+    # reported "applied". Error the card so the engine reconcile retries from
+    # live state instead of publishing a partial MIG pool. (Plain vGPU keeps the
+    # lenient behaviour: a partial SR-IOV carve is topped up by the reconcile.)
+    if mig_meta.get("mig") and vf_cap and len(mdevs[wanted]) < vf_cap:
+        return {}, (
+            f"MIG vGPU {wanted}: carved {len(mdevs[wanted])}/{vf_cap} slices "
+            f"(GPU-instances incomplete){': ' + first_err[:120] if first_err else ''}"
+        )
     return mdevs, None
 
 
