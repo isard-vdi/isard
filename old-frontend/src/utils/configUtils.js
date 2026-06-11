@@ -2,6 +2,7 @@ export class ConfigUtils {
   static parseConfig (config) {
     const {
       show_bookings_button: showBookingsButton,
+      show_gpu_plannings: showGpuPlannings = false,
       documentation_url: documentationUrl,
       viewers_documentation_url: viewersDocumentationUrl,
       show_temporal_tab: showTemporalTab,
@@ -23,6 +24,7 @@ export class ConfigUtils {
     } = config
     return {
       showBookingsButton,
+      showGpuPlannings,
       documentationUrl,
       viewersDocumentationUrl,
       showTemporalTab,

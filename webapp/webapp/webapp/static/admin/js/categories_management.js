@@ -352,6 +352,7 @@ $(document).ready(function () {
             }
             data['frontend'] = 'frontend' in data;
             data['maintenance'] = 'maintenance' in data;
+            data['gpu_use_global_pool'] = 'gpu_use_global_pool' in data;
             if (!('ephimeral-enabled' in data)) {
                 delete data['ephimeral-minutes'];
                 delete data['ephimeral-action'];
@@ -569,6 +570,12 @@ function actionsCategoryDetail() {
             } else {
                 $('#modalEditCategoryForm #maintenance').iCheck('uncheck').iCheck('update');
             }
+            // Default (field absent) = use the global GPU pool (own + global).
+            if (category['gpu_use_global_pool'] === false) {
+                $('#modalEditCategoryForm #gpu_use_global_pool').iCheck('uncheck').iCheck('update');
+            } else {
+                $('#modalEditCategoryForm #gpu_use_global_pool').iCheck('check').iCheck('update');
+            }
             // autoDesktopsShow('#modalEditCategoryForm', category)
             maxTimeEnabledShow('#modalEditCategoryForm')
             ephemeralDesktopsShow('#modalEditCategoryForm', category)
@@ -584,6 +591,7 @@ function actionsCategoryDetail() {
                 data['name'] = $('#modalEditCategoryForm #name').val();
                 data['frontend'] = 'frontend' in data;
                 data['maintenance'] = 'maintenance' in data;
+                data['gpu_use_global_pool'] = 'gpu_use_global_pool' in data;
                 if (!('ephimeral-enabled' in data)) {
                     delete data['ephimeral-minutes'];
                     delete data['ephimeral-action'];

@@ -49,6 +49,13 @@
       %}
         {% include '/snippets/form_field.html' %}
       {% endwith %}
+      {% with
+        name = "plannings",
+        label = "GPU Plannings",
+        type = "checkbox"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
     {% endwith %}
   </div>
 </div>
