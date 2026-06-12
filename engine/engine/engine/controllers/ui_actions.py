@@ -16,6 +16,7 @@ from rethinkdb import r
 
 from engine.models.domain_xml import (
     BUS_TYPES,
+    add_iothread_pinning,
     add_memory_backing,
     add_numa_pinning,
     add_qemu_pcie_reserve,
