@@ -515,6 +515,20 @@ class HypervisorsProcessed(RethinkSharedConnection):
         # Each step is best-effort and isolated: a failure here must not
         # prevent the hypervisor from registering. Mirrors apiv3 main.
         if nvidia_gpus:
+            # Persist the discovered GPU inventory on the record so the engine
+            # uses the normalized DB GPU-detection path (get_nvidia_capabilities
+            # _from_db) instead of the legacy libvirt scan, which stores raw
+            # product names ("RTX Pro 6000 Blackwell DC") that never match the
+            # normalized catalog model ("RTXPro6000BlackwellDC") and so drop the
+            # hypervisor from GPU placement. HypervisorModel has no nvidia_gpus
+            # field, so write it directly here (mirrors apiv3 main).
+            try:
+                with cls._rdb_context():
+                    r.table("hypervisors").get(hyper_id).update(
+                        {"nvidia_gpus": nvidia_gpus}
+                    ).run(cls._rdb_connection)
+            except Exception as e:
+                log.warning(f"Failed to persist nvidia_gpus: {e}")
             try:
                 cls.resolve_gpu_models(hyper_id, nvidia_gpus)
             except Exception as e:
