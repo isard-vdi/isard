@@ -67,7 +67,14 @@ def _process_vpn_change(change, wg_users, wg_hypers):
                 vpn_tunneling_mode = (new_val.get("vpn") or {}).get(
                     "tunneling_mode", "wireguard+geneve"
                 )
-                if vpn_tunneling_mode == "geneve":
+                # Gate on GENEVE_ONLY_INFRA too: on a fresh registration the
+                # record's vpn.tunneling_mode is not set yet (the api writes it
+                # in a separate update after the insert), so it defaults to
+                # "wireguard+geneve" and this insert event would wrongly take the
+                # WireGuard branch -- leaving the hypervisor's geneve tunnel (and
+                # its BFD session) never created until a vpn restart. The startup
+                # path already gates on this env, so mirror it here.
+                if vpn_tunneling_mode == "geneve" or geneve_only_infra:
                     hostname = new_val.get("hostname")
                     if hostname:
                         try:
@@ -77,21 +84,31 @@ def _process_vpn_change(change, wg_users, wg_hypers):
                             return
                         hyper_id = new_val["id"]
                         geneve_port = os.environ.get("WG_HYPERS_PORT", "4443")
-                        subprocess.run(
-                            [
-                                "ovs-vsctl",
-                                "add-port",
-                                "ovsbr0",
-                                hyper_id,
-                                "--",
-                                "set",
-                                "interface",
-                                hyper_id,
-                                "type=geneve",
-                                f"options:remote_ip={resolved_ip}",
-                                f"options:dst_port={geneve_port}",
-                            ]
-                        )
+                        # Idempotent: a re-registration fires this event again
+                        # (and the startup path may have already created the
+                        # port), so only add-port when it is missing -- mirrors
+                        # the startup existence guard.
+                        if (
+                            hyper_id
+                            not in check_output(
+                                ("ovs-vsctl", "show"), text=True
+                            ).strip()
+                        ):
+                            subprocess.run(
+                                [
+                                    "ovs-vsctl",
+                                    "add-port",
+                                    "ovsbr0",
+                                    hyper_id,
+                                    "--",
+                                    "set",
+                                    "interface",
+                                    hyper_id,
+                                    "type=geneve",
+                                    f"options:remote_ip={resolved_ip}",
+                                    f"options:dst_port={geneve_port}",
+                                ]
+                            )
                         subprocess.run(
                             [
                                 "ovs-vsctl",
