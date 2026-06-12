@@ -459,7 +459,9 @@ class StorageProcessed(RethinkSharedConnection):
                 .map(lambda doc: doc["right"])
                 .merge(
                     lambda storage: {
-                        "latest_status_time": storage["status_logs"][-1]["time"],
+                        "latest_status_time": storage["status_logs"][-1][
+                            "time"
+                        ].default(0),
                         "qemu-img-info": {
                             "full-backing-filename": storage["qemu-img-info"]
                             .default({})
