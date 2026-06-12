@@ -32,6 +32,7 @@ from isardvdi_common.configuration import Configuration
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from rethinkdb import r
 
@@ -39,7 +40,6 @@ from ....connections.api_notifier import send_verification_email
 from ....connections.api_sessions import get_user_session_id, revoke_user_session
 from ....helpers.api_notify import notify_admin
 from ....helpers.bastion import Bastion
-from ....helpers.caches import Caches
 from ....helpers.desktop_events import DesktopEvents
 from ....helpers.error_factory import Error
 from ....helpers.helpers import Helpers
@@ -1488,6 +1488,7 @@ class UsersProcessed(RethinkSharedConnection):
         with cls._rdb_context():
             # TODO(move-users-to-common): pydantic validation
             r.table("users").get(user_id).update(data).run(cls._rdb_connection)
+        Caches.invalidate_cache("users", user_id)
         UserStorage.isard_user_storage_update_user(
             user_id=user_id,
             email=data.get("email"),
