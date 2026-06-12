@@ -483,7 +483,15 @@ class HypervisorsProcessed(RethinkSharedConnection):
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
-            if result["unchanged"] or result["replaced"] or not previous_enabled:
+            # Mirrors upstream apiv3 (`not hypervisor["enabled"]`); the pre-port
+            # `previous_enabled` local was removed with the always-disabled
+            # re-registration but this read of it survived (NameError on the
+            # upsert-errors edge).
+            if (
+                result["unchanged"]
+                or result["replaced"]
+                or not hypervisor.get("enabled")
+            ):
                 pass
             else:
                 return {
