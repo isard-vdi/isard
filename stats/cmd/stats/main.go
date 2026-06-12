@@ -20,7 +20,6 @@ import (
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 func main() {
@@ -99,7 +98,7 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 
 	var sshPool *collector.SSHPool
 	if domain || socket {
-		kHosts, err := knownhosts.New(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))
+		hostKeyCB, err := collector.NewSelfHealingHostKeyCallback(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"), log)
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("read known hosts")
 		}
@@ -119,7 +118,7 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 			Auth: []ssh.AuthMethod{
 				ssh.PublicKeys(pKey),
 			},
-			HostKeyCallback: kHosts,
+			HostKeyCallback: hostKeyCB,
 		}
 
 		sshPool, err = collector.NewSSHPool(fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port), sshCfg, log)
