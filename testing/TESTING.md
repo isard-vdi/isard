@@ -232,19 +232,37 @@ unaffected.
 
 ### Python unit tests (uv)
 
-Every Python suite runs through `uv run --package <workspace-pkg> pytest`.
-The Makefile targets forward `PYTEST_COV_ARGS='__COV__'` to enable
-coverage reports under `component/*/src/htmlcov/`:
+Every Python suite runs through `uv run --package <workspace-pkg> pytest`
+with `--cov=<module>` always on. Coverage is measured on every run and a
+summary is printed to the terminal (no HTML report, no files written):
 
 ```bash
-make test-python              # all four suites
-make test-python-cov          # same, with HTML coverage
+make test-python              # all suites
 
 make test-apiv4               # API v4 only
 make test-common              # isardvdi_common only
 make test-change-handler      # change-handler only
 make test-changefeed          # changefeed only
+make test-socketio            # socketio only
+make test-openapi             # openapi only
+make test-notifier            # notifier only
+make test-scheduler           # scheduler only
+make test-webapp              # webapp only
+make test-apiv4-client        # apiv4 client only
+make test-vpn                 # vpn only
+make test-storage             # storage only
+make test-codegen             # codegen only
+make test-anonymize-db        # anonymize-db only
+make test-hypervisor          # hypervisor lib + ovs only
 ```
+
+The `test-*` and `ci-test-*` targets are generated from the `PY_PKGS`
+matrix in the `Makefile`; adding a workspace package with a suite means
+adding one row there, not writing two targets by hand. The exceptions are
+`ci-test-common` and `ci-test-change-handler`, which run under
+`docker/lib/ci-with-redis.sh` with a skip-count gate and so stay written
+out, and the suites that are not workspace packages at all
+(`test-vmalert`, `test-sparsify`, `ci-test-storage-utils`).
 
 Tests live at `component/<pkg>/src/<module>/tests/`. They use:
 

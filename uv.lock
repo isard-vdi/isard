@@ -4,7 +4,7 @@ requires-python = "==3.14.*"
 
 [manifest]
 members = [
-    "isard-anonymize-db",
+    "isardvdi-anonymize-db",
     "isardvdi-apiv4",
     "isardvdi-apiv4-client",
     "isardvdi-authentication-client",
@@ -755,7 +755,7 @@ wheels = [
 ]
 
 [[package]]
-name = "isard-anonymize-db"
+name = "isardvdi-anonymize-db"
 version = "0.1.0"
 source = { editable = "sysadm/anonymize-db" }
 dependencies = [
@@ -768,6 +768,8 @@ dependencies = [
 [package.dev-dependencies]
 test = [
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
 ]
 
 [package.metadata]
@@ -779,7 +781,11 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-test = [{ name = "pytest" }]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+]
 
 [[package]]
 name = "isardvdi-apiv4"
@@ -877,6 +883,8 @@ dependencies = [
 [package.dev-dependencies]
 test = [
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
 ]
 
 [package.metadata]
@@ -889,7 +897,11 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-test = [{ name = "pytest" }]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+]
 
 [[package]]
 name = "isardvdi-authentication-client"
@@ -927,6 +939,8 @@ dependencies = [
 [package.dev-dependencies]
 test = [
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
 ]
 
 [package.metadata]
@@ -939,7 +953,11 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-test = [{ name = "pytest" }]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+]
 
 [[package]]
 name = "isardvdi-change-handler"
@@ -1041,6 +1059,8 @@ dependencies = [
 test = [
     { name = "pydantic" },
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
 ]
 
 [package.metadata]
@@ -1057,6 +1077,8 @@ requires-dist = [
 test = [
     { name = "pydantic" },
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
 ]
 
 [[package]]
@@ -1225,12 +1247,26 @@ dependencies = [
     { name = "requests" },
 ]
 
+[package.dev-dependencies]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "isardvdi-apiv4-client", editable = "component/_common/isardvdi_apiv4_client" },
     { name = "pyjwt", specifier = "==2.13.0" },
     { name = "pythonping", specifier = "==1.1.4" },
     { name = "requests", specifier = "==2.34.2" },
+]
+
+[package.metadata.requires-dev]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
 ]
 
 [[package]]
@@ -1462,6 +1498,8 @@ dependencies = [
 [package.dev-dependencies]
 test = [
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
 ]
 
 [package.metadata]
@@ -1475,7 +1513,11 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-test = [{ name = "pytest" }]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+]
 
 [[package]]
 name = "isardvdi-testing"
@@ -1524,6 +1566,8 @@ dependencies = [
 [package.dev-dependencies]
 test = [
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
 ]
 
 [package.metadata]
@@ -1537,7 +1581,11 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-test = [{ name = "pytest" }]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+]
 
 [[package]]
 name = "isardvdi-webapp"

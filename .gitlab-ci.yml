@@ -205,7 +205,7 @@ warm-uv-cache:
     - apk add --no-cache git make
   script:
     - uv sync --frozen --no-dev --group test
-      --package isard-anonymize-db --package isardvdi-apiv4
+      --package isardvdi-anonymize-db --package isardvdi-apiv4
       --package isardvdi-changefeed --package isardvdi-change-handler
       --package isardvdi-codegen --package isardvdi-common
       --package isardvdi-notifier --package isardvdi-openapi
@@ -548,34 +548,19 @@ unit-test-common:
   script:
     - make ci-test-common
 
-unit-test-hypervisor-lib:
-  # Hypervisor GPU lib suites. Dependency-free
-  # pytest: the shared gpu modules load from
-  # component/_common/src/isardvdi_common/lib via gpu_probe._load_shared.
-  extends: .python-test-base
-  stage: unit-test
+unit-test-hypervisor:
+  # Hypervisor GPU lib suites (the shared gpu modules load from
+  # component/_common/src/isardvdi_common/lib via gpu_probe._load_shared) plus
+  # the OVS worker flow-generation suite for the per-interface lab_opts feature
+  # (ovs-worker.py is loaded via importlib and subprocess.run is monkeypatched,
+  # so no OVS bridge, root, or extra runtime deps are needed). The engine
+  # domain_xml lab_opts test rides unit-test-engine and the apiv4 validation
+  # test rides unit-test-apiv4.
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: docker/hypervisor/src
   script:
-    - make ci-test-hypervisor-lib
-  artifacts:
-    when: always
-    reports:
-      junit: docker/hypervisor/src/lib/report.xml
-
-unit-test-hypervisor-ovs:
-  # OVS worker flow-generation suite for the per-interface lab_opts feature
-  # Pure-stdlib pytest: ovs-worker.py is loaded via importlib and
-  # subprocess.run is monkeypatched, so no OVS bridge, root, or extra runtime
-  # deps are needed. The engine domain_xml lab_opts test rides unit-test-engine
-  # and the apiv4 validation test rides unit-test-apiv4; this closes the last
-  # gap (docker/hypervisor/src/ovs is not covered by unit-test-hypervisor-lib).
-  extends: .python-test-base
-  stage: unit-test
-  script:
-    - make ci-test-hypervisor-ovs
-  artifacts:
-    when: always
-    reports:
-      junit: docker/hypervisor/src/ovs/report.xml
+    - make ci-test-hypervisor
 
 check-codegen-freshness:
   # Catches commits that modify ``pkg/oas/apiv4/*.json`` / ``.proto`` /
@@ -633,53 +618,41 @@ unit-test-apiv4-client:
   # isardvdi_apiv4_client / isardvdi_apiv4_client_auth suites. The generated
   # isardvdi_apiv4_client/src tree is gitignored and produced by gen-protobuf,
   # so this job depends on it (like unit-test-apiv4 / unit-test-webapp).
-  extends: .python-test-base
-  stage: unit-test
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: component/_common/isardvdi_apiv4_client
   script:
     - make ci-test-apiv4-client
-  artifacts:
-    when: always
-    reports:
-      junit: component/_common/isardvdi_apiv4_client/report.xml
 
 unit-test-vpn:
   # isard-vpn wgtools/wgadmin/simple_iptools/db suites. test_wgadmin_dispatch
   # imports the generated changefeed_subscribers package (pkg/gen), so this
   # job depends on gen-protobuf via .python-test-base.
-  extends: .python-test-base
-  stage: unit-test
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: docker/vpn
   script:
     - make ci-test-vpn
-  artifacts:
-    when: always
-    reports:
-      junit: docker/vpn/report.xml
 
 unit-test-codegen:
   # Changefeed AsyncAPI / subscriber generator suites. One test compiles the
   # real generated changefeed_models tree (pkg/gen) when present, otherwise
   # skips; gen-protobuf (via .python-test-base) makes it present.
-  extends: .python-test-base
-  stage: unit-test
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: docker/codegen
   script:
     - make ci-test-codegen
-  artifacts:
-    when: always
-    reports:
-      junit: docker/codegen/report.xml
 
 unit-test-anonymize-db:
   # sysadm/anonymize-db scrub/prune/safety/streaming/fake-storage suites.
   # Self-contained (no generated code) but kept in the shared unit-test stage.
-  extends: .python-test-base
-  stage: unit-test
+  extends: .python-test-job
   needs: []
+  variables:
+    COVERAGE_DIR: sysadm/anonymize-db
   script:
     - make ci-test-anonymize-db
-  artifacts:
-    when: always
-    reports:
-      junit: sysadm/anonymize-db/report.xml
 
 unit-test-backupninja:
   # The nightly database backup path, run for real against a live RethinkDB.
@@ -695,20 +668,16 @@ unit-test-backupninja:
   # and digest as the stack's own isard-db (docker/db/Dockerfile), so CI
   # exercises the server version production runs. The image's default command is
   # already `rethinkdb --bind all`, so no override is needed.
-  extends: .python-test-base
-  stage: unit-test
+  extends: .python-test-job
   needs: []
   services:
     - name: rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a
       alias: rethinkdb
   variables:
+    COVERAGE_DIR: docker/backupninja
     ISARD_TEST_RETHINKDB: "rethinkdb:28015"
   script:
     - make ci-test-backupninja
-  artifacts:
-    when: always
-    reports:
-      junit: docker/backupninja/report.xml
 
 unit-test-webapp-js:
   # The webapp admin JS is served as plain files, so its suites are standalone
@@ -770,14 +739,11 @@ unit-test-storage:
   # reachable-mount guard. The storage package depends on the generated
   # isardvdi_apiv4_client, so this job depends on gen-protobuf via
   # .python-test-base.
-  extends: .python-test-base
-  stage: unit-test
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: docker/storage
   script:
     - make ci-test-storage
-  artifacts:
-    when: always
-    reports:
-      junit: docker/storage/report.xml
 
 docker-image:
   image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"

@@ -13,6 +13,8 @@ dependencies = [
 [dependency-groups]
 test = [
   "pytest",
+  "pytest-cov",
+  "pytest-xdist",
 ]
 
 [build-system]

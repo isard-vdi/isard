@@ -13,8 +13,10 @@ dependencies = [
 
 [dependency-groups]
 test = [
-  "pytest",
   "pydantic",
+  "pytest",
+  "pytest-cov",
+  "pytest-xdist",
 ]
 
 [build-system]

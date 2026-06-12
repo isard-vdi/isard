@@ -9,6 +9,13 @@ dependencies = [
   "requests==2.34.2",
 ]
 
+[dependency-groups]
+test = [
+  "pytest",
+  "pytest-cov",
+  "pytest-xdist",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

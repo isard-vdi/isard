@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.20
+
 FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS backupninja-src
 RUN apk add --no-cache automake autoconf bash gcc git make
 RUN git clone https://gitlab.com/isard/backupninja.git && \
@@ -16,6 +18,8 @@ ENV UV_COMPILE_BYTECODE=1 \
 RUN apk add --no-cache build-base libffi-dev libjpeg-turbo-dev musl-dev openssl-dev zlib-dev
 
 WORKDIR /workspace
+COPY --parents ./**/pyproject.toml ./uv.lock ./.python-version ./
+RUN uv sync --frozen --no-dev --package isardvdi-backupninja --no-editable --no-install-workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-backupninja --no-editable
 

@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.20
+
 ARG GOLANG_BUILD_IMAGE=golang:1.25.12-alpine3.24@sha256:56961d79ea8129efddcc0b8643fd8a5416b4e6228cfd477e3fd61deb2672c587
 
 FROM ${GOLANG_BUILD_IMAGE} AS rdpgw-build
@@ -22,6 +24,8 @@ RUN apk add --no-cache \
     musl-dev openssl-dev python3-dev
 
 WORKDIR /workspace
+COPY --parents ./**/pyproject.toml ./uv.lock ./.python-version ./
+RUN uv sync --frozen --no-dev --package isardvdi-vpn --no-editable --no-install-workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-vpn --no-editable
 

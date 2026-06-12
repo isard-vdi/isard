@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.20
+
 FROM debian:12-slim@sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716 AS ovmf
 RUN apt-get update && apt-get install -y ovmf && rm -rf /var/lib/apt/lists/*
 
@@ -48,6 +50,8 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/.venv
 RUN apk add --no-cache build-base cargo git libffi-dev make musl-dev openssl-dev py3-docutils python3-dev uuidgen
 
 WORKDIR /workspace
+COPY --parents ./**/pyproject.toml ./uv.lock ./.python-version ./
+RUN uv sync --frozen --no-dev --package isardvdi-hypervisor --no-editable --no-install-workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-hypervisor --no-editable
 

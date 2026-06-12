@@ -211,7 +211,7 @@ wheels = [
 ]
 
 [[package]]
-name = "isard-anonymize-db"
+name = "isardvdi-anonymize-db"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
