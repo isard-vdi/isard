@@ -290,7 +290,7 @@ class NewTemplateRequest(BaseModel):
         description="Description of the template.",
         max_length=255,
     )
-    allowed: AllowedBase = Field(
+    allowed: Allowed = Field(
         description="Permissions for the template.",
     )
     enabled: bool = Field(
