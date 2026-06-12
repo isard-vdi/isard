@@ -240,7 +240,12 @@ while True:
                             .get("vpn", {})
                             .get("tunneling_mode", "wireguard+geneve")
                         )
-                        if vpn_tunneling_mode == "geneve":
+                        # A fresh hypervisor INSERT has no vpn.tunneling_mode yet
+                        # (the api sets it in a later update), so on a geneve-only
+                        # infra fall back to the env flag instead of the WireGuard
+                        # branch -- otherwise the geneve port/BFD is never created
+                        # until the vpn is restarted (startup path).
+                        if vpn_tunneling_mode == "geneve" or geneve_only_infra:
                             # Geneve-only: add OVS port directly
                             hostname = data["new_val"].get("hostname")
                             if hostname:
@@ -251,76 +256,84 @@ while True:
                                     continue
                                 hyper_id = data["new_val"]["id"]
                                 geneve_port = os.environ.get("WG_HYPERS_PORT", "4443")
-                                subprocess.run(
-                                    [
-                                        "ovs-vsctl",
-                                        "add-port",
-                                        "ovsbr0",
-                                        hyper_id,
-                                        "--",
-                                        "set",
-                                        "interface",
-                                        hyper_id,
-                                        "type=geneve",
-                                        f"options:remote_ip={resolved_ip}",
-                                        f"options:dst_port={geneve_port}",
-                                    ]
-                                )
-                                subprocess.run(
-                                    [
-                                        "ovs-vsctl",
-                                        "set",
-                                        "Interface",
-                                        hyper_id,
-                                        "bfd:enable=true",
-                                        "bfd:min_tx=1000",
-                                        "bfd:min_rx=1000",
-                                    ]
-                                )
-                                port = check_output(
-                                    (
-                                        "ovs-vsctl",
-                                        "get",
-                                        "interface",
-                                        hyper_id,
-                                        "ofport",
-                                    ),
-                                    text=True,
-                                ).strip()
-                                vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
-                                subprocess.run(
-                                    [
-                                        "ovs-ofctl",
-                                        "add-flow",
-                                        "ovsbr0",
-                                        f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=NORMAL",
-                                    ]
-                                )
-                                subprocess.run(
-                                    [
-                                        "ovs-ofctl",
-                                        "add-flow",
-                                        "ovsbr0",
-                                        f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},tp_src=68,tp_dst=67,actions=NORMAL",
-                                    ]
-                                )
-                                subprocess.run(
-                                    [
-                                        "ovs-ofctl",
-                                        "add-flow",
-                                        "ovsbr0",
-                                        f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=resubmit(,2)",
-                                    ]
-                                )
-                                subprocess.run(
-                                    [
-                                        "ovs-ofctl",
-                                        "add-flow",
-                                        "ovsbr0",
-                                        f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
-                                    ]
-                                )
-                                log.info(f"Added geneve-only hypervisor {hyper_id}")
+                                # Idempotent: a repeat Added event / re-register
+                                # must not error on an already-present OVS port.
+                                if (
+                                    hyper_id
+                                    not in check_output(
+                                        ("ovs-vsctl", "show"), text=True
+                                    ).strip()
+                                ):
+                                    subprocess.run(
+                                        [
+                                            "ovs-vsctl",
+                                            "add-port",
+                                            "ovsbr0",
+                                            hyper_id,
+                                            "--",
+                                            "set",
+                                            "interface",
+                                            hyper_id,
+                                            "type=geneve",
+                                            f"options:remote_ip={resolved_ip}",
+                                            f"options:dst_port={geneve_port}",
+                                        ]
+                                    )
+                                    subprocess.run(
+                                        [
+                                            "ovs-vsctl",
+                                            "set",
+                                            "Interface",
+                                            hyper_id,
+                                            "bfd:enable=true",
+                                            "bfd:min_tx=1000",
+                                            "bfd:min_rx=1000",
+                                        ]
+                                    )
+                                    port = check_output(
+                                        (
+                                            "ovs-vsctl",
+                                            "get",
+                                            "interface",
+                                            hyper_id,
+                                            "ofport",
+                                        ),
+                                        text=True,
+                                    ).strip()
+                                    vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
+                                    subprocess.run(
+                                        [
+                                            "ovs-ofctl",
+                                            "add-flow",
+                                            "ovsbr0",
+                                            f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=NORMAL",
+                                        ]
+                                    )
+                                    subprocess.run(
+                                        [
+                                            "ovs-ofctl",
+                                            "add-flow",
+                                            "ovsbr0",
+                                            f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},tp_src=68,tp_dst=67,actions=NORMAL",
+                                        ]
+                                    )
+                                    subprocess.run(
+                                        [
+                                            "ovs-ofctl",
+                                            "add-flow",
+                                            "ovsbr0",
+                                            f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=resubmit(,2)",
+                                        ]
+                                    )
+                                    subprocess.run(
+                                        [
+                                            "ovs-ofctl",
+                                            "add-flow",
+                                            "ovsbr0",
+                                            f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
+                                        ]
+                                    )
+                                    log.info(f"Added geneve-only hypervisor {hyper_id}")
                         elif wg_hypers is not None:
                             wg_hypers.add_peer(data["new_val"])
                         else:
