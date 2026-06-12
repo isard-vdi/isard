@@ -410,13 +410,13 @@ def test_set_delete_action(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/item/recycle-bin/config/delete-action/permanent",
+        url="/item/recycle-bin/config/delete-action/move",
         method="PUT",
         jwt=jwt,
     )
 
     assert response.status_code == 204
-    assert calls == ["permanent"]
+    assert calls == ["move"]
 
 
 def test_set_default_delete(monkeypatch, test_client):
@@ -496,9 +496,9 @@ def test_create_unused_item_timeout_rule_accepts_webapp_payload(
         method="POST",
         body={
             "name": "Old desktops",
-            "description": "Older than 30 days",
+            "description": "Older than 1 month",
             "op": "send_unused_desktops_to_recycle_bin",
-            "cutoff_time": 720,
+            "cutoff_time": 1,
             "priority": 10,
         },
         jwt=jwt,
@@ -508,7 +508,7 @@ def test_create_unused_item_timeout_rule_accepts_webapp_payload(
     assert response.json() == {"id": "rule-new"}
     assert captured["name"] == "Old desktops"
     assert captured["op"] == "send_unused_desktops_to_recycle_bin"
-    assert captured["cutoff_time"] == 720
+    assert captured["cutoff_time"] == 1
     assert captured["priority"] == 10
 
 
@@ -566,7 +566,7 @@ def test_update_unused_item_timeout_rule_persists_priority(monkeypatch, test_cli
             "name": "Old desktops v2",
             "description": "Updated",
             "op": "send_unused_desktops_to_recycle_bin",
-            "cutoff_time": 1440,
+            "cutoff_time": 12,
             "priority": 20,
         },
         jwt=jwt,
@@ -575,7 +575,7 @@ def test_update_unused_item_timeout_rule_persists_priority(monkeypatch, test_cli
     assert response.status_code == 204
     assert captured["rule_id"] == "rule-1"
     assert captured["priority"] == 20
-    assert captured["cutoff_time"] == 1440
+    assert captured["cutoff_time"] == 12
 
 
 def test_get_system_cutoff_time(monkeypatch, test_client):
@@ -589,6 +589,28 @@ def test_get_system_cutoff_time(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert response.json()["recycle_bin_cuttoff_time"] == 60
+
+
+def test_get_system_cutoff_time_manager(monkeypatch, test_client):
+    """Managers get the {category, system} breakdown the webapp reads to cap
+    the dropdown; the response schema must not narrow it to a bare int."""
+    jwt = MockJWT(role_id="manager", category_id="cat-1")
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.get_system_cutoff_time",
+        staticmethod(lambda category_id=None: {"category": 24, "system": 48}),
+    )
+
+    response = test_client(
+        url="/item/recycle-bin/system/cutoff-time",
+        jwt=jwt,
+        db_tables_data={"categories": [{"id": "cat-1", "maintenance": False}]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["recycle_bin_cuttoff_time"] == {
+        "category": 24,
+        "system": 48,
+    }
 
 
 def test_set_system_cutoff_time(monkeypatch, test_client):

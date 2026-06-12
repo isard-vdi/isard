@@ -19,19 +19,22 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional, Union
 
 from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from pydantic import BaseModel, Field
 
 from .allowed import Allowed
 
+# Months offered by the webapp dropdown (recyclebin_config_modals.html); null = disabled.
+UnusedItemCutoffTime = Literal[1, 2, 3, 4, 5, 6, 12]
+
 
 class DeleteActionEnum(str, Enum):
     """Action to perform when deleting items."""
 
-    recycle = "recycle"
-    permanent = "permanent"
+    move = "move"
+    delete = "delete"
 
 
 class OldEntriesActionEnum(str, Enum):
@@ -188,10 +191,21 @@ class RecycleBinSetDefaultDeleteRequest(BaseModel):
     rb_default: bool
 
 
-class RecycleBinSystemCutoffTimeResponse(BaseModel):
-    """System-wide recycle bin cutoff time."""
+class RecycleBinCategoryCutoffTime(BaseModel):
+    """Manager view: the category's effective cutoff and the system ceiling."""
 
-    recycle_bin_cuttoff_time: int
+    category: Optional[int] = None
+    system: Optional[int] = None
+
+
+class RecycleBinSystemCutoffTimeResponse(BaseModel):
+    """System-wide recycle bin cutoff time.
+
+    Admins get a bare int; managers get the {category, system} breakdown the
+    webapp uses to cap the dropdown (recyclebin_domains.js:839-848).
+    """
+
+    recycle_bin_cuttoff_time: Union[int, RecycleBinCategoryCutoffTime, None]
 
 
 class RecycleBinUpdateCutoffTimeRequest(BaseModel):
@@ -206,8 +220,9 @@ class UnusedItemTimeoutRule(BaseModel):
     Mirrors apiv3 ``main:api/src/api/schemas/unused_item_timeout.yml``:
     ``op`` selects which scheduler hook the rule applies to (e.g.
     ``send_unused_desktops_to_recycle_bin``); ``cutoff_time`` is the
-    threshold in hours after which the action fires (nullable for
-    "never"); ``priority`` orders rules with overlapping allowed-sets;
+    threshold in months (scheduler multiplies by 30 days) after which the
+    action fires (nullable for "never"); ``priority`` orders rules with
+    overlapping allowed-sets;
     ``allowed`` scopes the rule by users/groups/categories/roles.
     """
 
@@ -231,7 +246,7 @@ class UnusedItemTimeoutRuleCreateRequest(BaseModel):
     name: str = Field(max_length=50)
     description: str = Field(default="", max_length=255)
     op: str
-    cutoff_time: Optional[int] = None
+    cutoff_time: Optional[UnusedItemCutoffTime] = None
     priority: int
     allowed: Optional[Allowed] = None
 
@@ -246,7 +261,7 @@ class UnusedItemTimeoutRuleUpdateRequest(BaseModel):
     name: Optional[str] = Field(default=None, max_length=50)
     description: Optional[str] = Field(default=None, max_length=255)
     op: Optional[str] = None
-    cutoff_time: Optional[int] = None
+    cutoff_time: Optional[UnusedItemCutoffTime] = None
     priority: Optional[int] = None
     allowed: Optional[Allowed] = None
 

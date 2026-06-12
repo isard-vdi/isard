@@ -876,11 +876,9 @@ class Helpers(RethinkSharedConnection):
             ),
             "groups": r.row["groups_count"].default(r.row["groups"].count()),
             "users": r.row["users_count"].default(r.row["users"].count()),
-            "last": r.row["last_log"].default(
-                r.row["logs"].default([]).nth(-1).default(None)
-            ),
+            "last": r.row["last_log"].default(r.row["logs"][-1]),
         }
-        query = query.without("logs", "tasks").merge(count_query)
+        query = query.merge(count_query).without("logs", "tasks")
         with cls._rdb_context():
             return list(query.run(cls._rdb_connection))
 
@@ -1012,10 +1010,12 @@ class Helpers(RethinkSharedConnection):
                 .pluck("category")["category"]
                 .run(cls._rdb_connection)
             )
+            # default(None) when the legacy category row lacks the field, so the fallback below fires
             cutoff_time = (
                 r.table("categories")
                 .get(user_category)
                 .pluck("recycle_bin_cutoff_time")["recycle_bin_cutoff_time"]
+                .default(None)
                 .run(cls._rdb_connection)
             )
         return (
@@ -1377,6 +1377,12 @@ class RecycleBin(RethinkSharedConnection):
                 self.agent_category_name,
                 self.agent_role,
             )
+            # A new recycled entry must show up immediately; without this the
+            # 60 s ``get_item_count`` cache hides it from the recycle bin list.
+            Helpers.clear_get_item_count_cache()
+            Helpers.clear_get_count_cache()
+            Helpers.clear_get_user_amount_cache()
+            Helpers.clear_get_user_recycle_bin_ids_cache()
 
         else:
             with self._rdb_context():
