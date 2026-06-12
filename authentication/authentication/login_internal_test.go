@@ -144,13 +144,13 @@ func TestStartLogin(t *testing.T) {
 					return req.Name == "category" && req.ParentCategory.Value == "default" && req.ExternalGid.Value == "my group ID"
 				})).Return(&apiv4.AdminGroup{
 					ID:  "uuid here!",
-					UID: apiv4.NewOptString("uuid here!"),
+					UID: "uuid here!",
 				}, nil)
 				c.On("AdminCreateGroup", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AdminGroupCreateData) bool {
 					return req.Name == "category" && req.ParentCategory.Value == "default" && req.ExternalGid.Value == "other secondary group"
 				})).Return(&apiv4.AdminGroup{
 					ID:  "uuid here!",
-					UID: apiv4.NewOptString("uuid here!"),
+					UID: "uuid here!",
 				}, nil)
 				c.On("AdminAutoRegister", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AutoRegisterRequest) bool {
 					return req.RoleID == "advanced" && req.GroupID == "uuid here!"

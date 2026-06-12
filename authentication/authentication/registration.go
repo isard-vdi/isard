@@ -62,7 +62,7 @@ func (a *Authentication) registerGroup(ctx context.Context, g *model.Group) erro
 	}
 
 	g.ID = grp.ID
-	g.UID = grp.UID.Or("")
+	g.UID = grp.UID
 
 	return nil
 }

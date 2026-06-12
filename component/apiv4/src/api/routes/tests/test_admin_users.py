@@ -601,6 +601,7 @@ def test_admin_list_groups(monkeypatch, test_client):
     stub = [
         {
             "id": "group-1",
+            "uid": "group-1",
             "name": "Group 1",
             "parent_category": "cat-1",
             "description": "Test group",
@@ -625,6 +626,7 @@ def test_admin_get_group(monkeypatch, test_client):
     jwt = MockJWT()
     stub = {
         "id": "group-1",
+        "uid": "group-1",
         "name": "Group 1",
         "parent_category": "cat-1",
         "description": "Test",
@@ -653,6 +655,7 @@ def test_admin_create_group(monkeypatch, test_client):
         captured["parent_category"] = data["parent_category"]
         return {
             "id": "group-new",
+            "uid": "group-new",
             "name": "New Group",
             "parent_category": "default",
         }
@@ -692,7 +695,7 @@ def test_admin_create_group_accepts_null_external_ids(monkeypatch, test_client):
             "id": "group-new",
             "name": data["name"],
             "parent_category": data["parent_category"],
-            "uid": None,
+            "uid": "group-new",
             "external_app_id": None,
             "external_gid": None,
             "description": "[default] A test group",
