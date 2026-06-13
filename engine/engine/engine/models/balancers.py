@@ -311,8 +311,9 @@ class BalancerInterface:
 
         # If no hypervisor with gpu available and online, return False
         if hypervisor == False:
-            logs.hmlog.error(
-                f"No hypervisor with gpu {gpu_profile} available in pool {self.id_pool}"
+            logs.hmlog.warning(
+                f"No GPU capacity for profile {gpu_profile} in pool {self.id_pool}: "
+                f"all matching cards in use or no GPU hypervisor online"
             )
             return False, {}
 
@@ -514,9 +515,9 @@ class BalancerInterface:
 
         if len(hypers_w_threads) == 0:
             logs.main.debug("####################### BALANCER #######################")
-            logs.main.error(
-                "No GPU hypervisors online with profile %s to execute next virt action."
-                % gpu_profile
+            logs.main.warning(
+                "No GPU capacity for profile %s: all matching cards in use or no "
+                "GPU hypervisor online." % gpu_profile
             )
             return False, {}
         if len(hypers_w_threads) == 1:

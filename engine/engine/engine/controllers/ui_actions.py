@@ -843,8 +843,9 @@ class UiActions(object):
                     )
                     return False
                 detail = (
-                    f"desktop not started: no hypervisors online in pool {pool_id} "
-                    f"with GPU profile {gpu_profiles}"
+                    f"No GPU capacity available for profile {gpu_profiles}: all "
+                    f"matching GPU cards are in use, or no GPU hypervisor is online "
+                    f"in pool {pool_id}. Free a GPU desktop or add capacity, then retry."
                 )
             else:
                 detail = f"desktop not started: no hypervisors online in pool {pool_id}"
