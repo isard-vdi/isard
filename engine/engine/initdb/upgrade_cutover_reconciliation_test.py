@@ -13,7 +13,11 @@ imported bare: humanfriendly, rethinkdb, config) and pin:
   (``.default(False)``) so the cutover pass cannot clobber an
   operator-enabled flag a main-lineage DB already carries;
 * the three id-less v193 inserts are existence-guarded so a main-lineage
-  DB (which ran the same inserts as its v188) cannot duplicate them.
+  DB (which ran the same inserts as its v188) cannot duplicate them;
+* the v196 domains block carries the apiv4-and-websockets v178 create_dict
+  hardware backfill (disk_bus/isos/floppies/personal_vlans), each
+  has_fields-guarded, and the recycle_bin block backfills its count fields
+  guarded on desktops_count absence.
 """
 
 import ast
@@ -95,3 +99,45 @@ def test_v193_inserts_are_existence_guarded():
             f"{fn}: v193 insert must be preceded by an existence guard "
             f"(id-less documents duplicate on the cutover re-run)"
         )
+
+
+def _v196_block(fn_name):
+    """The text of the ``if version == 196:`` block in a table function,
+    bounded by the next ``if version ==`` or the function end."""
+    versions, seg = _FUNCS[fn_name]
+    assert "196" in versions, fn_name
+    block = seg[seg.index("if version == 196:") :]
+    nxt = block.find("if version ==", len("if version == 196:"))
+    return block if nxt == -1 else block[:nxt]
+
+
+def test_v196_domains_backfills_create_dict_hardware_fields():
+    # Port of apiv4-and-websockets v178: legacy domains migrated to this lineage
+    # never ran AW's backfill, and _common reads these unguarded. Consolidated
+    # form: ONE filter (literal has_fields per field, .default({})-guarded
+    # parents) + ONE update with .default() per field. Match against a
+    # whitespace-collapsed block so black's line-wrapping of the .default({})
+    # chains does not break the assertions.
+    flat = re.sub(r"\s+", "", _v196_block("domains"))
+    for field, default in (
+        ('"disk_bus"', '"default"'),
+        ('"isos"', "[]"),
+        ('"floppies"', "[]"),
+        ('"personal_vlans"', "False"),
+    ):
+        assert field in flat, f"missing backfill for {field}"
+        assert default in flat, f"missing default {default} for {field}"
+        # each field selected via a literal has_fields(...).not_() term
+        assert f"has_fields({field})" in flat, f"missing has_fields({field}) guard"
+    # superset-repair: parents .default({})-guarded so malformed (missing
+    # create_dict/hardware) rows are repaired, not skipped
+    assert 'd["create_dict"].default({})["hardware"].default({})' in flat
+    # reservables is intentionally excluded (v164 covers it) -- never add it
+    assert '"reservables"' not in flat
+
+
+def test_v196_recycle_bin_count_backfill_is_guarded():
+    block = _v196_block("storage")
+    assert "desktops_count" in block
+    # guarded on absence so it is a no-op on apiv4-lineage DBs
+    assert 'has_fields("desktops_count")' in block

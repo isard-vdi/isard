@@ -1246,7 +1246,10 @@ password:s:%s"""
 
     def hypervisors(self, version):
         table = "hypervisors"
-        data = list(r.table(table).run(self.conn))
+        # Pre-178 blocks iterate this snapshot; 178+ (incl. the 190->197 cutover)
+        # is server-side and never reads it. Skip the full-table load (100K+ rows
+        # on big installs, otherwise materialised once per version call).
+        data = list(r.table(table).run(self.conn)) if version < 178 else []
         log.info("UPGRADING " + table + " VERSION " + str(version))
         if version == 1:
             for d in data:
@@ -1601,7 +1604,10 @@ password:s:%s"""
 
     def hypervisors_pools(self, version):
         table = "hypervisors_pools"
-        data = list(r.table(table).run(self.conn))
+        # Pre-178 blocks iterate this snapshot; 178+ (incl. the 190->197 cutover)
+        # is server-side and never reads it. Skip the full-table load (100K+ rows
+        # on big installs, otherwise materialised once per version call).
+        data = list(r.table(table).run(self.conn)) if version < 178 else []
         log.info("UPGRADING " + table + " VERSION " + str(version))
         if version == 1 or version == 3:
             for d in data:
@@ -1755,7 +1761,10 @@ password:s:%s"""
 
     def domains(self, version):
         table = "domains"
-        data = list(r.table(table).run(self.conn))
+        # Pre-178 blocks iterate this snapshot; 178+ (incl. the 190->197 cutover)
+        # is server-side and never reads it. Skip the full-table load (100K+ rows
+        # on big installs, otherwise materialised once per version call).
+        data = list(r.table(table).run(self.conn)) if version < 178 else []
         log.info("UPGRADING " + table + " VERSION " + str(version))
         if version == 2:
             for d in data:
@@ -3746,8 +3755,10 @@ password:s:%s"""
 
         if version == 196:
             # Cutover reconciliation: apiv4-only v184 tag_desktop_id mapping +
-            # the v184/v185 apiv4 pagination indexes. The mapping update only
-            # touches rows still missing tag_desktop_id; index creation is
+            # the v184/v185 apiv4 pagination indexes + the apiv4-and-websockets
+            # v178 create_dict hardware backfill (disk_bus/isos/floppies/
+            # personal_vlans, added at the end of this block). The mapping update
+            # only touches rows still missing tag_desktop_id; index creation is
             # guarded on index_list.
             try:
                 deployments = list(
@@ -3798,6 +3809,74 @@ password:s:%s"""
                         r.table(table).index_wait(index_name).run(self.conn)
                 except Exception as e:
                     print(e)
+            # Port of apiv4-and-websockets v178 (SUPERSET): backfill create_dict
+            # hardware fields (+ personal_vlans) on legacy domains migrated here
+            # without ever running AW's private v178 (the fork minted 178-181
+            # after the shared v177; this branch inherits main's numbering, so
+            # AW's backfill ran in NO deployed lineage). _common reads these
+            # unguarded (quotas.py, models/deployment.py, lib/users/.../user.py)
+            # -> KeyError on a 100K-domain cutover. Parents are .default({})-
+            # guarded on BOTH the filter and the update, so a malformed row
+            # missing create_dict/hardware (exactly a row that would KeyError in
+            # _common) is REPAIRED, not skipped -- a deliberate divergence from
+            # strict v178. One scan + one targeted update; .default() per field
+            # preserves already-present values. reservables is excluded -- v164
+            # backfills create_dict.reservables.
+            try:
+                ids = list(
+                    r.table(table)
+                    .filter(
+                        lambda d: d["create_dict"]
+                        .default({})["hardware"]
+                        .default({})
+                        .has_fields("disk_bus")
+                        .not_()
+                        | d["create_dict"]
+                        .default({})["hardware"]
+                        .default({})
+                        .has_fields("isos")
+                        .not_()
+                        | d["create_dict"]
+                        .default({})["hardware"]
+                        .default({})
+                        .has_fields("floppies")
+                        .not_()
+                        | d["create_dict"]
+                        .default({})
+                        .has_fields("personal_vlans")
+                        .not_()
+                    )["id"]
+                    .run(self.conn)
+                )
+                if ids:
+                    r.table(table).get_all(r.args(ids)).update(
+                        lambda d: {
+                            "create_dict": {
+                                "hardware": {
+                                    "disk_bus": d["create_dict"]
+                                    .default({})["hardware"]
+                                    .default({})["disk_bus"]
+                                    .default("default"),
+                                    "isos": d["create_dict"]
+                                    .default({})["hardware"]
+                                    .default({})["isos"]
+                                    .default([]),
+                                    "floppies": d["create_dict"]
+                                    .default({})["hardware"]
+                                    .default({})["floppies"]
+                                    .default([]),
+                                },
+                                "personal_vlans": d["create_dict"]
+                                .default({})["personal_vlans"]
+                                .default(False),
+                            }
+                        }
+                    ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    "v196 cutover: domains create_dict hardware backfill "
+                    f"(disk_bus/isos/floppies/personal_vlans) failed: {e}"
+                )
         return True
 
     """
@@ -3806,7 +3885,10 @@ password:s:%s"""
 
     def deployments(self, version):
         table = "deployments"
-        data = list(r.table(table).run(self.conn))
+        # Pre-178 blocks iterate this snapshot; 178+ (incl. the 190->197 cutover)
+        # is server-side and never reads it. Skip the full-table load (100K+ rows
+        # on big installs, otherwise materialised once per version call).
+        data = list(r.table(table).run(self.conn)) if version < 178 else []
         log.info("UPGRADING " + table + " VERSION " + str(version))
 
         if version == 18:
@@ -4730,28 +4812,44 @@ password:s:%s"""
             # the apiv4-only v184 deployment_users quota/limits split for
             # main-lineage DBs that never ran it. Guarded on key ABSENCE so an
             # apiv4-lineage DB (or an admin-tuned value) is never overwritten.
-            for field in ("quota", "limits"):
-                rows = list(
-                    r.table(table)
-                    .filter(lambda row: r.not_(row[field] == False))
-                    .run(self.conn)
-                )
-                for row in rows:
-                    values = row[field] or {}
-                    if "deployment_users" not in values:
-                        r.table(table).get(row["id"]).update(
-                            {
-                                field: {
-                                    "deployment_users": values.get(
-                                        "deployment_desktops", 999
-                                    )
+            # Server-side single pass per field (was a per-row Python loop ->
+            # up to 20K round-trips on users). Select rows where the field is
+            # set (!= False) and lacks deployment_users; fill it from the old
+            # deployment_desktops (default 999). For quota, also reset
+            # deployment_desktops to 999 in the SAME update -- the lambda reads
+            # the original row, so deployment_users still captures the old value.
+            try:
+                for field in ("quota", "limits"):
+                    selected = r.table(table).filter(
+                        lambda row: r.not_(row[field] == False)
+                        & row[field].default({}).has_fields("deployment_users").not_()
+                    )
+                    if field == "quota":
+                        selected.update(
+                            lambda row: {
+                                "quota": {
+                                    "deployment_users": row["quota"]
+                                    .default({})["deployment_desktops"]
+                                    .default(999),
+                                    "deployment_desktops": 999,
                                 }
                             }
                         ).run(self.conn)
-                        if field == "quota":
-                            r.table(table).get(row["id"]).update(
-                                {"quota": {"deployment_desktops": 999}}
-                            ).run(self.conn)
+                    else:
+                        selected.update(
+                            lambda row: {
+                                field: {
+                                    "deployment_users": row[field]
+                                    .default({})["deployment_desktops"]
+                                    .default(999)
+                                }
+                            }
+                        ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    f"v196 cutover: {table} deployment_users quota/limits "
+                    f"split failed: {e}"
+                )
         return True
 
     """
@@ -5392,28 +5490,44 @@ password:s:%s"""
             # the apiv4-only v184 deployment_users quota/limits split for
             # main-lineage DBs that never ran it. Guarded on key ABSENCE so an
             # apiv4-lineage DB (or an admin-tuned value) is never overwritten.
-            for field in ("quota", "limits"):
-                rows = list(
-                    r.table(table)
-                    .filter(lambda row: r.not_(row[field] == False))
-                    .run(self.conn)
-                )
-                for row in rows:
-                    values = row[field] or {}
-                    if "deployment_users" not in values:
-                        r.table(table).get(row["id"]).update(
-                            {
-                                field: {
-                                    "deployment_users": values.get(
-                                        "deployment_desktops", 999
-                                    )
+            # Server-side single pass per field (was a per-row Python loop ->
+            # up to 20K round-trips on users). Select rows where the field is
+            # set (!= False) and lacks deployment_users; fill it from the old
+            # deployment_desktops (default 999). For quota, also reset
+            # deployment_desktops to 999 in the SAME update -- the lambda reads
+            # the original row, so deployment_users still captures the old value.
+            try:
+                for field in ("quota", "limits"):
+                    selected = r.table(table).filter(
+                        lambda row: r.not_(row[field] == False)
+                        & row[field].default({}).has_fields("deployment_users").not_()
+                    )
+                    if field == "quota":
+                        selected.update(
+                            lambda row: {
+                                "quota": {
+                                    "deployment_users": row["quota"]
+                                    .default({})["deployment_desktops"]
+                                    .default(999),
+                                    "deployment_desktops": 999,
                                 }
                             }
                         ).run(self.conn)
-                        if field == "quota":
-                            r.table(table).get(row["id"]).update(
-                                {"quota": {"deployment_desktops": 999}}
-                            ).run(self.conn)
+                    else:
+                        selected.update(
+                            lambda row: {
+                                field: {
+                                    "deployment_users": row[field]
+                                    .default({})["deployment_desktops"]
+                                    .default(999)
+                                }
+                            }
+                        ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    f"v196 cutover: {table} deployment_users quota/limits "
+                    f"split failed: {e}"
+                )
         return True
 
     """
@@ -6103,7 +6217,8 @@ password:s:%s"""
 
         if version == 196:
             # Cutover reconciliation: apiv4-only v187 recycle_bin compound
-            # indexes (pentest-surfaced 500s when missing).
+            # indexes (pentest-surfaced 500s when missing) + the v187
+            # pre-computed count/last_log backfill.
             table = "recycle_bin"
             for index_name, index_def in (
                 ("status_accessed", [r.row["status"], r.row["accessed"]]),
@@ -6124,6 +6239,33 @@ password:s:%s"""
                         r.table(table).index_wait(index_name).run(self.conn)
                 except Exception as e:
                     print(e)
+            # Backfill pre-computed count fields + last_log on rows predating
+            # apiv4 v187. Guarded on desktops_count absence -> no-op on
+            # apiv4-lineage DBs. Consumers (helpers/recycle_bin.py) already
+            # .default() to a live recompute, so this is perf-only.
+            try:
+                ids = list(
+                    r.table(table)
+                    .filter(lambda rb: rb.has_fields("desktops_count").not_())["id"]
+                    .run(self.conn)
+                )
+                if ids:
+                    r.table(table).get_all(r.args(ids)).update(
+                        lambda rb: {
+                            "desktops_count": rb["desktops"].default([]).count(),
+                            "templates_count": rb["templates"].default([]).count(),
+                            "storages_count": rb["storages"].default([]).count(),
+                            "deployments_count": rb["deployments"].default([]).count(),
+                            "categories_count": rb["categories"].default([]).count(),
+                            "groups_count": rb["groups"].default([]).count(),
+                            "users_count": rb["users"].default([]).count(),
+                            "last_log": rb["logs"].default([]).nth(-1).default(None),
+                        }
+                    ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    f"v196 cutover: recycle_bin count/last_log backfill failed: {e}"
+                )
         return True
 
     def gpu_profiles(self, version):
@@ -6665,28 +6807,44 @@ password:s:%s"""
             # the apiv4-only v184 deployment_users quota/limits split for
             # main-lineage DBs that never ran it. Guarded on key ABSENCE so an
             # apiv4-lineage DB (or an admin-tuned value) is never overwritten.
-            for field in ("quota", "limits"):
-                rows = list(
-                    r.table(table)
-                    .filter(lambda row: r.not_(row[field] == False))
-                    .run(self.conn)
-                )
-                for row in rows:
-                    values = row[field] or {}
-                    if "deployment_users" not in values:
-                        r.table(table).get(row["id"]).update(
-                            {
-                                field: {
-                                    "deployment_users": values.get(
-                                        "deployment_desktops", 999
-                                    )
+            # Server-side single pass per field (was a per-row Python loop ->
+            # up to 20K round-trips on users). Select rows where the field is
+            # set (!= False) and lacks deployment_users; fill it from the old
+            # deployment_desktops (default 999). For quota, also reset
+            # deployment_desktops to 999 in the SAME update -- the lambda reads
+            # the original row, so deployment_users still captures the old value.
+            try:
+                for field in ("quota", "limits"):
+                    selected = r.table(table).filter(
+                        lambda row: r.not_(row[field] == False)
+                        & row[field].default({}).has_fields("deployment_users").not_()
+                    )
+                    if field == "quota":
+                        selected.update(
+                            lambda row: {
+                                "quota": {
+                                    "deployment_users": row["quota"]
+                                    .default({})["deployment_desktops"]
+                                    .default(999),
+                                    "deployment_desktops": 999,
                                 }
                             }
                         ).run(self.conn)
-                        if field == "quota":
-                            r.table(table).get(row["id"]).update(
-                                {"quota": {"deployment_desktops": 999}}
-                            ).run(self.conn)
+                    else:
+                        selected.update(
+                            lambda row: {
+                                field: {
+                                    "deployment_users": row[field]
+                                    .default({})["deployment_desktops"]
+                                    .default(999)
+                                }
+                            }
+                        ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    f"v196 cutover: {table} deployment_users quota/limits "
+                    f"split failed: {e}"
+                )
         return True
 
     def qos_net(self, version):
