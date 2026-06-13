@@ -93,7 +93,10 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 
 		iclaims, err := verifyToken(tkn)
 		if err != nil {
-			logrus.Errorf("error verifying token: %v", err)
+			// Routine client-side event: viewer session tokens expire while a
+			// tab is left open, so a rejected/expired token is expected and
+			// must not pollute error dashboards. Warn keeps audit visibility.
+			logrus.Warnf("rejected viewer token (expired or invalid): %v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
