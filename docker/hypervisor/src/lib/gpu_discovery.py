@@ -1946,6 +1946,20 @@ def _get_libvirt_capabilities_xml():
 def _probe_libvirt_numa_cells():
     """Parse <cells> from libvirt host capabilities.
 
+    WARNING: this is NOT our bug -- it is a known, still-unfixed UPSTREAM
+    libvirt defect, so do not "fix" it here. libvirt's NUMA view must not be
+    trusted as the source of truth: getCapabilities misreports the host NUMA
+    topology (e.g. every cell with ``id='0'`` / duplicate cell ids,
+    ``cells num='0'``, or flat per-cell memory), particularly under a
+    container / restricted cpuset.
+    Upstream (open): https://gitlab.com/libvirt/libvirt/-/issues/103
+    This output is therefore used ONLY to cross-check the
+    authoritative sysfs topology (see ``discover_numa_topology`` /
+    ``_validate_libvirt_numa``); when the two disagree the engine drops
+    ``<numatune>`` rather than feeding libvirt a nodeset it would reject. The
+    real per-node CPU list / memory / hugepages always come from
+    ``/sys/devices/system/node/*`` instead.
+
     Returns:
         list of {"id": int, "memory_kb": int, "cpus": set(int)} or None if
         libvirt capabilities are unreachable.
@@ -1989,6 +2003,10 @@ def _validate_libvirt_numa(sysfs_nodes, libvirt_cells):
 
     ids = [c["id"] for c in libvirt_cells]
     if len(set(ids)) != len(ids):
+        # The known libvirt-in-container bug: every cell reported as id='0'.
+        # sysfs already gave us the real topology, so we just flag libvirt as
+        # not-OK (the engine then skips <numatune>; CPU pinning via cpuset still
+        # works because cpusets reference CPU ids, which libvirt sees correctly).
         return False, "duplicate_cell_ids"
 
     sysfs_ids = {int(n) for n in sysfs_nodes.keys()}
