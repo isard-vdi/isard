@@ -999,7 +999,12 @@ def get_hypers_gpu_online(
             )
 
     if not len(hypervisors_with_available_profile):
-        logs.workers.error("No free mdevs found for gpu_profile: %s" % gpu_profile)
+        # Expected at-capacity condition (all matching cards' mdevs reserved or
+        # started), not an engine error -- warn, don't pollute error dashboards.
+        logs.workers.warning(
+            "No free GPU capacity for gpu_profile %s: all matching cards' mdevs "
+            "are in use (reserved/started)." % gpu_profile
+        )
         return []
 
     if forced_hyp:
