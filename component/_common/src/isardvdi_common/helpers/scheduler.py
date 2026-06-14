@@ -99,7 +99,8 @@ def _post_advanced_date(type_, action, data):
             )
     except Exception:
         log.error(
-            "could not contact scheduler service at /advanced/date/" f"{type_}/{action}"
+            "could not contact scheduler service at /advanced/date/"
+            f"{type_}/{action}: " + traceback.format_exc()
         )
 
 
