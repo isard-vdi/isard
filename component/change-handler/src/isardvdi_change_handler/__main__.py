@@ -42,6 +42,7 @@ from .handlers.resources import ResourcesHandler
 from .handlers.storage import StorageHandler
 from .handlers.targets import TargetsHandler
 from .handlers.users import UsersHandler
+from .handlers.users_migrations import UsersMigrationsHandler
 from .handlers.vgpus import VgpusHandler
 from .streams import task_results_consumer
 
@@ -85,7 +86,7 @@ async def dispatch_message(data: dict, handler_map: dict, logger: log.Logger) ->
 #
 # Many entries below (graphics, videos, interfaces, qos_net, qos_disk,
 # remotevpn, boots, scheduler_jobs, hypervisors, vgpus, user_storage,
-# users_migrations, targets, resource_planner, bookings) only emit to the
+# targets, resource_planner, bookings) only emit to the
 # `/administrators` namespace and are consumed by the Flask webapp admin
 # for its datatable live-refresh. Vue 3 does not yet subscribe to those
 # events; keep them wired so the admin UI stays reactive and so Vue 3 has
@@ -112,7 +113,7 @@ handler_map = {
     "hypervisors": HypervisorsHandler(redis_manager, "hypervisors"),
     "vgpus": VgpusHandler(redis_manager, "vgpus"),
     "user_storage": BaseHandler(redis_manager, "user_storage"),
-    "users_migrations": BaseHandler(redis_manager, "users_migrations"),
+    "users_migrations": UsersMigrationsHandler(redis_manager, "users_migrations"),
     "storage": StorageHandler(redis_manager, "storage"),
 }
 

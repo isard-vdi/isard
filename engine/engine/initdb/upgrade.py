@@ -35,7 +35,7 @@ from .log import *
 """
 Update to new database release version when new code version release
 """
-release_version = 195
+release_version = 196
 # release 195: Seed provider status (healthy/msg/last_updated) on each auth provider config
 # release 194: Normalize legacy media status "Deleted"/"FailedDeleted" to "deleted"
 # release 193: Add unused_deployment_desktops notification kinds, default rule, and matching notifications/action entries (port of main 7df258e32)
@@ -1191,6 +1191,21 @@ password:s:%s"""
                     }
                 }
             ).run(self.conn)
+
+        if version == 196:
+            # The "none"/"" action_after_migrate sentinels now map to null
+            # (only "disable"/"delete" are real actions). Normalise stored
+            # provider migration config so the DB matches the API contract.
+            auth = r.table(table).get(1)["auth"].run(self.conn) or {}
+            updates = {}
+            for provider, pconf in auth.items():
+                migration = pconf.get("migration") if isinstance(pconf, dict) else None
+                if isinstance(migration, dict) and migration.get(
+                    "action_after_migrate"
+                ) in ("none", ""):
+                    updates[provider] = {"migration": {"action_after_migrate": None}}
+            if updates:
+                r.table(table).get(1).update({"auth": updates}).run(self.conn)
 
         return True
 

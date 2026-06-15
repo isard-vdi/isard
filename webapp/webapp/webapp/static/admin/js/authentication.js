@@ -29,19 +29,21 @@ $(document).ready(function () {
         $(modal + ' :checkbox').iCheck('uncheck').iCheck('update');
         $(modal + "Form #provider").val(provider);
         addProviderConfigModalListeners(modal);
-        populateNotificationTemplate(modal);
-        $.ajax({
-            type: "GET",
-            url: `/api/v4/admin/item/authentication/provider/${provider}`,
-            success: function (data) {
-                $(modal + "Form > [class*='_config']").each(function () {
-                    toggleFormSection($(this), $(this).hasClass(provider + '_config'));
-                });
-                fillFormData($(modal + "Form"), data);
-                toggleProviderSections(modal, provider, data.enabled);
-                $(modal + " select#level").trigger("change");
-                addProviderConditionalRequiredListeners(modal);
-            }
+        // Populate templates before fetching config so the saved value can be selected
+        populateNotificationTemplate(modal).always(function () {
+            $.ajax({
+                type: "GET",
+                url: `/api/v4/admin/item/authentication/provider/${provider}`,
+                success: function (data) {
+                    $(modal + "Form > [class*='_config']").each(function () {
+                        toggleFormSection($(this), $(this).hasClass(provider + '_config'));
+                    });
+                    fillFormData($(modal + "Form"), data);
+                    toggleProviderSections(modal, provider, data.enabled);
+                    $(modal + " select#level").trigger("change");
+                    addProviderConditionalRequiredListeners(modal);
+                }
+            });
         });
         $(modal).modal({
             backdrop: 'static',
@@ -278,7 +280,7 @@ function showHideContent(content, display) {
 
 function populateNotificationTemplate(modal) {
     $(modal + " select#template").empty();
-    $.ajax({
+    return $.ajax({
         url: "/api/v4/admin/items/notifications/templates",
         type: "GET"
     }).then(response => {
@@ -289,8 +291,6 @@ function populateNotificationTemplate(modal) {
                 `);
             }
         });
-        $(modal + " select#template").trigger("change");
-
     });
 }
 
@@ -311,8 +311,13 @@ function addProviderConfigModalListeners(modal) {
             toggleProviderSections(modal, provider, $(this).is(":checked"));
         });
     $(modal + " select#template").off("change").on("change", function () {
+        var templateId = $(this).val();
+        if (!templateId) {
+            $(modal + " #notification-preview").empty().hide();
+            return;
+        }
         $.ajax({
-            url: "/api/v4/admin/item/notifications/template/" + $(this).val(),
+            url: "/api/v4/admin/item/notifications/template/" + templateId,
             type: "GET",
         }).then((template) => {
             $(modal + " #notification-preview")
@@ -395,7 +400,12 @@ function renderProviderDataTable(provider) {
                     }
                 }
             },
-            { "data": "action_after_migrate" },
+            {
+                "data": "action_after_migrate",
+                "render": function (data, type, full, meta) {
+                    return { "delete": "Delete original user", "disable": "Disable original user" }[data] || "Nothing";
+                }
+            },
             {
                 "data": "force_migration",
                 "render": function (data, type, full, meta) {

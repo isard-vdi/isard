@@ -48,7 +48,7 @@ const logOut = () => {
 </script>
 <template>
   <div class="flex h-screen min-h-screen overflow-y-auto bg-base-background">
-    <div class="flex justify-between h-full absolute p-8">
+    <div class="flex justify-between h-full absolute p-8 z-30">
       <template v-if="props.goBack">
         <Button
           icon="arrow-left"
@@ -101,6 +101,9 @@ const logOut = () => {
       </div>
     </div>
   </div>
-  <img src="@/assets/img/clouds.svg" class="fixed top-[75px] left-[100px] z-10" />
-  <img src="@/assets/img/mountains.svg" class="fixed bottom-0 right-0 z-10" />
+  <img
+    src="@/assets/img/clouds.svg"
+    class="fixed top-[75px] left-[100px] z-10 pointer-events-none"
+  />
+  <img src="@/assets/img/mountains.svg" class="fixed bottom-0 right-0 z-10 pointer-events-none" />
 </template>

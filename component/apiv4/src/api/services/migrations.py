@@ -111,8 +111,8 @@ class MigrationService:
             if e.error.get("description_code") == "migration_not_found":
                 errors = [
                     {
-                        "description": "The user migration process was not found.",
-                        "description_code": "invalid_token",
+                        "description": "There is no active migration for your account.",
+                        "description_code": "no_active_migration",
                     }
                 ]
             elif (
@@ -182,10 +182,17 @@ class MigrationService:
         if quota_errors:
             items["quota_errors"] = quota_errors
 
-        items["action_after_migrate"] = (
+        action_after_migrate = (
             ConfigService.get_provider_config(items["users"][0]["provider"])
             .get("migration", {})
-            .get("action_after_migrate", "none")
+            .get("action_after_migrate")
+        )
+        # Normalise the legacy "none"/"" sentinels to null: only "disable" and
+        # "delete" represent an actual action on the account.
+        items["action_after_migrate"] = (
+            action_after_migrate
+            if action_after_migrate in ("disable", "delete")
+            else None
         )
 
         if (

@@ -177,6 +177,7 @@
         "title": "Informazio garrantzitsua migrazioa egiterakoan:",
         "description": {
           "delete_user": "Aurreko \"{old_user_name}\" erabiltzailea ({old_user_provider} autentifikazioa) ezabatuko da.",
+          "disable_user": "Aurreko \"{old_user_name}\" erabiltzailea ({old_user_provider} autentifikazioa) desgaituko da.",
           "user_description": "Martxan dauden mahaigain guztiak geldituko dira. \nErabiltzailearen zakarrontzia hustuko da. \nErabiltzailearen erreserbak ezabatuko dira. \nIraunkorrak ez diren mahaigainak EZABATUKO dira. \nErabiltzaile berriarentzat onartzen ez diren baliabideak (sareak, RAM, CPU, GPU) kendu edo mugatuko dira.",
           "description": "Martxan dauden mahaigain guztiak geldituko dira. \nErabiltzailearen zakarrontzia hustuko da. \nErabiltzailearen erreserbak ezabatuko dira. \nIraunkorrak ez diren mahaigainak EZABATUKO dira. \nHedapenetako jabekide-zerrenda ezabatuko da. \nMigratutako hedapenetan beste erabiltzaile batzuen mahaigainak bere horretan geratuko dira. \nErabiltzaile berriarentzat onartzen ez diren baliabideak (sareak, RAM, CPU, GPU) kendu edo mugatuko dira. \nHelmuga-erabiltzaileak izen berdina badu, migratutako elementuei '(migratua)' gehituko zaie izenean.",
           "footer": "Migrazioaren prozesua itzulezina da."
@@ -193,9 +194,14 @@
         "title": "Akatsak izan dira migrazio-prozesuan:"
       },
       "success": {
-        "title": "Migrazioa hasita",
-        "description": "Migrazioa ilaran jarri da. Elementuak bigarren mailan prozesatuko dira; bitartean zure mahaigainetara itzul zaitezke.",
+        "title": "Migrazioa osatuta",
+        "description": "Zure elementuak kontu honetara migratu dira. Orain zure mahaigainetara joan zaitezke.",
         "button": "Joan mahaigainetara"
+      },
+      "progress": {
+        "title": "Zure datuak inportatzen…",
+        "description": "Mantendu leiho hau irekita zure elementuak migratzen diren bitartean.",
+        "overall": "Aurrerapen orokorra"
       }
     },
     "recycle-bin": {
@@ -1395,6 +1401,7 @@
         "unknown": "Akats bat gertatu da",
         "token_expired": "Eman duzun tokena iraungita dago",
         "invalid_token": "Eman duzun tokena baliogabea da",
+        "no_active_migration": "Ez dago migrazio aktiborik zure kontuarako.",
         "no_items_to_migrate": "Ez dago migratzeko elementurik",
         "multiple_migrations_found_target_user": "Migrazio bat baino gehiago daude erabiltzaile berriarentzat",
         "same_user_migration": "Ezin duzu kontu berera migratu. Tokena lortzean, saioa itxi eta kontu berriarekin hasi behar duzu",

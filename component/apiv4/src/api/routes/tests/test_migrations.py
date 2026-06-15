@@ -71,7 +71,7 @@ def test_list_user_migration_items(monkeypatch, test_client):
         captured["user_id"] = user_id
         # Route expects {"errors": ..., "items": <MigrationListItemsResponse-shape>}
         # — the response model requires desktops/templates/media/deployments/users
-        # plus action_after_migrate.
+        # plus action_after_migrate (None | "disable" | "delete").
         return {
             "errors": None,
             "items": {
@@ -80,7 +80,7 @@ def test_list_user_migration_items(monkeypatch, test_client):
                 "media": [],
                 "deployments": [],
                 "users": [],
-                "action_after_migrate": "none",
+                "action_after_migrate": None,
             },
         }
 
@@ -93,7 +93,7 @@ def test_list_user_migration_items(monkeypatch, test_client):
     assert response.status_code == 200
     body = response.json()
     assert body["desktops"] == []
-    assert body["action_after_migrate"] == "none"
+    assert body["action_after_migrate"] is None
     # The route forwarded the caller's user_id from the JWT verbatim.
     assert captured["user_id"] == "local-default-user-bob"
 

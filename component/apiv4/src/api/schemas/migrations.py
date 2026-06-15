@@ -133,9 +133,10 @@ class MigrationListItemsResponse(BaseModel):
         default_factory=list,
         description="Quota errors detected during migration validation.",
     )
-    action_after_migrate: Literal["none", "disable", "delete"] = Field(
-        ...,
-        description="Action that will be performed on the user account after migration.",
+    action_after_migrate: Literal["disable", "delete"] | None = Field(
+        default=None,
+        description="Action that will be performed on the user account after migration. "
+        "``null`` means the account is left untouched.",
     )
 
 

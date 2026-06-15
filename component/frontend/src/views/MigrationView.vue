@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useUserMigrationStore, type MigrationKindState } from '@/stores/user-migration'
+import { describeApiErrors } from '@/lib/api-errors'
 import { SinglePageLayout } from '@/layouts/single-page'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Icon } from '@/components/icon'
-import { MigrationItemBox, MigrationItemTable } from '@/components/migration'
+import { MigrationItemChip, MigrationItemTable } from '@/components/migration'
 import { Skeleton } from '@/components/ui/skeleton'
 import { migrationMigrateUser } from '@/gen/oas/apiv4'
 
@@ -15,6 +17,7 @@ import * as z from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Progress } from '@/components/ui/progress'
 import { Field, FieldError, FieldLabel, FieldContent } from '@/components/ui/field'
 
 import {
@@ -67,38 +70,11 @@ type UserMigrationItemsError = string | 'unknown'
 //   }
 // }
 
-const userMigrationItemsErrorMsgs = computed(() => {
-  if (!isError.value || !userMigrationItemsError.value) {
-    return undefined
-  }
-
-  // TODO: This is horrible
-  const aaa = JSON.parse((userMigrationItemsError.value as unknown as Error).message) as {
-    errors?: { description: string; description_code: string }[]
-  }
-
-  const errorMsgs: string[] = []
-  const baseKey = 'api.user_migration.errors.'
-
-  if (!aaa.errors) {
-    errorMsgs.push(t(baseKey + 'unknown'))
-    return errorMsgs
-  }
-
-  for (const err of aaa.errors) {
-    const key = baseKey + err.description_code
-
-    // Check if the error exists in the base locale
-    if (te(key, 'en-US')) {
-      errorMsgs.push(t(key))
-      continue
-    }
-
-    errorMsgs.push(t(baseKey + 'unknown'))
-  }
-
-  return errorMsgs
-})
+const userMigrationItemsErrorMsgs = computed<string[] | undefined>(() =>
+  isError.value && userMigrationItemsError.value
+    ? describeApiErrors(userMigrationItemsError.value, { t, te }, 'user_migration')
+    : undefined
+)
 
 /*
  * View logic
@@ -144,13 +120,19 @@ const itemsKind = ref<
   }
 ])
 
-const shownTables = ref<MigrationItemKind[]>([])
+// Item types that actually have items, used to render the selectable chips.
+const availableKinds = computed(() =>
+  itemsKind.value.filter((item) => (userMigrationItems.value?.[item.key].length ?? 0) > 0)
+)
 
-const showItemTable = (key: MigrationItemKind) => {
-  shownTables.value = shownTables.value.includes(key)
-    ? shownTables.value.filter((item) => item !== key)
-    : [...shownTables.value, key]
-}
+// Selected chip; defaults to the first available type until the user picks one.
+const selectedKind = ref<MigrationItemKind | null>(null)
+const activeKind = computed<MigrationItemKind | null>(
+  () => selectedKind.value ?? availableKinds.value[0]?.key ?? null
+)
+const activeItems = computed(() =>
+  activeKind.value ? (userMigrationItems.value?.[activeKind.value] ?? []) : []
+)
 
 /*
  * Actions
@@ -164,6 +146,74 @@ const formSchema = z.object({
 const migrationSubmitted = ref(false)
 const migrationSuccess = ref(false)
 const userMigrationError = ref<string[]>([])
+
+// Import runs in the background after migrate-user returns; progress arrives
+// over the `user_migration_data` websocket event (see stores/user-migration).
+const migrationStore = useUserMigrationStore()
+
+const migrationInProgress = computed(
+  () => migrationSubmitted.value && !migrationSuccess.value && userMigrationError.value.length === 0
+)
+
+const progressKinds = computed(() =>
+  itemsKind.value
+    .filter((item) => (userMigrationItems.value?.[item.key].length ?? 0) > 0)
+    .map((item) => ({ ...item, state: migrationStore.kindState(item.key) }))
+)
+
+const stateIcon = (state: MigrationKindState) =>
+  ({
+    pending: 'clock',
+    in_progress: 'loading-01',
+    done: 'check-circle',
+    error: 'alert-circle'
+  })[state]
+
+const stateColor = (state: MigrationKindState) =>
+  ({
+    pending: 'gray-warm-400',
+    in_progress: 'brand-600',
+    done: 'success-600',
+    error: 'error-600'
+  })[state]
+
+// Each resource type is reported as done/not by the backend, so a kind's bar
+// is 0 until it completes (or errors), then 100.
+const kindPercent = (state: MigrationKindState) => (state === 'done' || state === 'error' ? 100 : 0)
+
+// Overall progress = share of resource types that have finished.
+const migrationPercent = computed(() => {
+  const kinds = progressKinds.value
+  if (kinds.length === 0) return migrationStore.isDone ? 100 : 0
+  const finished = kinds.filter((k) => k.state === 'done' || k.state === 'error').length
+  return Math.round((finished / kinds.length) * 100)
+})
+
+// The websocket drives the final outcome: the migrate-user response only
+// confirms the background task started, not that the import finished.
+watch(
+  () => migrationStore.isDone,
+  (done) => {
+    if (done) migrationSuccess.value = true
+  }
+)
+watch(
+  () => migrationStore.isFailed,
+  (failed) => {
+    if (!failed) return
+    const codes = (['desktops', 'templates', 'media', 'deployments'] as const)
+      .map((kind) => migrationStore.progress?.[`migrated_${kind}_error`])
+      .filter((code): code is string => typeof code === 'string' && code.length > 0)
+    userMigrationError.value = describeApiErrors(
+      { errors: codes.map((code) => ({ description_code: code })) },
+      { t, te },
+      'user_migration'
+    )
+  }
+)
+
+onUnmounted(() => migrationStore.$reset())
+
 const form = useForm({
   defaultValues: {
     accept: false
@@ -176,20 +226,16 @@ const form = useForm({
     if (migrationSubmitted.value === true) {
       return
     }
+    migrationStore.$reset()
     migrationSubmitted.value = true
 
     const { error } = await migrationMigrateUser()
 
     if (error !== undefined) {
-      const descriptionCode =
-        typeof error === 'object' && error !== null && 'description_code' in error
-          ? (error as { description_code?: string }).description_code
-          : undefined
-      userMigrationError.value = [descriptionCode ?? 'unknown']
-      return
+      userMigrationError.value = describeApiErrors(error, { t, te }, 'user_migration')
     }
-
-    migrationSuccess.value = true
+    // Success is confirmed by the `user_migration_data` websocket (status
+    // === 'migrated'); see the watcher above.
   }
 })
 
@@ -226,7 +272,7 @@ const itemQuotaExceeded = (item: string) => {
 <template>
   <SinglePageLayout :go-back="true">
     <template #title>
-      <h1 class="mt-[46px] text-center text-display-md font-bold text-gray-warm-800">
+      <h1 class="mt-[46px] text-center text-display-md font-bold text-brand-700">
         {{ t('views.migration.title') }}
       </h1>
       <div
@@ -269,80 +315,136 @@ const itemQuotaExceeded = (item: string) => {
 
       <div
         v-else-if="userMigrationItemsIsError && userMigrationItemsErrorMsgs"
-        class="flex items-center justify-center"
+        class="flex justify-center"
       >
-        <Alert variant="destructive" class="w-2/3">
-          <AlertTitle>{{ t('views.migration.error.title') }}</AlertTitle>
-          <AlertDescription>
-            <ul>
-              <li v-for="msg in userMigrationItemsErrorMsgs" :key="msg">
-                {{ msg }}
+        <Alert variant="destructive" class="w-full max-w-2xl">
+          <Icon name="alert-octagon" class="h-5 w-5" stroke-color="error-600" />
+          <AlertTitle class="font-semibold text-error-800">
+            {{ t('views.migration.error.title') }}
+          </AlertTitle>
+          <AlertDescription class="text-error-700">
+            <ul class="mt-1 list-disc space-y-1 pl-4">
+              <li v-for="msg in userMigrationItemsErrorMsgs" :key="msg">{{ msg }}</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
+      </div>
+
+      <div v-else-if="migrationSuccess" class="flex justify-center">
+        <Alert class="w-full max-w-2xl border-success-200 bg-success-25">
+          <Icon name="check-circle" class="h-5 w-5" stroke-color="success-600" />
+          <AlertTitle class="text-lg font-semibold text-gray-warm-800">
+            {{ t('views.migration.success.title') }}
+          </AlertTitle>
+          <AlertDescription class="flex flex-col gap-4 text-gray-warm-700">
+            <p>{{ t('views.migration.success.description') }}</p>
+            <div class="flex justify-end">
+              <Button class="px-8" @click="goToDesktops">
+                {{ t('views.migration.success.button') }}
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+
+      <div v-else-if="userMigrationError.length > 0" class="flex justify-center">
+        <Alert variant="destructive" class="w-full max-w-2xl">
+          <Icon name="alert-octagon" class="h-5 w-5" stroke-color="error-600" />
+          <AlertTitle class="font-semibold text-error-800">
+            {{ t('views.migration.error.title') }}
+          </AlertTitle>
+          <AlertDescription class="text-error-700">
+            <ul class="mt-1 list-disc space-y-1 pl-4">
+              <li v-for="msg in userMigrationError" :key="msg">{{ msg }}</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
+      </div>
+
+      <div v-else-if="migrationInProgress" class="flex justify-center">
+        <Alert class="w-full max-w-2xl">
+          <Icon name="loading-01" class="h-5 w-5 animate-spin" stroke-color="brand-600" />
+          <AlertTitle class="text-lg font-semibold text-gray-warm-800">
+            {{ t('views.migration.progress.title') }}
+          </AlertTitle>
+          <AlertDescription class="flex flex-col gap-6 text-gray-warm-700">
+            <p>{{ t('views.migration.progress.description') }}</p>
+
+            <!-- Overall progress -->
+            <div class="flex flex-col gap-2">
+              <div class="flex flex-row items-center justify-between text-sm">
+                <span>{{ t('views.migration.progress.overall') }}</span>
+                <span class="font-semibold text-gray-warm-800">{{ migrationPercent }}%</span>
+              </div>
+              <Progress :model-value="migrationPercent" class="h-2" />
+            </div>
+
+            <!-- Per resource-type progress -->
+            <ul class="flex flex-col gap-4">
+              <li v-for="item in progressKinds" :key="item.key" class="flex flex-col gap-1.5">
+                <div class="flex flex-row items-center gap-2 text-sm">
+                  <Icon
+                    :name="stateIcon(item.state)"
+                    class="h-4 w-4"
+                    :class="item.state === 'in_progress' ? 'animate-spin' : ''"
+                    :stroke-color="stateColor(item.state)"
+                  />
+                  <span class="font-medium text-gray-warm-800">
+                    {{ t(`domains.capitalized.${item.key}`, 2) }}
+                  </span>
+                  <span class="text-gray-warm-500">
+                    ({{ userMigrationItems?.[item.key].length }})
+                  </span>
+                </div>
+                <Progress
+                  :model-value="kindPercent(item.state)"
+                  class="h-2"
+                  :class="item.state === 'error' ? 'text-error-600' : ''"
+                />
               </li>
             </ul>
           </AlertDescription>
         </Alert>
       </div>
 
-      <div v-else-if="migrationSuccess" class="flex items-center justify-center">
-        <Alert variant="default" class="w-2/3">
-          <AlertTitle class="flex items-center justify-center text-xl text-gray-warm-800">{{
-            t('views.migration.success.title')
-          }}</AlertTitle>
-          <AlertDescription class="p-4 flex flex-col gap-4">
-            <p class="px-8">
-              {{ t('views.migration.success.description') }}
-            </p>
-
-            <div class="flex flex-row items-center justify-end">
-              <Button class="px-8" @click="goToDesktops">{{
-                t('views.migration.success.button')
-              }}</Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      </div>
-
       <div
         v-else-if="userMigrationItems"
-        class="flex flex-col items-center justify-center gap-8 mb-[32px]"
+        class="mx-auto mb-[32px] flex w-full max-w-3xl flex-col items-center gap-6"
       >
-        <div class="w-full flex flex-row flex-wrap gap-8 items-start justify-center">
-          <template v-for="item in itemsKind" :key="item.key">
-            <div v-if="userMigrationItems[item.key].length > 0" class="w-64 flex flex-col gap-4">
-              <MigrationItemBox
-                :loading="isPending"
-                :title="t(`domains.capitalized.${item.key}`, 2)"
-                :count="userMigrationItems[item.key].length"
-                :color-class="item.colorClass"
-                :warning="itemQuotaExceeded(item.key)"
-                :icon="item.icon"
-                class="transition-transform duration-300 ease-in-out transform hover:scale-105 cursor-pointer"
-                @click="showItemTable(item.key)"
-              />
-              <MigrationItemTable
-                v-if="!shownTables.includes(item.key)"
-                :loading="isPending"
-                :title="t(`domains.capitalized.${item.key}`, 2)"
-                :items="userMigrationItems[item.key]"
-                class="max-h-[30vh] overflow-y-auto"
-              />
-            </div>
-          </template>
+        <!-- Type selector chips -->
+        <div class="flex w-full flex-row flex-wrap items-center justify-center gap-3">
+          <MigrationItemChip
+            v-for="item in availableKinds"
+            :key="item.key"
+            :title="t(`domains.capitalized.${item.key}`, 2)"
+            :count="userMigrationItems[item.key].length"
+            :icon="item.icon"
+            :warning="itemQuotaExceeded(item.key)"
+            :active="activeKind === item.key"
+            @click="selectedKind = item.key"
+          />
         </div>
 
-        <div class="flex items-center justify-center">
-          <Alert variant="destructive" class="w-full max-w-max">
-            <Icon
-              name="alert-circle"
-              class="rounded-[1px] outline-solid outline-1 outline-offset-10 outline-gray-warm-300"
-            />
-            <AlertTitle>
-              <h1 class="text-md font-semibold mb-2">
-                {{ t('views.migration.notification.title') }}
-              </h1>
+        <!-- Single panel for the selected type -->
+        <MigrationItemTable
+          v-if="activeKind"
+          class="w-full"
+          :title="t(`domains.capitalized.${activeKind}`, 2)"
+          :icon="availableKinds.find((k) => k.key === activeKind)?.icon"
+          :items="activeItems"
+        />
+
+        <div class="flex w-full justify-center">
+          <Alert class="w-full max-w-2xl border-warning-200 bg-warning-25">
+            <Icon name="alert-triangle" class="h-5 w-5" stroke-color="warning-600" />
+            <AlertTitle class="text-md font-semibold text-warning-800">
+              {{ t('views.migration.notification.title') }}
             </AlertTitle>
-            <AlertDescription>
-              <p v-if="userMigrationItems?.action_after_migrate === 'delete'" class="font-semibold">
+            <AlertDescription class="text-gray-warm-700">
+              <p
+                v-if="userMigrationItems?.action_after_migrate === 'delete'"
+                class="font-semibold text-warning-800"
+              >
                 {{
                   t('views.migration.notification.description.delete_user', {
                     old_user_name: userMigrationItems?.users[0].name,
@@ -350,11 +452,21 @@ const itemQuotaExceeded = (item: string) => {
                   })
                 }}
               </p>
-              <p class="whitespace-pre-line">
+              <p
+                v-else-if="userMigrationItems?.action_after_migrate === 'disable'"
+                class="font-semibold text-warning-800"
+              >
+                {{
+                  t('views.migration.notification.description.disable_user', {
+                    old_user_name: userMigrationItems?.users[0].name,
+                    old_user_provider: userMigrationItems?.users[0].provider
+                  })
+                }}
+              </p>
+              <p class="mt-1 whitespace-pre-line">
                 {{ t('views.migration.notification.description.description') }}
               </p>
-
-              <p class="font-semibold mt-2">
+              <p class="mt-2 font-semibold text-gray-warm-800">
                 {{ t('views.migration.notification.description.footer') }}
               </p>
             </AlertDescription>
@@ -362,39 +474,37 @@ const itemQuotaExceeded = (item: string) => {
         </div>
 
         <!-- Button to confirm the migration -->
-        <div>
-          <form
-            class="flex flex-row justify-center gap-8 items-start"
-            @submit.prevent="form.handleSubmit"
-          >
-            <form.Field v-slot="{ field }" name="accept">
-              <Field orientation="horizontal" :data-invalid="isInvalid(field)">
-                <Checkbox
-                  :id="field.name"
-                  :name="field.name"
-                  :aria-invalid="isInvalid(field)"
-                  :model-value="field.state.value"
-                  @update:model-value="field.handleChange($event === true)"
-                />
-                <FieldContent class="ml-2">
-                  <FieldLabel :for="field.name">
-                    {{ t('views.migration.form.accept.title') }}
-                  </FieldLabel>
-                  <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-                </FieldContent>
-              </Field>
-            </form.Field>
+        <form
+          class="flex flex-row items-start justify-center gap-8"
+          @submit.prevent="form.handleSubmit"
+        >
+          <form.Field v-slot="{ field }" name="accept">
+            <Field orientation="horizontal" :data-invalid="isInvalid(field)">
+              <Checkbox
+                :id="field.name"
+                :name="field.name"
+                :aria-invalid="isInvalid(field)"
+                :model-value="field.state.value"
+                @update:model-value="field.handleChange($event === true)"
+              />
+              <FieldContent class="ml-2">
+                <FieldLabel :for="field.name">
+                  {{ t('views.migration.form.accept.title') }}
+                </FieldLabel>
+                <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
+              </FieldContent>
+            </Field>
+          </form.Field>
 
-            <Button
-              type="submit"
-              hierarchy="primary"
-              size="lg"
-              :disabled="isPending || migrationSubmitted"
-            >
-              {{ t('views.migration.form.submit') }}
-            </Button>
-          </form>
-        </div>
+          <Button
+            type="submit"
+            hierarchy="primary"
+            size="lg"
+            :disabled="isPending || migrationSubmitted"
+          >
+            {{ t('views.migration.form.submit') }}
+          </Button>
+        </form>
       </div>
     </template>
   </SinglePageLayout>
