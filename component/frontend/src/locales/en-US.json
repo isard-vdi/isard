@@ -944,7 +944,7 @@
       "ssh-key-modal": {
         "title": "Bastion SSH key",
         "description": "Add a single SSH public key to your profile. It is added automatically to the bastion SSH access of any desktop you start (when bastion SSH is enabled on that desktop), so you don't have to add it to each desktop.",
-        "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user@host",
+        "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user{'@'}host",
         "invalid": "This doesn't look like a valid SSH public key.",
         "alert": {
           "error-title": "Request failed",
