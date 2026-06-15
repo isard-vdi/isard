@@ -3,10 +3,10 @@
 # License: AGPLv3
 """v189 vGPU upgrade helpers.
 
-On apiv4-integration this migration runs as **v197** (upstream main ships
-it as v189 in MR !4496; v196 is reserved by the in-flight bugfix/1179
-branch; the ``v189_*`` names are kept verbatim for cross-branch
-diffability).
+On apiv4-integration this migration runs as **v198** (upstream main ships
+it as v189 in MR !4496; v196 is the auth action_after_migrate refactor and
+v197 is the cutover reconciliation; the ``v189_*`` names are kept verbatim
+for cross-branch diffability).
 
 The pure canon/unify/merge helpers live at module level with `re` as the only
 hard dependency so ``upgrade_vgpu_unify_test.py`` can load this file directly
