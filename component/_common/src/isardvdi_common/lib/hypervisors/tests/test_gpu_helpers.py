@@ -45,6 +45,11 @@ class _Table:
         # OR with .pluck("id").run(). The two helpers cover both shapes.
         return _Filter(self, criteria)
 
+    def get_all(self, key, index):
+        # `.get_all(key, index=...).update(fields).run(conn)` — used by the
+        # slot-move path to repoint resource_planner rows to the new card id.
+        return _GetAll(self, key, index)
+
     def insert(self, row, conflict=None):
         return _Insert(self, row, conflict=conflict)
 
@@ -62,6 +67,28 @@ class _Row:
 
     def delete(self):
         return _Delete(self.table, self.row_id)
+
+
+class _GetAll:
+    def __init__(self, table: _Table, key, index):
+        self.table = table
+        self.key = key
+        self.index = index
+
+    def update(self, fields):
+        outer = self
+
+        class _RunSet:
+            def run(self, conn):
+                replaced = 0
+                for row in outer.table.rows.values():
+                    if row.get(outer.index) == outer.key:
+                        row.update(fields)
+                        replaced += 1
+                outer.table.update_log.append((f"{outer.index}={outer.key}", fields))
+                return {"replaced": replaced}
+
+        return _RunSet()
 
 
 class _Filter:
@@ -172,7 +199,11 @@ def stub_rdb(monkeypatch):
         property(lambda self: MagicMock(name="conn")),
     )
 
-    tables = {"gpus": _Table("gpus", {}), "gpu_profiles": _Table("gpu_profiles", {})}
+    tables = {
+        "gpus": _Table("gpus", {}),
+        "gpu_profiles": _Table("gpu_profiles", {}),
+        "resource_planner": _Table("resource_planner", {}),
+    }
     monkeypatch.setattr(mod.r, "table", lambda name: tables[name])
     return {"tables": tables, "Processed": mod.HypervisorsProcessed}
 
@@ -326,7 +357,13 @@ class TestEnsureGpuProfiles:
         assert suffixes.count("4Q") == 1
         assert "passthrough" in suffixes
 
-    def test_includes_mig_profiles(self, stub_rdb):
+    def test_plain_gi_mig_profiles_are_not_bookable(self, stub_rdb):
+        # Since upstream !4496/!4519 plain GI-name MIG profiles ("1g.10gb",
+        # "+gfx"/"+me" variants) are deliberately NOT exposed as bookable
+        # reservables: a plain GI carve strands the rest of the card. Only
+        # passthrough, time-sliced vGPU ("<mem>Q") and MIG-backed vGPU
+        # ("<slices>_<mem>Q", discovered as Q-series mdev types) enter the
+        # catalog.
         gpus = [
             _gpu(
                 mig_profiles=[
@@ -342,10 +379,9 @@ class TestEnsureGpuProfiles:
         gpus[0]["_resolved_model"] = "A100"
         stub_rdb["Processed"].ensure_gpu_profiles(gpus)
         profiles = stub_rdb["tables"]["gpu_profiles"].rows["NVIDIA-A100"]["profiles"]
-        mig_entries = [p for p in profiles if p.get("mode") == "mig"]
-        assert len(mig_entries) == 1
-        assert mig_entries[0]["mig_profile_id"] == "1"
-        assert mig_entries[0]["units"] == 7
+        assert [p for p in profiles if p.get("mode") == "mig"] == []
+        # The passthrough entry is still seeded.
+        assert any(p.get("profile") == "passthrough" for p in profiles)
 
 
 # ── ensure_gpu_cards ────────────────────────────────────────────────────

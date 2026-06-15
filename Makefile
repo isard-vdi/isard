@@ -118,7 +118,16 @@ _cfeed_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_changefee
 
 .PHONY: test-engine
 test-engine:
-	docker exec isard-engine sh -c "cd /isard && python3 -m pytest engine/models engine/services/threads -v --tb=short"
+	docker exec isard-engine sh -c "cd /isard && python3 -m pytest engine/models engine/services/threads initdb -v --tb=short"
+
+# Hypervisor GPU lib suites (gpu_probe/gpu_apply/gpu_apply_cli/
+# gpu_change_guard/gpu_discovery). Pure stdlib + the shared gpu modules
+# loaded from component/_common/src/isardvdi_common/lib via the in-tree
+# fallback in gpu_probe._load_shared, so the isardvdi-common test env is
+# only borrowed for its pytest.
+.PHONY: test-hypervisor-lib
+test-hypervisor-lib:
+	uv run --group test --package isardvdi-common pytest docker/hypervisor/src/lib -q --tb=short
 
 _e2e_tty := $(if $(CI),,-it)
 
@@ -246,6 +255,11 @@ ci-test-notifier:
 ci-test-scheduler:
 	uv sync --no-dev --group test --package isardvdi-scheduler
 	cd scheduler && uv run --no-dev --group test --package isardvdi-scheduler pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=scheduler --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-hypervisor-lib
+ci-test-hypervisor-lib:
+	uv sync --no-dev --group test --package isardvdi-common
+	cd docker/hypervisor/src/lib && uv run --no-dev --group test --package isardvdi-common pytest . -q --tb=short --junitxml=report.xml
 
 .PHONY: ci-test-webapp
 ci-test-webapp:

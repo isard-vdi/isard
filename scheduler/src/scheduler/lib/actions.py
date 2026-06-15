@@ -563,6 +563,68 @@ class Actions:
                         + traceback.format_exc()
                     )
 
+        # At booking start, re-align each booked card to the booked profile.
+        # The card profile is normally carved by the plan-boundary
+        # gpu_profile_set job (plan start - 1m, registered at plan creation),
+        # but the card can diverge afterwards: an admin force, a hypervisor
+        # restart or re-registration normalizing idle cards to passthrough,
+        # or a plan created mid-window whose past-dated job misfired. Without
+        # this, every later booking in the plan window finds a wrong-profile
+        # card and the desktop cannot start.
+        if kwargs["booking_id"]:
+            Actions.booking_gpu_profiles_align(kwargs["booking_id"])
+
+    @staticmethod
+    def booking_gpu_profiles_align(booking_id):
+        """Set every card referenced by the booking's plans to its booked
+        profile via gpu_profile_set. No-op when a card already runs the
+        requested profile; failures are logged and do not break the
+        booking-start flow."""
+        with app.app_context():
+            booking = r.table("bookings").get(booking_id).run(db.conn)
+        if not booking:
+            log.error(
+                "booking_gpu_profiles_align: booking " + str(booking_id) + " not found"
+            )
+            return
+        for plan in booking.get("plans") or []:
+            item_id = plan.get("item_id")
+            subitem_id = plan.get("subitem_id")
+            if not item_id or not subitem_id:
+                continue
+            try:
+                Actions.gpu_profile_set(item_id=item_id, subitem_id=subitem_id)
+                log.info(
+                    "-> Booking "
+                    + booking_id
+                    + " start: card "
+                    + item_id
+                    + " aligned to profile "
+                    + subitem_id
+                )
+            except Error:
+                # gpu_profile_set raises when the card is already on the
+                # requested profile - the expected steady-state no-op.
+                log.debug(
+                    "-> Booking "
+                    + booking_id
+                    + " start: card "
+                    + item_id
+                    + " already on profile "
+                    + subitem_id
+                )
+            except Exception:
+                log.error(
+                    "Exception aligning gpu "
+                    + item_id
+                    + " to profile "
+                    + subitem_id
+                    + " at booking "
+                    + booking_id
+                    + " start: "
+                    + traceback.format_exc()
+                )
+
     def recycle_bin_cutoff_time_system_delete():
         with build_client("isard-scheduler") as client:
             resp = delete_cutoff_time_surpassed.sync_detailed(client=client)

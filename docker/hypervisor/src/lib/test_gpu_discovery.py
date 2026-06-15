@@ -53,26 +53,33 @@ def test_vfio_group_in_use_returns_false_when_no_consumer(tmp_path, monkeypatch)
     dev = _make_pci_dev(tmp_path, "0000:3b:00.0", iommu_group=42, driver_name="nvidia")
     vfio_path = _make_vfio_dev(tmp_path, 42)
 
-    # Empty /proc — no fd points at /dev/vfio/42.
+    # Empty /proc — no fd points at /dev/vfio/42. Capture the real
+    # functions BEFORE monkeypatching: the lambdas must delegate to the
+    # originals, not to their own patched selves (recursion).
     proc = tmp_path / "proc"
     proc.mkdir()
+    real_exists = os.path.exists
+    real_listdir = os.listdir
     monkeypatch.setattr(
-        "os.path.exists", lambda p: p == str(vfio_path) or os.path.exists(p)
+        "os.path.exists", lambda p: p == str(vfio_path) or real_exists(p)
     )
     monkeypatch.setattr(
         "os.listdir",
-        lambda p: [] if p == "/proc" else os.listdir(p),
+        lambda p: [] if p == "/proc" else real_listdir(p),
     )
 
     assert gpu_discovery._vfio_group_in_use(str(dev)) is False
 
 
-def test_vfio_group_in_use_returns_true_when_iommu_unreadable(tmp_path):
-    """Conservative: any read error → True so we never rebind a device a
-    live qemu may be using."""
+def test_vfio_group_in_use_missing_group_node_means_no_consumer(tmp_path):
+    """Since the upstream gpu lifecycle port (!4496/!4519) a NONEXISTENT
+    ``/dev/vfio/<group>`` node means no consumer is possible -> False
+    (a missing node cannot be held by qemu). Read ERRORS on an existing
+    node stay conservative -> True (see _vfio_group_held)."""
     bogus = tmp_path / "missing"
-    # No such directory at all — readlink on iommu_group fails → return True.
-    assert gpu_discovery._vfio_group_in_use(str(bogus)) is True
+    # No such device dir: the group resolves to a name with no
+    # /dev/vfio/<group> node -> no consumer possible -> False.
+    assert gpu_discovery._vfio_group_in_use(str(bogus)) is False
 
 
 # ---------------------------------------------------------------------------

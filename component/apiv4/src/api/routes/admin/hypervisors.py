@@ -26,6 +26,9 @@ from api import admin_router
 from api.schemas.admin.hypervisors import (
     AdminBootProgressRequest,
     AdminBootProgressResponse,
+    AdminGpuAppliedRequest,
+    AdminGpuForceProfilePreviewRequest,
+    AdminGpuForceProfilePreviewResponse,
     AdminHypervisor,
     AdminHypervisorCreateData,
     AdminHypervisorCreateResponse,
@@ -501,36 +504,6 @@ async def admin_hypervisor_media_delete(
             request,
             "internal_server",
             "Failed to delete media",
-            traceback.format_exc(),
-        )
-
-
-# ── GPU Management ───────────────────────────────────────────────────────
-
-
-@admin_router.put(
-    "/admin/items/hypervisors/gpus",
-    tags=[tag],
-    response_model=EmptyResponse,
-    summary="Assign GPUs to hypervisors",
-    description="Reassign physical GPU devices to GPU profiles across all online hypervisors.",
-    responses={
-        500: {"model": ErrorResponse},
-    },
-)
-async def admin_hypervisors_assign_gpus(
-    request: Request,
-):
-    try:
-        await asyncio.to_thread(AdminHypervisorsService.assign_gpus)
-        return Response(status_code=204)
-    except Error:
-        raise
-    except Exception as e:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to assign GPUs",
             traceback.format_exc(),
         )
 
@@ -1017,5 +990,79 @@ async def admin_hypervisor_boot_progress(
             request,
             "internal_server",
             "Failed to update boot progress",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/item/hypervisor/{hyper_id}/gpu_applied",
+    tags=[tag],
+    response_model=EmptyResponse,
+    summary="Ingest a hypervisor's applied GPU profile report",
+    description=(
+        "A gpu-apply-capable hypervisor reports back, after registration, the "
+        "per-card profile it actually applied locally (+ the created mdev "
+        "pool). Persisted into vgpus so the DB reflects reality and the "
+        "engine reconcile confirms instead of re-applying. Hypervisor-facing: "
+        "the hypervisor service JWT (kid isardvdi-hypervisors) maps to the "
+        "admin role."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_hypervisor_gpu_applied(
+    request: Request,
+    hyper_id: str,
+    data: AdminGpuAppliedRequest,
+):
+    try:
+        await asyncio.to_thread(
+            AdminHypervisorsService.ingest_gpu_applied,
+            hyper_id,
+            data.applied,
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to ingest applied GPU state",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/item/hypervisor/gpus/{card_id}/force_profile_preview",
+    tags=[tag],
+    response_model=AdminGpuForceProfilePreviewResponse,
+    response_model_exclude_none=True,
+    summary="Preview the impact of forcing a GPU profile",
+    description=(
+        "Admin-only read-only pre-flight for the force-profile dialog: which "
+        "running desktops would be stopped and which reservables would be "
+        "removed (no other card provides them) if this card is forced to "
+        "target_profile."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_gpu_force_profile_preview(
+    request: Request,
+    card_id: str,
+    data: AdminGpuForceProfilePreviewRequest,
+):
+    try:
+        return await asyncio.to_thread(
+            AdminHypervisorsService.preview_force_profile,
+            card_id,
+            data.target_profile,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to preview GPU profile change",
             traceback.format_exc(),
         )

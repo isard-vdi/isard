@@ -240,3 +240,49 @@ class TestVgpusHandler:
 
         payload = json.loads(handler.socketio_server.emit.call_args[0][1])
         assert payload["available_units"] == 6
+
+    @pytest.mark.asyncio
+    async def test_operator_intent_fields_and_mismatch(self, handler):
+        """Upstream !4496: requested_profile / operator_passthrough /
+        last_apply_error are forwarded, and profile_mismatch flags an
+        operator request the runtime has not realized (webui renders the
+        fault row; never auto-resolved)."""
+        row = FakeRow(
+            additional_properties={
+                "id": "gpu0",
+                "vgpu_profile": "nvidia-35",
+                "requested_profile": "nvidia-36",
+                "operator_passthrough": True,
+                "last_apply_error": "teardown_blocked: card still held",
+                "mdevs": {},
+            },
+        )
+        await handler.on_insert(row)
+
+        payload = json.loads(handler.socketio_server.emit.call_args[0][1])
+        assert payload["requested_profile"] == "nvidia-36"
+        assert payload["operator_passthrough"] is True
+        assert payload["profile_mismatch"] is True
+        assert payload["last_apply_error"] == "teardown_blocked: card still held"
+
+    @pytest.mark.asyncio
+    async def test_no_mismatch_when_request_matches_or_absent(self, handler):
+        row = FakeRow(
+            additional_properties={
+                "id": "gpu0",
+                "vgpu_profile": "nvidia-35",
+                "requested_profile": "nvidia-35",
+                "mdevs": {},
+            },
+        )
+        await handler.on_insert(row)
+        payload = json.loads(handler.socketio_server.emit.call_args[0][1])
+        assert payload["profile_mismatch"] is False
+        assert payload["operator_passthrough"] is False
+
+        handler.socketio_server.emit.reset_mock()
+        row = FakeRow(additional_properties={"id": "gpu0", "mdevs": {}})
+        await handler.on_insert(row)
+        payload = json.loads(handler.socketio_server.emit.call_args[0][1])
+        assert payload["profile_mismatch"] is False
+        assert payload["last_apply_error"] is None

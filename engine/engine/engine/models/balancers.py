@@ -424,6 +424,7 @@ def _parse_extra_gpu_info(gpu_selected):
         ),
         "pci_bus_id": gpu_selected.get("pci_bus_id"),
         "gpu_numa_node": gpu_selected.get("gpu_numa_node"),
+        "mig": gpu_selected.get("mig", False),
         "companion_pci_bdfs": gpu_selected.get("companion_pci_bdfs") or [],
         "hugepages": gpu_selected.get("hugepages_info", {}),
         "numa_topology": gpu_selected.get("numa_topology", {}) or {},

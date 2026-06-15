@@ -32,6 +32,8 @@ class VgpusHandler(BaseHandler):
     async def _emit_vgpu_data(self, val):
         props = val.additional_properties or {}
         active_profile = props.get("vgpu_profile")
+        requested_profile = props.get("requested_profile")
+        operator_passthrough = bool(props.get("operator_passthrough", False))
         desktops_started = []
         available_units = 0
         if active_profile and active_profile in props.get("mdevs", {}):
@@ -43,13 +45,27 @@ class VgpusHandler(BaseHandler):
                     and mdev_data["domain_started"] is not False
                 ):
                     desktops_started.append(mdev_data["domain_started"])
+        # profile_mismatch: operator asked for X but the runtime is Y. Webui
+        # renders this as a fault row with "Cancel request" / "Change
+        # profile" actions — never auto-resolves it, because that used to be
+        # exactly the destructive behavior removed from the engine reconcile.
+        profile_mismatch = bool(
+            requested_profile and active_profile and requested_profile != active_profile
+        )
         await self.emit(
             "vgpu_data",
             json_dumps(
                 {
                     "id": props.get("id"),
                     "vgpu_profile": active_profile,
+                    "requested_profile": requested_profile,
+                    "operator_passthrough": operator_passthrough,
+                    "profile_mismatch": profile_mismatch,
                     "changing_to_profile": props.get("changing_to_profile", False),
+                    # Last apply/teardown failure reason (e.g.
+                    # teardown_blocked: card still held) so the admin GPU
+                    # table can show the fault.
+                    "last_apply_error": props.get("last_apply_error"),
                     "desktops_started": desktops_started,
                     # Pool size of the new active profile. Without this, the
                     # webapp's "started/total" progress bar keeps the previous

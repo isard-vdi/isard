@@ -240,12 +240,17 @@ class AdminHypervisorsService:
         """Delete media by paths."""
         HypervisorsProcessed.delete_media(medias_paths)
 
-    # ── GPU Management ───────────────────────────────────────────────────
+    # ── GPU lifecycle ─────────────────────────────────────────────────────
 
     @staticmethod
-    def assign_gpus() -> None:
-        """Assign physical GPUs to GPU profiles."""
-        HypervisorsProcessed.assign_gpus()
+    def ingest_gpu_applied(hyper_id: str, applied: dict) -> None:
+        """Persist the hypervisor's applied-state report into vgpus."""
+        HypervisorsProcessed.ingest_gpu_applied(hyper_id, applied)
+
+    @staticmethod
+    def preview_force_profile(card_id: str, target_profile: str) -> dict:
+        """Read-only pre-flight for the admin force-profile dialog."""
+        return HypervisorsProcessed.preview_force_profile(card_id, target_profile)
 
     # ── Orchestrator ─────────────────────────────────────────────────────
 
