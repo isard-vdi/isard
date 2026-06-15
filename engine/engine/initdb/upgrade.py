@@ -35,8 +35,8 @@ from .log import *
 """
 Update to new database release version when new code version release
 """
-release_version = 196
-# release 196: CUTOVER RECONCILIATION — re-assert, idempotently, every
+release_version = 197
+# release 197: CUTOVER RECONCILIATION — re-assert, idempotently, every
 #              apiv4-integration-only migration that lives at a version number
 #              (184-189) the main lineage reused for DIFFERENT content. The two
 #              lineages share migration history up to v183 and diverge from
@@ -1567,7 +1567,7 @@ password:s:%s"""
                 )
                 log.error("Error detail: " + str(e))
 
-        if version == 196:
+        if version == 197:
             # Cutover reconciliation: apiv4-only v189 thread_status strip
             # (moved from DB to engine RAM). without() is a no-op when the
             # field is already absent.
@@ -3753,7 +3753,7 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
-        if version == 196:
+        if version == 197:
             # Cutover reconciliation: apiv4-only v184 tag_desktop_id mapping +
             # the v184/v185 apiv4 pagination indexes + the apiv4-and-websockets
             # v178 create_dict hardware backfill (disk_bus/isos/floppies/
@@ -3874,7 +3874,7 @@ password:s:%s"""
                     ).run(self.conn)
             except Exception as e:
                 log.error(
-                    "v196 cutover: domains create_dict hardware backfill "
+                    "v197 cutover: domains create_dict hardware backfill "
                     f"(disk_bus/isos/floppies/personal_vlans) failed: {e}"
                 )
         return True
@@ -4352,7 +4352,7 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
-        if version == 196:
+        if version == 197:
             # Cutover reconciliation: apiv4-only v184 deployments backfill
             # (tag_desktop_id / image / kind). Per-field guarded, so this is a
             # no-op on apiv4-lineage DBs.
@@ -4587,7 +4587,7 @@ password:s:%s"""
                 r.args(["Deleted", "FailedDeleted"]), index="status"
             ).update({"status": "deleted"}).run(self.conn)
 
-        if version == 196:
+        if version == 197:
             # Cutover reconciliation: apiv4-only v188 media status_accessed
             # index.
             try:
@@ -4807,7 +4807,7 @@ password:s:%s"""
                     group["id"],
                 )
 
-        if version == 196:
+        if version == 197:
             # Cutover reconciliation (see release_version header): re-assert
             # the apiv4-only v184 deployment_users quota/limits split for
             # main-lineage DBs that never ran it. Guarded on key ABSENCE so an
@@ -4847,7 +4847,7 @@ password:s:%s"""
                         ).run(self.conn)
             except Exception as e:
                 log.error(
-                    f"v196 cutover: {table} deployment_users quota/limits "
+                    f"v197 cutover: {table} deployment_users quota/limits "
                     f"split failed: {e}"
                 )
         return True
@@ -5485,7 +5485,7 @@ password:s:%s"""
                     {"quota": {"deployment_desktops": 999}}
                 ).run(self.conn)
 
-        if version == 196:
+        if version == 197:
             # Cutover reconciliation (see release_version header): re-assert
             # the apiv4-only v184 deployment_users quota/limits split for
             # main-lineage DBs that never ran it. Guarded on key ABSENCE so an
@@ -5525,7 +5525,7 @@ password:s:%s"""
                         ).run(self.conn)
             except Exception as e:
                 log.error(
-                    f"v196 cutover: {table} deployment_users quota/limits "
+                    f"v197 cutover: {table} deployment_users quota/limits "
                     f"split failed: {e}"
                 )
         return True
@@ -6215,7 +6215,7 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
-        if version == 196:
+        if version == 197:
             # Cutover reconciliation: apiv4-only v187 recycle_bin compound
             # indexes (pentest-surfaced 500s when missing) + the v187
             # pre-computed count/last_log backfill.
@@ -6264,7 +6264,7 @@ password:s:%s"""
                     ).run(self.conn)
             except Exception as e:
                 log.error(
-                    f"v196 cutover: recycle_bin count/last_log backfill failed: {e}"
+                    f"v197 cutover: recycle_bin count/last_log backfill failed: {e}"
                 )
         return True
 
@@ -6802,7 +6802,7 @@ password:s:%s"""
                         provider["status"] = dict(provider_status)
             r.table(table).insert(categories, conflict="replace").run(self.conn)
 
-        if version == 196:
+        if version == 197:
             # Cutover reconciliation (see release_version header): re-assert
             # the apiv4-only v184 deployment_users quota/limits split for
             # main-lineage DBs that never ran it. Guarded on key ABSENCE so an
@@ -6842,7 +6842,7 @@ password:s:%s"""
                         ).run(self.conn)
             except Exception as e:
                 log.error(
-                    f"v196 cutover: {table} deployment_users quota/limits "
+                    f"v197 cutover: {table} deployment_users quota/limits "
                     f"split failed: {e}"
                 )
         return True
