@@ -903,15 +903,11 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 				}
 			}
 
-			if apiErr.Params != nil {
-				params = oasAuthentication.NewOptResetPasswordErrorParams(oasAuthentication.ResetPasswordErrorParams{})
-				rawNum, ok := apiErr.Params["num"]
-				if ok {
-					num, ok := rawNum.(float64)
-					if ok {
-						params.Value.Num = oasAuthentication.NewOptFloat64(num)
-					}
-				}
+			var policyErr authentication.PasswordPolicyError
+			if errors.As(err, &policyErr) && policyErr.Num != nil {
+				params = oasAuthentication.NewOptResetPasswordErrorParams(oasAuthentication.ResetPasswordErrorParams{
+					Num: oasAuthentication.NewOptFloat64(float64(*policyErr.Num)),
+				})
 			}
 
 			// Handle the error

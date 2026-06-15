@@ -89,7 +89,7 @@ from api.schemas.admin.users import (
     AutoRegisterResponse,
     RequiredCheckResponse,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import EmptyResponse, ErrorResponse, PasswordPolicyErrorResponse
 from api.services.admin.socketio import AdminSocketioService
 from api.services.admin.users import AdminUsersService
 from api.services.error import Error
@@ -333,7 +333,7 @@ async def admin_list_users_nav(
     response_model=AdminUser,
     responses={
         200: {"description": "User created"},
-        400: {"model": ErrorResponse},
+        400: {"model": PasswordPolicyErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
@@ -537,6 +537,7 @@ async def admin_search_users(request: Request, data: AdminUserSearchData):
     description="Validates a list of users from CSV data.",
     responses={
         200: {"description": "Validation results"},
+        400: {"model": PasswordPolicyErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
@@ -573,6 +574,7 @@ async def admin_validate_csv_users(request: Request, user_list: list[dict]):
     description="Validates a list of users from CSV for editing.",
     responses={
         200: {"description": "Validation results"},
+        400: {"model": PasswordPolicyErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
@@ -862,7 +864,7 @@ async def admin_get_password_policy(request: Request, user_id: str):
     response_model=EmptyResponse,
     responses={
         200: {"description": "Password reset"},
-        400: {"model": ErrorResponse},
+        400: {"model": PasswordPolicyErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },

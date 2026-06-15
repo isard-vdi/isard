@@ -15,7 +15,7 @@ import {
   getUserPasswordPolicyOptions,
   setUserPasswordMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import type { ErrorResponse } from '@/gen/oas/apiv4'
+import type { PasswordPolicyErrorResponse } from '@/gen/oas/apiv4'
 
 import imgurl from '@/assets/img/password-modal-header.svg'
 import { whenever } from '@vueuse/core'
@@ -41,7 +41,7 @@ const mutation = useMutation({
     form.reset()
   },
   onError(err: Error) {
-    const resp = JSON.parse(err.message) as ErrorResponse
+    const resp = JSON.parse(err.message) as PasswordPolicyErrorResponse
     if (resp.description_code === 'wrong_password_entered') {
       form.getFieldInfo('current').instance?.setErrorMap({
         onSubmit: t('components.profile.password-modal.errors.wrong_password_entered')

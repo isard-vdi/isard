@@ -129,7 +129,36 @@ func TestResetPassword(t *testing.T) {
 		Password        string
 		RemoteAddr      string
 		ExpectedErr     string
+		ExpectedNum     *int
 	}{
+		"should surface the typed password-policy num param": {
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminResetPassword", mock.AnythingOfType("*context.cancelCtx"), &apiv4.AdminPasswordResetData{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Password: "short"}).Return(&apiv4.PasswordPolicyErrorResponse{
+					Error:           "bad_request",
+					Msg:             "Bad request",
+					DescriptionCode: "password_character_length",
+					Description:     "Password must be at least 8 characters long",
+					Params:          apiv4.PasswordPolicyErrorParams{Num: apiv4.NewOptInt(8)},
+				}, nil)
+			},
+			PrepareDB: func(m *r.Mock, tkn string) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return(map[string]interface{}{
+					"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"password_reset_token": tkn,
+				}, nil)
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignPasswordResetToken("", "08fff46e-cbd3-40d2-9d8e-e2de7a8da654")
+				require.NoError(err)
+
+				return ss
+			},
+			Password:    "short",
+			ExpectedErr: "ogen 400 bad_request: Password must be at least 8 characters long [password_character_length]",
+			ExpectedNum: intPtr(8),
+		},
 		// A login token must not be accepted for a password reset.
 		"should reject a login token": {
 			PrepareDB: func(m *r.Mock, _ string) {
@@ -190,7 +219,7 @@ func TestResetPassword(t *testing.T) {
 		},
 		"should return an API error if there's an error calling the API": {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
-				c.On("AdminResetPassword", mock.AnythingOfType("*context.cancelCtx"), &apiv4.AdminPasswordResetData{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Password: "weak password :3"}).Return(&apiv4.AdminResetPasswordBadRequest{
+				c.On("AdminResetPassword", mock.AnythingOfType("*context.cancelCtx"), &apiv4.AdminPasswordResetData{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Password: "weak password :3"}).Return(&apiv4.PasswordPolicyErrorResponse{
 					Error:           "bad_request",
 					Msg:             "Bad request",
 					DescriptionCode: "password_special_characters",
@@ -267,7 +296,19 @@ func TestResetPassword(t *testing.T) {
 				assert.NoError(err)
 			}
 
+			if tc.ExpectedNum != nil {
+				var policyErr authentication.PasswordPolicyError
+				require.ErrorAs(err, &policyErr)
+				assert.Equal(400, policyErr.StatusCode)
+				require.NotNil(policyErr.Num)
+				assert.Equal(*tc.ExpectedNum, *policyErr.Num)
+			}
+
 			apiMock.AssertExpectations(t)
 		})
 	}
+}
+
+func intPtr(i int) *int {
+	return &i
 }

@@ -39,6 +39,7 @@ from api.dependencies.storage_pools import check_create_storage_pool_availabilit
 from api.schemas.bastion import BastionActiveResponse
 from api.schemas.common import (
     DeleteResponse,
+    DesktopNameExistsErrorResponse,
     EmptyResponse,
     ErrorResponse,
     SimpleResponse,
@@ -280,6 +281,7 @@ async def delete_deployment(
     responses={
         400: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
+        409: {"model": DesktopNameExistsErrorResponse},
         500: {"model": ErrorResponse},
     },
     dependencies=[

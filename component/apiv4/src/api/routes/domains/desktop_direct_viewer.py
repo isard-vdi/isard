@@ -26,7 +26,11 @@ import traceback
 from api import direct_viewer_router, open_router, token_router
 from api.dependencies.alloweds import owns_domain_id
 from api.dependencies.rate_limiting import MIN_RESPONSE_TIME, direct_viewer_limiter
-from api.schemas.common import ErrorResponse, SimpleResponse
+from api.schemas.common import (
+    DesktopNotBookedErrorResponse,
+    ErrorResponse,
+    SimpleResponse,
+)
 
 log = logging.getLogger(__name__)
 
@@ -158,7 +162,7 @@ async def update_share_link(
     responses={
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
-        428: {"model": ErrorResponse},
+        428: {"model": DesktopNotBookedErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
@@ -237,6 +241,7 @@ _VIEWER_PROTOCOLS = {
     response_model=SimpleResponse,
     responses={
         404: {"model": ErrorResponse},
+        428: {"model": DesktopNotBookedErrorResponse},
     },
 )
 async def log_viewer_click(
