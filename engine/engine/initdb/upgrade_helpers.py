@@ -482,9 +482,12 @@ _MIG_BACKED_SUFFIX_RE = re.compile(r"^(\d+)[-_](\d+)([ABCQ])$")
 
 
 def _reservable_suffix(reservable_id):
-    """``NVIDIA-<model>-<suffix>`` -> ``<suffix>`` (model is dash-free post-canon)."""
+    """``NVIDIA-<model>-<suffix>[~<variant>]`` -> ``<suffix>`` (model is dash-free
+    post-canon). Drops any ``~<variant>`` qualifier so a dashed-MIG variant suffix
+    (``1-2Q~lab``) still matches ``_MIG_BACKED_SUFFIX_RE``."""
     if isinstance(reservable_id, str) and reservable_id.count("-") >= 2:
-        return reservable_id.split("-", 2)[2]
+        base = reservable_id.split("~", 1)[0]
+        return base.split("-", 2)[2]
     return None
 
 

@@ -34,6 +34,7 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
 from isardvdi_common.lib.bookings.reservables import Reservables as ReservablesProccess
+from isardvdi_common.lib.bookings.reservables import attach_vgpu_hypervisor_groups
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
     ReservablesPlannerCompute,
 )
@@ -142,6 +143,15 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
         except ValueError:
             raise Error(
                 "bad_request", "End date invalid.", description_code="invalid_end_date"
+            )
+
+        # A backwards window (end before start) is meaningless — it yields no
+        # availability — so reject it rather than silently storing a dead plan.
+        if end < start:
+            raise Error(
+                "bad_request",
+                "End date must be after start date.",
+                description_code="invalid_end_date",
             )
 
         # Plan data structure
@@ -311,6 +321,75 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                         ).run(cls._rdb_connection)
 
     @classmethod
+    def delete_card_subitem_plans(cls, item_id, subitem_id):
+        """Non-last-card disable: drop ONLY this card's availability for this
+        profile and surgically detach it from any booking, without touching the
+        plans/bookings on the cards that still realize the profile.
+
+        A non-last disable leaves the model-level reservable alive (other cards
+        still enable it), so the broad ``deassign_*`` sweep must NOT run -- the
+        desktops keep their GPU assignment. But this card's ``resource_planner``
+        rows are now phantom capacity: availability is summed by the
+        ``subitem_id`` index across all cards, so an orphaned plan on a card that
+        no longer realizes the profile would over-count capacity. We therefore
+        delete those rows (by the ``item-subitem`` index -- ALL of them,
+        regardless of time window) and remove their plan_ids from every booking
+        that referenced them. A desktop booking holds a single card's plan, so it
+        empties and is deleted (its ``booking_id`` reset, scheduler jobs removed,
+        mirroring :meth:`delete_plan`); a multi-card deployment booking keeps the
+        entries pointing at the surviving cards and lives on."""
+        with cls._rdb_context():
+            plan_ids = list(
+                r.table("resource_planner")
+                .get_all([item_id, subitem_id], index="item-subitem")["id"]
+                .run(cls._rdb_connection)
+            )
+        if not plan_ids:
+            return 0, 0
+        with cls._rdb_context():
+            r.table("resource_planner").get_all(
+                r.args(plan_ids), index="id"
+            ).delete().run(cls._rdb_connection)
+        for plan_id in plan_ids:
+            SchedulerHelper.remove_scheduler_startswith_id(plan_id)
+
+        plan_id_set = set(plan_ids)
+        with cls._rdb_context():
+            affected = list(
+                r.table("bookings")
+                .filter(
+                    lambda b: b["plans"].contains(
+                        lambda p: r.expr(plan_ids).contains(p["plan_id"])
+                    )
+                )
+                .run(cls._rdb_connection)
+            )
+        bookings_deleted = 0
+        for booking in affected:
+            remaining = [p for p in booking["plans"] if p["plan_id"] not in plan_id_set]
+            if remaining:
+                with cls._rdb_context():
+                    r.table("bookings").get(booking["id"]).update(
+                        {"plans": remaining}
+                    ).run(cls._rdb_connection)
+                continue
+            with cls._rdb_context():
+                r.table("bookings").get(booking["id"]).delete().run(cls._rdb_connection)
+            bookings_deleted += 1
+            SchedulerHelper.remove_scheduler_startswith_id(booking["id"])
+            if booking.get("item_type") == "desktop" and booking.get("item_id"):
+                with cls._rdb_context():
+                    r.table("domains").get(booking["item_id"]).update(
+                        {"booking_id": False}
+                    ).run(cls._rdb_connection)
+            elif booking.get("item_type") == "deployment" and booking.get("item_id"):
+                with cls._rdb_context():
+                    r.table("domains").get_all(booking["item_id"], index="tag").update(
+                        {"booking_id": False}
+                    ).run(cls._rdb_connection)
+        return len(plan_ids), bookings_deleted
+
+    @classmethod
     def get_plan_bookings(cls, plan_id):
         with cls._rdb_context():
             return list(
@@ -351,6 +430,26 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                 description="There's currently an ongoing booking with this GPU profile",
             )
 
+    def check_subitem_running_desktops(cls, subitem_id):
+        """Refuse to strip a profile a RUNNING desktop is still using. The
+        booking guard above only covers in-progress bookings; an admin-started
+        desktop has none, so without this an admin disable would delete the
+        reservable out from under a live domain. Forces a stop first."""
+        with cls._rdb_context():
+            running = list(
+                r.table("domains")
+                .get_all(subitem_id, index="vgpus")
+                .filter(lambda d: r.expr(["Started", "Starting"]).contains(d["status"]))
+                .pluck("id")
+                .run(cls._rdb_connection)
+            )
+        if running:
+            raise Error(
+                "bad_request",
+                description="There's a running desktop using this GPU profile; "
+                "stop it before disabling",
+            )
+
     @classmethod
     def check_subitem_desktops_and_plannings(cls, reservable_type, item_id, subitem_id):
         data = {
@@ -370,7 +469,15 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
             cls.list_subitem_plans(
                 item_id,
                 subitem_id,
+                # Span the whole timeline (epoch .. far future). list_subitem_plans
+                # defaults end to start when end is omitted, which collapses the
+                # window to a single instant and matches NO plan -- so this listing
+                # must pass BOTH bounds, otherwise the cascade's delete_plan loop
+                # and the UI warning would silently see zero plans/bookings.
                 start=datetime.fromtimestamp(0, pytz.timezone("UTC")).strftime(
+                    "%Y-%m-%dT%H:%M%z"
+                ),
+                end=datetime(9999, 12, 31, tzinfo=pytz.utc).strftime(
                     "%Y-%m-%dT%H:%M%z"
                 ),
                 getUsername=True,
@@ -413,6 +520,25 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
             if data.get("plans"):
                 for plan in data["plans"]:
                     cls.delete_plan(plan["id"])
+        else:
+            # Non-last disable: the profile survives on other cards. Don't
+            # deassign desktops/deployments (they keep their GPU), but THIS
+            # card's availability is now phantom -- drop only this card's plans
+            # and surgically detach them from bookings (multi-card bookings
+            # survive). This also fires from the whole-card delete loop
+            # (delete_item), so a shared profile's plans never outlive their card.
+            plans_deleted, bookings_deleted = cls.delete_card_subitem_plans(
+                item_id, subitem_id
+            )
+            if plans_deleted or bookings_deleted:
+                log.info(
+                    "Disabled %s on card %s (profile still on other cards): "
+                    "removed %s phantom plan(s), %s booking(s)",
+                    subitem_id,
+                    item_id,
+                    plans_deleted,
+                    bookings_deleted,
+                )
 
     @classmethod
     def delete_item(cls, item_type, item_id, subitems=None, data=None):
@@ -557,17 +683,20 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                 log.debug(
                     "Plans for " + k + "/" + subitem + ": " + str(len(plans[subitem]))
                 )
-        if len(plans.keys()) == 0:
-            return []
-        elif len(plans.keys()) == 1:
-            return plans
-        else:
-            log.error(
-                "Trying to book desktop with multiple reservables"
-                + str(list(plans.keys()))
-                + ". Not implemented"
-            )
-            return []
+        # Keep only the subitems (profiles) that obtained at least one plan.
+        non_empty = {k: v for k, v in plans.items() if v}
+        requested = [s for sublist in subitems.values() for s in (sublist or [])]
+        if len(non_empty) != len(requested):
+            # At least one requested profile cannot fit in the window: the whole
+            # multi-profile booking is unsatisfiable.
+            return {}
+        # Each profile must land on a distinct physical card (item_id). Plannings
+        # already enforce one profile per card per window, so distinct profiles are
+        # structurally on distinct cards; this set() check is a cheap final guard.
+        chosen_item_ids = [p["item_id"] for v in non_empty.values() for p in v]
+        if len(set(chosen_item_ids)) != len(chosen_item_ids):
+            return {}
+        return non_empty
 
     ##### Scheduling
     @classmethod
@@ -992,4 +1121,10 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                 description_code="no_available_profile",
             )
 
+        # Tag each available profile with the hypervisor groups that can host it
+        # so the start-now UI can keep a multi-profile selection co-locatable on a
+        # single host (admins/managers also get the real hypervisor names).
+        attach_vgpu_hypervisor_groups(
+            available, show_names=payload.get("role_id") in ("admin", "manager")
+        )
         return available

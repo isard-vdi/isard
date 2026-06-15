@@ -231,22 +231,35 @@ class BookingsProcessed(RethinkSharedConnection):
                 description_code="booking_max_items_exceeded",
             )
 
+        # Parse the client-supplied dates defensively: a malformed value must be
+        # a 400, not an unhandled strptime ValueError surfacing as a 500.
+        try:
+            start_dt = datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            end_dt = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+        except (ValueError, TypeError):
+            raise Error(
+                "bad_request",
+                "Invalid booking start/end date format.",
+                description_code="invalid_booking_date",
+            )
+
         booking = {
             "id": str(uuid.uuid4()),
             "item_id": item_id,
             "item_type": item_type,
             "units": units,
             "reservables": reservables,
-            "start": datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC),
-            "end": datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC),
+            "start": start_dt,
+            "end": end_dt,
             "title": title if title else item_name,
             "user_id": payload["user_id"],
         }
 
         # Overlap this plan with existing ones and check which ones have room from the new booking
         plans = ReservablesPlannerProccess.new_booking_plans(payload, booking)
-        ## TODO: We should check if all the keys have an empty list, not only the first one!
-        if not len(plans[list(plans.keys())[0]]):
+        # new_booking_plans returns {} (or a dict with an empty list) when any
+        # requested profile cannot fit, or when two profiles collide on one card.
+        if not plans or any(not v for v in plans.values()):
             raise Error(
                 "conflict",
                 "The booking does not fit in requested date",
@@ -595,7 +608,11 @@ class BookingsProcessed(RethinkSharedConnection):
                 r.table("bookings")
                 .filter(r.row["start"] <= r.now())
                 .filter(r.row["end"] >= r.now())
-                .merge({"profile": r.row["reservables"]["vgpus"][0]})
+                .concat_map(
+                    lambda booking: booking["reservables"]["vgpus"]
+                    .default([])
+                    .map(lambda p: booking.merge({"profile": p}))
+                )
                 .pluck(
                     "id",
                     "units",
@@ -613,7 +630,11 @@ class BookingsProcessed(RethinkSharedConnection):
                 r.table("bookings")
                 .filter(r.row["start"] <= r.now().add(60 * 30))
                 .filter(r.row["end"] >= r.now())
-                .merge({"profile": r.row["reservables"]["vgpus"][0]})
+                .concat_map(
+                    lambda booking: booking["reservables"]["vgpus"]
+                    .default([])
+                    .map(lambda p: booking.merge({"profile": p}))
+                )
                 .pluck(
                     "id",
                     "units",
@@ -631,7 +652,11 @@ class BookingsProcessed(RethinkSharedConnection):
                 r.table("bookings")
                 .filter(r.row["start"] <= r.now().add(60 * 60))
                 .filter(r.row["end"] >= r.now())
-                .merge({"profile": r.row["reservables"]["vgpus"][0]})
+                .concat_map(
+                    lambda booking: booking["reservables"]["vgpus"]
+                    .default([])
+                    .map(lambda p: booking.merge({"profile": p}))
+                )
                 .pluck(
                     "id",
                     "units",
@@ -661,10 +686,14 @@ class BookingsProcessed(RethinkSharedConnection):
                 fp["reduction"] for fp in forecast_60 if fp["group"] == profile
             ]
             forecast_60_plans = forecast_60_plans[0] if forecast_60_plans else []
+            # brand-model-suffix(+optional "~<variant>"); front-indexed split so a
+            # dash-form MIG suffix (1-2Q) and an "~<variant>" qualifier stay intact
+            # in the suffix instead of being mis-split by a back-indexed split.
+            _bmp = profile.split("-", 2)
             profile = {
-                "brand": profile.split("-")[-3],
-                "model": profile.split("-")[-2],
-                "profile": profile.split("-")[-1],
+                "brand": _bmp[0] if len(_bmp) == 3 else profile,
+                "model": _bmp[1] if len(_bmp) == 3 else "",
+                "profile": _bmp[2] if len(_bmp) == 3 else "",
                 "now": {
                     "units": cls.bookings_max_units(forecast_0_plans),
                     "date": datetime.now().astimezone().isoformat(),

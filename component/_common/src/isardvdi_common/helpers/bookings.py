@@ -100,8 +100,11 @@ class Bookings(RethinkSharedConnection):
             # the defensive ``.get``s. Mirrors the same pattern already
             # applied to ``valid_vgpus`` in
             # ``lib/deployments/deployments.py:1052-1056``.
+            # Sort each desktop's profile list so the "all desktops share the
+            # same vGPU set" check is order-insensitive (a multi-profile
+            # desktop may list profiles in any order).
             valid_vgpus = [
-                tuple((item.get("reservables") or {}).get("vgpus") or [])
+                tuple(sorted((item.get("reservables") or {}).get("vgpus") or []))
                 for item in (deployment.get("create_dict") or [])
                 if (item.get("reservables") or {}).get("vgpus") is not None
             ]

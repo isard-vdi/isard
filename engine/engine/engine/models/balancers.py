@@ -3,6 +3,12 @@ import random
 import threading
 import time
 
+from isardvdi_common.lib.gpu_pool_policy import profile_suffix_from_id
+
+from engine.models.numa_balancer import (
+    aggregate_pending_by_node,
+    select_balanced_numa_node,
+)
 from engine.services.db import get_table_field
 from engine.services.db.hypervisors import get_hypers_gpu_online, get_hypers_online
 from engine.services.lib.functions import get_pools_threads_running
@@ -181,12 +187,29 @@ class BalancerInterface:
 
         self._lock = threading.Lock()
         self._pending_ram = {}  # {hyp_id: [(ram_gb, timestamp), ...]}
+        # Per-NUMA-node in-flight starts, so consecutive non-GPU desktops spread
+        # across nodes instead of all landing on the one with most free pages.
+        self._pending_node = {}  # {hyp_id: [(node, ram_gb, vcpus, timestamp), ...]}
 
     _PENDING_EXPIRY_SECONDS = 30
 
     def _record_pending(self, hyp_id, ram_gb):
         """Record a pending domain start's RAM usage for a hypervisor."""
         self._pending_ram.setdefault(hyp_id, []).append((ram_gb, time.time()))
+
+    def _record_pending_node(self, hyp_id, node, ram_gb, vcpus):
+        """Record a pending domain start's RAM+vCPUs on a specific NUMA node."""
+        self._pending_node.setdefault(hyp_id, []).append(
+            (str(node), ram_gb, vcpus, time.time())
+        )
+
+    def _get_pending_by_node(self, hyp_id):
+        """Return live per-node pending load: {node: {ram_kb, vcpus}}."""
+        return aggregate_pending_by_node(
+            self._pending_node.get(hyp_id, []),
+            time.time(),
+            self._PENDING_EXPIRY_SECONDS,
+        )
 
     def _cleanup_expired(self):
         """Remove pending entries older than expiry threshold."""
@@ -197,6 +220,12 @@ class BalancerInterface:
             ]
             if not self._pending_ram[hyp_id]:
                 del self._pending_ram[hyp_id]
+        for hyp_id in list(self._pending_node):
+            self._pending_node[hyp_id] = [
+                e for e in self._pending_node[hyp_id] if e[3] > cutoff
+            ]
+            if not self._pending_node[hyp_id]:
+                del self._pending_node[hyp_id]
 
     def _get_pending_ram_kb(self, hyp_id):
         """Return total pending RAM in KB for a hypervisor."""
@@ -222,6 +251,10 @@ class BalancerInterface:
         force_gpus=None,
         storage_pool_id=None,
         domain_memory_gb=1.0,
+        domain_vcpus=1,
+        prefer_cpuset=None,
+        prefer_numa_node=None,
+        coplacement_profiles=None,
     ):
         if storage_pool_id is None:
             logs.hmlog.error("Storage pool id is None so can't get next hypervisor")
@@ -234,7 +267,11 @@ class BalancerInterface:
             or not len(reservables.get("vgpus", []))
         ):
             hyp_id, hyp_extra = self._get_next_capabilities_virt(
-                forced_hyp, favourite_hyp, storage_pool_id, domain_memory_gb
+                forced_hyp,
+                favourite_hyp,
+                storage_pool_id,
+                domain_memory_gb,
+                domain_vcpus,
             )
             return hyp_id, hyp_extra
 
@@ -256,6 +293,10 @@ class BalancerInterface:
             forced_gpus_hypervisors,
             storage_pool_id,
             domain_memory_gb,
+            domain_vcpus=domain_vcpus,
+            prefer_cpuset=prefer_cpuset,
+            prefer_numa_node=prefer_numa_node,
+            coplacement_profiles=coplacement_profiles,
         )
 
         # If no hypervisor with gpu available and online, return False
@@ -268,12 +309,63 @@ class BalancerInterface:
 
         return hypervisor, extra
 
+    def _record_gpu_node_pending(
+        self, hyp_id, gpu_extra, domain_memory_gb, domain_vcpus
+    ):
+        """Record a GPU desktop's load on its GPU's NUMA node.
+
+        A GPU desktop is pinned to the node of its card(s) (in ui_actions), so it
+        does not use the non-GPU balancer — but recording it here lets the
+        non-GPU balancer steer later desktops away from the GPU-loaded node.
+        Caller MUST hold ``self._lock``.
+        """
+        try:
+            nn = gpu_extra.get("gpu_numa_node")
+            if nn is not None and int(nn) >= 0:
+                self._record_pending_node(
+                    hyp_id, int(nn), domain_memory_gb, int(domain_vcpus or 1)
+                )
+        except Exception as e:
+            logs.main.warning(f"GPU NUMA pending record skipped for {hyp_id}: {e}")
+
+    def _attach_balanced_node(
+        self, hyp_id, hyper_dict, extra, domain_memory_gb, domain_vcpus
+    ):
+        """Pick a NUMA node for a non-GPU desktop and record it as in-flight.
+
+        Mutates and returns ``extra`` (adds ``selected_numa_node`` when a node is
+        chosen). Best-effort: any failure leaves ``extra`` untouched so the start
+        proceeds with the caller's existing single-node behaviour. Caller MUST
+        hold ``self._lock`` (this reads and updates the per-node pending state).
+        """
+        try:
+            vcpus = int(domain_vcpus or 1)
+            numa_hp_free = (
+                hyper_dict.get("stats", {})
+                .get("mem_stats", {})
+                .get("numa_hugepages_free_kb", {})
+            )
+            node = select_balanced_numa_node(
+                hyper_dict.get("numa_topology", {}),
+                numa_hp_free,
+                int(domain_memory_gb * 1048576),
+                vcpus,
+                self._get_pending_by_node(hyp_id),
+            )
+            if node is not None:
+                extra["selected_numa_node"] = node
+                self._record_pending_node(hyp_id, node, domain_memory_gb, vcpus)
+        except Exception as e:
+            logs.main.warning(f"NUMA node balancing skipped for {hyp_id}: {e}")
+        return extra
+
     def _get_next_capabilities_virt(
         self,
         forced_hyp=None,
         favourite_hyp=None,
         storage_pool_id=None,
         domain_memory_gb=1.0,
+        domain_vcpus=1,
     ):
         hypers = get_hypers_online(
             self.id_pool, forced_hyp, favourite_hyp, storage_pool_id=storage_pool_id
@@ -297,31 +389,42 @@ class BalancerInterface:
             return False, {}
         if len(hypers_w_threads) == 1:
             hyper_selected = hypers_w_threads[0]["id"]
+            extra = _build_hugepages_extra(hypers_w_threads[0])
             with self._lock:
                 self._record_pending(hyper_selected, domain_memory_gb)
+                self._attach_balanced_node(
+                    hyper_selected,
+                    hypers_w_threads[0],
+                    extra,
+                    domain_memory_gb,
+                    domain_vcpus,
+                )
             logs.main.debug("####################### BALANCER #######################")
             logs.main.debug(
                 "Executing next virt action in the only hypervisor available: %s"
                 % hyper_selected
             )
-            return hyper_selected, _build_hugepages_extra(hypers_w_threads[0])
+            return hyper_selected, extra
 
         with self._lock:
             self._cleanup_expired()
             adjusted_hypers = self._adjust_for_pending(hypers_w_threads)
             hyper_selected = self._balancer._balancer(adjusted_hypers)["id"]
             self._record_pending(hyper_selected, domain_memory_gb)
-
-        selected_hyper = next(
-            (h for h in hypers_w_threads if h["id"] == hyper_selected), {}
-        )
+            selected_hyper = next(
+                (h for h in hypers_w_threads if h["id"] == hyper_selected), {}
+            )
+            extra = _build_hugepages_extra(selected_hyper)
+            self._attach_balanced_node(
+                hyper_selected, selected_hyper, extra, domain_memory_gb, domain_vcpus
+            )
 
         logs.main.debug("####################### BALANCER #######################")
         logs.main.debug(
             "Executing next virt action in hypervisor: %s (current hypers avail: %s)"
             % (hyper_selected, [h["id"] for h in hypers_w_threads]),
         )
-        return hyper_selected, _build_hugepages_extra(selected_hyper)
+        return hyper_selected, extra
 
     def _get_next_capabilities_virt_gpus(
         self,
@@ -331,6 +434,10 @@ class BalancerInterface:
         forced_gpus_hypervisors=None,
         storage_pool_id=None,
         domain_memory_gb=1.0,
+        domain_vcpus=1,
+        prefer_cpuset=None,
+        prefer_numa_node=None,
+        coplacement_profiles=None,
     ):
         gpu_hypervisors_online = get_hypers_gpu_online(
             self.id_pool,
@@ -339,6 +446,9 @@ class BalancerInterface:
             gpu_profile,
             forced_gpus_hypervisors,
             storage_pool_id=storage_pool_id,
+            prefer_cpuset=prefer_cpuset,
+            prefer_numa_node=prefer_numa_node,
+            coplacement_profiles=coplacement_profiles,
         )
         hypers_w_threads = get_pools_threads_running(gpu_hypervisors_online)
         if len(gpu_hypervisors_online) != len(hypers_w_threads):
@@ -362,31 +472,39 @@ class BalancerInterface:
             )
             return False, {}
         if len(hypers_w_threads) == 1:
+            hyp_id = hypers_w_threads[0]["id"]
+            gpu_extra = _parse_extra_gpu_info(hypers_w_threads[0]["gpu_selected"])
             with self._lock:
-                self._record_pending(hypers_w_threads[0]["id"], domain_memory_gb)
+                self._record_pending(hyp_id, domain_memory_gb)
+                self._record_gpu_node_pending(
+                    hyp_id, gpu_extra, domain_memory_gb, domain_vcpus
+                )
             logs.main.debug("####################### BALANCER #######################")
             logs.main.debug(
                 "Executing next GPU virt action in the only hypervisor %s with profile %s available"
-                % (hypers_w_threads[0]["id"], gpu_profile)
+                % (hyp_id, gpu_profile)
             )
-            return hypers_w_threads[0]["id"], _parse_extra_gpu_info(
-                hypers_w_threads[0]["gpu_selected"]
-            )
+            return hyp_id, gpu_extra
 
         with self._lock:
             self._cleanup_expired()
             adjusted_hypers = self._adjust_for_pending(hypers_w_threads)
             hyper_selected = self._balancer._balancer(adjusted_hypers)
             self._record_pending(hyper_selected["id"], domain_memory_gb)
-
-        # Find the original (non-deep-copied) entry to get gpu_selected
-        original = next(h for h in hypers_w_threads if h["id"] == hyper_selected["id"])
+            # Find the original (non-deep-copied) entry to get gpu_selected
+            original = next(
+                h for h in hypers_w_threads if h["id"] == hyper_selected["id"]
+            )
+            gpu_extra = _parse_extra_gpu_info(original["gpu_selected"])
+            self._record_gpu_node_pending(
+                original["id"], gpu_extra, domain_memory_gb, domain_vcpus
+            )
         logs.main.debug("####################### BALANCER #######################")
         logs.main.debug(
             "Executing next GPU virt action in hypervisor %s with profile %s (current similar hypers avail: %s)"
             % (original["id"], gpu_profile, [h["id"] for h in hypers_w_threads]),
         )
-        return original["id"], _parse_extra_gpu_info(original["gpu_selected"])
+        return original["id"], gpu_extra
 
 
 def _build_hugepages_extra(hyper_dict):
@@ -398,9 +516,15 @@ def _build_hugepages_extra(hyper_dict):
     is empty (stats writer hasn't run yet or libvirt unavailable).
     """
     hugepages_info = hyper_dict.get("hugepages_info", {})
-    if not hugepages_info or not hugepages_info.get("mounted"):
-        return {}
     mem_stats = hyper_dict.get("stats", {}).get("mem_stats", {})
+    if not hugepages_info or not hugepages_info.get("mounted"):
+        # No hugepages, but still surface NUMA topology + per-node free so
+        # ui_actions can NUMA-balance non-GPU desktops (cputune/numatune) on
+        # hosts without a hugepage pool.
+        return {
+            "numa_topology": hyper_dict.get("numa_topology", {}) or {},
+            "numa_hugepages_free_kb": mem_stats.get("numa_hugepages_free_kb", {}) or {},
+        }
     return {
         "hugepages": hugepages_info,
         "min_free_mem_gb": hyper_dict.get("min_free_mem_gb", 0) or 0,
@@ -417,8 +541,10 @@ def _parse_extra_gpu_info(gpu_selected):
         "uid": gpu_selected["next_available_uid"],
         "gpu_id": gpu_selected["next_gpu_id"],
         "model": gpu_selected["gpu_profile"].split("-", 2)[1],
+        # Bare canonical suffix (e.g. "8Q", "passthrough") with any "~<variant>"
+        # qualifier stripped, so downstream mdev/info.types matching keys on it.
         "profile": (
-            gpu_selected["gpu_profile"].split("-", 2)[2]
+            profile_suffix_from_id(gpu_selected["gpu_profile"])
             if len(gpu_selected["gpu_profile"].split("-", 2)) > 2
             else ""
         ),
@@ -427,6 +553,8 @@ def _parse_extra_gpu_info(gpu_selected):
         "mig": gpu_selected.get("mig", False),
         "companion_pci_bdfs": gpu_selected.get("companion_pci_bdfs") or [],
         "hugepages": gpu_selected.get("hugepages_info", {}),
+        "hugepages_free_kb": gpu_selected.get("hugepages_free_kb", 0),
+        "numa_hugepages_free_kb": gpu_selected.get("numa_hugepages_free_kb", {}),
         "numa_topology": gpu_selected.get("numa_topology", {}) or {},
     }
 

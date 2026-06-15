@@ -1728,11 +1728,16 @@ class Quotas(RethinkCustomBase):
                 ),
             )
         if not kind or kind == "reservables":
+            # lazy: avoids helpers->lib.bookings import cycle at module load
+            from isardvdi_common.lib.bookings.reservables import (
+                attach_vgpu_hypervisor_groups,
+            )
+
             dict["reservables"] = {
                 "vgpus": Alloweds.get_items_allowed(
                     payload,
                     "reservables_vgpus",
-                    query_pluck=["id", "name", "description"],
+                    query_pluck=["id", "name", "description", "model"],
                     order="name",
                     query_merge=False,
                     extra_ids_allowed=(
@@ -1742,6 +1747,14 @@ class Quotas(RethinkCustomBase):
                     ),
                 )
             }
+            # Tag vGPU profiles with the hypervisor groups that can host them so
+            # the attach UIs can group/restrict the multi-select. Admins/managers
+            # see real hypervisor names; other roles only anonymized group
+            # indices.
+            attach_vgpu_hypervisor_groups(
+                dict["reservables"]["vgpus"],
+                show_names=payload.get("role_id") in ("admin", "manager"),
+            )
         if not kind or kind == "disk_bus":
             dict["disk_bus"] = Alloweds.get_items_allowed(
                 payload,

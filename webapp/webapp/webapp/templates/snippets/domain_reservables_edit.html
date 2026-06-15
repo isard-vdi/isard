@@ -1,7 +1,9 @@
 <div class="row">
    <div class="col-md-12 col-sm-12 col-xs-12">
       <label>Virtual Graphics Processing Unit (GPU)</label>
-      <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="reservables-vgpus" name="reservables-vgpus">           
+      <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="reservables-vgpus" name="reservables-vgpus" multiple>
       </select>
+      <small class="text-muted">A desktop's vGPU profiles must all belong to one hypervisor group; incompatible profiles are disabled once you select one. On a multi-socket server, picking cards on the same NUMA socket gives the best memory bandwidth.</small>
+      <div id="vgpu-numa-hint" class="small" style="margin-top:3px;"></div>
    </div>
 </div>
