@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
+import time
 import traceback
 from datetime import datetime, timedelta, timezone
 
@@ -82,26 +83,48 @@ def _build_advanced_date_body(data):
     return body
 
 
+_SCHEDULER_POST_ATTEMPTS = 3
+_SCHEDULER_POST_BACKOFF = 0.5  # seconds, ×attempt
+
+
 def _post_advanced_date(type_, action, data):
     """Best-effort POST /scheduler/advanced/date/{type}/{action}.
 
-    Mirrors the fire-and-forget semantics of the legacy ``ApiRest``
-    caller: all exceptions are caught and logged; the scheduler call is
-    never load-bearing for the caller's flow.
+    Fire-and-forget for the caller (never load-bearing for their flow), but
+    retried a small, finite number of times with a short backoff so a momentary
+    scheduler stall (e.g. a booking-transition burst) does not permanently drop
+    the registration of a booking-end job.
     """
     from isardvdi_scheduler_client.api.jobs import post_scheduler_advanced_date
 
     try:
         body = _build_advanced_date_body(data)
-        with _build_scheduler_client() as client:
-            post_scheduler_advanced_date.sync_detailed(
-                client=client, type_=type_, action=action, body=body
-            )
     except Exception:
         log.error(
-            "could not contact scheduler service at /advanced/date/"
+            "could not build scheduler advanced-date body for "
             f"{type_}/{action}: " + traceback.format_exc()
         )
+        return
+
+    last_error = None
+    for attempt in range(_SCHEDULER_POST_ATTEMPTS):
+        try:
+            with _build_scheduler_client() as client:
+                resp = post_scheduler_advanced_date.sync_detailed(
+                    client=client, type_=type_, action=action, body=body
+                )
+            if resp.status_code < 400:
+                return
+            last_error = f"HTTP {int(resp.status_code)}"
+        except Exception:
+            last_error = traceback.format_exc()
+        if attempt < _SCHEDULER_POST_ATTEMPTS - 1:
+            time.sleep(_SCHEDULER_POST_BACKOFF * (attempt + 1))
+
+    log.error(
+        "could not contact scheduler service at /advanced/date/"
+        f"{type_}/{action} after {_SCHEDULER_POST_ATTEMPTS} attempts: {last_error}"
+    )
 
 
 def _delete_jobs_startswith(prefix):
