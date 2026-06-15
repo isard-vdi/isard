@@ -250,7 +250,7 @@ class TemplateService:
         return templates
 
     @staticmethod
-    def create_template(payload: dict, data: dict) -> dict:
+    def create_template(payload: dict, data: dict) -> str:
         Helpers.check_user_duplicated_domain_name(
             name=data["name"],
             user_id=payload["user_id"],
