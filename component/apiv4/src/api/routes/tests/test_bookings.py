@@ -377,7 +377,7 @@ def test_get_reservable_items(monkeypatch, test_client):
     stub = [_stub_reservable_item("gpu-1"), _stub_reservable_item("gpu-2")]
     monkeypatch.setattr(
         "api.services.reservables.ReservableService.get_reservable_detail",
-        staticmethod(lambda reservable_type: stub),
+        staticmethod(lambda reservable_type, payload=None: stub),
     )
 
     response = test_client(url="/items/reservables/gpus", jwt=jwt)
@@ -558,7 +558,7 @@ def test_delete_planner_plan(monkeypatch, test_client):
     calls = []
     monkeypatch.setattr(
         "api.services.reservables.ReservableService.delete_plan",
-        staticmethod(lambda plan_id: calls.append(plan_id)),
+        staticmethod(lambda plan_id, payload=None: calls.append(plan_id)),
     )
 
     response = test_client(

@@ -163,3 +163,53 @@ class TestReregistrationEnabledReadback:
         assert not any(
             call.args and call.args[0] == {"enabled": False} for call in update_calls
         )
+
+
+class TestReregistrationUpsertErrorsEdge:
+    """The add_hyper result check is ``unchanged or replaced or not
+    <stored enabled>`` — the third leg only evaluates when the upsert
+    reports neither (the errors edge). Regression: the GPU-lifecycle
+    port removed the ``previous_enabled`` local but left this read of
+    it, turning the edge into a NameError instead of the upstream
+    behavior (status-False return for a previously-enabled host,
+    silent pass for a previously-disabled one)."""
+
+    @staticmethod
+    def _force_errors_result(monkeypatch):
+        from isardvdi_common.lib.hypervisors import hypervisors as mod
+
+        monkeypatch.setattr(
+            mod.HypervisorsProcessed,
+            "add_hyper",
+            classmethod(
+                lambda cls, *a, **k: {
+                    "deleted": 0,
+                    "errors": 1,
+                    "inserted": 0,
+                    "replaced": 0,
+                    "skipped": 0,
+                    "unchanged": 0,
+                }
+            ),
+        )
+
+    def test_errors_result_previously_enabled_returns_status_false(
+        self, stub_hyper, monkeypatch
+    ):
+        stub_hyper["mock_table"].return_value.get.return_value.run.return_value = _row(
+            enabled=True
+        )
+        self._force_errors_result(monkeypatch)
+        result = stub_hyper["Processed"].hyper("isard-hypervisor", "isard-hypervisor")
+        assert result["status"] is False
+        assert "Unable to ssh-keyscan" in result["msg"]
+
+    def test_errors_result_previously_disabled_passes_through(
+        self, stub_hyper, monkeypatch
+    ):
+        stub_hyper["mock_table"].return_value.get.return_value.run.return_value = _row(
+            enabled=False
+        )
+        self._force_errors_result(monkeypatch)
+        result = stub_hyper["Processed"].hyper("isard-hypervisor", "isard-hypervisor")
+        assert result["status"] is True

@@ -65,6 +65,20 @@ class _Row:
     def update(self, fields):
         return _Update(self.table, self.row_id, fields)
 
+    def pluck(self, *fields):
+        # `.get(id).pluck(...).run(conn)` — ensure_gpu_cards reads the
+        # hypervisor row's hostname/pci_devices for the passthrough label.
+        outer = self
+
+        class _RowPluck:
+            def run(self, conn):
+                row = outer.table.rows.get(outer.row_id)
+                if row is None:
+                    return None
+                return {f: row.get(f) for f in fields}
+
+        return _RowPluck()
+
     def delete(self):
         return _Delete(self.table, self.row_id)
 
@@ -203,6 +217,9 @@ def stub_rdb(monkeypatch):
         "gpus": _Table("gpus", {}),
         "gpu_profiles": _Table("gpu_profiles", {}),
         "resource_planner": _Table("resource_planner", {}),
+        # ensure_gpu_cards reads hostname+pci_devices for the auto
+        # passthrough_variant label (upstream !4544); an absent row is fine.
+        "hypervisors": _Table("hypervisors", {}),
     }
     monkeypatch.setattr(mod.r, "table", lambda name: tables[name])
     return {"tables": tables, "Processed": mod.HypervisorsProcessed}

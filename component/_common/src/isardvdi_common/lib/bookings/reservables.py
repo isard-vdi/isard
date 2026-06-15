@@ -17,7 +17,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.api_admin import ApiAdmin
-from isardvdi_common.lib.bookings.gpu_realizability import split_qualifier
+from isardvdi_common.lib.bookings.gpu_realizability import bare_suffix, split_qualifier
 from pydantic import BaseModel, Field
 from rethinkdb import r
 
@@ -219,6 +219,12 @@ class Reservables:
     def get_subitem(self, item_type, item_id, subitem):
         return self.reservable[item_type].get_subitem(item_id, subitem)
 
+    def get_item_category(self, item_type, item_id):
+        return self.reservable[item_type].get_item_category(item_id)
+
+    def set_item_category(self, item_type, item_id, category):
+        return self.reservable[item_type].set_item_category(item_id, category)
+
     def get_subitem_parent_item(self, item_type, subitem):
         return self.reservable[item_type].get_subitem_parent_item(subitem)
 
@@ -309,6 +315,13 @@ class ResourceItemsGpus(RethinkSharedConnection):
         hyp_gpu_warnings = {}
         hyp_gpu_notes = {}
         for item in items:
+            cat = item.get("category")
+            if cat:
+                with cls._rdb_context():
+                    cat_row = r.table("categories").get(cat).run(cls._rdb_connection)
+                item["category_name"] = (cat_row or {}).get("name")
+            else:
+                item["category_name"] = None
             if item.get("active_profile"):
                 with cls._rdb_context():
                     matching_profiles = list(
@@ -457,12 +470,71 @@ class ResourceItemsGpus(RethinkSharedConnection):
         return new_gpu
 
     @classmethod
+    def get_item_category(cls, item_id):
+        """Category a physical GPU card is delegated to, or ``None``.
+
+        A null/absent ``category`` means the card is not delegated to any
+        category (admin-only / global) -- the historical default. This is the
+        placement scope a category manager's plannings are checked against.
+        """
+        with cls._rdb_context():
+            item = r.table("gpus").get(item_id).run(cls._rdb_connection)
+        return (item or {}).get("category")
+
+    @classmethod
+    def set_item_category(cls, item_id, category):
+        """Delegate a GPU card to a category (``None`` clears it); admin only.
+
+        One category per card: a card already delegated to a category must be
+        cleared (``None``) before it can be re-delegated to a different one, so a
+        physical card never serves two categories at once.
+        """
+        with cls._rdb_context():
+            item = r.table("gpus").get(item_id).run(cls._rdb_connection)
+        if not item:
+            raise Error(
+                "not_found",
+                "Gpu id not found in gpu table",
+                description_code="not_found",
+            )
+        current = item.get("category")
+        if category and current and current != category:
+            raise Error(
+                "precondition_required",
+                "GPU card is already delegated to a category; clear it first",
+                description_code="gpu_already_delegated",
+            )
+        with cls._rdb_context():
+            r.table("gpus").get(item_id).update({"category": category}).run(
+                cls._rdb_connection
+            )
+
+    @classmethod
     def list_profiles(cls):
         with cls._rdb_context():
             return list(r.table("gpu_profiles").run(cls._rdb_connection))
 
     @classmethod
     def enable_subitem(cls, item_id, subitem_id, enabled):
+        # Adopt the card's auto-assigned passthrough identity when an admin
+        # enables the BASE passthrough profile without choosing a variant, so
+        # each physical card stays a distinct, per-(host,socket,slot)-labelled
+        # reservable by default. An explicit "~<variant>" the admin typed, or any
+        # non-passthrough profile, is left untouched.
+        if (
+            enabled
+            and split_qualifier(subitem_id)[1] is None
+            and bare_suffix(subitem_id) == "passthrough"
+        ):
+            with cls._rdb_context():
+                _card = (
+                    r.table("gpus")
+                    .get(item_id)
+                    .pluck("passthrough_variant")
+                    .run(cls._rdb_connection)
+                ) or {}
+            if _card.get("passthrough_variant"):
+                subitem_id = subitem_id + "~" + _card["passthrough_variant"]
         # Reject a malformed "~<variant>" qualifier early (choke point for every
         # enable/disable caller) so a bad label can never reach id/suffix parsing.
         variant = split_qualifier(subitem_id)[1]

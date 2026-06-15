@@ -58,6 +58,11 @@ $(document).ready(function () {
           var notes_tooltip = full.gpu_notes.join('&#10;');
           suffix += ' <i class="fa fa-info-circle" style="color:#3c8dbc" title="' + notes_tooltip + '"></i>';
         }
+        if (full.category) {
+          var catLabel = (full.category_name ? full.category_name : full.category)
+            .toString().replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+          suffix += ' <span class="label label-info" title="Delegated to category: ' + catLabel + '"><i class="fa fa-users"></i> ' + catLabel + '</span>';
+        }
         return data + suffix;
       }},
       { data: "description" },
@@ -242,8 +247,19 @@ $(document).ready(function () {
                 enabledId && enabledId.indexOf("~") >= 0
                   ? enabledId.split("~")[1]
                   : "";
+              // Auto per-card passthrough identity (<host>n<numa>b<bus>): shown as
+              // a muted suggestion when passthrough is not yet enabled, and
+              // adopted by default when the admin enables it.
+              var ptVariant =
+                full.profile === "passthrough" && rowData.passthrough_variant
+                  ? rowData.passthrough_variant
+                  : "";
               var label = variant
                 ? '<span class="label label-info">' + variant + "</span>"
+                : ptVariant
+                ? '<span class="text-muted" title="Auto card identity (host/socket/slot); adopted when you enable passthrough">' +
+                  ptVariant +
+                  "</span>"
                 : '<span class="text-muted">&mdash;</span>';
               // Names already defined for this base profile (other cards), passed
               // to the editor so the admin can re-use one without retyping it.
@@ -254,6 +270,7 @@ $(document).ready(function () {
                 'data-base="' + full.id + '" ' +
                 'data-memory="' + (full.memory || "") + '" ' +
                 'data-variants="' + existing + '" ' +
+                'data-pt-variant="' + ptVariant + '" ' +
                 'title="Manage variant"><i class="fa fa-pencil"></i></button>'
               );
             },
@@ -508,6 +525,16 @@ $(document).ready(function () {
         $('#modalEditGpuForm #id').val(data.id);
         $('#modalEditGpuForm #name').val(data.name);
         $('#modalEditGpuForm #description').val(data.description);
+        var $catSel = $('#modalEditGpuForm #category');
+        $catSel.find('option:not(:first)').remove();
+        $.ajax({ url: '/api/v4/admin/items/categories', type: 'GET', contentType: 'application/json',
+          success: function (categories) {
+            (categories || []).forEach(function (c) {
+              $catSel.append($('<option>', { value: c.id, text: c.name }));
+            });
+            $catSel.val(data.category || '');
+          }
+        });
         $('#modalEditGpu').modal({
           backdrop: 'static',
           keyboard: false
@@ -627,7 +654,7 @@ $(document).ready(function () {
             $.ajax({
                 type: 'PUT',
                 url: '/api/v4/admin/items/reservables/gpus/' + item_id,
-                data: JSON.stringify({ name: data.name, description: data.description }),
+                data: JSON.stringify({ name: data.name, description: data.description, category: data.category }),
                 contentType: 'application/json',
                 success: function(data) {
                     $('form').each(function() { this.reset() });
@@ -669,6 +696,9 @@ $(document).ready(function () {
       var memory = $(this).attr("data-memory");
       var current =
         enabledId && enabledId.indexOf("~") >= 0 ? enabledId.split("~")[1] : "";
+      // Auto passthrough identity for this card; pre-selected when nothing is
+      // enabled yet so enabling adopts it by default (admin can still change it).
+      var ptVariant = $(this).attr("data-pt-variant") || "";
       var existing = ($(this).attr("data-variants") || "")
         .split(",")
         .filter(function (v) { return v; });
@@ -682,6 +712,8 @@ $(document).ready(function () {
 
       var names = existing.slice();
       if (current && names.indexOf(current) < 0) names.push(current);
+      if (!current && ptVariant && names.indexOf(ptVariant) < 0)
+        names.push(ptVariant);
       names.sort();
       var $sel = $("#modalEditVariant #variant_select").empty();
       $sel.append('<option value="">none (bare)</option>');
@@ -689,7 +721,7 @@ $(document).ready(function () {
         $sel.append('<option value="' + n + '">' + n + "</option>");
       });
       $sel.append('<option value="__new__">new variant…</option>');
-      $sel.val(current || "");
+      $sel.val(current || ptVariant || "");
       $("#modalEditVariant #variant_new").val("");
       $("#modalEditVariant #variant_new_group").hide();
 

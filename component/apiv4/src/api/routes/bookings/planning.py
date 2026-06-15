@@ -23,7 +23,8 @@ import traceback
 from datetime import datetime
 from typing import Optional
 
-from api import admin_router
+from api import manager_router
+from api.dependencies.jwt_token import can_manage_gpu_plannings
 from api.schemas.common import DeleteResponse, ErrorResponse, SimpleResponse
 from api.schemas.planning import (
     CreatePlanningRequest,
@@ -33,14 +34,15 @@ from api.schemas.planning import (
 from api.services.error import Error
 from api.services.planning import PlanningService
 from api.services.reservables import ReservableService
-from fastapi import Path, Query, Request
+from fastapi import Depends, Path, Query, Request
 from fastapi.responses import JSONResponse
 
 tag = "planning"
 
 
-@admin_router.get(
+@manager_router.get(
     "/items/planning/{reservable_item_id}",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     response_model=PlanningListResponse,
     tags=[tag],
     summary="Get plannings for a specific reservable item",
@@ -91,8 +93,9 @@ async def get_item_plannings(
         )
 
 
-@admin_router.delete(
+@manager_router.delete(
     "/item/planning/{plan_id}",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     tags=[tag],
     response_model=DeleteResponse,
     status_code=200,
@@ -125,8 +128,9 @@ async def delete_planning(
         )
 
 
-@admin_router.post(
+@manager_router.post(
     "/item/planning",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     tags=[tag],
     response_model=SimpleResponse,
     summary="Create a new planning",

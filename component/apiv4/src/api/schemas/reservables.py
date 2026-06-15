@@ -21,7 +21,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 def _ensure_aware_utc(value: datetime) -> datetime:
@@ -127,10 +127,13 @@ class AddReservableItemRequest(BaseModel):
 
 
 class UpdateReservableItemRequest(BaseModel):
-    """Request model for updating a reservable item's name and description"""
+    """Request model for updating a reservable item's name and description,
+    and/or delegating it to a category (upstream MR !4546): an empty string
+    clears the delegation (back to admin-only/global)."""
 
     name: Optional[str] = None
     description: Optional[str] = None
+    category: Optional[str] = Field(default=None, max_length=64)
 
 
 class EnableReservableRequest(BaseModel):

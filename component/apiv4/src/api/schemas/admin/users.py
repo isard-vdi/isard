@@ -184,6 +184,9 @@ class AdminCategoryCreateData(BaseModel):
     photo: Optional[str] = None
     storage_pool: Optional[str] = None
     manager_permissions: Optional[dict] = None
+    # Default (absent/None) = draw from the global GPU pool (own + global
+    # undelegated cards); False = only cards delegated to this category. (!4547)
+    gpu_use_global_pool: Optional[bool] = None
 
 
 class AdminCategoryUpdateData(BaseModel):
@@ -199,6 +202,7 @@ class AdminCategoryUpdateData(BaseModel):
     manager_permissions: Optional[dict] = None
     maintenance: Optional[bool] = None
     recycle_bin_cutoff_time: int | None = None
+    gpu_use_global_pool: Optional[bool] = None
 
 
 class AdminCategoryAuthenticationData(BaseModel):

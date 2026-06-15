@@ -620,7 +620,10 @@ $(document).on('click', '#xmlSectionsLiveXml', function() {
     ).done(function(liveResp, storedResp) {
         var live = (liveResp[0] && liveResp[0].xml) || '';
         var hyp = (liveResp[0] && liveResp[0].hyp) || '';
-        var stored = (typeof storedResp[0] === 'string') ? storedResp[0] : (storedResp[0] || '');
+        // apiv4 wraps the stored XML as {"xml": ...} (v3 returned a bare JSON
+        // string — keep that fallback so the line also survives a raw body).
+        var stored = (storedResp[0] && storedResp[0].xml) ||
+            ((typeof storedResp[0] === 'string') ? storedResp[0] : '');
         var banner = '<div class="alert alert-warning" style="margin-bottom:8px;">' +
             '<i class="fa fa-exclamation-triangle"></i> Live XML from libvirt' +
             (hyp ? ' on hypervisor <b>' + escapeHtml(hyp) + '</b>' : '') +

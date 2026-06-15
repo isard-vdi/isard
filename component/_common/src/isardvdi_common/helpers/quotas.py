@@ -1747,6 +1747,23 @@ class Quotas(RethinkCustomBase):
                     ),
                 )
             }
+            # Phase 2 multitenancy (!4547): only show profiles backed by a GPU
+            # card delegated to the requester's category (+ the global pool when
+            # allowed). Profiles already attached to this desktop stay listed so
+            # it never loses its GPU.
+            from isardvdi_common.lib.bookings.gpu_multitenancy import (
+                filter_reservables_by_category,
+            )
+
+            dict["reservables"]["vgpus"] = filter_reservables_by_category(
+                dict["reservables"]["vgpus"],
+                payload,
+                keep_ids=(
+                    []
+                    if not (domain.get("reservables") or {}).get("vgpus")
+                    else domain["reservables"]["vgpus"]
+                ),
+            )
             # Tag vGPU profiles with the hypervisor groups that can host them so
             # the attach UIs can group/restrict the multi-select. Admins/managers
             # see real hypervisor names; other roles only anonymized group

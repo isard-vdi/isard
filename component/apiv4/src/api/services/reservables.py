@@ -123,7 +123,9 @@ class ReservableService:
         }
 
     @staticmethod
-    def get_reservable_detail(item_type: str) -> list[dict]:
+    def get_reservable_detail(
+        item_type: str, payload: Optional[dict] = None
+    ) -> list[dict]:
         """
         Get detailed information for a specific reservable type
 
@@ -143,6 +145,14 @@ class ReservableService:
                 description_code="reservable_type_not_found",
             )
         items = reservables.list_items(item_type)
+        # A manager only sees the cards delegated to their category, so the
+        # planner card selector can't enumerate another category's hardware.
+        if payload is not None and payload.get("role_id") != "admin":
+            items = [
+                item
+                for item in items
+                if item.get("category") == payload.get("category_id")
+            ]
 
         formatted_items = [
             ReservableService._format_item(item, reservables, item_type)
@@ -277,7 +287,13 @@ class ReservableService:
         return result["id"]
 
     @staticmethod
-    def list_subitems_enabled(reservable_type: str, item_id: str) -> list[dict]:
+    def list_subitems_enabled(
+        reservable_type: str, item_id: str, payload: Optional[dict] = None
+    ) -> list[dict]:
+        # A manager may list the enabled profiles only on a card delegated to
+        # their category (the planner needs them to label the plan windows).
+        if payload is not None:
+            ReservablesPlannerProccess._assert_manager_owns_card(payload, item_id)
         reservables = Reservables()
         return reservables.list_subitems_enabled(reservable_type, item_id)
 
@@ -334,6 +350,14 @@ class ReservableService:
             raise Error("bad_request", f"Unknown reservable type: {reservable_type}")
         if ReservablesProcessed.get_item(table, item_id) is None:
             raise Error("not_found", f"Item {item_id} not found in {table}")
+        # The owning category is delegated via set_item_category (one per card,
+        # enforced there); keep it out of the blind update_item write. An empty
+        # string clears the delegation (back to admin-only/global). (!4546)
+        sentinel = object()
+        category = data.pop("category", sentinel)
+        if category is not sentinel:
+            reservables = Reservables()
+            reservables.set_item_category(reservable_type, item_id, category or None)
         update_data = {}
         if "name" in data:
             if ReservablesProcessed.name_exists_for_other(table, data["name"], item_id):
@@ -345,8 +369,9 @@ class ReservableService:
         _invalidate_reservable_caches(reservable_type)
 
     @staticmethod
-    def list_all_plans() -> list[dict]:
-        return ReservablesPlannerProccess.list_all_item_plans()
+    def list_all_plans(payload: Optional[dict] = None) -> list[dict]:
+        # A manager only sees plannings on cards delegated to their category.
+        return ReservablesPlannerProccess.list_all_item_plans(payload)
 
     @staticmethod
     def get_actual_plan(item_id: str) -> dict:
@@ -360,11 +385,15 @@ class ReservableService:
         item_id: str,
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
+        payload: Optional[dict] = None,
     ) -> list[dict]:
+        if payload is not None:
+            ReservablesPlannerProccess._assert_manager_owns_card(payload, item_id)
         return ReservablesPlannerProccess.list_item_plans(item_id, start, end)
 
     @staticmethod
     def add_plan(payload: dict, data: dict) -> dict:
+        ReservablesPlannerProccess._assert_manager_owns_card(payload, data["item_id"])
         return ReservablesPlannerProccess.add_plan(payload, data)
 
     @staticmethod
@@ -372,11 +401,14 @@ class ReservableService:
         return ReservablesPlannerProccess.get_plan_bookings(plan_id)
 
     @staticmethod
-    def delete_plan(plan_id: str) -> None:
+    def delete_plan(plan_id: str, payload: Optional[dict] = None) -> None:
+        if payload is not None:
+            ReservablesPlannerProccess._assert_manager_owns_plan(payload, plan_id)
         ReservablesPlannerProccess.delete_plan(plan_id)
 
     @staticmethod
     def update_plan(payload: dict, plan_id: str, start: str, end: str) -> None:
+        ReservablesPlannerProccess._assert_manager_owns_plan(payload, plan_id)
         ReservablesPlannerProccess.update_plan(payload, plan_id, start, end)
 
     @staticmethod

@@ -102,7 +102,7 @@
               {{ $t('components.navbar.bookings.text') }}
             </b-nav-item>
             <b-nav-item-dropdown
-              v-if="getConfig.showBookingsButton && getUser.role_id === 'admin'"
+              v-if="(getConfig.showBookingsButton && getUser.role_id === 'admin') || (getUser.role_id === 'manager' && getConfig.showGpuPlannings)"
               active-class="active"
             >
               <template #button-content>

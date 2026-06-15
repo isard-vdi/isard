@@ -56,6 +56,45 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
             minutes=cls.ROUND_MINUTES
         )
 
+    @classmethod
+    def _assert_manager_owns_card(cls, payload, item_id):
+        """A manager may only act on a GPU card delegated to their category.
+
+        Admins pass. A manager passes only when the card's ``gpus.category``
+        equals the manager's category; an unassigned/global card (``None``) is
+        forbidden for a manager. Admin-author plannings on global cards stay
+        admin-only.
+        """
+        if payload["role_id"] == "admin":
+            return
+        category = cls.reservables.get_item_category("gpus", item_id)
+        if category != payload["category_id"]:
+            raise Error(
+                "forbidden",
+                "GPU card is not delegated to your category",
+                description_code="insufficient_permissions",
+            )
+
+    @classmethod
+    def _assert_manager_owns_plan(cls, payload, plan_id):
+        """:meth:`_assert_manager_owns_card` resolved from an existing plan id.
+
+        Collapses a cross-category ``forbidden`` into ``not_found`` so a manager
+        cannot enumerate plans on cards outside their category by id.
+        """
+        if payload["role_id"] == "admin":
+            return
+        with cls._rdb_context():
+            plan = r.table("resource_planner").get(plan_id).run(cls._rdb_connection)
+        if not plan:
+            raise Error("not_found", "Plan not found", description_code="not_found")
+        try:
+            cls._assert_manager_owns_card(payload, plan["item_id"])
+        except Error as e:
+            if getattr(e, "status_code", None) == 403:
+                raise Error("not_found", "Plan not found", description_code="not_found")
+            raise
+
     ## Reservables View endpoints
     @classmethod
     def list_item_plans(cls, item_id, start=None, end=None):
@@ -75,7 +114,7 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
         return ResourcePlanner.get_plans(item_id, start, end)
 
     @classmethod
-    def list_all_item_plans(cls):
+    def list_all_item_plans(cls, payload=None):
         with cls._rdb_context():
             plans = list(
                 r.table("resource_planner")
@@ -83,11 +122,18 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                     lambda plan: {
                         "item": r.table("gpus")
                         .get(plan["item_id"])
-                        .default({"name": "[DELETED]"})["name"]
+                        .default({"name": "[DELETED]"})["name"],
+                        "category": r.table("gpus")
+                        .get(plan["item_id"])["category"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
             )
+        # A manager only sees plannings on cards delegated to their category;
+        # global (category=None) cards stay admin-only.
+        if payload and payload.get("role_id") == "manager":
+            plans = [p for p in plans if p.get("category") == payload["category_id"]]
         for plan in plans:
             plan["bookings"] = len(cls.get_plan_bookings(plan["id"]))
 
