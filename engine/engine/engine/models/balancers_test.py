@@ -8,6 +8,7 @@ from engine.models.balancers import (
     Balancer_less_cpu,
     Balancer_less_cpu_till_low_ram,
     Balancer_less_cpu_till_low_ram_percent,
+    _build_hugepages_extra,
     _get_used_ram_percentage,
     _parse_extra_gpu_info,
     sort_hypervisors_cpu_percentage,
@@ -532,3 +533,49 @@ class TestParseExtraGpuInfo:
 
         assert extra["hugepages_free_kb"] == 0
         assert extra["numa_hugepages_free_kb"] == {}
+
+
+class TestBuildHugepagesExtra:
+    """`_build_hugepages_extra` (non-GPU path) must still surface the NUMA
+    topology + per-node free figures even when the host has no mounted
+    hugepage pool, so `ui_actions` can NUMA-balance non-GPU desktops.
+
+    Regression: the numa-aware placement port short-circuited the unmounted
+    branch with `return {}`, dropping numa_topology/numa_hugepages_free_kb —
+    which makes `ui_actions` see no NUMA nodes and skip cputune/numatune for
+    non-GPU desktops on hosts without hugepages.
+    """
+
+    def test_unmounted_still_surfaces_numa(self):
+        hyper = {
+            "hugepages_info": {"mounted": False},
+            "numa_topology": {"nodes": {"0": {}, "1": {}}},
+            "stats": {"mem_stats": {"numa_hugepages_free_kb": {"0": 0, "1": 0}}},
+        }
+
+        extra = _build_hugepages_extra(hyper)
+
+        assert extra["numa_topology"] == {"nodes": {"0": {}, "1": {}}}
+        assert extra["numa_hugepages_free_kb"] == {"0": 0, "1": 0}
+        # No hugepage pool → no hugepage-backing fields.
+        assert "hugepages" not in extra
+
+    def test_mounted_surfaces_full_hugepage_extra(self):
+        hyper = {
+            "hugepages_info": {"1G": {"free": 4, "total": 8}, "mounted": True},
+            "min_free_mem_gb": 16,
+            "numa_topology": {"nodes": {"0": {}}},
+            "stats": {
+                "mem_stats": {
+                    "available": 100 * 1048576,
+                    "hugepages_free_kb": 4 * 1048576,
+                    "numa_hugepages_free_kb": {"0": 4 * 1048576},
+                }
+            },
+        }
+
+        extra = _build_hugepages_extra(hyper)
+
+        assert extra["hugepages"] == {"1G": {"free": 4, "total": 8}, "mounted": True}
+        assert extra["hugepages_free_kb"] == 4 * 1048576
+        assert extra["numa_hugepages_free_kb"] == {"0": 4 * 1048576}

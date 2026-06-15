@@ -516,9 +516,15 @@ def _build_hugepages_extra(hyper_dict):
     is empty (stats writer hasn't run yet or libvirt unavailable).
     """
     hugepages_info = hyper_dict.get("hugepages_info", {})
-    if not hugepages_info or not hugepages_info.get("mounted"):
-        return {}
     mem_stats = hyper_dict.get("stats", {}).get("mem_stats", {})
+    if not hugepages_info or not hugepages_info.get("mounted"):
+        # No hugepages, but still surface NUMA topology + per-node free so
+        # ui_actions can NUMA-balance non-GPU desktops (cputune/numatune) on
+        # hosts without a hugepage pool.
+        return {
+            "numa_topology": hyper_dict.get("numa_topology", {}) or {},
+            "numa_hugepages_free_kb": mem_stats.get("numa_hugepages_free_kb", {}) or {},
+        }
     return {
         "hugepages": hugepages_info,
         "min_free_mem_gb": hyper_dict.get("min_free_mem_gb", 0) or 0,
