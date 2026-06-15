@@ -870,7 +870,10 @@ async def admin_get_password_policy(request: Request, user_id: str):
 async def admin_reset_password(request: Request, data: AdminPasswordResetData):
     try:
         await asyncio.to_thread(AdminUsersService.reset_password, data.model_dump())
-        return Response(status_code=204)
+        # Return the declared 200/EmptyResponse (not 204): the Go ogen
+        # client treats an undeclared 204 as a decode error and reports
+        # a successful reset as a failure.
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
