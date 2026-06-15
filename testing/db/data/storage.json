@@ -8,6 +8,31 @@
         "status": "ready",
         "status_logs": [],
         "storages_with_uuid": [],
-        "user_id": "local-default-admin-admin"
+        "user_id": "local-default-admin-admin",
+        "task": null
+    },
+    {
+        "id": "e2e00000-0000-0000-0000-000000000001",
+        "type": "qcow2",
+        "directory_path": "/isard/templates",
+        "parent": null,
+        "perms": ["r", "w"],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "user_id": "local-default-admin-admin",
+        "task": null
+    },
+    {
+        "id": "e2e00000-0000-0000-0000-000000000002",
+        "type": "qcow2",
+        "directory_path": "/isard/templates",
+        "parent": null,
+        "perms": ["r", "w"],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "user_id": "local-default-admin-admin",
+        "task": null
     }
 ]
