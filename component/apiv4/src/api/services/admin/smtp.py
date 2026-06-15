@@ -20,6 +20,7 @@
 
 from smtplib import SMTP
 
+from api.services.error import Error
 from isardvdi_common.configuration import Configuration
 
 
@@ -40,6 +41,23 @@ class AdminSmtpService:
 
     @staticmethod
     def test_smtp(configuration: dict) -> dict:
+        # Reject internal hosts before opening the socket: SMTP() would
+        # otherwise let an admin probe the internal network via timing and
+        # error differences.
+        from isardvdi_common.helpers.url_validation import validate_url_not_internal
+
+        host = configuration.get("host")
+        if host:
+            # validate_url_not_internal expects a URL, so wrap the bare host.
+            try:
+                validate_url_not_internal(f"smtp://{host}")
+            except ValueError as e:
+                raise Error(
+                    "bad_request",
+                    str(e),
+                    description_code="smtp_host_internal",
+                )
+
         try:
             with SMTP(
                 configuration.get("host"), configuration.get("port")
