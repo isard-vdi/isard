@@ -50,6 +50,7 @@ default:
           - go.sum
       paths:
         - /go/pkg/mod
+        - .cache/go-build
     - key:
         files:
           - component/frontend/bun.lockb
@@ -264,12 +265,15 @@ docker-compose-build:
     - echo "FLAVOUR=check" >> isardvdi.check.build.cfg
     - BACKUP_DB_ENABLED=true CODEGEN=false ./build.sh
     - |-
+      # Cache from the branch we are merging into (apiv4-integration today, main
+      # after the apiv4->main cutover — self-adjusting), with :main as fallback.
+      CACHE_REF="${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-${CI_COMMIT_REF_SLUG:-main}}"
       for file in docker-compose*.yml; do
         cp "$file" "no-cache-$file"
         if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
-          yq -i '.services |= map_values(.build.cache_from = [ "'"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
+          yq -i '.services |= map_values(.build.cache_from = [ "'"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
         else
-          yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
+          yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
         fi
       done
   artifacts:
@@ -281,6 +285,8 @@ unit-test-go:
   stage: unit-test
   needs: ["gen-protobuf"]
   image: golang:1.25.8
+  variables:
+    GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
   before_script:
     - apt-get update && apt-get install -y libvirt-dev make
     - go install gotest.tools/gotestsum@latest
