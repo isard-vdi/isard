@@ -8,12 +8,13 @@ import copy
 import logging as log
 import traceback
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.quotas_process import QuotasProcess
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -52,7 +53,7 @@ class Quotas(RethinkCustomBase):
     # TODO: Use get_applied_quota function
     @classmethod
     @cached(
-        TTLCache(maxsize=200, ttl=5),
+        SynchronizedTTLCache(maxsize=200, ttl=5),
         key=lambda cls, user_id, started_info=True: (user_id, started_info),
     )
     def Get(cls, user_id, started_info=True):
@@ -179,14 +180,17 @@ class Quotas(RethinkCustomBase):
             return {"quota": False, "used": used, "restriction_applied": "user_quota"}
 
     @classmethod
-    @cached(TTLCache(maxsize=100, ttl=5), key=lambda cls, user_id: user_id)
+    @cached(SynchronizedTTLCache(maxsize=100, ttl=5), key=lambda cls, user_id: user_id)
     def GetUserQuota(cls, user_id):
         return QuotasProcess.get_user(user_id)
 
     """ Used to edit category/group/user in admin """
 
     @classmethod
-    @cached(TTLCache(maxsize=100, ttl=5), key=lambda cls, category_id: category_id)
+    @cached(
+        SynchronizedTTLCache(maxsize=100, ttl=5),
+        key=lambda cls, category_id: category_id,
+    )
     def GetCategoryQuota(cls, category_id):
         with cls._rdb_context():
             category = (
@@ -202,7 +206,9 @@ class Quotas(RethinkCustomBase):
         }
 
     @classmethod
-    @cached(TTLCache(maxsize=100, ttl=5), key=lambda cls, group_id: group_id)
+    @cached(
+        SynchronizedTTLCache(maxsize=100, ttl=5), key=lambda cls, group_id: group_id
+    )
     def GetGroupQuota(cls, group_id):
         ### Limits for group will be at least limits for its category
         with cls._rdb_context():
@@ -230,7 +236,7 @@ class Quotas(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=100, ttl=5),
+        SynchronizedTTLCache(maxsize=100, ttl=5),
         key=lambda cls, category_id, group_id: (category_id, group_id),
     )
     def UserCreate(cls, category_id, group_id):
@@ -571,7 +577,7 @@ class Quotas(RethinkCustomBase):
             )
 
     @classmethod
-    @cached(TTLCache(maxsize=100, ttl=5), key=lambda cls, user_id: user_id)
+    @cached(SynchronizedTTLCache(maxsize=100, ttl=5), key=lambda cls, user_id: user_id)
     def get_started_deployment_desktops(cls, user_id):
         # Status that are considered in the running quota
         started_status = [
@@ -656,7 +662,7 @@ class Quotas(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=100, ttl=5),
+        SynchronizedTTLCache(maxsize=100, ttl=5),
         key=lambda cls, query_id, query_index, owner_only=False: (
             query_id,
             query_index,
@@ -720,7 +726,7 @@ class Quotas(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=100, ttl=5),
+        SynchronizedTTLCache(maxsize=100, ttl=5),
         key=lambda cls, user_id, desktop_id: (user_id, desktop_id),
     )
     def desktop_start(cls, user_id, desktop_id):
@@ -968,7 +974,7 @@ class Quotas(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=100, ttl=5),
+        SynchronizedTTLCache(maxsize=100, ttl=5),
         key=lambda cls, user_id, desktop_id: (user_id, desktop_id),
     )
     def deployment_desktop_start(cls, user_id, desktop_id):
@@ -1609,7 +1615,7 @@ class Quotas(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=100, ttl=5),
+        SynchronizedTTLCache(maxsize=100, ttl=5),
         key=lambda cls, payload, kind=None, domain_id=None: (
             payload["user_id"],
             kind,

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from threading import Semaphore
 
 import pytz
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
@@ -18,6 +18,7 @@ from isardvdi_common.connections.rethink_custom_base_factory import RethinkCusto
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.schemas.domains import DesktopStatusEnum
 from rethinkdb import r
 
@@ -921,7 +922,7 @@ class Helpers(RethinkSharedConnection):
         return True if event["start"] > datetime.now(pytz.utc) else False
 
     @classmethod
-    @cached(TTLCache(maxsize=100, ttl=10))
+    @cached(SynchronizedTTLCache(maxsize=100, ttl=10))
     def category_name_group_name_match(cls, category_name, group_name):
         """_From api/views/decorators.py CategoryNameGroupNameMatch()"""
         with cls._rdb_context():

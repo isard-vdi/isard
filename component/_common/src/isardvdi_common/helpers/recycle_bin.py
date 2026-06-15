@@ -5,7 +5,7 @@ import time
 import traceback
 from datetime import datetime, timedelta, timezone
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
@@ -15,6 +15,7 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers as CommonHelpers
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.user_storage import UserStorage
 from isardvdi_common.lib.notifications.notifications_data import (
     NotificationsDataProcessed,
@@ -28,25 +29,41 @@ from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from isardvdi_common.schemas.storage import StorageStatusEnum
 from rethinkdb import r
 
-_get_status_cache: TTLCache = TTLCache(maxsize=10, ttl=30)
-_get_category_data_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
-_get_group_data_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
-_get_user_data_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
-_get_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
-_get_recycle_bin_entries_cutoff_time_surpassed_cache: TTLCache = TTLCache(
-    maxsize=50, ttl=10
+_get_status_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=30)
+_get_category_data_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=50, ttl=30
 )
-_get_user_recycle_bin_ids_cache: TTLCache = TTLCache(maxsize=50, ttl=60)
-_get_count_cache: TTLCache = TTLCache(maxsize=50, ttl=60)
-_get_item_count_cache: TTLCache = TTLCache(maxsize=50, ttl=60)
-_get_user_amount_cache: TTLCache = TTLCache(maxsize=50, ttl=60)
-_get_old_entries_config_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
-_get_default_delete_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
-_get_delete_action_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
-_get_user_recycle_bin_cutoff_time_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
-_get_categories_recycle_bin_cutoff_time_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
-_get_category_recycle_bin_cuttoff_time_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
-_get_recycle_bin_cuttoff_time_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
+_get_group_data_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=50, ttl=30)
+_get_user_data_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=50, ttl=30)
+_get_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=50, ttl=30)
+_get_recycle_bin_entries_cutoff_time_surpassed_cache: SynchronizedTTLCache = (
+    SynchronizedTTLCache(maxsize=50, ttl=10)
+)
+_get_user_recycle_bin_ids_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=50, ttl=60
+)
+_get_count_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=50, ttl=60)
+_get_item_count_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=50, ttl=60)
+_get_user_amount_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=50, ttl=60)
+_get_old_entries_config_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=1, ttl=60
+)
+_get_default_delete_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=1, ttl=60
+)
+_get_delete_action_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=60)
+_get_user_recycle_bin_cutoff_time_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=1, ttl=10
+)
+_get_categories_recycle_bin_cutoff_time_cache: SynchronizedTTLCache = (
+    SynchronizedTTLCache(maxsize=1, ttl=10)
+)
+_get_category_recycle_bin_cuttoff_time_cache: SynchronizedTTLCache = (
+    SynchronizedTTLCache(maxsize=1, ttl=10)
+)
+_get_recycle_bin_cuttoff_time_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=1, ttl=10
+)
 
 
 class RecycleBinDeleteQueue(RethinkSharedConnection):

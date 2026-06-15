@@ -18,12 +18,13 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from cachetools import TTLCache, cached
+from cachetools import cached
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
 from ..connections.rethink_connection_factory import RethinkSharedConnection
 
-_viewers = TTLCache(maxsize=1, ttl=3600)
+_viewers = SynchronizedTTLCache(maxsize=1, ttl=3600)
 
 
 class ViewersConfig(RethinkSharedConnection):

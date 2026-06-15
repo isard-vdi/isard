@@ -22,15 +22,16 @@
 pluck for deployment/template lookups). Per-item-type log fetchers
 live in the sibling submodules."""
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_shared_connection import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
 # Module-level cache so writers can invalidate it after mutations.
-_domains_cache: TTLCache = TTLCache(maxsize=1, ttl=120)
+_domains_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=120)
 
 
 class ConsolidateProcessed(RethinkSharedConnection):

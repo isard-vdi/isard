@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 
 import portion as P
 import pytz
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
@@ -33,6 +33,7 @@ from isardvdi_common.helpers.bookings import Bookings as BookingsHelper
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlannerProccess
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
@@ -41,8 +42,12 @@ from isardvdi_common.lib.bookings.reservables_planner_compute import (
 from isardvdi_common.schemas.domains import DesktopStatusEnum
 from rethinkdb import r
 
-_get_cached_desktop_bookings_cache: TTLCache = TTLCache(maxsize=200, ttl=5)
-_get_cached_deployment_bookings_cache: TTLCache = TTLCache(maxsize=200, ttl=5)
+_get_cached_desktop_bookings_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=200, ttl=5
+)
+_get_cached_deployment_bookings_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=200, ttl=5
+)
 
 
 class BookingsProcessed(RethinkSharedConnection):

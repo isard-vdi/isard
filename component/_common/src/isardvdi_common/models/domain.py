@@ -31,7 +31,7 @@ from typing import List, Literal, Optional
 from uuid import uuid4
 
 import pytz
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_base import PydanticBase, pydantic_optional
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.alloweds import Alloweds
@@ -41,6 +41,7 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.isard_viewer import IsardViewer
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.models.category import Category
 from isardvdi_common.models.group import Group
 from pydantic import BaseModel
@@ -55,8 +56,8 @@ from . import storage
 
 isard_viewer = IsardViewer()
 
-_get_cached_available_domain_storage_pool_id_cache: TTLCache = TTLCache(
-    maxsize=200, ttl=10
+_get_cached_available_domain_storage_pool_id_cache: SynchronizedTTLCache = (
+    SynchronizedTTLCache(maxsize=200, ttl=10)
 )
 
 

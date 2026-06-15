@@ -21,7 +21,7 @@ import logging
 import time
 import traceback
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.api_notify import notify_admins
 from isardvdi_common.helpers.caches import Caches
@@ -37,13 +37,14 @@ from isardvdi_common.helpers.recycle_bin import (
     RecycleBinTemplate,
     RecycleBinUser,
 )
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.schemas.domains import DesktopStatusEnum
 
 log = logging.getLogger(__name__)
 from rethinkdb import r
 
-_get_qos_disks_cache: TTLCache = TTLCache(maxsize=20, ttl=30)
+_get_qos_disks_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=30)
 
 
 class DesktopEvents(RethinkCustomBase):

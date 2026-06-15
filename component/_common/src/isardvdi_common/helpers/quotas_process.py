@@ -5,10 +5,11 @@
 
 import traceback
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
 
@@ -16,7 +17,7 @@ class QuotasProcess(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=200, ttl=5),
+        SynchronizedTTLCache(maxsize=200, ttl=5),
         key=lambda cls, user_id: user_id,
     )
     def cached_user_domains(cls, user_id):
@@ -42,7 +43,7 @@ class QuotasProcess(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=200, ttl=5),
+        SynchronizedTTLCache(maxsize=200, ttl=5),
         key=lambda cls, user_id: user_id,
     )
     def cached_user_templates(cls, user_id):
@@ -53,7 +54,7 @@ class QuotasProcess(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=200, ttl=5),
+        SynchronizedTTLCache(maxsize=200, ttl=5),
         key=lambda cls, user_id: user_id,
     )
     def cached_user_isos_count(cls, user_id):
@@ -67,7 +68,7 @@ class QuotasProcess(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=200, ttl=5),
+        SynchronizedTTLCache(maxsize=200, ttl=5),
         key=lambda cls, user_id: user_id,
     )
     def cached_user_deployments_ids(cls, user_id):
@@ -83,7 +84,7 @@ class QuotasProcess(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=50, ttl=10),
+        SynchronizedTTLCache(maxsize=50, ttl=10),
         key=lambda cls, user_id, category_id, role_id: user_id,
     )
     def get(cls, user_id, category_id, role_id):
@@ -261,7 +262,7 @@ class QuotasProcess(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=50, ttl=10),
+        SynchronizedTTLCache(maxsize=50, ttl=10),
         key=lambda cls, id, from_user_id=None, from_group_id=None: (
             id,
             from_user_id,
@@ -437,7 +438,7 @@ class QuotasProcess(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=200, ttl=10),
+        SynchronizedTTLCache(maxsize=200, ttl=10),
         key=lambda cls, id, from_user_id=None: (id, from_user_id),
     )
     def process_group_limits(cls, id, from_user_id=None):
@@ -600,7 +601,7 @@ class QuotasProcess(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=10, ttl=30),
+        SynchronizedTTLCache(maxsize=10, ttl=30),
         key=lambda cls, category_id: category_id,
     )
     def get_manager_usage(cls, category_id):
@@ -676,7 +677,7 @@ class QuotasProcess(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=10, ttl=30),
+        SynchronizedTTLCache(maxsize=10, ttl=30),
         key=lambda cls: None,
     )
     def get_admin_usage(cls):
@@ -736,7 +737,7 @@ class QuotasProcess(RethinkCustomBase):
 
     # @classmethod
     # @cached(
-    #     TTLCache(maxsize=100, ttl=10),
+    #     SynchronizedTTLCache(maxsize=100, ttl=10),
     #     key=lambda cls, payload: payload["user_id"],
     # )
     # def check_payload_quota_newdesktop(cls, payload):
@@ -1007,7 +1008,7 @@ class QuotasProcess(RethinkCustomBase):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=100, ttl=10),
+        SynchronizedTTLCache(maxsize=100, ttl=10),
         key=lambda cls, category_id, group_id: (category_id, group_id),
     )
     def check_new_autoregistered_user(cls, category_id, group_id):

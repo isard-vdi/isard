@@ -22,11 +22,12 @@
 import logging
 import os
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
 _MAINTENANCE_FILE_PATH = "/usr/local/etc/isardvdi/maintenance"
@@ -55,7 +56,7 @@ class _MaintenanceMetaClass:
         self._enabled = enabled
         logging.info("Maintenance mode changed to %r.", enabled)
 
-    @cached(TTLCache(maxsize=100, ttl=15))
+    @cached(SynchronizedTTLCache(maxsize=100, ttl=15))
     def category_enabled(self, category_id):
         """Check if a category is in maintenance mode"""
         with self._rethink._rdb_context():

@@ -17,13 +17,16 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
-_get_notification_action_cache: TTLCache = TTLCache(maxsize=10, ttl=60)
+_get_notification_action_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=10, ttl=60
+)
 
 
 class NotificationsActionProcessed(RethinkSharedConnection):

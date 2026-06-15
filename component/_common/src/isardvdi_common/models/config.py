@@ -17,12 +17,13 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
-_get_config_cache: TTLCache = TTLCache(maxsize=10, ttl=1)
+_get_config_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=1)
 
 
 class Config(RethinkCustomBase):

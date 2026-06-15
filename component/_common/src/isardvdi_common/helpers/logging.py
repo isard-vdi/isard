@@ -24,11 +24,11 @@ import traceback
 from time import time
 from uuid import uuid4
 
-from cachetools import TTLCache
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.caches import Caches
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
 log = logging.getLogger(__name__)
@@ -37,7 +37,9 @@ log = logging.getLogger(__name__)
 # directviewer/proxy reconnect loop fires this path on every WebSocket
 # resume — without dedup the ``logs_desktops.events`` array balloons
 # with hundreds of duplicate rows per session. 60s TTL matches apiv3.
-_directviewer_event_cache: TTLCache = TTLCache(maxsize=1000, ttl=60)
+_directviewer_event_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=1000, ttl=60
+)
 
 
 class Logging(RethinkSharedConnection):
