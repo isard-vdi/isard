@@ -530,7 +530,7 @@ unit-test-engine:
           mkdir -p /ci-results
           cp -r /build/engine/engine/. /isard/
           cp -r /build/component/_common/src/isardvdi_common /opt/isardvdi/isardvdi_common 2>/dev/null || true
-          pytest engine/models engine/controllers engine/services/threads initdb -q --tb=short --junitxml=/ci-results/report.xml
+          pytest engine/models engine/controllers engine/services/threads engine/services/lib initdb -q --tb=short --junitxml=/ci-results/report.xml
         '
   artifacts:
     when: always

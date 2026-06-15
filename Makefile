@@ -118,7 +118,7 @@ _cfeed_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_changefee
 
 .PHONY: test-engine
 test-engine:
-	docker exec isard-engine sh -c "cd /isard && python3 -m pytest engine/models engine/services/threads initdb -v --tb=short"
+	docker exec isard-engine sh -c "cd /isard && python3 -m pytest engine/models engine/services/threads engine/services/lib initdb -v --tb=short"
 
 # Hypervisor GPU lib suites (gpu_probe/gpu_apply/gpu_apply_cli/
 # gpu_change_guard/gpu_discovery). Pure stdlib + the shared gpu modules

@@ -17,6 +17,7 @@ from isardvdi_apiv4_client_auth import build_client
 from libvirt import (
     VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN,
     VIR_DOMAIN_START_PAUSED,
+    VIR_DOMAIN_XML_SECURE,
     VIR_ERR_NO_DOMAIN,
     libvirtError,
 )
@@ -45,6 +46,7 @@ from engine.services.db.hypervisors import (
     update_hyp_libvirt_warning,
     update_hyp_thread_status,
 )
+from engine.services.lib import live_xml_cache
 from engine.services.lib.functions import (
     SSHTimeoutError,
     execute_commands,
@@ -1310,12 +1312,17 @@ class HypWorkerThread(threading.Thread):
                 timeout=createxml_timeout,
             )
 
-            # Get XML description with timeout tracking
+            # Get XML description with timeout tracking. VIR_DOMAIN_XML_SECURE
+            # includes the spice/vnc password; it does not affect graphics-port
+            # extraction below and lets us cache the real running XML (secrets
+            # included) in engine RAM for admin viewing. Never persisted to DB.
             xml_started = self._execute_libvirt_with_timeout(
                 dom.XMLDesc,
+                args=(VIR_DOMAIN_XML_SECURE,),
                 operation_name="libvirt XMLDesc",
                 intervals=intervals,
             )
+            live_xml_cache.set(action["id_domain"], xml_started)
 
             # Process domain startup
             self._process_domain_startup(xml_started, action, action_time, intervals)
@@ -1552,6 +1559,7 @@ class HypWorkerThread(threading.Thread):
     def _handle_shutdown_domain(self, action, action_time, intervals):
         """Handle shutdown_domain action"""
         logs.workers.debug(f"Action shutdown domain: {action['id_domain']}")
+        live_xml_cache.pop(action["id_domain"])
 
         domain, error = self._lookup_domain(action, intervals, "shutdown")
         if error:
@@ -1622,6 +1630,7 @@ class HypWorkerThread(threading.Thread):
     def _handle_stop_domain(self, action, action_time, intervals):
         """Handle stop_domain action"""
         logs.workers.debug(f"Action stop domain: {action['id_domain']}")
+        live_xml_cache.pop(action["id_domain"])
 
         domain, error = self._lookup_domain(action, intervals, "stop")
         if error:
