@@ -42,7 +42,7 @@ function setViewerButtons(desktop_id){
 function setViewerButtonData(desktop_id,data){
     offer=[]
     // Check if desktop has guest_ip (required for RDP viewers)
-    const hasGuestIp = 'viewer' in data && 'guest_ip' in data['viewer'];
+    const hasGuestIp = 'viewer' in data && 'guest_ip' in data['viewer'] && data['viewer']['guest_ip'];
 
     if ("file_spice" in data["guest_properties"]["viewers"]){
         offer.push({
@@ -122,7 +122,7 @@ function setViewerButtonData(desktop_id,data){
             html=br+html+prehtml+'<button data-pk="'+desktop_id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br
     })
     if (data.create_dict.hardware.interfaces.includes("wireguard")) {
-        if('viewer' in data && 'guest_ip' in data['viewer']){
+        if('viewer' in data && 'guest_ip' in data['viewer'] && data['viewer']['guest_ip']){
             html+=prehtml+'<div id="vpn-ip-'+desktop_id+'" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via VPN): '+data['viewer']['guest_ip']+'</div>'+posthtml
         }else{
             html+=prehtml+'<div id="vpn-ip-'+desktop_id+'" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via VPN): <i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i></div>'+posthtml
