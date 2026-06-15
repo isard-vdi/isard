@@ -119,6 +119,8 @@ func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface, acme 
 		Bastion: &HAProxySyncBastion{
 			SubdomainsMapName:        cfg.Bastion.SubdomainsMap,
 			IndividualDomainsMapName: cfg.Bastion.IndividualDomainsMap,
+			subdomains:               map[string]bool{},
+			individualDomains:        map[string]bool{},
 		},
 
 		haproxy: haproxy,
