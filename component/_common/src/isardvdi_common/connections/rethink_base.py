@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import inspect
+import re
 from abc import ABC, abstractmethod
 from time import time
 from typing import Any, Callable, List, Literal, Optional
@@ -536,9 +537,13 @@ class RethinkBase(ABC):
         if merge_fn:
             query = query.merge(merge_fn)
 
-        # Search is performed after merging to ensure that the search term is applied to the merged data too
+        # Search is performed after merging so the term applies to merged data too.
+        # re.escape() treats the input as a literal: raw user regex metacharacters
+        # can cause ReDoS or crash the query into a body-leaking 500.
         if search:
-            query = query.filter(lambda row: row[search_field].match(f"(?i){search}"))
+            query = query.filter(
+                lambda row: row[search_field].match(f"(?i){re.escape(search)}")
+            )
 
         # We'll pre-load 5 pages of data
         query = query.limit(page_size * 5)
@@ -574,9 +579,12 @@ class RethinkBase(ABC):
         if merge_fn:
             query = query.merge(merge_fn)
 
-        # Apply search (after merge to include merged fields)
+        # Apply search after merge to include merged fields.
+        # re.escape() required: see query_raw() above.
         if search:
-            query = query.filter(lambda row: row[search_field].match(f"(?i){search}"))
+            query = query.filter(
+                lambda row: row[search_field].match(f"(?i){re.escape(search)}")
+            )
 
         with cls._rdb_context():
             return query.count().run(cls._rdb_connection)
