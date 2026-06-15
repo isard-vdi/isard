@@ -547,6 +547,8 @@ def _parse_extra_gpu_info(gpu_selected):
         "mig": gpu_selected.get("mig", False),
         "companion_pci_bdfs": gpu_selected.get("companion_pci_bdfs") or [],
         "hugepages": gpu_selected.get("hugepages_info", {}),
+        "hugepages_free_kb": gpu_selected.get("hugepages_free_kb", 0),
+        "numa_hugepages_free_kb": gpu_selected.get("numa_hugepages_free_kb", {}),
         "numa_topology": gpu_selected.get("numa_topology", {}) or {},
     }
 

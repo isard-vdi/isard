@@ -9,6 +9,7 @@ from engine.models.balancers import (
     Balancer_less_cpu_till_low_ram,
     Balancer_less_cpu_till_low_ram_percent,
     _get_used_ram_percentage,
+    _parse_extra_gpu_info,
     sort_hypervisors_cpu_percentage,
     sort_hypervisors_ram_absolute,
     sort_hypervisors_ram_percentage,
@@ -481,3 +482,53 @@ class TestWeightedSelect:
         assert count_best > count_mid > count_worst
         # And best is roughly half the picks (50% ± 5% for 1000 trials).
         assert 450 <= count_best <= 550
+
+
+class TestParseExtraGpuInfo:
+    """`_parse_extra_gpu_info` must forward the per-host hugepage figures so
+    `ui_actions` can back GPU desktops with hugepages.
+
+    Regression: the numa-aware GPU placement port dropped `hugepages_free_kb`
+    and `numa_hugepages_free_kb` from this dict. With them absent the GPU gate
+    reads `extra_info.get("hugepages_free_kb", 0)` == 0, so `0 >= guest_RAM` is
+    always False and every GPU desktop silently starts on 4K pages (anonymous
+    RAM) instead of the reserved 1 GiB hugepage pool — exhausting normal RAM.
+    """
+
+    def test_forwards_hugepages_free_figures(self):
+        gpu_selected = {
+            "next_available_uid": "uid-1",
+            "next_gpu_id": "gpu-1",
+            "gpu_profile": "nvidia-rtxpro6000-8Q",
+            "hugepages_info": {"1G": {"free": 900, "total": 900}, "mounted": True},
+            "hugepages_free_kb": 900 * 1048576,
+            "numa_hugepages_free_kb": {"0": 450 * 1048576, "1": 450 * 1048576},
+            "gpu_numa_node": 1,
+            "numa_topology": {"libvirt_numa_ok": False, "nodes": {}},
+        }
+
+        extra = _parse_extra_gpu_info(gpu_selected)
+
+        assert extra["hugepages_free_kb"] == 900 * 1048576
+        assert extra["numa_hugepages_free_kb"] == {
+            "0": 450 * 1048576,
+            "1": 450 * 1048576,
+        }
+        # The descriptive dict is still passed through unchanged.
+        assert extra["hugepages"] == {
+            "1G": {"free": 900, "total": 900},
+            "mounted": True,
+        }
+
+    def test_hugepages_free_figures_default_safely(self):
+        # A host that has not reported hugepage stats yet must not blow up.
+        extra = _parse_extra_gpu_info(
+            {
+                "next_available_uid": "uid-1",
+                "next_gpu_id": "gpu-1",
+                "gpu_profile": "nvidia-a16-1Q",
+            }
+        )
+
+        assert extra["hugepages_free_kb"] == 0
+        assert extra["numa_hugepages_free_kb"] == {}

@@ -1249,6 +1249,12 @@ def get_hypers_gpu_online(
                             "mig": selected_mig,
                             "companion_pci_bdfs": companion_pci_bdfs,
                             "hugepages_info": h.get("hugepages_info", {}),
+                            "hugepages_free_kb": h.get("stats", {})
+                            .get("mem_stats", {})
+                            .get("hugepages_free_kb", 0),
+                            "numa_hugepages_free_kb": h.get("stats", {})
+                            .get("mem_stats", {})
+                            .get("numa_hugepages_free_kb", {}),
                             "numa_topology": h.get("numa_topology", {}),
                         }
                     },
