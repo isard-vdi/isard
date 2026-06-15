@@ -52,7 +52,7 @@ def get_user_by_email_and_category(email, category):
                 client=client, email=email, category=category
             )
             raise_for_status(resp)
-            return resp.parsed["id"]
+            return resp.parsed.id
     except (ApiV4Error, Exception):
         raise Error(
             "internal_server",
