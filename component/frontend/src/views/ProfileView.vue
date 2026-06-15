@@ -23,6 +23,7 @@ import ApiKeyModal from '@/components/profile/ApiKeyModal.vue'
 import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
 import ImportUserModal from '@/components/profile/ImportUserModal.vue'
 import PasswordModal from '@/components/profile/PasswordModal.vue'
+import SshPublicKeyModal from '@/components/profile/SshPublicKeyModal.vue'
 import { userResetVpnMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { useMutation } from '@tanstack/vue-query'
 import profileImg from '@/assets/img/profile-img.svg'
@@ -108,6 +109,10 @@ const showApiKeyButton = computed(() => {
   return user.value?.role !== 'user'
 })
 
+const showSshKeyButton = computed(() => {
+  return userConfig.value?.can_use_bastion === true
+})
+
 const showExportUserButton = computed(() => {
   return exportEnabled.value?.enabled === true
 })
@@ -129,6 +134,7 @@ const userStorageLink = computed(() => userDetails.value?.user_storage?.token_we
 const showResetVpnModal = ref(false)
 const resetVpnError = ref('')
 const showApiKeyModal = ref(false)
+const showSshKeyModal = ref(false)
 const showPasswordModal = shallowRef(false)
 const showEmailVerificationModal = ref(false)
 const showImportUserModal = ref(false)
@@ -376,6 +382,18 @@ watch(
                 {{ t('views.profile.security.actions.api-key') }}
               </Button>
             </div>
+            <div v-if="showSshKeyButton">
+              <Button
+                hierarchy="secondary-gray"
+                size="sm"
+                class="justify-start min-w-56"
+                icon="terminal-square"
+                icon-size="md"
+                @click="showSshKeyModal = true"
+              >
+                {{ t('views.profile.security.actions.ssh-key') }}
+              </Button>
+            </div>
             <div>
               <Button
                 hierarchy="secondary-gray"
@@ -588,6 +606,7 @@ watch(
   </div>
 
   <ApiKeyModal :open="showApiKeyModal" @update:open="(val) => (showApiKeyModal = val)" />
+  <SshPublicKeyModal :open="showSshKeyModal" @update:open="(val) => (showSshKeyModal = val)" />
   <EmailVerificationModal
     :open="showEmailVerificationModal"
     :current-email="user?.email"

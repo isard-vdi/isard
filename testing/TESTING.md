@@ -173,11 +173,49 @@ bash build.sh                                # regenerates docker-compose.yml
 docker compose up -d --force-recreate isard-portal
 ```
 
+### 4. Authentication rate limiting must be OFF for any test run
+
+`isardvdi.cfg.example` ships `AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=true`
+(correct for production). Test suites log in once per test — a serial
+Playwright run does hundreds of logins in minutes and trips the limiter,
+after which **every remaining test fails with `429 Retry after`** and the
+run is garbage.
+
+**Always run tests against a stack with:**
+
+```
+AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=false
+```
+
+…then `bash build.sh && docker compose up -d isard-authentication`.
+
+`testing/config/isardvdi.e2e.cfg.template` and both CI e2e jobs already
+set this; it only bites hand-built dev/staging cfgs. The e2e `ApiHelper`
+fails fast with an actionable message when it sees a 429. The only
+exception is a spec whose *purpose* is to test the rate limiter — that
+spec must enable it explicitly and restore it afterwards.
+
 The portal entrypoint unsets the variable when not exactly `"true"`
 (see `docker/haproxy/_common/haproxy-docker-entrypoint.sh`), so
 `PROXY_PROTOCOL=false` and leaving it unset both work.
 
-### 4. Optional identity providers
+### 5. On a devel stack, point the suite at the stack's real DOMAIN
+
+`USAGE=devel` serves the frontends from webpack/vite dev servers whose
+HMR socket (`/sockjs-node`) is same-origin only for the cfg `DOMAIN`.
+Browsing via `https://localhost` makes every page emit
+`Access to XMLHttpRequest … blocked by CORS` + `[WDS] Disconnected!`
+console errors — all console-clean specs fail and `networkidle` waits
+time out. A 40-failure suite run on 2026-06-11 was 100% this.
+
+```bash
+E2E_BASE_URL=https://$(grep ^DOMAIN= isardvdi.cfg | cut -d= -f2)   make test-e2e-old-frontend
+```
+
+`USAGE=test` stacks (built images, no dev servers) are fine with the
+default `https://localhost`.
+
+### 6. Optional identity providers
 
 Some spec files exercise external flows:
 

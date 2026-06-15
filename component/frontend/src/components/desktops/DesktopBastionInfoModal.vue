@@ -8,6 +8,7 @@ import { useForm } from '@tanstack/vue-form'
 import {
   getUserConfigOptions,
   getDesktopBastionLegacyOptions,
+  getUserBastionSshKeyOptions,
   updateDesktopBastionAuthorizedKeysMutation,
   updateDesktopBastionDomainMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
@@ -82,13 +83,25 @@ const {
   }
 })
 
+// The user's own profile key is managed automatically (injected at desktop
+// start, kept first in the target). This box is only for OTHER people's keys,
+// so we hide the user's own key here; on save the server re-prepends the owner
+// key and strips the editor's own key.
+const { data: userBastionSshKey } = useQuery(getUserBastionSshKeyOptions())
+const ownKey = computed(() => (userBastionSshKey.value?.ssh_key || '').trim())
+const hasOwnKey = computed(() => ownKey.value.length > 0)
+
 const bastionDomain = ref<string>('')
 const bastionAuthorizedKeys = ref<string>('')
 watch(
-  () => bastionTargetData.value,
-  (newVal) => {
+  [() => bastionTargetData.value, ownKey],
+  ([newVal]) => {
     bastionDomain.value = newVal?.domain || ''
-    bastionAuthorizedKeys.value = newVal?.ssh.authorized_keys?.join('\n') || ''
+    const own = ownKey.value
+    const keys = (newVal?.ssh.authorized_keys || []).filter(
+      (k): k is string => !!k && k.trim().length > 0 && k.trim() !== own
+    )
+    bastionAuthorizedKeys.value = keys.join('\n')
   },
   { immediate: true }
 )
@@ -379,8 +392,20 @@ const authorizedKeysForm = useForm({
 
           <div class="flex flex-col gap-2 pt-2 border-t border-gray-warm-200">
             <Label class="text-sm text-gray-warm-700">
-              {{ t('components.domain.access.bastion.ssh.authorized-keys.label') }}
+              {{ t('components.domain.access.bastion.ssh.authorized-keys.others-label') }}
             </Label>
+            <Alert v-if="!hasOwnKey" class="bg-gray-warm-50 border-gray-warm-300">
+              <Icon name="alert-circle" size="sm" stroke-color="gray-warm-600" />
+              <AlertDescription class="text-gray-warm-700">
+                {{ t('components.domain.access.bastion.ssh.authorized-keys.own-key.missing') }}
+                <RouterLink :to="{ name: 'profile' }" class="underline">
+                  {{ t('components.domain.access.bastion.ssh.authorized-keys.own-key.add-link') }}
+                </RouterLink>
+              </AlertDescription>
+            </Alert>
+            <p v-else class="text-xs text-gray-warm-500">
+              {{ t('components.domain.access.bastion.ssh.authorized-keys.own-key.managed') }}
+            </p>
             <form
               class="flex items-start gap-2"
               @submit.prevent.stop="authorizedKeysForm.handleSubmit"

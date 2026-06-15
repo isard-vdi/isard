@@ -75,7 +75,7 @@ loginTest.describe('Vue 2 templates — duplicate + enable/disable toggle', () =
 
     const login = new PageLogin(page)
     await login.goto()
-    await login.form('admin', 'IsardVDI')
+    await login.form(process.env.E2E_ADMIN_USERNAME ?? 'admin', process.env.E2E_ADMIN_PASSWORD ?? 'IsardVDI')
     await login.finished()
     await page.goto('/templates')
     await page.waitForLoadState('networkidle')

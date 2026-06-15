@@ -29,7 +29,7 @@ export default async function globalTeardown () {
       process.env.E2E_ADMIN_USERNAME ?? 'admin',
       process.env.E2E_ADMIN_PASSWORD ?? 'IsardVDI'
     )
-    await bootstrap._authFetch('DELETE', '/api/v4/admin/user', {
+    await bootstrap._authFetch('DELETE', '/api/v4/admin/items/users', {
       user: pool.created,
       delete_user: true
     })

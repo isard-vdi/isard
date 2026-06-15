@@ -29,12 +29,14 @@ from api.dependencies.alloweds import (
     owns_deployment_id,
     owns_domain_id,
 )
+from api.dependencies.bastion import can_use_bastion
 from api.dependencies.domains import (
     deployment_has_no_started_desktops,
     tag_desktop_ids_belong_to_deployment,
 )
 from api.dependencies.quotas import can_create_deployment
 from api.dependencies.storage_pools import check_create_storage_pool_availability
+from api.schemas.bastion import BastionActiveResponse
 from api.schemas.common import (
     DeleteResponse,
     EmptyResponse,
@@ -48,6 +50,7 @@ from api.schemas.deployments import (
     CoOwnersRequest,
     CoOwnersResponse,
     CreateDeploymentRequest,
+    DeploymentBastionConfig,
     DeploymentCsvResponse,
     DeploymentEditData,
     DeploymentEditRequest,
@@ -554,6 +557,166 @@ async def recreate_deployment(
         )
 
 
+@advanced_router.get(
+    "/item/deployment/{deployment_id}/bastion",
+    tags=[tag, "bastion"],
+    response_model=DeploymentBastionConfig,
+    summary="Get deployment bastion configuration",
+    description="Returns the deployment-level bastion configuration (ssh/http enable + ports).",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[
+        Depends(owns_deployment_id()),
+        Depends(can_use_bastion),
+    ],
+)
+async def get_deployment_bastion(deployment_id: str, request: Request):
+    try:
+        return JSONResponse(
+            content=DeploymentBastionConfig(
+                **await asyncio.to_thread(
+                    DeploymentService.get_deployment_bastion, deployment_id
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get deployment bastion configuration",
+            traceback.format_exc(),
+        )
+
+
+@advanced_router.put(
+    "/item/deployment/{deployment_id}/bastion",
+    tags=[tag, "bastion"],
+    response_model=EmptyResponse,
+    summary="Set deployment bastion configuration",
+    description="Persists the deployment-level bastion configuration and applies it (ssh/http "
+    "enable + ports) to every desktop in the deployment. Each user's profile SSH key is added "
+    "automatically when their desktop starts.",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[
+        Depends(owns_deployment_id()),
+        Depends(can_use_bastion),
+    ],
+)
+async def set_deployment_bastion(
+    deployment_id: str, data: DeploymentBastionConfig, request: Request
+):
+    try:
+        await asyncio.to_thread(
+            DeploymentService.set_deployment_bastion,
+            deployment_id,
+            data.model_dump(mode="json"),
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to set deployment bastion configuration",
+            traceback.format_exc(),
+        )
+
+
+@advanced_router.get(
+    "/item/deployment/{deployment_id}/bastion/csv",
+    tags=[tag, "bastion"],
+    response_class=Response,
+    summary="Export deployment bastion data as CSV",
+    description="Generates a CSV with bastion connection info for every desktop in the deployment.",
+    responses={
+        200: {"description": "CSV file with bastion data", "content": {"text/csv": {}}},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[
+        Depends(owns_deployment_id()),
+        Depends(can_use_bastion),
+    ],
+)
+async def get_deployment_bastion_csv(deployment_id: str, request: Request):
+    try:
+        csv_content = await asyncio.to_thread(
+            DeploymentService.bastion_csv, deployment_id
+        )
+        return Response(
+            content=csv_content,
+            status_code=200,
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={deployment_id}_bastion.csv"
+            },
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to generate deployment bastion CSV",
+            traceback.format_exc(),
+        )
+
+
+@advanced_router.get(
+    "/item/deployment/{deployment_id}/desktop/{desktop_id}/bastion",
+    tags=[tag, "bastion"],
+    response_model=BastionActiveResponse,
+    summary="Get a deployment desktop's bastion status",
+    description="Read-only bastion status of a single desktop in the deployment, for the "
+    "deployment owner and co-owners (who are not the desktop's own owner).",
+    operation_id="get_deployment_desktop_bastion",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[
+        Depends(owns_deployment_id()),
+        Depends(can_use_bastion),
+    ],
+)
+async def get_deployment_desktop_bastion(
+    deployment_id: str, desktop_id: str, request: Request
+):
+    try:
+        return JSONResponse(
+            content=BastionActiveResponse(
+                **await asyncio.to_thread(
+                    DeploymentService.get_deployment_desktop_bastion,
+                    deployment_id,
+                    desktop_id,
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get deployment desktop bastion status",
+            traceback.format_exc(),
+        )
+
+
 @token_router.get(
     "/items/deployments/get-shared",
     tags=[tag],
@@ -783,7 +946,11 @@ async def start_all_desktops_in_deployment(
     deployment_id: str,
 ):
     try:
-        await asyncio.to_thread(DeploymentService.start_all_desktops, deployment_id)
+        await asyncio.to_thread(
+            DeploymentService.start_all_desktops,
+            deployment_id,
+            request.token_payload["user_id"],
+        )
         return Response(status_code=204)
     except Error:
         raise

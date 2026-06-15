@@ -293,6 +293,18 @@
                     }
                 }
             }
+        },
+        "ssh-key": {
+            "modal": {
+                "title": "Bastion SSH key",
+                "description": "Add a single SSH public key to your profile. It is added automatically to the bastion SSH access of any desktop you start (when bastion SSH is enabled on that desktop), so you don't have to add it to each desktop.",
+                "label": "Your SSH public key",
+                "invalid": "This doesn't look like a valid SSH public key.",
+                "buttons": {
+                    "save": "Save key",
+                    "remove": "Remove key"
+                }
+            }
         }
     },
     "components": {
@@ -360,6 +372,12 @@
                     },
                     "download-direct-viewer": {
                         "title": "Download direct viewer file"
+                    },
+                    "bastion": {
+                        "title": "Bastion configuration"
+                    },
+                    "download-bastion-csv": {
+                        "title": "Download bastion access file"
                     },
                     "delete": {
                         "title": "Delete deployment"
@@ -449,7 +467,8 @@
             "actions": {
                 "delete": "Delete",
                 "hide": "Make invisible",
-                "show": "Make visible"
+                "show": "Make visible",
+                "bastion": "Bastion info"
             },
             "table-header": {
                 "user": "User",
@@ -615,7 +634,8 @@
             "reset-vpn": "Reset VPN",
             "export": "Export user",
             "import": "Import user",
-            "api-key": "API key"
+            "api-key": "API key",
+            "ssh-key": "Bastion SSH key"
         },
         "start-now-modal": {
             "title": "Start now",
@@ -939,7 +959,8 @@
                     "make-invisible": "Make deployment '{name}' invisible",
                     "download-csv": "Download '{name}' direct viewer CSV",
                     "delete": "Delete deployment",
-                    "co-owners": "Edit co-owners for '{name}'"
+                    "co-owners": "Edit co-owners for '{name}'",
+                    "bastion": "Bastion configuration for '{name}'"
                 },
                 "body": {
                     "text": "This action cannot be undone and all its associated data will be lost.",
@@ -950,7 +971,8 @@
                     "warning-co-owner": "As a co-owner you are not authorized to perform this action. Please contact the owner of this deployment.",
                     "co-owners-warning": "WARNING! Users set as co-owners will have the same permissions as the owner except for changing ownership and deleting the deployment.",
                     "co-owners-label": "Co-owners:",
-                    "owner-label": "Owner: {owner}"
+                    "owner-label": "Owner: {owner}",
+                    "bastion-info": "Applies to every desktop in this deployment. Running desktops are updated immediately; new and recreated desktops inherit this configuration when they first start."
                 },
                 "option": {
                     "dont-stop-desktops": "Make this deployment invisible to the users and allow the use of the desktops until they're stopped",
@@ -966,7 +988,8 @@
                     "keep-csv": "Keep URLs and download CSV",
                     "reset-csv": "Reset URLs and download CSV",
                     "delete": "Delete",
-                    "co-owners": "Update co-owners"
+                    "co-owners": "Update co-owners",
+                    "bastion": "Save"
                 }
             },
             "alloweds-warning": "WARNING! Removing users from this deployment will also remove their associated desktops.",
@@ -1353,6 +1376,7 @@
                     "http": "HTTP URL:",
                     "https": "HTTPS URL:",
                     "authorized-keys-ssh": "Authorized keys for SSH",
+                    "authorized-keys-others": "Authorized keys for other users",
                     "domain-name": "Custom domain name:",
                     "domain-names": "Custom domain names:"
                 },
@@ -1366,6 +1390,7 @@
                     "https_port": "HTTPS: {https_port}",
                     "https_copy": "Copy HTTPS URL",
                     "authorized-keys-ssh": "Authorized keys for SSH",
+                    "authorized-keys-others": "Public keys of other people you want to grant SSH access to this desktop",
                     "domain-info": "DNS information"
                 },
                 "domain-info": {
@@ -1376,6 +1401,11 @@
                     "verified": "Domain verified and active",
                     "verified-pending-save": "Domain verified (save to apply)",
                     "not-verified": "Domain not verified - click shield to verify"
+                },
+                "own-key": {
+                    "managed": "Your own key is added automatically from your profile when you start this desktop. This box is only for other people's public keys.",
+                    "missing": "You don't have a bastion SSH key in your profile yet, so you won't get SSH access automatically.",
+                    "add-link": "Add it in your profile"
                 },
                 "buttons": {
                     "update-authorized-keys": "Update authorized keys",
@@ -1468,6 +1498,8 @@
             "creating-deployment": "Creating Deployment",
             "recreating-deployment": "Recreating Deployment",
             "deployment-desktops-created": "Deployment desktops created",
+            "deployment-bastion-updated": "Deployment bastion configuration updated",
+            "bastion-not-configured": "Bastion is not enabled for this desktop",
             "deleting-deployment": "Deleting deployment",
             "deployment-deleted": "Deployment deleted",
             "making-visible-deployment": "Making the deployment visible",
@@ -1517,7 +1549,9 @@
             "authorized-ssh-keys-updated": "Authorized SSH keys updated",
             "bastion-domain-updated": "Bastion domain updated",
             "bastion-domains-updated": "Bastion domains updated",
-            "bastion-domain-verified": "Domain DNS verified successfully"
+            "bastion-domain-verified": "Domain DNS verified successfully",
+            "bastion-ssh-key-updated": "Bastion SSH key saved",
+            "bastion-ssh-key-removed": "Bastion SSH key removed"
         },
         "loading": "Loading"
     },

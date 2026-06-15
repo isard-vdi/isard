@@ -34,7 +34,9 @@ const getDefaultState = () => {
       exists: false,
       expireDate: '',
       key: ''
-    }
+    },
+    showSshKeyModal: false,
+    userBastionSshKey: null
   }
 }
 
@@ -90,6 +92,12 @@ export default {
     },
     getUserApiKey: state => {
       return state.userApiKey
+    },
+    getShowSshKeyModal: state => {
+      return state.showSshKeyModal
+    },
+    getUserBastionSshKey: state => {
+      return state.userBastionSshKey
     }
   },
   mutations: {
@@ -159,6 +167,12 @@ export default {
         expireDate: '',
         key: ''
       }
+    },
+    setShowSshKeyModal: (state, showSshKeyModal) => {
+      state.showSshKeyModal = showSshKeyModal
+    },
+    setUserBastionSshKey: (state, userBastionSshKey) => {
+      state.userBastionSshKey = userBastionSshKey
     }
   },
   actions: {
@@ -315,6 +329,42 @@ export default {
         })
         .catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    showSshKeyModal (context, show) {
+      context.commit('setShowSshKeyModal', show)
+    },
+    fetchUserBastionSshKey (context) {
+      return axios.get(`${apiV3Segment}/item/user/bastion-ssh-key`)
+        .then(response => {
+          context.commit('setUserBastionSshKey', response.data.ssh_key || null)
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    updateUserBastionSshKey (context, sshKey) {
+      return axios.put(`${apiV3Segment}/item/user/bastion-ssh-key`, { ssh_key: sshKey })
+        .then(() => {
+          context.commit('setUserBastionSshKey', sshKey)
+          ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-ssh-key-updated'))
+          return true
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+          return false
+        })
+    },
+    deleteUserBastionSshKey (context) {
+      return axios.delete(`${apiV3Segment}/item/user/bastion-ssh-key`)
+        .then(() => {
+          context.commit('setUserBastionSshKey', null)
+          ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-ssh-key-removed'))
+          return true
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+          return false
         })
     }
   }

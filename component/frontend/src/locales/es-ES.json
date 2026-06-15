@@ -50,8 +50,8 @@
         "subtitle": "Crea una nueva plantilla a partir de un escritorio existente"
       },
       "edit": {
-        "title": "Editar Plantilla",
-        "subtitle": "Actualiza la configuración de la plantilla"
+        "title": "Editar plantilla",
+        "subtitle": "Modifica nombre, hardware y opciones de acceso"
       },
       "duplicate": {
         "title": "Duplicar Plantilla",
@@ -64,10 +64,6 @@
           "title": "Entrada de la papelera",
           "subtitle": "Revisa el elemento eliminado y su contenido"
         }
-      },
-      "edit": {
-        "title": "Editar plantilla",
-        "subtitle": "Modifica nombre, hardware y opciones de acceso"
       }
     },
     "media": {
@@ -618,6 +614,8 @@
           "download-viewer": "Descargar enlaces directos",
           "recreate": "Recrear despliegue",
           "reserve": "Reservar",
+          "bastion": "Bastión",
+          "bastion-csv": "Descargar el CSV del bastión",
           "delete": "Eliminar despliegue"
         }
       },
@@ -630,6 +628,19 @@
       }
     },
     "deployment": {
+      "menu": {
+        "bastion": "Bastión",
+        "bastion-csv": "Descargar el CSV del bastión",
+        "edit": "Editar",
+        "recreate": "Recrear",
+        "toggle-visibility": "Cambiar la visibilidad",
+        "delete": "Eliminar",
+        "book": "Reservar",
+        "create-template": "Crear una plantilla"
+      },
+      "user-bastion": {
+        "title": "Acceso por bastión del usuario"
+      },
       "banner": {
         "alt": "Banner del despliegue",
         "users": "Usuarios",
@@ -656,12 +667,68 @@
       "tooltips": {
         "videowall": "Videowall",
         "resources": "Recursos",
+        "bastion": "Acceso por bastión del usuario",
         "delete": "Eliminar"
       },
       "recreate-modal": {
         "title": "Recrear despliegue '{name}'",
         "description": "Restablece los escritorios al estado inicial en el que se crearon. Solo los escritorios eliminados se restablecerán",
         "button": "Recrear despliegue"
+      },
+      "actions": {
+        "access": "Acceder",
+        "stop": "Parar"
+      },
+      "delete-user": {
+        "title": "Eliminar los escritorios del usuario",
+        "description": "Se eliminarán todos los escritorios de este usuario del despliegue. Esta acción no se puede deshacer.",
+        "error": "No se han podido eliminar los escritorios del usuario",
+        "loading": "Eliminando los escritorios del usuario…",
+        "confirm": "Eliminar"
+      },
+      "detail": {
+        "users": "Usuarios",
+        "started-desktops": "Escritorios iniciados",
+        "visible": "Escritorios visibles"
+      },
+      "headers": {
+        "visible": "Visible",
+        "last-access": "Último acceso",
+        "user": "Usuario",
+        "started-desktops": "Escritorios iniciados",
+        "actions": "Acciones"
+      },
+      "recreate": {
+        "title": "Recrear el despliegue",
+        "description": "Restaura los escritorios al estado inicial en que se crearon. Solo se restaurarán los escritorios eliminados.",
+        "error": "No se ha podido recrear el despliegue",
+        "loading": "Recreando el despliegue…"
+      },
+      "stop-all": {
+        "title": "Parar todos los escritorios",
+        "description": "Se pararán todos los escritorios iniciados del despliegue. Los usuarios pueden perder el trabajo no guardado.",
+        "error": "No se han podido parar los escritorios del despliegue",
+        "loading": "Parando los escritorios del despliegue…"
+      },
+      "stop-user": {
+        "title": "Parar los escritorios del usuario",
+        "description": "Se pararán los escritorios iniciados de este usuario. Puede perder el trabajo no guardado.",
+        "error": "No se han podido parar los escritorios del usuario",
+        "loading": "Parando los escritorios del usuario…"
+      },
+      "toggle-lab-visibility": {
+        "title-visible": "Hacer visible el despliegue",
+        "title-invisible": "Hacer invisible el despliegue",
+        "description-visible": "Los usuarios del despliegue verán y podrán utilizar sus escritorios.",
+        "description-invisible": "Los usuarios del despliegue dejarán de ver sus escritorios. También puede parar los iniciados.",
+        "only-hide": "Solo ocultar",
+        "hide-and-stop": "Ocultar y parar los escritorios"
+      },
+      "toggle-user-visibility": {
+        "title-visible": "Hacer visibles los escritorios del usuario",
+        "title-invisible": "Hacer invisibles los escritorios del usuario",
+        "description-visible": "El usuario verá y podrá utilizar sus escritorios del despliegue.",
+        "description-invisible": "El usuario dejará de ver sus escritorios del despliegue."
       }
     },
     "new-deployment": {
@@ -1551,6 +1618,23 @@
         }
       }
     },
+    "deployment-bastion-modal": {
+      "title": "Bastión — {name}",
+      "description": "Active o desactive el acceso por bastión para todos los escritorios de este despliegue. Los escritorios en marcha se actualizan inmediatamente; los escritorios nuevos y recreados heredan esta configuración cuando se inician por primera vez.",
+      "error-loading": "No se ha podido cargar la configuración del bastión del despliegue",
+      "error-saving": "No se ha podido guardar la configuración del bastión del despliegue",
+      "buttons": {
+        "save": "Guardar"
+      }
+    },
+    "deployment-user-bastion-modal": {
+      "title": "Acceso por bastión — {name}",
+      "description": "Seleccione un escritorio para ver sus detalles de acceso por bastión.",
+      "error-loading": "No se han podido cargar los escritorios del usuario",
+      "no-desktops": "Este usuario no tiene escritorios en este despliegue",
+      "view-bastion": "Acceso por bastión",
+      "back": "Volver a los escritorios"
+    },
     "bastion-info-modal": {
       "description": "Utilice la siguiente información para conectarse al escritorio a través del bastión.",
       "title": "Información de bastión para el escritorio '{name}'",
@@ -1995,45 +2079,6 @@
         },
         "cancel": "Cancelar",
         "confirm": "Confirmar"
-      }
-    },
-    "desktop-gpu-unavailable-modal": {
-      "title": "La GPU '{current-gpu}' no está disponible para el escritorio '{name}' en este momento.",
-      "change-and-start": {
-        "title": "Cambiar e iniciar",
-        "subtitle": "Se puede cambiar a un modelo de tarjeta gráfica disponible ahora e iniciarlo (Podría afectar el rendimiento del escritorio).",
-        "action-button": "Cambiar e iniciar"
-      },
-      "book": {
-        "title": "Reservar el escritorio",
-        "subtitle": "Reserva el escritorio con su perfil de tarjeta gráfica actual comprobando su planificación",
-        "action-button": "Reservar escritorio"
-      }
-    },
-    "desktop-start-now-modal": {
-      "cancel": "Cancelar",
-      "confirm": "Inicia el escritorio",
-      "description": "Seleccione hasta cuándo se utilizará el escritorio.",
-      "title": "Iniciar",
-      "select": {
-        "label": "Hora de finalización",
-        "placeholder": "Seleccione hasta cuando se utilizará"
-      }
-    },
-    "desktop-gpu-change-and-start-modal": {
-      "title": "Cambiar e iniciar",
-      "book": "Reservar escritorio",
-      "cancel": "Cancelar",
-      "confirm": "Cambiar e iniciar",
-      "description": "Cambie la GPU del escritorio e inícielo inmediatamente.",
-      "empty": {
-        "description": "No hay perfiles disponibles para este escritorio",
-        "title": "No hay perfiles disponibles"
-      },
-      "gpu-select": {
-        "placeholder": "Perfiles de GPU disponibles",
-        "value": "Cambiar a '{profile}'",
-        "label": "Nuevo perfil de GPU"
       }
     },
     "change-image-modal": {

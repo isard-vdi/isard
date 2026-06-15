@@ -121,3 +121,112 @@ class TestToggleVisibility:
     def test_raises_not_found(self, _exists):
         with pytest.raises(Error):
             DeploymentService.toggle_visibility("ghost")
+
+
+class TestGetDeploymentBastion:
+    @patch(
+        "api.services.deployments.Caches.get_document",
+        return_value={"bastion": {"ssh": {"enabled": True, "port": 22}}},
+    )
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_returns_stored_config(self, _exists, _cache):
+        result = DeploymentService.get_deployment_bastion("d1")
+        assert result["ssh"]["enabled"] is True
+
+    @patch("api.services.deployments.Caches.get_document", return_value={})
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_returns_defaults_when_unset(self, _exists, _cache):
+        result = DeploymentService.get_deployment_bastion("d1")
+        assert result == DeploymentService._default_bastion_config()
+
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=False)
+    def test_raises_not_found(self, _exists):
+        with pytest.raises(Error):
+            DeploymentService.get_deployment_bastion("ghost")
+
+
+class TestSetDeploymentBastion:
+    @patch("api.services.deployments.BastionService.apply_bastion_config")
+    @patch(
+        "api.services.deployments.CommonDeploymentDesktops.get_desktop_ids",
+        return_value=["desk-1", "desk-2"],
+    )
+    @patch("api.services.deployments.Caches.invalidate_cache")
+    @patch("api.services.deployments.RethinkDeployment.update_document")
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_persists_and_applies_to_each_desktop(
+        self, _exists, mock_update, _inval, _ids, mock_apply
+    ):
+        config = {
+            "ssh": {"enabled": True, "port": 22},
+            "http": {"enabled": False, "http_port": 80, "https_port": 443},
+        }
+        result = DeploymentService.set_deployment_bastion("d1", config)
+        # persisted on the deployment doc
+        assert mock_update.call_args[0][0] == "d1"
+        assert mock_update.call_args[0][1]["bastion"]["ssh"]["enabled"] is True
+        # applied to every desktop
+        assert mock_apply.call_count == 2
+        assert result["ssh"]["enabled"] is True
+
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=False)
+    def test_raises_not_found(self, _exists):
+        with pytest.raises(Error):
+            DeploymentService.set_deployment_bastion("ghost", {})
+
+
+class TestGetDeploymentDesktopBastion:
+    @patch(
+        "api.services.deployments.BastionService.get_desktop_bastion_active",
+        return_value={"exists": True, "ssh": {"enabled": True, "port": 22}},
+    )
+    @patch("api.services.deployments.Caches.get_document", return_value="d1")
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_returns_status_for_member_desktop(self, _exists, _tag, _active):
+        result = DeploymentService.get_deployment_desktop_bastion("d1", "desk-1")
+        assert result["exists"] is True
+
+    @patch("api.services.deployments.Caches.get_document", return_value="other-dep")
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_rejects_desktop_not_in_deployment(self, _exists, _tag):
+        with pytest.raises(Error):
+            DeploymentService.get_deployment_desktop_bastion("d1", "desk-x")
+
+
+class TestBastionCsv:
+    @patch(
+        "api.services.deployments.BastionService.get_admin_bastion_config",
+        return_value={"bastion_domain": "bastion.example", "bastion_ssh_port": "443"},
+    )
+    @patch("api.services.deployments.Targets.get_domain_target")
+    @patch("api.services.deployments.Caches.get_document")
+    @patch(
+        "api.services.deployments.CommonDeploymentDesktops.get_desktop_ids",
+        return_value=["desk-1"],
+    )
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_emits_header_and_row(self, _exists, _ids, mock_cache, mock_target, _cfg):
+        def cache_side_effect(table, item_id, *args, **kwargs):
+            if table == "domains":
+                return {"user": "u1", "name": "Desk One", "status": "Started"}
+            if table == "users":
+                return {"username": "alice", "email": "a@example.com"}
+            return None
+
+        mock_cache.side_effect = cache_side_effect
+        mock_target.return_value = {
+            "id": "aaaa-bbbb",
+            "ssh": {"enabled": True, "port": 22},
+            "http": {"enabled": False, "http_port": 80, "https_port": 443},
+            "domain": None,
+        }
+        csv_text = DeploymentService.bastion_csv("d1")
+        lines = csv_text.strip().split("\n")
+        assert lines[0].startswith("username,email,desktop_name")
+        assert "alice" in lines[1]
+        assert "ssh aaaa-bbbb@bastion.example" in lines[1]
+
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=False)
+    def test_raises_not_found(self, _exists):
+        with pytest.raises(Error):
+            DeploymentService.bastion_csv("ghost")

@@ -34,7 +34,7 @@ const SETUP_CONCURRENCY = Number(process.env.E2E_ADMIN_POOL_CONCURRENCY ?? 4)
 const fetchExistingPool = async (bootstrap) => {
   const map = {}
   try {
-    const list = await bootstrap._authFetch('GET', '/api/v4/admin/users')
+    const list = await bootstrap._authFetch('GET', '/api/v4/admin/items/users')
     const items = Array.isArray(list) ? list : list?.users ?? []
     for (const u of items) {
       if (u?.username && u.username.startsWith('e2e_admin_')) {
@@ -50,7 +50,7 @@ const fetchExistingPool = async (bootstrap) => {
 // can't use it for username-keyed lookups.
 const findUserIdByUsername = async (bootstrap, username) => {
   try {
-    const list = await bootstrap._authFetch('GET', '/api/v4/admin/users')
+    const list = await bootstrap._authFetch('GET', '/api/v4/admin/items/users')
     const items = Array.isArray(list) ? list : list?.users ?? []
     const match = items.find((u) => u?.username === username)
     return match?.id ?? null
@@ -66,7 +66,7 @@ const seedOne = async (bootstrap, index, existingMap) => {
   // map, delete it first.
   if (existingMap[username]) {
     try {
-      await bootstrap._authFetch('DELETE', '/api/v4/admin/user', {
+      await bootstrap._authFetch('DELETE', '/api/v4/admin/items/users', {
         user: [existingMap[username]],
         delete_user: true
       })
@@ -91,7 +91,7 @@ const seedOne = async (bootstrap, index, existingMap) => {
       const stuckId = await findUserIdByUsername(bootstrap, username)
       if (stuckId) {
         try {
-          await bootstrap._authFetch('DELETE', '/api/v4/admin/user', {
+          await bootstrap._authFetch('DELETE', '/api/v4/admin/items/users', {
             user: [stuckId],
             delete_user: true
           })

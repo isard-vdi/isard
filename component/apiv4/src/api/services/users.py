@@ -17,7 +17,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import base64
 import os
+import struct
 import time
 
 import bcrypt
@@ -40,6 +42,65 @@ from isardvdi_common.models.category import Category as RethinkCategory
 from isardvdi_common.models.group import Group as RethinkGroup
 from isardvdi_common.models.roles import Roles as RethinkRole
 from isardvdi_common.models.user import User as RethinkUser
+
+# SSH public-key types accepted for a user's bastion key. Mirrors the set
+# the bastion gateway (golang.org/x/crypto/ssh) understands, so a key that
+# passes here will also be accepted by `ssh.ParseAuthorizedKey` there.
+_SSH_KEY_TYPES = {
+    "ssh-ed25519",
+    "ssh-rsa",
+    "ssh-dss",
+    "ecdsa-sha2-nistp256",
+    "ecdsa-sha2-nistp384",
+    "ecdsa-sha2-nistp521",
+    "sk-ssh-ed25519@openssh.com",
+    "sk-ecdsa-sha2-nistp256@openssh.com",
+}
+
+
+def validate_ssh_public_key(key: str) -> str:
+    """Validate a single SSH public key and return it normalized (one line).
+
+    Dependency-free check equivalent to `ssh.ParseAuthorizedKey`: exactly one
+    key (no embedded newlines), a known ``<type>`` token, and a base64 blob
+    whose embedded type string matches that token. Raises a typed
+    ``Error('bad_request', ...)`` on any failure.
+    """
+    if not isinstance(key, str):
+        raise Error("bad_request", "SSH public key must be a string")
+    key = key.strip()
+    if not key:
+        raise Error("bad_request", "SSH public key is required")
+    if "\n" in key or "\r" in key:
+        raise Error(
+            "bad_request",
+            "Only a single SSH public key is allowed",
+            description_code="bastion_ssh_key_invalid",
+        )
+    parts = key.split()
+    if len(parts) < 2 or parts[0] not in _SSH_KEY_TYPES:
+        raise Error(
+            "bad_request",
+            "Invalid SSH public key format",
+            description_code="bastion_ssh_key_invalid",
+        )
+    try:
+        blob = base64.b64decode(parts[1], validate=True)
+        length = struct.unpack(">I", blob[:4])[0]
+        embedded_type = blob[4 : 4 + length].decode("ascii")
+    except Exception:
+        raise Error(
+            "bad_request",
+            "Invalid SSH public key format",
+            description_code="bastion_ssh_key_invalid",
+        )
+    if embedded_type != parts[0]:
+        raise Error(
+            "bad_request",
+            "Invalid SSH public key format",
+            description_code="bastion_ssh_key_invalid",
+        )
+    return key
 
 
 class UsersService:
@@ -203,6 +264,40 @@ class UsersService:
         CommonUser.update_user(
             user_id, {"email": email}, revoke=False, force_email_verification=True
         )
+
+    @staticmethod
+    def get_user_bastion_ssh_key(user_id: str) -> dict:
+        """Return the user's single bastion SSH public key (or None)."""
+        if not RethinkUser.exists(user_id):
+            raise Error(
+                "not_found",
+                f"User with ID '{user_id}' does not exist.",
+            )
+        key = RethinkUser(user_id).bastion_ssh_key
+        if not isinstance(key, str) or not key.strip():
+            key = None
+        return {"ssh_key": key}
+
+    @staticmethod
+    def set_user_bastion_ssh_key(user_id: str, ssh_key: str) -> None:
+        """Set/replace the user's single bastion SSH public key."""
+        if not RethinkUser.exists(user_id):
+            raise Error(
+                "not_found",
+                f"User with ID '{user_id}' does not exist.",
+            )
+        ssh_key = validate_ssh_public_key(ssh_key)
+        CommonUser.update_user(user_id, {"bastion_ssh_key": ssh_key}, revoke=False)
+
+    @staticmethod
+    def delete_user_bastion_ssh_key(user_id: str) -> None:
+        """Remove the user's bastion SSH public key."""
+        if not RethinkUser.exists(user_id):
+            raise Error(
+                "not_found",
+                f"User with ID '{user_id}' does not exist.",
+            )
+        CommonUser.update_user(user_id, {"bastion_ssh_key": None}, revoke=False)
 
     @staticmethod
     def set_user_language(user_id: str, lang: str) -> None:

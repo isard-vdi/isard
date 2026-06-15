@@ -28,6 +28,7 @@ from api.dependencies.bastion import can_use_bastion, can_use_bastion_individual
 from api.schemas.bastion import (
     AdminBastionConfigResponse,
     AdminBastionConfigUpdateRequest,
+    BastionActiveResponse,
     BastionAuthorizedKeysRequest,
     BastionDomainsRequest,
     BastionDomainVerificationConfigResponse,
@@ -113,6 +114,49 @@ async def get_desktop_bastion(
         )
 
 
+@token_router.get(
+    "/item/desktop/{desktop_id}/bastion/active",
+    tags=[tag],
+    response_model=BastionActiveResponse,
+    summary="Get read-only bastion status for a desktop",
+    description="Returns whether bastion SSH/HTTP access is enabled for the desktop, "
+    "plus the data needed to render the read-only access links. Never creates a "
+    "target, so it can be called lazily on demand for any desktop in any status.",
+    operation_id="get_desktop_bastion_active",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[
+        Depends(owns_domain_id("desktop_id")),
+        Depends(can_use_bastion),
+    ],
+)
+async def get_desktop_bastion_active(
+    request: Request,
+    desktop_id: str = Path(..., description="The ID of the desktop"),
+):
+    try:
+        return JSONResponse(
+            content=BastionActiveResponse(
+                **await asyncio.to_thread(
+                    BastionService.get_desktop_bastion_active, desktop_id
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve desktop bastion status",
+            traceback.format_exc(),
+        )
+
+
 @token_router.put(
     "/item/desktop/{desktop_id}/bastion",
     tags=[tag],
@@ -191,6 +235,7 @@ async def update_bastion_authorized_keys(
             BastionService.update_bastion_authorized_keys,
             desktop_id,
             data.authorized_keys,
+            request.token_payload["user_id"],
         )
         return Response(status_code=204)
     except Error:

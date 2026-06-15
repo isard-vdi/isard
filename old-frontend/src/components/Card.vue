@@ -12,7 +12,7 @@
       no-body
     >
       <vue-fab
-        v-if="(desktop.type === 'persistent' && !(!desktop.editable && desktop.permissions.length < 1)) || (getConfig.bastion_enabled && bastion && (bastion.http.enabled || bastion.ssh.enabled))"
+        v-if="(desktop.type === 'persistent' && !(!desktop.editable && desktop.permissions.length < 1)) || (getConfig.canUseBastion && bastion && (bastion.http.enabled || bastion.ssh.enabled))"
         icon="more_vert"
         main-btn-color="#bcc6cc"
         class="info-icon position-absolute"

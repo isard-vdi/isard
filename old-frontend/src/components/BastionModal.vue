@@ -114,7 +114,7 @@
         </b-input-group>
       </b-row>
       <b-row
-        v-if="canChangeDomain"
+        v-if="canChangeDomain && !modal.readOnly"
         class="ml-2 pr-3"
       >
         <label
@@ -271,17 +271,41 @@
           </b-input-group-append>
         </b-input-group>
       </b-row>
-      <b-row class="ml-2 pr-3">
+      <b-row
+        v-if="!modal.readOnly"
+        class="ml-2 pr-3"
+      >
         <label
           for="sshAuthorizedKeysField"
           class="ml-2 mb-0"
-          :title="$t('views.desktop.bastion_modal.titles.authorized-keys-ssh')"
+          :title="$t('views.desktop.bastion_modal.titles.authorized-keys-others')"
         >
-          {{ $t('views.desktop.bastion_modal.labels.authorized-keys-ssh') }}
+          {{ $t('views.desktop.bastion_modal.labels.authorized-keys-others') }}
         </label>
+        <b-alert
+          v-if="!hasOwnKey"
+          show
+          variant="warning"
+          class="w-100 mt-1 mb-2 py-2"
+        >
+          <b-icon
+            icon="info-circle-fill"
+            class="mr-1"
+          />
+          {{ $t('views.desktop.bastion_modal.own-key.missing') }}
+          <router-link :to="{ name: 'profile' }">
+            {{ $t('views.desktop.bastion_modal.own-key.add-link') }}
+          </router-link>
+        </b-alert>
+        <small
+          v-else
+          class="w-100 text-muted mb-1"
+        >
+          {{ $t('views.desktop.bastion_modal.own-key.managed') }}
+        </small>
         <b-form-textarea
           id="sshAuthorizedKeysField"
-          v-model="sshAuthorizedKeys"
+          v-model="otherAuthorizedKeys"
           size="sm"
           rows="3"
           no-resize
@@ -351,16 +375,30 @@ export default {
     const splitNewLine = (text) => text.split(/\r?\n/)
     const joinNewLine = (array) => array.join('\n')
 
-    const sshAuthorizedKeys = computed({
-      get: () => joinNewLine($store.getters.getBastionModal.bastion.ssh.authorized_keys),
-      set: (value) => {
-        modal.value.bastion.ssh.authorized_keys = splitNewLine(value)
-        $store.commit('setBastion', modal.value)
-      }
-    })
+    // The user's own profile key is managed automatically (injected at desktop
+    // start, kept first in the target). This box is only for OTHER people's
+    // keys, so we hide the user's own key here and re-add nothing on save —
+    // the server re-prepends the owner key and strips the editor's own key.
+    const userKey = computed(() => $store.getters.getUserBastionSshKey)
+    const hasOwnKey = computed(() => !!userKey.value)
+
+    const otherAuthorizedKeys = ref('')
+    watch(
+      () => modal.value && modal.value.bastion && modal.value.bastion.ssh && modal.value.bastion.ssh.authorized_keys,
+      (keys) => {
+        const own = (userKey.value || '').trim()
+        const list = (keys || []).filter(k => k && k.trim() && k.trim() !== own)
+        otherAuthorizedKeys.value = joinNewLine(list)
+      },
+      { immediate: true }
+    )
 
     const updateSshAuthorizedKeys = () => {
-      $store.dispatch('updateBastionAuthorizedKeys', modal.value.bastion)
+      const others = splitNewLine(otherAuthorizedKeys.value).map(k => k.trim()).filter(k => k)
+      $store.dispatch('updateBastionAuthorizedKeys', {
+        desktop_id: modal.value.bastion.desktop_id,
+        ssh: { ...modal.value.bastion.ssh, authorized_keys: others }
+      })
     }
 
     // Track saved domains (from server) and local domain list
@@ -458,7 +496,8 @@ export default {
       httpUrl,
       httpsUrl,
       copyToClipboard,
-      sshAuthorizedKeys,
+      otherAuthorizedKeys,
+      hasOwnKey,
       joinNewLine,
       updateSshAuthorizedKeys,
       domainNames,

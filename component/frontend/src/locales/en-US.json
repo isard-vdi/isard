@@ -573,6 +573,7 @@
           "change-password": "Change Password",
           "verify-email": "Verify / Change Email",
           "api-key": "API Key",
+          "ssh-key": "Bastion SSH Key",
           "reset-vpn": "Reset VPN",
           "download-vpn": "Download VPN"
         }
@@ -708,6 +709,8 @@
           "download-viewer": "Download direct links",
           "recreate": "Recreate deployment",
           "reserve": "Reserve",
+          "bastion": "Bastion",
+          "bastion-csv": "Download bastion CSV",
           "delete": "Delete deployment"
         }
       },
@@ -720,6 +723,19 @@
       }
     },
     "deployment": {
+      "menu": {
+        "bastion": "Bastion",
+        "bastion-csv": "Download bastion CSV",
+        "edit": "Edit",
+        "recreate": "Recreate",
+        "toggle-visibility": "Toggle visibility",
+        "delete": "Delete",
+        "book": "Book",
+        "create-template": "Create template"
+      },
+      "user-bastion": {
+        "title": "User bastion access"
+      },
       "banner": {
         "alt": "Deployment banner",
         "users": "Users",
@@ -746,12 +762,68 @@
       "tooltips": {
         "videowall": "Videowall",
         "resources": "Resources",
+        "bastion": "User bastion access",
         "delete": "Delete"
       },
       "recreate-modal": {
         "title": "Recreate deployment '{name}'",
         "description": "Restores desktops to the initial state in which they were created. Only deleted desktops will be restored",
         "button": "Recreate deployment"
+      },
+      "actions": {
+        "access": "Access",
+        "stop": "Stop"
+      },
+      "delete-user": {
+        "title": "Delete user desktops",
+        "description": "This will delete all of this user's desktops in the deployment. This action cannot be undone.",
+        "error": "Could not delete the user's desktops",
+        "loading": "Deleting the user's desktops…",
+        "confirm": "Delete"
+      },
+      "detail": {
+        "users": "Users",
+        "started-desktops": "Started desktops",
+        "visible": "Visible desktops"
+      },
+      "headers": {
+        "visible": "Visible",
+        "last-access": "Last access",
+        "user": "User",
+        "started-desktops": "Started desktops",
+        "actions": "Actions"
+      },
+      "recreate": {
+        "title": "Recreate deployment",
+        "description": "Restores desktops to the initial state in which they were created. Only deleted desktops will be restored.",
+        "error": "Could not recreate the deployment",
+        "loading": "Recreating the deployment…"
+      },
+      "stop-all": {
+        "title": "Stop all desktops",
+        "description": "This will stop every started desktop in the deployment. Users may lose unsaved work.",
+        "error": "Could not stop the deployment desktops",
+        "loading": "Stopping the deployment desktops…"
+      },
+      "stop-user": {
+        "title": "Stop user desktops",
+        "description": "This will stop this user's started desktops. They may lose unsaved work.",
+        "error": "Could not stop the user's desktops",
+        "loading": "Stopping the user's desktops…"
+      },
+      "toggle-lab-visibility": {
+        "title-visible": "Make the deployment visible",
+        "title-invisible": "Make the deployment invisible",
+        "description-visible": "The users of the deployment will see and be able to use their desktops.",
+        "description-invisible": "The users of the deployment will no longer see their desktops. You can also stop the started ones.",
+        "only-hide": "Only hide",
+        "hide-and-stop": "Hide and stop desktops"
+      },
+      "toggle-user-visibility": {
+        "title-visible": "Make the user's desktops visible",
+        "title-invisible": "Make the user's desktops invisible",
+        "description-visible": "The user will see and be able to use their deployment desktops.",
+        "description-invisible": "The user will no longer see their deployment desktops."
       }
     },
     "new-deployment": {
@@ -869,6 +941,21 @@
       }
     },
     "profile": {
+      "ssh-key-modal": {
+        "title": "Bastion SSH key",
+        "description": "Add a single SSH public key to your profile. It is added automatically to the bastion SSH access of any desktop you start (when bastion SSH is enabled on that desktop), so you don't have to add it to each desktop.",
+        "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user{'@'}host",
+        "invalid": "This doesn't look like a valid SSH public key.",
+        "alert": {
+          "error-title": "Request failed",
+          "error-save": "Could not save the SSH key. Please check the key and try again.",
+          "error-remove": "Could not remove the SSH key. Please try again."
+        },
+        "buttons": {
+          "save": "Save key",
+          "remove": "Remove key"
+        }
+      },
       "api-key-modal": {
         "title": "API key",
         "alert": {
@@ -1185,7 +1272,13 @@
             },
             "authorized-keys": {
               "label": "Authorized SSH Keys (one per line)",
-              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+              "others-label": "Other people's SSH keys (one per line)",
+              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
+              "own-key": {
+                "managed": "Your own key is added automatically from your profile when you start this desktop. This box is only for other people's public keys.",
+                "missing": "You don't have a bastion SSH key in your profile yet, so you won't get SSH access automatically.",
+                "add-link": "Add it in your profile"
+              }
             }
           }
         },
@@ -1472,6 +1565,23 @@
       "force": "Force stop desktops",
       "cancel": "Cancel",
       "confirm": "Stop all"
+    },
+    "deployment-bastion-modal": {
+      "title": "Bastion — {name}",
+      "description": "Enable or disable bastion access for every desktop in this deployment. Running desktops are updated immediately; new and recreated desktops inherit this configuration when they first start.",
+      "error-loading": "Could not load the deployment bastion configuration",
+      "error-saving": "Could not save the deployment bastion configuration",
+      "buttons": {
+        "save": "Save"
+      }
+    },
+    "deployment-user-bastion-modal": {
+      "title": "Bastion access — {name}",
+      "description": "Select a desktop to see its bastion access details.",
+      "error-loading": "Could not load the user's desktops",
+      "no-desktops": "This user has no desktops in this deployment",
+      "view-bastion": "Bastion access",
+      "back": "Back to desktops"
     },
     "bastion-info-modal": {
       "title": "Bastion access — {name}",

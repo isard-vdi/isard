@@ -67,6 +67,42 @@ class BastionResponse(BaseModel):
     domains: list[str] = Field(default=[])
 
 
+class BastionActiveSshStatus(BaseModel):
+    """SSH access status without exposing the authorized keys."""
+
+    enabled: bool = Field(default=False)
+    port: int = Field(default=22)
+
+
+class BastionActiveResponse(BaseModel):
+    """Lightweight, read-only bastion status for a desktop.
+
+    Returned by the non-mutating ``/bastion/active`` endpoint used by the
+    desktop-card "Bastion" entry: it never creates a target and carries just
+    enough to decide whether to open the read-only access modal (``ssh.enabled``
+    / ``http.enabled``) and to render the access links.
+    """
+
+    exists: bool = Field(
+        default=False,
+        description="Whether a bastion target exists for this desktop.",
+    )
+    id: str | None = Field(default=None, description="The bastion target ID.")
+    domain: str | None = Field(default=None, description="Custom domain, if any.")
+    domains: list[str] = Field(default=[], description="Additional custom domains.")
+    ssh: BastionActiveSshStatus = Field(default_factory=BastionActiveSshStatus)
+    http: BastionHttpConfig = Field(default_factory=BastionHttpConfig)
+    bastion_domain: str | None = Field(
+        default=None, description="The global bastion domain."
+    )
+    bastion_ssh_port: str | None = Field(
+        default=None, description="The global bastion SSH port (None if disabled)."
+    )
+    bastion_enabled: bool = Field(
+        default=False, description="Whether bastion is globally enabled."
+    )
+
+
 class BastionRequest(BaseModel):
     http: BastionHttpConfig | None = Field(
         default=None,

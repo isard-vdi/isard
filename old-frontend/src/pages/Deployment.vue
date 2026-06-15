@@ -148,6 +148,18 @@
       <template #cell(options)="data">
         <div class="d-flex align-items-center">
           <b-button
+            v-if="getConfig.canUseBastion"
+            class="rounded-circle btn-dark-blue px-2 mr-2"
+            :title="$t('components.deployment-desktop-list.actions.bastion')"
+            :disabled="desktopsCreating"
+            @click="onClickShowDesktopBastion(data.item)"
+          >
+            <b-icon
+              icon="shield-lock"
+              scale="0.75"
+            />
+          </b-button>
+          <b-button
             class="rounded-circle btn-red px-2 mr-2"
             :title="$t('components.deployment-desktop-list.actions.delete')"
             :disabled="desktopsCreating"
@@ -173,6 +185,7 @@
       </template>
     </IsardTable>
     <DeploymentLoadingModal />
+    <BastionModal />
   </b-container>
 </template>
 <script>
@@ -181,6 +194,7 @@ import IsardTable from '@/components/shared/IsardTable.vue'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
 import DeploymentLoadingModal from '@/components/deployments/DeploymentLoadingModal.vue'
+import BastionModal from '@/components/BastionModal.vue'
 import { mapActions, mapGetters } from 'vuex'
 import { desktopStates, status } from '@/shared/constants'
 import { computed, ref, reactive, watch, onBeforeUnmount } from '@vue/composition-api'
@@ -194,7 +208,8 @@ export default {
     IsardTable,
     DesktopButton,
     IsardDropdown,
-    DeploymentLoadingModal
+    DeploymentLoadingModal,
+    BastionModal
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -392,7 +407,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getDeployment', 'getDeploymentLoaded', 'getViewers', 'isPendingOperation']),
+    ...mapGetters(['getDeployment', 'getDeploymentLoaded', 'getViewers', 'isPendingOperation', 'getConfig']),
     sortedDesktops () {
       return this.getDeployment.desktops.slice().sort(d => {
         // return started desktops first
@@ -463,6 +478,13 @@ export default {
     },
     onClickDesktopVisible (desktop) {
       this.$store.dispatch('toggleDesktopVisible', { id: desktop.id, visible: desktop.visible })
+    },
+    onClickShowDesktopBastion (desktop) {
+      this.$store.dispatch('fetchDeploymentDesktopBastion', {
+        deploymentId: this.getDeployment.id,
+        desktopId: desktop.id,
+        desktopName: desktop.name || desktop.userName
+      })
     },
     onClickDeleteDesktop (desktop) {
       if ([desktopStates.failed, desktopStates.stopped].includes(this.getItemState(desktop))) {

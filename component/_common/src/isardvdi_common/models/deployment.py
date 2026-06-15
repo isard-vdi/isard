@@ -46,6 +46,7 @@ class DeploymentModel(PydanticBase):
     user_permissions: List[str] = []
     kind: str = None
     image: Image = None
+    bastion: dict | None = None
 
 
 @pydantic_optional

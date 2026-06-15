@@ -13,8 +13,8 @@ const hasTetrOS = async () => {
     process.env.E2E_BASE_URL ?? (process.env.DOCKER ? 'https://host.docker.internal' : 'https://localhost')
   try {
     const fd = new FormData()
-    fd.append('username', 'admin')
-    fd.append('password', 'IsardVDI')
+    fd.append('username', process.env.E2E_ADMIN_USERNAME ?? 'admin')
+    fd.append('password', process.env.E2E_ADMIN_PASSWORD ?? 'IsardVDI')
     const tokRes = await fetch(`${baseURL}/authentication/login?provider=form&category_id=default`, {
       method: 'POST', body: fd
     })

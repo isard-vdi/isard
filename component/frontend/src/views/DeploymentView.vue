@@ -8,7 +8,8 @@ import { Icon } from '@/components/icon'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DataTable } from '@/components/data-table'
 import bannerDeployments from '@/assets/img/banner-deployments.svg'
-import { getDeploymentOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getDeploymentOptions, getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getDeploymentBastionCsv } from '@/gen/oas/apiv4/sdk.gen'
 import { type DeploymentUserDetail } from '@/gen/oas/apiv4'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,8 @@ import { formatRelativeTime } from '@/lib/utils'
 import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
 import { DeleteModal } from '@/components/deployments/actions/delete-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
+import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
+import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
 import { useBulkSpawnStore } from '@/stores/bulk-spawn'
 
 const { t, d, locale } = useI18n()
@@ -127,6 +130,38 @@ const isRecreatingDesktops = computed(() =>
   deploymentId.value ? bulkSpawnStore.deploymentsInProgress.has(deploymentId.value) : false
 )
 
+const { data: userConfig } = useQuery(getUserConfigOptions())
+const canUseBastion = computed(() => userConfig.value?.can_use_bastion === true)
+
+const showBastionConfigModal = ref(false)
+const bastionUserModalData = ref<{ userId: string; username: string } | null>(null)
+
+function downloadBastionCsv() {
+  getDeploymentBastionCsv({
+    path: { deployment_id: deploymentId.value }
+  }).then((response) => {
+    if (!response.data) return
+    let csvData = response.data as string
+    if (csvData.startsWith('"') && csvData.endsWith('"')) {
+      csvData = csvData
+        .slice(1, -1)
+        .replace(/""/g, '"')
+        .replace(/\\r\\n|\\n/g, '\n')
+    }
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const el = document.createElement('a')
+    el.href = url
+    el.download = `${deploymentId.value}_bastion.csv`
+    document.body.appendChild(el)
+    el.click()
+    setTimeout(() => {
+      document.body.removeChild(el)
+      window.URL.revokeObjectURL(url)
+    }, 100)
+  })
+}
+
 const dropdownActions = computed(() => [
   {
     key: 'edit',
@@ -140,6 +175,22 @@ const dropdownActions = computed(() => [
     label: t('views.deployments.dropdown.buttons.download-viewer'),
     fn: () => (showDownloadCsvModal.value = true)
   },
+  ...(canUseBastion.value
+    ? [
+        {
+          key: 'bastion',
+          icon: 'globe-04',
+          label: t('views.deployments.dropdown.buttons.bastion'),
+          fn: () => (showBastionConfigModal.value = true)
+        },
+        {
+          key: 'bastion-csv',
+          icon: 'download-01',
+          label: t('views.deployments.dropdown.buttons.bastion-csv'),
+          fn: () => downloadBastionCsv()
+        }
+      ]
+    : []),
   {
     key: 'recreate',
     icon: 'refresh-cw-04',
@@ -199,6 +250,21 @@ const enterVideowall = () => {
     v-model:open="showDownloadCsvModal"
     :deployment-id="deploymentEntry?.info.id || ''"
     :deployment-name="deploymentEntry?.info.name || ''"
+  />
+  <DeploymentBastionModal
+    v-if="showBastionConfigModal"
+    :open="showBastionConfigModal"
+    :deployment-id="deploymentId"
+    :deployment-name="deploymentEntry?.info.name || ''"
+    @close="showBastionConfigModal = false"
+  />
+  <DeploymentUserBastionModal
+    v-if="bastionUserModalData !== null"
+    :open="bastionUserModalData !== null"
+    :deployment-id="deploymentId"
+    :user-id="bastionUserModalData.userId"
+    :username="bastionUserModalData.username"
+    @close="bastionUserModalData = null"
   />
   <Button icon="arrow-left" hierarchy="link-color" :as="RouterLink" :to="{ name: 'deployments' }">
     {{ t('layouts.single-page.go-back') }}
@@ -411,6 +477,18 @@ const enterVideowall = () => {
                   ></Button>
                 </TooltipTrigger>
                 <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.resources')" />
+              </Tooltip>
+              <Tooltip v-if="canUseBastion">
+                <TooltipTrigger as-child>
+                  <Button
+                    hierarchy="secondary-gray"
+                    icon="globe-04"
+                    class="aspect-square p-[10px]"
+                    :aria-label="t('views.deployment.tooltips.bastion')"
+                    @click="bastionUserModalData = { userId: row.id, username: row.name }"
+                  ></Button>
+                </TooltipTrigger>
+                <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.bastion')" />
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger as-child>

@@ -396,7 +396,7 @@ def test_update_bastion_authorized_keys(monkeypatch, test_client, bastion_db_fac
     jwt = MockJWT()
     captured = {}
 
-    def fake_update(desktop_id, authorized_keys):
+    def fake_update(desktop_id, authorized_keys, editor_user_id=None):
         captured["desktop_id"] = desktop_id
         captured["authorized_keys"] = authorized_keys
         return {}
@@ -429,7 +429,7 @@ def test_update_bastion_authorized_keys_empty_rejected(
     _bypass_owns_domain_id(monkeypatch)
     _bypass_bastion_checks(monkeypatch)
 
-    def fake_update(desktop_id, authorized_keys):
+    def fake_update(desktop_id, authorized_keys, editor_user_id=None):
         from api.services.error import Error
 
         raise Error("bad_request", "Authorized keys are required")

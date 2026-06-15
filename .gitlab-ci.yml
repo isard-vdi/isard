@@ -644,6 +644,11 @@ integration-real:
     # production migrations, but every Vue 3 e2e spec navigates to /frontend/*
     # and would silently land on Vue 2 without this override.
     - echo "FRONTEND_MODE=all" >> isardvdi.e2e.cfg
+    # Test runs MUST disable the login rate limiter — cfg.example enables it
+    # (good for production), but serial/parallel test logins trip it and the
+    # whole run cascades into 429 failures. testing/config/isardvdi.e2e.cfg.template
+    # does the same for the test-e2e job.
+    - echo "AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=false" >> isardvdi.e2e.cfg
     # Redirect nvidia-smi / libnvidia-ml / sriov-manage mounts to an
     # always-present file — rootless dind cannot mkdir /usr/bin/nvidia-smi
     # or /usr/lib/nvidia/sriov-manage to satisfy the default bind. GPU

@@ -41,6 +41,7 @@ BUCKET_B_ALLOWLIST: set[tuple[str, str]] = {
     ("PUT", "/api/v4/items/storage/find/{status}"),
     # CSV / file download
     ("GET", "/api/v4/item/deployment/{deployment_id}/download-csv"),
+    ("GET", "/api/v4/item/deployment/{deployment_id}/bastion/csv"),
     # StreamingResponse — VPN config bytes
     ("GET", "/api/v4/item/user/get-vpn"),
 }

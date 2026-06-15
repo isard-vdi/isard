@@ -41,7 +41,8 @@ const getDefaultState = () => {
     bastionModal: {
       show: false,
       desktop: {},
-      bastion: { http: {}, ssh: {} }
+      bastion: { http: {}, ssh: {} },
+      readOnly: false
     },
     pendingOperations: {}, // Track pending desktop operations for button state management
     // Ids of desktops the WS just removed. setDesktops filters incoming
@@ -263,6 +264,7 @@ export default {
       state.bastionModal.bastion = bastion
       const desktop = data.desktop || {}
       state.bastionModal.desktop = desktop
+      state.bastionModal.readOnly = data.readOnly || false
     }
   },
   actions: {
