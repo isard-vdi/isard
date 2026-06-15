@@ -129,7 +129,8 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
             });
 
             if(hardware.quota == false){
-                hardware.quota={'memory':128, 'vcpus':128, 'desktops_disk_size':500}
+                // Unlimited → tier maxima, so large values aren't capped/snapped down.
+                hardware.quota={'memory':1024, 'vcpus':128, 'desktops_disk_size':2048}
             }
 
             var memoryOpts = buildTieredOptions(hardware.quota.memory, MEMORY_TIERS);

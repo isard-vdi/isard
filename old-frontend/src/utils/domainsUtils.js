@@ -65,10 +65,12 @@ function roundToNearestTier (value, tiers, quotaMax) {
 export class DomainsUtils {
   static parseDomain (item) {
     const { id, kind, name, description, guest_properties: guestProperties, hardware, reservables, image, limited_hardware: limitedHardware } = item
+    // Unlimited (quota=false) falls back to the tier maxima, not a low cap, so
+    // large desktops aren't snapped down on edit.
     const rawQuota = hardware.quota
-    const quotaMemory = rawQuota ? rawQuota.memory : 128
+    const quotaMemory = rawQuota ? rawQuota.memory : 1024
     const quotaVcpus = rawQuota ? rawQuota.vcpus : 128
-    const quotaDiskSize = rawQuota ? rawQuota.desktops_disk_size : 500
+    const quotaDiskSize = rawQuota ? rawQuota.desktops_disk_size : 2048
     return {
       id,
       kind,
@@ -95,7 +97,7 @@ export class DomainsUtils {
         memory: roundToNearestTier(parseFloat(hardware.memory), MEMORY_TIERS, quotaMemory),
         vcpus: roundToNearestTier(parseInt(hardware.vcpus), VCPU_TIERS, quotaVcpus),
         videos: hardware.videos,
-        quota: !hardware.quota ? { memory: 128, vcpus: 128, desktopDiskSizes: 500 } : hardware.quota
+        quota: !hardware.quota ? { memory: 1024, vcpus: 128, desktopDiskSizes: 2048 } : hardware.quota
       },
       limitedHardware,
       reservables: {
@@ -107,8 +109,8 @@ export class DomainsUtils {
 
   static parseAvailableHardware (hardware) {
     const { boot_order: bootOrder, disks, floppies, graphics, interfaces, isos, videos } = hardware
-    // Unlimited default quota
-    let quota = { memory: 128, vcpus: 128, desktopDiskSizes: 500 }
+    // Unlimited default quota → tier maxima
+    let quota = { memory: 1024, vcpus: 128, desktopDiskSizes: 2048 }
     if (hardware.quota !== false) {
       quota = { memory: hardware.quota.memory, vcpus: hardware.quota.vcpus, desktopDiskSizes: hardware.quota.desktops_disk_size }
     }
