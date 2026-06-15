@@ -259,7 +259,10 @@ class MediaService:
                 description_code="media_url_bad_format",
             )
 
-        from isardvdi_common.helpers.url_validation import validate_url_not_internal
+        from isardvdi_common.helpers.url_validation import (
+            safe_requests_get_with_redirect_validation,
+            validate_url_not_internal,
+        )
 
         try:
             validate_url_not_internal(quoted_url)
@@ -283,14 +286,16 @@ class MediaService:
         # wait on a remote server: the previous urllib retry passed no
         # timeout at all, which wedged the entire async event loop the
         # one time archive.org stalled mid-handshake.
+        # Use the redirect-revalidating helper so a public URL cannot
+        # redirect past validate_url_not_internal into an internal host.
         _MOZILLA_UA = (
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/35.0.1916.47 Safari/537.36"
         )
         try:
-            probe = requests.get(
-                quoted_url, stream=True, allow_redirects=True, timeout=30
+            probe = safe_requests_get_with_redirect_validation(
+                requests, quoted_url, stream=True, timeout=30
             )
             if probe.status_code == 404:
                 raise Error(
@@ -302,10 +307,10 @@ class MediaService:
                 # Some upstreams 403 on the default UA; retry once with
                 # a browser-style UA before declaring the URL unreachable.
                 probe.close()
-                probe = requests.get(
+                probe = safe_requests_get_with_redirect_validation(
+                    requests,
                     quoted_url,
                     stream=True,
-                    allow_redirects=True,
                     timeout=30,
                     headers={"User-Agent": _MOZILLA_UA},
                 )

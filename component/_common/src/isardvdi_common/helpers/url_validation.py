@@ -2,7 +2,7 @@
 
 import ipaddress
 import socket
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 
 def validate_url_not_internal(url):
@@ -34,3 +34,34 @@ def validate_url_scheme(url, allowed_schemes=("http", "https")):
     parsed = urlparse(url.strip())
     if parsed.scheme and parsed.scheme.lower() not in allowed_schemes:
         raise ValueError(f"Invalid URL scheme: {parsed.scheme}")
+
+
+def safe_requests_get_with_redirect_validation(
+    requests_module, url, max_redirects=5, **kwargs
+):
+    """Like ``requests.get(allow_redirects=True)`` but re-validate the
+    target against ``validate_url_not_internal`` at every hop, so a
+    public URL cannot redirect into a private/loopback address.
+
+    ``requests_module`` is injected so the helper stays decoupled from
+    ``requests`` (tests can stub it). Other kwargs pass through to
+    ``get``. Raises ``ValueError`` if any hop is internal, ``RuntimeError``
+    if the chain exceeds ``max_redirects``.
+    """
+    current_url = url
+    for _ in range(max_redirects + 1):
+        validate_url_not_internal(current_url)
+        # Interpose validation per hop: never let requests auto-follow.
+        resp = requests_module.get(current_url, **{**kwargs, "allow_redirects": False})
+        if resp.status_code not in (301, 302, 303, 307, 308):
+            return resp
+        next_url = resp.headers.get("Location") or ""
+        if not next_url:
+            return resp
+        next_url = urljoin(current_url, next_url)  # may be relative
+        try:
+            resp.close()
+        except Exception:
+            pass
+        current_url = next_url
+    raise RuntimeError(f"Too many redirects ({max_redirects}) following {url}")
