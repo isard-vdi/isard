@@ -19,7 +19,7 @@ from datetime import datetime
 
 import pytest
 from changefeed_subscribers import TABLE_TO_SUBSCRIBER
-from isardvdi_changefeed.table_changefeed import sanitize
+from isardvdi_changefeed.table_changefeed import REDACT_FIELDS, redact_path, sanitize
 
 
 class TestSanitize:
@@ -260,3 +260,53 @@ class TestRealisticRowsRoundTrip:
         # yields a dict equivalent to what Pydantic stored.
         reparsed = json.loads(payload)
         assert reparsed["table"] == table
+
+
+class TestRedactPath:
+    PRIVATE = ["vpn", "wireguard", "keys", "private"]
+
+    def test_strips_leaf_when_parents_are_dicts(self):
+        doc = {
+            "id": "u1",
+            "vpn": {"wireguard": {"keys": {"private": "SECRET", "public": "pub"}}},
+        }
+        redact_path(doc, self.PRIVATE)
+        assert doc["vpn"]["wireguard"]["keys"] == {"public": "pub"}
+        assert doc["id"] == "u1"
+
+    def test_preserves_keys_false_reset_sentinel(self):
+        # The wireguard consumer detects a key reset via ``keys is False``;
+        # redaction must not disturb it (the parent is a scalar, not a dict).
+        doc = {"vpn": {"wireguard": {"keys": False}}}
+        redact_path(doc, self.PRIVATE)
+        assert doc["vpn"]["wireguard"]["keys"] is False
+
+    def test_noop_when_path_absent(self):
+        doc = {"vpn": {"wireguard": {}}}
+        redact_path(doc, self.PRIVATE)
+        assert doc == {"vpn": {"wireguard": {}}}
+
+    def test_noop_when_doc_not_dict(self):
+        redact_path(None, self.PRIVATE)  # must not raise
+        redact_path(False, self.PRIVATE)  # must not raise
+
+    def test_users_redact_config_targets_private_key(self):
+        # The users table must be configured to strip the wireguard private key.
+        assert self.PRIVATE in REDACT_FIELDS["users"]
+
+    def test_private_key_never_leaves_with_users_redact_config(self):
+        # Apply the configured users redaction end-to-end on a value.
+        doc = {
+            "table": "users",
+            "vpn": {
+                "wireguard": {
+                    "keys": {"private": "SECRET", "public": "pub"},
+                    "Address": "10.0.0.2",
+                }
+            },
+        }
+        for path in REDACT_FIELDS["users"]:
+            redact_path(doc, path)
+        assert "private" not in doc["vpn"]["wireguard"]["keys"]
+        assert doc["vpn"]["wireguard"]["keys"]["public"] == "pub"
+        assert doc["vpn"]["wireguard"]["Address"] == "10.0.0.2"

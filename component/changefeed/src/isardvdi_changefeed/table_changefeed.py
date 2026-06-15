@@ -46,6 +46,35 @@ def sanitize(obj):
     return obj
 
 
+def redact_path(doc, path):
+    """Delete the leaf key at ``path`` (a list of keys) from ``doc`` in place.
+
+    Walks only through dict parents, so the deletion is skipped when any
+    parent along the path is absent or not a dict. This lets us strip a
+    secret leaf (e.g. ``vpn.wireguard.keys.private``) without disturbing a
+    reset sentinel where the parent is a scalar (e.g. ``keys`` is ``False``,
+    which the wireguard consumer relies on to detect a key reset).
+    """
+    if not isinstance(doc, dict):
+        return
+    for key in path[:-1]:
+        doc = doc.get(key)
+        if not isinstance(doc, dict):
+            return
+    doc.pop(path[-1], None)
+
+
+# Secret fields stripped from each change before it is published/streamed,
+# keyed by table; each value is a list of dotted paths (key lists). Kept in
+# code rather than tables.json because tables.json is the sha-pinned codegen
+# input for the wire schema, whereas this is a runtime safety filter applied
+# after the pluck. Only the leaf is deleted, so reset sentinels are preserved
+# (the wireguard consumer detects a key reset via ``keys is False``).
+REDACT_FIELDS = {
+    "users": [["vpn", "wireguard", "keys", "private"]],
+}
+
+
 class TableChangefeed(RethinkSharedConnection):
     def __init__(
         self,
@@ -216,6 +245,16 @@ class TableChangefeed(RethinkSharedConnection):
         if subscriber is None:
             log.warning(f"No subscriber for table: {table_name}, skipping")
             return
+
+        # Strip configured secret fields (e.g. wireguard private keys) from
+        # both sides of the change before it is published/streamed.
+        redact = REDACT_FIELDS.get(table_name, [])
+        if redact:
+            for side in ("new_val", "old_val"):
+                side_val = change.get(side)
+                if isinstance(side_val, dict):
+                    for path in redact:
+                        redact_path(side_val, path)
 
         try:
             payload = subscriber.serialize(sanitize(change))
