@@ -268,7 +268,9 @@ const router = createRouter({
           name: 'planning-root',
           meta: {
             allowedTokenTypes: ['login'],
-            allowedRoles: ['admin'] as Role[]
+            // managers reach the planner when their category has the GPU
+            // plannings permission; the planner API is itself category-scoped
+            allowedRoles: ['admin', 'manager'] as Role[]
           },
           children: [
             {

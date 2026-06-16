@@ -59,6 +59,7 @@ def _category_create(scratch) -> dict:
             "authentication": False,
             "branding": False,
             "login_notification": False,
+            "plannings": False,
         },
     }
 
