@@ -266,7 +266,10 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 logs.main.error("Action: {}".format(pprint.pformat(action)))
                 logs.main.error("Traceback: {}".format(traceback.format_exc()))
                 logs.main.error("----------------------------------")
-                return False
+                # Keep the orchestrator alive: a failure handling a single action must
+                # not terminate the whole loop, otherwise the hypervisor stays Offline
+                # forever and all desktop/deployment creation returns HTTP 428.
+                continue
 
     def set_hyp_thread_dead(self, hyp_id):
         pool_obj = self.manager.pools.get("default")
@@ -280,8 +283,11 @@ class HypervisorsOrchestratorThread(threading.Thread):
         )
 
         # POP FROM MANAGER DICTIONARIES
-        q_old = self.q.workers.pop(hyp_id)
-        t_old = self.t_workers.pop(hyp_id)
+        # Defensive pop: a duplicate/late thread_hyp_worker_dead action (or a worker
+        # already removed by _recover_stuck_stopping_threads) must be idempotent and
+        # not raise KeyError, which would kill the whole orchestrator thread.
+        q_old = self.q.workers.pop(hyp_id, None)
+        t_old = self.t_workers.pop(hyp_id, None)
         del t_old
         del q_old
         update_hyp_thread_status("worker", hyp_id, "Stopped")
@@ -293,13 +299,16 @@ class HypervisorsOrchestratorThread(threading.Thread):
         #     self.q_long_operations[hyp_id].put({'type':'stop_thread'})
 
     def set_disk_worker_dead(self, hyp_id):
-        if self.q_disk_operations[hyp_id].empty() is False:
+        # Defensive lookup/pop: a duplicate/late thread_disk_operations_dead action
+        # must be idempotent and not raise KeyError (which would kill the orchestrator).
+        q_disk = self.q_disk_operations.get(hyp_id)
+        if q_disk is not None and q_disk.empty() is False:
             d = {"disk_operations": self.q_disk_operations}
             move_actions_to_others_hypers(
                 hyp_id, d, remove_stopping=True, remove_if_no_more_hyps=True
             )
-        q_old = self.q_disk_operations.pop(hyp_id)
-        t_old = self.t_disk_operations.pop(hyp_id)
+        q_old = self.q_disk_operations.pop(hyp_id, None)
+        t_old = self.t_disk_operations.pop(hyp_id, None)
         del t_old
         del q_old
         update_hyp_thread_status("disk_operations", hyp_id, "Stopped")
