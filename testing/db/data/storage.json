@@ -1,5 +1,29 @@
 [
     {
+        "id": "storage-template-s9-seed",
+        "type": "qcow2",
+        "directory_path": "/isard/templates",
+        "parent": null,
+        "perms": ["r"],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "local-default-admin-admin"
+    },
+    {
+        "id": "storage-desktop-s9-cross-cat-01",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": "storage-template-s9-seed",
+        "perms": ["r", "w"],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "f62e3d74-aadd-4ce3-9b43-38f34f368323"
+    },
+    {
         "id": "storage-template-test-001",
         "type": "qcow2",
         "directory_path": "/isard/templates",
