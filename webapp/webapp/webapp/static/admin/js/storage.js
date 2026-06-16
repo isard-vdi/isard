@@ -30,6 +30,12 @@ $(document).ready(function () {
   addRadioButtonsListeners();
   addSelectMethodListeners();
 
+  // populate the filter select before initial_filters() so its removal of
+  // the category option takes effect instead of being a no-op
+  const filter_list = ['category', 'user', 'parent', 'path'];
+  const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
+  $('#filter-select').append(options.join(''));
+
   // set the filter box category on loading the document
   if (!getGroupParam()) {
     initial_filters();
@@ -385,9 +391,6 @@ $(document).ready(function () {
     });
   })
 
-  const filter_list = ['category', 'user', 'parent', 'path'];
-  const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
-  $('#filter-select').append(options.join(''));
   var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
 
   $("#btn-search").on("click", function () {
