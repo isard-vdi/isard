@@ -10,12 +10,12 @@ $(document).ready(function () {
   // RESERVABLE VGPUS
   vgpus_table = $("#reservables_vgpus").DataTable({
     ajax: {
-      url: "/api/v4/admin/items/table/reservables_vgpus",
+      // Dedicated bookables endpoint: returns each reservable enriched with the
+      // distinct categories of its backing cards (the generic items/table feed
+      // returned raw rows with no card join).
+      url: "/api/v4/items/bookables/gpus",
       contentType: "application/json",
-      type: "POST",
-      data: function (d) {
-        return JSON.stringify({ order_by: "name" });
-      },
+      type: "GET",
     },
     sAjaxDataProp: "",
     language: {
