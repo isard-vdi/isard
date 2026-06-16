@@ -23,6 +23,7 @@ import traceback
 from fastapi import BackgroundTasks
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.domains.domains import DomainsProcessed
 
@@ -218,6 +219,38 @@ class AdminAllowedsService:
         return kind
 
     @staticmethod
+    def _authorize_table_item(table: str, item_id: str, payload: dict) -> None:
+        """Authorise access to a table item's ``allowed`` ACL.
+
+        Restores the v3 ``@owns_table_item_id`` guard
+        (``api/views/decorators.py``) that the apiv4 port dropped on the
+        allowed-update / allowed-table endpoints. Without it any
+        authenticated user could read or rewrite the ACL of any item by
+        id (IDOR / privilege escalation).
+
+        - admin: full access.
+        - ``domains`` / ``media``: delegated to the shared
+          ``Helpers.owns_*`` checks (owner, manager-in-category,
+          advanced-via-deployment, shared-template); they raise the
+          typed 403/404 themselves.
+        - every other table is an admin-managed resource (bastion,
+          reservables_vgpus, storage_pool, videos, …): admin only.
+        """
+        if payload.get("role_id") == "admin":
+            return
+        if table == "domains":
+            Helpers.owns_domain_id(payload, item_id)
+            return
+        if table == "media":
+            Helpers.owns_media_id(payload, item_id)
+            return
+        raise Error(
+            "forbidden",
+            f"Not enough access rights to manage allowed for table '{table}'",
+            traceback.format_exc(),
+        )
+
+    @staticmethod
     def update_allowed(
         table: str,
         data: dict,
@@ -228,6 +261,7 @@ class AdminAllowedsService:
         Update the allowed access permissions for a table item.
         Handles special bastion table cases and resource unassignment.
         """
+        AdminAllowedsService._authorize_table_item(table, data.get("id"), payload)
         if table == "bastion":
             AdminAllowedsService._update_bastion_allowed(
                 data, payload, background_tasks
@@ -288,11 +322,12 @@ class AdminAllowedsService:
         DomainsProcessed.unassign_resource_from_desktops_and_deployments(table, item)
 
     @staticmethod
-    def get_allowed_table(table: str, data: dict) -> dict:
+    def get_allowed_table(table: str, data: dict, payload: dict) -> dict:
         """
         Get the allowed access list for a table item.
         Resolves the allowed field and enriches it with names.
         """
+        AdminAllowedsService._authorize_table_item(table, data.get("id"), payload)
         if table == "bastion":
             return Alloweds.get_allowed(Alloweds.get_bastion_allowed_dict())
         elif table == "bastion_domains":

@@ -10,10 +10,20 @@ service via request.token_payload, not at the router gate. These
 tests pin that contract: the route forwards the payload, but does
 not block any role at the routing layer. A future refactor that
 moves these to admin_router would break the manager UI silently.
+
+Update + get-allowed-table additionally enforce per-item ownership
+inside the service (``_authorize_table_item``): admin → full; domains
+/ media → owner / manager-in-category / advanced-via-deployment /
+shared; every other (resource) table → admin only. This restores the
+v3 ``@owns_table_item_id`` guard the apiv4 port had dropped (an IDOR
+that let any authenticated user rewrite any item's ACL by id).
 """
 
+import pytest
 from api.routes.tests.helpers import MockJWT
 from api.services.error import Error
+from isardvdi_common.helpers.error_base import ErrorBase
+from isardvdi_common.helpers.error_factory import Error as CommonError
 
 # ══════════════════════════════════════════════════════════════════════════
 #  POST /admin/allowed/term/{table}
@@ -286,9 +296,10 @@ class TestAlloweds_GetTable:
     def test_admin_gets_allowed_list(self, monkeypatch, test_client):
         captured = {}
 
-        def fake(table, data):
+        def fake(table, data, payload):
             captured["table"] = table
             captured["data"] = data
+            captured["role_id"] = payload["role_id"]
             return {
                 "roles": [{"id": "user", "name": "User"}],
                 "categories": [],
@@ -311,7 +322,7 @@ class TestAlloweds_GetTable:
         assert response.json()["roles"][0]["id"] == "user"
 
     def test_unknown_item_returns_404(self, monkeypatch, test_client):
-        def fail(table, data):
+        def fail(table, data, payload):
             raise Error("not_found", "Item not found")
 
         monkeypatch.setattr(
@@ -327,12 +338,14 @@ class TestAlloweds_GetTable:
         assert response.status_code == 404
 
     def test_user_allowed(self, monkeypatch, test_client):
-        """token_router endpoint — even users can call (UI needs to
-        show whose access is granted). Pin so a future move to
-        admin_router fails loud here."""
+        """token_router endpoint — the route admits any role; the
+        service now enforces per-item ownership (admin / owner /
+        manager-in-category for domains|media, admin-only otherwise).
+        Pin that the routing layer still does not block, so a future
+        move to admin_router fails loud here."""
         monkeypatch.setattr(
             "api.routes.admin.alloweds.AdminAllowedsService.get_allowed_table",
-            staticmethod(lambda t, d: {}),
+            staticmethod(lambda t, d, p: {}),
         )
         response = test_client(
             url=self.URL,
@@ -429,3 +442,100 @@ class TestAlloweds_BastionBackgroundTask:
 
         asyncio.run(bt())
         assert cleanup_calls == ["ran"]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Ownership guard — _authorize_table_item (IDOR fix)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestAlloweds_AuthorizeTableItem:
+    """Unit tests for the per-item ownership guard restored on the
+    allowed-update / allowed-table endpoints. Before it, the apiv4 port
+    of v3's ``@owns_table_item_id`` was missing — any authenticated user
+    could rewrite (or read) the ``allowed`` ACL of any item by id
+    (IDOR / privilege escalation).
+    """
+
+    @property
+    def svc(self):
+        from api.services.admin.alloweds import AdminAllowedsService
+
+        return AdminAllowedsService
+
+    def test_admin_bypasses_without_delegating(self, monkeypatch):
+        """Admin gets full access and never consults the owns_* checks,
+        even for the owner-scoped tables."""
+        calls = []
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Helpers.owns_domain_id",
+            staticmethod(lambda p, i: calls.append("domain") or True),
+        )
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Helpers.owns_media_id",
+            staticmethod(lambda p, i: calls.append("media") or i),
+        )
+        self.svc._authorize_table_item("reservables_vgpus", "x", {"role_id": "admin"})
+        self.svc._authorize_table_item("domains", "d-1", {"role_id": "admin"})
+        self.svc._authorize_table_item("media", "m-1", {"role_id": "admin"})
+        assert calls == []
+
+    def test_domains_delegates_to_owns_domain_id(self, monkeypatch):
+        seen = {}
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Helpers.owns_domain_id",
+            staticmethod(lambda p, i: seen.update(id=i, role=p["role_id"]) or True),
+        )
+        self.svc._authorize_table_item(
+            "domains", "d-1", {"role_id": "user", "user_id": "u-1"}
+        )
+        assert seen == {"id": "d-1", "role": "user"}
+
+    def test_media_delegates_to_owns_media_id(self, monkeypatch):
+        seen = {}
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Helpers.owns_media_id",
+            staticmethod(lambda p, i: seen.update(id=i) or i),
+        )
+        self.svc._authorize_table_item(
+            "media", "m-1", {"role_id": "manager", "category_id": "c1"}
+        )
+        assert seen == {"id": "m-1"}
+
+    def test_domains_non_owner_propagates_403(self, monkeypatch):
+        def deny(p, i):
+            raise CommonError("forbidden", "not yours", "")
+
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Helpers.owns_domain_id",
+            staticmethod(deny),
+        )
+        with pytest.raises(ErrorBase) as exc:
+            self.svc._authorize_table_item(
+                "domains", "d-x", {"role_id": "user", "user_id": "u-1"}
+            )
+        assert exc.value.status_code == 403
+
+    def test_resource_tables_admin_only(self):
+        """Non-ownable resource tables reject any non-admin (incl.
+        manager) with a typed 403 — the core IDOR closure."""
+        for table in (
+            "reservables_vgpus",
+            "storage_pool",
+            "videos",
+            "notifications",
+            "bastion",
+            "remotevpn",
+        ):
+            with pytest.raises(ErrorBase) as exc:
+                self.svc._authorize_table_item(
+                    table, "x", {"role_id": "manager", "category_id": "c1"}
+                )
+            assert exc.value.status_code == 403, table
+
+    def test_user_cannot_touch_resource_table(self):
+        with pytest.raises(ErrorBase) as exc:
+            self.svc._authorize_table_item(
+                "reservables_vgpus", "x", {"role_id": "user", "user_id": "u-1"}
+            )
+        assert exc.value.status_code == 403

@@ -165,7 +165,10 @@ async def allowed_table(
 ):
     try:
         result = await asyncio.to_thread(
-            AdminAllowedsService.get_allowed_table, table, data.model_dump()
+            AdminAllowedsService.get_allowed_table,
+            table,
+            data.model_dump(),
+            request.token_payload,
         )
         return JSONResponse(
             content=AllowedTableResponse(**(result or {})).model_dump(mode="json"),
