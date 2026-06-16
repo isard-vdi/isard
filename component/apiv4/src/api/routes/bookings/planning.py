@@ -79,7 +79,11 @@ async def get_item_plannings(
 
     try:
         plannings = await asyncio.to_thread(
-            PlanningService.get_item_plannings, reservable_item_id, start, end
+            PlanningService.get_item_plannings,
+            request.token_payload,
+            reservable_item_id,
+            start,
+            end,
         )
         return PlanningListResponse(plannings=plannings)
     except Error:
@@ -115,7 +119,9 @@ async def delete_planning(
     Delete a specific planning by its ID.
     """
     try:
-        await asyncio.to_thread(PlanningService.delete_planning, plan_id)
+        await asyncio.to_thread(
+            PlanningService.delete_planning, request.token_payload, plan_id
+        )
         return DeleteResponse(message="Planning deleted", message_code="item.deleted")
     except Error:
         raise

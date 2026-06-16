@@ -267,7 +267,7 @@ def test_delete_planning(monkeypatch, test_client):
     calls = []
     monkeypatch.setattr(
         "api.services.planning.PlanningService.delete_planning",
-        staticmethod(lambda plan_id: calls.append(plan_id)),
+        staticmethod(lambda payload, plan_id: calls.append(plan_id)),
     )
 
     response = test_client(
