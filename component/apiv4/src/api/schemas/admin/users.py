@@ -18,8 +18,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 
+from isardvdi_common.schemas.shared.quotas import Limits, Quota
 from pydantic import BaseModel, Field
 
 # ── User CRUD ────────────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ class AdminUserUpdateData(BaseModel):
     group: Optional[str] = None
     password: Optional[str] = None
     active: Optional[bool] = None
-    quota: Optional[Union[bool, dict]] = None
+    quota: Optional[Union[bool, Quota]] = None
     secondary_groups: Optional[List[str]] = None
     bulk: bool = False
 
@@ -217,7 +218,7 @@ class AdminCategoryAuthenticationData(BaseModel):
 class AdminQuotaUpdateData(BaseModel):
     """Request body for updating quotas."""
 
-    quota: Union[bool, dict]
+    quota: Union[bool, Quota]
     propagate: Optional[bool] = False
     role: Optional[str] = "all_roles"
 
@@ -225,7 +226,7 @@ class AdminQuotaUpdateData(BaseModel):
 class AdminLimitsUpdateData(BaseModel):
     """Request body for updating limits."""
 
-    limits: Union[bool, dict]
+    limits: Union[bool, Limits]
     propagate: Optional[bool] = False
 
 
