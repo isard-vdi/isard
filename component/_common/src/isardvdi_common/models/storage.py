@@ -1378,33 +1378,36 @@ class Storage(RethinkCustomBase):
         :return: Tuple with the new storage and the task ID
         :rtype: Tuple[isardvdi_common.models.storage.Storage, str]
         """
-        if not Storage.exists(parent_id):
-            raise Exception(
-                "not_found",
-                f"Parent storage {parent_id} not found",
-            )
-        storage_parent = Storage(parent_id)
-        if storage_parent.status != "ready":
-            raise Exception(
-                "precondition_required",
-                "Parent storage is not ready",
-                "storage_not_ready",
-            )
-        if storage_parent.type != storage_type:
-            raise Exception(
-                "precondition_required",
-                "Parent storage type does not match",
-            )
-
-        parent_args = {
-            "parent_path": storage_parent.path,
-            "parent_type": storage_parent.type,
-        }
+        # No parent_id means a brand-new blank disk; the storage worker's
+        # create task omits the backing file in that case.
+        parent_args = {}
+        if parent_id:
+            if not Storage.exists(parent_id):
+                raise Exception(
+                    "not_found",
+                    f"Parent storage {parent_id} not found",
+                )
+            storage_parent = Storage(parent_id)
+            if storage_parent.status != "ready":
+                raise Exception(
+                    "precondition_required",
+                    "Parent storage is not ready",
+                    "storage_not_ready",
+                )
+            if storage_parent.type != storage_type:
+                raise Exception(
+                    "precondition_required",
+                    "Parent storage type does not match",
+                )
+            parent_args = {
+                "parent_path": storage_parent.path,
+                "parent_type": storage_parent.type,
+            }
 
         storage = Storage.new_dict(
             user_id=user_id,
             pool_usage=pool_usage,
-            parent_id=parent_id,
+            parent_id=parent_id or None,
             format=storage_type,
         )
         storage.status_logs = [{"time": int(time()), "status": "created"}]

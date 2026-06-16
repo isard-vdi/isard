@@ -1265,6 +1265,8 @@ $("#modalCreateStorage #send").on("click", function () {
     formData.size = formData.size + unit;
     var priority = $("#user_data").data("role") == "admin" ? formData.priority : "low";
     formData.storage_type = "qcow2";
+    formData.usage = formData.usage_type;
+    formData.parent = formData.parent || "";
     delete formData.size_unit;
     if (formData.parent) {
       performStorageOperation(formData, formData.parent, "create", "/api/v4/item/storage/priority/" + priority);
