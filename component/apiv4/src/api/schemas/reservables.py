@@ -72,6 +72,9 @@ class ReservableItemResponse(BaseModel):
     # delegated-category label never renders).
     category: Optional[str] = None
     category_name: Optional[str] = None
+    # GPUs only: the auto per-card passthrough identity used as the default variant
+    # suggestion in the admin Variant column; declared so FastAPI keeps it.
+    passthrough_variant: Optional[str] = None
     profiles_enabled: List[str]
     plans: ReservablePlans
     desktops_started: List[str] = []
