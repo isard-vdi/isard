@@ -2634,9 +2634,10 @@ def add_numa_pinning(
 ):
     """Add <cputune> and (optionally) <numatune> for NUMA-local CPU pinning.
 
-    When vcpus <= len(node_cpus): generates per-vCPU pinning with
-    <vcpupin> entries distributed round-robin across the node's CPUs,
-    plus <emulatorpin> for QEMU emulator threads.
+    When vcpus <= len(node_cpus): pins each vCPU to the node's full CPU
+    set (via <vcpupin>) plus <emulatorpin>, so the host scheduler spreads
+    vCPUs across the node's free threads instead of nailing every guest to
+    the same first-N CPUs.
 
     When vcpus > len(node_cpus): skips per-vCPU pinning (would cause
     harmful contention) and only sets <vcpu cpuset='...'> to constrain
@@ -2691,11 +2692,15 @@ def add_numa_pinning(
             elem.getparent().remove(elem)
 
     if emit_cputune and vcpus <= len(node_cpus):
-        # Per-vCPU pinning: distribute round-robin across node CPUs
+        # Pin every vCPU to the node's full CPU set (not a single CPU) so the
+        # host scheduler can spread vCPUs across the node's free threads.
+        # Pinning each vCPU to one CPU nailed every same-node guest to the same
+        # first-N threads, serialising them onto a handful of cores while the
+        # rest of the node sat idle. We decide the NUMA node, not the placement
+        # within it.
         pins = []
         for i in range(vcpus):
-            cpu_id = node_cpus[i % len(node_cpus)]
-            pins.append(f"  <vcpupin vcpu='{i}' cpuset='{cpu_id}'/>")
+            pins.append(f"  <vcpupin vcpu='{i}' cpuset='{cpulist_str}'/>")
         pins.append(f"  <emulatorpin cpuset='{cpulist_str}'/>")
         cputune_xml = "<cputune>\n{}\n</cputune>".format("\n".join(pins))
 
