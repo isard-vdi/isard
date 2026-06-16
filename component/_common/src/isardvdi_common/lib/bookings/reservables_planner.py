@@ -476,6 +476,7 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                 description="There's currently an ongoing booking with this GPU profile",
             )
 
+    @classmethod
     def check_subitem_running_desktops(cls, subitem_id):
         """Refuse to strip a profile a RUNNING desktop is still using. The
         booking guard above only covers in-progress bookings; an admin-started
