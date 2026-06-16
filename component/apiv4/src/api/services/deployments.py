@@ -258,6 +258,25 @@ class DeploymentService:
 
     @staticmethod
     def stop_user_desktops(deployment_id: str, user_id: str) -> None:
+        # Ownership is already checked by the route, but not that user_id
+        # belongs to the deployment; without this, an owner could probe
+        # arbitrary user_ids via the 404-vs-success response. Enforce
+        # membership only when allowed.users is an explicit list (False
+        # means open to anyone the other ACLs permit).
+        deployment = Caches.get_document("deployments", deployment_id)
+        if deployment is None:
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+        allowed_users = (deployment.get("allowed") or {}).get("users")
+        if isinstance(allowed_users, list) and user_id not in allowed_users:
+            raise Error(
+                "forbidden",
+                f"User {user_id} is not a member of deployment {deployment_id}.",
+                description_code="not_enough_rights",
+            )
+
         desktops = CommonDeploymentDesktops.get_user_desktop_ids(deployment_id, user_id)
         if not desktops:
             raise Error(
