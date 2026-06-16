@@ -783,7 +783,9 @@ $(document).ready(function () {
           });
         },
       }).done(function (data) {
-        data = JSON.parse(data);
+        // apiv4 returns application/json, so jQuery has already parsed `data`;
+        // re-parsing the object throws "unexpected character" (the old v3 path
+        // returned text). Mirrors the JSON.parse removals in 0cbaac730.
         var isLast = data["last"].includes(true);
         var hasRefs = isLast
           ? (data["desktops"].length > 0 || data["plans"].length > 0 ||
