@@ -965,6 +965,12 @@ def test_add_numa_pinning_per_vcpu_when_fit():
     result = add_numa_pinning(_numa_base_xml(8), 1, "24-47", 8, "strict", True)
     tree = _parse(result)
     assert len(tree.xpath("/domain/cputune/vcpupin")) == 8
+    # Each vCPU is pinned to the node's full CPU set, not a single CPU, so the
+    # scheduler spreads same-node guests instead of stacking every guest on the
+    # node's first N threads.
+    assert all(
+        p.get("cpuset") == "24-47" for p in tree.xpath("/domain/cputune/vcpupin")
+    )
     assert len(tree.xpath("/domain/cputune/emulatorpin")) == 1
     nt = tree.xpath("/domain/numatune/memory")
     assert (
