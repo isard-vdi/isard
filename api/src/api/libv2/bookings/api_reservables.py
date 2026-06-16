@@ -182,6 +182,9 @@ class Reservables:
     def list_items(self, item_type):
         return self.reservable[item_type].list_items()
 
+    def list_bookables(self, item_type):
+        return self.reservable[item_type].list_bookables()
+
     def add_item(self, item_type, item):
         return self.reservable[item_type].add_item(item)
 
@@ -268,6 +271,44 @@ class Reservables:
 
 
 class ResourceItemsGpus:
+    def list_bookables(self):
+        """Bookable vGPU reservables, each enriched with the distinct
+        categories of the GPU cards that enable it.
+
+        A ``reservables_vgpus`` row is bookable on any card whose
+        ``profiles_enabled`` contains its id; a card may be delegated to a
+        category. The admin Bookables list shows those categories as tags.
+        Undelegated (global) cards contribute no category. (apiv4 twin.)
+        """
+        with app.app_context():
+            reservables = list(r.table("reservables_vgpus").run(db.conn))
+            cards = list(
+                r.table("gpus").pluck("category", "profiles_enabled").run(db.conn)
+            )
+        cat_ids_by_reservable = {}
+        for card in cards:
+            category = card.get("category")
+            if not category:
+                continue
+            for enabled_id in card.get("profiles_enabled", []):
+                cat_ids_by_reservable.setdefault(enabled_id, set()).add(category)
+        all_category_ids = (
+            set().union(*cat_ids_by_reservable.values())
+            if cat_ids_by_reservable
+            else set()
+        )
+        name_by_category = {}
+        for category in all_category_ids:
+            with app.app_context():
+                row = r.table("categories").get(category).run(db.conn)
+            name_by_category[category] = (row or {}).get("name") or category
+        for reservable in reservables:
+            reservable["categories"] = sorted(
+                name_by_category[c]
+                for c in cat_ids_by_reservable.get(reservable.get("id"), set())
+            )
+        return reservables
+
     def list_items(self):
         query = r.table("gpus").merge(
             lambda gpu: r.branch(

@@ -10,12 +10,12 @@ $(document).ready(function () {
   // RESERVABLE VGPUS
   vgpus_table = $("#reservables_vgpus").DataTable({
     ajax: {
-      url: "/admin/table/reservables_vgpus",
+      // Dedicated bookables endpoint: returns each reservable enriched with the
+      // distinct categories of its backing cards (the generic table feed
+      // returned raw rows with no card join).
+      url: "/api/v3/admin/bookables/gpus",
       contentType: "application/json",
-      type: "POST",
-      data: function (d) {
-        return JSON.stringify({ order_by: "name" });
-      },
+      type: "GET",
     },
     sAjaxDataProp: "",
     language: {
@@ -31,7 +31,37 @@ $(document).ready(function () {
         data: null,
         defaultContent: '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
       },
-      { data: "name" },
+      {
+        data: "name",
+        render: function (data, type, full, meta) {
+          if (type !== "display") return data;
+          var esc = function (s) {
+            return String(s).replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+          };
+          // The "~<variant>" rides in the reservable id; the stored name has it
+          // appended as " [<variant>]". Strip that exact suffix (model names also
+          // contain brackets, so never parse "[...]" out of the name) and render
+          // the variant as a blue tag instead of inline text.
+          var variant = full.id && full.id.indexOf("~") >= 0 ? full.id.split("~").pop() : null;
+          var name = data || "";
+          var tail = " [" + variant + "]";
+          if (variant && name.slice(-tail.length) === tail) name = name.slice(0, -tail.length);
+          var html = esc(name);
+          if (variant) {
+            html += ' <span class="label label-info" title="Variant">' + esc(variant) + "</span>";
+          }
+          // Categories backing this reservable (server-computed: distinct
+          // categories of the cards whose profiles_enabled include it). Green tag,
+          // matching the GPU admin delegated-category colour.
+          (full.categories || []).forEach(function (cat) {
+            html +=
+              ' <span class="label label-success" title="Delegated to category"><i class="fa fa-users"></i> ' +
+              esc(cat) +
+              "</span>";
+          });
+          return html;
+        },
+      },
       { data: "description" },
       { data: "priority_id" },
       { data: "brand", defaultContent: "system" },

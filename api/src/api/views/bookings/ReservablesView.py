@@ -38,6 +38,21 @@ def api_v3_profiles(payload, reservable_type):
     return json.dumps(api_ri.list_profiles(reservable_type)), 200
 
 
+# Bookable reservables enriched with the distinct categories of their backing
+# GPU cards (apiv4 twin of GET /items/bookables/{type}); replaces the generic
+# admin table feed for the Bookables admin view.
+@app.route("/api/v3/admin/bookables/<reservable_type>", methods=["GET"])
+@is_admin
+def api_v3_bookables(payload, reservable_type):
+    if reservable_type not in api_ri.list_reservables():
+        raise Error(
+            "not_found",
+            "Reservable type '%s' not found" % reservable_type,
+            description_code="reservable_type_not_found",
+        )
+    return json.dumps(api_ri.list_bookables(reservable_type), default=str), 200
+
+
 # # Gets list of items created from this reservable (card names) [{"id","model"...}]
 @app.route("/api/v3/admin/reservables/<reservable_type>", methods=["GET", "POST"])
 @can_manage_gpu_plannings
