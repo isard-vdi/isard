@@ -204,7 +204,10 @@ class AdminDomainListItem(BaseModel):
     create_dict: Optional[AdminDomainCreateDictSummary] = None
     bastion: Optional[AdminDomainBastionTarget] = None
     derivates: Optional[int] = None
-    tag: Optional[str] = None
+    # ``tag`` is ``False`` (bool) by default in the DB and a string when set,
+    # like ``booking_id``/``hyp_started`` above — accept both so get_by_ids
+    # rows (which pluck ``tag``) don't fail validation.
+    tag: Optional[Union[str, bool]] = None
 
 
 class AdminDomainStatusItem(BaseModel):
