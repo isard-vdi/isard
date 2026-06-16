@@ -692,6 +692,9 @@ class AdminCategoryNavItem(BaseModel):
     limits: Optional[bool | dict] = None
     media_size: Optional[float] = None
     domains_size: Optional[float] = None
+    bastion_domain: Optional[str] = None
+    ephimeral: Optional[EphimeralDesktopsData | bool] = None
+    maintenance: Optional[bool] = None
 
 
 class AdminCategoryDetailResponse(BaseModel):
