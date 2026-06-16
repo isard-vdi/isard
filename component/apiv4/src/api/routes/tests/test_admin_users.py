@@ -318,6 +318,12 @@ def _stub_update_deps(monkeypatch, target_role="user", target_category="cat-a"):
         "api.services.admin.users.AdminUsersService.owns_category_id",
         staticmethod(lambda *a, **k: None),
     )
+    # The PUT /admin/item/user/{user_id} route dependency calls the
+    # common-lib helper, so bypass it there too.
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.helpers.Helpers.owns_user_id",
+        staticmethod(lambda *a, **k: True),
+    )
     monkeypatch.setattr(
         "api.services.admin.users.CommonUsers.update_user",
         staticmethod(lambda *a, **k: None),
@@ -623,7 +629,6 @@ def test_admin_get_group(monkeypatch, test_client):
         "parent_category": "cat-1",
         "description": "Test",
     }
-    # Note: ``get_group(group_id)`` takes a single argument (no payload).
     monkeypatch.setattr(
         "api.services.admin.users.AdminUsersService.get_group",
         staticmethod(lambda group_id: stub),
@@ -741,7 +746,7 @@ def test_admin_get_category(monkeypatch, test_client):
     stub = {"id": "cat-1", "name": "Category 1"}
     monkeypatch.setattr(
         "api.services.admin.users.AdminUsersService.get_category",
-        staticmethod(lambda payload, category_id: stub),
+        staticmethod(lambda category_id: stub),
     )
 
     response = test_client(url="/admin/item/category/cat-1", jwt=jwt)
