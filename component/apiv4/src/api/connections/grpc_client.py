@@ -84,40 +84,45 @@ def create_haproxy_sync_client(host, port):
     return haproxy_sync_pb2_grpc.HaproxySyncServiceStub(chan), chan
 
 
-async def async_watch_health_check(channel, service_name, on_reconnect):
-    """Watch gRPC service health and call on_reconnect when it transitions to SERVING.
+async def async_watch_health_check(channel, service_name, on_reconnect, interval=30):
+    """Poll gRPC service health and call ``on_reconnect`` when it recovers.
 
-    Runs sync gRPC health checks in a thread to avoid blocking the asyncio
-    event loop.
+    Periodically issues a unary ``Health.Check`` for ``service_name`` and
+    invokes ``on_reconnect`` once each time the service transitions from
+    not-serving (or unreachable) back to SERVING. The first observation only
+    records state — it never fires ``on_reconnect`` — because startup already
+    performs an initial sync.
     """
     from grpc_health.v1 import health_pb2, health_pb2_grpc
 
-    previous_status = None
+    health_stub = health_pb2_grpc.HealthStub(channel)
+    request = health_pb2.HealthCheckRequest(service=service_name)
+
+    previously_serving = None
 
     while True:
         try:
-            health_stub = health_pb2_grpc.HealthStub(channel)
-            request = health_pb2.HealthCheckRequest(service=service_name)
-
-            def _watch_blocking():
-                return list(health_stub.Watch(request, timeout=30))
-
-            responses = await asyncio.to_thread(_watch_blocking)
-            for response in responses:
-                current_status = response.status
-                if (
-                    previous_status is not None
-                    and previous_status != health_pb2.HealthCheckResponse.SERVING
-                    and current_status == health_pb2.HealthCheckResponse.SERVING
-                ):
-                    log.info(f"gRPC service {service_name} reconnected, syncing...")
-                    await asyncio.to_thread(on_reconnect)
-                previous_status = current_status
-
-        except grpc.RpcError:
-            previous_status = None
-            await asyncio.sleep(5)
+            status = await asyncio.to_thread(
+                lambda: health_stub.Check(request, timeout=5).status
+            )
+            serving = status == health_pb2.HealthCheckResponse.SERVING
+            if serving and previously_serving is False:
+                log.info(f"gRPC service {service_name} reconnected, syncing...")
+                await asyncio.to_thread(on_reconnect)
+            previously_serving = serving
+        except grpc.RpcError as exc:
+            if previously_serving is not False:
+                log.warning(
+                    f"gRPC health check failed for {service_name}: "
+                    f"{exc.code().name}; will retry"
+                )
+            previously_serving = False
         except Exception:
             log.warning(f"Health check error for {service_name}", exc_info=True)
-            previous_status = None
-            await asyncio.sleep(5)
+            previously_serving = False
+
+        log.debug(
+            f"gRPC health check for {service_name}: previously_serving={previously_serving}"
+        )
+
+        await asyncio.sleep(interval)
