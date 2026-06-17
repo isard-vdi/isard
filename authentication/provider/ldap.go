@@ -13,6 +13,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	pkgNet "gitlab.com/isard/isardvdi/pkg/net"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/rs/zerolog"
@@ -92,6 +93,15 @@ func InitLDAP(secret string, log *zerolog.Logger, db r.QueryExecutor) *LDAP {
 
 func (l *LDAP) LoadConfig(_ context.Context, cfg model.LDAPConfig) error {
 	prvCfg := l.cfg.Cfg()
+
+	local, err := pkgNet.IsLocalHostname(cfg.Host)
+	if err != nil {
+		return fmt.Errorf("resolve LDAP host %q: %w", cfg.Host, err)
+	}
+
+	if local {
+		return fmt.Errorf("LDAP host %q must not point to this server", cfg.Host)
+	}
 
 	prvCfg.Protocol = cfg.Protocol
 	prvCfg.Host = cfg.Host

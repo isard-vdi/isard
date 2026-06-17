@@ -26,7 +26,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		"should load config with all fields and valid regexps": {
 			Input: model.LDAPConfig{
 				Protocol:   "ldaps",
-				Host:       "ldap.example.com",
+				Host:       "203.0.113.1",
 				Port:       636,
 				BindDN:     "cn=admin,dc=example,dc=com",
 				Password:   "secret",
@@ -73,7 +73,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 			},
 			Expected: LDAPConfig{
 				Protocol:   "ldaps",
-				Host:       "ldap.example.com",
+				Host:       "203.0.113.1",
 				Port:       636,
 				BindDN:     "cn=admin,dc=example,dc=com",
 				Password:   "secret",
@@ -119,12 +119,17 @@ func TestLDAPLoadConfig(t *testing.T) {
 				AllowInsecureTLS: true,
 			},
 		},
+		"should return an error if the host points to this server": {
+			Input:       model.LDAPConfig{Host: "127.0.0.1"},
+			ExpectedErr: "must not point to this server",
+		},
 		"should return error for invalid UID regex": {
-			Input:       model.LDAPConfig{RegexUID: "[invalid"},
+			Input:       model.LDAPConfig{Host: "203.0.113.1", RegexUID: "[invalid"},
 			ExpectedErr: "invalid UID regex",
 		},
 		"should return error for invalid username regex": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: "[invalid",
 			},
@@ -132,6 +137,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid name regex": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: ".*",
 				RegexName:     "[invalid",
@@ -140,6 +146,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid email regex": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: ".*",
 				RegexName:     ".*",
@@ -149,6 +156,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid photo regex": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: ".*",
 				RegexName:     ".*",
@@ -159,6 +167,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid category regex": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: ".*",
 				RegexName:     ".*",
@@ -171,6 +180,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid group regex": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: ".*",
 				RegexName:     ".*",
@@ -183,6 +193,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid role list regex": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: ".*",
 				RegexName:     ".*",
@@ -196,6 +207,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		},
 		"should set ReCategory to nil when GuessCategory is false": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: ".*",
 				RegexName:     ".*",
@@ -203,6 +215,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 				RegexPhoto:    ".*",
 			},
 			Expected: LDAPConfig{
+				Host:       "203.0.113.1",
 				ReUID:      regexp.MustCompile(".*"),
 				ReUsername: regexp.MustCompile(".*"),
 				ReName:     regexp.MustCompile(".*"),
@@ -212,6 +225,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		},
 		"should compile ReCategory when GuessCategory is true": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: ".*",
 				RegexName:     ".*",
@@ -221,6 +235,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 				RegexCategory: "(.*)",
 			},
 			Expected: LDAPConfig{
+				Host:          "203.0.113.1",
 				ReUID:         regexp.MustCompile(".*"),
 				ReUsername:    regexp.MustCompile(".*"),
 				ReName:        regexp.MustCompile(".*"),
@@ -232,6 +247,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		},
 		"should set ReGroup and ReRole to nil when AutoRegister is false": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: ".*",
 				RegexName:     ".*",
@@ -239,6 +255,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 				RegexPhoto:    ".*",
 			},
 			Expected: LDAPConfig{
+				Host:       "203.0.113.1",
 				ReUID:      regexp.MustCompile(".*"),
 				ReUsername: regexp.MustCompile(".*"),
 				ReName:     regexp.MustCompile(".*"),
@@ -248,6 +265,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 		},
 		"should compile ReGroup and ReRole when AutoRegister is true": {
 			Input: model.LDAPConfig{
+				Host:          "203.0.113.1",
 				RegexUID:      ".*",
 				RegexUsername: ".*",
 				RegexName:     ".*",
@@ -258,6 +276,7 @@ func TestLDAPLoadConfig(t *testing.T) {
 				RoleListRegex: "(.*)",
 			},
 			Expected: LDAPConfig{
+				Host:         "203.0.113.1",
 				ReUID:        regexp.MustCompile(".*"),
 				ReUsername:   regexp.MustCompile(".*"),
 				ReName:       regexp.MustCompile(".*"),
@@ -488,6 +507,7 @@ func TestLDAPGuessRole(t *testing.T) {
 					cfg: &cfgManager[LDAPConfig]{cfg: &LDAPConfig{}},
 				}
 				_ = l.LoadConfig(context.Background(), model.LDAPConfig{
+					Host:          "203.0.113.1",
 					RegexUID:      ".*",
 					RegexUsername: ".*",
 					RegexName:     ".*",
@@ -510,6 +530,7 @@ func TestLDAPGuessRole(t *testing.T) {
 					cfg: &cfgManager[LDAPConfig]{cfg: &LDAPConfig{}},
 				}
 				_ = l.LoadConfig(context.Background(), model.LDAPConfig{
+					Host:          "203.0.113.1",
 					RegexUID:      ".*",
 					RegexUsername: ".*",
 					RegexName:     ".*",
