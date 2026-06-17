@@ -76,3 +76,42 @@ func TestIsLocalIP(t *testing.T) {
 		})
 	}
 }
+
+func TestIsLocalHostname(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		Hostname string
+		Expected bool
+	}{
+		"should return true if the hostname is a loopback IPv4 literal": {
+			Hostname: "127.0.0.1",
+			Expected: true,
+		},
+		"should return true if the hostname is a loopback IPv6 literal": {
+			Hostname: "::1",
+			Expected: true,
+		},
+		"should return true if the hostname resolves to loopback": {
+			Hostname: "localhost",
+			Expected: true,
+		},
+		"should return false if the hostname is a public IP literal": {
+			Hostname: "203.0.113.1",
+			Expected: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			local, err := pkgNet.IsLocalHostname(tc.Hostname)
+
+			assert.NoError(err)
+			assert.Equal(tc.Expected, local)
+		})
+	}
+}

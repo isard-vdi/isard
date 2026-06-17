@@ -753,7 +753,7 @@ func TestValidateMetadataURL(t *testing.T) {
 		},
 		"should reject a hostname resolving to loopback": {
 			URL:         "https://localhost/metadata",
-			ExpectedErr: "resolves to this server",
+			ExpectedErr: "must not point to this server",
 		},
 	}
 

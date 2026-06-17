@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -425,28 +424,18 @@ func validateMetadataURL(rawURL string) error {
 	if err != nil {
 		return fmt.Errorf("malformed URL: %w", err)
 	}
+
 	if u.Scheme != "https" {
 		return fmt.Errorf("metadata URL must use https scheme, got %q", u.Scheme)
 	}
 
-	host := u.Hostname()
-	if ip := net.ParseIP(host); ip != nil {
-		if pkgNet.IsLocalIP(ip) {
-			return fmt.Errorf("metadata URL must not point to this server (IP %s)", ip)
-		}
-		return nil
+	local, err := pkgNet.IsLocalHostname(u.Hostname())
+	if err != nil {
+		return fmt.Errorf("resolve metadata URL host %q: %w", u.Hostname(), err)
 	}
 
-	// Resolve the hostname and check all resulting IPs. Fail closed on
-	// resolution errors so DNS-based bypass attempts are rejected.
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		return fmt.Errorf("resolve metadata URL host %q: %w", host, err)
-	}
-	for _, ip := range ips {
-		if pkgNet.IsLocalIP(ip) {
-			return fmt.Errorf("metadata URL host %q resolves to this server (IP %s)", host, ip)
-		}
+	if local {
+		return fmt.Errorf("metadata URL host %q must not point to this server", u.Hostname())
 	}
 
 	return nil
