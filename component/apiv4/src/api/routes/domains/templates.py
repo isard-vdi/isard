@@ -48,7 +48,6 @@ from ...schemas.domains.templates import (
     NewTemplateRequest,
     TemplateDetailsResponse,
     TemplateEditRequest,
-    TemplateResponseList,
     TemplateSetEnabledRequest,
     TemplateToDesktopRequest,
     TemplateTreeResponse,
@@ -295,36 +294,6 @@ async def get_user_templates(
             request,
             "internal_server",
             "Failed to retrieve user templates",
-            traceback.format_exc(),
-        )
-
-
-@token_router.get(
-    "/admin/items/templates",
-    summary="Get all templates",
-    tags=[tag],
-    response_model=TemplateResponseList,
-    description="Returns all the templates that the user in the payload can see.",
-    responses={
-        404: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
-    },
-)
-async def get_all_templates(request: Request):
-    try:
-        templates = await asyncio.to_thread(TemplateService.get_all_templates)
-
-        return JSONResponse(
-            content=TemplateResponseList(templates=templates).model_dump(mode="json"),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception as e:
-        raise await Error.create(
-            request,
-            "internal_server",
-            f"Failed to retrieve templates",
             traceback.format_exc(),
         )
 

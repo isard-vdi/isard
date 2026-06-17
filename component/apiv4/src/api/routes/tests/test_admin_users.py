@@ -894,3 +894,37 @@ def test_admin_group_enrollment_disable_returns_true_code(monkeypatch, test_clie
     )
     assert response.status_code == 200
     assert response.json() == {"code": True}
+
+
+def test_admin_get_templates_returns_array_not_dict(monkeypatch, test_client):
+    # Pin the documented array shape so a duplicate route can't shadow it again.
+    jwt = MockJWT(role_id="admin")
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.get_admin_templates",
+        staticmethod(
+            lambda payload: [
+                {
+                    "id": "t1",
+                    "name": "Template One",
+                    "icon": None,
+                    "user": "u1",
+                    "category": "default",
+                }
+            ]
+        ),
+    )
+
+    response = test_client(url="/admin/items/templates", jwt=jwt)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    assert body == [
+        {
+            "id": "t1",
+            "name": "Template One",
+            "icon": None,
+            "user": "u1",
+            "category": "default",
+        }
+    ]
