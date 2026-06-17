@@ -151,8 +151,39 @@ class HardwareItem(BaseModel):
     editable: bool = Field(description="Whether this item can be edited")
 
 
+class ReservableVgpuItem(HardwareItem):
+    """A bookable vGPU plus the hypervisor/NUMA grouping the hardware selector
+    uses to group passthrough cards by socket/hypervisor (so otherwise-identical
+    cards on different sockets or hosts are distinguishable).
+
+    ``hypervisor_groups``/``numa_by_group`` are anonymized and present for every
+    role; ``hypervisors``/``numa_by_hypervisor`` carry real hypervisor names and
+    are populated for admins/managers only. All default empty for backward
+    compatibility.
+    """
+
+    hypervisor_groups: list[int] = Field(
+        default_factory=list,
+        description="Anonymized indices of the hypervisor groups that can host this vGPU",
+    )
+    numa_by_group: dict[str, list[int]] = Field(
+        default_factory=dict,
+        description="NUMA nodes per hypervisor-group index (keyed by group index)",
+    )
+    hypervisors: list[str] = Field(
+        default_factory=list,
+        description="Hypervisor names hosting this vGPU (admins/managers only)",
+    )
+    numa_by_hypervisor: dict[str, list[int]] = Field(
+        default_factory=dict,
+        description="NUMA nodes per hypervisor name (admins/managers only)",
+    )
+
+
 class Reservables(BaseModel):
-    vgpus: list[HardwareItem] = Field(description="List of available virtual GPUs")
+    vgpus: list[ReservableVgpuItem] = Field(
+        description="List of available virtual GPUs"
+    )
 
 
 class UserAllowedHardwareResponse(BaseModel):
