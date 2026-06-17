@@ -1,3 +1,68 @@
+// Dropdown ceilings (1 TB RAM, 128 vCPU, 2 TB disk) with coarsening steps so
+// the option list stays bounded even when the quota is the "unlimited" sentinel.
+var MEMORY_TIERS = [
+    { from: 0.5, to: 4, step: 0.5 },
+    { from: 5, to: 16, step: 1 },
+    { from: 18, to: 32, step: 2 },
+    { from: 36, to: 64, step: 4 },
+    { from: 72, to: 128, step: 8 },
+    { from: 144, to: 256, step: 16 },
+    { from: 288, to: 512, step: 32 },
+    { from: 576, to: 1024, step: 64 }
+];
+var VCPU_TIERS = [
+    { from: 1, to: 16, step: 1 },
+    { from: 18, to: 32, step: 2 },
+    { from: 36, to: 64, step: 4 },
+    { from: 72, to: 128, step: 8 }
+];
+var DISK_TIERS = [
+    { from: 1, to: 16, step: 1 },
+    { from: 18, to: 32, step: 2 },
+    { from: 36, to: 64, step: 4 },
+    { from: 72, to: 128, step: 8 },
+    { from: 144, to: 256, step: 16 },
+    { from: 288, to: 512, step: 32 },
+    { from: 576, to: 1024, step: 64 },
+    { from: 1152, to: 2048, step: 128 }
+];
+
+function buildTieredOptions(quotaMax, tiers) {
+    if (quotaMax == null || !(quotaMax > 0)) return [];
+    var result = [];
+    for (var t = 0; t < tiers.length; t++) {
+        var tier = tiers[t];
+        var limit = Math.min(tier.to, quotaMax);
+        if (tier.from > limit) break;
+        for (var v = tier.from; v <= limit + 1e-9; v += tier.step) {
+            result.push(+v.toFixed(2));
+        }
+    }
+    return result;
+}
+
+// Snap a non-tier-aligned legacy value to the nearest dropdown option so the
+// form submits a valid value. Ties break low.
+function selectNearestOption(selector, target) {
+    if (target == null || !isFinite(target)) return;
+    var $opts = $(selector + ' option');
+    if ($opts.length === 0) return;
+    var bestVal = null;
+    var bestDiff = Infinity;
+    $opts.each(function () {
+        var v = parseFloat($(this).val());
+        if (isNaN(v)) return;
+        var diff = Math.abs(v - target);
+        if (diff < bestDiff) {
+            bestDiff = diff;
+            bestVal = v;
+        }
+    });
+    if (bestVal !== null) {
+        $(selector + ' option[value="' + bestVal + '"]').prop('selected', true);
+    }
+}
+
 function setHardwareOptions(id,default_boot,domain_id,callback){
     default_boot = typeof default_boot !== 'undefined' ? default_boot : 'hd' ;
         // id is the main div id containing hardware.html
@@ -64,29 +129,25 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
             });
 
             if(hardware.quota == false){
-                hardware.quota={'memory':128, 'vcpus':128, 'desktops_disk_size':500}
+                // Unlimited → tier maxima, so large values aren't capped/snapped down.
+                hardware.quota={'memory':1024, 'vcpus':128, 'desktops_disk_size':2048}
             }
 
-            for (var i = 0.5; i <= hardware.quota.memory; i += 0.5) {
-                $(id+" #hardware-memory").append('<option value="'+i+'">' + i +'</option>');
+            var memoryOpts = buildTieredOptions(hardware.quota.memory, MEMORY_TIERS);
+            for (var mi = 0; mi < memoryOpts.length; mi++) {
+                $(id+" #hardware-memory").append('<option value="'+memoryOpts[mi]+'">' + memoryOpts[mi] +'</option>');
             }
 
-            for (var i = 1; i <= hardware.quota.vcpus; i += 1) {
-                $(id+" #hardware-vcpus").append('<option value="'+i+'">' + i +' vCPU</option>');
+            var vcpuOpts = buildTieredOptions(hardware.quota.vcpus, VCPU_TIERS);
+            for (var vi = 0; vi < vcpuOpts.length; vi++) {
+                $(id+" #hardware-vcpus").append('<option value="'+vcpuOpts[vi]+'">' + vcpuOpts[vi] +' vCPU</option>');
             }
 
             if($(id+" #disk_size").length != 0) {
                 $(id+" #disk_size").find('option').remove();
-                if(hardware.quota.desktops_disk_size <= 10){
-                    for (var i = 1; i <= hardware.quota.desktops_disk_size; i += 1) {
-                        $(id+" #disk_size").append('<option value="'+i+'">' + i +' GB</option>');
-                    }
-                }else{
-                    $(id+" #disk_size").append('<option value=1>1 GB</option>');
-                    $(id+" #disk_size").append('<option value=5>5 GB</option>');
-                    for (var i = 10; i <= hardware.quota.desktops_disk_size; i += 5) {
-                        $(id+" #disk_size").append('<option value="'+i+'">' + i +' GB</option>');
-                    }
+                var diskOpts = buildTieredOptions(hardware.quota.desktops_disk_size, DISK_TIERS);
+                for (var di = 0; di < diskOpts.length; di++) {
+                    $(id+" #disk_size").append('<option value="'+diskOpts[di]+'">' + diskOpts[di] +' GB</option>');
                 }
             }
 
@@ -280,25 +341,9 @@ function setHardwareDomainDefaults(div_id,domain){
     if(domain.hardware.boot_order[0]=='network'){domain.hardware.boot_order[0]='pxe'}
     $(div_id+' #hardware-boot_order option[value="'+domain.hardware.boot_order[0]+'"]').prop("selected",true);
 
-    if(domain.hardware.memory > $(div_id+' #hardware-memory option:last-child').val()){
-        $(div_id+' #hardware-memory option:last-child').prop("selected",true);
-    }else{
-        if($(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').length > 0){
-            $(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').prop("selected",true);
-        }else{
-            $(div_id+' #hardware-memory option:first').prop("selected",true);
-        }
-    }
-
-    if(domain.hardware.vcpus > $(div_id+' #hardware-vcpus option:last-child').val()){
-        $(div_id+' #hardware-vcpus option:last-child').prop("selected",true);
-    }else{
-        if($(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').length > 0){
-            $(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').prop("selected",true);
-        }else{
-            $(div_id+' #hardware-vcpus option:first').prop("selected",true);
-        }
-    }
+    // Snap legacy non-tier-aligned values to the nearest option, not the first.
+    selectNearestOption(div_id+' #hardware-memory', parseFloat(domain.hardware.memory));
+    selectNearestOption(div_id+' #hardware-vcpus', parseInt(domain.hardware.vcpus, 10));
 
     if('qos_id' in domain.hardware.disks[0]){
         if(domain.hardware.disks[0]['qos_id']==false){
