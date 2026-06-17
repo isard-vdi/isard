@@ -1346,6 +1346,12 @@
           },
           "downloadfailed": {
             "text": "Baixada fallida"
+          },
+          "downloadaborting": {
+            "text": "Cancel·lant la baixada"
+          },
+          "downloadstarting": {
+            "text": "Descarregant"
           }
         }
       },
