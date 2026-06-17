@@ -73,6 +73,7 @@ export const desktopActionsData = (
     case DesktopStatusEnum.FORCE_DELETING:
     case DesktopStatusEnum.DOWNLOADING:
     case DesktopStatusEnum.DOWNLOAD_STARTING:
+    case DesktopStatusEnum.DOWNLOAD_ABORTING:
     case DesktopStatusEnum.UPDATING:
     case DesktopStatusEnum.RESETTING:
       return {

@@ -1792,6 +1792,12 @@
           "downloadfailed": {
             "text": "Download failed"
           },
+          "downloadaborting": {
+            "text": "Aborting download"
+          },
+          "downloadstarting": {
+            "text": "Downloading"
+          },
           "forcedeleting": {
             "text": "Deleting",
             "action": "Deleting"

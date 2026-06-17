@@ -73,6 +73,7 @@ class DesktopStatusEnum(str, Enum):
     downloading = "Downloading"
     download_starting = "DownloadStarting"
     download_failed = "DownloadFailed"
+    download_aborting = "DownloadAborting"
     creating_disk_from_scratch = "CreatingDiskFromScratch"
     updating = "Updating"
     force_deleting = "ForceDeleting"
