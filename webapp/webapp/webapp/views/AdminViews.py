@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import os
+from urllib.parse import quote
 
 from flask import jsonify, make_response, redirect, render_template
 from flask_login import current_user, login_required, login_user, logout_user
@@ -104,6 +105,7 @@ def login(category="default"):
 
 
 @app.route("/isard-admin/logout/remote")
+@login_required
 def remote_logout():
     logout_user()
     return jsonify(success=True)
@@ -112,37 +114,31 @@ def remote_logout():
 @app.route("/isard-admin/logout")
 @login_required
 def logout():
-    response = requests.get(
+    # Allowlist of provider names; anything else falls back to /login.
+    _ALLOWED_PROVIDERS = {"form", "saml", "google", "external", "local", "ldap"}
+
+    custom_url_response = requests.get(
         f"http://isard-api:5000/api/v3/category/{current_user.category}/custom_url"
     )
+
+    login_path = "/login"
     if request.cookies.get("isardvdi_session"):
         user_session = get_expired_user_data(request.cookies.get("isardvdi_session"))
-        provider = (
-            "form"
-            if user_session.get("provider") in ["local", "ldap"]
-            else user_session.get("provider")
-        )
-        if response.status_code == 200:
-            login_path = f"/login/{provider}/{response.text}"
-        else:
-            login_path = f"/login/{provider}"
-    else:
-        login_path = "/login"
+        if user_session:
+            raw_provider = user_session.get("provider")
+            provider = "form" if raw_provider in ("local", "ldap") else raw_provider
+            if provider in _ALLOWED_PROVIDERS:
+                if custom_url_response.status_code == 200:
+                    # custom_url is admin-editable; URL-encode to keep it in the path segment.
+                    custom_url = quote(custom_url_response.text, safe="")
+                    login_path = f"/login/{provider}/{custom_url}"
+                else:
+                    login_path = f"/login/{provider}"
 
-    response = make_response(
-        f"""
-            <!DOCTYPE html>
-            <html>
-                <body>
-                    <script>
-                        document.cookie = 'isardvdi_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-                        document.cookie = 'authorization=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-                        window.location = '{login_path}';
-                    </script>
-                </body>
-            </html>
-        """
-    )
+    # Server-side redirect + cookie-clear instead of an inline <script> JS sink.
+    response = make_response(redirect(login_path))
+    response.delete_cookie("isardvdi_session", path="/")
+    response.delete_cookie("authorization", path="/")
     remote_logout()
     return response
 
