@@ -30,6 +30,12 @@ $(document).ready(function () {
   addRadioButtonsListeners();
   addSelectMethodListeners();
 
+  // populate the filter select before initial_filters() so its removal of
+  // the category option takes effect instead of being a no-op
+  const filter_list = ['category', 'user', 'parent', 'path'];
+  const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
+  $('#filter-select').append(options.join(''));
+
   // set the filter box category on loading the document
   if (!getGroupParam()) {
     initial_filters();
@@ -385,9 +391,6 @@ $(document).ready(function () {
     });
   })
 
-  const filter_list = ['category', 'user', 'parent', 'path'];
-  const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
-  $('#filter-select').append(options.join(''));
   var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
 
   $("#btn-search").on("click", function () {
@@ -1262,6 +1265,8 @@ $("#modalCreateStorage #send").on("click", function () {
     formData.size = formData.size + unit;
     var priority = $("#user_data").data("role") == "admin" ? formData.priority : "low";
     formData.storage_type = "qcow2";
+    formData.usage = formData.usage_type;
+    formData.parent = formData.parent || "";
     delete formData.size_unit;
     if (formData.parent) {
       performStorageOperation(formData, formData.parent, "create", "/api/v4/item/storage/priority/" + priority);

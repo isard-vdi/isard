@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.storage.storage_pools.storage_pools import (
     StoragePoolsProcessed,
@@ -46,8 +47,8 @@ class StoragePoolService:
         """
         Get a specific storage pool by ID and add the is_default flag.
         """
-        storage_pool = StoragePool(storage_pool_id)
-        result = dict(storage_pool)
+        StoragePool(storage_pool_id)  # raises not_found if missing
+        result = StoragePool.get(storage_pool_id)
         result["is_default"] = storage_pool_id == DEFAULT_STORAGE_POOL_ID
         return result
 
@@ -57,8 +58,14 @@ class StoragePoolService:
         Get a storage pool by its path.
         """
         storage_pools = StoragePool.get_by_path(path)
+        if not storage_pools:
+            raise Error(
+                "not_found",
+                f"No storage pool found for path {path}.",
+                description_code="not_found",
+            )
         storage_pool_id = storage_pools[0].id
-        result = dict(StoragePool(storage_pool_id))
+        result = StoragePool.get(storage_pool_id)
         result["is_default"] = storage_pool_id == DEFAULT_STORAGE_POOL_ID
         return result
 
