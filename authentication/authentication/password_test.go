@@ -132,24 +132,12 @@ func TestResetPassword(t *testing.T) {
 		RemoteAddr      string
 		ExpectedErr     string
 	}{
-		"should work as expected with a login token": {
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "f0kt3Rf").Return(nil)
-			},
+		// A login token must not be accepted for a password reset.
+		"should reject a login token": {
 			PrepareDB: func(m *r.Mock) {
+				// Config watcher reads these on startup.
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
-					"password_reset_token": "",
-				})).Return(r.WriteResponse{
-					Updated: 1,
-				}, nil)
-			},
-			PrepareSessions: func(s *grpcmock.Server) {
-				s.ExpectUnary("/sessions.v1.SessionsService/Get").WithPayload(&sessionsv1.GetRequest{
-					Id:         "ThoJuroQueEsUnID",
-					RemoteAddr: "127.0.0.1",
-				}).Return(&sessionsv1.GetResponse{})
 			},
 			PrepareToken: func() string {
 				now := float64(time.Now().Unix())
@@ -173,8 +161,9 @@ func TestResetPassword(t *testing.T) {
 
 				return ss
 			},
-			Password:   "f0kt3Rf",
-			RemoteAddr: "127.0.0.1",
+			Password:    "f0kt3Rf",
+			RemoteAddr:  "127.0.0.1",
+			ExpectedErr: "invalid token type",
 		},
 		"should work as expected with a password reset token": {
 			PrepareAPI: func(c *sdk.MockSdk) {
