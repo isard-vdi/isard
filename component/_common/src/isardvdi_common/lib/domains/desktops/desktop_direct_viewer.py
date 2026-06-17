@@ -246,34 +246,41 @@ class DesktopDirectViewer(RethinkSharedConnection):
         )
 
     @classmethod
+    def _ensure_bookable_or_raise(cls, domain):
+        """
+        Block starting a bookable (GPU/reservable) desktop outside its booking.
+        """
+        booking = DesktopsProcessed._parse_desktop_booking(domain)
+        if not booking.get("needs_booking"):
+            return
+        if not booking.get("next_booking_start"):
+            raise Error(
+                "precondition_required",
+                "Bookable desktop can't be started without a booking",
+                traceback.format_exc(),
+                "desktop_not_booked",
+            )
+        if Helpers.is_future(
+            {
+                "start": datetime.strptime(
+                    booking.get("next_booking_start"), "%Y-%m-%dT%H:%M%z"
+                ).astimezone(pytz.UTC)
+            }
+        ):
+            raise Error(
+                "precondition_required",
+                "The next desktop booking is at " + booking.get("next_booking_start"),
+                traceback.format_exc(),
+                "desktop_not_booked_until",
+                data=None,
+                params={"start": booking.get("next_booking_start")},
+            )
+
+    @classmethod
     def desktop_viewer_from_token(cls, token, start_desktop=True, request=None):
         domain = cls.desktop_from_token(token)
 
-        booking = DesktopsProcessed._parse_desktop_booking(domain)
-        if booking.get("needs_booking"):
-            if not booking.get("next_booking_start"):
-                raise Error(
-                    "precondition_required",
-                    "Bookable desktop can't be started without a booking",
-                    traceback.format_exc(),
-                    "desktop_not_booked",
-                )
-            elif Helpers.is_future(
-                {
-                    "start": datetime.strptime(
-                        booking.get("next_booking_start"), "%Y-%m-%dT%H:%M%z"
-                    ).astimezone(pytz.UTC)
-                }
-            ):
-                raise Error(
-                    "precondition_required",
-                    "The next desktop booking is at "
-                    + booking.get("next_booking_start"),
-                    traceback.format_exc(),
-                    "desktop_not_booked_until",
-                    data=None,
-                    params={"start": booking.get("next_booking_start")},
-                )
+        cls._ensure_bookable_or_raise(domain)
 
         scheduled = False
         if start_desktop:
@@ -392,6 +399,9 @@ class DesktopDirectViewer(RethinkSharedConnection):
         """
         domain = cls.get_desktop_from_token(token)
         desktop_id = domain["id"]
+
+        cls._ensure_bookable_or_raise(domain)
+
         if domain["status"] in [
             DesktopStatusEnum.stopped.value,
             DesktopStatusEnum.failed.value,
