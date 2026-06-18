@@ -76,6 +76,9 @@ onBeforeUnmount(() => {
 
 <template>
   <div :style="`height: ${props.height}; width: 100%;`">
-    <div ref="screen" style="height: 100%; width: 100%; cursor: pointer" />
+    <div
+      ref="screen"
+      :style="`height: 100%; width: 100%; pointer-events: ${props.viewOnly ? 'none' : 'auto'};`"
+    />
   </div>
 </template>
