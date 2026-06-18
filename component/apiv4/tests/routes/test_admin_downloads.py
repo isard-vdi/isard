@@ -134,3 +134,37 @@ def test_admin_downloads_action_for_item(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert captured == {"action": "abort", "kind": "media", "id": "media-1"}
+
+
+def test_admin_downloads_action_id_forwards_body_as_dict(monkeypatch, test_client):
+    """POST .../{action}/{kind}/{id} with a JSON body forwards it to the
+    service as a plain dict — the registry row the webapp re-sends.
+
+    The ``DownloadItem`` body model is permissive (``extra='allow'``), so
+    unmodelled keys like ``url-isard`` must survive, and ``exclude_none``
+    must not inject the absent ``description`` field.
+    """
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_action(action, kind, user_id, id=None, data=None):
+        captured["data"] = data
+
+    monkeypatch.setattr(
+        "api.services.admin.downloads.AdminDownloadsService.download_action",
+        staticmethod(fake_action),
+    )
+
+    response = test_client(
+        url="/admin/item/downloads/download/domains/dom-1",
+        method="POST",
+        jwt=jwt,
+        body={"id": "dom-1", "name": "Ubuntu 24.04", "url-isard": "abc"},
+    )
+
+    assert response.status_code == 200
+    assert captured["data"] == {
+        "id": "dom-1",
+        "name": "Ubuntu 24.04",
+        "url-isard": "abc",
+    }

@@ -32,9 +32,6 @@ from isardvdi_apiv4_client.api.role_user import (
     start_desktop,
     stop_desktop,
 )
-from isardvdi_apiv4_client.models.admin_downloads_action_id_body import (
-    AdminDownloadsActionIdBody,
-)
 from isardvdi_apiv4_client.models.admin_downloads_kind_kind import (
     AdminDownloadsKindKind,
 )
@@ -143,7 +140,7 @@ def test_registry_download_full_lifecycle(
         kind="domains",
         id=download_id,
         client=admin_client.apiv4(),
-        body=AdminDownloadsActionIdBody(),
+        body=DownloadItem(),
     )
     assert download.status_code in (
         200,

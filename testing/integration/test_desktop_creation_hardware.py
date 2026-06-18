@@ -80,9 +80,6 @@ from isardvdi_apiv4_client.models.admin_domain_list_item import AdminDomainListI
 from isardvdi_apiv4_client.models.admin_domain_xml_response import (
     AdminDomainXmlResponse,
 )
-from isardvdi_apiv4_client.models.admin_downloads_action_id_body import (
-    AdminDownloadsActionIdBody,
-)
 from isardvdi_apiv4_client.models.admin_downloads_kind_kind import (
     AdminDownloadsKindKind,
 )
@@ -109,9 +106,10 @@ from isardvdi_apiv4_client.models.domain_guest_properties_input import (
     DomainGuestPropertiesInput,
 )
 from isardvdi_apiv4_client.models.domain_hardware import DomainHardware
-from isardvdi_apiv4_client.models.domain_hardware_boot_order_item import (
-    DomainHardwareBootOrderItem,
+from isardvdi_apiv4_client.models.domain_hardware_boot_order_type_0_item import (
+    DomainHardwareBootOrderType0Item,
 )
+from isardvdi_apiv4_client.models.download_item import DownloadItem
 from isardvdi_apiv4_client.models.guest_properties_viewers_input import (
     GuestPropertiesViewersInput,
 )
@@ -195,7 +193,7 @@ def _domain_hardware(
     schema doesn't model ``disk_size``; the engine still honors it, so it
     rides in additional_properties to keep the pre-SDK wire shape."""
     hardware = DomainHardware(
-        boot_order=[DomainHardwareBootOrderItem.DISK],
+        boot_order=[DomainHardwareBootOrderType0Item.DISK],
         disk_bus="default",
         interfaces=["default"],
         memory=memory_gb,
@@ -440,7 +438,7 @@ def _trigger_registry_download(admin_client: IsardClient, name: str) -> str:
         kind="domains",
         id=download_id,
         client=admin_client.apiv4(),
-        body=AdminDownloadsActionIdBody(),
+        body=DownloadItem(),
     )
     assert download.status_code in (200, 201, 204)
 

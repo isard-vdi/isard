@@ -178,22 +178,6 @@ class UserAllowedTemplatesPaginationResponse(
     )
 
 
-class TemplateResponse(BaseModel):
-    id: str
-    image: Optional[Image]
-    name: str
-    description: Optional[str]
-    category: Optional[str]
-    group: Optional[str]
-    user: Optional[str]
-    user_name: Optional[str]
-    allowed: Optional[Allowed]
-
-
-class TemplateResponseList(BaseModel):
-    templates: list[TemplateResponse]
-
-
 class TemplateSetEnabledRequest(BaseModel):
     enabled: bool = Field(
         description="Whether the template is enabled (usable for creating desktops).",

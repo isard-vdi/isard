@@ -190,12 +190,47 @@ def _normalize_operation_ids(spec: dict) -> None:
             op["operationId"] = stem
 
 
+def _assert_no_route_collisions(app) -> None:
+    """Raise if two registered routes share the same method and path.
+
+    FastAPI keeps both: the first-registered one is served, the last one is
+    documented in the spec. Checks ``app.routes`` rather than the spec, where
+    the duplicate has already been overwritten.
+    """
+    seen: dict[tuple[str, str], str] = {}
+    collisions: list[str] = []
+    for route in app.routes:
+        path = getattr(route, "path", None)
+        methods = getattr(route, "methods", None)
+        if path is None or not methods:
+            continue
+        endpoint = getattr(route, "endpoint", None)
+        name = "{}.{}".format(
+            getattr(endpoint, "__module__", "?"),
+            getattr(endpoint, "__qualname__", getattr(route, "name", "?")),
+        )
+        for method in methods:
+            key = (method, path)
+            if key in seen:
+                collisions.append(f"{method} {path}: {seen[key]} vs {name}")
+            else:
+                seen[key] = name
+    if collisions:
+        raise RuntimeError(
+            "duplicate route registration(s) detected — FastAPI serves the "
+            "first and documents the last, so one handler is dead code and the "
+            "generated clients decode the wrong response shape:\n  "
+            + "\n  ".join(collisions)
+        )
+
+
 def write_openapi_json(path: str = "/apiv4.json"):
     import json
 
     from api import app
     from fastapi.openapi.utils import get_openapi
 
+    _assert_no_route_collisions(app)
     spec = get_openapi(
         title=app.title,
         version=app.version,

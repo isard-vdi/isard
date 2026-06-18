@@ -364,13 +364,17 @@ class AdminDownloadsService:
 
         if action == "download":
             if id:
-                if data is None:
+                if not data:
                     # Webapp / Vue clients always send the row dict in
                     # the body (see webapp/static/admin/js/updates.js).
                     # API-only callers (CI integration tests, scripts)
                     # can rely on the id alone — fetch the matching
                     # registry entry server-side so the download still
-                    # fires.
+                    # fires. An omitted body reaches here as ``{}``, not
+                    # ``None``: the generated client posts
+                    # ``DownloadItem().to_dict()``. Gating on ``is None``
+                    # let that empty dict fall through every ``if data:``
+                    # below and answer 200 having enqueued nothing.
                     #
                     # Subtlety: for "new" (not-yet-downloaded) items
                     # ``get_downloads_kind`` minted a fresh ``uuid4()``

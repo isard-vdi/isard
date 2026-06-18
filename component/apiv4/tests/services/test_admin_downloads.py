@@ -643,3 +643,59 @@ class TestDownloadsDeleteAndAbort:
         with patch("api.services.media.MediaService.abort_media_download") as abort:
             AdminDownloadsService._media_action("abort", "m-1", "u1")
         abort.assert_called_once_with("m-1")
+
+
+class TestDownloadingByIdAlone:
+    """A download POST that carries no row must still start the download.
+
+    The generated API client posts ``DownloadItem().to_dict()`` for an
+    omitted body, which is ``{}`` — not ``null``. The id-only fallback
+    was gated on ``data is None``, so that empty dict skipped the
+    server-side registry lookup and then failed every ``if data:``
+    below it: no row inserted, no chain enqueued, HTTP 200. The
+    integration suite saw it as "no new desktop named 'TetrOS'
+    appeared" while the stack had never been asked to download one.
+    """
+
+    @pytest.mark.parametrize("body", [None, {}])
+    def test_an_absent_body_resolves_the_entry_and_enqueues(self, body):
+        entry = _registry_entry()
+
+        with patch.object(AdminDownloadsService, "check_registered"), patch.object(
+            AdminDownloadsService, "get_downloads_kind", return_value=[entry]
+        ), patch.object(
+            AdminDownloadsService, "_get_missing_resources", return_value={}
+        ), patch.object(
+            AdminDownloadsService,
+            "_format_domains",
+            side_effect=lambda rows, _uid: rows,
+        ), patch.object(
+            AdminDownloadsService,
+            "_allocate_storage_for_pending_domain",
+            return_value=None,
+        ), patch(
+            "api.services.admin.downloads.AdminTablesService"
+        ) as tables, patch.object(
+            AdminDownloadsService, "_kick_off_download_chain"
+        ) as kick_off:
+            AdminDownloadsService.download_action(
+                "download", "domains", "u1", id="example.qcow2", data=body
+            )
+
+        tables.insert_table_item.assert_called_once()
+        kick_off.assert_called_once()
+        assert kick_off.call_args.args[1] == entry
+
+    def test_an_id_that_matches_nothing_is_reported(self):
+        """Not silently: a 200 that downloaded nothing is what this fixes."""
+        with patch.object(AdminDownloadsService, "check_registered"), patch.object(
+            AdminDownloadsService,
+            "get_downloads_kind",
+            return_value=[_registry_entry()],
+        ), patch.object(AdminDownloadsService, "_kick_off_download_chain") as kick_off:
+            with pytest.raises(Error) as raised:
+                AdminDownloadsService.download_action(
+                    "download", "domains", "u1", id="nope.qcow2", data={}
+                )
+        assert raised.value.error["error"] == "not_found"
+        kick_off.assert_not_called()

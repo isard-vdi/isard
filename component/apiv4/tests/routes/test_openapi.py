@@ -46,6 +46,68 @@ def test_openapi_includes_load_bearing_endpoints(test_client):
 
 
 @pytest.mark.skipif(_is_production, reason="OpenAPI docs disabled in production")
+def test_openapi_optional_body_references_named_schema(test_client):
+    """Optional request bodies must reference a named component schema,
+    not an inline anonymous object.
+
+    An inline ``Optional[dict]`` body makes openapi-python-client mint an
+    anonymous ``*Type0`` class for the nullable union member (e.g.
+    ``AdminDownloadsActionIdBodyType0``). That name churns on every client
+    regen and silently breaks Python consumers that import it. Pinning the
+    body to the named ``DownloadItem`` schema yields a stable
+    ``Union['DownloadItem', None]`` instead.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        response = test_client(url="/api/v4/openapi.json")
+    schema = response.json()
+
+    target = next(
+        p
+        for p in schema["paths"]
+        if p.endswith("/admin/item/downloads/{action}/{kind}/{id}")
+    )
+    body_schema = schema["paths"][target]["post"]["requestBody"]["content"][
+        "application/json"
+    ]["schema"]
+
+    refs = [body_schema["$ref"]] if "$ref" in body_schema else []
+    refs += [b["$ref"] for b in body_schema.get("anyOf", []) if "$ref" in b]
+
+    assert any(
+        r.endswith("/DownloadItem") for r in refs
+    ), f"downloads action body must reference DownloadItem, got {body_schema}"
+
+
+def test_openapi_created_responses_match_the_status_returned():
+    """A handler that returns 201 must declare 201 on its decorator.
+
+    FastAPI files ``response_model`` under ``status_code``, which defaults to
+    200. A handler that hands back ``JSONResponse(..., status_code=201)``
+    without saying so documents its body under 200, and the generated clients
+    then parse a body only for 200 — so a strict consumer reads ``None`` from
+    a perfectly good 201 and never sees the created id.
+
+    Built from ``app.openapi()`` rather than the served route, so it holds in
+    production mode too, where the docs endpoints are disabled.
+    """
+    from api import app
+
+    spec = app.openapi()
+    target = next(p for p in spec["paths"] if p.endswith("/item/deployment"))
+    responses = spec["paths"][target]["post"]["responses"]
+
+    assert "201" in responses, (
+        "create deployment returns 201 but documents "
+        f"{sorted(responses)}; generated clients will not parse its body"
+    )
+    assert "200" not in responses, (
+        "create deployment never returns 200; documenting one makes the "
+        "generated client parse a status the route cannot emit"
+    )
+
+
+@pytest.mark.skipif(_is_production, reason="OpenAPI docs disabled in production")
 def test_openapi_servers_include_apiv4_prefix(test_client):
     """The frontend client expects every operation to live under /api/v4.
     Pin the prefix so a refactor of the FastAPI mount point breaks here

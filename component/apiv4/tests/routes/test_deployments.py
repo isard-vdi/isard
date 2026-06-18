@@ -402,3 +402,81 @@ def test_delete_deployment_rejects_co_owners(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert captured["check_co_owner"] is False
+
+
+def test_get_deployment_videowall_serialises_aliases(monkeypatch, test_client):
+    """The videowall body must carry the aliased keys the schema declares.
+
+    The route returns a JSONResponse, which bypasses FastAPI's response_model
+    serialisation, so the keys on the wire are whatever ``model_dump`` emits.
+    Without ``by_alias`` that is the field names, while the spec — and every
+    generated client built from it — documents the aliases, and the client
+    raises KeyError on a response the route considers valid.
+    """
+    from api import app
+
+    jwt = MockJWT()
+    videowall = {
+        "allowed": {},
+        "id": "dep-1",
+        "name": "Test Deployment",
+        "tag": "tag-1",
+        "tag_visible": True,
+        "user": "user-1",
+        "total_desktops": 3,
+        "visibleDesktops": 2,
+        "startedDesktops": 1,
+        "creatingDesktops": 0,
+        "visible": True,
+        "desktop_name": "desk",
+        "template": "tmpl-1",
+        "needs_booking": False,
+        "next_booking_start": None,
+        "next_booking_end": None,
+        "booking_id": None,
+        "desktops": [],
+        "total_users": 1,
+        "desktops_each_user": 1,
+    }
+    monkeypatch.setattr(
+        "api.services.deployments.DeploymentService.get_deployment_videowall",
+        staticmethod(lambda deployment_id: videowall),
+    )
+
+    async def mock_owns_deployment_id(deployment_id: str = "dep-1"):
+        return deployment_id
+
+    app.dependency_overrides[owns_deployment_id] = mock_owns_deployment_id
+    try:
+        response = test_client(url="/item/deployment/dep-1/videowall", jwt=jwt)
+        assert response.status_code == 200
+        data = response.json()
+        assert "visibleDesktops" in data, (
+            "videowall body must use the schema's aliases; got "
+            f"{sorted(k for k in data if 'esktops' in k)}"
+        )
+        assert data["visibleDesktops"] == 2
+        assert data["startedDesktops"] == 1
+        assert data["creatingDesktops"] == 0
+    finally:
+        app.dependency_overrides.pop(owns_deployment_id, None)
+
+
+def test_user_deployment_desktop_viewers_declared_as_strings():
+    from api.schemas.deployments import UserDeploymentDesktop
+
+    desktop = UserDeploymentDesktop(
+        id="dsk-1",
+        image={"url": "u", "type": "stock"},
+        name="desktop",
+        status="Stopped",
+        viewers=["browser_vnc", "file-spice"],
+    )
+    assert desktop.model_dump(mode="json")["viewers"] == ["browser-vnc", "file-spice"]
+
+    items = UserDeploymentDesktop.model_json_schema(mode="serialization")["properties"][
+        "viewers"
+    ]["items"]
+    # A $ref here makes the generated clients call DomainViewerEnum() on a
+    # value the serializer just hyphenated, and they raise on it.
+    assert items == {"type": "string"}

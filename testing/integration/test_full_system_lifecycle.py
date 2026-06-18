@@ -71,9 +71,6 @@ from isardvdi_apiv4_client.models.admin_domain_list_item import AdminDomainListI
 from isardvdi_apiv4_client.models.admin_domain_xml_response import (
     AdminDomainXmlResponse,
 )
-from isardvdi_apiv4_client.models.admin_downloads_action_id_body import (
-    AdminDownloadsActionIdBody,
-)
 from isardvdi_apiv4_client.models.admin_downloads_kind_kind import (
     AdminDownloadsKindKind,
 )
@@ -95,9 +92,10 @@ from isardvdi_apiv4_client.models.domain_guest_properties_input import (
     DomainGuestPropertiesInput,
 )
 from isardvdi_apiv4_client.models.domain_hardware import DomainHardware
-from isardvdi_apiv4_client.models.domain_hardware_boot_order_item import (
-    DomainHardwareBootOrderItem,
+from isardvdi_apiv4_client.models.domain_hardware_boot_order_type_0_item import (
+    DomainHardwareBootOrderType0Item,
 )
+from isardvdi_apiv4_client.models.download_item import DownloadItem
 from isardvdi_apiv4_client.models.guest_properties_viewers_input import (
     GuestPropertiesViewersInput,
 )
@@ -159,7 +157,7 @@ def _domain_hardware(
     interfaces: list[str] | None = None,
 ) -> DomainHardware:
     hardware = DomainHardware(
-        boot_order=[DomainHardwareBootOrderItem.DISK],
+        boot_order=[DomainHardwareBootOrderType0Item.DISK],
         disk_bus="default",
         interfaces=interfaces if interfaces is not None else ["default"],
         memory=memory_gb,
@@ -284,7 +282,7 @@ def _trigger_registry_download(
         kind="domains",
         id=download_id,
         client=admin_client.apiv4(),
-        body=AdminDownloadsActionIdBody(),
+        body=DownloadItem(),
     )
     assert download.status_code in (
         200,

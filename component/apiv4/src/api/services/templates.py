@@ -23,7 +23,6 @@ from uuid import uuid4
 
 from api.services.error import Error
 from api.services.users import UsersService
-from cachetools import cached
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
@@ -62,11 +61,6 @@ def clear_templates_cache() -> None:
 
 
 class TemplateService:
-    @staticmethod
-    @cached(cache=templates_cache)
-    def get_all_templates() -> list[dict]:
-        return CommonTemplates.get_template_with_user_info()
-
     @staticmethod
     def get_user_templates(user_id: str) -> list[dict]:
         return CommonTemplates.get_user_templates(user_id)

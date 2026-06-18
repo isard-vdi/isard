@@ -12,19 +12,6 @@ from api.services.error import Error
 from api.services.templates import TemplateService
 
 
-class TestGetAllTemplates:
-    @patch(
-        "api.services.templates.CommonTemplates.get_template_with_user_info",
-        return_value=[{"id": "t1"}],
-    )
-    def test_returns_helper_value(self, mock_get):
-        # Note: get_all_templates is cached with TTLCache; clear cache to
-        # avoid bleed between test files.
-        TemplateService.get_all_templates.cache_clear()
-        assert TemplateService.get_all_templates() == [{"id": "t1"}]
-        mock_get.assert_called_once_with()
-
-
 class TestGetUserTemplates:
     @patch(
         "api.services.templates.CommonTemplates.get_user_templates",
