@@ -1175,6 +1175,7 @@
       "media": "Mitjans",
       "deployments": {
         "title": "Desplegaments",
+        "created-by-you": "Creats per tu",
         "shared-deployments": "Compartits amb tu"
       },
       "user-deployments": "Els meus desplegaments",
