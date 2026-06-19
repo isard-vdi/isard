@@ -61,7 +61,6 @@ def maintenance(category_id=None):
 
 
 class TokenFastAPI(Token):
-
     @staticmethod
     def get_token_header(header):
         """
@@ -326,12 +325,14 @@ async def has_migration_required_or_login_token(
         )
 
     jwt_payload = TokenFastAPI.get_jwt_payload(token)
-    session_id = jwt_payload.get("session_id", "")
-    if session_id != "isardvdi-service":
-        try:
-            api_sessions.get(session_id, get_remote_addr(request))
-        except Error as e:
-            raise e
+
+    if payload.get("type", "") != "user-migration-required":
+        session_id = jwt_payload.get("session_id", "")
+        if session_id != "isardvdi-service":
+            try:
+                api_sessions.get(session_id, get_remote_addr(request))
+            except Error as e:
+                raise e
 
     maintenance(payload.get("category_id"))
 

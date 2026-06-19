@@ -282,8 +282,16 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		return ss, redirect, nil
 	}
 
-	// TODO: Check if the user needs to migrate themselves.
-	if false {
+	// Check if the user needs to migrate themselves.
+	mgrtRsp, err := a.API.AdminCheckMigrationRequired(ctx, apiv4.AdminCheckMigrationRequiredParams{UserID: u.ID})
+	if err != nil {
+		return "", "", fmt.Errorf("check if the user needs to migrate: %w", err)
+	}
+	mgrtCheck, ok := mgrtRsp.(*apiv4.RequiredCheckResponse)
+	if !ok {
+		return "", "", fmt.Errorf("check if the user needs to migrate: unexpected response type %T", mgrtRsp)
+	}
+	if mgrtCheck.Required {
 		ss, err := token.SignUserMigrationRequiredToken(a.Secret, u.ID)
 		if err != nil {
 			return "", "", err

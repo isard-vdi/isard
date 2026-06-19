@@ -602,6 +602,11 @@ class AdminUsersService:
         return CommonUsers.check_acknowledged_disclaimer(user_id)
 
     @staticmethod
+    def check_migration_required(user_id: str) -> bool:
+        """Check if migration is required."""
+        return CommonUsers.is_blocked_migration(user_id)
+
+    @staticmethod
     def reset_vpn(payload: dict, user_id: str) -> None:
         """Reset VPN credentials for a user."""
         AdminUsersService.owns_user_id(payload, user_id)

@@ -433,9 +433,6 @@ router.beforeEach(async (to, from, next) => {
         store.dispatch('openSocket', {})
         if (isEmpty(store.getters.getConfig)) {
           await store.dispatch('fetchConfig')
-          if (store.getters.getConfig.migrationsBlock) {
-            window.location.pathname = '/export-user'
-          }
         }
         if (store.getters.getConfig.frontendMode === 'actual') {
           const target = resolveVue3Path(to) || '/frontend/desktops'
@@ -472,6 +469,14 @@ router.beforeEach(async (to, from, next) => {
       )
     ) {
       router.push({ name: 'ResetPassword' })
+    // Requires user migration, will be redirected
+    } else if (
+      to.name !== 'ExportUser' &&
+      ['user-migration-required'].includes(
+        sessionData.type
+      )
+    ) {
+      router.push({ name: 'ExportUser' })
     } else {
       next()
     }
