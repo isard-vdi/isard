@@ -235,13 +235,13 @@ const userHeaders = computed(() => [
     key: 'size',
     name: t('views.media.data-table.headers.size'),
     sortable: true,
-    width: '150px'
+    width: 'minmax(max-content, 150px)'
   },
   {
     key: 'kind',
     name: t('views.media.data-table.headers.kind'),
     sortable: true,
-    width: '150px'
+    width: 'minmax(max-content, 150px)'
   },
   {
     key: 'accessed',
@@ -253,7 +253,7 @@ const userHeaders = computed(() => [
     key: 'status',
     name: t('views.media.data-table.headers.status'),
     sortable: true,
-    width: '250px'
+    width: 'minmax(max-content, 250px)'
   },
   {
     key: 'actions',
@@ -278,37 +278,37 @@ const sharedHeaders = computed(() => [
     key: 'kind',
     name: t('views.media.data-table.headers.kind'),
     sortable: true,
-    width: '170px'
+    width: 'minmax(max-content, 150px)'
   },
   {
     key: 'accessed',
     name: t('views.media.data-table.headers.date'),
     sortable: true,
-    width: 'minmax(150px, max-content)'
+    width: 'max-content'
   },
   {
     key: 'user',
     name: t('views.media.data-table.headers.user'),
     sortable: true,
-    width: 'minmax(200px, max-content)'
+    width: 'minmax(max-content, 150px)'
   },
   {
     key: 'category_name',
     name: t('views.media.data-table.headers.category'),
     sortable: true,
-    width: 'minmax(100px, max-content)'
+    width: 'minmax(max-content, 150px)'
   },
   {
     key: 'group_name',
     name: t('views.media.data-table.headers.group'),
     sortable: true,
-    width: 'minmax(100px, max-content)'
+    width: 'minmax(max-content, 150px)'
   },
   {
     key: 'status',
     name: t('views.media.data-table.headers.status'),
     sortable: true,
-    width: '200px'
+    width: 'minmax(max-content, 250px)'
   }
 ])
 
@@ -481,7 +481,7 @@ const closeDeleteModal = () => {
           <div class="text-sm font-normal">{{ row.group_name }}</div>
         </template>
         <template #cell-actions="{ row }">
-          <div class="flex items-center justify-end w-full h-full gap-6">
+          <div class="flex items-center justify-end w-full h-full gap-4">
             <Tooltip v-if="row.status === MediaStatusEnum.DOWNLOADING">
               <TooltipTrigger as-child>
                 <Button

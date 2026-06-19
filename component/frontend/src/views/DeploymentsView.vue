@@ -101,19 +101,17 @@ const header = computed(() => [
     key: 'tag_visible',
     name: t('views.deployments.data-table.headers.visibility'),
     sortable: true,
-    width: 'minmax(150px, max-content)'
+    width: 'max-content'
   },
   {
     key: 'name',
     name: t('views.deployments.data-table.headers.name'),
-    sortable: true,
-    width: 'minmax(300px, 1fr)'
+    sortable: true
   },
   {
     key: 'description',
     name: t('views.deployments.data-table.headers.description'),
-    sortable: true,
-    width: 'minmax(300px, 1fr)'
+    sortable: true
   },
   {
     key: 'started_desktops',
@@ -137,7 +135,7 @@ const header = computed(() => [
     key: 'dropdown_menu',
     name: '',
     sortable: false,
-    width: 'minmax(max-content, 120px)'
+    width: 'max-content'
   }
 ])
 
