@@ -188,12 +188,6 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
                 :to="{ name: subItem.route }"
                 class="flex items-center gap-2"
               >
-                <Icon
-                  v-if="subItem.icon"
-                  :name="subItem.icon"
-                  size="lg"
-                  :stroke-color="subItem.selected ? 'secondary-2-500' : 'gray-warm-500'"
-                />
                 <SidebarItemLabel :label="subItem.label" class="leading-6 text-base truncate" />
               </RouterLink>
             </SidebarMenuSubButton>
@@ -203,12 +197,6 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
               class="gap-2"
               :is-active="subItem.selected"
             >
-              <Icon
-                v-if="subItem.icon"
-                :name="subItem.icon"
-                size="lg"
-                :stroke-color="subItem.selected ? 'secondary-2-500' : 'gray-warm-500'"
-              />
               <SidebarItemLabel :label="subItem.label" class="leading-6 text-base truncate" />
             </SidebarMenuSubButton>
           </SidebarMenuSubItem>
