@@ -40,6 +40,42 @@ class ErrorResponse(BaseModel):
     params: Optional[Dict[str, Any]]
 
 
+# Typed error params, wired per-endpoint via ``responses={<status>: {"model": ...}}``.
+
+
+class PasswordPolicyErrorParams(BaseModel):
+    num: Optional[int] = None
+
+
+class PasswordPolicyErrorResponse(ErrorResponse):
+    params: Optional[PasswordPolicyErrorParams]
+
+
+class DesktopNameExistsErrorParams(BaseModel):
+    users: Optional[list[str]] = None
+    name: Optional[str] = None
+
+
+class DesktopNameExistsErrorResponse(ErrorResponse):
+    params: Optional[DesktopNameExistsErrorParams]
+
+
+class DesktopNotBookedErrorParams(BaseModel):
+    start: Optional[str] = None
+
+
+class DesktopNotBookedErrorResponse(ErrorResponse):
+    params: Optional[DesktopNotBookedErrorParams]
+
+
+class RecycleBinRestoreErrorParams(BaseModel):
+    user: Optional[str] = None
+
+
+class RecycleBinRestoreErrorResponse(ErrorResponse):
+    params: Optional[RecycleBinRestoreErrorParams]
+
+
 # Generic type variable
 T = TypeVar("T")
 

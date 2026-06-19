@@ -11,7 +11,7 @@ import * as z from 'zod'
 
 import { useQuery, useMutation } from '@tanstack/vue-query'
 
-import type { CreateDesktopRequest, ErrorResponse } from '@/gen/oas/apiv4'
+import type { CreateDesktopRequest, DesktopNameExistsErrorResponse } from '@/gen/oas/apiv4'
 import { getTemplateInfo, getTemplateDetails } from '@/gen/oas/apiv4'
 import {
   createDeploymentMutation,
@@ -72,7 +72,7 @@ const {
     })
   },
   onError: (error) => {
-    const errorResponse = error as ErrorResponse
+    const errorResponse = error as DesktopNameExistsErrorResponse
 
     // Handle field errors
     switch (errorResponse.description_code) {
@@ -649,9 +649,9 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
       </div>
     </div>
     <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
-      <!-- TODO: try to deduplicate `createDeploymentError as ErrorResponse` -->
+      <!-- TODO: try to deduplicate `createDeploymentError as DesktopNameExistsErrorResponse` -->
       <Alert
-        v-if="(createDeploymentError as ErrorResponse)?.description_code"
+        v-if="(createDeploymentError as DesktopNameExistsErrorResponse)?.description_code"
         variant="destructive"
         class="max-w-256 w-full mx-auto"
       >
@@ -659,7 +659,7 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
 
         <AlertTitle class="font-bold text-gray-warm-700 mb-2">{{
           t(
-            `api.new-deployment.errors.${(createDeploymentError as ErrorResponse).description_code}.title`,
+            `api.new-deployment.errors.${(createDeploymentError as DesktopNameExistsErrorResponse).description_code}.title`,
             t('api.new-deployment.errors.generic.title')
           )
         }}</AlertTitle>
@@ -668,14 +668,16 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
           <i18n-t
             v-if="
               ['new_desktop_name_exists', 'duplicated_name'].includes(
-                (createDeploymentError as ErrorResponse).description_code
+                (createDeploymentError as DesktopNameExistsErrorResponse).description_code
               )
             "
-            :keypath="`api.new-deployment.errors.${(createDeploymentError as ErrorResponse).description_code}.description`"
+            :keypath="`api.new-deployment.errors.${(createDeploymentError as DesktopNameExistsErrorResponse).description_code}.description`"
             class="whitespace-pre-wrap"
           >
             <template #desktop_name>
-              <strong>{{ (createDeploymentError as ErrorResponse)?.params?.name }}</strong>
+              <strong>{{
+                (createDeploymentError as DesktopNameExistsErrorResponse)?.params?.name
+              }}</strong>
             </template>
             <template #deployment_name>
               <strong>{{ createDeploymentVariables?.body.name }}</strong>
@@ -684,17 +686,21 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
           <template v-else>
             {{
               t(
-                `api.new-deployment.errors.${(createDeploymentError as ErrorResponse).description_code}.description`,
+                `api.new-deployment.errors.${(createDeploymentError as DesktopNameExistsErrorResponse).description_code}.description`,
                 t('api.new-deployment.errors.generic.description')
               )
             }}
           </template>
 
           <ul
-            v-if="(createDeploymentError as ErrorResponse)?.params?.users"
+            v-if="(createDeploymentError as DesktopNameExistsErrorResponse)?.params?.users"
             class="list-disc list-inside"
           >
-            <li v-for="user in (createDeploymentError as ErrorResponse)?.params?.users" :key="user">
+            <li
+              v-for="user in (createDeploymentError as DesktopNameExistsErrorResponse)?.params
+                ?.users"
+              :key="user"
+            >
               {{ user }}
             </li>
           </ul>

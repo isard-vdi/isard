@@ -16,6 +16,15 @@ import (
 
 var ErrUserNotFound = errors.New("user not found")
 
+type PasswordPolicyError struct {
+	ogenclient.APIError
+	Num *int
+}
+
+func (e PasswordPolicyError) Unwrap() error {
+	return e.APIError
+}
+
 // ForgotPassword sends a password reset email with a password-reset token
 func (a *Authentication) ForgotPassword(ctx context.Context, categoryID, email string) error {
 	u := &model.User{
@@ -123,6 +132,17 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd, remoteAddr
 
 	if _, ok := rsp.(*apiv4.EmptyResponse); !ok {
 		apiErr := ogenclient.AsAPIError(rsp)
+		if policyErr, ok := rsp.(*apiv4.PasswordPolicyErrorResponse); ok {
+			var e ogenclient.APIError
+			if errors.As(apiErr, &e) {
+				e.StatusCode = 400
+				ppErr := PasswordPolicyError{APIError: e}
+				if num, ok := policyErr.Params.Num.Get(); ok {
+					ppErr.Num = &num
+				}
+				apiErr = ppErr
+			}
+		}
 		a.Log.Info().Str("user_id", userID).Str("ip", remoteAddr).Err(apiErr).Msg("password reset failed")
 		return apiErr
 	}

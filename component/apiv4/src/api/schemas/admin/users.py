@@ -408,7 +408,7 @@ class AdminUserDeleteResponse(BaseModel):
 
 class AdminGroup(BaseModel):
     id: str
-    uid: Optional[str] = None
+    uid: str
     name: str
     parent_category: str
     # Legacy rows persist ``auto`` as a dict from the retired auto-desktops UI.

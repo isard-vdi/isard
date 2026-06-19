@@ -4,6 +4,7 @@ import {
   getUserNotificationTriggerDisplayOptions,
   getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { NotificationDisplayEnum } from '@/gen/oas/apiv4'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SinglePageLayout } from '@/layouts/single-page'
 import { Button } from '@/components/ui/button'
@@ -26,7 +27,7 @@ const {
   getUserNotificationTriggerDisplayOptions({
     path: {
       trigger: route.params.trigger,
-      display: 'fullpage'
+      display: NotificationDisplayEnum.FULLPAGE
     }
   })
 )

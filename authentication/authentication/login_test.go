@@ -151,7 +151,7 @@ func TestLogin(t *testing.T) {
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
-				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: "login"}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []string{}}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
@@ -248,7 +248,7 @@ func TestLogin(t *testing.T) {
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
-				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: "login"}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []string{}}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
@@ -344,7 +344,7 @@ func TestLogin(t *testing.T) {
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
-				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: "login"}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []string{}}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
@@ -471,7 +471,7 @@ func TestLogin(t *testing.T) {
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
-				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: "login"}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []string{}}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{

@@ -32,7 +32,12 @@ from api import (
     register_router,
     token_router,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse, SimpleResponse
+from api.schemas.common import (
+    EmptyResponse,
+    ErrorResponse,
+    PasswordPolicyErrorResponse,
+    SimpleResponse,
+)
 from api.schemas.deployments import DeploymentGroup, DeploymentUser
 from api.schemas.domains.desktops import UserDesktop as ParsedUserDesktop
 from api.schemas.users import (
@@ -779,6 +784,7 @@ async def expire_user_api_key(request: Request):
     description="Sets the password for the user calling the endpoint.",
     responses={
         200: {"description": "Password set successfully"},
+        400: {"model": PasswordPolicyErrorResponse},
         404: {"description": "User not found"},
         500: {"description": "Failed to set password"},
     },

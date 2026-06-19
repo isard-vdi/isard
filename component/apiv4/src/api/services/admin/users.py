@@ -675,6 +675,9 @@ class AdminUsersService:
         if not data.get("id"):
             data["id"] = str(uuid4())
 
+        if not data.get("uid"):
+            data["uid"] = str(uuid4())
+
         RethinkGroup.init_document(**data)
 
         from api.routes.users import clear_groups_list_cache

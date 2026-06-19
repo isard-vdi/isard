@@ -27,6 +27,7 @@ from api.schemas.common import (
     DeleteResponse,
     EmptyResponse,
     ErrorResponse,
+    RecycleBinRestoreErrorResponse,
     SimpleResponse,
 )
 from api.schemas.recycle_bin import (
@@ -251,6 +252,9 @@ async def get_recycle_bin(request: Request, recycle_bin_id: str):
     response_model=SimpleResponse,
     summary="Restore recycle bin item",
     description="Restores a recycle bin item by ID.",
+    responses={
+        404: {"model": RecycleBinRestoreErrorResponse},
+    },
     dependencies=[
         Depends(owns_recycle_bin_id),
     ],

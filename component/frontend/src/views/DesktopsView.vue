@@ -48,7 +48,9 @@ import {
   getMaxBookingDate,
   type ErrorResponse,
   getBookingReservablesAvailable as getBookingReservablesAvailable,
-  getUserNotificationTriggerDisplay
+  getUserNotificationTriggerDisplay,
+  NotificationTriggerEnum,
+  NotificationDisplayEnum
 } from '@/gen/oas/apiv4/'
 
 import { cn } from '@/lib/utils'
@@ -214,7 +216,10 @@ const {
     onSuccess: async () => {
       try {
         const { data } = await getUserNotificationTriggerDisplay({
-          path: { trigger: 'start_desktop', display: 'modal' }
+          path: {
+            trigger: NotificationTriggerEnum.START_DESKTOP,
+            display: NotificationDisplayEnum.MODAL
+          }
         })
         const items = data?.notifications
         if (items && items.length > 0) {
