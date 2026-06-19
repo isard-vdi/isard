@@ -774,7 +774,12 @@ def test_admin_create_category(monkeypatch, test_client):
     response = test_client(
         url="/admin/item/category",
         method="POST",
-        body={"name": "New Cat", "description": "Desc", "frontend": True},
+        body={
+            "name": "New Cat",
+            "description": "Desc",
+            "frontend": True,
+            "manager_permissions": {},
+        },
         jwt=jwt,
     )
 

@@ -611,9 +611,6 @@ async def admin_validate_csv_users_edit(request: Request, user_list: list[dict])
     },
 )
 async def admin_import_csv_users(request: Request, data: AdminCSVUserImportData):
-    # Import body has no ``id`` per row (rows are NEW users). Edit
-    # body's ``id``-required schema would 422 those, so this route uses
-    # the looser ``AdminCSVUserImportData`` shape.
     try:
         result = await asyncio.to_thread(
             AdminUsersService.import_csv_users, request.token_payload, data.model_dump()
@@ -650,7 +647,9 @@ async def admin_import_csv_users(request: Request, data: AdminCSVUserImportData)
 async def admin_edit_csv_users(request: Request, data: AdminCSVUserEditData):
     try:
         await asyncio.to_thread(
-            AdminUsersService.edit_csv_users, request.token_payload, data.model_dump()
+            AdminUsersService.edit_csv_users,
+            request.token_payload,
+            data.model_dump(exclude_none=True),
         )
         return Response(status_code=204)
     except Error:
@@ -1255,7 +1254,6 @@ async def admin_get_group_users(request: Request, group_id: str):
 )
 async def admin_group_enrollment(request: Request, data: AdminGroupEnrollmentData):
     try:
-        # enrollment_action returns the new 6-char code (reset) or True (disable).
         result = await asyncio.to_thread(
             AdminUsersService.update_group_enrollment,
             request.token_payload,

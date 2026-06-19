@@ -119,6 +119,7 @@ $(document).ready(function () {
                 "render": function (data, type, full, meta) {
                     switch (data) {
                         case null:
+                        case undefined:
                             return `<i class="fa fa-circle" aria-hidden="true" style="color:green" title="Default domain."></i>`
                         case false:
                             return `<i class="fa fa-circle" aria-hidden="true" style="color:darkgray" title="Bastion access disabled."></i>`

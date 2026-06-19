@@ -370,11 +370,6 @@ function actionsGroupDetail(){
 
                 // autoDesktopsShow('#modalEditGroupForm', group)
                 ephemeralDesktopsShow('#modalEditGroupForm', group)
-
-                $.each(group.linked_groups_data, function(i, group) {
-                    var newOption = new Option(group.category_name + ' - ' + group.name, group.id, true, true);
-                    $("#modalEditGroupForm #linked_groups").append(newOption).trigger('change');
-                })
             }
         });
 
@@ -718,7 +713,7 @@ function actionsGroupDetail(){
                             type: "DELETE",
                             url: "/api/v4/admin/items/users",
                             data: JSON.stringify({
-                                user: users,
+                                user: users.map(u => u.id),
                                 delete_user: true
                             }),
                             contentType: "application/json",

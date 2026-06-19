@@ -349,7 +349,7 @@ async def verify_bastion_domain(
         )
 
 
-@admin_router.get(
+@manager_router.get(
     "/admin/item/config/bastion",
     tags=[tag],
     response_model=AdminBastionConfigResponse,

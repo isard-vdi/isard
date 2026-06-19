@@ -38,6 +38,7 @@ class AdminUserCreateData(BaseModel):
     role: str
     password: str
     email: Optional[str] = ""
+    email_verified: bool = False
     photo: Optional[str] = ""
     bulk: bool = False
     secondary_groups: List[str] = Field(default_factory=list)
@@ -49,6 +50,7 @@ class AdminUserUpdateData(BaseModel):
     ids: Optional[List[str]] = None
     name: Optional[str] = None
     email: Optional[str] = None
+    email_verified: Optional[bool] = None
     role: Optional[str] = None
     category: Optional[str] = None
     group: Optional[str] = None
@@ -155,12 +157,19 @@ class AdminGroupCreateData(BaseModel):
     external_gid: Optional[str] = None
 
 
+class EphimeralDesktopsData(BaseModel):
+    minutes: int
+    action: Literal["Stopping", "StoppingAndDeleting"]
+
+
 class AdminGroupUpdateData(BaseModel):
     """Request body for updating a group."""
 
     id: str
     name: str
     description: Optional[str] = None
+    ephimeral: EphimeralDesktopsData | bool | None = None
+    linked_groups: Optional[List[str]] = None
 
 
 class AdminGroupEnrollmentData(BaseModel):
@@ -174,6 +183,13 @@ class AdminGroupEnrollmentData(BaseModel):
 # ── Categories ───────────────────────────────────────────────────────────
 
 
+class ManagerPermissionsData(BaseModel):
+    authentication: bool = False
+    branding: bool = False
+    login_notification: bool = False
+    plannings: bool = False
+
+
 class AdminCategoryCreateData(BaseModel):
     """Request body for creating a category."""
 
@@ -184,9 +200,11 @@ class AdminCategoryCreateData(BaseModel):
     uid: Optional[str] = None
     photo: Optional[str] = None
     storage_pool: Optional[str] = None
-    manager_permissions: Optional[dict] = None
-    # Default (absent/None) = draw from the global GPU pool (own + global
-    # undelegated cards); False = only cards delegated to this category. (!4547)
+    maintenance: bool = False
+    manager_permissions: ManagerPermissionsData
+    recycle_bin_cutoff_time: int | None = None
+    ephimeral: Optional[EphimeralDesktopsData | bool] = False
+    storage_pool: Optional[str] = None
     gpu_use_global_pool: Optional[bool] = None
 
 
@@ -199,10 +217,10 @@ class AdminCategoryUpdateData(BaseModel):
     frontend: Optional[bool] = None
     custom_url_name: Optional[str] = None
     uid: Optional[str] = None
-    photo: Optional[str] = None
-    manager_permissions: Optional[dict] = None
-    maintenance: Optional[bool] = None
     recycle_bin_cutoff_time: int | None = None
+    ephimeral: Optional[EphimeralDesktopsData | bool] = None
+    maintenance: Optional[bool] = None
+    manager_permissions: Optional[ManagerPermissionsData] = None
     gpu_use_global_pool: Optional[bool] = None
 
 
@@ -259,9 +277,10 @@ class AdminDeleteChecksData(BaseModel):
 class AdminSecretCreateData(BaseModel):
     """Request body for creating a secret."""
 
-    category_id: str
-    secret: str
+    id: str
     description: Optional[str] = ""
+    domain: str
+    category_id: str
 
 
 # ── Search ───────────────────────────────────────────────────────────────
@@ -427,6 +446,7 @@ class AdminSecondaryGroupRef(BaseModel):
 
     id: str
     name: Optional[str] = None
+    category_name: Optional[str] = None
 
 
 class AdminUserFullDataResponse(AdminUser):
@@ -442,6 +462,7 @@ class AdminUserFullDataResponse(AdminUser):
     category_name: Optional[str] = None
     group_name: Optional[str] = None
     secondary_groups_data: Optional[list[AdminSecondaryGroupRef]] = None
+    email_verified: Optional[bool] = False
 
 
 class AdminUserNavItem(BaseModel):
@@ -602,6 +623,7 @@ class AdminGroupFullDataResponse(AdminGroup):
     linked_groups_data: Optional[list[AdminSecondaryGroupRef]] = None
     quota: Optional[bool | dict] = None
     enrollment: Optional[dict] = None
+    ephimeral: Optional[EphimeralDesktopsData | bool] = None
 
 
 class AdminGroupUserItem(BaseModel):
@@ -671,6 +693,9 @@ class AdminCategoryNavItem(BaseModel):
     limits: Optional[bool | dict] = None
     media_size: Optional[float] = None
     domains_size: Optional[float] = None
+    bastion_domain: Optional[str] = None
+    ephimeral: Optional[EphimeralDesktopsData | bool] = None
+    maintenance: Optional[bool] = None
 
 
 class AdminCategoryDetailResponse(BaseModel):
