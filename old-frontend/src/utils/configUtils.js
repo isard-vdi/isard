@@ -13,7 +13,6 @@ export class ConfigUtils {
       bastion_ssh_port: bastionSshPort,
       can_use_bastion: canUseBastion,
       can_use_bastion_individual_domains: canUseBastionIndividualDomains,
-      migrations_block: migrationsBlock,
       frontend_mode: frontendMode = 'deprecated',
       faro = { enabled: false, url: null },
       session: {
@@ -35,7 +34,6 @@ export class ConfigUtils {
       bastionSshPort,
       canUseBastion,
       canUseBastionIndividualDomains,
-      migrationsBlock,
       frontendMode,
       faro,
       session: {

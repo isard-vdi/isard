@@ -138,7 +138,6 @@ class UserConfigResponse(BaseModel):
     bastion_ssh_port: str | None
     can_use_bastion: bool
     can_use_bastion_individual_domains: bool
-    migrations_block: bool
     session: dict
     frontend_mode: FrontendMode = Field(
         "deprecated",
