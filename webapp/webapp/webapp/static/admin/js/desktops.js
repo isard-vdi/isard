@@ -1065,12 +1065,16 @@ $(document).ready(function() {
                 modalAllowedsFormShow('domains',data)
                 break;
             case 'btn-update':
+                var $retryBtn = $(this);
+                var retryBtnHtml = $retryBtn.html();
+                $retryBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-pulse fa-fw"></i> Retry');
                 $.ajax({
                     type: "PUT",
                     url: '/api/v4/item/desktop/' + data["id"] + '/retry',
                     contentType: "application/json",
                     cache: false,
                     error: function(data) {
+                        $retryBtn.prop('disabled', false).html(retryBtnHtml);
                         new PNotify({
                             title: 'ERROR updating desktop status',
                             text: data.responseJSON.description,
@@ -1307,7 +1311,7 @@ function desktopAddUpdateSocketHandle(data) {
     if ((!($('#filter-section #category').val()) || $('#filter-section #category').val().includes(data['category']))) {
         dtUpdateInsert(domains_table, data, false);
     }
-    setDomainDetailButtonsStatus(data.id, data.status, data.server);
+    setDomainDetailButtonsStatus(data.id, data, {});
     $('#domains tr.active .form-check-input').prop("checked", true);
 }
 
