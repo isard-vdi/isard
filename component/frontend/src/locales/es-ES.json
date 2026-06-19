@@ -1147,6 +1147,7 @@
       "media": "Medios",
       "deployments": {
         "title": "Despliegues",
+        "created-by-you": "Creados por ti",
         "shared-deployments": "Compartidos contigo"
       },
       "user-deployments": "Mis despliegues",

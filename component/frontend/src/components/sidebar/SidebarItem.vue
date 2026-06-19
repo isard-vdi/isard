@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { type SidebarItem, type Badge } from '@/lib/navigation'
 import { sidebarItemVariants } from '@/components/sidebar'
+import SidebarItemLabel from '@/components/sidebar/SidebarItemLabel.vue'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -132,17 +133,16 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
           "
         >
           <Icon :name="props.icon" size="lg" :stroke-color="iconStrokeColor" />
-          <p
+          <SidebarItemLabel
             v-if="label"
+            :label="props.label"
             :class="[
               'leading-6 text-base flex-1 truncate',
               isActive
                 ? '!font-extrabold !text-gray-warm-800'
                 : '!font-semibold !text-gray-warm-600'
             ]"
-          >
-            {{ props.label }}
-          </p>
+          />
           <div
             v-if="badge !== undefined"
             class="px-2 py-0.5 bg-gray-50 rounded-2xl outline outline-2 outline-sidebar flex justify-start items-center"
@@ -188,15 +188,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
                 :to="{ name: subItem.route }"
                 class="flex items-center gap-2"
               >
-                <Icon
-                  v-if="subItem.icon"
-                  :name="subItem.icon"
-                  size="lg"
-                  :stroke-color="subItem.selected ? 'secondary-2-500' : 'gray-warm-500'"
-                />
-                <p class="leading-6 text-base truncate">
-                  {{ subItem.label }}
-                </p>
+                <SidebarItemLabel :label="subItem.label" class="leading-6 text-base truncate" />
               </RouterLink>
             </SidebarMenuSubButton>
             <SidebarMenuSubButton
@@ -205,15 +197,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
               class="gap-2"
               :is-active="subItem.selected"
             >
-              <Icon
-                v-if="subItem.icon"
-                :name="subItem.icon"
-                size="lg"
-                :stroke-color="subItem.selected ? 'secondary-2-500' : 'gray-warm-500'"
-              />
-              <p class="leading-6 text-base truncate">
-                {{ subItem.label }}
-              </p>
+              <SidebarItemLabel :label="subItem.label" class="leading-6 text-base truncate" />
             </SidebarMenuSubButton>
           </SidebarMenuSubItem>
         </SidebarMenuSub>
@@ -255,15 +239,14 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
             </div>
           </div>
         </div>
-        <p
+        <SidebarItemLabel
           v-if="label && !props.collapsed"
+          :label="props.label"
           :class="[
             'leading-6 text-base flex-1 truncate',
             isActive ? '!font-extrabold !text-gray-warm-800' : '!font-semibold !text-gray-warm-600'
           ]"
-        >
-          {{ props.label }}
-        </p>
+        />
         <div
           v-if="badge !== undefined && !props.collapsed"
           class="px-2 py-0.5 bg-gray-50 rounded-2xl outline outline-2 outline-sidebar flex justify-start items-center"
@@ -287,15 +270,14 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
             </div>
           </div>
         </div>
-        <p
+        <SidebarItemLabel
           v-if="label && !props.collapsed"
+          :label="props.label"
           :class="[
             'leading-6 text-base flex-1 truncate',
             isActive ? '!font-extrabold !text-gray-warm-800' : '!font-semibold !text-gray-warm-600'
           ]"
-        >
-          {{ props.label }}
-        </p>
+        />
         <div
           v-if="badge !== undefined && !props.collapsed"
           :class="`px-2 py-0.5 rounded-2xl outline outline-2 outline-sidebar flex justify-start items-center ${badge.bgColor}`"

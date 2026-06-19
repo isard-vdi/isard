@@ -12,7 +12,7 @@ const props = defineProps<{
     data-sidebar="menu-badge"
     :class="
       cn(
-        'mx-3.5 flex min-w-0 translate-x-px flex-col gap-2 border-l border-gray-warm-400 px-2.5 py-0.5',
+        'mr-3.5 ml-4.5 flex min-w-0 translate-x-px flex-col gap-2 border-l-2 border-gray-warm-400 px-2.5 py-0.5',
         'group-data-[collapsible=icon]:hidden',
         props.class
       )
