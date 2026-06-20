@@ -198,6 +198,9 @@ class Reservables:
     def list_items(self, item_type):
         return self.reservable[item_type].list_items()
 
+    def list_bookables(self, item_type):
+        return self.reservable[item_type].list_bookables()
+
     def add_item(self, item_type, item):
         return self.reservable[item_type].add_item(item)
 
@@ -281,6 +284,50 @@ class Reservables:
 
 
 class ResourceItemsGpus(RethinkSharedConnection):
+
+    @classmethod
+    def list_bookables(cls):
+        """Bookable vGPU reservables, each enriched with the distinct
+        categories of the GPU cards that enable it.
+
+        A ``reservables_vgpus`` row is bookable on any card whose
+        ``profiles_enabled`` contains its id; a card may be delegated to a
+        category. The admin Bookables list shows those categories as tags so
+        the operator sees, per reservable, which delegated categories back it.
+        Undelegated (global) cards contribute no category.
+        """
+        with cls._rdb_context():
+            reservables = list(r.table("reservables_vgpus").run(cls._rdb_connection))
+            cards = list(
+                r.table("gpus")
+                .pluck("category", "profiles_enabled")
+                .run(cls._rdb_connection)
+            )
+        # reservable_id -> set(category_id) of the delegated cards that enable it
+        cat_ids_by_reservable = {}
+        for card in cards:
+            category = card.get("category")
+            if not category:
+                continue
+            for enabled_id in card.get("profiles_enabled", []):
+                cat_ids_by_reservable.setdefault(enabled_id, set()).add(category)
+        # resolve each category id to its name once
+        name_by_category = {}
+        all_category_ids = (
+            set().union(*cat_ids_by_reservable.values())
+            if cat_ids_by_reservable
+            else set()
+        )
+        for category in all_category_ids:
+            with cls._rdb_context():
+                row = r.table("categories").get(category).run(cls._rdb_connection)
+            name_by_category[category] = (row or {}).get("name") or category
+        for reservable in reservables:
+            reservable["categories"] = sorted(
+                name_by_category[c]
+                for c in cat_ids_by_reservable.get(reservable.get("id"), set())
+            )
+        return reservables
 
     @classmethod
     def list_items(cls):

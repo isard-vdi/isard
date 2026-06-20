@@ -88,6 +88,26 @@ class ReservableDetailResponse(BaseModel):
     items: List[ReservableItemResponse]
 
 
+class BookableItemResponse(BaseModel):
+    """A bookable vGPU reservable for the admin Bookables list.
+
+    ``categories`` are the distinct names of the categories that delegated GPU
+    cards backing this reservable belong to (empty when only global/undelegated
+    cards back it). The webapp renders them as green delegated-category tags.
+    """
+
+    id: str
+    name: str
+    description: Optional[str] = ""
+    priority_id: Optional[str] = None
+    brand: Optional[str] = None
+    model: Optional[str] = None
+    profile: Optional[str] = None
+    units: Optional[int] = None
+    total_units: Optional[int] = None
+    categories: List[str] = []
+
+
 class AvailableReservable(BaseModel):
     """Available reservable item"""
 

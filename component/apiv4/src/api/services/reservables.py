@@ -172,6 +172,25 @@ class ReservableService:
         return formatted_items
 
     @staticmethod
+    def list_bookables(reservable_type: str) -> list[dict]:
+        """Bookable reservables for the admin Bookables list, each enriched
+        with the distinct categories of the GPU cards backing it.
+
+        Replaces the generic ``/admin/items/table/reservables_vgpus`` feed so
+        the response carries the computed ``categories`` natively (the table
+        endpoint returns raw rows with no card join).
+        """
+        reservables = Reservables()
+        valid_types = reservables.list_reservables()
+        if reservable_type not in valid_types:
+            raise Error(
+                "not_found",
+                f"Reservable type '{reservable_type}' not found",
+                description_code="reservable_type_not_found",
+            )
+        return reservables.list_bookables(reservable_type)
+
+    @staticmethod
     def list_subitems(reservable_type: str, item_id: str) -> list[dict]:
         """Return the catalog of subitems (vGPU profiles) for ``item_id``.
 

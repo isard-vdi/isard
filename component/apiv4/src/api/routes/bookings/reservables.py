@@ -32,6 +32,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse, SimpleResponse
 from api.schemas.reservables import (
     AddReservableItemRequest,
     AvailableReservablesResponse,
+    BookableItemResponse,
     BookingProvisioningRequest,
     CheckLastResponse,
     CreatePlanRequest,
@@ -149,6 +150,40 @@ async def get_reservable_items(
             request,
             "internal_server",
             f"Failed to retrieve reservable items for {reservable_type}",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/items/bookables/{reservable_type}",
+    response_model=list[BookableItemResponse],
+    tags=[tag],
+    summary="List bookable reservables with their backing categories",
+    description="Returns the bookable reservables of a type, each enriched with "
+    "the distinct categories of the delegated GPU cards that back it. Replaces "
+    "the generic admin table feed for the Bookables admin view.",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def list_bookables(
+    request: Request,
+    reservable_type: str = Path(..., description="The reservable type (e.g., 'gpus')"),
+):
+    """List bookable reservables enriched with backing-card categories."""
+    try:
+        return await asyncio.to_thread(
+            ReservableService.list_bookables, reservable_type
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to list bookables for {reservable_type}",
             traceback.format_exc(),
         )
 
