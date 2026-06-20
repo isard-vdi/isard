@@ -73,7 +73,9 @@ $(document).ready(function () {
         data: null, render: function (data, type, full, meta) {
           var text = "Err"
           if (data.physical_device != null) {
-              if (data.changing_to_profile != false) {
+              // changing_to_profile is null/false when no change is pending;
+              // `!= false` is truthy for null, so it rendered "<profile>->null".
+              if (data.changing_to_profile) {
                 text = data.active_profile + "->" + data.changing_to_profile
               } else {
                 text = data.active_profile
