@@ -111,8 +111,8 @@ test.describe('Admin Bookables — Resources', () => {
   test('S1: lists vGPU bookables from the seed', async ({ authenticatedPage: page, apiv4Admin }) => {
     const tableResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/items/table/reservables_vgpus') &&
-        r.request().method() === 'POST',
+        r.url().includes('/api/v4/items/bookables/gpus') &&
+        r.request().method() === 'GET',
       { timeout: 15000 },
     )
     await page.goto(RESOURCES_URL)
