@@ -66,6 +66,15 @@ class ReservableItemResponse(BaseModel):
     active_profile: Optional[str] = None
     changing_to_profile: Optional[str] = None
     physical_device: Optional[str] = None
+    # GPUs only: the category a card is delegated to (None = admin-only/global) and
+    # its resolved name. Computed by the _common listing query; declared here so
+    # FastAPI does not strip them from the response (otherwise the webapp/old-frontend
+    # delegated-category label never renders).
+    category: Optional[str] = None
+    category_name: Optional[str] = None
+    # GPUs only: the auto per-card passthrough identity used as the default variant
+    # suggestion in the admin Variant column; declared so FastAPI keeps it.
+    passthrough_variant: Optional[str] = None
     profiles_enabled: List[str]
     plans: ReservablePlans
     desktops_started: List[str] = []

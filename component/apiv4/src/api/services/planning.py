@@ -30,12 +30,16 @@ class PlanningService:
 
     @staticmethod
     def get_item_plannings(
-        item_id: str, start: Optional[str] = None, end: Optional[str] = None
+        payload: dict,
+        item_id: str,
+        start: Optional[str] = None,
+        end: Optional[str] = None,
     ) -> List[PlanningItem]:
         """
         Get plannings for a specific item
 
         Args:
+            payload (dict): User payload from authentication
             item_id (str): The item ID to get plannings for
             start (Optional[str]): Start date filter (ISO format)
             end (Optional[str]): End date filter (ISO format)
@@ -43,6 +47,10 @@ class PlanningService:
         Returns:
             List[PlanningItem]: List of planning items
         """
+        # A manager may only read plannings on a GPU card delegated to their
+        # category; admins are unrestricted. Without this a manager could
+        # enumerate another category's plannings by card id.
+        ReservablesPlannerProccess._assert_manager_owns_card(payload, item_id)
         try:
             plannings_raw = ReservablesPlannerProccess.list_item_plans(
                 item_id, start, end
@@ -73,16 +81,21 @@ class PlanningService:
             )
 
     @staticmethod
-    def delete_planning(plan_id: str) -> None:
+    def delete_planning(payload: dict, plan_id: str) -> None:
         """
         Delete a specific planning
 
         Args:
+            payload (dict): User payload from authentication
             plan_id (str): The planning ID to delete
 
         Returns:
             bool: True if successfully deleted
         """
+        # A manager may only delete a planning on a card delegated to their
+        # category; for any other (or missing) plan id this raises a uniform
+        # not_found so plan ids cannot be enumerated across categories.
+        ReservablesPlannerProccess._assert_manager_owns_plan(payload, plan_id)
         try:
             ReservablesPlannerProccess.delete_plan(plan_id)
         except Error:
@@ -106,5 +119,11 @@ class PlanningService:
         Returns:
             str: The created planning ID
         """
+        # A manager may only create a planning on a GPU card delegated to their
+        # category (an unassigned/global card is admin-only); admins are
+        # unrestricted.
+        ReservablesPlannerProccess._assert_manager_owns_card(
+            payload, planning_data["item_id"]
+        )
         plan_id = ReservablesPlannerProccess.add_plan(payload, planning_data)
         return plan_id

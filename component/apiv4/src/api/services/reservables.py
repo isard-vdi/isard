@@ -74,6 +74,17 @@ class ReservableService:
             "active_profile": item.get("active_profile"),
             "changing_to_profile": changing_to_profile,
             "physical_device": item.get("physical_device"),
+            # GPUs only: the delegated category (None = admin-only/global) and its
+            # resolved name, both computed by list_items. Without these here the
+            # formatter drops them and the webapp/old-frontend never renders the
+            # delegated-category label nor preselects it in the edit modal.
+            "category": item.get("category"),
+            "category_name": item.get("category_name"),
+            # GPUs only: the auto per-card passthrough identity ("<host>n<numa>b<bus>")
+            # the admin UI shows as a muted variant suggestion and adopts when
+            # enabling passthrough. Dropping it here leaves the Variant column blank
+            # for passthrough cards that have no explicit "~<variant>".
+            "passthrough_variant": item.get("passthrough_variant"),
             "profiles_enabled": item.get("profiles_enabled", []),
             "plans": ReservableService._get_item_plans(
                 reservables, reservable_type, item

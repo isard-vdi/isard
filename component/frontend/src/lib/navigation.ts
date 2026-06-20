@@ -163,7 +163,8 @@ export const sidebarItemsToShow = (
   role: Role,
   route: string,
   itemsInBin: number,
-  showBookingsButton = true
+  showBookingsButton = true,
+  showGpuPlannings = false
 ) => {
   let mainItems = (sidebarItemsByRole[role] || []).map((item) => {
     const menuItem = sidebarItems.value.menu[item]
@@ -180,12 +181,17 @@ export const sidebarItemsToShow = (
     return { ...menuItem, selected: isParentSelected, subItems }
   })
 
-  if (!showBookingsButton) {
+  // The bookings menu stays if the user can book OR is a GPU-plannings manager
+  // (the planning sub-item lives under bookings).
+  if (!showBookingsButton && !showGpuPlannings) {
     mainItems = mainItems.filter((item) => item.key !== 'bookings')
   }
 
   mainItems = mainItems.map((item) => {
-    if (item.key === 'bookings' && role !== 'admin') {
+    // Non-admins normally collapse bookings to just the summary. A manager with
+    // the GPU-plannings permission keeps the full submenu so the planning entry
+    // stays reachable (the planner API itself is category-scoped).
+    if (item.key === 'bookings' && role !== 'admin' && !showGpuPlannings) {
       // For non-admin users, remove subitems and just navigate directly to summary
       return {
         ...item,

@@ -35,7 +35,8 @@ const sidebarItems = computed(() => {
     user?.value.role,
     route.name as string,
     user?.value.items_in_bin,
-    userConfig?.value.show_bookings_button ?? true
+    userConfig?.value.show_bookings_button ?? true,
+    userConfig?.value.show_gpu_plannings ?? false
   ) ?? {
     mainItems: [],
     footerItems: []
