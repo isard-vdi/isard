@@ -22,7 +22,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectSeparator,
   SelectTrigger,
   SelectValue
@@ -246,6 +248,57 @@ const bootsOptions = computed(() => userAllowedHardware.value?.boot_order || [])
 const isosOptions = computed(() => userAllowedHardware.value?.isos || [])
 const floppiesOptions = computed(() => userAllowedHardware.value?.floppies || [])
 const vgpusOptions = computed(() => userAllowedHardware.value?.reservables.vgpus || [])
+
+// A vGPU (esp. passthrough) can be hosted on several hypervisors / NUMA sockets.
+// The backend tags each option with its hypervisor groups + NUMA placement so
+// the selector can group otherwise-identical cards by socket/host (matching the
+// webapp / old-frontend). Admins/managers get real hypervisor names; other roles
+// get anonymized group indices.
+interface VgpuOption {
+  id: string
+  name: string
+  hypervisor_groups?: number[]
+  numa_by_group?: Record<string, number[]>
+  hypervisors?: string[]
+  numa_by_hypervisor?: Record<string, number[]>
+}
+
+// Label a card by its primary placement (lowest group/host, then lowest NUMA
+// node) so it appears once, like the webapp's "listed under its lowest socket".
+const vgpuGroupLabel = (v: VgpuOption): string | null => {
+  const byHyp = v.numa_by_hypervisor || {}
+  const byGroup = v.numa_by_group || {}
+  const useNames = Object.keys(byHyp).length > 0
+  const map: Record<string, number[]> = useNames ? byHyp : byGroup
+  const keys = Object.keys(map)
+  if (keys.length === 0) return null
+  const primaryKey = useNames
+    ? [...keys].sort()[0]
+    : String([...keys].map(Number).sort((a, b) => a - b)[0])
+  const host = useNames ? primaryKey : `#${primaryKey}`
+  const nodes = [...(map[primaryKey] || [])].sort((a, b) => a - b)
+  return nodes.length ? `${host} (NUMA ${nodes[0]})` : host
+}
+
+// Group the options only when there is more than one distinct placement
+// (multi-socket / multi-hypervisor); otherwise present a single flat list.
+const groupedVgpus = computed<{ label: string | null; items: VgpuOption[] }[]>(() => {
+  const opts = vgpusOptions.value as VgpuOption[]
+  const groups = new Map<string, VgpuOption[]>()
+  for (const v of opts) {
+    const key = vgpuGroupLabel(v) ?? ''
+    const bucket = groups.get(key) ?? []
+    bucket.push(v)
+    groups.set(key, bucket)
+  }
+  const labelled = [...groups.keys()].filter((k) => k !== '')
+  if (labelled.length <= 1) {
+    return [{ label: null, items: opts }]
+  }
+  return [...groups.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([label, items]) => ({ label: label || null, items }))
+})
 const networksOptions = computed(() => userAllowedHardware.value?.interfaces || [])
 
 // Computed limited hardware from template or desktop data
@@ -725,9 +778,12 @@ defineExpose({
                   <SelectValue :placeholder="t('components.domain.hardware.vgpus.placeholder')" />
                 </SelectTrigger>
                 <SelectContent position="item-aligned">
-                  <SelectItem v-for="vgpu in vgpusOptions" :key="vgpu.id" :value="vgpu.id">
-                    {{ vgpu.name }}
-                  </SelectItem>
+                  <SelectGroup v-for="(grp, gi) in groupedVgpus" :key="gi">
+                    <SelectLabel v-if="grp.label">{{ grp.label }}</SelectLabel>
+                    <SelectItem v-for="vgpu in grp.items" :key="vgpu.id" :value="vgpu.id">
+                      {{ vgpu.name }}
+                    </SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
               <FieldDescription
