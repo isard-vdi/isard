@@ -61,7 +61,7 @@ $(document).ready(function () {
         if (full.category) {
           var catLabel = (full.category_name ? full.category_name : full.category)
             .toString().replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-          suffix += ' <span class="label label-info" title="Delegated to category: ' + catLabel + '"><i class="fa fa-users"></i> ' + catLabel + '</span>';
+          suffix += ' <span class="label label-success" title="Delegated to category: ' + catLabel + '"><i class="fa fa-users"></i> ' + catLabel + '</span>';
         }
         return data + suffix;
       }},
