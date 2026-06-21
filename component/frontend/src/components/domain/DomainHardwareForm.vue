@@ -34,6 +34,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SearchableTags } from '@/components/searchable-tags'
 import SelectNetworksModal from '@/components/modal/SelectNetworksModal.vue'
 import { Button } from '@/components/ui/button'
+import { MAX_VGPU_PROFILES, isVgpuSelectable } from '@/lib/vgpuSelection'
 
 interface LimitedHardwareValue {
   old_value: unknown
@@ -149,11 +150,14 @@ const floppies = computed(() => {
     props.floppies
   )
 })
-const vgpus = computed(() => {
+// A desktop may reserve several co-locatable vGPU profiles, so this is the full
+// array (was `[0]` — single profile only). Empty array = no GPU.
+const vgpus = computed<string[]>(() => {
   return (
-    templateData.value?.reservables?.vgpus?.[0] ||
-    desktopData.value?.reservables?.vgpus?.[0] ||
-    props.reservables?.vgpus?.[0]
+    templateData.value?.reservables?.vgpus ||
+    desktopData.value?.reservables?.vgpus ||
+    props.reservables?.vgpus ||
+    []
   )
 })
 const interfaces = computed(() => {
@@ -207,7 +211,7 @@ const formSchema = z.object({
   isos: z.array(z.string()).optional(),
   floppies: z.array(z.string()),
   reservables: z.object({
-    vgpus: z.string().optional()
+    vgpus: z.array(z.string()).max(MAX_VGPU_PROFILES).optional()
   }),
   interfaces: z.array(z.string())
 })
@@ -299,6 +303,23 @@ const groupedVgpus = computed<{ label: string | null; items: VgpuOption[] }[]>((
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([label, items]) => ({ label: label || null, items }))
 })
+// Comma-separated names of the currently-selected vGPU profiles, for the trigger
+// summary (reka-ui's SelectValue doesn't render a multiple selection).
+const vgpuSummary = (ids: string[] | undefined): string => {
+  const selected = ids ?? []
+  return (vgpusOptions.value as VgpuOption[])
+    .filter((o) => selected.includes(o.id))
+    .map((o) => o.name)
+    .join(', ')
+}
+
+// Grey out a profile that can't be added to the current selection (count limit
+// reached or not co-locatable on a single hypervisor). The backend enforces the
+// same rules; this just prevents obviously-invalid picks.
+const vgpuDisabled = (option: VgpuOption, ids: string[] | undefined): boolean => {
+  return !isVgpuSelectable(option, ids ?? [], vgpusOptions.value as VgpuOption[])
+}
+
 const networksOptions = computed(() => userAllowedHardware.value?.interfaces || [])
 
 // Computed limited hardware from template or desktop data
@@ -361,8 +382,8 @@ const getFormData = () => ({
   floppies: form.getFieldValue('floppies'),
   interfaces: form.getFieldValue('interfaces'),
   reservables: {
-    vgpus: form.getFieldValue('reservables.vgpus')
-      ? [form.getFieldValue('reservables.vgpus')]
+    vgpus: (form.getFieldValue('reservables.vgpus') as string[] | undefined)?.length
+      ? form.getFieldValue('reservables.vgpus')
       : null
   }
 })
@@ -771,16 +792,27 @@ defineExpose({
               </FieldLabel>
               <Select
                 name="reservables.vgpus"
-                :model-value="field.state.value"
+                multiple
+                :model-value="field.state.value ?? []"
                 @update:model-value="field.handleChange"
               >
                 <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
-                  <SelectValue :placeholder="t('components.domain.hardware.vgpus.placeholder')" />
+                  <span v-if="(field.state.value ?? []).length" class="truncate text-left">
+                    {{ vgpuSummary(field.state.value) }}
+                  </span>
+                  <span v-else class="text-muted-foreground">
+                    {{ t('components.domain.hardware.vgpus.placeholder') }}
+                  </span>
                 </SelectTrigger>
                 <SelectContent position="item-aligned">
                   <SelectGroup v-for="(grp, gi) in groupedVgpus" :key="gi">
                     <SelectLabel v-if="grp.label">{{ grp.label }}</SelectLabel>
-                    <SelectItem v-for="vgpu in grp.items" :key="vgpu.id" :value="vgpu.id">
+                    <SelectItem
+                      v-for="vgpu in grp.items"
+                      :key="vgpu.id"
+                      :value="vgpu.id"
+                      :disabled="vgpuDisabled(vgpu, field.state.value)"
+                    >
                       {{ vgpu.name }}
                     </SelectItem>
                   </SelectGroup>
