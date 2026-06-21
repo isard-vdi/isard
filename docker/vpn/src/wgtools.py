@@ -227,7 +227,9 @@ class Wg(object):
         self.clients_reserved_ips = self.clients_reserved_ips + [
             p["vpn"]["wireguard"]["Address"]
             for p in wglist
-            if isinstance(p.get("vpn"), dict) and "wireguard" in p["vpn"]
+            if "vpn" in p.keys()
+            and isinstance(p.get("vpn", {}).get("wireguard"), dict)
+            and "Address" in p["vpn"]["wireguard"]
         ]
 
         create_peers = []
@@ -235,16 +237,21 @@ class Wg(object):
             log.info("Server key changed. Generating new client keys for all users...")
         for peer in wglist:
             new_peer = False
-            if (
-                self.keys.update_clients == True
-                and isinstance(peer.get("vpn"), dict)
-                and "wireguard" in peer["vpn"]
-            ):
+            wg = peer.get("vpn", {}).get("wireguard")
+            wg_is_dict = isinstance(wg, dict)
+            if self.keys.update_clients == True and "vpn" in peer.keys() and wg_is_dict:
                 new_peer = peer
                 new_peer["vpn"]["wireguard"]["keys"] = self.keys.new_client_keys()
                 create_peers.append(new_peer)
-            if not isinstance(peer.get("vpn"), dict) or "wireguard" not in peer["vpn"]:
+            if "vpn" not in peer.keys() or not wg_is_dict:
+                # No wireguard subtree to keep: there is no Address to preserve.
                 new_peer = self.gen_new_peer(peer)
+                create_peers.append(new_peer)
+            elif new_peer == False and not wg.get("keys"):
+                # reset_vpn() sets keys=False to request a rotation: rebuild
+                # them here, keeping the assigned Address.
+                new_peer = peer
+                new_peer["vpn"]["wireguard"]["keys"] = self.keys.new_client_keys()
                 create_peers.append(new_peer)
             if new_peer == False:
                 if self.table == "users":
@@ -416,6 +423,15 @@ class Wg(object):
                     ]
                 )
             return True
+
+        # Keys are False while a rotation is pending: skip the peer instead of
+        # dereferencing them and breaking the whole pass.
+        wg_keys = peer["vpn"]["wireguard"].get("keys")
+        if not isinstance(wg_keys, dict) or not wg_keys.get("public"):
+            log.warning(
+                f"Skipping wireguard up_peer for {peer.get('id')}: keys not ready"
+            )
+            return False
 
         if peer["vpn"]["wireguard"]["extra_client_nets"] != None:
             address = (
