@@ -1660,10 +1660,12 @@ class hyp(object):
         Falls back to global-only reads when per-NUMA data is unavailable.
 
         Returns:
-            tuple: ``(total_free_kb, numa_free_kb)`` where ``numa_free_kb`` is
-                a dict ``{"0": kb, "1": kb, ...}`` or ``{}`` if per-NUMA data
-                is unavailable. Returns ``(None, {})`` on any failure so the
-                caller can fall back to libvirt ``getFreePages``.
+            tuple: ``(total_free_kb, numa_free_kb, total_live_kb)`` where
+                ``numa_free_kb`` is a dict ``{"0": kb, "1": kb, ...}`` or ``{}``
+                if per-NUMA data is unavailable, and ``total_live_kb`` is the
+                live ``nr_hugepages`` total (KB) read in the same pass. Returns
+                ``(None, {}, None)`` on any failure so the caller can fall back
+                to libvirt ``getFreePages``.
         """
         numa_topo = self.hypervisor.get("numa_topology", {}) if self.hypervisor else {}
         node_ids = sorted((numa_topo.get("nodes") or {}).keys())
@@ -1674,17 +1676,21 @@ class hyp(object):
         if hugepages_total_2m > 0:
             sizes_kb.append(2048)
         if not sizes_kb:
-            return None, {}
+            return None, {}, None
 
-        # Try per-NUMA reads first (one SSH command for all nodes and sizes)
+        # Try per-NUMA reads first (one SSH command for all nodes and sizes).
+        # Read free_hugepages AND nr_hugepages per node/size so the caller gets
+        # a live total (nr) alongside free, all in a single round-trip.
         if len(node_ids) > 1:
             cmd_parts = []
             for node_id in node_ids:
                 for size_kb in sizes_kb:
-                    cmd_parts.append(
-                        f"cat /sys/devices/system/node/node{node_id}"
-                        f"/hugepages/hugepages-{size_kb}kB/free_hugepages"
+                    base = (
+                        f"/sys/devices/system/node/node{node_id}"
+                        f"/hugepages/hugepages-{size_kb}kB"
                     )
+                    cmd_parts.append(f"cat {base}/free_hugepages")
+                    cmd_parts.append(f"cat {base}/nr_hugepages")
             cmd = " && echo '---' && ".join(cmd_parts)
             try:
                 result = exec_remote_cmd(
@@ -1697,28 +1703,30 @@ class hyp(object):
                 if not result["err"]:
                     out = result["out"].decode("utf-8", errors="replace").strip()
                     parts = [p.strip() for p in out.split("---")]
-                    expected = len(node_ids) * len(sizes_kb)
+                    expected = len(node_ids) * len(sizes_kb) * 2
                     if len(parts) == expected:
                         numa_free_kb = {}
                         total_free_kb = 0
+                        total_live_kb = 0
                         idx = 0
                         for node_id in node_ids:
                             node_free = 0
                             for size_kb in sizes_kb:
                                 node_free += int(parts[idx]) * size_kb
-                                idx += 1
+                                total_live_kb += int(parts[idx + 1]) * size_kb
+                                idx += 2
                             numa_free_kb[node_id] = node_free
                             total_free_kb += node_free
-                        return total_free_kb, numa_free_kb
+                        return total_free_kb, numa_free_kb, total_live_kb
             except (SSHTimeoutError, Exception) as e:
                 log.debug(f"[{self.id_hyp_rethink}] per-NUMA sysfs read failed: {e}")
 
         # Fallback: global-only reads (single NUMA cell or per-NUMA failed)
         cmd_parts = []
         for size_kb in sizes_kb:
-            cmd_parts.append(
-                f"cat /sys/kernel/mm/hugepages/hugepages-{size_kb}kB/free_hugepages"
-            )
+            base = f"/sys/kernel/mm/hugepages/hugepages-{size_kb}kB"
+            cmd_parts.append(f"cat {base}/free_hugepages")
+            cmd_parts.append(f"cat {base}/nr_hugepages")
         cmd = " && echo '---' && ".join(cmd_parts)
         try:
             result = exec_remote_cmd(
@@ -1729,20 +1737,22 @@ class hyp(object):
                 timeout=5,
             )
             if result["err"]:
-                return None, {}
+                return None, {}, None
 
             out = result["out"].decode("utf-8", errors="replace").strip()
             parts = [p.strip() for p in out.split("---")]
-            if len(parts) != len(sizes_kb):
-                return None, {}
+            if len(parts) != len(sizes_kb) * 2:
+                return None, {}, None
 
             total_free_kb = 0
-            for free_str, size_kb in zip(parts, sizes_kb):
-                total_free_kb += int(free_str) * size_kb
-            return total_free_kb, {}
+            total_live_kb = 0
+            for i, size_kb in enumerate(sizes_kb):
+                total_free_kb += int(parts[2 * i]) * size_kb
+                total_live_kb += int(parts[2 * i + 1]) * size_kb
+            return total_free_kb, {}, total_live_kb
         except (SSHTimeoutError, Exception) as e:
             log.debug(f"[{self.id_hyp_rethink}] sysfs hugepages read failed: {e}")
-            return None, {}
+            return None, {}, None
 
     def _get_hugepages_stats(self):
         """Return ``(total_kb, free_kb, numa_free_kb)``.
@@ -1761,13 +1771,19 @@ class hyp(object):
 
         # Primary: read from kernel sysfs via SSH (authoritative, handles all
         # page sizes, supports per-NUMA accounting).
-        hugepages_free_kb, numa_free_kb = self._get_hugepages_free_from_sysfs(
-            hugepages_total_1g, hugepages_total_2m
+        hugepages_free_kb, numa_free_kb, live_total_kb = (
+            self._get_hugepages_free_from_sysfs(hugepages_total_1g, hugepages_total_2m)
         )
         if hugepages_free_kb is not None:
+            # Prefer the live total (nr_hugepages from sysfs) over the stored
+            # registration value: a pool drained at runtime must report 0
+            # total, not the stale figure captured at hypervisor registration.
+            total_kb = (
+                live_total_kb if live_total_kb is not None else hugepages_total_kb
+            )
             return (
-                hugepages_total_kb,
-                min(hugepages_free_kb, hugepages_total_kb),
+                total_kb,
+                min(hugepages_free_kb, total_kb),
                 numa_free_kb,
             )
 

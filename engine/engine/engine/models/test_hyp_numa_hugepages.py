@@ -89,15 +89,15 @@ def _ssh_result(out, err=b""):
 def test_per_numa_sysfs_read_returns_dict(mock_ssh):
     """Multi-NUMA host: the per-node SSH read produces a dict keyed by node id."""
     h = _build_hyp(numa_nodes=["0", "1"])
-    # 1G total=0 → only 2M (2048 KB) is queried. 4 cells expected:
-    # 2 nodes × 1 size = 2 reads → output has 2 parts separated by "---".
-    # The helper sees 4 expected if 1G+2M both queried. Here only 2M.
+    # 1G total=0 → only 2M (2048 KB) is queried. Each node/size now reads
+    # free_hugepages AND nr_hugepages, so 2 nodes × 1 size × 2 = 4 parts.
     mock_ssh.return_value = _ssh_result(
-        "32\n---\n16"
-    )  # 32 free 2M on node0, 16 on node1
-    total, per_numa = h._get_hugepages_free_from_sysfs(0, 8)
+        "32\n---\n100\n---\n16\n---\n100"
+    )  # node0: free=32 nr=100 ; node1: free=16 nr=100 (2M pages)
+    total, per_numa, live_total = h._get_hugepages_free_from_sysfs(0, 8)
     assert per_numa == {"0": 32 * 2048, "1": 16 * 2048}
     assert total == 32 * 2048 + 16 * 2048
+    assert live_total == 100 * 2048 + 100 * 2048
 
 
 @patch("engine.models.hyp.exec_remote_cmd")
@@ -105,10 +105,11 @@ def test_single_numa_falls_through_to_global(mock_ssh):
     """Single NUMA cell: the per-node branch is skipped; the global sysfs
     read fires once. Returned per_numa dict is empty."""
     h = _build_hyp(numa_nodes=["0"])  # only one node → skip per-numa
-    mock_ssh.return_value = _ssh_result("64")  # 64 free 2M total
-    total, per_numa = h._get_hugepages_free_from_sysfs(0, 8)
+    mock_ssh.return_value = _ssh_result("64\n---\n128")  # free=64 nr=128 (2M)
+    total, per_numa, live_total = h._get_hugepages_free_from_sysfs(0, 8)
     assert per_numa == {}
     assert total == 64 * 2048
+    assert live_total == 128 * 2048
 
 
 @patch("engine.models.hyp.exec_remote_cmd")
@@ -119,22 +120,23 @@ def test_per_numa_failure_falls_back_to_global(mock_ssh):
     # First call (per-NUMA): err set. Second call (global): success.
     mock_ssh.side_effect = [
         _ssh_result("", err=b"cat: No such file or directory"),
-        _ssh_result("48"),
+        _ssh_result("48\n---\n96"),  # free=48 nr=96 (2M)
     ]
-    total, per_numa = h._get_hugepages_free_from_sysfs(0, 8)
+    total, per_numa, live_total = h._get_hugepages_free_from_sysfs(0, 8)
     assert per_numa == {}
     assert total == 48 * 2048
+    assert live_total == 96 * 2048
     assert mock_ssh.call_count == 2
 
 
 @patch("engine.models.hyp.exec_remote_cmd")
 def test_sysfs_exception_returns_none(mock_ssh):
-    """Any SSH-layer exception surfaces as ``(None, {})`` so the caller
+    """Any SSH-layer exception surfaces as ``(None, {}, None)`` so the caller
     falls back to libvirt ``getFreePages``."""
     h = _build_hyp(numa_nodes=["0", "1"])
     mock_ssh.side_effect = Exception("ssh dead")
-    total, per_numa = h._get_hugepages_free_from_sysfs(0, 8)
-    assert (total, per_numa) == (None, {})
+    total, per_numa, live_total = h._get_hugepages_free_from_sysfs(0, 8)
+    assert (total, per_numa, live_total) == (None, {}, None)
 
 
 # ── _get_hugepages_stats (the 3-tuple return contract) ─────────────────────
@@ -155,13 +157,35 @@ def test_hugepages_stats_primary_sysfs_wins(mock_ssh):
     """When sysfs read succeeds, the libvirt fallback is not used (no
     ``conn.getFreePages`` is even attempted)."""
     h = _build_hyp(numa_nodes=["0", "1"])
-    mock_ssh.return_value = _ssh_result("4\n---\n2")  # per-NUMA
+    # per-NUMA free+nr: node0 free=4 nr=8, node1 free=2 nr=8 (2M pages).
+    mock_ssh.return_value = _ssh_result("4\n---\n8\n---\n2\n---\n8")
     h.conn = MagicMock()
     total, free, per_numa = h._get_hugepages_stats()
-    assert total == 8 * 2048  # 2M * 8 from hugepages_info
+    # Defect A: total now comes from the LIVE nr_hugepages sum (8+8 pages),
+    # not the stale stored hugepages_info value.
+    assert total == 16 * 2048
     assert free == 6 * 2048  # 4 + 2 pages from sysfs
     assert per_numa == {"0": 4 * 2048, "1": 2 * 2048}
     h.conn.getInfo.assert_not_called()
+    h.conn.getFreePages.assert_not_called()
+
+
+@patch("engine.models.hyp.exec_remote_cmd")
+def test_hugepages_stats_drained_pool_reports_zero_total(mock_ssh):
+    """Defect A: when the live pool is drained (nr_hugepages=0) but the stored
+    hugepages_info still carries the registration-time total, the stat must
+    report total=0 (live), not the stale stored figure."""
+    # Stored: 1G pool of 900 pages captured at hypervisor registration.
+    h = _build_hyp(
+        numa_nodes=["0"],  # single node → global read path
+        hugepages_info={"1G": {"total": 900}, "2M": {"total": 0}, "mounted": True},
+    )
+    # Live sysfs: pool fully drained — free=0 nr=0 for the 1G size.
+    mock_ssh.return_value = _ssh_result("0\n---\n0")
+    h.conn = MagicMock()
+    total, free, per_numa = h._get_hugepages_stats()
+    assert total == 0  # was 900 * 1048576 (stale) before the fix
+    assert free == 0
     h.conn.getFreePages.assert_not_called()
 
 

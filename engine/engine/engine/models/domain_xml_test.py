@@ -266,6 +266,94 @@ def test_remove_memory_backing_keeps_virtiofs():
     assert mb[0].find("access") is not None
 
 
+def test_remove_memory_backing_round_trip():
+    """add_memory_backing then remove_memory_backing -> no <memoryBacking> (the
+    native 4K shape), guest RAM untouched. This is the start-path OOM fallback."""
+    xml = (
+        '<domain type="kvm">'
+        "<memory>16777216</memory>"
+        "<currentMemory>16777216</currentMemory>"
+        "<devices/>"
+        "</domain>"
+    )
+    backed = add_memory_backing(xml, "1", "G")
+    assert _parse(backed).xpath("/domain/memoryBacking/hugepages")  # sanity
+    stripped = remove_memory_backing(backed)
+    tree = _parse(stripped)
+    assert tree.xpath("/domain/memoryBacking") == []  # whole element dropped
+    assert tree.xpath("/domain/memory/text()")[0] == "16777216"  # RAM intact
+
+
+def test_remove_memory_backing_keeps_virtiofs():
+    """remove_memory_backing drops only hugepages/allocation/locked; a virtiofs
+    <source>/<access> memoryBacking must survive (just without hugepages)."""
+    xml = (
+        '<domain type="kvm">'
+        "<memory>8388608</memory>"
+        "<currentMemory>8388608</currentMemory>"
+        "<memoryBacking>"
+        '  <source type="memfd"/>'
+        '  <access mode="shared"/>'
+        "</memoryBacking>"
+        "<devices/>"
+        "</domain>"
+    )
+    backed = add_memory_backing(xml, "1", "G")  # adds hugepages alongside virtiofs
+    stripped = remove_memory_backing(backed)
+    tree = _parse(stripped)
+    mb = tree.xpath("/domain/memoryBacking")
+    assert len(mb) == 1  # kept (still has virtiofs children)
+    assert mb[0].find("hugepages") is None  # but hugepages stripped
+    assert mb[0].find("source").get("type") == "memfd"
+    assert mb[0].find("access").get("mode") == "shared"
+
+
+def test_set_memory_inserts_missing_currentmemory():
+    """Regression: when <currentMemory> is absent, set_memory built the element
+    with etree.parse() (an _ElementTree) and passed it to .addnext(), raising
+    'expected _Element, got _ElementTree' and Failing the desktop on start. The
+    .getroot() fix must insert <currentMemory> without raising."""
+    xml = (
+        '<domain type="kvm">'
+        "<name>vm</name>"
+        "<memory unit='KiB'>1048576</memory>"
+        "<devices/>"
+        "</domain>"
+    )
+    x = DomainXML(xml)
+    x.set_memory(memory=1048576, unit="KiB", current=524288)
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/currentMemory/text()")[0] == "524288"
+
+
+def test_set_memory_inserts_missing_memory_and_currentmemory():
+    """Both <memory> and <currentMemory> absent: both are inserted after <name>
+    without raising the lxml _ElementTree TypeError."""
+    xml = '<domain type="kvm"><name>vm</name><devices/></domain>'
+    x = DomainXML(xml)
+    x.set_memory(memory=2097152, unit="KiB", current=1048576)
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/memory/text()")[0] == "2097152"
+    assert tree.xpath("/domain/currentMemory/text()")[0] == "1048576"
+
+
+def test_set_memory_maxmemory_inserts_before_memory():
+    """maxMemory hotplug path: when <maxMemory> is absent the element must be
+    inserted (it previously indexed the missing node -> IndexError) and ordered
+    before <memory> per the libvirt schema."""
+    xml = '<domain type="kvm"><name>vm</name><devices/></domain>'
+    x = DomainXML(xml)
+    x.set_memory(memory=1048576, unit="KiB", current=1048576, max=2097152)
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/maxMemory/text()")[0] == "2097152"
+    order = [
+        el.tag
+        for el in tree.xpath("/domain/*")
+        if el.tag in ("maxMemory", "memory", "currentMemory")
+    ]
+    assert order == ["maxMemory", "memory", "currentMemory"]
+
+
 def test_recreate_xml_if_gpu_preserves_channel():
     """GPU passthrough injection must not corrupt guest agent channel."""
     xml = (
