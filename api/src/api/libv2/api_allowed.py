@@ -243,20 +243,25 @@ class ApiAllowed:
             )
         ):
             return True
-        if item["allowed"]["roles"] is not False:
-            if len(item["allowed"]["roles"]) == 0:
+        allowed = item.get("allowed") or {}
+        allowed_roles = allowed.get("roles", False)
+        allowed_categories = allowed.get("categories", False)
+        allowed_groups = allowed.get("groups", False)
+        allowed_users = allowed.get("users", False)
+        if allowed_roles is not False:
+            if len(allowed_roles) == 0:
                 return True
             else:
-                if payload["role_id"] in item["allowed"]["roles"]:
+                if payload["role_id"] in allowed_roles:
                     return True
-        if item["allowed"]["categories"] is not False:
-            if len(item["allowed"]["categories"]) == 0:
+        if allowed_categories is not False:
+            if len(allowed_categories) == 0:
                 return True
             else:
-                if payload["category_id"] in item["allowed"]["categories"]:
+                if payload["category_id"] in allowed_categories:
                     return True
-        if item["allowed"]["groups"] is not False:
-            if len(item["allowed"]["groups"]) == 0:
+        if allowed_groups is not False:
+            if len(allowed_groups) == 0:
                 if table in ["domains", "media"]:
                     if item.get("category") == payload["category_id"]:
                         return True
@@ -264,11 +269,11 @@ class ApiAllowed:
                     return True
             else:
                 if check_secondary_groups(
-                    payload["user_id"], payload["group_id"], item["allowed"]["groups"]
+                    payload["user_id"], payload["group_id"], allowed_groups
                 ):
                     return True
-        if item["allowed"]["users"] is not False:
-            if len(item["allowed"]["users"]) == 0:
+        if allowed_users is not False:
+            if len(allowed_users) == 0:
                 if table in ["domains", "media"]:
                     if item.get("category") == payload["category_id"]:
                         return True
@@ -276,7 +281,7 @@ class ApiAllowed:
                     return True
                 return False
             else:
-                if payload["user_id"] in item["allowed"]["users"]:
+                if payload["user_id"] in allowed_users:
                     return True
         return False
 
