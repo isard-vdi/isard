@@ -631,7 +631,7 @@ const onForgotPassword = () => {
     return
   }
 
-  window.location.href = '/forgot-password?categoryId=' + selectedCategory.value
+  router.push({ name: 'forgot-password', query: { categoryId: selectedCategory.value } })
 }
 
 /*

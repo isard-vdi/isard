@@ -22,6 +22,9 @@
     "verify-email": {
       "title": "Verify Email"
     },
+    "forgot-password": {
+      "title": "Forgot Password"
+    },
     "profile": {
       "title": "Profile",
       "subtitle": "Manage your user profile and settings"
@@ -882,6 +885,21 @@
       },
       "hardware-summary": "Hardware summary",
       "access-summary": "Access summary"
+    },
+    "forgot-password": {
+      "title": "Reset your password",
+      "invalid-email": "Enter a valid email address",
+      "title-sent": "Email sent",
+      "description": "Enter your email address and we'll send you a reset link.",
+      "email-label": "Email",
+      "email-placeholder": "name{'@'}example.com",
+      "error-generic": "An error occurred. Please try again.",
+      "email-sent": "If your email address exists in our database, you will receive a password recovery link at your email address in a few minutes.",
+      "redirecting": "Redirecting to login in {seconds} seconds.",
+      "go-login": "Back to login",
+      "buttons": {
+        "reset": "Send reset link"
+      }
     }
   },
   "layouts": {
