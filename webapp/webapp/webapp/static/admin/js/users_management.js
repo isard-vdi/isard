@@ -889,8 +889,11 @@ function socketio_on(){
                 }
             },
             {
-                "data": "vpn.wireguard.connected", "width": "10px", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
-                    if ('vpn' in full && full['vpn']['wireguard']['connected']) {
+                // vpn may be null for users whose VPN has never been initialised;
+                // use "data: null" so DataTables never traverses the nested path,
+                // and guard all accesses in the render function.
+                "data": null, "width": "10px", "render": function (data, type, full, meta) {
+                    if (full['vpn'] && full['vpn']['wireguard'] && full['vpn']['wireguard']['connected']) {
                         return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="' + full["vpn"]["wireguard"]["remote_ip"] + ':' + full["vpn"]["wireguard"]["remote_port"] + '"></i>'
                     } else {
                         return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
@@ -1796,7 +1799,7 @@ function showUserExportButtons(table, buttonsRowClass) {
                             rowData.role_name,
                             rowData.group_name,
                             rowData.secondary_groups_names.join(' | '),
-                            rowData.vpn.wireguard.connected,
+                            rowData.vpn && rowData.vpn.wireguard ? rowData.vpn.wireguard.connected : false,
                             rowData.accessed ? formatTimestampUTC(rowData.accessed * 1000) : '',
                             rowData.id
                         ];
