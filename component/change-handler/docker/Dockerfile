@@ -1,5 +1,5 @@
 FROM python:3.13-alpine AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
 # Place the venv outside /app — devel mode bind-mounts
 # ./component/change-handler/src onto /app and would otherwise
 # shadow /app/.venv (no python/rq in the bind-mounted source). The

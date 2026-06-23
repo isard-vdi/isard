@@ -1,5 +1,5 @@
 FROM fedora:42 AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
 # UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
 # venv's hard-coded shebangs (#!/.venv/bin/python) keep resolving
 # after COPY --from=builder /.venv /.venv.

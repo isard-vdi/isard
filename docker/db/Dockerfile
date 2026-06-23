@@ -1,5 +1,5 @@
 FROM rethinkdb:2.4.4-bookworm-slim
-COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=auto \

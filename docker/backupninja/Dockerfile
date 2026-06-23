@@ -6,7 +6,7 @@ RUN git clone https://gitlab.com/isard/backupninja.git && \
     make && make install
 
 FROM python:3.13-alpine AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 RUN apk add --no-cache build-base libffi-dev libjpeg-turbo-dev musl-dev openssl-dev zlib-dev
