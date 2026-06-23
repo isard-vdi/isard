@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
         @asyncapi/parser@3.6.0 \
         @asyncapi/modelina@5.10.1
 
-FROM ghcr.io/astral-sh/uv:python3.13-alpine AS py-build
+FROM ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine AS py-build
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
@@ -57,10 +57,10 @@ COPY --from=go-build /usr/local/go /usr/local/go
 COPY --from=go-build /go/bin/ /usr/local/bin/
 COPY --from=node-build /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=node-build /deps/ /deps/
-COPY --from=ghcr.io/astral-sh/uv:python3.13-alpine /usr/local/bin/python3.13 /usr/local/bin/python3.13
-COPY --from=ghcr.io/astral-sh/uv:python3.13-alpine /usr/local/lib/python3.13 /usr/local/lib/python3.13
-COPY --from=ghcr.io/astral-sh/uv:python3.13-alpine /usr/local/lib/libpython3.13.so.1.0 /usr/local/lib/libpython3.13.so.1.0
-COPY --from=ghcr.io/astral-sh/uv:python3.13-alpine /usr/local/bin/uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine /usr/local/bin/python3.13 /usr/local/bin/python3.13
+COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine /usr/local/lib/python3.13 /usr/local/lib/python3.13
+COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine /usr/local/lib/libpython3.13.so.1.0 /usr/local/lib/libpython3.13.so.1.0
+COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine /usr/local/bin/uv /usr/local/bin/uv
 COPY --from=py-build /venv /venv
 
 RUN ln -s bun /usr/local/bin/node && \

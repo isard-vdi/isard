@@ -144,7 +144,7 @@ test-e2e-seed:
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-e UV_CACHE_DIR=/tmp/uv-cache \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
-	ghcr.io/astral-sh/uv:0.11.7-python3.13-alpine \
+	ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine \
 	sh -c 'apk add --no-cache git && uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py'
 
 .PHONY: test-e2e

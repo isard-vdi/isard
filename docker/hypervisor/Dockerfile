@@ -9,7 +9,7 @@ RUN CARGO_INCREMENTAL=0 cargo build --release
 RUN make install || true
 
 FROM python:3.13-alpine AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
 # UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
 # venv's hard-coded shebangs keep resolving after the cross-stage COPY.
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/.venv
