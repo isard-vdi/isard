@@ -1583,7 +1583,6 @@
     "file-spice": "SPICE"
   },
   "users": {
-    "TODO": "gako hau berrizendatu",
     "count": {
       "users": "{n} erabiltzaile | {n} erabiltzaile | {n} erabiltzaile",
       "groups": "{n} talde | {n} talde | {n} talde",

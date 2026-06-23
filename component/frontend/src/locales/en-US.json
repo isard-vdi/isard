@@ -55,15 +55,11 @@
       },
       "edit": {
         "title": "Edit Template",
-        "subtitle": "Update the template settings"
+        "subtitle": "Edit the template's properties, visibility and hardware configuration"
       },
       "duplicate": {
         "title": "Duplicate Template",
         "subtitle": "Create a new template by duplicating an existing one"
-      },
-      "edit": {
-        "title": "Edit Template",
-        "subtitle": "Edit the template's properties, visibility and hardware configuration"
       }
     },
     "media": {
@@ -264,41 +260,6 @@
       },
       "errors": {
         "title": "Error saving the template"
-      }
-    },
-    "new-from-media": {
-      "title": "New desktop from media",
-      "subtitle": "Creating from '{media}'",
-      "header": {
-        "cancel": "Cancel",
-        "create": "Create desktop"
-      },
-      "errors": {
-        "title": "Error creating the desktop"
-      },
-      "info": {
-        "title": "Name and description",
-        "description": "Set the name and description of the new desktop."
-      },
-      "os-template": {
-        "title": "Operating system template",
-        "description": "Pick the OS hardware template for the new desktop.",
-        "label": "OS template",
-        "placeholder": "Select a template"
-      },
-      "access": {
-        "title": "Access",
-        "description": "Viewers and credentials for the new desktop."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memory, disk size, boot order and interfaces."
-      },
-      "unsaved-changes": {
-        "title": "Unsaved changes",
-        "description": "You have unsaved changes. If you leave they will be lost.",
-        "stay": "Stay",
-        "leave": "Discard changes"
       }
     },
     "migration": {
@@ -871,14 +832,14 @@
       }
     },
     "direct-viewer": {
-      "title": "Visor directo",
+      "title": "Direct viewer",
       "connecting-to": "Access the desktop",
       "loading": {
         "title": "Loading desktop",
         "description": "The desktop is being prepared, this might take a few moments"
       },
-      "error-title": "No se ha podido conectar",
-      "error-description": "El enlace del visor directo no es válido o ha caducado.",
+      "error-title": "Could not connect",
+      "error-description": "The direct viewer link is not valid or has expired.",
       "errors": {
         "not-booked": {
           "title": "Desktop not booked",
@@ -886,10 +847,10 @@
         }
       },
       "reset-modal": {
-        "title": "¿Forzar reinicio del escritorio?",
-        "description": "Forzar un reinicio del escritorio es una acción peligrosa. Es el equivalente a quitarle la corriente mientras está en marcha. Si puedes, páralo desde dentro de un visor.",
-        "confirm": "Forzar reinicio del escritorio",
-        "cancel": "Cancelar"
+        "title": "Force reset the desktop?",
+        "description": "Forcing a desktop reset is a dangerous action. It is the equivalent of cutting its power while it is running. If you can, stop it from within a viewer instead.",
+        "confirm": "Force reset the desktop",
+        "cancel": "Cancel"
       },
       "hardware-summary": "Hardware summary",
       "access-summary": "Access summary"
@@ -1247,7 +1208,7 @@
           "unit": "Personal unit size (MB)",
           "deployments_total": "Deployments",
           "deployment_desktops": "Max desktops per deployment",
-          "deployment_users": "Màxim d'usuaris per desplegament",
+          "deployment_users": "Max users per deployment",
           "started_deployment_desktops": "Running deployment desktops"
         }
       }
@@ -1681,7 +1642,7 @@
       }
     },
     "desktop-networks-modal": {
-      "title": "Networks — {name}",
+      "title": "Networks from the desktop {name}",
       "description": "Network interfaces attached to this desktop. The Wireguard interface is shown first when present and exposes the routable guest IP.",
       "empty": "No networks attached to this desktop",
       "error": "Could not load network information",
@@ -1844,7 +1805,14 @@
           "next-booking": "Next booking: {date} at {time}",
           "no-next-booking": "No next booking scheduled",
           "shutdown": "Desktop will shut down on {date} at {time}",
-          "queue-position": "Position in queue: {position}"
+          "queue-position": "Position in queue: {position}",
+          "maintenance": {
+            "default": "A maintenance operation is in progress",
+            "resize": "This desktop's disk is being increased",
+            "virt_win_reg": "The registry is being edited",
+            "move": "This desktop's disk is being moved",
+            "sparsify": "This desktop's disk is being sparsified"
+          }
         },
         "ip-address": "IP Address: {ip}",
         "actions": {
@@ -2636,7 +2604,6 @@
     }
   },
   "users": {
-    "TODO": "rename this key",
     "count": {
       "users": "{n} users | {n} user | {n} users",
       "groups": "{n} groups | {n} group | {n} groups",
