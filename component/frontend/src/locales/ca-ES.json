@@ -907,6 +907,44 @@
         "go_back": "Tornar",
         "go_to_login": "Ves a l'inici de sessió"
       }
+    },
+    "reset-password": {
+      "policy": {
+        "length": "Com a mínim {num} caràcter(s)",
+        "uppercase": "Com a mínim {num} lletra(es) majúscula(es)",
+        "lowercase": "Com a mínim {num} lletra(es) minúscula(es)",
+        "digits": "Com a mínim {num} número(s)",
+        "special_characters": "Com a mínim {num} caràcter(s) especial(s)",
+        "not_username": "No pot contenir el teu nom d'usuari",
+        "old_passwords": "No pot ser cap de les últimes {num} contrasenyes",
+        "expiration": "Caduca cada {num} dia(es)",
+        "info-heading": "A més:",
+        "aria-label": "Requisits de la contrasenya",
+        "state": {
+          "met": "complert",
+          "unmet": "no complert"
+        }
+      },
+      "expired": {
+        "title": "Enllaç caducat",
+        "description": "Aquest enllaç per restablir la contrasenya ha caducat. Els enllaços de restabliment només són vàlids durant un temps limitat.",
+        "action": "Torna a l'inici de sessió per sol·licitar-ne un de nou."
+      },
+      "invalid": {
+        "title": "Enllaç no vàlid",
+        "description": "Aquest enllaç per restablir la contrasenya ja no és vàlid. És possible que ja s'hagi utilitzat per canviar la contrasenya.",
+        "action": "Torna a l'inici de sessió per sol·licitar-ne un de nou."
+      },
+      "submit-error": {
+        "policy-heading": "La nova contrasenya no compleix els requisits:",
+        "generic": "S'ha produït un error. Torna-ho a provar d'aquí a uns segons."
+      },
+      "title": "Canvia la contrasenya",
+      "submit": "Actualitza la contrasenya",
+      "success": {
+        "message": "Contrasenya canviada amb èxit.",
+        "redirecting": "Redirigint a l'inici de sessió en {seconds} segon(s)."
+      }
     }
   },
   "layouts": {
@@ -1070,7 +1108,7 @@
         },
         "confirm-new-password": {
           "label": "Confirma la contrasenya",
-          "placeholder": "Contrasenya nova"
+          "placeholder": "Confirmar contrasenya"
         },
         "buttons": {
           "update": "Actualitza",
