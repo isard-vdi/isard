@@ -40,7 +40,7 @@ from datetime import datetime, timedelta
 from inspect import getmembers, isfunction
 
 from apscheduler.jobstores.rethinkdb import RethinkDBJobStore
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.gevent import GeventScheduler
 
 from .actions import Actions
 from .exceptions import Error
@@ -53,7 +53,14 @@ class Scheduler:
         """
         self.rStore = RethinkDBJobStore()
 
-        self.scheduler = BackgroundScheduler(timezone=pytz.timezone("UTC"))
+        self.scheduler = GeventScheduler(
+            timezone=pytz.timezone("UTC"),
+            job_defaults={
+                "misfire_grace_time": 3600,
+                "coalesce": True,
+                "max_instances": 1,
+            },
+        )
         log.info("Attaching to rethinkdb job store")
         self.scheduler.add_jobstore(
             "rethinkdb",
