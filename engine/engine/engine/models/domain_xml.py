@@ -569,7 +569,7 @@ class DomainXML(object):
         else:
             element = etree.parse(
                 StringIO("<memory unit='{}'>{}</memory>".format(unit, memory))
-            )
+            ).getroot()
             self.tree.xpath("/domain/name")[0].addnext(element)
 
         if current <= 0:
@@ -587,7 +587,7 @@ class DomainXML(object):
                         unit, current_size
                     )
                 )
-            )
+            ).getroot()
             self.tree.xpath("/domain/memory")[0].addnext(element)
 
         if max > 0:
@@ -597,8 +597,11 @@ class DomainXML(object):
             else:
                 element = etree.parse(
                     StringIO("<maxMemory unit='{}'>{}</maxMemory>".format(unit, max))
-                )
-                self.tree.xpath("/domain/maxMemory")[0].addnext(element)
+                ).getroot()
+                # maxMemory precedes memory in the libvirt schema; anchor on
+                # /domain/memory (always present here — created above) rather
+                # than the absent /domain/maxMemory (which would IndexError).
+                self.tree.xpath("/domain/memory")[0].addprevious(element)
 
         else:
             if self.tree.xpath("/domain/maxMemory"):

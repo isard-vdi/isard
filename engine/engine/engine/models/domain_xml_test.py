@@ -1231,3 +1231,49 @@ def test_set_vdisk_creates_missing_source():
     assert sources[0].get("file") == "/isard/groups/new.qcow2"
     assert path == "/isard/groups/new.qcow2"
     assert tree.xpath('//disk[@device="disk"]/driver')[0].get("type") == "qcow2"
+
+
+def test_set_memory_inserts_missing_currentmemory():
+    """Regression: when <currentMemory> is absent, set_memory built the element
+    with etree.parse() (an _ElementTree) and passed it to .addnext(), raising
+    'expected _Element, got _ElementTree' and Failing the desktop on start. The
+    .getroot() fix must insert <currentMemory> without raising."""
+    xml = (
+        '<domain type="kvm">'
+        "<name>vm</name>"
+        "<memory unit='KiB'>1048576</memory>"
+        "<devices/>"
+        "</domain>"
+    )
+    x = DomainXML(xml)
+    x.set_memory(memory=1048576, unit="KiB", current=524288)
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/currentMemory/text()")[0] == "524288"
+
+
+def test_set_memory_inserts_missing_memory_and_currentmemory():
+    """Both <memory> and <currentMemory> absent: both are inserted after <name>
+    without raising the lxml _ElementTree TypeError."""
+    xml = '<domain type="kvm"><name>vm</name><devices/></domain>'
+    x = DomainXML(xml)
+    x.set_memory(memory=2097152, unit="KiB", current=1048576)
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/memory/text()")[0] == "2097152"
+    assert tree.xpath("/domain/currentMemory/text()")[0] == "1048576"
+
+
+def test_set_memory_maxmemory_inserts_before_memory():
+    """maxMemory hotplug path: when <maxMemory> is absent the element must be
+    inserted (it previously indexed the missing node -> IndexError) and ordered
+    before <memory> per the libvirt schema."""
+    xml = '<domain type="kvm"><name>vm</name><devices/></domain>'
+    x = DomainXML(xml)
+    x.set_memory(memory=1048576, unit="KiB", current=1048576, max=2097152)
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/maxMemory/text()")[0] == "2097152"
+    order = [
+        el.tag
+        for el in tree.xpath("/domain/*")
+        if el.tag in ("maxMemory", "memory", "currentMemory")
+    ]
+    assert order == ["maxMemory", "memory", "currentMemory"]
