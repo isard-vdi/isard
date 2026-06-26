@@ -8,14 +8,9 @@ services:
       - >-
         apk add --no-cache \
           ca-certificates \
-          openssl \
           curl &&
         go install github.com/githubnemo/CompileDaemon@latest &&
         go install github.com/go-delve/delve/cmd/dlv@latest &&
-
-        set +a &&
-        cat /authentication/authentication/build/package/run.sh | head -n-1 | ash &&
-        set -a &&
 
         CompileDaemon \
           -log-prefix=false \
