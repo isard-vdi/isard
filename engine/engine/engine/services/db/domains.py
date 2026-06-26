@@ -958,7 +958,7 @@ def update_vgpu_uuid_domain_action(
                             lambda d: {
                                 "vgpu_info": r.branch(
                                     d["vgpu_info"].default([]).type_of().eq("ARRAY"),
-                                    d["vgpu_info"],
+                                    d["vgpu_info"].default([]),
                                     [],
                                 )
                                 .filter(lambda e: e["uuid"].ne(mdev_uuid))
@@ -1002,7 +1002,7 @@ def update_vgpu_uuid_domain_action(
                             lambda d: {
                                 "vgpu_info": r.branch(
                                     d["vgpu_info"].default([]).type_of().eq("ARRAY"),
-                                    d["vgpu_info"],
+                                    d["vgpu_info"].default([]),
                                     [],
                                 ).map(
                                     lambda e: r.branch(
@@ -1043,7 +1043,7 @@ def update_vgpu_uuid_domain_action(
                             lambda d: {
                                 "vgpu_info": r.branch(
                                     d["vgpu_info"].default([]).type_of().eq("ARRAY"),
-                                    d["vgpu_info"],
+                                    d["vgpu_info"].default([]),
                                     [],
                                 ).filter(lambda e: e["uuid"].ne(mdev_uuid))
                             }
@@ -1169,7 +1169,7 @@ def update_vgpu_info_if_stopped(dom_id):
                     lambda d: {
                         "vgpu_info": r.branch(
                             d["vgpu_info"].default([]).type_of().eq("ARRAY"),
-                            d["vgpu_info"],
+                            d["vgpu_info"].default([]),
                             [],
                         ).filter(lambda e: e["uuid"].ne(bad_uuid))
                     }
