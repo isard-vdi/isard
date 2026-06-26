@@ -2,7 +2,7 @@ services:
   # Credentials: https://github.com/rroemhild/docker-test-openldap#ldap-structure
   isard-authentication-test-ldap:
     container_name: isard-authentication-test-ldap
-    image: rroemhild/test-openldap
+    image: rroemhild/test-openldap@sha256:ee9b80948b97a66f1577b847777a27bb9ec79a84d952907ec5d3d1444fc397cc
     ulimits:
       nofile: 1024
     networks:
@@ -11,7 +11,7 @@ services:
   # Credentials: https://github.com/kristophjunge/docker-test-saml-idp#usage
   isard-authentication-test-saml:
     container_name: isard-authentication-test-saml
-    image: kristophjunge/test-saml-idp
+    image: kristophjunge/test-saml-idp@sha256:02a6e56c01f94b9ba3f2151f33acedf4606ac9b7eeb62a874c5a6b032c0fa9cc
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.86

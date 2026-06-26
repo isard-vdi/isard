@@ -32,7 +32,7 @@ services:
 
   isard-victoriametrics:
     container_name: isard-victoriametrics
-    image: victoriametrics/victoria-metrics:v1.147.0
+    image: victoriametrics/victoria-metrics:v1.147.0@sha256:40ea45a6d14b6ad9f2f1fff597309d456ff9885d77d8d1da5fd559b251db9987
     user: root
     volumes:
       - /opt/isard/stats/victoriametrics:/victoria-metrics-data
@@ -55,7 +55,7 @@ services:
 
   isard-loki:
     container_name: isard-loki
-    image: grafana/loki:3.7.3
+    image: grafana/loki:3.7.3@sha256:70b9f699fc9bb868b62f1cfd4f787dfa50242f1fd92e6089787d5d7daea75fe8
     user: root
     volumes:
       - /opt/isard/stats/loki:/data
