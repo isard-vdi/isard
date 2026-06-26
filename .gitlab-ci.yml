@@ -586,7 +586,7 @@ docker-image:
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - git submodule update --init --recursive --remote
+    - git submodule update --init --recursive
     - |
       if $[[ inputs.use-image-build-cache ]]
       then
@@ -753,8 +753,10 @@ integration-real:
   image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   before_script:
     - apk add bash git docker-compose python3 curl
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.local/bin:$PATH"
+    - curl -fsSL -o /tmp/uv.tar.gz https://github.com/astral-sh/uv/releases/download/0.11.23/uv-x86_64-unknown-linux-musl.tar.gz
+    - echo "6be47081100ff1ce0ac7e85ba2ac12e32f2ffa6f946d78bf7f24ee9ce3a46181  /tmp/uv.tar.gz" | sha256sum -c -
+    - tar -xzf /tmp/uv.tar.gz -C /tmp
+    - mv /tmp/uv-x86_64-unknown-linux-musl/uv /usr/local/bin/uv
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - cp isardvdi.cfg.example isardvdi.e2e.cfg
