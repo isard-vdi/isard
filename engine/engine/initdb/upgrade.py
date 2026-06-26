@@ -7305,32 +7305,60 @@ password:s:%s"""
 
         if version == 121:
             try:
-                r.table(table).delete().run(self.conn)
-                r.table(table).insert(
-                    {
-                        "allowed": {
-                            "categories": False,
-                            "groups": False,
-                            "roles": [],
-                            "users": False,
-                        },
-                        "categories": [],
-                        "description": "Default storage pool",
-                        "enabled": True,
-                        "id": "00000000-0000-0000-0000-000000000000",
-                        "mountpoint": "/isard",
-                        "name": "Default",
-                        "paths": {
-                            "desktop": [{"path": "groups", "weight": 100}],
-                            "media": [{"path": "media", "weight": 100}],
-                            "template": [{"path": "templates", "weight": 100}],
-                            "volatile": [{"path": "volatile", "weight": 100}],
-                        },
-                        "read": True,
-                        "startable": True,
-                        "write": True,
-                    }
-                ).run(self.conn)
+                # By this point the v64 migration ("move hypervisor_pools paths to
+                # storage_pool") has already (re)created the default pool with
+                # absolute /isard/* paths and a lowercased name. Normalise it:
+                #  - fresh install: populate.py seeded mountpoint
+                #    /isard/storage_pools/default (preserved through v64's
+                #    conflict="update") -> restore RELATIVE paths so disks land
+                #    under that named mountpoint instead of /isard/groups;
+                #  - existing install (default still at /isard) -> leave the legacy
+                #    layout untouched;
+                #  - no default at all -> (re)create the legacy /isard default.
+                default_pool = (
+                    r.table(table)
+                    .get("00000000-0000-0000-0000-000000000000")
+                    .run(self.conn)
+                )
+                if not default_pool:
+                    r.table(table).delete().run(self.conn)
+                    r.table(table).insert(
+                        {
+                            "allowed": {
+                                "categories": False,
+                                "groups": False,
+                                "roles": [],
+                                "users": False,
+                            },
+                            "categories": [],
+                            "description": "Default storage pool",
+                            "enabled": True,
+                            "id": "00000000-0000-0000-0000-000000000000",
+                            "mountpoint": "/isard",
+                            "name": "Default",
+                            "paths": {
+                                "desktop": [{"path": "groups", "weight": 100}],
+                                "media": [{"path": "media", "weight": 100}],
+                                "template": [{"path": "templates", "weight": 100}],
+                                "volatile": [{"path": "volatile", "weight": 100}],
+                            },
+                            "read": True,
+                            "startable": True,
+                            "write": True,
+                        }
+                    ).run(self.conn)
+                elif default_pool.get("mountpoint") == "/isard/storage_pools/default":
+                    r.table(table).get("00000000-0000-0000-0000-000000000000").update(
+                        {
+                            "name": "Default",
+                            "paths": {
+                                "desktop": [{"path": "desktops", "weight": 100}],
+                                "template": [{"path": "templates", "weight": 100}],
+                                "media": [{"path": "media", "weight": 100}],
+                                "volatile": [{"path": "volatile", "weight": 100}],
+                            },
+                        }
+                    ).run(self.conn)
             except Exception as e:
                 print(e)
             try:
