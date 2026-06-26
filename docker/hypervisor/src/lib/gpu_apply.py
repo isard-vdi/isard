@@ -162,14 +162,18 @@ def _resolve_type_id(pci_bdf, suffix, sub_paths=None):
     return None
 
 
-def new_vfio_pool_entry(vf_bdf, type_id):
+def new_vfio_pool_entry(vf_bdf, type_id, mig=False, mig_profile_id=None):
     """Build one ``vgpus.mdevs[profile][entry_id]`` entry for the vendor-specific
     VFIO framework, keyed by the VF's PCI BDF (no mdev UUID -- the VF *is* the
     vGPU). Returned as ``(vf_bdf, entry)`` to mirror :func:`new_mdev_pool_entry`.
     The ``framework`` + ``vf_bdf`` fields let the engine emit a vfio-pci VF
     hostdev (not an mdev hostdev) and the reconcile distinguish this entry kind.
-    ``pci_mdev_id`` is kept = the VF BDF for downstream readers that expect it."""
-    return vf_bdf, {
+    ``pci_mdev_id`` is kept = the VF BDF for downstream readers that expect it.
+
+    ``mig``/``mig_profile_id`` tag a MIG-backed vGPU VF (the GIs are carved before
+    the per-VF ``current_vgpu_type`` write), mirroring :func:`new_mdev_pool_entry`
+    so bookings/reconcile track a vfio MIG entry exactly as the legacy mdev one."""
+    entry = {
         "framework": FRAMEWORK_VFIO_VARIANT,
         "vf_bdf": vf_bdf,
         "pci_mdev_id": vf_bdf,
@@ -178,6 +182,10 @@ def new_vfio_pool_entry(vf_bdf, type_id):
         "domain_started": False,
         "domain_reserved": False,
     }
+    if mig:
+        entry["mig"] = True
+        entry["mig_profile_id"] = mig_profile_id
+    return vf_bdf, entry
 
 
 def _live_profiles_vfio(vf_bdf):
@@ -582,7 +590,9 @@ def _apply(gpu, current, wanted, run):
         carve_vfs = sub_paths[:vf_cap] if vf_cap else sub_paths
         for vf_path in carve_vfs:
             vf_bdf = os.path.basename(vf_path)
-            entry_id, entry = new_vfio_pool_entry(vf_bdf, type_id)
+            # **mig_meta tags MIG-backed vGPU entries (mig=True, mig_profile_id);
+            # empty for a plain vGPU -- same contract as the legacy mdev carve.
+            entry_id, entry = new_vfio_pool_entry(vf_bdf, type_id, **mig_meta)
             planned.append((entry_id, entry, _cmds.build_vgpu_set_cmd(vf_bdf, type_id)))
     elif sub_paths:
         # A MIG-backed vGPU carves exactly `vf_cap` mdevs (one per GI); a plain

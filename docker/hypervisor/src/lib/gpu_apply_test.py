@@ -491,6 +491,63 @@ def test_apply_vgpu_vfio_variant_writes_current_vgpu_type_per_vf(monkeypatch):
     )  # all clears precede the first set
 
 
+def test_apply_vgpu_vfio_variant_mig_backed_tags_pool_entries(monkeypatch):
+    # MIG-backed vGPU on the vendor-specific VFIO framework (parity with 22.04
+    # MIG): the framework-agnostic GI carve (enable MIG + sriov-manage -e +
+    # -cgi <gfx> -C) runs first, then the per-VF carve writes current_vgpu_type
+    # (NOT mdev create) on `mig_count` VFs, and EACH pool entry must carry
+    # mig=True + mig_profile_id so bookings/reconcile track it as MIG-backed.
+    h = _Host(
+        driver="nvidia",
+        mig="Disabled",
+        live=None,
+        profiles=[{"name": "RTXPro6000BlackwellDC-1_24Q", "type_id": "nvidia-1561"}],
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:c1:00.{i}" for i in range(2, 8)]  # 6 VFs
+    _patch_host(monkeypatch, h)
+    # vfio resolution reads creatable_vgpu_types (numeric type-id), not mdev dirs.
+    monkeypatch.setattr(
+        ga,
+        "_live_profiles_vfio",
+        lambda b: [{"name": "RTXPro6000BlackwellDC-1_24Q", "type_id": "1561"}],
+    )
+    monkeypatch.setattr(
+        ga,
+        "_live_vgpu_count",
+        lambda sub_paths, run: sum(
+            1 for c in h.cmds if "current_vgpu_type" in c and "echo 0 " not in c
+        ),
+    )
+    gpu = {
+        "pci_bus_id": "0000:c1:00.0",
+        "framework": "vfio_variant",
+        "sriov_totalvfs": 48,
+        "vgpu_profiles": [
+            {
+                "name": "RTXPro6000BlackwellDC-1_24Q",
+                "type_id": "nvidia-1561",
+                "mig": True,
+                "mig_profile_id": 47,
+                "mig_count": 4,
+            }
+        ],
+    }
+    rep = ga.apply_target(
+        gpu, {"target_profile": "1_24Q", "action": "apply"}, run=h.run
+    )
+    assert rep["result"] == "applied", rep
+    pool = rep["mdevs"]["1_24Q"]
+    assert len(pool) == 4  # capped at mig_count, not the 6 VFs
+    e = next(iter(pool.values()))
+    assert e["mig"] is True and e["mig_profile_id"] == 47  # MIG metadata carried
+    assert e["framework"] == "vfio_variant" and "vf_bdf" in e  # vfio entry shape
+    # GI carve happened (framework-agnostic) and the carve used current_vgpu_type
+    assert any("-cgi 47,47,47,47 -C" in c for c in h.cmds)
+    assert any("sriov-manage -e" in c for c in h.cmds)
+    assert [c for c in h.cmds if "current_vgpu_type" in c and "echo 1561" in c]
+    assert not any("/create'" in c for c in h.cmds)  # NOT the legacy mdev create
+
+
 def test_apply_vgpu_from_passthrough_resolves_after_rebind(monkeypatch):
     # While vfio-bound, _live_profiles returns [] (mirrors hardware). The fix
     # runs the unbind FIRST, then resolves -> must succeed, proving resolution
