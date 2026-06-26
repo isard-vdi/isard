@@ -546,6 +546,21 @@ def _apply(gpu, current, wanted, run):
 
     # PHASE 2: resolve against the now-exposed VF (or PF) type dirs and carve one
     # mdev per VF (SR-IOV) or per pool slot (PF-mdev cards).
+    #
+    # vfio RECARVE SAFETY (load-bearing): a VF that already holds a
+    # current_vgpu_type stops listing the OTHER creatable_vgpu_types and will not
+    # accept a new type (write -> "Operation not permitted"); a larger profile
+    # also won't fit until the framebuffer the OLD carve consumed ACROSS ALL the
+    # card's VFs is released (write -> "Input/output error"). So on a switch we
+    # must free the WHOLE card to 0 BEFORE resolving the new profile's type-id
+    # (else _resolve_type_id_vfio sees the restricted list and reports "not
+    # exposed") and before carving. Idempotent (already-0 VFs no-op, e.g. the
+    # fresh boot carve); safe because the engine quiesces running domains first.
+    if is_vfio and sub_paths:
+        run(
+            [_cmds.build_vgpu_clear_cmd(os.path.basename(p)) for p in sub_paths],
+            timeout=120,
+        )
     if is_vfio:
         type_id = _resolve_type_id_vfio(wanted, sub_paths)
     else:
@@ -562,20 +577,8 @@ def _apply(gpu, current, wanted, run):
         # Vendor-specific VFIO framework: one vGPU per VF. Write the type-id to
         # each VF's current_vgpu_type (no mdev create, no UUID). The pool entry
         # is keyed by VF BDF. vf_cap caps the count for a MIG-backed carve; a
-        # plain vGPU carves one per VF.
-        #
-        # RECARVE SAFETY (load-bearing): a VF cannot change its current_vgpu_type
-        # while it already holds one (write -> "Operation not permitted"), and a
-        # different/larger profile won't fit until the framebuffer the OLD carve
-        # consumed ACROSS ALL the card's VFs is released (write -> "Input/output
-        # error"). So free the WHOLE card first -- clear every VF to 0 before
-        # setting the new type. Idempotent (VFs already at 0 are no-ops, e.g. the
-        # fresh boot carve), and safe because the engine quiesces every running
-        # domain on the card before a recarve.
-        run(
-            [_cmds.build_vgpu_clear_cmd(os.path.basename(p)) for p in sub_paths],
-            timeout=120,
-        )
+        # plain vGPU carves one per VF. (The card was already cleared to 0 above,
+        # before type resolution, so every target VF is free to accept the type.)
         carve_vfs = sub_paths[:vf_cap] if vf_cap else sub_paths
         for vf_path in carve_vfs:
             vf_bdf = os.path.basename(vf_path)
