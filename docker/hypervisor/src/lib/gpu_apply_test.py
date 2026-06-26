@@ -480,6 +480,15 @@ def test_apply_vgpu_vfio_variant_writes_current_vgpu_type_per_vf(monkeypatch):
     sets = [c for c in h.cmds if "current_vgpu_type" in c and "echo 694" in c]
     assert len(sets) == 3
     assert not any("/create'" in c for c in h.cmds)
+    # RECARVE SAFETY: every VF is cleared to 0 BEFORE any type is set (a VF won't
+    # accept a new type while it holds one, and the new profile won't fit until
+    # the whole card's framebuffer is freed).
+    clears = [c for c in h.cmds if "current_vgpu_type" in c and "echo 0 " in c]
+    assert len(clears) == 3  # one per VF
+    first_set = next(i for i, c in enumerate(h.cmds) if "echo 694" in c)
+    assert all(
+        h.cmds.index(c) < first_set for c in clears
+    )  # all clears precede the first set
 
 
 def test_apply_vgpu_from_passthrough_resolves_after_rebind(monkeypatch):

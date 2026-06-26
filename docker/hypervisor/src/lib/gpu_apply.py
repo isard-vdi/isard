@@ -563,6 +563,19 @@ def _apply(gpu, current, wanted, run):
         # each VF's current_vgpu_type (no mdev create, no UUID). The pool entry
         # is keyed by VF BDF. vf_cap caps the count for a MIG-backed carve; a
         # plain vGPU carves one per VF.
+        #
+        # RECARVE SAFETY (load-bearing): a VF cannot change its current_vgpu_type
+        # while it already holds one (write -> "Operation not permitted"), and a
+        # different/larger profile won't fit until the framebuffer the OLD carve
+        # consumed ACROSS ALL the card's VFs is released (write -> "Input/output
+        # error"). So free the WHOLE card first -- clear every VF to 0 before
+        # setting the new type. Idempotent (VFs already at 0 are no-ops, e.g. the
+        # fresh boot carve), and safe because the engine quiesces every running
+        # domain on the card before a recarve.
+        run(
+            [_cmds.build_vgpu_clear_cmd(os.path.basename(p)) for p in sub_paths],
+            timeout=120,
+        )
         carve_vfs = sub_paths[:vf_cap] if vf_cap else sub_paths
         for vf_path in carve_vfs:
             vf_bdf = os.path.basename(vf_path)
