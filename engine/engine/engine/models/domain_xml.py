@@ -1274,10 +1274,21 @@ class DomainXML(object):
         self.remove_device(xpath, order_num=order)
 
     def remove_gpu_hostdev(self):
-        """Remove all engine-managed GPU hostdev entries (mdev + PCI passthrough)."""
+        """Remove all engine-managed GPU hostdev entries (mdev + PCI passthrough +
+        vfio-variant vGPU VF).
+
+        The vfio-variant vGPU is a ``managed='no'`` pci hostdev (the VF stays
+        nvidia-bound), so it is NOT matched by ``@managed='yes'`` -- it is matched
+        by its engine alias marker ``ua-isard-vgpu-*`` instead, so teardown strips
+        it without depending on @managed and without touching an unrelated
+        managed='no' device the desktop may carry."""
         self.remove_device("/domain/devices/hostdev[@type='mdev']", order_num=-1)
         self.remove_device(
             "/domain/devices/hostdev[@type='pci'][@managed='yes']", order_num=-1
+        )
+        self.remove_device(
+            "/domain/devices/hostdev[starts-with(alias/@name, 'ua-isard-vgpu-')]",
+            order_num=-1,
         )
 
     def remove_device(self, xpath, order_num=-1):
@@ -2514,8 +2525,17 @@ def recreate_xml_if_gpu(
         # Vendor-specific VFIO framework (Ubuntu 24.04+): the vGPU is an ordinary
         # vfio-pci passthrough of an SR-IOV VF (no mdev). It is headless on this
         # path, so display='off' is REQUIRED (the guest drives the vGPU via the
-        # in-VM NVIDIA driver; IsardVDI video rides its own viewer path). Tag the
-        # hostdev with a libvirt USER alias ('ua-' prefix) so the host-side
+        # in-VM NVIDIA driver; IsardVDI video rides its own viewer path).
+        #
+        # managed='no' is LOAD-BEARING: the VF stays bound to the NVIDIA driver,
+        # which IS the VFIO provider for the variant framework (the vGPU only
+        # exists while current_vgpu_type is set on the nvidia-bound VF). With
+        # managed='yes' libvirt would unbind the VF from nvidia and bind vfio-pci
+        # to it -- that destroys the vGPU and HANGS in an unkillable D-state
+        # (nvidia cannot release an active vGPU VF), wedging the host. So we must
+        # NOT let libvirt touch the binding; the VF is already VFIO-ready.
+        #
+        # Tag the hostdev with a libvirt USER alias ('ua-' prefix) so the host-side
         # pool reconcile / teardown can distinguish an engine-managed vGPU VF
         # from a whole-card passthrough (both are type='pci') and never rebind a
         # VF that is a live vGPU.
@@ -2545,7 +2565,7 @@ def recreate_xml_if_gpu(
             )
         guest_slot = "0x{:02x}".format(guest_slot_num)
         xml_hostdev = (
-            "  <hostdev mode='subsystem' type='pci' managed='yes' display='off'>\n"
+            "  <hostdev mode='subsystem' type='pci' managed='no' display='off'>\n"
             "    <source>\n"
             f"      <address domain='{domain}' bus='{bus}' slot='{slot}' function='{function}'/>\n"
             "    </source>\n"

@@ -561,8 +561,11 @@ def test_recreate_xml_if_gpu_vfio_variant_vgpu_vf_hostdev():
     tree = _parse(result)
     # vfio-pci VF passthrough, not an mdev
     assert tree.xpath('//hostdev[@type="mdev"]') == []
-    hd = tree.xpath('//hostdev[@type="pci"][@managed="yes"]')
+    # managed='no' is load-bearing: the VF stays nvidia-bound (the variant driver
+    # is the VFIO provider); managed='yes' would unbind it and hang the host.
+    hd = tree.xpath('//hostdev[@type="pci"][@managed="no"]')
     assert len(hd) == 1
+    assert tree.xpath('//hostdev[@managed="yes"]') == []  # never managed for a vGPU VF
     assert hd[0].get("display") == "off"  # vGPU is headless on this path
     # source address points at the VF BDF 0000:05:00.4
     src = hd[0].xpath("./source/address")[0]
@@ -574,6 +577,31 @@ def test_recreate_xml_if_gpu_vfio_variant_vgpu_vf_hostdev():
     alias = hd[0].xpath("./alias")[0].get("name")
     assert alias.startswith("ua-isard-vgpu-")
     assert "0000-05-00-4" in alias
+
+
+def test_remove_gpu_hostdev_strips_vfio_vgpu_by_alias_not_unrelated_managed_no():
+    """Teardown must strip the managed='no' vfio vGPU VF hostdev via its
+    'ua-isard-vgpu-*' alias marker, WITHOUT removing an unrelated managed='no'
+    pci hostdev the desktop may carry."""
+    base = '<domain type="kvm"><devices/></domain>'
+    # engine-emitted vfio vGPU VF (managed='no' + alias marker)
+    xml = recreate_xml_if_gpu(base, "u", vgpu_vf_bdf="0000:05:00.4")
+    # splice in an UNRELATED managed='no' pci hostdev (no isard alias)
+    x0 = DomainXML(xml)
+    other = etree.fromstring(
+        "<hostdev mode='subsystem' type='pci' managed='no'>"
+        "<source><address domain='0x0000' bus='0x99' slot='0x00' function='0x0'/></source>"
+        "<alias name='ua-user-other'/></hostdev>"
+    )
+    x0.tree.xpath("/domain/devices")[0].append(other)
+
+    x = DomainXML(etree.tostring(x0.tree, encoding="unicode"))
+    x.remove_gpu_hostdev()
+    tree = x.tree
+    # the engine vGPU VF (alias ua-isard-vgpu-*) is gone
+    assert tree.xpath("//hostdev[starts-with(alias/@name,'ua-isard-vgpu-')]") == []
+    # the unrelated managed='no' hostdev survives
+    assert len(tree.xpath("//hostdev[alias/@name='ua-user-other']")) == 1
 
 
 def test_recreate_xml_if_gpu_vfio_variant_rejects_malformed_vf_bdf():
