@@ -27,6 +27,8 @@ except ModuleNotFoundError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import gpu_probe
 from gpu_probe import (
+    FRAMEWORK_LEGACY_MDEV,
+    FRAMEWORK_VFIO_VARIANT,
     MIG_CURRENT,
     _read_driver,
     _read_mig_mode,
@@ -442,6 +444,79 @@ def _get_vgpu_profiles(pci_bus_id):
         return []
 
     return profiles
+
+
+def _framebuffer_mb_from_suffix(suffix):
+    """Framebuffer size in MiB derived from a canonical vGPU suffix.
+
+    The legacy ``description`` file (``framebuffer=NNNNM``) is gone on the
+    vendor-specific VFIO framework, so derive it from the profile name: for
+    NVIDIA Q/C profiles the integer immediately before the class letter is the
+    framebuffer in GiB (``2Q`` -> 2 GiB, ``16Q`` -> 16 GiB, ``5C`` -> 5 GiB);
+    for a MIG-backed suffix (``1_2Q``) it is the LAST number (``2`` GiB). Returns
+    0 when no Q/C framebuffer number is present (e.g. ``passthrough``)."""
+    match = re.search(r"(\d+)[ABCQ]$", suffix or "")
+    return int(match.group(1)) * 1024 if match else 0
+
+
+def _parse_creatable_vgpu_types(text):
+    """Parse a VF's ``nvidia/creatable_vgpu_types`` into profile dicts.
+
+    Lines look like ``"694 : NVIDIA A16-2Q"`` (with an optional ``"ID : VGPU
+    Name"`` header). The left token is the numeric vGPU type-id (written to
+    ``current_vgpu_type`` to create the vGPU); the right is the profile name.
+    Mirrors :func:`_get_vgpu_profiles`: the ``"NVIDIA "`` prefix is stripped, the
+    name is canonicalised, and only Q/C (vGPU desktop/compute) profiles are
+    kept. Returns ``[{"name","type_id","framebuffer_mb"}, ...]``."""
+    profiles = []
+    for line in (text or "").splitlines():
+        if ":" not in line:
+            continue
+        left, right = line.split(":", 1)
+        type_id = left.strip()
+        if not type_id.isdigit():  # skips the "ID : VGPU Name" header
+            continue
+        name = right.strip().replace("NVIDIA ", "")
+        if not name or name[-1] not in ("C", "Q"):
+            continue
+        canon = _canon_vgpu_profile_name(name)
+        suffix = canon.split("-", 1)[1] if "-" in canon else ""
+        profiles.append(
+            {
+                "name": canon,
+                "type_id": type_id,
+                "framebuffer_mb": _framebuffer_mb_from_suffix(suffix),
+            }
+        )
+    return profiles
+
+
+def _get_vgpu_profiles_vfio(vf_bdf):
+    """vGPU profiles for one SR-IOV VF on the vendor-specific VFIO framework.
+
+    Reads ``/sys/bus/pci/devices/<VF>/nvidia/creatable_vgpu_types`` (the kernel
+    >= 6.8 / Ubuntu 24.04+ replacement for ``mdev_supported_types``) and returns
+    the SAME dict shape as :func:`_get_vgpu_profiles`, so the aggregator and all
+    downstream ingest are unchanged. One vGPU per VF, so ``available_instances``
+    is 1 for every listed type; the aggregator sums these across VFs to get the
+    per-card capacity (= count of free VFs that can create the type).
+    ``max_instances`` is left 0 (the summed ``available_instances`` is the cap)."""
+    path = f"{_SYSFS_PCI_BASE}/{vf_bdf}/nvidia/creatable_vgpu_types"
+    try:
+        with open(path) as f:
+            text = f.read()
+    except OSError:
+        return []
+    return [
+        {
+            "name": p["name"],
+            "type_id": p["type_id"],
+            "available_instances": 1,
+            "framebuffer_mb": p["framebuffer_mb"],
+            "max_instances": 0,
+        }
+        for p in _parse_creatable_vgpu_types(text)
+    ]
 
 
 def _get_mig_profiles(gpu_index):
@@ -1089,18 +1164,19 @@ def _aggregate_subdevice_profiles(pci_bus_id):
         pci_bus_id: PCI bus ID from nvidia-smi
 
     Returns:
-        tuple: (profiles_list, sub_paths_list or None, path_parent or None)
+        tuple: (profiles_list, sub_paths_list or None, path_parent or None,
+                framework) where framework is "legacy_mdev" or "vfio_variant".
     """
     sysfs_pci_id = _normalize_pci_bus_id(pci_bus_id).lower()
     main_path = f"/sys/bus/pci/devices/{sysfs_pci_id}"
 
-    # First try main device (pre-Ampere cards like T4)
+    # First try main device (pre-Ampere cards like T4) — legacy mdev only.
     main_profiles = _get_vgpu_profiles(pci_bus_id)
     if main_profiles:
         # Clear any pre-existing mdevs on the PF so engine-side reconcile
         # rebuilds the pool from an empty slate.
         _reset_sysfs_mdevs(main_path)
-        return main_profiles, None, None
+        return main_profiles, None, None, FRAMEWORK_LEGACY_MDEV
 
     # SR-IOV reset (Ampere/Ada/Blackwell vGPU cards):
     # 1. wipe live mdevs so VFs have no active consumers,
@@ -1169,9 +1245,18 @@ def _aggregate_subdevice_profiles(pci_bus_id):
 
         sub_paths = set()
         profile_map = {}  # name -> profile dict, aggregated available_instances
+        framework = FRAMEWORK_LEGACY_MDEV
         for sub_path in candidate_paths:
             entry = os.path.basename(sub_path)
             sub_profiles = _get_vgpu_profiles(entry)
+            if not sub_profiles:
+                # Kernel >= 6.8 (Ubuntu 24.04+): mdev_supported_types is gone;
+                # the VF exposes nvidia/creatable_vgpu_types instead. One vGPU
+                # per VF, so summing available_instances (1 each) across VFs
+                # yields capacity = count of free VFs that can create the type.
+                sub_profiles = _get_vgpu_profiles_vfio(entry)
+                if sub_profiles:
+                    framework = FRAMEWORK_VFIO_VARIANT
             if not sub_profiles:
                 continue
             sub_paths.add(sub_path)
@@ -1184,12 +1269,12 @@ def _aggregate_subdevice_profiles(pci_bus_id):
                     profile_map[p["name"]] = dict(p)
 
         if not profile_map:
-            return [], None, None
+            return [], None, None, FRAMEWORK_LEGACY_MDEV
         profiles = sorted(profile_map.values(), key=lambda p: p["name"])
         path_parent = main_path if os.path.exists(main_path) else None
-        return profiles, sub_paths if sub_paths else None, path_parent
+        return profiles, sub_paths if sub_paths else None, path_parent, framework
 
-    profiles, sub_paths, path_parent = _enumerate_vf_profiles()
+    profiles, sub_paths, path_parent, framework = _enumerate_vf_profiles()
 
     # Settle the VF mdev type names: a half-initialized VF can expose generic
     # "pci-NNN" type dirs that later flip to "nvidia-NNN"; the engine can't
@@ -1197,9 +1282,15 @@ def _aggregate_subdevice_profiles(pci_bus_id):
     # reusing the same cycle that runs above) until the proper "nvidia-*" vGPU
     # types appear. Falls through on the happy path (already settled) and after
     # the bound (the engine resolves the current type dir at create time).
+    # The settle loop is legacy-mdev-only: it waits for the transient generic
+    # "pci-*" mdev type dirs to flip to "nvidia-*". The vfio-variant framework
+    # has no mdev type dirs at all (its type_ids are bare numbers), so skip it
+    # there — _vf_vgpu_types_settled would never be True and would spin the
+    # SR-IOV cycle pointlessly.
     settle_attempts = 0
     while (
-        has_sriov
+        framework == FRAMEWORK_LEGACY_MDEV
+        and has_sriov
         and profiles
         and not _vf_vgpu_types_settled(profiles)
         and settle_attempts < 2
@@ -1214,9 +1305,13 @@ def _aggregate_subdevice_profiles(pci_bus_id):
         )
         if _cycle_sriov_vfs(sysfs_pci_id):
             _reset_sysfs_mdevs(main_path)
-        profiles, sub_paths, path_parent = _enumerate_vf_profiles()
+        profiles, sub_paths, path_parent, framework = _enumerate_vf_profiles()
 
-    if profiles and not _vf_vgpu_types_settled(profiles):
+    if (
+        framework == FRAMEWORK_LEGACY_MDEV
+        and profiles
+        and not _vf_vgpu_types_settled(profiles)
+    ):
         log.warning(
             "GPU %s: VF mdev types still generic 'pci-*' after %d re-cycle(s); "
             "proceeding with current ids (engine resolves the live type dir at "
@@ -1224,7 +1319,7 @@ def _aggregate_subdevice_profiles(pci_bus_id):
             pci_bus_id,
             settle_attempts,
         )
-    return profiles, sub_paths, path_parent
+    return profiles, sub_paths, path_parent, framework
 
 
 def normalize_gpu_model(gpu_name, vgpu_profiles=None):
@@ -1462,6 +1557,7 @@ def discover_gpus():
         # engine keeps/restores its profile from durable operator intent.
         if _driver == "vfio-pci":
             profiles, sub_paths, path_parent = [], None, None
+            framework = FRAMEWORK_LEGACY_MDEV
             current_profile = "passthrough"
             log.info(
                 "GPU %s [%d/%d]: vfio-pci bound (passthrough); skipping the "
@@ -1471,7 +1567,9 @@ def discover_gpus():
                 total,
             )
         else:
-            profiles, sub_paths, path_parent = _aggregate_subdevice_profiles(_bdf)
+            profiles, sub_paths, path_parent, framework = (
+                _aggregate_subdevice_profiles(_bdf)
+            )
         log.info(
             "GPU %s [%d/%d]: discovery step done in %.1fs (profiles=%d)",
             _bdf,
@@ -1506,8 +1604,8 @@ def discover_gpus():
                     _early_totalvfs,
                     attempt,
                 )
-                profiles, sub_paths, path_parent = _aggregate_subdevice_profiles(
-                    gpu["pci_bus_id"]
+                profiles, sub_paths, path_parent, framework = (
+                    _aggregate_subdevice_profiles(gpu["pci_bus_id"])
                 )
                 if profiles:
                     log.info(
@@ -1607,6 +1705,10 @@ def discover_gpus():
             gpu_info["sub_paths"] = sorted(sub_paths)
         if path_parent is not None:
             gpu_info["path_parent"] = path_parent
+        # Per-card vGPU sysfs framework ("legacy_mdev" | "vfio_variant"). The
+        # engine/hypervisor apply + libvirt-XML paths dispatch on this so a
+        # mixed fleet (22.04 mdev + 24.04 vfio) works card-by-card.
+        gpu_info["framework"] = framework
 
         # Classify SR-IOV state. `notes` are non-fault informational items
         # (rendered neutrally, not the orange fault icon); `warnings` are

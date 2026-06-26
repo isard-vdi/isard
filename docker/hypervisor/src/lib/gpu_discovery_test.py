@@ -306,6 +306,93 @@ def test_canon_vgpu_profile_name_is_idempotent():
     assert _canon_vgpu_profile_name(once) == once
 
 
+# ----- vfio-variant discovery backend (kernel >=6.8 / Ubuntu 24.04+) -------
+# NVIDIA dropped legacy mdev there: profiles come from each VF's
+# nvidia/creatable_vgpu_types instead of mdev_supported_types/<id>/{name,...}.
+
+
+@pytest.mark.parametrize(
+    "suffix,expected_mb",
+    [
+        ("2Q", 2048),
+        ("16Q", 16384),
+        ("1_2Q", 2048),  # MIG-backed: the framebuffer GB is the LAST number
+        ("5C", 5120),
+        ("passthrough", 0),
+        ("", 0),
+    ],
+)
+def test_framebuffer_mb_from_suffix(suffix, expected_mb):
+    from gpu_discovery import _framebuffer_mb_from_suffix
+
+    assert _framebuffer_mb_from_suffix(suffix) == expected_mb
+
+
+def test_parse_creatable_vgpu_types_parses_id_name_lines():
+    from gpu_discovery import _parse_creatable_vgpu_types
+
+    text = (
+        "ID  : VGPU Name\n"
+        "694 : NVIDIA A16-2Q\n"
+        "695 : NVIDIA A16-4Q\n"
+        "696 : NVIDIA A16-16Q\n"
+    )
+    out = _parse_creatable_vgpu_types(text)
+    assert out == [
+        {"name": "A16-2Q", "type_id": "694", "framebuffer_mb": 2048},
+        {"name": "A16-4Q", "type_id": "695", "framebuffer_mb": 4096},
+        {"name": "A16-16Q", "type_id": "696", "framebuffer_mb": 16384},
+    ]
+
+
+def test_parse_creatable_vgpu_types_filters_non_qc_and_blank():
+    from gpu_discovery import _parse_creatable_vgpu_types
+
+    # A/B profiles (apps/VDI Windows) are not the Q/C desktop profiles IsardVDI
+    # books; mirror the legacy reader's C/Q filter. Header + junk are dropped.
+    text = "700 : NVIDIA A16-1A\n701 : NVIDIA A16-1B\n702 : NVIDIA A16-8Q\n\ngarbage\n"
+    out = _parse_creatable_vgpu_types(text)
+    assert out == [{"name": "A16-8Q", "type_id": "702", "framebuffer_mb": 8192}]
+
+
+def test_get_vgpu_profiles_vfio_reads_creatable_types(monkeypatch, tmp_path):
+    from gpu_discovery import _get_vgpu_profiles_vfio
+
+    _redirect_sysfs(monkeypatch, tmp_path)
+    vf_bdf = "0000:c5:00.4"
+    nvidia_dir = tmp_path / vf_bdf / "nvidia"
+    nvidia_dir.mkdir(parents=True)
+    _write(nvidia_dir / "creatable_vgpu_types", "694 : NVIDIA A16-2Q\n695 : NVIDIA A16-4Q\n")
+    out = _get_vgpu_profiles_vfio(vf_bdf)
+    # Same dict shape as the legacy _get_vgpu_profiles, so downstream ingest is
+    # unchanged. One vGPU per VF => available_instances == 1 (the aggregator sums
+    # these across VFs to get capacity = free-VF count).
+    assert out == [
+        {
+            "name": "A16-2Q",
+            "type_id": "694",
+            "available_instances": 1,
+            "framebuffer_mb": 2048,
+            "max_instances": 0,
+        },
+        {
+            "name": "A16-4Q",
+            "type_id": "695",
+            "available_instances": 1,
+            "framebuffer_mb": 4096,
+            "max_instances": 0,
+        },
+    ]
+
+
+def test_get_vgpu_profiles_vfio_empty_when_no_nvidia_dir(monkeypatch, tmp_path):
+    from gpu_discovery import _get_vgpu_profiles_vfio
+
+    _redirect_sysfs(monkeypatch, tmp_path)
+    (tmp_path / "0000:c5:00.4").mkdir(parents=True)  # VF exists, no nvidia/ dir
+    assert _get_vgpu_profiles_vfio("0000:c5:00.4") == []
+
+
 # ----- _wait_sriov_numvfs_zero --------------------------------------------
 
 
@@ -543,6 +630,39 @@ def test_aggregate_skips_sriov_cycle_without_vgpu_host_driver(monkeypatch):
     assert reset_calls == []  # no bus reset
 
 
+def test_aggregate_vfio_variant_sums_vf_capacity(monkeypatch, tmp_path):
+    """On the vendor-specific VFIO framework (24.04+), each VF exposes
+    nvidia/creatable_vgpu_types instead of mdev_supported_types. The aggregator
+    must fall back to the vfio reader per VF, report framework='vfio_variant',
+    and sum the 1-per-VF capacity (2 VFs -> available_instances 2)."""
+    import gpu_discovery as gd
+
+    base = _redirect_sysfs(monkeypatch, tmp_path)
+    vf_bdfs = ["0000:05:00.4", "0000:05:00.5"]
+    for vf in vf_bdfs:
+        nvidia_dir = tmp_path / vf / "nvidia"
+        nvidia_dir.mkdir(parents=True)
+        _write(nvidia_dir / "creatable_vgpu_types", "694 : NVIDIA A16-2Q\n696 : NVIDIA A16-16Q\n")
+
+    monkeypatch.setattr(gd, "_get_vgpu_profiles", lambda *a, **k: [])  # legacy empty
+    monkeypatch.setattr(gd, "_reset_sysfs_mdevs", lambda *a, **k: None)
+    monkeypatch.setattr(gd, "_vgpu_host_driver_present", lambda *a, **k: False)
+    monkeypatch.setattr(
+        gd, "_enumerate_sriov_vf_paths", lambda _p: [f"{base}/{v}" for v in vf_bdfs]
+    )
+
+    profiles, sub_paths, _parent, framework = gd._aggregate_subdevice_profiles(
+        "00000000:05:00.0"
+    )
+
+    assert framework == "vfio_variant"
+    by_name = {p["name"]: p for p in profiles}
+    assert by_name["A16-2Q"]["available_instances"] == 2  # 1 per VF, summed
+    assert by_name["A16-2Q"]["type_id"] == "694"  # numeric id for current_vgpu_type
+    assert by_name["A16-16Q"]["framebuffer_mb"] == 16384
+    assert sorted(sub_paths) == [f"{base}/{v}" for v in vf_bdfs]
+
+
 def test_sriov_manage_usable(monkeypatch):
     import gpu_discovery as gd
 
@@ -616,7 +736,7 @@ def test_discover_gpus_emits_none_sentinel_after_retry_exhaustion(
     monkeypatch.setattr(
         gd,
         "_aggregate_subdevice_profiles",
-        lambda _pci: ([], None, None),
+        lambda _pci: ([], None, None, "legacy_mdev"),
     )
     monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])
     monkeypatch.setattr(gd, "_scan_sysfs_nvidia_gpus", lambda _known: [])
@@ -654,7 +774,7 @@ def test_discover_gpus_emits_empty_list_for_compute_mode_card(monkeypatch, tmp_p
     monkeypatch.setattr(
         gd,
         "_aggregate_subdevice_profiles",
-        lambda _pci: ([], None, None),
+        lambda _pci: ([], None, None, "legacy_mdev"),
     )
     monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])
     monkeypatch.setattr(gd, "_scan_sysfs_nvidia_gpus", lambda _known: [])
@@ -690,11 +810,12 @@ def test_discover_gpus_recovers_when_retry_finds_profiles(monkeypatch, tmp_path)
     def staged_aggregate(_pci):
         call_count["n"] += 1
         if call_count["n"] == 1:
-            return ([], None, None)
+            return ([], None, None, "legacy_mdev")
         return (
             real_profiles,
             [f"{tmp_path}/0000:05:00.4"],
             f"{tmp_path}/0000:05:00.0",
+            "legacy_mdev",
         )
 
     monkeypatch.setattr(
@@ -1106,7 +1227,7 @@ def test_discover_gpus_cycles_nvidia_bound_card(monkeypatch, tmp_path):
 
     def _agg(_pci):
         called["n"] += 1
-        return (real_profiles, None, None)
+        return (real_profiles, None, None, "legacy_mdev")
 
     monkeypatch.setattr(gd, "_aggregate_subdevice_profiles", _agg)
     monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])
