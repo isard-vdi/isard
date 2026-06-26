@@ -1,0 +1,8 @@
+generator:
+  ignore_not_implemented:
+    - "all"
+  features:
+    disable:
+      - "webhooks/server"
+      - "webhooks/client"
+      - "ogen/otel"

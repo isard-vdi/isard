@@ -637,7 +637,7 @@ generate_code(){
 	fi
 
 	case "$USAGE" in
-	build)
+	build | devel)
 		if ! docker buildx version >/dev/null 2>&1; then
 			echo "ERROR: 'docker buildx' is required to build the codegen image. Install the docker-buildx package for your distribution." >&2
 			exit 1
@@ -645,7 +645,7 @@ generate_code(){
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
 		docker build --pull -t "$DOCKER_IMAGE" -f ./docker/codegen/Dockerfile .
 		;;
-	devel | test | production)
+	test | production)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
 		docker pull "$DOCKER_IMAGE"
 		;;
