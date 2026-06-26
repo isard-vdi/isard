@@ -2035,6 +2035,12 @@ class hyp(object):
                     type_max_gpus = suffix
 
             info_nvidia["mig_mode"] = gpu.get("mig_mode", "[N/A]")
+            # Per-card vGPU sysfs framework ("legacy_mdev" | "vfio_variant") from
+            # discovery. The functional dispatch uses the per-pool-entry framework
+            # and the live build_card_descriptor probe; this persists the card-level
+            # value into vgpus.info for observability (so a DB inspection shows which
+            # cards use the kernel>=6.8 vendor VFIO path). Absent => legacy mdev.
+            info_nvidia["framework"] = gpu.get("framework", "legacy_mdev")
             info_nvidia["types"] = d_types
             info_nvidia["type_max_gpus"] = type_max_gpus
             info_nvidia["device_name"] = gpu["name"]
@@ -2193,6 +2199,9 @@ class hyp(object):
                         info_nvidia["max_count"] = max_count
                         info_nvidia["max_gpus"] = d_types[type_max_gpus]["max"]
                         info_nvidia["model"] = model_gpu
+                        # This libvirt-capability-XML fallback serves older cards
+                        # (T4 etc.) that predate the vendor VFIO framework.
+                        info_nvidia["framework"] = "legacy_mdev"
                         if sub_paths is not False:
                             info_nvidia["sub_paths"] = sub_paths
                         if path_parent is not False:
