@@ -441,6 +441,47 @@ def test_apply_vgpu_sriov_carves_one_mdev_per_vf(monkeypatch):
     assert all(any(vf in c for vf in vfs) for c in creates)  # created on the VFs
 
 
+def test_apply_vgpu_vfio_variant_writes_current_vgpu_type_per_vf(monkeypatch):
+    # Vendor-specific VFIO framework (Ubuntu 24.04+): no mdev create. Each VF's
+    # vGPU is created by writing the numeric type-id to current_vgpu_type, and
+    # the pool entry is keyed by VF BDF (not a UUID).
+    h = _Host(driver="nvidia", live=None)
+    _patch_host(monkeypatch, h)
+    # vfio profiles carry a NUMERIC type_id (not nvidia-NNN); resolution reads
+    # creatable_vgpu_types via _live_profiles_vfio, not the mdev _live_profiles.
+    monkeypatch.setattr(
+        ga, "_live_profiles_vfio", lambda b: [{"name": "A16-2Q", "type_id": "694"}]
+    )
+    # Materialisation check must count live vGPUs (current_vgpu_type != 0), not
+    # mdevs (there are none on this framework).
+    monkeypatch.setattr(
+        ga,
+        "_live_vgpu_count",
+        lambda sub_paths, run: sum(
+            1 for c in h.cmds if "current_vgpu_type" in c and "echo 0 " not in c
+        ),
+    )
+    vfs = [f"/sys/bus/pci/devices/0000:c5:00.{i}" for i in range(4, 7)]
+    gpu = {
+        "pci_bus_id": "0000:c5:00.0",
+        "framework": "vfio_variant",
+        "sriov_totalvfs": 64,
+        "sriov_numvfs": 64,
+        "sub_paths": vfs,
+    }
+    rep = ga.apply_target(gpu, {"target_profile": "2Q", "action": "apply"}, run=h.run)
+    assert rep["result"] == "applied"
+    # one pool entry per VF, keyed by VF BDF, each tagged vfio_variant
+    pool = rep["mdevs"]["2Q"]
+    assert set(pool.keys()) == {os.path.basename(v) for v in vfs}
+    assert all(e["framework"] == "vfio_variant" for e in pool.values())
+    assert all(e["vf_bdf"] == k for k, e in pool.items())
+    # carve wrote current_vgpu_type=694 on each VF, NO mdev create
+    sets = [c for c in h.cmds if "current_vgpu_type" in c and "echo 694" in c]
+    assert len(sets) == 3
+    assert not any("/create'" in c for c in h.cmds)
+
+
 def test_apply_vgpu_from_passthrough_resolves_after_rebind(monkeypatch):
     # While vfio-bound, _live_profiles returns [] (mirrors hardware). The fix
     # runs the unbind FIRST, then resolves -> must succeed, proving resolution

@@ -16,6 +16,24 @@ are byte-identical to the engine's previous inline sequences.
 """
 
 
+def build_vgpu_set_cmd(vf_bdf, type_id):
+    """Create a vGPU on one SR-IOV VF using the vendor-specific VFIO framework
+    (kernel >= 6.8 / Ubuntu 24.04+). Writes the numeric vGPU type-id (from the
+    VF's ``creatable_vgpu_types``) to ``current_vgpu_type``; the VF stays bound
+    to ``nvidia`` and becomes a vfio-pci passthrough device. One vGPU per VF, so
+    the VF's PCI BDF is the pool-entry key (no mdev UUID). Returns a single
+    command string -- mirrors :func:`gpu_apply.build_mdev_create_cmd`. The create
+    echo has no ``2>/dev/null`` so a failed write surfaces real stderr."""
+    return f"echo {type_id} > /sys/bus/pci/devices/{vf_bdf}/nvidia/current_vgpu_type"
+
+
+def build_vgpu_clear_cmd(vf_bdf):
+    """Destroy the vGPU on one SR-IOV VF (vendor-specific VFIO framework) by
+    writing ``0`` to ``current_vgpu_type``. The reverse of
+    :func:`build_vgpu_set_cmd`; used to tear down before a profile recarve."""
+    return f"echo 0 > /sys/bus/pci/devices/{vf_bdf}/nvidia/current_vgpu_type"
+
+
 def build_mig_transition_cmds(
     pci_bdf,
     old_is_mig,
