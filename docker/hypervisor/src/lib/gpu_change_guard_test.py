@@ -20,6 +20,32 @@ def test_cards_from_xml_pci_hostdevs():
     assert g.cards_from_xml(_PCI_XML) == {"0000:03:00.0", "0000:63:00.0"}
 
 
+# A vendor-specific VFIO vGPU (Ubuntu 24.04+) is an ordinary type='pci'
+# passthrough of an SR-IOV VF with display='off' -- NOT an mdev UUID hostdev. It
+# must still be guarded: cards_from_xml picks it up via the PCI branch and
+# _pf_of resolves the VF to its parent PF (the marker key).
+_VFIO_VGPU_XML = """<domain><devices>
+<hostdev mode='subsystem' type='pci' managed='yes' display='off'><source>
+<address domain='0x0000' bus='0x05' slot='0x00' function='0x4'/></source></hostdev>
+</devices></domain>"""
+
+
+def test_cards_from_xml_guards_vfio_vgpu_vf_hostdev(monkeypatch):
+    # The VF 0000:05:00.4 resolves to its PF 0000:05:00.0 (physfn).
+    monkeypatch.setattr(
+        g, "_pf_of", lambda bdf: "0000:05:00.0" if bdf == "0000:05:00.4" else bdf
+    )
+    assert g.cards_from_xml(_VFIO_VGPU_XML) == {"0000:05:00.0"}
+
+
+def test_main_refuses_when_vfio_vgpu_card_is_changing(monkeypatch):
+    monkeypatch.setattr(
+        g, "_pf_of", lambda bdf: "0000:05:00.0" if bdf == "0000:05:00.4" else bdf
+    )
+    monkeypatch.setattr(g, "card_changing", lambda pf, now=None: pf == "0000:05:00.0")
+    assert g.main(_VFIO_VGPU_XML) == 3  # refuse a start onto a card mid-recarve
+
+
 def test_main_refuses_when_a_referenced_card_is_changing(monkeypatch):
     monkeypatch.setattr(g, "card_changing", lambda pf, now=None: pf == "0000:63:00.0")
     assert g.main(_PCI_XML) == 3  # refuse

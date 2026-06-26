@@ -159,6 +159,35 @@ def test_reconcile_adopts_running_desktop():
     assert out["8Q"]["u"]["domain_reserved"] == "desk1"
 
 
+def test_reconcile_handles_vfio_variant_bdf_keyed_pool():
+    # On the vendor-specific VFIO framework the pool entry is keyed by VF BDF
+    # (not an mdev UUID) and carries framework/vf_bdf. The reconcile is key-
+    # agnostic: it must adopt the running desktop and preserve the extra fields
+    # exactly as for legacy UUID-keyed entries (the "zero friction" guarantee).
+    vf = "0000:05:00.4"
+    db = {
+        "2Q": {
+            vf: {"framework": "vfio_variant", "vf_bdf": vf, "domain_started": "deskA"}
+        }
+    }
+    live = {
+        "2Q": {
+            vf: {
+                "framework": "vfio_variant",
+                "vf_bdf": vf,
+                "type_id": "694",
+                "created": True,
+                "domain_started": False,
+                "domain_reserved": False,
+            }
+        }
+    }
+    out = vs.reconcile_pool_to_live(db, live, {vf})  # running_keys = the VF BDF
+    assert out["2Q"][vf]["domain_started"] == "deskA"  # adopted by BDF key
+    assert out["2Q"][vf]["framework"] == "vfio_variant"  # extra fields preserved
+    assert out["2Q"][vf]["vf_bdf"] == vf
+
+
 def test_reconcile_frees_stale_started_but_keeps_reserved():
     # With an empty running set (e.g. hypervisor startup where leftover qemu was
     # just killed): a stale domain_started -- no live qemu -- must be freed (clean
