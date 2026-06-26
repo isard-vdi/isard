@@ -86,8 +86,21 @@ def new_storage_directory_path(user_id, pool_usage):
     storage_pool = StoragePool.get_by_user_kind(user_id, pool_usage)
     if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
         return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(pool_usage)}"
-    if User.exists(user_id):
-        return f"{storage_pool.mountpoint}/{User(user_id).category}/{storage_pool.get_usage_path(pool_usage)}"
+    # A non-default (category) pool nests disks under the owner's category. If
+    # the owner is gone the previous code fell through and returned None, which
+    # produced a "None/<id>.qcow2" path on disk. Fail loudly instead.
+    if not User.exists(user_id):
+        raise Exception(
+            "precondition_required",
+            f"Cannot resolve storage path: user {user_id} does not exist",
+        )
+    category = User(user_id).category
+    if not category:
+        raise Exception(
+            "precondition_required",
+            f"Cannot resolve storage path: user {user_id} has no category",
+        )
+    return f"{storage_pool.mountpoint}/{category}/{storage_pool.get_usage_path(pool_usage)}"
 
 
 class Storage(RethinkCustomBase):
@@ -188,7 +201,15 @@ class Storage(RethinkCustomBase):
         """
         Returns the storage pool of storage.
         """
-        return StoragePool.get_by_path(self.directory_path)[0]
+        pools = StoragePool.get_by_path(self.directory_path)
+        if not pools:
+            # get_by_path already falls back to the default pool, so this only
+            # triggers in the degenerate case where even the default pool row is
+            # missing. Return the default pool object instead of crashing on an
+            # empty-list [0] index (which broke every operation on a disk whose
+            # pool had been removed).
+            return StoragePool(DEFAULT_STORAGE_POOL_ID)
+        return pools[0]
 
     @property
     def pool_usage(self):
@@ -196,6 +217,22 @@ class Storage(RethinkCustomBase):
         Returns the storage pool usage of storage.
         """
         return self.pool.get_usage_by_path(self.directory_path)
+
+    def _require_category(self):
+        """
+        Return the owner's category or raise if it cannot be resolved.
+
+        Non-default pools nest disks under the owner's category. A missing
+        category (deleted owner) would otherwise produce a literal
+        "<mountpoint>/None/..." path, so fail loudly instead.
+        """
+        category = self.category
+        if not category:
+            raise Exception(
+                "precondition_required",
+                f"Cannot resolve storage path: storage {self.id} owner has no category",
+            )
+        return category
 
     def path_in_pool(self, storage_pool):
         """
@@ -210,7 +247,7 @@ class Storage(RethinkCustomBase):
             return None
         if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
             return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
-        return f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
+        return f"{storage_pool.mountpoint}/{self._require_category()}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
 
     def directory_path_as_usage(self, usage):
         """
@@ -227,7 +264,11 @@ class Storage(RethinkCustomBase):
                 }
             )
 
-        if self.pool.get_usage_by_path(self.path) == usage:
+        # Resolve usage from the directory, not self.path (which includes the
+        # "<id>.<type>" filename). get_usage_by_path tolerates a trailing
+        # filename now, but passing the directory makes the intent explicit and
+        # avoids re-deriving a fresh random path when the usage already matches.
+        if self.pool.get_usage_by_path(self.directory_path) == usage:
             return self.directory_path
 
         return new_storage_directory_path(self.user_id, usage)
@@ -247,7 +288,7 @@ class Storage(RethinkCustomBase):
         if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
             self.directory_path = f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}"
         else:
-            self.directory_path = f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}"
+            self.directory_path = f"{storage_pool.mountpoint}/{self._require_category()}/{storage_pool.get_usage_path(self.pool_usage)}"
 
     def get_storage_pool_path(self, storage_pool):
         """
@@ -262,7 +303,7 @@ class Storage(RethinkCustomBase):
         if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
             return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}"
         else:
-            return f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}"
+            return f"{storage_pool.mountpoint}/{self._require_category()}/{storage_pool.get_usage_path(self.pool_usage)}"
 
     @property
     def children(self):

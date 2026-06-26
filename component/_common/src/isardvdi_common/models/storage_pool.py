@@ -82,6 +82,14 @@ class StoragePool(RethinkCustomBase):
         for path in self.paths.get(usage, []):
             paths.append(path.get("path"))
             weights.append(path.get("weight"))
+        if not paths:
+            # An empty path list would make random.choices raise an opaque
+            # IndexError. Surface a clear error instead: a pool that does not
+            # define a path for this usage must not be selected for it.
+            raise Exception(
+                "bad_request",
+                f"Storage pool {self.id} has no '{usage}' path configured",
+            )
         return choices(paths, weights=weights)[0]
 
     def get_usage_by_path(self, path):
@@ -98,51 +106,77 @@ class StoragePool(RethinkCustomBase):
         if not path.startswith(self.mountpoint):
             return None  # Not in the correct mountpoint
 
-        if path.startswith("/isard/storage_pools"):
-            category = path.replace(self.mountpoint, "").split("/")[1]
-            usage_path = path.split(category + "/")[1]
-        else:
-            category = ""
-            usage_path = path.replace(self.mountpoint + "/", "")
+        # Path relative to the pool mountpoint.
+        relative = path[len(self.mountpoint) :].lstrip("/")
 
-        # Search through each path kind to find a match
+        # Non-default pools nest disks under a per-category subdirectory:
+        # <mountpoint>/<category>/<usage_path>/...  Strip that leading category
+        # segment. The default pool has no category subdir. Deciding by the
+        # pool id (instead of the literal "/isard/storage_pools" prefix) keeps
+        # this correct for any pool leaf name under /isard/storage_pools.
+        if self.id != DEFAULT_STORAGE_POOL_ID:
+            parts = relative.split("/", 1)
+            relative = parts[1] if len(parts) > 1 else ""
+
+        # `relative` is now "<usage_path>" or "<usage_path>/<id>.<type>".
+        # Match the directory portion so both a directory_path and a full file
+        # path resolve to the same usage.
         for usage, paths in self.paths.items():
             for path_info in paths:
-                if path_info["path"] == usage_path:
+                usage_path = path_info["path"]
+                if relative == usage_path or relative.startswith(usage_path + "/"):
                     return usage
         return None
 
     @classmethod
     def get_by_path(cls, path):
         """
-        Get Storage Pools that have a specific path
+        Get the Storage Pool a path belongs to.
+
+        Category pools live under /isard/storage_pools/<name> and the default
+        pool at /isard, so /isard is a prefix of every category-pool path. The
+        pool is therefore resolved by the LONGEST mountpoint that is a prefix of
+        the path, so the most specific pool wins over the default ancestor. This
+        replaces the previous hardcoded "/isard/storage_pools/<id>" string
+        surgery and stays correct for any leaf name an admin gives a pool.
+
+        When no mountpoint is a prefix of the path (e.g. the path belongs to a
+        removed pool) the default pool is returned so callers never get an empty
+        result and crash on ``[0]``.
 
         :param path: Path
         :type path: str
-        :return: StoragePool objects
+        :return: StoragePool objects (the single best match, or empty if even
+            the default pool is missing)
         :rtype: list
         """
-        if path.startswith("/isard/storage_pools"):
-            # path to be found is the path without ANYTHING that comes after "/isard/storage_pools/ANYTHING/",
-            # so if we've got a path like "/isard/storage_pools/1/2/3/4" we want path to be /isard/storage_pools/1
-            path = (
-                "/isard/storage_pools/"
-                + path.split("/isard/storage_pools/")[1].split("/")[0]
-            )
-        else:
-            # Default path
-            path = "/isard"
         with cls._rdb_context():
             try:
-                return [
-                    cls(storage_pool["id"])
-                    for storage_pool in r.table(cls._rdb_table)
-                    .filter({"mountpoint": path})
-                    .pluck("id")
+                pools = list(
+                    r.table(cls._rdb_table)
+                    .pluck("id", "mountpoint")
                     .run(cls._rdb_connection)
-                ]
+                )
             except Exception:
                 return []
+
+        best = None
+        for pool in pools:
+            mountpoint = pool.get("mountpoint")
+            if not mountpoint:
+                continue
+            # A mountpoint matches when the path is the mountpoint itself or
+            # lives under it. Compare against "<mountpoint>/" so "/isard" does
+            # not spuriously match "/isardvdi/...".
+            if path == mountpoint or path.startswith(mountpoint.rstrip("/") + "/"):
+                if best is None or len(mountpoint) > len(best["mountpoint"]):
+                    best = pool
+
+        if best is None:
+            best = next((p for p in pools if p["id"] == DEFAULT_STORAGE_POOL_ID), None)
+            if best is None:
+                return []
+        return [cls(best["id"])]
 
     @classmethod
     def get_by_user_kind(cls, user_id, kind):
@@ -166,9 +200,15 @@ class StoragePool(RethinkCustomBase):
         for sp in sps:
             if sp["id"] == DEFAULT_STORAGE_POOL_ID:
                 default = sp
+            # Only route a category to its pool when the pool is enabled and
+            # actually has a non-empty path list for this usage. A disabled pool
+            # (F5) or one missing this usage (F1) falls through to the default
+            # pool, which always defines every usage. `paths.get(kind)` is empty
+            # for both a missing key and a configured-but-empty list.
             if (
-                category_id in sp.get("categories", [])
-                and kind in sp.get("paths", {}).keys()
+                sp.get("enabled", True) is not False
+                and category_id in sp.get("categories", [])
+                and sp.get("paths", {}).get(kind)
             ):
                 return cls.init_document(**sp)
         return cls.init_document(**default)
