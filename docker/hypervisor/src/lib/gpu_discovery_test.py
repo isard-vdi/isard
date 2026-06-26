@@ -345,6 +345,35 @@ def test_parse_creatable_vgpu_types_parses_id_name_lines():
     ]
 
 
+def test_parse_creatable_vgpu_types_canonicalises_mig_dash_form():
+    from gpu_discovery import _parse_creatable_vgpu_types
+
+    # MIG-backed vGPU forms appear (when MIG is enabled) as the dash form with a
+    # spaced model name, e.g. "NVIDIA RTX Pro 6000 Blackwell DC-1-24Q". The parser
+    # must canonicalise to the "<MODEL>-1_24Q" suffix the engine books (model
+    # dash/space-stripped, MIG dash -> underscore), and derive the framebuffer
+    # from the LAST number (24 GiB). Verified live on a Blackwell vfio card.
+    text = (
+        "ID : vGPU Name\n"
+        "1561 : NVIDIA RTX Pro 6000 Blackwell DC-1-24Q\n"
+        "1551 : NVIDIA RTX Pro 6000 Blackwell DC-1-4Q\n"
+        "1562 : NVIDIA RTX Pro 6000 Blackwell DC-1-24A\n"  # A-series filtered out
+    )
+    out = _parse_creatable_vgpu_types(text)
+    assert out == [
+        {
+            "name": "RTXPro6000BlackwellDC-1_24Q",
+            "type_id": "1561",
+            "framebuffer_mb": 24576,
+        },
+        {
+            "name": "RTXPro6000BlackwellDC-1_4Q",
+            "type_id": "1551",
+            "framebuffer_mb": 4096,
+        },
+    ]
+
+
 def test_parse_creatable_vgpu_types_filters_non_qc_and_blank():
     from gpu_discovery import _parse_creatable_vgpu_types
 
