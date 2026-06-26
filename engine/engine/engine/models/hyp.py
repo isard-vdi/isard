@@ -1201,6 +1201,24 @@ class hyp(object):
                     "falling back to the engine inline apply"
                 )
 
+            # vfio_variant cards have NO mdev sysfs layer: the inline apply below
+            # (mdev_supported_types/.../create) cannot work on them. The local
+            # gpu_apply CLI is the ONLY correct vfio apply mechanism, so if it did
+            # not cleanly apply, fail cleanly here instead of attempting a
+            # meaningless (and confusingly-failing) mdev create on a vfio card.
+            if pci_info.get("framework") == "vfio_variant":
+                reason = (
+                    "vfio_variant card: gpu_apply_cli did not cleanly apply and "
+                    "there is no inline mdev fallback for the vendor VFIO framework"
+                )
+                logs.main.error(
+                    f"gpu_apply_cli fallback unavailable for vfio card {gpu_id} "
+                    f"-> {new_profile}: {reason}"
+                )
+                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                update_table_field("vgpus", gpu_id, "last_apply_error", reason)
+                return False
+
             if old_is_mig or new_is_mig:
                 result = self._execute_mig_transition(
                     gpu_id, pci_id, pci_info, old_profile, new_profile
