@@ -551,6 +551,10 @@ def _parse_extra_gpu_info(gpu_selected):
         "pci_bus_id": gpu_selected.get("pci_bus_id"),
         "gpu_numa_node": gpu_selected.get("gpu_numa_node"),
         "mig": gpu_selected.get("mig", False),
+        # vendor-specific VFIO framework (Ubuntu 24.04+): the start path emits a
+        # vfio-pci VF hostdev keyed by vf_bdf instead of an mdev. None on legacy.
+        "framework": gpu_selected.get("framework"),
+        "vf_bdf": gpu_selected.get("vf_bdf"),
         "companion_pci_bdfs": gpu_selected.get("companion_pci_bdfs") or [],
         "hugepages": gpu_selected.get("hugepages_info", {}),
         "hugepages_free_kb": gpu_selected.get("hugepages_free_kb", 0),

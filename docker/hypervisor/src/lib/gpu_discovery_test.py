@@ -362,7 +362,10 @@ def test_get_vgpu_profiles_vfio_reads_creatable_types(monkeypatch, tmp_path):
     vf_bdf = "0000:c5:00.4"
     nvidia_dir = tmp_path / vf_bdf / "nvidia"
     nvidia_dir.mkdir(parents=True)
-    _write(nvidia_dir / "creatable_vgpu_types", "694 : NVIDIA A16-2Q\n695 : NVIDIA A16-4Q\n")
+    _write(
+        nvidia_dir / "creatable_vgpu_types",
+        "694 : NVIDIA A16-2Q\n695 : NVIDIA A16-4Q\n",
+    )
     out = _get_vgpu_profiles_vfio(vf_bdf)
     # Same dict shape as the legacy _get_vgpu_profiles, so downstream ingest is
     # unchanged. One vGPU per VF => available_instances == 1 (the aggregator sums
@@ -642,7 +645,10 @@ def test_aggregate_vfio_variant_sums_vf_capacity(monkeypatch, tmp_path):
     for vf in vf_bdfs:
         nvidia_dir = tmp_path / vf / "nvidia"
         nvidia_dir.mkdir(parents=True)
-        _write(nvidia_dir / "creatable_vgpu_types", "694 : NVIDIA A16-2Q\n696 : NVIDIA A16-16Q\n")
+        _write(
+            nvidia_dir / "creatable_vgpu_types",
+            "694 : NVIDIA A16-2Q\n696 : NVIDIA A16-16Q\n",
+        )
 
     monkeypatch.setattr(gd, "_get_vgpu_profiles", lambda *a, **k: [])  # legacy empty
     monkeypatch.setattr(gd, "_reset_sysfs_mdevs", lambda *a, **k: None)
@@ -925,7 +931,15 @@ def test_aggregate_runs_reset_when_idle(monkeypatch):
 
 # --- build_card_descriptor (read-only single-card descriptor for runtime apply) ---
 def _patch_descriptor_helpers(
-    monkeypatch, *, vfs, vgpu_profiles, companions, mig_mode, mig_profiles, sriov
+    monkeypatch,
+    *,
+    vfs,
+    vgpu_profiles,
+    companions,
+    mig_mode,
+    mig_profiles,
+    sriov,
+    framework="legacy_mdev",
 ):
     """Patch build_card_descriptor's read-only helpers + a fake sysfs open, and
     make the DESTRUCTIVE discovery functions explode so any accidental call
@@ -934,6 +948,8 @@ def _patch_descriptor_helpers(
 
     monkeypatch.setattr(gd, "_normalize_pci_bus_id", lambda b: b)
     monkeypatch.setattr(gd, "_enumerate_sriov_vf_paths", lambda base: list(vfs))
+    # Read-only per-card framework probe (legacy_mdev vs vfio_variant).
+    monkeypatch.setattr(gd.gpu_probe, "vgpu_framework", lambda b, run: framework)
     monkeypatch.setattr(gd, "_get_vgpu_profiles", lambda b: list(vgpu_profiles))
     monkeypatch.setattr(gd, "_find_audio_companions", lambda b: list(companions))
     monkeypatch.setattr(gd, "_read_mig_mode_current", lambda b: mig_mode)
@@ -993,6 +1009,25 @@ def test_build_card_descriptor_vgpu_sriov(monkeypatch):
     assert d["companion_pci_bdfs"] == ["0000:c5:00.1"]
     assert d["mdevs_reset_at"] == "T"
     assert "mig_profiles" not in d  # not a MIG card
+    assert d["framework"] == "legacy_mdev"  # 22.04 fleet default
+
+
+def test_build_card_descriptor_sets_vfio_variant_framework(monkeypatch):
+    # On a 24.04+ card the read-only descriptor must carry framework so the
+    # runtime recarve over SSH (gpu_apply_cli -> apply_target) dispatches to the
+    # vfio current_vgpu_type path, not the legacy mdev create.
+    gd = _patch_descriptor_helpers(
+        monkeypatch,
+        vfs=["/sys/bus/pci/devices/0000:c5:00.4"],
+        vgpu_profiles=[],  # PF exposes none; apply_target resolves per-VF
+        companions=[],
+        mig_mode="[N/A]",
+        mig_profiles=[],
+        sriov={"sriov_totalvfs": 64, "sriov_numvfs": 64},
+        framework="vfio_variant",
+    )
+    d = gd.build_card_descriptor("0000:c5:00.0")
+    assert d["framework"] == "vfio_variant"
 
 
 def test_build_card_descriptor_passthrough_no_subpaths(monkeypatch):

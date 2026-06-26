@@ -1567,8 +1567,8 @@ def discover_gpus():
                 total,
             )
         else:
-            profiles, sub_paths, path_parent, framework = (
-                _aggregate_subdevice_profiles(_bdf)
+            profiles, sub_paths, path_parent, framework = _aggregate_subdevice_profiles(
+                _bdf
             )
         log.info(
             "GPU %s [%d/%d]: discovery step done in %.1fs (profiles=%d)",
@@ -1795,6 +1795,9 @@ def build_card_descriptor(pci_bdf, mdevs_reset_at=None):
         "pci_bus_id": sysfs_pci_id,
         "path": base,
         "vgpu_profiles": _get_vgpu_profiles(sysfs_pci_id),
+        # Per-card vGPU framework so the runtime recarve (apply_target) dispatches
+        # to the vfio current_vgpu_type path on Ubuntu 24.04+; read-only probe.
+        "framework": gpu_probe.vgpu_framework(sysfs_pci_id, run_local),
     }
     if mdevs_reset_at is not None:
         desc["mdevs_reset_at"] = mdevs_reset_at
