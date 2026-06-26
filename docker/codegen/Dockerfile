@@ -14,14 +14,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
 # fixed bun release ships.
 FROM oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349 AS node-build
 WORKDIR /deps
+COPY docker/codegen/tools/package.json docker/codegen/tools/bun.lock /deps/
 RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
-    bun add \
-        @bufbuild/protoc-gen-es@2.6.0 \
-        @bufbuild/protobuf@2.6.0 \
-        @bufbuild/protoplugin@2.6.0 \
-        @hey-api/openapi-ts@0.92.4 \
-        @asyncapi/parser@3.6.0 \
-        @asyncapi/modelina@5.10.1
+    bun install --frozen-lockfile
 
 FROM ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b AS py-build
 ENV UV_COMPILE_BYTECODE=1 \
