@@ -45,7 +45,10 @@ from engine.services.db import (
     update_table_field,
 )
 from engine.services.db.downloads import get_media
-from engine.services.db.storage_pool import get_category_storage_pool
+from engine.services.db.storage_pool import (
+    get_category_storage_pool,
+    get_path_storage_pool,
+)
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
 from engine.services.lib.storage import _get_filename
 from engine.services.log import *
@@ -1934,8 +1937,21 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     # qos
     if "qos_disk" not in protected:
-        storage_pool = get_category_storage_pool(category_id)
-        if storage_pool.get("qos_disk_id") is not None:
+        # Bind QoS to the pool the boot disk physically lives in, not the pool
+        # currently mapped to the domain's category. They diverge once a
+        # category is reassigned to another pool: the disk stays on the old
+        # pool's filesystem but the category points elsewhere, so the old code
+        # applied the wrong pool's iotune. Fall back to the category mapping
+        # when the disk path can't be resolved.
+        storage_pool = None
+        disks = dict_domain["create_dict"]["hardware"].get("disks", [])
+        if disks and disks[0].get("storage_id"):
+            boot_storage = get_storage_cached(disks[0]["storage_id"])
+            if boot_storage:
+                storage_pool = get_path_storage_pool(boot_storage.get("directory_path"))
+        if storage_pool is None:
+            storage_pool = get_category_storage_pool(category_id)
+        if storage_pool and storage_pool.get("qos_disk_id") is not None:
             qos_disk_id = storage_pool["qos_disk_id"]
             iotune = get_qos_disk_iotune(qos_disk_id)
             if iotune:
