@@ -1052,3 +1052,44 @@ def test_running_mdev_uuids_empty_when_nothing_running():
     # domains -> empty set -> reconcile frees the whole pool (clean slate).
     run = lambda cmds, timeout=0: [{"out": "", "err": ""} for _ in cmds]
     assert ga._running_mdev_uuids(run) == set()
+
+
+def test_running_mdev_uuids_extracts_vfio_vf_bdfs():
+    # A vfio-variant vGPU desktop's hostdev has NO mdev uuid -- its running
+    # identity is the engine alias ``ua-isard-vgpu-<vf>`` (= the pool key VF BDF).
+    # The reconcile (reconcile_pool_to_live) re-adopts domain_started ONLY for a
+    # pool key in this set, so a running vfio desktop's VF BDF MUST be surfaced
+    # here -- else domain_started is dropped, the entry looks free and a second
+    # start double-allocates the live VF. Both framework forms coexist in one set
+    # (the pool key is an mdev uuid for legacy, a VF BDF for vfio).
+    def run(cmds, timeout=0):
+        out = []
+        for c in cmds:
+            if "list --name --state-running" in c:
+                out.append({"out": "vfiodesk\nmdevdesk\n", "err": ""})
+            elif "dumpxml vfiodesk" in c:
+                out.append(
+                    {
+                        "out": "<domain><uuid>dom-elem</uuid><devices>"
+                        "<hostdev mode='subsystem' type='pci' managed='no' display='off'>"
+                        "<source><address domain='0x0000' bus='0xc1' slot='0x00' "
+                        "function='0x2'/></source>"
+                        "<alias name='ua-isard-vgpu-0000-c1-00-2'/></hostdev>"
+                        "</devices></domain>",
+                        "err": "",
+                    }
+                )
+            elif "dumpxml mdevdesk" in c:
+                out.append(
+                    {
+                        "out": "<hostdev type='mdev'><source>"
+                        "<address uuid='AAA-111'/></source></hostdev>",
+                        "err": "",
+                    }
+                )
+            else:
+                out.append({"out": "", "err": ""})
+        return out
+
+    # the vfio VF BDF reconstructed from the alias AND the legacy mdev uuid
+    assert ga._running_mdev_uuids(run) == {"0000:c1:00.2", "aaa-111"}

@@ -370,10 +370,14 @@ def _live_mdev_pool(pci_bdf, run, current_suffix, gpu, sub_paths=None):
 
 
 def _running_mdev_uuids(run):
-    """Set of mdev UUIDs currently attached to a RUNNING libvirt domain.
+    """Set of vGPU pool KEYS currently attached to a RUNNING libvirt domain --
+    mdev UUIDs (legacy framework) AND vfio-variant VF BDFs (the vfio vGPU hostdev
+    has no uuid; its key is the VF BDF, reconstructed from the ``ua-isard-vgpu-*``
+    engine alias). The pool is keyed by whichever identifier the framework uses,
+    and ``reconcile_pool_to_live`` matches on that key, so both forms belong here.
 
     Carried on a ``noop``/``skipped_busy`` report so the ingest reconcile adopts
-    ``domain_started``/``domain_reserved`` ONLY for a UUID a desktop is actually
+    ``domain_started``/``domain_reserved`` ONLY for a key a desktop is actually
     running on right now -- never on the strength of a (possibly stale) DB flag.
     At hypervisor startup the entrypoint kills leftover qemu BEFORE registration,
     so this set is empty and a re-pin frees every entry (clean slate) instead of
@@ -405,10 +409,22 @@ def _running_mdev_uuids(run):
     uuids = set()
     for d in dumps:
         xml = (d.get("out") if isinstance(d, dict) else "") or ""
-        # The only uuid= ATTRIBUTE in a domain XML is an mdev hostdev's
-        # <source><address uuid='...'/> (the domain's own uuid is an element).
+        # Legacy mdev: the only uuid= ATTRIBUTE in a domain XML is an mdev
+        # hostdev's <source><address uuid='...'/> (the domain's own uuid is an
+        # element, never matched here).
         for m in re.finditer(r"<address[^>]*\buuid=['\"]([0-9a-fA-F-]+)['\"]", xml):
             uuids.add(m.group(1).lower())
+        # vfio_variant: a vGPU hostdev carries NO uuid -- its pool key is the VF
+        # BDF, surfaced via the engine's ``ua-isard-vgpu-<vf>`` user-alias marker
+        # (alias = vf_bdf with ':'/'.' -> '-'; see engine domain_xml). Reconstruct
+        # the BDF so reconcile_pool_to_live re-adopts domain_started for the live
+        # vfio desktop (else its VF is rebuilt FREE and the next start collides).
+        for m in re.finditer(
+            r"<alias[^>]*\bname=['\"]ua-isard-vgpu-([0-9a-fA-F-]+)['\"]", xml
+        ):
+            parts = m.group(1).split("-")
+            if len(parts) == 4:
+                uuids.add(f"{parts[0]}:{parts[1]}:{parts[2]}.{parts[3]}".lower())
     return uuids
 
 
