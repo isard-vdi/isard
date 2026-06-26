@@ -91,6 +91,13 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                 f"Storage pool mountpoint must be {prefix}<name> with a single safe "
                 "segment (no '/', no '..')",
             )
+        if leaf == "default":
+            # Reserved: fresh installs place the default pool at
+            # /isard/storage_pools/default, so a category pool can't reuse that leaf.
+            raise Error(
+                "bad_request",
+                f"Storage pool mountpoint {prefix}default is reserved for the default pool",
+            )
 
     @classmethod
     def _check_mountpoint_unique(cls, mountpoint, exclude_id=None):
@@ -233,18 +240,20 @@ class StoragePoolsProcessed(RethinkSharedConnection):
             )
 
     @staticmethod
-    def _check_default_paths(cls, paths):
-        """_From /api/libv2/api_storage.py \_check_default_paths()_"""
-        if not (
-            any(obj.get("path") == "groups" for obj in paths["desktop"])
-            and any(obj.get("path") == "media" for obj in paths["media"])
-            and any(obj.get("path") == "templates" for obj in paths["template"])
-            and any(obj.get("path") == "volatile" for obj in paths["volatile"])
-        ):
-            raise Error(
-                "bad_request",
-                "Default pool must have at least one empty path per type",
-            )
+    def _check_default_paths(paths):
+        """_From /api/libv2/api_storage.py _check_default_paths()_
+
+        The default pool must keep at least one path for every usage type. The
+        specific leaf names are not pinned: legacy installs use
+        groups/media/templates/volatile, fresh installs use
+        desktops/templates/media/volatile under /isard/storage_pools/default.
+        """
+        for usage in ("desktop", "media", "template", "volatile"):
+            if not paths.get(usage):
+                raise Error(
+                    "bad_request",
+                    f"Default pool must have at least one '{usage}' path",
+                )
 
     @classmethod
     def update_storage_pool(cls, storage_pool_id, data):
