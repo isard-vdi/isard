@@ -4118,6 +4118,306 @@ def cmd_db_cleanup(args):
         log(f"\nDeleted {deleted} rows. Audit log: {delete_log_path}")
 
 
+# ─── migrate-default-pool subcommand ─────────────────────────────────────────
+
+DEFAULT_STORAGE_POOL_ID = "00000000-0000-0000-0000-000000000000"
+# legacy default-pool dir -> new per-usage leaf name
+LEGACY_DEFAULT_DIRS = {
+    "groups": "desktops",
+    "templates": "templates",
+    "media": "media",
+    "volatile": "volatile",
+}
+
+
+def _migrate_map_path(path, new_mount):
+    """Map a legacy default-pool path (file or directory) to the new pool.
+
+    /isard/groups[/...]    -> <new_mount>/desktops[/...]
+    /isard/templates[/...] -> <new_mount>/templates[/...]
+    /isard/media[/...]     -> <new_mount>/media[/...]
+    /isard/volatile[/...]  -> <new_mount>/volatile[/...]
+
+    Returns the mapped path, or None when `path` is not under a legacy dir.
+    """
+    if not path:
+        return None
+    for legacy, newsub in LEGACY_DEFAULT_DIRS.items():
+        old = f"/isard/{legacy}"
+        if path == old:
+            return f"{new_mount}/{newsub}"
+        if path.startswith(old + "/"):
+            return f"{new_mount}/{newsub}" + path[len(old) :]
+    return None
+
+
+def _migrate_move_file(src, dst, bwlimit, keep_source):
+    """Move src -> dst. shutil.move (atomic) on the same device, else rsync.
+
+    Returns (ok: bool, note: str|None). Idempotent: if dst already exists and
+    src does not, treats it as already moved.
+    """
+    import subprocess as _sp
+
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    if os.path.exists(dst) and not os.path.exists(src):
+        return True, "already at destination"
+    try:
+        same_dev = (
+            os.stat(os.path.dirname(src)).st_dev == os.stat(os.path.dirname(dst)).st_dev
+        )
+    except OSError:
+        same_dev = False
+    if same_dev and not keep_source and not bwlimit:
+        try:
+            shutil.move(src, dst)
+            return True, None
+        except Exception as e:  # noqa: BLE001
+            return False, str(e)
+    cmd = ["rsync", "-a"]
+    if bwlimit:
+        cmd.append(f"--bwlimit={bwlimit}")
+    if not keep_source:
+        cmd.append("--remove-source-files")
+    cmd += [src, dst]
+    try:
+        _sp.run(cmd, check=True, stdout=_sp.PIPE, stderr=_sp.PIPE, text=True)
+        return True, None
+    except _sp.CalledProcessError as e:
+        return False, e.stderr.strip()
+
+
+def cmd_migrate_default_pool(args):
+    """Relocate the legacy default pool (/isard/{groups,templates,media,volatile})
+    to /isard/storage_pools/<leaf>/{desktops,templates,media,volatile}.
+
+    Offline migration (run with all desktops stopped). Steps:
+      (a) repoint + enable the default pool FIRST so new disks use it,
+      (b) build the backing-chain tree (parents before children),
+      (c) per disk top-down: move the file, rebase its backing to the parent's
+          new path, and update storage.directory_path in RethinkDB in sync.
+    qcow2 rebase uses -u (fast, metadata-only) by default; --verify does a
+    verified rebase. --dry-run (default) only prints the plan.
+    """
+    from collections import deque
+
+    from storage_lib.db import (
+        fetch_media_for_migration,
+        fetch_storages_for_migration,
+        get_conn,
+        get_storage_pool,
+        set_storage_pool_layout,
+        update_media_path,
+        update_storage_directory_path,
+    )
+    from storage_lib.qcow import (
+        get_backing_file,
+        is_file_in_use,
+        qemu_img_chain_info,
+        qemu_img_check,
+        rebase_file,
+    )
+
+    leaf = args.leaf
+    new_mount = f"/isard/storage_pools/{leaf}"
+    apply = args.apply
+    new_paths = {
+        "desktop": [{"path": "desktops", "weight": 100}],
+        "template": [{"path": "templates", "weight": 100}],
+        "media": [{"path": "media", "weight": 100}],
+        "volatile": [{"path": "volatile", "weight": 100}],
+    }
+
+    log("=" * 70)
+    log(
+        f"migrate-default-pool [{'APPLY' if apply else 'DRY-RUN'}] -> {new_mount} "
+        f"(rebase: -u fast{' + integrity verify' if args.verify else ''})"
+    )
+    log("=" * 70)
+
+    with get_conn() as conn:
+        pool = get_storage_pool(conn, DEFAULT_STORAGE_POOL_ID)
+        if not pool:
+            log("ERROR: default storage pool (00000000-…) not found")
+            sys.exit(1)
+        storages = fetch_storages_for_migration(conn)
+        medias = fetch_media_for_migration(conn)
+        by_id = {s["id"]: s for s in storages}
+
+        # Disks to physically move: directory_path under a legacy default dir.
+        for s in storages:
+            new_dir = _migrate_map_path(s.get("directory_path", ""), new_mount)
+            s["_newdir"] = new_dir
+            if new_dir is not None:
+                stype = s.get("type") or "qcow2"
+                s["_src"] = f"{s['directory_path']}/{s['id']}.{stype}"
+                s["_dst"] = f"{new_dir}/{s['id']}.{stype}"
+        migr_ids = {s["id"] for s in storages if s.get("_newdir") is not None}
+
+        migr_media = []
+        for m in medias:
+            mapped = _migrate_map_path(m.get("path_downloaded", ""), new_mount)
+            if mapped is not None:
+                m["_dst"] = mapped
+                migr_media.append(m)
+
+        # (a) preflight: refuse if any disk to move is in use by a hypervisor.
+        in_use = []
+        for sid in migr_ids:
+            src = by_id[sid]["_src"]
+            if src.endswith(".qcow2") and os.path.exists(src):
+                used, _ = is_file_in_use(src)
+                if used:
+                    in_use.append(src)
+        if in_use:
+            log(
+                f"ABORT: {len(in_use)} disk(s) in use by a hypervisor; stop all desktops first:"
+            )
+            for p in in_use[:10]:
+                log(f"  {p}")
+            sys.exit(1)
+
+        log(
+            f"default pool mountpoint={pool.get('mountpoint')} enabled={pool.get('enabled')} "
+            f"| disks to move={len(migr_ids)} media={len(migr_media)}"
+        )
+        if not migr_ids and not migr_media and pool.get("mountpoint") == new_mount:
+            log("Nothing to do (already migrated).")
+            return
+
+        # (a) repoint + enable the default pool FIRST.
+        if pool.get("mountpoint") == new_mount and pool.get("enabled"):
+            log("default pool already repointed and enabled; skipping repoint")
+        elif apply:
+            set_storage_pool_layout(conn, DEFAULT_STORAGE_POOL_ID, new_mount, new_paths)
+            log(f"(a) repointed default pool -> {new_mount} (enabled)")
+        else:
+            log(
+                f"(a) would repoint default pool -> {new_mount} (enabled), paths desktops/templates/media/volatile"
+            )
+
+        # (b) backing-chain tree: order parents before children.
+        children_of = {}
+        for s in storages:
+            children_of.setdefault(s.get("parent"), []).append(s["id"])
+        order, seen, q = (
+            [],
+            set(),
+            deque(
+                s["id"]
+                for s in storages
+                if not s.get("parent") or s.get("parent") not in by_id
+            ),
+        )
+        while q:
+            sid = q.popleft()
+            if sid in seen:
+                continue
+            seen.add(sid)
+            order.append(sid)
+            for c in children_of.get(sid, []):
+                q.append(c)
+        order += [s["id"] for s in storages if s["id"] not in seen]  # orphans/cycles
+
+        # (c) per disk top-down: move + rebase + update DB.
+        moved = rebased = updated = verified = 0
+        for sid in order:
+            s = by_id.get(sid)
+            if not s:
+                continue
+            in_set = sid in migr_ids
+            stype = s.get("type") or "qcow2"
+            cur_path = f"{s.get('directory_path', '')}/{sid}.{stype}"
+
+            # 1) move (only legacy-set disks relocate)
+            if in_set and os.path.exists(s["_src"]):
+                if apply:
+                    ok, note = _migrate_move_file(
+                        s["_src"], s["_dst"], args.bwlimit, args.keep_source
+                    )
+                    if not ok:
+                        log(f"  MOVE FAIL {s['_src']}: {note}")
+                        continue
+                    moved += 1
+                else:
+                    log(f"  mv {s['_src']} -> {s['_dst']}")
+                    moved += 1
+
+            # 2) rebase: where the file lives now, fix a backing pointing at a
+            #    legacy dir to the parent's new path (parent moved earlier).
+            live = (
+                s["_dst"] if (in_set and apply) else (s["_src"] if in_set else cur_path)
+            )
+            read_from = (
+                live
+                if (apply and os.path.exists(live))
+                else (cur_path if os.path.exists(cur_path) else live)
+            )
+            if read_from.endswith(".qcow2") and os.path.exists(read_from):
+                backing = get_backing_file(read_from)
+                mapped_backing = (
+                    _migrate_map_path(backing, new_mount) if backing else None
+                )
+                if mapped_backing and mapped_backing != backing:
+                    if apply:
+                        ok, err = rebase_file(live, mapped_backing)
+                        if not ok:
+                            log(f"  REBASE FAIL {live}: {err}")
+                        else:
+                            rebased += 1
+                            if args.verify:
+                                # Integrity check: the rebased chain must resolve
+                                # and the image must be consistent.
+                                if qemu_img_chain_info(
+                                    live
+                                ) is None or not qemu_img_check(live):
+                                    log(
+                                        f"  VERIFY FAIL {live}: integrity/chain check failed"
+                                    )
+                                else:
+                                    verified += 1
+                    else:
+                        log(f"  rebase {live}: {backing} -> {mapped_backing}")
+                        rebased += 1
+
+            # 3) update DB directory_path (legacy-set disks only)
+            if in_set:
+                if apply:
+                    update_storage_directory_path(conn, sid, s["_newdir"])
+                updated += 1
+                if not apply:
+                    log(f"  db storage[{sid[:8]}].directory_path -> {s['_newdir']}")
+
+        # media: move + update path_downloaded
+        m_done = 0
+        for m in migr_media:
+            src = m["path_downloaded"]
+            if os.path.exists(src):
+                if apply:
+                    ok, note = _migrate_move_file(
+                        src, m["_dst"], args.bwlimit, args.keep_source
+                    )
+                    if not ok:
+                        log(f"  MEDIA MOVE FAIL {src}: {note}")
+                        continue
+                else:
+                    log(f"  mv (media) {src} -> {m['_dst']}")
+            if apply:
+                update_media_path(conn, m["id"], m["_dst"])
+            else:
+                log(f"  db media[{m['id'][:8]}].path_downloaded -> {m['_dst']}")
+            m_done += 1
+
+        log("=" * 70)
+        log(
+            f"{'APPLIED' if apply else 'PLAN'}: moved={moved} rebased={rebased} "
+            f"storage_rows={updated} media={m_done}"
+            + (f" verified={verified}" if args.verify else "")
+        )
+        if not apply:
+            log("Re-run with --apply to execute (all desktops must be stopped).")
+
+
 # ─── sparsify subcommand ─────────────────────────────────────────────────────
 
 
@@ -4502,6 +4802,46 @@ def build_parser():
     p_db.set_defaults(func=cmd_db_cleanup)
 
     # sparsify (thin wrapper around the standalone /utils/sparsify script)
+    p_migrate = subparsers.add_parser(
+        "migrate-default-pool",
+        help=(
+            "Move legacy default-pool storage (/isard/{groups,templates,media,"
+            "volatile}) to /isard/storage_pools/<leaf>, fixing backing chains."
+        ),
+    )
+    p_migrate.add_argument(
+        "--apply",
+        action="store_true",
+        help="Execute the migration (default is a dry-run plan).",
+    )
+    p_migrate.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show the plan without making changes (default behaviour).",
+    )
+    p_migrate.add_argument(
+        "--leaf",
+        default="default",
+        help="Destination leaf under /isard/storage_pools (default: default).",
+    )
+    p_migrate.add_argument(
+        "--verify",
+        action="store_true",
+        help="Verified rebase (drop qemu-img -u); slower, validates the chain.",
+    )
+    p_migrate.add_argument(
+        "--bwlimit",
+        type=int,
+        default=0,
+        help="rsync bandwidth limit in KB/s for cross-filesystem moves (0=unlimited).",
+    )
+    p_migrate.add_argument(
+        "--keep-source",
+        action="store_true",
+        help="Copy instead of move (rsync without --remove-source-files).",
+    )
+    p_migrate.set_defaults(func=cmd_migrate_default_pool)
+
     p_sparsify = subparsers.add_parser(
         "sparsify",
         help=(

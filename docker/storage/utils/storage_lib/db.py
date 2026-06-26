@@ -226,3 +226,65 @@ def categorize_zombies(rows):
 
 def now_ts():
     return int(time.time())
+
+
+# --------------------------------------------------------------------------- #
+# default-pool migration helpers
+# --------------------------------------------------------------------------- #
+def get_storage_pool(conn, pool_id):
+    """Return a single storage_pool row (or None)."""
+    return r.table("storage_pool").get(pool_id).run(conn)
+
+
+def set_storage_pool_layout(conn, pool_id, mountpoint, paths, enabled=True):
+    """Repoint a storage pool: set mountpoint, paths and enabled flags.
+
+    Uses r.literal on paths so the nested dict is replaced, not merged.
+    """
+    return (
+        r.table("storage_pool")
+        .get(pool_id)
+        .update(
+            {
+                "mountpoint": mountpoint,
+                "paths": r.literal(paths),
+                "enabled": enabled,
+                "enabled_virt": enabled,
+            }
+        )
+        .run(conn)
+    )
+
+
+def fetch_storages_for_migration(conn):
+    """All non-deleted storage rows with the fields the migration needs."""
+    return list(
+        r.table("storage")
+        .filter(lambda s: s["status"].default("").ne("deleted"))
+        .pluck("id", "parent", "directory_path", "type", "status")
+        .run(conn)
+    )
+
+
+def update_storage_directory_path(conn, storage_id, new_dir):
+    """Set a single storage row's directory_path."""
+    return (
+        r.table("storage").get(storage_id).update({"directory_path": new_dir}).run(conn)
+    )
+
+
+def fetch_media_for_migration(conn):
+    """All media rows with an id and path_downloaded."""
+    return list(
+        r.table("media")
+        .filter(lambda m: m.has_fields("path_downloaded"))
+        .pluck("id", "path_downloaded", "status")
+        .run(conn)
+    )
+
+
+def update_media_path(conn, media_id, new_path):
+    """Set a single media row's path_downloaded."""
+    return (
+        r.table("media").get(media_id).update({"path_downloaded": new_path}).run(conn)
+    )
