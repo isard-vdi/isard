@@ -551,6 +551,38 @@ def test_recreate_xml_if_gpu_plain_vgpu_mdev_keeps_default_display():
     assert hd[0].get("display") is None
 
 
+def test_recreate_xml_if_gpu_vfio_variant_vgpu_vf_hostdev():
+    """On the vendor-specific VFIO framework (Ubuntu 24.04+) a vGPU is a vfio-pci
+    passthrough of an SR-IOV VF with display='off', NOT an mdev hostdev. It must
+    carry a 'ua-isard-vgpu-*' user alias so host-side reconcile can tell an
+    engine-managed vGPU VF apart from a whole-card passthrough (both type='pci')."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(xml, "unused-uid", vgpu_vf_bdf="0000:05:00.4")
+    tree = _parse(result)
+    # vfio-pci VF passthrough, not an mdev
+    assert tree.xpath('//hostdev[@type="mdev"]') == []
+    hd = tree.xpath('//hostdev[@type="pci"][@managed="yes"]')
+    assert len(hd) == 1
+    assert hd[0].get("display") == "off"  # vGPU is headless on this path
+    # source address points at the VF BDF 0000:05:00.4
+    src = hd[0].xpath("./source/address")[0]
+    assert src.get("domain") == "0x0000"
+    assert src.get("bus") == "0x05"
+    assert src.get("slot") == "0x00"
+    assert src.get("function") == "0x4"
+    # the load-bearing marker (libvirt user aliases must start with 'ua-')
+    alias = hd[0].xpath("./alias")[0].get("name")
+    assert alias.startswith("ua-isard-vgpu-")
+    assert "0000-05-00-4" in alias
+
+
+def test_recreate_xml_if_gpu_vfio_variant_rejects_malformed_vf_bdf():
+    with pytest.raises(ValueError):
+        recreate_xml_if_gpu(
+            '<domain type="kvm"><devices/></domain>', "u", vgpu_vf_bdf="bad-bdf"
+        )
+
+
 # ---- engine bug fixes surfaced during the Redmine #15065 audit -------------
 
 
