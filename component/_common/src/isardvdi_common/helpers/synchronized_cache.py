@@ -103,9 +103,29 @@ class _SynchronizedCacheMixin:
         with self.lock:
             super().clear()
 
+    def __repr__(self):
+        # TTLCache.__repr__ calls self.expire() (a structural mutation), so it
+        # is NOT a pure read and must be serialised like every other entry point.
+        with self.lock:
+            return super().__repr__()
+
+    @property
+    def currsize(self):
+        # _TimedCache.currsize calls self.expire() before reading the size, so
+        # on a TTLCache it mutates the link list — guard it.
+        with self.lock:
+            return super().currsize
+
 
 class SynchronizedTTLCache(_SynchronizedCacheMixin, TTLCache):
     """Thread-safe :class:`cachetools.TTLCache`. Drop-in replacement."""
+
+    def expire(self, *args, **kwargs):
+        # Public on TTLCache and purely structural (unlinks expired entries);
+        # callers invoking it directly must not race the locked writers. Only
+        # TTLCache exposes expire(), so the override lives on this subclass.
+        with self.lock:
+            return super().expire(*args, **kwargs)
 
 
 class SynchronizedLRUCache(_SynchronizedCacheMixin, LRUCache):
