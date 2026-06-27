@@ -200,3 +200,31 @@ def test_iterate_then_pop_under_concurrent_writes():
     for t in threads:
         t.join()
     assert errors == [], f"iterate+pop corruption: {errors[:5]}"
+
+
+def test_no_plain_cachetools_cache_in_isardvdi_common():
+    """Regression guard for #1096: every module-global cachetools cache in
+    isardvdi_common must be a thread-safe Synchronized* variant. A bare
+    TTLCache/LRUCache mutated from the apiv4/engine/notifier threads corrupts
+    its OrderedDict. Fails loudly if a plain cache creeps back in."""
+    import pathlib
+    import re
+
+    common_root = pathlib.Path(__file__).resolve().parents[2]  # isardvdi_common/
+    plain = re.compile(
+        r"(?<![A-Za-z_])(TTLCache|LRUCache|LFUCache|RRCache|FIFOCache)\s*\("
+    )
+    offenders = []
+    for path in sorted(common_root.rglob("*.py")):
+        if "tests" in path.parts or path.name == "synchronized_cache.py":
+            continue
+        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+            code = line.split("#", 1)[0]
+            if plain.search(code) and "Synchronized" not in code:
+                offenders.append(
+                    f"{path.relative_to(common_root)}:{lineno}: {line.strip()}"
+                )
+    assert not offenders, (
+        "Non-thread-safe cachetools cache(s) found — regression of #1096. Use "
+        "SynchronizedTTLCache/SynchronizedLRUCache:\n" + "\n".join(offenders)
+    )
