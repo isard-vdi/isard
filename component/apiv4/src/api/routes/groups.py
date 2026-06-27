@@ -26,14 +26,15 @@ from api.schemas.common import ErrorResponse
 from api.schemas.groups import GroupUsersResponse
 from api.services.error import Error
 from api.services.groups import GroupsService
-from cachetools import TTLCache, cached
+from cachetools import cached
 from fastapi import Depends, Path, Request
 from fastapi.responses import JSONResponse
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 tag = "groups"
 
 # Named cache so writers can invalidate (and tests can clear between cases).
-group_users_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
+group_users_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=10)
 
 
 def clear_group_users_cache() -> None:

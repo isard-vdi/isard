@@ -32,7 +32,7 @@ from api.schemas.domains.desktops import (
 from api.services.bastion import BastionService
 from api.services.cards import CardService
 from api.services.error import Error
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
 from fastapi import Request
 from isardvdi_common.helpers.alloweds import Alloweds
@@ -44,6 +44,7 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.deployments.deployment_desktops import (
     DeploymentDesktopsProcessed as CommonDeploymentDesktops,
 )
@@ -81,7 +82,9 @@ from isardvdi_common.schemas.media import MediaStatusEnum
 # to swallow a double-click but far shorter than the time it takes the
 # engine to actually restart a domain (which is when the SPICE password
 # would legitimately rotate), so cache hits cannot serve stale credentials.
-_GET_DESKTOP_VIEWER_CACHE: TTLCache = TTLCache(maxsize=64, ttl=2)
+_GET_DESKTOP_VIEWER_CACHE: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=64, ttl=2
+)
 
 
 def _get_desktop_viewer_cache_key(

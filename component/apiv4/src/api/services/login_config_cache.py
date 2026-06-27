@@ -26,10 +26,10 @@ importing from a route module (the previous lazy
 a routes→services→routes cycle that would otherwise reappear).
 """
 
-from cachetools import TTLCache
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
-login_config_cache: TTLCache = TTLCache(maxsize=10, ttl=20)
-logo_cache: TTLCache = TTLCache(maxsize=10, ttl=60)
+login_config_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=20)
+logo_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=60)
 
 
 def clear_login_config_cache() -> None:

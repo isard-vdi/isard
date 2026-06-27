@@ -23,9 +23,10 @@ import os
 from datetime import datetime, timedelta
 
 import pytz
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.usage.common import UsageProcessed
 from isardvdi_common.lib.usage.consumption import (
     ConsumptionUsageProcessed,
@@ -49,9 +50,15 @@ log = logging.getLogger(__name__)
 # the admin usage page does pays full cost — start_end took 30s+ on
 # multi-tenant installs and the route timed out as 500. Reinstate the
 # caches with the same maxsize/ttl as apiv3.
-_get_start_end_consumption_cache: TTLCache = TTLCache(maxsize=200, ttl=60)
-_get_usage_distinct_items_cache: TTLCache = TTLCache(maxsize=100, ttl=60)
-_get_usage_consumers_cache: TTLCache = TTLCache(maxsize=10, ttl=60)
+_get_start_end_consumption_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=200, ttl=60
+)
+_get_usage_distinct_items_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=100, ttl=60
+)
+_get_usage_consumers_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=10, ttl=60
+)
 
 
 def _gsec_key(

@@ -27,15 +27,18 @@ from api.schemas.categories import CategoriesUsersSearchResponse
 from api.schemas.common import ErrorResponse
 from api.services.categories import CategoryService
 from api.services.error import Error
-from cachetools import TTLCache, cached
+from cachetools import cached
 from fastapi import Depends, Path, Query, Request
 from fastapi.responses import JSONResponse
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 tag = "categories"
 
 # Named cache so writers can invalidate it (and tests can clear between
 # cases). Search results are stable for ~10 s.
-category_users_search_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
+category_users_search_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=20, ttl=10
+)
 
 
 def clear_category_users_search_cache() -> None:

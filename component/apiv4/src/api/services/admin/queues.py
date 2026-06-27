@@ -9,9 +9,10 @@ import traceback
 from typing import Optional
 
 from api.services.error import Error
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.connections.redis_urls import RQ_DB
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.models.config import Config
 from redis import Redis
 from rq import Queue
@@ -27,11 +28,11 @@ QUEUE_REGISTRIES = [
     "canceled",
 ]
 
-queues_cache = TTLCache(maxsize=1, ttl=5)
-queue_jobs_cache = TTLCache(maxsize=20, ttl=5)
-consumers_cache = TTLCache(maxsize=1, ttl=5)
-subscribers_cache = TTLCache(maxsize=1, ttl=5)
-workers_cache = TTLCache(maxsize=1, ttl=5)
+queues_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
+queue_jobs_cache = SynchronizedTTLCache(maxsize=20, ttl=5)
+consumers_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
+subscribers_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
+workers_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
 
 
 def clear_queue_data_caches() -> None:

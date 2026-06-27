@@ -23,12 +23,13 @@ from uuid import uuid4
 
 from api.services.error import Error
 from api.services.users import UsersService
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.api_admin import ApiAdmin as CommonApiAdmin
 from isardvdi_common.lib.domains.desktops.desktops import (
     DesktopsProcessed as CommonDesktops,
@@ -45,7 +46,7 @@ from isardvdi_common.models.interfaces import Interface as RethinkInterfaces
 from isardvdi_common.models.user import User as RethinkUser
 from isardvdi_common.models.videos import Video as RethinkVideos
 
-templates_cache = TTLCache(maxsize=1, ttl=360)
+templates_cache = SynchronizedTTLCache(maxsize=1, ttl=360)
 
 
 def clear_templates_cache() -> None:

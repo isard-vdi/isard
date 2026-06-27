@@ -56,18 +56,19 @@ from api.schemas.domains.desktop_direct_viewer import (
 from api.schemas.domains.desktops import DesktopDetailsResponse, DesktopNetworksResponse
 from api.services.desktops import DesktopService
 from api.services.error import Error
-from cachetools import TTLCache, cached
+from cachetools import cached
 from fastapi import Depends, Path, Request
 from fastapi.responses import JSONResponse
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 tag = "desktop_direct_viewer"
 
 # Named caches so the share-link writer (update_share_link below) can
 # invalidate the read cache, and the reset-desktop writer can drop the
 # rate-limit cache. The viewer-docs cache holds a global config blob.
-share_link_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
-viewer_docs_cache: TTLCache = TTLCache(maxsize=1, ttl=360)
-reset_desktop_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
+share_link_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=10)
+viewer_docs_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=360)
+reset_desktop_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=10)
 
 
 def clear_share_link_cache() -> None:

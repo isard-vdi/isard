@@ -93,9 +93,10 @@ from api.schemas.common import EmptyResponse, ErrorResponse, PasswordPolicyError
 from api.services.admin.socketio import AdminSocketioService
 from api.services.admin.users import AdminUsersService
 from api.services.error import Error
-from cachetools import TTLCache, cached
+from cachetools import cached
 from fastapi import BackgroundTasks, Depends, Header, Path, Query, Request
 from fastapi.responses import JSONResponse, Response
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.models.user import UserModel as UserDBModel
 from pydantic import ValidationError
 
@@ -103,7 +104,9 @@ tag = "admin_users"
 
 # Named cache so writers (admin user updates further down this module
 # and in admin_users service) can invalidate the cached profile blob.
-admin_user_full_data_cache: TTLCache = TTLCache(maxsize=100, ttl=60)
+admin_user_full_data_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=100, ttl=60
+)
 
 
 def clear_admin_user_full_data_cache():
