@@ -534,3 +534,189 @@ async def test_core_dep_with_only_core_children_does_not_call_queue():
         )
 
     fake_queue.enqueue_dependents.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# At-least-once: success-only ACK + delete, PEL retry, dead-letter
+# ---------------------------------------------------------------------------
+
+
+def _patch_dispatch(root):
+    """Common patches for a _process_entry call rooted at ``root``."""
+    return (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Task",
+            return_value=root,
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_process_entry_returns_true_and_deletes_jobs_on_success():
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    dep = _stub_task("dep", task_name="storage_add", queue="core", kwargs={"id": "s"})
+    root = _stub_task("root", dependents=[dep])
+    emit_p, task_p = _patch_dispatch(root)
+    with (
+        emit_p,
+        task_p,
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS",
+            {"storage_add": (AsyncMock(), False)},
+        ),
+    ):
+        ok = await task_results_consumer._process_entry(
+            AsyncMock(), {"kind": "result", "task_id": "root", "task_name": "find"}
+        )
+
+    assert ok is True
+    dep.job.delete.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_process_entry_returns_false_and_keeps_jobs_on_failure():
+    """A failed handler must report failure AND leave the core Jobs intact so a
+    reclaim re-walk can re-run them."""
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    dep = _stub_task("dep", task_name="storage_update", queue="core")
+    root = _stub_task("root", dependents=[dep])
+    emit_p, task_p = _patch_dispatch(root)
+    with (
+        emit_p,
+        task_p,
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS",
+            {"storage_update": (AsyncMock(side_effect=RuntimeError("boom")), True)},
+        ),
+    ):
+        ok = await task_results_consumer._process_entry(
+            AsyncMock(), {"kind": "result", "task_id": "root", "task_name": "find"}
+        )
+
+    assert ok is False
+    dep.job.delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_process_entry_returns_false_when_task_hydration_fails():
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Task",
+            side_effect=RuntimeError("redis down"),
+        ),
+    ):
+        ok = await task_results_consumer._process_entry(
+            AsyncMock(), {"kind": "result", "task_id": "x", "task_name": "find"}
+        )
+
+    assert ok is False
+
+
+@pytest.mark.asyncio
+async def test_read_and_dispatch_acks_only_on_success():
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    redis = AsyncMock()
+    redis.xreadgroup.return_value = [("s", [("1-0", {"kind": "result"})])]
+    with patch.object(
+        task_results_consumer, "_process_entry", new=AsyncMock(return_value=True)
+    ):
+        await task_results_consumer._read_and_dispatch(redis, AsyncMock(), "c1")
+    redis.xack.assert_awaited_once_with(
+        task_results_consumer.STREAM_KEY,
+        task_results_consumer.CONSUMER_GROUP,
+        "1-0",
+    )
+
+
+@pytest.mark.asyncio
+async def test_read_and_dispatch_does_not_ack_on_failure():
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    redis = AsyncMock()
+    redis.xreadgroup.return_value = [("s", [("1-0", {"kind": "result"})])]
+    with patch.object(
+        task_results_consumer, "_process_entry", new=AsyncMock(return_value=False)
+    ):
+        await task_results_consumer._read_and_dispatch(redis, AsyncMock(), "c1")
+    redis.xack.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_read_and_dispatch_does_not_ack_when_process_raises():
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    redis = AsyncMock()
+    redis.xreadgroup.return_value = [("s", [("1-0", {"kind": "result"})])]
+    with patch.object(
+        task_results_consumer,
+        "_process_entry",
+        new=AsyncMock(side_effect=RuntimeError("boom")),
+    ):
+        await task_results_consumer._read_and_dispatch(redis, AsyncMock(), "c1")
+    redis.xack.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_reclaim_redispatches_idle_entry_and_acks_on_success():
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    redis = AsyncMock()
+    redis.xautoclaim.return_value = ["0-0", [("1-0", {"kind": "result"})]]
+    redis.xpending_range.return_value = [{"times_delivered": 2}]
+    with patch.object(
+        task_results_consumer, "_process_entry", new=AsyncMock(return_value=True)
+    ) as proc:
+        await task_results_consumer._reclaim_pending(redis, AsyncMock(), "c1")
+
+    proc.assert_awaited_once()
+    redis.xack.assert_awaited_once()
+    redis.xadd.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_reclaim_dead_letters_after_max_deliveries():
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    redis = AsyncMock()
+    fields = {"kind": "result", "task_id": "poison"}
+    redis.xautoclaim.return_value = ["0-0", [("1-0", fields)]]
+    redis.xpending_range.return_value = [
+        {"times_delivered": task_results_consumer.MAX_DELIVERIES + 1}
+    ]
+    with patch.object(task_results_consumer, "_process_entry", new=AsyncMock()) as proc:
+        await task_results_consumer._reclaim_pending(redis, AsyncMock(), "c1")
+
+    proc.assert_not_awaited()  # poison entry is NOT re-run
+    redis.xadd.assert_awaited_once_with(task_results_consumer.DEAD_STREAM, fields)
+    redis.xack.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_reclaim_does_not_ack_failed_redispatch():
+    """A reclaimed entry whose redispatch fails again stays in the PEL (not
+    ACKed) for the next sweep — until it crosses MAX_DELIVERIES."""
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    redis = AsyncMock()
+    redis.xautoclaim.return_value = ["0-0", [("1-0", {"kind": "result"})]]
+    redis.xpending_range.return_value = [{"times_delivered": 2}]
+    with patch.object(
+        task_results_consumer, "_process_entry", new=AsyncMock(return_value=False)
+    ):
+        await task_results_consumer._reclaim_pending(redis, AsyncMock(), "c1")
+
+    redis.xack.assert_not_awaited()
+    redis.xadd.assert_not_awaited()
