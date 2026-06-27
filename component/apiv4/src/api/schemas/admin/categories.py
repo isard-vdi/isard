@@ -46,6 +46,7 @@ class BrandingUpdateData(BaseModel):
 
     domain: Optional[BrandingDomain] = None
     logo: Optional[BrandingLogo] = None
+    logo_collapsed: Optional[BrandingLogo] = None
 
 
 class BrandingResponse(BaseModel):
@@ -61,6 +62,7 @@ class BrandingResponse(BaseModel):
 
     domain: Optional[BrandingDomain] = None
     logo: Optional[BrandingLogo] = None
+    logo_collapsed: Optional[BrandingLogo] = None
 
 
 class CategoryAuthenticationResponse(BaseModel):

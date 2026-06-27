@@ -104,3 +104,37 @@
     </div>
   </div>
 {% endwith %}
+
+{% with
+  id_prefix="category-branding-logo_collapsed-",
+  name_prefix="branding[logo_collapsed]"
+%}
+  <div id="branding-logo_collapsed-panel" class="x_panel">
+    <div class="x_title">
+      <h4><i class="fa fa-image"></i> Collapsed logo</h4>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      {% with
+        name="enabled",
+        label="Enabled",
+        type="checkbox"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      <div class="branding-logo_collapsed-settings">
+        {% with
+          name="data",
+          label="Collapsed logo (SVG, PNG, WebP)",
+          type="file",
+          required=false,
+          accept="image/svg+xml,image/png,image/webp",
+          preview=true
+        %}
+          {% include '/snippets/form_field.html' %}
+        {% endwith %}
+      </div>
+    </div>
+  </div>
+{% endwith %}

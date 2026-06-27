@@ -21,6 +21,7 @@
 import asyncio
 import base64
 import glob
+import hashlib
 import os
 import traceback
 from typing import Optional
@@ -31,7 +32,7 @@ from api.schemas.open import ApiVersion
 from api.services.admin.categories import AdminCategoryService
 from api.services.categories import CategoryService
 from api.services.error import Error
-from api.services.login_config_cache import logo_cache
+from api.services.login_config_cache import logo_cache, logo_collapsed_cache
 from cachetools import cached
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
@@ -144,7 +145,7 @@ _LOGO_MIME_TYPES = {
 
 _LOGO_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
-    "Cache-Control": "public, max-age=60",
+    "Cache-Control": "public, max-age=300",
 }
 
 
@@ -171,8 +172,16 @@ def _serve_logo_from_glob(glob_pattern: str) -> Optional[Response]:
     return None
 
 
-def _logo_response(data_url: str | None) -> Response:
-    """Serve a branding logo data URL, falling back to the static custom then default logo."""
+def _logo_response(
+    data_url: str | None,
+    glob_pattern: str = _STATIC_CUSTOM_LOGO_GLOB,
+    default_path: str | None = _DEFAULT_LOGO_PATH,
+) -> Response:
+    """Serve a branding logo: data URL → static glob → default file → 404.
+
+    ``default_path=None`` (the collapsed variant) skips the default-file
+    step and returns 404 so the frontend renders its bundled asset.
+    """
     if data_url and data_url.startswith("data:"):
         header, b64_data = data_url.split(",", 1)
         mime_type = header.split(":")[1].split(";")[0]
@@ -181,17 +190,35 @@ def _logo_response(data_url: str | None) -> Response:
             media_type=mime_type,
             headers=_LOGO_HEADERS,
         )
-    response = _serve_logo_from_glob(_STATIC_CUSTOM_LOGO_GLOB)
+    response = _serve_logo_from_glob(glob_pattern)
     if response is not None:
         return response
-    if os.path.isfile(_DEFAULT_LOGO_PATH):
-        with open(_DEFAULT_LOGO_PATH, "rb") as f:
+    if default_path and os.path.isfile(default_path):
+        with open(default_path, "rb") as f:
             return Response(
                 content=f.read(),
                 media_type="image/svg+xml",
                 headers={"Cache-Control": "public, max-age=300"},
             )
     return Response(status_code=404)
+
+
+def _with_etag(request: Request, response: Response) -> Response:
+    """Attach a strong ETag to a 200 image response and honour If-None-Match.
+
+    Returns a 304 (empty body) when the client's If-None-Match matches, so
+    repeat loads of the public logo endpoints cost nothing downstream.
+    """
+    if response.status_code != 200 or not getattr(response, "body", None):
+        return response
+    etag = '"%s"' % hashlib.sha256(response.body).hexdigest()
+    if request.headers.get("if-none-match") == etag:
+        not_modified = Response(status_code=304)
+        not_modified.headers["ETag"] = etag
+        not_modified.headers["Cache-Control"] = _LOGO_HEADERS["Cache-Control"]
+        return not_modified
+    response.headers["ETag"] = etag
+    return response
 
 
 # cachetools.cached can't wrap the async endpoint (it would cache the
@@ -201,6 +228,11 @@ def _logo_response(data_url: str | None) -> Response:
 @cached(cache=logo_cache, key=lambda domain: domain)
 def _logo_data_url_by_domain(domain: str) -> str | None:
     return AdminCategoryService.get_logo_by_domain(domain)
+
+
+@cached(cache=logo_collapsed_cache, key=lambda domain: domain)
+def _logo_collapsed_data_url_by_domain(domain: str) -> str | None:
+    return AdminCategoryService.get_logo_collapsed_by_domain(domain)
 
 
 @open_router.get(
@@ -224,9 +256,9 @@ def _logo_data_url_by_domain(domain: str) -> str | None:
 )
 async def get_logo(request: Request):
     try:
-        domain = request.headers.get("host", "").split(":")[0]
+        domain = request.headers.get("host", "").split(":")[0].lower()
         data_url = await asyncio.to_thread(_logo_data_url_by_domain, domain)
-        return _logo_response(data_url)
+        return _with_etag(request, _logo_response(data_url))
     except Error:
         raise
     except Exception:
@@ -262,7 +294,7 @@ async def get_category_logo(category_id: str, request: Request):
         data_url = await asyncio.to_thread(
             AdminCategoryService.get_logo_by_category, category_id
         )
-        return _logo_response(data_url)
+        return _with_etag(request, _logo_response(data_url))
     except Error:
         raise
     except Exception:
@@ -301,15 +333,70 @@ async def get_category_logo(category_id: str, request: Request):
 )
 async def get_logo_collapsed(request: Request):
     try:
-        response = _serve_logo_from_glob(_STATIC_CUSTOM_LOGO_COLLAPSED_GLOB)
-        if response is not None:
-            return response
-        return Response(status_code=404)
+        domain = request.headers.get("host", "").split(":")[0].lower()
+        data_url = await asyncio.to_thread(_logo_collapsed_data_url_by_domain, domain)
+        return _with_etag(
+            request,
+            _logo_response(
+                data_url,
+                glob_pattern=_STATIC_CUSTOM_LOGO_COLLAPSED_GLOB,
+                default_path=None,
+            ),
+        )
+    except Error:
+        raise
     except Exception:
         raise await Error.create(
             request,
             "internal_server",
             "Failed to retrieve collapsed logo",
+            traceback.format_exc(),
+        )
+
+
+@open_router.get(
+    "/logo-collapsed/category/{category_id}",
+    tags=["categories"],
+    response_class=Response,
+    summary="Get category collapsed logo",
+    description=(
+        "Returns the collapsed-sidebar branding logo for a category. Falls "
+        "back to the deployment-wide static collapsed logo, then 404 (the "
+        "frontend renders its bundled ``LogoCollapsedSvg`` asset)."
+    ),
+    responses={
+        200: {
+            "description": "Collapsed logo image file",
+            "content": {
+                "image/png": {},
+                "image/jpeg": {},
+                "image/svg+xml": {},
+                "image/*": {},
+            },
+        },
+        404: {"model": ErrorResponse},
+    },
+)
+async def get_category_logo_collapsed(category_id: str, request: Request):
+    try:
+        data_url = await asyncio.to_thread(
+            AdminCategoryService.get_logo_collapsed_by_category, category_id
+        )
+        return _with_etag(
+            request,
+            _logo_response(
+                data_url,
+                glob_pattern=_STATIC_CUSTOM_LOGO_COLLAPSED_GLOB,
+                default_path=None,
+            ),
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve collapsed logo for category '{category_id}'",
             traceback.format_exc(),
         )
 

@@ -869,6 +869,41 @@ class TestCategoryLogoEndpoint:
         assert response.status_code == 404
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  GET /logo-collapsed/category/{category_id} — public per-category endpoint
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestCategoryLogoCollapsedEndpoint:
+    @pytest.mark.clear_cache
+    def test_returns_404_when_collapsed_disabled(self, test_client):
+        response = test_client(
+            url="/logo-collapsed/category/test-cat",
+            db_tables_data=_db(),
+        )
+        # Collapsed logo disabled, no static collapsed fallback file → 404.
+        # The frontend renders its bundled LogoCollapsedSvg asset on 404.
+        assert response.status_code == 404
+
+
+def test_update_branding_accepts_logo_collapsed(test_client):
+    """The branding PUT accepts the collapsed-logo field end-to-end.
+
+    Exercises BrandingUpdateData → AdminCategoryService.update_branding →
+    Category.branding setter for the collapsed variant. ``enabled: False``
+    keeps it filesystem-free (delete is a no-op when absent).
+    """
+    jwt = MockJWT(role_id="admin")
+    response = test_client(
+        url="/admin/item/category/test-cat/branding",
+        method="PUT",
+        jwt=jwt,
+        body={"logo_collapsed": {"enabled": False}},
+        db_tables_data=_db(),
+    )
+    assert response.status_code == 204
+
+
 def test_update_branding_does_not_block_on_grpc(test_client):
     """Regression: the PUT /branding endpoint must not wait 30s on an unreachable
     haproxy-sync gRPC service. The autouse bastion-grpc mock in conftest should
