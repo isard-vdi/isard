@@ -2207,7 +2207,9 @@
     },
     "new-template": {
       "errors": {
-        "new_template_name_exists": "Ja existeix una plantilla amb aquest nom. Si us plau, tria un nom diferent."
+        "new_template_name_exists": "Ja existeix una plantilla amb aquest nom. Si us plau, tria un nom diferent.",
+        "generic": "Hi ha hagut un error en crear la plantilla. Si us plau, torna-ho a provar.",
+        "storage_pending_task": "El disc d'aquest escriptori està ocupat amb una altra operació. Espera un moment i torna-ho a provar."
       }
     },
     "new-media": {

@@ -2210,7 +2210,9 @@
     },
     "new-template": {
       "errors": {
-        "new_template_name_exists": "Ya existe una plantilla con este nombre. Por favor, elige un nombre diferente."
+        "new_template_name_exists": "Ya existe una plantilla con este nombre. Por favor, elige un nombre diferente.",
+        "generic": "Hubo un error al crear la plantilla, por favor, inténtalo de nuevo.",
+        "storage_pending_task": "El disco de este escritorio está ocupado con otra operación. Espera un momento e inténtalo de nuevo."
       }
     },
     "new-media": {

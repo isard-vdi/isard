@@ -1453,7 +1453,9 @@
     },
     "new-template": {
       "errors": {
-        "new_template_name_exists": "Izen honekin txantiloi bat lehendik existitzen da. Mesedez, aukeratu beste izen bat."
+        "new_template_name_exists": "Izen honekin txantiloi bat lehendik existitzen da. Mesedez, aukeratu beste izen bat.",
+        "generic": "Errore bat gertatu da txantiloia sortzean, mesedez, saiatu berriro.",
+        "storage_pending_task": "Mahaigain honen diskoa beste eragiketa batekin lanpetuta dago. Itxaron une bat eta saiatu berriro."
       }
     }
   },
