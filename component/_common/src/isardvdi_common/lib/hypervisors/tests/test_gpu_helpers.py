@@ -400,6 +400,94 @@ class TestEnsureGpuProfiles:
         # The passthrough entry is still seeded.
         assert any(p.get("profile") == "passthrough" for p in profiles)
 
+    @staticmethod
+    def _suffix_units(stub_rdb, model):
+        return {
+            p["profile"]: p["units"]
+            for p in stub_rdb["tables"]["gpu_profiles"].rows[f"NVIDIA-{model}"][
+                "profiles"
+            ]
+        }
+
+    def test_timesliced_units_are_framebuffer_limited_not_vf_ceiling(self, stub_rdb):
+        # vfio_variant (SR-IOV) time-sliced "<fb>Q" profiles report
+        # max_instances=0 and available_instances=<SR-IOV VF ceiling> (e.g.
+        # 48). units MUST be the framebuffer count (card_total // profile_fb),
+        # NOT 48 — else the booking planner over-allocates (books far more
+        # desktops than can ever start). RTX PRO 6000 Blackwell = 96 GB
+        # (reports 97887 MB): 48Q -> 2, 8Q -> 12, 6Q -> 16.
+        gpus = [
+            _gpu(
+                name="NVIDIA RTX PRO 6000 Blackwell",
+                memory_mb=97887,
+                vgpu_profiles=[
+                    {
+                        "name": "NVIDIA RTXPro6000-48Q",
+                        "framebuffer_mb": 49152,
+                        "max_instances": 0,
+                        "available_instances": 48,
+                    },
+                    {
+                        "name": "NVIDIA RTXPro6000-8Q",
+                        "framebuffer_mb": 8192,
+                        "max_instances": 0,
+                        "available_instances": 48,
+                    },
+                    {
+                        "name": "NVIDIA RTXPro6000-6Q",
+                        "framebuffer_mb": 6144,
+                        "max_instances": 0,
+                        "available_instances": 48,
+                    },
+                ],
+            )
+        ]
+        gpus[0]["_resolved_model"] = "RTXPro6000"
+        stub_rdb["Processed"].ensure_gpu_profiles(gpus)
+        units = self._suffix_units(stub_rdb, "RTXPro6000")
+        assert units["48Q"] == 2
+        assert units["8Q"] == 12
+        assert units["6Q"] == 16
+
+    def test_vf_ceiling_caps_small_timesliced_profile(self, stub_rdb):
+        # A 1Q profile fits 96 by framebuffer, but the card exposes only 48
+        # SR-IOV VFs; units must cap at the VF ceiling (available_instances).
+        gpus = [
+            _gpu(
+                memory_mb=97887,
+                vgpu_profiles=[
+                    {
+                        "name": "NVIDIA RTXPro6000-1Q",
+                        "framebuffer_mb": 1024,
+                        "max_instances": 0,
+                        "available_instances": 48,
+                    }
+                ],
+            )
+        ]
+        gpus[0]["_resolved_model"] = "RTXPro6000"
+        stub_rdb["Processed"].ensure_gpu_profiles(gpus)
+        assert self._suffix_units(stub_rdb, "RTXPro6000")["1Q"] == 48
+
+    def test_positive_max_instances_is_authoritative(self, stub_rdb):
+        # MIG-backed and legacy-mdev profiles report a correct max_instances;
+        # keep it verbatim (do not recompute from framebuffer).
+        gpus = [
+            _gpu(
+                vgpu_profiles=[
+                    {
+                        "name": "NVIDIA A100-4Q",
+                        "framebuffer_mb": 4096,
+                        "max_instances": 8,
+                        "available_instances": 8,
+                    }
+                ]
+            )
+        ]
+        gpus[0]["_resolved_model"] = "A100"
+        stub_rdb["Processed"].ensure_gpu_profiles(gpus)
+        assert self._suffix_units(stub_rdb, "A100")["4Q"] == 8
+
 
 # ── ensure_gpu_cards ────────────────────────────────────────────────────
 
