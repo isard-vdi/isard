@@ -119,3 +119,52 @@ def test_parse_default_paths_non_default_returns_false():
         )
         is False
     )
+
+
+# _parse_category_storage_pool_paths  ({category} placeholder support)
+# --------------------------------------------------------------------------- #
+def _category_pool_row(template_path):
+    return {
+        "id": "pool-a",
+        "mountpoint": "/isard/storage_pools/pool-a",
+        "paths": {
+            "desktop": [{"path": "slow/{category}/desktops", "weight": 100}],
+            "media": [{"path": "media", "weight": 100}],
+            "template": [{"path": template_path, "weight": 100}],
+            "volatile": [{"path": "volatile", "weight": 100}],
+        },
+    }
+
+
+def test_parse_category_paths_token():
+    out = mod._parse_category_storage_pool_paths(
+        _category_pool_row("fast/{category}/templates"), "cat-a"
+    )
+    assert (
+        out["paths"]["template"][0]["path"]
+        == "/isard/storage_pools/pool-a/fast/cat-a/templates"
+    )
+    assert (
+        out["paths"]["desktop"][0]["path"]
+        == "/isard/storage_pools/pool-a/slow/cat-a/desktops"
+    )
+    assert out["paths"]["template"][0]["weight"] == 100
+
+
+def test_parse_category_paths_legacy():
+    out = mod._parse_category_storage_pool_paths(
+        _category_pool_row("templates"), "cat-a"
+    )
+    # No token => category right after the mountpoint, as before.
+    assert (
+        out["paths"]["template"][0]["path"]
+        == "/isard/storage_pools/pool-a/cat-a/templates"
+    )
+    # Default-pool short-circuit unchanged.
+    assert (
+        mod._parse_category_storage_pool_paths(
+            {"id": DEFAULT_STORAGE_POOL_ID, "mountpoint": "/isard", "paths": {}},
+            "cat-a",
+        )["id"]
+        == DEFAULT_STORAGE_POOL_ID
+    )

@@ -376,3 +376,63 @@ def test_get_usage_by_path_outside_mountpoint_is_none():
 def test_get_usage_by_path_unknown_usage_is_none():
     pool = _category_pool()
     assert pool.get_usage_by_path(pool.mountpoint + "/cat/unknowndir/x.qcow2") is None
+
+
+# --------------------------------------------------------------------------- #
+# get_usage_by_path  ({category} placeholder: tier-before-category)
+# --------------------------------------------------------------------------- #
+def _token_category_pool():
+    return make_pool(
+        id="pool-a",
+        mountpoint="/isard/storage_pools/pool-a",
+        paths={
+            "template": [{"path": "fast/{category}/templates", "weight": 100}],
+            "desktop": [{"path": "slow/{category}/desktops", "weight": 100}],
+        },
+    )
+
+
+def test_get_usage_by_path_token_directory():
+    pool = _token_category_pool()
+    assert (
+        pool.get_usage_by_path("/isard/storage_pools/pool-a/fast/cat-a/templates")
+        == "template"
+    )
+
+
+def test_get_usage_by_path_token_file_path():
+    pool = _token_category_pool()
+    assert (
+        pool.get_usage_by_path(
+            "/isard/storage_pools/pool-a/slow/cat-a/desktops/x.qcow2"
+        )
+        == "desktop"
+    )
+
+
+def test_get_usage_by_path_mixed_token_and_legacy():
+    """A pool may mix a {category} path and a legacy path; both resolve."""
+    pool = make_pool(
+        id="pool-a",
+        mountpoint="/isard/storage_pools/pool-a",
+        paths={
+            "template": [{"path": "fast/{category}/templates", "weight": 100}],
+            "desktop": [{"path": "desktops", "weight": 100}],  # legacy
+        },
+    )
+    assert (
+        pool.get_usage_by_path("/isard/storage_pools/pool-a/fast/cat-a/templates")
+        == "template"
+    )
+    assert (
+        pool.get_usage_by_path("/isard/storage_pools/pool-a/cat-a/desktops/x.qcow2")
+        == "desktop"
+    )
+
+
+def test_get_usage_by_path_token_wrong_tier_is_none():
+    pool = _token_category_pool()
+    assert (
+        pool.get_usage_by_path("/isard/storage_pools/pool-a/other/cat-a/templates")
+        is None
+    )

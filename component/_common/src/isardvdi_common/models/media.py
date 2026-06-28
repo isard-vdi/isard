@@ -24,6 +24,7 @@ from isardvdi_common.connections.rethink_custom_base_factory import RethinkCusto
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from isardvdi_common.models.storage_pool import StoragePool
 from pydantic import BaseModel, Field
 from rethinkdb import r
@@ -172,7 +173,7 @@ class Media(RethinkCustomBase):
         if pool.id == DEFAULT_STORAGE_POOL_ID:
             base_dir = f"{pool.mountpoint}/{usage_path}"
         else:
-            base_dir = f"{pool.mountpoint}/{category_id}/{usage_path}"
+            base_dir = build_category_pool_dir(pool.mountpoint, category_id, usage_path)
         return pool, f"{base_dir}/{relative_path}.{kind}"
 
     def enqueue_download_chain(
