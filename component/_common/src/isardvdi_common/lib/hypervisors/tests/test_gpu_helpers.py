@@ -488,6 +488,108 @@ class TestEnsureGpuProfiles:
         stub_rdb["Processed"].ensure_gpu_profiles(gpus)
         assert self._suffix_units(stub_rdb, "A100")["4Q"] == 8
 
+    def test_zero_card_total_falls_back_to_available_no_zerodiv(self, stub_rdb):
+        # A discovery that omits/zeroes memory_total_mb must NOT divide by zero;
+        # fall back to available_instances (the VF ceiling) rather than crash
+        # the whole hypervisor registration on one malformed card.
+        gpus = [
+            _gpu(
+                memory_mb=0,
+                vgpu_profiles=[
+                    {
+                        "name": "NVIDIA RTXPro6000-8Q",
+                        "framebuffer_mb": 8192,
+                        "max_instances": 0,
+                        "available_instances": 48,
+                    }
+                ],
+            )
+        ]
+        gpus[0]["_resolved_model"] = "RTXPro6000"
+        stub_rdb["Processed"].ensure_gpu_profiles(gpus)
+        assert self._suffix_units(stub_rdb, "RTXPro6000")["8Q"] == 48
+
+    def test_full_blackwell_catalog_units_map_regression(self, stub_rdb):
+        # Regression lock for the production RTX PRO 6000 Blackwell DC catalog
+        # (96 GB, reports 97887 MB) as VALIDATED LIVE 2026-06-28: a single
+        # ensure_gpu_profiles call must exercise BOTH unit-derivation paths at
+        # once and reproduce the exact framebuffer-correct map. The time-sliced
+        # "<fb>Q" profiles (vfio_variant SR-IOV: max_instances=0,
+        # available_instances=48) are framebuffer-capped; the MIG-backed
+        # "<slices>_<fb>Q" profiles report a real max_instances (the GI count)
+        # and are kept verbatim; passthrough is always 1. Pre-fix every Q
+        # profile seeded units=48 (the VF ceiling) -> the booking planner
+        # over-allocated (e.g. 48x 48Q when only 2 fit). One call, both paths,
+        # so a future change to either branch can't silently regress the other.
+        q_tiers = {
+            "96Q": 98304,
+            "48Q": 49152,
+            "32Q": 32768,
+            "24Q": 24576,
+            "16Q": 16384,
+            "12Q": 12288,
+            "8Q": 8192,
+            "6Q": 6144,
+            "4Q": 4096,
+            "3Q": 3072,
+        }
+        vgpu_profiles = [
+            {
+                "name": f"NVIDIA RTXPro6000-{suffix}",
+                "framebuffer_mb": fb,
+                "max_instances": 0,
+                "available_instances": 48,
+            }
+            for suffix, fb in q_tiers.items()
+        ]
+        # MIG-backed vGPU types report a real max_instances == GI count.
+        vgpu_profiles += [
+            {
+                "name": "NVIDIA RTXPro6000-1_24Q",
+                "framebuffer_mb": 24576,
+                "max_instances": 4,
+                "available_instances": 4,
+            },
+            {
+                "name": "NVIDIA RTXPro6000-2_48Q",
+                "framebuffer_mb": 49152,
+                "max_instances": 2,
+                "available_instances": 2,
+            },
+            {
+                "name": "NVIDIA RTXPro6000-4_96Q",
+                "framebuffer_mb": 98304,
+                "max_instances": 1,
+                "available_instances": 1,
+            },
+        ]
+        gpus = [
+            _gpu(
+                name="NVIDIA RTX PRO 6000 Blackwell",
+                memory_mb=97887,
+                vgpu_profiles=vgpu_profiles,
+            )
+        ]
+        gpus[0]["_resolved_model"] = "RTXPro6000BlackwellDC"
+        stub_rdb["Processed"].ensure_gpu_profiles(gpus)
+        units = self._suffix_units(stub_rdb, "RTXPro6000BlackwellDC")
+        assert units == {
+            "passthrough": 1,
+            "96Q": 1,
+            "48Q": 2,
+            "32Q": 3,
+            "24Q": 4,
+            "16Q": 6,
+            "12Q": 8,
+            "8Q": 12,
+            "6Q": 16,
+            "4Q": 24,
+            "3Q": 32,
+            "1_24Q": 4,
+            "2_48Q": 2,
+            "4_96Q": 1,
+        }
+
 
 # ── ensure_gpu_cards ────────────────────────────────────────────────────
 
