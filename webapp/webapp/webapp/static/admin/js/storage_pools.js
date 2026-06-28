@@ -317,7 +317,7 @@ $(document).ready(function () {
           "From now on, disks from this pool's categories will be created in default paths";
 
         let msg = (change == "enable") ?
-          "This pool <b>will only become operational</b> after a system restart.Ensure that there is at least one hypervisor associated with this storage pool."
+          "This pool <b>only becomes operational</b> after a hypervisor/storage node that serves it is restarted (each node reads the pools it serves at startup). Ensure at least one hypervisor is associated with this storage pool. Editing an existing pool's paths or mountpoints takes effect automatically, with no restart."
           :
           "";
 
@@ -440,7 +440,7 @@ $(document).ready(function () {
           title: "<b>WARNING</b>",
           type: "error",
           text: `Are you sure you want to <b>delete</b> pool ${data["name"]}?
-                \nNote: The storage pool deletion will only be completed after <strong>restarting the engine</strong>`,
+                \nNote: Deleting a pool only fully takes effect after the hypervisor/storage nodes that served it are <strong>restarted</strong> (they stop serving its queue at startup).`,
           hide: false,
           opacity: 0.9,
           confirm: {
