@@ -110,6 +110,7 @@ def create_indexes(
         match table:
             case "domains":
                 r.table("domains").index_create("kind").run(conn)
+                r.table("domains").index_create("status").run(conn)
                 r.table("domains").index_create("tag").run(conn)
                 r.table("domains").index_create(
                     "kind_user", [r.row["kind"], r.row["user"]]
