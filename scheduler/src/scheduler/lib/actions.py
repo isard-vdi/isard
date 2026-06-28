@@ -47,6 +47,7 @@ from isardvdi_apiv4_client.api.role_admin import (
     admin_logs_users_delete,
     admin_notify_desktop,
     admin_notify_user_desktop,
+    admin_storage_refresh_running_sizes,
     admin_usage_consolidate,
     convert_storage,
     delete_cutoff_time_surpassed,
@@ -208,6 +209,17 @@ class Actions:
                     f"storage_migration_tick: migration {mid} failed: "
                     + traceback.format_exc()
                 )
+
+    def refresh_running_storage_sizes_kwargs():
+        return []
+
+    def refresh_running_storage_sizes():
+        # Re-measure qemu-img-info for the disks of currently-running
+        # desktops, so a long-running desktop's stored actual-size does
+        # not stay frozen at its last stop. Best-effort, lowest priority.
+        with build_client("isard-scheduler") as client:
+            resp = admin_storage_refresh_running_sizes.sync_detailed(client=client)
+            raise_for_status(resp)
 
     def desktop_notify(**kwargs):
         # Send to frontend

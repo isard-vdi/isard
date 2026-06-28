@@ -38,6 +38,77 @@ class StorageProcessed(RethinkSharedConnection):
 
     _rdb_table = "storage"
 
+    # Desktop statuses whose qcow2 may have grown since the last
+    # stop-time measurement. A desktop must be ``Started`` to write to
+    # its disk, so that is the status worth re-measuring periodically.
+    RUNNING_DESKTOP_STATUSES = ["Started"]
+
+    @classmethod
+    def enqueue_running_desktops_size_refresh(cls, statuses=None):
+        """Enqueue a qemu-img-info refresh for the disks of running desktops.
+
+        ``actual-size`` (physical qcow2 allocation) grows while a desktop
+        runs, but the stored value is only refreshed on disk lifecycle
+        events and on desktop stop (engine ``_stopped_storage_refresh``).
+        A desktop that stays up for days therefore reports a stale size to
+        quota/usage/analytics. This sweep mirrors the on-stop refresh but
+        fleet-wide, so it can be scheduled (cron/interval) to keep
+        long-running desktops' sizes current.
+
+        Reuses ``Storage.check_backing_chain`` (the proven
+        ``qemu_img_info_backing_chain -> storage_update`` chain), runs at
+        the lowest storage priority, and is best-effort: it skips disks
+        that are not ``ready``, read-only disks, and disks that already
+        have a refresh task pending, so repeated runs never dogpile the
+        task queue.
+
+        :param statuses: Desktop statuses to treat as running. Defaults to
+            :attr:`RUNNING_DESKTOP_STATUSES`.
+        :type statuses: list[str] | None
+        :return: Number of refresh tasks enqueued.
+        :rtype: int
+        """
+        statuses = statuses or cls.RUNNING_DESKTOP_STATUSES
+        with cls._rdb_context():
+            domains = list(
+                r.table("domains")
+                .get_all(r.args(statuses), index="status")
+                .pluck("id", "user", {"hardware": {"disks": True}})
+                .run(cls._rdb_connection)
+            )
+
+        # Map each attached storage to its owning desktop's user. The
+        # first running desktop that references a storage wins (a disk is
+        # normally attached to a single desktop).
+        storage_users = {}
+        for domain in domains:
+            user_id = domain.get("user")
+            for disk in domain.get("hardware", {}).get("disks", []):
+                storage_id = disk.get("storage_id")
+                if storage_id:
+                    storage_users.setdefault(storage_id, user_id)
+
+        enqueued = 0
+        for storage_id, user_id in storage_users.items():
+            if not Storage.exists(storage_id):
+                continue
+            storage = Storage(storage_id)
+            if storage.status != "ready" or getattr(storage, "readonly", False):
+                continue
+            # Idempotency: a refresh (or any task) already in flight for
+            # this storage — skip so repeated sweeps don't pile up.
+            if (
+                storage.task
+                and Task.exists(storage.task)
+                and Task(storage.task).pending
+            ):
+                continue
+            storage.check_backing_chain(
+                user_id, blocking=False, retry=1, priority="background"
+            )
+            enqueued += 1
+        return enqueued
+
     @classmethod
     def get_status_counts(cls, category_id=None):
         """_From /api/libv2/api_storage.py get_status()_"""
