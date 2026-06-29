@@ -20,8 +20,8 @@ services:
       - ${BUILD_ROOT_PATH}/go.sum:/sessions/go.sum
       - ${BUILD_ROOT_PATH}/pkg:/sessions/pkg
       - ${BUILD_ROOT_PATH}/sessions:/sessions/sessions
-      - /tmp/isardvdi-go-devel/cache:/root/.cache/go-build
-      - /tmp/isardvdi-go-devel/pkg:/go/pkg
+      - ${XDG_CACHE_HOME:-$HOME/.cache}/isardvdi/go-devel/cache:/root/.cache/go-build
+      - ${XDG_CACHE_HOME:-$HOME/.cache}/isardvdi/go-devel/pkg:/go/pkg
     security_opt:
       - "seccomp:unconfined"
     cap_add:
