@@ -674,17 +674,22 @@ fi
 echo "Git reference: $TAG_VERSION"
 echo "Docker image tag: $TAG_DASHED"
 
-# Navigate to the source directory
-# Check if we're in a development environment or production
-if [ -d "/opt/isard/src" ]; then
-  cd /opt/isard/src || { echo "Directory /opt/isard/src not found"; exit 1; }
-elif [ -f "isardvdi.cfg" ] || [ -f "docker-compose.yml" ]; then
-  echo "Development environment detected - using current directory: $(pwd)"
+# Navigate to the source directory.
+# Prefer the directory the script was launched from (or its parent) whenever it
+# already holds the IsardVDI files. Only fall back to /opt/isard/src when the
+# current location has none. This lets the script run from a dev clone / worktree
+# even on a deployed host where /opt/isard/src exists but carries no .cfg of its
+# own (otherwise it would jump there and abort with "No .cfg files found").
+if [ -f "isardvdi.cfg" ] || [ -f "docker-compose.yml" ]; then
+  echo "Using IsardVDI files in current directory: $(pwd)"
 elif [ -f "../isardvdi.cfg" ] || [ -f "../docker-compose.yml" ]; then
   echo "Running from subdirectory - moving to parent: $(dirname "$(pwd)")"
   cd .. || { echo "Could not navigate to parent directory"; exit 1; }
+elif [ -d "/opt/isard/src" ]; then
+  echo "No IsardVDI files here - falling back to /opt/isard/src"
+  cd /opt/isard/src || { echo "Directory /opt/isard/src not found"; exit 1; }
 else
-  echo "Error: Neither /opt/isard/src found nor IsardVDI files in current or parent directory"
+  echo "Error: Neither IsardVDI files in current or parent directory nor /opt/isard/src found"
   echo "Please run this script from the IsardVDI source directory or ensure /opt/isard/src exists"
   exit 1
 fi
@@ -1125,15 +1130,26 @@ if [ "$ACTION" = "upgrade" ]; then
       compose_file="docker-compose.${suffix}.yml"
     fi
     
-    echo "  Starting services for $cfg_basename using $compose_file..."
-    
     # Check if docker-compose-open-ports.yml exists and build compose command accordingly
     if [ -f "docker-compose-open-ports.yml" ]; then
       echo "    Found docker-compose-open-ports.yml, including it in the deployment..."
-      docker compose -f "$compose_file" -f docker-compose-open-ports.yml up -d
+
+      # Bring the currently-running stack down before bringing the new one up,
+      # so containers from the previous flavour/cfg are removed cleanly instead
+      # of being left as orphans alongside the recreated ones.
+      echo "  Bringing down current services for $cfg_basename using $compose_file..."
+      docker compose -f "$compose_file" -f docker-compose-open-ports.yml down --remove-orphans
+
+      echo "  Starting services for $cfg_basename using $compose_file..."
+      docker compose -f "$compose_file" -f docker-compose-open-ports.yml up -d --remove-orphans
     else
       echo "    docker-compose-open-ports.yml not found, using only $compose_file..."
-      docker compose -f "$compose_file" up -d
+
+      echo "  Bringing down current services for $cfg_basename using $compose_file..."
+      docker compose -f "$compose_file" down --remove-orphans
+
+      echo "  Starting services for $cfg_basename using $compose_file..."
+      docker compose -f "$compose_file" up -d --remove-orphans
     fi
   done
   
