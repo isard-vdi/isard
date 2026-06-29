@@ -1,6 +1,6 @@
 import type { RouteLocationNormalized } from 'vue-router'
 
-export type FrontendMode = 'deprecated' | 'actual' | 'all'
+export type FrontendMode = 'deprecated' | 'actual' | 'all' | 'hidden'
 
 export const VUE3_TO_VUE2: Record<string, string> = {
   desktops: '/desktops',

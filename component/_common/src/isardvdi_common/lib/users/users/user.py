@@ -558,7 +558,7 @@ class UsersProcessed(RethinkSharedConnection):
         frontend_mode_raw = getenv("FRONTEND_MODE", "deprecated")
         frontend_mode = (
             frontend_mode_raw
-            if frontend_mode_raw in ("deprecated", "actual", "all")
+            if frontend_mode_raw in ("deprecated", "actual", "all", "hidden")
             else "deprecated"
         )
 

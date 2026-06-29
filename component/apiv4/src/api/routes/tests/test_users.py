@@ -376,6 +376,7 @@ def test_get_user_config(monkeypatch, test_client):
         ("deprecated", "deprecated"),
         ("actual", "actual"),
         ("all", "all"),
+        ("hidden", "hidden"),
         ("garbage", "deprecated"),
         ("", "deprecated"),
     ],
@@ -395,7 +396,7 @@ def test_user_config_frontend_mode_values(
 
     def fake_get_user_config(payload):
         raw = os.environ.get("FRONTEND_MODE", "deprecated")
-        mode = raw if raw in ("deprecated", "actual", "all") else "deprecated"
+        mode = raw if raw in ("deprecated", "actual", "all", "hidden") else "deprecated"
         return {**stub, "frontend_mode": mode}
 
     monkeypatch.setattr(
