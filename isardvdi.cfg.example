@@ -85,6 +85,10 @@ FRONTEND_VIEWERS_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/user/viewers/vie
 ##                Required for Vue 3 e2e tests + recommended for devel work
 ##                on the apiv4-integration branch (.gitlab-ci.yml's test-e2e
 ##                and integration-real jobs both set FRONTEND_MODE=all).
+##  - hidden:     both frontends reachable by direct path, NO toggler shown.
+##                Like 'all' but without advertising the switch: neither
+##                router redirects, so users who know the URLs can use either
+##                frontend, while the toggler button stays hidden.
 #FRONTEND_MODE=deprecated
 
 # ------ Frontend Direct Viewer cookie ---------------------------------------

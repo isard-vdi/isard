@@ -24,7 +24,7 @@ from isardvdi_common.schemas.shared.allowed import Allowed
 from isardvdi_common.schemas.user import UserStorageModel
 from pydantic import BaseModel, Field
 
-FrontendMode = Literal["deprecated", "actual", "all"]
+FrontendMode = Literal["deprecated", "actual", "all", "hidden"]
 
 
 class FaroConfig(BaseModel):
@@ -135,7 +135,8 @@ class UserConfigResponse(BaseModel):
         "deprecated",
         description=(
             "Which frontend to serve: 'deprecated' (Vue 2 only), "
-            "'actual' (Vue 3 only), or 'all' (both, with toggler)."
+            "'actual' (Vue 3 only), 'all' (both, with toggler), or "
+            "'hidden' (both reachable by path, no toggler shown)."
         ),
     )
     faro: FaroConfig = Field(
