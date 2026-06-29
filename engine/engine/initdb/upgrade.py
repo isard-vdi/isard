@@ -49,7 +49,10 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 198
+release_version = 199
+# release 199: purge decommissioned core_worker RQ state (the core and
+#              core.feedback queues, their stale worker registrations and job
+#              registries) left orphaned by the apiv4 migration. Idempotent.
 # release 198: Seed vgpus.requested_profile (operator intent) and
 #              vgpus.operator_passthrough from current vgpu_profile so the new
 #              reconcile policy (intent vs runtime state) has DB rows to read.
@@ -299,6 +302,7 @@ tables = [
     "notifications_action",
     "targets",
     "vgpus",
+    "redis_tasks_cleanup",
 ]
 
 
@@ -8106,5 +8110,147 @@ password:s:%s"""
                 v189_prune_non_full_use_gpu_profiles(self)
             except Exception as e:
                 log.error(f"v197 non-full-use GPU profile prune failed: {e}")
+
+        return True
+
+    def redis_tasks_cleanup(self, version):
+        """One-time purge of decommissioned ``core_worker`` RQ state (v199).
+
+        The main -> apiv4-integration migration removed the ``isard-core_worker``
+        RQ consumer (the ``core`` and ``core.feedback`` queues). With no live
+        worker, RQ's own registry cleanup never runs on them, so their stale
+        worker registrations, queues and job registries linger indefinitely
+        (failed jobs keep RQ's ~1-year TTL). This idempotently removes that
+        orphaned state. The live ``storage``/``notifier`` workers, their queues
+        and the changefeed streams (db 2) are left untouched; ongoing old-task
+        retention stays governed by the age-based ``Config.old_tasks`` cleanup.
+
+        Deletion is done in bulk: job ids are read from each registry with a
+        single range query and their hashes/results are dropped in batched
+        ``UNLINK`` calls, instead of one round trip per job. On installs that
+        accumulated hundreds of thousands of finished/failed core jobs this
+        keeps the upgrade to seconds rather than blocking engine startup for
+        minutes.
+        """
+        log.info("UPGRADING redis_tasks_cleanup TO VERSION " + str(version))
+
+        if version == 199:
+            try:
+                from rq import Queue
+
+                conn = Redis(
+                    host=os.environ.get("REDIS_HOST", "isard-redis"),
+                    port=int(os.environ.get("REDIS_PORT", 6379)),
+                    password=os.environ.get("REDIS_PASSWORD", ""),
+                    db=0,
+                )
+                dead_queues = ("core.feedback", "core")
+                statuses = (
+                    "failed",
+                    "started",
+                    "finished",
+                    "deferred",
+                    "scheduled",
+                    "canceled",
+                )
+                removed_jobs = 0
+
+                def _drop(keys):
+                    # UNLINK reclaims memory in a background thread; fall back to
+                    # DEL where UNLINK is unavailable.
+                    if not keys:
+                        return
+                    try:
+                        conn.unlink(*keys)
+                    except Exception:
+                        try:
+                            conn.delete(*keys)
+                        except Exception:
+                            pass
+
+                def _flush(batch, job_id):
+                    batch.extend(
+                        (
+                            f"rq:job:{job_id}",
+                            f"rq:results:{job_id}",
+                            f"rq:job:{job_id}:dependencies",
+                        )
+                    )
+                    if len(batch) >= 900:
+                        _drop(batch)
+                        del batch[:]
+
+                for qname in dead_queues:
+                    queue = Queue(qname, connection=conn)
+                    job_ids = set()
+                    registry_keys = []
+                    # Pull job ids from every status registry with one range
+                    # query each (no per-job round trips).
+                    for status in statuses:
+                        try:
+                            registry = getattr(queue, f"{status}_job_registry")
+                            registry_keys.append(registry.key)
+                            job_ids.update(registry.get_job_ids())
+                        except Exception:
+                            pass
+                    # Plus any still-queued jobs sitting in the queue list.
+                    try:
+                        job_ids.update(
+                            j.decode() if isinstance(j, bytes) else j
+                            for j in conn.lrange(queue.key, 0, -1)
+                        )
+                    except Exception:
+                        pass
+
+                    # Drop the job hashes (and their results/dependencies) in
+                    # batched UNLINKs.
+                    batch = []
+                    for job_id in job_ids:
+                        _flush(batch, job_id)
+                    _drop(batch)
+                    removed_jobs += len(job_ids)
+
+                    # Drop the registries, the queue list and the queue's worker
+                    # set, then unregister it from rq:queues.
+                    _drop(registry_keys + [queue.key, f"rq:workers:{qname}"])
+                    try:
+                        conn.srem("rq:queues", f"rq:queue:{qname}")
+                    except Exception:
+                        pass
+
+                # Safety net: sweep any orphaned job hashes still tagged with a
+                # dead origin (registry entry lost), again in batched deletes.
+                dead_origins = {b"core", b"core.feedback"}
+                orphan_batch = []
+                try:
+                    for key in conn.scan_iter(match="rq:job:*", count=1000):
+                        try:
+                            if conn.hget(key, "origin") in dead_origins:
+                                job_id = key.decode().split("rq:job:", 1)[1]
+                                _flush(orphan_batch, job_id)
+                                removed_jobs += 1
+                        except Exception:
+                            pass
+                    _drop(orphan_batch)
+                except Exception:
+                    pass
+
+                # Prune stale (heartbeat-expired) worker registrations.
+                removed_workers = 0
+                try:
+                    for member in conn.smembers("rq:workers"):
+                        if not conn.exists(member):
+                            conn.srem("rq:workers", member)
+                            removed_workers += 1
+                except Exception:
+                    pass
+
+                log.info(
+                    "redis_tasks_cleanup v199: removed "
+                    f"{removed_jobs} core job(s) and "
+                    f"{removed_workers} stale worker registration(s)"
+                )
+            except Exception as e:
+                log.error(f"redis_tasks_cleanup v199 failed (non-fatal): {e}")
 
         return True
