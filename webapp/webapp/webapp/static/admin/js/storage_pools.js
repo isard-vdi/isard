@@ -498,6 +498,21 @@ function renderEnabled(enabled, kind) {
   return '<i class="fa fa-' + icon + '" style="color:' + color + '"></i>'
 }
 
+function storagePoolOnDiskPath(mountpoint, category, subpath) {
+  // Mirror build_category_pool_dir: with the {category} token present the token
+  // is substituted in place and the category is NOT auto-prepended; without it
+  // the category id is inserted after the mountpoint; the default pool (no
+  // category) uses the subpath as-is.
+  var token = "{category}";
+  if (category && subpath.indexOf(token) !== -1) {
+    return `${mountpoint}/${subpath.split(token).join(category["id"])}`;
+  }
+  if (category) {
+    return `${mountpoint}/${category["id"]}/${subpath}`;
+  }
+  return `${mountpoint}/${subpath}`;
+}
+
 function renderStoragePoolsPaths(data) {
   var $newPanel = "";
   if (data["categories_names"].length) {
@@ -527,7 +542,7 @@ function renderStoragePoolsPaths(data) {
       $pathsTBody.append(
         $('<tr>').append(
           $('<td>').append($('<i class="fa">').addClass(getTypeDefaultValue(type).icon)).append(' ').append(`<b> ${getTypeDefaultValue(type).title}</b>`),
-          $('<td>').text(`${data.mountpoint}/${category ? category["id"] + "/" : ""}${path.path}`),
+          $('<td>').text(storagePoolOnDiskPath(data.mountpoint, category, path.path)),
           $('<td>').text(path.weight)
         )
       );

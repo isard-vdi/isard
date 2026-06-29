@@ -275,6 +275,16 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                     "bad_request",
                     f"Default pool must have at least one '{usage}' path",
                 )
+        # The default pool has no category segment, so a {category} placeholder
+        # would never be substituted and would become a literal directory.
+        for entries in paths.values():
+            for item in entries:
+                if CATEGORY_TOKEN in item.get("path", ""):
+                    raise Error(
+                        "bad_request",
+                        f"The '{CATEGORY_TOKEN}' placeholder is not allowed on the "
+                        "default pool (it has no category)",
+                    )
 
     @classmethod
     def update_storage_pool(cls, storage_pool_id, data):
