@@ -35,6 +35,14 @@ variables:
   DOCKER_TLS_CERTDIR: "/certs"
   GITLAB_ADVANCED_SAST_ENABLED: "true"
   MAX_UNVERIFIED_CORES: "16"
+  # Cache bun's content-addressed global install store (hash-verified, self-healing)
+  # instead of the derived node_modules tree. A corrupt or truncated file inside a
+  # cached node_modules (e.g. a 0-byte dependency file) otherwise persists across
+  # pipelines forever, because the cache key is the lockfile hash and
+  # `bun install --frozen-lockfile` reuses the restored tree without per-file
+  # integrity checks. Caching the global store lets bun detect a bad entry by hash
+  # and refetch it, rebuilding node_modules fresh each run.
+  BUN_INSTALL_CACHE_DIR: "$CI_PROJECT_DIR/.bun-cache"
   # Secret Detection scans third-party Go module testdata fixtures (RSA/SSH keys,
   # AWS sample IDs, etc.) inside .go-mod-cache as critical findings. Those are
   # not project secrets — they ship inside dependency tarballs. Excluding the
@@ -56,8 +64,7 @@ default:
           - component/frontend/bun.lockb
           - old-frontend/bun.lock
       paths:
-        - component/frontend/node_modules
-        - old-frontend/node_modules
+        - .bun-cache
     - key:
         files:
           - testing/e2e/package.json
