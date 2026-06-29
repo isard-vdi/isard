@@ -7359,6 +7359,24 @@ password:s:%s"""
                             },
                         }
                     ).run(self.conn)
+                elif not default_pool.get("mountpoint"):
+                    # Direct upgrade from a version <121: v64 (re)created the
+                    # default pool with absolute /isard/* paths and NO mountpoint,
+                    # so "{mountpoint}/{path}" would later resolve to
+                    # "None//isard/groups". Restore the legacy /isard mountpoint
+                    # with relative paths so disks resolve under it.
+                    r.table(table).get("00000000-0000-0000-0000-000000000000").update(
+                        {
+                            "mountpoint": "/isard",
+                            "name": "Default",
+                            "paths": {
+                                "desktop": [{"path": "groups", "weight": 100}],
+                                "template": [{"path": "templates", "weight": 100}],
+                                "media": [{"path": "media", "weight": 100}],
+                                "volatile": [{"path": "volatile", "weight": 100}],
+                            },
+                        }
+                    ).run(self.conn)
             except Exception as e:
                 print(e)
             try:
