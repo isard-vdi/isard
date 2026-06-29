@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import re
 import time
 import traceback
 
@@ -84,7 +85,7 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                 "(the only path mounted into the storage and hypervisor containers)",
             )
         leaf = mountpoint[len(prefix) :].strip("/")
-        if not leaf or "/" in leaf or ".." in leaf.split("/"):
+        if not leaf or "/" in leaf or ".." in leaf.split("/") or leaf.strip(".") == "":
             raise Error(
                 "bad_request",
                 f"Storage pool mountpoint must be {prefix}<name> with a single safe "
@@ -282,7 +283,7 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                 .filter(
                     lambda s: s["directory_path"]
                     .default("")
-                    .match("^" + mountpoint + "/")
+                    .match("^" + re.escape(mountpoint) + "/")
                 )
                 .count()
                 .run(cls._rdb_connection)
