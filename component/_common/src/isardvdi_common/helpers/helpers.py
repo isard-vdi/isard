@@ -1494,15 +1494,18 @@ class Helpers(RethinkSharedConnection):
             return booking_id
 
         if payload.get("role_id", "") == "manager":
-            booking_user = Caches.get_document("users", booking_user_id, ["category"])
-            if booking_user is None:
+            # Single-key get_document returns the unwrapped value, not a dict.
+            booking_user_category = Caches.get_document(
+                "users", booking_user_id, ["category"]
+            )
+            if booking_user_category is None:
                 raise Error(
                     "not_found",
                     f"Booking user {booking_user_id} not found",
                     traceback.format_exc(),
                     description_code="not_found",
                 )
-            if booking_user.get("category") == payload.get("category_id"):
+            if booking_user_category == payload.get("category_id"):
                 return booking_id
 
         raise Error(
