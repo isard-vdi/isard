@@ -165,6 +165,27 @@ def test_media_update_indirect_walks_check_media_existence():
     mock_media_cls.init_document.assert_called_once_with(id="m1", status="ready")
 
 
+def test_media_update_indirect_skips_empty_dependency_result_without_recursing():
+    """A failed/aborted download dependency carries no payload.
+
+    The old code recursed ``handle_media_update(task, **(dep.result or {}))``
+    which, with an empty result, fell through to walk ``task.dependencies``
+    again on the *same* task and blew the stack (RecursionError). The fix
+    applies each result directly and skips empty ones.
+    """
+    from isardvdi_change_handler.task_results import media
+
+    empty = SimpleNamespace(task="download_url", result=None)
+    populated = SimpleNamespace(
+        task="download_url", result={"id": "m2", "status": "ready"}
+    )
+    task = _task(dependencies=[empty, populated])
+    with patch.object(media, "Media") as mock_media_cls:
+        media.handle_media_update(task, **{})
+    # only the populated dependency is applied; the empty one is skipped
+    mock_media_cls.init_document.assert_called_once_with(id="m2", status="ready")
+
+
 # ---------------------------------------------------------------------------
 # media.handle_media_download_update_status
 # ---------------------------------------------------------------------------

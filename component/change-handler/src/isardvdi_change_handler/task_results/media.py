@@ -54,7 +54,15 @@ def handle_media_update(task, **media_dict):
         return
     for dependency in task.dependencies:
         if dependency.task in ("check_media_existence", "download_url"):
-            handle_media_update(task, **(dependency.result or {}))
+            # Apply each dependency result directly. Recursing back into
+            # ``handle_media_update(task, ...)`` blew the stack
+            # (RecursionError) whenever a dependency had an empty result:
+            # the call passed no ``media_dict``, fell through to walk
+            # ``task.dependencies`` again on the *same* task, and looped.
+            # Skip empty (failed/aborted) results — they carry no payload.
+            result = dependency.result
+            if result:
+                Media.init_document(**result)
 
 
 def handle_media_download_update_status(task, media_id):

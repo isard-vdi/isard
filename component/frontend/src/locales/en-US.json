@@ -2381,7 +2381,9 @@
     },
     "new-template": {
       "errors": {
-        "new_template_name_exists": "A template with this name already exists. Please choose a different name."
+        "new_template_name_exists": "A template with this name already exists. Please choose a different name.",
+        "generic": "There was an error creating the template, please try again.",
+        "storage_pending_task": "This desktop's disk is busy with another operation. Please wait a moment and try again."
       }
     },
     "new-media": {

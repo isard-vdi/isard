@@ -168,7 +168,10 @@ defineExpose({ form, isPending })
         t(`views.new-template.form.errors.title`)
       }}</AlertTitle>
       <AlertDescription>{{
-        t(`api.new-template.errors.${createTemplateErrorCode}`)
+        t(
+          `api.new-template.errors.${createTemplateErrorCode}`,
+          t('api.new-template.errors.generic')
+        )
       }}</AlertDescription>
     </Alert>
 

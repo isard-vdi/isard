@@ -254,18 +254,41 @@ class Task(RedisBase):
     @property
     def pending(self):
         """
-        Get True if task is pending otherwise return False
+        Get True if the task (or anything in its chain) is still actively
+        running, otherwise return False.
+
+        Walks the chain (dependencies + self + dependents) and treats a job
+        as pending only if real work remains:
+
+        * ``STARTED`` / ``SCHEDULED`` / ``QUEUED`` -> a worker has it or will
+          pick it up imminently -> pending.
+        * ``DEFERRED`` -> only pending while it is *legitimately waiting* on a
+          dependency that has not finished yet. A ``DEFERRED`` job whose
+          dependencies have all settled (finished/failed/etc.) was never
+          re-enqueued -- e.g. its finalize crashed -- and would stay
+          ``DEFERRED`` forever. That is an orphan, not active work, so it must
+          NOT block the storage indefinitely (false-positive 428
+          ``storage_pending_task``).
 
         :return: True if pending otherwise False
         :rtype: bool
         """
-        if self.status in (
+        active = (
             JobStatus.STARTED,
             JobStatus.SCHEDULED,
             JobStatus.QUEUED,
-            JobStatus.DEFERRED,
-        ):
-            return True
+        )
+        for task in self._chain:
+            job_status = task.job_status
+            if job_status in active:
+                return True
+            if job_status == JobStatus.DEFERRED and task.depending_status in (
+                JobStatus.STARTED,
+                JobStatus.SCHEDULED,
+                JobStatus.QUEUED,
+                JobStatus.DEFERRED,
+            ):
+                return True
         return False
 
     @property
