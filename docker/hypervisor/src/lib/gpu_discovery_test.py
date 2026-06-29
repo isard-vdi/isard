@@ -306,6 +306,125 @@ def test_canon_vgpu_profile_name_is_idempotent():
     assert _canon_vgpu_profile_name(once) == once
 
 
+# ----- vfio-variant discovery backend (kernel >=6.8 / Ubuntu 24.04+) -------
+# NVIDIA dropped legacy mdev there: profiles come from each VF's
+# nvidia/creatable_vgpu_types instead of mdev_supported_types/<id>/{name,...}.
+
+
+@pytest.mark.parametrize(
+    "suffix,expected_mb",
+    [
+        ("2Q", 2048),
+        ("16Q", 16384),
+        ("1_2Q", 2048),  # MIG-backed: the framebuffer GB is the LAST number
+        ("5C", 5120),
+        ("passthrough", 0),
+        ("", 0),
+    ],
+)
+def test_framebuffer_mb_from_suffix(suffix, expected_mb):
+    from gpu_discovery import _framebuffer_mb_from_suffix
+
+    assert _framebuffer_mb_from_suffix(suffix) == expected_mb
+
+
+def test_parse_creatable_vgpu_types_parses_id_name_lines():
+    from gpu_discovery import _parse_creatable_vgpu_types
+
+    text = (
+        "ID  : VGPU Name\n"
+        "694 : NVIDIA A16-2Q\n"
+        "695 : NVIDIA A16-4Q\n"
+        "696 : NVIDIA A16-16Q\n"
+    )
+    out = _parse_creatable_vgpu_types(text)
+    assert out == [
+        {"name": "A16-2Q", "type_id": "694", "framebuffer_mb": 2048},
+        {"name": "A16-4Q", "type_id": "695", "framebuffer_mb": 4096},
+        {"name": "A16-16Q", "type_id": "696", "framebuffer_mb": 16384},
+    ]
+
+
+def test_parse_creatable_vgpu_types_canonicalises_mig_dash_form():
+    from gpu_discovery import _parse_creatable_vgpu_types
+
+    # MIG-backed vGPU forms appear (when MIG is enabled) as the dash form with a
+    # spaced model name, e.g. "NVIDIA RTX Pro 6000 Blackwell DC-1-24Q". The parser
+    # must canonicalise to the "<MODEL>-1_24Q" suffix the engine books (model
+    # dash/space-stripped, MIG dash -> underscore), and derive the framebuffer
+    # from the LAST number (24 GiB). Verified live on a Blackwell vfio card.
+    text = (
+        "ID : vGPU Name\n"
+        "1561 : NVIDIA RTX Pro 6000 Blackwell DC-1-24Q\n"
+        "1551 : NVIDIA RTX Pro 6000 Blackwell DC-1-4Q\n"
+        "1562 : NVIDIA RTX Pro 6000 Blackwell DC-1-24A\n"  # A-series filtered out
+    )
+    out = _parse_creatable_vgpu_types(text)
+    assert out == [
+        {
+            "name": "RTXPro6000BlackwellDC-1_24Q",
+            "type_id": "1561",
+            "framebuffer_mb": 24576,
+        },
+        {
+            "name": "RTXPro6000BlackwellDC-1_4Q",
+            "type_id": "1551",
+            "framebuffer_mb": 4096,
+        },
+    ]
+
+
+def test_parse_creatable_vgpu_types_filters_non_qc_and_blank():
+    from gpu_discovery import _parse_creatable_vgpu_types
+
+    # A/B profiles (apps/VDI Windows) are not the Q/C desktop profiles IsardVDI
+    # books; mirror the legacy reader's C/Q filter. Header + junk are dropped.
+    text = "700 : NVIDIA A16-1A\n701 : NVIDIA A16-1B\n702 : NVIDIA A16-8Q\n\ngarbage\n"
+    out = _parse_creatable_vgpu_types(text)
+    assert out == [{"name": "A16-8Q", "type_id": "702", "framebuffer_mb": 8192}]
+
+
+def test_get_vgpu_profiles_vfio_reads_creatable_types(monkeypatch, tmp_path):
+    from gpu_discovery import _get_vgpu_profiles_vfio
+
+    _redirect_sysfs(monkeypatch, tmp_path)
+    vf_bdf = "0000:c5:00.4"
+    nvidia_dir = tmp_path / vf_bdf / "nvidia"
+    nvidia_dir.mkdir(parents=True)
+    _write(
+        nvidia_dir / "creatable_vgpu_types",
+        "694 : NVIDIA A16-2Q\n695 : NVIDIA A16-4Q\n",
+    )
+    out = _get_vgpu_profiles_vfio(vf_bdf)
+    # Same dict shape as the legacy _get_vgpu_profiles, so downstream ingest is
+    # unchanged. One vGPU per VF => available_instances == 1 (the aggregator sums
+    # these across VFs to get capacity = free-VF count).
+    assert out == [
+        {
+            "name": "A16-2Q",
+            "type_id": "694",
+            "available_instances": 1,
+            "framebuffer_mb": 2048,
+            "max_instances": 0,
+        },
+        {
+            "name": "A16-4Q",
+            "type_id": "695",
+            "available_instances": 1,
+            "framebuffer_mb": 4096,
+            "max_instances": 0,
+        },
+    ]
+
+
+def test_get_vgpu_profiles_vfio_empty_when_no_nvidia_dir(monkeypatch, tmp_path):
+    from gpu_discovery import _get_vgpu_profiles_vfio
+
+    _redirect_sysfs(monkeypatch, tmp_path)
+    (tmp_path / "0000:c5:00.4").mkdir(parents=True)  # VF exists, no nvidia/ dir
+    assert _get_vgpu_profiles_vfio("0000:c5:00.4") == []
+
+
 # ----- _wait_sriov_numvfs_zero --------------------------------------------
 
 
@@ -543,6 +662,42 @@ def test_aggregate_skips_sriov_cycle_without_vgpu_host_driver(monkeypatch):
     assert reset_calls == []  # no bus reset
 
 
+def test_aggregate_vfio_variant_sums_vf_capacity(monkeypatch, tmp_path):
+    """On the vendor-specific VFIO framework (24.04+), each VF exposes
+    nvidia/creatable_vgpu_types instead of mdev_supported_types. The aggregator
+    must fall back to the vfio reader per VF, report framework='vfio_variant',
+    and sum the 1-per-VF capacity (2 VFs -> available_instances 2)."""
+    import gpu_discovery as gd
+
+    base = _redirect_sysfs(monkeypatch, tmp_path)
+    vf_bdfs = ["0000:05:00.4", "0000:05:00.5"]
+    for vf in vf_bdfs:
+        nvidia_dir = tmp_path / vf / "nvidia"
+        nvidia_dir.mkdir(parents=True)
+        _write(
+            nvidia_dir / "creatable_vgpu_types",
+            "694 : NVIDIA A16-2Q\n696 : NVIDIA A16-16Q\n",
+        )
+
+    monkeypatch.setattr(gd, "_get_vgpu_profiles", lambda *a, **k: [])  # legacy empty
+    monkeypatch.setattr(gd, "_reset_sysfs_mdevs", lambda *a, **k: None)
+    monkeypatch.setattr(gd, "_vgpu_host_driver_present", lambda *a, **k: False)
+    monkeypatch.setattr(
+        gd, "_enumerate_sriov_vf_paths", lambda _p: [f"{base}/{v}" for v in vf_bdfs]
+    )
+
+    profiles, sub_paths, _parent, framework = gd._aggregate_subdevice_profiles(
+        "00000000:05:00.0"
+    )
+
+    assert framework == "vfio_variant"
+    by_name = {p["name"]: p for p in profiles}
+    assert by_name["A16-2Q"]["available_instances"] == 2  # 1 per VF, summed
+    assert by_name["A16-2Q"]["type_id"] == "694"  # numeric id for current_vgpu_type
+    assert by_name["A16-16Q"]["framebuffer_mb"] == 16384
+    assert sorted(sub_paths) == [f"{base}/{v}" for v in vf_bdfs]
+
+
 def test_sriov_manage_usable(monkeypatch):
     import gpu_discovery as gd
 
@@ -616,7 +771,7 @@ def test_discover_gpus_emits_none_sentinel_after_retry_exhaustion(
     monkeypatch.setattr(
         gd,
         "_aggregate_subdevice_profiles",
-        lambda _pci: ([], None, None),
+        lambda _pci: ([], None, None, "legacy_mdev"),
     )
     monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])
     monkeypatch.setattr(gd, "_scan_sysfs_nvidia_gpus", lambda _known: [])
@@ -654,7 +809,7 @@ def test_discover_gpus_emits_empty_list_for_compute_mode_card(monkeypatch, tmp_p
     monkeypatch.setattr(
         gd,
         "_aggregate_subdevice_profiles",
-        lambda _pci: ([], None, None),
+        lambda _pci: ([], None, None, "legacy_mdev"),
     )
     monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])
     monkeypatch.setattr(gd, "_scan_sysfs_nvidia_gpus", lambda _known: [])
@@ -690,11 +845,12 @@ def test_discover_gpus_recovers_when_retry_finds_profiles(monkeypatch, tmp_path)
     def staged_aggregate(_pci):
         call_count["n"] += 1
         if call_count["n"] == 1:
-            return ([], None, None)
+            return ([], None, None, "legacy_mdev")
         return (
             real_profiles,
             [f"{tmp_path}/0000:05:00.4"],
             f"{tmp_path}/0000:05:00.0",
+            "legacy_mdev",
         )
 
     monkeypatch.setattr(
@@ -804,7 +960,15 @@ def test_aggregate_runs_reset_when_idle(monkeypatch):
 
 # --- build_card_descriptor (read-only single-card descriptor for runtime apply) ---
 def _patch_descriptor_helpers(
-    monkeypatch, *, vfs, vgpu_profiles, companions, mig_mode, mig_profiles, sriov
+    monkeypatch,
+    *,
+    vfs,
+    vgpu_profiles,
+    companions,
+    mig_mode,
+    mig_profiles,
+    sriov,
+    framework="legacy_mdev",
 ):
     """Patch build_card_descriptor's read-only helpers + a fake sysfs open, and
     make the DESTRUCTIVE discovery functions explode so any accidental call
@@ -813,6 +977,8 @@ def _patch_descriptor_helpers(
 
     monkeypatch.setattr(gd, "_normalize_pci_bus_id", lambda b: b)
     monkeypatch.setattr(gd, "_enumerate_sriov_vf_paths", lambda base: list(vfs))
+    # Read-only per-card framework probe (legacy_mdev vs vfio_variant).
+    monkeypatch.setattr(gd.gpu_probe, "vgpu_framework", lambda b, run: framework)
     monkeypatch.setattr(gd, "_get_vgpu_profiles", lambda b: list(vgpu_profiles))
     monkeypatch.setattr(gd, "_find_audio_companions", lambda b: list(companions))
     monkeypatch.setattr(gd, "_read_mig_mode_current", lambda b: mig_mode)
@@ -872,6 +1038,25 @@ def test_build_card_descriptor_vgpu_sriov(monkeypatch):
     assert d["companion_pci_bdfs"] == ["0000:c5:00.1"]
     assert d["mdevs_reset_at"] == "T"
     assert "mig_profiles" not in d  # not a MIG card
+    assert d["framework"] == "legacy_mdev"  # 22.04 fleet default
+
+
+def test_build_card_descriptor_sets_vfio_variant_framework(monkeypatch):
+    # On a 24.04+ card the read-only descriptor must carry framework so the
+    # runtime recarve over SSH (gpu_apply_cli -> apply_target) dispatches to the
+    # vfio current_vgpu_type path, not the legacy mdev create.
+    gd = _patch_descriptor_helpers(
+        monkeypatch,
+        vfs=["/sys/bus/pci/devices/0000:c5:00.4"],
+        vgpu_profiles=[],  # PF exposes none; apply_target resolves per-VF
+        companions=[],
+        mig_mode="[N/A]",
+        mig_profiles=[],
+        sriov={"sriov_totalvfs": 64, "sriov_numvfs": 64},
+        framework="vfio_variant",
+    )
+    d = gd.build_card_descriptor("0000:c5:00.0")
+    assert d["framework"] == "vfio_variant"
 
 
 def test_build_card_descriptor_passthrough_no_subpaths(monkeypatch):
@@ -1106,7 +1291,7 @@ def test_discover_gpus_cycles_nvidia_bound_card(monkeypatch, tmp_path):
 
     def _agg(_pci):
         called["n"] += 1
-        return (real_profiles, None, None)
+        return (real_profiles, None, None, "legacy_mdev")
 
     monkeypatch.setattr(gd, "_aggregate_subdevice_profiles", _agg)
     monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])

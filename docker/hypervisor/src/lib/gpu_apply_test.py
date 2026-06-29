@@ -441,6 +441,113 @@ def test_apply_vgpu_sriov_carves_one_mdev_per_vf(monkeypatch):
     assert all(any(vf in c for vf in vfs) for c in creates)  # created on the VFs
 
 
+def test_apply_vgpu_vfio_variant_writes_current_vgpu_type_per_vf(monkeypatch):
+    # Vendor-specific VFIO framework (Ubuntu 24.04+): no mdev create. Each VF's
+    # vGPU is created by writing the numeric type-id to current_vgpu_type, and
+    # the pool entry is keyed by VF BDF (not a UUID).
+    h = _Host(driver="nvidia", live=None)
+    _patch_host(monkeypatch, h)
+    # vfio profiles carry a NUMERIC type_id (not nvidia-NNN); resolution reads
+    # creatable_vgpu_types via _live_profiles_vfio, not the mdev _live_profiles.
+    monkeypatch.setattr(
+        ga, "_live_profiles_vfio", lambda b: [{"name": "A16-2Q", "type_id": "694"}]
+    )
+    # Materialisation check must count live vGPUs (current_vgpu_type != 0), not
+    # mdevs (there are none on this framework).
+    monkeypatch.setattr(
+        ga,
+        "_live_vgpu_count",
+        lambda sub_paths, run: sum(
+            1 for c in h.cmds if "current_vgpu_type" in c and "echo 0 " not in c
+        ),
+    )
+    vfs = [f"/sys/bus/pci/devices/0000:c5:00.{i}" for i in range(4, 7)]
+    gpu = {
+        "pci_bus_id": "0000:c5:00.0",
+        "framework": "vfio_variant",
+        "sriov_totalvfs": 64,
+        "sriov_numvfs": 64,
+        "sub_paths": vfs,
+    }
+    rep = ga.apply_target(gpu, {"target_profile": "2Q", "action": "apply"}, run=h.run)
+    assert rep["result"] == "applied"
+    # one pool entry per VF, keyed by VF BDF, each tagged vfio_variant
+    pool = rep["mdevs"]["2Q"]
+    assert set(pool.keys()) == {os.path.basename(v) for v in vfs}
+    assert all(e["framework"] == "vfio_variant" for e in pool.values())
+    assert all(e["vf_bdf"] == k for k, e in pool.items())
+    # carve wrote current_vgpu_type=694 on each VF, NO mdev create
+    sets = [c for c in h.cmds if "current_vgpu_type" in c and "echo 694" in c]
+    assert len(sets) == 3
+    assert not any("/create'" in c for c in h.cmds)
+    # RECARVE SAFETY: every VF is cleared to 0 BEFORE any type is set (a VF won't
+    # accept a new type while it holds one, and the new profile won't fit until
+    # the whole card's framebuffer is freed).
+    clears = [c for c in h.cmds if "current_vgpu_type" in c and "echo 0 " in c]
+    assert len(clears) == 3  # one per VF
+    first_set = next(i for i, c in enumerate(h.cmds) if "echo 694" in c)
+    assert all(
+        h.cmds.index(c) < first_set for c in clears
+    )  # all clears precede the first set
+
+
+def test_apply_vgpu_vfio_variant_mig_backed_tags_pool_entries(monkeypatch):
+    # MIG-backed vGPU on the vendor-specific VFIO framework (parity with 22.04
+    # MIG): the framework-agnostic GI carve (enable MIG + sriov-manage -e +
+    # -cgi <gfx> -C) runs first, then the per-VF carve writes current_vgpu_type
+    # (NOT mdev create) on `mig_count` VFs, and EACH pool entry must carry
+    # mig=True + mig_profile_id so bookings/reconcile track it as MIG-backed.
+    h = _Host(
+        driver="nvidia",
+        mig="Disabled",
+        live=None,
+        profiles=[{"name": "RTXPro6000BlackwellDC-1_24Q", "type_id": "nvidia-1561"}],
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:c1:00.{i}" for i in range(2, 8)]  # 6 VFs
+    _patch_host(monkeypatch, h)
+    # vfio resolution reads creatable_vgpu_types (numeric type-id), not mdev dirs.
+    monkeypatch.setattr(
+        ga,
+        "_live_profiles_vfio",
+        lambda b: [{"name": "RTXPro6000BlackwellDC-1_24Q", "type_id": "1561"}],
+    )
+    monkeypatch.setattr(
+        ga,
+        "_live_vgpu_count",
+        lambda sub_paths, run: sum(
+            1 for c in h.cmds if "current_vgpu_type" in c and "echo 0 " not in c
+        ),
+    )
+    gpu = {
+        "pci_bus_id": "0000:c1:00.0",
+        "framework": "vfio_variant",
+        "sriov_totalvfs": 48,
+        "vgpu_profiles": [
+            {
+                "name": "RTXPro6000BlackwellDC-1_24Q",
+                "type_id": "nvidia-1561",
+                "mig": True,
+                "mig_profile_id": 47,
+                "mig_count": 4,
+            }
+        ],
+    }
+    rep = ga.apply_target(
+        gpu, {"target_profile": "1_24Q", "action": "apply"}, run=h.run
+    )
+    assert rep["result"] == "applied", rep
+    pool = rep["mdevs"]["1_24Q"]
+    assert len(pool) == 4  # capped at mig_count, not the 6 VFs
+    e = next(iter(pool.values()))
+    assert e["mig"] is True and e["mig_profile_id"] == 47  # MIG metadata carried
+    assert e["framework"] == "vfio_variant" and "vf_bdf" in e  # vfio entry shape
+    # GI carve happened (framework-agnostic) and the carve used current_vgpu_type
+    assert any("-cgi 47,47,47,47 -C" in c for c in h.cmds)
+    assert any("sriov-manage -e" in c for c in h.cmds)
+    assert [c for c in h.cmds if "current_vgpu_type" in c and "echo 1561" in c]
+    assert not any("/create'" in c for c in h.cmds)  # NOT the legacy mdev create
+
+
 def test_apply_vgpu_from_passthrough_resolves_after_rebind(monkeypatch):
     # While vfio-bound, _live_profiles returns [] (mirrors hardware). The fix
     # runs the unbind FIRST, then resolves -> must succeed, proving resolution
@@ -945,3 +1052,44 @@ def test_running_mdev_uuids_empty_when_nothing_running():
     # domains -> empty set -> reconcile frees the whole pool (clean slate).
     run = lambda cmds, timeout=0: [{"out": "", "err": ""} for _ in cmds]
     assert ga._running_mdev_uuids(run) == set()
+
+
+def test_running_mdev_uuids_extracts_vfio_vf_bdfs():
+    # A vfio-variant vGPU desktop's hostdev has NO mdev uuid -- its running
+    # identity is the engine alias ``ua-isard-vgpu-<vf>`` (= the pool key VF BDF).
+    # The reconcile (reconcile_pool_to_live) re-adopts domain_started ONLY for a
+    # pool key in this set, so a running vfio desktop's VF BDF MUST be surfaced
+    # here -- else domain_started is dropped, the entry looks free and a second
+    # start double-allocates the live VF. Both framework forms coexist in one set
+    # (the pool key is an mdev uuid for legacy, a VF BDF for vfio).
+    def run(cmds, timeout=0):
+        out = []
+        for c in cmds:
+            if "list --name --state-running" in c:
+                out.append({"out": "vfiodesk\nmdevdesk\n", "err": ""})
+            elif "dumpxml vfiodesk" in c:
+                out.append(
+                    {
+                        "out": "<domain><uuid>dom-elem</uuid><devices>"
+                        "<hostdev mode='subsystem' type='pci' managed='no' display='off'>"
+                        "<source><address domain='0x0000' bus='0xc1' slot='0x00' "
+                        "function='0x2'/></source>"
+                        "<alias name='ua-isard-vgpu-0000-c1-00-2'/></hostdev>"
+                        "</devices></domain>",
+                        "err": "",
+                    }
+                )
+            elif "dumpxml mdevdesk" in c:
+                out.append(
+                    {
+                        "out": "<hostdev type='mdev'><source>"
+                        "<address uuid='AAA-111'/></source></hostdev>",
+                        "err": "",
+                    }
+                )
+            else:
+                out.append({"out": "", "err": ""})
+        return out
+
+    # the vfio VF BDF reconstructed from the alias AND the legacy mdev uuid
+    assert ga._running_mdev_uuids(run) == {"0000:c1:00.2", "aaa-111"}

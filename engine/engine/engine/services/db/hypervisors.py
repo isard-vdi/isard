@@ -1116,7 +1116,7 @@ def get_hypers_gpu_online(
         # Collect every free card of the model on this host (with its NUMA node)
         # so the preference can pick among them; with no preference this reduces
         # to the historical "first free card".
-        free_cards = []  # (pci, gpu_id, mdev_uuid, mig, numa_node)
+        free_cards = []  # (pci, gpu_id, mdev_uuid, mig, numa_node, framework, vf_bdf)
         for pci_k, model in h["info"]["nvidia"].items():
             if model != gpu_model:
                 continue
@@ -1156,7 +1156,18 @@ def get_hypers_gpu_online(
                     )
                     nn = pdev.get(pci_sysfs_k, {}).get("numa_node")
                     free_cards.append(
-                        (pci_k, gpu_id_k, mdev_uuid_k, bool(d.get("mig", False)), nn)
+                        (
+                            pci_k,
+                            gpu_id_k,
+                            mdev_uuid_k,
+                            bool(d.get("mig", False)),
+                            nn,
+                            # vendor-specific VFIO framework: the entry is keyed
+                            # by VF BDF and the start path emits a vfio-pci VF
+                            # hostdev (not an mdev). None on legacy mdev cards.
+                            d.get("framework"),
+                            d.get("vf_bdf"),
+                        )
                     )
                     # one free uuid is enough to mark this card available
                     break
@@ -1193,7 +1204,15 @@ def get_hypers_gpu_online(
                 chosen = free_cards[0]
             # MIG-backed mdevs need display='off' in the guest XML; carry the
             # per-mdev flag to the XML builder.
-            pci, gpu_id, mdev_uuid, selected_mig, _chosen_nn = chosen
+            (
+                pci,
+                gpu_id,
+                mdev_uuid,
+                selected_mig,
+                _chosen_nn,
+                selected_framework,
+                selected_vf_bdf,
+            ) = chosen
             hyper_with_free_uuid = True
         if hyper_with_free_uuid:
             logs.workers.info(
@@ -1247,6 +1266,8 @@ def get_hypers_gpu_online(
                             "pci_bus_id": pci,
                             "gpu_numa_node": gpu_numa_node,
                             "mig": selected_mig,
+                            "framework": selected_framework,
+                            "vf_bdf": selected_vf_bdf,
                             "companion_pci_bdfs": companion_pci_bdfs,
                             "hugepages_info": h.get("hugepages_info", {}),
                             "hugepages_free_kb": h.get("stats", {})

@@ -16,6 +16,45 @@ are byte-identical to the engine's previous inline sequences.
 """
 
 
+def build_vgpu_set_cmd(vf_bdf, type_id):
+    """Create a vGPU on one SR-IOV VF using the vendor-specific VFIO framework
+    (kernel >= 6.8 / Ubuntu 24.04+). Writes the numeric vGPU type-id (from the
+    VF's ``creatable_vgpu_types``) to ``current_vgpu_type``; the VF stays bound
+    to ``nvidia`` and becomes a vfio-pci passthrough device. One vGPU per VF, so
+    the VF's PCI BDF is the pool-entry key (no mdev UUID). Returns a single
+    command string -- mirrors :func:`gpu_apply.build_mdev_create_cmd`. The create
+    echo has no ``2>/dev/null`` so a failed write surfaces real stderr."""
+    return f"echo {type_id} > /sys/bus/pci/devices/{vf_bdf}/nvidia/current_vgpu_type"
+
+
+def build_vgpu_clear_cmd(vf_bdf):
+    """Destroy the vGPU on one SR-IOV VF (vendor-specific VFIO framework) by
+    writing ``0`` to ``current_vgpu_type``. The reverse of
+    :func:`build_vgpu_set_cmd`; used to tear down before a profile recarve."""
+    return f"echo 0 > /sys/bus/pci/devices/{vf_bdf}/nvidia/current_vgpu_type"
+
+
+def _apply_pending_mig_mode_cmd(pci_bdf):
+    """Command that applies a *pending* MIG-mode change (after ``nvidia-smi
+    -mig 1``/``-mig 0``) via a GPU reset -- but ONLY on kernel < 7.0.
+
+    ``nvidia-smi --gpu-reset`` is an **Ampere-era** requirement: on Hopper+/Blackwell
+    a ``-mig 1``/``-mig 0`` takes effect **live** (verified on an RTX PRO 6000:
+    ``MIG Mode Current`` flips immediately, never "pending"), so the reset is
+    redundant. And on **kernel >= 7.0 (Ubuntu 26.04)** a secondary-bus GPU reset of
+    an SR-IOV/MIG card **WEDGES the host unkillably** (D-state; BMC power-cycle to
+    recover) on the vendor VFIO framework. So gate it to ``uname -r`` major < 7:
+    older kernels (22.04/24.04 -- where MIG already worked) keep the EXACT same
+    behaviour; on 26.04 the reset is skipped (MIG applies live, and the subsequent
+    ``sriov-manage -e`` rebind re-inits the GPU; a reboot is NVIDIA's supported
+    fallback for the rare card that would still report a pending mode). The trailing
+    ``|| true`` keeps the step non-fatal exactly as before."""
+    return (
+        '[ "$(uname -r | cut -d. -f1)" -lt 7 ] && '
+        f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true"
+    )
+
+
 def build_mig_transition_cmds(
     pci_bdf,
     old_is_mig,
@@ -69,7 +108,7 @@ def build_mig_transition_cmds(
         cmds.extend(
             [
                 f"nvidia-smi -i {pci_bdf} -mig 1",
-                f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
+                _apply_pending_mig_mode_cmd(pci_bdf),
                 "sleep 2",
                 f"nvidia-smi mig -i {pci_bdf} -cgi {gis} -C",
             ]
@@ -80,7 +119,7 @@ def build_mig_transition_cmds(
             f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
             f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
             f"nvidia-smi -i {pci_bdf} -mig 0",
-            f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
+            _apply_pending_mig_mode_cmd(pci_bdf),
             "sleep 2",
         ]
         if new_profile != "passthrough":
@@ -120,7 +159,7 @@ def build_mig_vgpu_carve_cmds(pci_bdf, gfx_profile_id, count):
         f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
         f"sriov-manage -d {pci_bdf} 2>/dev/null || true",
         f"nvidia-smi -i {pci_bdf} -mig 1",
-        f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
+        _apply_pending_mig_mode_cmd(pci_bdf),
         "sleep 2",
         f"sriov-manage -e {pci_bdf} 2>/dev/null || true",
         "udevadm settle 2>/dev/null || true",

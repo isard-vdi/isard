@@ -653,7 +653,9 @@ class hyp(object):
 
         return True
 
-    def _apply_via_cli(self, gpu_id, pci_info, new_profile, mig_profile_id=None):
+    def _apply_via_cli(
+        self, gpu_id, pci_info, new_profile, mig_profile_id=None, mig_count=None
+    ):
         """Invoke the hypervisor's local gpu_apply over SSH for ONE card and
         return the parsed report dict, or None on any invocation/parse failure
         (caller falls back to the engine inline apply). The hypervisor owns the
@@ -676,7 +678,10 @@ class hyp(object):
         # mdevs_last_synced_at so the next reconcile confirms (does not rebuild).
         reset_at = datetime.now(timezone.utc).isoformat()
         target_type = (pci_info.get("types") or {}).get(new_profile) or {}
-        mig_count = target_type.get("mig_count") or target_type.get("max")
+        # An explicit mig_count (derived by the caller from the sibling +gfx GI
+        # for a MIG-backed vGPU target that is not itself in info.types) wins;
+        # else fall back to the target type's own count when it IS enumerated.
+        mig_count = mig_count or target_type.get("mig_count") or target_type.get("max")
         # --deliberate: this is an operator/scheduler-initiated runtime change,
         # so the hypervisor force-stops any qemu still holding the card before
         # teardown (defense-in-depth; the engine already quiesced inline) instead
@@ -889,13 +894,40 @@ class hyp(object):
                         )
                         return False
                 else:
-                    logs.main.error(
-                        f"Cannot change to profile {new_profile} for {gpu_id}: "
-                        f"profile not in info.types. GPU may need "
-                        f"re-initialization or rediscovery."
+                    # A MIG-backed vGPU profile ("<slices>_<mem>Q", e.g. "1_24Q")
+                    # is NOT in info.types while the card is in vGPU mode (its
+                    # type only appears once MIG is enabled), and its mdev pool
+                    # cannot be seeded before the GIs exist. So don't bail here:
+                    # recognise it via the sibling "<slices>g.<mem>gb+gfx" GI
+                    # (enumerated in every mode) and fall through to the CLI path,
+                    # which enables MIG, carves the GIs and seeds the pool from the
+                    # apply report.
+                    _h, _u, _t = (new_profile or "").partition("_")
+                    _gi = (pci_info.get("types") or {}).get(
+                        f"{_h}g.{_t[:-1]}gb+gfx"
+                    ) or {}
+                    _mig_backed = (
+                        bool(_u)
+                        and _h.isdigit()
+                        and _t[-1:] in ("A", "B", "C", "Q")
+                        and _t[:-1].isdigit()
+                        and _gi.get("mig")
+                        and _gi.get("mig_profile_id") is not None
                     )
-                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
-                    return False
+                    if not _mig_backed:
+                        logs.main.error(
+                            f"Cannot change to profile {new_profile} for {gpu_id}: "
+                            f"profile not in info.types. GPU may need "
+                            f"re-initialization or rediscovery."
+                        )
+                        update_table_field(
+                            "vgpus", gpu_id, "changing_to_profile", False
+                        )
+                        return False
+                    logs.main.info(
+                        f"{new_profile} is a MIG-backed vGPU profile not yet in "
+                        f"info.types; deferring pool seed to the MIG carve."
+                    )
 
         pci_info = self.info_nvidia.get(pci_id, {})
         if not pci_info.get("path"):
@@ -1150,9 +1182,8 @@ class hyp(object):
                 if old_profile
                 else False
             )
-            new_is_mig = (
-                pci_info.get("types", {}).get(new_profile, {}).get("mig", False)
-            )
+            types = pci_info.get("types", {})
+            new_is_mig = types.get(new_profile, {}).get("mig", False)
 
             # Runtime changes go through the hypervisor CLI -- including MIG. A
             # MIG-disabled card lists nothing in `nvidia-smi mig -lgip`, so the
@@ -1163,14 +1194,37 @@ class hyp(object):
             # When the target is MIG but the id can't be resolved, fall back to
             # the proven inline MIG path instead of routing a half-known change.
             mig_profile_id = (
-                pci_info.get("types", {}).get(new_profile, {}).get("mig_profile_id")
-                if new_is_mig
-                else None
+                types.get(new_profile, {}).get("mig_profile_id") if new_is_mig else None
             )
+            mig_count = types.get(new_profile, {}).get("mig_count") or types.get(
+                new_profile, {}
+            ).get("max")
+
+            # A MIG-backed vGPU profile ("<slices>_<mem>Q", e.g. "1_24Q") is only
+            # enumerable in info.types while the card is ALREADY in MIG mode; in
+            # vGPU/passthrough mode the type is absent, so the lookups above miss
+            # it and the carve would wrongly take the plain vGPU path (then fail to
+            # resolve the type). Derive the MIG metadata from the sibling graphics
+            # GPU-instance profile ("<slices>g.<mem>gb+gfx"), which IS enumerated
+            # in every mode, so the carve routes to the MIG-backed vGPU sequence
+            # (build_mig_vgpu_carve_cmds) with the correct +gfx GI id and slice
+            # count -- the sequence validated by hand on RTX PRO 6000 Blackwell.
+            if not new_is_mig and new_profile and "_" in new_profile:
+                _head, _, _tail = new_profile.partition("_")
+                if (
+                    _head.isdigit()
+                    and _tail[-1:] in ("A", "B", "C", "Q")
+                    and _tail[:-1].isdigit()
+                ):
+                    _gi = types.get(f"{_head}g.{_tail[:-1]}gb+gfx") or {}
+                    if _gi.get("mig") and _gi.get("mig_profile_id") is not None:
+                        new_is_mig = True
+                        mig_profile_id = _gi["mig_profile_id"]
+                        mig_count = _gi.get("mig_count") or _gi.get("max") or mig_count
             mig_cli_ok = (not new_is_mig) or (mig_profile_id is not None)
             if mig_cli_ok:
                 report = self._apply_via_cli(
-                    gpu_id, pci_info, new_profile, mig_profile_id
+                    gpu_id, pci_info, new_profile, mig_profile_id, mig_count
                 )
                 if report is not None and report.get("result") in ("applied", "noop"):
                     self._ingest_cli_report(gpu_id, pci_id, new_profile, report)
@@ -1200,6 +1254,24 @@ class hyp(object):
                     f"(result={report.get('result') if report else None}); "
                     "falling back to the engine inline apply"
                 )
+
+            # vfio_variant cards have NO mdev sysfs layer: the inline apply below
+            # (mdev_supported_types/.../create) cannot work on them. The local
+            # gpu_apply CLI is the ONLY correct vfio apply mechanism, so if it did
+            # not cleanly apply, fail cleanly here instead of attempting a
+            # meaningless (and confusingly-failing) mdev create on a vfio card.
+            if pci_info.get("framework") == "vfio_variant":
+                reason = (
+                    "vfio_variant card: gpu_apply_cli did not cleanly apply and "
+                    "there is no inline mdev fallback for the vendor VFIO framework"
+                )
+                logs.main.error(
+                    f"gpu_apply_cli fallback unavailable for vfio card {gpu_id} "
+                    f"-> {new_profile}: {reason}"
+                )
+                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                update_table_field("vgpus", gpu_id, "last_apply_error", reason)
+                return False
 
             if old_is_mig or new_is_mig:
                 result = self._execute_mig_transition(
@@ -2035,6 +2107,12 @@ class hyp(object):
                     type_max_gpus = suffix
 
             info_nvidia["mig_mode"] = gpu.get("mig_mode", "[N/A]")
+            # Per-card vGPU sysfs framework ("legacy_mdev" | "vfio_variant") from
+            # discovery. The functional dispatch uses the per-pool-entry framework
+            # and the live build_card_descriptor probe; this persists the card-level
+            # value into vgpus.info for observability (so a DB inspection shows which
+            # cards use the kernel>=6.8 vendor VFIO path). Absent => legacy mdev.
+            info_nvidia["framework"] = gpu.get("framework", "legacy_mdev")
             info_nvidia["types"] = d_types
             info_nvidia["type_max_gpus"] = type_max_gpus
             info_nvidia["device_name"] = gpu["name"]
@@ -2193,6 +2271,9 @@ class hyp(object):
                         info_nvidia["max_count"] = max_count
                         info_nvidia["max_gpus"] = d_types[type_max_gpus]["max"]
                         info_nvidia["model"] = model_gpu
+                        # This libvirt-capability-XML fallback serves older cards
+                        # (T4 etc.) that predate the vendor VFIO framework.
+                        info_nvidia["framework"] = "legacy_mdev"
                         if sub_paths is not False:
                             info_nvidia["sub_paths"] = sub_paths
                         if path_parent is not False:

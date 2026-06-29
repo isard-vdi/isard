@@ -31,10 +31,12 @@ import gpu_probe
 from gpu_discovery import (
     _card_in_use,
     _get_vgpu_profiles,
+    _get_vgpu_profiles_vfio,
     _normalize_pci_bus_id,
     _vfio_group_in_use,
 )
 from gpu_probe import (
+    FRAMEWORK_VFIO_VARIANT,
     MIG_CURRENT,
     _enumerate_vf_sub_paths,
     _load_shared,
@@ -160,6 +162,53 @@ def _resolve_type_id(pci_bdf, suffix, sub_paths=None):
     return None
 
 
+def new_vfio_pool_entry(vf_bdf, type_id, mig=False, mig_profile_id=None):
+    """Build one ``vgpus.mdevs[profile][entry_id]`` entry for the vendor-specific
+    VFIO framework, keyed by the VF's PCI BDF (no mdev UUID -- the VF *is* the
+    vGPU). Returned as ``(vf_bdf, entry)`` to mirror :func:`new_mdev_pool_entry`.
+    The ``framework`` + ``vf_bdf`` fields let the engine emit a vfio-pci VF
+    hostdev (not an mdev hostdev) and the reconcile distinguish this entry kind.
+    ``pci_mdev_id`` is kept = the VF BDF for downstream readers that expect it.
+
+    ``mig``/``mig_profile_id`` tag a MIG-backed vGPU VF (the GIs are carved before
+    the per-VF ``current_vgpu_type`` write), mirroring :func:`new_mdev_pool_entry`
+    so bookings/reconcile track a vfio MIG entry exactly as the legacy mdev one."""
+    entry = {
+        "framework": FRAMEWORK_VFIO_VARIANT,
+        "vf_bdf": vf_bdf,
+        "pci_mdev_id": vf_bdf,
+        "type_id": type_id,
+        "created": True,
+        "domain_started": False,
+        "domain_reserved": False,
+    }
+    if mig:
+        entry["mig"] = True
+        entry["mig_profile_id"] = mig_profile_id
+    return vf_bdf, entry
+
+
+def _live_profiles_vfio(vf_bdf):
+    """Live vGPU profiles a VF can create on the vendor-specific VFIO framework,
+    via the discovery reader (``nvidia/creatable_vgpu_types``). The vfio twin of
+    :func:`_live_profiles`."""
+    return _get_vgpu_profiles_vfio(vf_bdf) or []
+
+
+def _resolve_type_id_vfio(suffix, sub_paths):
+    """Numeric vGPU type-id (written to ``current_vgpu_type``) for a profile
+    suffix on the vendor-specific VFIO framework, or None. Matches by canonical
+    profile NAME against each VF's ``creatable_vgpu_types`` -- the vfio twin of
+    :func:`_resolve_type_id`."""
+    want = canonical_suffix(suffix)
+    for sp in sub_paths or []:
+        for prof in _live_profiles_vfio(os.path.basename(sp)):
+            name = prof.get("name") or ""
+            if "-" in name and canonical_suffix(name.split("-", 1)[1]) == want:
+                return prof.get("type_id")
+    return None
+
+
 def _card_busy(base_path):
     """True if a live VFIO consumer holds this card -- the PF passthrough group
     OR any SR-IOV VF mdev (vGPU/MIG desktops). Never disturb a busy card at
@@ -241,6 +290,28 @@ def _live_mdev_count(pci_bdf, run, sub_paths=None):
         return 0
 
 
+def _live_vgpu_count(sub_paths, run):
+    """How many SR-IOV VFs hold a live vGPU on the vendor-specific VFIO framework
+    (``nvidia/current_vgpu_type`` present and != 0). The vfio twin of
+    :func:`_live_mdev_count`, used to confirm a vfio carve materialised."""
+    paths = " ".join(
+        f"'{sp.rstrip('/')}/nvidia/current_vgpu_type'" for sp in sub_paths or []
+    )
+    if not paths:
+        return 0
+    res = run(
+        [
+            f'for f in {paths}; do v=$(cat "$f" 2>/dev/null); '
+            f'[ -n "$v" ] && [ "$v" != 0 ] && echo 1; done | wc -l'
+        ],
+        timeout=10,
+    )
+    try:
+        return int((_out(res) or "0").strip())
+    except ValueError:
+        return 0
+
+
 def _live_mdev_pool(pci_bdf, run, current_suffix, gpu, sub_paths=None):
     """Enumerate the card's LIVE mdevs into the ``vgpus.mdevs`` schema
     ``{suffix: {uuid: entry}}`` carrying the EXISTING host UUIDs (entries free;
@@ -299,10 +370,14 @@ def _live_mdev_pool(pci_bdf, run, current_suffix, gpu, sub_paths=None):
 
 
 def _running_mdev_uuids(run):
-    """Set of mdev UUIDs currently attached to a RUNNING libvirt domain.
+    """Set of vGPU pool KEYS currently attached to a RUNNING libvirt domain --
+    mdev UUIDs (legacy framework) AND vfio-variant VF BDFs (the vfio vGPU hostdev
+    has no uuid; its key is the VF BDF, reconstructed from the ``ua-isard-vgpu-*``
+    engine alias). The pool is keyed by whichever identifier the framework uses,
+    and ``reconcile_pool_to_live`` matches on that key, so both forms belong here.
 
     Carried on a ``noop``/``skipped_busy`` report so the ingest reconcile adopts
-    ``domain_started``/``domain_reserved`` ONLY for a UUID a desktop is actually
+    ``domain_started``/``domain_reserved`` ONLY for a key a desktop is actually
     running on right now -- never on the strength of a (possibly stale) DB flag.
     At hypervisor startup the entrypoint kills leftover qemu BEFORE registration,
     so this set is empty and a re-pin frees every entry (clean slate) instead of
@@ -334,10 +409,22 @@ def _running_mdev_uuids(run):
     uuids = set()
     for d in dumps:
         xml = (d.get("out") if isinstance(d, dict) else "") or ""
-        # The only uuid= ATTRIBUTE in a domain XML is an mdev hostdev's
-        # <source><address uuid='...'/> (the domain's own uuid is an element).
+        # Legacy mdev: the only uuid= ATTRIBUTE in a domain XML is an mdev
+        # hostdev's <source><address uuid='...'/> (the domain's own uuid is an
+        # element, never matched here).
         for m in re.finditer(r"<address[^>]*\buuid=['\"]([0-9a-fA-F-]+)['\"]", xml):
             uuids.add(m.group(1).lower())
+        # vfio_variant: a vGPU hostdev carries NO uuid -- its pool key is the VF
+        # BDF, surfaced via the engine's ``ua-isard-vgpu-<vf>`` user-alias marker
+        # (alias = vf_bdf with ':'/'.' -> '-'; see engine domain_xml). Reconstruct
+        # the BDF so reconcile_pool_to_live re-adopts domain_started for the live
+        # vfio desktop (else its VF is rebuilt FREE and the next start collides).
+        for m in re.finditer(
+            r"<alias[^>]*\bname=['\"]ua-isard-vgpu-([0-9a-fA-F-]+)['\"]", xml
+        ):
+            parts = m.group(1).split("-")
+            if len(parts) == 4:
+                uuids.add(f"{parts[0]}:{parts[1]}:{parts[2]}.{parts[3]}".lower())
     return uuids
 
 
@@ -350,6 +437,11 @@ def _apply(gpu, current, wanted, run):
     pci_bdf = gpu["pci_bus_id"]
     base_path = gpu.get("path") or f"/sys/bus/pci/devices/{pci_bdf}"
     sub_paths = gpu.get("sub_paths") or None
+    # Per-card vGPU framework (discovery sets gpu['framework']). On the vendor-
+    # specific VFIO framework (Ubuntu 24.04+) the vGPU is created by writing the
+    # type-id to each VF's nvidia/current_vgpu_type and the pool entry is keyed
+    # by VF BDF, not an mdev UUID. Absent => legacy mdev (the 22.04 fleet).
+    is_vfio = gpu.get("framework") == FRAMEWORK_VFIO_VARIANT
     sriov_totalvfs = gpu.get("sriov_totalvfs", 0) or 0
     sriov_numvfs = gpu.get("sriov_numvfs", 0) or 0
     companions = gpu.get("companion_pci_bdfs") or []
@@ -478,16 +570,47 @@ def _apply(gpu, current, wanted, run):
 
     # PHASE 2: resolve against the now-exposed VF (or PF) type dirs and carve one
     # mdev per VF (SR-IOV) or per pool slot (PF-mdev cards).
-    type_id = _resolve_type_id(pci_bdf, wanted, sub_paths)
+    #
+    # vfio RECARVE SAFETY (load-bearing): a VF that already holds a
+    # current_vgpu_type stops listing the OTHER creatable_vgpu_types and will not
+    # accept a new type (write -> "Operation not permitted"); a larger profile
+    # also won't fit until the framebuffer the OLD carve consumed ACROSS ALL the
+    # card's VFs is released (write -> "Input/output error"). So on a switch we
+    # must free the WHOLE card to 0 BEFORE resolving the new profile's type-id
+    # (else _resolve_type_id_vfio sees the restricted list and reports "not
+    # exposed") and before carving. Idempotent (already-0 VFs no-op, e.g. the
+    # fresh boot carve); safe because the engine quiesces running domains first.
+    if is_vfio and sub_paths:
+        run(
+            [_cmds.build_vgpu_clear_cmd(os.path.basename(p)) for p in sub_paths],
+            timeout=120,
+        )
+    if is_vfio:
+        type_id = _resolve_type_id_vfio(wanted, sub_paths)
+    else:
+        type_id = _resolve_type_id(pci_bdf, wanted, sub_paths)
     if not type_id:
         return {}, f"profile {wanted} not exposed by the driver"
     # Carve one mdev per VF (SR-IOV) or per pool slot (PF-mdev). Record ONLY the
     # mdevs whose create actually succeeded, so a partial failure neither reports
     # phantom mdevs nor orphans the ones that did get created (those are tracked
     # and the engine reconcile can fill the rest). Only a total failure errors.
-    planned = []  # (uuid, entry, create_cmd)
+    planned = []  # (entry_id, entry, create_cmd)
     first_err = None
-    if sub_paths:
+    if is_vfio and sub_paths:
+        # Vendor-specific VFIO framework: one vGPU per VF. Write the type-id to
+        # each VF's current_vgpu_type (no mdev create, no UUID). The pool entry
+        # is keyed by VF BDF. vf_cap caps the count for a MIG-backed carve; a
+        # plain vGPU carves one per VF. (The card was already cleared to 0 above,
+        # before type resolution, so every target VF is free to accept the type.)
+        carve_vfs = sub_paths[:vf_cap] if vf_cap else sub_paths
+        for vf_path in carve_vfs:
+            vf_bdf = os.path.basename(vf_path)
+            # **mig_meta tags MIG-backed vGPU entries (mig=True, mig_profile_id);
+            # empty for a plain vGPU -- same contract as the legacy mdev carve.
+            entry_id, entry = new_vfio_pool_entry(vf_bdf, type_id, **mig_meta)
+            planned.append((entry_id, entry, _cmds.build_vgpu_set_cmd(vf_bdf, type_id)))
+    elif sub_paths:
         # A MIG-backed vGPU carves exactly `vf_cap` mdevs (one per GI); a plain
         # SR-IOV vGPU carves one per VF. mig_meta tags MIG entries (mig=True,
         # mig_profile_id) so the engine emits display='off' for them.
@@ -885,9 +1008,16 @@ def apply_target(gpu, target, run=run_local, deliberate=False):
                 last_error = f"MIG {wanted} enable did not take (mig_mode={post_mig!r})"
                 continue
         is_vgpu = wanted != "passthrough" and not is_mig
-        if is_vgpu and _live_mdev_count(pci_bdf, run, gpu.get("sub_paths")) == 0:
-            last_error = f"vGPU {wanted} carve did not materialise (no live mdev)"
-            continue
+        if is_vgpu:
+            # Confirm the carve materialised. The vendor-specific VFIO framework
+            # has no mdevs -- count VFs with current_vgpu_type != 0 instead.
+            if gpu.get("framework") == FRAMEWORK_VFIO_VARIANT:
+                live = _live_vgpu_count(gpu.get("sub_paths"), run)
+            else:
+                live = _live_mdev_count(pci_bdf, run, gpu.get("sub_paths"))
+            if live == 0:
+                last_error = f"vGPU {wanted} carve did not materialise (no live vGPU)"
+                continue
         log.info(
             "apply %s: applied %s (was %s) in %.1fs",
             pci_bdf,

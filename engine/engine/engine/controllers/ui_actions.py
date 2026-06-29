@@ -477,6 +477,14 @@ class UiActions(object):
                                 companion_pci_bdfs=ei.get("companion_pci_bdfs") or [],
                                 is_mig=ei.get("mig", False),
                                 guest_index=guest_index,
+                                # vendor-specific VFIO framework: emit a vfio-pci
+                                # VF hostdev (the entry uid IS the VF BDF) instead
+                                # of an mdev hostdev. None/legacy keeps the mdev path.
+                                vgpu_vf_bdf=(
+                                    ei.get("vf_bdf")
+                                    if ei.get("framework") == "vfio_variant"
+                                    else None
+                                ),
                             )
                         except ValueError as e:
                             log.error(

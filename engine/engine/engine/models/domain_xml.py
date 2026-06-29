@@ -1274,10 +1274,21 @@ class DomainXML(object):
         self.remove_device(xpath, order_num=order)
 
     def remove_gpu_hostdev(self):
-        """Remove all engine-managed GPU hostdev entries (mdev + PCI passthrough)."""
+        """Remove all engine-managed GPU hostdev entries (mdev + PCI passthrough +
+        vfio-variant vGPU VF).
+
+        The vfio-variant vGPU is a ``managed='no'`` pci hostdev (the VF stays
+        nvidia-bound), so it is NOT matched by ``@managed='yes'`` -- it is matched
+        by its engine alias marker ``ua-isard-vgpu-*`` instead, so teardown strips
+        it without depending on @managed and without touching an unrelated
+        managed='no' device the desktop may carry."""
         self.remove_device("/domain/devices/hostdev[@type='mdev']", order_num=-1)
         self.remove_device(
             "/domain/devices/hostdev[@type='pci'][@managed='yes']", order_num=-1
+        )
+        self.remove_device(
+            "/domain/devices/hostdev[starts-with(alias/@name, 'ua-isard-vgpu-')]",
+            order_num=-1,
         )
 
     def remove_device(self, xpath, order_num=-1):
@@ -2390,6 +2401,7 @@ def recreate_xml_if_gpu(
     companion_pci_bdfs=None,
     is_mig=False,
     guest_index=0,
+    vgpu_vf_bdf=None,
 ):
     """Inject the appropriate GPU hostdev(s) into a domain XML.
 
@@ -2508,6 +2520,59 @@ def recreate_xml_if_gpu(
                 f"    <address type='pci' slot='{guest_slot}' function='0x0'/>\n"
                 "  </hostdev>"
             )
+        xpath_parent = "/domain/devices"
+    elif vgpu_vf_bdf:
+        # Vendor-specific VFIO framework (Ubuntu 24.04+): the vGPU is an ordinary
+        # vfio-pci passthrough of an SR-IOV VF (no mdev). It is headless on this
+        # path, so display='off' is REQUIRED (the guest drives the vGPU via the
+        # in-VM NVIDIA driver; IsardVDI video rides its own viewer path).
+        #
+        # managed='no' is LOAD-BEARING: the VF stays bound to the NVIDIA driver,
+        # which IS the VFIO provider for the variant framework (the vGPU only
+        # exists while current_vgpu_type is set on the nvidia-bound VF). With
+        # managed='yes' libvirt would unbind the VF from nvidia and bind vfio-pci
+        # to it -- that destroys the vGPU and HANGS in an unkillable D-state
+        # (nvidia cannot release an active vGPU VF), wedging the host. So we must
+        # NOT let libvirt touch the binding; the VF is already VFIO-ready.
+        #
+        # Tag the hostdev with a libvirt USER alias ('ua-' prefix) so the host-side
+        # pool reconcile / teardown can distinguish an engine-managed vGPU VF
+        # from a whole-card passthrough (both are type='pci') and never rebind a
+        # VF that is a live vGPU.
+        if not re.fullmatch(
+            r"[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9a-fA-F]",
+            vgpu_vf_bdf,
+        ):
+            raise ValueError(
+                "recreate_xml_if_gpu: malformed vgpu_vf_bdf {!r}; expected "
+                "'DDDD:BB:SS.F' (hex)".format(vgpu_vf_bdf)
+            )
+        v_dom, v_rest = vgpu_vf_bdf.split(":", 1)
+        v_bus, v_rest = v_rest.split(":", 1)
+        v_slot, _, v_func = v_rest.partition(".")
+        domain = "0x" + v_dom
+        bus = "0x" + v_bus
+        slot = "0x" + v_slot
+        function = "0x" + v_func
+        alias = "ua-isard-vgpu-" + vgpu_vf_bdf.replace(":", "-").replace(".", "-")
+        guest_slot_num = GUEST_GPU_SLOT_BASE + int(guest_index)
+        if guest_slot_num > GUEST_GPU_SLOT_MAX:
+            raise ValueError(
+                "recreate_xml_if_gpu: guest_index {} exceeds available guest PCI "
+                "slots (base 0x{:02x}..0x{:02x})".format(
+                    guest_index, GUEST_GPU_SLOT_BASE, GUEST_GPU_SLOT_MAX
+                )
+            )
+        guest_slot = "0x{:02x}".format(guest_slot_num)
+        xml_hostdev = (
+            "  <hostdev mode='subsystem' type='pci' managed='no' display='off'>\n"
+            "    <source>\n"
+            f"      <address domain='{domain}' bus='{bus}' slot='{slot}' function='{function}'/>\n"
+            "    </source>\n"
+            f"    <alias name='{alias}'/>\n"
+            f"    <address type='pci' slot='{guest_slot}' function='0x0'/>\n"
+            "  </hostdev>"
+        )
         xpath_parent = "/domain/devices"
     else:
         # MIG-backed mdevs are compute slices with no display engine, so the

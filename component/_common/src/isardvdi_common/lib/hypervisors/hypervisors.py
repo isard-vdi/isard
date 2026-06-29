@@ -60,6 +60,37 @@ _check_virt_storage_pool_availability_cache: TTLCache = TTLCache(maxsize=50, ttl
 # only the full-memory (max framebuffer) variant per slice-tier as bookable.
 _MIG_BACKED_SUFFIX_RE = re.compile(r"^(\d+)[-_](\d+)([ABCQ])$")
 
+
+def _vgpu_profile_units(prof, card_total_mb):
+    """Per-physical-card max instances of a vGPU profile.
+
+    A positive ``max_instances`` is authoritative — MIG-backed profiles and
+    time-sliced profiles on the legacy ``mdev`` framework report it correctly,
+    so use it verbatim.
+
+    Time-sliced ``<fb>Q`` profiles on the ``vfio_variant`` (SR-IOV) framework
+    report ``max_instances=0`` (the legacy per-type max-instances sysfs file is
+    gone) and ``available_instances`` = the SR-IOV **VF ceiling** (e.g. 48). The
+    VF ceiling over-states real capacity: a ``<fb>Q`` profile is
+    framebuffer-limited to ``card_total // profile_fb`` instances per card (a
+    96 GB card holds 2× 48Q, 12× 8Q, 16× 6Q — not 48 of each). Seeding the VF
+    ceiling here makes the booking planner over-allocate (book far more desktops
+    than can ever start). So derive the framebuffer count and cap it at the VF
+    ceiling (a small profile like 1Q fits 96 by framebuffer but only 48 VFs
+    exist). ``round`` absorbs the reported-vs-nominal framebuffer slack
+    (a 96 GB card reports ~97887 MB, so 97887/49152 = 1.99 → 2).
+    """
+    max_instances = prof.get("max_instances") or 0
+    if max_instances > 0:
+        return max_instances
+    available = prof.get("available_instances") or 0
+    framebuffer = prof.get("framebuffer_mb") or 0
+    if framebuffer <= 0 or not card_total_mb:
+        return available
+    fb_count = round(card_total_mb / framebuffer)
+    return min(fb_count, available) if available else fb_count
+
+
 # Canonical model token per PCI device — mirror of
 # docker/hypervisor/src/lib/gpu_discovery.py::_MODEL_ALIASES. Physically
 # identical cards (same vendor:device[:subsystem]) MUST resolve to one model
@@ -1003,8 +1034,9 @@ class HypervisorsProcessed(RethinkSharedConnection):
                             "profile": suffix,
                             "mode": "vgpu",
                             "memory": prof.get("framebuffer_mb", 0),
-                            "units": prof.get("max_instances", 0)
-                            or prof.get("available_instances", 0),
+                            "units": _vgpu_profile_units(
+                                prof, gpu.get("memory_total_mb", 0)
+                            ),
                             "description": "",
                         }
                     )

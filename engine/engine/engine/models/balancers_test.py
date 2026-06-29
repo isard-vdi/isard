@@ -521,6 +521,35 @@ class TestParseExtraGpuInfo:
             "mounted": True,
         }
 
+    def test_forwards_vfio_variant_framework_and_vf_bdf(self):
+        # On the vendor-specific VFIO framework the start path must emit a
+        # vfio-pci VF hostdev keyed by vf_bdf instead of an mdev, so the picked
+        # entry's framework + vf_bdf must reach ei (and thence recreate_xml_if_gpu).
+        extra = _parse_extra_gpu_info(
+            {
+                "next_available_uid": "0000:05:00.4",  # VF BDF is the entry key
+                "next_gpu_id": "hyp1-pci_0000_05_00_0",
+                "gpu_profile": "NVIDIA-A16-2Q",
+                "framework": "vfio_variant",
+                "vf_bdf": "0000:05:00.4",
+            }
+        )
+        assert extra["framework"] == "vfio_variant"
+        assert extra["vf_bdf"] == "0000:05:00.4"
+        assert extra["uid"] == "0000:05:00.4"
+        assert extra["profile"] == "2Q"
+
+    def test_legacy_mdev_has_no_framework(self):
+        extra = _parse_extra_gpu_info(
+            {
+                "next_available_uid": "uid-1",
+                "next_gpu_id": "gpu-1",
+                "gpu_profile": "nvidia-a16-1Q",
+            }
+        )
+        assert extra["framework"] is None
+        assert extra["vf_bdf"] is None
+
     def test_hugepages_free_figures_default_safely(self):
         # A host that has not reported hugepage stats yet must not blow up.
         extra = _parse_extra_gpu_info(
