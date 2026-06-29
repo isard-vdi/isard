@@ -17,6 +17,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -29,8 +31,9 @@ class Quota(BaseModel):
     memory: int = Field(..., ge=1)
     running: int = Field(..., ge=0)
     templates: int = Field(..., ge=0)
-    users: int = Field(..., ge=0)
-    media_size: int = Field(..., ge=0)
+    # Only carried by category/group quotas; user-quota payloads omit them.
+    users: Optional[int] = Field(default=None, ge=0)
+    media_size: Optional[int] = Field(default=None, ge=0)
     total_size: int = Field(..., ge=0)
     total_soft_size: int = Field(..., ge=0)
     deployments_total: int = Field(..., ge=0)
