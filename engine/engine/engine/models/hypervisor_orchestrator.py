@@ -263,7 +263,10 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 logs.main.error("Action: {}".format(pprint.pformat(action)))
                 logs.main.error("Traceback: {}".format(traceback.format_exc()))
                 logs.main.error("----------------------------------")
-                return False
+                # Keep the orchestrator alive: a failure handling a single action must
+                # not terminate the whole loop, otherwise the hypervisor stays Offline
+                # forever and all desktop/deployment creation returns HTTP 428.
+                continue
 
     def set_hyp_thread_dead(self, hyp_id):
         pool_obj = self.manager.pools.get("default")
@@ -277,8 +280,11 @@ class HypervisorsOrchestratorThread(threading.Thread):
         )
 
         # POP FROM MANAGER DICTIONARIES
-        q_old = self.q.workers.pop(hyp_id)
-        t_old = self.t_workers.pop(hyp_id)
+        # Defensive pop: a duplicate/late thread_hyp_worker_dead action (or a worker
+        # already removed by _recover_stuck_stopping_threads) must be idempotent and
+        # not raise KeyError, which would kill the whole orchestrator thread.
+        q_old = self.q.workers.pop(hyp_id, None)
+        t_old = self.t_workers.pop(hyp_id, None)
         del t_old
         del q_old
         update_hyp_thread_status("worker", hyp_id, "Stopped")
