@@ -4360,22 +4360,35 @@ def cmd_migrate_default_pool(args):
                 )
                 if mapped_backing and mapped_backing != backing:
                     if apply:
-                        ok, err = rebase_file(live, mapped_backing)
-                        if not ok:
-                            log(f"  REBASE FAIL {live}: {err}")
+                        if not os.path.exists(mapped_backing):
+                            # The parent was not relocated (its move failed or it
+                            # was excluded from the migration set), so its new
+                            # backing path does not exist. rebase_file uses
+                            # qemu-img -u (metadata-only), so rebasing here would
+                            # point this child at a phantom backing and silently
+                            # break the chain. Keep the current backing intact and
+                            # re-run --apply once the parent has moved to heal it.
+                            log(
+                                f"  REBASE SKIP {live}: parent backing {mapped_backing} "
+                                f"missing (parent not moved); keeping {backing}"
+                            )
                         else:
-                            rebased += 1
-                            if args.verify:
-                                # Integrity check: the rebased chain must resolve
-                                # and the image must be consistent.
-                                if qemu_img_chain_info(
-                                    live
-                                ) is None or not qemu_img_check(live):
-                                    log(
-                                        f"  VERIFY FAIL {live}: integrity/chain check failed"
-                                    )
-                                else:
-                                    verified += 1
+                            ok, err = rebase_file(live, mapped_backing)
+                            if not ok:
+                                log(f"  REBASE FAIL {live}: {err}")
+                            else:
+                                rebased += 1
+                                if args.verify:
+                                    # Integrity check: the rebased chain must
+                                    # resolve and the image must be consistent.
+                                    if qemu_img_chain_info(
+                                        live
+                                    ) is None or not qemu_img_check(live):
+                                        log(
+                                            f"  VERIFY FAIL {live}: integrity/chain check failed"
+                                        )
+                                    else:
+                                        verified += 1
                     else:
                         log(f"  rebase {live}: {backing} -> {mapped_backing}")
                         rebased += 1
