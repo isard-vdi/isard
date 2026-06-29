@@ -32,6 +32,7 @@ isard-core_worker.
 
 import asyncio
 import logging as log
+import time
 import uuid
 
 import redis
@@ -50,6 +51,16 @@ CONSUMER_GROUP = "change-handler"
 READ_COUNT = 32
 BLOCK_MS = 5000
 RECONNECT_DELAY_S = 5
+
+# At-least-once recovery: an entry whose handler failed is left in the
+# consumer group's Pending Entries List instead of being ACKed, so a later
+# ``XAUTOCLAIM`` re-delivers it. A poison entry (one that fails every time —
+# e.g. a malformed payload) is dead-lettered after ``MAX_DELIVERIES`` so it
+# can never loop forever.
+DEAD_STREAM = "stream:task-results:dead"
+RECLAIM_IDLE_MS = 60000
+RECLAIM_EVERY_S = 30
+MAX_DELIVERIES = 5
 
 
 async def _ensure_consumer_group(redis):
@@ -208,8 +219,10 @@ async def _set_job_status(dep_task, status):
 async def _process_entry(redis_manager, fields):
     """Dispatch one ``stream:task-results`` entry.
 
-    Empty / malformed entries are logged and skipped — they still get
-    ACKed by the caller so a poison message doesn't block the group.
+    Returns ``True`` when the entry was fully handled (so the caller may
+    ACK it) and ``False`` when it must be retried — a handler raised or the
+    Task could not be hydrated. Malformed / non-``result`` entries return
+    ``True``: there is nothing to retry, so they are ACKed and dropped.
     """
     kind = fields.get("kind") or fields.get(b"kind")
     task_id = fields.get("task_id") or fields.get(b"task_id")
@@ -219,25 +232,25 @@ async def _process_entry(redis_manager, fields):
         task_id = task_id.decode()
     if not task_id:
         log.warning("task_results: entry missing task_id: %r", fields)
-        return
+        return True
     if kind not in ("result", "progress"):
         log.warning("task_results: unknown kind=%r for task=%s", kind, task_id)
-        return
+        return True
 
     # Both kinds emit the task SocketIO event (chain dict). Only
     # ``result`` advances the chain by running core dependents.
     await emit_task_feedback(redis_manager, task_id)
     if kind != "result":
-        return
+        return True
 
     try:
         task = await asyncio.to_thread(Task, task_id)
     except Exception:
         log.exception(
-            "task_results: failed to hydrate Task(%s) — dependents skipped",
+            "task_results: failed to hydrate Task(%s) — will retry",
             task_id,
         )
-        return
+        return False
 
     # The storage worker publishes the stream event from within the
     # wrapped task function, *before* RQ's own post-perform code marks
@@ -246,8 +259,10 @@ async def _process_entry(redis_manager, fields):
     await _set_job_status(task, JobStatus.FINISHED)
 
     dependents = await asyncio.to_thread(lambda: list(_walk_core_dependents(task)))
+    all_ok = True
     for dep_task in dependents:
         ok = await _run_handler(redis_manager, dep_task)
+        all_ok = all_ok and ok
         # Propagate the outcome onto this dep's RQ Job before the next
         # sibling/child runs, so handlers that gate on
         # ``task.depending_status`` see the right value (was "deferred"
@@ -268,18 +283,39 @@ async def _process_entry(redis_manager, fields):
     # the in-process handlers have run. Done after the dispatch loop
     # (not inline) so the recursive ``Task.dependents`` walk still
     # finds nested dependents via each parent's ``meta["dependent_ids"]``.
-    for dep_task in dependents:
-        try:
-            await asyncio.to_thread(dep_task.job.delete)
-        except Exception:
-            log.exception(
-                "task_results: failed to drop RQ Job %s after dispatch",
-                dep_task.id,
-            )
+    #
+    # ONLY drop them when the whole entry succeeded. On a partial failure
+    # the Jobs are kept so a later ``XAUTOCLAIM`` redelivery can re-walk
+    # the chain and re-run the failed handler (every handler is an
+    # idempotent upsert, so re-running the ones that already succeeded is
+    # safe). Deleting them here would make the redelivery a no-op and
+    # leave the chain wedged.
+    if all_ok:
+        for dep_task in dependents:
+            try:
+                await asyncio.to_thread(dep_task.job.delete)
+            except Exception:
+                log.exception(
+                    "task_results: failed to drop RQ Job %s after dispatch",
+                    dep_task.id,
+                )
+    return all_ok
+
+
+async def _ack(redis, entry_id):
+    try:
+        await redis.xack(STREAM_KEY, CONSUMER_GROUP, entry_id)
+    except Exception:
+        log.exception("task_results: XACK failed for %s", entry_id)
 
 
 async def _read_and_dispatch(redis, redis_manager, consumer_name):
     """One XREADGROUP+dispatch+XACK iteration.
+
+    The entry is ACKed only when :func:`_process_entry` reports success. A
+    handler failure (or a raise) leaves the entry in the group's Pending
+    Entries List so :func:`_reclaim_pending` re-delivers it later. The
+    per-entry ``try`` keeps one bad entry from stalling the rest of the batch.
 
     Returns ``True`` if any entries were processed (so the caller can
     skip the block-and-wait next iteration), ``False`` otherwise.
@@ -295,15 +331,77 @@ async def _read_and_dispatch(redis, redis_manager, consumer_name):
         return False
     for _stream, entries in response:
         for entry_id, fields in entries:
+            ok = False
             try:
-                await _process_entry(redis_manager, fields)
+                ok = await _process_entry(redis_manager, fields)
             except Exception:
                 log.exception("task_results: process_entry raised for %s", entry_id)
-            try:
-                await redis.xack(STREAM_KEY, CONSUMER_GROUP, entry_id)
-            except Exception:
-                log.exception("task_results: XACK failed for %s", entry_id)
+            if ok:
+                await _ack(redis, entry_id)
     return True
+
+
+async def _delivery_count(redis, entry_id):
+    """How many times this PEL entry has been delivered (redis increments it
+    on every XREADGROUP / XCLAIM / XAUTOCLAIM). 0 if it can't be read."""
+    try:
+        pending = await redis.xpending_range(
+            STREAM_KEY, CONSUMER_GROUP, min=entry_id, max=entry_id, count=1
+        )
+        if pending:
+            return int(pending[0]["times_delivered"])
+    except Exception:
+        log.exception("task_results: xpending_range failed for %s", entry_id)
+    return 0
+
+
+async def _reclaim_pending(redis, redis_manager, consumer_name):
+    """Re-deliver entries that have been stuck in the PEL longer than
+    ``RECLAIM_IDLE_MS`` (a previous delivery failed and was never ACKed).
+
+    Each reclaimed entry is re-dispatched and ACKed on success; one that has
+    already been delivered more than ``MAX_DELIVERIES`` times is moved to the
+    dead-letter stream and ACKed, so a poison entry can never loop forever.
+    """
+    try:
+        response = await redis.xautoclaim(
+            STREAM_KEY,
+            CONSUMER_GROUP,
+            consumer_name,
+            min_idle_time=RECLAIM_IDLE_MS,
+            count=READ_COUNT,
+        )
+    except Exception:
+        log.exception("task_results: xautoclaim failed")
+        return
+    # redis-py returns [cursor, [(id, fields), ...]] (older) or
+    # [cursor, [...], [deleted_ids]] (redis >= 7). We only need the entries.
+    entries = response[1] if len(response) >= 2 else []
+    for entry_id, fields in entries:
+        if not fields:
+            # Entry no longer in the stream (trimmed); drop it from the PEL.
+            await _ack(redis, entry_id)
+            continue
+        delivered = await _delivery_count(redis, entry_id)
+        if delivered > MAX_DELIVERIES:
+            try:
+                await redis.xadd(DEAD_STREAM, fields)
+                await _ack(redis, entry_id)
+                log.warning(
+                    "task_results: dead-lettered %s after %s deliveries",
+                    entry_id,
+                    delivered,
+                )
+            except Exception:
+                log.exception("task_results: dead-letter failed for %s", entry_id)
+            continue
+        ok = False
+        try:
+            ok = await _process_entry(redis_manager, fields)
+        except Exception:
+            log.exception("task_results: reclaim process_entry raised for %s", entry_id)
+        if ok:
+            await _ack(redis, entry_id)
 
 
 async def run(redis_manager):
@@ -326,8 +424,15 @@ async def run(redis_manager):
                 STREAM_KEY,
                 CONSUMER_GROUP,
             )
+            last_reclaim = time.monotonic()
             while True:
                 await _read_and_dispatch(redis, redis_manager, consumer_name)
+                # Periodically sweep the PEL so an entry whose handler failed
+                # (and was therefore not ACKed) gets retried, and a poison
+                # entry is dead-lettered rather than retried forever.
+                if time.monotonic() - last_reclaim >= RECLAIM_EVERY_S:
+                    await _reclaim_pending(redis, redis_manager, consumer_name)
+                    last_reclaim = time.monotonic()
         except Exception as e:
             log.warning("task_results: stream consumer error: %s", e)
         finally:
