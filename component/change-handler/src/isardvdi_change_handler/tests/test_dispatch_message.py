@@ -210,3 +210,46 @@ class TestRealSubscriberDeserialization:
         change = handler.handle.await_args.args[0]
         assert hasattr(change, "new_val")
         assert getattr(change.new_val, "id", None) == "u1"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Secret redaction — guest credentials / viewer passwords never reach logs
+# ══════════════════════════════════════════════════════════════════════════
+
+_SECRET = "pirineus"
+_DOMAINS_CHANGE = {
+    "table": "domains",
+    "change": {
+        "new_val": {
+            "id": "d1",
+            "status": "Started",
+            "guest_properties": {
+                "credentials": {"username": "isard", "password": _SECRET}
+            },
+            "viewer": {"guest_ip": "10.0.0.5", "passwd": _SECRET},
+        },
+        "old_val": {"id": "d1", "status": "Starting"},
+    },
+}
+
+
+class TestSecretRedaction:
+    @pytest.mark.asyncio
+    async def test_dispatch_logs_change_without_secrets(self, logger, handler):
+        from changefeed_subscribers import TABLE_TO_SUBSCRIBER
+
+        if "domains" not in TABLE_TO_SUBSCRIBER:
+            pytest.skip("domains subscriber not registered in this build")
+
+        await dispatch_message(_DOMAINS_CHANGE, {"domains": handler}, logger)
+
+        logged = " ".join(
+            str(arg)
+            for method in (logger.info, logger.error, logger.warning)
+            for call in method.call_args_list
+            for arg in call.args
+        )
+        # secret values gone, non-secret context still logged
+        assert _SECRET not in logged
+        assert "d1" in logged and "Started" in logged
+        assert "10.0.0.5" in logged

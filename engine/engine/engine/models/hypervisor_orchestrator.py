@@ -15,6 +15,7 @@ import traceback
 
 from changefeed_subscribers.engine import EngineSubscriber
 from changefeed_subscribers.hypervisors import HypervisorsSubscriber
+from isardvdi_common.helpers.redact import redact_secrets
 from isardvdi_common.redis_stream import RedisStreamConsumer
 from rethinkdb import r
 
@@ -476,14 +477,14 @@ class HypervisorChangesThread(threading.Thread):
             # hypervisor deleted
             if new_val is None:
                 logs.main.debug("hypervisor deleted in rethink")
-                logs.main.debug(pprint.pformat(change))
+                logs.main.debug(pprint.pformat(redact_secrets(change)))
                 remove_hyp_thread_status(old_val.id)
                 update_domains_in_deleted_hyper(old_val.id)
 
             # hypervisor created
             elif old_val is None:
                 logs.main.debug("hypervisor created in rethink")
-                logs.main.debug(pprint.pformat(change))
+                logs.main.debug(pprint.pformat(redact_secrets(change)))
                 if new_val.status == "Offline" and new_val.enabled is True:
                     action = {
                         "type": "enable_hyper",
@@ -499,7 +500,7 @@ class HypervisorChangesThread(threading.Thread):
                     self.q_orchestrator.put(action)
             else:
                 logs.main.debug("hypervisor fields modified in rethink")
-                logs.main.debug(pprint.pformat(change))
+                logs.main.debug(pprint.pformat(redact_secrets(change)))
                 if old_val.enabled is False and new_val.enabled is True:
                     action = {
                         "type": "enable_hyper",

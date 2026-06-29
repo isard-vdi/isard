@@ -26,6 +26,7 @@ from os import environ
 import redis.asyncio as aioredis
 from changefeed_subscribers import TABLE_TO_SUBSCRIBER
 from isardvdi_common.connections.redis_urls import changefeed_url, socketio_url
+from isardvdi_common.helpers.redact import redact_secrets
 from socketio import AsyncRedisManager
 
 from .handlers.base import BaseHandler
@@ -64,11 +65,13 @@ async def dispatch_message(data: dict, handler_map: dict, logger: log.Logger) ->
     try:
         envelope = subscriber.parse_dict(data)
     except Exception as e:
-        logger.error(f"Failed to deserialize {table} envelope: {e}; data={data!r}")
+        logger.error(
+            f"Failed to deserialize {table} envelope: {e}; data={redact_secrets(data)!r}"
+        )
         return
 
     change = envelope.change
-    logger.info(f"[{table}] Received change: {change}")
+    logger.info(f"[{table}] Received change: {redact_secrets(change)}")
 
     handler = handler_map.get(table)
     if not handler:
