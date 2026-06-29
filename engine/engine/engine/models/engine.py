@@ -13,6 +13,7 @@ from datetime import datetime
 from time import sleep
 
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.redact import redact_secrets
 from isardvdi_common.models.domain import Domain
 from rethinkdb import r
 from tabulate import tabulate
@@ -534,7 +535,7 @@ class Engine(object):
                     new_domain = False
                     new_status = False
                     old_status = False
-                    logs.changes.debug(pprint.pformat(c))
+                    logs.changes.debug(pprint.pformat(redact_secrets(c)))
 
                     # action deleted
                     if c.get("new_val", None) is None:
