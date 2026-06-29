@@ -21,11 +21,12 @@ import logging as log
 from datetime import datetime
 
 import pytz
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.alloweds import Alloweds
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.notifications.compute import NotificationsCompute
 from isardvdi_common.lib.notifications.notifications_data import (
     NotificationsDataProcessed,
@@ -36,7 +37,7 @@ from isardvdi_common.lib.notifications.notifications_templates import (
 from isardvdi_common.lib.users.users.user import UsersProcessed
 from rethinkdb import r
 
-notifications_cache = TTLCache(maxsize=10, ttl=30)
+notifications_cache = SynchronizedTTLCache(maxsize=10, ttl=30)
 
 
 class NotificationsProcessed(RethinkSharedConnection):

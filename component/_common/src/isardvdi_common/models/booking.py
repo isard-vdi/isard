@@ -22,7 +22,7 @@
 import datetime
 from uuid import uuid4
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from pydantic import BaseModel, Field
 from rethinkdb import r

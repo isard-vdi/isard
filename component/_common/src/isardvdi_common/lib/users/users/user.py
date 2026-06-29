@@ -26,7 +26,7 @@ from datetime import datetime, timedelta, timezone
 from os import getenv
 
 import jwt
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
 from isardvdi_common.configuration import Configuration
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -34,6 +34,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.category import Category
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from rethinkdb import r
 
@@ -169,7 +170,7 @@ class UsersProcessed(RethinkSharedConnection):
 
     @classmethod
     @cached(
-        cache=TTLCache(maxsize=100, ttl=10),
+        cache=SynchronizedTTLCache(maxsize=100, ttl=10),
         key=lambda cls, secondary_groups: hashkey(str(secondary_groups)),
     )
     def get_secondary_groups_data(cls, secondary_groups):
@@ -500,7 +501,7 @@ class UsersProcessed(RethinkSharedConnection):
 
     @classmethod
     @cached(
-        cache=TTLCache(maxsize=600, ttl=60),
+        cache=SynchronizedTTLCache(maxsize=600, ttl=60),
         key=lambda cls, payload: payload["user_id"],
     )
     def user_config(cls, payload):

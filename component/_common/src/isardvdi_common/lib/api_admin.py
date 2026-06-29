@@ -3,13 +3,13 @@ import re
 import threading
 import traceback
 
-from cachetools import TTLCache
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
 # Process-wide cache for ``ApiAdmin.system_tables()``. The set of rdb
@@ -35,7 +35,9 @@ _system_tables_lock = threading.Lock()
 # ``Caches.get_cached``. Writers (insert/update/delete) call
 # ``clear_admin_table_list_cache(table)`` so the next listing returns
 # fresh data without waiting for the TTL to expire.
-_admin_table_list_cache: "TTLCache" = TTLCache(maxsize=64, ttl=5)
+_admin_table_list_cache: "SynchronizedTTLCache" = SynchronizedTTLCache(
+    maxsize=64, ttl=5
+)
 
 
 # Blocklist for caller-controlled pluck on /admin/table — keeps

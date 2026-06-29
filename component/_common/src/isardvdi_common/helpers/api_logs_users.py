@@ -21,18 +21,19 @@
 import logging as log
 import os
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
 
-@cached(TTLCache(maxsize=20, ttl=5))
+@cached(SynchronizedTTLCache(maxsize=20, ttl=5))
 def gen_id(user_id, exp):
     if user_id and exp:
         return user_id + "_" + str(exp)
 
 
-users_cache = TTLCache(maxsize=1000, ttl=60)
+users_cache = SynchronizedTTLCache(maxsize=1000, ttl=60)
 
 
 def user_key(_, user_id):

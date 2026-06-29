@@ -31,7 +31,7 @@ import uuid
 from datetime import datetime, timedelta
 
 import pytz
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,

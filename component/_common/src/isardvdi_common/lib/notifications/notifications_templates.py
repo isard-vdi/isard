@@ -17,17 +17,20 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from html_sanitizer import Sanitizer
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.users.users.user import UsersProcessed
 from isardvdi_common.lib.users.users.user_policies import UserPolicies
 from rethinkdb import r
 
-_get_status_bar_notification_by_provider_cache: TTLCache = TTLCache(maxsize=10, ttl=30)
+_get_status_bar_notification_by_provider_cache: SynchronizedTTLCache = (
+    SynchronizedTTLCache(maxsize=10, ttl=30)
+)
 
 
 def sanitize_href(href):

@@ -21,9 +21,10 @@
 from typing import Optional
 
 from api.services.error import Error
-from cachetools import TTLCache, cached
+from cachetools import cached
 from html_sanitizer import Sanitizer
 from isardvdi_common.helpers.caches import Caches
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.users.users.authentication import UsersAuthenticationProcessed
 from isardvdi_common.lib.users.users.user_policies import UserPolicies
 from isardvdi_common.models.config import Config
@@ -61,7 +62,7 @@ sanitizer = Sanitizer(
     }
 )
 
-provider_config_cache: TTLCache = TTLCache(maxsize=10, ttl=30)
+provider_config_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=30)
 
 
 class AdminAuthenticationService:

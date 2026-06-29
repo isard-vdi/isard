@@ -30,17 +30,18 @@ import uuid
 from io import BytesIO
 from pathlib import Path
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from PIL import Image, ImageOps
 from rethinkdb import r
 
 from .gen_image import gen_img_from_name
 
-_get_stock_cards_cache: TTLCache = TTLCache(maxsize=1, ttl=3600)
+_get_stock_cards_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=3600)
 
 api_spec = importlib.util.find_spec("api")
 if api_spec and api_spec.origin == "/api/api/__init__.py":

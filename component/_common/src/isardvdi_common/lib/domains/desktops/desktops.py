@@ -29,7 +29,7 @@ import warnings
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
@@ -47,6 +47,7 @@ from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.helpers.rules import get_unused_item_timeout
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
@@ -70,7 +71,9 @@ from ....schemas.domains import DesktopFromTemplate, DesktopStatusEnum, DomainSt
 
 socketio = RedisManager(socketio_url(), write_only=True)
 
-_get_domain_enrichment_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
+_get_domain_enrichment_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=50, ttl=30
+)
 
 MAX_VGPU_PROFILES_PER_DESKTOP = 4
 

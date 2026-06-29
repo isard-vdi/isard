@@ -31,17 +31,20 @@ from api.services.admin.categories import AdminCategoryService
 from api.services.categories import CategoryService
 from api.services.error import Error
 from api.services.login_config_cache import logo_cache
-from cachetools import TTLCache, cached
+from cachetools import cached
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 # with open("/version", "r") as file:
 #     version = file.read()
 
 # Named caches: api_version is a constant during a process lifetime, and
 # category custom_url is admin-edited via writers that should invalidate.
-api_version_cache: TTLCache = TTLCache(maxsize=1, ttl=360)
-category_custom_url_cache: TTLCache = TTLCache(maxsize=1, ttl=20)
+api_version_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=360)
+category_custom_url_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=1, ttl=20
+)
 
 
 def clear_category_custom_url_cache() -> None:

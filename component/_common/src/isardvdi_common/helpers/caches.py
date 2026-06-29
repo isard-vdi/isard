@@ -3,31 +3,48 @@ import logging as log
 import traceback
 from time import time
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
-_get_cached_desktops_priority_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
-_get_cached_unused_item_timeout_by_op_cache: TTLCache = TTLCache(maxsize=5, ttl=60)
-_get_cached_deployment_desktops_cache: TTLCache = TTLCache(maxsize=10, ttl=1)
-_get_cached_users_migrations_exceptions_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
-_get_cached_hypervisors_online_cache: TTLCache = TTLCache(maxsize=64, ttl=10)
-_get_cached_default_storage_pool_cache: TTLCache = TTLCache(maxsize=1, ttl=3600)
-_get_cached_enabled_storage_pools_cache: TTLCache = TTLCache(maxsize=10, ttl=10)
-_get_cached_enabled_virt_pools_cache: TTLCache = TTLCache(maxsize=10, ttl=10)
-_get_cached_available_category_storage_pool_id_cache: TTLCache = TTLCache(
-    maxsize=200, ttl=10
+_get_cached_desktops_priority_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=1, ttl=60
+)
+_get_cached_unused_item_timeout_by_op_cache: SynchronizedTTLCache = (
+    SynchronizedTTLCache(maxsize=5, ttl=60)
+)
+_get_cached_deployment_desktops_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=10, ttl=1
+)
+_get_cached_users_migrations_exceptions_cache: SynchronizedTTLCache = (
+    SynchronizedTTLCache(maxsize=1, ttl=60)
+)
+_get_cached_hypervisors_online_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=64, ttl=10
+)
+_get_cached_default_storage_pool_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=1, ttl=3600
+)
+_get_cached_enabled_storage_pools_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=10, ttl=10
+)
+_get_cached_enabled_virt_pools_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=10, ttl=10
+)
+_get_cached_available_category_storage_pool_id_cache: SynchronizedTTLCache = (
+    SynchronizedTTLCache(maxsize=200, ttl=10)
 )
 
 
 class Caches(RethinkSharedConnection):
 
-    cache = TTLCache(maxsize=5000, ttl=10)
+    cache = SynchronizedTTLCache(maxsize=5000, ttl=10)
 
     @classmethod
     def get_document(cls, table, item_id, keys=None, invalidate=False):
@@ -164,7 +181,7 @@ class Caches(RethinkSharedConnection):
 
     ## Config
 
-    config_cache = TTLCache(maxsize=1, ttl=60)
+    config_cache = SynchronizedTTLCache(maxsize=1, ttl=60)
 
     @classmethod
     @cached(config_cache)
@@ -195,7 +212,7 @@ class Caches(RethinkSharedConnection):
 
     ## Domains wg mac
 
-    wg_mac_domain_cache = TTLCache(maxsize=50, ttl=200)
+    wg_mac_domain_cache = SynchronizedTTLCache(maxsize=50, ttl=200)
 
     @classmethod
     def set_cached_domain_wg_mac(cls, domain_id, interfaces):

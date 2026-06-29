@@ -8,17 +8,20 @@
 import re
 import traceback
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.models.category import Category
 from isardvdi_common.models.group import Group
 from isardvdi_common.models.user import User
 from isardvdi_common.schemas.shared.allowed import AllowedUpdate
 from rethinkdb import r
 
-_get_user_cache: TTLCache = TTLCache(maxsize=20, ttl=5)
-_get_allowed_groups_cache: TTLCache = TTLCache(maxsize=20, ttl=60)
+_get_user_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=5)
+_get_allowed_groups_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=20, ttl=60
+)
 
 
 class Alloweds(RethinkCustomBase):
@@ -40,7 +43,7 @@ class Alloweds(RethinkCustomBase):
 
     @classmethod
     @cached(
-        cache=TTLCache(maxsize=500, ttl=5),
+        cache=SynchronizedTTLCache(maxsize=500, ttl=5),
         key=lambda cls, user_id, user_group_id, groups: hashkey(
             user_id + user_group_id + str(groups)
         ),
@@ -54,7 +57,8 @@ class Alloweds(RethinkCustomBase):
 
     @classmethod
     @cached(
-        cache=TTLCache(maxsize=10, ttl=5), key=lambda cls, groups: hashkey(str(groups))
+        cache=SynchronizedTTLCache(maxsize=10, ttl=5),
+        key=lambda cls, groups: hashkey(str(groups)),
     )
     def get_all_linked_groups(cls, groups):
         with cls._rdb_context():

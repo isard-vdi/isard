@@ -8,7 +8,8 @@ import traceback
 from typing import TYPE_CHECKING
 
 from api.services.error import Error
-from cachetools import TTLCache, cached
+from cachetools import cached
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 if TYPE_CHECKING:
     from isardvdi_protobuf.operations.v1.operations_pb2_grpc import (
@@ -18,9 +19,9 @@ if TYPE_CHECKING:
 # Named caches: 10 s TTL is mainly thundering-herd protection on the
 # orchestrator gRPC, so writers don't normally need to invalidate, but
 # keeping them named lets tests clear between cases.
-list_hypervisors_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
-start_hypervisor_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
-stop_hypervisor_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
+list_hypervisors_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=10)
+start_hypervisor_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=10)
+stop_hypervisor_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=10)
 
 
 def clear_admin_operations_caches() -> None:

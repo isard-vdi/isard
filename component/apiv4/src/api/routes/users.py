@@ -68,17 +68,18 @@ from api.services.desktops import DesktopService
 from api.services.error import Error
 from api.services.groups import GroupsService
 from api.services.users import UsersService
-from cachetools import TTLCache, cached
+from cachetools import cached
 from fastapi import Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.users.groups.groups import GroupsProcessed as CommonGroups
 from isardvdi_common.lib.users.users.user import UsersProcessed as CommonUsers
 
 # Separate caches per endpoint so a read of /items/users does not evict
 # the cached /items/groups response (both are keyed by category_id/role,
 # so a single shared maxsize=1 cache would thrash between them).
-users_list_cache = TTLCache(maxsize=10, ttl=360)
-groups_list_cache = TTLCache(maxsize=10, ttl=360)
+users_list_cache = SynchronizedTTLCache(maxsize=10, ttl=360)
+groups_list_cache = SynchronizedTTLCache(maxsize=10, ttl=360)
 
 
 def _items_list_key(request: Request):

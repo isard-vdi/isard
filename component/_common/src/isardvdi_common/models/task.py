@@ -19,8 +19,9 @@
 
 import os
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rq import Queue, Retry
 from rq.job import Job, JobStatus
 
@@ -199,7 +200,7 @@ class Task(RedisBase):
         return self.job.exc_info
 
     @property
-    @cached(TTLCache(maxsize=10, ttl=0.01))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=0.01))
     def dependencies(self):
         """
         Get a list of tasks that should be done before this Task.
@@ -210,7 +211,7 @@ class Task(RedisBase):
         return tasks_from_ids(self.job.meta.get("dependency_ids", []))
 
     @property
-    @cached(TTLCache(maxsize=10, ttl=0.01))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=0.01))
     def dependents(self):
         """
         List of tasks that should be done after this Task.
@@ -268,7 +269,7 @@ class Task(RedisBase):
         return False
 
     @property
-    @cached(TTLCache(maxsize=10, ttl=0.01))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=0.01))
     def job_status(self):
         """Cached Job status."""
         return self.job.get_status()

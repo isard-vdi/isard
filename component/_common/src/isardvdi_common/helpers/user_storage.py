@@ -28,7 +28,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from math import ceil
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
@@ -39,15 +39,18 @@ from isardvdi_common.connections.user_storage_providers.nextcloud import (
 from isardvdi_common.connections.user_storage_providers.nextcloud import NextcloudApi
 from isardvdi_common.helpers.api_notify import notify_admins
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
 ISARD_SHARE_FOLDER = "IsardVDI"
 
 
-isard_groups_cache = TTLCache(maxsize=10, ttl=5)
-cache_provider = TTLCache(maxsize=10, ttl=5)
+isard_groups_cache = SynchronizedTTLCache(maxsize=10, ttl=5)
+cache_provider = SynchronizedTTLCache(maxsize=10, ttl=5)
 
-_isard_user_storage_get_users_cache: TTLCache = TTLCache(maxsize=10, ttl=5)
+_isard_user_storage_get_users_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=10, ttl=5
+)
 
 # The login-auth watcher is one-at-a-time: a fresh
 # ``isard_user_storage_provider_login_auth`` call signals the previous
@@ -432,7 +435,7 @@ class UserStorage(RethinkSharedConnection):
             return None
 
     @classmethod
-    @cached(TTLCache(maxsize=1, ttl=3))
+    @cached(SynchronizedTTLCache(maxsize=1, ttl=3))
     def isard_user_storage_get_providers(cls):
         with cls._rdb_context():
             providers = list(r.table("user_storage").run(cls._rdb_connection))
@@ -770,7 +773,7 @@ class UserStorage(RethinkSharedConnection):
     ## Users generic queries
 
     @classmethod
-    @cached(TTLCache(maxsize=50, ttl=5))
+    @cached(SynchronizedTTLCache(maxsize=50, ttl=5))
     def _get_isard_user_info(cls, user_id):
         with cls._rdb_context():
             return (
@@ -803,7 +806,7 @@ class UserStorage(RethinkSharedConnection):
         return cls._get_isard_user_info(user_id)["category"]
 
     @classmethod
-    @cached(TTLCache(maxsize=10, ttl=5))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=5))
     def _get_isard_users_array(cls, provider_id=None):
         provider = cls._get_provider(provider_id)
         if provider["cfg"]["access"] != []:
@@ -825,7 +828,7 @@ class UserStorage(RethinkSharedConnection):
                 )
 
     @classmethod
-    @cached(TTLCache(maxsize=10, ttl=5))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=5))
     def _get_provider_users_array(cls, provider_id):
         provider = cls._get_provider(provider_id)
         if not provider:
@@ -841,7 +844,7 @@ class UserStorage(RethinkSharedConnection):
     ## Groups generic queries
 
     @classmethod
-    @cached(TTLCache(maxsize=10, ttl=5))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=5))
     def _get_isard_group_info(cls, group_id):
         with cls._rdb_context():
             group = r.table("groups").get(group_id).run(cls._rdb_connection)
@@ -887,7 +890,7 @@ class UserStorage(RethinkSharedConnection):
     ## Categories generic queries
 
     @classmethod
-    @cached(TTLCache(maxsize=10, ttl=5))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=5))
     def _get_isard_category_name(cls, category_id):
         with cls._rdb_context():
             return (
@@ -895,7 +898,7 @@ class UserStorage(RethinkSharedConnection):
             )
 
     @classmethod
-    @cached(TTLCache(maxsize=10, ttl=5))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=5))
     def _get_isard_categories_array(cls, provider_id):
         provider = cls._get_provider(provider_id)
         if provider["cfg"]["access"] != []:
@@ -943,7 +946,7 @@ class UserStorage(RethinkSharedConnection):
         return None
 
     @classmethod
-    @cached(TTLCache(maxsize=10, ttl=5))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=5))
     def _get_isard_category_provider_id(cls, category_id):
         with cls._rdb_context():
             # Get provider that has category_id in access field array
@@ -1783,7 +1786,7 @@ class UserStorage(RethinkSharedConnection):
     ## Users quota
 
     @classmethod
-    @cached(TTLCache(maxsize=10, ttl=5))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=5))
     def user_storage_quota(cls, user_id):
         provider = cls._get_provider(cls._get_isard_user_provider_id(user_id))
         if not provider:
@@ -1933,7 +1936,7 @@ class UserStorage(RethinkSharedConnection):
     ########################
 
     @classmethod
-    @cached(TTLCache(maxsize=10, ttl=5))
+    @cached(SynchronizedTTLCache(maxsize=10, ttl=5))
     def _provider_groups(cls, provider_id):
         provider = cls._get_provider(provider_id)
         if not provider:

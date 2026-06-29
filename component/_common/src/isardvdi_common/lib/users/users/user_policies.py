@@ -1,14 +1,17 @@
 from typing import Literal
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
-_get_policies_category_role_provider_cache: TTLCache = TTLCache(maxsize=200, ttl=30)
+_get_policies_category_role_provider_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=200, ttl=30
+)
 
 
 class UserPolicies(RethinkSharedConnection):
@@ -42,7 +45,7 @@ class UserPolicies(RethinkSharedConnection):
 
     @classmethod
     @cached(
-        TTLCache(maxsize=100, ttl=10),
+        SynchronizedTTLCache(maxsize=100, ttl=10),
         key=lambda cls, subtype, category_id=None, role_id=None, provider=None, user_id=None: (
             cls,
             subtype,

@@ -12,16 +12,17 @@ dashboard cheap to refresh; every cache is module-level + carries a
 ``clear_*`` invalidator (B8 contract).
 """
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_shared_connection import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
-_users_stats_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
-_desktops_stats_cache: TTLCache = TTLCache(maxsize=1, ttl=5)
-_templates_stats_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
-_domains_status_cache: TTLCache = TTLCache(maxsize=1, ttl=5)
+_users_stats_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=10)
+_desktops_stats_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=5)
+_templates_stats_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=10)
+_domains_status_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=5)
 
 # Steady-state desktop statuses surfaced by category aggregates; anything
 # else is "Other" and must be surfaced for admin triage.

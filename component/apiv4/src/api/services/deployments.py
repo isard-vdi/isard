@@ -30,11 +30,12 @@ from api.dependencies.jwt_token import TokenPayload
 from api.services.bastion import BastionService
 from api.services.desktops import DesktopService
 from api.services.error import Error
-from cachetools import TTLCache, cached
+from cachetools import cached
 from fastapi import Request
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.deployments.deployment_desktops import (
     DeploymentDesktopsProcessed as CommonDeploymentDesktops,
 )
@@ -52,7 +53,7 @@ from isardvdi_common.models.domain import Domain as RethinkDomain
 from isardvdi_common.models.targets import Targets
 from isardvdi_common.models.user import User as RethinkUser
 
-deployment_cache = TTLCache(maxsize=1, ttl=360)
+deployment_cache = SynchronizedTTLCache(maxsize=1, ttl=360)
 
 
 class DeploymentService:

@@ -32,21 +32,24 @@ import ast
 import logging
 from datetime import datetime
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_shared_connection import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
 log = logging.getLogger(__name__)
 
 # Named caches so writers can invalidate them after mutations.
-_group_name_cache: TTLCache = TTLCache(maxsize=1000, ttl=240)
-_category_name_cache: TTLCache = TTLCache(maxsize=1000, ttl=240)
-_owners_info_cache: TTLCache = TTLCache(maxsize=1, ttl=240)
-_params_cache: TTLCache = TTLCache(maxsize=100, ttl=60)
-_params_item_type_custom_cache: TTLCache = TTLCache(maxsize=100, ttl=60)
+_group_name_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1000, ttl=240)
+_category_name_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1000, ttl=240)
+_owners_info_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=240)
+_params_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=100, ttl=60)
+_params_item_type_custom_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=100, ttl=60
+)
 
 
 class UsageProcessed(RethinkSharedConnection):

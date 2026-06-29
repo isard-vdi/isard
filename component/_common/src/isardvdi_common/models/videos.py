@@ -17,8 +17,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from pydantic import BaseModel
 from rethinkdb import r
 
@@ -48,7 +49,7 @@ class Video(RethinkCustomBase):
     _rdb_table = "videos"
 
     @classmethod
-    @cached(TTLCache(maxsize=3, ttl=300))
+    @cached(SynchronizedTTLCache(maxsize=3, ttl=300))
     def get_videos_names(cls):
         with cls._rdb_context():
             videos = r.table("videos").pluck("id", "name").run(cls._rdb_connection)

@@ -17,8 +17,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from pydantic import BaseModel
 from rethinkdb import r
 
@@ -49,7 +50,7 @@ class Interface(RethinkCustomBase):
     _rdb_table = "interfaces"
 
     @classmethod
-    @cached(TTLCache(maxsize=3, ttl=300))
+    @cached(SynchronizedTTLCache(maxsize=3, ttl=300))
     def get_interfaces_names(cls):
         with cls._rdb_context():
             interfaces = (

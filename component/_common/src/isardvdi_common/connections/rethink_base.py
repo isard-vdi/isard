@@ -24,14 +24,20 @@ from time import time
 from typing import Any, Callable, List, Literal, Optional
 from uuid import uuid4
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from pydantic import UUID4, BaseModel, Field, create_model, field_serializer
 from pydantic.experimental.missing_sentinel import MISSING
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
-_cache = TTLCache(maxsize=10, ttl=5)
+# Process-global, shared by every RethinkBase subclass (~25 entity types) and
+# written from two paths — the @cached __getattr__ read path and _update_cache.
+# SynchronizedTTLCache makes those mutations thread-safe under apiv4's threadpool
+# and engine threads (#1096). maxsize=10 was far too small for ~25 entity types
+# (constant eviction, ~0 hit rate); 2048 gives real headroom.
+_cache = SynchronizedTTLCache(maxsize=2048, ttl=5)
 
 
 def pydantic_optional(*fields, except_fields: list[str] = []):

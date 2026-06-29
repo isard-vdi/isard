@@ -28,10 +28,12 @@ import requests
 
 if TYPE_CHECKING:
     from isardvdi_common.models.storage import Storage
+
 from api.services.admin.tables import AdminTablesService
 from api.services.cards import CardService
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.xml_compression import decompress_xml
 from isardvdi_common.lib.downloads.downloads import DownloadsProcessed
 from isardvdi_common.models.config import Config
@@ -45,10 +47,14 @@ URL_DOWNLOAD_INSECURE_SSL = (
 # Named caches so writers can invalidate them after mutations
 # (the registration flow updates the code in the DB and must wipe
 # the cached cfg/web kinds).
-_get_cfg_cache: TTLCache = TTLCache(maxsize=1, ttl=360)
-_download_web_kind_cache: TTLCache = TTLCache(maxsize=10, ttl=360)
-_download_web_private_kind_cache: TTLCache = TTLCache(maxsize=10, ttl=360)
-_get_web_kinds_cache: TTLCache = TTLCache(maxsize=1, ttl=360)
+_get_cfg_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=360)
+_download_web_kind_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=10, ttl=360
+)
+_download_web_private_kind_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=10, ttl=360
+)
+_get_web_kinds_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=360)
 
 
 def clear_admin_downloads_caches() -> None:

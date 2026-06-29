@@ -26,7 +26,7 @@ from typing import Optional
 
 from api.services.error import Error
 from api.services.templates import clear_templates_cache
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
 from fastapi import BackgroundTasks
 from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
@@ -34,6 +34,7 @@ from isardvdi_common.helpers.backup_writer import BackupWriter
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
 from isardvdi_common.lib.domains.domains import DomainsProcessed
@@ -41,7 +42,7 @@ from isardvdi_common.lib.logs.logs import LogsProcessed
 from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.models.storage import Storage
 
-domains_field_cache = TTLCache(maxsize=50, ttl=5)
+domains_field_cache = SynchronizedTTLCache(maxsize=50, ttl=5)
 
 
 def clear_domains_field_cache() -> None:

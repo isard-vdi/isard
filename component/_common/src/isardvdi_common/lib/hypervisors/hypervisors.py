@@ -32,7 +32,7 @@ import uuid
 from subprocess import check_output
 
 import pytz
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
@@ -43,15 +43,24 @@ from isardvdi_common.helpers.desktops_priority import MAX_SHUTDOWN_MINUTES
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.isard_vpn import IsardVpn
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.hypervisor import HypervisorModel
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
-_get_desktops_max_timeout_cache: TTLCache = TTLCache(maxsize=200, ttl=100)
-_get_hyper_started_domains_cache: TTLCache = TTLCache(maxsize=200, ttl=10)
-_check_create_storage_pool_availability_cache: TTLCache = TTLCache(maxsize=50, ttl=10)
-_check_virt_storage_pool_availability_cache: TTLCache = TTLCache(maxsize=50, ttl=10)
+_get_desktops_max_timeout_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=200, ttl=100
+)
+_get_hyper_started_domains_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=200, ttl=10
+)
+_check_create_storage_pool_availability_cache: SynchronizedTTLCache = (
+    SynchronizedTTLCache(maxsize=50, ttl=10)
+)
+_check_virt_storage_pool_availability_cache: SynchronizedTTLCache = (
+    SynchronizedTTLCache(maxsize=50, ttl=10)
+)
 
 
 # MIG-backed vGPU profile suffix: "<slices>_<framebuffer><series>" (e.g. "1_24Q",
@@ -2156,7 +2165,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
 
     @classmethod
     @cached(
-        cache=TTLCache(maxsize=25, ttl=10),
+        cache=SynchronizedTTLCache(maxsize=25, ttl=10),
         key=lambda cls, mac, data: f"{mac}:{data.get('viewer', {}).get('guest_ip', '')}",
     )
     def update_wg_address(cls, mac, data):
