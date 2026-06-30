@@ -79,3 +79,16 @@ def test_rebase_missing_child_raises(tmp_path):
             str(tmp_path / "nope.qcow2"),
             str(tmp_path / "parent.qcow2"),
         )
+
+
+def test_rebase_verify_passes_on_intact_chain(chain):
+    rc = task.rebase(chain["child"], chain["new_parent"], verify=True)
+    assert rc == 0
+    assert qcow.get_backing_file(chain["child"]) == chain["new_parent"]
+
+
+def test_rebase_verify_fails_when_backing_missing(chain):
+    # Rebase onto a path that does not exist -> chain is broken -> verify fails.
+    missing = chain["new_parent"] + ".gone"
+    with pytest.raises(Exception):
+        task.rebase(chain["child"], missing, verify=True)

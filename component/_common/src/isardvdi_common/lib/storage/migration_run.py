@@ -242,6 +242,9 @@ class MigrationRunner:
             {
                 "child_path": item["dst_path"],
                 "new_backing_path": item["parent_dst_path"],
+                # qemu_img_check the rebased chain before advancing (the disks
+                # live on the storage worker, so the verify runs there).
+                "verify": bool(self.config.get("verify", True)),
             },
         )
         self._set(item, rebase_task_id=task_id)

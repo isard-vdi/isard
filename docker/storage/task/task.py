@@ -1275,7 +1275,7 @@ def _storage_qcow():
 
 
 @_publishes_result
-def rebase(child_path, new_backing_path):
+def rebase(child_path, new_backing_path, verify=False):
     """Re-point a qcow2 child's backing file to its parent's NEW path.
 
     Net-new task for the admin storage-disk path->path migration saga: once a
@@ -1298,7 +1298,12 @@ def rebase(child_path, new_backing_path):
 
     :param child_path: Path of the child qcow2 whose backing is repointed.
     :param new_backing_path: The parent's NEW absolute path (from the ledger).
-    :raises RuntimeError: if the rebase fails or the child is in use.
+    :param verify: When True, run ``qemu-img check -U`` on the child after the
+        rebase and fail unless the whole chain is intact — the migration saga's
+        "qemu_img_check on rebased before advancing" gate, run here because the
+        disks are mounted on the storage worker, not in the orchestrator.
+    :raises RuntimeError: if the rebase fails, the child is in use, or (when
+        ``verify``) the rebased chain does not check out clean.
     :return: 0 on success.
     """
     qcow = _storage_qcow()
@@ -1306,6 +1311,10 @@ def rebase(child_path, new_backing_path):
     if not success:
         raise RuntimeError(
             f"rebase of {child_path} onto {new_backing_path} failed: {error}"
+        )
+    if verify and not qcow.qemu_img_check(child_path):
+        raise RuntimeError(
+            f"rebase of {child_path} onto {new_backing_path} left an unclean chain"
         )
     return 0
 

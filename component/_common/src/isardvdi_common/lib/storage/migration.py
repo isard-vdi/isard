@@ -92,6 +92,9 @@ def build_tree_items(migration_id, root_id, get_children, node_info):
         is_root = idx == 0
         items.append(
             {
+                # Deterministic id == natural key, so re-planning a job upserts
+                # the same rows (idempotent) instead of duplicating them.
+                "id": f"{migration_id}--{nid}",
                 "migration_id": migration_id,
                 "storage_id": nid,
                 "tree_id": root_id,
@@ -204,6 +207,10 @@ def decide_item_action(item, job_status_fn):
             return "mark_moved"
         if _job_failed(st):
             return "fail"
+        if st is None:
+            # The in-flight job is gone (redis expired / cleared on a restart).
+            # Re-enqueue: move with remove_source_file=False is idempotent.
+            return "start_move"
         return "wait"
     if state == "moved":
         if is_root:
@@ -215,6 +222,9 @@ def decide_item_action(item, job_status_fn):
             return "mark_rebased"
         if _job_failed(st):
             return "fail"
+        if st is None:
+            # Lost rebase job — re-enqueue: rebase -u is idempotent.
+            return "start_rebase"
         return "wait"
     if state == "rebased":
         return "db_update"

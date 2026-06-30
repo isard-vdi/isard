@@ -87,6 +87,8 @@ def test_build_tree_items_topo_and_linkage():
 
     items = mig.build_tree_items("mig1", "root", children, node_info)
     assert [it["storage_id"] for it in items] == ["root", "c"]
+    # deterministic id == natural key (idempotent re-plan)
+    assert [it["id"] for it in items] == ["mig1--root", "mig1--c"]
     assert [it["topo_index"] for it in items] == [0, 1]
     assert all(it["state"] == "pending" for it in items)
     assert all(it["tree_id"] == "root" for it in items)

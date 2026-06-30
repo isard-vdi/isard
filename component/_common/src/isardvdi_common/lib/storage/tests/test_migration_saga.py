@@ -67,6 +67,22 @@ def test_rebased_triggers_db_update():
 
 
 # --------------------------------------------------------------------------- #
+# resume: a LOST in-flight task (redis expired/cleared) is re-enqueued.
+# move (remove_source_file=False) and rebase -u are both idempotent, so
+# re-running a step that may have already completed is safe.
+# --------------------------------------------------------------------------- #
+def test_moving_with_lost_job_reenqueues_move():
+    it = _item(0, "moving", move_task_id="gone")
+    # status None == the RQ job no longer exists (lost on a restart)
+    assert mig.decide_item_action(it, _status({})) == "start_move"
+
+
+def test_moved_with_lost_rebase_job_reenqueues_rebase():
+    it = _item(1, "moved", move_task_id="m1", rebase_task_id="gone")
+    assert mig.decide_item_action(it, _status({})) == "start_rebase"
+
+
+# --------------------------------------------------------------------------- #
 # tree_next — ordering across a tree
 # --------------------------------------------------------------------------- #
 def test_tree_serial_top_to_bottom():
