@@ -139,20 +139,23 @@ class MigrationRunner:
         recorded in the ledger so re-activation is crash-safe (driven from the
         ledger on resume).
 
-        Crash-safe suppression (qcow-2): the deactivation set is re-derived from
-        the FULL ledger every prepare (already-recorded items included) and
-        applied BEFORE the records are persisted, so a crash (or a swallowed
-        batch error) between recording and deactivating can never leave a domain
-        recorded-but-not-suppressed — the next prepare re-deactivates it
-        (deactivate_autostart is idempotent).
+        Crash-safe ordering (qcow-2): persist the ledger records FIRST (was_on =
+        the current live value), and only THEN deactivate. Deactivating before
+        persisting would let a crash in between re-read the now-False field and
+        record was_on=False -> permanent autostart loss; persisting first keeps
+        the pre-suppression value durable for reactivate. The deactivation set is
+        re-derived from the full ledger every prepare (so a crash between persist
+        and deactivate re-suppresses on resume) but filtered to the still-live
+        domains, so deactivate_autostart neither re-fires/re-notifies every tick
+        nor misses a crash-interrupted suppression.
         """
         writes, to_deactivate = mig.plan_autostart_deactivation(
             self._items(), self._domains
         )
-        if to_deactivate:
-            DesktopEvents.deactivate_autostart(to_deactivate)
         for item, records in writes:
             self._set(item, autostart_domains=records)
+        if to_deactivate:
+            DesktopEvents.deactivate_autostart(to_deactivate)
 
     def reactivate(self):
         """Re-activate autostart for the domains we turned off (those recorded

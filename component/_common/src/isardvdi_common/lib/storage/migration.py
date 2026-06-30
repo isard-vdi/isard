@@ -328,33 +328,48 @@ def decide_item_action(item, job_status_fn):
 def plan_autostart_deactivation(items, domains_of):
     """Plan the up-front autostart suppression for a migration (qcow-2).
 
-    ``domains_of(storage_id) -> iterable`` yields the domains of a disk (each
-    with ``id`` and ``server_autostart``). Returns ``(writes, to_deactivate)``:
+    ``domains_of(storage_id) -> iterable`` yields a disk's domains (each with
+    ``id`` and ``server_autostart``). Returns ``(writes, to_deactivate)``:
 
     * ``writes`` — ``[(item, records)]`` for items whose autostart has not yet
-      been recorded; each record is ``{"id", "was_on"}`` for one domain.
-    * ``to_deactivate`` — domain ids to suppress, re-derived from the FULL
-      ledger (already-recorded items INCLUDED), so a crash between recording and
-      deactivating still suppresses on the next prepare. The caller deactivates
-      (idempotently) BEFORE persisting ``writes``, so a domain can never be left
-      recorded-but-not-suppressed.
+      been recorded; each record is ``{"id", "was_on"}`` capturing the CURRENT
+      live ``server_autostart``. The caller persists these FIRST and only THEN
+      deactivates, so a crash between the two never loses the pre-suppression
+      value (the record already holds ``was_on=True`` for ``reactivate`` to
+      restore) — closing the loss window the deactivate-before-persist ordering
+      would otherwise open.
+    * ``to_deactivate`` — domain ids recorded ``was_on=True`` that are STILL
+      live-on. Re-derived from the full ledger every prepare (so a crash between
+      persist and deactivate re-suppresses on resume — crash-safe), but filtered
+      to the not-yet-suppressed set so ``deactivate_autostart`` does not re-fire
+      (and re-notify) once a domain is already off.
     """
     writes = []
-    for item in items:
-        if item.get("autostart_domains") is not None:
-            continue
-        records = [
-            {"id": d.id, "was_on": bool(getattr(d, "server_autostart", False))}
-            for d in domains_of(item["storage_id"])
-        ]
-        writes.append((item, records))
-    new_records = {item["id"]: recs for item, recs in writes}
     to_deactivate = []
     for item in items:
-        recs = new_records.get(item["id"], item.get("autostart_domains") or [])
-        for rec in recs:
-            if rec.get("was_on"):
-                to_deactivate.append(rec["id"])
+        recorded = item.get("autostart_domains")
+        if recorded is None:
+            doms = list(domains_of(item["storage_id"]))
+            records = [
+                {"id": d.id, "was_on": bool(getattr(d, "server_autostart", False))}
+                for d in doms
+            ]
+            writes.append((item, records))
+            to_deactivate += [
+                d.id for d in doms if bool(getattr(d, "server_autostart", False))
+            ]
+        else:
+            # already recorded: only re-suppress domains recorded was_on=True that
+            # are still live-on (a crash between persist and deactivate). Skip the
+            # live read when nothing in this item could need suppressing.
+            candidates = [r["id"] for r in recorded if r.get("was_on")]
+            if not candidates:
+                continue
+            live = {
+                d.id: bool(getattr(d, "server_autostart", False))
+                for d in domains_of(item["storage_id"])
+            }
+            to_deactivate += [cid for cid in candidates if live.get(cid, False)]
     return writes, to_deactivate
 
 
