@@ -368,6 +368,38 @@ def tree_admitted(tree_eta_s, max_disk_eta_s, remaining_window_s, task_timeout=4
     return tree_eta_s <= remaining_window_s
 
 
+# --------------------------------------------------------------------------- #
+# Per-job parallelism (pure) — P2.3
+#
+# A migration may run several independent trees concurrently, bounded by
+# ``config.parallelism`` so the storage worker is not oversubscribed. In-flight
+# trees always keep advancing; only the START of a new tree is gated by a free
+# slot (and by the window/ETA admission above).
+# --------------------------------------------------------------------------- #
+#: states past which a disk needs no further saga work of any kind
+_TERMINAL_STATES = {"released", "skipped", "failed"}
+
+
+def tree_phase(item_states):
+    """Phase of a tree from its item states: ``"done"`` (every disk terminal),
+    ``"not_started"`` (every disk still pending), else ``"in_flight"``."""
+    states = [str(s) for s in item_states]
+    if not states or all(s in _TERMINAL_STATES for s in states):
+        return "done"
+    if all(s == "pending" for s in states):
+        return "not_started"
+    return "in_flight"
+
+
+def admission_slots(tree_phases, parallelism):
+    """How many not-started trees may start this tick: the parallelism cap minus
+    the trees already in flight (each consumes a slot). ``parallelism`` is
+    clamped to a minimum of 1."""
+    p = max(1, int(parallelism or 1))
+    in_flight = sum(1 for ph in tree_phases if ph == "in_flight")
+    return max(0, p - in_flight)
+
+
 def tree_next(tree_items, job_status_fn):
     """Decide the next ``(item, action)`` for ONE tree.
 

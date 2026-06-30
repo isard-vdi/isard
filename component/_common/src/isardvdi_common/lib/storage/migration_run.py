@@ -412,15 +412,26 @@ class MigrationRunner:
         # mid-chain when the window closes.
         has_window, win_open, remaining_s = self._window_state()
 
+        # Parallelism gate (P2.3): bound concurrent trees to config.parallelism
+        # so the storage worker is not oversubscribed. In-flight trees keep
+        # advancing; only STARTING a new tree consumes a slot.
+        phases = {
+            tid: mig.tree_phase([it["state"] for it in tis])
+            for tid, tis in trees.items()
+        }
+        slots = mig.admission_slots(
+            list(phases.values()), self.config.get("parallelism")
+        )
+
         results = []
         for tree_id, tree_items in trees.items():
-            not_started = all(
-                str(it["state"]) == MigrationItemState.PENDING.value
-                for it in tree_items
-            )
-            if not_started and not self._admit_tree(tree_items, win_open, remaining_s):
-                results.append((tree_id, None, "deferred"))
-                continue
+            if phases[tree_id] == "not_started":
+                if slots <= 0 or not self._admit_tree(
+                    tree_items, win_open, remaining_s
+                ):
+                    results.append((tree_id, None, "deferred"))
+                    continue
+                slots -= 1  # this tree starts now, consuming a slot
             if not self._gate_tree(tree_items):
                 results.append((tree_id, None, "gated"))
                 continue

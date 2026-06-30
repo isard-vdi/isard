@@ -726,13 +726,19 @@ class Actions:
             with build_client("isard-scheduler") as client:
                 if kwargs["action"] == "move":
                     if kwargs.get("rsync"):
+                        rsync_body = StorageRsyncToPathRequest(
+                            destination_path=kwargs["destination_path"],
+                            priority=kwargs["priority"],
+                        )
+                        # F3: forward the per-job bandwidth limit (KB/s) when
+                        # set. bwlimit is already threaded end-to-end through the
+                        # apiv4 rsync endpoint; this was the only missing hop.
+                        if kwargs.get("bwlimit"):
+                            rsync_body.bwlimit = kwargs["bwlimit"]
                         resp = rsync_storage_to_path.sync_detailed(
                             client=client,
                             storage_id=kwargs["storage_id"],
-                            body=StorageRsyncToPathRequest(
-                                destination_path=kwargs["destination_path"],
-                                priority=kwargs["priority"],
-                            ),
+                            body=rsync_body,
                         )
                     else:
                         resp = move_storage_by_path.sync_detailed(
