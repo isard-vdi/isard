@@ -837,16 +837,10 @@ async def get_desktop_images(
         None,
         description="Image type filter: 'stock', 'user', or omit for both.",
     ),
-    desktop_id: str = Query(None, description="Desktop ID for user cards"),
+    domain_id: str = Query(None, description="Domain ID for user cards"),
 ):
     try:
         user_id = request.token_payload["user_id"]
-
-        if image_type in (None, "user") and not desktop_id:
-            raise Error(
-                "bad_request",
-                "desktop_id is required when image_type is 'user' or omitted (both).",
-            )
 
         # Both ``CardService.get_stock_cards`` and ``get_user_cards`` are
         # sync ReQL helpers; calling them straight from this async handler
@@ -855,14 +849,14 @@ async def get_desktop_images(
         if image_type is None:
             stock, user = await asyncio.gather(
                 asyncio.to_thread(CardService.get_stock_cards),
-                asyncio.to_thread(CardService.get_user_cards, user_id, desktop_id),
+                asyncio.to_thread(CardService.get_user_cards, user_id, domain_id),
             )
             images = stock + user
         elif image_type == "stock":
             images = await asyncio.to_thread(CardService.get_stock_cards)
         else:  # "user"
             images = await asyncio.to_thread(
-                CardService.get_user_cards, user_id, desktop_id
+                CardService.get_user_cards, user_id, domain_id
             )
 
         return JSONResponse(

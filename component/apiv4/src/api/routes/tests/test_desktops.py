@@ -1175,7 +1175,7 @@ def test_get_desktop_images_offloads_card_calls(monkeypatch, test_client):
 
     # both-kinds branch — should dispatch both helpers via to_thread.
     response = test_client(
-        url="/items/desktops/get-images?desktop_id=desktop-1",
+        url="/items/desktops/get-images?domain_id=desktop-1",
         method="GET",
         jwt=jwt,
     )
@@ -1241,7 +1241,7 @@ def test_get_desktop_images_user_branch_rejected_at_schema_boundary(
     introduce a path where the offload is bypassed.
     """
     response = test_client(
-        url="/items/desktops/get-images?image_type=user&desktop_id=d-1",
+        url="/items/desktops/get-images?image_type=user&domain_id=d-1",
         method="GET",
         jwt=MockJWT(),
     )

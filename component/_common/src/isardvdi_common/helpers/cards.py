@@ -134,8 +134,7 @@ class Cards(RethinkSharedConnection):
             images = list(
                 r.table("domains")
                 .get_all(user_id, index="user")
-                .pluck("image")
-                .distinct()
+                .pluck("id", "image")
                 .run(cls._rdb_connection)
             )
         if domain_id:
@@ -165,6 +164,7 @@ class Cards(RethinkSharedConnection):
             if image.get("image")
             and image["image"]["type"] == "user"
             and not image["image"]["id"].startswith("_")
+            and image["image"]["id"] != image["id"] + ".jpg"
         ]
 
     @classmethod

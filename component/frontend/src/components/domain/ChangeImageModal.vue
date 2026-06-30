@@ -24,17 +24,19 @@ const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 // 5 MB
 
 interface Props {
   open: boolean
-  desktopId: string
+  domainId?: string
   currentImage?: DomainImageOutput
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  domainId: undefined,
   currentImage: undefined
 })
 
 const emit = defineEmits<{
   close: []
   saved: []
+  select: [image: DomainImageOutput]
 }>()
 
 const { t } = useI18n()
@@ -46,9 +48,9 @@ const {
   isError: imagesError
 } = useQuery({
   ...getDesktopImagesOptions({
-    query: { desktop_id: props.desktopId }
+    query: { domain_id: props.domainId }
   }),
-  enabled: computed(() => props.open && !!props.desktopId)
+  enabled: computed(() => props.open)
 })
 
 const images = computed<DomainImageOutput[]>(() => imagesResponse.value?.images ?? [])
@@ -81,12 +83,12 @@ const { mutate: saveImage, isPending: saveIsPending } = useMutation({
   onSuccess: () => {
     queryClient.invalidateQueries({
       queryKey: getDesktopInfoQueryKey({
-        path: { desktop_id: props.desktopId }
+        path: { desktop_id: props.domainId }
       })
     })
     queryClient.invalidateQueries({
       queryKey: getDesktopImagesQueryKey({
-        query: { desktop_id: props.desktopId }
+        query: { domain_id: props.domainId }
       })
     })
     emit('saved')
@@ -99,9 +101,14 @@ const { mutate: saveImage, isPending: saveIsPending } = useMutation({
 
 function handleSave() {
   if (!selectedImage.value) return
+  if (!props.domainId) {
+    emit('select', selectedImage.value)
+    emit('close')
+    return
+  }
   saveErrorCode.value = undefined
   saveImage({
-    path: { desktop_id: props.desktopId },
+    path: { desktop_id: props.domainId },
     body: {
       image: {
         id: selectedImage.value.id,
@@ -122,12 +129,12 @@ const { mutate: uploadImage, isPending: uploadIsPending } = useMutation({
     uploadErrorCode.value = undefined
     queryClient.invalidateQueries({
       queryKey: getDesktopImagesQueryKey({
-        query: { desktop_id: props.desktopId }
+        query: { domain_id: props.domainId }
       })
     })
     queryClient.invalidateQueries({
       queryKey: getDesktopInfoQueryKey({
-        path: { desktop_id: props.desktopId }
+        path: { desktop_id: props.domainId }
       })
     })
     if (fileInput.value) fileInput.value.value = ''
@@ -166,7 +173,7 @@ function handleFileSelected(event: Event) {
     // Strip the 'data:<mime>;base64,' prefix to match the backend expectation
     const base64 = result.replace(/^data:[^;]+;base64,/, '')
     uploadImage({
-      path: { desktop_id: props.desktopId },
+      path: { desktop_id: props.domainId },
       body: {
         image: {
           id: '',
@@ -224,30 +231,36 @@ const anyPending = computed(() => saveIsPending.value || uploadIsPending.value)
 
       <div class="flex items-center justify-between mb-4">
         <p class="text-sm text-gray-warm-600">
-          {{ t('components.change-image-modal.hint') }}
+          {{
+            props.domainId
+              ? t('components.change-image-modal.hint')
+              : t('components.change-image-modal.hint-select-only')
+          }}
         </p>
-        <input
-          ref="fileInput"
-          type="file"
-          accept="image/png,image/jpeg,image/gif"
-          class="hidden"
-          @change="handleFileSelected"
-        />
-        <Button
-          hierarchy="secondary-gray"
-          size="sm"
-          icon="image-plus"
-          :disabled="anyPending"
-          @click="triggerFilePicker"
-        >
-          <template v-if="uploadIsPending">
-            <Icon name="loading-02" class="motion-safe:animate-[spin_2s_linear_infinite]" />
-            {{ t('components.change-image-modal.upload.uploading') }}
-          </template>
-          <template v-else>
-            {{ t('components.change-image-modal.upload.label') }}
-          </template>
-        </Button>
+        <template v-if="props.domainId">
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/png,image/jpeg,image/gif"
+            class="hidden"
+            @change="handleFileSelected"
+          />
+          <Button
+            hierarchy="secondary-gray"
+            size="sm"
+            icon="image-plus"
+            :disabled="anyPending"
+            @click="triggerFilePicker"
+          >
+            <template v-if="uploadIsPending">
+              <Icon name="loading-02" class="motion-safe:animate-[spin_2s_linear_infinite]" />
+              {{ t('components.change-image-modal.upload.uploading') }}
+            </template>
+            <template v-else>
+              {{ t('components.change-image-modal.upload.label') }}
+            </template>
+          </Button>
+        </template>
       </div>
 
       <div v-if="imagesLoading" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
