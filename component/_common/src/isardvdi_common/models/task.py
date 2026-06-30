@@ -17,12 +17,14 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging as log
 import os
 
 from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rq import Queue, Retry
+from rq.exceptions import NoSuchJobError
 from rq.job import Job, JobStatus
 
 
@@ -401,6 +403,54 @@ class Task(RedisBase):
         return Job.exists(task_id, connection=cls._redis)
 
     @classmethod
+    def _tasks_from_source_ids(cls, job_ids, source):
+        """Materialize ``Task`` objects from job ids belonging to one source (an
+        RQ ``Queue`` list or a ``*_job_registry``), tolerating dangling refs.
+
+        A queue list or registry zset can keep an id whose underlying RQ job
+        hash has already been evicted from Redis (e.g. a worker/redis restart
+        mid-chain during an upgrade). ``Task(id=...)`` then raises
+        ``NoSuchJobError`` and, in a plain comprehension, aborts the *entire*
+        listing — which breaks every caller (the change-handler reconcile
+        self-heal, :meth:`get_failed_storage_tasks`, ...) and never recovers,
+        because the dangling reference is exactly what those passes exist to
+        clear. Skip the orphan and purge it from ``source`` so it self-clears
+        instead of re-raising every cycle.
+
+        Only ``NoSuchJobError`` (a provably missing job) is treated as an
+        orphan; any other error (e.g. a transient redis ``ConnectionError``)
+        propagates so the caller fails the whole pass rather than purge live
+        work on a hiccup.
+        """
+        tasks = []
+        for job_id in job_ids:
+            try:
+                tasks.append(cls(id=job_id))
+            except NoSuchJobError:
+                log.warning(
+                    "task: purging dangling job id %s from %s (no RQ job)",
+                    job_id,
+                    type(source).__name__,
+                )
+                try:
+                    source.remove(job_id)
+                except NotImplementedError:
+                    # A few RQ registries — e.g. ``StartedJobRegistry``, whose
+                    # members are composite ``{job_id}:{execution_id}`` — don't
+                    # support bare-id removal. Their own ``get_job_ids()``
+                    # cleanup sweeps expired entries, so leave the orphan for RQ
+                    # rather than spam an exception traceback every pass.
+                    log.debug(
+                        "task: %s does not support removing %s; leaving it for "
+                        "RQ's own registry cleanup",
+                        type(source).__name__,
+                        job_id,
+                    )
+                except Exception:
+                    log.exception("task: could not purge dangling job id %s", job_id)
+        return tasks
+
+    @classmethod
     def get_all(cls):
         """
         Get all tasks.
@@ -408,9 +458,9 @@ class Task(RedisBase):
         :return: Task objects
         :rtype: list
         """
-        job_ids = []
+        tasks = []
         for queue in Queue.all(connection=cls._redis):
-            job_ids.extend(queue.job_ids)
+            tasks.extend(cls._tasks_from_source_ids(queue.job_ids, queue))
             for status in (
                 "failed",
                 "started",
@@ -419,8 +469,11 @@ class Task(RedisBase):
                 "scheduled",
                 "canceled",
             ):
-                job_ids.extend(getattr(queue, f"{status}_job_registry").get_job_ids())
-        return [Task(id=job_id) for job_id in job_ids]
+                registry = getattr(queue, f"{status}_job_registry")
+                tasks.extend(
+                    cls._tasks_from_source_ids(registry.get_job_ids(), registry)
+                )
+        return tasks
 
     @classmethod
     def get_by_status(cls, *statuses):
@@ -436,12 +489,15 @@ class Task(RedisBase):
             if status not in JobStatus:
                 raise ValueError(f"Invalid status: {status}")
 
-        job_ids = []
+        tasks = []
         for queue in Queue.all(connection=cls._redis):
-            job_ids.extend(queue.job_ids)
+            tasks.extend(cls._tasks_from_source_ids(queue.job_ids, queue))
             for status in statuses:
-                job_ids.extend(getattr(queue, f"{status}_job_registry").get_job_ids())
-        return [Task(id=job_id) for job_id in job_ids]
+                registry = getattr(queue, f"{status}_job_registry")
+                tasks.extend(
+                    cls._tasks_from_source_ids(registry.get_job_ids(), registry)
+                )
+        return tasks
 
     @classmethod
     def get_by_user(cls, user_id):
