@@ -193,6 +193,7 @@ class TemplateService:
                 "user",
                 "username",
                 "allowed",
+                "status",
             ],
             index_key="template_enabled",
             index_value=["template", True],
@@ -315,6 +316,9 @@ class TemplateService:
 
     @staticmethod
     def duplicate_template(payload: dict, template_id: str, data: dict) -> dict:
+        template = CommonTemplates.get_template(template_id)
+        CommonTemplates.check_template_status(None, template)
+
         Helpers.check_user_duplicated_domain_name(
             name=data["name"],
             user_id=payload["user_id"],
@@ -354,6 +358,9 @@ class TemplateService:
     def convert_to_desktop(
         payload: dict, template_id: str, name: str | None = None
     ) -> dict:
+        template = CommonTemplates.get_template(template_id)
+        CommonTemplates.check_template_status(None, template)
+
         name = name or RethinkDomain(template_id).name
 
         Helpers.check_user_duplicated_domain_name(
