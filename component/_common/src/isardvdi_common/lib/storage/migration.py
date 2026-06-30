@@ -34,6 +34,8 @@ import json
 import subprocess
 from collections import Counter, deque
 
+from rethinkdb import r
+
 
 # --------------------------------------------------------------------------- #
 # Pure layer
@@ -288,6 +290,150 @@ def tree_next(tree_items, job_status_fn):
         if str(it["state"]) == "db_updated":
             return (it, "release")
     return (None, "done")
+
+
+# --------------------------------------------------------------------------- #
+# Selection -> roots (pure core + DB-driven wrapper)
+# --------------------------------------------------------------------------- #
+def _selection_members(storages, kind, src_pool_id, category_id, path_prefix):
+    """Ids of the storages the selection covers (the migration SET)."""
+    if kind == "pool":
+        return {s["id"] for s in storages if s.get("pool_id") == src_pool_id}
+    if kind == "category":
+        return {s["id"] for s in storages if s.get("category") == category_id}
+    if kind == "path":
+        prefix = path_prefix or ""
+        return {
+            s["id"]
+            for s in storages
+            if (s.get("directory_path") or "").startswith(prefix)
+        }
+    return set()
+
+
+def compute_roots(
+    storages,
+    *,
+    kind="pool",
+    src_pool_id=None,
+    category_id=None,
+    path_prefix=None,
+    tree_ids=None,
+):
+    """Resolve a selection to its migration tree-roots (pure).
+
+    ``storages`` is a list of light dicts ``{id, parent, pool_id, category,
+    directory_path}``. Explicit ``tree_ids`` win (filtered to existing ids,
+    order-preserving, de-duplicated). Otherwise a disk is a ROOT when it is in
+    the selected set and its backing ``parent`` is NOT in that set (parent is
+    None, or the parent lives outside the selection so it will not move). Each
+    root's full subtree is walked later, so the whole backing chain migrates
+    consistently.
+    """
+    ids = {s["id"] for s in storages}
+    if tree_ids:
+        seen = set()
+        out = []
+        for t in tree_ids:
+            if t in ids and t not in seen:
+                seen.add(t)
+                out.append(t)
+        return out
+    members = _selection_members(storages, kind, src_pool_id, category_id, path_prefix)
+    return [
+        s["id"]
+        for s in storages
+        if s["id"] in members
+        and (s.get("parent") is None or s.get("parent") not in members)
+    ]
+
+
+def _enumerate_storages(statuses=("ready",)):
+    """Light storage rows (id/parent/directory_path/user_id) for selection.
+
+    Read via the ``status`` index so a pool/category/path plan never full-scans
+    a ``deleted`` graveyard. The pool id + category are resolved lazily (cached)
+    by the caller because they need extra lookups.
+    """
+    from isardvdi_common.models.storage import Storage
+
+    with Storage._rdb_context():
+        return list(
+            r.table("storage")
+            .get_all(*statuses, index="status")
+            .pluck("id", "parent", "directory_path", "user_id")
+            .run(Storage._rdb_connection)
+        )
+
+
+def _attach_pool_and_category(rows):
+    """Resolve ``pool_id`` (by directory_path) and ``category`` (by user) for
+    each light row, caching both lookups."""
+    from isardvdi_common.models.storage_pool import StoragePool
+    from isardvdi_common.models.user import User
+
+    pool_cache = {}
+    cat_cache = {}
+    for s in rows:
+        d = s.get("directory_path") or ""
+        if d not in pool_cache:
+            pools = StoragePool.get_by_path(d)
+            pool_cache[d] = pools[0].id if pools else None
+        s["pool_id"] = pool_cache[d]
+        uid = s.get("user_id")
+        if uid not in cat_cache:
+            cat_cache[uid] = User(uid).category if uid and User.exists(uid) else None
+        s["category"] = cat_cache[uid]
+    return rows
+
+
+def roots_for_selection(selection):
+    """Live: resolve a ``MigrationSelection``-shaped dict to root storage ids."""
+    tree_ids = selection.get("tree_ids") or []
+    rows = _attach_pool_and_category(_enumerate_storages())
+    return compute_roots(
+        rows,
+        kind=selection.get("kind", "pool"),
+        src_pool_id=selection.get("src_pool_id"),
+        category_id=selection.get("category_id"),
+        path_prefix=selection.get("path_prefix"),
+        tree_ids=tree_ids,
+    )
+
+
+def pool_plan_summary(pool_id, *, size_fn=None):
+    """Pool-scoped aggregation for the admin overview: one entry per root tree
+    with its derivative-template / desktop / byte counts, plus job totals.
+
+    The live ``%-moved`` overlay is joined from a running migration's ledger
+    (``StorageMigrationItem.state_counts``) by the status endpoint; this returns
+    the static plan shape (what WOULD move).
+    """
+    from isardvdi_common.models.storage_pool import StoragePool
+
+    pool = StoragePool(pool_id)
+    root_ids = roots_for_selection({"kind": "pool", "src_pool_id": pool_id})
+    # dst pool is irrelevant to the COUNTS; reuse the same pool so path_in_pool
+    # resolves without forcing the admin to pick a destination just to preview.
+    items, totals = build_plan_for_roots("__preview__", root_ids, pool, size_fn=size_fn)
+    by_tree = {}
+    for it in items:
+        by_tree.setdefault(it["tree_id"], []).append(it)
+    trees = []
+    for root_id in root_ids:
+        s = summarize_plan(by_tree.get(root_id, []))
+        trees.append(
+            {
+                "tree_id": root_id,
+                "root_storage_id": root_id,
+                "derivative_templates": s["derivative_templates"],
+                "desktops": s["desktops"],
+                "media": s["media"],
+                "items_total": s["items_total"],
+                "bytes_total": s["bytes_total"],
+            }
+        )
+    return {"pool_id": pool_id, "trees": trees, "totals": totals}
 
 
 # --------------------------------------------------------------------------- #
