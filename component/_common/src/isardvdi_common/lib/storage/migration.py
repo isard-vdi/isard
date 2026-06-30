@@ -169,6 +169,86 @@ def probe_actual_size(path, timeout=30):
 
 
 # --------------------------------------------------------------------------- #
+# Per-disk saga decision layer (pure) — the correctness-critical ordering
+# --------------------------------------------------------------------------- #
+#: states past which a disk needs no phase-A (move/rebase/db) work
+_PHASE_A_DONE = {"db_updated", "released", "skipped"}
+#: terminal states
+_DONE = {"released", "skipped"}
+
+
+def _job_finished(status):
+    return status == "finished"
+
+
+def _job_failed(status):
+    return status in ("failed", "stopped", "canceled")
+
+
+def decide_item_action(item, job_status_fn):
+    """Decide the next action for ONE disk given its state and the status of
+    its in-flight RQ task (``job_status_fn(task_id) -> status|None``).
+
+    Actions: ``start_move``, ``mark_moved``, ``start_rebase``, ``mark_rebased``,
+    ``skip_rebase`` (root), ``db_update``, ``wait`` (task still running),
+    ``fail``, ``noop`` (already terminal).
+    """
+    state = str(item["state"])
+    is_root = item.get("topo_index", 0) == 0 or not item.get("parent_dst_path")
+
+    if state == "pending":
+        return "start_move"
+    if state == "moving":
+        st = job_status_fn(item.get("move_task_id"))
+        if _job_finished(st):
+            return "mark_moved"
+        if _job_failed(st):
+            return "fail"
+        return "wait"
+    if state == "moved":
+        if is_root:
+            return "skip_rebase"
+        if not item.get("rebase_task_id"):
+            return "start_rebase"
+        st = job_status_fn(item.get("rebase_task_id"))
+        if _job_finished(st):
+            return "mark_rebased"
+        if _job_failed(st):
+            return "fail"
+        return "wait"
+    if state == "rebased":
+        return "db_update"
+    return "noop"
+
+
+def tree_next(tree_items, job_status_fn):
+    """Decide the next ``(item, action)`` for ONE tree.
+
+    Phase A (move/rebase/db) is strictly serial, top-to-bottom: advance the
+    lowest-topo disk not yet committed; a child is only reached once its parent
+    is ``db_updated`` (so the child's rebase target exists). A ``failed`` disk
+    blocks the tree. Phase B (release) only begins once EVERY disk is committed,
+    so a source is never deleted before all descendants have repointed
+    (move_delete fires last). Returns ``(None, "done")`` when the whole tree is
+    terminal, ``(item, "blocked")`` when a disk failed.
+    """
+    items = sorted(tree_items, key=lambda it: it.get("topo_index", 0))
+    # Phase A — one disk in flight, parents before children.
+    for it in items:
+        s = str(it["state"])
+        if s in _PHASE_A_DONE:
+            continue
+        if s == "failed":
+            return (it, "blocked")
+        return (it, decide_item_action(it, job_status_fn))
+    # Phase B — every disk committed; delete sources (any order) and release.
+    for it in items:
+        if str(it["state"]) == "db_updated":
+            return (it, "release")
+    return (None, "done")
+
+
+# --------------------------------------------------------------------------- #
 # DB-driven layer (live)
 # --------------------------------------------------------------------------- #
 def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
