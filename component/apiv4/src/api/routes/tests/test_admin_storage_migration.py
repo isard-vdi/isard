@@ -97,6 +97,15 @@ class TestStatus:
         assert body["id"] == "mig-1"
         assert body["totals"]["items_total"] == 3
         assert body["totals"]["state_counts"]["released"] == 2
+        # P2.6 aggregate enrichments used by the admin UI
+        assert body["totals"]["done"] == 2  # two released
+        assert body["eta_seconds"] is None  # no throughput sample yet
+        assert {i["storage_id"] for i in body["items"]} == {
+            "mig-1--a",
+            "mig-1--b",
+            "mig-1--c",
+        }
+        assert body["trees"][0]["done"] == 2
 
     def test_status_missing_404(self, monkeypatch, test_client):
         # Mock the DB-boundary existence check (the mock DB engine can't model

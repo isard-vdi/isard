@@ -36,52 +36,20 @@ from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.models.storage_migration import (
     StorageMigration,
     StorageMigrationItem,
-    compute_bytes_done,
-    compute_state_counts,
-    item_is_done,
 )
 
 
 def _build_payload(migration_id):
-    """Aggregate the migration ledger into the admin-view shape.
-
-    Everything is derived (COUNT(items WHERE state=X)) — never an incremental
-    counter — matching the at-least-once ledger invariant. Returns ``None`` when
-    the migration no longer exists (nothing to emit)."""
+    """Aggregate the migration ledger into the admin-view shape via the shared
+    :func:`isardvdi_common.lib.storage.migration.aggregate_status`, so the socket
+    event and the apiv4 status endpoint render identically. Everything is derived
+    (COUNT(items WHERE state=X)) — never an incremental counter. Returns ``None``
+    when the migration no longer exists (nothing to emit)."""
     if not StorageMigration.exists(migration_id):
         return None
     m = StorageMigration(migration_id)
     items = StorageMigrationItem.dicts_by_migration(migration_id)
-    by_tree = {}
-    for it in items:
-        by_tree.setdefault(it["tree_id"], []).append(it)
-    trees = []
-    for tree_id, tit in by_tree.items():
-        s = mig.summarize_plan(tit)
-        trees.append(
-            {
-                "tree_id": tree_id,
-                "root_storage_id": tree_id,
-                "items_total": s["items_total"],
-                "derivative_templates": s["derivative_templates"],
-                "desktops": s["desktops"],
-                "done": sum(1 for it in tit if item_is_done(it["state"])),
-                "bytes_total": s["bytes_total"],
-                "state_counts": compute_state_counts(tit),
-            }
-        )
-    return {
-        "id": m.id,
-        "status": str(m.status),
-        "totals": {
-            "items_total": len(items),
-            "bytes_total": sum(int(it.get("size_bytes") or 0) for it in items),
-            "bytes_done": compute_bytes_done(items),
-            "done": sum(1 for it in items if item_is_done(it["state"])),
-            "state_counts": compute_state_counts(items),
-        },
-        "trees": trees,
-    }
+    return mig.aggregate_status(m, items)
 
 
 async def send_migration_socket(redis_manager, migration_id):

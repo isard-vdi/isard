@@ -28,22 +28,34 @@
   </div>
   <div class="x_content">
     <form class="form-inline" id="migration_new" style="margin-bottom:12px;">
-      <label>Source pool
+      <label>Source
         <select id="mig_src_pool" class="form-control input-sm"></select>
       </label>
-      <label style="margin-left:8px;">Destination pool
+      <label style="margin-left:8px;">Dest
         <select id="mig_dst_pool" class="form-control input-sm"></select>
       </label>
-      <label style="margin-left:8px;"><input type="checkbox" id="mig_force_stop"> force-stop desktops</label>
-      <button type="button" class="btn btn-default btn-sm" id="mig_preview" style="margin-left:8px;">Preview plan</button>
+      <label style="margin-left:8px;">Window
+        <input type="text" id="mig_win_start" class="form-control input-sm" placeholder="HH:MM" style="width:62px;">
+        &ndash;
+        <input type="text" id="mig_win_end" class="form-control input-sm" placeholder="HH:MM" style="width:62px;">
+      </label>
+      <label style="margin-left:8px;">Parallel
+        <input type="number" id="mig_parallel" class="form-control input-sm" value="1" min="1" style="width:58px;">
+      </label>
+      <label style="margin-left:8px;">bwlimit&nbsp;KB/s
+        <input type="number" id="mig_bwlimit" class="form-control input-sm" value="0" min="0" style="width:84px;">
+      </label>
+      <label style="margin-left:8px;"><input type="checkbox" id="mig_force_stop"> force-stop</label>
+      <label style="margin-left:8px;"><input type="checkbox" id="mig_verify" checked> verify</label>
+      <button type="button" class="btn btn-default btn-sm" id="mig_preview" style="margin-left:8px;">Preview</button>
       <button type="button" class="btn btn-primary btn-sm" id="mig_create">Create &amp; start</button>
       <span id="mig_preview_out" style="margin-left:10px;color:#555;"></span>
     </form>
     <table id="migrations" class="table table-condensed">
       <thead>
         <tr>
-          <th>Migration</th><th>Status</th><th>Root tree</th>
-          <th>Derivative templates</th><th>Desktops</th><th>Progress</th><th>Actions</th>
+          <th style="width:18px;"></th><th>Migration</th><th>Status</th>
+          <th>Progress</th><th>ETA</th><th>Window</th><th>Actions</th>
         </tr>
       </thead>
       <tbody></tbody>

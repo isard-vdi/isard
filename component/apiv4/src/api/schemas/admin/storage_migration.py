@@ -77,6 +77,24 @@ class MigrationTreeSummary(BaseModel):
     media: int = 0
     items_total: int = 0
     bytes_total: int = 0
+    # live progress (present on status / socket; absent on dry-run plan)
+    done: int = 0
+    bytes_done: int = 0
+    state_counts: dict = Field(default_factory=dict)
+
+
+class MigrationItemSummary(BaseModel):
+    """One disk in the per-job ledger, for the UI's per-tree expand."""
+
+    id: Optional[str] = None
+    storage_id: str
+    tree_id: str
+    topo_index: int = 0
+    kind: Optional[str] = None
+    state: str
+    size_bytes: int = 0
+    error: Optional[str] = None
+    dst_path: Optional[str] = None
 
 
 class MigrationTotalsResponse(BaseModel):
@@ -87,6 +105,9 @@ class MigrationTotalsResponse(BaseModel):
     items_total: int = 0
     bytes_total: int = 0
     bytes_done: int = 0
+    #: live count of disks past the saga (released/skipped) — drives the UI's
+    #: aggregate progress bar; 0 on the dry-run plan totals.
+    done: int = 0
     state_counts: dict = Field(default_factory=dict)
 
 
@@ -126,3 +147,7 @@ class MigrationStatusResponse(BaseModel):
     totals: MigrationTotalsResponse = Field(default_factory=MigrationTotalsResponse)
     state_counts: dict = Field(default_factory=dict)
     trees: list[MigrationTreeSummary] = Field(default_factory=list)
+    config: dict = Field(default_factory=dict)
+    current_window: Optional[dict] = None
+    eta_seconds: Optional[int] = None
+    items: list[MigrationItemSummary] = Field(default_factory=list)

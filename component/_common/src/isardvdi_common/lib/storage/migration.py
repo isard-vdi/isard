@@ -145,6 +145,87 @@ def summarize_plan(item_dicts):
     }
 
 
+def aggregate_status(migration, items, *, include_items=False):
+    """Build the admin-view aggregate for a migration from its loaded ledger
+    (pure given ``migration`` + its ``items``).
+
+    The single source of truth shared by the apiv4 status endpoint and the
+    change-handler ``storage:migration`` socket emit, so both render identically.
+    Everything is COUNT/SUM over the items (never an incremental counter); the
+    aggregate ETA is bytes-remaining over the best observed EWMA throughput
+    (``None`` until the first move completes). ``include_items`` adds the per-disk
+    rows for the UI's expand.
+    """
+    from isardvdi_common.models.storage_migration import (
+        compute_bytes_done,
+        compute_state_counts,
+        item_is_done,
+    )
+
+    by_tree = {}
+    for it in items:
+        by_tree.setdefault(it["tree_id"], []).append(it)
+    trees = []
+    for tree_id, tit in by_tree.items():
+        s = summarize_plan(tit)
+        trees.append(
+            {
+                "tree_id": tree_id,
+                "root_storage_id": tree_id,
+                "items_total": s["items_total"],
+                "derivative_templates": s["derivative_templates"],
+                "desktops": s["desktops"],
+                "media": s["media"],
+                "done": sum(1 for it in tit if item_is_done(it["state"])),
+                "bytes_total": s["bytes_total"],
+                "bytes_done": compute_bytes_done(tit),
+                "state_counts": compute_state_counts(tit),
+            }
+        )
+    bytes_total = sum(int(it.get("size_bytes") or 0) for it in items)
+    bytes_done = compute_bytes_done(items)
+    ewma = getattr(migration, "throughput_ewma", None) or {}
+    mbps = max(ewma.values()) if ewma else None
+    eta = tree_eta_seconds(max(0, bytes_total - bytes_done), mbps)
+    payload = {
+        "id": migration.id,
+        "status": str(migration.status),
+        "config": getattr(migration, "config", None) or {},
+        "current_window": getattr(migration, "current_window", None),
+        "eta_seconds": None if eta is None else int(eta),
+        "totals": {
+            "trees": len(by_tree),
+            "derivative_templates": sum(t["derivative_templates"] for t in trees),
+            "desktops": sum(t["desktops"] for t in trees),
+            "media": sum(t["media"] for t in trees),
+            "items_total": len(items),
+            "bytes_total": bytes_total,
+            "bytes_done": bytes_done,
+            "done": sum(1 for it in items if item_is_done(it["state"])),
+            "state_counts": compute_state_counts(items),
+        },
+        "trees": trees,
+    }
+    if include_items:
+        payload["items"] = [
+            {
+                "id": it.get("id"),
+                "storage_id": it["storage_id"],
+                "tree_id": it["tree_id"],
+                "topo_index": it.get("topo_index", 0),
+                "kind": it.get("kind"),
+                "state": str(it["state"]),
+                "size_bytes": int(it.get("size_bytes") or 0),
+                "error": it.get("error"),
+                "dst_path": it.get("dst_path"),
+            }
+            for it in sorted(
+                items, key=lambda x: (x["tree_id"], x.get("topo_index", 0))
+            )
+        ]
+    return payload
+
+
 def probe_actual_size(path, timeout=30):
     """Live ``qemu-img info -U --output=json`` probe -> ``actual-size`` bytes,
     or ``None`` on any error. Runs where the disks are mounted (storage worker);

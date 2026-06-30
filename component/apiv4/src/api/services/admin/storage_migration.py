@@ -147,14 +147,13 @@ class AdminStorageMigrationService:
             raise Error("not_found", f"Migration {migration_id} not found")
         m = StorageMigration(migration_id)
         items = StorageMigrationItem.dicts_by_migration(migration_id)
-        totals = m.recompute_totals()  # live COUNT(items WHERE state=X)
-        return {
-            "id": m.id,
-            "status": m.status,
-            "totals": totals,
-            "state_counts": StorageMigrationItem.state_counts(migration_id),
-            "trees": _tree_summaries(items),
-        }
+        m.recompute_totals()  # keep the persisted ledger totals fresh (list view)
+        # The full admin-view aggregate (totals + per-tree progress + ETA +
+        # window + per-disk rows) is built by the shared helper so the status
+        # endpoint and the storage:migration socket event render identically.
+        payload = mig.aggregate_status(m, items, include_items=True)
+        payload["state_counts"] = payload["totals"].get("state_counts", {})
+        return payload
 
     @classmethod
     def set_action(cls, migration_id: str, action: str) -> dict:
