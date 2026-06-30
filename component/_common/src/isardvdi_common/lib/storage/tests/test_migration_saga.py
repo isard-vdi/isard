@@ -83,6 +83,29 @@ def test_moved_with_lost_rebase_job_reenqueues_rebase():
 
 
 # --------------------------------------------------------------------------- #
+# tick_made_progress — lets the scheduler drain loop stop when every tree is
+# only waiting on an in-flight task (instead of spinning).
+# --------------------------------------------------------------------------- #
+def test_tick_made_progress_true_when_a_tree_advanced():
+    assert mig.tick_made_progress([("r1", "i1", "start_move")]) is True
+    assert (
+        mig.tick_made_progress([("r1", "i1", "wait"), ("r2", "i2", "db_update")])
+        is True
+    )
+
+
+def test_tick_made_progress_false_when_all_waiting_or_terminal():
+    assert mig.tick_made_progress([("r1", "i1", "wait")]) is False
+    assert (
+        mig.tick_made_progress(
+            [("r1", None, "done"), ("r2", "i2", "gated"), ("r3", "i3", "blocked")]
+        )
+        is False
+    )
+    assert mig.tick_made_progress([]) is False
+
+
+# --------------------------------------------------------------------------- #
 # tree_next — ordering across a tree
 # --------------------------------------------------------------------------- #
 def test_tree_serial_top_to_bottom():

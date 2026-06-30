@@ -312,6 +312,17 @@ class StorageMigration(RethinkCustomBase):
 
     _rdb_table = "storage_migration"
 
+    @classmethod
+    def ids_by_status(cls, status):
+        """Ids of migrations in a given status (via the ``status`` index). Used
+        by the scheduler tick to find the jobs it must drive."""
+        with cls._rdb_context():
+            return list(
+                r.table(cls._rdb_table)
+                .get_all(status, index="status")["id"]
+                .run(cls._rdb_connection)
+            )
+
     def item_dicts(self):
         return StorageMigrationItem.dicts_by_migration(self.id)
 

@@ -265,6 +265,27 @@ def descendant_item_ids(items, storage_id, include_self=False):
     return result
 
 
+#: actions that represent real forward progress in a tick (vs waiting on an
+#: in-flight RQ task / gated / already-done). A drain loop stops once a whole
+#: tick yields none of these — every tree is then waiting and re-ticking now
+#: would just spin.
+PROGRESS_ACTIONS = {
+    "start_move",
+    "mark_moved",
+    "start_rebase",
+    "mark_rebased",
+    "skip_rebase",
+    "db_update",
+    "release",
+}
+
+
+def tick_made_progress(results):
+    """True if any tree advanced this tick. ``results`` is the
+    ``[(tree_id, item_id, action), ...]`` list returned by ``tick``."""
+    return any(action in PROGRESS_ACTIONS for (_tree, _item, action) in results)
+
+
 def tree_next(tree_items, job_status_fn):
     """Decide the next ``(item, action)`` for ONE tree.
 

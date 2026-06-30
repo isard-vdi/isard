@@ -77,6 +77,9 @@ from isardvdi_apiv4_client.models import (
 )
 from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 from isardvdi_common.lib.gpu_pool_policy import canonical_suffix, profile_suffix_from_id
+from isardvdi_common.lib.storage import migration as storage_migration
+from isardvdi_common.lib.storage.migration_run import MigrationRunner
+from isardvdi_common.models.storage_migration import MigrationStatus, StorageMigration
 
 from .api_client import ApiClient
 from .exceptions import Error
@@ -126,6 +129,44 @@ class Actions:
         with build_client("isard-scheduler") as client:
             resp = admin_usage_consolidate.sync_detailed(client=client)
             raise_for_status(resp)
+
+    def storage_migration_tick_kwargs(**kwargs):
+        return []
+
+    def storage_migration_tick(**kwargs):
+        """Drive every RUNNING storage-disk migration one drain-cycle forward.
+
+        Registered as a recurring interval job (no leader lock — the scheduler
+        is the singleton orchestrator that owns this loop). Each invocation
+        advances every running job past all immediately-doable steps and stops
+        as soon as every tree is only waiting on an in-flight RQ task; the next
+        invocation resumes once those finish. The ledger is the source of truth,
+        so this is crash-safe and idempotent across invocations.
+        """
+        try:
+            running = StorageMigration.ids_by_status(MigrationStatus.RUNNING.value)
+        except Exception:
+            log.error(
+                "storage_migration_tick: cannot list running migrations: "
+                + traceback.format_exc()
+            )
+            return
+        for mid in running:
+            try:
+                runner = MigrationRunner(mid)
+                # Drain: bounded backstop; normally breaks after 1-2 iterations
+                # when every tree is waiting on a move/rebase task.
+                for _ in range(500):
+                    results = runner.tick()
+                    if runner.is_complete() or not storage_migration.tick_made_progress(
+                        results
+                    ):
+                        break
+            except Exception:
+                log.error(
+                    f"storage_migration_tick: migration {mid} failed: "
+                    + traceback.format_exc()
+                )
 
     def desktop_notify(**kwargs):
         # Send to frontend
