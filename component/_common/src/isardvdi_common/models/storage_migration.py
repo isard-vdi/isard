@@ -1,0 +1,337 @@
+#
+#   IsardVDI - Open Source KVM Virtual Desktops based on KVM Linux and dockers
+#   Copyright (C) 2026 IsardVDI
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU Affero General Public License for more details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""Durable ledger for the admin storage-disk path->path migration.
+
+Two RethinkDB tables, modelled on ``models/storage_pool.py``:
+
+* ``storage_migration``      — one row per migration *job* (the aggregate).
+* ``storage_migration_item`` — one row per *disk* (the resumable unit).
+
+RQ stays the executor; these tables are the source of truth so the job has
+aggregate totals, survives restarts and is resumable. Because the
+``stream:task-results`` bridge is at-least-once, every ledger write is an
+idempotent upsert keyed by the item ``id`` and every aggregate is computed as
+``COUNT(items WHERE state=X)`` — never a per-event increment.
+
+Both tables MUST be registered in ``engine/engine/initdb/populate.py`` or
+``check_integrity`` drops them on every engine startup.
+"""
+
+from enum import StrEnum
+from time import time
+from typing import Iterable, Literal
+from uuid import uuid4
+
+from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
+from pydantic import BaseModel, Field
+from rethinkdb import r
+
+
+# --------------------------------------------------------------------------- #
+# Enums
+# --------------------------------------------------------------------------- #
+class MigrationStatus(StrEnum):
+    """Lifecycle of a migration *job*."""
+
+    DRAFT = "draft"
+    PLANNED = "planned"
+    RUNNING = "running"
+    PAUSED = "paused"
+    WINDOW_CLOSED = "window_closed"
+    FINISHING_TREE = "finishing_tree"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELED = "canceled"
+
+
+class MigrationItemState(StrEnum):
+    """Per-disk saga state.
+
+    The happy path advances strictly in ``MIGRATION_ITEM_STATE_ORDER``. A disk
+    enters ``moving`` only once its parent item is ``released`` (top-to-bottom).
+    ``skipped`` (e.g. a running desktop the admin chose not to force-stop) and
+    ``failed`` are off-path.
+    """
+
+    PENDING = "pending"
+    PREFLIGHT_OK = "preflight_ok"
+    MOVING = "moving"
+    MOVED = "moved"
+    REBASED = "rebased"
+    DB_UPDATED = "db_updated"
+    RELEASED = "released"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class MigrationItemKind(StrEnum):
+    TEMPLATE = "template"
+    DESKTOP = "desktop"
+    MEDIA = "media"
+
+
+#: Canonical happy-path order. Index in this list == saga progress.
+MIGRATION_ITEM_STATE_ORDER = [
+    MigrationItemState.PENDING,
+    MigrationItemState.PREFLIGHT_OK,
+    MigrationItemState.MOVING,
+    MigrationItemState.MOVED,
+    MigrationItemState.REBASED,
+    MigrationItemState.DB_UPDATED,
+    MigrationItemState.RELEASED,
+]
+
+#: States that need no further work. ``failed`` is deliberately NOT here: a
+#: failed disk needs attention, so resume/aggregation treat it as unfinished.
+DONE_ITEM_STATES = {MigrationItemState.RELEASED, MigrationItemState.SKIPPED}
+
+
+# --------------------------------------------------------------------------- #
+# Pure helpers (no DB) — unit tested
+# --------------------------------------------------------------------------- #
+def _state_of(item) -> str:
+    """Read the ``state`` of an item given as dict or object, as a plain str."""
+    state = item["state"] if isinstance(item, dict) else getattr(item, "state")
+    return str(state)
+
+
+def _size_of(item) -> int:
+    size = (
+        item["size_bytes"] if isinstance(item, dict) else getattr(item, "size_bytes", 0)
+    )
+    return int(size or 0)
+
+
+def item_is_done(state) -> bool:
+    """True for states that need no further saga work (released / skipped)."""
+    return state in DONE_ITEM_STATES
+
+
+def compute_state_counts(items: Iterable) -> dict:
+    """``{state: count}`` over items (dicts or objects). Enum states normalised
+    to their string value so the result is plain JSON for the ledger."""
+    counts: dict = {}
+    for it in items:
+        s = _state_of(it)
+        counts[s] = counts.get(s, 0) + 1
+    return counts
+
+
+def compute_bytes_done(items: Iterable) -> int:
+    """Bytes physically moved AND committed: the sum of ``size_bytes`` over
+    items in ``released`` (a disk is only counted once its whole per-disk saga
+    has committed, never mid-flight)."""
+    return sum(
+        _size_of(it) for it in items if _state_of(it) == MigrationItemState.RELEASED
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Pydantic models (defaults + serialisation) — used by the plan builder/service
+# to construct well-formed rows; unit tested for defaults/serialisation.
+# --------------------------------------------------------------------------- #
+class MigrationWindow(BaseModel):
+    start: str | None = None  # "HH:MM"
+    end: str | None = None  # "HH:MM"
+    tz: str = "UTC"
+
+
+class MigrationSelection(BaseModel):
+    """What the job migrates and where to."""
+
+    kind: Literal["pool", "path", "category"] = "pool"
+    src_pool_id: str | None = None
+    dst_pool_id: str | None = None
+    category_id: str | None = None
+    path_prefix: str | None = None
+    #: explicit root storage ids when the admin selects specific trees
+    tree_ids: list[str] = Field(default_factory=list)
+
+
+class MigrationConfig(BaseModel):
+    """Admin-set, per-job knobs."""
+
+    bwlimit_kbs: int = 0  # 0 == unlimited (rsync --bwlimit, KB/s)
+    parallelism: int = 1  # concurrent independent trees
+    window: MigrationWindow | None = None
+    verify: bool = True  # qemu_img_check after move/rebase
+    force_stop_desktops: bool = False
+
+
+class MigrationTotals(BaseModel):
+    trees: int = 0
+    derivative_templates: int = 0
+    desktops: int = 0
+    media: int = 0
+    items_total: int = 0
+    bytes_total: int = 0
+    bytes_done: int = 0
+    #: COUNT(items WHERE state=X) — recomputed, never incremented
+    state_counts: dict = Field(default_factory=dict)
+
+
+class StorageMigrationModel(BaseModel):
+    """A migration job (the aggregate ledger row)."""
+
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    status: MigrationStatus = MigrationStatus.DRAFT
+    selection: MigrationSelection = Field(default_factory=MigrationSelection)
+    config: MigrationConfig = Field(default_factory=MigrationConfig)
+    totals: MigrationTotals = Field(default_factory=MigrationTotals)
+    #: EWMA MB/s keyed on "<src_pool>:<dst_pool>" (P2 window/ETA)
+    throughput_ewma: dict = Field(default_factory=dict)
+    current_window: dict | None = None
+    logs: list = Field(default_factory=list)
+    created_by: str | None = None
+    created_at: float | None = None
+    updated_at: float | None = None
+
+
+class StorageMigrationItemModel(BaseModel):
+    """A single disk = the resumable unit of work."""
+
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    migration_id: str
+    storage_id: str
+    tree_id: str  # root storage id of this disk's tree
+    topo_index: int = 0  # BFS topo order within the tree (parents first)
+    kind: MigrationItemKind = MigrationItemKind.DESKTOP
+    src_path: str | None = None
+    dst_path: str | None = None
+    dst_dir: str | None = None
+    size_bytes: int = 0  # fresh `qemu-img info -U` probe at plan time
+    bytes_done: int = 0
+    parent_storage_id: str | None = None
+    parent_dst_dir: str | None = None
+    parent_dst_path: str | None = None  # rebase target (parent's NEW path)
+    state: MigrationItemState = MigrationItemState.PENDING
+    move_task_id: str | None = None
+    rebase_task_id: str | None = None
+    attempts: int = 0
+    checkpoints: list = Field(default_factory=list)
+    error: str | None = None
+    #: domain whose autostart we suppressed (for crash-safe re-activation)
+    domain_id: str | None = None
+    #: server_autostart value before we deactivated it (None == not touched)
+    autostart_was_on: bool | None = None
+
+
+# --------------------------------------------------------------------------- #
+# RethinkCustomBase models
+# --------------------------------------------------------------------------- #
+class StorageMigrationItem(RethinkCustomBase):
+    """Disk-level ledger row. ``_rdb_table_schema`` is left as the lax blank
+    model (like ``StoragePool``) so single-field ``__setattr__`` writes work."""
+
+    _rdb_table = "storage_migration_item"
+
+    @classmethod
+    def by_migration(cls, migration_id):
+        """All items of a job as model instances."""
+        return cls.get_index([migration_id], "migration_id")
+
+    @classmethod
+    def dicts_by_migration(cls, migration_id):
+        """All items of a job as raw dicts (cheap — one query, no per-row get)."""
+        with cls._rdb_context():
+            return list(
+                r.table(cls._rdb_table)
+                .get_all(migration_id, index="migration_id")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def dicts_by_tree(cls, migration_id, tree_id):
+        with cls._rdb_context():
+            return list(
+                r.table(cls._rdb_table)
+                .get_all([migration_id, tree_id], index="migration_tree")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def state_counts(cls, migration_id):
+        """``{state: count}`` computed in the DB (aggregate from item states)."""
+        with cls._rdb_context():
+            grouped = (
+                r.table(cls._rdb_table)
+                .get_all(migration_id, index="migration_id")
+                .group("state")
+                .count()
+                .run(cls._rdb_connection)
+            )
+        return {str(k): v for k, v in grouped.items()}
+
+    @classmethod
+    def upsert(cls, data: dict):
+        """Idempotent create/update keyed by ``id`` (at-least-once safe)."""
+        return cls.insert_document(data, conflict="update")
+
+    def advance(self, state, **fields):
+        """Persist a new state (+ optional fields) and append a checkpoint.
+
+        Idempotent: re-advancing to the same state just re-stamps. The
+        checkpoint append uses a server-side update so concurrent field writes
+        don't clobber the list.
+        """
+        state = str(state)
+        update = {"state": state, **fields}
+        with self._rdb_context():
+            r.table(self._rdb_table).get(self.id).update(
+                lambda row: r.expr(update).merge(
+                    {
+                        "checkpoints": row["checkpoints"]
+                        .default([])
+                        .append({"state": state, "at": time()})
+                    }
+                )
+            ).run(self._rdb_connection)
+        self._update_cache(**update)
+        return update
+
+
+class StorageMigration(RethinkCustomBase):
+    """Job-level ledger row."""
+
+    _rdb_table = "storage_migration"
+
+    def item_dicts(self):
+        return StorageMigrationItem.dicts_by_migration(self.id)
+
+    def items(self):
+        return StorageMigrationItem.by_migration(self.id)
+
+    def recompute_totals(self):
+        """Re-derive the live aggregate from item states (never incremental).
+
+        Returns the new ``totals`` dict and persists it.
+        """
+        items = self.item_dicts()
+        current = self.totals or {}
+        if not isinstance(current, dict):
+            current = {}
+        totals = {
+            **current,
+            "items_total": len(items),
+            "state_counts": compute_state_counts(items),
+            "bytes_done": compute_bytes_done(items),
+        }
+        self.totals = totals
+        return totals
