@@ -80,11 +80,15 @@ const {
     router.push({ name: 'templates', params: { templateId: data.id } })
   },
   onError: (error: any) => {
-    const errorResponse = JSON.parse(error.message) as ErrorResponse
-    duplicateTemplateErrorCode.value = errorResponse.description_code
+    // The generated client throws the parsed error body (an ErrorResponse),
+    // not an Error with a JSON string in .message — read description_code off
+    // it directly. The backend returns `template_failed` when the source
+    // template is in Failed status.
+    const errorResponse = error as ErrorResponse
+    duplicateTemplateErrorCode.value = errorResponse?.description_code
 
     // Handle name conflict error
-    if (errorResponse.description_code === 'new_template_name_exists') {
+    if (errorResponse?.description_code === 'new_template_name_exists') {
       form.getFieldInfo('name').instance?.setErrorMap({
         onSubmit: t('views.new-template.form.errors.fields.name.exists')
       })
