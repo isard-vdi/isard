@@ -387,14 +387,20 @@ class MigrationRunner:
 
     def _db_update(self, item):
         # Re-point the storage row at the disk's new location. RethinkDB
-        # deep-merges, so the qemu-img-info.filename update preserves
-        # actual-size / virtual-size.
+        # deep-merges, so the qemu-img-info update preserves actual-size /
+        # virtual-size.
+        info = {"filename": item["dst_path"]}
+        # saga-3: a non-root disk was rebased onto its parent's NEW path, so the
+        # DB backing fields must follow too — otherwise backing-filename /
+        # full-backing-filename keep pointing at the deleted old parent and
+        # DB-based chain audits flag a disk/DB mismatch. The root's backing is
+        # outside the migrated tree (unchanged), so leave it alone.
+        if item.get("parent_dst_path"):
+            info["backing-filename"] = item["parent_dst_path"]
+            info["full-backing-filename"] = item["parent_dst_path"]
         Storage.update_document(
             item["storage_id"],
-            {
-                "directory_path": item["dst_dir"],
-                "qemu-img-info": {"filename": item["dst_path"]},
-            },
+            {"directory_path": item["dst_dir"], "qemu-img-info": info},
             validate=False,
         )
         self._set(item, state=MigrationItemState.DB_UPDATED.value)
