@@ -462,7 +462,7 @@ class AdminUserFullDataResponse(AdminUser):
     category_name: Optional[str] = None
     group_name: Optional[str] = None
     secondary_groups_data: Optional[list[AdminSecondaryGroupRef]] = None
-    email_verified: Optional[bool] = False
+    # Inherit AdminUser's bool | int | None union — do not re-narrow to bool.
 
 
 class AdminUserNavItem(BaseModel):
