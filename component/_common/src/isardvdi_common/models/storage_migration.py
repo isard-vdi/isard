@@ -246,6 +246,9 @@ class StorageMigrationItemModel(BaseModel):
     state: MigrationItemState = MigrationItemState.PENDING
     move_task_id: str | None = None
     rebase_task_id: str | None = None
+    #: pre-release destination-verify task (the unconditional gate that proves the
+    #: destination is sound before the source is move_deleted)
+    verify_task_id: str | None = None
     #: storage row status BEFORE we set it to maintenance, so release/failure
     #: restore the ORIGINAL status (e.g. "recycled") instead of hardcoding
     #: "ready". None == we never put this disk into maintenance.

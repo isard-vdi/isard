@@ -183,6 +183,11 @@ class _RqLikeTask:
     def exc_info(self):
         return "Traceback...\nNotADirectoryError" if self._id in self._raised else None
 
+    @property
+    def result(self):
+        # a clean (non-raised) storage task returns 0; move/rebase/verify all do
+        return 0
+
 
 def test_job_status_classifies_raised_task_as_failed(monkeypatch):
     monkeypatch.setattr(mr, "Task", _RqLikeTask)
@@ -212,3 +217,154 @@ def test_decide_item_action_fails_a_raised_move(monkeypatch):
         "parent_dst_path": "/p/parent.qcow2",
     }
     assert mig.decide_item_action(moved, mr.job_status) == "fail"
+
+
+# --------------------------------------------------------------------------- #
+# Sibling data-loss path: a move whose rsync FAILS returns a non-zero rc WITHOUT
+# raising (run_with_progress returns the rc on a non-cancel non-zero exit), so
+# the job is finished/exc_info=None with a non-zero int return. Before the fix
+# job_status() returned "finished" -> the disk was marked moved and (for a ROOT
+# disk, which skips rebase) reached release and move_deleted a live source
+# against an absent/partial destination. These pin the REAL job_status() over
+# that real rq condition — no job_status mock.
+# --------------------------------------------------------------------------- #
+class _RqNonZeroMove:
+    """A move task that rsync-failed: finished, no exc_info, non-zero int rc."""
+
+    def __init__(self, tid):
+        self._id = tid
+
+    @classmethod
+    def exists(cls, tid):
+        return tid is not None
+
+    @property
+    def job_status(self):
+        return "finished"
+
+    @property
+    def exc_info(self):
+        return None  # rsync returned non-zero; the worker did NOT raise
+
+    @property
+    def result(self):
+        return 23 if self._id == "rsync-fail" else 0  # 23 == rsync partial xfer
+
+
+def test_job_status_classifies_nonzero_move_return_as_failed(monkeypatch):
+    monkeypatch.setattr(mr, "Task", _RqNonZeroMove)
+    # rsync-failed move: finished + non-zero rc + no exc_info -> failed
+    assert mr.job_status("rsync-fail") == "failed"
+    # a clean move returns 0 -> the rq status passes through
+    assert mr.job_status("ok") == "finished"
+
+
+def test_decide_item_action_fails_a_nonzero_move(monkeypatch):
+    """A ROOT disk's rsync-failed move resolves to fail at the moving step, so it
+    never reaches mark_moved -> skip_rebase -> release -> move_delete."""
+    monkeypatch.setattr(mr, "Task", _RqNonZeroMove)
+    root_moving = {"state": "moving", "move_task_id": "rsync-fail", "topo_index": 0}
+    assert mig.decide_item_action(root_moving, mr.job_status) == "fail"
+
+
+# --------------------------------------------------------------------------- #
+# The unconditional pre-release destination gate: a committed (db_updated) disk's
+# source is NEVER released/move_deleted until a verify task proves the
+# destination is good. This is the core invariant the second data-loss path
+# violated for ROOT disks (which skip rebase, so had no destination check at
+# all). Asserted on the pure tree_next/decide_release_action — no mocks of the
+# saga; a dict job_status_fn drives only the verify task's status.
+# --------------------------------------------------------------------------- #
+def _committed_root():
+    # a single-disk (root) tree, fully committed, awaiting release
+    return {
+        "id": "i-r",
+        "storage_id": "s-r",
+        "tree_id": "s-r",
+        "topo_index": 0,
+        "state": "db_updated",
+        "src_path": "/src/s-r.qcow2",
+        "dst_path": "/dst/s-r.qcow2",
+    }
+
+
+def test_release_blocked_until_destination_verified():
+    item = _committed_root()
+    # no verify task yet -> the saga enqueues the gate, NOT release
+    it, action = mig.tree_next([item], lambda tid: None)
+    assert action == "start_verify"
+    assert it["id"] == "i-r"
+    # gate enqueued, still running -> wait (still no release)
+    item["verify_task_id"] = "v1"
+    assert mig.tree_next([item], lambda tid: "started")[1] == "wait"
+    # gate passed -> NOW release is allowed
+    assert mig.tree_next([item], lambda tid: "finished")[1] == "release"
+
+
+def test_failed_verify_terminalizes_never_releases():
+    item = _committed_root()
+    item["verify_task_id"] = "v1"
+    # destination gate FAILED -> fail (terminalize), never release/move_delete
+    it, action = mig.tree_next([item], lambda tid: "failed")
+    assert action == "fail"
+
+
+def test_verify_gate_state_transitions():
+    """Direct pin of the gate states: 'passed' (the only state that licenses a
+    release) is reached ONLY when the verify task finished clean."""
+    item = _committed_root()
+    assert mig.verify_gate_state(item, lambda tid: "finished") == "start"  # no task
+    item["verify_task_id"] = "v1"
+    assert mig.verify_gate_state(item, lambda tid: None) == "start"  # lost -> redo
+    assert mig.verify_gate_state(item, lambda tid: "failed") == "fail"
+    assert mig.verify_gate_state(item, lambda tid: "started") == "wait"
+    assert mig.verify_gate_state(item, lambda tid: "finished") == "passed"
+
+
+def test_no_source_released_until_every_destination_verified():
+    """verify-all-then-release-all: in a parent+child tree, a child whose
+    destination FAILS verification must terminalize the tree with NO release of
+    the parent — the parent source is never recycled while a child gate is unmet,
+    so the retained sources stay an intact bootable chain."""
+    parent = {
+        "id": "i-p",
+        "storage_id": "s-p",
+        "tree_id": "s-p",
+        "topo_index": 0,
+        "state": "db_updated",
+        "src_path": "/src/p.qcow2",
+        "dst_path": "/dst/p.qcow2",
+        "verify_task_id": "vp",
+    }
+    child = {
+        "id": "i-c",
+        "storage_id": "s-c",
+        "tree_id": "s-p",
+        "topo_index": 1,
+        "state": "db_updated",
+        "src_path": "/src/c.qcow2",
+        "dst_path": "/dst/c.qcow2",
+        "parent_dst_path": "/dst/p.qcow2",
+        "verify_task_id": "vc",
+    }
+    # parent gate PASSED, child gate FAILED -> the tree fails on the child and
+    # NO release action is ever issued (parent source stays put).
+    status = {"vp": "finished", "vc": "failed"}
+    it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
+    assert action == "fail" and it["id"] == "i-c"
+    # while the child gate is still running, the parent is NOT released either.
+    status = {"vp": "finished", "vc": "started"}
+    it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
+    assert action == "wait"
+    # only once BOTH gates pass does a release begin (parent first).
+    status = {"vp": "finished", "vc": "finished"}
+    it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
+    assert action == "release"
+
+
+def test_in_place_disk_skips_verify_and_release():
+    """An in-place disk (dst == src) never moved and has no separate source to
+    delete; it must skip straight to skip_release (no verify, no move_delete)."""
+    item = _committed_root()
+    item["dst_path"] = item["src_path"]  # in place
+    assert mig.tree_next([item], lambda tid: "finished")[1] == "skip_release"

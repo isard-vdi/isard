@@ -89,8 +89,10 @@ def test_release_skipped_when_disk_in_place():
 
 def test_release_deletes_source_when_moved_elsewhere():
     items = [_item(0, "db_updated", src_path="/a/r.qcow2", dst_path="/b/r.qcow2")]
-    item, action = mig.tree_next(items, _status({}))
-    assert action == "release"
+    # the source is move_deleted only AFTER the destination passes the verify gate
+    assert mig.tree_next(items, _status({}))[1] == "start_verify"
+    items[0]["verify_task_id"] = "v"
+    assert mig.tree_next(items, _status({"v": "finished"}))[1] == "release"
 
 
 # --------------------------------------------------------------------------- #
@@ -154,10 +156,11 @@ def test_tree_release_phase_only_after_all_committed():
     items = [_item(0, "db_updated"), _item(1, "moving", move_task_id="m")]
     item, action = mig.tree_next(items, _status({"m": "started"}))
     assert item["topo_index"] == 1 and action == "wait"
-    # all committed -> release phase begins (sources deleted last)
+    # all committed -> release phase begins with the unconditional destination
+    # gate (start_verify); the source delete only follows once the gate passes
     items = [_item(0, "db_updated"), _item(1, "db_updated")]
     item, action = mig.tree_next(items, _status({}))
-    assert action == "release"
+    assert action == "start_verify"
 
 
 def test_tree_blocked_on_failure():
@@ -181,4 +184,5 @@ def test_tree_skipped_items_are_terminal():
 def test_release_phase_picks_committed_items():
     items = [_item(0, "released"), _item(1, "db_updated")]
     item, action = mig.tree_next(items, _status({}))
-    assert item["topo_index"] == 1 and action == "release"
+    # the committed disk enters the release phase at its destination gate
+    assert item["topo_index"] == 1 and action == "start_verify"

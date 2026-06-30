@@ -325,6 +325,38 @@ def decide_item_action(item, job_status_fn):
     return "noop"
 
 
+def verify_gate_state(item, job_status_fn):
+    """State of ONE committed (``db_updated``) disk's pre-release destination
+    gate, the invariant the whole saga rests on: a disk's source is never
+    ``move_delete``d unless its destination exists, passes ``qemu-img check`` and
+    (for a non-root) backs onto the parent's NEW path. The check runs as a worker
+    task (the disks live on the storage worker), so the gate is async like the
+    move/rebase steps:
+
+    * ``"start"``  — no verify task yet, or the job vanished on a restart;
+      enqueue/re-enqueue it (read-only, idempotent);
+    * ``"wait"``   — verify still running;
+    * ``"fail"``   — verify failed (destination bad) -> terminalize, retain source;
+    * ``"passed"`` — verify finished clean -> the source may now be deleted.
+
+    UNCONDITIONAL — not relaxed by ``config.verify`` (that knob only governs the
+    post-rebase check). It catches the data-loss path where a move "succeeds"
+    (rsync returns a non-zero rc WITHOUT raising) yet leaves the destination
+    absent/partial, which for a ROOT disk skips rebase and would otherwise reach
+    release with zero destination verification.
+    """
+    if not item.get("verify_task_id"):
+        return "start"
+    st = job_status_fn(item.get("verify_task_id"))
+    if _job_finished(st):
+        return "passed"
+    if _job_failed(st):
+        return "fail"
+    if st is None:
+        return "start"
+    return "wait"
+
+
 def plan_autostart_deactivation(items, domains_of):
     """Plan the up-front autostart suppression for a migration (qcow-2).
 
@@ -417,6 +449,7 @@ PROGRESS_ACTIONS = {
     "mark_rebased",
     "skip_rebase",
     "db_update",
+    "start_verify",
     "release",
     "skip_release",
 }
@@ -610,12 +643,29 @@ def tree_next(tree_items, job_status_fn):
         if s == "failed":
             return (it, "blocked")
         return (it, decide_item_action(it, job_status_fn))
-    # Phase B — every disk committed; delete sources (any order) and release.
-    # A disk whose destination equals its source has no separate source to
-    # delete; move_delete would destroy it in place, so release without delete.
-    for it in items:
-        if str(it["state"]) == "db_updated":
-            return (it, "skip_release" if item_in_place(it) else "release")
+    # Phase B — every disk committed. A source is deleted only after EVERY disk's
+    # destination has passed the unconditional verify gate (verify-all-then-
+    # release-all), so a late gate failure can never strand an earlier disk's
+    # child on a parent source that was already recycled. Two sub-steps, each
+    # one-action-per-tick:
+    committed = [it for it in items if str(it["state"]) == "db_updated"]
+    # B1 — drive the destination gate on every moved disk that still needs it.
+    # An in-place disk (dst == src) never moved: no destination to verify and no
+    # separate source to delete, so it is excluded from the gate entirely.
+    for it in committed:
+        if item_in_place(it):
+            continue
+        gate = verify_gate_state(it, job_status_fn)
+        if gate == "fail":
+            return (it, "fail")
+        if gate == "start":
+            return (it, "start_verify")
+        if gate == "wait":
+            return (it, "wait")
+    # B2 — every destination verified; now delete sources (move_delete fires
+    # last). An in-place disk has no source to delete, so it is released directly.
+    for it in committed:
+        return (it, "skip_release" if item_in_place(it) else "release")
     return (None, "done")
 
 

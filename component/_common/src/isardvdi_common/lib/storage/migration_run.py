@@ -72,17 +72,33 @@ QUIESCE_MAX_ATTEMPTS = 60
 
 
 def job_status(task_id):
-    """Failure-aware RQ status of a task id, or ``None`` if absent.
+    """Failure-aware RQ status of a migration task id, or ``None`` if absent.
 
-    CRITICAL: a storage task that RAISED does NOT report ``failed`` here. The
-    worker preserves the traceback in ``job.exc_info`` and publishes the failure
-    on ``stream:task-results``, but rq's ``Job.get_status()`` still returns
-    ``finished`` (verified live: a raising ``task.move`` ends ``status=finished,
-    exc_info set``). Relying on ``get_status()`` alone made the reconciler treat
-    a failed move/rebase as success and ``move_delete`` the live source — silent
-    data loss. So classify any job carrying ``exc_info`` (a raised/failed task)
-    as ``"failed"`` so ``_job_failed`` fires and the tree terminalizes; only fall
-    back to the rq status for a clean run.
+    A storage task can fail in TWO ways that rq's ``Job.get_status()`` does not
+    report as ``failed`` — both caused silent data loss until handled here:
+
+    1. **Raised.** The worker preserves the traceback in ``job.exc_info`` and
+       publishes the failure on ``stream:task-results``, but ``get_status()``
+       still returns ``finished`` (verified live: a raising ``task.move`` ends
+       ``status=finished, exc_info set``). So any job carrying ``exc_info`` is a
+       failure.
+
+    2. **Non-zero return without raising.** ``move`` runs rsync via
+       ``run_with_progress``, which RETURNS the process exit code on a non-cancel
+       non-zero exit (e.g. the destination pool fills mid-copy -> rc 11/23)
+       instead of raising. The job is then ``finished``/``exc_info=None`` with a
+       non-zero int return value — a failed move that would otherwise be marked
+       ``moved`` and (for a ROOT disk, which skips the rebase check) reach release
+       and ``move_delete`` the live source against an absent/partial destination.
+       So a finished task whose return value is a non-zero int is a failure too.
+       ``rebase``/``migration_verify_destination`` only ever return 0 or raise,
+       so this never false-positives on them; and ``job_status`` is migration-
+       only, so shared ``move`` behaviour for other callers is untouched.
+
+    Classifying both as ``"failed"`` makes ``_job_failed`` fire so the tree
+    terminalizes (sources retained). The unconditional pre-release destination
+    gate (``migration_verify_destination``) is the backstop for any move that
+    still reports success against a bad destination.
     """
     if not task_id:
         return None
@@ -94,7 +110,13 @@ def job_status(task_id):
         # reliable failure signal regardless of the (misleading) rq status.
         if task.exc_info:
             return "failed"
-        return task.job_status
+        status = task.job_status
+        # A move that rsync-failed returned a non-zero rc WITHOUT raising.
+        if mig._job_finished(status):
+            result = task.result
+            if isinstance(result, int) and not isinstance(result, bool) and result != 0:
+                return "failed"
+        return status
     except Exception:
         return None
 
@@ -424,11 +446,30 @@ class MigrationRunner:
         )
         self._set(item, state=MigrationItemState.DB_UPDATED.value)
 
+    def _start_verify(self, item):
+        # UNCONDITIONAL pre-release destination gate: prove the destination is
+        # sound (exists + qemu-img check +, for a non-root, backing repointed to
+        # the parent's NEW path) BEFORE the source is ever deleted. Runs on the
+        # destination pool's worker (where the file lives). Read-only, so a lost
+        # job is safe to re-enqueue. A root has no in-tree parent, so no backing
+        # expectation; a non-root must back onto parent_dst_path.
+        task_id = self._enqueue(
+            "migration_verify_destination",
+            self._pool_queue(item["dst_path"]),
+            {
+                "dst_path": item["dst_path"],
+                "expect_backing": item.get("parent_dst_path"),
+            },
+        )
+        self._set(item, verify_task_id=task_id)
+
     def _release(self, item):
-        # Whole tree is committed by now (tree_next only reaches release once
-        # every disk is db_updated), so deleting the source cannot orphan a
-        # not-yet-rebased child. Restore the storage to its ORIGINAL status
-        # (saga-5: not hardcoded "ready"), then delete the source LAST.
+        # Whole tree is committed AND every destination has passed the pre-release
+        # verify gate by now (tree_next only reaches release once a disk is
+        # db_updated and its verify task finished), so deleting the source cannot
+        # orphan a not-yet-rebased child or strand a disk on a bad destination.
+        # Restore the storage to its ORIGINAL status (saga-5: not hardcoded
+        # "ready"), then delete the source LAST.
         self._restore_storage_status(item)
         del_task_id = self._enqueue(
             "move_delete",
@@ -480,6 +521,7 @@ class MigrationRunner:
         "mark_rebased": _mark_rebased,
         "skip_rebase": _skip_rebase,
         "db_update": _db_update,
+        "start_verify": _start_verify,
         "release": _release,
         "skip_release": _skip_release,
         "fail": _fail,

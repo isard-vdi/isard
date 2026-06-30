@@ -1320,6 +1320,59 @@ def rebase(child_path, new_backing_path, verify=False):
 
 
 @_publishes_result
+def migration_verify_destination(dst_path, expect_backing=None):
+    """UNCONDITIONAL pre-release destination gate for the migration saga.
+
+    A migrated disk's source must NEVER be ``move_delete``d until its destination
+    is PROVABLY sound. This runs on the storage worker (where the disks live) and
+    RAISES on any failure, so the reconciler classifies the job failed (exc_info)
+    and terminalizes the tree with the source retained — no data loss.
+
+    Why this is needed even though ``move`` reports success: ``run_with_progress``
+    RETURNS rsync's non-zero exit code on a non-cancel failure (e.g. the
+    destination pool fills mid-copy -> rc 11/23) instead of raising, so ``move``
+    finishes ``exc_info=None`` and a ROOT disk (which skips rebase, so never gets
+    the rebase task's qemu-img check) would otherwise sail through to release and
+    delete a live source against an absent/partial destination. This gate closes
+    that path for EVERY disk, root or not, regardless of ``config.verify`` (that
+    knob may relax the post-rebase check but can never license deleting a source
+    against an unverified destination).
+
+    Checks, all mandatory:
+      * the destination file EXISTS;
+      * ``qemu-img check -U`` is clean (this also opens the whole backing chain,
+        so a missing/broken backing link fails here too);
+      * for a NON-root disk, the destination's backing was repointed to the
+        parent's NEW path (``expect_backing``) — a child still pointing at the
+        OLD parent would pass the check now but break the instant the old parent
+        is released.
+
+    :param dst_path: the migrated disk's destination path.
+    :param expect_backing: the parent's NEW path for a non-root disk; ``None``
+        for a root (its backing is outside the migrated tree and unchanged).
+    :raises RuntimeError: on a missing/corrupt destination or wrong backing.
+    :return: 0 when the destination is provably good.
+    """
+    qcow = _storage_qcow()
+    if not isfile(dst_path):
+        raise RuntimeError(f"migration: destination {dst_path} does not exist")
+    if not qcow.qemu_img_check(dst_path):
+        raise RuntimeError(
+            f"migration: destination {dst_path} did not pass qemu-img check"
+        )
+    if expect_backing:
+        backing = qcow.get_backing_file(dst_path)
+        if backing != expect_backing and os.path.realpath(
+            backing or ""
+        ) != os.path.realpath(expect_backing):
+            raise RuntimeError(
+                f"migration: destination {dst_path} backs onto {backing!r}, "
+                f"expected the new parent {expect_backing!r}"
+            )
+    return 0
+
+
+@_publishes_result
 def convert(source_disk_path, dest_disk_path, format, compression):
     """
     Convert disk.
