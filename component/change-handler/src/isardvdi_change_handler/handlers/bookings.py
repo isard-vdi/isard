@@ -120,9 +120,13 @@ class BookingsHandler(BaseHandler):
         """
 
         if booking.item_type == "deployment":
+            # On a booking delete (incl. expiry) the parent item may already be
+            # gone via cascade; refreshing it is moot, so skip rather than raise.
             deployment = await asyncio.to_thread(
-                DeploymentsProcessed.get_deployment, booking.item_id
+                DeploymentsProcessed.get_deployment_or_none, booking.item_id
             )
+            if deployment is None:
+                return
             await self.emit(
                 "deployment_update",
                 json_dumps(deployment),
@@ -140,9 +144,19 @@ class BookingsHandler(BaseHandler):
             # ``Domain.get`` reads the row and ``_parse_desktop`` enriches via
             # ``Caches.get_document`` (DB on cache miss). Bundle both in a
             # single ``to_thread`` so the loop only pays one thread hop.
-            desktop = await asyncio.to_thread(
-                lambda: DesktopsProcessed._parse_desktop(Domain.get(booking.item_id))
-            )
+            # ``Domain.get`` returns None for a row deleted alongside the
+            # booking; skip rather than subscripting None in ``_parse_desktop``.
+            def _parsed_desktop_or_none():
+                domain = Domain.get(booking.item_id)
+                return (
+                    DesktopsProcessed._parse_desktop(domain)
+                    if domain is not None
+                    else None
+                )
+
+            desktop = await asyncio.to_thread(_parsed_desktop_or_none)
+            if desktop is None:
+                return
             await self.emit(
                 "desktop_update",
                 json_dumps(desktop),

@@ -116,7 +116,7 @@ class TestBookingsHandler:
 
     @pytest.mark.asyncio
     @patch(
-        "isardvdi_change_handler.handlers.bookings.DeploymentsProcessed.get_deployment",
+        "isardvdi_change_handler.handlers.bookings.DeploymentsProcessed.get_deployment_or_none",
         return_value={
             "id": "dep1",
             "user": "u1",
@@ -156,6 +156,36 @@ class TestBookingsHandler:
         events = [c[0][0] for c in handler.socketio_server.emit.call_args_list]
         assert events.count("desktop_update") == 1
         _mock_domain.assert_called_once_with("desk1")
+
+    @pytest.mark.asyncio
+    @patch("isardvdi_change_handler.handlers.bookings.DesktopsProcessed._parse_desktop")
+    @patch(
+        "isardvdi_change_handler.handlers.bookings.Domain.get",
+        return_value=None,
+    )
+    async def test_delete_desktop_booking_skips_when_desktop_gone(
+        self, _mock_domain, mock_parse, handler
+    ):
+        """Deleting a desktop booking whose desktop was already removed (cascade
+        / expiry) must skip the refresh, not subscript None in ``_parse_desktop``."""
+        await handler.on_delete(_booking(item_type="desktop", item_id="desk1"))
+        mock_parse.assert_not_called()
+        events = [c[0][0] for c in handler.socketio_server.emit.call_args_list]
+        assert events == ["booking_delete", "bookingitem_delete"]
+
+    @pytest.mark.asyncio
+    @patch(
+        "isardvdi_change_handler.handlers.bookings.DeploymentsProcessed.get_deployment_or_none",
+        return_value=None,
+    )
+    async def test_delete_deployment_booking_skips_when_deployment_gone(
+        self, _mock_get, handler
+    ):
+        """Deleting a deployment booking whose deployment was already removed
+        must skip the refresh instead of raising not_found / subscripting None."""
+        await handler.on_delete(_booking(item_type="deployment", item_id="dep1"))
+        events = [c[0][0] for c in handler.socketio_server.emit.call_args_list]
+        assert events == ["booking_delete", "bookingitem_delete"]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("item_type", [None, "media", "template", "lab", ""])
