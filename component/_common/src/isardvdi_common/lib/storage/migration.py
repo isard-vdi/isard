@@ -325,6 +325,39 @@ def decide_item_action(item, job_status_fn):
     return "noop"
 
 
+def plan_autostart_deactivation(items, domains_of):
+    """Plan the up-front autostart suppression for a migration (qcow-2).
+
+    ``domains_of(storage_id) -> iterable`` yields the domains of a disk (each
+    with ``id`` and ``server_autostart``). Returns ``(writes, to_deactivate)``:
+
+    * ``writes`` — ``[(item, records)]`` for items whose autostart has not yet
+      been recorded; each record is ``{"id", "was_on"}`` for one domain.
+    * ``to_deactivate`` — domain ids to suppress, re-derived from the FULL
+      ledger (already-recorded items INCLUDED), so a crash between recording and
+      deactivating still suppresses on the next prepare. The caller deactivates
+      (idempotently) BEFORE persisting ``writes``, so a domain can never be left
+      recorded-but-not-suppressed.
+    """
+    writes = []
+    for item in items:
+        if item.get("autostart_domains") is not None:
+            continue
+        records = [
+            {"id": d.id, "was_on": bool(getattr(d, "server_autostart", False))}
+            for d in domains_of(item["storage_id"])
+        ]
+        writes.append((item, records))
+    new_records = {item["id"]: recs for item, recs in writes}
+    to_deactivate = []
+    for item in items:
+        recs = new_records.get(item["id"], item.get("autostart_domains") or [])
+        for rec in recs:
+            if rec.get("was_on"):
+                to_deactivate.append(rec["id"])
+    return writes, to_deactivate
+
+
 def quiesce_decision(domain_status, force_stop):
     """Decide how to quiesce a disk's domain before moving it.
 
