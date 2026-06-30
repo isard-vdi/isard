@@ -35,6 +35,8 @@ and is safe to host in isard-scheduler (the singleton orchestrator).
 import logging
 from os.path import dirname
 
+import redis
+from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.models.domain import Domain
@@ -52,6 +54,10 @@ log = logging.getLogger(__name__)
 
 DEFAULT_PRIORITY = "default"
 RSYNC_TIMEOUT = 43200  # 12h, matching Storage.rsync
+#: stream the change-handler consumes; XADD a migration progress event here so
+#: the change-handler emits the aggregate storage:migration SocketIO event.
+TASK_RESULTS_STREAM = "stream:task-results"
+TASK_RESULTS_STREAM_MAXLEN = 10000
 #: how many ticks a force-stopped desktop may stay un-Stopped before the disk
 #: is failed — surfaces a stuck force-stop instead of looping forever (the
 #: study's "bound the desktops_not_stopped retry; no silent pass").
@@ -150,6 +156,24 @@ class MigrationRunner:
                     to_activate.append(rec["id"])
         if to_activate:
             DesktopEvents.activate_autostart(to_activate)
+
+    def _publish_progress(self):
+        """Best-effort XADD of a migration progress event so the change-handler
+        emits the aggregate ``storage:migration`` SocketIO event. Never fails
+        the tick — the ledger (not the socket) is the source of truth."""
+        try:
+            conn = redis.from_url(rq_url())
+            conn.xadd(
+                TASK_RESULTS_STREAM,
+                {"kind": "migration", "migration_id": self.migration_id},
+                maxlen=TASK_RESULTS_STREAM_MAXLEN,
+                approximate=True,
+            )
+        except Exception:
+            log.exception(
+                "migration: could not publish progress event for %s",
+                self.migration_id,
+            )
 
     def _skip_tree(self, tree_items, state, reason):
         for it in tree_items:
@@ -349,6 +373,8 @@ class MigrationRunner:
                 if failed
                 else MigrationStatus.COMPLETED.value
             )
+        # Signal the change-handler to broadcast the aggregate to admins.
+        self._publish_progress()
         return results
 
     def is_complete(self):

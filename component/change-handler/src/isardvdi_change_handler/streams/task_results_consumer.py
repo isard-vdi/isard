@@ -66,6 +66,7 @@ from rq import Queue
 from rq.job import JobStatus
 
 from ..task_results.feedback import emit_task_feedback
+from ..task_results.migration import send_migration_socket
 from ..task_results.registry import HANDLERS
 from ..task_results.storage import dedup_status_emits
 from .trim import PROGRESS_STREAM, RESULT_STREAM, compute_trim_floor
@@ -447,6 +448,22 @@ async def _process_entry(redis_manager, fields):
         task_id = task_id.decode()
     if isinstance(job_status, bytes):
         job_status = job_status.decode()
+
+    # Migration progress events carry a migration_id (no task_id): the
+    # reconciler XADDs them so the admin storage-pools view live-updates.
+    if kind == "migration":
+        migration_id = fields.get("migration_id") or fields.get(b"migration_id")
+        if isinstance(migration_id, bytes):
+            migration_id = migration_id.decode()
+        if migration_id:
+            await send_migration_socket(redis_manager, migration_id)
+        else:
+            log.warning(
+                "task_results: migration entry missing migration_id: %r", fields
+            )
+        return True
+
+
     if not task_id:
         log.warning("task_results: entry missing task_id: %r", fields)
         return True

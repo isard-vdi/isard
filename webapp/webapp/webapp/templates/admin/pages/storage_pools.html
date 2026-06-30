@@ -18,6 +18,38 @@
     </table>
   </div>
 </div>
+<div class="x_panel">
+  <div class="x_title">
+    <h3><i class="fa fa-exchange"></i> Disk Migrations</h3>
+    <ul class="nav navbar-right panel_toolbox">
+      <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+    </ul>
+    <div class="clearfix"></div>
+  </div>
+  <div class="x_content">
+    <form class="form-inline" id="migration_new" style="margin-bottom:12px;">
+      <label>Source pool
+        <select id="mig_src_pool" class="form-control input-sm"></select>
+      </label>
+      <label style="margin-left:8px;">Destination pool
+        <select id="mig_dst_pool" class="form-control input-sm"></select>
+      </label>
+      <label style="margin-left:8px;"><input type="checkbox" id="mig_force_stop"> force-stop desktops</label>
+      <button type="button" class="btn btn-default btn-sm" id="mig_preview" style="margin-left:8px;">Preview plan</button>
+      <button type="button" class="btn btn-primary btn-sm" id="mig_create">Create &amp; start</button>
+      <span id="mig_preview_out" style="margin-left:10px;color:#555;"></span>
+    </form>
+    <table id="migrations" class="table table-condensed">
+      <thead>
+        <tr>
+          <th>Migration</th><th>Status</th><th>Root tree</th>
+          <th>Derivative templates</th><th>Desktops</th><th>Progress</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
 {% include '/admin/pages/storage_pools_detail.html' %}
 {% include '/admin/pages/storage_pools_modals.html' %}
 {% include '/snippets/alloweds_form.html' %}
@@ -26,4 +58,5 @@
 {% block pagescript %}
 <script src="/isard-admin/static/js/restful.js"></script>
 <script src="/isard-admin/static/admin/js/storage_pools.js"></script>
+<script src="/isard-admin/static/admin/js/storage_migration.js"></script>
 {% endblock %}
