@@ -9,8 +9,10 @@ live against the running stack (P1.1 gate: tables survive an engine restart).
 """
 
 import json
+from contextlib import nullcontext
 
 import pytest
+from isardvdi_common.models import storage_migration as sm
 from isardvdi_common.models.storage_migration import (
     DONE_ITEM_STATES,
     MIGRATION_ITEM_STATE_ORDER,
@@ -21,6 +23,7 @@ from isardvdi_common.models.storage_migration import (
     StorageMigrationItem,
     StorageMigrationItemModel,
     StorageMigrationModel,
+    build_totals,
     compute_bytes_done,
     compute_state_counts,
     item_is_done,
@@ -168,3 +171,59 @@ def test_compute_bytes_done_sums_only_done_items():
     ]
     # only RELEASED bytes count as physically-moved-and-committed
     assert compute_bytes_done(items) == 125
+
+
+# --------------------------------------------------------------------------- #
+# build_totals — ledger-1: totals.done is populated; static fields preserved
+# --------------------------------------------------------------------------- #
+def test_build_totals_includes_done_and_preserves_static():
+    items = [
+        {"state": "released", "size_bytes": 10},
+        {"state": "skipped", "size_bytes": 5},
+        {"state": "moving", "size_bytes": 7},
+    ]
+    t = build_totals({"trees": 2, "desktops": 3, "bytes_total": 22}, items)
+    # static plan fields carried through untouched
+    assert t["trees"] == 2 and t["desktops"] == 3 and t["bytes_total"] == 22
+    # recomputed dynamic fields
+    assert t["items_total"] == 3
+    assert t["done"] == 2  # released + skipped (ledger-1: used to be missing -> 0)
+    assert t["bytes_done"] == 10  # only released
+    assert t["state_counts"] == {"released": 1, "skipped": 1, "moving": 1}
+
+
+# --------------------------------------------------------------------------- #
+# recompute_totals — ledger-0: persisted with r.literal so emptied state_counts
+# keys are REPLACED, not deep-merged (no stale phantom pending/moving counts).
+# --------------------------------------------------------------------------- #
+def test_recompute_totals_persists_with_literal(monkeypatch):
+    captured = {}
+
+    class _Q:
+        def get(self, _id):
+            return self
+
+        def update(self, doc):
+            captured["doc"] = doc
+            return self
+
+        def run(self, _conn):
+            return None
+
+    monkeypatch.setattr(sm.r, "table", lambda name: _Q())
+    monkeypatch.setattr(StorageMigration, "_rdb_context", lambda self: nullcontext())
+    monkeypatch.setattr(
+        StorageMigration,
+        "item_dicts",
+        lambda self: [{"state": "released", "size_bytes": 10}],
+    )
+
+    m = object.__new__(StorageMigration)
+    m.__dict__["id"] = "m1"
+    m.__dict__["totals"] = {"trees": 1}
+    m.__dict__["_rdb_connection"] = None  # instance-level: no DB needed
+
+    totals = m.recompute_totals()
+    assert totals["done"] == 1
+    # the persisted totals must be wrapped in r.literal (whole-field replacement)
+    assert type(captured["doc"]["totals"]).__name__ == "Literal"

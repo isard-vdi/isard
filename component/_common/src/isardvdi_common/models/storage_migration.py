@@ -143,6 +143,24 @@ def compute_bytes_done(items: Iterable) -> int:
     )
 
 
+def build_totals(current: dict, items: list) -> dict:
+    """Re-derive the live aggregate from item states (pure, never incremental).
+
+    The static plan fields in ``current`` (trees / desktops / bytes_total / ...)
+    are preserved; the dynamic ones are recomputed. ``done`` is the count of
+    disks past the saga (released/skipped) — the UI progress field (ledger-1).
+    """
+    if not isinstance(current, dict):
+        current = {}
+    return {
+        **current,
+        "items_total": len(items),
+        "state_counts": compute_state_counts(items),
+        "bytes_done": compute_bytes_done(items),
+        "done": sum(1 for it in items if item_is_done(_state_of(it))),
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Pydantic models (defaults + serialisation) — used by the plan builder/service
 # to construct well-formed rows; unit tested for defaults/serialisation.
@@ -339,14 +357,14 @@ class StorageMigration(RethinkCustomBase):
         Returns the new ``totals`` dict and persists it.
         """
         items = self.item_dicts()
-        current = self.totals or {}
-        if not isinstance(current, dict):
-            current = {}
-        totals = {
-            **current,
-            "items_total": len(items),
-            "state_counts": compute_state_counts(items),
-            "bytes_done": compute_bytes_done(items),
-        }
-        self.totals = totals
+        totals = build_totals(self.totals or {}, items)
+        # ledger-0: replace the WHOLE totals via r.literal. A plain update (what
+        # __setattr__ does) deep-merges, so an emptied state_counts key (e.g.
+        # "pending" once a job completes) would keep its stale count forever and
+        # list/get/action/config would report phantom pending/moving disks.
+        with self._rdb_context():
+            r.table(self._rdb_table).get(self.id).update(
+                {"totals": r.literal(totals)}
+            ).run(self._rdb_connection)
+        self._update_cache(totals=totals)
         return totals
