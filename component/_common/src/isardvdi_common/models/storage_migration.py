@@ -249,6 +249,9 @@ class StorageMigrationItemModel(BaseModel):
     #: pre-release destination-verify task (the unconditional gate that proves the
     #: destination is sound before the source is move_deleted)
     verify_task_id: str | None = None
+    #: count of orphan-RESUME re-enqueues (a task whose worker died); bounds the
+    #: resume so a perpetually-abandoned task terminalizes instead of looping
+    abandon_restarts: int = 0
     #: storage row status BEFORE we set it to maintenance, so release/failure
     #: restore the ORIGINAL status (e.g. "recycled") instead of hardcoding
     #: "ready". None == we never put this disk into maintenance.

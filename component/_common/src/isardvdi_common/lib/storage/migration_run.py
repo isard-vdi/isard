@@ -56,6 +56,7 @@ from isardvdi_common.models.storage_migration import (
 )
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
+from rq.registry import StartedJobRegistry
 
 log = logging.getLogger(__name__)
 
@@ -69,6 +70,20 @@ TASK_RESULTS_STREAM_MAXLEN = 10000
 #: is failed — surfaces a stuck force-stop instead of looping forever (the
 #: study's "bound the desktops_not_stopped retry; no silent pass").
 QUIESCE_MAX_ATTEMPTS = 60
+#: A STARTED storage job whose worker DIED keeps its rq status STARTED until the
+#: 12h task timeout — rq never flips it, because the only thing that changes is
+#: that its StartedJobRegistry heartbeat score stops being refreshed. Treat such
+#: a job as ABANDONED only once that score expired at least ABANDON_GRACE_S ago,
+#: so a momentarily-stalled LIVE worker (a GC/IO pause) is never misjudged (no
+#: false positive). rq refreshes the score ~every job_monitoring_interval to
+#: now+~90s, so a live worker's score is always well in the future.
+ABANDON_GRACE_S = 30
+#: Bound the orphan-RESUME: after this many abandonment-driven re-enqueues of a
+#: single disk's task, terminalize instead of resuming forever (a task whose
+#: worker keeps dying — e.g. a poisoned host — must not loop). Mirrors the
+#: QUIESCE_MAX_ATTEMPTS retry-bound pattern; resume is the default, this is the
+#: safety net, so the first abandonment always RESUMES.
+MAX_ABANDON_RESTARTS = 10
 
 
 def job_status(task_id):
@@ -99,6 +114,15 @@ def job_status(task_id):
     terminalizes (sources retained). The unconditional pre-release destination
     gate (``migration_verify_destination``) is the backstop for any move that
     still reports success against a bad destination.
+
+    A THIRD case needs ``None`` (not ``failed``): a STARTED job whose WORKER
+    DIED. rq keeps it STARTED until the 12h task timeout (only its heartbeat
+    score stops refreshing), so the saga would wedge. Reporting it GONE
+    (``None``) makes ``decide_item_action`` / ``verify_gate_state`` re-enqueue
+    the idempotent task — orphan RESUME — exactly as for a redis-expired job.
+    Resume is migration-scoped (the move/rebase/verify tasks are idempotent);
+    a general resume reaper would be unsafe for relative-resize / in-place
+    convert/sparsify tasks, so this lives only here.
     """
     if not task_id:
         return None
@@ -116,9 +140,36 @@ def job_status(task_id):
             result = task.result
             if isinstance(result, int) and not isinstance(result, bool) and result != 0:
                 return "failed"
+            return status
+        # A STARTED job whose worker died is abandoned -> report it GONE so the
+        # reconciler RESUMES (re-enqueues) it rather than waiting out the 12h
+        # timeout. Only STARTED can be orphaned; queued/deferred just wait.
+        if status == "started" and _job_abandoned(task):
+            return None
         return status
     except Exception:
         return None
+
+
+def _job_abandoned(task):
+    """True when a STARTED job's worker has DIED.
+
+    rq's worker refreshes each running job's score in the per-queue
+    ``StartedJobRegistry`` every monitoring interval; when the worker dies the
+    score stops moving and slips into the past. ``get_expired_job_ids(cutoff)``
+    returns jobs whose score is below ``cutoff``; using ``now - ABANDON_GRACE_S``
+    means the job must have been expired for at least the grace margin, so a
+    briefly-stalled LIVE worker is never flagged. Uses the same redis-from-url
+    pattern as the change-handler reconciler.
+    """
+    try:
+        conn = redis.from_url(rq_url())
+        registry = StartedJobRegistry(task.job.origin, connection=conn)
+        cutoff = time() - ABANDON_GRACE_S
+        return task.id in registry.get_expired_job_ids(cutoff)
+    except Exception:
+        # Never let a redis/registry hiccup flip a live job to GONE.
+        return False
 
 
 class MigrationRunner:
@@ -352,7 +403,24 @@ class MigrationRunner:
                 "migration: could not restore status on %s", item["storage_id"]
             )
 
+    def _abandon_resume_blocked(self, item):
+        """Bound the orphan-RESUME: count abandonment-driven re-enqueues of a
+        disk's task and, once past MAX_ABANDON_RESTARTS, terminalize the tree
+        instead of resuming again (a task whose worker keeps dying must not loop
+        forever). Returns True when the budget is spent (caller must NOT
+        re-enqueue); the first abandonment always resumes."""
+        n = int(item.get("abandon_restarts") or 0) + 1
+        if n > MAX_ABANDON_RESTARTS:
+            self._terminalize_tree_failure(item)
+            return True
+        self._set(item, abandon_restarts=n)
+        return False
+
     def _start_move(self, item):
+        # A move_task_id already set means this is a RE-ENQUEUE (the prior move
+        # was lost on a restart or its worker was abandoned) -> resume, bounded.
+        if item.get("move_task_id") and self._abandon_resume_blocked(item):
+            return
         # Record the storage's pre-migration status ONCE (before maintenance) so
         # release/failure restore the ORIGINAL status rather than a hardcoded
         # "ready" that would un-bin a recycled disk (saga-5).
@@ -407,6 +475,10 @@ class MigrationRunner:
         self._set(item, state=MigrationItemState.MOVED.value)
 
     def _start_rebase(self, item):
+        # rebase_task_id already set -> RE-ENQUEUE of a lost/abandoned rebase
+        # (rebase -u is idempotent) -> resume, bounded.
+        if item.get("rebase_task_id") and self._abandon_resume_blocked(item):
+            return
         task_id = self._enqueue(
             "rebase",
             self._pool_queue(item["dst_path"]),
@@ -453,6 +525,10 @@ class MigrationRunner:
         # destination pool's worker (where the file lives). Read-only, so a lost
         # job is safe to re-enqueue. A root has no in-tree parent, so no backing
         # expectation; a non-root must back onto parent_dst_path.
+        # verify_task_id already set -> RE-ENQUEUE of a lost/abandoned verify
+        # (read-only, idempotent) -> resume, bounded.
+        if item.get("verify_task_id") and self._abandon_resume_blocked(item):
+            return
         task_id = self._enqueue(
             "migration_verify_destination",
             self._pool_queue(item["dst_path"]),
