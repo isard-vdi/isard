@@ -266,6 +266,49 @@ def test_admin_get_user_full_data_roundtrips_through_generated_client(
     assert parsed.id == "local-default-admin-admin"
 
 
+def test_admin_user_full_data_response_accepts_email_verified_domain():
+    """email_verified must keep AdminUser's bool | int | None union."""
+    from api.schemas.admin.users import AdminUserFullDataResponse
+
+    for value in (False, True, 1726157635, None):
+        model = AdminUserFullDataResponse(
+            id="local-default-admin-admin", email_verified=value
+        )
+        assert model.email_verified == value
+
+
+def test_admin_get_user_raw_accepts_full_email_verified_domain(
+    monkeypatch, test_client
+):
+    """GET /admin/item/user/{id}/raw must accept email_verified as False/True/epoch int/None (Bug 37)."""
+    from isardvdi_apiv4_client.models.admin_user_full_data_response import (
+        AdminUserFullDataResponse as ClientModel,
+    )
+
+    jwt = MockJWT()
+    row = _raw_user_with_nullable_nested()
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.owns_user_id",
+        staticmethod(lambda payload, user_id: True),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.get_user_raw",
+        staticmethod(lambda user_id: row),
+    )
+
+    for value in (False, True, 1726157635, None):  # epoch int is the case that 500'd
+        row["email_verified"] = value
+        response = test_client(
+            url="/admin/item/user/local-default-admin-admin/raw", jwt=jwt
+        )
+        assert response.status_code == 200, (value, response.text)
+        body = response.json()
+        parsed = ClientModel.from_dict(body)  # mirrors the webapp user_loader
+        assert parsed.role == "admin"
+        if isinstance(value, int) and not isinstance(value, bool):
+            assert body["email_verified"] == value
+
+
 def test_admin_update_user(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}
