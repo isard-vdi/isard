@@ -381,7 +381,7 @@ class DesktopDomainHandler:
             if guest_ip_became_available:
                 try:
                     viewers = DesktopDirectViewer.desktop_viewer_from_token(
-                        new_val.jumperurl, start_desktop=False
+                        jumperurl, start_desktop=False
                     )
                 except Exception as e:
                     print(f"Error in desktop_viewer_from_token: {e}")
