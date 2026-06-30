@@ -154,7 +154,7 @@ class StoragePool(RethinkCustomBase):
             try:
                 pools = list(
                     r.table(cls._rdb_table)
-                    .pluck("id", "mountpoint")
+                    .pluck("id", "mountpoint", "enabled")
                     .run(cls._rdb_connection)
                 )
             except Exception:
@@ -169,8 +169,24 @@ class StoragePool(RethinkCustomBase):
             # lives under it. Compare against "<mountpoint>/" so "/isard" does
             # not spuriously match "/isardvdi/...".
             if path == mountpoint or path.startswith(mountpoint.rstrip("/") + "/"):
-                if best is None or len(mountpoint) > len(best["mountpoint"]):
+                if best is None:
                     best = pool
+                    continue
+                cur_len, best_len = len(mountpoint), len(best["mountpoint"])
+                # Longest mountpoint wins (most specific pool over the default
+                # ancestor). On an exact-length tie -- two pools sharing a
+                # mountpoint, which add/update now forbid but legacy data may
+                # still hold -- break it deterministically: prefer an enabled
+                # pool, then the lowest id, so the resolution never depends on
+                # db-scan order (which silently routed downloads to a worker-less
+                # duplicate before).
+                if cur_len > best_len:
+                    best = pool
+                elif cur_len == best_len:
+                    cur_key = (pool.get("enabled", True) is False, pool["id"])
+                    best_key = (best.get("enabled", True) is False, best["id"])
+                    if cur_key < best_key:
+                        best = pool
 
         if best is None:
             best = next((p for p in pools if p["id"] == DEFAULT_STORAGE_POOL_ID), None)

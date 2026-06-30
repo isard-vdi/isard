@@ -92,6 +92,34 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                 "segment (no '/', no '..')",
             )
 
+    @classmethod
+    def _check_mountpoint_unique(cls, mountpoint, exclude_id=None):
+        """Reject a mountpoint already used by another storage pool.
+
+        A pool's mountpoint is its on-disk identity: ``get_by_path`` /
+        ``get_best_for_action`` resolve a disk path back to a pool by the
+        longest mountpoint that is a prefix of it. Two pools sharing the exact
+        same mountpoint make that reverse lookup ambiguous -- the tie is broken
+        by db-scan order, so a download task can be enqueued onto the wrong
+        pool's queue and, if that pool is not served by any worker, stall
+        silently at ``DownloadStarting``. Sharing one physical location across
+        categories is already expressed as a single multi-category pool plus the
+        ``{category}`` token, so duplicate mountpoints are never needed. Enforce
+        uniqueness here (``exclude_id`` skips the pool being renamed on update).
+        """
+        with cls._rdb_context():
+            query = r.table("storage_pool").filter({"mountpoint": mountpoint})
+            if exclude_id is not None:
+                query = query.filter(lambda pool: pool["id"] != exclude_id)
+            clash = query.count().run(cls._rdb_connection)
+        if clash:
+            raise Error(
+                "bad_request",
+                f"Storage pool mountpoint {mountpoint} is already used by another "
+                "pool; each storage pool must have a unique mountpoint",
+                description_code="storage_pool_mountpoint_in_use",
+            )
+
     @staticmethod
     def _check_paths_safe(data):
         """_From /api/libv2/api_storage.py \_check_paths_safe()_
@@ -151,8 +179,11 @@ class StoragePoolsProcessed(RethinkSharedConnection):
     def add_storage_pool(cls, data):
         """_From /api/libv2/api_storage.py add_storage_pool()_"""
         # The admin chooses the leaf name; we only validate it stays within the
-        # storage_pools root and is a single safe segment.
+        # storage_pools root, is a single safe segment, and is not already used
+        # by another pool (a duplicate mountpoint makes path->pool resolution
+        # ambiguous).
         cls._check_mountpoint_safe(data["mountpoint"])
+        cls._check_mountpoint_unique(data["mountpoint"])
         if data.get("paths"):
             cls._check_with_validate_weight(data["paths"])
             cls._check_duplicated_paths(data["paths"])
@@ -233,8 +264,10 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                 cls._check_default_paths(data["paths"])
         elif "mountpoint" in data:
             # A category pool's mountpoint may be renamed (webapp allows it) but
-            # must stay under /isard/storage_pools/<name>.
+            # must stay under /isard/storage_pools/<name> and not collide with
+            # another pool's mountpoint.
             cls._check_mountpoint_safe(data["mountpoint"])
+            cls._check_mountpoint_unique(data["mountpoint"], exclude_id=storage_pool_id)
 
         # If the pool is disabled, the virt pool must be disabled too
         if data.get("enabled") is not None:

@@ -134,3 +134,34 @@ def test_remove_common_categories_keep_pool_filters(stub_rdb):
 def test_remove_common_categories_empty_is_noop(stub_rdb):
     SPP.remove_common_categories_from_other_pools([])
     assert not stub_rdb.called
+
+
+# --------------------------------------------------------------------------- #
+# _check_mountpoint_unique  (a mountpoint is a pool's on-disk identity; two
+# pools sharing one make path->pool resolution ambiguous and silently mis-route
+# download tasks to a worker-less queue, so creation/rename must reject it)
+# --------------------------------------------------------------------------- #
+def test_check_mountpoint_unique_rejects_duplicate(stub_rdb):
+    # Another pool already owns this mountpoint -> count() > 0 -> reject.
+    stub_rdb.return_value.filter.return_value.count.return_value.run.return_value = 1
+    with pytest.raises(Exception) as exc:
+        SPP._check_mountpoint_unique("/isard/storage_pools/dup")
+    assert exc.value.args[0] == "bad_request"
+
+
+def test_check_mountpoint_unique_accepts_free_mountpoint(stub_rdb):
+    # No other pool uses it -> count() == 0 -> no raise.
+    stub_rdb.return_value.filter.return_value.count.return_value.run.return_value = 0
+    SPP._check_mountpoint_unique("/isard/storage_pools/free")  # no raise
+
+
+def test_check_mountpoint_unique_excludes_self_on_rename(stub_rdb):
+    # On update the pool keeping its own mountpoint must not clash with itself:
+    # a second server-side filter drops its own row before counting.
+    stub_rdb.return_value.filter.return_value.filter.return_value.count.return_value.run.return_value = (
+        0
+    )
+    SPP._check_mountpoint_unique(
+        "/isard/storage_pools/x", exclude_id="self"
+    )  # no raise
+    assert stub_rdb.return_value.filter.return_value.filter.called
