@@ -67,6 +67,33 @@ def test_rebased_triggers_db_update():
 
 
 # --------------------------------------------------------------------------- #
+# saga-1: dst == src — same-pool selection, or a subtree member already living
+# in the destination pool. The move is a no-op and the release would
+# move_delete the LIVE disk in place (total data loss), so both are skipped.
+# --------------------------------------------------------------------------- #
+def test_pending_in_place_skips_move():
+    it = _item(0, "pending", src_path="/pool/r.qcow2", dst_path="/pool/r.qcow2")
+    assert mig.decide_item_action(it, _status({})) == "skip_move"
+
+
+def test_pending_cross_location_still_moves():
+    it = _item(0, "pending", src_path="/a/r.qcow2", dst_path="/b/r.qcow2")
+    assert mig.decide_item_action(it, _status({})) == "start_move"
+
+
+def test_release_skipped_when_disk_in_place():
+    items = [_item(0, "db_updated", src_path="/pool/r.qcow2", dst_path="/pool/r.qcow2")]
+    item, action = mig.tree_next(items, _status({}))
+    assert action == "skip_release" and item["topo_index"] == 0
+
+
+def test_release_deletes_source_when_moved_elsewhere():
+    items = [_item(0, "db_updated", src_path="/a/r.qcow2", dst_path="/b/r.qcow2")]
+    item, action = mig.tree_next(items, _status({}))
+    assert action == "release"
+
+
+# --------------------------------------------------------------------------- #
 # resume: a LOST in-flight task (redis expired/cleared) is re-enqueued.
 # move (remove_source_file=False) and rebase -u are both idempotent, so
 # re-running a step that may have already completed is safe.

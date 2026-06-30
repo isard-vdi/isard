@@ -328,6 +328,14 @@ class MigrationRunner:
         self._record_throughput(item)
         self._set(item, state=MigrationItemState.MOVED.value)
 
+    def _skip_move(self, item):
+        # dst == src (same-pool, or already in the destination pool): the file is
+        # already at its destination. Skip the rsync entirely — and the
+        # maintenance marker, since nothing physically moves (the job-wide
+        # autostart guard and the quiesce gate already protect the disk). Advance
+        # straight to moved so any rebase/db_update still runs.
+        self._set(item, state=MigrationItemState.MOVED.value)
+
     def _start_rebase(self, item):
         task_id = self._enqueue(
             "rebase",
@@ -384,14 +392,22 @@ class MigrationRunner:
             move_delete_task_id=del_task_id,
         )
 
+    def _skip_release(self, item):
+        # dst == src: there is no separate source to delete — move_delete would
+        # destroy the live disk in place. The disk was never moved (so never set
+        # to maintenance); just mark it released.
+        self._set(item, state=MigrationItemState.RELEASED.value)
+
     _ACTIONS = {
         "start_move": _start_move,
+        "skip_move": _skip_move,
         "mark_moved": _mark_moved,
         "start_rebase": _start_rebase,
         "mark_rebased": _mark_rebased,
         "skip_rebase": _skip_rebase,
         "db_update": _db_update,
         "release": _release,
+        "skip_release": _skip_release,
     }
 
     # -- tick -------------------------------------------------------------- #

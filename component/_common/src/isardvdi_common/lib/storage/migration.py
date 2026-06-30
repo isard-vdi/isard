@@ -271,19 +271,30 @@ def _job_failed(status):
     return status in ("failed", "stopped", "canceled")
 
 
+def item_in_place(item):
+    """True when a disk's destination equals its current location — a same-pool
+    selection, or a subtree member that already lives in the destination pool.
+    Moving it is a no-op and deleting the "source" would destroy the live disk
+    in place, so the move and the release are both skipped (saga-1)."""
+    dst = item.get("dst_path")
+    return bool(dst) and dst == item.get("src_path")
+
+
 def decide_item_action(item, job_status_fn):
     """Decide the next action for ONE disk given its state and the status of
     its in-flight RQ task (``job_status_fn(task_id) -> status|None``).
 
-    Actions: ``start_move``, ``mark_moved``, ``start_rebase``, ``mark_rebased``,
-    ``skip_rebase`` (root), ``db_update``, ``wait`` (task still running),
-    ``fail``, ``noop`` (already terminal).
+    Actions: ``start_move``, ``skip_move`` (dst == src), ``mark_moved``,
+    ``start_rebase``, ``mark_rebased``, ``skip_rebase`` (root), ``db_update``,
+    ``wait`` (task still running), ``fail``, ``noop`` (already terminal).
     """
     state = str(item["state"])
     is_root = item.get("topo_index", 0) == 0 or not item.get("parent_dst_path")
 
     if state == "pending":
-        return "start_move"
+        # dst == src: nothing to move (the file is already there); never rsync a
+        # disk onto itself. Advance straight to moved.
+        return "skip_move" if item_in_place(item) else "start_move"
     if state == "moving":
         st = job_status_fn(item.get("move_task_id"))
         if _job_finished(st):
@@ -352,12 +363,14 @@ def descendant_item_ids(items, storage_id, include_self=False):
 #: would just spin.
 PROGRESS_ACTIONS = {
     "start_move",
+    "skip_move",
     "mark_moved",
     "start_rebase",
     "mark_rebased",
     "skip_rebase",
     "db_update",
     "release",
+    "skip_release",
 }
 
 
@@ -521,9 +534,11 @@ def tree_next(tree_items, job_status_fn):
             return (it, "blocked")
         return (it, decide_item_action(it, job_status_fn))
     # Phase B — every disk committed; delete sources (any order) and release.
+    # A disk whose destination equals its source has no separate source to
+    # delete; move_delete would destroy it in place, so release without delete.
     for it in items:
         if str(it["state"]) == "db_updated":
-            return (it, "release")
+            return (it, "skip_release" if item_in_place(it) else "release")
     return (None, "done")
 
 

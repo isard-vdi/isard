@@ -242,6 +242,23 @@ class TestPlan:
         )
         assert resp.status_code == 400
 
+    def test_plan_rejects_same_src_and_dst_pool(self, test_client):
+        # same-pool selection is a one-click data-loss path — reject server-side
+        resp = test_client(
+            url="/admin/storage/migrations/plan",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {
+                    "kind": "pool",
+                    "src_pool_id": "dst",
+                    "dst_pool_id": "dst",
+                }
+            },
+            db_tables_data={"storage_pool": [_pool()]},
+        )
+        assert resp.status_code == 400
+
 
 # ── create (mock the compute boundary, assert persistence) ───────────────────
 class TestCreate:
@@ -272,6 +289,26 @@ class TestCreate:
         body = resp.json()
         assert body["status"] == "planned"
         assert body["id"]
+
+    def test_create_rejects_same_src_and_dst_pool(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {
+                    "kind": "pool",
+                    "src_pool_id": "dst",
+                    "dst_pool_id": "dst",
+                }
+            },
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 400
 
     def test_create_empty_selection_400(self, monkeypatch, test_client):
         monkeypatch.setattr(
