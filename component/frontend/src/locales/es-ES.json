@@ -1043,7 +1043,10 @@
           "password_digits": "La contraseña debe tener al menos {num} número(s)",
           "password_special_characters": "La contraseña debe tener al menos {num} caracter(es) especiales: !{'@'}{'#'}$%^&*()-_=+[]{'{'}{'}'}{'|'};:'\",.<>/?",
           "password_already_used": "Esta contraseña ya se ha utilizado anteriormente",
-          "password_username": "La contraseña no puede contener el nombre de usuario"
+          "password_username": "La contraseña no puede contener el nombre de usuario",
+          "wrong_password_entered": "La contraseña introducida es incorrecta",
+          "generic": "Se ha producido un error inesperado. Vuelve a intentarlo.",
+          "internal_server": "Ha ocurrido un error interno del servidor. Por favor, inténtalo más tarde."
         }
       },
       "quota-modal": {

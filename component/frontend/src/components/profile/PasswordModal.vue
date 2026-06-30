@@ -40,15 +40,21 @@ const mutation = useMutation({
     waiting.value = false
     form.reset()
   },
-  onError(err: Error) {
-    const resp = JSON.parse(err.message) as PasswordPolicyErrorResponse
-    if (resp.description_code === 'wrong_password_entered') {
+  onError(err: unknown) {
+    const resp = err as PasswordPolicyErrorResponse
+    const descriptionCode =
+      err != null && typeof err === 'object' && 'description_code' in err
+        ? resp.description_code
+        : ''
+    if (descriptionCode === 'wrong_password_entered') {
       form.getFieldInfo('current').instance?.setErrorMap({
         onSubmit: t('components.profile.password-modal.errors.wrong_password_entered')
       })
     } else {
-      if (resp.params) errorparams.value = resp.params
-      error.value = resp.description_code
+      if (resp?.params) errorparams.value = resp.params
+      error.value = ['password_already_used', 'password_username'].includes(descriptionCode)
+        ? descriptionCode
+        : 'generic'
     }
     waiting.value = false
   }
