@@ -224,6 +224,10 @@ class StorageMigrationItemModel(BaseModel):
     state: MigrationItemState = MigrationItemState.PENDING
     move_task_id: str | None = None
     rebase_task_id: str | None = None
+    #: storage row status BEFORE we set it to maintenance, so release/failure
+    #: restore the ORIGINAL status (e.g. "recycled") instead of hardcoding
+    #: "ready". None == we never put this disk into maintenance.
+    storage_orig_status: str | None = None
     attempts: int = 0
     checkpoints: list = Field(default_factory=list)
     error: str | None = None

@@ -513,6 +513,35 @@ def cancel_target(status):
     )
 
 
+def plan_tree_failure(tree_items, failed_storage_id):
+    """Terminalize a whole tree after one of its disks fails, so the job reaches
+    a terminal state (and autostart is restored) instead of wedging on a
+    permanently-``blocked`` tree.
+
+    The failed disk becomes ``failed``; its descendants and every other
+    not-yet-terminal disk in the tree become ``skipped`` — the tree is abandoned
+    with all sources retained (move_delete never ran), so there is no data loss.
+    A committed (``db_updated``) ancestor is abandoned too: its source is never
+    deleted, so it stays bootable via its new location and any abandoned child
+    stays bootable via the retained source.
+
+    Returns ``[(item, new_state, reason)]`` for the items that must change
+    (already-terminal disks are left untouched).
+    """
+    descendants = descendant_item_ids(tree_items, failed_storage_id)
+    out = []
+    for it in tree_items:
+        if str(it["state"]) in _TERMINAL_STATES:
+            continue
+        if it["storage_id"] == failed_storage_id:
+            out.append((it, "failed", "move/rebase task failed"))
+        elif it["id"] in descendants:
+            out.append((it, "skipped", "ancestor disk failed"))
+        else:
+            out.append((it, "skipped", "tree abandoned after a disk in it failed"))
+    return out
+
+
 def tree_next(tree_items, job_status_fn):
     """Decide the next ``(item, action)`` for ONE tree.
 

@@ -292,7 +292,35 @@ class MigrationRunner:
         return False
 
     # -- per-disk actions -------------------------------------------------- #
+    def _restore_storage_status(self, item):
+        """Restore a disk's storage to the status it held BEFORE we set it to
+        maintenance (recorded at move start). Only disks we actually put into
+        maintenance carry a recorded original, so an untouched disk (a
+        never-started pending one) is left alone — never blindly forced to
+        ``ready``, which would un-bin a ``recycled`` disk (saga-5)."""
+        orig = item.get("storage_orig_status")
+        if orig is None:
+            return
+        try:
+            Storage.update_document(
+                item["storage_id"], {"status": orig}, validate=False
+            )
+        except Exception:
+            log.exception(
+                "migration: could not restore status on %s", item["storage_id"]
+            )
+
     def _start_move(self, item):
+        # Record the storage's pre-migration status ONCE (before maintenance) so
+        # release/failure restore the ORIGINAL status rather than a hardcoded
+        # "ready" that would un-bin a recycled disk (saga-5).
+        if item.get("storage_orig_status") is None:
+            try:
+                cur = Storage(item["storage_id"]).status
+            except Exception:
+                cur = None
+            if cur and cur != "maintenance":
+                self._set(item, storage_orig_status=cur)
         # Per-disk maintenance marker (durable storage-layer start-block).
         # NOT set_maintenance("move") — that refuses a parent-with-children;
         # migration legitimately moves parents (children rebase afterwards).
@@ -373,14 +401,9 @@ class MigrationRunner:
     def _release(self, item):
         # Whole tree is committed by now (tree_next only reaches release once
         # every disk is db_updated), so deleting the source cannot orphan a
-        # not-yet-rebased child. Restore the storage to ready, then delete the
-        # source LAST.
-        try:
-            Storage.update_document(
-                item["storage_id"], {"status": "ready"}, validate=False
-            )
-        except Exception:
-            log.exception("migration: could not set ready on %s", item["storage_id"])
+        # not-yet-rebased child. Restore the storage to its ORIGINAL status
+        # (saga-5: not hardcoded "ready"), then delete the source LAST.
+        self._restore_storage_status(item)
         del_task_id = self._enqueue(
             "move_delete",
             self._pool_queue(item["src_path"]),
@@ -398,6 +421,31 @@ class MigrationRunner:
         # to maintenance); just mark it released.
         self._set(item, state=MigrationItemState.RELEASED.value)
 
+    def _terminalize_tree_failure(self, item):
+        """A disk's move/rebase failed (action ``fail``) or it is already failed
+        and blocks its tree (action ``blocked``). Terminalize the WHOLE tree so
+        the job can finish and ``reactivate()`` runs (autostart restored),
+        instead of wedging: the failed disk -> failed, its descendants and the
+        rest of the tree -> skipped (abandoned, sources retained). Each affected
+        disk's storage is taken out of maintenance back to its original status
+        (qcow-1 / scheduler-1 / qcow-3 / saga-5)."""
+        tree_items = [it for it in self._items() if it["tree_id"] == item["tree_id"]]
+        # The triggering disk may already be `failed` (set by the generic
+        # exception handler), which plan_tree_failure leaves untouched — reset
+        # its storage explicitly so it never stays stuck in maintenance.
+        self._restore_storage_status(item)
+        for it, new_state, reason in mig.plan_tree_failure(
+            tree_items, item["storage_id"]
+        ):
+            self._restore_storage_status(it)
+            self._set(it, state=new_state, error=reason)
+
+    def _fail(self, item):
+        self._terminalize_tree_failure(item)
+
+    def _blocked(self, item):
+        self._terminalize_tree_failure(item)
+
     _ACTIONS = {
         "start_move": _start_move,
         "skip_move": _skip_move,
@@ -408,6 +456,8 @@ class MigrationRunner:
         "db_update": _db_update,
         "release": _release,
         "skip_release": _skip_release,
+        "fail": _fail,
+        "blocked": _blocked,
     }
 
     # -- tick -------------------------------------------------------------- #
