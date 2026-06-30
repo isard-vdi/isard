@@ -181,6 +181,8 @@ const quotaExceededModalData = ref<{
   cancelLabel: string
 } | null>(null)
 
+const showStartStorageUnavailableModal = ref(false)
+
 const desktopsKey = getUserDesktopsQueryKey()
 
 const {
@@ -211,6 +213,8 @@ const {
           description: t('components.desktops.start-quota-exceeded-modal.description'),
           cancelLabel: t('components.desktops.start-quota-exceeded-modal.cancel')
         }
+      } else if (err.description_code === 'no_storage_pool_available') {
+        showStartStorageUnavailableModal.value = true
       }
     },
     onSuccess: async () => {
@@ -951,6 +955,22 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     <template #footer>
       <Button hierarchy="primary" @click="showStorageUnavailableModal = false">{{
         t('components.desktops.storage-unavailable-modal.go-to-desktops')
+      }}</Button>
+    </template>
+  </AlertModal>
+
+  <!-- Start storage Unavailable Modal -->
+  <AlertModal
+    :open="showStartStorageUnavailableModal"
+    level="danger"
+    size="md"
+    :title="t('components.desktops.start-storage-unavailable-modal.title')"
+    :description="t('components.desktops.start-storage-unavailable-modal.description')"
+    @close="showStartStorageUnavailableModal = false"
+  >
+    <template #footer>
+      <Button hierarchy="primary" @click="showStartStorageUnavailableModal = false">{{
+        t('components.desktops.start-storage-unavailable-modal.go-to-desktops')
       }}</Button>
     </template>
   </AlertModal>

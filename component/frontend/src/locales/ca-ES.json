@@ -1437,6 +1437,11 @@
         "go-to-desktops": "Torna als escriptoris",
         "go-to-media": "Torna als mitjans"
       },
+      "start-storage-unavailable-modal": {
+        "title": "Recursos del sistema no disponibles",
+        "description": "Els recursos del sistema no estan disponibles actualment i no es poden iniciar escriptoris. Si us plau, torni-ho a provar més tard.",
+        "go-to-desktops": "Tornar als escriptoris"
+      },
       "fields": {
         "ip": {
           "title-full": "@:components.domain-info-modal.fields.ip.title de l'@:domains.desktops"

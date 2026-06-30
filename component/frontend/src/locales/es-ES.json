@@ -1403,6 +1403,11 @@
         "go-to-desktops": "Volver a escritorios",
         "go-to-media": "Volver a medios"
       },
+      "start-storage-unavailable-modal": {
+        "title": "Recursos del sistema no disponibles",
+        "description": "Los recursos del sistema no estan disponibles actualmente y no se pueden iniciar escritorios. Por favor, inténtelo más tarde.",
+        "go-to-desktops": "Volver a escritorios"
+      },
       "fields": {
         "ip": {
           "title-full": "@:components.domain-info-modal.fields.ip.title del @:domains.desktops"

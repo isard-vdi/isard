@@ -1900,6 +1900,11 @@
         "go-to-desktops": "Go back to desktops",
         "go-to-media": "Go back to media"
       },
+      "start-storage-unavailable-modal": {
+        "title": "System resources unavailable",
+        "description": "The system resources are currently unavailable and desktops cannot be started. Please try again later.",
+        "go-to-desktops": "Go back to desktops"
+      },
       "direct-viewer-modal": {
         "title": "Direct access link",
         "enable-access": "Enable direct access",
