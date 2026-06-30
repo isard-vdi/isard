@@ -1059,7 +1059,9 @@
           "password_special_characters": "La contrasenya ha de tenir com a mínim {num} caràcter(s) especials: !{'@'}{'#'}$%^&*()-_=+[]{'{'}{'}'}{'|'};:'\",.<>/?",
           "password_already_used": "Aquesta contrasenya ja s'ha utilitzat abans",
           "password_username": "La contrasenya no pot contenir el nom d'usuari",
-          "wrong_password_entered": "La contrasenya introduïda és incorrecta"
+          "wrong_password_entered": "La contrasenya introduïda és incorrecta",
+          "generic": "S'ha produït un error inesperat. Torneu-ho a provar.",
+          "internal_server": "S'ha produït un error intern del servidor. Torneu-ho a provar més tard."
         }
       },
       "quota-modal": {

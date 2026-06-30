@@ -1091,7 +1091,9 @@
           "password_special_characters": "Password must have at least {num} special character(s): !{'@'}{'#'}$%^&*()-_=+[]{'{'}{'}'}{'|'};:'\",.<>/?",
           "password_already_used": "This password has already been used in the past",
           "password_username": "Password can not contain your own username",
-          "wrong_password_entered": "Wrong password entered"
+          "wrong_password_entered": "Wrong password entered",
+          "generic": "An unexpected error occurred. Please try again.",
+          "internal_server": "An internal server error occurred. Please try again later."
         }
       },
       "quota-modal": {
