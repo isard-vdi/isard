@@ -563,6 +563,35 @@ function delRow(type, modal) {
   currentRow.remove();
 }
 
+// A pool's mountpoint is its on-disk identity: the backend resolves a disk path
+// back to a pool by mountpoint, so two pools sharing one make that lookup
+// ambiguous (the API rejects it with 400). Pre-check against the already-loaded
+// pools so the admin gets immediate feedback instead of a round-trip. excludeId
+// skips the pool itself when editing/renaming it.
+function mountpointInUse(mountpoint, excludeId) {
+  var clash = false;
+  storage_pools_table.rows().every(function () {
+    var row = this.data();
+    if (row && row.mountpoint === mountpoint && row.id !== excludeId) {
+      clash = true;
+    }
+  });
+  return clash;
+}
+
+function notifyMountpointInUse(mountpoint) {
+  new PNotify({
+    title: "Mountpoint already in use",
+    type: "error",
+    text: `Another storage pool already uses the mountpoint <b>${mountpoint}</b>. Each storage pool must have a unique mountpoint.`,
+    hide: false,
+    opacity: 0.9,
+    buttons: { closer: true, sticker: false },
+    addclass: 'pnotify-center-large',
+    width: '550'
+  });
+}
+
 $("#modalAddStoragePool #send").off('click').on('click', function (e) {
   var form = $('#modalAdd');
   form.parsley().validate();
@@ -606,6 +635,10 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
     data["paths"] = pathsTableAdd
     data["mountpoint"] = form.find(".path_base_mountpoint").text() + data.mountpoint
 
+    if (mountpointInUse(data["mountpoint"], data.id)) {
+      notifyMountpointInUse(data["mountpoint"]);
+      return;
+    }
 
     $.ajax({
       type: "POST",
@@ -697,6 +730,11 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
     data["paths"] = pathsTableEdit
     data["mountpoint"] = form.find(".path_base_mountpoint").text() + data.mountpoint;
     data["categories"] = data["categories"] || [];
+
+    if (mountpointInUse(data["mountpoint"], data.id)) {
+      notifyMountpointInUse(data["mountpoint"]);
+      return;
+    }
 
     $.ajax({
       type: "POST",
