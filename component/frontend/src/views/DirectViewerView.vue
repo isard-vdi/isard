@@ -14,7 +14,8 @@ import {
 import {
   resetDesktop as resetDesktopRequest,
   type DesktopDetailsResponse,
-  type ViewersModel
+  type ViewersModel,
+  type BrowserVncValues
 } from '@/gen/oas/apiv4'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4/types.gen'
 import { createClient, createConfig } from '@/gen/oas/apiv4/client'
@@ -34,6 +35,7 @@ import {
   DesktopCardIp,
   DesktopCardNetworksOverlay
 } from '@/components/desktop-card'
+import DirectViewerCardPreview from '@/components/desktop-card/parts/DirectViewerCardPreview.vue'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import { Icon } from '@/components/icon'
@@ -177,6 +179,13 @@ watch(
 // action button and is never stranded when the owner stops the desktop
 // from elsewhere. The footer's `mainButtonData` drives what action is
 // shown per status.
+
+const vncValues = computed<BrowserVncValues | null>(() => {
+  const viewers = desktopViewer.value?.viewers as Record<string, any> | undefined
+  if (!viewers) return null
+  const vnc = viewers['browser-vnc'] ?? viewers['browser_vnc']
+  return vnc?.values ?? null
+})
 
 const isWaitingIp = computed(() => desktopViewer.value?.status === DesktopStatusEnum.WAITING_IP)
 
@@ -396,6 +405,13 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                     :show-overlay="showNetworkOverlay"
                     class="shadow-md"
                   >
+                    <template #image>
+                      <DirectViewerCardPreview
+                        :status="desktopViewer.status"
+                        :image-url="desktopViewer.image?.url ?? ''"
+                        :vnc-values="vncValues"
+                      />
+                    </template>
                     <template #header-actions>
                       <Button
                         hierarchy="link-gray"
