@@ -22,9 +22,18 @@ from typing import Literal, Optional, Union
 
 from isardvdi_common.schemas.shared.allowed import Allowed
 from isardvdi_common.schemas.user import UserStorageModel
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 FrontendMode = Literal["deprecated", "actual", "all", "hidden"]
+
+
+class PhotoNullableMixin(BaseModel):
+    """Coerce a stored ``photo`` of ``None`` to ``""`` (field is required str)."""
+
+    @field_validator("photo", mode="before", check_fields=False)
+    @classmethod
+    def _empty_when_none(cls, value: object) -> object:
+        return "" if value is None else value
 
 
 class FaroConfig(BaseModel):
@@ -66,7 +75,7 @@ class UserVpn(BaseModel):
     wireguard: UserVpnWireguard
 
 
-class UserResponse(BaseModel):
+class UserResponse(PhotoNullableMixin):
 
     name: str
     email: str
@@ -81,7 +90,7 @@ class SecondaryGroupsData(BaseModel):
     name: str
 
 
-class UserDetailsResponse(BaseModel):
+class UserDetailsResponse(PhotoNullableMixin):
     """User response model"""
 
     id: str = Field(description="The ID of the user.")
@@ -425,7 +434,7 @@ class UserVpnData(BaseModel):
     mime: Optional[str] = None
 
 
-class UserListItem(BaseModel):
+class UserListItem(PhotoNullableMixin):
     """One row of the ``/items/users`` listing.
 
     Mirrors the columns plucked by

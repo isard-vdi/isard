@@ -24,6 +24,7 @@ import os
 import pytest
 from api.routes.tests.factories import make_category, make_group, make_user
 from api.routes.tests.helpers import MockJWT
+from api.schemas.users import UserDetailsResponse, UserListItem, UserResponse
 
 
 @pytest.fixture()
@@ -727,3 +728,72 @@ def test_set_user_password(monkeypatch, test_client):
         "new_password": "N3wPassword!",
         "current_password": "oldP4$",
     }
+
+
+def test_get_all_users_handles_null_photo(test_client, users_db_factory):
+    """Regression: a stored ``photo: null`` must not 500 the listing."""
+    jwt = MockJWT()
+
+    db_data = users_db_factory(jwt)
+    for user in db_data["users"]:
+        user["photo"] = None
+
+    response = test_client(
+        url="/api/v4/items/users",
+        jwt=jwt,
+        db_tables_data=db_data,
+    )
+
+    assert response.status_code == 200
+    rows = response.json()
+    assert rows, "expected at least one user row"
+    assert all(row["photo"] == "" for row in rows)
+
+
+@pytest.mark.parametrize(
+    "model_cls, payload",
+    [
+        (
+            UserResponse,
+            {
+                "name": "n",
+                "email": "e@x",
+                "role": "user",
+                "role_name": "User",
+                "photo": None,
+                "items_in_bin": 0,
+            },
+        ),
+        (
+            UserDetailsResponse,
+            {
+                "id": "u",
+                "username": "u",
+                "photo": None,
+                "name": "n",
+                "email": "e@x",
+                "provider": "local",
+                "category": "c",
+                "category_name": "C",
+                "group": "g",
+                "group_name": "G",
+                "role": "user",
+                "role_name": "User",
+                "secondary_groups_data": [],
+            },
+        ),
+        (
+            UserListItem,
+            {
+                "id": "u",
+                "name": "n",
+                "category": "c",
+                "category_name": "C",
+                "photo": None,
+            },
+        ),
+    ],
+)
+def test_photo_none_coerced_to_empty_string(model_cls, payload):
+    """``photo: None`` is coerced to ``""`` on every user response model."""
+    assert model_cls(**payload).photo == ""
