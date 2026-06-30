@@ -674,8 +674,8 @@ class DesktopsProcessed(RethinkSharedConnection):
             new_desktop = {**new_desktop, **deployment_tag_dict}
 
         # Convert the memory to bytes. Must be after the limit hardware since the quota is checked in GB
-        create_dict["hardware"]["memory"] = int(
-            create_dict["hardware"]["memory"] * 1048576
+        create_dict["hardware"]["memory"] = Helpers.memory_gib_to_kib(
+            create_dict["hardware"]["memory"]
         )
 
         # Validate new_desktop using Pydantic
@@ -882,8 +882,8 @@ class DesktopsProcessed(RethinkSharedConnection):
                     "virtualization_nested"
                 ]
             if new_data["hardware"].get("memory"):
-                new_data["hardware"]["memory"] = int(
-                    new_data["hardware"]["memory"] * 1048576
+                new_data["hardware"]["memory"] = Helpers.memory_gib_to_kib(
+                    new_data["hardware"]["memory"]
                 )
             if new_data["hardware"].get("disk_bus"):
                 disk_bus = (
@@ -1589,8 +1589,8 @@ class DesktopsProcessed(RethinkSharedConnection):
                 "Unauthorized hardware items: " + str(res["limited_hardware"]),
                 traceback.format_exc(),
             )
-        domain["create_dict"]["hardware"]["memory"] = int(
-            data["hardware"]["memory"] * 1048576
+        domain["create_dict"]["hardware"]["memory"] = Helpers.memory_gib_to_kib(
+            data["hardware"]["memory"]
         )
         with cls._rdb_context():
             r.table("domains").insert(domain).run(cls._rdb_connection)

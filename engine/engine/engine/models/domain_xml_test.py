@@ -13,6 +13,7 @@ from engine.models.domain_xml import (
     count_passthrough_gpus_in_xml,
     domain_is_raw,
     ensure_iothreads_declared,
+    file_spice_shared_folder_enabled,
     hostdev_locked,
     numa_opts_allowed,
     pinned_cpuset_from_xml,
@@ -1389,3 +1390,55 @@ def test_set_vdisk_creates_missing_source():
     assert sources[0].get("file") == "/isard/groups/new.qcow2"
     assert path == "/isard/groups/new.qcow2"
     assert tree.xpath('//disk[@device="disk"]/driver')[0].get("type") == "qcow2"
+
+
+def test_set_memory_rejects_below_minimum():
+    """set_memory must reject memory below the 25 MiB floor."""
+    x = DomainXML('<domain type="kvm"><name>vm</name><devices/></domain>')
+    with pytest.raises(ValueError, match="Invalid memory value"):
+        x.set_memory(memory=8, unit="KiB")
+
+
+def test_file_spice_shared_folder_enabled_handles_none_at_every_level():
+    """A deselected viewer persisted as bare ``None`` must not raise."""
+    assert file_spice_shared_folder_enabled({}) is False
+    assert file_spice_shared_folder_enabled({"guest_properties": None}) is False
+    assert (
+        file_spice_shared_folder_enabled({"guest_properties": {"viewers": None}})
+        is False
+    )
+    assert (
+        file_spice_shared_folder_enabled(
+            {"guest_properties": {"viewers": {"file_spice": None}}}
+        )
+        is False
+    )
+    assert (
+        file_spice_shared_folder_enabled(
+            {"guest_properties": {"viewers": {"file_spice": {"options": None}}}}
+        )
+        is False
+    )
+
+
+def test_file_spice_shared_folder_enabled_true_only_when_requested():
+    assert (
+        file_spice_shared_folder_enabled(
+            {
+                "guest_properties": {
+                    "viewers": {"file_spice": {"options": {"shared_folder": True}}}
+                }
+            }
+        )
+        is True
+    )
+    assert (
+        file_spice_shared_folder_enabled(
+            {
+                "guest_properties": {
+                    "viewers": {"file_spice": {"options": {"shared_folder": False}}}
+                }
+            }
+        )
+        is False
+    )

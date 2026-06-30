@@ -1733,6 +1733,21 @@ def create_dict_video_from_id(id_video):
     return d
 
 
+def file_spice_shared_folder_enabled(dict_domain):
+    """Whether the Spice viewer requests a shared folder. ``or {}`` at each level
+    so a deselected viewer (persisted as bare ``None``) doesn't raise."""
+    file_spice_options = (
+        ((dict_domain.get("guest_properties") or {}).get("viewers") or {}).get(
+            "file_spice"
+        )
+        or {}
+    ).get("options") or {}
+    return (
+        isinstance(file_spice_options, dict)
+        and file_spice_options.get("shared_folder") is True
+    )
+
+
 def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     remove_fieds_when_stopped(id_domain)
     dict_domain = get_domain(id_domain)
@@ -1989,15 +2004,8 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     # Shared folder
     if "shared_folder" not in protected:
-        file_spice_options = (
-            dict_domain.get("guest_properties", {})
-            .get("viewers", {})
-            .get("file_spice", {})
-            .get("options", {})
-        )
-        if type(file_spice_options) is dict:
-            if file_spice_options.get("shared_folder") is True:
-                x.add_shared_folder()
+        if file_spice_shared_folder_enabled(dict_domain):
+            x.add_shared_folder()
 
     # Stripping all <seclabel> would wipe an admin-locked custom security label.
     if "seclabel" not in protected:
