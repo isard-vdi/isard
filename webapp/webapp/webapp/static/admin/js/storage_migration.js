@@ -27,7 +27,15 @@ const MIG_TERMINAL = ["completed", "failed", "canceled"];
 const migExpanded = {};
 
 function migEscape (s) {
-  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Escape for use inside double-quoted HTML attributes (and text). Without the
+  // quote escapes, an admin-set window value like `" autofocus onfocus=alert(1)`
+  // would break out of the attribute -> attribute-injection XSS (guard-3).
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function migBytes (n) {
