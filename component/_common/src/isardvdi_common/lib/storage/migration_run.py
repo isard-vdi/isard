@@ -33,7 +33,14 @@ and is safe to host in isard-scheduler (the singleton orchestrator).
 """
 
 import logging
+from datetime import datetime, timezone
 from os.path import dirname
+from time import time
+
+try:  # py3.9+ stdlib; always present on our 3.13 images
+    from zoneinfo import ZoneInfo
+except ImportError:  # pragma: no cover
+    ZoneInfo = None
 
 import redis
 from isardvdi_common.connections.redis_urls import rq_url
@@ -157,6 +164,62 @@ class MigrationRunner:
         if to_activate:
             DesktopEvents.activate_autostart(to_activate)
 
+    # -- window / EWMA-ETA admission (P2.2) -------------------------------- #
+    def _now(self, tz):
+        if ZoneInfo is not None:
+            try:
+                return datetime.now(ZoneInfo(tz))
+            except Exception:
+                pass
+        return datetime.now(timezone.utc)
+
+    def _window_state(self):
+        """Return ``(has_window, is_open, remaining_seconds)`` for the job's
+        configured maintenance window (no window -> open, unbounded)."""
+        window = (self.config or {}).get("window") or {}
+        start = mig.parse_hhmm(window.get("start"))
+        end = mig.parse_hhmm(window.get("end"))
+        if start is None or end is None:
+            return False, True, float("inf")
+        now = self._now(window.get("tz") or "UTC")
+        now_min = now.hour * 60 + now.minute
+        return (
+            True,
+            mig.window_is_open(start, end, now_min),
+            mig.window_remaining_seconds(start, end, now_min),
+        )
+
+    def _tree_key(self, tree_items):
+        """EWMA throughput key for a tree: ``<src_pool>:<dst_pool>`` using the
+        tree root's source pool."""
+        root = min(tree_items, key=lambda it: it.get("topo_index", 0))
+        return f"{self._pool_of(root['src_path']).id}:{self.dst_pool.id}"
+
+    def _admit_tree(self, tree_items, win_open, remaining_s):
+        """Whether a not-yet-started tree may begin now (window + ETA)."""
+        if not win_open:
+            return False
+        mbps = (self.migration.throughput_ewma or {}).get(self._tree_key(tree_items))
+        remaining_bytes = sum(int(it.get("size_bytes") or 0) for it in tree_items)
+        tree_eta = mig.tree_eta_seconds(remaining_bytes, mbps)
+        max_disk = max((int(it.get("size_bytes") or 0) for it in tree_items), default=0)
+        max_disk_eta = mig.tree_eta_seconds(max_disk, mbps)
+        return mig.tree_admitted(tree_eta, max_disk_eta, remaining_s, RSYNC_TIMEOUT)
+
+    def _record_throughput(self, item):
+        """Fold this disk's observed MB/s into the per-pool-pair EWMA, so the
+        ETA estimate self-corrects as the run proceeds."""
+        started = item.get("move_started_at")
+        size = int(item.get("size_bytes") or 0)
+        if not started or size <= 0:
+            return
+        elapsed = max(time() - float(started), 0.001)
+        mbps = size / elapsed / 1_000_000
+        key = f"{self._pool_of(item['src_path']).id}:{self.dst_pool.id}"
+        ewma = dict(self.migration.throughput_ewma or {})
+        ewma[key] = mig.ewma_update(ewma.get(key), mbps)
+        self.migration.throughput_ewma = ewma
+
     def _publish_progress(self):
         """Best-effort XADD of a migration progress event so the change-handler
         emits the aggregate ``storage:migration`` SocketIO event. Never fails
@@ -254,9 +317,15 @@ class MigrationRunner:
             },
             timeout=RSYNC_TIMEOUT,
         )
-        self._set(item, state=MigrationItemState.MOVING.value, move_task_id=task_id)
+        self._set(
+            item,
+            state=MigrationItemState.MOVING.value,
+            move_task_id=task_id,
+            move_started_at=time(),
+        )
 
     def _mark_moved(self, item):
+        self._record_throughput(item)
         self._set(item, state=MigrationItemState.MOVED.value)
 
     def _start_rebase(self, item):
@@ -337,8 +406,21 @@ class MigrationRunner:
         for it in items:
             trees.setdefault(it["tree_id"], []).append(it)
 
+        # Window + ETA admission gate (P2.2): a not-yet-started tree only begins
+        # inside the window and only if its ETA fits; in-flight trees always run
+        # to completion (respecting the 12h move-task timeout), never abandoned
+        # mid-chain when the window closes.
+        has_window, win_open, remaining_s = self._window_state()
+
         results = []
         for tree_id, tree_items in trees.items():
+            not_started = all(
+                str(it["state"]) == MigrationItemState.PENDING.value
+                for it in tree_items
+            )
+            if not_started and not self._admit_tree(tree_items, win_open, remaining_s):
+                results.append((tree_id, None, "deferred"))
+                continue
             if not self._gate_tree(tree_items):
                 results.append((tree_id, None, "gated"))
                 continue
@@ -373,6 +455,30 @@ class MigrationRunner:
                 if failed
                 else MigrationStatus.COMPLETED.value
             )
+        else:
+            # Flip running<->window_closed by the window; never clobber a paused
+            # /finishing/terminal status (the driver only ticks running + the
+            # window_closed it set here).
+            cur = str(self.migration.status)
+            if cur in (
+                MigrationStatus.RUNNING.value,
+                MigrationStatus.WINDOW_CLOSED.value,
+            ):
+                target = (
+                    MigrationStatus.WINDOW_CLOSED.value
+                    if (has_window and not win_open)
+                    else MigrationStatus.RUNNING.value
+                )
+                if cur != target:
+                    self.migration.status = target
+        # Surface the live window for the admin UI.
+        self.migration.current_window = {
+            "has_window": has_window,
+            "open": win_open,
+            "remaining_seconds": (
+                None if remaining_s == float("inf") else int(remaining_s)
+            ),
+        }
         # Signal the change-handler to broadcast the aggregate to admins.
         self._publish_progress()
         return results

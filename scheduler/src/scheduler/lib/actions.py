@@ -142,9 +142,14 @@ class Actions:
         as soon as every tree is only waiting on an in-flight RQ task; the next
         invocation resumes once those finish. The ledger is the source of truth,
         so this is crash-safe and idempotent across invocations.
+
+        window_closed jobs are ticked too: the tick re-evaluates the window each
+        time and flips them back to running once the window reopens.
         """
         try:
-            running = StorageMigration.ids_by_status(MigrationStatus.RUNNING.value)
+            running = StorageMigration.ids_by_status(
+                MigrationStatus.RUNNING.value
+            ) + StorageMigration.ids_by_status(MigrationStatus.WINDOW_CLOSED.value)
         except Exception:
             log.error(
                 "storage_migration_tick: cannot list running migrations: "

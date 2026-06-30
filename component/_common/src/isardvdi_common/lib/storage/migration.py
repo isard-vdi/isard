@@ -286,6 +286,88 @@ def tick_made_progress(results):
     return any(action in PROGRESS_ACTIONS for (_tree, _item, action) in results)
 
 
+# --------------------------------------------------------------------------- #
+# Window + EWMA-ETA admission (pure) — P2.2
+#
+# Admission decides, at TREE granularity, whether a not-yet-started tree may
+# begin NOW: only inside the maintenance window and only if its estimated
+# transfer time fits the time left in the window (and each single disk fits the
+# 12h move-task timeout). Throughput is an EWMA of observed MB/s per src:dst
+# pool pair, so the estimate self-corrects as the run proceeds.
+# --------------------------------------------------------------------------- #
+def parse_hhmm(value):
+    """``"HH:MM"`` -> minutes since midnight, or ``None`` if unset/invalid."""
+    if not value:
+        return None
+    try:
+        h, m = str(value).split(":")
+        h, m = int(h), int(m)
+    except (ValueError, AttributeError):
+        return None
+    if not (0 <= h < 24 and 0 <= m < 60):
+        return None
+    return h * 60 + m
+
+
+def window_is_open(start_min, end_min, now_min):
+    """Is ``now_min`` inside the daily ``[start, end)`` window? An unset window
+    (either bound ``None``) or a zero-width one (``start == end``) is always
+    open. Handles overnight windows (``start > end``)."""
+    if start_min is None or end_min is None or start_min == end_min:
+        return True
+    if start_min < end_min:
+        return start_min <= now_min < end_min
+    return now_min >= start_min or now_min < end_min  # overnight
+
+
+def window_remaining_seconds(start_min, end_min, now_min):
+    """Seconds from ``now_min`` until the window closes. ``inf`` when there is
+    no window (unbounded), ``0`` when the window is currently closed."""
+    if start_min is None or end_min is None or start_min == end_min:
+        return float("inf")
+    if not window_is_open(start_min, end_min, now_min):
+        return 0
+    rem_min = end_min - now_min if end_min > now_min else (24 * 60 - now_min) + end_min
+    return rem_min * 60
+
+
+def ewma_update(prev, sample, alpha=0.3):
+    """Exponentially-weighted moving average. A non-positive/None sample is
+    ignored (returns ``prev``); the first valid sample seeds the average."""
+    if sample is None or sample <= 0:
+        return prev
+    if prev is None or prev <= 0:
+        return sample
+    return alpha * sample + (1 - alpha) * prev
+
+
+def tree_eta_seconds(bytes_remaining, mbps):
+    """Seconds to transfer ``bytes_remaining`` at ``mbps`` (MB/s, 1e6 bytes).
+    ``None`` when throughput is unknown (no sample yet — can't estimate)."""
+    if not mbps or mbps <= 0:
+        return None
+    if bytes_remaining <= 0:
+        return 0.0
+    return bytes_remaining / (mbps * 1_000_000)
+
+
+def tree_admitted(tree_eta_s, max_disk_eta_s, remaining_window_s, task_timeout=43200):
+    """Admit a not-yet-started tree only if it fits.
+
+    * A single disk whose ETA exceeds the move-task timeout can never finish a
+      move, so the tree is never admitted (respect the 12h timeout).
+    * Unknown tree ETA (``None``, no throughput sample yet) is admitted
+      optimistically — there is nothing to estimate against on a cold start.
+    * Otherwise admit only if the whole-tree ETA fits the time left in the
+      window (``inf`` when there is no window).
+    """
+    if max_disk_eta_s is not None and max_disk_eta_s > task_timeout:
+        return False
+    if tree_eta_s is None:
+        return True
+    return tree_eta_s <= remaining_window_s
+
+
 def tree_next(tree_items, job_status_fn):
     """Decide the next ``(item, action)`` for ONE tree.
 
