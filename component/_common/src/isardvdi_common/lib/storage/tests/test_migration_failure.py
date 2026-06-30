@@ -151,3 +151,64 @@ def test_terminalize_resets_storage_and_cascades(monkeypatch):
     assert su["s1"] == {"status": "recycled"}
     assert su["s0"] == {"status": "ready"}
     assert "s2" not in su  # never in maintenance -> untouched
+
+
+# --------------------------------------------------------------------------- #
+# job_status() failure classification — the PRODUCTION gap the real e2e exposed.
+# A raised storage task reports rq Job.get_status()=="finished" WITH exc_info set
+# (it does NOT flip to "failed"); the reconciler must classify exc_info-bearing
+# jobs as failed or it advances the saga and move_deletes the live source (data
+# loss). These exercise the REAL job_status() against the REAL rq condition — no
+# job_status_fn mock, which is exactly the mask that hid this from the earlier
+# fail-cluster unit tests.
+# --------------------------------------------------------------------------- #
+class _RqLikeTask:
+    """Mimics real rq: a task that RAISED ends status="finished" but carries
+    exc_info; a clean task is "finished" with exc_info None."""
+
+    _raised = {"raised", "t-move", "t-rebase"}
+
+    def __init__(self, tid):
+        self._id = tid
+
+    @classmethod
+    def exists(cls, tid):
+        return tid is not None
+
+    @property
+    def job_status(self):
+        return "finished"  # rq reports FINISHED even for a raised task
+
+    @property
+    def exc_info(self):
+        return "Traceback...\nNotADirectoryError" if self._id in self._raised else None
+
+
+def test_job_status_classifies_raised_task_as_failed(monkeypatch):
+    monkeypatch.setattr(mr, "Task", _RqLikeTask)
+    # raised task: rq says finished, but exc_info present -> classified failed
+    assert mr.job_status("raised") == "failed"
+    # clean task: no exc_info -> the rq status passes through
+    assert mr.job_status("ok") == "finished"
+    # no task id yet (pending) -> None
+    assert mr.job_status(None) is None
+
+
+def test_decide_item_action_fails_a_raised_move(monkeypatch):
+    """End-to-end of the gap: with the REAL job_status() over a raised task, a
+    disk in `moving`/`moved` resolves to `fail`, never mark_moved/mark_rebased."""
+    monkeypatch.setattr(mr, "Task", _RqLikeTask)
+    moving = {
+        "state": "moving",
+        "move_task_id": "t-move",
+        "topo_index": 1,
+        "parent_dst_path": "/p/parent.qcow2",
+    }
+    assert mig.decide_item_action(moving, mr.job_status) == "fail"
+    moved = {
+        "state": "moved",
+        "rebase_task_id": "t-rebase",
+        "topo_index": 1,
+        "parent_dst_path": "/p/parent.qcow2",
+    }
+    assert mig.decide_item_action(moved, mr.job_status) == "fail"

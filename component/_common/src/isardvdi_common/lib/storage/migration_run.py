@@ -72,13 +72,29 @@ QUIESCE_MAX_ATTEMPTS = 60
 
 
 def job_status(task_id):
-    """RQ status of a task id, or ``None`` if absent."""
+    """Failure-aware RQ status of a task id, or ``None`` if absent.
+
+    CRITICAL: a storage task that RAISED does NOT report ``failed`` here. The
+    worker preserves the traceback in ``job.exc_info`` and publishes the failure
+    on ``stream:task-results``, but rq's ``Job.get_status()`` still returns
+    ``finished`` (verified live: a raising ``task.move`` ends ``status=finished,
+    exc_info set``). Relying on ``get_status()`` alone made the reconciler treat
+    a failed move/rebase as success and ``move_delete`` the live source — silent
+    data loss. So classify any job carrying ``exc_info`` (a raised/failed task)
+    as ``"failed"`` so ``_job_failed`` fires and the tree terminalizes; only fall
+    back to the rq status for a clean run.
+    """
     if not task_id:
         return None
     try:
         if not Task.exists(task_id):
             return None
-        return Task(task_id).job_status
+        task = Task(task_id)
+        # exc_info is populated only when the task function raised; that is the
+        # reliable failure signal regardless of the (misleading) rq status.
+        if task.exc_info:
+            return "failed"
+        return task.job_status
     except Exception:
         return None
 
