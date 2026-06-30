@@ -145,11 +145,15 @@ class Actions:
 
         window_closed jobs are ticked too: the tick re-evaluates the window each
         time and flips them back to running once the window reopens.
+        finishing_tree (canceling) jobs are ticked so the in-flight tree drains
+        and the job becomes canceled.
         """
         try:
-            running = StorageMigration.ids_by_status(
-                MigrationStatus.RUNNING.value
-            ) + StorageMigration.ids_by_status(MigrationStatus.WINDOW_CLOSED.value)
+            running = (
+                StorageMigration.ids_by_status(MigrationStatus.RUNNING.value)
+                + StorageMigration.ids_by_status(MigrationStatus.WINDOW_CLOSED.value)
+                + StorageMigration.ids_by_status(MigrationStatus.FINISHING_TREE.value)
+            )
         except Exception:
             log.error(
                 "storage_migration_tick: cannot list running migrations: "

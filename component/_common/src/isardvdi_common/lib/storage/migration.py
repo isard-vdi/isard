@@ -400,6 +400,25 @@ def admission_slots(tree_phases, parallelism):
     return max(0, p - in_flight)
 
 
+# --------------------------------------------------------------------------- #
+# Cancel = finish-current-tree (pure) — P2.4
+# --------------------------------------------------------------------------- #
+def cancel_target(status):
+    """Target status for an admin cancel request.
+
+    A job that may have in-flight trees or suppressed autostart to unwind
+    (running / window_closed / paused / already finishing) goes to
+    ``finishing_tree``: the reconciler stops starting new trees, lets the
+    current tree(s) finish cleanly, restores autostart, then flips it to
+    ``canceled``. A job that never started (draft / planned) cancels outright.
+    """
+    return (
+        "finishing_tree"
+        if str(status) in {"running", "window_closed", "paused", "finishing_tree"}
+        else "canceled"
+    )
+
+
 def tree_next(tree_items, job_status_fn):
     """Decide the next ``(item, action)`` for ONE tree.
 

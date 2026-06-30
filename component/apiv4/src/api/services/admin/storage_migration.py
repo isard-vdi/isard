@@ -166,7 +166,13 @@ class AdminStorageMigrationService:
                 "precondition_required",
                 f"Migration {migration_id} is {m.status} and can no longer be {action}ed",
             )
-        m.status = _ACTION_TARGET[action]
+        # Cancel = finish-current-tree: a started job drains its in-flight tree
+        # (and restores autostart) via finishing_tree before becoming canceled;
+        # the reconciler performs that transition. See mig.cancel_target.
+        if action == "cancel":
+            m.status = mig.cancel_target(m.status)
+        else:
+            m.status = _ACTION_TARGET[action]
         m.updated_at = time()
         return cls.get(migration_id)
 

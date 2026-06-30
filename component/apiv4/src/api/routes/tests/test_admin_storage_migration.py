@@ -125,12 +125,25 @@ class TestControl:
         assert resp.status_code == 200
         assert resp.json()["status"] == "running"
 
-    def test_cancel_sets_canceled(self, test_client):
+    def test_cancel_running_finishes_current_tree(self, test_client):
+        # cancel = finish-current-tree: a running job drains its in-flight tree
+        # (and restores autostart) via finishing_tree before becoming canceled.
         resp = test_client(
             url="/admin/storage/migrations/mig-1/cancel",
             method="POST",
             jwt=ADMIN,
             db_tables_data={"storage_migration": [_migration(status="running")]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "finishing_tree"
+
+    def test_cancel_unstarted_is_immediate(self, test_client):
+        # a job that never started has nothing to finish -> canceled outright
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/cancel",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "canceled"

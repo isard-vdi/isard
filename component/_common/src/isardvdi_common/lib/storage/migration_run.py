@@ -398,9 +398,17 @@ class MigrationRunner:
     def tick(self):
         """Advance every tree by at most one step. Returns a list of
         ``(tree_id, item_id|None, action)`` describing what happened."""
+        # Cancel = finish-current-tree (P2.4): once an admin cancels, the job is
+        # in finishing_tree — stop starting new trees (skip the not-started
+        # ones), let in-flight trees finish, then flip to canceled.
+        finishing = str(self.migration.status) == MigrationStatus.FINISHING_TREE.value
+
         # Mandatory autostart guard: deactivate autostart for the whole job
-        # before any disk is touched (idempotent — only un-prepared items).
-        self.prepare()
+        # before any disk is touched (idempotent — only un-prepared items). When
+        # finishing we never start new trees, so don't suppress autostart for the
+        # not-started trees we are about to skip.
+        if not finishing:
+            self.prepare()
         items = self._items()
         trees = {}
         for it in items:
@@ -426,6 +434,16 @@ class MigrationRunner:
         results = []
         for tree_id, tree_items in trees.items():
             if phases[tree_id] == "not_started":
+                if finishing:
+                    # Canceling: a tree that has not moved any disk is skipped
+                    # cleanly rather than started.
+                    self._skip_tree(
+                        tree_items,
+                        MigrationItemState.SKIPPED.value,
+                        "canceled before tree started",
+                    )
+                    results.append((tree_id, None, "canceled"))
+                    continue
                 if slots <= 0 or not self._admit_tree(
                     tree_items, win_open, remaining_s
                 ):
@@ -456,16 +474,21 @@ class MigrationRunner:
         self.migration.recompute_totals()
         if self.is_complete():
             # Crash-safe re-activation from the ledger, then mark the job done.
+            # A finishing (canceled) job becomes canceled, not completed, even
+            # though its in-flight trees finished cleanly.
             self.reactivate()
             failed = any(
                 str(it["state"]) == MigrationItemState.FAILED.value
                 for it in self._items()
             )
-            self.migration.status = (
-                MigrationStatus.FAILED.value
-                if failed
-                else MigrationStatus.COMPLETED.value
-            )
+            if finishing:
+                self.migration.status = MigrationStatus.CANCELED.value
+            else:
+                self.migration.status = (
+                    MigrationStatus.FAILED.value
+                    if failed
+                    else MigrationStatus.COMPLETED.value
+                )
         else:
             # Flip running<->window_closed by the window; never clobber a paused
             # /finishing/terminal status (the driver only ticks running + the
