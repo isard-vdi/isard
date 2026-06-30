@@ -294,7 +294,7 @@ def _decode_data_url(data_url):
 
     if (len(b64_data) * 3) // 4 > MAX_LOGO_SIZE:
         raise ValueError(
-            f"Logo file too large ({(len(b64_data) * 3) // 4} bytes). Maximum: {MAX_LOGO_SIZE}"
+            f"Logo file too large ({(len(b64_data) * 3) // 4 // 1024} KB). Maximum: {MAX_LOGO_SIZE // 1024} KB"
         )
 
     try:
