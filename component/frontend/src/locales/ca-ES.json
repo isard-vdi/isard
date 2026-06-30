@@ -414,7 +414,9 @@
           "delete": "Esborra la plantilla",
           "duplicate": "Duplica la plantilla",
           "info": "Informació"
-        }
+        },
+        "failed-badge": "Plantilla amb errors",
+        "failed-message": "Aquesta plantilla ha fallat i no es pot fer servir per crear escriptoris ni desplegaments"
       }
     },
     "new-template": {
@@ -2191,7 +2193,8 @@
       "errors": {
         "new_template_name_exists": "Ja existeix una plantilla amb aquest nom. Si us plau, tria un nom diferent.",
         "generic": "Hi ha hagut un error en crear la plantilla. Si us plau, torna-ho a provar.",
-        "storage_pending_task": "El disc d'aquest escriptori està ocupat amb una altra operació. Espera un moment i torna-ho a provar."
+        "storage_pending_task": "El disc d'aquest escriptori està ocupat amb una altra operació. Espera un moment i torna-ho a provar.",
+        "template_failed": "Aquesta plantilla ha fallat i no es pot duplicar."
       }
     },
     "new-media": {

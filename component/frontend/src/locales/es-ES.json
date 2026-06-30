@@ -414,7 +414,9 @@
           "delete": "Eliminar plantilla",
           "duplicate": "Duplicar plantilla",
           "info": "Información"
-        }
+        },
+        "failed-badge": "Plantilla con errores",
+        "failed-message": "Esta plantilla ha fallado y no se puede usar para crear escritorios ni despliegues"
       }
     },
     "new-template": {
@@ -2180,7 +2182,8 @@
       "errors": {
         "new_template_name_exists": "Ya existe una plantilla con este nombre. Por favor, elige un nombre diferente.",
         "generic": "Hubo un error al crear la plantilla, por favor, inténtalo de nuevo.",
-        "storage_pending_task": "El disco de este escritorio está ocupado con otra operación. Espera un momento e inténtalo de nuevo."
+        "storage_pending_task": "El disco de este escritorio está ocupado con otra operación. Espera un momento e inténtalo de nuevo.",
+        "template_failed": "Esta plantilla ha fallado y no se puede duplicar."
       }
     },
     "new-media": {

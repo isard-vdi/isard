@@ -15,6 +15,7 @@ import { valueUpdater } from '@/lib/utils'
 import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 
 import { Icon } from '@/components/icon'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import DatatablePagination from '@/components/ui/data-table-pagination/DatatablePagination.vue'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
@@ -36,6 +37,8 @@ interface Props {
   paginationPageSizes?: number[]
   loading?: boolean
   isClickable: boolean
+  isRowDisabled?: (row: Record<string, unknown>) => boolean
+  disabledTooltip?: string
   selectedId?: string
 }
 
@@ -134,54 +137,77 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
       :style="{
         gridTemplateColumns: headers.map((header) => header.width || 'minmax(0, 1fr)').join(' ')
       }"
+      role="table"
     >
-      <div class="grid col-span-full" style="grid-template-columns: subgrid">
+      <div role="row" class="grid col-span-full" style="grid-template-columns: subgrid">
         <div
           v-for="(header, index) in headers"
           :key="'header-grid-' + index"
           class="text-sm font-semibold text-gray-warm-900 px-4"
+          role="columnheader"
         >
           {{ header.name }}
         </div>
       </div>
 
-      <div
+      <Tooltip
         v-for="(row, rowIndex) in table.getPaginationRowModel().rows"
         :key="'row-grid-' + rowIndex"
-        class="grid col-span-full rounded-2xl group/row"
-        style="grid-template-columns: subgrid"
-        :class="{ 'cursor-pointer': props.isClickable }"
-        :tabindex="props.isClickable ? 0 : undefined"
-        :role="props.isClickable ? 'button' : undefined"
-        @click="props.isClickable && handleRowClick(row.original)"
-        @keydown.enter="props.isClickable && handleRowClick(row.original)"
-        @keydown.space.prevent="props.isClickable && handleRowClick(row.original)"
+        :delay-duration="300"
       >
-        <div
-          v-for="(header, cellIndex) in headers"
-          :key="'cell-grid-' + rowIndex + '-' + cellIndex"
-          class="h-16 flex items-center border-gray-warm-200 min-w-0"
-          :class="[
-            {
-              'px-4 border-y': cellIndex !== 0,
-              'rounded-l-2xl': cellIndex === 0,
-              'rounded-r-2xl border-r': cellIndex === headers.length - 1
-            },
-            row.original.id === props.selectedId
-              ? 'bg-brand-100 group-hover/row:bg-brand-200'
-              : 'bg-base-white'
-          ]"
-        >
-          <slot
-            :name="`cell-${header.key}`"
-            :value="row.getValue(header.key)"
-            :row="row.original"
-            :header="header"
+        <TooltipTrigger as-child>
+          <div
+            class="grid col-span-full rounded-2xl group/row"
+            style="grid-template-columns: subgrid"
+            :class="{
+              'cursor-pointer': props.isClickable && !isRowDisabled?.(row.original),
+              'cursor-not-allowed': isRowDisabled?.(row.original)
+            }"
+            :tabindex="0"
+            :role="'row'"
+            :aria-disabled="isRowDisabled?.(row.original) || undefined"
+            @click="
+              props.isClickable && !isRowDisabled?.(row.original) && handleRowClick(row.original)
+            "
+            @keydown.enter="
+              props.isClickable && !isRowDisabled?.(row.original) && handleRowClick(row.original)
+            "
+            @keydown.space.prevent="
+              props.isClickable && !isRowDisabled?.(row.original) && handleRowClick(row.original)
+            "
           >
-            {{ row.getValue(header.key) }}
-          </slot>
-        </div>
-      </div>
+            <div
+              v-for="(header, cellIndex) in headers"
+              :key="'cell-grid-' + rowIndex + '-' + cellIndex"
+              class="h-16 flex items-center border-gray-warm-200 min-w-0"
+              :class="[
+                {
+                  'px-4 border-y': cellIndex !== 0,
+                  'rounded-l-2xl': cellIndex === 0,
+                  'rounded-r-2xl border-r': cellIndex === headers.length - 1
+                },
+                row.original.id === props.selectedId
+                  ? 'bg-brand-100 group-hover/row:bg-brand-200'
+                  : 'bg-base-white'
+              ]"
+              role="cell"
+            >
+              <slot
+                :name="`cell-${header.key}`"
+                :value="row.getValue(header.key)"
+                :row="row.original"
+                :header="header"
+              >
+                {{ row.getValue(header.key) }}
+              </slot>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent
+          v-if="props.disabledTooltip && isRowDisabled?.(row.original)"
+          :title="props.disabledTooltip"
+        />
+      </Tooltip>
     </div>
 
     <DatatablePagination :table="table" class="mt-4" :page-sizes="props.paginationPageSizes" />

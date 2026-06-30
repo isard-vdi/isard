@@ -186,6 +186,8 @@ const {
     showTemplateInfoModal.value = true
   }
 })
+
+const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 </script>
 
 <template>
@@ -293,26 +295,63 @@ const {
         </template>
 
         <template #cell-image="{ row }">
-          <div
-            class="w-48 h-16 overflow-hidden shrink-0 rounded-l-2xl object-cover bg-center bg-cover relative"
-            :style="{
-              backgroundImage: `url(${row.image.url})`
-            }"
-          >
-            <ContextMenu>
-              <ContextMenuTrigger class="absolute top-0 bottom-0 left-0 w-1/4 rounded-l-2xl">
-              </ContextMenuTrigger>
-              <ContextMenuContent class="bg-white border border-gray-warm-300 rounded-lg">
-                <ContextMenuItem @click="copyToClipboard(row.id)">{{
-                  t('components.templates.datatable.debug-options.copy-id')
-                }}</ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
+          <div class="relative">
+            <div
+              class="w-48 h-16 overflow-hidden shrink-0 rounded-l-2xl object-cover bg-center bg-cover relative"
+              :class="{ 'grayscale opacity-40': isFailed(row) }"
+              :style="{
+                backgroundImage: `url(${row.image.url})`
+              }"
+            >
+              <ContextMenu>
+                <ContextMenuTrigger class="absolute top-0 bottom-0 left-0 w-1/4 rounded-l-2xl">
+                </ContextMenuTrigger>
+                <ContextMenuContent class="bg-white border border-gray-warm-300 rounded-lg">
+                  <ContextMenuItem @click="copyToClipboard(row.id)">{{
+                    t('components.templates.datatable.debug-options.copy-id')
+                  }}</ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
+            </div>
+
+            <Tooltip v-if="isFailed(row)">
+              <TooltipTrigger as-child>
+                <div
+                  aria-hidden="true"
+                  class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center bg-error-200/60 p-1.5 rounded-full backdrop-blur-xs border-2 border-base-white ring-[3px] ring-error-600/20 ring-offset-1 ring-offset-base-white/30 shadow-md shadow-error-700"
+                >
+                  <Icon name="alert-triangle" size="xl" stroke-color="error-700" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent :title="t('views.templates.table.failed-message')" />
+            </Tooltip>
           </div>
         </template>
 
         <template #cell-name="{ row }">
-          <p class="text-sm font-semibold text-gray-warm-900 truncate">{{ row.name }}</p>
+          <div class="flex flex-col">
+            <p class="text-sm font-semibold text-gray-warm-900 truncate">{{ row.name }}</p>
+            <template v-if="isFailed(row)">
+              <Tooltip :delay-duration="200">
+                <TooltipTrigger as-child>
+                  <div
+                    class="inline-flex items-center gap-1.5 font-semibold max-w-full w-max text-xs text-error-600"
+                  >
+                    <span aria-hidden="true" class="contents">
+                      <Icon
+                        name="info-circle"
+                        class="size-3.5 shrink-0"
+                        stroke-color="currentColor"
+                      />
+                    </span>
+                    <span class="truncate">{{ t('views.templates.table.failed-badge') }}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent :title="t('views.templates.table.failed-message')" />
+              </Tooltip>
+              <span class="sr-only">{{ t('views.templates.table.failed-message') }}</span>
+            </template>
+          </div>
         </template>
 
         <template #cell-description="{ row }">
@@ -396,6 +435,7 @@ const {
                     </Button>
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    :disabled="isFailed(row)"
                     @click="
                       handleWithDesktopQuotaCheck(
                         () => (convertModalData = { id: row.id, name: row.name })
@@ -438,7 +478,7 @@ const {
               hierarchy="secondary-gray"
               icon="copy-07"
               class="aspect-square p-[10px]"
-              :disabled="templateCreationCheckIsPending"
+              :disabled="templateCreationCheckIsPending || isFailed(row)"
               @click="
                 handleWithTemplateQuotaCheck(() =>
                   router.push({ name: 'duplicate-template', params: { templateId: row.id } })
