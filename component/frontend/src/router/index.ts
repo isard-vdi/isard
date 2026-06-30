@@ -36,7 +36,7 @@ const router = createRouter({
               },
               children: [
                 {
-                  path: ':desktopId/:action(desktop-created|desktop-updated)',
+                  path: ':desktopId/:action(desktop-created|desktop-updated)/:origin(media)?',
                   name: 'single-desktop',
                   component: () => import('../views/DesktopsView.vue'),
                   meta: {
@@ -175,6 +175,15 @@ const router = createRouter({
               meta: {
                 title: 'router.media.title',
                 subtitle: 'router.media.subtitle'
+              }
+            },
+            {
+              path: 'new-desktop/:mediaId',
+              name: 'new-desktop-from-media',
+              component: () => import('../views/NewDesktopFromMediaView.vue'),
+              meta: {
+                title: 'router.media.new-desktop-from-media.title',
+                subtitle: 'router.media.new-desktop-from-media.subtitle'
               }
             }
           ]

@@ -501,6 +501,10 @@ class CreateDesktopFromMedia(BaseModel):
     )
     guest_properties: DomainGuestProperties
     hardware: MediaHardware
+    image: Optional[DomainImage] = Field(
+        default=None,
+        description="Image to be used for the desktop. If not provided, a default stock card will be assigned.",
+    )
 
 
 class BulkEditDesktopsRequest(BaseModel):

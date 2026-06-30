@@ -39,10 +39,6 @@
       "edit": {
         "title": "Edit Desktop",
         "subtitle": "Update the desktop settings"
-      },
-      "new-from-media": {
-        "title": "New desktop from media",
-        "subtitle": "Create a desktop from an ISO or floppy"
       }
     },
     "templates": {
@@ -63,7 +59,11 @@
     },
     "media": {
       "title": "Media",
-      "subtitle": "Create and manage proprietary media or use external media to create new desktops"
+      "subtitle": "Create and manage proprietary media or use external media to create new desktops",
+      "new-desktop-from-media": {
+        "title": "New desktop from media",
+        "subtitle": "Create a new desktop from an installation media"
+      }
     },
     "recycle-bin": {
       "title": "Recycle bin",
@@ -225,95 +225,6 @@
         "go-to-desktops": "Go to desktops"
       }
     },
-    "edit-desktop": {
-      "header": {
-        "cancel": "Cancel",
-        "save": "Save changes"
-      },
-      "sections": {
-        "info": {
-          "title": "Desktop information",
-          "description": "Update the name and description of the desktop"
-        },
-        "access": {
-          "title": "Desktop access",
-          "description": "Configure how the desktop will be accessed"
-        },
-        "hardware": {
-          "title": "Hardware configuration",
-          "description": "Adjust the hardware resources assigned to the desktop"
-        }
-      },
-      "errors": {
-        "load": "Failed to load the desktop",
-        "submit": "Failed to update the desktop"
-      },
-      "success": {
-        "message": "Desktop updated successfully"
-      }
-    },
-    "edit-template": {
-      "header": {
-        "cancel": "Cancel",
-        "save": "Save changes"
-      },
-      "sections": {
-        "info": {
-          "title": "Template information",
-          "description": "Update the name and description of the template"
-        },
-        "access": {
-          "title": "Template access",
-          "description": "Configure how desktops created from this template will be accessed"
-        },
-        "hardware": {
-          "title": "Hardware configuration",
-          "description": "Adjust the hardware resources assigned to the template"
-        }
-      },
-      "errors": {
-        "load": "Failed to load the template",
-        "submit": "Failed to update the template"
-      },
-      "success": {
-        "message": "Template updated successfully"
-      }
-    },
-    "new-from-media": {
-      "title": "New desktop from media",
-      "subtitle": "Creating from '{media}'",
-      "header": {
-        "cancel": "Cancel",
-        "create": "Create desktop"
-      },
-      "errors": {
-        "title": "Error creating the desktop"
-      },
-      "info": {
-        "title": "Name and description",
-        "description": "Set the name and description of the new desktop."
-      },
-      "os-template": {
-        "title": "Operating system template",
-        "description": "Pick the OS hardware template for the new desktop.",
-        "label": "OS template",
-        "placeholder": "Select a template"
-      },
-      "access": {
-        "title": "Access",
-        "description": "Viewers and credentials for the new desktop."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memory, disk size, boot order and interfaces."
-      },
-      "unsaved-changes": {
-        "title": "Unsaved changes",
-        "description": "You have unsaved changes. If you leave they will be lost.",
-        "stay": "Stay",
-        "leave": "Discard changes"
-      }
-    },
     "migration": {
       "title": "User migration",
       "subtitle": "Migrate \"{old_user_name}\" ({old_user_provider} authentication) to \"{new_user_name}\" ({new_user_provider} authentication)",
@@ -467,6 +378,7 @@
         }
       },
       "go-to-desktops": "Go to desktops",
+      "go-to-media": "Go to media",
       "desktop-created": {
         "title": "Desktop created successfully",
         "description": "You can start it now or go back to your desktops page."
@@ -664,6 +576,9 @@
           },
           "stop-download": {
             "title": "Stop download"
+          },
+          "create-desktop": {
+            "title": "Create desktop from media"
           }
         },
         "unavailable": "The media is currently unavailable. Please try again later.",
@@ -899,6 +814,77 @@
       "go-login": "Back to login",
       "buttons": {
         "reset": "Send reset link"
+      }
+    },
+    "new-desktop-from-media": {
+      "os-template": {
+        "title": "Operating system template",
+        "description": "Select the operating system template to use for the installation",
+        "placeholder": "Select an OS template"
+      }
+    },
+    "edit-desktop": {
+      "title": "Edit desktop",
+      "subtitle": "Editing \"{name}\"",
+      "header": {
+        "cancel": "Cancel",
+        "save": "Save changes"
+      },
+      "errors": {
+        "title": "Error saving desktop"
+      },
+      "info": {
+        "title": "Name & description",
+        "description": "Set the desktop name and description."
+      },
+      "access": {
+        "title": "Access",
+        "description": "Viewers, credentials, and bastion configuration."
+      },
+      "hardware": {
+        "title": "Hardware",
+        "description": "vCPU, memory, boot order, interfaces and reservables."
+      },
+      "save-confirmation": {
+        "title": "Some hardware fields are restricted",
+        "description": "Saving will apply the restricted hardware changes. Continue?",
+        "cancel": "Cancel",
+        "confirm": "Save anyway"
+      },
+      "unsaved-changes": {
+        "title": "Unsaved changes",
+        "description": "You have unsaved changes. Leaving will discard them.",
+        "stay": "Stay",
+        "leave": "Discard changes"
+      }
+    },
+    "edit-template": {
+      "title": "Edit template",
+      "subtitle": "Editing \"{name}\"",
+      "header": {
+        "cancel": "Cancel",
+        "save": "Save changes"
+      },
+      "errors": {
+        "title": "Error saving template"
+      },
+      "info": {
+        "title": "Name & description",
+        "description": "Set the template name and description."
+      },
+      "access": {
+        "title": "Access",
+        "description": "Viewers and credentials for the resulting desktops."
+      },
+      "hardware": {
+        "title": "Hardware",
+        "description": "vCPU, memory, boot order, interfaces and reservables."
+      },
+      "unsaved-changes": {
+        "title": "Unsaved changes",
+        "description": "You have unsaved changes. Leaving will discard them.",
+        "stay": "Stay",
+        "leave": "Discard changes"
       }
     }
   },
@@ -1303,7 +1289,8 @@
         "wireguard-warning": {
           "title": "Wireguard interface required",
           "description": "The selected viewer needs the wireguard network interface to work. Add it to continue.",
-          "add-interface-button": "Add wireguard interface"
+          "add-interface-button": "Add wireguard interface",
+          "no-permission-description": "The selected viewer needs the wireguard network interface to work, but you do not have permission to use it. Contact your administrator to enable it."
         }
       },
       "hardware": {
@@ -1908,7 +1895,8 @@
       "storage-unavailable-modal": {
         "title": "Storage unavailable",
         "description": "The creation storage is currently unavailable and desktops cannot be created. Please try again later.",
-        "go-to-desktops": "Go back to desktops"
+        "go-to-desktops": "Go back to desktops",
+        "go-to-media": "Go back to media"
       },
       "direct-viewer-modal": {
         "title": "Direct access link",
@@ -2079,9 +2067,6 @@
         "title": "Media creation quota exceeded",
         "description": "Media creation quota exceeded. A media must be deleted in order to upload a new one.",
         "cancel": "Go back to media"
-      },
-      "actions": {
-        "new-from-media": "Create desktop"
       }
     },
     "deployments": {
@@ -2309,12 +2294,6 @@
   "api": {
     "loading": "Loading...",
     "loading-error": "Error loading data",
-    "new-from-media": {
-      "errors": {
-        "generic": "There was an error creating the desktop. Please try again.",
-        "internal_server": "Internal server error while creating the desktop."
-      }
-    },
     "user": {
       "errors": {
         "unauthorized": "Your session has expired. Please log in again.",
@@ -2428,6 +2407,20 @@
           "title": "Desktop reservables are not equal",
           "description": "All desktops with reservables in a deployment must have the same reservables assigned. Please make sure all desktops with reservables have the same reservables assigned and try again."
         }
+      }
+    },
+    "edit-desktop": {
+      "errors": {
+        "generic": "There was an error saving the desktop. Please try again.",
+        "internal_server": "Internal server error while saving the desktop.",
+        "desktop_not_stopped": "The desktop must be stopped before editing."
+      }
+    },
+    "edit-template": {
+      "errors": {
+        "generic": "There was an error saving the template. Please try again.",
+        "internal_server": "Internal server error while saving the template.",
+        "new_template_name_exists": "A template with this name already exists."
       }
     },
     "booking": {

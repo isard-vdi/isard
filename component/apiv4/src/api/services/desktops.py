@@ -380,7 +380,6 @@ class DesktopService:
             "persistent": True,
             "forced_hyp": False,
             "favourite_hyp": False,
-            "from_media": data.media_id,
             "tag": False,
             "tag_visible": True,
             "booking_id": False,
@@ -438,6 +437,10 @@ class DesktopService:
         desktop_status = CommonDesktops.parse_frontend_desktop_status(details)["status"]
         boots_names = RethinkBoot.get_boots_names()
         videos_names = RethinkVideos.get_videos_names()
+        template = details.get("template", None)
+        if not isinstance(template, dict) or not template.get("id"):
+            template = None
+
         parsed_details = {
             "id": desktop_id,
             "name": details["name"],
@@ -473,7 +476,7 @@ class DesktopService:
             "status": desktop_status,
             "interfaces": CommonDesktops.get_desktop_networks(desktop_id),
             "credentials": details.get("guest_properties", {}).get("credentials", None),
-            "template": details.get("template", None),
+            "template": template,
         }
 
         for media_kind in ["isos", "floppies"]:
