@@ -1259,6 +1259,57 @@ def move_delete(path):
         raise ValueError(f"Path {path} not found")
 
 
+def _storage_qcow():
+    """Lazy import of ``storage_lib.qcow`` (lives at ``/utils`` in the image,
+    which is on PATH but not PYTHONPATH). Imported lazily so this task module
+    stays importable in contexts where ``/utils`` is absent."""
+    try:
+        from storage_lib import qcow
+    except ModuleNotFoundError:
+        import sys
+
+        if "/utils" not in sys.path:
+            sys.path.insert(0, "/utils")
+        from storage_lib import qcow
+    return qcow
+
+
+@_publishes_result
+def rebase(child_path, new_backing_path):
+    """Re-point a qcow2 child's backing file to its parent's NEW path.
+
+    Net-new task for the admin storage-disk path->path migration saga: once a
+    parent disk has been moved, each child must repoint its own backing pointer
+    to the parent's new location. Wraps :func:`storage_lib.qcow.rebase_file`,
+    which runs ``qemu-img rebase -u -b <new_backing_path> -F qcow2 <child>`` and
+    refuses (returns failure) if the child is locked by a hypervisor.
+
+    Runs on a ``storage.*`` queue and is decorated ``@_publishes_result`` so its
+    completion is published to ``stream:task-results`` and change-handler
+    advances the chain (its ``core`` dependents — ``storage_update`` /
+    ``update_status``).
+
+    ``-u`` (unsafe / metadata-only) is correct ONLY when the backing CONTENT is
+    unchanged and only its path moved — exactly the migration case, where the
+    parent's bytes were copied verbatim to ``new_backing_path``. ``-F qcow2``
+    assumes a qcow2 parent. Idempotent: re-running against an already-repointed
+    child re-writes the same pointer and succeeds (safe under resume /
+    at-least-once redelivery).
+
+    :param child_path: Path of the child qcow2 whose backing is repointed.
+    :param new_backing_path: The parent's NEW absolute path (from the ledger).
+    :raises RuntimeError: if the rebase fails or the child is in use.
+    :return: 0 on success.
+    """
+    qcow = _storage_qcow()
+    success, error = qcow.rebase_file(child_path, new_backing_path)
+    if not success:
+        raise RuntimeError(
+            f"rebase of {child_path} onto {new_backing_path} failed: {error}"
+        )
+    return 0
+
+
 @_publishes_result
 def convert(source_disk_path, dest_disk_path, format, compression):
     """
