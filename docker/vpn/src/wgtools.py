@@ -15,13 +15,7 @@ from changefeed_models.users_row import UsersRow
 from db import vpn_rethink_conn
 from pydantic import BaseModel
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
-
-# Simpler iptools. Just adds both directions filtering
 from simple_iptools import UserIpTools
-
-# Chain system. Not working when removing user when his last desktop
-# is stopped
-# from user_iptools import UserIpTools
 
 
 def _get_infra_mtu():

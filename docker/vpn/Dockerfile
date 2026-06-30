@@ -18,8 +18,8 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/.venv
 
 RUN apk add --no-cache \
-    autoconf automake build-base git iptables-dev libffi-dev libmnl-dev \
-    libnftnl-dev libtool linux-headers musl-dev openssl-dev python3-dev
+    autoconf automake build-base git libffi-dev libtool linux-headers \
+    musl-dev openssl-dev python3-dev
 
 WORKDIR /workspace
 COPY . .
@@ -32,7 +32,7 @@ RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /et
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     conntrack-tools dnsmasq guacamole-server guacamole-server-dev \
-    guacamole-server-rdp iptables iptables-legacy libffi openssh openssl \
+    guacamole-server-rdp iptables libffi openssh openssl \
     openvswitch@community wireguard-tools
 
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
@@ -40,11 +40,7 @@ RUN mkdir -pv /var/run/openvswitch/
 COPY docker/vpn/ovs /ovs
 
 ENV XTABLES_LIBDIR=/usr/lib/xtables
-ENV IPTABLES_LIBDIR=/usr/lib
 RUN ln -s /usr/sbin/iptables /sbin/iptables
-RUN ln -s libip4tc.so.2 /usr/lib/libip4tc.so && \
-    ln -s libip6tc.so.2 /usr/lib/libip6tc.so && \
-    ln -s libxtables.so.12 /usr/lib/libxtables.so
 
 COPY --from=builder /.venv /.venv
 COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
