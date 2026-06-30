@@ -688,6 +688,11 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
     from isardvdi_common.models.storage import Storage
 
     cache = {}
+    #: usage directory resolved ONCE per storage id. ``get_usage_path`` draws a
+    #: weighted-random path on every call, so a multi-path destination pool would
+    #: otherwise land dst_path, dst_dir and the child's parent_dst_path in three
+    #: different directories (saga-0). Resolve once, derive everything from it.
+    dst_dir_cache = {}
 
     def st(sid):
         if sid not in cache:
@@ -696,6 +701,15 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
 
     def get_children(sid):
         return [c.id for c in st(sid).children]
+
+    def dst_dir_of(s):
+        if s.id not in dst_dir_cache:
+            dst_dir_cache[s.id] = s.get_storage_pool_path(dst_pool)
+        return dst_dir_cache[s.id]
+
+    def dst_path_of(s):
+        directory = dst_dir_of(s)
+        return None if directory is None else f"{directory}/{s.id}.{s.type}"
 
     def node_info(sid):
         s = st(sid)
@@ -709,16 +723,18 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
         info = {
             "kind": classify_kind(has_children, getattr(s, "perms", None)),
             "src_path": src_path,
-            "dst_path": s.path_in_pool(dst_pool),
-            "dst_dir": s.get_storage_pool_path(dst_pool),
+            "dst_path": dst_path_of(s),
+            "dst_dir": dst_dir_of(s),
             "size_bytes": size_bytes or 0,
         }
         parent_id = s.parent
         if parent_id:
             p = st(parent_id)
             info["parent_storage_id"] = parent_id
-            info["parent_dst_path"] = p.path_in_pool(dst_pool)
-            info["parent_dst_dir"] = p.get_storage_pool_path(dst_pool)
+            # Reuse the parent's single resolved directory (cached by id) so the
+            # child rebases onto exactly where the parent's file actually landed.
+            info["parent_dst_path"] = dst_path_of(p)
+            info["parent_dst_dir"] = dst_dir_of(p)
         return info
 
     items = []

@@ -133,6 +133,95 @@ def test_summarize_plan_multi_tree():
 
 
 # --------------------------------------------------------------------------- #
+# build_plan_for_roots — destination path resolution (saga-0 regression)
+#
+# On a multi-path destination pool, get_usage_path() draws a weighted-random
+# directory on EVERY call. The plan must resolve the usage directory ONCE per
+# node and derive dst_path / dst_dir / the child's parent_dst_path from that one
+# value — never three independent draws (which land the file in dir A, the DB
+# directory_path in B and the child's rebase target in C → orphaned file +
+# broken chain after the source delete).
+# --------------------------------------------------------------------------- #
+class _MultiPathPool:
+    """Destination pool whose usage path differs on every draw (simulates a
+    multi-path-per-usage pool where consecutive random.choices diverge)."""
+
+    id = "dstpool"
+    mountpoint = "/dst"
+
+    def __init__(self):
+        self._n = 0
+
+    def get_usage_path(self, usage):
+        self._n += 1
+        return f"d{self._n}"  # d1, d2, d3, ... — a different dir each call
+
+
+class _FakeStorage:
+    """Minimal Storage stand-in driven by a class-level registry. Mirrors the
+    REAL Storage: path_in_pool and get_storage_pool_path each call
+    get_usage_path independently, so the legacy 3-draw plan diverges here."""
+
+    registry: dict = {}
+
+    def __init__(self, sid):
+        self._sid = sid
+        data = _FakeStorage.registry[sid]
+        self.id = sid
+        self.type = data["type"]
+        self.parent = data["parent"]
+        self.perms = data.get("perms", ["r"])
+        self.pool_usage = data.get("pool_usage", "desktop")
+        self._children_ids = data.get("children", [])
+
+    @property
+    def children(self):
+        return [_FakeStorage(c) for c in self._children_ids]
+
+    @property
+    def path(self):
+        return f"/src/{self.id}.{self.type}"
+
+    def get_storage_pool_path(self, pool):
+        if self.pool_usage is None:
+            return None
+        return f"{pool.mountpoint}/{pool.get_usage_path(self.pool_usage)}"
+
+    def path_in_pool(self, pool):
+        if self.pool_usage is None:
+            return None
+        return f"{pool.mountpoint}/{pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
+
+
+class _FakeStorageProcessed:
+    @staticmethod
+    def get_storage_actual_size(sid):
+        return 1000
+
+
+def test_build_plan_resolves_dst_dir_once_per_node_multipath(monkeypatch):
+    _FakeStorage.registry = {
+        "root": {"type": "qcow2", "parent": None, "perms": ["r"], "children": ["c"]},
+        "c": {"type": "qcow2", "parent": "root", "perms": ["r", "w"], "children": []},
+    }
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+
+    items, _ = mig.build_plan_for_roots("mig1", ["root"], _MultiPathPool())
+    by_id = {it["storage_id"]: it for it in items}
+    root, child = by_id["root"], by_id["c"]
+
+    # 1. each node's file lives in its own recorded directory
+    assert root["dst_path"] == f"{root['dst_dir']}/root.qcow2"
+    assert child["dst_path"] == f"{child['dst_dir']}/c.qcow2"
+    # 2. the child rebases onto exactly where the parent's file landed
+    assert child["parent_dst_path"] == root["dst_path"]
+    assert child["parent_dst_dir"] == root["dst_dir"]
+
+
+# --------------------------------------------------------------------------- #
 # probe_actual_size
 # --------------------------------------------------------------------------- #
 def test_probe_actual_size_ok(monkeypatch):
