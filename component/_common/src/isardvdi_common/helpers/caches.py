@@ -156,7 +156,8 @@ class Caches(RethinkSharedConnection):
                 "secondary_groups_data": [
                     {
                         "id": group_id,
-                        "name": cls.get_document("groups", group_id, ["name"]),
+                        "name": cls.get_document("groups", group_id, ["name"])
+                        or "[deleted]",
                     }
                     for group_id in user["secondary_groups"]
                 ],
