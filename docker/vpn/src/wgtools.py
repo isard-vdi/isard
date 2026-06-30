@@ -15,13 +15,7 @@ from changefeed_models.users_row import UsersRow
 from db import vpn_rethink_conn
 from pydantic import BaseModel
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
-
-# Simpler iptools. Just adds both directions filtering
 from simple_iptools import UserIpTools
-
-# Chain system. Not working when removing user when his last desktop
-# is stopped
-# from user_iptools import UserIpTools
 
 
 def _get_infra_mtu():
@@ -233,7 +227,7 @@ class Wg(object):
         self.clients_reserved_ips = self.clients_reserved_ips + [
             p["vpn"]["wireguard"]["Address"]
             for p in wglist
-            if "vpn" in p.keys() and "wireguard" in p["vpn"].keys()
+            if isinstance(p.get("vpn"), dict) and "wireguard" in p["vpn"]
         ]
 
         create_peers = []
@@ -243,13 +237,13 @@ class Wg(object):
             new_peer = False
             if (
                 self.keys.update_clients == True
-                and "vpn" in peer.keys()
-                and "wireguard" in peer["vpn"].keys()
+                and isinstance(peer.get("vpn"), dict)
+                and "wireguard" in peer["vpn"]
             ):
                 new_peer = peer
                 new_peer["vpn"]["wireguard"]["keys"] = self.keys.new_client_keys()
                 create_peers.append(new_peer)
-            if "vpn" not in peer.keys() or "wireguard" not in peer.get("vpn", {}):
+            if not isinstance(peer.get("vpn"), dict) or "wireguard" not in peer["vpn"]:
                 new_peer = self.gen_new_peer(peer)
                 create_peers.append(new_peer)
             if new_peer == False:
