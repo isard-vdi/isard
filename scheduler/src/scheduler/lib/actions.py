@@ -87,6 +87,36 @@ from .exceptions import Error
 engine_client = ApiClient("engine")
 scheduler_client = ApiClient("scheduler")
 
+#: F2: bound the recurring storage-action retry so a desktop that never stops
+#: cannot keep a storage action (move/convert/...) pending forever. After this
+#: many `desktops_not_stopped` deferrals the action is abandoned and surfaced.
+STG_ACTION_MAX_ATTEMPTS = 60
+
+
+def _stg_action_should_abandon(attempts, max_attempts=STG_ACTION_MAX_ATTEMPTS):
+    """Whether a storage action has been deferred too many times to keep
+    retrying (pure)."""
+    return attempts is not None and attempts >= max_attempts
+
+
+def _bump_stg_action_attempts(job_id):
+    """Increment and return the desktops_not_stopped retry count stored on the
+    storage-action job row, or ``None`` if the job row is gone."""
+    with app.app_context():
+        updated = (
+            r.table("scheduler_jobs")
+            .get(job_id)
+            .update(
+                {"stg_attempts": r.row["stg_attempts"].default(0).add(1)},
+                return_changes=True,
+            )
+            .run(db.conn)
+        )
+    try:
+        return updated["changes"][0]["new_val"]["stg_attempts"]
+    except (KeyError, IndexError, TypeError):
+        return None
+
 
 class _SafeFormatter(string.Formatter):
     """Formatter that only allows simple key substitution, rejecting
@@ -802,7 +832,29 @@ class Actions:
                 scheduler_client.delete(f"/{kwargs['storage_id']}.stg_action")
         except ApiV4Error as e:
             if e.description_code == "desktops_not_stopped":
-                pass
+                # F2: bound + surface this retry instead of looping silently
+                # forever. Each deferral bumps a counter on the job row; once it
+                # crosses the cap the action is abandoned (job removed) and the
+                # give-up is logged so a stuck force-stop is visible.
+                job_id = f"{kwargs['storage_id']}.stg_action"
+                attempts = _bump_stg_action_attempts(job_id)
+                log.warning(
+                    "storage action '%s' for %s deferred: desktops not stopped "
+                    "(attempt %s/%s)",
+                    kwargs.get("action"),
+                    kwargs["storage_id"],
+                    attempts,
+                    STG_ACTION_MAX_ATTEMPTS,
+                )
+                if _stg_action_should_abandon(attempts):
+                    log.error(
+                        "storage action '%s' for %s abandoned after %s attempts: "
+                        "desktops never stopped",
+                        kwargs.get("action"),
+                        kwargs["storage_id"],
+                        attempts,
+                    )
+                    scheduler_client.delete(f"/{job_id}")
             elif (
                 e.description_code in ["storage_not_ready", "storage_not_found"]
                 or e.status_code == 400
