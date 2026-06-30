@@ -62,9 +62,9 @@ override-dependencies = [
 ]
 
 [tool.black]
-# .uv-cache: CI default cache (.gitlab-ci.yml:62-65) restores .uv-cache/
-# into $CI_PROJECT_DIR before .lint-uv-job, so isort/black would otherwise
-# scan setuptools/distutils sources unpacked under .uv-cache/archive-v0/.
+# .uv-cache / .bun-cache: CI default cache (.gitlab-ci.yml:62-65) restores
+# these into $CI_PROJECT_DIR before .lint-uv-job, so isort/black would
+# otherwise scan stray .py files vendored under them.
 # isardvdi_*_client/src/isardvdi_*_client: openapi-python-client output,
 # gitignored except __init__.py; propagated by gen-protobuf as artifacts
 # (.gitlab-ci.yml:230-234) so it lands in the lint workspace too.
@@ -73,6 +73,7 @@ extend-exclude = '''
   .*_pb2.py
   | .*_pb2_grpc.py
   | ^/pkg/gen
+  | ^/\.bun-cache
   | ^/\.go-mod-cache
   | ^/\.uv-cache
   | ^/\.venv
@@ -89,6 +90,7 @@ extend_skip_glob = [
   "*_.pb2.py",
   "*_pb2_grpc.py",
   "pkg/gen/*",
+  ".bun-cache/*",
   ".go-mod-cache/*",
   ".uv-cache/*",
   ".venv/*",
