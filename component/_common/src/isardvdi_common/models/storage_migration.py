@@ -186,8 +186,12 @@ class MigrationSelection(BaseModel):
 class MigrationConfig(BaseModel):
     """Admin-set, per-job knobs."""
 
-    bwlimit_kbs: int = 0  # 0 == unlimited (rsync --bwlimit, KB/s)
-    parallelism: int = 1  # concurrent independent trees
+    # 0 == unlimited (rsync --bwlimit, KB/s); a negative value would emit
+    # --bwlimit=-N and fail every move.
+    bwlimit_kbs: int = Field(default=0, ge=0)
+    # concurrent independent trees; an unbounded value defeats the throttle and
+    # mass-flips storage rows to maintenance.
+    parallelism: int = Field(default=1, ge=1, le=64)
     window: MigrationWindow | None = None
     verify: bool = True  # qemu_img_check after move/rebase
     force_stop_desktops: bool = False

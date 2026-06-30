@@ -201,6 +201,39 @@ class TestConfig:
         )
         assert resp.status_code == 428
 
+    def test_config_rejects_out_of_range_parallelism(self, test_client):
+        # parallelism=100000 would defeat the throttle and mass-flip rows to
+        # maintenance — bounded server-side via Field(ge=1, le=...).
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"parallelism": 100000},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 400
+
+    def test_config_rejects_zero_parallelism(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"parallelism": 0},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 400
+
+    def test_config_rejects_negative_bwlimit(self, test_client):
+        # negative bwlimit produces rsync --bwlimit=-N and fails every move
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": -1},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 400
+
 
 # ── plan (mock the compute boundary) ────────────────────────────────────────
 class TestPlan:
