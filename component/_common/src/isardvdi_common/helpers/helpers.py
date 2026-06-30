@@ -29,8 +29,16 @@ log = logging.getLogger(__name__)
 
 mac_gen_semaphore = Semaphore()
 
+MIN_MEMORY_KIB = 25600  # engine set_memory floor: 25 MiB
+
 
 class Helpers(RethinkSharedConnection):
+
+    @staticmethod
+    def memory_gib_to_kib(memory_gib):
+        """Convert RAM from GiB to KiB, rounded up to the engine minimum (25 MiB).
+        Installs may hold sub-minimum values; round instead of rejecting."""
+        return max(int(memory_gib * 1048576), MIN_MEMORY_KIB)
 
     @staticmethod
     def gen_random_mac():

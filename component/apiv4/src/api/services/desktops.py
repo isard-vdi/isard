@@ -258,7 +258,7 @@ class DesktopService:
         # resolve_hardware_from_create_dict in engine/models/domain_xml.py);
         # the apiv4 MediaHardware schema receives memory in GB.
         if "memory" in hardware:
-            hardware["memory"] = int(hardware["memory"] * 1048576)
+            hardware["memory"] = Helpers.memory_gib_to_kib(hardware["memory"])
         reservables = hardware.pop("reservables", None) or {}
         # Vue 3 ships ``vgpus: ["None"]`` (the literal string list)
         # to clear the GPU reservable. Coerce here so the booking
@@ -1026,8 +1026,8 @@ class DesktopService:
                 }
 
                 if "hardware" in create_dict and "memory" in hardware:
-                    desktop["create_dict"]["hardware"]["memory"] = int(
-                        hardware["memory"] * 1048576
+                    desktop["create_dict"]["hardware"]["memory"] = (
+                        Helpers.memory_gib_to_kib(hardware["memory"])
                     )
 
                 RethinkDomain(**desktop)

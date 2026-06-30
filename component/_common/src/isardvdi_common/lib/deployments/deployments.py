@@ -636,7 +636,9 @@ class DeploymentsProcessed(RethinkSharedConnection):
         deployment_data["description"] = data.get("description")
         data["name"] = data.pop("desktop_name")
         data["reservables"] = data.get("hardware").pop("reservables")
-        data["hardware"]["memory"] = data["hardware"]["memory"] * 1048576
+        data["hardware"]["memory"] = Helpers.memory_gib_to_kib(
+            data["hardware"]["memory"]
+        )
         DesktopViewers.check_viewers(data, deployment)
         deployment_booking = cls._parse_booking(deployment["id"])
         DeploymentUsers.get_selected_users(
@@ -1086,8 +1088,10 @@ class DeploymentsProcessed(RethinkSharedConnection):
                     "description": desktop["description"],
                     "hardware": {
                         **desktop["hardware"],
-                        # Must be in bytes for the deployment creation. When creating desktops its in MiB and will be converted later
-                        "memory": desktop["hardware"]["memory"] * 1048576,
+                        # Stored in KiB (rounded up to the minimum); created desktops convert again later
+                        "memory": Helpers.memory_gib_to_kib(
+                            desktop["hardware"]["memory"]
+                        ),
                     },
                     "reservables": desktop["reservables"],
                     "guest_properties": desktop["guest_properties"],
@@ -1540,6 +1544,21 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 guest_properties["viewers"] = new_data["guest_properties"]["viewers"]
         return merged_create_dict, guest_properties
 
+    @staticmethod
+    def _convert_and_propagate_edited_memory(deployment_hardware, desktop_data):
+        """Convert the merged GB memory to KiB on the deployment create_dict and
+        on ``desktop_data`` (which updates the domain rows), so domains store KiB
+        not the raw GB number. Rounds up to the minimum; skips the write-back on
+        a hardware-less edit (rename)."""
+        memory_kib = Helpers.memory_gib_to_kib(deployment_hardware["memory"])
+        deployment_hardware["memory"] = memory_kib
+        if (
+            isinstance(desktop_data.get("hardware"), dict)
+            and "memory" in desktop_data["hardware"]
+        ):
+            desktop_data["hardware"]["memory"] = memory_kib
+        return memory_kib
+
     @classmethod
     def edit_deployment_desktops(
         cls,
@@ -1593,14 +1612,12 @@ class DeploymentsProcessed(RethinkSharedConnection):
                     "The following hardware cannot be used due to permissions: "
                     + str(limited_hardware),
                 )
-            # Convert the memory to bytes. Must be after the limit hardware since the quota is checked in GB
-            deployment_create_dict_object[desktop_data["tag_desktop_id"]]["hardware"][
-                "memory"
-            ] = int(
+            # Must run after limit_hardware: the quota is checked in GB.
+            cls._convert_and_propagate_edited_memory(
                 deployment_create_dict_object[desktop_data["tag_desktop_id"]][
                     "hardware"
-                ]["memory"]
-                * 1048576
+                ],
+                desktop_data,
             )
 
         with cls._rdb_context():
@@ -1611,6 +1628,8 @@ class DeploymentsProcessed(RethinkSharedConnection):
             ).run(cls._rdb_connection)
         Caches.invalidate_cache("deployments", deployment_id)
 
+        # Rebuild from the pre-edit create_dicts so the interface-change check
+        # below compares against the stored interfaces, not the edited ones.
         deployment_create_dict_object = {
             desktop["tag_desktop_id"]: desktop for desktop in create_dicts
         }
@@ -1813,8 +1832,8 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 "description": desktop["description"],
                 "hardware": {
                     **desktop["hardware"],
-                    # Must be in bytes for the deployment creation. When creating desktops its in MiB and will be converted later
-                    "memory": desktop["hardware"]["memory"] * 1048576,
+                    # Stored in KiB (rounded up to the minimum); created desktops convert again later
+                    "memory": Helpers.memory_gib_to_kib(desktop["hardware"]["memory"]),
                 },
                 "reservables": desktop["reservables"],
                 "guest_properties": desktop["guest_properties"],
