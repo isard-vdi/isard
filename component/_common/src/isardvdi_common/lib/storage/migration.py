@@ -221,6 +221,38 @@ def decide_item_action(item, job_status_fn):
     return "noop"
 
 
+def quiesce_decision(domain_status, force_stop):
+    """Decide how to quiesce a disk's domain before moving it.
+
+    ``ok`` — already safe to move (stopped, failed, or no domain/template);
+    ``force_stop`` — running and the admin opted to force-stop it;
+    ``skip`` — running and the admin did NOT opt to force-stop, so the disk
+    (and its subtree) is skipped rather than moving a live disk.
+    """
+    if domain_status in (None, "Stopped", "Failed"):
+        return "ok"
+    return "force_stop" if force_stop else "skip"
+
+
+def descendant_item_ids(items, storage_id, include_self=False):
+    """Item ids of every disk descending from ``storage_id`` (via
+    ``parent_storage_id``), for cascading a skip down a subtree."""
+    by_parent = {}
+    for it in items:
+        by_parent.setdefault(it.get("parent_storage_id"), []).append(it)
+    result = set()
+    if include_self:
+        result.update(it["id"] for it in items if it["storage_id"] == storage_id)
+    stack = [storage_id]
+    while stack:
+        sid = stack.pop()
+        for child in by_parent.get(sid, []):
+            if child["id"] not in result:
+                result.add(child["id"])
+                stack.append(child["storage_id"])
+    return result
+
+
 def tree_next(tree_items, job_status_fn):
     """Decide the next ``(item, action)`` for ONE tree.
 
