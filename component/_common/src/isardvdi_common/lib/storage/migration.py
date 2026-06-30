@@ -594,6 +594,39 @@ def cancel_target(status):
     )
 
 
+#: A disk is COMMITTED once its storage row has been re-pointed at the new
+#: location (``db_updated``) or it is already ``released``. Before that the source
+#: is still the authoritative copy, so a cancel can discard the in-progress work.
+_COMMITTED_STATES = {"db_updated", "released"}
+
+
+def tree_has_committed_disk(tree_items):
+    """True when any disk in the tree has reached the commit point — its storage
+    row re-pointed at the new location (``db_updated``) or already ``released``.
+    Before that the source is still byte-identical and authoritative, so a cancel
+    can discard the in-progress work and skip the tree with no data loss."""
+    return any(str(it["state"]) in _COMMITTED_STATES for it in tree_items)
+
+
+def cancel_skips_tree(tree_items, action, finishing):
+    """Under an admin cancel (``finishing_tree``), True when an in-flight tree
+    must be SKIPPED rather than start/resume more work.
+
+    The cancel-analysis case: an abandoned move on a tree with NO committed disk
+    (the move was enqueued but the worker died at 0 bytes) would otherwise be
+    RESUMED up to ``MAX_ABANDON_RESTARTS`` times before the bound terminalizes
+    it — a cancelled admin should not have an un-started, possibly large move
+    resumed. So when the next action would start/resume a move/rebase/verify and
+    nothing in the tree has committed yet, discard the in-progress work and skip
+    (sources retained). A tree that ALREADY committed a disk still finishes
+    normally (finish-current-tree + verify-all-then-release-all)."""
+    return (
+        finishing
+        and action in ("start_move", "start_rebase", "start_verify")
+        and not tree_has_committed_disk(tree_items)
+    )
+
+
 def plan_tree_failure(tree_items, failed_storage_id):
     """Terminalize a whole tree after one of its disks fails, so the job reaches
     a terminal state (and autostart is restored) instead of wedging on a

@@ -123,6 +123,14 @@ def job_status(task_id):
     Resume is migration-scoped (the move/rebase/verify tasks are idempotent);
     a general resume reaper would be unsafe for relative-resize / in-place
     convert/sparsify tasks, so this lives only here.
+
+    BEST-EFFORT: this detection races rq's own ``StartedJobRegistry.cleanup``,
+    which a LIVE worker runs during periodic maintenance (<= ~600s) and which
+    flips an abandoned STARTED job to ``failed`` (moving it to the
+    FailedJobRegistry). Whichever fires first wins: if we observe ``None`` first
+    the disk RESUMES; if rq's cleanup wins, the job reads ``failed`` here and the
+    tree terminalizes (sources retained) — the bounded-resume terminalize branch
+    is the deliberate SAFE FALLBACK, not a bug. Either outcome is data-loss-safe.
     """
     if not task_id:
         return None
@@ -161,6 +169,12 @@ def _job_abandoned(task):
     means the job must have been expired for at least the grace margin, so a
     briefly-stalled LIVE worker is never flagged. Uses the same redis-from-url
     pattern as the change-handler reconciler.
+
+    BEST-EFFORT and racy by design: rq's own ``StartedJobRegistry.cleanup`` (run
+    by a live worker's periodic maintenance, <= ~600s) reaps the same expired
+    score into the FailedJobRegistry. If it wins, ``job_status`` reads the job as
+    ``failed`` and the tree terminalizes via the bounded-resume fallback instead
+    of resuming — still data-loss-safe (sources retained), so the race is benign.
     """
     try:
         conn = redis.from_url(rq_url())
@@ -335,6 +349,17 @@ class MigrationRunner:
         for it in tree_items:
             self._set(it, state=state, error=reason)
 
+    def _cancel_skip_tree(self, tree_items, reason):
+        """Skip an UNCOMMITTED in-flight tree on cancel: take every disk out of
+        maintenance back to its ORIGINAL status and mark it skipped — sources
+        retained byte-identical, nothing move_deleted. Unlike the never-started
+        cancel, these disks may already be in maintenance (a move was enqueued),
+        so the status restore is mandatory; then ``is_complete`` -> ``reactivate``
+        restores autostart and the job flips to canceled."""
+        for it in tree_items:
+            self._restore_storage_status(it)
+            self._set(it, state=MigrationItemState.SKIPPED.value, error=reason)
+
     def _gate_tree(self, tree_items):
         """Tree-level quiesce gate, evaluated BEFORE the tree starts moving.
 
@@ -464,7 +489,10 @@ class MigrationRunner:
 
     def _mark_moved(self, item):
         self._record_throughput(item)
-        self._set(item, state=MigrationItemState.MOVED.value)
+        # Clean phase advance: reset the orphan-resume bound so abandon_restarts
+        # counts CONSECUTIVE abandonments per phase, not cumulatively across the
+        # disk's whole move->rebase->db lifetime (kinder to a flaky host).
+        self._set(item, state=MigrationItemState.MOVED.value, abandon_restarts=0)
 
     def _skip_move(self, item):
         # dst == src (same-pool, or already in the destination pool): the file is
@@ -493,10 +521,11 @@ class MigrationRunner:
         self._set(item, rebase_task_id=task_id)
 
     def _mark_rebased(self, item):
-        self._set(item, state=MigrationItemState.REBASED.value)
+        # Clean phase advance -> reset the orphan-resume bound (see _mark_moved).
+        self._set(item, state=MigrationItemState.REBASED.value, abandon_restarts=0)
 
     def _skip_rebase(self, item):
-        self._set(item, state=MigrationItemState.REBASED.value)
+        self._set(item, state=MigrationItemState.REBASED.value, abandon_restarts=0)
 
     def _db_update(self, item):
         # Re-point the storage row at the disk's new location. RethinkDB
@@ -516,7 +545,9 @@ class MigrationRunner:
             {"directory_path": item["dst_dir"], "qemu-img-info": info},
             validate=False,
         )
-        self._set(item, state=MigrationItemState.DB_UPDATED.value)
+        # Clean phase advance -> reset the orphan-resume bound so the verify
+        # phase starts the consecutive-abandonment count fresh (see _mark_moved).
+        self._set(item, state=MigrationItemState.DB_UPDATED.value, abandon_restarts=0)
 
     def _start_verify(self, item):
         # UNCONDITIONAL pre-release destination gate: prove the destination is
@@ -664,6 +695,16 @@ class MigrationRunner:
                 results.append((tree_id, None, "gated"))
                 continue
             item, action = mig.tree_next(tree_items, self.job_status_fn)
+            # R2 cancel-aware skip: under cancel (finishing_tree), never START or
+            # RESUME an un-started — possibly large — move/rebase/verify on a tree
+            # that has committed no disk yet. Discard the in-progress work and
+            # skip the tree cleanly (sources retained byte-identical, storage
+            # status restored), driving the job to canceled. A tree that already
+            # committed a disk still finishes normally.
+            if mig.cancel_skips_tree(tree_items, action, finishing):
+                self._cancel_skip_tree(tree_items, "canceled before tree committed")
+                results.append((tree_id, None, "canceled"))
+                continue
             results.append((tree_id, item["id"] if item else None, action))
             handler = self._ACTIONS.get(action)
             if handler is not None:
