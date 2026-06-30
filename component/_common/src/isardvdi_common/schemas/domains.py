@@ -171,8 +171,8 @@ class DesktopFromTemplate(BaseModel):
     allowed: Allowed
     accessed: float
     persistent: bool
-    forced_hyp: bool | None = None
-    favourite_hyp: bool | None = None
+    forced_hyp: bool | list[str] | None = None
+    favourite_hyp: bool | list[str] | None = None
     from_template: str
     tag: str | bool | None = None
     tag_visible: bool | None = None
@@ -202,8 +202,8 @@ class DesktopCreated(BaseModel):
     allowed: Allowed
     accessed: float
     persistent: bool
-    forced_hyp: bool | None = None
-    favourite_hyp: bool | None = None
+    forced_hyp: bool | list[str] | None = None
+    favourite_hyp: bool | list[str] | None = None
     from_template: str
     tag: str | bool | None = None
     tag_visible: bool | None = None
@@ -259,8 +259,8 @@ class TemplateCreation(BaseModel):
     # are not.
     tag_name: str | bool
     tag_visible: bool | None = None
-    favourite_hyp: bool | None = None
-    forced_hyp: bool | None = None
+    favourite_hyp: bool | list[str] | None = None
+    forced_hyp: bool | list[str] | None = None
     xml: Optional[str] = ""
 
 
