@@ -289,6 +289,27 @@ IOTUNE_SCHEMA = Schema(
 index_to_char_suffix_disks = "a,b,c,d,e,f,g,h,i,j,k,l,m,n".split(",")
 
 
+# Per-interface "lab options". Each flag, when True, relaxes one OVS port
+# protection in the hypervisor (see docker/hypervisor/src/ovs/ovs-worker.py).
+# Maps the lab_opts key (API/DB name) -> the <isard:mapping> attribute name.
+LAB_OPT_ATTRS = {
+    "mac_spoofing": "lab_mac_spoofing",
+    "stp_bpdu": "lab_stp_bpdu",
+    "broadcast_unlimited": "lab_bcast_unlimited",
+    "multicast_unlimited": "lab_mcast_unlimited",
+}
+
+
+def normalize_lab_opts(lab_opts):
+    """Strict bool coercion at the boundary: only an actual Python ``True``
+    enables an option. Defends against stringly-typed DB values ("false" is
+    truthy in Python) and missing keys from non-API writers (populate.py,
+    upgrade.py, direct rdb writes). Returns a dict with every known lab_opts
+    key set to a real bool."""
+    src = lab_opts if isinstance(lab_opts, dict) else {}
+    return {key: src.get(key) is True for key in LAB_OPT_ATTRS}
+
+
 class DomainXML(object):
     def __init__(self, xml, id_domain=None):
         # self.tree = etree.parse(StringIO(xml))
@@ -752,6 +773,7 @@ class DomainXML(object):
         model_type="virtio",
         net="default",
         qos=False,
+        lab_opts=None,
     ):
         """
         :param type_interface:' bridge' OR 'network' .
@@ -759,6 +781,12 @@ class DomainXML(object):
                      If network insert xml code for virtual network
         :return:
         """
+
+        # Strict per-key bool coercion at the boundary (see normalize_lab_opts):
+        # only an actual Python True enables a lab option, defending against
+        # stringly-typed DB values from non-API writers such as populate.py,
+        # upgrade.py, or direct rdb writes.
+        lab_opts = normalize_lab_opts(lab_opts)
 
         # OVS/GENEVE tenant-overlay interfaces (ethernet snippet) must carry
         # the derived overlay MTU on the guest virtio NIC; n2m-bridge and the
@@ -780,6 +808,7 @@ class DomainXML(object):
                     "kind": "interface",
                     "interface_id": id_interface,
                     "vlan_id": int(net),
+                    "lab_opts": lab_opts,
                 }
             )
 
@@ -826,6 +855,7 @@ class DomainXML(object):
                                         "kind": "interface",
                                         "interface_id": id_interface,
                                         "vlan_id": vlan_id,
+                                        "lab_opts": lab_opts,
                                     }
                                 )
                             else:
@@ -862,6 +892,7 @@ class DomainXML(object):
                     "interface_id": id_interface,
                     "vlan_id": int(net),
                     "bridge": ovs_br_name,  # Non-default bridge
+                    "lab_opts": lab_opts,
                 }
             )
 
@@ -1104,6 +1135,17 @@ class DomainXML(object):
                 # Optional: non-default bridge (e.g., "ovsbr1" instead of "ovsbr0")
                 if mapping.get("bridge"):
                     mapping_elem.set("bridge", mapping["bridge"])
+                # Per-interface lab options: each flag, when True, relaxes one
+                # OVS port protection in the ovs-worker (mac spoofing, BPDU
+                # tunneling, broadcast/multicast meter ceilings). Each attribute
+                # is emitted explicitly as "true"/"false" (never omitted) so the
+                # hypervisor hook reads the default. Strict identity check
+                # ('is True'): only an actual bool True enables a flag.
+                lab = mapping.get("lab_opts") or {}
+                for opt_key, attr_name in LAB_OPT_ATTRS.items():
+                    mapping_elem.set(
+                        attr_name, "true" if lab.get(opt_key) is True else "false"
+                    )
             elif mapping["kind"] == "user_network":
                 mapping_elem.set("network_id", mapping.get("network_id", ""))
                 mapping_elem.set("metadata_id", str(mapping.get("metadata_id", "")))
@@ -2195,6 +2237,12 @@ def recreate_xml_interfaces(dict_domain, x):
             net=d_interface["net"],
             qos=dict_bandwidth,
             mac=mac_selected,
+            # Per-interface lab options, read from the stored interfaces-table
+            # row. normalize_lab_opts() in add_interface applies strict per-key
+            # 'is True' coercion, so a missing field on legacy rows, an empty
+            # dict, or any stringly-typed value all resolve to False -> strict.
+            # Only the API path (cerberus-validated) writes real bool True flags.
+            lab_opts=d_interface.get("lab_opts"),
         )
 
         interface_index += 1

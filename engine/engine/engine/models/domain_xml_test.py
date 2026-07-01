@@ -1442,3 +1442,137 @@ def test_file_spice_shared_folder_enabled_true_only_when_requested():
         )
         is False
     )
+
+
+# --------------------------------------------------------------------------
+# per-interface lab options in <isard:mapping> (lab_* attributes)
+# --------------------------------------------------------------------------
+
+_ISARD_NS = {"isard": "http://isardvdi.com"}
+
+# lab_opts flag (API/DB name) -> attribute emitted on <isard:mapping>
+_LAB_FLAG_TO_ATTR = {
+    "mac_spoofing": "lab_mac_spoofing",
+    "stp_bpdu": "lab_stp_bpdu",
+    "broadcast_unlimited": "lab_bcast_unlimited",
+    "multicast_unlimited": "lab_mcast_unlimited",
+}
+
+
+def _domain_xml_with_isard_metadata():
+    # A placeholder interface is required: DomainXML.__init__ binds its loop
+    # variable `tree` only while iterating existing interfaces, and reuses it
+    # for boot_order parsing — a zero-interface domain raises UnboundLocalError.
+    # Real domains always have at least one interface. This placeholder is NOT
+    # added to mac2network_mappings (only add_interface() populates those).
+    return (
+        '<domain type="kvm">'
+        "<metadata>"
+        '<isard:isard xmlns:isard="http://isardvdi.com"/>'
+        "</metadata>"
+        "<devices>"
+        '<interface type="network"><source network="default"/></interface>'
+        "</devices>"
+        "</domain>"
+    )
+
+
+def _mapping_of(x):
+    return _parse(x.return_xml()).xpath(
+        "//isard:mac2network/isard:mapping", namespaces=_ISARD_NS
+    )
+
+
+@pytest.mark.parametrize("flag, attr", list(_LAB_FLAG_TO_ATTR.items()))
+@pytest.mark.parametrize(
+    "type_interface, net",
+    [
+        ("ovs", "1002"),
+        ("ovs1", "1002"),  # custom bridge variant
+    ],
+)
+def test_mac2network_lab_flag_propagates_to_xml(
+    monkeypatch, type_interface, net, flag, attr
+):
+    """A single lab_opts flag set True for an OVS-family type emits its
+    lab_* attribute as 'true' and leaves the other three 'false'."""
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface(
+        type_interface,
+        "52:54:00:aa:bb:01",
+        "dom1",
+        "if-lab",
+        net=net,
+        lab_opts={flag: True},
+    )
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)
+    assert len(mapping) == 1
+    assert mapping[0].get(attr) == "true"
+    for other in set(_LAB_FLAG_TO_ATTR.values()) - {attr}:
+        assert mapping[0].get(other) == "false"
+
+
+def test_mac2network_lab_opts_default_all_false(monkeypatch):
+    """When lab_opts is not specified, every lab_* attribute is emitted as
+    'false' (explicit, not omitted) so the hypervisor reads the default."""
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface("ovs", "52:54:00:aa:bb:02", "dom1", "if-prod", net="1003")
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)
+    assert len(mapping) == 1
+    for attr in _LAB_FLAG_TO_ATTR.values():
+        assert mapping[0].get(attr) == "false"
+
+
+def test_mac2network_lab_opts_stringly_typed_coerced_to_false(monkeypatch):
+    """Strict identity ('is True'): stringly-typed values such as the string
+    "true" from non-API DB writers must NOT enable an option — they resolve
+    to 'false'."""
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface(
+        "ovs",
+        "52:54:00:aa:bb:03",
+        "dom1",
+        "if-prod2",
+        net="1004",
+        lab_opts={
+            "mac_spoofing": "true",
+            "stp_bpdu": "false",
+            "broadcast_unlimited": 1,
+        },
+    )
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)
+    assert mapping[0].get("lab_mac_spoofing") == "false"
+    assert mapping[0].get("lab_stp_bpdu") == "false"
+    assert mapping[0].get("lab_bcast_unlimited") == "false"
+
+
+def test_mac2network_lab_opts_missing_from_mapping_defaults_to_false():
+    """A legacy mapping dict without 'lab_opts' still emits all lab_*
+    attributes as 'false' — backward compatible behavior."""
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_mac2network_metadata(
+        [
+            {
+                "mac": "52:54:00:aa:bb:04",
+                "kind": "interface",
+                "interface_id": "if-legacy",
+                "vlan_id": 1005,
+                # no 'lab_opts' key — legacy row from before this feature
+            },
+        ]
+    )
+    mapping = _mapping_of(x)
+    for attr in _LAB_FLAG_TO_ATTR.values():
+        assert mapping[0].get(attr) == "false"
