@@ -56,6 +56,11 @@ class MigrationStatus(StrEnum):
     PAUSED = "paused"
     WINDOW_CLOSED = "window_closed"
     FINISHING_TREE = "finishing_tree"
+    #: recurring job between occurrences — idle, NON-TERMINAL, awaiting the next
+    #: scheduled occurrence (window opens on a selected weekday) to re-scan and
+    #: drain. Only an admin Cancel ends a recurring job; it never self-completes.
+    #: Set only by the reconciler, never directly by an admin action.
+    SCHEDULED = "scheduled"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELED = "canceled"
@@ -79,6 +84,10 @@ class MigrationItemState(StrEnum):
     RELEASED = "released"
     FAILED = "failed"
     SKIPPED = "skipped"
+    #: a disk that FAILED on ``quarantine_after`` consecutive occurrences under
+    #: the ``retry_quarantine`` policy — terminal, never re-armed on later
+    #: re-scans, surfaced in the audit log.
+    QUARANTINED = "quarantined"
 
 
 class MigrationItemKind(StrEnum):
@@ -100,7 +109,12 @@ MIGRATION_ITEM_STATE_ORDER = [
 
 #: States that need no further work. ``failed`` is deliberately NOT here: a
 #: failed disk needs attention, so resume/aggregation treat it as unfinished.
-DONE_ITEM_STATES = {MigrationItemState.RELEASED, MigrationItemState.SKIPPED}
+#: ``quarantined`` IS here: it is a settled off-path terminal (no more retries).
+DONE_ITEM_STATES = {
+    MigrationItemState.RELEASED,
+    MigrationItemState.SKIPPED,
+    MigrationItemState.QUARANTINED,
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -169,6 +183,9 @@ class MigrationWindow(BaseModel):
     start: str | None = None  # "HH:MM"
     end: str | None = None  # "HH:MM"
     tz: str = "UTC"
+    #: ISO-ish weekdays the window is active, Mon=0 … Sun=6 (datetime.weekday()).
+    #: Empty == every day (backward compatible with the pre-schedule behaviour).
+    days: list[int] = Field(default_factory=list)
 
 
 class MigrationSelection(BaseModel):
@@ -195,6 +212,27 @@ class MigrationConfig(BaseModel):
     window: MigrationWindow | None = None
     verify: bool = True  # qemu_img_check after move/rebase
     force_stop_desktops: bool = False
+    #: per-job schedule toggle. False == one-shot (runs on its scheduled
+    #: days/window until the current disks are migrated, then terminal
+    #: ``completed``). True == recurring: at each occurrence re-scan the
+    #: selection, drain newly-matching disks, and return to ``scheduled`` — never
+    #: self-terminates (only Cancel ends it). A recurring job requires a window.
+    recurring: bool = False
+    #: when a recurring job re-scans (all via insert-new-only, never disturbing
+    #: in-flight): ``edge`` only at the occurrence edge; ``edge_on_drain`` also
+    #: once the current batch has drained and the window is still open;
+    #: ``continuous`` every tick while the window is open.
+    rescan_cadence: Literal["edge", "edge_on_drain", "continuous"] = "edge_on_drain"
+    #: how a disk failure is handled: ``retry_quarantine`` keeps the job alive and
+    #: quarantines a disk that fails ``quarantine_after`` consecutive occurrences;
+    #: ``pause`` moves the job to paused on any failure for admin attention;
+    #: ``retry_forever`` keeps retrying every occurrence, never quarantining.
+    failure_policy: Literal["retry_quarantine", "pause", "retry_forever"] = (
+        "retry_quarantine"
+    )
+    #: consecutive-occurrence failure budget before a disk is quarantined (used
+    #: only by ``retry_quarantine``).
+    quarantine_after: int = Field(default=3, ge=1)
 
 
 class MigrationTotals(BaseModel):
@@ -220,6 +258,10 @@ class StorageMigrationModel(BaseModel):
     #: EWMA MB/s keyed on "<src_pool>:<dst_pool>" (P2 window/ETA)
     throughput_ewma: dict = Field(default_factory=dict)
     current_window: dict | None = None
+    #: occurrence key (start-date string, e.g. "2026-07-01") of the most recent
+    #: re-scan; drives fresh-occurrence detection for a recurring job. None until
+    #: the first occurrence has been scanned. Runtime state — never in config.
+    last_occurrence: str | None = None
     logs: list = Field(default_factory=list)
     created_by: str | None = None
     created_at: float | None = None
@@ -257,6 +299,13 @@ class StorageMigrationItemModel(BaseModel):
     #: "ready". None == we never put this disk into maintenance.
     storage_orig_status: str | None = None
     attempts: int = 0
+    #: consecutive occurrences (recurring) in which this disk ended ``failed``;
+    #: drives the ``retry_quarantine`` budget. Reset by a non-failed occurrence.
+    occurrence_failures: int = 0
+    #: append-only per-occurrence AUDIT trail for the downloadable log: one record
+    #: per terminal outcome (moved_ok | failed | skipped | quarantined | in_place),
+    #: annotated by occurrence so recurring history is preserved across re-arms.
+    audit: list = Field(default_factory=list)
     checkpoints: list = Field(default_factory=list)
     error: str | None = None
     #: domain whose autostart we suppressed (for crash-safe re-activation)

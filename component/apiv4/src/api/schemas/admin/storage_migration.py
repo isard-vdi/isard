@@ -32,6 +32,8 @@ class MigrationWindowData(BaseModel):
     start: Optional[str] = None  # "HH:MM"
     end: Optional[str] = None  # "HH:MM"
     tz: str = "UTC"
+    #: weekdays the window is active, Mon=0 … Sun=6. Empty == every day.
+    days: list[int] = Field(default_factory=list)
 
 
 class MigrationSelectionData(BaseModel):
@@ -57,6 +59,16 @@ class MigrationConfigData(BaseModel):
     window: Optional[MigrationWindowData] = None
     verify: bool = True  # qemu_img_check after move/rebase
     force_stop_desktops: bool = False
+    #: one-shot (False) vs recurring re-scan (True). Recurring requires a window.
+    recurring: bool = False
+    #: recurring re-scan cadence (edge | edge_on_drain | continuous).
+    rescan_cadence: Literal["edge", "edge_on_drain", "continuous"] = "edge_on_drain"
+    #: disk-failure policy (retry_quarantine | pause | retry_forever).
+    failure_policy: Literal["retry_quarantine", "pause", "retry_forever"] = (
+        "retry_quarantine"
+    )
+    #: consecutive-occurrence failure budget before quarantine (retry_quarantine).
+    quarantine_after: int = Field(default=3, ge=1)
 
 
 class MigrationPlanData(BaseModel):
@@ -154,4 +166,18 @@ class MigrationStatusResponse(BaseModel):
     config: dict = Field(default_factory=dict)
     current_window: Optional[dict] = None
     eta_seconds: Optional[int] = None
+    #: schedule surface for the admin table (recurring badge + days + next-run)
+    recurring: bool = False
+    days: list[int] = Field(default_factory=list)
+    #: seconds until the next window opens on a selected weekday (None == always
+    #: open / no schedule / cannot be computed)
+    next_run_seconds: Optional[int] = None
     items: list[MigrationItemSummary] = Field(default_factory=list)
+
+
+class MigrationPathPrefixesResponse(BaseModel):
+    """Real, selectable source path-prefixes for the ``path`` selection kind —
+    the distinct ``storage.directory_path`` values, optionally scoped to a source
+    pool. Drives the UI dropdown (no free text)."""
+
+    prefixes: list[str] = Field(default_factory=list)

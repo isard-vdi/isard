@@ -52,12 +52,75 @@ def test_migration_model_defaults():
     assert m.config.parallelism == 1
     assert m.config.verify is True
     assert m.config.force_stop_desktops is False
+    # schedule additions default to one-shot / every-day / not-yet-scanned
+    assert m.config.recurring is False
+    assert m.config.window is None
+    assert m.last_occurrence is None
     assert m.selection.kind == "pool"
     assert m.selection.tree_ids == []
     assert m.throughput_ewma == {}
     assert m.logs == []
     # auto id is a uuid string
     assert isinstance(m.id, str) and len(m.id) == 36
+
+
+def test_migration_status_has_scheduled_non_terminal():
+    # the new idle/between-occurrences state exists and is distinct
+    assert MigrationStatus.SCHEDULED == "scheduled"
+    assert MigrationStatus.SCHEDULED not in (
+        MigrationStatus.COMPLETED,
+        MigrationStatus.FAILED,
+        MigrationStatus.CANCELED,
+    )
+
+
+def test_migration_window_days_default_and_serialises():
+    from isardvdi_common.models.storage_migration import MigrationConfig
+
+    c = MigrationConfig(window={"start": "22:00", "end": "06:00", "days": [5, 6]})
+    assert c.window.days == [5, 6]
+    assert c.recurring is False
+    dumped = c.model_dump(mode="json")
+    assert dumped["window"]["days"] == [5, 6]
+    assert dumped["recurring"] is False
+    # empty days default (every day)
+    assert MigrationConfig(window={"start": "22:00", "end": "06:00"}).window.days == []
+
+
+def test_migration_config_cadence_failure_defaults():
+    from isardvdi_common.models.storage_migration import MigrationConfig
+
+    c = MigrationConfig()
+    assert c.rescan_cadence == "edge_on_drain"
+    assert c.failure_policy == "retry_quarantine"
+    assert c.quarantine_after == 3
+    # explicit values round-trip
+    c2 = MigrationConfig(
+        rescan_cadence="continuous", failure_policy="pause", quarantine_after=5
+    )
+    d = c2.model_dump(mode="json")
+    assert d["rescan_cadence"] == "continuous"
+    assert d["failure_policy"] == "pause"
+    assert d["quarantine_after"] == 5
+
+
+def test_migration_config_rejects_bad_cadence_and_quarantine():
+    from isardvdi_common.models.storage_migration import MigrationConfig
+
+    with pytest.raises(Exception):
+        MigrationConfig(rescan_cadence="hourly")
+    with pytest.raises(Exception):
+        MigrationConfig(quarantine_after=0)  # ge=1
+
+
+def test_item_quarantine_and_audit_defaults():
+    it = StorageMigrationItemModel(migration_id="m", storage_id="s", tree_id="t")
+    assert it.occurrence_failures == 0
+    assert it.audit == []
+    # QUARANTINED is a terminal off-path state counted done
+    assert MigrationItemState.QUARANTINED == "quarantined"
+    assert MigrationItemState.QUARANTINED in DONE_ITEM_STATES
+    assert item_is_done(MigrationItemState.QUARANTINED) is True
 
 
 def test_migration_model_distinct_nested_defaults():
@@ -136,9 +199,11 @@ def test_done_states():
     assert DONE_ITEM_STATES == {
         MigrationItemState.RELEASED,
         MigrationItemState.SKIPPED,
+        MigrationItemState.QUARANTINED,
     }
     assert item_is_done(MigrationItemState.RELEASED) is True
     assert item_is_done("skipped") is True
+    assert item_is_done("quarantined") is True  # settled off-path terminal
     assert item_is_done(MigrationItemState.MOVING) is False
     assert item_is_done("failed") is False  # failed is NOT done (needs attention)
 
