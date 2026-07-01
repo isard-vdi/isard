@@ -14,7 +14,8 @@
       "title": "Migration"
     },
     "notifications": {
-      "title": "Notifications"
+      "title": "Notifications",
+      "subtitle": "Messages and alerts from the system"
     },
     "maintenance": {
       "title": "Maintenance"
@@ -356,7 +357,12 @@
     "notifications": {
       "title": "Notifications",
       "no-notifications": "No notifications pending",
-      "go-to-desktops": "Go to desktops"
+      "go-to-desktops": "Go to desktops",
+      "loading": "Loading notifications",
+      "error": {
+        "title": "Couldn't load notifications",
+        "generic": "An error occurred. Please try again."
+      }
     },
     "desktops": {
       "new-desktop": "New desktop",

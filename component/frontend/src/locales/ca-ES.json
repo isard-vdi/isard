@@ -14,7 +14,8 @@
       "title": "Migració"
     },
     "notifications": {
-      "title": "Notificacions"
+      "title": "Notificacions",
+      "subtitle": "Missatges i avisos del sistema"
     },
     "maintenance": {
       "title": "Manteniment"
@@ -360,7 +361,12 @@
     "notifications": {
       "title": "Notificacions",
       "no-notifications": "No hi ha notificacions pendents",
-      "go-to-desktops": "Ves als meus escriptoris"
+      "go-to-desktops": "Ves als meus escriptoris",
+      "loading": "S'estan carregant les notificacions",
+      "error": {
+        "title": "No s'han pogut carregar les notificacions",
+        "generic": "S'ha produït un error. Torna-ho a provar."
+      }
     },
     "desktops": {
       "new-desktop": "Escriptori nou",
