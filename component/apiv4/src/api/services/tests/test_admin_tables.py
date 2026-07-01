@@ -236,3 +236,143 @@ class TestDesktopsPriorityShutdownBounds:
             "interfaces", {"id": "i1", "name": "i1", "shutdown": {"max": 999999}}
         )
         assert mock_insert.called
+
+
+class TestInterfaceLabOptsValidation:
+    """Per-interface lab_opts gate: an enabled lab option is allowed only on
+    kind=ovs/personal outside VLAN 4095 (wireguard infra). apiv3 enforced this
+    via a Cerberus ``check_with``; the apiv4 raw-dict path re-asserts it on
+    INSERT and UPDATE. An all-false (or absent) lab_opts is always accepted."""
+
+    LAB_FLAGS = (
+        "mac_spoofing",
+        "stp_bpdu",
+        "broadcast_unlimited",
+        "multicast_unlimited",
+    )
+
+    def _iface(self, **over):
+        base = {"id": "if1", "name": "if1", "kind": "ovs", "net": "1002"}
+        base.update(over)
+        return base
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_each_flag_accepted_on_ovs_outside_4095(self, _dup, mock_insert):
+        for flag in self.LAB_FLAGS:
+            AdminTablesService.insert_table_item(
+                "interfaces", self._iface(lab_opts={flag: True})
+            )
+        assert mock_insert.call_count == len(self.LAB_FLAGS)
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_lab_opts_normalized_to_all_four_bools(self, _dup, mock_insert):
+        data = self._iface(lab_opts={"mac_spoofing": True})
+        AdminTablesService.insert_table_item("interfaces", data)
+        stored = mock_insert.call_args[0][1]
+        assert stored["lab_opts"] == {
+            "mac_spoofing": True,
+            "stp_bpdu": False,
+            "broadcast_unlimited": False,
+            "multicast_unlimited": False,
+        }
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_flag_rejected_on_non_ovs_kind(self, _dup, mock_insert):
+        import pytest
+        from api.services.error import Error
+
+        for kind in ("bridge", "network"):
+            with pytest.raises(Error) as exc:
+                AdminTablesService.insert_table_item(
+                    "interfaces",
+                    self._iface(kind=kind, net="x", lab_opts={"mac_spoofing": True}),
+                )
+            assert exc.value.args[0] == "bad_request"
+        assert not mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_flag_rejected_on_ovs_vlan_4095(self, _dup, mock_insert):
+        import pytest
+        from api.services.error import Error
+
+        with pytest.raises(Error):
+            AdminTablesService.insert_table_item(
+                "interfaces", self._iface(net="4095", lab_opts={"stp_bpdu": True})
+            )
+        assert not mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_flag_rejected_on_personal_range_covering_4095(self, _dup, mock_insert):
+        import pytest
+        from api.services.error import Error
+
+        for net in ("4000-4100", "1-4095", "4095-4095", "4095-4100"):
+            with pytest.raises(Error):
+                AdminTablesService.insert_table_item(
+                    "interfaces",
+                    self._iface(
+                        kind="personal", net=net, lab_opts={"mac_spoofing": True}
+                    ),
+                )
+        assert not mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_personal_range_below_4095_accepted(self, _dup, mock_insert):
+        AdminTablesService.insert_table_item(
+            "interfaces",
+            self._iface(kind="personal", net="4000-4094", lab_opts={"stp_bpdu": True}),
+        )
+        assert mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_all_false_accepted_even_on_4095(self, _dup, mock_insert):
+        AdminTablesService.insert_table_item(
+            "interfaces",
+            self._iface(net="4095", lab_opts={f: False for f in self.LAB_FLAGS}),
+        )
+        assert mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_absent_lab_opts_accepted(self, _dup, mock_insert):
+        AdminTablesService.insert_table_item("interfaces", self._iface(net="4095"))
+        assert mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.update_table_item")
+    @patch("api.services.admin.tables.ApiAdmin.admin_table_list")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_partial_update_merges_stored_kind_net_and_rejects_4095(
+        self, _dup, mock_list, mock_update
+    ):
+        import pytest
+        from api.services.error import Error
+
+        # Partial edit enabling a flag; kind/net live only on the stored row
+        # (mirrors apiv3 re-validating {**old_row, **data}).
+        mock_list.return_value = {
+            "id": "if1",
+            "name": "if1",
+            "kind": "ovs",
+            "net": "4095",
+        }
+        with pytest.raises(Error):
+            AdminTablesService.update_table_item(
+                "interfaces",
+                {"id": "if1", "name": "if1", "lab_opts": {"mac_spoofing": True}},
+            )
+        assert not mock_update.called
+
+    @patch("api.services.admin.tables.ApiAdmin.update_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_full_doc_update_accepted_on_ovs(self, _dup, mock_update):
+        AdminTablesService.update_table_item(
+            "interfaces", self._iface(lab_opts={"mac_spoofing": True})
+        )
+        assert mock_update.called

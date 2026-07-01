@@ -43,9 +43,11 @@ def _sanitize_table_data(table: str, data: dict) -> None:
             data[key] = _html_sanitizer.sanitize(value)
 
 
+from api.schemas.admin.interfaces import LabOptsModel
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.domains.domains import DomainsProcessed
+from pydantic import ValidationError
 
 # Tables that require duplicate name checks
 DUPLICATE_CHECK_TABLES = [
@@ -102,6 +104,70 @@ def _validate_desktops_priority(table: str, data: dict) -> None:
                 "shutdown notify interval time must be between "
                 f"{-MAX_SHUTDOWN_MINUTES} and -1 minutes",
             )
+
+
+def _net_range_includes_4095(net) -> bool:
+    """A ``kind=personal`` net is a ``xxxx-yyyy`` VLAN range; return True if the
+    interval covers 4095 (wireguard infrastructure)."""
+    try:
+        a_str, b_str = str(net).split("-", 1)
+        a, b = int(a_str), int(b_str)
+    except (ValueError, IndexError):
+        # Malformed range — the interface schema flags it elsewhere; don't
+        # double-report here.
+        return False
+    return a <= 4095 <= b
+
+
+def _validate_lab_opts(table: str, data: dict) -> None:
+    """Gate the per-interface lab options and normalise them to a canonical
+    four-bool document.
+
+    apiv3 enforced this via the Cerberus ``validate_lab_opts_allowed``
+    ``check_with``; the apiv4 raw-dict path re-asserts it on INSERT and UPDATE.
+    Any enabled flag (``mac_spoofing``, ``stp_bpdu``, ``broadcast_unlimited``,
+    ``multicast_unlimited``) is refused unless the interface is OVS-family
+    (``kind`` in {ovs, personal}) and not on VLAN 4095. An all-false (or
+    absent) ``lab_opts`` is always accepted. The UI already hides the controls
+    in those cases; this is the server-side belt-and-suspenders for direct API
+    users. Mirrors ``normalize_lab_opts`` in the engine's domain_xml.
+    """
+    if table != "interfaces" or "lab_opts" not in data:
+        return
+    try:
+        lab_opts = LabOptsModel(**(data.get("lab_opts") or {})).model_dump()
+    except ValidationError:
+        raise Error("bad_request", "Invalid lab_opts for interface")
+    # Persist the canonical four-bool document so the engine reads a definite
+    # value for every flag regardless of what the caller submitted.
+    data["lab_opts"] = lab_opts
+    if not any(lab_opts.values()):
+        return
+    # On a partial UPDATE the kind/net may live only on the stored row; fetch
+    # and merge so the gate sees the effective document (mirrors apiv3
+    # re-validating ``{**old_row, **data}``).
+    kind = data.get("kind")
+    net = data.get("net")
+    if (kind is None or net is None) and data.get("id"):
+        stored = ApiAdmin.admin_table_list("interfaces", id=data["id"]) or {}
+        kind = kind if kind is not None else stored.get("kind")
+        net = net if net is not None else stored.get("net")
+    if kind not in ("ovs", "personal"):
+        raise Error(
+            "bad_request",
+            "lab options are only allowed on kind=ovs or kind=personal",
+        )
+    net = str(net if net is not None else "")
+    if kind == "ovs" and net == "4095":
+        raise Error(
+            "bad_request",
+            "lab options are not allowed on VLAN 4095 (wireguard infrastructure)",
+        )
+    if kind == "personal" and _net_range_includes_4095(net):
+        raise Error(
+            "bad_request",
+            "lab options are not allowed on a personal range that includes VLAN 4095",
+        )
 
 
 class AdminTablesService:
@@ -174,6 +240,7 @@ class AdminTablesService:
                 raise Error("bad_request", "Missing 'name' field in request body")
             Helpers.check_duplicate(table, data["name"])
         _validate_desktops_priority(table, data)
+        _validate_lab_opts(table, data)
 
         ApiAdmin.insert_table_item(table, data)
         return {}
@@ -192,6 +259,7 @@ class AdminTablesService:
                 raise Error("bad_request", "Missing 'name' field in request body")
             Helpers.check_duplicate(table, data["name"], item_id=data["id"])
         _validate_desktops_priority(table, data)
+        _validate_lab_opts(table, data)
 
         ApiAdmin.update_table_item(table, data)
         return {}
