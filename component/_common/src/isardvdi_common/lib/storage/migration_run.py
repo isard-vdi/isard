@@ -282,19 +282,159 @@ class MigrationRunner:
 
     def _window_state(self):
         """Return ``(has_window, is_open, remaining_seconds)`` for the job's
-        configured maintenance window (no window -> open, unbounded)."""
+        configured maintenance window, honouring selected weekdays. A window
+        exists when it has a time range and/or a day filter; with neither the job
+        is always open/unbounded. Empty ``days`` imposes no day restriction, so a
+        pre-schedule (time-only) job behaves exactly as before."""
         window = (self.config or {}).get("window") or {}
         start = mig.parse_hhmm(window.get("start"))
         end = mig.parse_hhmm(window.get("end"))
-        if start is None or end is None:
+        days = window.get("days") or []
+        dset = mig.normalize_days(days)
+        has_window = (start is not None and end is not None) or dset is not None
+        if not has_window:
             return False, True, float("inf")
         now = self._now(window.get("tz") or "UTC")
         now_min = now.hour * 60 + now.minute
+        weekday = now.weekday()
         return (
             True,
-            mig.window_is_open(start, end, now_min),
-            mig.window_remaining_seconds(start, end, now_min),
+            mig.window_is_open_days(start, end, days, weekday, now_min),
+            mig.window_remaining_seconds_days(start, end, days, weekday, now_min),
         )
+
+    def _next_run_seconds(self):
+        """Seconds until the window next opens on a selected weekday (admin-table
+        lookahead), in the window's timezone. ``None`` when there is no
+        schedule."""
+        window = (self.config or {}).get("window") or {}
+        if not window:
+            return None
+        now = self._now(window.get("tz") or "UTC")
+        return mig.next_run_for_window(window, now)
+
+    # -- recurring re-scan (cadence + failure policy are per-job config) ---- #
+    def _maybe_rescan_occurrence(self):
+        """RECURRING re-scan. Returns True if it re-scanned this tick.
+
+        Fires per the job's ``rescan_cadence`` (``mig.should_rescan``): ``edge``
+        only at the occurrence edge, ``edge_on_drain`` also once the batch has
+        drained, ``continuous`` every tick in-window. An OCCURRENCE-EDGE re-scan
+        additionally re-arms failed/skipped in-scope disks (and quarantines per
+        the failure policy — see ``_rearm_for_occurrence``); a between-edges
+        re-scan only inserts newly-matching disks (never disturbs in-flight)."""
+        if not bool(self.config.get("recurring")):
+            return False
+        window = (self.config or {}).get("window") or {}
+        start = mig.parse_hhmm(window.get("start"))
+        end = mig.parse_hhmm(window.get("end"))
+        days = window.get("days") or []
+        now = self._now(window.get("tz") or "UTC")
+        now_min = now.hour * 60 + now.minute
+        if not mig.window_is_open_days(start, end, days, now.weekday(), now_min):
+            return False
+        key = mig.occurrence_key(now, start, end)
+        last = self.migration.last_occurrence or None
+        is_edge = key != last
+        cadence = self.config.get("rescan_cadence") or "edge_on_drain"
+        if not mig.should_rescan(cadence, key, last, self.is_complete(), True):
+            return False
+        if is_edge:
+            # New occurrence: re-arm failed/skipped disks (quarantine per policy)
+            # AND insert newly-matching disks, keyed by this occurrence.
+            self._rearm_for_occurrence(key)
+            self.migration.last_occurrence = key
+        else:
+            # Same occurrence (continuous / on-drain): pick up new disks only.
+            self._rescan_insert_new()
+        return True
+
+    def _rescan_insert_new(self):
+        """Re-resolve the selection and upsert ONLY disks not already in the
+        ledger (state ``pending``). Deterministic item ids mean an
+        already-migrated/terminal disk is never reset back to pending; and a
+        pool/path/category source scope naturally excludes disks that already left
+        it, so a re-scan only ever ADDS newly-matching disks."""
+        selection = self.migration.selection or {}
+        roots = mig.roots_for_selection(selection)
+        items, _ = mig.build_plan_for_roots(self.migration_id, roots, self.dst_pool)
+        existing = {it["storage_id"] for it in self._items()}
+        for item in items:
+            if item["storage_id"] not in existing:
+                StorageMigrationItem.upsert(item)
+
+    def _rearm_for_occurrence(self, occurrence_key):
+        """New-occurrence re-scan: insert newly-matching disks AND re-arm the
+        prior occurrence's failed/skipped in-scope disks so they retry, applying
+        the failure policy per tree (``mig.plan_tree_rearm``): a disk that hits the
+        ``retry_quarantine`` budget is quarantined and its tree left dead; other
+        failed/skipped disks are reset to pending. Released disks left the source
+        scope and never reappear; in-flight disks are left untouched."""
+        selection = self.migration.selection or {}
+        roots = mig.roots_for_selection(selection)
+        planned, _ = mig.build_plan_for_roots(self.migration_id, roots, self.dst_pool)
+        existing = {it["storage_id"]: it for it in self._items()}
+        policy = self.config.get("failure_policy") or "retry_quarantine"
+        qafter = int(self.config.get("quarantine_after") or 3)
+        # Group the re-planned disks by tree so quarantine/re-arm is tree-aware.
+        by_tree = {}
+        for item in planned:
+            by_tree.setdefault(item["tree_id"], []).append(item)
+        for planned_items in by_tree.values():
+            ledger = [
+                existing[p["storage_id"]]
+                for p in planned_items
+                if p["storage_id"] in existing
+            ]
+            to_quarantine, to_rearm = mig.plan_tree_rearm(ledger, policy, qafter)
+            for item, occ in to_quarantine:
+                self._set(
+                    item,
+                    state=MigrationItemState.QUARANTINED.value,
+                    occurrence_failures=occ,
+                    error=f"quarantined after {occ} consecutive occurrence failures",
+                )
+                self._audit(item, "quarantined")
+            for item, occ in to_rearm:
+                self._rearm_item(item, occ)
+            # Insert genuinely new disks in this tree (or a brand-new tree).
+            for p in planned_items:
+                if p["storage_id"] not in existing:
+                    StorageMigrationItem.upsert(p)
+
+    def _rearm_item(self, item, occurrence_failures):
+        """Reset a failed/skipped disk to pending for another occurrence attempt:
+        clear the per-attempt task ids / maintenance marker / autostart record so
+        the next attempt starts clean, preserving the append-only ``audit`` and the
+        occurrence-failure count."""
+        self._set(
+            item,
+            state=MigrationItemState.PENDING.value,
+            occurrence_failures=int(occurrence_failures),
+            move_task_id=None,
+            move_started_at=None,
+            rebase_task_id=None,
+            verify_task_id=None,
+            move_delete_task_id=None,
+            storage_orig_status=None,
+            autostart_domains=None,
+            abandon_restarts=0,
+            attempts=0,
+            error=None,
+        )
+
+    def _audit(self, item, result):
+        """Append one AUDIT record (this occurrence's outcome for the disk) to the
+        item's append-only ``audit`` list, for the downloadable log. Recurring
+        history is preserved across re-arms because records are appended, never
+        overwritten. ``occurrence`` is the current occurrence key (or "initial"
+        for a one-shot / pre-first-occurrence run)."""
+        migration = getattr(self, "migration", None)
+        occurrence = getattr(migration, "last_occurrence", None) or "initial"
+        record = mig.build_audit_record(item, result, occurrence, time())
+        audit = list(item.get("audit") or [])
+        audit.append(record)
+        self._set(item, audit=audit)
 
     def _tree_key(self, tree_items):
         """EWMA throughput key for a tree: ``<src_pool>:<dst_pool>`` using the
@@ -348,6 +488,9 @@ class MigrationRunner:
     def _skip_tree(self, tree_items, state, reason):
         for it in tree_items:
             self._set(it, state=state, error=reason)
+            self._audit(
+                it, "skipped" if state == MigrationItemState.SKIPPED.value else "failed"
+            )
 
     def _cancel_skip_tree(self, tree_items, reason):
         """Skip an UNCOMMITTED in-flight tree on cancel: take every disk out of
@@ -359,6 +502,7 @@ class MigrationRunner:
         for it in tree_items:
             self._restore_storage_status(it)
             self._set(it, state=MigrationItemState.SKIPPED.value, error=reason)
+            self._audit(it, "skipped")
 
     def _gate_tree(self, tree_items):
         """Tree-level quiesce gate, evaluated BEFORE the tree starts moving.
@@ -588,12 +732,14 @@ class MigrationRunner:
             state=MigrationItemState.RELEASED.value,
             move_delete_task_id=del_task_id,
         )
+        self._audit(item, "moved_ok")
 
     def _skip_release(self, item):
         # dst == src: there is no separate source to delete — move_delete would
         # destroy the live disk in place. The disk was never moved (so never set
         # to maintenance); just mark it released.
         self._set(item, state=MigrationItemState.RELEASED.value)
+        self._audit(item, "in_place")
 
     def _terminalize_tree_failure(self, item):
         """A disk's move/rebase failed (action ``fail``) or it is already failed
@@ -604,15 +750,27 @@ class MigrationRunner:
         disk's storage is taken out of maintenance back to its original status
         (qcow-1 / scheduler-1 / qcow-3 / saga-5)."""
         tree_items = [it for it in self._items() if it["tree_id"] == item["tree_id"]]
+        # Idempotent: a tree with a failed disk keeps yielding ``blocked`` every
+        # tick until the whole JOB completes, so once the tree is fully
+        # terminalized do nothing — neither re-audit nor re-restore.
+        if all(str(it["state"]) in mig._TERMINAL_STATES for it in tree_items):
+            return
         # The triggering disk may already be `failed` (set by the generic
         # exception handler), which plan_tree_failure leaves untouched — reset
         # its storage explicitly so it never stays stuck in maintenance.
         self._restore_storage_status(item)
-        for it, new_state, reason in mig.plan_tree_failure(
-            tree_items, item["storage_id"]
-        ):
+        changes = mig.plan_tree_failure(tree_items, item["storage_id"])
+        changed_ids = {it["id"] for it, _s, _r in changes}
+        # The triggering disk may already be ``failed`` (generic exception
+        # handler), so plan_tree_failure leaves it untouched and out of ``changes``
+        # — audit it here so its failure is still recorded exactly once.
+        if item["id"] not in changed_ids and str(item["state"]) == "failed":
+            self._audit(item, "failed")
+        for it, new_state, reason in changes:
             self._restore_storage_status(it)
             self._set(it, state=new_state, error=reason)
+            # AUDIT: the triggering disk -> failed, the rest of the tree -> skipped.
+            self._audit(it, "failed" if new_state == "failed" else "skipped")
 
     def _fail(self, item):
         self._terminalize_tree_failure(item)
@@ -644,22 +802,30 @@ class MigrationRunner:
         # ones), let in-flight trees finish, then flip to canceled.
         finishing = str(self.migration.status) == MigrationStatus.FINISHING_TREE.value
 
-        # Mandatory autostart guard: deactivate autostart for the whole job
-        # before any disk is touched (idempotent — only un-prepared items). When
-        # finishing we never start new trees, so don't suppress autostart for the
-        # not-started trees we are about to skip.
+        # Window + ETA admission gate (P2.2): a not-yet-started tree only begins
+        # inside the window and only if its ETA fits; in-flight trees always run
+        # to completion (respecting the 12h move-task timeout), never abandoned
+        # mid-chain when the window closes. Computed first: it gates the re-scan
+        # and the autostart suppression below.
+        has_window, win_open, remaining_s = self._window_state()
+
+        # RECURRING re-scan (per rescan_cadence): re-resolve the selection and add
+        # newly-matching disks (occurrence edge also re-arms failed/skipped disks
+        # + quarantines per failure_policy). Runs BEFORE reading items so fresh
+        # pending rows drain this same tick. No-op for a one-shot job.
         if not finishing:
+            self._maybe_rescan_occurrence()
+
+        # Mandatory autostart guard: deactivate autostart for the whole job before
+        # any disk is touched (idempotent — only un-prepared items). Only while the
+        # window is open (when trees may actually start): between occurrences a
+        # recurring job must NOT re-suppress autostart it already restored.
+        if not finishing and win_open:
             self.prepare()
         items = self._items()
         trees = {}
         for it in items:
             trees.setdefault(it["tree_id"], []).append(it)
-
-        # Window + ETA admission gate (P2.2): a not-yet-started tree only begins
-        # inside the window and only if its ETA fits; in-flight trees always run
-        # to completion (respecting the 12h move-task timeout), never abandoned
-        # mid-chain when the window closes.
-        has_window, win_open, remaining_s = self._window_state()
 
         # Parallelism gate (P2.3): bound concurrent trees to config.parallelism
         # so the storage worker is not oversubscribed. In-flight trees keep
@@ -673,6 +839,7 @@ class MigrationRunner:
         )
 
         results = []
+        failed_this_tick = False
         for tree_id, tree_items in trees.items():
             if phases[tree_id] == "not_started":
                 if finishing:
@@ -722,54 +889,84 @@ class MigrationRunner:
                             state=MigrationItemState.FAILED.value,
                             error=f"action {action} raised",
                         )
+                        failed_this_tick = True
+        if any(action in ("fail", "blocked") for (_t, _i, action) in results):
+            failed_this_tick = True
         self.migration.recompute_totals()
-        if self.is_complete():
-            # Crash-safe re-activation from the ledger, then mark the job done.
-            # A finishing (canceled) job becomes canceled, not completed, even
-            # though its in-flight trees finished cleanly.
-            self.reactivate()
-            failed = any(
-                str(it["state"]) == MigrationItemState.FAILED.value
-                for it in self._items()
+
+        recurring = bool(self.config.get("recurring"))
+        policy = self.config.get("failure_policy") or "retry_quarantine"
+        fresh = self._items()
+        any_failed = any(
+            str(it["state"]) == MigrationItemState.FAILED.value for it in fresh
+        )
+        # in-flight == a disk mid-saga (not pending, not terminal): keeps a
+        # recurring job "running" even once the window closed, so it finishes
+        # cleanly rather than dropping to idle mid-chain.
+        _settled = {
+            MigrationItemState.PENDING.value,
+            MigrationItemState.RELEASED.value,
+            MigrationItemState.SKIPPED.value,
+            MigrationItemState.FAILED.value,
+            MigrationItemState.QUARANTINED.value,
+        }
+        any_in_flight = any(str(it["state"]) not in _settled for it in fresh)
+
+        cur = str(self.migration.status)
+        if policy == "pause" and failed_this_tick and not finishing:
+            # failure_policy=pause: on any disk failure, stop driving and wait for
+            # the admin. The driver does not tick paused jobs; a resume (start)
+            # continues, and a recurring job re-arms the failed disk next
+            # occurrence. Autostart stays suppressed (a mid-migration disk must not
+            # autostart) until the job truly completes or is canceled.
+            if cur != MigrationStatus.PAUSED.value:
+                self.migration.status = MigrationStatus.PAUSED.value
+        elif self.is_complete():
+            # Set the next status only on the TRANSITION (a recurring job stays in
+            # ``scheduled`` across many ticks, so guard against re-reactivating /
+            # re-writing every tick): finishing -> canceled; recurring -> scheduled
+            # (idle, never self-completes); one-shot -> failed/completed.
+            target = mig.recurring_status_target(
+                True, any_in_flight, win_open, finishing, any_failed, recurring
             )
-            if finishing:
-                self.migration.status = MigrationStatus.CANCELED.value
-            else:
-                self.migration.status = (
-                    MigrationStatus.FAILED.value
-                    if failed
-                    else MigrationStatus.COMPLETED.value
-                )
+            if cur != target:
+                self.reactivate()  # crash-safe autostart restore, once per settle
+                self.migration.status = target
         else:
-            # Flip running<->window_closed by the window; never clobber a paused
-            # /finishing/terminal status (the driver only ticks running + the
-            # window_closed it set here).
-            cur = str(self.migration.status)
-            if cur in (
-                MigrationStatus.RUNNING.value,
-                MigrationStatus.WINDOW_CLOSED.value,
-            ):
-                target = (
-                    MigrationStatus.WINDOW_CLOSED.value
-                    if (has_window and not win_open)
-                    else MigrationStatus.RUNNING.value
-                )
-                if cur != target:
-                    self.migration.status = target
-        # Surface the live window for the admin UI.
+            target = mig.recurring_status_target(
+                False, any_in_flight, win_open, finishing, any_failed, recurring
+            )
+            if target is None:
+                # one-shot: flip running<->window_closed by the window; never
+                # clobber a paused/finishing/terminal status.
+                if cur in (
+                    MigrationStatus.RUNNING.value,
+                    MigrationStatus.WINDOW_CLOSED.value,
+                ):
+                    target = (
+                        MigrationStatus.WINDOW_CLOSED.value
+                        if (has_window and not win_open)
+                        else MigrationStatus.RUNNING.value
+                    )
+            # recurring: running (in-window/in-flight) or scheduled (idle).
+            if target is not None and cur != target:
+                self.migration.status = target
+        # Surface the live window for the admin UI (incl. the next-run lookahead
+        # for a scheduled/recurring job).
         self.migration.current_window = {
             "has_window": has_window,
             "open": win_open,
             "remaining_seconds": (
                 None if remaining_s == float("inf") else int(remaining_s)
             ),
+            "next_run_seconds": self._next_run_seconds(),
         }
         # Signal the change-handler to broadcast the aggregate to admins.
         self._publish_progress()
         return results
 
     def is_complete(self):
-        """True when every item is terminal (released/skipped/failed)."""
+        """True when every item is terminal (released/skipped/failed/quarantined)."""
         items = self._items()
         return all(
             str(it["state"])
@@ -777,6 +974,7 @@ class MigrationRunner:
                 MigrationItemState.RELEASED.value,
                 MigrationItemState.SKIPPED.value,
                 MigrationItemState.FAILED.value,
+                MigrationItemState.QUARANTINED.value,
             )
             for it in items
         )

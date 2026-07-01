@@ -436,6 +436,7 @@ class _FakeMig:
     def __init__(self, status):
         self.status = status
         self.current_window = None
+        self.last_occurrence = None
 
     def recompute_totals(self):
         pass
