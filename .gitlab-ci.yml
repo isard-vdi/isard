@@ -382,6 +382,22 @@ unit-test-hypervisor-lib:
     reports:
       junit: docker/hypervisor/src/lib/report.xml
 
+unit-test-hypervisor-ovs:
+  # OVS worker flow-generation suite for the per-interface lab_opts feature
+  # Pure-stdlib pytest: ovs-worker.py is loaded via importlib and
+  # subprocess.run is monkeypatched, so no OVS bridge, root, or extra runtime
+  # deps are needed. The engine domain_xml lab_opts test rides unit-test-engine
+  # and the apiv4 validation test rides unit-test-apiv4; this closes the last
+  # gap (docker/hypervisor/src/ovs is not covered by unit-test-hypervisor-lib).
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-hypervisor-ovs
+  artifacts:
+    when: always
+    reports:
+      junit: docker/hypervisor/src/ovs/report.xml
+
 check-codegen-freshness:
   # Catches commits that modify ``pkg/oas/apiv4/*.json`` / ``.proto`` /
   # SDK interfaces without regenerating the tracked mocks. ``pkg/gen/**``

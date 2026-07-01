@@ -261,6 +261,11 @@ ci-test-hypervisor-lib:
 	uv sync --no-dev --group test --package isardvdi-common
 	cd docker/hypervisor/src/lib && uv run --no-dev --group test --package isardvdi-common pytest . -q --tb=short --junitxml=report.xml
 
+.PHONY: ci-test-hypervisor-ovs
+ci-test-hypervisor-ovs:
+	uv sync --no-dev --group test --package isardvdi-common
+	cd docker/hypervisor/src/ovs && uv run --no-dev --group test --package isardvdi-common pytest ovs_worker_test.py -q --tb=short --junitxml=report.xml
+
 .PHONY: ci-test-webapp
 ci-test-webapp:
 	uv sync --no-dev --group test --package isardvdi-webapp
