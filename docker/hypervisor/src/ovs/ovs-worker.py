@@ -34,6 +34,86 @@ SOCKET_PATH = "/var/run/openvswitch/ovs-worker.sock"
 LOG_FILE = Path("/tmp/qemu-hook.log")
 BRIDGE = "ovsbr0"
 
+# Per-interface "lab options" carried on <isard:mapping> as lab_* attributes
+# (emitted by the engine, see engine/.../domain_xml.py LAB_OPT_ATTRS). Maps the
+# XML attribute name -> the lab_opts key used internally by _flow_add.
+LAB_OPT_XML_ATTRS = {
+    "lab_mac_spoofing": "mac_spoofing",
+    "lab_stp_bpdu": "stp_bpdu",
+    "lab_bcast_unlimited": "broadcast_unlimited",
+    "lab_mcast_unlimited": "multicast_unlimited",
+}
+
+# Meter rates (packets/s, burst). Broadcast/multicast default to tight storm
+# protection and are raised to the lab ceiling when the matching lab option is
+# enabled — still metered, so a lab storm cannot cross the geneve mesh into
+# other hypervisors. The mac_spoofing unicast catch-all is metered to bound a
+# rogue lab VM's line-rate abuse (comfortably above heavy GNS3/EVE-NG peaks).
+BCAST_DEFAULT_RATE, BCAST_DEFAULT_BURST = 10, 50
+MCAST_DEFAULT_RATE, MCAST_DEFAULT_BURST = 500, 750
+BCAST_LAB_RATE, BCAST_LAB_BURST = 1000, 2000
+MCAST_LAB_RATE, MCAST_LAB_BURST = 5000, 10000
+MAC_SPOOF_UNICAST_RATE, MAC_SPOOF_UNICAST_BURST = 10000, 20000
+
+# QEMU/KVM OUI (first three octets) — every IsardVDI desktop NIC is assigned a
+# 52:54:00:xx:xx:xx MAC (engine gen_random_mac). In mac_spoofing mode this OUI
+# is reserved: only the desktop's own MAC may use it; any other 52:54:00 source
+# MAC is dropped so a lab VM cannot impersonate another desktop (FDB poisoning).
+KVM_OUI_SRC_MATCH = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
+
+# ---------------------------------------------------------------------------
+# BPDU tunneling (stp_bpdu lab option)
+# ---------------------------------------------------------------------------
+# Guest STP/RSTP/MSTP BPDUs (dst 01:80:c2:00:00:00) are rewritten at ingress to
+# an IsardVDI-reserved locally-administered MULTICAST MAC so they traverse the
+# VLAN/geneve overlay WITHOUT being consumed by ovsbr0's own RSTP or leaking
+# onto a physical trunk (which could err-disable the uplink). They are rewritten
+# back to the canonical BPDU MAC before delivery to remote lab guests. The lab
+# ports also have port-level RSTP disabled so ovsbr0 does not eat the BPDU
+# before the OpenFlow pipeline sees it.
+#
+# The geneve bucket pushes the VLAN tag explicitly (mod_vlan_vid): raw
+# OpenFlow output: actions bypass the OVSDB access-port tagging, which only
+# the NORMAL pipeline applies — without the push the remote from-geneve match
+# (dl_vlan=N) can never see the frame. Guests are also barred from sourcing
+# frames to BPDU_TUNNEL_MAC (per-port priority=250 drop) so the tunnel cannot
+# be forged from inside a lab.
+#
+# !!! LIVE-OVS VALIDATION REQUIRED !!! The remaining OVS semantics this relies
+# on (per-port rstp-enable=false, in_port suppression inside type=all groups,
+# and that explicit output to a lab tap is not re-consumed by RSTP) must be
+# verified on a live two-hypervisor geneve setup with `ovs-appctl ofproto/trace`
+# and `ovs-appctl rstp/show` before this option is offered beyond lab use.
+BPDU_DST_MAC = "01:80:c2:00:00:00"
+# 0x0f first octet: multicast bit (LSB) set + locally-administered bit set;
+# NOT in the reserved 01:80:c2:00:00:0x range, unlikely to collide with guests.
+BPDU_TUNNEL_MAC = "0f:49:53:41:52:44"  # 0f + "ISARD"
+BPDU_TUNNEL_RATE, BPDU_TUNNEL_BURST = 100, 200  # STP control plane is low-rate
+
+
+def bpdu_group_all(vlan):
+    """Group id for the 'guest-originated BPDU' fan-out on a VLAN: local lab
+    ports + a geneve bucket. id == vlan (1..4094)."""
+    return int(vlan)
+
+
+def bpdu_group_local(vlan):
+    """Group id for the 'BPDU arrived from geneve' fan-out on a VLAN: local lab
+    ports only (no geneve bucket -> no tunnel loopback). Disjoint from
+    bpdu_group_all()."""
+    return 8000 + int(vlan)
+
+
+def parse_lab_opts(mapping):
+    """Read the lab_* attributes from a mac2network mapping dict into a
+    {key: bool} dict. Missing attributes default to False (strict). Only the
+    exact string "true" (case-insensitive) enables an option — defends against
+    stringly-typed values surviving from non-API writers."""
+    return {
+        key: str(mapping.get(attr, "false")).lower() == "true"
+        for attr, key in LAB_OPT_XML_ATTRS.items()
+    }
+
 
 def now_ms() -> int:
     """Get current time in milliseconds"""
@@ -61,6 +141,7 @@ class DomainState:
     flows: list = field(default_factory=list)  # In-memory flow rules
     meters: list = field(default_factory=list)  # Per-VM meter IDs
     ports: list = field(default_factory=list)  # OVS ports we manage (ethernet type)
+    bpdu: list = field(default_factory=list)  # (vlan, ofport) lab-STP tunnel ports
     running: bool = False  # Is domain currently running
 
 
@@ -703,6 +784,132 @@ class OvsWorker:
             self._ofctl("-O", "OpenFlow13", "del-meter", BRIDGE, f"meter={meter_id}")
 
     # =========================================================================
+    # BPDU tunneling (stp_bpdu lab option) — see module header.
+    # LIVE-OVS VALIDATION REQUIRED before use beyond dedicated lab networks.
+    # =========================================================================
+
+    def _set_port_rstp_enable(self, port_name: str, enabled: bool):
+        """Enable/disable port-level RSTP. Lab-STP ports disable it so guest
+        BPDUs reach the OpenFlow pipeline (to be tunneled) instead of being
+        consumed by ovsbr0's own RSTP."""
+        try:
+            subprocess.run(
+                [
+                    "ovs-vsctl",
+                    "set",
+                    "Port",
+                    port_name,
+                    f"other_config:rstp-enable={'true' if enabled else 'false'}",
+                ],
+                check=True,
+                capture_output=True,
+                timeout=5,
+            )
+        except subprocess.CalledProcessError as e:
+            log(
+                {
+                    "event": "set_port_rstp_error",
+                    "port": port_name,
+                    "error": e.stderr.decode() if e.stderr else str(e),
+                }
+            )
+
+    def _ovs_replace_group(self, group_id: int, spec: str):
+        """Replace an OpenFlow group (delete-then-add) so its bucket set always
+        reflects the current union of lab-STP ports on the VLAN."""
+        self._ofctl("-O", "OpenFlow13", "del-groups", BRIDGE, f"group_id={group_id}")
+        self._ofctl("-O", "OpenFlow13", "add-group", BRIDGE, spec)
+
+    def _sync_bpdu_groups(self, vlans):
+        """(Re)build or tear down the BPDU-tunnel groups + from-geneve delivery
+        flow for each affected VLAN, from the union of every running domain's
+        lab-STP ports. Two groups per VLAN:
+          ALL   (id=vlan)      local lab ports (BPDU as-is) + geneve bucket
+                               (rewrite to the tunnel MAC) — fan-out for a
+                               guest-originated BPDU.
+          LOCAL (id=8000+vlan) local lab ports only — fan-out for a BPDU that
+                               arrived from geneve (already rewritten back),
+                               with no geneve bucket so it cannot loop.
+        Callers wrap this so a failure never breaks domain start/stop."""
+        for vlan in vlans:
+            ofports = sorted(
+                {
+                    ofport
+                    for state in self.domains.values()
+                    for (v, ofport) in state.bpdu
+                    if v == vlan
+                }
+            )
+            all_gid = bpdu_group_all(vlan)
+            local_gid = bpdu_group_local(vlan)
+            geneve_from_match = (
+                f"in_port={self.geneve_port},dl_dst={BPDU_TUNNEL_MAC},dl_vlan={vlan}"
+            )
+            # Broader filter (no dl_dst) covers BOTH the priority=251 BPDU
+            # rewrite flow above AND the priority=200 from-geneve flood-delivery
+            # flow we install below — one teardown match cleans both up.
+            geneve_vlan_match = f"in_port={self.geneve_port},dl_vlan={vlan}"
+            if not ofports:
+                # Last lab-STP port on this VLAN went away: tear it all down.
+                self._ofctl(
+                    "-O", "OpenFlow13", "del-groups", BRIDGE, f"group_id={all_gid}"
+                )
+                self._ofctl(
+                    "-O", "OpenFlow13", "del-groups", BRIDGE, f"group_id={local_gid}"
+                )
+                self._ofctl_del_flows([geneve_vlan_match])
+                continue
+            local_buckets = ",".join(f"bucket=actions=output:{p}" for p in ofports)
+            # The geneve bucket egresses via a raw output: action, which does
+            # NOT apply the access-port VLAN tag (only NORMAL does) — push the
+            # tag explicitly or the remote from-geneve match (dl_vlan=N) can
+            # never see the frame. mod_vlan_vid adds the 802.1Q header when
+            # the frame is untagged (guest BPDUs always are).
+            all_buckets = local_buckets + (
+                f",bucket=actions=mod_dl_dst:{BPDU_TUNNEL_MAC},"
+                f"mod_vlan_vid:{vlan},output:{self.geneve_port}"
+            )
+            self._ovs_replace_group(
+                all_gid, f"group_id={all_gid},type=all,{all_buckets}"
+            )
+            self._ovs_replace_group(
+                local_gid, f"group_id={local_gid},type=all,{local_buckets}"
+            )
+            # BPDU arriving from geneve: strip the VLAN tag, rewrite the tunnel
+            # MAC back to the canonical BPDU MAC, fan out to local lab ports.
+            self._ofctl(
+                "-O",
+                "OpenFlow13",
+                "add-flow",
+                BRIDGE,
+                f"priority=251,{geneve_from_match},actions=strip_vlan,"
+                f"mod_dl_dst:{BPDU_DST_MAC},group:{local_gid}",
+            )
+            # Non-BPDU from-geneve delivery for this VLAN. With rstp-enable=false
+            # on every lab-STP port, OVS NORMAL excludes those ports from its
+            # flood domain — so cross-host ARP/broadcast/multicast/unlearned
+            # unicast on this VLAN never reaches the lab port without an
+            # explicit rule. Reuses local_gid (the type=all group with one
+            # bucket per local lab-STP port on this VLAN, already maintained
+            # for the BPDU from-geneve path). priority=251 above wins for
+            # tunnel-MAC BPDU frames, so they never hit this path. Does NOT
+            # fall through to NORMAL: NORMAL would also unicast to a learned
+            # lab-STP port (split-horizon excludes the in_port, not the
+            # rstp-disabled port), duplicating every learned-MAC frame. Trade-
+            # off: a non-stp_bpdu port co-located on the same VLAN won't get
+            # from-geneve flood here. A stp_bpdu VLAN is by design a single
+            # logical L2 lab segment; mixing strict tenants on the same VLAN
+            # is out of scope.
+            self._ofctl(
+                "-O",
+                "OpenFlow13",
+                "add-flow",
+                BRIDGE,
+                f"priority=200,{geneve_vlan_match},"
+                f"actions=strip_vlan,group:{local_gid}",
+            )
+
+    # =========================================================================
     # Security Stats Collection
     # =========================================================================
 
@@ -803,6 +1010,7 @@ class OvsWorker:
         - meter_base + 1 = DHCP (VLAN 4095 only)
         - meter_base + 2 = Broadcast (all VLANs)
         - meter_base + 3 = Multicast (all VLANs)
+        - meter_base + 4 = Unicast catch-all (mac_spoofing lab option only)
         """
         stats_by_port = {}
 
@@ -818,7 +1026,14 @@ class OvsWorker:
             ofport = (meter_id - 100) // 10
             meter_type_idx = (meter_id - 100) % 10
 
-            meter_types = {0: "arp", 1: "dhcp", 2: "broadcast", 3: "multicast"}
+            meter_types = {
+                0: "arp",
+                1: "dhcp",
+                2: "broadcast",
+                3: "multicast",
+                4: "unicast",
+                5: "bpdu",
+            }
             meter_type = meter_types.get(meter_type_idx)
             if not meter_type:
                 continue
@@ -1007,6 +1222,11 @@ class OvsWorker:
                 bridge = mapping.get("bridge")
                 if bridge:
                     info["bridge"] = bridge
+                # Per-interface lab options (see parse_lab_opts). Each enabled
+                # flag relaxes one OVS port protection in _flow_add. Wireguard
+                # infra (kind="user_network") never carries these — the elif
+                # branch below leaves lab_opts unset, so it is always strict.
+                info["lab_opts"] = parse_lab_opts(mapping)
             elif kind == "user_network":
                 info["network_id"] = mapping.get("network_id", "")
                 metadata_id = mapping.get("metadata_id")
@@ -1098,6 +1318,9 @@ class OvsWorker:
                         "metadata_id": network_info.get("metadata_id"),
                         "interface_id": network_info.get("interface_id"),
                         "network_id": network_info.get("network_id"),
+                        # propagate per-interface lab options so _flow_add
+                        # can pick the per-flag flow set.
+                        "lab_opts": network_info.get("lab_opts", {}),
                     }
                 )
 
@@ -1145,6 +1368,7 @@ class OvsWorker:
         flows = []
         meter_specs = []  # Collect (meter_id, rate, burst) for batch creation
         ports_managed = []  # Ports we add to OVS (ethernet type)
+        bpdu_entries = []  # (vlan:int, ofport) lab-STP tunnel ports for this domain
         vlan4095_count = 0
 
         for iface in interfaces:
@@ -1192,12 +1416,33 @@ class OvsWorker:
             meter_base = 100 + (nport * 10)
             meter_arp = meter_base + 0  # VLAN 4095 ARP: 1 pkt/s
             meter_dhcp = meter_base + 1  # VLAN 4095 DHCP: 2 pkt/s
-            meter_bcast = meter_base + 2  # Broadcast storm: 10 pkt/s
-            meter_mcast = meter_base + 3  # Multicast: 500 pkt/s (video)
+            meter_bcast = meter_base + 2  # Broadcast storm (rate per lab opts)
+            meter_mcast = meter_base + 3  # Multicast (rate per lab opts)
+            meter_unicast = meter_base + 4  # mac_spoofing unicast catch-all
 
-            # Collect broadcast/multicast meter specs (all VLANs)
-            meter_specs.append((meter_bcast, 10, 50))  # 10 pkt/s, burst 50
-            meter_specs.append((meter_mcast, 500, 750))  # 500 pkt/s, burst 750
+            # Per-interface lab options (admin webapp, API-validated). Honored
+            # only outside VLAN 4095 (wireguard infra) — that VLAN is always
+            # strict, so force every flag off there.
+            lab = iface.get("lab_opts", {}) if vlan != "4095" else {}
+            mac_spoofing = bool(lab.get("mac_spoofing"))
+            broadcast_unlimited = bool(lab.get("broadcast_unlimited"))
+            multicast_unlimited = bool(lab.get("multicast_unlimited"))
+            # lab.get("stp_bpdu") drives BPDU tunneling, added in the
+            # dedicated block below (group-based MAC rewrite over the overlay).
+
+            # Broadcast/multicast meters (all VLANs): tight storm protection by
+            # default, raised to the lab ceiling when relaxed. Applies in both
+            # strict and mac_spoofing modes (the rate flags are independent).
+            meter_specs.append(
+                (meter_bcast, BCAST_LAB_RATE, BCAST_LAB_BURST)
+                if broadcast_unlimited
+                else (meter_bcast, BCAST_DEFAULT_RATE, BCAST_DEFAULT_BURST)
+            )
+            meter_specs.append(
+                (meter_mcast, MCAST_LAB_RATE, MCAST_LAB_BURST)
+                if multicast_unlimited
+                else (meter_mcast, MCAST_DEFAULT_RATE, MCAST_DEFAULT_BURST)
+            )
 
             # ==============================================================
             # user_network: OpenFlow metadata isolation (skip VLAN flows)
@@ -1206,6 +1451,14 @@ class OvsWorker:
                 # STP/BPDU protection - ALWAYS apply (even if metadata_id missing)
                 flows.append(
                     f"priority=250,in_port={nport},dl_dst=01:80:c2:00:00:00,actions=drop"
+                )
+                # Forged-tunnel-MAC guard: BPDU_TUNNEL_MAC is multicast, so a
+                # guest sourcing frames to it would have them flooded over the
+                # overlay and reborn as genuine BPDUs by a remote from-geneve
+                # rewrite flow. Only the OpenFlow group bucket may ever
+                # produce that dst MAC.
+                flows.append(
+                    f"priority=250,in_port={nport},dl_dst={BPDU_TUNNEL_MAC},actions=drop"
                 )
 
                 metadata_id = iface.get("metadata_id")
@@ -1224,9 +1477,13 @@ class OvsWorker:
                     # Drop all other traffic from this port (wrong MAC or isolation)
                     flows.append(f"priority=197,in_port={nport},actions=drop")
 
-                    # Broadcast/multicast rate limiting for user_network
+                    # Broadcast/multicast rate limiting for user_network.
+                    # Broadcast sits strictly ABOVE multicast: ff:ff:.. also
+                    # matches the 01:00:../01:00:.. group-bit mask, and
+                    # equal-priority overlap is undefined in OpenFlow — the
+                    # split guarantees broadcast is accounted to meter_bcast.
                     flows.append(
-                        f"priority=199,in_port={nport},dl_src={mac},dl_dst=ff:ff:ff:ff:ff:ff,"
+                        f"priority=200,in_port={nport},dl_src={mac},dl_dst=ff:ff:ff:ff:ff:ff,"
                         f"actions=meter:{meter_bcast},set_field:{metadata_id}->metadata,resubmit(,1)"
                     )
                     flows.append(
@@ -1248,33 +1505,147 @@ class OvsWorker:
                 continue  # Skip VLAN-based flows for user_network
 
             # ==============================================================
-            # MAC Spoofing Protection (ALL OVS interfaces)
-            # ==============================================================
-            # Allow traffic with correct source MAC -> NORMAL switching
-            flows.append(f"priority=198,in_port={nport},dl_src={mac},actions=NORMAL")
-            # Drop all other traffic from this port (wrong source MAC)
-            flows.append(f"priority=197,in_port={nport},actions=drop")
-
-            # ==============================================================
-            # STP/BPDU Protection (ALL OVS interfaces)
+            # STP/BPDU Protection (ALL OVS interfaces, ALL modes)
             # ==============================================================
             # Drop STP BPDU frames - prevent spanning tree manipulation
             flows.append(
                 f"priority=250,in_port={nport},dl_dst=01:80:c2:00:00:00,actions=drop"
             )
+            # Forged-tunnel-MAC guard (ALL modes, incl. stp_bpdu ports — the
+            # 251 tunnel ingress only matches the canonical BPDU MAC):
+            # BPDU_TUNNEL_MAC is multicast, so a guest sourcing frames to it
+            # would have them flooded over geneve and rewritten into genuine
+            # BPDUs by the remote from-geneve flow. Only the OpenFlow group
+            # bucket may ever produce that dst MAC.
+            flows.append(
+                f"priority=250,in_port={nport},dl_dst={BPDU_TUNNEL_MAC},actions=drop"
+            )
 
             # ==============================================================
-            # Broadcast/Multicast Rate Limiting (ALL OVS interfaces)
-            # Priority 199 = above MAC allow (198) to actually rate limit
+            # MAC Spoofing Protection + Broadcast/Multicast Rate Limiting
             # ==============================================================
-            # Rate-limit broadcasts (per-VM meter)
-            flows.append(
-                f"priority=199,in_port={nport},dl_src={mac},dl_dst=ff:ff:ff:ff:ff:ff,actions=meter:{meter_bcast},NORMAL"
-            )
-            # Rate-limit multicast (per-VM meter, higher rate for video)
-            flows.append(
-                f"priority=199,in_port={nport},dl_src={mac},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=meter:{meter_mcast},NORMAL"
-            )
+            # `mac_spoofing` is a per-interface lab option (admin webapp,
+            # API-validated), already forced off above on VLAN 4095.
+            if mac_spoofing:
+                # Permissive "lab" model:
+                #   - No priority=197 catch-all drop and no dl_src gate ->
+                #     arbitrary source MACs are accepted (required for nested
+                #     L2 setups: GNS3 cloud, EVE-NG, VPCS, bridged nested VMs)
+                #     EXCEPT the 52:54:00 KVM OUI, which is reserved to this
+                #     desktop's own MAC (see the KVM-OUI guard below) so a lab
+                #     VM cannot impersonate another IsardVDI desktop.
+                #   - Broadcast/multicast (202): metered + NORMAL + IN_PORT.
+                #     IN_PORT delivers the flood back to sibling endpoints that
+                #     share this one OVS port (e.g. a GNS3 "cloud" bridging
+                #     several sim devices onto one vNIC), which NORMAL's L2
+                #     split-horizon would otherwise drop.
+                #   - Unicast catch-all (201): metered + NORMAL only, NO
+                #     IN_PORT. NORMAL already delivers cross-port unicast to the
+                #     correct port; adding IN_PORT would reflect EVERY unicast
+                #     back to the sender (self-echo + FDB/MAC-flap inside nested
+                #     guest bridges). Same-port unicast hairpin (two endpoints
+                #     behind one OVS port unicasting each other through OVS) is
+                #     intentionally unsupported — standard nested-lab topologies
+                #     switch intra-desktop traffic in the guest's own bridge, so
+                #     it never reaches OVS.
+                #   NOTE: the unicast meter bounds packet RATE, not the number
+                #   of distinct source MACs learned into the shared bridge FDB;
+                #   a busy lab VM can still churn the FDB. Acceptable on the
+                #   dedicated lab networks this option is restricted to.
+                meter_specs.append(
+                    (meter_unicast, MAC_SPOOF_UNICAST_RATE, MAC_SPOOF_UNICAST_BURST)
+                )
+                # KVM-OUI guard: arbitrary source MACs are accepted EXCEPT the
+                # 52:54:00 range (KVM_OUI_SRC_MATCH) that every IsardVDI desktop
+                # uses — only this desktop's own MAC may use it. Priority layers
+                # (per-in_port, so no overlap with the VLAN-4095-only 204-207
+                # set on other ports). Broadcast always sits strictly ABOVE its
+                # multicast sibling: ff:ff:.. also matches the 01:00:.. group-bit
+                # mask and equal-priority overlap is undefined in OpenFlow, so
+                # the split guarantees broadcast is accounted to meter_bcast
+                # (whose ceiling is raised independently of meter_mcast).
+                #   206/205/204  own MAC -> permissive (bcast/mcast/unicast)
+                #   203          any other 52:54:00 src -> drop (anti-impersonation)
+                #   202/201/200  non-KVM src -> permissive (bcast/mcast/unicast)
+                # Own MAC, broadcast: rate-limited + flood + same-port hairpin.
+                flows.append(
+                    f"priority=206,in_port={nport},dl_src={mac},dl_dst=ff:ff:ff:ff:ff:ff,"
+                    f"actions=meter:{meter_bcast},NORMAL,IN_PORT"
+                )
+                # Own MAC, multicast.
+                flows.append(
+                    f"priority=205,in_port={nport},dl_src={mac},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,"
+                    f"actions=meter:{meter_mcast},NORMAL,IN_PORT"
+                )
+                # Own MAC, unicast: rate-limited + NORMAL (no IN_PORT echo).
+                flows.append(
+                    f"priority=204,in_port={nport},dl_src={mac},"
+                    f"actions=meter:{meter_unicast},NORMAL"
+                )
+                # Block every OTHER 52:54:00 source MAC (cannot impersonate
+                # another IsardVDI desktop).
+                flows.append(
+                    f"priority=203,in_port={nport},dl_src={KVM_OUI_SRC_MATCH},actions=drop"
+                )
+                # Non-KVM broadcast: rate-limited + flood + same-port hairpin.
+                flows.append(
+                    f"priority=202,in_port={nport},dl_dst=ff:ff:ff:ff:ff:ff,"
+                    f"actions=meter:{meter_bcast},NORMAL,IN_PORT"
+                )
+                # Non-KVM multicast: rate-limited + flood + same-port hairpin.
+                flows.append(
+                    f"priority=201,in_port={nport},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,"
+                    f"actions=meter:{meter_mcast},NORMAL,IN_PORT"
+                )
+                # Non-KVM unicast catch-all: rate-limited + NORMAL (no IN_PORT echo).
+                flows.append(
+                    f"priority=200,in_port={nport},"
+                    f"actions=meter:{meter_unicast},NORMAL"
+                )
+            else:
+                # Strict model (default):
+                #   - priority=198 allows traffic with the desktop's own MAC
+                #   - priority=200 rate-limits broadcast, 199 multicast, from
+                #     that same MAC (broadcast strictly above multicast: the
+                #     ff:ff:.. address also matches the 01:00:.. group-bit
+                #     mask, and equal-priority overlap is undefined in
+                #     OpenFlow — the split pins broadcast to meter_bcast)
+                #   - priority=197 drops anything else (anti-MAC-spoofing)
+                # Allow traffic with correct source MAC -> NORMAL switching
+                flows.append(
+                    f"priority=198,in_port={nport},dl_src={mac},actions=NORMAL"
+                )
+                # Rate-limit broadcasts (per-VM meter)
+                flows.append(
+                    f"priority=200,in_port={nport},dl_src={mac},dl_dst=ff:ff:ff:ff:ff:ff,actions=meter:{meter_bcast},NORMAL"
+                )
+                # Rate-limit multicast (per-VM meter, higher rate for video)
+                flows.append(
+                    f"priority=199,in_port={nport},dl_src={mac},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=meter:{meter_mcast},NORMAL"
+                )
+                # Drop all other traffic from this port (wrong source MAC)
+                flows.append(f"priority=197,in_port={nport},actions=drop")
+
+            # ==============================================================
+            # BPDU tunneling (stp_bpdu lab option) — see module header.
+            # priority=251 wins over the priority=250 BPDU drop above, so guest
+            # BPDUs are tunneled instead of dropped. `lab` is forced empty on
+            # VLAN 4095, so this never applies there. The group it targets is
+            # (re)built by _sync_bpdu_groups before these flows are installed.
+            # ==============================================================
+            if lab.get("stp_bpdu"):
+                meter_bpdu = meter_base + 5
+                meter_specs.append((meter_bpdu, BPDU_TUNNEL_RATE, BPDU_TUNNEL_BURST))
+                # Port-level RSTP off so ovsbr0 does not consume the guest BPDU
+                # before the OpenFlow pipeline can tunnel it.
+                self._set_port_rstp_enable(port, False)
+                # Guest BPDU -> meter -> ALL group (local lab ports get it as-is,
+                # the geneve bucket rewrites it to the tunnel MAC for the overlay).
+                flows.append(
+                    f"priority=251,in_port={nport},dl_dst={BPDU_DST_MAC},"
+                    f"actions=meter:{meter_bpdu},group:{bpdu_group_all(int(vlan))}"
+                )
+                bpdu_entries.append((int(vlan), nport))
 
             # ==============================================================
             # VLAN 4095 Special Handling (Infrastructure Network)
@@ -1352,6 +1723,17 @@ class OvsWorker:
         # Create all meters in batch (single subprocess call)
         meters = self._create_meters_batch(meter_specs)
 
+        # BPDU tunneling: register this domain's lab-STP ports and (re)build the
+        # per-VLAN groups BEFORE the flows below reference them (group:<id>).
+        # Guarded so a failure here never aborts a normal domain start.
+        if bpdu_entries:
+            try:
+                with self.lock:
+                    self.domains[domain].bpdu = bpdu_entries
+                self._sync_bpdu_groups({v for v, _ in bpdu_entries})
+            except Exception as e:
+                log({"event": "bpdu_sync_error", "id": domain, "error": str(e)})
+
         # Apply flows via stdin (no temp file needed)
         if flows:
             cmd = ["ovs-ofctl", "-O", "OpenFlow13", "add-flows", BRIDGE, "-"]
@@ -1396,6 +1778,16 @@ class OvsWorker:
             flows = state.flows
             meters = state.meters
             ports = state.ports
+            bpdu = state.bpdu
+
+        # BPDU tunneling: rebuild/tear down the per-VLAN groups now that this
+        # domain (already popped above) no longer contributes its lab-STP ports.
+        # Guarded so a failure never breaks normal teardown.
+        if bpdu:
+            try:
+                self._sync_bpdu_groups({v for v, _ in bpdu})
+            except Exception as e:
+                log({"event": "bpdu_sync_error", "id": domain, "error": str(e)})
 
         if flows:
             # Convert to delete format (remove priority and actions)

@@ -370,7 +370,7 @@ unit-test-common:
     - make ci-test-common
 
 unit-test-hypervisor-lib:
-  # Hypervisor GPU lib suites (upstream MR !4496/!4519). Dependency-free
+  # Hypervisor GPU lib suites. Dependency-free
   # pytest: the shared gpu modules load from
   # component/_common/src/isardvdi_common/lib via gpu_probe._load_shared.
   extends: .python-test-base
