@@ -28,34 +28,91 @@
   </div>
   <div class="x_content">
     <form class="form-inline" id="migration_new" style="margin-bottom:12px;">
-      <label>Source
-        <select id="mig_src_pool" class="form-control input-sm"></select>
-      </label>
-      <label style="margin-left:8px;">Dest
-        <select id="mig_dst_pool" class="form-control input-sm"></select>
-      </label>
-      <label style="margin-left:8px;">Window
-        <input type="text" id="mig_win_start" class="form-control input-sm" placeholder="HH:MM" style="width:62px;">
-        &ndash;
-        <input type="text" id="mig_win_end" class="form-control input-sm" placeholder="HH:MM" style="width:62px;">
-      </label>
-      <label style="margin-left:8px;">Parallel
-        <input type="number" id="mig_parallel" class="form-control input-sm" value="1" min="1" style="width:58px;">
-      </label>
-      <label style="margin-left:8px;">bwlimit&nbsp;KB/s
-        <input type="number" id="mig_bwlimit" class="form-control input-sm" value="0" min="0" style="width:84px;">
-      </label>
-      <label style="margin-left:8px;"><input type="checkbox" id="mig_force_stop"> force-stop</label>
-      <label style="margin-left:8px;"><input type="checkbox" id="mig_verify" checked> verify</label>
-      <button type="button" class="btn btn-default btn-sm" id="mig_preview" style="margin-left:8px;">Preview</button>
-      <button type="button" class="btn btn-primary btn-sm" id="mig_create">Create &amp; start</button>
-      <span id="mig_preview_out" style="margin-left:10px;color:#555;"></span>
+      <div style="margin-bottom:6px;">
+        <label>What
+          <select id="mig_kind" class="form-control input-sm">
+            <option value="pool">Whole pool</option>
+            <option value="path">Path prefix</option>
+            <option value="category">Category</option>
+          </select>
+        </label>
+        <!-- pool + path share the source-pool selector -->
+        <label class="mig-grp mig-grp-pool mig-grp-path" style="margin-left:8px;">Source&nbsp;pool
+          <select id="mig_src_pool" class="form-control input-sm"></select>
+        </label>
+        <label class="mig-grp mig-grp-path" style="margin-left:8px;">Path
+          <select id="mig_path_prefix" class="form-control input-sm" style="min-width:180px;"></select>
+        </label>
+        <label class="mig-grp mig-grp-category" style="margin-left:8px;">Category
+          <select id="mig_category" class="form-control input-sm"></select>
+        </label>
+        <label style="margin-left:8px;">Destination&nbsp;pool
+          <select id="mig_dst_pool" class="form-control input-sm"></select>
+        </label>
+      </div>
+      <div style="margin-bottom:6px;">
+        <label>Window
+          <input type="text" id="mig_win_start" class="form-control input-sm" placeholder="HH:MM" style="width:62px;">
+          &ndash;
+          <input type="text" id="mig_win_end" class="form-control input-sm" placeholder="HH:MM" style="width:62px;">
+        </label>
+        <span style="margin-left:8px;">Days
+          <span id="mig_days">
+            <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="0"> Mon</label>
+            <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="1"> Tue</label>
+            <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="2"> Wed</label>
+            <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="3"> Thu</label>
+            <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="4"> Fri</label>
+            <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="5"> Sat</label>
+            <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="6"> Sun</label>
+          </span>
+          <span class="btn-group btn-group-xs" style="margin-left:4px;">
+            <button type="button" class="btn btn-default mig-days-preset" data-preset="all">All</button>
+            <button type="button" class="btn btn-default mig-days-preset" data-preset="weekdays">Mon&ndash;Fri</button>
+            <button type="button" class="btn btn-default mig-days-preset" data-preset="weekend">Weekend</button>
+            <button type="button" class="btn btn-default mig-days-preset" data-preset="none">Clear</button>
+          </span>
+        </span>
+        <label style="margin-left:8px;"><input type="checkbox" id="mig_recurring"> recurring</label>
+      </div>
+      <div style="margin-bottom:6px;">
+        <label>Re-scan
+          <select id="mig_rescan_cadence" class="form-control input-sm">
+            <option value="edge_on_drain">edge + on-drain</option>
+            <option value="edge">edge only</option>
+            <option value="continuous">continuous</option>
+          </select>
+        </label>
+        <label style="margin-left:8px;">On failure
+          <select id="mig_failure_policy" class="form-control input-sm">
+            <option value="retry_quarantine">retry, then quarantine</option>
+            <option value="pause">pause for attention</option>
+            <option value="retry_forever">retry forever</option>
+          </select>
+        </label>
+        <label class="mig-quarantine-after" style="margin-left:8px;">after
+          <input type="number" id="mig_quarantine_after" class="form-control input-sm" value="3" min="1" style="width:58px;"> occ.
+        </label>
+      </div>
+      <div>
+        <label>Parallel
+          <input type="number" id="mig_parallel" class="form-control input-sm" value="1" min="1" style="width:58px;">
+        </label>
+        <label style="margin-left:8px;">bwlimit&nbsp;KB/s
+          <input type="number" id="mig_bwlimit" class="form-control input-sm" value="0" min="0" style="width:84px;">
+        </label>
+        <label style="margin-left:8px;"><input type="checkbox" id="mig_force_stop"> force-stop</label>
+        <label style="margin-left:8px;"><input type="checkbox" id="mig_verify" checked> verify</label>
+        <button type="button" class="btn btn-default btn-sm" id="mig_preview" style="margin-left:8px;">Preview</button>
+        <button type="button" class="btn btn-primary btn-sm" id="mig_create">Create &amp; start</button>
+        <span id="mig_preview_out" style="margin-left:10px;color:#555;"></span>
+      </div>
     </form>
     <table id="migrations" class="table table-condensed">
       <thead>
         <tr>
           <th style="width:18px;"></th><th>Migration</th><th>Status</th>
-          <th>Progress</th><th>ETA</th><th>Window</th><th>Actions</th>
+          <th>Progress</th><th>ETA</th><th>Schedule</th><th>Actions</th>
         </tr>
       </thead>
       <tbody></tbody>

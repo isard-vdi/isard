@@ -21,7 +21,9 @@
 
 const MIG_API = "/api/v4/admin/storage/migrations";
 const POOLS_API = "/api/v4/storage-pools";
+const CATEGORIES_API = "/api/v4/admin/items/categories";
 const MIG_TERMINAL = ["completed", "failed", "canceled"];
+const MIG_DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // migrations expanded in the table (preserved across re-render)
 const migExpanded = {};
@@ -62,6 +64,42 @@ function migWindowLabel (m) {
   return "open · " + migEta(w.remaining_seconds) + " left";
 }
 
+// recurring / days can arrive top-level (status endpoint / socket) or only
+// inside config (list fallback) — read either.
+function migRecurring (m) {
+  return m.recurring != null ? !!m.recurring : !!(m.config && m.config.recurring);
+}
+
+function migDays (m) {
+  if (m.days) return m.days;
+  return (m.config && m.config.window && m.config.window.days) || [];
+}
+
+function migDaysLabel (days) {
+  if (!days || !days.length) return "every day";
+  const set = days.slice().sort(function (a, b) { return a - b; });
+  const key = set.join(",");
+  if (key === "0,1,2,3,4,5,6") return "every day";
+  if (key === "0,1,2,3,4") return "Mon–Fri";
+  if (key === "5,6") return "weekend";
+  return set.map(function (d) { return MIG_DAY_NAMES[d] || d; }).join(",");
+}
+
+// Schedule cell: days + window state, plus the next-run for a recurring job.
+function migScheduleLabel (m) {
+  let s = migDaysLabel(migDays(m)) + " · " + migWindowLabel(m);
+  if (migRecurring(m) && m.next_run_seconds != null && m.next_run_seconds > 0) {
+    s += " · next " + migEta(m.next_run_seconds);
+  }
+  return s;
+}
+
+function migStatusCell (m) {
+  let s = migEscape(m.status);
+  if (migRecurring(m)) s += ' <span class="label label-info" title="recurring">↻</span>';
+  return s;
+}
+
 function migBar (done, total, bytesDone, bytesTotal) {
   const pct = total ? Math.round((done / total) * 100) : 0;
   const bpct = bytesTotal ? Math.round((bytesDone / bytesTotal) * 100) : 0;
@@ -70,12 +108,20 @@ function migBar (done, total, bytesDone, bytesTotal) {
     </div>`;
 }
 
+// A downloadable audit report is always available (also for terminal jobs).
+function migLogButton (m) {
+  return `<a class="btn btn-xs btn-default mig-log" href="${MIG_API}/${encodeURIComponent(m.id)}/log?format=csv" title="Download CSV report" onclick="event.stopPropagation();">Log</a>`;
+}
+
 function migActionButtons (m) {
-  if (MIG_TERMINAL.indexOf(m.status) !== -1) return migEscape(m.status);
+  if (MIG_TERMINAL.indexOf(m.status) !== -1) {
+    return migEscape(m.status) + " " + migLogButton(m);
+  }
   return `
     <button class="btn btn-xs btn-success mig-action" data-mig="${migEscape(m.id)}" data-action="start">Start</button>
     <button class="btn btn-xs btn-warning mig-action" data-mig="${migEscape(m.id)}" data-action="pause">Pause</button>
-    <button class="btn btn-xs btn-danger mig-action" data-mig="${migEscape(m.id)}" data-action="cancel">Cancel</button>`;
+    <button class="btn btn-xs btn-danger mig-action" data-mig="${migEscape(m.id)}" data-action="cancel">Cancel</button>
+    ${migLogButton(m)}`;
 }
 
 function migCard (label, value) {
@@ -104,9 +150,36 @@ function migConfigControls (m) {
       </label>
       <label style="margin-left:8px;"><input type="checkbox" class="cfg-force" ${c.force_stop_desktops ? "checked" : ""} ${dis}> force-stop</label>
       <label style="margin-left:8px;"><input type="checkbox" class="cfg-verify" ${c.verify === false ? "" : "checked"} ${dis}> verify</label>
+      <label style="margin-left:8px;"><input type="checkbox" class="cfg-recurring" ${c.recurring ? "checked" : ""} ${dis}> recurring</label>
+      <span class="cfg-days" style="margin-left:8px;">Days
+        ${MIG_DAY_NAMES.map(function (n, i) {
+          const on = ((w.days || []).indexOf(i) !== -1) ? "checked" : "";
+          return `<label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="${i}" ${on} ${dis}> ${n}</label>`;
+        }).join("")}
+      </span>
+      <label style="margin-left:8px;">Re-scan
+        <select class="form-control input-sm cfg-cadence" ${dis}>
+          ${migOpt(["edge_on_drain", "edge", "continuous"], c.rescan_cadence || "edge_on_drain")}
+        </select>
+      </label>
+      <label style="margin-left:8px;">On&nbsp;fail
+        <select class="form-control input-sm cfg-failure" ${dis}>
+          ${migOpt(["retry_quarantine", "pause", "retry_forever"], c.failure_policy || "retry_quarantine")}
+        </select>
+      </label>
+      <label style="margin-left:8px;">after
+        <input type="number" class="form-control input-sm cfg-quarantine-after" min="1" style="width:52px;" value="${migEscape(c.quarantine_after != null ? c.quarantine_after : 3)}" ${dis}>
+      </label>
       <button type="button" class="btn btn-default btn-xs mig-config-apply" style="margin-left:8px;" ${dis}>Apply</button>
       <span class="mig-config-out" style="margin-left:8px;color:#888;"></span>
     </form>`;
+}
+
+// <option> list with the current value pre-selected (values are safe enums).
+function migOpt (values, current) {
+  return values.map(function (v) {
+    return `<option value="${v}"${v === current ? " selected" : ""}>${v}</option>`;
+  }).join("");
 }
 
 function migTreeRows (m) {
@@ -149,10 +222,10 @@ function migRowHtml (m) {
   let html = `<tr class="mig-row" data-mig="${migEscape(m.id)}" style="cursor:pointer;">
       <td><i class="fa fa-caret-${open ? "down" : "right"}"></i></td>
       <td>${migEscape(m.id)}</td>
-      <td>${migEscape(m.status)}</td>
+      <td>${migStatusCell(m)}</td>
       <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0)}</td>
       <td>${migEta(m.eta_seconds)}</td>
-      <td>${migEscape(migWindowLabel(m))}</td>
+      <td>${migEscape(migScheduleLabel(m))}</td>
       <td onclick="event.stopPropagation();">${migActionButtons(m)}</td>
     </tr>`;
   if (open) html += migDetail(m);
@@ -192,26 +265,90 @@ function loadMigrationPools () {
       return `<option value="${migEscape(p.id)}">${migEscape(p.name || p.id)}</option>`;
     }).join("");
     $("#mig_src_pool, #mig_dst_pool").html(opts);
+    loadMigrationPathPrefixes();
   });
 }
 
-function migSelection () {
-  return { kind: "pool", src_pool_id: $("#mig_src_pool").val(), dst_pool_id: $("#mig_dst_pool").val() };
+function loadMigrationCategories () {
+  $.ajax({ type: "GET", url: CATEGORIES_API }).done(function (data) {
+    const rows = Array.isArray(data) ? data : (data.categories || data.data || []);
+    $("#mig_category").html(rows.map(function (c) {
+      return `<option value="${migEscape(c.id)}">${migEscape(c.name || c.id)}</option>`;
+    }).join(""));
+  });
 }
 
-function migWindowFrom (start, end) {
+// Real source path-prefixes for the `path` kind, scoped to the chosen source
+// pool (no free text).
+function loadMigrationPathPrefixes () {
+  const src = $("#mig_src_pool").val();
+  const url = MIG_API + "/path-prefixes" + (src ? "?src_pool_id=" + encodeURIComponent(src) : "");
+  $.ajax({ type: "GET", url: url }).done(function (data) {
+    const prefixes = (data && data.prefixes) || [];
+    $("#mig_path_prefix").html(prefixes.map(function (p) {
+      return `<option value="${migEscape(p)}">${migEscape(p)}</option>`;
+    }).join(""));
+  });
+}
+
+// Show only the inputs relevant to the selected kind.
+function migKindApply () {
+  const kind = $("#mig_kind").val();
+  $(".mig-grp").hide();
+  $(".mig-grp-" + kind).show();
+}
+
+// Selected weekdays (0..6, Mon=0) from `.mig-day` checkboxes within a scope.
+function migDaysFrom ($scope) {
+  const days = [];
+  $scope.find(".mig-day:checked").each(function () { days.push(parseInt($(this).val(), 10)); });
+  return days;
+}
+
+function migSetDays ($scope, days) {
+  const set = {};
+  (days || []).forEach(function (d) { set[d] = true; });
+  $scope.find(".mig-day").each(function () { $(this).prop("checked", !!set[parseInt($(this).val(), 10)]); });
+}
+
+// The migration selection for the currently-chosen kind (every field a
+// dropdown value — no free text).
+function migSelection () {
+  const kind = $("#mig_kind").val();
+  const dst = $("#mig_dst_pool").val();
+  if (kind === "path") {
+    return { kind: "path", src_pool_id: $("#mig_src_pool").val(),
+      path_prefix: $("#mig_path_prefix").val(), dst_pool_id: dst };
+  }
+  if (kind === "category") {
+    return { kind: "category", category_id: $("#mig_category").val(), dst_pool_id: dst };
+  }
+  return { kind: "pool", src_pool_id: $("#mig_src_pool").val(), dst_pool_id: dst };
+}
+
+// A window may be time-only, days-only, or both; null when neither is set.
+function migWindowFrom (start, end, days) {
   start = (start || "").trim();
   end = (end || "").trim();
-  return (start && end) ? { start: start, end: end, tz: "UTC" } : null;
+  days = days || [];
+  const w = { tz: "UTC" };
+  let has = false;
+  if (start && end) { w.start = start; w.end = end; has = true; }
+  if (days.length) { w.days = days; has = true; }
+  return has ? w : null;
 }
 
 function migCreateConfig () {
   return {
     bwlimit_kbs: parseInt($("#mig_bwlimit").val(), 10) || 0,
     parallelism: parseInt($("#mig_parallel").val(), 10) || 1,
-    window: migWindowFrom($("#mig_win_start").val(), $("#mig_win_end").val()),
+    window: migWindowFrom($("#mig_win_start").val(), $("#mig_win_end").val(), migDaysFrom($("#mig_days"))),
     verify: $("#mig_verify").is(":checked"),
-    force_stop_desktops: $("#mig_force_stop").is(":checked")
+    force_stop_desktops: $("#mig_force_stop").is(":checked"),
+    recurring: $("#mig_recurring").is(":checked"),
+    rescan_cadence: $("#mig_rescan_cadence").val(),
+    failure_policy: $("#mig_failure_policy").val(),
+    quarantine_after: parseInt($("#mig_quarantine_after").val(), 10) || 3
   };
 }
 
@@ -228,7 +365,29 @@ function socketio_on () {
 
 $(document).ready(function () {
   loadMigrationPools();
+  loadMigrationCategories();
   loadMigrations();
+  migKindApply();
+
+  // kind dropdown -> show the matching inputs
+  $("#mig_kind").on("change", migKindApply);
+
+  // source pool changes -> re-scope the path-prefix dropdown
+  $("#mig_src_pool").on("change", loadMigrationPathPrefixes);
+
+  // days-of-week presets on the create form
+  $("#migration_new").on("click", ".mig-days-preset", function () {
+    const preset = $(this).data("preset");
+    const map = { all: [0, 1, 2, 3, 4, 5, 6], weekdays: [0, 1, 2, 3, 4], weekend: [5, 6], none: [] };
+    migSetDays($("#mig_days"), map[preset] || []);
+  });
+
+  // quarantine budget only applies to the retry_quarantine policy
+  function migToggleQuarantine () {
+    $(".mig-quarantine-after").toggle($("#mig_failure_policy").val() === "retry_quarantine");
+  }
+  $("#mig_failure_policy").on("change", migToggleQuarantine);
+  migToggleQuarantine();
 
   $("#mig_preview").on("click", function () {
     $("#mig_preview_out").text("Building plan…");
@@ -278,9 +437,13 @@ $(document).ready(function () {
     const body = {
       bwlimit_kbs: parseInt($f.find(".cfg-bwlimit").val(), 10) || 0,
       parallelism: parseInt($f.find(".cfg-parallel").val(), 10) || 1,
-      window: migWindowFrom($f.find(".cfg-win-start").val(), $f.find(".cfg-win-end").val()),
+      window: migWindowFrom($f.find(".cfg-win-start").val(), $f.find(".cfg-win-end").val(), migDaysFrom($f)),
       verify: $f.find(".cfg-verify").is(":checked"),
-      force_stop_desktops: $f.find(".cfg-force").is(":checked")
+      force_stop_desktops: $f.find(".cfg-force").is(":checked"),
+      recurring: $f.find(".cfg-recurring").is(":checked"),
+      rescan_cadence: $f.find(".cfg-cadence").val(),
+      failure_policy: $f.find(".cfg-failure").val(),
+      quarantine_after: parseInt($f.find(".cfg-quarantine-after").val(), 10) || 3
     };
     $f.find(".mig-config-out").text("Saving…");
     $.ajax({ type: "PUT", url: `${MIG_API}/${id}/config`, contentType: "application/json", data: JSON.stringify(body) })
