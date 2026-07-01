@@ -120,6 +120,7 @@ async def api_v4_category_custom_url(category_id: str, request: Request):
 
 
 _DEFAULT_LOGO_PATH = "/usr/share/nginx/html/default_logo.svg"
+_DEFAULT_LOGO_COLLAPSED_PATH = "/usr/share/nginx/html/default_logo_collapsed.svg"
 # Admin-mounted per-deployment branding. ``docker-compose-parts/apiv4.yml``
 # bind-mounts ``/opt/isard/frontend/custom`` → ``/static/custom`` (rw), so
 # dropping ``logo.<ext>`` there provides a deployment-wide fallback when
@@ -172,27 +173,22 @@ def _serve_logo_from_glob(glob_pattern: str) -> Optional[Response]:
     return None
 
 
-def _logo_response(
-    data_url: str | None,
-    glob_pattern: str = _STATIC_CUSTOM_LOGO_GLOB,
-    default_path: str | None = _DEFAULT_LOGO_PATH,
+def _logo_response_chain(
+    candidates: list[tuple[str | None, str]],
+    default_path: str | None,
 ) -> Response:
-    """Serve a branding logo: data URL → static glob → default file → 404.
-
-    ``default_path=None`` (the collapsed variant) skips the default-file
-    step and returns 404 so the frontend renders its bundled asset.
-    """
-    if data_url and data_url.startswith("data:"):
-        header, b64_data = data_url.split(",", 1)
-        mime_type = header.split(":")[1].split(";")[0]
-        return Response(
-            content=base64.b64decode(b64_data),
-            media_type=mime_type,
-            headers=_LOGO_HEADERS,
-        )
-    response = _serve_logo_from_glob(glob_pattern)
-    if response is not None:
-        return response
+    for data_url, glob_pattern in candidates:
+        if data_url and data_url.startswith("data:"):
+            header, b64_data = data_url.split(",", 1)
+            mime_type = header.split(":")[1].split(";")[0]
+            return Response(
+                content=base64.b64decode(b64_data),
+                media_type=mime_type,
+                headers=_LOGO_HEADERS,
+            )
+        response = _serve_logo_from_glob(glob_pattern)
+        if response is not None:
+            return response
     if default_path and os.path.isfile(default_path):
         with open(default_path, "rb") as f:
             return Response(
@@ -201,6 +197,19 @@ def _logo_response(
                 headers={"Cache-Control": "public, max-age=300"},
             )
     return Response(status_code=404)
+
+
+def _logo_response(
+    data_url: str | None,
+    glob_pattern: str = _STATIC_CUSTOM_LOGO_GLOB,
+    default_path: str | None = _DEFAULT_LOGO_PATH,
+) -> Response:
+    """Serve a branding logo: data URL → static glob → default file → 404.
+
+    ``default_path=None`` skips the default-file step and returns 404. Thin
+    single-candidate wrapper over :func:`_logo_response_chain`.
+    """
+    return _logo_response_chain([(data_url, glob_pattern)], default_path)
 
 
 def _with_etag(request: Request, response: Response) -> Response:
@@ -312,11 +321,9 @@ async def get_category_logo(category_id: str, request: Request):
     response_class=Response,
     summary="Get collapsed logo",
     description=(
-        "Returns the collapsed-sidebar logo variant. Reads "
-        "``/static/custom/logo-collapsed.<ext>`` from the admin-mounted "
-        "branding directory and serves it with the matching media type. "
-        "Returns 404 when no file is present; the apiv4 frontend handles "
-        "the 404 by rendering its bundled ``LogoCollapsedSvg`` asset."
+        "Returns the collapsed-sidebar logo for the requesting domain. "
+        "Falls back through the configured collapsed logo, then the "
+        "configured full logo, and finally the bundled default collapsed logo."
     ),
     responses={
         200: {
@@ -334,13 +341,18 @@ async def get_category_logo(category_id: str, request: Request):
 async def get_logo_collapsed(request: Request):
     try:
         domain = request.headers.get("host", "").split(":")[0].lower()
-        data_url = await asyncio.to_thread(_logo_collapsed_data_url_by_domain, domain)
+        collapsed_url, logo_url = await asyncio.gather(
+            asyncio.to_thread(_logo_collapsed_data_url_by_domain, domain),
+            asyncio.to_thread(_logo_data_url_by_domain, domain),
+        )
         return _with_etag(
             request,
-            _logo_response(
-                data_url,
-                glob_pattern=_STATIC_CUSTOM_LOGO_COLLAPSED_GLOB,
-                default_path=None,
+            _logo_response_chain(
+                [
+                    (collapsed_url, _STATIC_CUSTOM_LOGO_COLLAPSED_GLOB),
+                    (logo_url, _STATIC_CUSTOM_LOGO_GLOB),
+                ],
+                default_path=_DEFAULT_LOGO_COLLAPSED_PATH,
             ),
         )
     except Error:
@@ -361,8 +373,8 @@ async def get_logo_collapsed(request: Request):
     summary="Get category collapsed logo",
     description=(
         "Returns the collapsed-sidebar branding logo for a category. Falls "
-        "back to the deployment-wide static collapsed logo, then 404 (the "
-        "frontend renders its bundled ``LogoCollapsedSvg`` asset)."
+        "back through the category's collapsed logo, then its full logo, "
+        "and finally the bundled default collapsed logo."
     ),
     responses={
         200: {
@@ -379,15 +391,20 @@ async def get_logo_collapsed(request: Request):
 )
 async def get_category_logo_collapsed(category_id: str, request: Request):
     try:
-        data_url = await asyncio.to_thread(
-            AdminCategoryService.get_logo_collapsed_by_category, category_id
+        collapsed_url, logo_url = await asyncio.gather(
+            asyncio.to_thread(
+                AdminCategoryService.get_logo_collapsed_by_category, category_id
+            ),
+            asyncio.to_thread(AdminCategoryService.get_logo_by_category, category_id),
         )
         return _with_etag(
             request,
-            _logo_response(
-                data_url,
-                glob_pattern=_STATIC_CUSTOM_LOGO_COLLAPSED_GLOB,
-                default_path=None,
+            _logo_response_chain(
+                [
+                    (collapsed_url, _STATIC_CUSTOM_LOGO_COLLAPSED_GLOB),
+                    (logo_url, _STATIC_CUSTOM_LOGO_GLOB),
+                ],
+                default_path=_DEFAULT_LOGO_COLLAPSED_PATH,
             ),
         )
     except Error:

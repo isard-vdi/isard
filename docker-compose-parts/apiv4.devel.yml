@@ -27,4 +27,6 @@ services:
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client_auth:/opt/isardvdi/isardvdi_notifier_client_auth
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client:/opt/isardvdi/isardvdi_scheduler_client
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth
+      - ${BUILD_ROOT_PATH}/component/frontend/src/assets/logo.svg:/usr/share/nginx/html/default_logo.svg:ro
+      - ${BUILD_ROOT_PATH}/component/frontend/src/assets/logo-collapsed.svg:/usr/share/nginx/html/default_logo_collapsed.svg:ro
       # - ${BUILD_ROOT_PATH}/pkg/gen/proto/python:/opt/isardvdi/isardvdi_protobuf

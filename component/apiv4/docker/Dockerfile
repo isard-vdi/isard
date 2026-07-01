@@ -22,6 +22,7 @@ WORKDIR /app
 COPY --from=builder /.venv /.venv
 COPY component/apiv4/src /app
 COPY component/frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.svg
+COPY component/frontend/src/assets/logo-collapsed.svg /usr/share/nginx/html/default_logo_collapsed.svg
 ENV PATH="/.venv/bin:$PATH"
 EXPOSE 5000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*"]
