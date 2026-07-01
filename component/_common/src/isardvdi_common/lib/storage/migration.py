@@ -187,12 +187,22 @@ def aggregate_status(migration, items, *, include_items=False):
     ewma = getattr(migration, "throughput_ewma", None) or {}
     mbps = max(ewma.values()) if ewma else None
     eta = tree_eta_seconds(max(0, bytes_total - bytes_done), mbps)
+    cfg = getattr(migration, "config", None) or {}
+    cfg_window = cfg.get("window") or {}
     payload = {
         "id": migration.id,
         "status": str(migration.status),
-        "config": getattr(migration, "config", None) or {},
+        "config": cfg,
         "current_window": getattr(migration, "current_window", None),
         "eta_seconds": None if eta is None else int(eta),
+        # schedule surface for the admin table (recurring badge + days + next-run)
+        "recurring": bool(cfg.get("recurring")),
+        "days": cfg_window.get("days") or [],
+        # next-run is filled live by the status endpoint (needs now-in-tz); the
+        # runner also stamps current_window each tick.
+        "next_run_seconds": (getattr(migration, "current_window", None) or {}).get(
+            "next_run_seconds"
+        ),
         "totals": {
             "trees": len(by_tree),
             "derivative_templates": sum(t["derivative_templates"] for t in trees),
@@ -257,10 +267,12 @@ def probe_actual_size(path, timeout=30):
 # --------------------------------------------------------------------------- #
 # Per-disk saga decision layer (pure) — the correctness-critical ordering
 # --------------------------------------------------------------------------- #
-#: states past which a disk needs no phase-A (move/rebase/db) work
-_PHASE_A_DONE = {"db_updated", "released", "skipped"}
+#: states past which a disk needs no phase-A (move/rebase/db) work. ``quarantined``
+#: is terminal off-path, so a re-armed tree with one quarantined disk still
+#: settles (that disk is skipped in the walk like ``skipped``).
+_PHASE_A_DONE = {"db_updated", "released", "skipped", "quarantined"}
 #: terminal states
-_DONE = {"released", "skipped"}
+_DONE = {"released", "skipped", "quarantined"}
 
 
 def _job_finished(status):
@@ -278,6 +290,16 @@ def item_in_place(item):
     in place, so the move and the release are both skipped (saga-1)."""
     dst = item.get("dst_path")
     return bool(dst) and dst == item.get("src_path")
+
+
+def all_in_place(items):
+    """True when a NON-EMPTY plan resolves ENTIRELY in-place — every disk's
+    destination equals its source (``item_in_place``). This is the path/category
+    equivalent of a same-pool migration: the destination pool is the one the
+    disks already live in, so nothing would move. An empty plan is not
+    "all in place" (a recurring job may legitimately start with an empty scope)."""
+    items = list(items)
+    return bool(items) and all(item_in_place(it) for it in items)
 
 
 def decide_item_action(item, job_status_fn):
@@ -506,6 +528,130 @@ def window_remaining_seconds(start_min, end_min, now_min):
     return rem_min * 60
 
 
+# --------------------------------------------------------------------------- #
+# Day-of-week schedule (pure) — layered on the daily HH:MM window
+#
+# A recurring migration's window is open only on selected weekdays within the
+# daily range. An overnight window's post-midnight tail belongs to the day the
+# window STARTED on, so a "Friday 22:00-06:00" occurrence is one continuous
+# instance keyed to Friday even though part of it runs on Saturday.
+# Weekdays are Mon=0 … Sun=6 (datetime.weekday()).
+# --------------------------------------------------------------------------- #
+def normalize_days(days):
+    """``days`` -> a set of in-range weekdays (0..6), or ``None`` when the
+    restriction is empty/absent (== active every day). An all-invalid list also
+    collapses to ``None`` (every day) rather than a never-open window."""
+    if not days:
+        return None
+    out = set()
+    for d in days:
+        try:
+            di = int(d)
+        except (ValueError, TypeError):
+            continue
+        if 0 <= di <= 6:
+            out.add(di)
+    return out or None
+
+
+def _occurrence_weekday(start_min, end_min, weekday, now_min):
+    """Weekday the currently-open window instance STARTED on. For an overnight
+    window (``start > end``) the post-midnight tail (``now < end``) belongs to
+    the previous day; every other case is ``weekday`` itself."""
+    if (
+        start_min is not None
+        and end_min is not None
+        and start_min > end_min
+        and now_min < end_min
+    ):
+        return (weekday - 1) % 7
+    return weekday
+
+
+def window_is_open_days(start_min, end_min, days, weekday, now_min):
+    """Is the window open now, given the daily range AND the selected weekdays?
+
+    First the time check (:func:`window_is_open`, which already handles unset /
+    zero-width / overnight windows), then the day check: the occurrence's START
+    weekday must be selected. ``days`` empty/None (or ``weekday`` None) imposes no
+    day restriction — every day, preserving pre-schedule behaviour.
+    """
+    if not window_is_open(start_min, end_min, now_min):
+        return False
+    dset = normalize_days(days)
+    if dset is None or weekday is None:
+        return True
+    return _occurrence_weekday(start_min, end_min, weekday, now_min) in dset
+
+
+def window_remaining_seconds_days(start_min, end_min, days, weekday, now_min):
+    """Seconds until the window closes, honouring the day filter. ``0`` when the
+    window is closed today (wrong weekday or outside the range); otherwise the
+    same time-to-close as :func:`window_remaining_seconds` (the close boundary is
+    a time-of-day, unaffected by which weekday opened it)."""
+    if not window_is_open_days(start_min, end_min, days, weekday, now_min):
+        return 0
+    return window_remaining_seconds(start_min, end_min, now_min)
+
+
+def occurrence_key(now_dt, start_min, end_min):
+    """Stable per-occurrence key: the ISO date (``YYYY-MM-DD``) the current
+    window instance STARTED on. For an overnight window's post-midnight tail this
+    is the previous calendar date, so one occurrence yields one key for its whole
+    duration — the reconciler re-scans a recurring job exactly once per
+    occurrence (when this key changes)."""
+    from datetime import timedelta
+
+    now_min = now_dt.hour * 60 + now_dt.minute
+    day = now_dt.date()
+    if (
+        start_min is not None
+        and end_min is not None
+        and start_min > end_min
+        and now_min < end_min
+    ):
+        day = day - timedelta(days=1)
+    return day.isoformat()
+
+
+def next_occurrence_seconds(start_min, end_min, days, weekday, now_min):
+    """Seconds until the window NEXT opens on a selected weekday (admin-table
+    lookahead). ``0`` when open now; ``None`` when there is no schedule at all
+    (unbounded time and no day filter — always open, no meaningful next-run).
+    Scans forward up to 7 days; an unset start opens at midnight."""
+    dset = normalize_days(days)
+    no_time = start_min is None or end_min is None
+    if no_time and dset is None:
+        return None
+    if window_is_open_days(start_min, end_min, days, weekday, now_min):
+        return 0
+    open_at = 0 if start_min is None else start_min
+    wd0 = 0 if weekday is None else weekday
+    for k in range(0, 8):
+        wd = (wd0 + k) % 7
+        if dset is not None and wd not in dset:
+            continue
+        delta = k * 1440 + open_at - now_min
+        if delta > 0:
+            return delta * 60
+    return None
+
+
+def next_run_for_window(window, now_dt):
+    """Seconds until ``window`` (a ``{start,end,days,tz}`` dict) next opens on a
+    selected weekday, given an aware ``now_dt``. ``None`` when there is no
+    schedule. Pure given ``now_dt`` — the caller supplies now-in-tz."""
+    if not window:
+        return None
+    return next_occurrence_seconds(
+        parse_hhmm(window.get("start")),
+        parse_hhmm(window.get("end")),
+        window.get("days") or [],
+        now_dt.weekday(),
+        now_dt.hour * 60 + now_dt.minute,
+    )
+
+
 def ewma_update(prev, sample, alpha=0.3):
     """Exponentially-weighted moving average. A non-positive/None sample is
     ignored (returns ``prev``); the first valid sample seeds the average."""
@@ -552,7 +698,7 @@ def tree_admitted(tree_eta_s, max_disk_eta_s, remaining_window_s, task_timeout=4
 # slot (and by the window/ETA admission above).
 # --------------------------------------------------------------------------- #
 #: states past which a disk needs no further saga work of any kind
-_TERMINAL_STATES = {"released", "skipped", "failed"}
+_TERMINAL_STATES = {"released", "skipped", "failed", "quarantined"}
 
 
 def tree_phase(item_states):
@@ -592,6 +738,143 @@ def cancel_target(status):
         if str(status) in {"running", "window_closed", "paused", "finishing_tree"}
         else "canceled"
     )
+
+
+def recurring_status_target(
+    is_complete,
+    any_in_flight,
+    win_open,
+    finishing,
+    any_failed,
+    recurring,
+):
+    """End-of-tick next job status (pure). Returns the target status string, or
+    ``None`` to mean "leave the caller's existing window branch in charge"
+    (one-shot running<->window_closed, or a still-draining finishing job).
+
+    * finishing (cancel): -> ``canceled`` once complete, else ``None``.
+    * recurring: NEVER self-terminates — complete -> ``scheduled`` (idle);
+      otherwise ``running`` while in-window or with an in-flight tree, else
+      ``scheduled`` (between occurrences).
+    * one-shot: complete -> ``failed`` if any disk failed else ``completed``;
+      still draining -> ``None`` (existing window branch decides).
+
+    HELD — recurring FAILURE policy: ``any_failed`` is accepted but does NOT
+    terminalize a recurring job here (it stays alive and retries next
+    occurrence). The quarantine-after-N vs pause-for-attention decision plugs in
+    at this exact point once confirmed.
+    """
+    if finishing:
+        return "canceled" if is_complete else None
+    if recurring:
+        if is_complete:
+            return "scheduled"
+        return "running" if (win_open or any_in_flight) else "scheduled"
+    if is_complete:
+        return "failed" if any_failed else "completed"
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# Recurring re-scan cadence + failure policy + audit (pure)
+# --------------------------------------------------------------------------- #
+def should_rescan(cadence, occurrence_key, last_occurrence, is_drained, window_open):
+    """Whether a recurring job re-scans this tick, per its cadence. Never outside
+    the window. ``edge`` only at the occurrence edge (new key); ``edge_on_drain``
+    also once the current batch has drained; ``continuous`` every tick in-window.
+    (An occurrence-edge re-scan additionally re-arms failed/skipped disks — see
+    ``plan_tree_rearm``; between edges only new disks are inserted.)"""
+    if not window_open:
+        return False
+    is_edge = occurrence_key != last_occurrence
+    if cadence == "continuous":
+        return True
+    if cadence == "edge_on_drain":
+        return is_edge or is_drained
+    return is_edge  # "edge" (default fallback)
+
+
+def plan_tree_rearm(tree_ledger, policy, quarantine_after):
+    """Decide a tree's re-arm actions at an occurrence edge. Returns
+    ``(to_quarantine, to_rearm)`` where each entry is ``(item, occurrence_failures)``.
+
+    A tree that already holds a ``quarantined`` disk is DEAD — it cannot migrate
+    around a stuck disk, so nothing is touched. Under ``retry_quarantine`` a disk
+    whose consecutive-occurrence failures would reach ``quarantine_after`` is
+    quarantined (and its tree left dead: nothing re-armed). Otherwise every
+    ``failed`` disk (occurrence_failures +1) and ``skipped`` disk (streak reset to
+    0) is re-armed to pending; ``released`` / in-flight disks are left untouched.
+    ``retry_forever`` / ``pause`` never quarantine (they keep counting / re-arming).
+    """
+    if any(str(it["state"]) == "quarantined" for it in tree_ledger):
+        return [], []
+    hits = []
+    for it in tree_ledger:
+        if str(it["state"]) == "failed":
+            occ = int(it.get("occurrence_failures") or 0) + 1
+            if policy == "retry_quarantine" and occ >= quarantine_after:
+                hits.append((it, occ))
+    if hits:
+        return hits, []
+    rearm = []
+    for it in tree_ledger:
+        s = str(it["state"])
+        if s == "failed":
+            rearm.append((it, int(it.get("occurrence_failures") or 0) + 1))
+        elif s == "skipped":
+            rearm.append((it, 0))
+    return [], rearm
+
+
+def build_audit_record(item, result, occurrence, now):
+    """One append-only AUDIT record for the downloadable log: what happened to a
+    disk on a given occurrence. ``result`` is one of moved_ok | failed | skipped |
+    quarantined | in_place. ``now`` is the finish timestamp; ``started_at`` is the
+    disk's move start (``None`` if it never moved)."""
+    return {
+        "occurrence": occurrence,
+        "occurrence_time": now,
+        "storage_id": item.get("storage_id"),
+        "kind": item.get("kind"),
+        "tree_id": item.get("tree_id"),
+        "src_path": item.get("src_path"),
+        "dst_path": item.get("dst_path"),
+        "result": result,
+        "size_bytes": int(item.get("size_bytes") or 0),
+        "error": item.get("error"),
+        "started_at": item.get("move_started_at"),
+        "finished_at": now,
+    }
+
+
+def summarize_audit(records):
+    """Summary header for the log: record count, counts by result, bytes actually
+    moved (``moved_ok`` only), wall-clock duration (max finish − min start) and the
+    number of distinct occurrences."""
+    counts = {}
+    bytes_moved = 0
+    starts = []
+    finishes = []
+    occurrences = set()
+    for rec in records:
+        res = rec.get("result")
+        counts[res] = counts.get(res, 0) + 1
+        if res == "moved_ok":
+            bytes_moved += int(rec.get("size_bytes") or 0)
+        if rec.get("started_at") is not None:
+            starts.append(float(rec["started_at"]))
+        if rec.get("finished_at") is not None:
+            finishes.append(float(rec["finished_at"]))
+        if rec.get("occurrence") is not None:
+            occurrences.add(rec["occurrence"])
+    duration = (max(finishes) - min(starts)) if (starts and finishes) else None
+    return {
+        "records": len(records),
+        "counts": counts,
+        "bytes_moved": bytes_moved,
+        "duration_seconds": duration,
+        "occurrences": len(occurrences),
+    }
 
 
 #: A disk is COMMITTED once its storage row has been re-pointed at the new
@@ -758,6 +1041,100 @@ def compute_roots(
     ]
 
 
+# --------------------------------------------------------------------------- #
+# Cross-mode anti-overlap (pure) — two composed reservation forms
+#
+# disk-level: the resolved storage-id closure (roots + subtrees). Precise, and
+#   the concrete cross-mode signal (a pool job and a path/category job touching
+#   the same disk resolve to intersecting id sets).
+# descriptor-level: a content-INDEPENDENT (pool[, path]) claim, so a recurring
+#   "drain pool X" job keeps reserving X for its whole non-terminal life even
+#   between occurrences when X is empty and its closure/ledger is momentarily
+#   empty (which disk-level would miss).
+# --------------------------------------------------------------------------- #
+def resolved_ids_from_rows(rows, children_of, selection):
+    """The set of storage ids a selection would TOUCH: every root (via
+    :func:`compute_roots`) plus its full subtree closure (via ``children_of``,
+    mirroring the planner, which walks children even outside the selected set).
+    Pure — ``rows`` are light dicts and ``children_of(id) -> iterable[id]``."""
+    roots = compute_roots(
+        rows,
+        kind=selection.get("kind", "pool"),
+        src_pool_id=selection.get("src_pool_id"),
+        category_id=selection.get("category_id"),
+        path_prefix=selection.get("path_prefix"),
+        tree_ids=selection.get("tree_ids") or [],
+    )
+    ids = set()
+    for root in roots:
+        for nid in walk_tree_topo(root, children_of):
+            ids.add(nid)
+    return ids
+
+
+def scopes_overlap(a, b):
+    """True when two resolved disk-id sets intersect."""
+    return bool(set(a) & set(b))
+
+
+def descriptor_claims(kind, src_pool_id=None, path_prefix=None, category_pools=None):
+    """Reduce a selection to a content-independent reservation descriptor: a set
+    of ``(pool_id, path_prefix|None)`` claims. ``prefix None`` == the whole pool.
+
+    * pool     -> ``{(src_pool_id, None)}`` (whole source pool)
+    * path     -> ``{(src_pool_id, path_prefix)}`` (a path subtree within a pool;
+                  ``src_pool_id`` may be ``None`` if the pool could not be resolved)
+    * category -> ``{(p, None) for p in category_pools}`` (every pool statically
+                  ASSIGNED to the category — resolves without touching disks, which
+                  is what lets an empty category still reserve its pools)
+    """
+    if kind == "pool":
+        return {(src_pool_id, None)} if src_pool_id else set()
+    if kind == "path":
+        return {(src_pool_id, path_prefix or "")}
+    if kind == "category":
+        return {(p, None) for p in (category_pools or [])}
+    return set()
+
+
+def _claim_overlap(a, b):
+    """Two ``(pool, prefix)`` claims overlap when they name the same pool (an
+    unresolved ``None`` pool is a wildcard — over-reject) AND their path scopes
+    intersect: a whole-pool claim (``prefix None``) covers any prefix, and two
+    prefixes intersect when one contains the other."""
+    pa, prefa = a
+    pb, prefb = b
+    if pa is not None and pb is not None and pa != pb:
+        return False
+    if prefa is None or prefb is None:
+        return True
+    return prefa.startswith(prefb) or prefb.startswith(prefa)
+
+
+def descriptors_overlap(claims_a, claims_b):
+    """True when any claim of A overlaps any claim of B (cross-mode)."""
+    return any(_claim_overlap(a, b) for a in claims_a for b in claims_b)
+
+
+def scope_conflict(new_ids, new_claims, new_recurring, existing_jobs):
+    """The composed overlap decision. Returns the id of the first active job the
+    new selection conflicts with, or ``None``.
+
+    ``existing_jobs`` is a list of ``{id, recurring, reserved_ids, claims}``. The
+    descriptor-level check runs whenever a RECURRING reservation is in play on
+    either side (that is the case where a scope may be empty yet still reserved);
+    the disk-level check always runs. Prefers over-rejecting.
+    """
+    for j in existing_jobs:
+        if (new_recurring or j.get("recurring")) and descriptors_overlap(
+            new_claims, j.get("claims") or set()
+        ):
+            return j["id"]
+        if scopes_overlap(new_ids, j.get("reserved_ids") or set()):
+            return j["id"]
+    return None
+
+
 def _enumerate_storages(statuses=("ready",)):
     """Light storage rows (id/parent/directory_path/user_id) for selection.
 
@@ -809,6 +1186,46 @@ def roots_for_selection(selection):
         path_prefix=selection.get("path_prefix"),
         tree_ids=tree_ids,
     )
+
+
+def resolved_disk_ids(selection):
+    """Live: the set of storage ids a selection would TOUCH (roots + subtree
+    closure) — the disk-level reservation for the anti-overlap guard. Lighter
+    than :func:`build_plan_for_roots` (no size probes) but mirrors its traversal:
+    roots from the selection, subtrees via ``Storage.children`` (non-deleted, so a
+    disk already in ``maintenance`` under a moving job is still seen)."""
+    from isardvdi_common.models.storage import Storage
+
+    roots = roots_for_selection(selection)
+    cache = {}
+
+    def st(sid):
+        if sid not in cache:
+            cache[sid] = Storage(sid)
+        return cache[sid]
+
+    def get_children(sid):
+        return [c.id for c in st(sid).children]
+
+    ids = set()
+    for root in roots:
+        for nid in walk_tree_topo(root, get_children):
+            ids.add(nid)
+    return ids
+
+
+def pools_for_category(category_id):
+    """Live: the ids of the storage pools statically ASSIGNED to a category
+    (``StoragePool.categories`` config), for the category descriptor claim. Falls
+    back to the default pool when no pool is explicitly assigned, since that is
+    where the category's disks actually land."""
+    from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+    from isardvdi_common.models.storage_pool import StoragePool
+
+    assigned = [p.id for p in StoragePool.get_all() if p.has_category(category_id)]
+    # No pool explicitly assigned -> the category's disks land in the default
+    # pool, so reserve that (prefer over-reserving to missing a real overlap).
+    return assigned or [DEFAULT_STORAGE_POOL_ID]
 
 
 def pool_plan_summary(pool_id, *, size_fn=None):
