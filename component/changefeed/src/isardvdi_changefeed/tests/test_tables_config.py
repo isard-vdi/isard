@@ -86,3 +86,14 @@ def test_hypervisors_pluck_includes_thread_status():
     cfg = _config()["hypervisors"]
     flat = [p for p in cfg["pluck"] if isinstance(p, str)]
     assert "thread_status" in flat
+
+
+def test_hypervisors_vpn_pluck_includes_tunnel_status():
+    """Lock the hypervisors vpn pluck — tunnel_status is published so the
+    webapp datatable can render the live VPN indicator written by the VPN
+    container's tunnel_monitor."""
+    cfg = _config()["hypervisors"]
+    vpn_pluck = next(
+        p["vpn"] for p in cfg["pluck"] if isinstance(p, dict) and "vpn" in p
+    )
+    assert vpn_pluck.get("tunnel_status") is True

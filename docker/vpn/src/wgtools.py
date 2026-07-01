@@ -367,6 +367,9 @@ class Wg(object):
                 # BFD + VLAN 4095 flow rules apply in both the new-port and
                 # existing-port paths so fresh hypervisors are not left
                 # without the security policy.
+                # Geneve-only: BFD is the only tunnel-liveness signal (no
+                # underlying wg keepalive). Tight 200 ms intervals give
+                # sub-second detection; the hypervisor side matches.
                 subprocess.run(
                     [
                         "ovs-vsctl",
@@ -374,8 +377,8 @@ class Wg(object):
                         "Interface",
                         peer["id"],
                         "bfd:enable=true",
-                        "bfd:min_tx=1000",
-                        "bfd:min_rx=1000",
+                        "bfd:min_tx=200",
+                        "bfd:min_rx=200",
                     ]
                 )
                 port = check_output(
@@ -482,32 +485,16 @@ class Wg(object):
                             "options:remote_ip=" + wg_address,
                         ]
                     )
-                    subprocess.run(
-                        [
-                            "ovs-vsctl",
-                            "set",
-                            "Interface",
-                            peer["id"],
-                            "bfd:enable=true",
-                            "bfd:min_tx=1000",
-                            "bfd:min_rx=1000",
-                        ]
-                    )
 
-                # BFD + VLAN 4095 flow rules apply in both the new-port
-                # and existing-port paths so fresh hypervisors are not
-                # left without the security policy.
-                subprocess.run(
-                    [
-                        "ovs-vsctl",
-                        "set",
-                        "Interface",
-                        peer["id"],
-                        "bfd:enable=true",
-                        "bfd:min_tx=1000",
-                        "bfd:min_rx=1000",
-                    ]
-                )
+                # WireGuard+Geneve: do NOT enable BFD on the OVS geneve port.
+                # WireGuard's own persistent-keepalive (25 s) is the tunnel
+                # liveness signal we publish into hypervisors.vpn.tunnel_status
+                # (derived from wg's latest_handshake). A second OVS-level BFD
+                # session here costs CPU, can disagree with the hypervisor side
+                # and silently park forwarding=false, and is redundant with the
+                # wg health check. The VLAN 4095 flow rules below still apply in
+                # both the new-port and existing-port paths so fresh
+                # hypervisors are not left without the security policy.
                 port = check_output(
                     ("ovs-vsctl", "get", "Interface", peer["id"], "ofport"),
                     text=True,
@@ -644,8 +631,15 @@ class Wg(object):
                         f"{result.stderr.strip()}"
                     )
 
+            # --if-exists guards against a partially-reconciled state where the
+            # port is already gone (e.g. ovs_setup.sh stale-cleanup ran since
+            # the last add). Without it CalledProcessError crashes the
+            # changefeed handler and leaves subsequent ADD events unhandled.
             log.info(
-                check_output(("ovs-vsctl", "del-port", peer["id"]), text=True).strip()
+                check_output(
+                    ("ovs-vsctl", "--if-exists", "del-port", peer["id"]),
+                    text=True,
+                ).strip()
             )
         # if self.table=='users':
         #    self.uipt.del_user(peer.id,peer.vpn['wireguard']['Address'])

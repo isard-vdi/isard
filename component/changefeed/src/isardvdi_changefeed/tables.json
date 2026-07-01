@@ -149,6 +149,7 @@
       {
         "vpn": {
           "tunneling_mode": true,
+          "tunnel_status": true,
           "wireguard": {
             "Address": true,
             "AllowedIPs": true,

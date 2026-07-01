@@ -18,6 +18,7 @@ log.basicConfig(
     level=LOG_LEVEL_NUM, format="%(asctime)s - %(levelname)-8s - %(message)s"
 )
 
+import tunnel_monitor
 from changefeed_subscribers import TABLE_TO_SUBSCRIBER
 from db import vpn_rethink_conn
 from isardvdi_common.redis_stream import RedisStreamConsumer
@@ -26,6 +27,7 @@ from wg_monitor import start_monitoring_vpn_status
 from wgtools import Wg
 
 start_monitoring_vpn_status()
+tunnel_monitor.start()
 
 
 def _process_vpn_change(change, wg_users, wg_hypers):
@@ -116,8 +118,8 @@ def _process_vpn_change(change, wg_users, wg_hypers):
                                 "Interface",
                                 hyper_id,
                                 "bfd:enable=true",
-                                "bfd:min_tx=1000",
-                                "bfd:min_rx=1000",
+                                "bfd:min_tx=200",
+                                "bfd:min_rx=200",
                             ]
                         )
                         port = check_output(
@@ -287,8 +289,8 @@ while True:
                             "Interface",
                             hyper_id,
                             "bfd:enable=true",
-                            "bfd:min_tx=1000",
-                            "bfd:min_rx=1000",
+                            "bfd:min_tx=200",
+                            "bfd:min_rx=200",
                         ]
                     )
                     port = check_output(
