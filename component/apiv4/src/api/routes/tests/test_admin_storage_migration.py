@@ -361,6 +361,186 @@ class TestCreate:
         )
         assert resp.status_code == 400
 
+    def test_create_recurring_without_schedule_400(self, test_client):
+        # a recurring job has no defined "occurrence" without a window -> reject
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {"kind": "pool", "dst_pool_id": "dst"},
+                "config": {"recurring": True},
+            },
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_create_rejects_all_in_place_400(self, monkeypatch, test_client):
+        # path/category selection resolving entirely in-place (dst == src) moves
+        # nothing while the release would delete the live source -> reject
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [
+                    _item(
+                        "r",
+                        src_path="/isard/dst/r.qcow2",
+                        dst_path="/isard/dst/r.qcow2",
+                    )
+                ],
+                {"items_total": 1},
+            ),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {
+                    "kind": "path",
+                    "path_prefix": "/isard/dst",
+                    "dst_pool_id": "dst",
+                }
+            },
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_create_rejects_overlap_409(self, monkeypatch, test_client):
+        # the new selection resolves to disk d1, already reserved by an active job
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.resolved_disk_ids",
+            lambda sel: {"d1"},
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={"selection": {"kind": "pool", "dst_pool_id": "dst"}},
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [_migration(id="mig-x", status="running")],
+                "storage_migration_item": [_item("d1", migration_id="mig-x")],
+            },
+        )
+        assert resp.status_code == 409
+        assert "mig-x" in resp.json()["description"]
+
+
+# ── downloadable log ────────────────────────────────────────────────────────
+def _audit_rec(sid="a", result="moved_ok", occ="initial", size=100):
+    return {
+        "occurrence": occ,
+        "occurrence_time": 5.0,
+        "storage_id": sid,
+        "kind": "template",
+        "tree_id": "r",
+        "src_path": f"/old/{sid}.qcow2",
+        "dst_path": f"/new/{sid}.qcow2",
+        "result": result,
+        "size_bytes": size,
+        "error": None,
+        "started_at": 1.0,
+        "finished_at": 5.0,
+    }
+
+
+class TestLog:
+    def test_log_csv_download(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/log?format=csv",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("a", state="released", audit=[_audit_rec("a")])
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        assert "text/csv" in resp.headers["content-type"]
+        assert "attachment" in resp.headers["content-disposition"]
+        assert "migration-mig-1.csv" in resp.headers["content-disposition"]
+        body = resp.text
+        assert "moved_ok" in body
+        assert "# bytes_moved,100" in body
+        assert "/new/a.qcow2" in body
+
+    def test_log_json_download_with_summary(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/log?format=json",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("a", state="released", audit=[_audit_rec("a", size=100)]),
+                    _item(
+                        "b",
+                        state="failed",
+                        audit=[_audit_rec("b", result="failed", occ="d2", size=0)],
+                    ),
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        assert "application/json" in resp.headers["content-type"]
+        assert "attachment" in resp.headers["content-disposition"]
+        body = resp.json()
+        assert body["summary"]["records"] == 2
+        assert body["summary"]["bytes_moved"] == 100  # only moved_ok
+        assert body["summary"]["counts"]["failed"] == 1
+        assert body["summary"]["occurrences"] == 2  # initial + d2
+        assert len(body["records"]) == 2
+
+    def test_log_missing_migration_404(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "isardvdi_common.models.storage_migration.StorageMigration.exists",
+            staticmethod(lambda mid: False),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations/ghost/log",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration()]},
+        )
+        assert resp.status_code == 404
+
+
+# ── path-prefixes (mock the storage enumeration boundary) ───────────────────
+class TestPathPrefixes:
+    def test_path_prefixes(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration._enumerate_storages",
+            lambda *a, **k: [
+                {"directory_path": "/isard/b"},
+                {"directory_path": "/isard/a"},
+                {"directory_path": "/isard/a"},
+            ],
+        )
+        resp = test_client(
+            url="/admin/storage/migrations/path-prefixes",
+            method="GET",
+            jwt=ADMIN,
+            db_tables_data={"storage_pool": [_pool()]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["prefixes"] == ["/isard/a", "/isard/b"]
+
 
 # ── pool aggregation (mock the compute boundary) ────────────────────────────
 class TestPoolPlan:

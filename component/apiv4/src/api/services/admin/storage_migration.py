@@ -25,7 +25,9 @@ selection / aggregation logic) and the ``StorageMigration`` /
 ``StorageMigrationItem`` ledger models. No DB driver calls live here.
 """
 
+from datetime import datetime, timezone
 from time import time
+from zoneinfo import ZoneInfo
 
 from api.services.error import Error
 from isardvdi_common.lib.storage import migration as mig
@@ -90,6 +92,86 @@ class AdminStorageMigrationService:
     """Admin storage-disk migration orchestration."""
 
     @staticmethod
+    def _validate_recurring_schedule(config: dict) -> None:
+        """A recurring migration is defined by its occurrences, so it MUST have a
+        schedule (selected weekdays and/or a daily time range). Reject a
+        recurring job with no window — otherwise "occurrence" is undefined."""
+        if not config.get("recurring"):
+            return
+        window = config.get("window") or {}
+        has_time = bool(window.get("start")) and bool(window.get("end"))
+        has_days = bool(window.get("days"))
+        if not (has_time or has_days):
+            raise Error(
+                "bad_request",
+                "A recurring migration needs a schedule window "
+                "(selected weekdays and/or a daily time range)",
+            )
+
+    @staticmethod
+    def _descriptor_claims_for(selection: dict) -> set:
+        """Content-independent reservation descriptor for a selection (whole
+        pool / path-in-pool / category assigned-pool-set), resolving the pool for
+        a path selection (explicit ``src_pool_id`` or by the prefix's mountpoint)
+        and the assigned pools for a category."""
+        kind = selection.get("kind", "pool")
+        if kind == "category":
+            pools = mig.pools_for_category(selection.get("category_id"))
+            return mig.descriptor_claims("category", category_pools=pools)
+        if kind == "path":
+            pool_id = selection.get("src_pool_id")
+            if not pool_id:
+                pools = StoragePool.get_by_path(selection.get("path_prefix") or "")
+                pool_id = pools[0].id if pools else None
+            return mig.descriptor_claims(
+                "path", src_pool_id=pool_id, path_prefix=selection.get("path_prefix")
+            )
+        return mig.descriptor_claims("pool", src_pool_id=selection.get("src_pool_id"))
+
+    @classmethod
+    def _check_no_overlap(cls, selection: dict, config: dict) -> None:
+        """Reject a new selection whose scope overlaps any active (non-terminal)
+        job — CROSS-MODE. Composes two reservations (see
+        ``mig.scope_conflict``): the resolved disk-id closure (precise; the
+        concrete cross-mode signal) and a content-independent descriptor (so a
+        recurring job reserves its whole source scope for its entire non-terminal
+        life, even between occurrences when it is migrating nothing). One-shot
+        jobs reserve their persisted ledger disks; recurring jobs additionally
+        reserve their re-resolved scope + descriptor. Prefers over-rejecting."""
+        # Nothing active -> no possible overlap; skip resolving the new scope
+        # (an empty pool/selection would otherwise pay a needless closure walk).
+        active = [m for m in StorageMigration.get_all() if m.status not in _TERMINAL]
+        if not active:
+            return
+        new_ids = mig.resolved_disk_ids(selection)
+        new_claims = cls._descriptor_claims_for(selection)
+        new_recurring = bool(config.get("recurring"))
+        existing = []
+        for m in active:
+            recurring = bool((m.config or {}).get("recurring"))
+            # one-shot reserves its ledger disks (read, never rebuilt); a
+            # recurring job additionally reserves its live re-resolved scope.
+            reserved = {
+                it["storage_id"] for it in StorageMigrationItem.dicts_by_migration(m.id)
+            }
+            if recurring:
+                reserved |= mig.resolved_disk_ids(m.selection or {})
+            existing.append(
+                {
+                    "id": m.id,
+                    "recurring": recurring,
+                    "reserved_ids": reserved,
+                    "claims": cls._descriptor_claims_for(m.selection or {}),
+                }
+            )
+        conflict = mig.scope_conflict(new_ids, new_claims, new_recurring, existing)
+        if conflict:
+            raise Error(
+                "conflict",
+                f"Selection overlaps the scope of active migration {conflict}",
+            )
+
+    @staticmethod
     def _dst_pool(selection: dict) -> StoragePool:
         dst_id = selection.get("dst_pool_id")
         if not dst_id:
@@ -119,11 +201,31 @@ class AdminStorageMigrationService:
     @classmethod
     def create(cls, payload: dict, selection: dict, config: dict) -> dict:
         """Resolve + build + persist a migration job (status ``planned``) and
-        its per-disk ledger rows. Idempotent on re-plan (deterministic ids)."""
+        its per-disk ledger rows. Idempotent on re-plan (deterministic ids).
+
+        Guards, in order: destination valid + differs (``_dst_pool``); a recurring
+        job has a schedule; the scope does not overlap any active job; and — for
+        path/category — the plan is not entirely in-place (origin == destination).
+        A recurring job may legitimately start with an EMPTY scope (it drains
+        disks as they appear at each occurrence); a one-shot may not.
+        """
         dst_pool = cls._dst_pool(selection)
+        cls._validate_recurring_schedule(config)
+        cls._check_no_overlap(selection, config)
+        recurring = bool(config.get("recurring"))
         roots = mig.roots_for_selection(selection)
-        if not roots:
+        if not roots and not recurring:
             raise Error("bad_request", "Selection matched no migratable disks")
+        # origin != destination for path/category: a plan that resolves entirely
+        # in-place (every disk's dst == src) would move nothing while the release
+        # move_deletes the live source. (Pool src==dst is rejected in _dst_pool.)
+        preview, _ = mig.build_plan_for_roots("__preview__", roots, dst_pool)
+        if mig.all_in_place(preview):
+            raise Error(
+                "bad_request",
+                "Selection resolves entirely in-place (source pool equals "
+                "destination); nothing would move",
+            )
         now = time()
         migration = StorageMigration.init_document(
             status=MigrationStatus.PLANNED.value,
@@ -150,8 +252,8 @@ class AdminStorageMigrationService:
             raise Error("not_found", f"Migration {migration_id} not found")
         return _serialize(StorageMigration(migration_id))
 
-    @staticmethod
-    def status(migration_id: str) -> dict:
+    @classmethod
+    def status(cls, migration_id: str) -> dict:
         if not StorageMigration.exists(migration_id):
             raise Error("not_found", f"Migration {migration_id} not found")
         m = StorageMigration(migration_id)
@@ -162,7 +264,23 @@ class AdminStorageMigrationService:
         # endpoint and the storage:migration socket event render identically.
         payload = mig.aggregate_status(m, items, include_items=True)
         payload["state_counts"] = payload["totals"].get("state_counts", {})
+        # Live next-run lookahead (needs now-in-tz) for the admin table.
+        payload["next_run_seconds"] = cls._next_run_seconds(m)
         return payload
+
+    @staticmethod
+    def _next_run_seconds(m: StorageMigration):
+        """Seconds until the schedule window next opens on a selected weekday, in
+        the window's timezone. None when there is no schedule."""
+        window = (m.config or {}).get("window") or {}
+        if not window:
+            return None
+        tz = window.get("tz") or "UTC"
+        try:
+            now = datetime.now(ZoneInfo(tz))
+        except Exception:
+            now = datetime.now(timezone.utc)
+        return mig.next_run_for_window(window, now)
 
     @classmethod
     def set_action(cls, migration_id: str, action: str) -> dict:
@@ -203,3 +321,90 @@ class AdminStorageMigrationService:
         if not StoragePool.exists(pool_id):
             raise Error("not_found", f"Storage pool {pool_id} not found")
         return mig.pool_plan_summary(pool_id)
+
+    #: audit columns, in the order they appear in the CSV export
+    _AUDIT_COLUMNS = [
+        "occurrence",
+        "occurrence_time",
+        "storage_id",
+        "kind",
+        "tree_id",
+        "src_path",
+        "dst_path",
+        "result",
+        "size_bytes",
+        "error",
+        "started_at",
+        "finished_at",
+    ]
+
+    @classmethod
+    def log(cls, migration_id: str) -> dict:
+        """Build the downloadable migration report: every per-disk AUDIT record
+        (flattened from the ledger, annotated by occurrence for a recurring job)
+        plus a summary header (counts by result, bytes moved, duration, number of
+        occurrences). Reflects the ledger, which the reconciler drives from
+        on-disk/DB reality."""
+        if not StorageMigration.exists(migration_id):
+            raise Error("not_found", f"Migration {migration_id} not found")
+        m = StorageMigration(migration_id)
+        items = StorageMigrationItem.dicts_by_migration(migration_id)
+        records = []
+        for it in items:
+            records.extend(it.get("audit") or [])
+        records.sort(
+            key=lambda r: (r.get("occurrence_time") or 0, r.get("storage_id") or "")
+        )
+        return {
+            "id": migration_id,
+            "status": m.status,
+            "summary": mig.summarize_audit(records),
+            "records": records,
+        }
+
+    @classmethod
+    def log_csv(cls, migration_id: str) -> str:
+        """Admin-friendly CSV of the migration report: a commented summary header
+        followed by one row per audit record."""
+        import csv
+        import io
+
+        payload = cls.log(migration_id)
+        s = payload["summary"]
+        buf = io.StringIO()
+        buf.write(f"# migration,{migration_id}\n")
+        buf.write(f"# status,{payload['status']}\n")
+        buf.write(f"# records,{s['records']}\n")
+        buf.write(f"# bytes_moved,{s['bytes_moved']}\n")
+        buf.write(f"# duration_seconds,{s['duration_seconds']}\n")
+        buf.write(f"# occurrences,{s['occurrences']}\n")
+        for result, count in sorted(s["counts"].items()):
+            buf.write(f"# result:{result},{count}\n")
+        writer = csv.DictWriter(
+            buf, fieldnames=cls._AUDIT_COLUMNS, extrasaction="ignore"
+        )
+        writer.writeheader()
+        for rec in payload["records"]:
+            writer.writerow(rec)
+        return buf.getvalue()
+
+    @staticmethod
+    def path_prefixes(src_pool_id: str = None) -> dict:
+        """Distinct real source path-prefixes (``storage.directory_path``) for the
+        ``path`` selection kind, optionally scoped to a source pool (matched by
+        the prefix's mountpoint pool). Drives the UI dropdown — no free text."""
+        rows = mig._enumerate_storages()
+        dirs = sorted(
+            {r.get("directory_path") for r in rows if r.get("directory_path")}
+        )
+        if src_pool_id:
+            cache: dict = {}
+            kept = []
+            for d in dirs:
+                if d not in cache:
+                    pools = StoragePool.get_by_path(d)
+                    cache[d] = pools[0].id if pools else None
+                if cache[d] == src_pool_id:
+                    kept.append(d)
+            dirs = kept
+        return {"prefixes": dirs}

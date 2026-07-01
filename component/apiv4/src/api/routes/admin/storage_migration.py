@@ -28,14 +28,16 @@ sync service off the event loop, and shape the response.
 """
 
 import asyncio
+import json
 import traceback
-from typing import Literal
+from typing import Literal, Optional
 
 from api import admin_router
 from api.schemas.admin.storage_migration import (
     MigrationConfigData,
     MigrationCreateData,
     MigrationListResponse,
+    MigrationPathPrefixesResponse,
     MigrationPlanData,
     MigrationPlanResponse,
     MigrationResponse,
@@ -46,6 +48,7 @@ from api.schemas.common import ErrorResponse
 from api.services.admin.storage_migration import AdminStorageMigrationService
 from api.services.error import Error
 from fastapi import Request
+from fastapi.responses import Response
 
 _TAGS = ["admin-storage-migration"]
 _ERRS = {400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}}
@@ -122,6 +125,89 @@ async def admin_storage_migration_list(request: Request):
             request,
             "internal_server",
             "Failed to list migrations",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/storage/migrations/path-prefixes",
+    tags=_TAGS,
+    response_model=MigrationPathPrefixesResponse,
+    summary="List real source path-prefixes for the path selection kind",
+    description="Distinct storage.directory_path values (optionally scoped to a "
+    "source pool) that populate the path-migration dropdown. Read-only.",
+    responses=_ERRS,
+)
+async def admin_storage_migration_path_prefixes(
+    request: Request, src_pool_id: Optional[str] = None
+):
+    # Registered BEFORE the /{migration_id} route so "path-prefixes" is not
+    # captured as a migration id.
+    try:
+        return await asyncio.to_thread(
+            AdminStorageMigrationService.path_prefixes, src_pool_id
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to list path prefixes",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/storage/migrations/{migration_id}/log",
+    tags=_TAGS,
+    summary="Download a storage-disk migration report (CSV or JSON)",
+    description="A downloadable per-disk audit of what was moved / failed / "
+    "skipped / quarantined / in-place, annotated by occurrence for recurring "
+    "jobs, with a summary header. format=csv (default) | json.",
+    responses=_ERRS,
+)
+async def admin_storage_migration_log(
+    request: Request,
+    migration_id: str,
+    format: Literal["csv", "json"] = "csv",
+):
+    # Registered before the /{migration_id} status route is irrelevant here (this
+    # is a distinct two-segment path), but a download returns a raw Response with
+    # Content-Disposition rather than a response_model.
+    try:
+        if format == "json":
+            payload = await asyncio.to_thread(
+                AdminStorageMigrationService.log, migration_id
+            )
+            return Response(
+                content=json.dumps(payload, indent=2),
+                media_type="application/json",
+                headers={
+                    "Content-Disposition": (
+                        f'attachment; filename="migration-{migration_id}.json"'
+                    )
+                },
+            )
+        body = await asyncio.to_thread(
+            AdminStorageMigrationService.log_csv, migration_id
+        )
+        return Response(
+            content=body,
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="migration-{migration_id}.csv"'
+                )
+            },
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to build migration log",
             traceback.format_exc(),
         )
 
