@@ -7,6 +7,7 @@ export const VUE3_TO_VUE2: Record<string, string> = {
   'single-desktop': '/desktops',
   templates: '/templates',
   deployments: '/deployments',
+  'shared-deployments': '/deployments',
   deployment: '/deployment/:deploymentId',
   media: '/media',
   'recycle-bin': '/recycleBins',
