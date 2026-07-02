@@ -109,6 +109,9 @@
     },
     "direct-viewer": {
       "title": "Direct viewer"
+    },
+    "error": {
+      "title": "Error"
     }
   },
   "views": {
@@ -887,6 +890,28 @@
         "description": "You have unsaved changes. Leaving will discard them.",
         "stay": "Stay",
         "leave": "Discard changes"
+      }
+    },
+    "error": {
+      "400": {
+        "title": "Bad Request",
+        "description": "The request you sent is not valid. Please check the data and try again."
+      },
+      "403": {
+        "title": "Access Denied",
+        "description": "You don't have permission to access this resource."
+      },
+      "404": {
+        "title": "Page Not Found",
+        "description": "The page you're looking for doesn't exist or has been removed."
+      },
+      "500": {
+        "title": "Internal Server Error",
+        "description": "We're working to fix the problem. Please try again in a few minutes."
+      },
+      "actions": {
+        "go_back": "Go back",
+        "go_to_login": "Go to login"
       }
     }
   },

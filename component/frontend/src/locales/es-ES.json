@@ -109,6 +109,9 @@
     },
     "direct-viewer": {
       "title": "Visor directo"
+    },
+    "error": {
+      "title": "Error"
     }
   },
   "views": {
@@ -866,6 +869,63 @@
         "description": "Tienes cambios sin guardar. Si sales se perderán.",
         "stay": "Quedarme",
         "leave": "Descartar cambios"
+      }
+    },
+    "new-from-media": {
+      "title": "Escritorio nuevo desde medio",
+      "subtitle": "Creando a partir de «{media}»",
+      "header": {
+        "cancel": "Cancelar",
+        "create": "Crear escritorio"
+      },
+      "errors": {
+        "title": "Error al crear el escritorio"
+      },
+      "info": {
+        "title": "Nombre y descripción",
+        "description": "Define el nombre y la descripción del nuevo escritorio."
+      },
+      "os-template": {
+        "title": "Plantilla del sistema operativo",
+        "description": "Elige la plantilla de hardware del SO para el nuevo escritorio.",
+        "label": "Plantilla SO",
+        "placeholder": "Selecciona una plantilla"
+      },
+      "access": {
+        "title": "Acceso",
+        "description": "Visores y credenciales para el nuevo escritorio."
+      },
+      "hardware": {
+        "title": "Hardware",
+        "description": "vCPU, memoria, tamaño de disco, orden de arranque e interfaces."
+      },
+      "unsaved-changes": {
+        "title": "Cambios sin guardar",
+        "description": "Tienes cambios sin guardar. Si sales se perderán.",
+        "stay": "Quedarme",
+        "leave": "Descartar cambios"
+      }
+    },
+    "error": {
+      "400": {
+        "title": "Solicitud incorrecta",
+        "description": "La solicitud que has enviado no es válida. Revisa los datos e inténtalo de nuevo."
+      },
+      "403": {
+        "title": "Acceso denegado",
+        "description": "No tienes permiso para acceder a este recurso."
+      },
+      "404": {
+        "title": "Página no encontrada",
+        "description": "La página que estás buscando no existe o ha sido eliminada."
+      },
+      "500": {
+        "title": "Error interno del servidor",
+        "description": "Estamos trabajando para solucionar el problema. Por favor, inténtalo de nuevo en unos minutos."
+      },
+      "actions": {
+        "go_back": "Volver",
+        "go_to_login": "Ir al inicio de sesión"
       }
     }
   },

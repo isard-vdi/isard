@@ -95,6 +95,9 @@ apiv4Client.interceptors.response.use(async (response) => {
     // Handle unauthorized response, e.g., by logging out the user
     authStore.logout()
   }
+  if ([403, 500].includes(response.status)) {
+    router.push({ name: 'error', params: { code: String(response.status) } })
+  }
   return response
 })
 
