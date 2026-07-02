@@ -977,20 +977,30 @@ class DesktopsProcessed(RethinkSharedConnection):
     @classmethod
     @cached(cache=_get_domain_enrichment_cache)
     def get_domain_enrichment(cls, domain_id):
+        # Returns None when the domain no longer exists. Under create/delete
+        # churn the changefeed can deliver an update for a domain that has since
+        # been deleted (TOCTOU); guarding the null here avoids a `pluck` over
+        # `null` (ReqlNonExistenceError) that would crash the caller.
         with cls._rdb_context():
             enrichment = (
                 r.table(cls._rdb_table)
                 .get(domain_id)
-                .pluck("group", "category", "user")
-                .merge(
-                    lambda domain: {
-                        "group_name": r.table("groups").get(domain["group"])["name"],
-                        "category_name": r.table("categories").get(domain["category"])[
-                            "name"
-                        ],
-                        "user_name": r.table("users").get(domain["user"])["name"],
-                        "role": r.table("users").get(domain["user"])["role"],
-                    }
+                .default(None)
+                .do(
+                    lambda domain: r.branch(
+                        domain.eq(None),
+                        None,
+                        domain.pluck("group", "category", "user").merge(
+                            lambda d: {
+                                "group_name": r.table("groups").get(d["group"])["name"],
+                                "category_name": r.table("categories").get(
+                                    d["category"]
+                                )["name"],
+                                "user_name": r.table("users").get(d["user"])["name"],
+                                "role": r.table("users").get(d["user"])["role"],
+                            }
+                        ),
+                    )
                 )
                 .run(cls._rdb_connection)
             )

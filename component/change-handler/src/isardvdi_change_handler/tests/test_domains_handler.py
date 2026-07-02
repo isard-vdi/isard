@@ -207,6 +207,28 @@ async def test_on_update_strips_start_logs_id_from_emitted_payload(
         ), f"event {event!r} to {namespace} leaked start_logs_id: {payload}"
 
 
+@pytest.mark.asyncio
+async def test_on_update_skips_when_domain_deleted(
+    monkeypatch, desktop_handler, fake_socketio, domain_row_factory
+):
+    """Regression (#2074): under create/delete churn the domains changefeed can
+    deliver an update for a domain already deleted; get_domain_enrichment then
+    returns None. on_update must skip quietly and emit nothing, not crash on
+    ap.update(None)."""
+    monkeypatch.setattr(
+        "isardvdi_common.lib.domains.desktops.desktops.DesktopsProcessed.get_domain_enrichment",
+        staticmethod(lambda _id: None),
+    )
+    old_val = domain_row_factory(id="d-gone", status="Started")
+    new_val = domain_row_factory(id="d-gone", status="Stopped")
+
+    await desktop_handler.on_update(old_val, new_val)
+
+    assert (
+        fake_socketio.emitted == []
+    ), f"deleted-domain update must emit nothing; got {fake_socketio.emitted}"
+
+
 class TestDomainsNoneRoomRegression:
     """Regression: DesktopDomainHandler.emit / TemplateDomainHandler.emit must
     refuse to forward with room=None (would broadcast to the whole namespace)."""
