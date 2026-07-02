@@ -28,7 +28,7 @@ from api.schemas.domains.hardware import (
     DomainImage,
     Reservables,
 )
-from isardvdi_common.schemas.domains import DomainViewerEnum, Image
+from isardvdi_common.schemas.domains import DomainViewerEnum, Image, TemplateStatusEnum
 from isardvdi_common.schemas.shared.hardware import GuestProperties, Hardware
 from pydantic import BaseModel, Field
 
@@ -74,7 +74,7 @@ class UserTemplate(BaseModel):
             "``AdminTemplate`` schemas in this file."
         ),
     )
-    status: Optional[str] = Field(
+    status: Optional[TemplateStatusEnum] = Field(
         default=None,
         description=(
             "Domain status of the template row. ``CreatingTemplate`` while "
@@ -146,6 +146,14 @@ class UserSharedTemplate(BaseModel):
     category_name: Optional[str] = Field(
         default=None,
         description="Name of the category of the allowed template",
+    )
+    status: Optional[TemplateStatusEnum] = Field(
+        default=None,
+        description=(
+            "Domain status of the template row (``CreatingTemplate``, "
+            "``Stopped``, or ``Failed``). Surfaced so the frontend can "
+            "flag failed shared templates as non-usable."
+        ),
     )
     accessed: float = Field(description="Timestamp of the last access to the desktop.")
 
