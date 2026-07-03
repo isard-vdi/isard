@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { isInvalid } from '@/lib/utils'
@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea'
 
 import { DesktopCardBaseStacked, DesktopCardHeader } from '@/components/desktop-card'
 import { BadgeInfo } from '@/components/badge/info'
+import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const { t, d } = useI18n()
@@ -37,12 +38,27 @@ const emit = defineEmits<{
   submit: []
 }>()
 
-const imageUrl = computed(() => {
-  return props.form.getFieldValue('image')?.url || ''
-})
+const formImage = props.form.useStore((state: any) => state.values.image)
+
+const showChangeImageModal = ref(false)
+
+function handleImageSelected(image: { id: string; type: string; url?: string }) {
+  props.form.setFieldValue('image', {
+    id: image.id,
+    type: image.type,
+    url: image.url ?? ''
+  })
+}
 </script>
 
 <template>
+  <ChangeImageModal
+    :open="showChangeImageModal"
+    :current-image="formImage"
+    @select="handleImageSelected"
+    @close="showChangeImageModal = false"
+  />
+
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-8">
     <div class="flex flex-col gap-[16px]">
       <div class="flex flex-col gap-0.5 lg:max-w-117.5">
@@ -58,11 +74,16 @@ const imageUrl = computed(() => {
         <props.form.Subscribe v-slot="{ values }">
           <DesktopCardBaseStacked
             desktop-kind="deployment"
-            :image-url="imageUrl"
+            :image-url="values.image?.url || ''"
             :show-network-overlay="false"
           >
             <template #header-actions>
-              <Button icon="image-plus" hierarchy="secondary-gray" size="sm" />
+              <Button
+                icon="image-plus"
+                hierarchy="secondary-gray"
+                size="sm"
+                @click="showChangeImageModal = true"
+              />
             </template>
             <template #header>
               <DesktopCardHeader :name="values.name" :description="values.description" />
@@ -108,9 +129,9 @@ const imageUrl = computed(() => {
               autofocus
               autocomplete="off"
               type="text"
+              maxlength="50"
               @blur="field.handleBlur"
               @input="field.handleChange($event.target.value)"
-              maxlength="50"
             />
           </Field>
         </props.form.Field>
@@ -130,9 +151,9 @@ const imageUrl = computed(() => {
                 t('components.deployments.form-sections.info.fields.description.placeholder')
               "
               autocomplete="off"
+              maxlength="255"
               @blur="field.handleBlur"
               @input="field.handleChange($event.target.value)"
-              maxlength="255"
             />
           </Field>
         </props.form.Field>

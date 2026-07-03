@@ -2121,6 +2121,7 @@
         "generic": "Hi ha hagut un error en canviar la imatge. Torna-ho a provar."
       },
       "hint": "Tria una imatge existent o puja’n una de nova (PNG, JPG o GIF, màxim 5 MB).",
+      "hint-select-only": "Tria una imatge existent.",
       "upload": {
         "label": "Puja una imatge",
         "uploading": "Pujant…"

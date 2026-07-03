@@ -878,7 +878,7 @@ const goToBookingDesktop = (desktopId: string) => {
 }
 
 const changeImageModalData = ref<{
-  desktopId: string
+  domainId: string
   currentImage?: { id: string; type: string; url?: string }
 } | null>(null)
 
@@ -887,7 +887,7 @@ const openChangeImageModal = (desktop: {
   image?: { id: string; type: string; url?: string }
 }) => {
   changeImageModalData.value = {
-    desktopId: desktop.id,
+    domainId: desktop.id,
     currentImage: desktop.image
   }
 }
@@ -1046,7 +1046,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
   <ChangeImageModal
     v-if="changeImageModalData !== null"
     :open="changeImageModalData !== null"
-    :desktop-id="changeImageModalData.desktopId"
+    :domain-id="changeImageModalData.domainId"
     :current-image="changeImageModalData.currentImage"
     @close="changeImageModalData = null"
     @saved="changeImageModalData = null"

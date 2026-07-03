@@ -2148,6 +2148,7 @@
         "generic": "Se ha producido un error al cambiar la imagen. Inténtalo de nuevo."
       },
       "hint": "Elige una imagen existente o sube una nueva (PNG, JPG o GIF, máximo 5 MB).",
+      "hint-select-only": "Elige una imagen existente.",
       "upload": {
         "label": "Subir imagen",
         "uploading": "Subiendo…"
