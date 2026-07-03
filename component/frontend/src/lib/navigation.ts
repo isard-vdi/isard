@@ -79,21 +79,21 @@ const sidebarItems: ComputedRef<Record<string, Record<string, SidebarItem>>> = c
         key: 'bookings',
         label: i18n.global.t('components.sidebar.bookings.title'),
         icon: 'calendar-date',
-        route: 'booking-summary',
+        href: '/booking/summary',
         selected: false,
         subItems: [
           {
             key: 'summary',
             label: i18n.global.t('components.sidebar.bookings.summary'),
             icon: 'calendar-check-01',
-            route: 'booking-summary',
+            href: '/booking/summary',
             selected: false
           },
           {
             key: 'planning',
             label: i18n.global.t('components.sidebar.bookings.planning'),
             icon: 'calendar-plus-02',
-            route: 'planning',
+            href: '/planning',
             selected: false
           }
         ]
@@ -196,7 +196,8 @@ export const sidebarItemsToShow = (
       return {
         ...item,
         subItems: undefined,
-        route: 'booking-summary'
+        route: undefined,
+        href: '/booking/summary'
       }
     }
     return item
@@ -313,17 +314,17 @@ export function getRoleTopBarItems(role: Role) {
       key: 'bookings',
       label: t('components.sidebar.bookings.title'),
       icon: 'calendar',
-      to: 'booking-summary',
+      href: '/booking/summary',
       subItems: [
         {
           key: 'summary',
           label: t('components.sidebar.bookings.summary'),
-          to: 'booking-summary'
+          href: '/booking/summary'
         },
         {
           key: 'planning',
           label: t('components.sidebar.bookings.planning'),
-          to: 'planning'
+          href: '/planning'
         }
       ]
     },

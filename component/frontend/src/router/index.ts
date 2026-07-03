@@ -255,6 +255,10 @@ const router = createRouter({
             {
               path: 'summary',
               name: 'booking-summary',
+              beforeEnter: () => {
+                window.location.assign('/booking/summary')
+                return false
+              },
               component: () => import('../views/booking/BookingSummaryView.vue'),
               meta: {
                 title: 'router.bookings.summary.title',
@@ -264,6 +268,10 @@ const router = createRouter({
             {
               path: ':type(desktop|deployment)/:id',
               name: 'booking',
+              beforeEnter: (to) => {
+                window.location.assign(`/booking/${to.params.type}/${to.params.id}`)
+                return false
+              },
               component: () => import('../views/booking/BookingView.vue'),
               meta: {
                 title: 'router.bookings.item.title',
@@ -285,6 +293,10 @@ const router = createRouter({
             {
               path: '',
               name: 'planning',
+              beforeEnter: () => {
+                window.location.assign('/planning')
+                return false
+              },
               component: () => import('../views/planning/PlanningView.vue'),
               meta: {
                 title: 'router.planning.title',

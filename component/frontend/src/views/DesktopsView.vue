@@ -874,7 +874,7 @@ const goToEditDesktop = (desktopId: string) => {
 }
 
 const goToBookingDesktop = (desktopId: string) => {
-  router.push({ name: 'booking', params: { type: 'desktop', id: desktopId } })
+  window.location.assign(`/booking/desktop/${desktopId}`)
 }
 
 const changeImageModalData = ref<{
