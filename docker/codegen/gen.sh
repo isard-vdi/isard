@@ -109,14 +109,14 @@ JOB_PIDS="$JOB_PIDS $!"
 
 (
 	set -e
-	openapi_go notifier pkg/oas/notifier/notifier.json
+	openapi_go notifier pkg/oas/notifier/notifier.json pkg/oas/ogen-client.yml
 	openapi_python isardvdi_notifier_client pkg/oas/notifier/notifier.json
 ) &
 JOB_PIDS="$JOB_PIDS $!"
 
 (
 	set -e
-	openapi_go scheduler pkg/oas/scheduler/scheduler.json pkg/oas/scheduler/ogen.yml
+	openapi_go scheduler pkg/oas/scheduler/scheduler.json pkg/oas/ogen-client.yml
 	openapi_python isardvdi_scheduler_client pkg/oas/scheduler/scheduler.json
 ) &
 JOB_PIDS="$JOB_PIDS $!"
@@ -126,7 +126,7 @@ JOB_PIDS="$JOB_PIDS $!"
 # at module level).
 (
 	set -e
-	openapi_go authentication pkg/oas/authentication/authentication.json
+	openapi_go authentication pkg/oas/authentication/authentication.json pkg/oas/ogen-server.yml
 	openapi_ts authentication || echo "WARNING: openapi_ts authentication failed"
 	openapi_python isardvdi_authentication_client pkg/oas/authentication/authentication.json
 ) &
@@ -181,7 +181,7 @@ echo "==> Phase 3: APIv4 clients (Go + TypeScript + Python in parallel)"
 
 (
 	set -e
-	openapi_go apiv4 pkg/oas/apiv4/apiv4.json pkg/oas/apiv4/ogen.yml
+	openapi_go apiv4 pkg/oas/apiv4/apiv4.json pkg/oas/ogen-client.yml
 ) &
 JOB_PIDS="$JOB_PIDS $!"
 

@@ -29,8 +29,8 @@ services:
       - ${BUILD_ROOT_PATH}/go.sum:/bastion/go.sum
       - ${BUILD_ROOT_PATH}/pkg:/bastion/pkg
       - ${BUILD_ROOT_PATH}/bastion:/bastion/bastion
-      - /tmp/isardvdi-go-devel/cache:/root/.cache/go-build
-      - /tmp/isardvdi-go-devel/pkg:/go/pkg
+      - ${XDG_CACHE_HOME:-$HOME/.cache}/isardvdi/go-devel/cache:/root/.cache/go-build
+      - ${XDG_CACHE_HOME:-$HOME/.cache}/isardvdi/go-devel/pkg:/go/pkg
     security_opt:
       - "seccomp:unconfined"
     cap_add:

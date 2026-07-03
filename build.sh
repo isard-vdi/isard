@@ -637,7 +637,7 @@ generate_code(){
 	fi
 
 	case "$USAGE" in
-	build)
+	build | devel)
 		if ! docker buildx version >/dev/null 2>&1; then
 			echo "ERROR: 'docker buildx' is required to build the codegen image. Install the docker-buildx package for your distribution." >&2
 			exit 1
@@ -645,7 +645,7 @@ generate_code(){
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
 		docker build --pull -t "$DOCKER_IMAGE" -f ./docker/codegen/Dockerfile .
 		;;
-	devel | test | production)
+	test | production)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
 		docker pull "$DOCKER_IMAGE"
 		;;
@@ -655,6 +655,10 @@ generate_code(){
 		;;
 	esac
 
+        # Ensure the codegen cache directory exists
+	CODEGEN_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/isardvdi/codegen"
+	mkdir -p "$CODEGEN_CACHE"
+
 	# Redirect stdin from /dev/null so the codegen container does not
 	# steal stdin from the outer `echo "$CONFIG_FILES" | while read`
 	# loop — without it, only the first cfg gets processed when more
@@ -662,7 +666,7 @@ generate_code(){
 	docker run --rm -u "$(id -u)" \
 		-e HOME=/tmp \
 		-v "$(pwd):/build" \
-		-v /tmp/isardvdi-codegen-cache:/cache \
+		-v "$CODEGEN_CACHE:/cache" \
 		"$DOCKER_IMAGE" </dev/null
 	echo "Generated the code successfully"
 }
