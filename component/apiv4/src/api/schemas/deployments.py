@@ -588,7 +588,7 @@ class UserDeploymentDesktop(BaseModel):
     category_name: Optional[str] = None
     reservables: Optional[dict] = None
     interfaces: Optional[list[dict]] = None
-    current_action: Optional[str] = None
+    current_action: Optional[str | bool] = None
     storage: Optional[list[Optional[str]]] = None
     permissions: list[str] = []
     bastion_target: Optional[dict] = None

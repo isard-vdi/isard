@@ -422,7 +422,7 @@ class UserDesktop(BaseModel):
     interfaces: List[UserDesktopInterface] = Field(
         description="List of network interfaces associated with the desktop.",
     )
-    current_action: Optional[str] = Field(
+    current_action: Optional[str | bool] = Field(
         default=None,
         description="Current action being performed on the desktop, if any. If None, no action is being performed.",
     )
