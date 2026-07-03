@@ -105,10 +105,10 @@ const attachedMedia = computed<AttachedMedia[]>(() => {
           }}
         </span>
       </div>
-      <div v-if="desktop.ip" class="flex items-center gap-1.5 min-w-0 col-span-2">
+      <div v-if="desktop.ip" class="flex items-center gap-1.5 w-fit">
         <Icon name="signal-01" size="xs" stroke-color="base-white" class="shrink-0" />
         <code class="font-mono truncate flex-1 min-w-0">{{ desktop.ip }}</code>
-        <CopyIcon :value="desktop.ip" size="xs" stroke-color="base-white" class="shrink-0" />
+        <CopyIcon :value="desktop.ip" size="xs" stroke-color="base-white" class="shrink-0 ml-2" />
       </div>
 
       <!-- Boot order (always shown; falls back to em-dash while loading or if absent) -->
