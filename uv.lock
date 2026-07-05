@@ -531,6 +531,28 @@ wheels = [
 ]
 
 [[package]]
+name = "hiredis"
+version = "3.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/e2/1654d65851f39fd94e91a77a5655d09d4b64901fdc594020d8348db697b2/hiredis-3.4.0.tar.gz", hash = "sha256:da19331354433af6a2c54c21f2d70ba084933c0d7d2c43578ec5c5b446674ad5", size = 137169, upload-time = "2026-06-03T16:23:46.226Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7b/e5/9e47dda8f1d55e77293c6cdf4169182b7f2f55b56913d1fb16a0ddf63a3d/hiredis-3.4.0-cp313-cp313-macosx_10_15_universal2.whl", hash = "sha256:4f0e3536eea76c03435d411099d165850bc3c9d873efe62843b995027135a763", size = 138688, upload-time = "2026-06-03T16:22:31.825Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/07/039bcf7ce8262ed66db736349c121486874826248ccd70c98c2f830ec9da/hiredis-3.4.0-cp313-cp313-macosx_10_15_x86_64.whl", hash = "sha256:82860f050aabd08c046f304eb57c105bb3d5a7370f79a4a0b74d2b771767cc13", size = 74666, upload-time = "2026-06-03T16:22:32.758Z" },
+    { url = "https://files.pythonhosted.org/packages/29/6d/692c50d846a0a36578e9ef0c62c6193ce01a48f353f6961de9de88a30b37/hiredis-3.4.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:74bcfb26189939daba2a0eb4bad05a6a30773bb2461f3d9967b8ced224bd0de9", size = 70119, upload-time = "2026-06-03T16:22:33.692Z" },
+    { url = "https://files.pythonhosted.org/packages/28/5d/c8b9ca711b4d6b7637eae744d6b45ea47f6bded61bac0232bb42ed8c583e/hiredis-3.4.0-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d95b602ab022f3505288ce51feaa48c072a62e57da55d6a7a38ecb8c5ad67d81", size = 306364, upload-time = "2026-06-03T16:22:34.62Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/7e/e940eea3c2ee1aa5947f2e6224f03a1dfd38a5813307259a25f580411820/hiredis-3.4.0-cp313-cp313-manylinux2014_ppc64le.manylinux_2_17_ppc64le.manylinux_2_28_ppc64le.whl", hash = "sha256:de3e2297a182253dfa4400883a9a4fb46d44946aed3157ea2da873b93e2525c4", size = 339454, upload-time = "2026-06-03T16:22:35.87Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/ea/b8147da5c270a2a5b85090c97d0ff7e2fae6e7c5f7749f8c3c2decadd3ac/hiredis-3.4.0-cp313-cp313-manylinux2014_s390x.manylinux_2_17_s390x.manylinux_2_28_s390x.whl", hash = "sha256:454236d2a5bd917daf38914ce363e71aeef41240e6800f4799e04ee82689bfd2", size = 351457, upload-time = "2026-06-03T16:22:36.95Z" },
+    { url = "https://files.pythonhosted.org/packages/33/b5/ff8fe4f812348f09d2943b109cb64c5301af4f601e1cf026518e93a72fff/hiredis-3.4.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:35ab3653569b9867b8d8a3b4c0684a20dc769fe45d4666bedfe9a3391a61b30b", size = 312970, upload-time = "2026-06-03T16:22:38.004Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/2a/c90dff527cb2521ee1687e9e30bdf1156f2f4acfd47833b44dc52fec3ec6/hiredis-3.4.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:afff0876dafad6d3bb446c907da2836954876243f6bb9d5e44915d175e424aa4", size = 300850, upload-time = "2026-06-03T16:22:39.146Z" },
+    { url = "https://files.pythonhosted.org/packages/90/0b/c48e93a1e524198b10ccc26d770368547c0c29d126a992fd4b4aa533f1ac/hiredis-3.4.0-cp313-cp313-musllinux_1_2_ppc64le.whl", hash = "sha256:d5c33eb2da5c9ccd281c396e1c618cfe6a91eb841e957f17d2fa520383b3111d", size = 331430, upload-time = "2026-06-03T16:22:40.248Z" },
+    { url = "https://files.pythonhosted.org/packages/95/12/ed5bdc482d5c98930ffa264dd707dfb04b83118b2f7f760760c5dfbe6782/hiredis-3.4.0-cp313-cp313-musllinux_1_2_s390x.whl", hash = "sha256:04e54fc3bcecf8c7cb2846947b84baf7ce1507caba641bd23590c52fefade865", size = 333021, upload-time = "2026-06-03T16:22:41.363Z" },
+    { url = "https://files.pythonhosted.org/packages/e6/42/d4a2e7be82f2b2db7b67ec622806ba099d8fe09d218568f71197922cbe79/hiredis-3.4.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:5f1ddfe6429f9adc0a8d705afbcd40530fddeafa919873ffbb11f59eda44dbb9", size = 311747, upload-time = "2026-06-03T16:22:42.374Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/33/b5ac3420bd803ca9affd68a4a2a6111812bd26bfb9d6b41a721e009d79d9/hiredis-3.4.0-cp313-cp313-win32.whl", hash = "sha256:165e6405b48f9bd66ddb4ad52ce28b0c0041a0308654d7a0cb4357a1939134dc", size = 38921, upload-time = "2026-06-03T16:22:43.513Z" },
+    { url = "https://files.pythonhosted.org/packages/03/e7/76e68122b1cf680b93b951a82953fff5b5883dc08ec93f63677eb3653591/hiredis-3.4.0-cp313-cp313-win_amd64.whl", hash = "sha256:306aae11a52e495aaf0a14e3efcd7b51029e632c74b847bc03159e1e1f6db591", size = 40095, upload-time = "2026-06-03T16:22:44.296Z" },
+    { url = "https://files.pythonhosted.org/packages/20/05/9313dc27ed159512dc22b4ecf8a62a84d0aa5fbd500ffdad955b361cb2a8/hiredis-3.4.0-cp313-cp313-win_arm64.whl", hash = "sha256:975a8e75a10425442037dd9c7abbaae31941c34328d9f01b1ca42d9db44ac31d", size = 36884, upload-time = "2026-06-03T16:22:45.134Z" },
+]
+
+[[package]]
 name = "html-sanitizer"
 version = "2.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -862,6 +884,7 @@ dependencies = [
     { name = "dnspython" },
     { name = "flask" },
     { name = "gevent" },
+    { name = "hiredis" },
     { name = "html-sanitizer" },
     { name = "isardvdi-notifier-client" },
     { name = "isardvdi-protobuf" },
@@ -897,6 +920,7 @@ requires-dist = [
     { name = "dnspython", specifier = "==2.8.0" },
     { name = "flask", specifier = "==3.1.0" },
     { name = "gevent", specifier = "==25.5.1" },
+    { name = "hiredis", specifier = "==3.4.0" },
     { name = "html-sanitizer", specifier = "==2.6.0" },
     { name = "isardvdi-notifier-client", editable = "component/_common/isardvdi_notifier_client" },
     { name = "isardvdi-protobuf", editable = "pkg/gen/proto/python" },
@@ -1240,6 +1264,7 @@ name = "isardvdi-storage"
 version = "0.0.0"
 source = { editable = "docker/storage" }
 dependencies = [
+    { name = "hiredis" },
     { name = "isardvdi-apiv4-client" },
     { name = "isardvdi-common" },
     { name = "redis" },
@@ -1249,6 +1274,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "hiredis", specifier = "==3.4.0" },
     { name = "isardvdi-apiv4-client", editable = "component/_common/isardvdi_apiv4_client" },
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "redis", specifier = "==5.2.1" },

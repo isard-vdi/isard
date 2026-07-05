@@ -3,6 +3,7 @@ name = "isardvdi-storage"
 version = "0.0.0"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+  "hiredis==3.4.0",
   "isardvdi-apiv4-client",
   "isardvdi-common",
   "redis==5.2.1",
