@@ -46,6 +46,24 @@ from isardvdi_apiv4_client.models import StorageRsyncToStoragePoolRequest
 from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
 
+def _as_dict(obj):
+    """Normalize a generated apiv4-client parsed response into plain
+    dicts/lists.
+
+    The apiv4 client returns typed attrs models (or lists of them); the rest of
+    this script is written against the plain dict/list shapes the previous
+    ApiRest transport returned. This mirrors the ``_as_dict`` helper in
+    ``storage_lib/api.py`` so both tools consume the client the same way.
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, list):
+        return [_as_dict(i) for i in obj]
+    if hasattr(obj, "to_dict"):
+        return obj.to_dict()
+    return obj
+
+
 def timestamp():
     """Get current timestamp string for logging."""
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -121,7 +139,8 @@ def get_storage_pools():
     with build_client("isard-storage").with_timeout(httpx.Timeout(30.0)) as client:
         resp = list_storage_pools.sync_detailed(client=client)
         raise_for_status(resp)
-        return resp.parsed
+        data = _as_dict(resp.parsed) or {}
+        return data.get("storage_pools", [])
 
 
 def get_storage_pool_by_name(pool_name):
@@ -183,7 +202,7 @@ def get_storage_statuses(storage_id):
             client=client, storage_id=storage_id
         )
         raise_for_status(resp)
-        return resp.parsed
+        return _as_dict(resp.parsed) or {}
 
 
 def get_storage_details_for_logging(storage_id, file_path=None):
@@ -250,9 +269,9 @@ def get_all_recycled_storage():
         with build_client("isard-storage").with_timeout(httpx.Timeout(60.0)) as client:
             resp = admin_storage_by_status.sync_detailed(client=client, status="recycled")
             raise_for_status(resp)
-            storages = resp.parsed
+            storages = _as_dict(resp.parsed) or []
         # Create lookup dict for O(1) access: {storage_id: storage_info}
-        return {s["id"]: s for s in storages}
+        return {s["id"]: s for s in storages if s.get("id")}
     except Exception as e:
         print(f"Warning: Could not fetch recycled storage list: {e}")
         print("Falling back to individual API calls per file")
@@ -269,7 +288,7 @@ def trigger_find_task(storage_id):
         with build_client("isard-storage").with_timeout(httpx.Timeout(30.0)) as client:
             resp = find_storage_op.sync_detailed(client=client, storage_id=storage_id)
             raise_for_status(resp)
-            task_id = resp.parsed
+            task_id = (_as_dict(resp.parsed) or {}).get("task_id")
         log(f"[FIND] Storage {storage_id} | Task ID: {task_id} | Task type: find")
         return task_id
     except Exception as e:
@@ -297,7 +316,7 @@ def wait_for_task(task_id, timeout=300):
             ) as client:
                 resp = get_task_op.sync_detailed(client=client, task_id=task_id)
                 raise_for_status(resp)
-                task = resp.parsed
+                task = _as_dict(resp.parsed) or {}
 
             # Log progress every 30 seconds
             if time.time() - last_log_time >= 30:
@@ -410,7 +429,7 @@ def rsync_to_storage_pool(storage_id, storage_pool_id):
             ),
         )
         raise_for_status(resp)
-        return resp.parsed
+        return _as_dict(resp.parsed) or {}
 
 
 def wait_ready(storage_id, timeout_seconds, stop_requested=None):
