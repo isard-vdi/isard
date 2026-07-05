@@ -74,6 +74,28 @@ class TaskIdResponse(BaseModel):
     task_id: str
 
 
+class StorageStatusDomain(BaseModel):
+    """A domain entry in a storage's statuses payload."""
+
+    id: str
+    status: str
+    kind: str
+
+
+class StorageStatusesResponse(BaseModel):
+    """Status of a storage and its associated domains.
+
+    Mirrors ``Storage.statuses``: a single object (not a list), holding the
+    storage's own status plus the status of every domain that uses it.
+    """
+
+    id: str
+    status: str
+    path: str
+    pool: str
+    domains: list[StorageStatusDomain]
+
+
 class StorageCreateResponse(BaseModel):
     """Response for storage creation"""
 
