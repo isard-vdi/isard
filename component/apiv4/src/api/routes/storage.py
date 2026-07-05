@@ -44,6 +44,7 @@ from api.schemas.storage import (
     StorageRecreateRequest,
     StorageRsyncToPathRequest,
     StorageRsyncToStoragePoolRequest,
+    StorageStatusesResponse,
     StoragesWithUuidEntry,
     StorageVirtWinRegRequest,
     TaskIdResponse,
@@ -444,7 +445,7 @@ async def get_storage_task(request: Request, storage_id: str):
 @admin_router.get(
     "/item/storage/{storage_id}/statuses",
     tags=[tag],
-    response_model=list[dict],
+    response_model=StorageStatusesResponse,
     summary="Get storage and domain statuses",
     description="Returns the status of a storage and its associated domains.",
     responses={
@@ -457,7 +458,7 @@ async def get_storage_statuses(request: Request, storage_id: str):
         statuses = await asyncio.to_thread(
             StorageService.get_statuses, request.token_payload, storage_id
         )
-        return JSONResponse(content=statuses or [], status_code=200)
+        return JSONResponse(content=statuses or {}, status_code=200)
     except Error:
         raise
     except Exception:

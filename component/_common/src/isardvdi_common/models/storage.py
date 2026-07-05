@@ -419,11 +419,11 @@ class Storage(RethinkCustomBase):
     @property
     def statuses(self):
         """
-        Retrieve the status and IDs for a storage and its associated domain
-        based on the provided storage ID.
+        Retrieve the status and IDs for this storage and its associated domains.
 
-        :param storage_id: The storage ID to filter by
-        :return: A list of dictionaries with storage and domain statuses and IDs
+        :return: A single dict with the storage's own id, status, path and pool,
+            plus a ``domains`` list of id/status/kind entries
+        :rtype: dict
         """
         return {
             "id": self.id,
