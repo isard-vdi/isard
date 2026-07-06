@@ -26,6 +26,10 @@
     "forgot-password": {
       "title": "Has oblidat la contrasenya?"
     },
+    "export-user": {
+      "title": "Exporta els elements del teu usuari",
+      "subtitle": "Migra els elements mitjançant un codi de migració"
+    },
     "profile": {
       "title": "Perfil",
       "subtitle": "Gestiona el teu perfil i preferències"

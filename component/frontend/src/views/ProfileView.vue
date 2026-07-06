@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import {
@@ -140,13 +140,13 @@ const showEmailVerificationModal = ref(false)
 const showImportUserModal = ref(false)
 const showQuotaModal = shallowRef(false)
 const route = useRoute()
+const router = useRouter()
 
 onMounted(() => {
   if (route.query.open === 'quota') {
     showQuotaModal.value = true
   }
 })
-const legacyExportHref = '/export-user' // TODO: redo this page in this frontend and use router link
 const { mutate: resetVpn, isPending: isResettingVpn } = useMutation(userResetVpnMutation())
 
 const handleResetVpn = () => {
@@ -521,13 +521,12 @@ watch(
           <div class="flex flex-col gap-3 pt-4">
             <Button
               v-if="showExportUserButton"
-              as="a"
               hierarchy="secondary-gray"
               size="sm"
               class="max-w-56 justify-start"
               icon="upload-01"
               icon-size="md"
-              :href="legacyExportHref"
+              @click="router.push({ name: 'export-user' })"
             >
               {{ t('views.profile.migrations.actions.export-user') }}
             </Button>

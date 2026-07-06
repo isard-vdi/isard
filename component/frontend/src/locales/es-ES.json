@@ -26,6 +26,10 @@
     "forgot-password": {
       "title": "¿Has olvidado tu contraseña?"
     },
+    "export-user": {
+      "title": "Exportar elementos del usuario",
+      "subtitle": "Migrar elementos del usuario mediante un código de migración"
+    },
     "profile": {
       "title": "Perfil",
       "subtitle": "Gestiona tu perfil y preferencias"

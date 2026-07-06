@@ -161,6 +161,18 @@ const router = createRouter({
           }
         },
         {
+          path: 'export-user',
+          name: 'export-user',
+          component: () => import('../views/ExportUserView.vue'),
+          meta: {
+            title: 'router.export-user.title',
+            subtitle: 'router.export-user.subtitle',
+            hideMountainBg: true,
+            allowedTokenTypes: ['login'] as TokenType[],
+            allowedRoles: ['admin', 'manager', 'advanced', 'user'] as Role[]
+          }
+        },
+        {
           path: 'media',
           name: 'media-root',
           meta: {
@@ -415,6 +427,18 @@ const router = createRouter({
         title: 'Reset Password',
         allowedTokenTypes: ['password-reset']
       }
+    },
+    {
+      path: '/export-user',
+      name: 'export-user-standalone',
+      component: () => import('../views/ExportUserView.vue'),
+      meta: {
+        title: 'router.export-user.title',
+        // 'user-migration-required' → forced migration. 'login' → voluntary
+        // export launched from the deprecated (Vue 2) profile, which does a
+        // full-page load to /export-user with the user's normal login token.
+        allowedTokenTypes: ['user-migration-required', 'login']
+      }
     }
   ]
 })
@@ -530,7 +554,7 @@ router.beforeEach(async (to, from, next) => {
 function getRedirectForTokenType(type: TokenType) {
   switch (type) {
     case TokenType.Login:
-      return { name: 'home' }
+      return { name: 'desktops' }
     case TokenType.CategorySelect:
       return { name: 'login' }
     case TokenType.Register:
@@ -545,12 +569,11 @@ function getRedirectForTokenType(type: TokenType) {
     case TokenType.EmailVerificationRequired:
       return { name: 'verify-email' }
     case TokenType.UserMigrationRequired:
-      // TODO: Use a new export user page
-      return (window.location.pathname = '/export-user')
+      return { name: 'export-user-standalone' }
     case TokenType.UserMigration:
       return { name: 'migration' }
     default:
-      return { name: 'home' }
+      return { name: 'desktops' }
   }
 }
 

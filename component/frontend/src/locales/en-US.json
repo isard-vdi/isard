@@ -26,6 +26,10 @@
     "forgot-password": {
       "title": "Forgot Password"
     },
+    "export-user": {
+      "title": "Export user's items",
+      "subtitle": "Migrate user's items via migration token"
+    },
     "profile": {
       "title": "Profile",
       "subtitle": "Manage your user profile and settings"
