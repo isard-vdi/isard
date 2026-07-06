@@ -9,6 +9,8 @@ from rethinkdb import r
 
 from .error_factory import Error
 
+SPECIAL_CHARACTERS = "!@#$%^&*()-_=+[]{};:'\",.<>?"
+
 
 class Password(RethinkSharedConnection):
     """_From api/libv2/api_users.py Password"""
@@ -55,7 +57,7 @@ class Password(RethinkSharedConnection):
             password_characters.extend(random.choices(string.digits, k=min_digits))
         if min_special:
             password_characters.extend(
-                random.choices("!@#$%^&*()-_=+[]{}|;:'\",.<>/?", k=min_special)
+                random.choices(SPECIAL_CHARACTERS, k=min_special)
             )
 
         remaining_length = length - len(password_characters)
@@ -81,7 +83,9 @@ class Password(RethinkSharedConnection):
                 params={"num": policy["length"]},
             )
 
-        if policy["uppercase"] > 0 and not any(char.isupper() for char in password):
+        if policy["uppercase"] > 0 and not any(
+            char in string.ascii_uppercase for char in password
+        ):
             raise Error(
                 "bad_request",
                 "Password must have at least "
@@ -91,7 +95,9 @@ class Password(RethinkSharedConnection):
                 params={"num": policy["uppercase"]},
             )
 
-        if policy["lowercase"] > 0 and not any(char.islower() for char in password):
+        if policy["lowercase"] > 0 and not any(
+            char in string.ascii_lowercase for char in password
+        ):
             raise Error(
                 "bad_request",
                 "Password must have at least "
@@ -101,7 +107,7 @@ class Password(RethinkSharedConnection):
                 params={"num": policy["lowercase"]},
             )
 
-        if policy["digits"] > 0 and not any(char.isdigit() for char in password):
+        if policy["digits"] > 0 and not any(char in string.digits for char in password):
             raise Error(
                 "bad_request",
                 "Password must have at least " + str(policy["digits"]) + " numbers",
@@ -109,15 +115,15 @@ class Password(RethinkSharedConnection):
                 params={"num": policy["digits"]},
             )
 
-        special_characters = "!@#$%^&*()-_=+[]{}|;:'\",.<>/?"
         if policy["special_characters"] > 0 and not any(
-            char in special_characters for char in password
+            char in SPECIAL_CHARACTERS for char in password
         ):
             raise Error(
                 "bad_request",
                 "Password must have at least "
                 + str(policy["special_characters"])
-                + " special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+                + " special characters: "
+                + SPECIAL_CHARACTERS,
                 description_code="password_special_characters",
                 params={"num": policy["special_characters"]},
             )
