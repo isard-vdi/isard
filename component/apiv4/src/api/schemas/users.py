@@ -512,7 +512,7 @@ class WebappDomainItem(BaseModel):
     disks_info: Optional[list[dict]] = None
     hw_stats: Optional[dict] = None
     from_template: Optional[str] = None
-    current_action: Optional[str] = None
+    current_action: Optional[str | bool] = None
     scheduled: Optional[dict] = None
     enabled: Optional[bool] = None
 

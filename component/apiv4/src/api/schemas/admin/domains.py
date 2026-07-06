@@ -191,7 +191,7 @@ class AdminDomainListItem(BaseModel):
     favourite_hyp: Optional[Union[str, bool, list]] = None
     booking_id: Optional[Union[str, bool]] = None
     role: Optional[str] = None
-    current_action: Optional[str] = None
+    current_action: Optional[str | bool] = None
     user: Optional[str] = None
     user_name: Optional[str] = None
     username: Optional[str] = None
