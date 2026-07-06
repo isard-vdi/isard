@@ -933,6 +933,59 @@
         "go_back": "Volver",
         "go_to_login": "Ir al inicio de sesión"
       }
+    },
+    "forgot-password": {
+      "title": "Restablecer contraseña",
+      "invalid-email": "Introduce una dirección de correo válida",
+      "title-sent": "Correo enviado",
+      "description": "Introduce tu dirección de correo y te enviaremos un enlace para restablecerla.",
+      "email-label": "Correo",
+      "email-placeholder": "nombre{'@'}ejemplo.com",
+      "error-generic": "Se ha producido un error. Inténtalo de nuevo.",
+      "email-sent": "Si tu dirección de correo existe en nuestra base de datos, recibirás un enlace de recuperación de contraseña en breve.",
+      "redirecting": "Redirigiendo al inicio de sesión en {seconds} segundos.",
+      "go-login": "Volver al inicio de sesión",
+      "buttons": {
+        "reset": "Enviar enlace de restablecimiento"
+      }
+    },
+    "reset-password": {
+      "policy": {
+        "length": "Al menos {num} carácter(es)",
+        "uppercase": "Al menos {num} letra(s) mayúscula(s)",
+        "lowercase": "Al menos {num} letra(s) minúscula(s)",
+        "digits": "Al menos {num} número(s)",
+        "special_characters": "Al menos {num} carácter(es) especial(es)",
+        "not_username": "No puede contener tu nombre de usuario",
+        "old_passwords": "No puede ser ninguna de las últimas {num} contraseñas",
+        "expiration": "Caduca cada {num} día(s)",
+        "info-heading": "Además:",
+        "aria-label": "Requisitos de la contraseña",
+        "state": {
+          "met": "cumplido",
+          "unmet": "no cumplido"
+        }
+      },
+      "expired": {
+        "title": "Enlace caducado",
+        "description": "Este enlace para restablecer la contraseña ha caducado. Los enlaces de restablecimiento solo son válidos durante un tiempo limitado.",
+        "action": "Vuelve al inicio de sesión para solicitar uno nuevo."
+      },
+      "invalid": {
+        "title": "Enlace no válido",
+        "description": "Este enlace para restablecer la contraseña ya no es válido. Es posible que ya se haya utilizado para cambiar la contraseña.",
+        "action": "Vuelve al inicio de sesión para solicitar uno nuevo."
+      },
+      "submit-error": {
+        "policy-heading": "La nueva contraseña no cumple los requisitos:",
+        "generic": "Se ha producido un error. Inténtalo de nuevo en unos segundos."
+      },
+      "title": "Cambiar contraseña",
+      "submit": "Actualizar contraseña",
+      "success": {
+        "message": "Contraseña cambiada con éxito.",
+        "redirecting": "Redirigiendo al inicio de sesión en {seconds} segundo(s)."
+      }
     }
   },
   "layouts": {
@@ -1092,7 +1145,7 @@
         },
         "confirm-new-password": {
           "label": "Confirma la contraseña",
-          "placeholder": "Contraseña nueva"
+          "placeholder": "Confirmar contraseña"
         },
         "current-password": {
           "label": "Contraseña actual",

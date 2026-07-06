@@ -406,6 +406,15 @@ const router = createRouter({
       // Must remain the last route in the router configuration.
       path: '/:pathMatch(.*)*',
       redirect: { name: 'error', params: { code: '404' } }
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('../views/ResetPasswordView.vue'),
+      meta: {
+        title: 'Reset Password',
+        allowedTokenTypes: ['password-reset']
+      }
     }
   ]
 })
@@ -437,7 +446,9 @@ async function getFrontendMode(): Promise<FrontendMode> {
 
 router.beforeEach(async (to, from, next) => {
   const isPublic =
-    to.meta.public || (to.name === 'verify-email' && typeof to.query.token === 'string')
+    to.meta.public ||
+    (to.name === 'verify-email' && typeof to.query.token === 'string') ||
+    (to.name === 'reset-password' && typeof to.query.token === 'string')
   if (isPublic) {
     return next()
   }

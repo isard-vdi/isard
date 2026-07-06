@@ -919,6 +919,44 @@
         "go_back": "Go back",
         "go_to_login": "Go to login"
       }
+    },
+    "reset-password": {
+      "policy": {
+        "length": "At least {num} character(s) long",
+        "uppercase": "At least {num} uppercase character(s)",
+        "lowercase": "At least {num} lowercase character(s)",
+        "digits": "At least {num} number(s)",
+        "special_characters": "At least {num} special character(s)",
+        "not_username": "Cannot contain your username",
+        "old_passwords": "Cannot reuse the last {num} password(s)",
+        "expiration": "Expires every {num} day(s)",
+        "info-heading": "Also:",
+        "aria-label": "Password requirements",
+        "state": {
+          "met": "met",
+          "unmet": "not met"
+        }
+      },
+      "expired": {
+        "title": "Link expired",
+        "description": "This password reset link has expired. Reset links are only valid for a limited time.",
+        "action": "Please go back to login to request a new one."
+      },
+      "invalid": {
+        "title": "Link no longer valid",
+        "description": "This password reset link is no longer valid. It may have already been used to change your password.",
+        "action": "Please go back to login to request a new one."
+      },
+      "submit-error": {
+        "policy-heading": "Your new password doesn't meet the requirements:",
+        "generic": "Something went wrong. Please try again in a few seconds."
+      },
+      "title": "Change password",
+      "submit": "Update password",
+      "success": {
+        "message": "Password changed successfully.",
+        "redirecting": "Redirecting to login in {seconds} second(s)."
+      }
     }
   },
   "layouts": {
@@ -1108,7 +1146,7 @@
         },
         "confirm-new-password": {
           "label": "Confirm new password",
-          "placeholder": "New password"
+          "placeholder": "Confirm password"
         },
         "buttons": {
           "update": "Update",
