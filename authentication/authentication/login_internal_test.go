@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"reflect"
 	"testing"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -817,6 +818,1578 @@ func TestStartLogin(t *testing.T) {
 			Redirect: "/",
 
 			ExpectedErr: "parse user email address: 'invalid-email': mail: missing '@' or angle-addr",
+		},
+		"should update the normalized name when the provider sends a new one": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "default-default",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "advanced",
+					"group":                    "default-default",
+					"secondary_groups":         []string{},
+					"name":                     "New Name",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "old-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "New \xffName"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should not overwrite the stored name when the provider sends an empty one": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "default-default",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := ""
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should update the username when the provider sends a new one": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "default-default",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefixnew",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "advanced",
+					"group":                    "default-default",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "old-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefixnew"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should update the photo when the provider sends a new one": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "default-default",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "advanced",
+					"group":                    "default-default",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "new-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "new-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should update the email and reset its verification when the provider sends a new one": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "default-default",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "advanced",
+					"group":                    "default-default",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "new@example.com",
+					"email_verified":           nil,
+					"email_verification_token": "",
+					"photo":                    "old-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "new@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should update the role when the provider sends a new one": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "default-default",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "manager",
+					"group":                    "default-default",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "old-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleManager
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role:     &role,
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should update the group when the provider maps a different existing one": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "old-group-id",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "new group"),
+				))).Return([]interface{}{
+					map[string]interface{}{
+						"id": "new-group-id",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "advanced",
+					"group":                    "new-group-id",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "old-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should auto-register and update a group the provider maps that does not exist yet": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "old-group-id",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "new group"),
+				))).Return([]interface{}{}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "advanced",
+					"group":                    "created-group-id",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "old-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCreateGroup", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AdminGroupCreateData) bool {
+					return req.Name == "category" && req.ParentCategory.Value == "default" && req.ExternalGid.Value == "new group"
+				})).Return(&apiv4.AdminGroup{
+					ID:  "created-group-id",
+					UID: "created-group-id",
+				}, nil)
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should update the secondary groups when the provider maps different ones": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "primary-id",
+						"secondary_groups":         []string{"old-secondary-id"},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "new secondary group"),
+				))).Return([]interface{}{
+					map[string]interface{}{
+						"id": "new-secondary-id",
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "primary group"),
+				))).Return([]interface{}{
+					map[string]interface{}{
+						"id": "primary-id",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "advanced",
+					"group":                    "primary-id",
+					"secondary_groups":         []string{"new-secondary-id"},
+					"name":                     "Néfix Estrada",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "old-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "primary group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			SecondaryGroups: []*model.Group{{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new secondary group",
+				Name:          "category",
+				Description:   "some description",
+			}},
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should return an error if checking whether the user exists fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return(nil, fmt.Errorf("find error"))
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(false)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if user exists: find error",
+		},
+		"should return an error if checking the mapped group fails": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "old-group-id",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "new group"),
+				))).Return(nil, fmt.Errorf("group error"))
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if group exists: group error",
+		},
+		"should return an error if auto-registering the mapped group fails": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "old-group-id",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "new group"),
+				))).Return([]interface{}{}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCreateGroup", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AdminGroupCreateData) bool {
+					return req.Name == "category" && req.ParentCategory.Value == "default" && req.ExternalGid.Value == "new group"
+				})).Return(nil, fmt.Errorf("create error"))
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "auto register group: register the group: create error",
+		},
+		"should return an error if checking the group fails during registration": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "new group"),
+				))).Return(nil, fmt.Errorf("group error"))
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if group exists: group error",
+		},
+		"should return an error if registering the group fails during registration": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "new group"),
+				))).Return([]interface{}{}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCreateGroup", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AdminGroupCreateData) bool {
+					return req.Name == "category" && req.ParentCategory.Value == "default" && req.ExternalGid.Value == "new group"
+				})).Return(nil, fmt.Errorf("create error"))
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "auto register group: register the group: create error",
+		},
+		"should return an error if registering the user fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminAutoRegister", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AutoRegisterRequest) bool {
+					return req.RoleID == "advanced"
+				}), mock.AnythingOfType("apiv4.AdminAutoRegisterParams")).Return(nil, fmt.Errorf("register error"))
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleAdvanced
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role:     &role,
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "auto register user: register the user: register error",
+		},
+		"should return an error if updating the existing user fails": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "default-default",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "advanced",
+					"group":                    "default-default",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "new@example.com",
+					"email_verified":           nil,
+					"email_verification_token": "",
+					"photo":                    "old-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(nil, fmt.Errorf("update error"))
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "new@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "update user: update error",
+		},
+		"should refresh every provider-owned field on re-login": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				dbUser := map[string]any{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "old-username",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "advanced",
+					"group":                    "old-group-id",
+					"secondary_groups":         []string{"old-secondary-id"},
+					"password":                 "old-password",
+					"password_reset_token":     "old-reset-token",
+					"name":                     "Old Name",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "old-photo.png",
+					"disclaimer_acknowledged":  true,
+					"accessed":                 float64(123),
+					"api_key":                  "old-api-key",
+				}
+
+				expected := map[string]any{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "new-username",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "manager",
+					"group":                    "new-group-id",
+					"secondary_groups":         []string{"new-secondary-id"},
+					"password":                 "old-password",
+					"password_reset_token":     "old-reset-token",
+					"name":                     "New Name",
+					"email":                    "new@example.com",
+					"email_verified":           nil,
+					"email_verification_token": "",
+					"photo":                    "new-photo.png",
+					"disclaimer_acknowledged":  true,
+					"accessed":                 float64(123),
+					"api_key":                  "old-api-key",
+				}
+
+				userType := reflect.TypeFor[model.User]()
+				for i := range userType.NumField() {
+					field := userType.Field(i)
+					tag := field.Tag.Get("rethinkdb")
+					if _, ok := expected[tag]; ok {
+						continue
+					}
+
+					assert.Failf("uncovered model.User field", "the re-login sync test doesn't cover %q (rethinkdb:%q)", field.Name, tag)
+					zero := reflect.Zero(field.Type).Interface()
+					dbUser[tag] = zero
+					expected[tag] = zero
+				}
+
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"email_domain_restriction": map[string]any{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{dbUser}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "primary group"),
+				))).Return([]any{map[string]any{"id": "new-group-id"}}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "secondary group"),
+				))).Return([]any{map[string]any{"id": "new-secondary-id"}}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(expected)).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "primary group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			SecondaryGroups: []*model.Group{{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "secondary group",
+				Name:          "category-secondary",
+				Description:   "some description",
+			}},
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "new-username"
+				name := "New Name"
+				email := "new@example.com"
+				photo := "new-photo.png"
+				role := model.Role("manager")
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+					Role:     &role,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
 		},
 	}
 

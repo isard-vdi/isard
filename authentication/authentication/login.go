@@ -187,7 +187,6 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 	if !a.Provider(u.Provider, u.Category).SaveEmail() {
 		u.Email = ""
 	}
-	providerName := u.Name
 	dbUser, uExists, err := u.FindExisting(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)
@@ -199,15 +198,60 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 	// Flag to track if we need to update existing user.
 	var needsUpdate bool
 	if uExists {
-		// Check if provider name differs from database name.
-		if dbUser.Name != providerName {
+		provided := *u
+		*u = *dbUser
+
+		if provided.Name != "" && u.Name != provided.Name {
 			needsUpdate = true
-			*u = *dbUser
-			// Keep the provider name.
-			u.Name = providerName
-		} else {
-			// Use the existing database user data.
-			*u = *dbUser
+			u.Name = provided.Name
+		}
+
+		if provided.Username != "" && u.Username != provided.Username {
+			needsUpdate = true
+			u.Username = provided.Username
+		}
+
+		if provided.Photo != "" && u.Photo != provided.Photo {
+			needsUpdate = true
+			u.Photo = provided.Photo
+		}
+
+		if provided.Email != "" && u.Email != provided.Email {
+			needsUpdate = true
+			u.Email = provided.Email
+			u.EmailVerified = nil
+			u.EmailVerificationToken = ""
+		}
+
+		if provided.Role != "" && u.Role != provided.Role {
+			needsUpdate = true
+			u.Role = provided.Role
+		}
+
+		if g != nil {
+			for _, group := range append(secondary, g) {
+				gExists, err := group.Exists(ctx, a.DB)
+				if err != nil {
+					return "", "", fmt.Errorf("check if group exists: %w", err)
+				}
+
+				if !gExists {
+					if err := a.registerGroup(ctx, group); err != nil {
+						return "", "", fmt.Errorf("auto register group: %w", err)
+					}
+				}
+			}
+
+			secondaryGroups := make([]string, 0, len(secondary))
+			for _, group := range secondary {
+				secondaryGroups = append(secondaryGroups, group.ID)
+			}
+
+			if u.Group != g.ID || !slices.Equal(u.SecondaryGroups, secondaryGroups) {
+				needsUpdate = true
+				u.Group = g.ID
+				u.SecondaryGroups = secondaryGroups
+			}
 		}
 	}
 
