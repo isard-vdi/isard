@@ -356,14 +356,26 @@ const router = createRouter({
       meta: { title: 'router.direct-viewer.title', public: true }
     },
     {
-      path: '/notifications/:trigger',
-      name: 'notifications',
-      component: () => import('../views/NotificationsView.vue'),
-      meta: {
-        title: 'router.notifications.title',
-        allowedTokenTypes: ['login'],
-        allowedRoles: ['admin', 'manager', 'advanced', 'user'] as Role[]
-      }
+      path: '/notifications',
+      component: MainLayout,
+      children: [
+        {
+          path: '',
+          redirect: { name: 'desktops' }
+        },
+        {
+          path: ':trigger',
+          name: 'notifications',
+          component: () => import('../views/NotificationsView.vue'),
+          meta: {
+            title: 'router.notifications.title',
+            subtitle: 'router.notifications.subtitle',
+            showMountainBg: true,
+            allowedTokenTypes: ['login'],
+            allowedRoles: ['admin', 'manager', 'advanced', 'user'] as Role[]
+          }
+        }
+      ]
     },
     {
       path: '/verify-email',

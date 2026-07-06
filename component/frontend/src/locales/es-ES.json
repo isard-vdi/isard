@@ -14,7 +14,8 @@
       "title": "Migración"
     },
     "notifications": {
-      "title": "Notificaciones"
+      "title": "Notificaciones",
+      "subtitle": "Mensajes y avisos del sistema"
     },
     "maintenance": {
       "title": "Mantenimiento"
@@ -360,7 +361,12 @@
     "notifications": {
       "title": "Notificaciones",
       "no-notifications": "No hay notificaciones pendientes",
-      "go-to-desktops": "Ir a mis escritorios"
+      "go-to-desktops": "Ir a mis escritorios",
+      "loading": "Cargando notificaciones",
+      "error": {
+        "title": "No se pudieron cargar las notificaciones",
+        "generic": "Se ha producido un error. Vuelve a intentarlo."
+      }
     },
     "desktops": {
       "new-desktop": "Nuevo escritorio",
