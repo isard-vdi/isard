@@ -1053,11 +1053,9 @@
         "title": "SchedulerJobList"
       },
       "SchedulerAddJobResponse": {
-        "properties": {},
-        "type": "object",
-        "additionalProperties": true,
+        "type": "null",
         "title": "SchedulerAddJobResponse",
-        "description": "Opaque response returned by APScheduler after adding a job. Shape varies by trigger type; the scheduler simply forwards it as JSON."
+        "description": "Job-creation endpoints return no body (always JSON null)."
       },
       "SchedulerRemoveJobStartswithResponse": {
         "type": "array",
