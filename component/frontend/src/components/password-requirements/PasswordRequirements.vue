@@ -6,11 +6,14 @@ import Icon from '@/components/icon/Icon.vue'
 import { Separator } from '../ui/separator'
 import { type GetUserPasswordPolicyResponse } from '@/gen/oas/apiv4'
 import { PASSWORD_REGEX } from '@/lib/password'
+import type { HTMLAttributes } from 'vue'
+import { cn } from '@/lib/utils'
 
 interface Props {
   inputPassword: string
   policies: GetUserPasswordPolicyResponse
   showErrors?: boolean
+  class?: HTMLAttributes['class']
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -114,6 +117,7 @@ const infoPolicyItems = computed<string[]>(() => {
   <div
     v-if="passwordRequirements.length > 0 || infoPolicyItems.length > 0"
     id="password-requirements"
+    :class="cn(props.class)"
     class="w-full rounded-xl border border-gray-warm-300 bg-base-white p-4 text-sm text-foreground shadow-xs [&_p]:leading-relaxed"
   >
     <h2 class="sr-only">{{ t('views.reset-password.policy.aria-label') }}</h2>

@@ -10,14 +10,15 @@ import { Button } from '@/components/ui/button'
 import { InputField } from '@/components/input-field'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import PasswordRequirements from '@/components/password-requirements/PasswordRequirements.vue'
 
 import {
   getUserPasswordPolicyOptions,
   setUserPasswordMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { PasswordPolicyErrorResponse } from '@/gen/oas/apiv4'
+import { PASSWORD_REGEX } from '@/lib/password'
 
-import imgurl from '@/assets/img/password-modal-header.svg'
 import { whenever } from '@vueuse/core'
 
 const { t } = useI18n()
@@ -39,6 +40,8 @@ const mutation = useMutation({
     open.value = false
     waiting.value = false
     form.reset()
+    error.value = ''
+    errorparams.value = {}
   },
   onError(err: unknown) {
     const resp = err as PasswordPolicyErrorResponse
@@ -110,21 +113,20 @@ const form = useForm({
   }
 })
 
+const newPasswordValue = form.useStore((state) => state.values.newPassword)
+
+const submissionAttempts = form.useStore((state) => state.submissionAttempts)
+
 function handleCancel() {
   open.value = false
   form.reset()
+  error.value = ''
+  errorparams.value = {}
 }
 
 function isInvalid(field: AnyFieldApi) {
   return field.state.meta.isTouched && !field.state.meta.isValid
 }
-
-const PASSWORD_REGEX = {
-  SPECIAL: /[!@#$%^&*()+\-=[\]{}|;:'",.<>/?]/g,
-  DIGITS: /[0-9]/g,
-  LOWERCASE: /[a-z]/g,
-  UPPERCASE: /[A-Z]/g
-} as const
 
 const hasErrors = form.useStore((state) => {
   if (state.isDirty && state.errors.length && state.submissionAttempts) return true
@@ -144,7 +146,6 @@ const hasErrors = form.useStore((state) => {
     class="min-h-md"
     @close="handleCancel"
   >
-    <img :src="imgurl" alt="" class="pl-2 pr-2" />
     <div v-if="loading">
       <Spinner size="sm" class="my-10 mx-auto" />
     </div>
@@ -249,7 +250,6 @@ const hasErrors = form.useStore((state) => {
                 @blur="field.handleBlur"
                 @input="field.handleChange(($event.target as HTMLInputElement).value)"
               />
-              <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
             </Field>
           </template>
         </form.Field>
@@ -283,6 +283,13 @@ const hasErrors = form.useStore((state) => {
           </template>
         </form.Field>
       </FieldGroup>
+      <PasswordRequirements
+        v-if="policy"
+        :input-password="newPasswordValue"
+        :policies="policy"
+        :show-errors="submissionAttempts > 0"
+        :class="'mt-6'"
+      />
     </form>
     <template #footer>
       <Button hierarchy="link-color" @click="handleCancel">{{
