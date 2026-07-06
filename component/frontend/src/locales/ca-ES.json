@@ -797,6 +797,12 @@
       },
       "error-title": "No s'ha pogut connectar",
       "error-description": "L'enllaç del visor directe no és vàlid o ha caducat.",
+      "errors": {
+        "not-booked": {
+          "title": "Escriptori no reservat",
+          "description": "L'escriptori que estàs intentant accedir necessita ser reservat per poder-lo iniciar. \nContacta amb el propietari de l'escriptori per reservar-lo i així poder accedir-hi."
+        }
+      },
       "reset-modal": {
         "title": "Forçar reinici de l'escriptori?",
         "description": "Forçar el reinici de l'escriptori es una acció perillosa. És l'equivalent a treure-li la corrent mentres està en marxa. Si pots, atura'l desde dins d'un visor.",

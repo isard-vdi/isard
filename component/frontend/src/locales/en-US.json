@@ -803,6 +803,12 @@
       },
       "error-title": "No se ha podido conectar",
       "error-description": "El enlace del visor directo no es válido o ha caducado.",
+      "errors": {
+        "not-booked": {
+          "title": "Desktop not booked",
+          "description": "The desktop you are trying to access needs to be booked in order to start it. \nContact the owner of the desktop to book it in order to access it."
+        }
+      },
       "reset-modal": {
         "title": "¿Forzar reinicio del escritorio?",
         "description": "Forzar un reinicio del escritorio es una acción peligrosa. Es el equivalente a quitarle la corriente mientras está en marcha. Si puedes, páralo desde dentro de un visor.",

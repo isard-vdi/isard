@@ -804,6 +804,12 @@
       },
       "error-title": "No se ha podido conectar",
       "error-description": "El enlace del visor directo no es válido o ha caducado.",
+      "errors": {
+        "not-booked": {
+          "title": "Escritorio no reservado",
+          "description": "El escritorio que estás intentando acceder necesita ser reservado para poder iniciarlo. \nContacta con el propietario del escritorio para reservarlo y así poder acceder a él."
+        }
+      },
       "reset-modal": {
         "title": "¿Forzar reinicio del escritorio?",
         "description": "Forzar un reinicio del escritorio es una acción peligrosa. Es el equivalente a quitarle la corriente mientras está en marcha. Si puedes, páralo desde dentro de un visor.",
