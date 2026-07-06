@@ -1930,6 +1930,10 @@
           "description": "El visor seleccionat necessita la interfície de xarxa wireguard per funcionar. Afegeix-la per continuar.",
           "add-interface-button": "Afegeix la interfície wireguard",
           "no-permission-description": "El visor seleccionat necessita la interfície de xarxa wireguard per funcionar, però no tens permís per utilitzar-la. Contacta amb l'administrador."
+        },
+        "viewers-removed": {
+          "title": "Visors RDP eliminats",
+          "description": "Aquests visors RDP s'han eliminat perquè aquest escriptori no té interfície de xarxa wireguard:"
         }
       },
       "hardware": {

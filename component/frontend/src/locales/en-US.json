@@ -1417,6 +1417,10 @@
           "description": "The selected viewer needs the wireguard network interface to work. Add it to continue.",
           "add-interface-button": "Add wireguard interface",
           "no-permission-description": "The selected viewer needs the wireguard network interface to work, but you do not have permission to use it. Contact your administrator to enable it."
+        },
+        "viewers-removed": {
+          "title": "RDP viewers removed",
+          "description": "These RDP viewers were removed because this desktop has no wireguard network interface:"
         }
       },
       "hardware": {

@@ -266,6 +266,27 @@ const wireguardMissing = computed(() => {
   return !(props.hardwareInterfaces ?? []).includes('wireguard')
 })
 
+const removedViewers = computed<string[]>(() => {
+  const lh = (templateData.value ?? desktopData.value)?.limited_hardware as
+    | Record<string, { old_value?: string[]; new_value?: string[] }>
+    | undefined
+  return lh?.viewers?.old_value ?? []
+})
+
+const viewerLabelKeys: Record<string, string> = {
+  browser_rdp: 'components.viewers-selector.browser-viewers.rdp-browser',
+  browser_vnc: 'components.viewers-selector.browser-viewers.vnc-browser',
+  file_rdpgw: 'components.viewers-selector.file-viewers.rdp',
+  file_spice: 'components.viewers-selector.file-viewers.spice',
+  file_rdpvpn: 'components.viewers-selector.file-viewers.rdp-vpn'
+}
+
+const removedViewerLabels = computed<string[]>(() =>
+  removedViewers.value.map((viewer) =>
+    viewerLabelKeys[viewer] ? t(viewerLabelKeys[viewer]) : viewer
+  )
+)
+
 watch(
   hasRdpViewer,
   (enabled) => {
@@ -483,6 +504,22 @@ const showPassword = ref(false)
               <p class="mb-0">
                 {{ t('components.domain.access.wireguard-warning.description') }}
               </p>
+            </AlertDescription>
+          </Alert>
+          <Alert v-if="removedViewerLabels.length" variant="default" class="border-error-600">
+            <FeaturedIconOutline kind="outline" color="error" />
+            <AlertTitle>{{ t('components.domain.access.viewers-removed.title') }}</AlertTitle>
+            <AlertDescription>
+              {{ t('components.domain.access.viewers-removed.description') }}
+              <ul class="mt-3 space-y-1">
+                <li
+                  v-for="label in removedViewerLabels"
+                  :key="label"
+                  class="text-sm font-semibold text-error-600"
+                >
+                  {{ label }}
+                </li>
+              </ul>
             </AlertDescription>
           </Alert>
         </div>

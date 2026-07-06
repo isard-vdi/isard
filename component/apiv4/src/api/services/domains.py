@@ -28,7 +28,6 @@ from isardvdi_common.models.interfaces import Interface
 
 
 class DomainService:
-
     @staticmethod
     def get_domain_info(domain_id: str, payload: dict) -> dict:
         """Get domain definition + runtime state used by the admin info modal."""
@@ -136,4 +135,25 @@ class DomainService:
         domain.pop("viewer", None)
         domain.pop("tag", None)
         domain.pop("user", None)
-        return Quotas.limit_user_hardware_allowed(payload, domain)
+
+        result = Quotas.limit_user_hardware_allowed(payload, domain)
+
+        rdp_viewers = ("browser_rdp", "file_rdpgw", "file_rdpvpn")
+        raw_ifaces = (result.get("hardware") or {}).get("interfaces") or []
+        iface_ids = [
+            iface["id"] if isinstance(iface, dict) else iface for iface in raw_ifaces
+        ]
+        if "wireguard" not in iface_ids:
+            viewers = (result.get("guest_properties") or {}).get("viewers") or {}
+            removed = [viewer for viewer in rdp_viewers if viewers.get(viewer)]
+            if removed:
+                for viewer in removed:
+                    viewers[viewer] = None
+                limited = result.get("limited_hardware") or {}
+                limited["viewers"] = {
+                    "old_value": removed,
+                    "new_value": [key for key, value in viewers.items() if value],
+                }
+                result["limited_hardware"] = limited
+
+        return result
