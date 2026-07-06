@@ -1959,9 +1959,14 @@
           "add-interface-button": "Añadir interfaz wireguard",
           "no-permission-description": "El visor seleccionado necesita la interfaz de red wireguard para funcionar, pero no tienes permiso para usarla. Contacta con el administrador para que te la habilite."
         },
+        "wireguard-added": {
+          "title": "Interfaz wireguard añadida",
+          "description": "Se ha añadido automáticamente porque el visor RDP seleccionado la necesita."
+        },
         "viewers-removed": {
           "title": "Visores RDP eliminados",
-          "description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard:"
+          "description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard:",
+          "toast-description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard: {viewers}"
         }
       },
       "hardware": {

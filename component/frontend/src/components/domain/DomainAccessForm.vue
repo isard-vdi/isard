@@ -27,10 +27,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 import {
-  WIREGUARD_REQUIRING_VIEWERS,
   hasWireguardRequiringViewer,
-  stripWireguardRequiringViewers
+  stripWireguardRequiringViewers,
+  getWireguardRequiringViewers
 } from '@/lib/viewers'
 
 interface Credentials {
@@ -67,11 +68,7 @@ interface Props {
   showCustomDomains?: boolean // Whether to show custom domains in bastion config
   bastion?: Bastion
   viewers?: string[]
-  /** Current network interfaces from the sibling hardware form. Used to warn
-   * the user when an RDP-class viewer is selected without wireguard. */
   hardwareInterfaces?: string[]
-  /** Called when the user clicks "Add wireguard interface" in the warning
-   * alert. The parent component forwards this to DomainHardwareForm. */
   onRequestAddInterface?: (ifaceId: string) => void
 }
 
@@ -261,17 +258,16 @@ const selectedViewers = form.useStore((state) => state.values.viewers)
 
 const hasRdpViewer = computed(() => hasWireguardRequiringViewer(selectedViewers.value ?? []))
 
-const wireguardMissing = computed(() => {
-  if (!hasRdpViewer.value) return false
-  return !(props.hardwareInterfaces ?? []).includes('wireguard')
-})
+const removedViewers = ref<string[]>([])
 
-const removedViewers = computed<string[]>(() => {
-  const lh = (templateData.value ?? desktopData.value)?.limited_hardware as
-    | Record<string, { old_value?: string[]; new_value?: string[] }>
-    | undefined
-  return lh?.viewers?.old_value ?? []
-})
+watch(
+  () => (templateData.value ?? desktopData.value)?.limited_hardware,
+  (lh) => {
+    const dropped = (lh as { viewers?: { old_value?: string[] } } | undefined)?.viewers?.old_value
+    if (dropped?.length) removedViewers.value = dropped
+  },
+  { immediate: true }
+)
 
 const viewerLabelKeys: Record<string, string> = {
   browser_rdp: 'components.viewers-selector.browser-viewers.rdp-browser',
@@ -295,9 +291,6 @@ watch(
   { immediate: true }
 )
 
-// When the wireguard interface is removed from the hardware form while a
-// wireguard-requiring viewer is selected, strip those viewers. Mirrors the
-// Vue 2 removeWireguardViewers flow.
 watch(
   () => props.hardwareInterfaces,
   (newInterfaces, oldInterfaces) => {
@@ -305,7 +298,17 @@ watch(
     const has = (newInterfaces ?? []).includes('wireguard')
     if (had && !has && hasRdpViewer.value) {
       const current = (form.getFieldValue('viewers') as string[] | undefined) ?? []
+      removedViewers.value = getWireguardRequiringViewers(current)
       form.setFieldValue('viewers', stripWireguardRequiringViewers(current))
+      // Show a toast, as the alert may be out of view
+      toast.warning(t('components.domain.access.viewers-removed.title'), {
+        description: t('components.domain.access.viewers-removed.toast-description', {
+          viewers: removedViewerLabels.value.join(', ')
+        })
+      })
+    } else if (has) {
+      // Don't remove viewers if wireguard is present
+      removedViewers.value = []
     }
   }
 )
@@ -320,12 +323,11 @@ watch(hasRdpViewer, (next, prev) => {
   const has = (props.hardwareInterfaces ?? []).includes('wireguard')
   if (!has) {
     props.onRequestAddInterface?.('wireguard')
+    toast.info(t('components.domain.access.wireguard-added.title'), {
+      description: t('components.domain.access.wireguard-added.description')
+    })
   }
 })
-
-function handleAddWireguardInterface() {
-  props.onRequestAddInterface?.('wireguard')
-}
 
 // --- Bastion coordination ---
 
@@ -371,7 +373,8 @@ const isFormValid = form.useStore((state) => state.isValid)
 
 defineExpose({
   getFormData,
-  isValid: isFormValid
+  isValid: isFormValid,
+  removedViewerLabels
 })
 
 const showPassword = ref(false)
@@ -497,15 +500,6 @@ const showPassword = ref(false)
             </FieldContent>
             <FieldError :errors="field.state.meta.errors" />
           </form.Field>
-          <Alert v-if="wireguardMissing" variant="default" class="border-warning-500">
-            <FeaturedIconOutline kind="outline" color="warning" />
-            <AlertTitle>{{ t('components.domain.access.wireguard-warning.title') }}</AlertTitle>
-            <AlertDescription>
-              <p class="mb-0">
-                {{ t('components.domain.access.wireguard-warning.description') }}
-              </p>
-            </AlertDescription>
-          </Alert>
           <Alert v-if="removedViewerLabels.length" variant="default" class="border-error-600">
             <FeaturedIconOutline kind="outline" color="error" />
             <AlertTitle>{{ t('components.domain.access.viewers-removed.title') }}</AlertTitle>

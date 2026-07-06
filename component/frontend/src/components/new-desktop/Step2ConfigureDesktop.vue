@@ -95,10 +95,10 @@ const hardwareFormRef = ref<{
   getInterfaces: () => string[]
   addInterface: (ifaceId: string) => void
   removeInterface: (ifaceId: string) => void
-  interfaces: { value: string[] }
+  interfaces: string[]
 } | null>(null)
 
-const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces?.value ?? [])
+const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces ?? [])
 
 function handleAddInterfaceFromAccessForm(ifaceId: string) {
   hardwareFormRef.value?.addInterface(ifaceId)

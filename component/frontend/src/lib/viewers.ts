@@ -9,3 +9,13 @@ export function hasWireguardRequiringViewer(viewers: readonly string[]): boolean
 export function stripWireguardRequiringViewers(viewers: readonly string[]): string[] {
   return viewers.filter((v) => !(WIREGUARD_REQUIRING_VIEWERS as readonly string[]).includes(v))
 }
+
+export function getWireguardRequiringViewers(viewers: readonly string[]): string[] {
+  return viewers.filter((v) => (WIREGUARD_REQUIRING_VIEWERS as readonly string[]).includes(v))
+}
+
+export function selectedViewerKeys(viewers: Record<string, unknown> | null | undefined): string[] {
+  return Object.entries(viewers ?? {})
+    .filter(([, value]) => value != null)
+    .map(([key]) => key)
+}

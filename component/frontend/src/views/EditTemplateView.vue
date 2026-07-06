@@ -88,10 +88,12 @@ const hardwareFormRef = ref<{
   getFormData: () => Record<string, unknown>
   isValid: boolean
   addInterface: (ifaceId: string) => void
-  interfaces: { value: string[] }
+  interfaces: string[]
 } | null>(null)
 
-const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces?.value ?? [])
+// `interfaces` is exposed by DomainHardwareForm as a ref; Vue unwraps it to the
+// array when read through the template ref, so read it directly (not `.value`).
+const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces ?? [])
 
 function handleAddInterfaceFromAccessForm(ifaceId: string) {
   hardwareFormRef.value?.addInterface(ifaceId)
