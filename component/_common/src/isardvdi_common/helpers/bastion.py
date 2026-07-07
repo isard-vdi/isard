@@ -94,7 +94,6 @@ _ACME_DETAIL_RE = re.compile(r'"detail"\s*:\s*"((?:[^"\\]|\\.)*)"', re.DOTALL)
 
 
 class Bastion(RethinkSharedConnection):
-
     @staticmethod
     def _call_grpc_with_infinite_retry(
         func, *args, initial_delay=1, max_delay=30, max_retries=60, **kwargs
@@ -250,12 +249,20 @@ class Bastion(RethinkSharedConnection):
         subdomains.extend(category_domains)
 
         with cls._rdb_context():
-            targets = list(r.table("targets").pluck("domain").run(cls._rdb_connection))
-        individual_domains = [
-            t["domain"]
-            for t in targets
-            if t.get("domain") and isinstance(t["domain"], str)
-        ]
+            targets = list(
+                r.table("targets").pluck("domain", "domains").run(cls._rdb_connection)
+            )
+        individual_domains = []
+        for t in targets:
+            legacy = t.get("domain")
+            if isinstance(legacy, str) and legacy:
+                individual_domains.append(legacy)
+            for d in t.get("domains") or []:
+                if isinstance(d, str) and d:
+                    individual_domains.append(d)
+
+        # deduplicate the domains
+        individual_domains = list(dict.fromkeys(individual_domains))
 
         cls._call_grpc_with_infinite_retry(
             _haproxy_bastion_client().BastionSyncMaps,
