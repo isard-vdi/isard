@@ -120,6 +120,26 @@
     }
   },
   "views": {
+    "export-user": {
+      "title": "Exportar elementos del usuario",
+      "description": "Migrar elementos del usuario mediante un código de migración",
+      "migration-instructions1": "Genera y copia este código de migración en el portapapeles.",
+      "migration-instructions2": "Guarda este código, ya que lo necesitarás para la importación.",
+      "migration-instructions3": "El código es válido durante 1 hora.",
+      "migration-instructions4": "Para migrar este usuario a otro, cierra esta sesión e inicia sesión con el nuevo usuario.",
+      "migration-instructions5": "En el perfil del usuario nuevo encontrarás el botón de importación donde pegar este código.",
+      "warning": "ATENCIÓN",
+      "migration-warning": "Si ya se ha generado un código de migración anteriormente para este usuario, generar uno nuevo invalidará el código anterior.",
+      "generate-token": "Generar un código de migración",
+      "generate-token-warning": "Este código de migración no será accesible de nuevo. Asegúrate de haberlo copiado antes de continuar.",
+      "logout": "Cerrar sesión",
+      "logout-and-continue": "Cerrar sesión y continuar con el nuevo usuario",
+      "logout-tooltip": "Genera y copia el código de migración antes de cerrar la sesión para continuar con la migración",
+      "error-title": "Error",
+      "error-generate": "No se ha podido generar el código de migración. Inténtalo de nuevo.",
+      "token-label": "Token de migración",
+      "generating": "Generando token de migración…"
+    },
     "verify-email": {
       "title": "La dirección de correo debe ser verificada por IsardVDI",
       "description": "Introduce tu dirección de correo para recibir un enlace de verificación.",
@@ -2260,6 +2280,7 @@
         "invalid_token": "El token proporcionado no es válido",
         "no_active_migration": "No hay ninguna migración activa para tu cuenta.",
         "no_items_to_migrate": "No hay elementos para migrar",
+        "migration_no_items_available": "No hay elementos disponibles para migrar",
         "multiple_migrations_found_target_user": "Hay múltiples migraciones para el nuevo usuario",
         "same_user_migration": "No puedes migrar a la misma cuenta. Cuando obtengas el token, debes cerrar la sesión e iniciar sesión con la nueva cuenta",
         "different_category_migration": "No puedes migrar a una cuenta de una categoría diferente",
