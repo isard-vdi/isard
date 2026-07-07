@@ -21,7 +21,7 @@
 from typing import Literal, Optional, Union
 
 from isardvdi_common.schemas.domains import DomainViewerEnum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DomainImageFile(BaseModel):
@@ -59,10 +59,21 @@ class DomainImage(BaseModel):
 
 
 class Reservables(BaseModel):
-    vgpus: Optional[list[str]] | None = Field(
+    vgpus: list[str] | None = Field(
         default=None,
         description="List of IDs of vGPUs that can be reserved for the desktop. If None, no vGPUs can be reserved nor used. Each ID must be a valid vGPU ID.",
     )
+
+    @field_validator("vgpus", mode="before")
+    def remove_none(cls, v):
+        if v is not None:
+            if "None" in v:
+                v.remove("None")
+
+            if len(v) == 0:
+                return None
+
+        return v
 
 
 class DomainHardware(BaseModel):
