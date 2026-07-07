@@ -69,7 +69,7 @@ class AllowedUpdateRequest(BaseModel):
 class AllowedGetRequest(BaseModel):
     """Request body for getting allowed access list for a table item."""
 
-    id: str = Field(description="Item ID to get allowed access for")
+    id: str | int = Field(description="Item ID to get allowed access for")
 
 
 class TableItem(BaseModel):
