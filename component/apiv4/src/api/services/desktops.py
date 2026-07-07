@@ -540,9 +540,12 @@ class DesktopService:
                 description_code="not_found",
             )
 
+        # The endpoint still accepts a single domain (see the frontend TODO to
+        # migrate to the multi-domain UI), but it is stored in the ``domains``
+        # array, the only representation the targets model keeps.
         return Targets.update_domain_target(
             domain_id=desktop_id,
-            data={"domain": domain_name},
+            data={"domains": [domain_name] if domain_name else []},
         )
 
     @staticmethod

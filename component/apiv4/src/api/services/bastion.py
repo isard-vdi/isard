@@ -241,7 +241,6 @@ class BastionService:
         return {
             "exists": True,
             "id": target.get("id"),
-            "domain": target.get("domain"),
             "domains": target.get("domains", []),
             "ssh": {
                 "enabled": bool(ssh.get("enabled")),
@@ -275,10 +274,10 @@ class BastionService:
     ) -> dict:
         """
         Update the bastion target for a desktop.
-        If the user cannot use individual domains, the domain field is cleared.
+        If the user cannot use individual domains, the domains are cleared.
         """
         if not can_use_individual_domains:
-            data["domain"] = None
+            data["domains"] = []
 
         Targets.update_domain_target(desktop_id, data)
         return {}

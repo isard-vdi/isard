@@ -146,10 +146,10 @@ async def create_desktop(request: Request, data: CreateDesktopRequest):
     if data.bastion_target:
         await can_use_bastion(request.token_payload)
 
-        if data.bastion_target.domain:
+        if data.bastion_target.domains:
             await can_use_bastion_individual_domains(request.token_payload)
             if bastion_domain_verification_required():
-                # The domain cannot be verified when creating a new target
+                # The domains cannot be verified when creating a new target
                 raise Error(
                     "bad_request",
                     "Cannot set a bastion domain when creating a new desktop",
@@ -1231,12 +1231,12 @@ async def edit_desktop(
     if data.bastion_target:
         await can_use_bastion(request.token_payload)
 
-        if data.bastion_target.domain:
+        if data.bastion_target.domains:
             await can_use_bastion_individual_domains(request.token_payload)
             if bastion_domain_verification_required() and not domain_has_bastion_target(
                 desktop_id
             ):
-                # The domain cannot be verified when creating a new target
+                # The domains cannot be verified when creating a new target
                 raise Error(
                     "bad_request",
                     "Cannot set a bastion domain when the domain has no bastion target",

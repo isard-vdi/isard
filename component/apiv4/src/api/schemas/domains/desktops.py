@@ -270,9 +270,9 @@ class DesktopBastionResponse(BaseModel):
     desktop_id: str = Field(
         description="ID of the desktop associated with the bastion configuration.",
     )
-    domain: Optional[str] = Field(
-        default=None,
-        description="Domain associated with the bastion configuration. If None, the bastion is not associated with any domain.",
+    domains: list[str] = Field(
+        default_factory=list,
+        description="Domains associated with the bastion configuration. Empty if the bastion is not associated with any domain.",
     )
     http: BastionHttpConfig = Field(
         description="HTTP configuration for the bastion.",
@@ -295,7 +295,7 @@ class UserDesktopBastionTarget(BaseModel):
     http: BastionHttpConfig
     id: str
     ssh: BastionSshConfig
-    domain: str | None = None
+    domains: list[str] = Field(default_factory=list)
 
 
 class Desktop(BaseModel):
@@ -584,10 +584,6 @@ class AllowedReservablesResponse(BaseModel):
 class DomainInfoBastionResponse(BaseModel):
     id: str = Field(
         description="ID of the bastion configuration for the desktop.",
-    )
-    domain: str | None = Field(
-        default=None,
-        description="Domain associated with the bastion configuration. If None, the bastion is not associated with any domain.",
     )
     domains: list[str] = Field(
         default_factory=list,
