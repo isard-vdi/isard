@@ -603,13 +603,6 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
-    updateBastionDomainName (context, data) {
-      axios.put(`${apiV3Segment}/item/desktop/${data.desktop_id}/update-bastion-domain`, { domain_name: data.domain || null }).then(response => {
-        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-domain-updated'))
-      }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
-      })
-    },
     updateBastionDomains (context, data) {
       axios.put(`${apiV3Segment}/item/desktop/${data.desktop_id}/update-bastion-domains`, { domains: data.domains || [] }).then(response => {
         ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-domains-updated'))
