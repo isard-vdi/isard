@@ -24,11 +24,21 @@ func (g *Group) GenerateNameExternal(prv string) {
 	g.Name = fmt.Sprintf("%s_%s_%s", prv, g.ExternalAppID, g.ExternalGID)
 }
 
-func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
-	res, err := r.Table("groups").GetAllByIndex("parent_category", g.Category).Filter(r.And(
+func (g *Group) SameExternal(other *Group) bool {
+	return g.Category == other.Category &&
+		g.ExternalAppID == other.ExternalAppID &&
+		g.ExternalGID == other.ExternalGID
+}
+
+func (g *Group) externalFilter() r.Term {
+	return r.And(
 		r.Eq(r.Row.Field("external_app_id"), g.ExternalAppID),
 		r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
-	)).Run(sess, r.RunOpts{Context: ctx})
+	)
+}
+
+func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
+	res, err := r.Table("groups").GetAllByIndex("parent_category", g.Category).Filter(g.externalFilter()).Run(sess, r.RunOpts{Context: ctx})
 	if err != nil {
 		return &db.Err{
 			Err: err,
@@ -110,10 +120,7 @@ func (g *Group) existsWith(ctx context.Context, sess r.QueryExecutor, category i
 }
 
 func (g *Group) ExistsWithExternal(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	return g.existsWith(ctx, sess, g.Category, r.And(
-		r.Eq(r.Row.Field("external_app_id"), g.ExternalAppID),
-		r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
-	))
+	return g.existsWith(ctx, sess, g.Category, g.externalFilter())
 }
 
 func GroupsExistsWithExternal(ctx context.Context, sess r.QueryExecutor, groups []*Group) ([]*Group, error) {

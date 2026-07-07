@@ -195,6 +195,50 @@ func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor,
 	}
 }
 
+const (
+	groupSubexpPrimary   = "primary"
+	groupSubexpSecondary = "secondary"
+)
+
+func extractGroups(re *regexp.Regexp, rawGroups []string) ([]string, []string) {
+	if !slices.Contains(re.SubexpNames(), groupSubexpPrimary) {
+		primary := []string{}
+		for _, g := range rawGroups {
+			for _, m := range matchRegexMultiple(re, g) {
+				if !slices.Contains(primary, m) {
+					primary = append(primary, m)
+				}
+			}
+		}
+
+		return primary, []string{}
+	}
+
+	primaryIdx := re.SubexpIndex(groupSubexpPrimary)
+	secondaryIdx := re.SubexpIndex(groupSubexpSecondary)
+
+	primary := []string{}
+	secondary := []string{}
+	for _, g := range rawGroups {
+		match := re.FindStringSubmatch(g)
+		if match == nil {
+			continue
+		}
+
+		if p := match[primaryIdx]; p != "" && !slices.Contains(primary, p) {
+			primary = append(primary, p)
+		}
+
+		if secondaryIdx > 0 {
+			if s := match[secondaryIdx]; s != "" && !slices.Contains(secondary, s) {
+				secondary = append(secondary, s)
+			}
+		}
+	}
+
+	return primary, secondary
+}
+
 type guessGroupOpts struct {
 	Provider     Provider
 	ReGroup      *regexp.Regexp
@@ -202,15 +246,14 @@ type guessGroupOpts struct {
 }
 
 func guessGroup(ctx context.Context, sess r.QueryExecutor, opts guessGroupOpts, u *types.ProviderUserData, rawGroups []string) (*model.Group, []*model.Group, *ProviderError) {
-	groups := []*model.Group{}
-	for _, g := range rawGroups {
-		match := matchRegexMultiple(opts.ReGroup, g)
-		for _, m := range match {
-			groups = append(groups, genExternalGroup(opts.Provider, u.Category, m))
-		}
+	primaryTokens, secondaryTokens := extractGroups(opts.ReGroup, rawGroups)
+
+	primaryGroups := make([]*model.Group, 0, len(primaryTokens))
+	for _, t := range primaryTokens {
+		primaryGroups = append(primaryGroups, genExternalGroup(opts.Provider, u.Category, t))
 	}
 
-	if len(groups) == 0 {
+	if len(primaryGroups) == 0 {
 		if opts.DefaultGroup == "" {
 			return nil, []*model.Group{}, &ProviderError{
 				User:   ErrInvalidCredentials,
@@ -221,7 +264,7 @@ func guessGroup(ctx context.Context, sess r.QueryExecutor, opts guessGroupOpts, 
 		return genExternalGroup(opts.Provider, u.Category, opts.DefaultGroup), []*model.Group{}, nil
 	}
 
-	primary, err := guessPrimaryGroup(ctx, sess, groups)
+	primary, err := guessPrimaryGroup(ctx, sess, primaryGroups)
 	if err != nil {
 		return nil, nil, &ProviderError{
 			User:   ErrInternal,
@@ -229,11 +272,25 @@ func guessGroup(ctx context.Context, sess r.QueryExecutor, opts guessGroupOpts, 
 		}
 	}
 
-	secondary := slices.DeleteFunc(groups, func(g *model.Group) bool {
-		return primary.Category == g.Category &&
-			primary.ExternalAppID == g.ExternalAppID &&
-			primary.ExternalGID == g.ExternalGID
-	})
+	allGroups := slices.Clone(primaryGroups)
+	for _, t := range secondaryTokens {
+		allGroups = append(allGroups, genExternalGroup(opts.Provider, u.Category, t))
+	}
+
+	secondary := []*model.Group{}
+	for _, g := range allGroups {
+		if primary.SameExternal(g) {
+			continue
+		}
+
+		if slices.ContainsFunc(secondary, func(s *model.Group) bool {
+			return s.SameExternal(g)
+		}) {
+			continue
+		}
+
+		secondary = append(secondary, g)
+	}
 
 	return primary, secondary, nil
 }
@@ -244,8 +301,12 @@ func guessPrimaryGroup(ctx context.Context, sess r.QueryExecutor, groups []*mode
 		return nil, fmt.Errorf("check if groups already exist: %w", err)
 	}
 
-	if len(existingGroups) > 0 {
-		return existingGroups[0], nil
+	for _, g := range groups {
+		if slices.ContainsFunc(existingGroups, func(e *model.Group) bool {
+			return g.SameExternal(e)
+		}) {
+			return g, nil
+		}
 	}
 
 	return groups[0], nil
