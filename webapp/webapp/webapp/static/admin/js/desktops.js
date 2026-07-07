@@ -163,9 +163,9 @@ columns = [
         }
     },
     {
-        "data": "bastion.domain",
+        "data": "bastion.domains",
         "render": function (data, type) {
-            return data || '-'
+            return (data && data.length) ? data.join(', ') : '-'
         }
     },
     {
