@@ -69,6 +69,7 @@ const queryOptions = getDesktopViewerByTokenOptions({
 const {
   isPending,
   isError,
+  error,
   data: desktopViewer
 } = useQuery({
   ...queryOptions,
@@ -353,12 +354,22 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
             class="flex flex-col items-center gap-3 rounded-lg p-8 border border-error-300 bg-error-25"
           >
             <Icon name="alert-circle" stroke-color="error-600" size="lg" />
-            <h2 class="text-lg font-semibold text-error-700">
-              {{ t('views.direct-viewer.error-title') }}
-            </h2>
-            <p class="text-sm text-error-600 text-center">
-              {{ t('views.direct-viewer.error-description') }}
-            </p>
+            <template v-if="error?.description_code === 'desktop_not_booked'">
+              <h2 class="text-lg font-semibold text-error-700">
+                {{ t('views.direct-viewer.errors.not-booked.title') }}
+              </h2>
+              <p class="text-sm text-error-600 text-center whitespace-pre-line">
+                {{ t('views.direct-viewer.errors.not-booked.description') }}
+              </p>
+            </template>
+            <template v-else>
+              <h2 class="text-lg font-semibold text-error-700">
+                {{ t('views.direct-viewer.error-title') }}
+              </h2>
+              <p class="text-sm text-error-600 text-center">
+                {{ t('views.direct-viewer.error-description') }}
+              </p>
+            </template>
           </div>
         </template>
         <template v-else-if="desktopViewer">
