@@ -114,7 +114,7 @@ const baseDesktop = {
       port: 22,
       authorized_keys: []
     },
-    domain: 'example.com'
+    domains: ['example.com']
   }
 }
 
