@@ -24,6 +24,10 @@ from api.services.error import Error
 from cachetools import cached
 from html_sanitizer import Sanitizer
 from isardvdi_common.helpers.caches import Caches
+from isardvdi_common.helpers.provider_config import (
+    provider_config_api_to_db,
+    provider_config_db_to_api,
+)
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.users.users.authentication import UsersAuthenticationProcessed
 from isardvdi_common.lib.users.users.user_policies import UserPolicies
@@ -163,12 +167,13 @@ class AdminAuthenticationService:
     @cached(provider_config_cache)
     def get_provider_config(provider: str) -> dict:
         config = Config.get_admin_provider_config(provider)
-        # Strip secrets from response
+        # Strip secrets from response and convert DB comma-separated fields
         _PROVIDER_SENSITIVE_KEYS = ("password", "client_secret")
         for key, value in config.items():
             if isinstance(value, dict):
                 for secret_key in _PROVIDER_SENSITIVE_KEYS:
                     value.pop(secret_key, None)
+                provider_config_db_to_api(value)
         return config
 
     @staticmethod
@@ -206,6 +211,11 @@ class AdminAuthenticationService:
         if isinstance(migration, dict) and "action_after_migrate" in migration:
             if migration["action_after_migrate"] not in ("disable", "delete"):
                 migration["action_after_migrate"] = None
+
+        for value in data.values():
+            if isinstance(value, dict):
+                provider_config_api_to_db(value)
+
         Config.update_provider_config(provider, data)
         provider_config_cache.clear()
         Caches.clear_config_cache()
