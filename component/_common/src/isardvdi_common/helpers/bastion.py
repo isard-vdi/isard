@@ -249,20 +249,16 @@ class Bastion(RethinkSharedConnection):
         subdomains.extend(category_domains)
 
         with cls._rdb_context():
-            targets = list(
-                r.table("targets").pluck("domain", "domains").run(cls._rdb_connection)
-            )
-        individual_domains = []
-        for t in targets:
-            legacy = t.get("domain")
-            if isinstance(legacy, str) and legacy:
-                individual_domains.append(legacy)
-            for d in t.get("domains") or []:
-                if isinstance(d, str) and d:
-                    individual_domains.append(d)
+            targets = list(r.table("targets").pluck("domains").run(cls._rdb_connection))
 
-        # deduplicate the domains
-        individual_domains = list(dict.fromkeys(individual_domains))
+        individual_domains = list(
+            dict.fromkeys(
+                d
+                for t in targets
+                for d in (t.get("domains") or [])
+                if isinstance(d, str) and d
+            )
+        )
 
         cls._call_grpc_with_infinite_retry(
             _haproxy_bastion_client().BastionSyncMaps,

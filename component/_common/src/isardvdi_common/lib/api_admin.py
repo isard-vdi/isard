@@ -766,7 +766,7 @@ class ApiAdmin(RethinkSharedConnection):
                         None,
                         r.table("targets")
                         .get_all(doc["id"], index="desktop_id")
-                        .pluck("id", "domain", "http", "ssh")
+                        .pluck("id", "domains", "http", "ssh")
                         .nth(0),
                     ),
                 }
@@ -937,7 +937,7 @@ class ApiAdmin(RethinkSharedConnection):
                         None,
                         r.table("targets")
                         .get_all(doc["id"], index="desktop_id")
-                        .pluck("id", "domain", "http", "ssh")
+                        .pluck("id", "domains", "http", "ssh")
                         .nth(0),
                     ),
                 }

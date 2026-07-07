@@ -1051,7 +1051,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                                 "id",
                                 "http",
                                 "ssh",
-                                "domain",
+                                "domains",
                             ]
                         )
                         .coerce_to("array")
@@ -2118,7 +2118,7 @@ class DesktopsProcessed(RethinkSharedConnection):
     #                                 "id",
     #                                 "http",
     #                                 "ssh",
-    #                                 "domain",
+    #                                 "domains",
     #                             ]
     #                         )
     #                         .coerce_to("array")
