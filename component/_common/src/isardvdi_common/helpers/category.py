@@ -96,6 +96,26 @@ class Category(RethinkCustomBase):
                     f"{base64.b64encode(file_bytes).decode()}"
                 )
             value["logo"] = logo
+
+            logo_collapsed = value.get("logo_collapsed", {})
+            logo_collapsed.pop("data", None)
+            try:
+                logo_collapsed_path = self._logo_path("logo-collapsed")
+            except ValueError:
+                logo_collapsed_path = None
+            if (
+                logo_collapsed_path
+                and logo_collapsed.get("enabled")
+                and os.path.isfile(logo_collapsed_path)
+            ):
+                with open(logo_collapsed_path, "rb") as f:
+                    file_bytes = f.read()
+                mimetype = _detect_mimetype(file_bytes)
+                logo_collapsed["data"] = (
+                    f"data:{mimetype};base64,"
+                    f"{base64.b64encode(file_bytes).decode()}"
+                )
+            value["logo_collapsed"] = logo_collapsed
         return value
 
     def __setattr__(self, name, value):
@@ -156,39 +176,58 @@ class Category(RethinkCustomBase):
             # Remove file data before storing in DB
             logo.pop("data", None)
 
+            logo_collapsed = value.get("logo_collapsed", {})
+            logo_collapsed_data = logo_collapsed.get("data")
+            if logo_collapsed.get("enabled"):
+                if logo_collapsed_data:
+                    file_bytes = _decode_data_url(logo_collapsed_data)
+                    self._save_logo(file_bytes, "logo-collapsed")
+            elif not logo_collapsed.get("enabled", True):
+                self._delete_logo("logo-collapsed")
+
+            # Remove file data before storing in DB
+            logo_collapsed.pop("data", None)
+
         super().__setattr__(name, value)
 
-    def _logo_path(self):
+    def _logo_path(self, variant="logo"):
         """
         Get the validated logo file path for this category.
 
+        :param variant: "logo" (expanded) or "logo-collapsed".
+        :type variant: str
         :return: Absolute path to the logo file
         :rtype: str
         :raises ValueError: If the path would escape LOGO_BASE_PATH
         """
-        logo_path = os.path.realpath(os.path.join(LOGO_BASE_PATH, self.id, "logo"))
+        logo_path = os.path.realpath(os.path.join(LOGO_BASE_PATH, self.id, variant))
         base = os.path.realpath(LOGO_BASE_PATH) + os.sep
         if not logo_path.startswith(base):
             raise ValueError("Invalid category ID for logo path")
         return logo_path
 
-    def _save_logo(self, file_data):
+    def _save_logo(self, file_data, variant="logo"):
         """
         Save a logo file for this category.
 
         :param file_data: The binary content of the logo file
         :type file_data: bytes
+        :param variant: "logo" (expanded) or "logo-collapsed".
+        :type variant: str
         """
-        logo_path = self._logo_path()
+        logo_path = self._logo_path(variant)
         os.makedirs(os.path.dirname(logo_path), exist_ok=True)
         with open(logo_path, "wb") as f:
             f.write(file_data)
 
-    def _delete_logo(self):
+    def _delete_logo(self, variant="logo"):
         """
         Delete the existing logo file for this category.
+
+        :param variant: "logo" (expanded) or "logo-collapsed".
+        :type variant: str
         """
-        logo_path = self._logo_path()
+        logo_path = self._logo_path(variant)
         if os.path.isfile(logo_path):
             os.remove(logo_path)
 
@@ -255,7 +294,7 @@ def _decode_data_url(data_url):
 
     if (len(b64_data) * 3) // 4 > MAX_LOGO_SIZE:
         raise ValueError(
-            f"Logo file too large ({(len(b64_data) * 3) // 4} bytes). Maximum: {MAX_LOGO_SIZE}"
+            f"Logo file too large ({(len(b64_data) * 3) // 4 // 1024} KB). Maximum: {MAX_LOGO_SIZE // 1024} KB"
         )
 
     try:

@@ -914,6 +914,12 @@ function actionsCategoryDetail() {
             toggleFormSection(settingsContainer, $(this).is(":checked"));
         }).trigger("ifChanged");
 
+        // Set up collapsed logo enabled checkbox toggle
+        $form.find("input[name='branding[logo_collapsed][enabled]']").off("ifChanged").on("ifChanged", function () {
+            var settingsContainer = $(this).closest(".x_content").find(".branding-logo_collapsed-settings");
+            toggleFormSection(settingsContainer, $(this).is(":checked"));
+        }).trigger("ifChanged");
+
         // Fetch branding data and populate form
         $.ajax({
             type: "GET",

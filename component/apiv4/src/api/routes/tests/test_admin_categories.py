@@ -825,6 +825,46 @@ class TestLogoEndpoint:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+#  GET /logo-collapsed — public endpoint
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestLogoCollapsedEndpoint:
+    def test_returns_404_when_no_collapsed_logo(self, test_client):
+        response = test_client(
+            url="/logo-collapsed",
+            db_tables_data=_db(),
+        )
+        # Nothing configured: no collapsed logo, no full logo (logo disabled),
+        # no /static/custom/* files, and the bundled default collapsed asset
+        # is absent in the test env (only baked into the built image) → 404.
+        assert response.status_code == 404
+
+    @pytest.mark.clear_cache
+    def test_falls_back_to_full_logo(self, test_client, monkeypatch):
+        """A branding-domain match with a full logo but no collapsed logo
+        serves the full logo from the collapsed endpoint instead of 404ing."""
+        from api.services.admin.categories import AdminCategoryService
+
+        monkeypatch.setattr(
+            AdminCategoryService,
+            "get_logo_collapsed_by_domain",
+            staticmethod(lambda domain: None),
+        )
+        monkeypatch.setattr(
+            AdminCategoryService,
+            "get_logo_by_domain",
+            staticmethod(lambda domain: "data:image/png;base64,AAAA"),
+        )
+        response = test_client(
+            url="/logo-collapsed",
+            db_tables_data=_db(),
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/png"
+
+
+# ══════════════════════════════════════════════════════════════════════════
 #  /logo direct endpoint
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -850,6 +890,65 @@ class TestCategoryLogoEndpoint:
         )
         # Category has logo disabled, no static/default fallback file → 404
         assert response.status_code == 404
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  GET /logo-collapsed/category/{category_id} — public per-category endpoint
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestCategoryLogoCollapsedEndpoint:
+    @pytest.mark.clear_cache
+    def test_returns_404_when_collapsed_disabled(self, test_client):
+        response = test_client(
+            url="/logo-collapsed/category/test-cat",
+            db_tables_data=_db(),
+        )
+        # Collapsed logo disabled, full logo disabled, no static fallback
+        # files, and the bundled default collapsed asset is absent in the
+        # test env → 404.
+        assert response.status_code == 404
+
+    @pytest.mark.clear_cache
+    def test_falls_back_to_full_logo(self, test_client, monkeypatch):
+        """A category with a full logo but no collapsed logo serves the full
+        logo from the collapsed endpoint instead of 404ing."""
+        from api.services.admin.categories import AdminCategoryService
+
+        monkeypatch.setattr(
+            AdminCategoryService,
+            "get_logo_collapsed_by_category",
+            staticmethod(lambda category_id: None),
+        )
+        monkeypatch.setattr(
+            AdminCategoryService,
+            "get_logo_by_category",
+            staticmethod(lambda category_id: "data:image/png;base64,AAAA"),
+        )
+        response = test_client(
+            url="/logo-collapsed/category/test-cat",
+            db_tables_data=_db(),
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/png"
+
+
+def test_update_branding_accepts_logo_collapsed(test_client):
+    """The branding PUT accepts the collapsed-logo field end-to-end.
+
+    Exercises BrandingUpdateData → AdminCategoryService.update_branding →
+    Category.branding setter for the collapsed variant. ``enabled: False``
+    keeps it filesystem-free (delete is a no-op when absent).
+    """
+    jwt = MockJWT(role_id="admin")
+    response = test_client(
+        url="/admin/item/category/test-cat/branding",
+        method="PUT",
+        jwt=jwt,
+        body={"logo_collapsed": {"enabled": False}},
+        db_tables_data=_db(),
+    )
+    assert response.status_code == 204
 
 
 def test_update_branding_does_not_block_on_grpc(test_client):

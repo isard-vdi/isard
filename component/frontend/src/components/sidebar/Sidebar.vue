@@ -70,8 +70,8 @@ const emit = defineEmits(['logout'])
 
 const { t } = useI18n()
 
-const logoSrc = ref('/custom/logo.svg')
-const logoCollapsedSrc = ref('/custom/logo-collapsed.svg')
+const logoSrc = ref('/api/v4/logo')
+const logoCollapsedSrc = ref('/api/v4/logo-collapsed')
 
 const logoWidth = ref(0)
 const logoHeight = ref(0)

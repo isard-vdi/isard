@@ -225,6 +225,26 @@ class AdminCategoryService:
             pass
         return None
 
+    @staticmethod
+    def get_logo_collapsed_by_domain(domain: str) -> str | None:
+        """Get the collapsed logo data URL for a domain, or None."""
+        category = CategoriesProcessed.find_by_branding_domain(domain)
+        if not category:
+            return None
+        return AdminCategoryService.get_logo_collapsed_by_category(category["id"])
+
+    @staticmethod
+    def get_logo_collapsed_by_category(category_id: str) -> str | None:
+        """Get the collapsed branding logo data URL for a category, or None."""
+        try:
+            branding = Category(category_id).branding or {}
+            logo = branding.get("logo_collapsed", {})
+            if logo.get("enabled") and logo.get("data"):
+                return logo["data"]
+        except Exception:
+            pass
+        return None
+
     # ── Per-category login config ────────────────────────────────────────
 
     @staticmethod

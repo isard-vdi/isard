@@ -92,8 +92,6 @@ COPY docker/static/noVNC /usr/share/nginx/html/viewer/noVNC
 COPY --from=spice-ts /build/dist /usr/share/nginx/html/viewer/spice-ts
 
 # Frontend
-COPY component/frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.svg
-COPY component/frontend/src/assets/logo-collapsed.svg /usr/share/nginx/html/default_logo-collapsed.svg
 COPY --from=frontend /build/dist /usr/share/nginx/html/frontend
 
 # Old frontend

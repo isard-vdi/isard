@@ -29,7 +29,8 @@ a routes→services→routes cycle that would otherwise reappear).
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 login_config_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=20)
-logo_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=60)
+logo_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=512, ttl=300)
+logo_collapsed_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=512, ttl=300)
 
 
 def clear_login_config_cache() -> None:
@@ -43,11 +44,12 @@ def clear_login_config_cache() -> None:
 
 
 def clear_logo_cache() -> None:
-    """Invalidate the per-domain logo cache.
+    """Invalidate the per-domain expanded and collapsed logo caches.
 
-    Called after branding updates so the next /logo request returns
-    the updated image instead of the 60 s TTL'd response. Keyed by
-    host header, so we clear the whole cache (categories can share
-    logos across domains).
+    Called after branding updates so the next /logo and /logo-collapsed
+    requests return the updated image instead of the TTL'd response.
+    Keyed by host header / category, so we clear the whole caches
+    (categories can share logos across domains).
     """
     logo_cache.clear()
+    logo_collapsed_cache.clear()
