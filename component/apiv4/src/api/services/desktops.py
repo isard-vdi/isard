@@ -174,12 +174,17 @@ class DesktopService:
                 description=data.description,
             )
 
+        # ``new_desktop`` returns a bare id string on the reuse path but a
+        # ``{"id": ...}`` dict on the create path; ``new_from_template``
+        # returns a dict. Normalize to the id either way.
+        desktop_id = desktop["id"] if isinstance(desktop, dict) else desktop
+
         if data.bastion_target:
             RethinkTargets.update_domain_target(
-                desktop["id"], data.bastion_target.model_dump(exclude_unset=True)
+                desktop_id, data.bastion_target.model_dump(exclude_unset=True)
             )
 
-        return desktop["id"]
+        return desktop_id
 
     @staticmethod
     def create_nonpersistent_desktop(payload: dict, template_id: str) -> str:
