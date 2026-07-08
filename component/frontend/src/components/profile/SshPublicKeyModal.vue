@@ -32,6 +32,15 @@ const { t } = useI18n()
 const SSH_KEY_RE =
   /^(ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)\s+[A-Za-z0-9+/]+={0,3}(\s+\S.*)?$/
 
+// The optional trailing comment in SSH_KEY_RE is greedy enough to swallow a
+// second key pasted on the same line ("ssh-ed25519 AAA... ssh-ed25519 BBB..."),
+// so it would validate as one key with a comment. This modal only accepts a
+// SINGLE key, so also require exactly one key-type token in the input.
+const SSH_KEY_TYPE_RE =
+  /(?:^|\s)(?:ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)\s/g
+
+const countKeyTypes = (value: string) => (` ${value} `.match(SSH_KEY_TYPE_RE) || []).length
+
 const keyInput = ref<string>('')
 const errorMessage = ref<string>('')
 
@@ -58,7 +67,10 @@ watch(
 
 const storedKey = computed(() => sshKeyData.value?.ssh_key || '')
 const hasKey = computed(() => storedKey.value.trim().length > 0)
-const isValid = computed(() => SSH_KEY_RE.test(keyInput.value.trim()))
+const isValid = computed(() => {
+  const trimmed = keyInput.value.trim()
+  return SSH_KEY_RE.test(trimmed) && countKeyTypes(trimmed) === 1
+})
 
 const { mutateAsync: setSshKey, isPending: isSaving } = useMutation(setUserBastionSshKeyMutation())
 const { mutateAsync: deleteSshKey, isPending: isDeleting } = useMutation(
