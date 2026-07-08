@@ -15,7 +15,8 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Code } from '@/components/code'
 import { Icon, CopyIcon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
-import { computed, ref, watch } from 'vue'
+import { toast } from '@/components/ui/toast'
+import { ref, watch } from 'vue'
 
 interface BastionHttpHttps {
   enabled?: boolean
@@ -41,7 +42,7 @@ interface Props {
   bastion?: Bastion
   showCustomDomains?: boolean
   hardwareInterfaces?: string[]
-  onRequestAddInterface?: (ifaceId: string) => void
+  onRequestAddInterface?: (ifaceId: string) => boolean | undefined
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -60,7 +61,9 @@ const props = withDefaults(defineProps<Props>(), {
     },
     customDomains: []
   }),
-  showCustomDomains: false
+  showCustomDomains: false,
+  hardwareInterfaces: () => [],
+  onRequestAddInterface: undefined
 })
 
 const emit = defineEmits<{
@@ -122,6 +125,14 @@ defineExpose({
 
 const bastionEnabled = ref(!!(props.bastion?.http?.enabled || props.bastion?.ssh?.enabled))
 const bastionModalDnsAlertOpen = ref(false)
+const stopBastionHydration = watch(
+  () => props.bastion,
+  (bastion) => {
+    bastionEnabled.value = !!(bastion?.http?.enabled || bastion?.ssh?.enabled)
+    form.reset(bastion)
+    stopBastionHydration()
+  }
+)
 
 watch(
   bastionEnabled,
@@ -135,6 +146,46 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(bastionEnabled, (enabled, wasEnabled) => {
+  if (!enabled || wasEnabled) return
+  if ((props.hardwareInterfaces ?? []).includes('wireguard')) return
+  if (!props.onRequestAddInterface) return
+
+  const added = props.onRequestAddInterface('wireguard')
+
+  if (added === true) {
+    toast.info(t('components.domain.access.wireguard-added.title'), {
+      description: t('components.domain.access.wireguard-added.description-bastion')
+    })
+  } else if (added === false) {
+    bastionEnabled.value = false
+    toast.error(t('components.domain.access.wireguard-warning.title'), {
+      description: t('components.domain.access.wireguard-warning.no-permission-description-bastion')
+    })
+  }
+})
+
+const bastionDisabled = ref(false)
+
+watch(
+  () => props.hardwareInterfaces,
+  (newInterfaces, oldInterfaces) => {
+    const had = (oldInterfaces ?? []).includes('wireguard')
+    const has = (newInterfaces ?? []).includes('wireguard')
+    if (had && !has && bastionEnabled.value) {
+      bastionEnabled.value = false
+      bastionDisabled.value = true
+      // Show a toast, as the bastion section may be out of view
+      toast.warning(t('components.domain.access.bastion-disabled.title'), {
+        description: t('components.domain.access.bastion-disabled.description')
+      })
+    } else if (has) {
+      // Don't keep the alert around once wireguard is back
+      bastionDisabled.value = false
+    }
+  }
 )
 
 const addCustomDomain = () => {
@@ -183,22 +234,11 @@ const removeCustomDomain = (index: number) => {
           @update:model-value="bastionEnabled = $event"
         />
       </div>
-      <Alert v-if="wireguardMissing" variant="default" class="border-warning-500">
-        <FeaturedIconOutline kind="outline" color="warning" />
-        <AlertTitle>{{ t('components.domain.access.wireguard-warning.title') }}</AlertTitle>
+      <Alert v-if="bastionDisabled" variant="default" class="border-error-600">
+        <FeaturedIconOutline kind="outline" color="error" />
+        <AlertTitle>{{ t('components.domain.access.bastion-disabled.title') }}</AlertTitle>
         <AlertDescription>
-          <p class="mb-3">
-            {{ t('components.domain.access.wireguard-warning.description-bastion') }}
-          </p>
-          <Button
-            v-if="props.onRequestAddInterface"
-            size="sm"
-            hierarchy="secondary-color"
-            icon="plus"
-            @click="handleAddWireguardInterface"
-          >
-            {{ t('components.domain.access.wireguard-warning.add-interface-button') }}
-          </Button>
+          {{ t('components.domain.access.bastion-disabled.description') }}
         </AlertDescription>
       </Alert>
     </div>

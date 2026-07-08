@@ -1380,14 +1380,17 @@
         },
         "wireguard-warning": {
           "title": "Wireguard interface required",
-          "description": "The selected viewer needs the wireguard network interface to work. Add it to continue.",
-          "description-bastion": "Bastion access needs the wireguard network interface to work. Add it to continue.",
-          "add-interface-button": "Add wireguard interface",
-          "no-permission-description": "The selected viewer needs the wireguard network interface to work, but you do not have permission to use it. Contact your administrator to enable it."
+          "no-permission-description": "The selected viewer needs the wireguard network interface to work, but you do not have permission to use it. Contact your administrator to enable it.",
+          "no-permission-description-bastion": "Bastion access needs the wireguard network interface to work, but you do not have permission to use it. Contact your administrator to enable it."
         },
         "wireguard-added": {
           "title": "Wireguard interface added",
-          "description": "It was added automatically because the selected RDP viewer requires it."
+          "description": "It was added automatically because the selected RDP viewer requires it.",
+          "description-bastion": "It was added automatically because bastion access requires it."
+        },
+        "bastion-disabled": {
+          "title": "Bastion access disabled",
+          "description": "Bastion access was disabled because this desktop has no wireguard network interface."
         },
         "viewers-removed": {
           "title": "RDP viewers removed",

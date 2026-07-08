@@ -8,6 +8,7 @@ import { useForm } from '@tanstack/vue-form'
 
 import {
   getDesktopInfoOptions,
+  getDesktopInfoQueryKey,
   getUserConfigOptions,
   editDesktopMutation,
   getUserDesktopsLegacyQueryKey
@@ -101,6 +102,9 @@ const { mutate: submitEdit, isPending: submitPending } = useMutation({
   ...editDesktopMutation(),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: getUserDesktopsLegacyQueryKey() })
+    queryClient.invalidateQueries({
+      queryKey: getDesktopInfoQueryKey({ path: { desktop_id: desktopId.value } })
+    })
     router.push({ name: 'desktops' })
   },
   onError: (error) => {

@@ -324,11 +324,26 @@ watch(
   }
 )
 
-function handleAddWireguardInterface() {
-  props.onRequestAddInterface?.('wireguard')
-}
+watch(hasRdpViewer, (next, prev) => {
+  if (!next || prev) return
+  if ((props.hardwareInterfaces ?? []).includes('wireguard')) return
+  if (!props.onRequestAddInterface) return
 
-==== BASE ====
+  const added = props.onRequestAddInterface('wireguard')
+
+  if (added === true) {
+    toast.info(t('components.domain.access.wireguard-added.title'), {
+      description: t('components.domain.access.wireguard-added.description')
+    })
+  } else if (added === false) {
+    const current = (form.getFieldValue('viewers') as string[] | undefined) ?? []
+    form.setFieldValue('viewers', stripWireguardRequiringViewers(current))
+    toast.error(t('components.domain.access.wireguard-warning.title'), {
+      description: t('components.domain.access.wireguard-warning.no-permission-description')
+    })
+  }
+})
+
 // --- Credentials conditional visibility ---
 
 const showCredentials = computed(() => {
@@ -522,6 +537,8 @@ const showPassword = ref(false)
         ref="bastionFormRef"
         :bastion="bastion"
         :show-custom-domains="showCustomDomains"
+        :hardware-interfaces="props.hardwareInterfaces"
+        :on-request-add-interface="props.onRequestAddInterface"
         @bastion-enabled="handleBastionEnabled"
       />
     </FieldGroup>

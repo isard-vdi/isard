@@ -88,7 +88,7 @@ const hardwareFormRef = ref<{
   getFormData: () => Record<string, unknown>
   isValid: boolean
   limitedFields: Record<string, unknown> | null
-  addInterface: (ifaceId: string) => void
+  addInterface: (ifaceId: string) => boolean | undefined
   removeInterface: (ifaceId: string) => void
   interfaces: string[]
 } | null>(null)
