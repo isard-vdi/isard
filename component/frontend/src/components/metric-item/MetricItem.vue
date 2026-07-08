@@ -17,9 +17,11 @@ const props = withDefaults(
     title: string
     total?: number
     current: number
+    icon?: string
   }>(),
   {
-    total: Infinity
+    total: Infinity,
+    icon: undefined
   }
 )
 
@@ -81,7 +83,10 @@ const prettyTotal = usePrettyNumber(props.total)
 <template>
   <div class="max-w-sm rounded-lg border border-gray-200 bg-white p-5 flex flex-col">
     <div class="mb-3 flex items-center justify-between">
-      <span class="text-md font-medium text-gray-600">{{ $props.title }}</span>
+      <span class="flex items-center gap-2 text-md font-medium text-gray-600">
+        <Icon v-if="$props.icon" :name="$props.icon" size="sm" stroke-color="gray-600" />
+        {{ $props.title }}
+      </span>
       <Badge
         :color="badges[status].color"
         :content="badges[status].content"
