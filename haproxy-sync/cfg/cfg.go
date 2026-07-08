@@ -1,6 +1,8 @@
 package cfg
 
 import (
+	"time"
+
 	"gitlab.com/isard/isardvdi/pkg/cfg"
 
 	"github.com/spf13/viper"
@@ -15,6 +17,8 @@ type Cfg struct {
 type HAProxy struct {
 	// SocketAddress is the address (path) the HAProxy admin stats socket
 	SocketAddress string `mapstructure:"socket_address"`
+	// StartupTimeout is how long to wait for the HAProxy admin socket to become ready at startup
+	StartupTimeout time.Duration `mapstructure:"startup_timeout"`
 
 	Domains HAProxyDomains `mapstructure:"domains"`
 	Bastion HAProxyBastion `mapstructure:"bastion"`
@@ -49,7 +53,8 @@ func setDefaults() {
 	cfg.SetGRPCDefaults()
 
 	viper.SetDefault("haproxy", map[string]any{
-		"socket_address": "/var/run/haproxy.sock",
+		"socket_address":  "/var/run/haproxy.sock",
+		"startup_timeout": "120s",
 		"domains": map[string]any{
 			"domains_map": "virt@domains",
 			// crt-list.cfg is the HAProxy crt-list file where domain certificates
