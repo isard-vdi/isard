@@ -223,6 +223,17 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                 ungrouped.forEach(function(value){
                     $(id+" #reservables-vgpus").append(optHtml(value));
                 });
+                $(id+" #reservables-vgpus").off('change.nogpu').on('change.nogpu', function(){
+                    var $sel = $(this);
+                    var selected = $sel.val() || [];
+                    if(selected.length === 0){
+                        // Nothing selected -> fall back to "No GPU".
+                        $sel.find('option[value="None"]').prop('selected', true);
+                    } else if(selected.length > 1 && selected.indexOf('None') !== -1){
+                        // A real profile is selected alongside "No GPU" -> drop "No GPU".
+                        $sel.find('option[value="None"]').prop('selected', false);
+                    }
+                });
                 // Hard-restrict: once a profile is chosen, disable any profile not
                 // hostable on a hypervisor common to the whole selection, then
                 // tell select2 to re-render so the greyed-out options show.
@@ -285,6 +296,10 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                     width: '100%',
                     closeOnSelect: false,
                     placeholder: 'Select GPU profile(s)',
+                    templateResult: function(opt){
+                        if(opt.id === 'None'){ return null; }
+                        return opt.text;
+                    },
                 });
             }
             if (callback) {
