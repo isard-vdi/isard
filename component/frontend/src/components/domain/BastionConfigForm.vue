@@ -14,12 +14,14 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Code } from '@/components/code'
 import { Icon, CopyIcon } from '@/components/icon'
-import { ref, watch } from 'vue'
+import { FeaturedIconOutline } from '@/components/icon/featured-outline'
+import { computed, ref, watch } from 'vue'
 
 interface BastionHttpHttps {
   enabled?: boolean
   httpPort: number
   httpsPort: number
+  proxyProtocol?: boolean
 }
 
 interface BastionSsh {
@@ -38,6 +40,8 @@ interface Bastion {
 interface Props {
   bastion?: Bastion
   showCustomDomains?: boolean
+  hardwareInterfaces?: string[]
+  onRequestAddInterface?: (ifaceId: string) => void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -46,7 +50,8 @@ const props = withDefaults(defineProps<Props>(), {
     http: {
       enabled: false,
       httpPort: 80,
-      httpsPort: 443
+      httpsPort: 443,
+      proxyProtocol: false
     },
     ssh: {
       enabled: false,
@@ -69,7 +74,8 @@ const formSchema = z.object({
     .object({
       enabled: z.boolean(),
       httpPort: z.number().min(1).max(65535),
-      httpsPort: z.number().min(1).max(65535)
+      httpsPort: z.number().min(1).max(65535),
+      proxyProtocol: z.boolean().optional()
     })
     .optional(),
   ssh: z
@@ -107,22 +113,29 @@ const getFormData = () => {
   return data
 }
 
+const isFormValid = form.useStore((state) => state.isValid)
+
 defineExpose({
-  getFormData
+  getFormData,
+  isValid: isFormValid
 })
 
 const bastionEnabled = ref(!!(props.bastion?.http?.enabled || props.bastion?.ssh?.enabled))
 const bastionModalDnsAlertOpen = ref(false)
 
-watch(bastionEnabled, (enabled) => {
-  emit('bastion-enabled', enabled)
-  if (!enabled) {
-    // When user disables bastion, clear the inner http/ssh enabled flags so
-    // getFormData() produces { http: null, ssh: null }.
-    form.setFieldValue('http.enabled', false)
-    form.setFieldValue('ssh.enabled', false)
-  }
-})
+watch(
+  bastionEnabled,
+  (enabled) => {
+    emit('bastion-enabled', enabled)
+    if (!enabled) {
+      // When user disables bastion, clear the inner http/ssh enabled flags so
+      // getFormData() produces { http: null, ssh: null }.
+      form.setFieldValue('http.enabled', false)
+      form.setFieldValue('ssh.enabled', false)
+    }
+  },
+  { immediate: true }
+)
 
 const addCustomDomain = () => {
   const currentDomains = form.getFieldValue('customDomains') || []
@@ -148,26 +161,46 @@ const removeCustomDomain = (index: number) => {
       </h4>
       <Icon name="shield-01" />
     </div>
-    <div class="flex gap-2.5">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <FieldLabel>
-              {{ t('components.domain.access.bastion.label') }}
-              <Icon name="info-circle" size="xs" class="inline-block" />
-            </FieldLabel>
-          </TooltipTrigger>
-          <TooltipContent
-            :title="t('components.domain.access.bastion.label')"
-            :subtitle="t('components.domain.access.bastion.description')"
-          />
-        </Tooltip>
-      </TooltipProvider>
-      <Switch
-        type="checkbox"
-        :model-value="bastionEnabled"
-        @update:model-value="bastionEnabled = $event"
-      />
+    <div class="flex flex-col gap-2.5">
+      <div class="flex gap-2.5">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <FieldLabel>
+                {{ t('components.domain.access.bastion.label') }}
+                <Icon name="info-circle" size="xs" class="inline-block" />
+              </FieldLabel>
+            </TooltipTrigger>
+            <TooltipContent
+              :title="t('components.domain.access.bastion.label')"
+              :subtitle="t('components.domain.access.bastion.description')"
+            />
+          </Tooltip>
+        </TooltipProvider>
+        <Switch
+          type="checkbox"
+          :model-value="bastionEnabled"
+          @update:model-value="bastionEnabled = $event"
+        />
+      </div>
+      <Alert v-if="wireguardMissing" variant="default" class="border-warning-500">
+        <FeaturedIconOutline kind="outline" color="warning" />
+        <AlertTitle>{{ t('components.domain.access.wireguard-warning.title') }}</AlertTitle>
+        <AlertDescription>
+          <p class="mb-3">
+            {{ t('components.domain.access.wireguard-warning.description-bastion') }}
+          </p>
+          <Button
+            v-if="props.onRequestAddInterface"
+            size="sm"
+            hierarchy="secondary-color"
+            icon="plus"
+            @click="handleAddWireguardInterface"
+          >
+            {{ t('components.domain.access.wireguard-warning.add-interface-button') }}
+          </Button>
+        </AlertDescription>
+      </Alert>
     </div>
   </section>
   <FieldGroup>
@@ -225,6 +258,7 @@ const removeCustomDomain = (index: number) => {
                           type="number"
                           min="1"
                           max="65535"
+                          @blur="httpField.handleBlur"
                           @update:model-value="(value) => httpField.handleChange(Number(value))"
                         />
                       </FieldContent>
@@ -244,6 +278,7 @@ const removeCustomDomain = (index: number) => {
                           type="number"
                           min="1"
                           max="65535"
+                          @blur="httpsField.handleBlur"
                           @update:model-value="(value) => httpsField.handleChange(Number(value))"
                         />
                       </FieldContent>
@@ -251,6 +286,39 @@ const removeCustomDomain = (index: number) => {
                     </form.Field>
                   </div>
                 </div>
+                <form.Field v-slot="{ field: proxyProtocolField }" name="http.proxyProtocol">
+                  <div class="mt-4 flex items-center gap-5">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <FieldLabel>
+                            {{
+                              t('components.domain.access.bastion.http-https.proxy-protocol.label')
+                            }}
+                            <Icon name="info-circle" size="xs" class="inline-block" />
+                          </FieldLabel>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          :title="
+                            t('components.domain.access.bastion.http-https.proxy-protocol.label')
+                          "
+                          :subtitle="
+                            t(
+                              'components.domain.access.bastion.http-https.proxy-protocol.description'
+                            )
+                          "
+                        />
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Switch
+                      :id="proxyProtocolField.name"
+                      type="checkbox"
+                      :name="proxyProtocolField.name"
+                      :model-value="proxyProtocolField.state.value"
+                      @update:model-value="proxyProtocolField.handleChange"
+                    />
+                  </div>
+                </form.Field>
                 <div v-if="showCustomDomains">
                   <div class="flex items-center justify-between">
                     <h3 class="text-sm font-medium">
@@ -388,6 +456,7 @@ const removeCustomDomain = (index: number) => {
                           type="number"
                           min="1"
                           max="65535"
+                          @blur="sshPortField.handleBlur"
                           @update:model-value="(value) => sshPortField.handleChange(Number(value))"
                         />
                       </FieldContent>

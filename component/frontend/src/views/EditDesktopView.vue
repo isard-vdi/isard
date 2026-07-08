@@ -8,6 +8,7 @@ import { useForm } from '@tanstack/vue-form'
 
 import {
   getDesktopInfoOptions,
+  getUserConfigOptions,
   editDesktopMutation,
   getUserDesktopsLegacyQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
@@ -36,6 +37,9 @@ const {
   }),
   enabled: computed(() => !!desktopId.value)
 })
+
+const { data: userConfig } = useQuery(getUserConfigOptions())
+const canUseBastion = computed(() => userConfig.value?.can_use_bastion === true)
 
 const desktopInfoFormSchema = z.object({
   name: z.string().min(4).max(50),
@@ -104,6 +108,47 @@ const { mutate: submitEdit, isPending: submitPending } = useMutation({
   }
 })
 
+interface BastionFormHttp {
+  enabled?: boolean
+  httpPort: number
+  httpsPort: number
+  proxyProtocol?: boolean
+}
+interface BastionFormSsh {
+  enabled?: boolean
+  sshPort: number
+  authorizedKeys: string
+}
+interface BastionFormData {
+  http?: BastionFormHttp | null
+  ssh?: BastionFormSsh | null
+}
+
+// BastionConfigForm reports disabled protocols as `null`, but the API only
+// disables a protocol when it receives an explicit `enabled: false` payload
+// (a missing/null value means "leave as is"), so both branches must always
+// send a full object.
+function toBastionTarget(bastion: BastionFormData | undefined) {
+  if (!bastion) return undefined
+
+  return {
+    http: {
+      enabled: !!bastion.http?.enabled,
+      http_port: bastion.http?.httpPort ?? 80,
+      https_port: bastion.http?.httpsPort ?? 443,
+      proxy_protocol: !!bastion.http?.proxyProtocol
+    },
+    ssh: {
+      enabled: !!bastion.ssh?.enabled,
+      port: bastion.ssh?.sshPort ?? 22,
+      authorized_keys: (bastion.ssh?.authorizedKeys ?? '')
+        .split('\n')
+        .map((key) => key.trim())
+        .filter((key) => key.length > 0)
+    }
+  }
+}
+
 const handleSubmit = () => {
   if (!areFormsValid.value) return
   submitError.value = null
@@ -133,7 +178,10 @@ const handleSubmit = () => {
         isos: hardwareSettings?.isos,
         floppies: hardwareSettings?.floppies
       },
-      reservables: hardwareSettings?.reservables as { vgpus?: string[] } | undefined
+      reservables: hardwareSettings?.reservables as { vgpus?: string[] } | undefined,
+      ...(canUseBastion.value
+        ? { bastion_target: toBastionTarget(accessSettings?.bastion as BastionFormData) }
+        : {})
     }
   })
 }
@@ -213,7 +261,7 @@ const handleSubmit = () => {
         <DomainAccessForm
           ref="accessFormRef"
           :desktop-id="desktopId"
-          :show-bastion-config="false"
+          :show-bastion-config="canUseBastion"
           :hardware-interfaces="hardwareInterfaces"
           :on-request-add-interface="handleAddInterfaceFromAccessForm"
         />
