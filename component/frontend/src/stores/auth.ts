@@ -109,22 +109,34 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const renewSession = async () => {
-    if (!token.value) {
-      throw new Error('No token available for renewal')
+  let renewInFlight: Promise<void> | null = null
+
+  const renewSession = async (): Promise<void> => {
+    if (renewInFlight) {
+      return renewInFlight
     }
 
-    const response = await renew({
-      body: { token: token.value }
+    renewInFlight = (async () => {
+      if (!token.value) {
+        throw new Error('No token available for renewal')
+      }
+
+      const response = await renew({
+        body: { token: token.value }
+      })
+
+      if (!response || response.error) {
+        throw new Error(response?.error?.msg || 'Token renewal failed')
+      }
+
+      console.debug('✅ Token renewed, updating cookie')
+      setToken(cookies, response.data.token)
+      // Cookie watcher will handle reinitializing the auth state
+    })().finally(() => {
+      renewInFlight = null
     })
 
-    if (!response || response.error) {
-      throw new Error(response?.error?.msg || 'Token renewal failed')
-    }
-
-    console.debug('✅ Token renewed, updating cookie')
-    setToken(cookies, response.data.token)
-    // Cookie watcher will handle reinitializing the auth state
+    return renewInFlight
   }
 
   const logout = (clearCookie = true) => {
