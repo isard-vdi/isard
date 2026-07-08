@@ -149,6 +149,7 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
@@ -246,6 +247,7 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
@@ -342,6 +344,7 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
@@ -469,6 +472,7 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
@@ -734,6 +738,82 @@ func TestLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "",
 		},
+		"should return a UserMigrationRequired token if the migration is required": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"pau",
+					"default",
+					"local",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                  "pau",
+						"username":             "pau",
+						"password":             "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token": "",
+						"provider":             "local",
+						"active":               true,
+						"category":             "default",
+						"role":                 "user",
+						"group":                "default-default",
+						"name":                 "Pau Abril",
+						"email":                "pau@example.org",
+						"email_verified":       nil,
+						"api_key":              "",
+					},
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{},
+						},
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "pau"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					Host:         "example.com",
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseUserMigrationRequiredToken("", ss)
+				assert.NoError(err)
+
+				// Ensure the expiration time is correct
+				assert.True(claims.ExpiresAt.Time.Before(time.Now().Add(61 * time.Minute)))
+				assert.True(claims.ExpiresAt.Time.After(time.Now().Add(59 * time.Minute)))
+
+				claims.ExpiresAt = nil
+				claims.IssuedAt = nil
+				claims.NotBefore = nil
+
+				assert.Equal(&token.UserMigrationRequiredClaims{
+					TypeClaims: token.TypeClaims{
+						RegisteredClaims: &jwt.RegisteredClaims{
+							Issuer: "isard-authentication",
+						},
+						Type:  token.TypeUserMigrationRequired,
+						KeyID: "isardvdi",
+					},
+					UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				}, claims)
+			},
+			ExpectedRedirect: "",
+		},
 		"should return a EmailVerificationRequired token if the email verification is required": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
@@ -771,6 +851,7 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			RemoteAddr: "127.0.0.1",
@@ -850,6 +931,7 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
