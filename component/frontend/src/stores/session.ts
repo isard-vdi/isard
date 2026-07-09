@@ -1,11 +1,15 @@
 // stores/session.ts
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useAuthStore } from './auth'
 import { useUserStore } from './user'
+import { isProvider } from '@/lib/auth'
+import { apiV4CategoryCustomUrl } from '@/gen/oas/apiv4'
 
 export type SessionModalKind = 'renew' | 'max-renew-time' | 'max-time' | 'error-renew'
+
+const PROVIDER_ROUTE_ALIASES: Record<string, string> = { local: 'form', ldap: 'form' }
 
 export const useSessionStore = defineStore('session', () => {
   // Session state
@@ -159,10 +163,45 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  /**
-   * Handle external logout (detected by cookie removal in auth store)
-   */
-  const handleExternalLogout = () => {
+  const categoryCustomUrl = async (categoryId: string): Promise<string | undefined> => {
+    const fromConfig = userStore.config?.category_custom_url
+    if (typeof fromConfig === 'string' && fromConfig) {
+      return fromConfig
+    }
+
+    // Fall back to apiV4CategoryCustomUrl if the user doesn't have a valid token
+    try {
+      const { data } = await apiV4CategoryCustomUrl({ path: { category_id: categoryId } })
+      // The endpoint answers with a '/login' sentinel when the category has no slug.
+      return data && data !== '/login' ? data : undefined
+    } catch (error) {
+      console.warn('Could not resolve the category login URL:', error)
+      return undefined
+    }
+  }
+
+  const loginRoute = async (): Promise<RouteLocationRaw> => {
+    const identity = authStore.lastLoginIdentity
+    if (!identity) {
+      return { name: 'login' }
+    }
+
+    const aliased = PROVIDER_ROUTE_ALIASES[identity.provider] ?? identity.provider
+    const provider = isProvider(aliased) ? aliased : 'all'
+
+    const category = await categoryCustomUrl(identity.categoryId)
+    return category
+      ? { name: 'login', params: { provider, category } }
+      : { name: 'login', params: { provider } }
+  }
+
+  const pushLoginRoute = async () => {
+    const route = await loginRoute()
+    userStore.$reset()
+    router.push(route)
+  }
+
+  const handleExternalLogout = async () => {
     console.debug('🚪 External logout detected (session terminated in Flask app)')
     clearAllTimeouts()
     hideModal()
@@ -170,7 +209,7 @@ export const useSessionStore = defineStore('session', () => {
     internalLogoutInProgress.value = false
 
     // Redirect to login immediately without showing modal
-    router.push({ name: 'login' })
+    await pushLoginRoute()
   }
 
   /**
@@ -198,17 +237,17 @@ export const useSessionStore = defineStore('session', () => {
     await authStore.logout()
     hideModal()
     wasAuthenticated.value = false
-    router.push({ name: 'login' })
+    await pushLoginRoute()
   }
 
   /**
    * Handle redirect to login
    */
-  const redirectToLogin = () => {
+  const redirectToLogin = async () => {
     hideModal()
     wasAuthenticated.value = false
     internalLogoutInProgress.value = false
-    router.push({ name: 'login' })
+    await pushLoginRoute()
   }
 
   /**
@@ -250,7 +289,7 @@ export const useSessionStore = defineStore('session', () => {
         // User was authenticated but now isn't AND it's not an internal logout
         // This means the cookie was removed externally (Flask app logout)
         console.debug('🔓 External logout detected (Flask app)')
-        handleExternalLogout()
+        await handleExternalLogout()
       } else if (internalLogoutInProgress.value) {
         // This is an internal logout we initiated
         console.debug('🔓 Internal logout completed')
@@ -290,6 +329,7 @@ export const useSessionStore = defineStore('session', () => {
     // Actions
     initialize,
     renewSession,
+    loginRoute,
     handleLogout,
     redirectToLogin,
     showModal,

@@ -6,6 +6,16 @@ import { type LoginError as AuthLoginError } from '@/gen/oas/authentication'
 
 export type Role = 'admin' | 'manager' | 'advanced' | 'user'
 
+/** The login providers the `/login/:provider?/:category?` route understands. */
+export enum Provider {
+  Form = 'form',
+  SAML = 'saml',
+  Google = 'google'
+}
+
+export const isProvider = (provider: string): provider is Provider =>
+  Object.values(Provider).includes(provider as Provider)
+
 interface ProviderUserData {
   provider: string
   category: string

@@ -50,6 +50,7 @@ from ....helpers.quotas import Quotas
 from ....helpers.recycle_bin import Helpers as RecycleBinHelpers
 from ....helpers.recycle_bin import RecycleBinDeleteQueue, RecycleBinUser
 from ....helpers.user_storage import UserStorage
+from ....lib.users.categories.categories import CategoriesProcessed
 from ....models.user import UserModel
 from ....schemas.user import UserFromCSV
 from .user_policies import UserPolicies
@@ -598,6 +599,9 @@ class UsersProcessed(RethinkSharedConnection):
                 ),
                 "migrations_block": cls.is_blocked_migration(payload["user_id"]),
                 "session": session,
+                "category_custom_url": CategoriesProcessed.get_custom_login_url(
+                    payload["category_id"]
+                ),
                 "frontend_mode": frontend_mode,
                 "faro": faro,
             },
