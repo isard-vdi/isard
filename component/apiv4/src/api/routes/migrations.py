@@ -53,7 +53,9 @@ async def migration_export_user(request: Request):
         return JSONResponse(
             content=MigrationExportResponse(
                 token=await asyncio.to_thread(
-                    MigrationService.export_user, request.token_payload["user_id"]
+                    MigrationService.export_user,
+                    request.token_payload["user_id"],
+                    request.token_payload.get("type", "") == "user-migration-required",
                 )
             ).model_dump(mode="json"),
             status_code=200,

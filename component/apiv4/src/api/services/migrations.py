@@ -35,7 +35,7 @@ from isardvdi_common.models.user import User as RethinkUser
 class MigrationService:
 
     @staticmethod
-    def export_user(user_id: str) -> str:
+    def export_user(user_id: str, forced: bool = False) -> str:
         if not RethinkUser.exists(user_id):
             raise Error(
                 "not_found",
@@ -43,6 +43,23 @@ class MigrationService:
             )
 
         resources = CommonUser.user_delete_checks([user_id], "user")
+
+        # A forced migration (user-migration-required token) is admin-initiated,
+        # so it bypasses the per-provider "allow user export" gate — that gate
+        # only governs voluntary, user-initiated exports.
+        if not forced:
+            provider = resources["users"][0]["provider"]
+            if not (
+                ConfigService.get_provider_config(provider)
+                .get("migration", {})
+                .get("export", False)
+            ):
+                raise Error(
+                    "forbidden",
+                    description="User export is not enabled for this provider.",
+                    description_code="migration_export_disabled",
+                )
+
         if not any(
             [
                 resources["desktops"],
@@ -78,6 +95,18 @@ class MigrationService:
 
     @staticmethod
     def import_user(user_id: str, token: str) -> None:
+        provider = CommonUser.get_user(user_id)["provider"]
+        if not (
+            ConfigService.get_provider_config(provider)
+            .get("migration", {})
+            .get("import", False)
+        ):
+            raise Error(
+                "forbidden",
+                description="User import is not enabled for this provider.",
+                description_code="migration_import_disabled",
+            )
+
         errors = UserMigrationsProcessed.check_user_migration(token, user_id)
         if errors:
             raise Error(
