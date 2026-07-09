@@ -63,11 +63,12 @@ class IsardViewer(RethinkSharedConnection):
         self.vnc = 2
         self.vnc_tls = 3
         self.vnc_ws = -198  # 5900-200????
+        # The RDP gateway is served by the web haproxy as TLS on its HTTP_PORT.
+        # VIEWER_RDP_GW is the external port a NAT maps to it; without one, the
+        # bound port is the reachable port. VIEWER_SPICE belongs to the video
+        # proxy and is deliberately allowed to differ, so it is not a fallback.
         self.rdpgw_port = (
-            os.environ.get("VIEWER_RDP_GW")
-            or os.environ.get("VIEWER_SPICE")
-            or os.environ.get("HTTP_PORT")
-            or 80
+            os.environ.get("VIEWER_RDP_GW") or os.environ.get("HTTP_PORT") or 80
         )
         pass
 
