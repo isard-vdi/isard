@@ -193,3 +193,30 @@ def test_strict_constructor_still_raises_for_missing_row():
     with patch.object(Storage, "exists", return_value=False):
         with pytest.raises(Error):
             Storage("00000000-dead-dead-dead-000000000000")
+
+
+# ---------------------------------------------------------------------------
+# The guard un-shadows recreate()'s graceful precondition.
+# ---------------------------------------------------------------------------
+
+
+def test_recreate_reaches_graceful_storage_has_no_parent():
+    """``recreate`` evaluates ``self.operational`` (which walks ``parents``)
+    *before* its explicit ``if not Storage.exists(self.parent):`` guard. While
+    the walk raised ``not_found``, that graceful branch was dead code. With the
+    guard in place the walk yields [] and the precondition is reached, so the
+    caller gets the actionable ``storage_has_no_parent`` instead of a 404."""
+    s = _bare_storage(id="child-6", parent="00000000-dead-dead-dead-000000000000")
+
+    with (
+        patch.object(Storage, "exists", return_value=False),
+        patch.object(Storage, "create_task"),
+    ):
+        with pytest.raises(Exception) as exc_info:
+            s.recreate(user_id="u1", domain_id="d1")
+
+    assert exc_info.value.args == (
+        "precondition_required",
+        "Storage parent missing",
+        "storage_has_no_parent",
+    )
