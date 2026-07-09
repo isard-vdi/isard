@@ -124,6 +124,15 @@ const handleRemove = async () => {
         {{ t('components.profile.ssh-key-modal.description') }}
       </p>
 
+      <Alert class="border-warning-200 flex items-start gap-3">
+        <FeaturedIconOutline kind="outline" color="warning" size="md" class="shrink-0" />
+        <div class="space-y-1 text-left">
+          <AlertDescription class="text-gray-warm-700">
+            {{ t('components.profile.ssh-key-modal.security-note') }}
+          </AlertDescription>
+        </div>
+      </Alert>
+
       <div class="space-y-2">
         <Textarea
           v-model="keyInput"

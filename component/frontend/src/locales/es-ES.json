@@ -121,6 +121,14 @@
     },
     "error": {
       "title": "Error"
+    },
+    "recycle-bin": {
+      "entry": {
+        "subtitle": "Revisa el elemento eliminado y su contenido",
+        "title": "Elemento de la papelera"
+      },
+      "subtitle": "Visualiza, restaura o elimina los elementos de la papelera",
+      "title": "Papelera"
     }
   },
   "views": {
@@ -536,7 +544,8 @@
           "verify-email": "Verificar / Cambiar correo",
           "api-key": "Llave API",
           "reset-vpn": "Restablecer VPN",
-          "download-vpn": "Descargar VPN"
+          "download-vpn": "Descargar VPN",
+          "ssh-key": "Llave SSH del bastión"
         }
       },
       "information": {
@@ -627,13 +636,22 @@
             "title": "Crear escritorio desde el medio"
           }
         },
-        "unavailable": "Contenido multimedia no disponible. Por favor, inténtalo más tarde."
+        "unavailable": "Contenido multimedia no disponible. Por favor, inténtalo más tarde.",
+        "invalid-format": "El archivo descargado no es una imagen ISO/disquete válida. Elimina esta entrada y prueba con otra URL."
       },
       "delete-confirmation-modal": {
         "title": "Eliminar el medio '{name}'",
         "subtitle": "Esta acción no se puede deshacer y se perderán todos los datos asociados.",
         "cancel": "Cancelar",
         "confirm": "Eliminar"
+      },
+      "action-error-modal": {
+        "abort": "No se ha podido cancelar la descarga.",
+        "close": "Cerrar",
+        "delete": "No se ha podido eliminar el medio.",
+        "download": "No se ha podido iniciar la descarga del medio.",
+        "fallback": "Error inesperado.",
+        "title": "La acción ha fallado"
       }
     },
     "deployments": {
@@ -1228,6 +1246,22 @@
           "internal_server": "No pudimos restablecer tus claves VPN por un error del servidor. Inténtalo más tarde.",
           "generic": "No pudimos restablecer tus claves VPN. Inténtalo de nuevo."
         }
+      },
+      "ssh-key-modal": {
+        "alert": {
+          "error-remove": "No se ha podido eliminar la llave SSH. Inténtalo de nuevo.",
+          "error-save": "No se ha podido guardar la llave SSH. Comprueba la llave e inténtalo de nuevo.",
+          "error-title": "La solicitud ha fallado"
+        },
+        "buttons": {
+          "remove": "Eliminar llave",
+          "save": "Guardar llave"
+        },
+        "description": "Añade tu propia llave pública SSH al perfil. Se añade automáticamente al acceso SSH del bastión de cualquier escritorio que inicies (cuando el acceso SSH por bastión está activado en ese escritorio), de modo que no tienes que añadirla a cada escritorio.",
+        "invalid": "Esto no parece una llave pública SSH válida.",
+        "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... usuario{'@'}host",
+        "security-note": "Añade solo tu propia llave pública. Añadir la llave de otra persona puede violar la política de seguridad de tu organización.",
+        "title": "Llave SSH del bastión"
       }
     },
     "login": {
@@ -1314,7 +1348,8 @@
         "title": "Reservar el escritorio",
         "subtitle": "Reserva el escritorio con su perfil de tarjeta gráfica actual comprobando su planificación",
         "action-button": "Reservar escritorio"
-      }
+      },
+      "description": "Puedes reservar el escritorio para más tarde con su GPU actual, o cambiar la GPU ahora e iniciar el escritorio inmediatamente."
     },
     "desktop-start-now-modal": {
       "cancel": "Cancelar",
@@ -1356,7 +1391,9 @@
           "template": "Convertir en plantilla",
           "change-image": "Cambiar imagen",
           "storage": "Almacenamiento",
-          "reset": "Reiniciar"
+          "reset": "Reiniciar",
+          "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",
+          "networks": "Redes"
         },
         "debug-options": {
           "copy-id": "Copiar ID del escritorio"
@@ -1454,7 +1491,21 @@
           },
           "downloadstarting": {
             "text": "Descargando"
+          },
+          "creatingandstarting": {
+            "action": "Creando e iniciando",
+            "text": "Creando e iniciando"
           }
+        },
+        "info": {
+          "boot": "Arranque"
+        },
+        "networks": {
+          "more": "más"
+        },
+        "overlay": {
+          "expand": "Detalles",
+          "expand-tooltip": "Abre la ventana de detalles completos"
         }
       },
       "desktop-storage-modal": {
@@ -1796,7 +1847,14 @@
         "target-id": {
           "title": "ID de bastión"
         }
-      }
+      },
+      "error-loading-bastion-data": "Error al cargar los datos del bastión",
+      "error-loading-user-config": "Error al cargar la configuración del usuario",
+      "error": {
+        "title": "No se ha podido cargar el acceso por bastión"
+      },
+      "no-bastion-configured": "El bastión no está activado para este escritorio",
+      "no-bastion-configured-description": "Edita el escritorio y activa el acceso HTTP/HTTPS o SSH para usar el bastión."
     },
     "templates": {
       "template-type": {
@@ -1949,7 +2007,13 @@
             },
             "authorized-keys": {
               "label": "Claves SSH autorizadas (una por línea)",
-              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
+              "others-label": "Claves SSH de otras personas (una por línea)",
+              "own-key": {
+                "add-link": "Añádela en tu perfil",
+                "managed": "Tu propia clave se añade automáticamente desde tu perfil cuando inicias este escritorio. Esta casilla solo es para las claves públicas de otras personas.",
+                "missing": "Aún no tienes ninguna clave SSH del bastión en tu perfil, así que no tendrás acceso SSH automáticamente."
+              }
             }
           }
         },
@@ -2263,6 +2327,119 @@
           "unique": "El campo {field} debe ser único"
         }
       }
+    },
+    "bookings": {
+      "errors": {
+        "end-before-start": "La hora de fin de la reserva no puede ser anterior a la hora de inicio",
+        "forbid": "Necesitas más tiempo de antelación para crear la reserva",
+        "maximum-time": "No puedes crear una reserva tan larga",
+        "minimum-time": "La reserva debe durar al menos 5 minutos",
+        "past-booking": "No puedes crear una reserva en el pasado"
+      },
+      "item": {
+        "enough-units": "Unidades suficientes",
+        "event-titles": {
+          "available": "Disponible",
+          "overridable": "Sustituible",
+          "unavailable": "No disponible"
+        },
+        "modal": {
+          "cancel": "Cancelar",
+          "create": {
+            "button": "Añadir reserva",
+            "modal-title": "Añadir reserva"
+          },
+          "delete": {
+            "button": "Eliminar"
+          },
+          "edit": {
+            "button": "Guardar cambios",
+            "modal-title": "Editar reserva"
+          },
+          "end-date": "Fecha de fin",
+          "end-time": "Hora de fin",
+          "profile": "Perfil",
+          "select-profile": "Por favor, selecciona un perfil",
+          "start-date": "Fecha de inicio",
+          "start-time": "Hora de inicio",
+          "title": "Título",
+          "view": {
+            "modal-title": "Ver reserva"
+          }
+        },
+        "new-planning": {
+          "bookable-item": "Nombre del elemento",
+          "bookable-type": "Tipo reservable"
+        },
+        "split-labels": {
+          "availability": "Disponibilidad",
+          "bookings": "Reservas"
+        },
+        "status-bar": {
+          "buttons": {
+            "add-booking": "Añadir reserva"
+          },
+          "forbid-time": "Tiempo de antelación necesario",
+          "max-items": "Máximo de reservas",
+          "max-time": "Tiempo máximo de reserva"
+        },
+        "units": "unidades"
+      },
+      "summary": {
+        "title": "Todas tus reservas"
+      }
+    },
+    "date-picker": {
+      "apply": "Aplicar",
+      "cancel": "Cancelar",
+      "today": "Hoy"
+    },
+    "form": {
+      "validation": {
+        "invalid-element": "El campo {field} tiene un elemento no válido",
+        "invalid-format": "El campo {field} tiene un formato no válido",
+        "invalid-key": "El campo {field} tiene una clave no válida",
+        "invalid-union": "El campo {field} debe coincidir con al menos uno de los formatos permitidos",
+        "invalid-value": "El campo {field} tiene un valor no válido",
+        "max-array-length": "El campo {field} debe tener como máximo {max} elementos",
+        "max-length": "El campo {field} debe tener como máximo {max} caracteres",
+        "max-value": "El campo {field} debe ser como máximo {max}",
+        "min-array-length": "El campo {field} debe tener al menos {min} elementos",
+        "min-length": "El campo {field} debe tener al menos {min} caracteres",
+        "min-value": "El campo {field} debe ser al menos {min}",
+        "multiple-of": "El campo {field} debe coincidir con al menos uno de los formatos permitidos",
+        "required": "El campo {field} es obligatorio",
+        "type": {
+          "array": "El campo {field} debe ser una lista",
+          "boolean": "El campo {field} debe ser verdadero o falso",
+          "email": "El campo {field} debe ser una dirección de correo válida",
+          "integer": "El campo {field} debe ser un entero",
+          "number": "El campo {field} debe ser un número",
+          "string": "El campo {field} debe ser una cadena de texto"
+        },
+        "unique": "El campo {field} debe ser único",
+        "unrecognized-keys": "El campo {field} tiene claves no reconocidas: {keys}"
+      }
+    },
+    "session-modal": {
+      "description": {
+        "error-renew": "Se ha producido un error al renovar la sesión. Vuelve a iniciar sesión.",
+        "max-renew-time": "La sesión ha caducado y ya no se puede renovar. Vuelve a iniciar sesión.",
+        "max-time": "La sesión ha caducado y ha alcanzado el máximo de renovaciones. Vuelve a iniciar sesión.",
+        "renew": "La sesión está a punto de caducar. Se puede renovar para seguir trabajando sin interrupciones."
+      },
+      "options": {
+        "go-to-login": "Ir al inicio de sesión",
+        "logout": "Cerrar sesión",
+        "renew": "Renovar la sesión actual"
+      },
+      "title": "Sesión caducada"
+    },
+    "stepper": {
+      "navigation": {
+        "go-back": "Atrás",
+        "next": "Siguiente"
+      }
     }
   },
   "authentication": {
@@ -2417,6 +2594,33 @@
       "errors": {
         "generic": "Se ha producido un error al crear el escritorio. Inténtalo de nuevo.",
         "internal_server": "Error interno del servidor al crear el escritorio."
+      }
+    },
+    "booking": {
+      "errors": {
+        "booking_deployment_delete_stop": "El despliegue debe estar detenido para eliminar esta reserva",
+        "booking_desktop_delete_stop": "El escritorio debe estar detenido para eliminar esta reserva",
+        "booking_does_not_fit_date": "La reserva no encaja en la fecha solicitada",
+        "booking_max_items_exceeded": "Has superado el máximo de reservas del usuario",
+        "conflict": "La reserva no encaja en la fecha solicitada",
+        "generic": "Se ha producido un error",
+        "not_found": "Reserva no encontrada"
+      }
+    },
+    "loading": "Cargando...",
+    "loading-error": "Error al cargar los datos",
+    "planning": {
+      "errors": {
+        "conflict": "El plan se solapa con un plan existente",
+        "generic": "Se ha producido un error",
+        "incorrect_new_plan_body_data": "Los datos del plan son incorrectos",
+        "invalid_date_range": "El rango de fechas no es válido",
+        "invalid_end_date": "La fecha de fin no es válida",
+        "invalid_start_date": "La fecha de inicio no es válida",
+        "no_available_profile": "No hay ningún perfil disponible para este elemento",
+        "not_found": "Plan no encontrado",
+        "reservable_item_not_found": "No se ha encontrado el elemento reservable",
+        "unable_to_insert": "No se ha podido crear el plan"
       }
     }
   },

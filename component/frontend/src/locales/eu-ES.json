@@ -52,7 +52,11 @@
     },
     "recycle-bin": {
       "title": "Zakarrontzia",
-      "subtitle": "Ikusi, leheneratu edo ezabatu zakarrontziko elementuak"
+      "subtitle": "Ikusi, leheneratu edo ezabatu zakarrontziko elementuak",
+      "entry": {
+        "subtitle": "Ezabatutako elementua eta haren edukia berrikusten ditu",
+        "title": "Zakarrontziko elementua"
+      }
     },
     "bookings": {
       "summary": {
@@ -379,7 +383,8 @@
           "change-password": "Aldatu pasahitza",
           "verify-email": "Egiaztatu / Aldatu helbide elektronikoa",
           "api-key": "API gakoa",
-          "reset-vpn": "Berrezarri VPN"
+          "reset-vpn": "Berrezarri VPN",
+          "ssh-key": "Bastioiko SSH gakoa"
         }
       },
       "information": {
@@ -467,7 +472,16 @@
             "title": "Gelditu deskarga"
           }
         },
-        "unavailable": "Euskarria ez dago erabilgarri une honetan. Mesedez, saiatu berriro geroago."
+        "unavailable": "Euskarria ez dago erabilgarri une honetan. Mesedez, saiatu berriro geroago.",
+        "invalid-format": "Deskargatutako fitxategia ez da baliozko ISO/disketeko irudia. Ezabatu sarrera hau eta saiatu beste URL batekin."
+      },
+      "action-error-modal": {
+        "abort": "Ezin izan da deskarga bertan behera utzi.",
+        "close": "Itxi",
+        "delete": "Ezin izan da baliabidea ezabatu.",
+        "download": "Ezin izan da hasi baliabidea deskargatzen.",
+        "fallback": "Ustekabeko errorea.",
+        "title": "Ekintzak huts egin du"
       }
     }
   },
@@ -657,6 +671,22 @@
           "deployment_users": "Hedapen bakoitzeko gehienezko erabiltzaileak",
           "started_deployment_desktops": "Martxan dauden hedapen-mahaigainak"
         }
+      },
+      "ssh-key-modal": {
+        "alert": {
+          "error-remove": "Ezin izan da SSH gakoa ezabatu. Saiatu berriro.",
+          "error-save": "Ezin izan da SSH gakoa gorde. Begiratu gakoa eta saiatu berriro.",
+          "error-title": "Eskaerak huts egin du"
+        },
+        "buttons": {
+          "remove": "Kendu gakoa",
+          "save": "Gorde gakoa"
+        },
+        "description": "Gehitu zure SSH gako publikoa profilari. Automatikoki gehitzen zaio hasten duzun edozein mahaigaineko bastioiaren SSH sarbideari (bastioi bidezko SSH sarbidea mahaigain horretan aktibatuta dagoenean); beraz, ez duzu mahaigain bakoitzera gehitu behar.",
+        "invalid": "Honek ez dirudi baliozko SSH gako publikoa.",
+        "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user{'@'}host",
+        "security-note": "Gehitu zure gako publikoa bakarrik. Beste pertsona baten gakoa gehitzeak zure erakundearen segurtasun-politika urra dezake.",
+        "title": "Bastioiko SSH gakoa"
       }
     },
     "templates": {
@@ -804,7 +834,13 @@
             },
             "authorized-keys": {
               "label": "Baimendutako SSH gakoak (bat lerroko)",
-              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
+              "others-label": "Beste pertsona batzuen SSH gakoak (bat linea bakoitzeko)",
+              "own-key": {
+                "add-link": "Gehitu zure profilean",
+                "managed": "Zure gakoa automatikoki gehituko da zure profiletik mahaigain hau hasten duzunean. Lauki hau beste pertsona batzuen gako publikoetarako baino ez da.",
+                "missing": "Oraindik ez duzu bastioiko SSH gakorik zure profilean, beraz, ez duzu automatikoki SSH sarbiderik izango."
+              }
             }
           }
         }
@@ -890,7 +926,8 @@
         "invalid-union": "{field} eremuak baimendutako formatu bat bete behar du gutxienez",
         "invalid-key": "{field} eremuak gako baliogabe bat du",
         "invalid-element": "{field} eremuak elementu baliogabe bat du",
-        "invalid-value": "{field} eremuak balio baliogabe bat du"
+        "invalid-value": "{field} eremuak balio baliogabe bat du",
+        "unique": "{field} eremuak bakarra izan behar du"
       }
     },
     "login": {
@@ -976,7 +1013,8 @@
         "showing": "Erakusten",
         "previous": "Aurrekoa",
         "next": "Hurrengoa"
-      }
+      },
+      "empty": "Ez dago idazmahairik eskuragarri"
     },
     "delete-confirmation-modal": {
       "title": "Ezabatu {kind} '{name}'",
@@ -1082,7 +1120,14 @@
             "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
           }
         }
-      }
+      },
+      "error-loading-bastion-data": "Errorea bastioiko datuak kargatzean",
+      "error-loading-user-config": "Errorea gertatu da erabiltzailearen konfigurazioa kargatzean",
+      "error": {
+        "title": "Sarbidea ezin izan da bastioi bidez kargatu"
+      },
+      "no-bastion-configured": "Bastioia ez dago aktibatuta mahaigain honetarako",
+      "no-bastion-configured-description": "Editatu mahaigaina eta aktibatu HTTP/HTTPS edo SSH sarbidea bastioia erabiltzeko."
     },
     "recreate-desktop-confirmation-modal": {
       "title": "Birsortu '{name}' mahaigaina",
@@ -1126,7 +1171,8 @@
         "title": "Erreserbatu mahaigaina",
         "subtitle": "Erreserbatu mahaigaina bere uneko txartel grafiko-modeloarekin, planifikazioa egiaztatuz",
         "action-button": "Erreserbatu mahaigaina"
-      }
+      },
+      "description": "Mahaigaina gerorako gorde dezakezu uneko GPUarekin, edo GPUa orain aldatu eta mahaigainari berehala ekin."
     },
     "desktop-gpu-change-and-start-modal": {
       "title": "Aldatu eta abiarazi",
@@ -1163,7 +1209,9 @@
           "book": "Erreserbatu",
           "bastion": "Bastion",
           "direct-link": "Esteka zuzena",
-          "recreate": "Birsortu"
+          "recreate": "Birsortu",
+          "bastion-access": "Bastioi bidezko sarbidea (HTTP / HTTPS / SSH)",
+          "networks": "Sareak"
         },
         "status": {
           "notCreated": {
@@ -1245,6 +1293,16 @@
         },
         "debug-options": {
           "copy-id": "Kopiatu mahaigainaren IDa"
+        },
+        "info": {
+          "boot": "Abioa"
+        },
+        "networks": {
+          "more": "gehiago"
+        },
+        "overlay": {
+          "expand": "Xehetasunak",
+          "expand-tooltip": "Ireki xehetasun osoen leihoa"
         }
       },
       "quota-exceeded-modal": {
@@ -1330,45 +1388,66 @@
         "shared": "Partekatutako euskarriak"
       }
     },
-    "desktop-start-now-modal": {
-      "title": "Abiarazi orain",
-      "description": "Hautatu noiz arte erabiliko den mahaigaina.",
-      "select": {
-        "label": "Amaiera-ordua",
-        "placeholder": "Hautatu noiz arte erabiliko den",
-        "value": "{end-time} arte"
+    "bookings": {
+      "errors": {
+        "end-before-start": "Erreserba amaitzeko ordua ezin da hasiera-ordua baino lehenagokoa izan",
+        "forbid": "Denbora gehiago behar duzu erreserba sortzeko",
+        "maximum-time": "Ezin duzu hain erreserba luzea sortu",
+        "minimum-time": "Erreserbak gutxienez 5 minutu iraun behar du",
+        "past-booking": "Ezin duzu erreserba bat sortu iraganean"
       },
-      "cancel": "Utzi",
-      "confirm": "Abiarazi mahaigaina"
-    },
-    "desktop-gpu-unavailable-modal": {
-      "title": "'{current-gpu}' GPU ez dago erabilgarri '{name}' mahaigainarentzat une honetan.",
-      "change-and-start": {
-        "title": "Aldatu eta abiarazi",
-        "subtitle": "Erabilgarri dagoen txartel grafiko-modelo batera alda daiteke orain eta abiarazi (mahaigainaren errendimenduari eragin diezaioke)",
-        "action-button": "Aldatu eta abiarazi"
+      "item": {
+        "enough-units": "Behar adina unitate",
+        "event-titles": {
+          "available": "Erabilgarri",
+          "overridable": "Ordezkagarria",
+          "unavailable": "Ez dago eskuragarri"
+        },
+        "modal": {
+          "cancel": "Ezeztatu",
+          "create": {
+            "button": "Gehitu erreserba",
+            "modal-title": "Gehitu erreserba"
+          },
+          "delete": {
+            "button": "Ezabatu"
+          },
+          "edit": {
+            "button": "Gorde aldaketak",
+            "modal-title": "Editatu erreserba"
+          },
+          "end-date": "Amaiera-data",
+          "end-time": "Amaitzeko ordua",
+          "profile": "Profila",
+          "select-profile": "Mesedez, hautatu profil bat",
+          "start-date": "Hasiera-data",
+          "start-time": "Hasiera-ordua",
+          "title": "Izenburua",
+          "view": {
+            "modal-title": "Ikusi erreserba"
+          }
+        },
+        "new-planning": {
+          "bookable-item": "Elementuaren izena",
+          "bookable-type": "Erreserba daitekeen mota"
+        },
+        "split-labels": {
+          "availability": "Prestasuna",
+          "bookings": "Erreserbak"
+        },
+        "status-bar": {
+          "buttons": {
+            "add-booking": "Gehitu erreserba"
+          },
+          "forbid-time": "Behar den aurrerapen-denbora",
+          "max-items": "Erreserben maximoa",
+          "max-time": "Erreserbaren gehienezko denbora"
+        },
+        "units": "unitate"
       },
-      "book": {
-        "title": "Erreserbatu mahaigaina",
-        "subtitle": "Erreserbatu mahaigaina bere uneko txartel grafiko-modeloarekin, planifikazioa egiaztatuz",
-        "action-button": "Erreserbatu mahaigaina"
+      "summary": {
+        "title": "Zure erreserba guztiak"
       }
-    },
-    "desktop-gpu-change-and-start-modal": {
-      "title": "Aldatu eta abiarazi",
-      "description": "Aldatu mahaigainaren GPU eta abiarazi berehala.",
-      "empty": {
-        "title": "Ez dago profil erabilgarririk",
-        "description": "Ez dago beste GPU profil erabilgarririk une honetan."
-      },
-      "gpu-select": {
-        "label": "GPU profil berria",
-        "placeholder": "GPU profil erabilgarriak",
-        "value": "Aldatu '{profile}'-ra"
-      },
-      "cancel": "Utzi",
-      "book": "Erreserbatu mahaigaina",
-      "confirm": "Aldatu eta abiarazi"
     }
   },
   "authentication": {
@@ -1456,6 +1535,31 @@
         "new_template_name_exists": "Izen honekin txantiloi bat lehendik existitzen da. Mesedez, aukeratu beste izen bat.",
         "generic": "Errore bat gertatu da txantiloia sortzean, mesedez, saiatu berriro.",
         "storage_pending_task": "Mahaigain honen diskoa beste eragiketa batekin lanpetuta dago. Itxaron une bat eta saiatu berriro."
+      }
+    },
+    "booking": {
+      "errors": {
+        "booking_deployment_delete_stop": "Hedapena gelditu egin behar da erreserba hori ezabatzeko",
+        "booking_desktop_delete_stop": "Mahaigainak geldi egon behar du erreserba hori ezabatzeko",
+        "booking_does_not_fit_date": "Erreserba ez dator bat eskatutako datarekin",
+        "booking_max_items_exceeded": "Erabiltzailearen erreserben maximoa gainditu duzu",
+        "conflict": "Erreserba ez dator bat eskatutako datarekin",
+        "generic": "Errore bat gertatu da",
+        "not_found": "Erreserba ez da aurkitu"
+      }
+    },
+    "planning": {
+      "errors": {
+        "conflict": "Plana lehendik dagoen plan bati gainjartzen zaio",
+        "generic": "Errore bat gertatu da",
+        "incorrect_new_plan_body_data": "Planaren datuak ez dira zuzenak",
+        "invalid_date_range": "Data-tartea ez da baliozkoa",
+        "invalid_end_date": "Amaiera-datak ez du balio",
+        "invalid_start_date": "Hasiera-datak ez du balio",
+        "no_available_profile": "Ez dago profilik elementu honetarako",
+        "not_found": "Ez da planik aurkitu",
+        "reservable_item_not_found": "Ez da aurkitu erreserbatu daitekeen elementua",
+        "unable_to_insert": "Ezin izan da plana sortu"
       }
     }
   },
