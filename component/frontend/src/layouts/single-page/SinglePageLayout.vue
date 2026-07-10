@@ -103,7 +103,7 @@ const logOut = () => {
   </div>
   <img
     src="@/assets/img/clouds.svg"
-    class="fixed top-[75px] left-[100px] z-10 pointer-events-none"
+    class="fixed top-[75px] left-[100px] z-10 pointer-events-none invisible xl:visible"
   />
   <img src="@/assets/img/mountains.svg" class="fixed bottom-0 right-0 z-10 pointer-events-none" />
 </template>

@@ -26,6 +26,10 @@
     "forgot-password": {
       "title": "Has oblidat la contrasenya?"
     },
+    "export-user": {
+      "title": "Exporta els elements del teu usuari",
+      "subtitle": "Migra els elements mitjançant un codi de migració"
+    },
     "profile": {
       "title": "Perfil",
       "subtitle": "Gestiona el teu perfil i preferències"
@@ -120,6 +124,26 @@
     }
   },
   "views": {
+    "export-user": {
+      "title": "Exporta els elements del teu usuari",
+      "description": "Migra els elements mitjançant un codi de migració",
+      "migration-instructions1": "Genera i copia aquest codi de migració al porta-retalls.",
+      "migration-instructions2": "Guarda aquest codi, ja que el necessitaràs per la importació.",
+      "migration-instructions3": "El codi és vàlid durant 1 hora.",
+      "migration-instructions4": "Per migrar aquest usuari a un altre, tanca aquesta sessió i inicia sessió amb l'usuari nou.",
+      "migration-instructions5": "Al perfil del nou usuari hi trobaràs el botó d'importació on enganxar-hi aquest codi.",
+      "warning": "ATENCIÓ",
+      "migration-warning": "Si ja s'ha generat un codi de migració amb anterioritat per aquest usuari, generar-ne un de nou invalidarà l'anterior.",
+      "generate-token": "Genera un codi de migració",
+      "generate-token-warning": "Aquest codi de migració no serà accessible de nou. Assegureu-vos d'haver-lo copiat abans de continuar.",
+      "logout": "Tanca la sessió",
+      "logout-and-continue": "Tanca la sessió i continua amb l'usuari nou",
+      "logout-tooltip": "Genera i copia el codi de migració abans de tancar la sessió per continuar la migració",
+      "error-title": "Error",
+      "error-generate": "No s'ha pogut generar el codi de migració. Torna-ho a provar.",
+      "token-label": "Token de migració",
+      "generating": "S'està generant el token de migració…"
+    },
     "verify-email": {
       "title": "L'adreça de correu ha de ser verificada per IsardVDI",
       "description": "Introdueix la teva adreça de correu per rebre un enllaç de verificació.",
@@ -2246,6 +2270,7 @@
         "invalid_token": "El token proporcionat no és vàlid",
         "no_active_migration": "No hi ha cap migració activa per al teu compte.",
         "no_items_to_migrate": "No hi ha elements per migrar",
+        "migration_no_items_available": "No hi ha elements disponibles per migrar",
         "multiple_migrations_found_target_user": "Hi ha múltiples migracions per al nou usuari",
         "same_user_migration": "No pots migrar al mateix compte. Quan obtinguis el token, has de tancar la sessió i tornar a iniciar-la amb el nou compte",
         "different_category_migration": "No pots migrar a un compte d'una categoria diferent",

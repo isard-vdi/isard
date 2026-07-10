@@ -476,7 +476,7 @@ router.beforeEach(async (to, from, next) => {
         sessionData.type
       )
     ) {
-      router.push({ name: 'ExportUser' })
+      window.location.assign('/export-user')
     } else {
       next()
     }
