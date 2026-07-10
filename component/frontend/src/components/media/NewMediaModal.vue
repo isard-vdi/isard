@@ -177,31 +177,6 @@ const handleClose = () => {
       class="flex shrink-0 flex-col gap-4"
       @submit.prevent="form.handleSubmit"
     >
-      <!-- Name -->
-      <form.Field v-slot="{ field }" name="name">
-        <Field orientation="vertical">
-          <FieldLabel :for="field.name">
-            {{ t('components.media.new.fields.name.label') }}
-          </FieldLabel>
-          <FieldContent>
-            <InputField
-              :id="field.name"
-              :name="field.name"
-              :model-value="field.state.value"
-              :placeholder="t('components.media.new.fields.name.placeholder')"
-              :destructive="isInvalid(field)"
-              autocomplete="off"
-              type="text"
-              maxlength="50"
-              class="w-full"
-              @blur="field.handleBlur"
-              @input="field.handleChange($event.target.value)"
-            />
-          </FieldContent>
-          <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-        </Field>
-      </form.Field>
-
       <!-- URL -->
       <form.Field v-slot="{ field }" name="url">
         <Field orientation="vertical">
@@ -224,6 +199,31 @@ const handleClose = () => {
                   setMediaNameFromUrl()
                 }
               "
+              @input="field.handleChange($event.target.value)"
+            />
+          </FieldContent>
+          <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
+        </Field>
+      </form.Field>
+
+      <!-- Name -->
+      <form.Field v-slot="{ field }" name="name">
+        <Field orientation="vertical">
+          <FieldLabel :for="field.name">
+            {{ t('components.media.new.fields.name.label') }}
+          </FieldLabel>
+          <FieldContent>
+            <InputField
+              :id="field.name"
+              :name="field.name"
+              :model-value="field.state.value"
+              :placeholder="t('components.media.new.fields.name.placeholder')"
+              :destructive="isInvalid(field)"
+              autocomplete="off"
+              type="text"
+              maxlength="50"
+              class="w-full"
+              @blur="field.handleBlur"
               @input="field.handleChange($event.target.value)"
             />
           </FieldContent>
