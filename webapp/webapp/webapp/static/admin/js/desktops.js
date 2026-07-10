@@ -2186,7 +2186,12 @@ function renderStorageActionsButton(data) {
 
         function parse_desktop(data){
             var vgpus = (data["reservables"] || {})["vgpus"];
-            var hasNoVgpu = !vgpus || vgpus.includes(undefined) || vgpus.includes("None");
+            var hasNoVgpu =
+                !vgpus ||
+                vgpus.length === 0 ||
+                (vgpus.length === 1 &&
+                  (vgpus.includes(undefined) || vgpus.includes("None")));
+
             return {
                 "id": data["id"],
                 "name": data["name"],
