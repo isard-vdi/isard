@@ -326,11 +326,7 @@ def test_flow_add_mac_spoofing_own_unicast_hairpins(monkeypatch):
     worker._flow_add(
         "dom", _domain_xml_with_vlan(mac, "1002", _lab_attrs(mac_spoofing="true"))
     )
-    own_uni = [
-        f
-        for f in flows
-        if f"priority=204,in_port={_OFPORT},dl_src={mac}," in f
-    ]
+    own_uni = [f for f in flows if f"priority=204,in_port={_OFPORT},dl_src={mac}," in f]
     assert len(own_uni) == 1, "expected own-MAC unicast (204): " + repr(flows)
     assert "NORMAL,IN_PORT" in own_uni[0], own_uni[0]
 
@@ -350,9 +346,7 @@ def test_flow_add_mac_spoofing_to_own_mac_hairpins(monkeypatch):
         "dom", _domain_xml_with_vlan(mac, "1002", _lab_attrs(mac_spoofing="true"))
     )
     to_own = [
-        f
-        for f in flows
-        if f"in_port={_OFPORT},dl_dst={mac}" in f and "IN_PORT" in f
+        f for f in flows if f"in_port={_OFPORT},dl_dst={mac}" in f and "IN_PORT" in f
     ]
     assert len(to_own) == 1, "expected nested->D hairpin (dl_dst=D): " + repr(flows)
     prio = int(re.search(r"priority=(\d+)", to_own[0]).group(1))
