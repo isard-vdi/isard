@@ -3,6 +3,6 @@ services:
     ports:
       - "3000:3000"
 
-  isard-prometheus:
+  isard-victoriametrics:
     ports:
-      - "9090:9090"
+      - "8428:8428"

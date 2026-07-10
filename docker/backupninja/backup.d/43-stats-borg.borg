@@ -2,7 +2,7 @@ when = $BACKUP_STATS_WHEN
 
 [source]
 include = /opt/isard/stats/loki
-include = /opt/isard/stats/prometheus/snapshots
+include = /opt/isard/stats/victoriametrics-backup
 
 ## for more info see : borg prune -h
 keep = 0

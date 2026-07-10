@@ -23,6 +23,12 @@ else
 	export DOCKER_COMPOSE="docker compose"
 fi
 
+# Use sudo when required
+SUDO=""
+if [ "$(id -u)" != 0 ] && command -v sudo >/dev/null 2>&1; then
+	SUDO="sudo"
+fi
+
 # We need docker-compose >= 1.28 to use service profiles
 # docker-compose >= 1.27.3 to use depends_on with service_healthy
 # docker-compose < 1.26 preserves environment variable quotations
@@ -387,11 +393,11 @@ flavour(){
 			parts="$parts redis.infrastructure-ports"
 			echo "      - Redis port 6379 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
-		# Check for monitor service (contains loki and prometheus)
+		# Check for monitor service (contains loki and victoriametrics)
 		if echo "$parts" | grep -q "\(^\|\s\)monitor\(\s\|$\)"; then
 			parts="$parts monitor.infrastructure-ports"
 			echo "      - Loki port 3100 exposed on $INFRASTRUCTURE_HOST_IP"
-			echo "      - Prometheus port 9090 exposed on $INFRASTRUCTURE_HOST_IP"
+			echo "      - VictoriaMetrics port 8428 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
 		echo ""
 	fi
@@ -510,7 +516,7 @@ create_docker_compose_file(){
 			fi
 		else
 			echo "📂 Creating Grafana data directory..."
-			if mkdir -p "$TARGET_DIR" 2>/dev/null; then
+			if $SUDO mkdir -p "$TARGET_DIR" 2>/dev/null; then
 				echo "✔ Directory created successfully."
 			else
 				echo "❌ Error: Failed to create directory. Check permissions."
@@ -518,7 +524,7 @@ create_docker_compose_file(){
 		fi
 
 		# Ensure correct ownership
-		if chown -R "$REQUIRED_UID:$REQUIRED_GID" "$TARGET_DIR" 2>/dev/null; then
+		if $SUDO chown -R "$REQUIRED_UID:$REQUIRED_GID" "$TARGET_DIR" 2>/dev/null; then
 			echo "✔ Ownership set correctly for Grafana data."
 		else
 			echo "⚠ Warning: Insufficient permissions to change ownership."
@@ -847,7 +853,6 @@ ensure_etc_timezone(){
 	# work on both old (file present) and new (file absent) hosts. Idempotent and
 	# best-effort: it never aborts the build if it cannot write.
 	[ -f /etc/timezone ] && return 0
-	if [ "$(id -u)" = 0 ]; then SUDO=""; else SUDO="sudo"; fi
 	_tz=""
 	if [ -L /etc/localtime ]; then
 		_tz=$(readlink -f /etc/localtime 2>/dev/null | sed -n 's@.*/zoneinfo/@@p')
@@ -902,6 +907,135 @@ disable_wgquick_apparmor(){
 	return 0
 }
 disable_wgquick_apparmor
+
+migrate_prometheus_to_victoriametrics() {
+	# Warn if the variable fallback references the old isard-prometheus container
+	if [ -n "$PROMETHEUS_ADDRESS" ] && [ -z "$VICTORIAMETRICS_ADDRESS" ]; then
+		case "$PROMETHEUS_ADDRESS" in
+		*isard-prometheus*)
+			echo "WARNING: PROMETHEUS_ADDRESS references the removed isard-prometheus and VICTORIAMETRICS_ADDRESS is not set." >&2
+			echo "         Unset the PROMETHEUS_ADDRESS variable or set VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428 in isardvdi.cfg." >&2
+			;;
+		esac
+	fi
+
+	_prometheus_dir="/opt/isard/stats/prometheus"
+	_victoriametrics_dir="/opt/isard/stats/victoriametrics"
+	_marker="$_victoriametrics_dir/.migrated-from-prometheus"
+	_prometheus_image="prom/prometheus:v3.5.2"
+	_prometheus_container="isard-prometheus-migrate"
+	_victoriametrics_container="isard-victoriametrics-migrate"
+
+	[ -d "$_prometheus_dir" ] || return 0
+	[ -f "$_marker" ] && return 0
+
+	_victoriametrics_tag=$(sed -n 's|.*image: *victoriametrics/victoria-metrics:\([^ ]*\).*|\1|p' docker-compose-parts/monitor.yml | head -1)
+	if [ -z "$_victoriametrics_tag" ]; then
+		echo "WARNING: could not read the VictoriaMetrics image tag from monitor.yml; skipping migration." >&2
+		return 0
+	fi
+	_victoriametrics_image="victoriametrics/victoria-metrics:$_victoriametrics_tag"
+	_vmctl_image="victoriametrics/vmctl:$_victoriametrics_tag"
+
+	echo "Migrating Prometheus metrics at $_prometheus_dir to VictoriaMetrics..."
+
+	docker rm -f "$_prometheus_container" "$_victoriametrics_container" >/dev/null 2>&1 || true
+	docker stop isard-prometheus isard-victoriametrics >/dev/null 2>&1 || true
+
+	_migrated=0
+	while :; do
+		echo "  Starting a temporary Prometheus to snapshot the old TSDB..."
+		if ! docker run -d --name "$_prometheus_container" --user root -v "$_prometheus_dir:/prometheus" "$_prometheus_image" \
+			--config.file=/etc/prometheus/prometheus.yml \
+			--storage.tsdb.path=/prometheus --web.enable-admin-api >/dev/null; then
+			echo "  ERROR: could not start the temporary Prometheus." >&2
+			break
+		fi
+
+		_prometheus_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$_prometheus_container" 2>/dev/null || true)
+		if [ -z "$_prometheus_ip" ]; then
+			echo "  ERROR: could not resolve the temporary Prometheus IP." >&2
+			break
+		fi
+
+		echo "  Creating a Prometheus snapshot (waiting for it to be ready)..."
+		_snapshot_url="http://$_prometheus_ip:9090/api/v1/admin/tsdb/snapshot"
+		_snapshot=""
+		_waited=0
+		while [ "$_waited" -lt 60 ]; do
+			_snapshot=$(curl -sf -X POST "$_snapshot_url" 2>/dev/null | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
+			[ -n "$_snapshot" ] && break
+			_waited=$((_waited + 1))
+			sleep 1
+		done
+		if [ -z "$_snapshot" ]; then
+			echo "  ERROR: the temporary Prometheus did not return a snapshot after 60s. Its logs:" >&2
+			docker logs --tail 20 "$_prometheus_container" 2>&1 | sed 's/^/    /' >&2 || true
+			break
+		fi
+		echo "  Snapshot created: $_snapshot"
+
+		echo "  Starting a temporary VictoriaMetrics..."
+		if ! docker run -d --name "$_victoriametrics_container" --user root -v "$_victoriametrics_dir:/victoria-metrics-data" "$_victoriametrics_image" \
+			-storageDataPath=/victoria-metrics-data >/dev/null; then
+			echo "  ERROR: could not start the temporary VictoriaMetrics." >&2
+			break
+		fi
+
+		_victoriametrics_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$_victoriametrics_container" 2>/dev/null || true)
+		if [ -z "$_victoriametrics_ip" ]; then
+			echo "  ERROR: could not resolve the temporary VictoriaMetrics IP." >&2
+			break
+		fi
+
+		echo "  Waiting for VictoriaMetrics to be ready..."
+		_ready=0
+		_waited=0
+		while [ "$_waited" -lt 60 ]; do
+			if curl -sf "http://$_victoriametrics_ip:8428/health" >/dev/null 2>&1; then
+				_ready=1
+				break
+			fi
+			_waited=$((_waited + 1))
+			sleep 1
+		done
+		if [ "$_ready" != 1 ]; then
+			echo "  ERROR: the temporary VictoriaMetrics was not healthy after 60s." >&2
+			break
+		fi
+
+		echo "  Importing the snapshot into VictoriaMetrics with vmctl..."
+		if ! docker run --rm -t --network host --user root \
+			-v "$_prometheus_dir/snapshots/$_snapshot:/snapshot" "$_vmctl_image" \
+			prometheus -s --prom-snapshot=/snapshot --vm-addr="http://$_victoriametrics_ip:8428"; then
+			echo "  ERROR: vmctl import failed." >&2
+			break
+		fi
+
+		_migrated=1
+		break
+	done
+
+	docker stop "$_victoriametrics_container" >/dev/null 2>&1 || true
+	docker rm -f "$_prometheus_container" "$_victoriametrics_container" >/dev/null 2>&1 || true
+
+	if [ "$_migrated" != 1 ]; then
+		echo "WARNING: Prometheus -> VictoriaMetrics migration failed; old data left intact at $_prometheus_dir." >&2
+		return 0
+	fi
+
+	_archive="$_prometheus_dir.migrated-$(date +%Y%m%d%H%M%S)"
+	if $SUDO mv "$_prometheus_dir" "$_archive"; then
+		$SUDO touch "$_marker" || true
+		echo "Prometheus data migrated to VictoriaMetrics."
+		echo "The old Prometheus data has been kept at $_archive; you can delete it once you have verified VictoriaMetrics: sudo rm -rf $_archive"
+	else
+		echo "Metrics imported into VictoriaMetrics, but archiving the old TSDB failed. Run it manually:" >&2
+		echo "   sudo mv $_prometheus_dir $_archive && sudo touch $_marker" >&2
+	fi
+	return 0
+}
+migrate_prometheus_to_victoriametrics
 
 echo "You have the docker-compose files. Have fun!"
 echo "You can download the prebuild images and bring it up:"

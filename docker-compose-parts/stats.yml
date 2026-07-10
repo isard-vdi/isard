@@ -86,8 +86,8 @@ services:
       - /sys:/sys:ro
       # Node Exporter
       - type: bind
-        source: /opt/isard/stats/prometheus
-        target: /var/lib/prometheus
+        source: /opt/isard/stats/node-exporter
+        target: /var/lib/node-exporter
         bind: { create_host_path: true }
       # This is also used for log extraction
       - /var/lib/docker/:/var/lib/docker:ro
@@ -108,7 +108,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL}
       - FLAVOUR=${FLAVOUR}
       - DOMAIN=${DOMAIN:-localhost}
-      - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}
+      - VICTORIAMETRICS_ADDRESS=${VICTORIAMETRICS_ADDRESS:-${PROMETHEUS_ADDRESS:-http://isard-victoriametrics:8428}}
       - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}
       - PYROSCOPE_EBPF=${PYROSCOPE_EBPF:-false}
       - PYROSCOPE_ADDRESS=${PYROSCOPE_ADDRESS:-http://isard-pyroscope:4040}

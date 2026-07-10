@@ -94,7 +94,7 @@ services:
       - BACKUP_STATS_ENABLED=${BACKUP_STATS_ENABLED-false}
       - BACKUP_STATS_WHEN=${BACKUP_STATS_WHEN-everyday at 01:00}
       - BACKUP_STATS_PRUNE=${BACKUP_STATS_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
-      - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS-http://isard-prometheus:9090}
+      - VICTORIAMETRICS_ADDRESS=${VICTORIAMETRICS_ADDRESS-${PROMETHEUS_ADDRESS-http://isard-victoriametrics:8428}}
       - LOKI_ADDRESS=${LOKI_ADDRESS-http://isard-loki:3100}
 
       # Config
