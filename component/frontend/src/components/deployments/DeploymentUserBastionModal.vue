@@ -82,24 +82,26 @@ const targetIdSplit = computed(() => {
 
 const bastionHost = computed(() => bastionData.value?.bastion_domain || window.location.hostname)
 
+// TODO: migrate to the multi-domain (domains array) UI. For now we only
+// surface the first custom domain.
 const httpUrl = computed(() => {
   const port = userConfig.value?.http_port === '80' ? '' : `:${userConfig.value?.http_port}`
-  if (bastionData.value?.domain) {
-    return `http://${bastionData.value.domain}${port}`
+  if (bastionData.value?.domains?.[0]) {
+    return `http://${bastionData.value.domains[0]}${port}`
   }
   return `http://${targetIdSplit.value}.${bastionHost.value}${port}`
 })
 const httpsUrl = computed(() => {
   const port = userConfig.value?.https_port === '443' ? '' : `:${userConfig.value?.https_port}`
-  if (bastionData.value?.domain) {
-    return `https://${bastionData.value.domain}${port}`
+  if (bastionData.value?.domains?.[0]) {
+    return `https://${bastionData.value.domains[0]}${port}`
   }
   return `https://${targetIdSplit.value}.${bastionHost.value}${port}`
 })
 const sshUrl = computed(() => {
   const port =
     bastionData.value?.bastion_ssh_port === '22' ? '' : ` -p ${bastionData.value?.bastion_ssh_port}`
-  return `ssh ${bastionData.value?.id}@${bastionData.value?.domain || bastionHost.value}${port}`
+  return `ssh ${bastionData.value?.id}@${bastionData.value?.domains?.[0] || bastionHost.value}${port}`
 })
 
 const closeModal = () => {

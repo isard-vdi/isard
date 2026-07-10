@@ -134,13 +134,14 @@ fi
 
 for part in $FLAVOUR; do
   if [ "$part" = "web" ]; then
-    # Start haproxy-sync AFTER haproxy starts (in background)
-    # This ensures the stats socket exists before the microservice tries to connect
+    # Supervise haproxy-sync: it waits for the admin socket itself, and this
+    # loop restarts it if it ever exits.
     (
-        # Wait a moment for HAProxy to start and create the socket
-        sleep 2
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting haproxy-sync microservice..."
-        haproxy-sync
+        while true; do
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting haproxy-sync microservice..."
+            haproxy-sync || echo "[$(date '+%Y-%m-%d %H:%M:%S')] haproxy-sync exited ($?), restarting in 1s..."
+            sleep 1
+        done
     ) &
   fi
 done

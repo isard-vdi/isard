@@ -218,7 +218,7 @@ class TestBastionCsv:
             "id": "aaaa-bbbb",
             "ssh": {"enabled": True, "port": 22},
             "http": {"enabled": False, "http_port": 80, "https_port": 443},
-            "domain": None,
+            "domains": [],
         }
         csv_text = DeploymentService.bastion_csv("d1")
         lines = csv_text.strip().split("\n")

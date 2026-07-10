@@ -48,7 +48,6 @@ from ..schemas.targets import Http, Ssh
 
 class TargetModel(BaseModel):
     desktop_id: str = MISSING
-    domain: str | None = None
     domains: list[str] = []
     http: Http = Http()
     id: str = Field(default_factory=lambda: str(uuid4()))
@@ -107,7 +106,6 @@ class Targets(RethinkCustomBase):
                 "id": str(uuid.uuid4()),
                 "desktop_id": domain_id,
                 "user_id": user_id,
-                "domain": None,
                 "domains": [],
             }
             target["http"] = {"enabled": False, "http_port": 80, "https_port": 443}
@@ -123,48 +121,6 @@ class Targets(RethinkCustomBase):
             target["http"] = data["http"]
         if data.get("ssh"):
             target["ssh"] = data["ssh"]
-        if "domain" in data:
-            if data["domain"] == target.get("domain"):
-                pass
-            elif not data["domain"]:
-                if target.get("domain"):
-                    _haproxy_bastion_client().BastionDeleteIndividualDomain(
-                        haproxy_sync_pb2.BastionDeleteIndividualDomainRequest(
-                            domain=target["domain"]
-                        )
-                    )
-                target["domain"] = None
-            else:
-                if Bastion.bastion_domain_verification_required():
-                    with cls._rdb_context():
-                        dom_row = (
-                            r.table("domains")
-                            .get(domain_id)
-                            .default(None)
-                            .run(cls._rdb_connection)
-                        )
-                    category_id = (dom_row or {}).get("category")
-                    Bastion.check_bastion_domain_dns(
-                        data["domain"],
-                        f"{target['id']}.{Bastion.get_bastion_domain(category_id)}",
-                        kind="cname",
-                    )
-
-                if target.get("domain"):
-                    _haproxy_bastion_client().BastionDeleteIndividualDomain(
-                        haproxy_sync_pb2.BastionDeleteIndividualDomainRequest(
-                            domain=target["domain"]
-                        )
-                    )
-
-                target["domain"] = data["domain"]
-
-                _haproxy_bastion_client().BastionAddIndividualDomain(
-                    haproxy_sync_pb2.BastionAddIndividualDomainRequest(
-                        domain=data["domain"]
-                    )
-                )
-
         if "domains" in data:
             new_domains = [
                 d.strip() for d in (data["domains"] or []) if d and d.strip()

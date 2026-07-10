@@ -695,7 +695,7 @@ class DeploymentService:
             ssh = (target or {}).get("ssh") or {}
             http = (target or {}).get("http") or {}
             target_id = (target or {}).get("id", "")
-            custom_domain = (target or {}).get("domain") or ""
+            custom_domain = ((target or {}).get("domains") or [None])[0] or ""
             host = custom_domain or bastion_domain or ""
             # Without a custom domain, HTTP(S) is served on a per-target
             # subdomain of the bastion domain (target id with its last "-"

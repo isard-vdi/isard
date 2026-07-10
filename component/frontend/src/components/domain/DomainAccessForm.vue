@@ -197,7 +197,9 @@ const bastion = computed<Bastion>(() => {
         sshPort: bt.ssh?.port || 22,
         authorizedKeys: bt.ssh?.authorized_keys?.join('\n') || ''
       },
-      customDomains: bt.domain ? [bt.domain] : []
+      // TODO: full multi-domain UI. Reads the domains array; the create/edit
+      // send path still needs to map customDomains -> the API `domains` field.
+      customDomains: bt.domains || []
     }
   } else if (desktopData.value?.bastion_target) {
     const bt = desktopData.value.bastion_target
@@ -213,7 +215,9 @@ const bastion = computed<Bastion>(() => {
         sshPort: bt.ssh?.port || 22,
         authorizedKeys: bt.ssh?.authorized_keys?.join('\n') || ''
       },
-      customDomains: bt.domain ? [bt.domain] : []
+      // TODO: full multi-domain UI. Reads the domains array; the create/edit
+      // send path still needs to map customDomains -> the API `domains` field.
+      customDomains: bt.domains || []
     }
   } else {
     return props.bastion!

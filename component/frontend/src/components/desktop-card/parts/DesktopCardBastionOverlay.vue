@@ -42,17 +42,19 @@ const targetIdSubdomain = computed(() => {
   return `${parts.slice(0, -1).join('-')}.${parts.slice(-1)[0]}`
 })
 
+// TODO: migrate to the multi-domain (domains array) UI. For now we only
+// surface the first custom domain.
 const httpsUrl = computed(() => {
   if (!target.value) return ''
   const port = userConfig.value?.https_port === '443' ? '' : `:${userConfig.value?.https_port}`
-  if (target.value.domain) return `https://${target.value.domain}${port}`
+  if (target.value.domains?.[0]) return `https://${target.value.domains[0]}${port}`
   return `https://${targetIdSubdomain.value}.${userConfig.value?.bastion_domain || window.location.hostname}${port}`
 })
 
 const httpUrl = computed(() => {
   if (!target.value) return ''
   const port = userConfig.value?.http_port === '80' ? '' : `:${userConfig.value?.http_port}`
-  if (target.value.domain) return `http://${target.value.domain}${port}`
+  if (target.value.domains?.[0]) return `http://${target.value.domains[0]}${port}`
   return `http://${targetIdSubdomain.value}.${userConfig.value?.bastion_domain || window.location.hostname}${port}`
 })
 
@@ -60,7 +62,7 @@ const sshUrl = computed(() => {
   if (!target.value) return ''
   const port =
     userConfig.value?.bastion_ssh_port === '22' ? '' : ` -p ${userConfig.value?.bastion_ssh_port}`
-  return `ssh ${target.value.id}@${target.value.domain || userConfig.value?.bastion_domain || window.location.hostname}${port}`
+  return `ssh ${target.value.id}@${target.value.domains?.[0] || userConfig.value?.bastion_domain || window.location.hostname}${port}`
 })
 </script>
 

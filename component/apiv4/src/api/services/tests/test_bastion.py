@@ -15,12 +15,12 @@ from isardvdi_common.helpers.error_factory import Error
 class TestGetDesktopBastion:
     @patch(
         "api.services.bastion.Targets.get_domain_target",
-        return_value={"id": "t1", "domain": None},
+        return_value={"id": "t1", "domains": []},
     )
     def test_returns_existing_target(self, mock_get):
         result = BastionService.get_desktop_bastion("desk-1")
         mock_get.assert_called_once_with("desk-1")
-        assert result == {"id": "t1", "domain": None}
+        assert result == {"id": "t1", "domains": []}
 
     @patch(
         "api.services.bastion.Targets.update_domain_target",
@@ -38,21 +38,21 @@ class TestGetDesktopBastion:
 
 class TestUpdateDesktopBastion:
     @patch("api.services.bastion.Targets.update_domain_target")
-    def test_clears_domain_when_user_lacks_permission(self, mock_update):
+    def test_clears_domains_when_user_lacks_permission(self, mock_update):
         BastionService.update_desktop_bastion(
             "desk-1",
-            {"domain": "foo.example", "ssh": {}},
+            {"domains": ["foo.example"], "ssh": {}},
             can_use_individual_domains=False,
         )
         forwarded = mock_update.call_args[0][1]
-        assert forwarded["domain"] is None
+        assert forwarded["domains"] == []
 
     @patch("api.services.bastion.Targets.update_domain_target")
-    def test_keeps_domain_when_user_has_permission(self, mock_update):
+    def test_keeps_domains_when_user_has_permission(self, mock_update):
         BastionService.update_desktop_bastion(
-            "desk-1", {"domain": "foo.example"}, can_use_individual_domains=True
+            "desk-1", {"domains": ["foo.example"]}, can_use_individual_domains=True
         )
-        assert mock_update.call_args[0][1]["domain"] == "foo.example"
+        assert mock_update.call_args[0][1]["domains"] == ["foo.example"]
 
 
 class TestUpdateBastionAuthorizedKeys:
@@ -350,7 +350,6 @@ class TestGetDesktopBastionActive:
         mock_get.return_value = {
             "id": "t1",
             "user_id": "owner",
-            "domain": None,
             "domains": [],
             "ssh": {"enabled": True, "port": 22, "authorized_keys": ["k"]},
             "http": {"enabled": False, "http_port": 80, "https_port": 443},

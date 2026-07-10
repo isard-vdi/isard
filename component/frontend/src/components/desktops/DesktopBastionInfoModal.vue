@@ -96,7 +96,9 @@ const bastionAuthorizedKeys = ref<string>('')
 watch(
   [() => bastionTargetData.value, ownKey],
   ([newVal]) => {
-    bastionDomain.value = newVal?.domain || ''
+    // TODO: migrate to the multi-domain (domains array) UI. For now we only
+    // read/write the first custom domain.
+    bastionDomain.value = newVal?.domains?.[0] || ''
     const own = ownKey.value
     const keys = (newVal?.ssh.authorized_keys || []).filter(
       (k): k is string => !!k && k.trim().length > 0 && k.trim() !== own
@@ -118,24 +120,26 @@ const targetIdSplit = computed(() => {
   )
 })
 
+// TODO: migrate to the multi-domain (domains array) UI. For now we only
+// surface the first custom domain.
 const httpUrl = computed(() => {
   const port = userConfig.value?.http_port === '80' ? '' : `:${userConfig.value?.http_port}`
-  if (bastionTargetData.value?.domain) {
-    return `http://${bastionTargetData.value?.domain}${port}`
+  if (bastionTargetData.value?.domains?.[0]) {
+    return `http://${bastionTargetData.value?.domains?.[0]}${port}`
   }
   return `http://${targetIdSplit.value}.${userConfig.value?.bastion_domain || window.location.hostname}${port}`
 })
 const httpsUrl = computed(() => {
   const port = userConfig.value?.https_port === '443' ? '' : `:${userConfig.value?.https_port}`
-  if (bastionTargetData.value?.domain) {
-    return `https://${bastionTargetData.value.domain}${port}`
+  if (bastionTargetData.value?.domains?.[0]) {
+    return `https://${bastionTargetData.value.domains[0]}${port}`
   }
   return `https://${targetIdSplit.value}.${userConfig.value?.bastion_domain || window.location.hostname}${port}`
 })
 const sshUrl = computed(() => {
   const port =
     userConfig.value?.bastion_ssh_port === '22' ? '' : ` -p ${userConfig.value?.bastion_ssh_port}`
-  return `ssh ${bastionTargetData.value?.id}@${bastionTargetData.value?.domain || userConfig.value?.bastion_domain || window.location.hostname}${port}`
+  return `ssh ${bastionTargetData.value?.id}@${bastionTargetData.value?.domains?.[0] || userConfig.value?.bastion_domain || window.location.hostname}${port}`
 })
 
 const closeModal = () => {

@@ -63,7 +63,6 @@ class BastionResponse(BaseModel):
     id: str
     ssh: BastionSshConfig
     user_id: str
-    domain: str | None = None
     domains: list[str] = Field(default=[])
 
 
@@ -88,8 +87,7 @@ class BastionActiveResponse(BaseModel):
         description="Whether a bastion target exists for this desktop.",
     )
     id: str | None = Field(default=None, description="The bastion target ID.")
-    domain: str | None = Field(default=None, description="Custom domain, if any.")
-    domains: list[str] = Field(default=[], description="Additional custom domains.")
+    domains: list[str] = Field(default=[], description="Custom domains, if any.")
     ssh: BastionActiveSshStatus = Field(default_factory=BastionActiveSshStatus)
     http: BastionHttpConfig = Field(default_factory=BastionHttpConfig)
     bastion_domain: str | None = Field(
@@ -112,9 +110,10 @@ class BastionRequest(BaseModel):
         default=None,
         description="Bastion SSH configuration. If not provided, the bastion SSH configuration will not be modified.",
     )
-    domain: str | None = Field(
-        default=None,
-        description="Custom domain name to access the bastion. If the the bastion target hasn't been yet created and domain verification is required, the domain cannot be set.",
+    domains: list[str] = Field(
+        default=[],
+        max_length=10,
+        description="Custom domain names to access the bastion (up to 10). If the bastion target hasn't yet been created and domain verification is required, the domains cannot be set.",
     )
 
 

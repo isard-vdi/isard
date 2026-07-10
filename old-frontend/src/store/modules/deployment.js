@@ -361,7 +361,7 @@ export default {
             desktop_id: payload.desktopId,
             http: data.http || { enabled: false },
             ssh: { ...(data.ssh || { enabled: false }), authorized_keys: [] },
-            domains: data.domains && data.domains.length ? data.domains : (data.domain ? [data.domain] : [])
+            domains: data.domains || []
           },
           desktop: { id: payload.desktopId, name: payload.desktopName }
         })

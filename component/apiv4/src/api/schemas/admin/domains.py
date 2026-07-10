@@ -134,7 +134,7 @@ class AdminDomainBastionTarget(BaseModel):
     """Subset of the ``targets`` row attached to a desktop list entry."""
 
     id: str
-    domain: Optional[str] = None
+    domains: list[str] = []
     http: Optional[BastionHttpConfig] = None
     ssh: Optional[BastionSshConfig] = None
 

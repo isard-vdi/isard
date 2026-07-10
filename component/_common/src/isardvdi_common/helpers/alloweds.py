@@ -629,7 +629,7 @@ class Alloweds(RethinkCustomBase):
         with cls._rdb_context():
             r.table("targets").get_all(r.args(disallowed_targets)).update(
                 {
-                    "domain": None,
+                    "domains": [],
                 }
             ).run(cls._rdb_connection)
 
