@@ -1823,7 +1823,7 @@ class UsersProcessed(RethinkSharedConnection):
             )
         if not Password.valid(password, user_password):
             raise Error(
-                "forbidden",
+                "bad_request",
                 "Wrong password entered",
                 description_code="wrong_password_entered",
             )
