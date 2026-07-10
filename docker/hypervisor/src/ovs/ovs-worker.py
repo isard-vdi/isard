@@ -1577,15 +1577,32 @@ class OvsWorker:
                     f"priority=205,in_port={nport},dl_src={mac},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,"
                     f"actions=meter:{meter_mcast},NORMAL,IN_PORT"
                 )
-                # Own MAC, unicast: rate-limited + NORMAL (no IN_PORT echo).
+                # Own MAC, unicast: rate-limited + NORMAL + same-port hairpin.
+                # IN_PORT lets the desktop's own stack reach a nested node
+                # behind its own OVS port (the D->nested direction of a nested
+                # lab such as GNS3/EVE-NG); mirrors the own bcast/mcast above,
+                # which already hairpin. NORMAL still delivers the cross-port
+                # case (D -> another desktop).
                 flows.append(
                     f"priority=204,in_port={nport},dl_src={mac},"
-                    f"actions=meter:{meter_unicast},NORMAL"
+                    f"actions=meter:{meter_unicast},NORMAL,IN_PORT"
                 )
                 # Block every OTHER 52:54:00 source MAC (cannot impersonate
                 # another IsardVDI desktop).
                 flows.append(
                     f"priority=203,in_port={nport},dl_src={KVM_OUI_SRC_MATCH},actions=drop"
+                )
+                # Frames destined TO this desktop's own MAC arriving on its own
+                # port (a nested node -> the desktop's own stack, the nested->D
+                # direction) must hairpin: NORMAL alone never emits back out the
+                # in_port (split-horizon) and D lives on this very port, so only
+                # IN_PORT delivers it. Sits BELOW the 203 impersonation drop so a
+                # 52:54:00 impostor targeting D is dropped, not hairpinned; the
+                # unicast dl_dst is disjoint from the 202 broadcast / 201
+                # multicast matches sharing this band.
+                flows.append(
+                    f"priority=202,in_port={nport},dl_dst={mac},"
+                    f"actions=meter:{meter_unicast},IN_PORT"
                 )
                 # Non-KVM broadcast: rate-limited + flood + same-port hairpin.
                 flows.append(

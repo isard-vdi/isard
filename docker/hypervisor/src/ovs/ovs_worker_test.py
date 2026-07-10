@@ -293,10 +293,11 @@ def test_flow_add_mac_spoofing_emits_permissive(monkeypatch):
     assert _meter_rate(meters, _METER_UNICAST) == ovs_worker.MAC_SPOOF_UNICAST_RATE
 
 
-def test_flow_add_mac_spoofing_unicast_has_no_in_port(monkeypatch):
-    """Regression for the over-reflection defect: the priority=200 unicast
-    catch-all must NOT carry IN_PORT — NORMAL already delivers cross-port
-    unicast, and IN_PORT would echo every unicast back to the sender."""
+def test_flow_add_mac_spoofing_catchall_unicast_has_no_in_port(monkeypatch):
+    """The any-src unicast catch-all (priority=200) must NOT carry IN_PORT:
+    reflecting EVERY unicast back to the sender would self-echo and MAC-flap
+    nested guest bridges. Only the desktop's own MAC and frames destined TO
+    its own MAC hairpin (see the own-unicast / to-own-MAC tests below)."""
     flows, meters = [], []
     worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
     worker._flow_add(
@@ -308,8 +309,54 @@ def test_flow_add_mac_spoofing_unicast_has_no_in_port(monkeypatch):
     unicast = [f for f in flows if "priority=200" in f]
     assert unicast, "expected a priority=200 unicast catch-all; flows: " + repr(flows)
     for f in unicast:
-        assert "IN_PORT" not in f, "unicast catch-all must not reflect to in_port: " + f
+        assert "IN_PORT" not in f, "catch-all must not reflect to in_port: " + f
         assert "NORMAL" in f
+
+
+def test_flow_add_mac_spoofing_own_unicast_hairpins(monkeypatch):
+    """The desktop's own-MAC unicast (priority=204, dl_src=D) must carry
+    NORMAL,IN_PORT so the desktop's own stack can reach a nested node behind
+    its own OVS port — the D->nested direction of the ticket #2277 matrix.
+    This deliberately replaces the old regression that forbade it: same-port
+    unicast hairpin for the own MAC is now required, and is consistent with
+    the own broadcast/multicast (206/205) that already carry IN_PORT."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    mac = "52:54:00:00:10:02"
+    worker._flow_add(
+        "dom", _domain_xml_with_vlan(mac, "1002", _lab_attrs(mac_spoofing="true"))
+    )
+    own_uni = [
+        f
+        for f in flows
+        if f"priority=204,in_port={_OFPORT},dl_src={mac}," in f
+    ]
+    assert len(own_uni) == 1, "expected own-MAC unicast (204): " + repr(flows)
+    assert "NORMAL,IN_PORT" in own_uni[0], own_uni[0]
+
+
+def test_flow_add_mac_spoofing_to_own_mac_hairpins(monkeypatch):
+    """A frame destined to the desktop's own MAC arriving on its own port
+    (nested node -> desktop's own stack, the nested->D direction of #2277)
+    must hairpin via IN_PORT. Its priority sits below the 52:54:00
+    anti-impersonation drop (203) — so a 52:54:00 impostor targeting D is
+    dropped, not hairpinned — and above the unicast catch-all (200)."""
+    import re
+
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    mac = "52:54:00:00:10:02"
+    worker._flow_add(
+        "dom", _domain_xml_with_vlan(mac, "1002", _lab_attrs(mac_spoofing="true"))
+    )
+    to_own = [
+        f
+        for f in flows
+        if f"in_port={_OFPORT},dl_dst={mac}" in f and "IN_PORT" in f
+    ]
+    assert len(to_own) == 1, "expected nested->D hairpin (dl_dst=D): " + repr(flows)
+    prio = int(re.search(r"priority=(\d+)", to_own[0]).group(1))
+    assert 200 < prio < 203, f"hairpin priority {prio} must be between 200 and 203"
 
 
 def test_flow_add_mac_spoofing_bcast_mcast_keep_hairpin(monkeypatch):
