@@ -24,7 +24,7 @@ export default {
   components: { MessageModal, NotificationModal, ExpiredSessionModal },
   setup (_, context) {
     const $store = context.root.$store
-    const viewsNotRedirected = ['VerifyEmail', 'ResetPassword', 'ForgotPassword']
+    const viewsNotRedirected = ['VerifyEmail', 'ResetPassword', 'ForgotPassword', 'ExportUser']
     let syncTimeout = null
 
     onBeforeMount(() => {

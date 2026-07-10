@@ -596,7 +596,6 @@ class UsersProcessed(RethinkSharedConnection):
                 "can_use_bastion_individual_domains": Helpers.can_use_bastion_individual_domains(
                     payload
                 ),
-                "migrations_block": cls.is_blocked_migration(payload["user_id"]),
                 "session": session,
                 "frontend_mode": frontend_mode,
                 "faro": faro,

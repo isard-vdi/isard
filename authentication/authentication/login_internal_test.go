@@ -156,6 +156,7 @@ func TestStartLogin(t *testing.T) {
 					return req.RoleID == "advanced" && req.GroupID == "uuid here!"
 				}), mock.AnythingOfType("apiv4.AdminAutoRegisterParams")).Return(&apiv4.AutoRegisterResponse{ID: "user ID"}, nil)
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user ID"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user ID"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user ID"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
 				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user ID"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},

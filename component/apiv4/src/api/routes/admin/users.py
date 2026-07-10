@@ -985,6 +985,38 @@ async def admin_check_disclaimer(request: Request, user_id: str):
         )
 
 
+@admin_router.get(
+    "/admin/item/user/required/migration/{user_id}",
+    tags=[tag],
+    summary="Check migration required",
+    description="Check if a user needs to migrate their account.",
+    response_model=RequiredCheckResponse,
+    responses={
+        200: {"description": "Migration check result"},
+        500: {"model": ErrorResponse},
+    },
+)
+async def admin_check_migration_required(request: Request, user_id: str):
+    try:
+        return JSONResponse(
+            content=RequiredCheckResponse(
+                required=await asyncio.to_thread(
+                    AdminUsersService.check_migration_required, user_id
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to check migration requirement",
+            traceback.format_exc(),
+        )
+
+
 @manager_router.put(
     "/admin/item/user/reset-vpn/{user_id}",
     tags=[tag],
