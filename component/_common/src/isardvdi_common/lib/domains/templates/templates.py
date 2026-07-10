@@ -671,6 +671,11 @@ class TemplatesProcessed(RethinkSharedConnection):
                     .run(cls._rdb_connection)
                 )
 
+            templates = list(templates)
+            for template in templates:
+                if template.get("enabled") is None:
+                    template["enabled"] = False
+
             return templates
 
         except Exception:
@@ -687,6 +692,7 @@ class TemplatesProcessed(RethinkSharedConnection):
                 .pluck(
                     "name",
                     "description",
+                    "image",
                     {
                         "create_dict": {
                             "hardware": {

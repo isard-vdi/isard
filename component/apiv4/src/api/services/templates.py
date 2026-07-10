@@ -452,6 +452,9 @@ class TemplateService:
         parsed_details = {
             "name": details["name"],
             "description": details["description"],
+            "image": details.get(
+                "image", {"id": "default", "type": "stock", "url": None}
+            ),
             "ip": details.get("viewer", {}).get("guest_ip"),
             "vcpu": details["create_dict"]["hardware"].get("vcpus", 0),
             "memory": details["create_dict"]["hardware"].get("memory", 0)
@@ -485,7 +488,9 @@ class TemplateService:
             ),
             "fullscreen": details.get("guest_properties", {}).get("fullscreen", False),
             "reservables": details["create_dict"].get("reservables", {"vgpus": None}),
-            "credentials": details.get("credentials", {}),
+            "credentials": details.get("guest_properties", {}).get(
+                "credentials", details.get("credentials", {})
+            ),
         }
 
         if details["create_dict"]["hardware"].get("isos"):

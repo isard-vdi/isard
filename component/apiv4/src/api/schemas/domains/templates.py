@@ -387,6 +387,9 @@ class TemplateDetailsResponse(BaseModel):
         default=None,
         description="Description of the template.",
     )
+    image: DomainImage = Field(
+        description="Image associated with the template.",
+    )
     vcpu: float = Field(
         default=0,
         description="Number of virtual CPUs allocated to the template.",

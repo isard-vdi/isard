@@ -57,6 +57,10 @@
         "title": "Duplicar Plantilla",
         "subtitle": "Crea una nueva plantilla duplicando una existente"
       },
+      "edit": {
+        "title": "Editar Plantilla",
+        "subtitle": "Edita las propiedades, visibilidad y configuración de hardware de la plantilla"
+      },
       "recycle-bin": {
         "title": "Papelera de reciclaje",
         "subtitle": "Ver, restaurar o eliminar elementos en tu papelera",
@@ -472,6 +476,10 @@
             "subtitle": "Esta plantilla se compartirá con {groups} y {users}.",
             "button": "Gestionar usuarios y grupos"
           },
+          "access": {
+            "title": "Resumen de acceso",
+            "subtitle": "Este es un resumen de los métodos de acceso disponibles para tu plantilla."
+          },
           "hardware": {
             "title": "Resumen de Hardware",
             "subtitle": "Este es un resumen del hardware heredado que se utilizará para tu plantilla."
@@ -855,32 +863,12 @@
       }
     },
     "edit-template": {
-      "title": "Editar plantilla",
-      "subtitle": "Editando «{name}»",
       "header": {
         "cancel": "Cancelar",
         "save": "Guardar cambios"
       },
       "errors": {
         "title": "Error al guardar la plantilla"
-      },
-      "info": {
-        "title": "Nombre y descripción",
-        "description": "Define el nombre y la descripción de la plantilla."
-      },
-      "access": {
-        "title": "Acceso",
-        "description": "Visores y credenciales para los escritorios resultantes."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memoria, orden de arranque, interfaces y reservables."
-      },
-      "unsaved-changes": {
-        "title": "Cambios sin guardar",
-        "description": "Tienes cambios sin guardar. Si sales se perderán.",
-        "stay": "Quedarme",
-        "leave": "Descartar cambios"
       }
     },
     "new-from-media": {
@@ -2223,6 +2211,33 @@
         "generic": "No se ha podido subir. Inténtalo de nuevo.",
         "invalid_type": "Tipo de archivo no válido. Elige un PNG, JPG o GIF.",
         "too_large": "El archivo es demasiado grande. Tamaño máximo: 5 MB."
+      },
+      "form": {
+        "validation": {
+          "required": "El campo {field} es obligatorio",
+          "min-length": "El campo {field} debe tener al menos {min} caracteres",
+          "min-array-length": "El campo {field} debe tener al menos {min} elementos",
+          "max-array-length": "El campo {field} debe tener como máximo {max} elementos",
+          "max-length": "El campo {field} debe tener como máximo {max} caracteres",
+          "min-value": "El campo {field} debe ser al menos {min}",
+          "max-value": "El campo {field} debe ser como máximo {max}",
+          "type": {
+            "string": "El campo {field} debe ser una cadena de texto",
+            "number": "El campo {field} debe ser un número",
+            "integer": "El campo {field} debe ser un número entero",
+            "boolean": "El campo {field} debe ser verdadero o falso",
+            "array": "El campo {field} debe ser una lista",
+            "email": "El campo {field} debe ser una dirección de correo electrónico válida"
+          },
+          "invalid-format": "El campo {field} tiene un formato no válido",
+          "multiple-of": "El campo {field} debe coincidir con al menos uno de los formatos permitidos",
+          "unrecognized-keys": "El campo {field} tiene claves no reconocidas: {keys}",
+          "invalid-union": "El campo {field} debe coincidir con al menos uno de los formatos permitidos",
+          "invalid-key": "El campo {field} tiene una clave no válida",
+          "invalid-element": "El campo {field} tiene un elemento no válido",
+          "invalid-value": "El campo {field} tiene un valor no válido",
+          "unique": "El campo {field} debe ser único"
+        }
       }
     }
   },
@@ -2312,6 +2327,16 @@
         "template_failed": "Esta plantilla ha fallado y no se puede duplicar."
       }
     },
+    "edit-template": {
+      "errors": {
+        "generic": "Se ha producido un error al guardar la plantilla. Inténtalo de nuevo.",
+        "internal_server": "Error interno del servidor al guardar la plantilla.",
+        "new_template_name_exists": "Ya existe una plantilla con este nombre. Por favor, elige un nombre diferente.",
+        "not_found": "No se encontró la plantilla.",
+        "precondition_required": "La plantilla debe estar detenida antes de poder editarla.",
+        "bad_request": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a esta plantilla o elimina los visores RDP."
+      }
+    },
     "new-media": {
       "errors": {
         "generic": {
@@ -2363,11 +2388,10 @@
         "desktop_not_stopped": "El escritorio debe estar detenido antes de editarlo."
       }
     },
-    "edit-template": {
+    "new-from-media": {
       "errors": {
-        "generic": "Se ha producido un error al guardar la plantilla. Inténtalo de nuevo.",
-        "internal_server": "Error interno del servidor al guardar la plantilla.",
-        "new_template_name_exists": "Ya existe una plantilla con ese nombre."
+        "generic": "Se ha producido un error al crear el escritorio. Inténtalo de nuevo.",
+        "internal_server": "Error interno del servidor al crear el escritorio."
       }
     }
   },

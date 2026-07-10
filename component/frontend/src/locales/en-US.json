@@ -56,6 +56,10 @@
       "duplicate": {
         "title": "Duplicate Template",
         "subtitle": "Create a new template by duplicating an existing one"
+      },
+      "edit": {
+        "title": "Edit Template",
+        "subtitle": "Edit the template's properties, visibility and hardware configuration"
       }
     },
     "media": {
@@ -227,6 +231,50 @@
         "title": "Desktop created successfully",
         "description": "You can start the desktop now or go to the desktops page",
         "go-to-desktops": "Go to desktops"
+      }
+    },
+    "edit-template": {
+      "header": {
+        "cancel": "Cancel",
+        "save": "Save changes"
+      },
+      "errors": {
+        "title": "Error saving the template"
+      }
+    },
+    "new-from-media": {
+      "title": "New desktop from media",
+      "subtitle": "Creating from '{media}'",
+      "header": {
+        "cancel": "Cancel",
+        "create": "Create desktop"
+      },
+      "errors": {
+        "title": "Error creating the desktop"
+      },
+      "info": {
+        "title": "Name and description",
+        "description": "Set the name and description of the new desktop."
+      },
+      "os-template": {
+        "title": "Operating system template",
+        "description": "Pick the OS hardware template for the new desktop.",
+        "label": "OS template",
+        "placeholder": "Select a template"
+      },
+      "access": {
+        "title": "Access",
+        "description": "Viewers and credentials for the new desktop."
+      },
+      "hardware": {
+        "title": "Hardware",
+        "description": "vCPU, memory, disk size, boot order and interfaces."
+      },
+      "unsaved-changes": {
+        "title": "Unsaved changes",
+        "description": "You have unsaved changes. If you leave they will be lost.",
+        "stay": "Stay",
+        "leave": "Discard changes"
       }
     },
     "migration": {
@@ -468,9 +516,13 @@
             "subtitle": "This template will be shared with {groups} and {users}.",
             "button": "Manage users and groups"
           },
+          "access": {
+            "title": "Access Summary",
+            "subtitle": "This is a summary of the access methods available for your template."
+          },
           "hardware": {
             "title": "Hardware Summary",
-            "subtitle": "This is a sumary of the inherited hardware that will be used for your template."
+            "subtitle": "This is a summary of the inherited hardware that will be used for your template."
           }
         },
         "errors": {
@@ -867,35 +919,6 @@
         "description": "Saving will apply the restricted hardware changes. Continue?",
         "cancel": "Cancel",
         "confirm": "Save anyway"
-      },
-      "unsaved-changes": {
-        "title": "Unsaved changes",
-        "description": "You have unsaved changes. Leaving will discard them.",
-        "stay": "Stay",
-        "leave": "Discard changes"
-      }
-    },
-    "edit-template": {
-      "title": "Edit template",
-      "subtitle": "Editing \"{name}\"",
-      "header": {
-        "cancel": "Cancel",
-        "save": "Save changes"
-      },
-      "errors": {
-        "title": "Error saving template"
-      },
-      "info": {
-        "title": "Name & description",
-        "description": "Set the template name and description."
-      },
-      "access": {
-        "title": "Access",
-        "description": "Viewers and credentials for the resulting desktops."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memory, boot order, interfaces and reservables."
       },
       "unsaved-changes": {
         "title": "Unsaved changes",
@@ -2505,8 +2528,11 @@
     "edit-template": {
       "errors": {
         "generic": "There was an error saving the template. Please try again.",
-        "internal_server": "Internal server error while saving the template.",
-        "new_template_name_exists": "A template with this name already exists."
+        "internal_server": "An internal server error occurred. Please try again later.",
+        "new_template_name_exists": "A template with this name already exists. Please choose a different name.",
+        "not_found": "The template was not found.",
+        "precondition_required": "The template must be stopped before it can be edited.",
+        "bad_request": "RDP viewers require the wireguard network. Please add the wireguard network to this template or remove RDP viewers."
       }
     },
     "booking": {

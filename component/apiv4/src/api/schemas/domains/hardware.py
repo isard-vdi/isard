@@ -65,6 +65,15 @@ class Reservables(BaseModel):
     )
 
 
+class DomainHardwareResource(BaseModel):
+    id: str = Field(
+        description="ID of the hardware resource.",
+    )
+    name: str = Field(
+        description="Name of the hardware resource.",
+    )
+
+
 class DomainHardware(BaseModel):
     memory: Optional[float] = Field(
         default=1,
@@ -84,17 +93,17 @@ class DomainHardware(BaseModel):
         default="Default",
         description="The ID of the disk bus that will be used for the domain disks. The disk bus must be a valid disk bus id.",
     )
-    floppies: Optional[list[str]] = Field(
+    floppies: Optional[list[DomainHardwareResource]] = Field(
         default=None,
-        description="List of floppy disk images to be attached to the domain. Each floppy must be a valid Iso object.",
+        description="List of floppy disk images to be attached to the domain. Each floppy must be provided as an object with id and name.",
     )
     interfaces: Optional[list[str]] = Field(
         default=None,
         description="List of network interfaces to be used by the domain. Each interface can be a string ID or an Interface object.",
     )
-    isos: Optional[list[str]] = Field(
+    isos: Optional[list[DomainHardwareResource]] = Field(
         default=None,
-        description="List of ISO images to be attached to the domain. Each ISO must be a valid Iso object.",
+        description="List of ISO images to be attached to the domain. Each ISO must be provided as an object with id and name.",
     )
     videos: Optional[list[str]] = Field(
         default=["default"],
