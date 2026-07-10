@@ -49,7 +49,8 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 199
+release_version = 200
+# release 200: cleanup old single domain field for bastion targets
 # release 199: purge decommissioned core_worker RQ state (the core and
 #              core.feedback queues, their stale worker registrations and job
 #              registries) left orphaned by the apiv4 migration. Idempotent.
@@ -8060,6 +8061,30 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 200:
+            # Append the old domain if present
+            r.table(table).update(
+                lambda row: r.branch(
+                    row["domain"].default("").ne(""),
+                    {
+                        "domains": r.branch(
+                            row["domains"].default([]).contains(row["domain"]),
+                            row["domains"].default([]),
+                            row["domains"].default([]).append(row["domain"]),
+                        )
+                    },
+                    {},
+                )
+            ).run(self.conn)
+
+            # Fix rows with missing `domains` field
+            r.table(table).filter(r.row["domains"].default(None).eq(None)).update(
+                {"domains": []}
+            ).run(self.conn)
+
+            # Remove the old domain field
+            self.del_keys(table, ["domain"])
 
         return True
 
