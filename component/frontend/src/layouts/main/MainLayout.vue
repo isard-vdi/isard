@@ -12,9 +12,10 @@ import { MessageModal } from '@/components/modal'
 
 import { useSessionStore } from '@/stores/session'
 import { sidebarItemsToShow } from '@/lib/navigation'
+import { DEFAULT_DOCS_URL, DEFAULT_VIEWERS_DOCS_URL, docsUrl } from '@/lib/docs'
 import { getUserOptions, getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const sessionStore = useSessionStore()
 
@@ -59,16 +60,17 @@ const sidebarItems = computed(() => {
             if (subItem.key === 'docs') {
               return {
                 ...subItem,
-                href:
-                  userConfig?.value?.documentation_url || 'https://isard.gitlab.io/isardvdi-docs/'
+                href: docsUrl(userConfig?.value?.documentation_url, DEFAULT_DOCS_URL, locale.value)
               }
             }
             if (subItem.key === 'viewers') {
               return {
                 ...subItem,
-                href:
-                  userConfig?.value?.viewers_documentation_url ||
-                  'https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/'
+                href: docsUrl(
+                  userConfig?.value?.viewers_documentation_url,
+                  DEFAULT_VIEWERS_DOCS_URL,
+                  locale.value
+                )
               }
             }
             return subItem

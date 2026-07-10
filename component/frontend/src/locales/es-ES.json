@@ -1739,13 +1739,6 @@
           "2": "Mejor experiencia en escritorios Windows",
           "3": "Requiere acceso VPN con cliente WireGuard"
         }
-      },
-      "guide-url": {
-        "browser-vnc": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#vnc-browser",
-        "browser-rdp": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#rdp-browser-viewer",
-        "file-spice": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#spice",
-        "file-rdpgw": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#native-rdp",
-        "file-rdpvpn": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#native-rdp"
       }
     },
     "domain-hardware-summary": {
