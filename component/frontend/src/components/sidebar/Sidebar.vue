@@ -278,7 +278,11 @@ const handleLogoCollapsedError = () => {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger as-child>
-                <SidebarItem icon="log-out-01" :collapsed="!open" @click="emit('logout', $event)">
+                <SidebarItem
+                  icon="log-out-01"
+                  :collapsed="!open"
+                  @click.prevent="emit('logout', $event)"
+                >
                 </SidebarItem>
               </TooltipTrigger>
               <TooltipContent side="right" :title="t('components.sidebar.logout')">

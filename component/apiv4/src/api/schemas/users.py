@@ -76,7 +76,6 @@ class UserVpn(BaseModel):
 
 
 class UserResponse(PhotoNullableMixin):
-
     name: str
     email: str
     role: str
@@ -139,6 +138,12 @@ class UserConfigResponse(BaseModel):
     can_use_bastion: bool
     can_use_bastion_individual_domains: bool
     session: dict
+    category_custom_url: str | None = Field(
+        default=None,
+        description=(
+            "The user's category `custom_url_name`. Lets the frontend redirect to /login/<provider>/<category> on logout."
+        ),
+    )
     frontend_mode: FrontendMode = Field(
         "deprecated",
         description=(

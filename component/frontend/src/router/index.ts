@@ -464,7 +464,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (!token || !tokenType) {
-    return next({ name: 'login' })
+    return next(await sessionStore.loginRoute())
   }
 
   if (allowedTokenTypes && !allowedTokenTypes.includes(tokenType)) {
@@ -510,7 +510,7 @@ router.beforeEach(async (to, from, next) => {
       console.warn('The session was expired and could not be renewed:', e)
       console.error(e)
       authStore.logout()
-      return next({ name: 'login' })
+      return next(await sessionStore.loginRoute())
     }
   }
 

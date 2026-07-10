@@ -18,6 +18,8 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(null)
   const cookies = useCookies()
 
+  const lastLoginIdentity = ref<{ provider: string; categoryId: string } | null>(null)
+
   // Track cookie changes
   let previousCookieValue = getBearer(cookies)
 
@@ -38,6 +40,10 @@ export const useAuthStore = defineStore('auth', () => {
           role: newClaims.data.role_id,
           sessionId: newClaims.session_id
         })
+        lastLoginIdentity.value = {
+          provider: newClaims.data.provider,
+          categoryId: newClaims.data.category_id
+        }
       } else {
         setFaroUser(null)
       }
@@ -192,6 +198,7 @@ export const useAuthStore = defineStore('auth', () => {
     tokenType,
     sessionId,
     user,
+    lastLoginIdentity,
     isAuthenticated,
     initialize,
     renewSession,
