@@ -151,7 +151,14 @@ class IsardVpn(RethinkSharedConnection):
         )
         if not geneve_only_hyper:
             peer_wg = (wgdata.get("vpn") or {}).get("wireguard") or {}
-            if not all(k in peer_wg for k in ("Address", "keys", "AllowedIPs")):
+            # reset_vpn() sets keys=False while a rotation is pending, so check
+            # the value and not just its presence.
+            keys = peer_wg.get("keys")
+            if (
+                not all(k in peer_wg for k in ("Address", "keys", "AllowedIPs"))
+                or not isinstance(keys, dict)
+                or not keys.get("private")
+            ):
                 raise Error(
                     "precondition_required",
                     "Vpn peer config not yet initialized for kind "
