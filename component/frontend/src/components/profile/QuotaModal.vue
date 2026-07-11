@@ -27,27 +27,30 @@ function handleClose() {
 }
 
 const METRICS = [
-  'desktops',
-  'volatile',
-  'templates',
-  { key: 'isos', label: 'media' },
-  'deployments_total',
-  'deployment_desktops',
-  'deployment_users',
-  'started_deployment_desktops',
-  'running',
-  'memory',
-  'vcpus'
+  { key: 'desktops', icon: 'monitor-02' },
+  { key: 'volatile', icon: 'zap' },
+  { key: 'templates', icon: 'colors' },
+  { key: 'isos', label: 'media', icon: 'disc-02' },
+  { key: 'deployments_total', icon: 'layout-alt-04' },
+  { key: 'deployment_desktops', icon: 'layers-three-01' },
+  { key: 'deployment_users', icon: 'users-01' },
+  { key: 'started_deployment_desktops', icon: 'play-circle' },
+  { key: 'running', icon: 'play' },
+  { key: 'memory', icon: 'memory' },
+  { key: 'vcpus', icon: 'cpu-chip-01' }
 ] as const
 
-const metrics = reactive<{ name: string; info: { current: number; total: number } }[]>([])
+const metrics = reactive<
+  { name: string; icon: string; info: { current: number; total: number } }[]
+>([])
 
 watchEffect(() => {
   if (!data.value) return
 
   metrics.length = 0
   for (const raw of METRICS) {
-    const [name, label] = typeof raw === 'string' ? [raw, raw] : [raw.key, raw.label]
+    const name = raw.key
+    const label = 'label' in raw ? raw.label : raw.key
     const current = data.value.used[name as keyof UserQuotaUsed]
     const total = data.value.quota
       ? (data.value.quota[name as keyof UserQuota] ?? Infinity)
@@ -55,6 +58,7 @@ watchEffect(() => {
 
     metrics.push({
       name: label,
+      icon: raw.icon,
       info: {
         current,
         total
@@ -140,9 +144,10 @@ const totalColor = computed(() =>
       </div>
       <div class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3 justify-items-center">
         <MetricItem
-          v-for="{ name, info } of metrics"
+          v-for="{ name, icon, info } of metrics"
           :key="name"
           :title="$t(`components.profile.quota-modal.metrics.${name}`)"
+          :icon="icon"
           class="w-full"
           v-bind="info"
         />
