@@ -123,7 +123,13 @@ class DesktopService:
             )
 
         # TODO: These checks must be reviewed
-        Quotas.desktop_create(user_id)
+        if data.persistent:
+            Quotas.desktop_create(user_id)
+        else:
+            # Temporal desktops count against ``volatile``, not ``desktops``, and
+            # are started on creation.
+            Quotas.volatile_create(user_id)
+            Quotas.desktop_start(user_id, data.template_id)
         template = CommonTemplates.get_template(data.template_id)
         CommonTemplates.check_template_status(None, template)
         payload = Helpers.gen_payload_from_user(user_id=user_id)

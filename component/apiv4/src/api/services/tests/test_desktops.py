@@ -57,6 +57,63 @@ class TestCreateDesktopGuards:
             DesktopService.create_desktop("ghost", data)
 
 
+class TestCreateDesktopQuotas:
+    """``desktop_create``'s used counter only includes persistent desktops, so
+    gating a temporal one with it would never bound it."""
+
+    def _data(self, persistent):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            template_id="t1",
+            name="d1",
+            description="",
+            persistent=persistent,
+            hardware=None,
+            guest_properties=None,
+            reservables=None,
+            image=None,
+            bastion_target=None,
+        )
+
+    @patch(
+        "api.services.desktops.CommonDesktopsNonpersistent.new_desktop",
+        return_value="np-1",
+    )
+    @patch("api.services.desktops.Helpers.check_user_duplicated_domain_name")
+    @patch("api.services.desktops.Alloweds.is_allowed", return_value=True)
+    @patch("api.services.desktops.Helpers.gen_payload_from_user", return_value={})
+    @patch("api.services.desktops.CommonTemplates.check_template_status")
+    @patch("api.services.desktops.CommonTemplates.get_template", return_value={})
+    @patch("api.services.desktops.Quotas")
+    @patch("api.services.desktops.RethinkUser.exists", return_value=True)
+    def test_nonpersistent_checks_volatile_quota(self, _exists, quotas, *_mocks, **__):
+        desktop_id = DesktopService.create_desktop("u1", self._data(persistent=False))
+
+        assert desktop_id == "np-1"
+        quotas.volatile_create.assert_called_once_with("u1")
+        quotas.desktop_start.assert_called_once_with("u1", "t1")
+        quotas.desktop_create.assert_not_called()
+
+    @patch(
+        "api.services.desktops.CommonDesktops.new_from_template",
+        return_value={"id": "p-1"},
+    )
+    @patch("api.services.desktops.Helpers.check_user_duplicated_domain_name")
+    @patch("api.services.desktops.Alloweds.is_allowed", return_value=True)
+    @patch("api.services.desktops.Helpers.gen_payload_from_user", return_value={})
+    @patch("api.services.desktops.CommonTemplates.check_template_status")
+    @patch("api.services.desktops.CommonTemplates.get_template", return_value={})
+    @patch("api.services.desktops.Quotas")
+    @patch("api.services.desktops.RethinkUser.exists", return_value=True)
+    def test_persistent_checks_desktop_quota(self, _exists, quotas, *_mocks, **__):
+        desktop_id = DesktopService.create_desktop("u1", self._data(persistent=True))
+
+        assert desktop_id == "p-1"
+        quotas.desktop_create.assert_called_once_with("u1")
+        quotas.volatile_create.assert_not_called()
+
+
 class TestCreateNonpersistentDesktop:
     @patch("api.services.desktops.RethinkUser.exists", return_value=False)
     def test_raises_not_found_for_unknown_user(self, _exists):
