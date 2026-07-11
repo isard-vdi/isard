@@ -387,6 +387,7 @@ const desktopDetailsKind = computed(() => {
 const deleteModalDesktopData = ref<{
   id: string
   name: string
+  persistent: boolean
 } | null>(null)
 const deleteModalRecicleBinChecked = ref(recycleBinDefaultDelete.value)
 
@@ -417,6 +418,15 @@ const closeDeleteModal = () => {
   deleteModalDesktopData.value = null
   deleteDesktopErrorMessage.value = null
 }
+
+// Temporal desktops are force-deleted by the backend: the recycle bin never
+// applies to them.
+const deleteIsPermanent = computed(
+  () =>
+    !deleteModalDesktopData.value?.persistent ||
+    recycleBinCutoffTime.value?.recycle_bin_cutoff_time === 0 ||
+    !deleteModalRecicleBinChecked.value
+)
 
 // --------------------------------------------------
 
@@ -1062,7 +1072,7 @@ const missingCardRows = computed(() => {
         <AlertDescription>{{ deleteDesktopErrorMessage }}</AlertDescription>
       </Alert>
       <Label
-        v-if="recycleBinCutoffTime?.recycle_bin_cutoff_time"
+        v-if="recycleBinCutoffTime?.recycle_bin_cutoff_time && deleteModalDesktopData?.persistent"
         class="w-fit flex flex-row items-start gap-2"
       >
         <Checkbox v-model="deleteModalRecicleBinChecked" class="m-0.5" />
@@ -1091,10 +1101,7 @@ const missingCardRows = computed(() => {
         @click="
           deleteDesktopMutate({
             path: { desktop_id: deleteModalDesktopData.id },
-            query: {
-              permanent:
-                recycleBinCutoffTime?.recycle_bin_cutoff_time === 0 || !deleteModalRecicleBinChecked
-            }
+            query: { permanent: deleteIsPermanent }
           })
         "
       >
@@ -1105,7 +1112,7 @@ const missingCardRows = computed(() => {
           stroke-color="currentColor"
         />
         {{
-          recycleBinCutoffTime?.recycle_bin_cutoff_time === 0 || !deleteModalRecicleBinChecked
+          deleteIsPermanent
             ? t('components.delete-confirmation-modal.confirm.permanent')
             : t('components.delete-confirmation-modal.confirm.recycle-bin')
         }}
@@ -1436,7 +1443,11 @@ const missingCardRows = computed(() => {
         @show-info-modal="openDesktopInfoModal(routeDesktop.id)"
         @edit-desktop="goToEditDesktop(routeDesktop.id)"
         @show-delete-modal="
-          deleteModalDesktopData = { id: routeDesktop.id, name: routeDesktop.name }
+          deleteModalDesktopData = {
+            id: routeDesktop.id,
+            name: routeDesktop.name,
+            persistent: routeDesktop.type !== 'nonpersistent'
+          }
         "
         @show-bastion-modal="
           bastionModalData = { desktopId: routeDesktop.id, desktopName: routeDesktop.name }
@@ -1771,7 +1782,11 @@ const missingCardRows = computed(() => {
           @edit-desktop="(dktp) => goToEditDesktop(dktp.id)"
           @show-delete-modal="
             (dktp) => {
-              deleteModalDesktopData = { id: dktp.id, name: dktp.name }
+              deleteModalDesktopData = {
+                id: dktp.id,
+                name: dktp.name,
+                persistent: dktp.type !== 'nonpersistent'
+              }
             }
           "
           @show-bastion-modal="
@@ -1879,7 +1894,13 @@ const missingCardRows = computed(() => {
                 "
                 @show-info-modal="openDesktopInfoModal(dktp.id)"
                 @edit-desktop="goToEditDesktop(dktp.id)"
-                @show-delete-modal="deleteModalDesktopData = { id: dktp.id, name: dktp.name }"
+                @show-delete-modal="
+                  deleteModalDesktopData = {
+                    id: dktp.id,
+                    name: dktp.name,
+                    persistent: dktp.type !== 'nonpersistent'
+                  }
+                "
                 @show-bastion-modal="
                   bastionModalData = { desktopId: dktp.id, desktopName: dktp.name }
                 "

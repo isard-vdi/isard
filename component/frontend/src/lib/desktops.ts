@@ -17,6 +17,7 @@ export const resolveDesktopKind = (desktop: Pick<UserDesktop, 'tag' | 'type'>): 
 export enum DesktopActionsEnum {
   Start = 'desktopStart',
   Stop = 'desktopStop',
+  Delete = 'showDeleteModal',
   Reset = 'desktopReset',
   AbortOperation = 'desktopAbortOperation',
   UpdateStatus = 'desktopUpdateStatus',
@@ -40,6 +41,34 @@ export interface DesktopActionsData {
   } | null
 }
 export const desktopActionsData = (
+  status: string,
+  needsBooking = false,
+  directViewer = false,
+  persistent = true
+): DesktopActionsData => {
+  const data = desktopActionsDataByStatus(status, needsBooking, directViewer)
+
+  // A temporal desktop is never reused: it is deleted rather than left stopped
+  // for a later start. The direct viewer never deletes.
+  if (persistent || directViewer) return data
+  if (
+    status === DesktopStatusEnum.STOPPED ||
+    data.actionButton?.action === DesktopActionsEnum.Stop
+  ) {
+    return {
+      ...data,
+      actionButton: {
+        icon: 'trash-04',
+        hierarchy: 'destructive',
+        action: DesktopActionsEnum.Delete,
+        label: 'components.desktops.desktop-card.actions.delete'
+      }
+    }
+  }
+  return data
+}
+
+const desktopActionsDataByStatus = (
   status: string,
   needsBooking = false,
   directViewer = false
