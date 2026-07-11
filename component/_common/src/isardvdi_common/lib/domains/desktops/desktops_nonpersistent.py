@@ -49,11 +49,27 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
 
     @classmethod
     def new_desktop(cls, user_id, template_id, *, name=None, description=None):
-        """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent.New()_"""
+        """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent.New()_
+
+        Several per template only where the old frontend is unreachable: it maps
+        each template card to a single desktop and couldn't show the rest.
+        """
         with cls._rdb_context():
             if r.table("users").get(user_id).run(cls._rdb_connection) is None:
                 raise Error("not_found", "User not found", traceback.format_exc())
-        # Has a desktop with this template? Then return it (start it if stopped)
+
+        if Helpers.frontend_mode() != "actual":
+            return cls._single_desktop_per_template(
+                user_id, template_id, name, description
+            )
+
+        return cls._nonpersistent_desktop_create_and_start(
+            user_id, template_id, name, description
+        )
+
+    @classmethod
+    def _single_desktop_per_template(cls, user_id, template_id, name, description):
+        """v3 ``New()``: reuse this template's desktop instead of creating a second one."""
         with cls._rdb_context():
             desktops = list(
                 r.db("isard")
@@ -66,13 +82,20 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             if desktops[0]["status"] == "Started":
                 return desktops[0]["id"]
             HypervisorsProcessed.check_virt_storage_pool_availability(desktops[0]["id"])
-            DesktopEvents.desktop_start(desktops[0]["id"], wait_seconds=1)
+            # No wait_seconds: wait_status polls every 2s, so v3's 1 raised a 500
+            # before the VM could ever be up.
+            DesktopEvents.desktop_start(desktops[0]["id"])
             Scheduler.add_desktop_timeouts(
                 Helpers.gen_payload_from_user(user_id), desktops[0]["id"]
             )
             return desktops[0]["id"]
 
-        # and get a new nonpersistent desktops from this template
+        if desktops:
+            # Leftovers from a period on FRONTEND_MODE=actual.
+            DesktopNonpersistentEvents.desktops_non_persistent_delete(
+                user_id, template_id
+            )
+
         return cls._nonpersistent_desktop_create_and_start(
             user_id, template_id, name, description
         )
@@ -81,6 +104,26 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
     def delete_desktop(cls, desktop_id):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent.Delete()_"""
         DesktopNonpersistentEvents.desktop_non_persistent_delete(desktop_id)
+
+    @classmethod
+    def _unique_desktop_name(cls, user_id, base_name):
+        """Suffix the template name when the user already owns a desktop called
+        that: only the nameless instant-session path lands here, and the clash it
+        hits is with any existing desktop, which would then fail
+        ``check_user_duplicated_domain_name`` on any later create."""
+        with cls._rdb_context():
+            taken = set(
+                r.table("domains")
+                .get_all(["desktop", user_id], index="kind_user")
+                .get_field("name")
+                .run(cls._rdb_connection)
+            )
+        if base_name not in taken:
+            return base_name
+        suffix = 2
+        while f"{base_name} ({suffix})" in taken:
+            suffix += 1
+        return f"{base_name} ({suffix})"
 
     @classmethod
     def _nonpersistent_desktop_create_and_start(
@@ -104,7 +147,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         DesktopEvents.desktop_start(desktop_id)
         payload = Helpers.gen_payload_from_user(user_id)
         Scheduler.add_desktop_timeouts(payload, desktop_id)
-        return {"id": desktop_id}
+        return desktop_id
 
     @classmethod
     def _nonpersistent_desktop_from_tmpl(
@@ -184,7 +227,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
 
         new_desktop = {
             "id": str(uuid.uuid4()),
-            "name": name or template["name"],
+            "name": name or cls._unique_desktop_name(user_id, template["name"]),
             "description": description or template["description"],
             "kind": "desktop",
             "user": user_id,

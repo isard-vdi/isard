@@ -2217,8 +2217,12 @@
           },
           "nonpersistent": {
             "title": "Temporal",
-            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura. Només es permet un escriptori temporal per plantilla."
+            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura."
           }
+        },
+        "single-temporal": {
+          "title": "Un escriptori temporal per plantilla",
+          "description": "Mentre la interfície antiga continuï disponible, només pots tenir un escriptori temporal per plantilla. Si ja en tens un d'aquesta plantilla, es reutilitzarà en comptes de crear-ne un de nou."
         },
         "section": {
           "title": {

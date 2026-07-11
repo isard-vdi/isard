@@ -4,7 +4,9 @@ import { useI18n } from 'vue-i18n'
 import type * as z from 'zod'
 import { useUserStore } from '@/stores/user'
 import { useDomainInfoForm, type DomainInfoSource } from '@/composables/useDomainInfoForm'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { CheckboxGroup } from '@/components/checkbox-group'
+import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { DesktopCardBase, DesktopCardHeader, DesktopCardSkeleton } from '@/components/desktop-card'
 import { InputField } from '@/components/input-field'
 import { Button } from '@/components/ui/button'
@@ -81,6 +83,15 @@ const kindOptions = computed(() => {
 
   return options
 })
+
+// The backend reuses the existing one instead of creating a second: warn rather
+// than hand back a desktop the user did not ask for.
+const singleTemporalPerTemplate = computed(
+  () =>
+    props.showKindSelector &&
+    props.kind === 'nonpersistent' &&
+    !userStore.config?.multiple_temporal_desktops
+)
 
 const isInvalid = (field: { state: { meta: { isTouched: boolean; isValid: boolean } } }) =>
   field.state.meta.isTouched && !field.state.meta.isValid
@@ -270,6 +281,13 @@ defineExpose({
           direction="flex-row"
           :hide-description="true"
         />
+        <Alert v-if="singleTemporalPerTemplate" variant="default" class="mt-6">
+          <FeaturedIconOutline kind="outline" color="warning" />
+          <AlertTitle>{{ t('components.domain.configuration.single-temporal.title') }}</AlertTitle>
+          <AlertDescription>
+            {{ t('components.domain.configuration.single-temporal.description') }}
+          </AlertDescription>
+        </Alert>
       </div>
       <div>
         <h3 class="text-lg font-semibold text-gray-warm-900">

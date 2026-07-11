@@ -871,6 +871,15 @@ class Helpers(RethinkSharedConnection):
             parts = {k: int(v) for k, v in match.groupdict().items() if v}
             return timedelta(**parts)
 
+    FRONTEND_MODES = ("deprecated", "actual", "all", "hidden")
+
+    @classmethod
+    def frontend_mode(cls):
+        """Which frontends the installation exposes. Unknown values fall back to
+        ``deprecated``."""
+        mode = os.getenv("FRONTEND_MODE", "deprecated")
+        return mode if mode in cls.FRONTEND_MODES else "deprecated"
+
     @classmethod
     def bastion_enabled(cls):
         if os.getenv(

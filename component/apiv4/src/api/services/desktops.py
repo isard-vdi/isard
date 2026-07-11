@@ -164,26 +164,21 @@ class DesktopService:
         }
 
         if data.persistent is True:
-            desktop = CommonDesktops.new_from_template(
+            desktop_id = CommonDesktops.new_from_template(
                 user_id=user_id,
                 desktop_name=data.name,
                 desktop_description=data.description,
                 template_id=data.template_id,
                 new_data=new_data,
                 image=data.image.model_dump(exclude_unset=True) if data.image else None,
-            )
+            )["id"]
         else:
-            desktop = CommonDesktopsNonpersistent.new_desktop(
+            desktop_id = CommonDesktopsNonpersistent.new_desktop(
                 user_id=user_id,
                 template_id=data.template_id,
                 name=data.name,
                 description=data.description,
             )
-
-        # ``new_desktop`` returns a bare id string on the reuse path but a
-        # ``{"id": ...}`` dict on the create path; ``new_from_template``
-        # returns a dict. Normalize to the id either way.
-        desktop_id = desktop["id"] if isinstance(desktop, dict) else desktop
 
         if data.bastion_target:
             RethinkTargets.update_domain_target(
@@ -194,9 +189,9 @@ class DesktopService:
 
     @staticmethod
     def create_nonpersistent_desktop(payload: dict, template_id: str) -> str:
-        """Create (or reuse + start) a non-persistent desktop from a
-        template. ``@has_token`` — takes only ``template_id`` and
-        delegates quota + allowlist checks to the common helper.
+        """Create and start a non-persistent desktop from a template.
+        ``@has_token`` — takes only ``template_id`` and delegates quota +
+        allowlist checks to the common helper.
         """
         user_id = payload["user_id"]
         if not RethinkUser.exists(user_id):
@@ -216,13 +211,10 @@ class DesktopService:
                 description_code="template_not_allowed",
             )
 
-        desktop = CommonDesktopsNonpersistent.new_desktop(
+        return CommonDesktopsNonpersistent.new_desktop(
             user_id=user_id,
             template_id=template_id,
         )
-        if isinstance(desktop, dict):
-            return desktop.get("id")
-        return desktop
 
     @staticmethod
     def create_from_media(user_id: str, data: CreateDesktopFromMedia) -> str:

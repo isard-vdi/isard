@@ -1552,8 +1552,12 @@
           },
           "nonpersistent": {
             "title": "Temporary",
-            "description": "A temporary desktop discards all changes and files when stopped. Only one temporary desktop is allowed per template."
+            "description": "A temporary desktop discards all changes and files when stopped."
           }
+        },
+        "single-temporal": {
+          "title": "One temporary desktop per template",
+          "description": "While the old interface is still available, you can only have one temporary desktop per template. If you already have one from this template, it will be reused instead of creating a new one."
         },
         "section": {
           "title": {

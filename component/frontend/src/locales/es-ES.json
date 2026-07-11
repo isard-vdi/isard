@@ -2229,8 +2229,12 @@
           },
           "nonpersistent": {
             "title": "Temporal",
-            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene. Solo se permite un escritorio temporal por plantilla."
+            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene."
           }
+        },
+        "single-temporal": {
+          "title": "Un escritorio temporal por plantilla",
+          "description": "Mientras la interfaz antigua siga disponible, solo puedes tener un escritorio temporal por plantilla. Si ya tienes uno de esta plantilla, se reutilizará en lugar de crear uno nuevo."
         },
         "section": {
           "title": {

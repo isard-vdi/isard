@@ -902,8 +902,12 @@
           },
           "nonpersistent": {
             "title": "Aldi baterakoa",
-            "description": "Aldi baterako mahaigain batek aldaketa eta fitxategi guztiak baztertzen ditu gelditzean. Txantiloi bakoitzeko aldi baterako mahaigain bakarra onartzen da."
+            "description": "Aldi baterako mahaigain batek aldaketa eta fitxategi guztiak baztertzen ditu gelditzean."
           }
+        },
+        "single-temporal": {
+          "title": "Txantiloi bakoitzeko aldi baterako mahaigain bat",
+          "description": "Interfaze zaharra erabilgarri dagoen bitartean, txantiloi bakoitzeko aldi baterako mahaigain bakarra izan dezakezu. Txantiloi honetatik bat baduzu jada, berrerabili egingo da berri bat sortu beharrean."
         },
         "hardware": {
           "title": "Hardware guztia",
