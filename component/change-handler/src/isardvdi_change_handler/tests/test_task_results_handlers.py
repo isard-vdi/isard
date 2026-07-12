@@ -311,8 +311,10 @@ def test_domain_creating_disk_flips_creating_to_creating_disk():
     assert fake_domain.status == "CreatingDisk"
 
 
-def test_domain_change_storage_raises_when_storage_not_ready_for_create_domain():
-    """The create flow must fail-fast when the chain failed upstream."""
+def test_domain_change_storage_fails_rows_in_place_when_storage_not_ready():
+    """Storage not ready + domain still creating is terminal, so the handler
+    must NOT raise (raising redelivers to exhaustion and dead-letters a normal
+    condition). It fails both rows in place and returns so the entry is ACKed."""
     from isardvdi_change_handler.task_results import domain
 
     task = _task()
@@ -328,8 +330,11 @@ def test_domain_change_storage_raises_when_storage_not_ready_for_create_domain()
         mock_storage_cls.exists.return_value = True
         mock_domain_cls.return_value = fake_domain
         mock_storage_cls.return_value = fake_storage
-        with pytest.raises(Exception, match="not ready"):
-            domain.handle_domain_change_storage(task, domain_id="d1", storage_id="s1")
+        # Must NOT raise.
+        domain.handle_domain_change_storage(task, domain_id="d1", storage_id="s1")
+
+    assert fake_domain.status == "Failed"
+    assert fake_storage.status == "Failed"
 
 
 # ``handle_domain_change_storage`` updates the domain's disks[0] with

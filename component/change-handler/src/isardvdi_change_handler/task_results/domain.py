@@ -59,9 +59,13 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     in a pre-libvirt creation status, advances it to ``CreatingDomain``
     so engine's libvirt-define handler takes over.
 
-    Raises if the storage isn't ready and the domain is in a create
-    state — same propagation behaviour core_worker has today (the
-    trailing ``update_status`` dependent flips both rows to Failed).
+    When the storage isn't ready and the domain is still in a create state
+    the chain failed upstream. This is terminal — the handler runs right after
+    ``storage_update`` in the same pass, so a not-ready storage never recovers
+    on redelivery. Fail both rows in place (what the trailing ``update_status``
+    FAILED branch would do) and return instead of raising: raising leaves the
+    entry unACKed, redelivered to exhaustion and dead-lettered for a normal
+    condition.
     """
     if not Domain.exists(domain_id):
         return
@@ -71,10 +75,9 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     storage = Storage(storage_id)
 
     if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN and storage.status != "ready":
-        raise Exception(
-            f"Cannot finalize domain {domain_id}: storage {storage_id} is "
-            f"not ready (status={storage.status!r})."
-        )
+        domain.status = "Failed"
+        storage.status = "Failed"
+        return
 
     c_dict = domain.create_dict
     disk = c_dict["hardware"]["disks"][0]
