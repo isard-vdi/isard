@@ -112,9 +112,6 @@ services:
       VPN_MTU:
       GENEVE_ONLY_INFRA: ${GENEVE_ONLY_INFRA:-false}
       USAGE:
-      # Announce-only: the external port that reaches the web haproxy HTTP_PORT,
-      # where the RDP gateway is served as TLS (cfg/web/04_11). Written into the
-      # generated .rdp gateway file. Unset, it falls back to HTTP_PORT.
       VIEWER_RDP_GW:
       FRONTEND_SHOW_BOOKINGS:
       FRONTEND_DOCS_URI:
