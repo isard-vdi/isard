@@ -226,10 +226,13 @@ async def _process_entry(redis_manager, fields):
     """
     kind = fields.get("kind") or fields.get(b"kind")
     task_id = fields.get("task_id") or fields.get(b"task_id")
+    job_status = fields.get("job_status") or fields.get(b"job_status")
     if isinstance(kind, bytes):
         kind = kind.decode()
     if isinstance(task_id, bytes):
         task_id = task_id.decode()
+    if isinstance(job_status, bytes):
+        job_status = job_status.decode()
     if not task_id:
         log.warning("task_results: entry missing task_id: %r", fields)
         return True
@@ -252,11 +255,14 @@ async def _process_entry(redis_manager, fields):
         )
         return False
 
-    # The storage worker publishes the stream event from within the
-    # wrapped task function, *before* RQ's own post-perform code marks
-    # the Job FINISHED. Marking it ourselves here closes that race so
-    # the first direct dependent reads ``depending_status="finished"``.
-    await _set_job_status(task, JobStatus.FINISHED)
+    # The worker publishes the event before RQ marks the Job, so mark it here
+    # to close the race for the first dependent. Honour the event's job_status:
+    # a root-terminal chain (convert/delete/virt_win_reg) keys its trailing
+    # update_status off this root, so a failed/cancelled op must land FAILED to
+    # take the cleanup branch, not mark a broken disk ready. Missing field
+    # defaults to FINISHED (legacy race-closing for finished chains).
+    root_status = JobStatus.FAILED if job_status == "failed" else JobStatus.FINISHED
+    await _set_job_status(task, root_status)
 
     dependents = await asyncio.to_thread(lambda: list(_walk_core_dependents(task)))
     all_ok = True

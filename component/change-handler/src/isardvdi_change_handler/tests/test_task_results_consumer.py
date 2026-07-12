@@ -720,3 +720,102 @@ async def test_reclaim_does_not_ack_failed_redispatch():
 
     redis.xack.assert_not_awaited()
     redis.xadd.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Terminal-status propagation: the root Job must reflect the event's
+# ``job_status``, not be force-marked FINISHED. Otherwise a root-terminal
+# chain (convert / delete / virt_win_reg) whose ``update_status`` keys off the
+# root reads ``finished`` and takes the SUCCESS branch on a failed/cancelled
+# op — marking a half-written disk ready or dropping a storage row whose
+# delete never completed.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_failed_job_status_marks_root_failed():
+    """``job_status=failed`` on the result event marks the root Job FAILED."""
+    from isardvdi_change_handler.streams import task_results_consumer
+    from rq.job import JobStatus
+
+    root = _stub_task("root", task_name="convert", dependents=[])
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Task",
+            return_value=root,
+        ),
+        patch("isardvdi_change_handler.streams.task_results_consumer.HANDLERS", {}),
+    ):
+        await task_results_consumer._process_entry(
+            AsyncMock(),
+            {
+                "kind": "result",
+                "task_id": "root",
+                "task_name": "convert",
+                "job_status": "failed",
+            },
+        )
+
+    root.job.set_status.assert_called_once_with(JobStatus.FAILED)
+
+
+@pytest.mark.asyncio
+async def test_finished_job_status_marks_root_finished():
+    """``job_status=finished`` on the event marks the root Job FINISHED."""
+    from isardvdi_change_handler.streams import task_results_consumer
+    from rq.job import JobStatus
+
+    root = _stub_task("root", task_name="convert", dependents=[])
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Task",
+            return_value=root,
+        ),
+        patch("isardvdi_change_handler.streams.task_results_consumer.HANDLERS", {}),
+    ):
+        await task_results_consumer._process_entry(
+            AsyncMock(),
+            {
+                "kind": "result",
+                "task_id": "root",
+                "task_name": "convert",
+                "job_status": "finished",
+            },
+        )
+
+    root.job.set_status.assert_called_once_with(JobStatus.FINISHED)
+
+
+@pytest.mark.asyncio
+async def test_missing_job_status_defaults_to_finished():
+    """An event without ``job_status`` keeps the legacy FINISHED default so
+    the publish-before-RQ-marks race stays closed for finished chains."""
+    from isardvdi_change_handler.streams import task_results_consumer
+    from rq.job import JobStatus
+
+    root = _stub_task("root", task_name="find", dependents=[])
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Task",
+            return_value=root,
+        ),
+        patch("isardvdi_change_handler.streams.task_results_consumer.HANDLERS", {}),
+    ):
+        await task_results_consumer._process_entry(
+            AsyncMock(),
+            {"kind": "result", "task_id": "root", "task_name": "find"},
+        )
+
+    root.job.set_status.assert_called_once_with(JobStatus.FINISHED)

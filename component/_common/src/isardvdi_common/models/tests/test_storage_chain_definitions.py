@@ -322,6 +322,129 @@ def test_template_chain_has_storage_update_parent_for_desktop_storage():
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Terminal-status cleanup: root-terminal chains (convert / delete /
+# virt_win_reg) whose trailing update_status keys off the ROOT op's status
+# must clean up on a FAILED terminal, not only on CANCELED. A running-cancel
+# surfaces to the consumer as job_status="failed" (the worker decorator maps
+# any raise to "failed"), and now that the consumer honours job_status the
+# root is marked FAILED — so the cleanup branch must exist under "failed".
+# ---------------------------------------------------------------------------
+
+
+def _find_update_status_statuses(dependents):
+    """Return the ``statuses`` dict of the first ``update_status`` dependent."""
+    for _parent, dep in _walk_with_parents(dependents):
+        if dep.get("task") == "update_status":
+            return dep["job_kwargs"]["kwargs"]["statuses"]
+    return None
+
+
+def test_convert_update_status_deletes_dest_on_failed_and_canceled():
+    """A failed OR cancelled convert must mark the half-written destination
+    ``deleted`` — never leave it at its target status (which reads as a good
+    disk)."""
+    s = _bare_storage()
+    new_storage = MagicMock()
+    new_storage.id = "new-99"
+    new_storage.path = "/isard/groups/new-99.qcow2"
+    new_storage.type = "qcow2"
+    with (
+        patch.object(Storage, "create_task") as mc,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage,
+            "path",
+            new_callable=PropertyMock,
+            return_value="/isard/groups/src.qcow2",
+            create=True,
+        ),
+        patch("isardvdi_common.models.storage.StoragePool") as mp,
+    ):
+        mp.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.convert(
+            user_id="u1",
+            new_storage=new_storage,
+            new_storage_type="qcow2",
+            new_storage_status="ready",
+            compress=False,
+        )
+    statuses = _find_update_status_statuses(mc.call_args.kwargs["dependents"])
+    assert statuses is not None
+    assert statuses["canceled"]["deleted"]["storage"] == ["new-99"]
+    assert statuses["failed"]["deleted"]["storage"] == ["new-99"]
+
+
+def test_task_delete_update_status_restores_on_failed_like_canceled():
+    """A failed OR cancelled delete must restore the source to ``ready`` (and
+    domains to ``Stopped``) — NOT fall through to the ``finished`` branch that
+    marks it ``deleted`` and drops the DB row."""
+    s = _bare_storage()
+    with (
+        patch.object(Storage, "create_task") as mc,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage, "domains", new_callable=PropertyMock, return_value=[], create=True
+        ),
+        patch.object(
+            Storage,
+            "domains_derivatives",
+            new_callable=PropertyMock,
+            return_value=[],
+            create=True,
+        ),
+        patch.object(
+            Storage,
+            "derivatives",
+            new_callable=PropertyMock,
+            return_value=[],
+            create=True,
+        ),
+        patch.object(
+            Storage,
+            "path",
+            new_callable=PropertyMock,
+            return_value="/isard/groups/src.qcow2",
+            create=True,
+        ),
+        patch("isardvdi_common.models.storage.StoragePool") as mp,
+    ):
+        mp.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.task_delete(user_id="u1")
+    statuses = _find_update_status_statuses(mc.call_args.kwargs["dependents"])
+    assert statuses is not None
+    assert "failed" in statuses
+    assert statuses["failed"] == statuses["canceled"]
+
+
+def test_virt_win_reg_update_status_has_failed_block():
+    """A failed OR cancelled virt_win_reg must take the same restore branch as
+    canceled (both leave the storage ``ready``), not the missing-branch no-op
+    that today only worked because the root was force-FINISHED."""
+    s = _bare_storage()
+    with (
+        patch.object(Storage, "create_task") as mc,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage, "domains", new_callable=PropertyMock, return_value=[], create=True
+        ),
+        patch.object(
+            Storage,
+            "path",
+            new_callable=PropertyMock,
+            return_value="/isard/groups/src.qcow2",
+            create=True,
+        ),
+        patch("isardvdi_common.models.storage.StoragePool") as mp,
+    ):
+        mp.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.virt_win_reg(user_id="u1", registry_patch="[HKEY_LOCAL_MACHINE]")
+    statuses = _find_update_status_statuses(mc.call_args.kwargs["dependents"])
+    assert statuses is not None
+    assert "failed" in statuses
+    assert statuses["failed"] == statuses["canceled"]
+
+
 def _import_error_class():
     """Import the same Error class the chain raises, so isinstance checks
     work whether or not apiv4 happened to import first in the test process."""

@@ -888,6 +888,19 @@ class Storage(RethinkCustomBase):
                                         ],
                                     },
                                 },
+                                # Mirror "canceled": a failed/cancelled delete
+                                # restores the source to ready instead of
+                                # dropping the row while the file may be on disk.
+                                "failed": {
+                                    "ready": {
+                                        "storage": [self.id],
+                                    },
+                                    "Stopped": {
+                                        "domain": [
+                                            domain.id for domain in self.domains
+                                        ],
+                                    },
+                                },
                                 "finished": {
                                     "deleted": {
                                         "storage": [self.id],
@@ -1026,6 +1039,19 @@ class Storage(RethinkCustomBase):
                                     },
                                 },
                                 "canceled": {
+                                    "ready": {
+                                        "storage": [self.id],
+                                    },
+                                    "Stopped": {
+                                        "domain": [
+                                            domain.id for domain in self.domains
+                                        ],
+                                    },
+                                },
+                                # virt_win_reg is in-place: a failed/cancelled
+                                # merge leaves the storage ready instead of the
+                                # missing-branch no-op.
+                                "failed": {
                                     "ready": {
                                         "storage": [self.id],
                                     },
@@ -1230,6 +1256,14 @@ class Storage(RethinkCustomBase):
                                     },
                                 },
                                 "canceled": {
+                                    "deleted": {
+                                        "storage": [new_storage.id],
+                                    },
+                                },
+                                # A failed/cancelled convert deletes the
+                                # half-written destination instead of leaving a
+                                # partial disk at its target status.
+                                "failed": {
                                     "deleted": {
                                         "storage": [new_storage.id],
                                     },
