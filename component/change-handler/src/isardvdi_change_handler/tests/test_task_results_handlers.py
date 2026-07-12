@@ -436,3 +436,45 @@ def test_domain_change_storage_does_not_call_storage_parent_resolution():
     # resolve storage.parent into a path.
     assert mock_storage_cls.call_count == 1
     mock_storage_cls.assert_called_once_with("new-storage")
+
+
+# ---------------------------------------------------------------------------
+# storage.send_status_socket de-duplication
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_send_status_socket_dedups_identical_within_scope():
+    """Inside a ``dedup_status_emits`` scope, a repeated identical
+    ``(storage_id, status)`` emit is collapsed to a single fan-out; a
+    different status still emits."""
+    from isardvdi_change_handler.task_results import storage
+
+    rm = AsyncMock()
+    with patch.object(storage, "_resolve_user_category", return_value=None):
+        with storage.dedup_status_emits():
+            await storage.send_status_socket(rm, "s1", "ready")
+            await storage.send_status_socket(rm, "s1", "ready")  # duplicate → skipped
+            await storage.send_status_socket(rm, "s1", "deleted")  # new → emits
+
+    # admins-room emit fires once per non-deduped call: 2 (ready + deleted).
+    admin_emits = [
+        c for c in rm.emit.await_args_list if c.kwargs.get("room") == "admins"
+    ]
+    assert len(admin_emits) == 2
+
+
+@pytest.mark.asyncio
+async def test_send_status_socket_no_dedup_without_scope():
+    """Outside a scope the de-dup is inert — every call emits (back-compat)."""
+    from isardvdi_change_handler.task_results import storage
+
+    rm = AsyncMock()
+    with patch.object(storage, "_resolve_user_category", return_value=None):
+        await storage.send_status_socket(rm, "s1", "ready")
+        await storage.send_status_socket(rm, "s1", "ready")
+
+    admin_emits = [
+        c for c in rm.emit.await_args_list if c.kwargs.get("room") == "admins"
+    ]
+    assert len(admin_emits) == 2

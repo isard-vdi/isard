@@ -30,12 +30,34 @@ The ``send`` helper takes the manager from the consumer rather than
 constructing its own so unit tests can pass an ``AsyncMock``.
 """
 
+import contextvars
 import json
 import logging as log
+from contextlib import contextmanager
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, StoragePool
 from isardvdi_common.models.user import User
+
+# Per-pass de-dup of the non-idempotent ``storage`` status socket: a chain
+# often lands the same (storage_id, status) via two handlers in one dispatch
+# pass. Collapse repeats within a dedup_status_emits scope; cross-delivery
+# de-dup is intentionally skipped (redelivery re-emits are harmless).
+_emit_dedup: contextvars.ContextVar = contextvars.ContextVar(
+    "task_results_emit_dedup", default=None
+)
+
+
+@contextmanager
+def dedup_status_emits():
+    """Scope within which identical ``(storage_id, status)`` status emits are
+    collapsed to one. Wrap one stream entry's dispatch in it."""
+    token = _emit_dedup.set(set())
+    try:
+        yield
+    finally:
+        _emit_dedup.reset(token)
+
 
 # Domain statuses that represent a domain that is not yet (or no longer)
 # runnable and is waiting for its storage to be ready. Only these can be
@@ -106,7 +128,16 @@ def _resolve_user_category(user_id):
 async def send_status_socket(redis_manager, storage_id, status, user_id=None):
     """Fan-out the ``storage`` SocketIO event identically to
     core_worker.task.send_storage_status_socket.
+
+    Repeats of the same ``(storage_id, status)`` within a ``dedup_status_emits``
+    scope are collapsed to one.
     """
+    dedup = _emit_dedup.get()
+    if dedup is not None:
+        key = (storage_id, status)
+        if key in dedup:
+            return
+        dedup.add(key)
     payload = json.dumps({"id": storage_id, "status": status})
     if user_id:
         category = _resolve_user_category(user_id)
