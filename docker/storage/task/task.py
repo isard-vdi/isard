@@ -135,6 +135,16 @@ def _publishes_result(func):
     return wrapper
 
 
+def _safe_unlink(path):
+    """Best-effort removal of a partial file; never raises so cleanup can't
+    mask the original error on a failing task's path."""
+    try:
+        if isfile(path):
+            remove(path)
+    except OSError:
+        log.exception("could not remove file %s", path)
+
+
 def _same_file(file1, file2):
     """
     Check if two files are the same.
@@ -1186,19 +1196,30 @@ def convert(source_disk_path, dest_disk_path, format, compression):
     else:
         compress = []
 
-    return run_with_progress(
-        [
-            "qemu-img",
-            "convert",
-            "-p",
-            *compress,
-            "-O",
-            format,
-            source_disk_path,
-            dest_disk_path,
-        ],
-        extract_progress_from_qemu_img_convert_output,
-    )
+    try:
+        rc = run_with_progress(
+            [
+                "qemu-img",
+                "convert",
+                "-p",
+                *compress,
+                "-O",
+                format,
+                source_disk_path,
+                dest_disk_path,
+            ],
+            extract_progress_from_qemu_img_convert_output,
+        )
+    except BaseException:
+        # Cancel/crash leaves a partial destination; drop it and re-raise.
+        _safe_unlink(dest_disk_path)
+        raise
+    if rc != 0:
+        # run_with_progress returns a non-zero rc instead of raising; returning
+        # it would publish job_status="finished" and mark a partial disk ready.
+        _safe_unlink(dest_disk_path)
+        raise CalledProcessError(returncode=rc, cmd="qemu-img convert")
+    return rc
 
 
 @_publishes_result
@@ -1249,14 +1270,15 @@ def virt_win_reg(storage_path, registry_patch):
                 )
             return result.returncode
     except CalledProcessError as cpe:
-        # Return error details, including captured stderr
-        return (
-            f"Error: Command failed with return code {cpe.returncode}. "
-            f"stderr: {cpe.stderr.strip() or 'No error message provided.'}"
+        # Returning an error string publishes job_status="finished" for a
+        # failed merge, marking the disk ready. Log stderr and re-raise.
+        log.error(
+            "virt-win-reg failed for %s (exit %s): %s",
+            storage_path,
+            cpe.returncode,
+            (cpe.stderr or "").strip() or "No error message provided.",
         )
-    except Exception as e:
-        # Handle other exceptions
-        return f"Error: {str(e)}"
+        raise
 
 
 @_publishes_result
@@ -1283,9 +1305,13 @@ def resize(storage_path, increment):
                 f"+{increment}G",
             ],
             timeout=QEMU_IMG_TIMEOUT,
+            check=True,  # Raise on a non-zero qemu-img rc
         ).returncode
-    except Exception as e:
-        return e
+    except Exception:
+        # A returned value publishes job_status="finished", recording a failed
+        # resize as success. Log and re-raise.
+        log.exception("qemu-img resize failed for %s", storage_path)
+        raise
 
 
 @_publishes_result
@@ -1464,28 +1490,15 @@ def sparsify(storage_path):
                 "virt-sparsify stderr for %s: %s", storage_path, result.stderr.strip()
             )
     except CalledProcessError as cpe:
+        # A returned value publishes job_status="finished", recording a failed
+        # sparsify as success. Log and re-raise.
         log.error(
             "virt-sparsify failed for %s (exit %d): %s",
             storage_path,
             cpe.returncode,
             cpe.stderr.strip() if cpe.stderr else "No error message",
         )
-        return {
-            "exit_code": cpe.returncode,
-            "saved_space": 0,
-            "old_size": old_size,
-            "new_size": old_size,
-            "error": cpe.stderr.strip() if cpe.stderr else "No error message provided.",
-        }
-    except Exception as e:
-        log.error("Unexpected error during sparsify of %s: %s", storage_path, e)
-        return {
-            "exit_code": -1,
-            "saved_space": 0,
-            "old_size": old_size,
-            "new_size": old_size,
-            "error": str(e),
-        }
+        raise
 
     try:
         new_size = _get_disk_usage(storage_path)
@@ -1528,7 +1541,7 @@ def disconnect(storage_path):
     disconnected_path = storage_path + ".wo_chain"
 
     try:
-        convert = run(
+        run(
             [
                 "qemu-img",
                 "convert",
@@ -1541,12 +1554,11 @@ def disconnect(storage_path):
             ],
             check=True,
         )
-        if convert.returncode == 0:
-            remove(storage_path)
-            rename(disconnected_path, storage_path)
-        else:
-            remove(disconnected_path)
-
-        return convert.returncode
-    except Exception as e:
-        return f"Error: {str(e)}"
+    except BaseException:
+        # A returned value publishes job_status="finished", recording a failed
+        # disconnect as success. Clean the partial sibling and re-raise.
+        _safe_unlink(disconnected_path)
+        raise
+    remove(storage_path)
+    rename(disconnected_path, storage_path)
+    return 0
