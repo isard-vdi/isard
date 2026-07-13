@@ -81,9 +81,15 @@ def test_up_peer_returns_false_on_unresolvable_hostname(wgtools_hyper, wgtools_m
 
 
 def test_up_peer_wg_geneve_installs_flows_on_fresh_port(wgtools_hyper, wgtools_module):
-    """Regression: when the OVS port is added for the first time on the
-    WG+geneve path, BFD + VLAN-4095 flow rules must also be installed
-    (not only when the port already exists)."""
+    """When the OVS port is added for the first time on the WG+geneve path,
+    the VLAN-4095 flow rules must be installed so a fresh hypervisor is not
+    left without the security policy.
+
+    BFD is intentionally NOT enabled on the WG+geneve path (see wgtools.py):
+    WireGuard's persistent-keepalive is the tunnel liveness signal published
+    into ``hypervisors.vpn.tunnel_status`` by the tunnel_monitor, so a second
+    OVS-level BFD session would be redundant. This differs from the plain
+    (non-WG) geneve path, which does enable BFD."""
     peer = {
         "id": "hyper-new",
         "hostname": "hyper-new.internal",
@@ -112,8 +118,9 @@ def test_up_peer_wg_geneve_installs_flows_on_fresh_port(wgtools_hyper, wgtools_m
         assert "type=geneve" in add_port_cmds[0]
         assert "options:remote_ip=10.0.0.42" in add_port_cmds[0]
 
-        # BFD must be enabled even on the fresh-port path.
-        assert any("bfd:enable=true" in c for c in cmds)
+        # BFD must NOT be enabled on the WG+geneve path (WG keepalive is the
+        # liveness signal; OVS BFD is reserved for the plain-geneve path).
+        assert not any("bfd:enable=true" in c for c in cmds)
 
         # All 4 flow rules (priorities 451/451/450/449) must be installed.
         flow_cmds = [c for c in cmds if "add-flow" in c]
@@ -128,9 +135,9 @@ def test_up_peer_wg_geneve_installs_flows_on_fresh_port(wgtools_hyper, wgtools_m
 def test_up_peer_wg_geneve_installs_flows_on_existing_port(
     wgtools_hyper, wgtools_module
 ):
-    """Existing-port branch on the WG+geneve path must continue to
-    install BFD + VLAN-4095 flow rules (parity with the fresh-port
-    branch after the lift-out refactor)."""
+    """Existing-port branch on the WG+geneve path must continue to install the
+    VLAN-4095 flow rules (parity with the fresh-port branch). As on the fresh
+    branch, BFD is intentionally not enabled here."""
     peer = {
         "id": "hyper-existing",
         "hostname": "hyper-existing.internal",
@@ -157,7 +164,8 @@ def test_up_peer_wg_geneve_installs_flows_on_existing_port(
         assert not any("add-port" in c for c in cmds)
         assert any("set" in c and "options:remote_ip=10.0.0.43" in c for c in cmds)
 
-        assert any("bfd:enable=true" in c for c in cmds)
+        # BFD intentionally not enabled on the WG+geneve path.
+        assert not any("bfd:enable=true" in c for c in cmds)
         flow_cmds = [c for c in cmds if "add-flow" in c]
         assert len(flow_cmds) == 4
         assert all("in_port=42" in c for c in flow_cmds)

@@ -5,14 +5,14 @@
 
 """Tests for the wireguard key rotation handling in ``Wg``.
 
-Deps (``iptc``/``simple_iptools``/``rethinkdb``/``changefeed_models``) only
-exist in the isard-vpn image: ``PYTHONPATH=/src pytest``.
+``wgtools`` pulls in native/runtime-only deps (``iptc`` via ``simple_iptools``,
+``rethinkdb``, ``changefeed_models``). The ``wgtools_module`` fixture in
+``conftest.py`` imports the real module with those dependencies stubbed, so
+these tests run in a plain uv environment without the isard-vpn image.
 """
 
 import contextlib
 from unittest.mock import MagicMock
-
-import wgtools
 
 
 class _StubKeys:
@@ -22,7 +22,7 @@ class _StubKeys:
         return {"private": "PRIV", "public": "PUB"}
 
 
-def _bare_wg():
+def _bare_wg(wgtools):
     wg = wgtools.Wg.__new__(wgtools.Wg)
     wg.table = "users"
     wg.interface = "wg0"
@@ -32,8 +32,8 @@ def _bare_wg():
     return wg
 
 
-def test_up_peer_skips_not_ready_keys():
-    wg = _bare_wg()
+def test_up_peer_skips_not_ready_keys(wgtools_module):
+    wg = _bare_wg(wgtools_module)
     peer = {
         "id": "u1",
         "active": True,
@@ -42,8 +42,8 @@ def test_up_peer_skips_not_ready_keys():
     assert wg.up_peer(peer) is False
 
 
-def test_init_peers_regenerates_reset_keys(monkeypatch):
-    wg = _bare_wg()
+def test_init_peers_regenerates_reset_keys(wgtools_module, monkeypatch):
+    wg = _bare_wg(wgtools_module)
     up_called, gen_called = [], []
     monkeypatch.setattr(wg, "up_peer", lambda p: up_called.append(p))
     monkeypatch.setattr(wg, "_to_model", lambda p: p)
@@ -62,7 +62,7 @@ def test_init_peers_regenerates_reset_keys(monkeypatch):
     def _fake_conn():
         yield MagicMock()
 
-    monkeypatch.setattr(wgtools, "vpn_rethink_conn", _fake_conn)
+    monkeypatch.setattr(wgtools_module, "vpn_rethink_conn", _fake_conn)
 
     healthy = {
         "id": "ok",
@@ -95,7 +95,7 @@ def test_init_peers_regenerates_reset_keys(monkeypatch):
         )
         return t
 
-    monkeypatch.setattr(wgtools, "r", MagicMock(table=fake_table))
+    monkeypatch.setattr(wgtools_module, "r", MagicMock(table=fake_table))
     wg.init_peers()
 
     assert reset["vpn"]["wireguard"]["keys"] == {"private": "PRIV", "public": "PUB"}

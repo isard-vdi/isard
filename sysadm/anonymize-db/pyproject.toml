@@ -13,6 +13,11 @@ dependencies = [
 [project.scripts]
 anonymize-db = "anonymize_db.cli:main"
 
+[dependency-groups]
+test = [
+  "pytest",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

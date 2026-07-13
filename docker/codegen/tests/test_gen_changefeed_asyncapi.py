@@ -476,6 +476,7 @@ class TestRealTablesJson:
             / "component"
             / "changefeed"
             / "src"
+            / "isardvdi_changefeed"
             / "tables.json"
         )
         with tables_path.open("r", encoding="utf-8") as fh:
