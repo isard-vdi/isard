@@ -104,7 +104,7 @@ DIRECTVIEWER_MODE=browser
 ## administration web interface.
 # NOTIFY_EMAIL=True
 # NOTIFY_EMAIL_SMTP_SERVER=smtp.gmail.com
-# NOTIFY_EMAIL_SMPT_PORT=587
+# NOTIFY_EMAIL_SMTP_PORT=587
 # NOTIFY_EMAIL_USERNAME=example@isardvdi.com
 # NOTIFY_EMAIL_PASSWORD=IsardVDI
 

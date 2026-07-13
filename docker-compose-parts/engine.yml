@@ -69,7 +69,8 @@ services:
       # Transitional NOTIFY_EMAIL* variables to import SMTP setting to db via migration 175
       NOTIFY_EMAIL:
       NOTIFY_EMAIL_SMTP_SERVER:
-      NOTIFY_EMAIL_SMPT_PORT: ${NOTIFY_EMAIL_SMPT_PORT:-587}
+      # NOTIFY_EMAIL_SMPT_PORT is the pre-rename misspelling, still honoured for cfgs that set it
+      NOTIFY_EMAIL_SMTP_PORT: ${NOTIFY_EMAIL_SMTP_PORT:-${NOTIFY_EMAIL_SMPT_PORT:-587}}
       NOTIFY_EMAIL_USERNAME:
       NOTIFY_EMAIL_PASSWORD:
       # Transitional AUTHENTICATION_AUTHENTICATION_LDAP_* variables to import LDAP configuration

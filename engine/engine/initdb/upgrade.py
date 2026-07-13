@@ -1037,7 +1037,13 @@ password:s:%s"""
                         "host": os.environ.get(
                             "NOTIFY_EMAIL_SMTP_SERVER", "example.com"
                         ),
-                        "port": int(os.environ.get("NOTIFY_EMAIL_SMPT_PORT") or 587),
+                        # SMPT is the pre-rename misspelling, still injected by a
+                        # docker-compose.yml generated before the rename
+                        "port": int(
+                            os.environ.get("NOTIFY_EMAIL_SMTP_PORT")
+                            or os.environ.get("NOTIFY_EMAIL_SMPT_PORT")
+                            or 587
+                        ),
                         "username": os.environ.get(
                             "NOTIFY_EMAIL_USERNAME", "user@example.com"
                         ),
