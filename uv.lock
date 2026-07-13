@@ -736,6 +736,7 @@ dependencies = [
     { name = "isardvdi-common" },
     { name = "pyjwt" },
     { name = "requests" },
+    { name = "rethinkdb" },
 ]
 
 [package.metadata]
@@ -744,6 +745,7 @@ requires-dist = [
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "pyjwt", specifier = "==2.10.1" },
     { name = "requests", specifier = "==2.32.4" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
 ]
 
 [[package]]
