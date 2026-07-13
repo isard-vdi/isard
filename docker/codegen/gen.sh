@@ -64,8 +64,16 @@ export HOME=/tmp
 
 # Symlinks needed by openapi-ts; created once at the top so they don't race
 # when multiple jobs run in parallel.
-ln -sf /deps/package.json .
-ln -sf /deps/node_modules .
+# The repo is bind-mounted, so an interrupted run leaves them behind and `ln -sf`
+# would then fail ("File exists") instead of replacing them: clear first, and
+# remove them on any exit so the next run always starts clean.
+cleanup_deps_links() {
+	rm -rf ./package.json ./node_modules
+}
+cleanup_deps_links
+trap cleanup_deps_links EXIT INT TERM
+ln -s /deps/package.json .
+ln -s /deps/node_modules .
 
 # Resolve modelina + parser for the changefeed-models script.
 export NODE_PATH=/deps/node_modules
@@ -205,8 +213,7 @@ JOB_PIDS="$JOB_PIDS $!"
 
 wait_jobs
 
-rm package.json
-rm node_modules
+cleanup_deps_links
 
 echo "==> Phase 4: Go mocks"
 run_quietly mockery && echo "  generated Go mocks"
