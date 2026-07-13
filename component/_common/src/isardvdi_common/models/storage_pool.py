@@ -23,6 +23,7 @@ from uuid import uuid4
 
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.lib.storage.storage_pools.paths import usage_subpath_matches
 from pydantic import BaseModel, Field
 from rethinkdb import r
 
@@ -109,22 +110,23 @@ class StoragePool(RethinkCustomBase):
         # Path relative to the pool mountpoint.
         relative = path[len(self.mountpoint) :].lstrip("/")
 
-        # Non-default pools nest disks under a per-category subdirectory:
-        # <mountpoint>/<category>/<usage_path>/...  Strip that leading category
-        # segment. The default pool has no category subdir. Deciding by the
-        # pool id (instead of the literal "/isard/storage_pools" prefix) keeps
-        # this correct for any pool leaf name under /isard/storage_pools.
-        if self.id != DEFAULT_STORAGE_POOL_ID:
-            parts = relative.split("/", 1)
-            relative = parts[1] if len(parts) > 1 else ""
+        if self.id == DEFAULT_STORAGE_POOL_ID:
+            # The default pool has no per-category subdir and no {category}
+            # token: match the usage path directly. `relative` is
+            # "<usage_path>" or "<usage_path>/<id>.<type>".
+            for usage, paths in self.paths.items():
+                for path_info in paths:
+                    usage_path = path_info["path"]
+                    if relative == usage_path or relative.startswith(usage_path + "/"):
+                        return usage
+            return None
 
-        # `relative` is now "<usage_path>" or "<usage_path>/<id>.<type>".
-        # Match the directory portion so both a directory_path and a full file
-        # path resolve to the same usage.
+        # Category pool: usage_subpath_matches resolves both the legacy
+        # <category>/<usage_path> layout and the {category}-placeholder layout
+        # (e.g. fast/{category}/templates), tolerating a trailing <id>.<type>.
         for usage, paths in self.paths.items():
             for path_info in paths:
-                usage_path = path_info["path"]
-                if relative == usage_path or relative.startswith(usage_path + "/"):
+                if usage_subpath_matches(relative, path_info["path"]):
                     return usage
         return None
 

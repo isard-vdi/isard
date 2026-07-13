@@ -58,6 +58,39 @@ def test_check_paths_safe_rejects_unsafe_paths(bad_path):
 
 
 # --------------------------------------------------------------------------- #
+# _check_paths_safe  ({category} placeholder: tier-before-category)
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "good_path",
+    [
+        "fast/{category}/templates",
+        "{category}/templates",
+        "slow/{category}/desktops",
+    ],
+)
+def test_check_paths_safe_accepts_category_token(good_path):
+    SPP._check_paths_safe(
+        {"template": [{"path": good_path, "weight": 100}]}
+    )  # no raise
+
+
+@pytest.mark.parametrize(
+    "bad_path",
+    [
+        "fast/{category}/{category}/x",  # token more than once
+        "fast/x{category}y/templates",  # token not a full segment
+        "fast/{cat}/templates",  # unknown placeholder
+        "fast/{category/templates",  # stray opening brace
+        "fast/category}/templates",  # stray closing brace
+    ],
+)
+def test_check_paths_safe_rejects_bad_token(bad_path):
+    with pytest.raises(Exception) as exc:
+        SPP._check_paths_safe({"template": [{"path": bad_path, "weight": 100}]})
+    assert exc.value.args[0] == "bad_request"
+
+
+# --------------------------------------------------------------------------- #
 # _check_mountpoint_safe  (pool mountpoint must stay under /isard/storage_pools)
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(

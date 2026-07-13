@@ -28,6 +28,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib.storage.storage_pools.paths import CATEGORY_TOKEN
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
@@ -141,17 +142,37 @@ class StoragePoolsProcessed(RethinkSharedConnection):
         for key in data:
             for item in data[key]:
                 path = item.get("path", "")
+                segments = path.split("/")
                 if (
                     not path
                     or path.startswith("/")
                     or "\x00" in path
-                    or ".." in path.split("/")
+                    or ".." in segments
                 ):
                     raise Error(
                         "bad_request",
                         f"Invalid storage pool path '{path}': must be a relative "
                         "directory without '..' segments",
                     )
+                # Optional {category} placeholder: lets the tier sit before the
+                # category (<mountpoint>/fast/{category}/templates). It must be a
+                # whole segment and appear at most once; any other brace usage is
+                # a typo and is rejected so it never becomes a literal directory.
+                if segments.count(CATEGORY_TOKEN) > 1:
+                    raise Error(
+                        "bad_request",
+                        f"Invalid storage pool path '{path}': the "
+                        f"'{CATEGORY_TOKEN}' placeholder may appear at most once",
+                    )
+                for segment in segments:
+                    if segment == CATEGORY_TOKEN:
+                        continue
+                    if "{" in segment or "}" in segment:
+                        raise Error(
+                            "bad_request",
+                            f"Invalid storage pool path '{path}': '{{' and '}}' are "
+                            f"only allowed as the exact '{CATEGORY_TOKEN}' segment",
+                        )
 
     @classmethod
     def remove_common_categories_from_other_pools(cls, categories, keep_pool_id=None):
@@ -254,6 +275,16 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                     "bad_request",
                     f"Default pool must have at least one '{usage}' path",
                 )
+        # The default pool has no category segment, so a {category} placeholder
+        # would never be substituted and would become a literal directory.
+        for entries in paths.values():
+            for item in entries:
+                if CATEGORY_TOKEN in item.get("path", ""):
+                    raise Error(
+                        "bad_request",
+                        f"The '{CATEGORY_TOKEN}' placeholder is not allowed on the "
+                        "default pool (it has no category)",
+                    )
 
     @classmethod
     def update_storage_pool(cls, storage_pool_id, data):

@@ -24,6 +24,7 @@ from uuid import uuid4
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.user import User
 from pydantic import BaseModel, Field
@@ -100,7 +101,9 @@ def new_storage_directory_path(user_id, pool_usage):
             "precondition_required",
             f"Cannot resolve storage path: user {user_id} has no category",
         )
-    return f"{storage_pool.mountpoint}/{category}/{storage_pool.get_usage_path(pool_usage)}"
+    return build_category_pool_dir(
+        storage_pool.mountpoint, category, storage_pool.get_usage_path(pool_usage)
+    )
 
 
 class Storage(RethinkCustomBase):
@@ -247,7 +250,12 @@ class Storage(RethinkCustomBase):
             return None
         if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
             return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
-        return f"{storage_pool.mountpoint}/{self._require_category()}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
+        directory = build_category_pool_dir(
+            storage_pool.mountpoint,
+            self._require_category(),
+            storage_pool.get_usage_path(self.pool_usage),
+        )
+        return f"{directory}/{self.id}.{self.type}"
 
     def directory_path_as_usage(self, usage):
         """
@@ -288,7 +296,11 @@ class Storage(RethinkCustomBase):
         if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
             self.directory_path = f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}"
         else:
-            self.directory_path = f"{storage_pool.mountpoint}/{self._require_category()}/{storage_pool.get_usage_path(self.pool_usage)}"
+            self.directory_path = build_category_pool_dir(
+                storage_pool.mountpoint,
+                self._require_category(),
+                storage_pool.get_usage_path(self.pool_usage),
+            )
 
     def get_storage_pool_path(self, storage_pool):
         """
@@ -303,7 +315,11 @@ class Storage(RethinkCustomBase):
         if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
             return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}"
         else:
-            return f"{storage_pool.mountpoint}/{self._require_category()}/{storage_pool.get_usage_path(self.pool_usage)}"
+            return build_category_pool_dir(
+                storage_pool.mountpoint,
+                self._require_category(),
+                storage_pool.get_usage_path(self.pool_usage),
+            )
 
     @property
     def children(self):

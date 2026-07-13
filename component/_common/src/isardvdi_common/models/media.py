@@ -24,6 +24,7 @@ from isardvdi_common.connections.rethink_custom_base_factory import RethinkCusto
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from isardvdi_common.models.storage_pool import StoragePool
 from pydantic import BaseModel, Field
 from rethinkdb import r
@@ -149,21 +150,23 @@ class Media(RethinkCustomBase):
         return self.task
 
     @classmethod
-    def resolve_download_path(cls, user_id, category_id, relative_path, kind):
+    def resolve_download_path(cls, user_id, category_id, media_id, kind):
         """Compute the absolute filesystem path to download a media into.
 
-        Replaces the legacy ``get_path_to_disk(type_path="media")`` plumbing
-        that read the per-category ``pool_paths["media"]`` map. Now the
-        path is derived from the user's storage pool directly, matching
-        how :class:`Storage` resolves its own paths — single source of
-        truth across desktop disks and media.
+        The media file is stored FLAT by its id -- ``<base_dir>/<media_id>.<kind>``
+        -- exactly like main (``/isard/media/<id>.<kind>``) and like
+        :class:`Storage` names its disks by id. The pool layout owns category
+        placement: the default pool has no per-category subdir; a category pool
+        inserts the category via ``build_category_pool_dir`` (legacy
+        ``<mp>/<cat>/media`` or the ``{category}`` token). The human
+        ``cat/group/provider/user/name`` label is NOT part of the on-disk path --
+        it lives only in the media ``path`` field.
 
         :param user_id: The owner of the media (drives pool selection).
         :param category_id: The user's category id (used in non-default
             pool path layout, mirroring
             ``Storage.path_in_pool``).
-        :param relative_path: Per-media relative directory + name (the
-            ``urlpath`` apiv4 builds: cat/group/provider/uid-username/name).
+        :param media_id: The media row id; used as the flat on-disk file name.
         :param kind: ``iso`` / ``floppy`` / ``qcow2`` (used as extension).
         :return: Tuple ``(pool, absolute_path)``.
         """
@@ -172,8 +175,8 @@ class Media(RethinkCustomBase):
         if pool.id == DEFAULT_STORAGE_POOL_ID:
             base_dir = f"{pool.mountpoint}/{usage_path}"
         else:
-            base_dir = f"{pool.mountpoint}/{category_id}/{usage_path}"
-        return pool, f"{base_dir}/{relative_path}.{kind}"
+            base_dir = build_category_pool_dir(pool.mountpoint, category_id, usage_path)
+        return pool, f"{base_dir}/{media_id}.{kind}"
 
     def enqueue_download_chain(
         self,

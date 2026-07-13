@@ -19,6 +19,7 @@
 
 from cachetools import TTLCache, cached
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from rethinkdb import r
 
 from .db import rethink
@@ -131,8 +132,8 @@ def _parse_category_storage_pool_paths(pool, category_id):
             continue
         path_list = []
         for path in paths:
-            path_key = (
-                parsed_pool["mountpoint"] + "/" + category_id + "/" + path["path"]
+            path_key = build_category_pool_dir(
+                parsed_pool["mountpoint"], category_id, path["path"]
             )
             path_list.append({"path": path_key, "weight": path["weight"]})
         pool_paths[type_path] = path_list

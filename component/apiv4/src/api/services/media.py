@@ -370,15 +370,20 @@ class MediaService:
         # Resolve the absolute destination path under the user's media
         # storage pool *before* inserting the row so the download task
         # has it from the start. Replaces the engine's
-        # ``get_path_to_disk(type_path="media")`` plumbing.
+        # ``get_path_to_disk(type_path="media")`` plumbing. The media is stored
+        # FLAT by its id (``<pool media dir>/<media_id>.<kind>``) exactly like
+        # main and like desktop/template disks; the human ``urlpath`` label is
+        # kept only in the ``path`` field below.
+        media_id = str(uuid4())
         _pool, dest_path = RethinkMedia.resolve_download_path(
             user_id=payload["user_id"],
             category_id=payload["category_id"],
-            relative_path=urlpath,
+            media_id=media_id,
             kind=media_data.kind.value,
         )
 
         media_dict = {
+            "id": media_id,
             "name": media_data.name,
             "description": media_data.description,
             "user": payload["user_id"],
