@@ -69,7 +69,7 @@ interface Props {
   bastion?: Bastion
   viewers?: string[]
   hardwareInterfaces?: string[]
-  onRequestAddInterface?: (ifaceId: string) => void
+  onRequestAddInterface?: (ifaceId: string) => boolean | undefined
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -320,11 +320,20 @@ watch(
 // to add wireguard" step.
 watch(hasRdpViewer, (next, prev) => {
   if (!next || prev) return
-  const has = (props.hardwareInterfaces ?? []).includes('wireguard')
-  if (!has) {
-    props.onRequestAddInterface?.('wireguard')
+  if ((props.hardwareInterfaces ?? []).includes('wireguard')) return
+  if (!props.onRequestAddInterface) return
+
+  const added = props.onRequestAddInterface('wireguard')
+
+  if (added === true) {
     toast.info(t('components.domain.access.wireguard-added.title'), {
       description: t('components.domain.access.wireguard-added.description')
+    })
+  } else if (added === false) {
+    const current = (form.getFieldValue('viewers') as string[] | undefined) ?? []
+    form.setFieldValue('viewers', stripWireguardRequiringViewers(current))
+    toast.error(t('components.domain.access.wireguard-warning.title'), {
+      description: t('components.domain.access.wireguard-warning.no-permission-description')
     })
   }
 })

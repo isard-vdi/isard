@@ -66,7 +66,7 @@ const hardwareFormRef = ref<{
   getFormData: () => any
   isValid: boolean
   limitedFields: any
-  addInterface: (ifaceId: string) => void
+  addInterface: (ifaceId: string) => boolean | undefined
   removeInterface: (ifaceId: string) => void
   interfaces: string[]
 } | null>(null)
@@ -80,7 +80,7 @@ const selectedViewers = computed<string[]>(() =>
 const removedViewerLabels = computed<string[]>(() => accessFormRef.value?.removedViewerLabels ?? [])
 
 function handleAddInterfaceFromAccessForm(ifaceId: string) {
-  hardwareFormRef.value?.addInterface(ifaceId)
+  return hardwareFormRef.value?.addInterface(ifaceId)
 }
 
 // Check if hardware form has limited fields (using data from DomainHardwareForm)
