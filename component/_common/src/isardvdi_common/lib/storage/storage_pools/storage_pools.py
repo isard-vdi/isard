@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import re
 import time
 import traceback
 
@@ -36,6 +37,11 @@ from rethinkdb import r
 class StoragePoolsProcessed(RethinkSharedConnection):
 
     _rdb_table = "storage_pool"
+
+    # A category pool must live under /isard/storage_pools/<name> (host
+    # /opt/isard/storage_pools/<name>) - the only path bind-mounted into the
+    # storage and hypervisor containers.
+    STORAGE_POOLS_ROOT = "/isard/storage_pools"
 
     @staticmethod
     def _check_with_validate_weight(data):
@@ -60,41 +66,128 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                 seen_paths.add(path)
 
     @classmethod
-    def remove_common_categories_from_other_pools(cls, categories):
+    def _check_mountpoint_safe(cls, mountpoint):
+        """_From /api/libv2/api_storage.py \_check_mountpoint_safe()_
+
+        A category pool's mountpoint must be /isard/storage_pools/<name>.
+
+        That root (host /opt/isard/storage_pools) is the only storage location
+        bind-mounted into the storage and hypervisor containers, so a mountpoint
+        outside it - or one using '..' to climb out - would put disks where the
+        containers cannot reach them. The leaf is the admin-chosen directory
+        name and must be a single safe path segment.
+        """
+        prefix = cls.STORAGE_POOLS_ROOT + "/"
+        if not mountpoint or "\x00" in mountpoint or not mountpoint.startswith(prefix):
+            raise Error(
+                "bad_request",
+                f"Storage pool mountpoint must be under {prefix} "
+                "(the only path mounted into the storage and hypervisor containers)",
+            )
+        leaf = mountpoint[len(prefix) :].strip("/")
+        if not leaf or "/" in leaf or ".." in leaf.split("/") or leaf.strip(".") == "":
+            raise Error(
+                "bad_request",
+                f"Storage pool mountpoint must be {prefix}<name> with a single safe "
+                "segment (no '/', no '..')",
+            )
+
+    @classmethod
+    def _check_mountpoint_unique(cls, mountpoint, exclude_id=None):
+        """Reject a mountpoint already used by another storage pool.
+
+        A pool's mountpoint is its on-disk identity: ``get_by_path`` /
+        ``get_best_for_action`` resolve a disk path back to a pool by the
+        longest mountpoint that is a prefix of it. Two pools sharing the exact
+        same mountpoint make that reverse lookup ambiguous -- the tie is broken
+        by db-scan order, so a download task can be enqueued onto the wrong
+        pool's queue and, if that pool is not served by any worker, stall
+        silently at ``DownloadStarting``. Sharing one physical location across
+        categories is already expressed as a single multi-category pool plus the
+        ``{category}`` token, so duplicate mountpoints are never needed. Enforce
+        uniqueness here (``exclude_id`` skips the pool being renamed on update).
+        """
+        with cls._rdb_context():
+            query = r.table("storage_pool").filter({"mountpoint": mountpoint})
+            if exclude_id is not None:
+                query = query.filter(lambda pool: pool["id"] != exclude_id)
+            clash = query.count().run(cls._rdb_connection)
+        if clash:
+            raise Error(
+                "bad_request",
+                f"Storage pool mountpoint {mountpoint} is already used by another "
+                "pool; each storage pool must have a unique mountpoint",
+                description_code="storage_pool_mountpoint_in_use",
+            )
+
+    @staticmethod
+    def _check_paths_safe(data):
+        """_From /api/libv2/api_storage.py \_check_paths_safe()_
+
+        Reject path entries that could escape the pool's category subtree.
+
+        Pool paths are relative directory names concatenated into the on-disk
+        path (<mountpoint>/<category>/<path>). They are sanitized for HTML but
+        not for filesystem traversal, so an absolute path, a ".." segment or a
+        null byte would let a disk land outside its tenant subtree.
+        """
+        for key in data:
+            for item in data[key]:
+                path = item.get("path", "")
+                if (
+                    not path
+                    or path.startswith("/")
+                    or "\x00" in path
+                    or ".." in path.split("/")
+                ):
+                    raise Error(
+                        "bad_request",
+                        f"Invalid storage pool path '{path}': must be a relative "
+                        "directory without '..' segments",
+                    )
+
+    @classmethod
+    def remove_common_categories_from_other_pools(cls, categories, keep_pool_id=None):
         """_From /api/libv2/api_storage.py remove_common_categories_from_other_pools()_
 
         Remove categories from other storage pools so they can be added to another pool
 
+        Done as a single server-side update over all pools, so a category is
+        never transiently present in two pools (or none) the way the previous
+        pluck-then-loop did. ``keep_pool_id`` excludes the pool that is about to
+        be written with these categories, so they are not stripped right before
+        being set on it.
+
         :param categories: List of category ids
         :type categories: list
+        :param keep_pool_id: Pool id to leave untouched
+        :type keep_pool_id: str
         """
-        if len(categories):
-            with cls._rdb_context():
-                existing_pools = list(
-                    r.table("storage_pool")
-                    .pluck("categories", "id")
-                    .run(cls._rdb_connection)
-                )
-            for pool in existing_pools:
-                common_categories = set(pool["categories"]).intersection(
-                    set(categories)
-                )
-                if common_categories:
-                    with cls._rdb_context():
-                        r.table("storage_pool").get(pool["id"]).update(
-                            {
-                                "categories": r.row["categories"].difference(
-                                    list(common_categories)
-                                )
-                            }
-                        ).run(cls._rdb_connection)
+        if not categories:
+            return
+        query = r.table("storage_pool")
+        if keep_pool_id is not None:
+            query = query.filter(lambda pool: pool["id"] != keep_pool_id)
+        with cls._rdb_context():
+            query.update(
+                lambda pool: {
+                    "categories": pool["categories"].set_difference(list(categories))
+                }
+            ).run(cls._rdb_connection)
 
     @classmethod
     def add_storage_pool(cls, data):
         """_From /api/libv2/api_storage.py add_storage_pool()_"""
+        # The admin chooses the leaf name; we only validate it stays within the
+        # storage_pools root, is a single safe segment, and is not already used
+        # by another pool (a duplicate mountpoint makes path->pool resolution
+        # ambiguous).
+        cls._check_mountpoint_safe(data["mountpoint"])
+        cls._check_mountpoint_unique(data["mountpoint"])
         if data.get("paths"):
             cls._check_with_validate_weight(data["paths"])
             cls._check_duplicated_paths(data["paths"])
+            cls._check_paths_safe(data["paths"])
         if data.get("enabled") is False:
             data["enabled_virt"] = False
         else:
@@ -159,14 +252,22 @@ class StoragePoolsProcessed(RethinkSharedConnection):
         if data.get("paths"):
             cls._check_duplicated_paths(data["paths"])
             cls._check_with_validate_weight(data["paths"])
+            cls._check_paths_safe(data["paths"])
         if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
             if "enabled" in data:
                 raise Error("bad_request", "Default pool can't be disabled")
+            # The default pool stays at /isard; its name/categories are fixed too.
             for key in ["name", "description", "mountpoint", "categories"]:
                 if key in data:
                     data.pop(key)
             if "paths" in data:
                 cls._check_default_paths(data["paths"])
+        elif "mountpoint" in data:
+            # A category pool's mountpoint may be renamed (webapp allows it) but
+            # must stay under /isard/storage_pools/<name> and not collide with
+            # another pool's mountpoint.
+            cls._check_mountpoint_safe(data["mountpoint"])
+            cls._check_mountpoint_unique(data["mountpoint"], exclude_id=storage_pool_id)
 
         # If the pool is disabled, the virt pool must be disabled too
         if data.get("enabled") is not None:
@@ -179,7 +280,9 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                 "The virtual pool cannot be enabled if the storage pool is disabled",
             )
         if "categories" in data:
-            cls.remove_common_categories_from_other_pools(data["categories"])
+            cls.remove_common_categories_from_other_pools(
+                data["categories"], keep_pool_id=storage_pool_id
+            )
         with cls._rdb_context():
             r.table("storage_pool").get(storage_pool_id).update(data).run(
                 cls._rdb_connection
@@ -190,6 +293,40 @@ class StoragePoolsProcessed(RethinkSharedConnection):
         """_From /api/libv2/api_storage.py delete_storage_pool()_"""
         if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
             raise Error("bad_request", "Default pool can't be removed")
+        pool = StoragePool.get(storage_pool_id)
+        if pool is None:
+            raise Error("not_found", f"Storage pool {storage_pool_id} not found")
+        # Removing a pool that still owns categories or disks orphans them: their
+        # on-disk files stay under the (now unknown) mountpoint while new disks
+        # fall back to the default pool. Require the admin to reassign/migrate
+        # first.
+        if pool.get("categories"):
+            raise Error(
+                "bad_request",
+                "Cannot remove a storage pool that still has categories assigned; "
+                "reassign them to another pool first",
+            )
+        mountpoint = (
+            pool.get("mountpoint") or f"{cls.STORAGE_POOLS_ROOT}/{storage_pool_id}"
+        )
+        with cls._rdb_context():
+            disks = (
+                r.table("storage")
+                .filter(lambda s: s["status"] != "deleted")
+                .filter(
+                    lambda s: s["directory_path"]
+                    .default("")
+                    .match("^" + re.escape(mountpoint) + "/")
+                )
+                .count()
+                .run(cls._rdb_connection)
+            )
+        if disks:
+            raise Error(
+                "bad_request",
+                f"Cannot remove storage pool: {disks} disk(s) still reside in it; "
+                "migrate them to another pool first",
+            )
         with cls._rdb_context():
             r.table("storage_pool").get(storage_pool_id).delete().run(
                 cls._rdb_connection
