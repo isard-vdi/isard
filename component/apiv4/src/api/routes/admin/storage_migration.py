@@ -166,6 +166,7 @@ async def admin_storage_migration_path_prefixes(
     "skipped / quarantined / in-place, annotated by occurrence for recurring "
     "jobs, with a summary header. format=csv (default) | json.",
     responses=_ERRS,
+    response_class=Response,
 )
 async def admin_storage_migration_log(
     request: Request,
