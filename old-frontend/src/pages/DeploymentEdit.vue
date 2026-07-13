@@ -233,10 +233,6 @@ export default {
           for (let i = 0; i < domain.value.guestProperties.viewers.length; i++) {
             Object.assign(viewers, domain.value.guestProperties.viewers[i])
           }
-          // Parse isos data
-          const isos = domain.value.hardware.isos.map((value) => {
-            return { id: value.id }
-          })
           $store.dispatch('editDeployment',
             {
               id: domain.value.id,
@@ -257,7 +253,7 @@ export default {
                 disk_bus: domain.value.hardware.diskBus,
                 floppies: domain.value.hardware.floppies,
                 interfaces: domain.value.hardware.interfaces,
-                isos: isos,
+                isos: domain.value.hardware.isos,
                 memory: domain.value.hardware.memory,
                 vcpus: domain.value.hardware.vcpus,
                 videos: domain.value.hardware.videos,
