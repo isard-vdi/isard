@@ -165,3 +165,38 @@ def test_check_mountpoint_unique_excludes_self_on_rename(stub_rdb):
         "/isard/storage_pools/x", exclude_id="self"
     )  # no raise
     assert stub_rdb.return_value.filter.return_value.filter.called
+
+
+# --------------------------------------------------------------------------- #
+# default-pool path validation
+# --------------------------------------------------------------------------- #
+def test_check_mountpoint_safe_rejects_reserved_default_leaf():
+    # /isard/storage_pools/default is reserved for the default pool.
+    with pytest.raises(Exception) as exc:
+        SPP._check_mountpoint_safe("/isard/storage_pools/default")
+    assert exc.value.args[0] == "bad_request"
+
+
+def _default_paths(desktop):
+    return {
+        "desktop": [{"path": desktop, "weight": 100}],
+        "media": [{"path": "media", "weight": 100}],
+        "template": [{"path": "templates", "weight": 100}],
+        "volatile": [{"path": "volatile", "weight": 100}],
+    }
+
+
+def test_check_default_paths_accepts_legacy_groups():
+    SPP._check_default_paths(_default_paths("groups"))  # no raise
+
+
+def test_check_default_paths_accepts_new_desktops():
+    SPP._check_default_paths(_default_paths("desktops"))  # no raise
+
+
+def test_check_default_paths_requires_every_usage_type():
+    bad = _default_paths("desktops")
+    bad["volatile"] = []
+    with pytest.raises(Exception) as exc:
+        SPP._check_default_paths(bad)
+    assert exc.value.args[0] == "bad_request"

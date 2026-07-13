@@ -79,3 +79,43 @@ def test_clear_storage_pools_cache_empties_both():
     mod.clear_storage_pools_cache()
     assert len(mod._storage_pools_cache) == 0
     assert len(mod._all_storage_pools_cache) == 0
+
+
+# _parse_default_storage_pool_paths  (default pool honours its mountpoint)
+# --------------------------------------------------------------------------- #
+def _default_pool_row(mountpoint, desktop_dir):
+    return {
+        "id": DEFAULT_STORAGE_POOL_ID,
+        "mountpoint": mountpoint,
+        "paths": {
+            "desktop": [{"path": desktop_dir, "weight": 100}],
+            "media": [{"path": "media", "weight": 100}],
+            "template": [{"path": "templates", "weight": 100}],
+            "volatile": [{"path": "volatile", "weight": 100}],
+        },
+    }
+
+
+def test_parse_default_paths_legacy_isard():
+    out = mod._parse_default_storage_pool_paths(_default_pool_row("/isard", "groups"))
+    assert out["paths"]["desktop"][0]["path"] == "/isard/groups"
+    assert out["paths"]["template"][0]["path"] == "/isard/templates"
+
+
+def test_parse_default_paths_named_leaf():
+    out = mod._parse_default_storage_pool_paths(
+        _default_pool_row("/isard/storage_pools/default", "desktops")
+    )
+    assert out["paths"]["desktop"][0]["path"] == "/isard/storage_pools/default/desktops"
+    assert (
+        out["paths"]["volatile"][0]["path"] == "/isard/storage_pools/default/volatile"
+    )
+
+
+def test_parse_default_paths_non_default_returns_false():
+    assert (
+        mod._parse_default_storage_pool_paths(
+            {"id": "pool-a", "mountpoint": "/isard/storage_pools/pool-a", "paths": {}}
+        )
+        is False
+    )

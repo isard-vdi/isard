@@ -908,7 +908,7 @@ function addDefaultCheckboxListeners(modal, checkbox) {
 function getTypeDefaultValue(type) {
   const valueMap = {
     "desktop": {
-      "path": "groups",
+      "path": "desktops",
       "icon": "fa-desktop",
       "title": "Desktop"
     },

@@ -1223,7 +1223,42 @@ class Populate(object):
         self.create_table("storage")
 
     def storage_pool(self):
-        self.create_table("storage_pool")
+        # On a FRESH install (table just created) seed the default pool under a
+        # named leaf /isard/storage_pools/default, so its disks live alongside
+        # category pools instead of the legacy top-level /isard/{groups,...}.
+        # Existing installs keep whatever upgrade v121 created (/isard).
+        if not self.create_table("storage_pool"):
+            self.result(
+                r.table("storage_pool")
+                .insert(
+                    {
+                        "id": "00000000-0000-0000-0000-000000000000",
+                        "name": "Default",
+                        "description": "Default storage pool",
+                        "mountpoint": "/isard/storage_pools/default",
+                        "enabled": True,
+                        "read": True,
+                        "write": True,
+                        "startable": True,
+                        "categories": [],
+                        "allowed": {
+                            "categories": False,
+                            "groups": False,
+                            "roles": [],
+                            "users": False,
+                        },
+                        "paths": {
+                            "desktop": [{"path": "desktops", "weight": 100}],
+                            "template": [{"path": "templates", "weight": 100}],
+                            "media": [{"path": "media", "weight": 100}],
+                            "volatile": [{"path": "volatile", "weight": 100}],
+                        },
+                    },
+                    conflict="update",
+                )
+                .run(self.conn)
+            )
+            log.info("Table storage_pool populated with default pool.")
 
     def user_storage(self):
         self.create_table("user_storage")

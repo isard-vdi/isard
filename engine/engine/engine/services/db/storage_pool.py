@@ -149,7 +149,10 @@ def _parse_default_storage_pool_paths(pool):
         paths = pool["paths"].get(type_path, [])
         path_list = []
         for path in paths:
-            path_key = "/isard/" + path["path"]
+            # Honour the pool's mountpoint instead of hardcoding "/isard". Legacy
+            # default pools keep mountpoint "/isard" (-> /isard/<path>); fresh
+            # installs use "/isard/storage_pools/default" (-> that/<path>).
+            path_key = pool["mountpoint"] + "/" + path["path"]
             path_list.append({"path": path_key, "weight": path["weight"]})
         pool_paths[type_path] = path_list
     pool["paths"] = pool_paths
