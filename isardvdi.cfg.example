@@ -1,4 +1,4 @@
-# Isard main config v2.35.8
+# Isard main config v2.35.9
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -651,12 +651,33 @@ HAPROXY_LOGGING=.
 #STORAGE_DOMAIN=isard-storage
 
 # ------ WEB PORTS -----------------------------------------------------------
-# Note: On web flavours, if you set this variables you may also change
-#       accordingly the VIEWER_SPICE and VIEWER_BROWSER ports
-# Note: In flavours that include web or monitor (all-in-one, web, web+video,
-#       monitor...) the opened port will always be HTTP_PORT/HTTPS_PORT,
-#       not VIEWER_SPICE/VIEWER_BROWSER. Only video-only flavours (video,
-#       video-standalone, hypervisor) open VIEWER_SPICE/VIEWER_BROWSER ports.
+## Docs: https://isard.gitlab.io/isardvdi-docs/install/insights/ports_and_nat/
+##
+## Every IsardVDI haproxy container (portal, video, monitor: all the same
+## image) listens on exactly TWO ports and routes by port + protocol:
+##
+##   HTTP_PORT   plain HTTP      -> ACME http-01 challenge, bastion web,
+##                                  redirect to https://<domain>:HTTPS_PORT
+##               HTTP CONNECT    -> SPICE proxy (squid)        [video parts]
+##               TLS             -> RDP gateway                [web parts]
+##   HTTPS_PORT  TLS             -> web UI, /api/v4, /authentication,
+##                                  /socket.io, /isard-admin, /engine,
+##                                  /scheduler, /openapi, guacamole
+##                                                             [web parts]
+##               TLS + websocket -> noVNC / spice-web-client   [video parts]
+##               TLS             -> /monitor, /loki, /prometheus
+##                                                             [monitor parts]
+##   Anything else is dropped.
+##
+## These two variables REALLY change the port haproxy binds to and the port
+## published on the host. They are NOT a way to declare an external NAT port
+## (for that see VIEWER_SPICE / VIEWER_BROWSER / VIEWER_RDP_GW below).
+## Only set them when this host must serve IsardVDI somewhere other than
+## 80/443, e.g. two IsardVDI installations sharing a single host.
+##
+## WARNING: setting HTTP_PORT moves the ACME http-01 challenge off port 80,
+## so Let's Encrypt can no longer renew certificates on its own unless the
+## router forwards 80 -> HTTP_PORT.
 #HTTP_PORT=8081
 #HTTPS_PORT=8443
 
@@ -681,12 +702,41 @@ HAPROXY_LOGGING=.
 #VIDEO_DOMAIN=$DOMAIN
 
 # ------ Video external NAT ports --------------------------------------------
-## The port that SPICE/RDP clients will use to connect to their desktops.
-## This is always used in all flavours to set the client connection port
-## (e.g. external router NAT port).
-## In video-only flavours (video, video-standalone, hypervisor) it also
-## sets the haproxy listening port. In flavours with web or monitor,
-## haproxy uses HTTP_PORT/HTTPS_PORT instead.
+## Docs: https://isard.gitlab.io/isardvdi-docs/install/insights/ports_and_nat/
+##
+## The ports viewer clients will use to reach the desktops running on THIS
+## host. They are ANNOUNCED to the client: the hypervisor writes them to the
+## database when it registers (hypervisors.viewer.spice_ext_port and
+## .html5_ext_port) and the api builds every viewer file and URL from there.
+## Because they are stored per host, each hypervisor can publish its own ports.
+##
+##   VIEWER_SPICE   = SPICE proxy port. HTTP_PORT of the haproxy serving this
+##                    host's video parts (isard-video; the portal, in
+##                    all-in-one).
+##   VIEWER_BROWSER = HTML5 viewers port (noVNC, spice-web-client). HTTPS_PORT
+##                    of that same haproxy.
+##   VIEWER_RDP_GW  = RDP gateway port. HTTP_PORT of the WEB haproxy, which
+##                    serves the gateway as TLS. Defaults to HTTP_PORT.
+##
+## The three are independent on purpose. Even though the RDP gateway and the
+## SPICE proxy can share a port on an all-in-one, keeping the announced ports
+## separate lets the firewall treat each viewer protocol on its own, for
+## instance to apply QoS to SPICE traffic only.
+##
+## In video-only flavours (video, video-standalone, hypervisor) VIEWER_SPICE
+## and VIEWER_BROWSER also become the haproxy listening and published ports:
+## the entrypoint exports HTTP_PORT=$VIEWER_SPICE and HTTPS_PORT=$VIEWER_BROWSER.
+## WARNING: that moves the ACME http-01 challenge off port 80 and breaks
+## automatic certificate renewal unless the router forwards 80 -> VIEWER_SPICE.
+##
+## In flavours including web or monitor (all-in-one, web, web+video...) haproxy
+## keeps listening on HTTP_PORT/HTTPS_PORT and these variables open nothing:
+## they only announce a port. Either leave them equal to the listening ports,
+## or set them to the external port of a NAT that forwards to them. Example: an
+## all-in-one listening on 80/443 but reachable from the outside at 4104/4105
+## (router DNAT 4104 -> 80, 4105 -> 80) sets VIEWER_SPICE=4104 and
+## VIEWER_RDP_GW=4105. Announce a port nothing forwards and the desktop will
+## start fine while its viewer silently fails to connect.
 #VIEWER_SPICE=80
 #VIEWER_RDP_GW=80
 #VIEWER_BROWSER=443
