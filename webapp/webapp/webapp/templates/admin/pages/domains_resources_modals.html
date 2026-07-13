@@ -175,6 +175,81 @@
                                 </div>
                             </div>
 
+                            <!-- per-interface lab options (lab_opts).
+                                 Only visible for OVS-family kinds outside VLAN 4095.
+                                 Visibility is toggled from JS (refreshLabOptsVisibility).
+                                 Each checkbox is nested inside its label so the label is
+                                 already a click target — do NOT add for="..." (it would
+                                 double-toggle the iCheck overlay). -->
+                            <div class="row" id="row_lab_opts" style="display:none; margin-top:8px;">
+                                <div class="col-md-12 col-xs-12">
+                                    <div class="x_panel" style="padding:8px; background:#fbfbfb; border:1px solid #e0e0e0;">
+                                        <label class="control-label" style="font-weight:bold; text-align:left;">
+                                            <i class="fa fa-flask" style="color:#d35400;"></i>
+                                            Network laboratory options
+                                        </label>
+                                        <p class="help-block" style="font-size:11px; margin-top:2px; margin-bottom:6px;">
+                                            For advanced network labs running inside a desktop (GNS3, EVE-NG, Packet
+                                            Tracer in real mode, bridged nested VMs). Available only on OpenVSwitch and
+                                            Personal interfaces outside VLAN 4095. Each option takes effect on the
+                                            <b>next desktop start</b>; already-running desktops keep the flow set
+                                            installed at their start time.
+                                        </p>
+
+                                        <label class="control-label" style="cursor:pointer; display:block; font-weight:normal; text-align:left;">
+                                            <input type="checkbox" id="lab_mac_spoofing" name="lab_mac_spoofing"
+                                                   value="true" autocomplete="off" style="margin-right:6px;">
+                                            Allow MAC spoofing
+                                            <i class="fa fa-info-circle" style="color:#3498db; margin-left:4px; cursor:help;"
+                                               data-toggle="tooltip" data-placement="right" data-html="true"
+                                               title="<b>What is installed.</b> Replaces the strict per-port own-MAC enforcement with permissive any-src flows. The lab port accepts frames with arbitrary source MACs and the broadcast/multicast/unicast paths add an IN_PORT hairpin so sibling endpoints behind a nested bridge see each other (priority=202 any-src bcast meter:&lt;bcast&gt;,NORMAL,IN_PORT; priority=201 any-src mcast meter:&lt;mcast&gt;,NORMAL,IN_PORT; priority=200 any-src unicast catch-all meter:&lt;unicast lab&gt;,NORMAL — 10000 pps / 20000 burst).<br><br><b>Anti-impersonation guard stays.</b> A drop rule at priority=203 blocks any source MAC inside the IsardVDI desktop OUI <code>52:54:00:**:**:**</code> that isn't this desktop's own MAC, so a guest cannot pose as another IsardVDI desktop. Nested QEMU/EVE-NG nodes must therefore use a non-52:54:00 OUI (e.g. <code>02:**:**:**:**:**</code> locally-administered).<br><br><b>Scope.</b> Effect is confined to this lab VLAN. Other VLANs and the wireguard infra VLAN 4095 (where lab_opts are rejected by validation) are not affected.<br><br><b>Labs allowed:</b> GNS3 Ethernet 'cloud' node bound to this NIC; EVE-NG bridge mode; nested ESXi vSwitch in promiscuous; nested VirtualBox/VMware bridge; VPCS multi-host; raw-socket sniffer/injector teaching exercises (Scapy, libpcap, hping3); custom router VM doing ARP/proxy-ARP.<br><br><b>Labs blocked:</b> impersonating another IsardVDI desktop on this VLAN; injecting frames on a different VLAN; spoofing wireguard infra MACs on VLAN 4095.">
+
+                                            </i>
+                                        </label>
+
+                                        <label class="control-label" style="cursor:pointer; display:block; font-weight:normal; text-align:left;">
+                                            <input type="checkbox" id="lab_stp_bpdu" name="lab_stp_bpdu"
+                                                   value="true" autocomplete="off" style="margin-right:6px;">
+                                            Tunnel STP / BPDU (cross-desktop spanning tree)
+                                            <i class="fa fa-info-circle" style="color:#3498db; margin-left:4px; cursor:help;"
+                                               data-toggle="tooltip" data-placement="right" data-html="true"
+                                               title="<b>What is installed.</b> Guest BPDUs (<code>dst=01:80:c2:00:00:00</code>) on the lab port are intercepted at priority=251 with meter &lt;bpdu&gt; (100 pps / burst 200) and fanned out via a per-VLAN <code>type=all</code> group: one bucket per local stp_bpdu port on the VLAN, plus a geneve bucket that rewrites the dst to the IsardVDI tunnel MAC <code>0f:49:53:41:52:44</code> and pushes the VLAN tag explicitly. The receiving hypervisor reverses the rewrite, pops the tag and fans out to its own stp_bpdu ports on the same VLAN. Port-level RSTP is disabled on the lab port (<code>other_config:rstp-enable=false</code>) so the bridge's own RSTP engine doesn't eat the guest BPDU at L2 before the OpenFlow pipeline sees it. A companion <code>priority=200, in_port=geneve, dl_vlan=N → strip_vlan, group:8000+N</code> rule restores cross-host non-BPDU L2 delivery to the lab port (NORMAL flood excludes rstp-disabled ports).<br><br><b>Anti-forge guards stay.</b> Drop at priority=250 for <code>dst=0f:49:53:41:52:44</code> on every lab port prevents a guest from forging a tunneled BPDU. Strict ports on the same VLAN keep their priority=250 drop on the canonical BPDU MAC, so a stp_bpdu guest cannot leak BPDUs onto a non-lab tenant.<br><br><b>Scope.</b> BPDU traffic and topology stay inside the lab VLAN. The hypervisor's own RSTP, the physical trunk and VLAN 4095 are unreachable from the guest STP.<br><br><b>Labs allowed:</b> nested switch demos (Cisco IOSv-L2, Arista vEOS, OpenSwitch) running RSTP/MST across two desktops over the same lab VLAN; Linux bridge with <code>brctl stp on</code> demonstration; GNS3/EVE-NG topology with multiple switches that need to elect a root bridge; MSTP region simulation across nested switches.<br><br><b>Labs blocked:</b> influencing the hypervisor's ovsbr0 RSTP; reaching a physical trunk's STP domain; forging the tunnel MAC; loop protection over the geneve mesh (the local-only group has no geneve bucket so a tunneled BPDU cannot re-egress to geneve).<br><br><b>Recommendation:</b> scope the stp_bpdu VLAN as a single tenant — every stp_bpdu port on the VLAN sees every other stp_bpdu port's broadcast/multicast/unlearned-unicast traffic cross-host.">
+                                            </i>
+                                        </label>
+
+                                        <label class="control-label" style="cursor:pointer; display:block; font-weight:normal; text-align:left;">
+                                            <input type="checkbox" id="lab_bcast_unlimited" name="lab_bcast_unlimited"
+                                                   value="true" autocomplete="off" style="margin-right:6px;">
+                                            Raise broadcast rate limit
+                                            <i class="fa fa-info-circle" style="color:#3498db; margin-left:4px; cursor:help;"
+                                               data-toggle="tooltip" data-placement="right" data-html="true"
+                                               title="<b>What is installed.</b> Per-port broadcast meter goes from the strict default <b>10 pps / burst 50</b> to the lab ceiling <b>1000 pps / burst 2000</b>. Still a hard rate cap — a broadcast storm is bounded per-port and cannot saturate the geneve overlay or the underlay.<br><br><b>What does not change.</b> The multicast meter stays at the strict default unless 'Raise multicast rate limit' is also enabled. The mac_spoofing source-MAC enforcement remains in place unless 'Allow MAC spoofing' is also enabled — broadcasts must still come from this desktop's own MAC.<br><br><b>Scope.</b> Lab VLAN only. Other VLANs and the wireguard infra VLAN 4095 are unaffected.<br><br><b>Labs allowed:</b> ARP-heavy fabric/discovery demos at scale (a /16 or larger ARP-resolution sweep); DHCP-server load tests with many simulated clients; NetBIOS browser-master election storms; PXE-boot fleet provisioning at 100s of clients/second; gratuitous-ARP convergence demos.<br><br><b>Labs blocked:</b> sustained &gt; 1000 pps broadcast (still metered); broadcast egress with a forged source MAC unless mac_spoofing is also enabled; broadcasts onto a different VLAN.">
+                                            </i>
+                                        </label>
+
+                                        <label class="control-label" style="cursor:pointer; display:block; font-weight:normal; text-align:left;">
+                                            <input type="checkbox" id="lab_mcast_unlimited" name="lab_mcast_unlimited"
+                                                   value="true" autocomplete="off" style="margin-right:6px;">
+                                            Raise multicast rate limit
+                                            <i class="fa fa-info-circle" style="color:#3498db; margin-left:4px; cursor:help;"
+                                               data-toggle="tooltip" data-placement="right" data-html="true"
+                                               title="<b>What is installed.</b> Per-port multicast meter goes from the strict default <b>500 pps / burst 750</b> to the lab ceiling <b>5000 pps / burst 10000</b>. Still a hard rate cap.<br><br><b>What does not change.</b> Broadcast meter stays at strict unless 'Raise broadcast rate limit' is also enabled. mac_spoofing enforcement still applies — multicast must still come from this desktop's own MAC unless 'Allow MAC spoofing' is also enabled. Multicast is bridged only within the same VLAN — no inter-VLAN multicast routing through ovsbr0.<br><br><b>Scope.</b> Lab VLAN only.<br><br><b>Labs allowed:</b> PIM-DM/PIM-SM simulation between routers on nested VMs; IGMP/MLD snooping stress; OSPF/IS-IS hello floods on a large topology; multicast IPTV/H.323 source emitting several streams at 1-5 kpps; mDNS/SSDP/Bonjour at fleet scale; CARP/VRRP advertisement floods for failover demos.<br><br><b>Labs blocked:</b> sustained &gt; 5000 pps multicast (still metered); multicast egress with a forged source MAC unless mac_spoofing is also enabled; cross-VLAN multicast.">
+                                            </i>
+                                        </label>
+
+                                        <div id="lab_opts_warning" class="alert alert-warning"
+                                             style="display:none; margin-top:8px; margin-bottom:0; padding:6px 10px; font-size:11px;">
+                                            <i class="fa fa-exclamation-triangle"></i>
+                                            <b>Reduced security on this network.</b> Frames with arbitrary
+                                            <b>non-IsardVDI</b> source MACs are accepted on this interface. IsardVDI
+                                            desktop MACs (52:54:00) cannot be impersonated, but within this same VLAN a
+                                            user can still spoof non-IsardVDI MACs and sniff traffic. Use only on
+                                            dedicated lab networks where this trade-off is explicitly accepted.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </form>

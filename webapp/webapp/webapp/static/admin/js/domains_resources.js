@@ -660,6 +660,53 @@ $(document).ready(function () {
         return values.length === 2 && values[0] <= values[1] && 1 <= values[0] && values[0] <= 4094 && 1 <= values[1] && values[1] <= 4094
     })
 
+    // helpers for the per-interface lab options (lab_opts).
+    // Shown only on OVS-family kinds (`ovs`, `personal`) and never on VLAN
+    // 4095 (wireguard infrastructure). For `personal`, `net` is a range
+    // `xxxx-yyyy`; we hide the controls if the range covers 4095.
+    // Keep these in lockstep with the server schema (interfaces.yml) and the
+    // engine/hypervisor lab_* attribute names.
+    var LAB_OPT_IDS = ['lab_mac_spoofing', 'lab_stp_bpdu', 'lab_bcast_unlimited', 'lab_mcast_unlimited']
+    // checkbox id -> lab_opts key sent to / received from the API.
+    var LAB_OPT_KEYS = {
+        lab_mac_spoofing: 'mac_spoofing',
+        lab_stp_bpdu: 'stp_bpdu',
+        lab_bcast_unlimited: 'broadcast_unlimited',
+        lab_mcast_unlimited: 'multicast_unlimited'
+    }
+    // Only mac_spoofing reduces security -> drives the warning banner.
+    function refreshLabOptsWarning() {
+        $('#lab_opts_warning').toggle($('#modalInterfaces #lab_mac_spoofing').is(':checked'))
+    }
+    function resetLabOpts() {
+        // iCheck wraps each native checkbox and renders its own overlay.
+        // Setting .prop('checked', ...) updates only the native input — the
+        // iCheck visual stays stuck. Route every reset through iCheck.
+        LAB_OPT_IDS.forEach(function (id) {
+            $('#modalInterfaces #' + id).iCheck('uncheck').iCheck('update')
+        })
+        $('#lab_opts_warning').hide()
+    }
+    function netRangeIncludes4095(s) {
+        var m = String(s || '').match(/^(\d+)\s*-\s*(\d+)$/)
+        if (!m) return false
+        var a = parseInt(m[1], 10), b = parseInt(m[2], 10)
+        return a <= 4095 && b >= 4095
+    }
+    function refreshLabOptsVisibility() {
+        var kind = $('#modalInterfaces #kind').val()
+        var net = $('#modalInterfaces #ifname').val()
+        var isOvsFamily = (kind === 'ovs' || kind === 'personal')
+        var isNot4095 = (kind === 'ovs') ? (String(net) !== '4095')
+                      : (kind === 'personal') ? !netRangeIncludes4095(net)
+                      : false
+        var canShow = isOvsFamily && isNot4095
+        $('#row_lab_opts').toggle(canShow)
+        if (!canShow) {
+            resetLabOpts()
+        }
+    }
+
     $('#kind').on('change', function () {
         $('#ifname').removeAttr('min').removeAttr('max').removeAttr('data-parsley-vlanrange')
         if ($('#kind').val() == 'bridge') {
@@ -680,7 +727,39 @@ $(document).ready(function () {
             $('#ifname_label').html('Input vlan range (i.e. 2000-3000)')
             $('#ifname').attr('type', 'text').attr('data-parsley-vlanrange', 'true')
         }
+        refreshLabOptsVisibility()
     });
+
+    // re-evaluate visibility of the lab options row when the
+    // user types a VLAN id / range, not only when kind changes.
+    $('#modalInterfaces #ifname').on('change keyup', refreshLabOptsVisibility)
+
+    // Show the in-situ security warning as soon as MAC spoofing is ticked.
+    // iCheck-wrapped checkboxes fire ifChanged/ifChecked/ifUnchecked, NOT the
+    // native 'change' event, so bind the iCheck event.
+    $('#modalInterfaces #lab_mac_spoofing').on('ifChanged', refreshLabOptsWarning)
+
+    // Initialise the data-html tooltips on the info icons (Bootstrap does not
+    // do this automatically; without it the markup renders as literal text).
+    $('#modalInterfaces [data-toggle="tooltip"]').tooltip({ container: 'body' })
+
+    // Always normalize lab-options UI state when the modal closes so the next
+    // open starts clean, regardless of how the previous session ended (save,
+    // cancel, X button, backdrop click, Esc). form.reset() resets the native
+    // inputs but NOT iCheck's overlays — without .iCheck('uncheck').iCheck('update')
+    // the visuals stay "checked" while the form values are false.
+    $('#modalInterfaces').on('hidden.bs.modal', function () {
+        resetLabOpts()
+        $('#row_lab_opts').hide()
+    })
+
+    // Belt-and-suspenders: also force-reset the lab checkboxes on EVERY modal
+    // show, before any AJAX runs. The edit-path's iCheck restore lands later
+    // via its $.ajax success callback, so it correctly reapplies the persisted
+    // values. Defeats any close path that skips hidden.bs.modal and autofill.
+    $('#modalInterfaces').on('show.bs.modal', function () {
+        resetLabOpts()
+    })
     int_table = $('#table-interfaces').DataTable({
         "ajax": {
             "url": "/api/v4/admin/items/table/interfaces",
@@ -704,6 +783,23 @@ $(document).ready(function () {
             { "data": "name" },
             { "data": "description" },
             { "data": "net" },
+            {
+                // at-a-glance flag for lab interfaces (any lab option enabled).
+                // Renders an orange flask icon listing the enabled options.
+                // Legacy rows without the field render empty.
+                "data": "lab_opts",
+                "title": "",
+                "orderable": false,
+                "width": "20px",
+                "defaultContent": "",
+                "render": function (d) {
+                    if (!d) return ''
+                    var on = Object.keys(d).filter(function (k) { return d[k] === true })
+                    if (!on.length) return ''
+                    return '<i class="fa fa-flask" style="color:#d35400;" data-toggle="tooltip" '
+                        + 'title="Lab options enabled: ' + on.join(', ') + '"></i>'
+                }
+            },
             {
                 "className": 'actions-control',
                 "orderable": false,
@@ -757,8 +853,24 @@ $(document).ready(function () {
                         $('#modalInterfacesForm #kind').val(interface.kind)
                         $('#modalInterfacesForm #kind').trigger('change')
                         $.each(interface, function (key, value) {
+                            // `lab_opts` is an object of checkbox states,
+                            // restored via iCheck below — `.val()` would set a
+                            // value attribute, not check the boxes.
+                            if (key === 'lab_opts') return
                             $('#modalInterfacesForm #' + key).val(value)
                         });
+                        // Restore each lab option via iCheck — the checkboxes
+                        // are iCheck-wrapped and .prop('checked', ...) updates
+                        // only the native input, leaving the overlay stuck.
+                        var lab = interface.lab_opts || {}
+                        LAB_OPT_IDS.forEach(function (id) {
+                            var on = lab[LAB_OPT_KEYS[id]] === true
+                            $('#modalInterfacesForm #' + id)
+                                .iCheck(on ? 'check' : 'uncheck')
+                                .iCheck('update')
+                        })
+                        refreshLabOptsWarning()
+                        refreshLabOptsVisibility()
                     }
                 });
                 break;
@@ -804,6 +916,10 @@ $(document).ready(function () {
         }).modal('show');
         populateDropdown('qos_net', '#qos_id', 'unlimited', false)
         $('#modalInterfaces #modalInterfacesForm').parsley();
+        // hide the lab options row by default; refresh once the
+        // user has picked a kind. form.reset() already unchecked the boxes.
+        $('#lab_opts_warning').hide()
+        refreshLabOptsVisibility()
 
         window.Parsley.addValidator('cidr', {
             validateString: function (value, id) {
@@ -823,6 +939,15 @@ $(document).ready(function () {
         if (form.parsley().isValid()) {
             data['net'] = data['ifname']
             data['table'] = 'interfaces'
+            // serializeObject() sends raw "lab_*"="true" strings only for the
+            // ticked checkboxes. Build the lab_opts object explicitly as real
+            // booleans (every flag always present) and drop the raw keys so
+            // the JSON payload matches the interfaces schema.
+            data['lab_opts'] = {}
+            LAB_OPT_IDS.forEach(function (id) {
+                data['lab_opts'][LAB_OPT_KEYS[id]] = $('#modalInterfaces #' + id).is(':checked')
+                delete data[id]
+            })
             if (data['id'] == "") {
                 //Insert
                 data['allowed'] = { 'roles': false, 'categories': false, 'groups': false, 'users': false }

@@ -190,7 +190,21 @@ $(document).ready(function () {
     },
     { "data": "viewer.static", "className": 'group-system', "visible": false },
     { "data": "viewer.proxy_video", "className": 'group-system', "visible": false },
-    { "data": "vpn.wireguard.connected", "defaultContent": 'NaN', "className": 'group-system', "visible": false },
+    {
+      // VPN tunnel liveness. The VPN container's tunnel_monitor.py polls
+      // the BFD state (geneve-only) or wg latest_handshake (wireguard+
+      // geneve) every 5s and only writes when the bool flips. Render as
+      // a colored dot: green = connected, grey = disconnected/unknown.
+      "data": "vpn.tunnel_status",
+      "defaultContent": "disconnected",
+      "render": function (data, type, row) {
+        if (type !== "display") { return data || ""; }
+        var connected = data === "connected";
+        var color = connected ? "#5cb85c" : "#aaa";
+        var label = connected ? "Tunnel up" : "Tunnel down";
+        return '<i class="fa fa-circle" style="color:' + color + '" title="' + label + '"></i>';
+      }
+    },
     { "data": "info.nested", "defaultContent": 'NaN', "className": 'group-system', "visible": false },
     { "data": "info.virtualization_capabilities", "defaultContent": 'NaN', "className": 'group-system', "visible": false },
     { "data": "info.qemu_version", "defaultContent": 'NaN', "className": 'group-system', "visible": false },
