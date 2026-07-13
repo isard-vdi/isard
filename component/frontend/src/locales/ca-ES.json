@@ -54,24 +54,12 @@
         "subtitle": "Crea una nova plantilla a partir d'un escriptori existent"
       },
       "edit": {
-        "title": "Edita la plantilla",
-        "subtitle": "Modifica el nom, el maquinari i les opcions d’accés"
+        "title": "Edita una plantilla",
+        "subtitle": "Edita les propietats, visibilitat i configuració de maquinari de la plantilla"
       },
       "duplicate": {
         "title": "Duplica Plantilla",
         "subtitle": "Crea una nova plantilla duplicant-ne una existent"
-      },
-      "edit": {
-        "title": "Edita una plantilla",
-        "subtitle": "Edita les propietats, visibilitat i configuració de maquinari de la plantilla"
-      },
-      "recycle-bin": {
-        "title": "Paperera de reciclatge",
-        "subtitle": "Veu, restaura o elimina elements a la teva paperera",
-        "entry": {
-          "title": "Entrada de la paperera",
-          "subtitle": "Revisa l'element eliminat i el seu contingut"
-        }
       }
     },
     "media": {
@@ -185,10 +173,6 @@
       "step-1": {
         "title": "Selecciona una plantilla",
         "description": "Tens diferents plantilles per utilitzar",
-        "tabs": {
-          "my-templates": "Les teves plantilles",
-          "shared-templates": "Compartides amb tu"
-        },
         "buttons": {
           "next": {
             "label": "Següent"
@@ -1229,25 +1213,6 @@
         "title": "Clau SSH del bastió"
       }
     },
-    "email-verification-modal": {
-      "title": "Canviar correu",
-      "description": "Escriu el vostre nou correu. Rebreu un missatge de verificació per confirmar el canvi.",
-      "email-label": "Correu electrònic",
-      "email-placeholder": "nom{'@'}exemple.com",
-      "invalid-email": "Escriu un correu vàlid",
-      "error-generic": "Ha ocorregut un error en actualitzar el correu. Si us plau, intenteu-ho de nou.",
-      "errors": {
-        "unauthorized": "La teva sessió ha expirat. Si us plau, inicia sessió de nou.",
-        "not_found": "El recurs sol·licitat no s'ha trobat.",
-        "internal_server": "Ha ocorregut un error intern del servidor. Si us plau, intenta-ho més tard.",
-        "email_already_in_use": "Aquest correu ja està en ús",
-        "invalid_email": "El format del correu és invàlid"
-      },
-      "buttons": {
-        "cancel": "Cancel·la",
-        "verify": "Actualitza i verifica"
-      }
-    },
     "login": {
       "login-provider-form": {
         "category": "Categoria",
@@ -1610,7 +1575,16 @@
       "force": "Força l'aturada dels escriptoris"
     },
     "desktop-networks-modal": {
-      "title": "Xarxes de l'escriptori '{name}'"
+      "title": "Xarxes de l'escriptori '{name}'",
+      "description": "Interfícies de xarxa connectades a aquest escriptori. La interfície Wireguard es mostra primer quan hi és present i exposa la IP encaminable del convidat.",
+      "empty": "Aquest escriptori no té cap xarxa connectada",
+      "error": "No s'ha pogut carregar la informació de xarxa",
+      "no-ip": "Sense IP assignada",
+      "fields": {
+        "id": "ID",
+        "mac": "Adreça MAC",
+        "ip": "Adreça IP"
+      }
     },
     "domain-info-modal": {
       "desktop": {
@@ -1740,13 +1714,6 @@
           "2": "Millor experiència en escriptoris Windows",
           "3": "Requereix accés VPN amb client WireGuard"
         }
-      },
-      "empty": "No hi ha escriptoris disponibles",
-      "pagination": {
-        "rows": "files",
-        "showing": "Per pàgina:",
-        "previous": "Anterior",
-        "next": "Següent"
       }
     },
     "message-modal": {
@@ -2123,7 +2090,10 @@
           "fields": {
             "name": {
               "label": "Nom",
-              "placeholder": "Introdueix el nom del desplegament"
+              "placeholder": "Introdueix el nom del desplegament",
+              "errors": {
+                "exists": "Tria un nom diferent."
+              }
             },
             "description": {
               "label": "Descripció",
@@ -2185,7 +2155,10 @@
             "fields": {
               "name": {
                 "label": "Nom",
-                "placeholder": "Introdueix el nom de l'escriptori"
+                "placeholder": "Introdueix el nom de l'escriptori",
+                "errors": {
+                  "exists": "Tria un nom diferent."
+                }
               },
               "description": {
                 "label": "Descripció",
@@ -2271,33 +2244,6 @@
         "generic": "No s’ha pogut pujar. Torna-ho a provar.",
         "invalid_type": "Tipus de fitxer no vàlid. Tria un PNG, JPG o GIF.",
         "too_large": "El fitxer és massa gran. La mida màxima és 5 MB."
-      },
-      "form": {
-        "validation": {
-          "required": "El camp {field} és obligatori",
-          "min-length": "El camp {field} ha de tenir almenys {min} caràcters",
-          "min-array-length": "El camp {field} ha de tenir almenys {min} elements",
-          "max-array-length": "El camp {field} ha de tenir com a màxim {max} elements",
-          "max-length": "El camp {field} ha de tenir com a màxim {max} caràcters",
-          "min-value": "El camp {field} ha de ser almenys {min}",
-          "max-value": "El camp {field} ha de ser com a màxim {max}",
-          "type": {
-            "string": "El camp {field} ha de ser una cadena de text",
-            "number": "El camp {field} ha de ser un número",
-            "integer": "El camp {field} ha de ser un nombre enter",
-            "boolean": "El camp {field} ha de ser vertader o fals",
-            "array": "El camp {field} ha de ser una llista",
-            "email": "El camp {field} ha de ser una adreça de correu electrònic vàlida"
-          },
-          "invalid-format": "El camp {field} té un format no vàlid",
-          "multiple-of": "El camp {field} ha de coincidir amb almenys un dels formats permesos",
-          "unrecognized-keys": "El camp {field} té claus no reconegudes: {keys}",
-          "invalid-union": "El camp {field} ha de coincidir amb almenys un dels formats permesos",
-          "invalid-key": "El camp {field} té una clau no vàlida",
-          "invalid-element": "El camp {field} té un element no vàlid",
-          "invalid-value": "El camp {field} té un valor no vàlid",
-          "unique": "El camp {field} ha de ser únic"
-        }
       }
     },
     "notification-modal": {
@@ -2600,12 +2546,6 @@
         "internal_server": "Error intern del servidor en desar l’escriptori.",
         "desktop_not_stopped": "L’escriptori ha d’estar aturat abans d’editar-lo."
       }
-    },
-    "new-from-media": {
-      "errors": {
-        "generic": "Hi ha hagut un error en crear l’escriptori. Torna-ho a provar.",
-        "internal_server": "Error intern del servidor en crear l’escriptori."
-      }
     }
   },
   "domains": {
@@ -2669,49 +2609,6 @@
     },
     "common": {
       "cancel": "Cancel·lar"
-    },
-    "import": {
-      "modal": {
-        "title": "Importar usuari",
-        "description": "Importa els elements d'un altre usuari a aquest compte",
-        "instructions-title": "Com obtenir un codi de migració",
-        "migration-instructions1": "Per començar, necessiteu un codi de migració de l'usuari que voleu importar.",
-        "migration-instructions2": "Si no en teniu cap, primer heu d'iniciar sessió en el compte que voleu migrar, cliqueu \"Exporta usuari\" al perfil i seguiu les instruccions indicades.",
-        "migration-instructions3": "Un cop tingueu el codi de migració, enganxeu-lo al camp de sota.",
-        "token-label": "Codi de migració",
-        "placeholder": "Introdueix el codi de migració",
-        "migrate-tooltip": "Ves a la pàgina de migració per continuar el procés",
-        "error": "S'ha produït un error en importar l'usuari. Torneu-ho a provar.",
-        "error-title": "Error d'importació",
-        "buttons": {
-          "migrate": "Inicia la migració"
-        }
-      }
-    },
-    "password": {
-      "modal": {
-        "title": "Canviar la contrasenya",
-        "current-password": {
-          "label": "Contrasenya actual",
-          "placeholder": "Contrasenya actual"
-        },
-        "new-password": {
-          "label": "Contrasenya nova",
-          "placeholder": "Contrasenya nova"
-        },
-        "confirm-new-password": {
-          "label": "Confirma la contrasenya",
-          "placeholder": "Contrasenya nova"
-        },
-        "buttons": {
-          "update": "Actualitza",
-          "cancel": "Canceŀla"
-        },
-        "errors": {
-          "required": "Aquest camp és obligatori",
-          "mismatch": "Les contrasenyes no son iguals"
-        }
-      }
     }
   },
   "common": {

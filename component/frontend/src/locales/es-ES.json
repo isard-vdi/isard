@@ -54,24 +54,12 @@
         "subtitle": "Crea una nueva plantilla a partir de un escritorio existente"
       },
       "edit": {
-        "title": "Editar plantilla",
-        "subtitle": "Modifica nombre, hardware y opciones de acceso"
+        "title": "Editar Plantilla",
+        "subtitle": "Edita las propiedades, visibilidad y configuración de hardware de la plantilla"
       },
       "duplicate": {
         "title": "Duplicar Plantilla",
         "subtitle": "Crea una nueva plantilla duplicando una existente"
-      },
-      "edit": {
-        "title": "Editar Plantilla",
-        "subtitle": "Edita las propiedades, visibilidad y configuración de hardware de la plantilla"
-      },
-      "recycle-bin": {
-        "title": "Papelera de reciclaje",
-        "subtitle": "Ver, restaurar o eliminar elementos en tu papelera",
-        "entry": {
-          "title": "Entrada de la papelera",
-          "subtitle": "Revisa el elemento eliminado y su contenido"
-        }
       }
     },
     "media": {
@@ -177,7 +165,7 @@
       }
     },
     "login": {
-      "separator": "Otros accessos",
+      "separator": "Otros accesos",
       "select-category": "Selecciona una categoría"
     },
     "new-desktop": {
@@ -185,10 +173,6 @@
       "step-1": {
         "title": "Selecciona una plantilla",
         "description": "Elige la plantilla que deseas utilizar para crear tu escritorio.",
-        "tabs": {
-          "my-templates": "Mis plantillas",
-          "shared-templates": "Plantillas compartidas"
-        },
         "buttons": {
           "next": {
             "label": "Siguiente"
@@ -423,7 +407,7 @@
         "status": {
           "all": "Todos",
           "started": "Iniciados",
-          "stopped": "Aturados"
+          "stopped": "Parados"
         }
       },
       "go-to-desktops": "Ir a mis escritorios",
@@ -913,41 +897,6 @@
         "title": "Error al guardar la plantilla"
       }
     },
-    "new-from-media": {
-      "title": "Escritorio nuevo desde medio",
-      "subtitle": "Creando a partir de «{media}»",
-      "header": {
-        "cancel": "Cancelar",
-        "create": "Crear escritorio"
-      },
-      "errors": {
-        "title": "Error al crear el escritorio"
-      },
-      "info": {
-        "title": "Nombre y descripción",
-        "description": "Define el nombre y la descripción del nuevo escritorio."
-      },
-      "os-template": {
-        "title": "Plantilla del sistema operativo",
-        "description": "Elige la plantilla de hardware del SO para el nuevo escritorio.",
-        "label": "Plantilla SO",
-        "placeholder": "Selecciona una plantilla"
-      },
-      "access": {
-        "title": "Acceso",
-        "description": "Visores y credenciales para el nuevo escritorio."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memoria, tamaño de disco, orden de arranque e interfaces."
-      },
-      "unsaved-changes": {
-        "title": "Cambios sin guardar",
-        "description": "Tienes cambios sin guardar. Si sales se perderán.",
-        "stay": "Quedarme",
-        "leave": "Descartar cambios"
-      }
-    },
     "error": {
       "400": {
         "title": "Solicitud incorrecta",
@@ -1296,7 +1245,7 @@
     },
     "sidebar": {
       "collapse": "Colapsar menú",
-      "expand": "Expandir  sidebar",
+      "expand": "Expandir menú",
       "desktops": "Escritorios",
       "templates": "Plantillas",
       "media": "Medios",
@@ -1384,7 +1333,7 @@
           "bastion": "Bastion",
           "book": "Reservar",
           "delete": "Eliminar",
-          "edit": "Edita",
+          "edit": "Editar",
           "direct-link": "Enlace directo",
           "info": "Información",
           "recreate": "Recrear",
@@ -1626,7 +1575,16 @@
       "force": "Forzar la parada de los escritorios"
     },
     "desktop-networks-modal": {
-      "title": "Redes del escritorio '{name}'"
+      "title": "Redes del escritorio '{name}'",
+      "description": "Interfaces de red conectadas a este escritorio. La interfaz Wireguard se muestra primero cuando está presente y expone la IP enrutable del huésped.",
+      "empty": "Este escritorio no tiene ninguna red conectada",
+      "error": "No se ha podido cargar la información de red",
+      "no-ip": "Sin IP asignada",
+      "fields": {
+        "id": "ID",
+        "mac": "Dirección MAC",
+        "ip": "Dirección IP"
+      }
     },
     "domain-info-modal": {
       "desktop": {
@@ -2151,7 +2109,10 @@
           "fields": {
             "name": {
               "label": "Nombre",
-              "placeholder": "Introduce el nombre del despliegue"
+              "placeholder": "Introduce el nombre del despliegue",
+              "errors": {
+                "exists": "Elige un nombre diferente."
+              }
             },
             "description": {
               "label": "Descripción",
@@ -2213,7 +2174,10 @@
             "fields": {
               "name": {
                 "label": "Nombre",
-                "placeholder": "Introduce el nombre del escritorio"
+                "placeholder": "Introduce el nombre del escritorio",
+                "errors": {
+                  "exists": "Elige un nombre diferente."
+                }
               },
               "description": {
                 "label": "Descripción",
@@ -2299,33 +2263,6 @@
         "generic": "No se ha podido subir. Inténtalo de nuevo.",
         "invalid_type": "Tipo de archivo no válido. Elige un PNG, JPG o GIF.",
         "too_large": "El archivo es demasiado grande. Tamaño máximo: 5 MB."
-      },
-      "form": {
-        "validation": {
-          "required": "El campo {field} es obligatorio",
-          "min-length": "El campo {field} debe tener al menos {min} caracteres",
-          "min-array-length": "El campo {field} debe tener al menos {min} elementos",
-          "max-array-length": "El campo {field} debe tener como máximo {max} elementos",
-          "max-length": "El campo {field} debe tener como máximo {max} caracteres",
-          "min-value": "El campo {field} debe ser al menos {min}",
-          "max-value": "El campo {field} debe ser como máximo {max}",
-          "type": {
-            "string": "El campo {field} debe ser una cadena de texto",
-            "number": "El campo {field} debe ser un número",
-            "integer": "El campo {field} debe ser un número entero",
-            "boolean": "El campo {field} debe ser verdadero o falso",
-            "array": "El campo {field} debe ser una lista",
-            "email": "El campo {field} debe ser una dirección de correo electrónico válida"
-          },
-          "invalid-format": "El campo {field} tiene un formato no válido",
-          "multiple-of": "El campo {field} debe coincidir con al menos uno de los formatos permitidos",
-          "unrecognized-keys": "El campo {field} tiene claves no reconocidas: {keys}",
-          "invalid-union": "El campo {field} debe coincidir con al menos uno de los formatos permitidos",
-          "invalid-key": "El campo {field} tiene una clave no válida",
-          "invalid-element": "El campo {field} tiene un elemento no válido",
-          "invalid-value": "El campo {field} tiene un valor no válido",
-          "unique": "El campo {field} debe ser único"
-        }
       }
     },
     "bookings": {
@@ -2588,12 +2525,6 @@
         "generic": "Se ha producido un error al guardar el escritorio. Inténtalo de nuevo.",
         "internal_server": "Error interno del servidor al guardar el escritorio.",
         "desktop_not_stopped": "El escritorio debe estar detenido antes de editarlo."
-      }
-    },
-    "new-from-media": {
-      "errors": {
-        "generic": "Se ha producido un error al crear el escritorio. Inténtalo de nuevo.",
-        "internal_server": "Error interno del servidor al crear el escritorio."
       }
     },
     "booking": {
