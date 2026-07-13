@@ -121,6 +121,14 @@
     },
     "error": {
       "title": "Error"
+    },
+    "recycle-bin": {
+      "entry": {
+        "subtitle": "Revisa l'element eliminat i el seu contingut",
+        "title": "Element de la paperera"
+      },
+      "subtitle": "Visualitza, restaura o elimina els elements de la paperera",
+      "title": "Paperera"
     }
   },
   "views": {
@@ -536,7 +544,8 @@
           "verify-email": "Verifica / Canvia el correu",
           "api-key": "Clau API",
           "reset-vpn": "Restableix la VPN",
-          "download-vpn": "Descarrega la VPN"
+          "download-vpn": "Descarrega la VPN",
+          "ssh-key": "Clau SSH del bastió"
         }
       },
       "information": {
@@ -627,13 +636,22 @@
             "title": "Crea un escriptori des del mitjà"
           }
         },
-        "unavailable": "Contingut multimedia no disponible. Si us plau, torna-ho a provar més tard."
+        "unavailable": "Contingut multimedia no disponible. Si us plau, torna-ho a provar més tard.",
+        "invalid-format": "El fitxer descarregat no és una imatge ISO/disquet vàlida. Elimina aquesta entrada i prova una altra URL."
       },
       "delete-confirmation-modal": {
         "title": "Esborrar el mitjà '{name}'",
         "subtitle": "Aquesta acció no es pot desfer i es perdran totes les dades associades.",
         "cancel": "Cancel·la",
         "confirm": "Esborrar"
+      },
+      "action-error-modal": {
+        "abort": "No s'ha pogut cancel·lar la descàrrega.",
+        "close": "Tanca",
+        "delete": "No s'ha pogut eliminar el mitjà.",
+        "download": "No s'ha pogut iniciar la descàrrega del mitjà.",
+        "fallback": "Error inesperat.",
+        "title": "L'acció ha fallat"
       }
     },
     "deployments": {
@@ -1193,6 +1211,22 @@
           "internal_server": "No s'han pogut restablir les claus VPN per un error del servidor. Si us plau, intenta-ho més tard.",
           "generic": "No s'han pogut restablir les claus VPN. Si us plau, intenta-ho de nou."
         }
+      },
+      "ssh-key-modal": {
+        "alert": {
+          "error-remove": "No s'ha pogut eliminar la clau SSH. Torna-ho a provar.",
+          "error-save": "No s'ha pogut desar la clau SSH. Comprova la clau i torna-ho a provar.",
+          "error-title": "La sol·licitud ha fallat"
+        },
+        "buttons": {
+          "remove": "Elimina la clau",
+          "save": "Desa la clau"
+        },
+        "description": "Afegeix la teva pròpia clau pública SSH al perfil. S'afegeix automàticament a l'accés SSH del bastió de qualsevol escriptori que iniciïs (quan l'accés SSH pel bastió està activat en aquell escriptori), de manera que no cal afegir-la a cada escriptori.",
+        "invalid": "Això no sembla una clau pública SSH vàlida.",
+        "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... usuari{'@'}host",
+        "security-note": "Afegeix només la teva pròpia clau pública. Afegir la clau d'una altra persona pot violar la política de seguretat de la teva organització.",
+        "title": "Clau SSH del bastió"
       }
     },
     "email-verification-modal": {
@@ -1298,7 +1332,8 @@
         "action-button": "Canvia i inicia",
         "subtitle": "Es pot canviar a un model de targeta gràfica disponible ara i iniciar-lo (Això podria afectar el rendiment de l'escriptori)",
         "title": "Canvia i inicia"
-      }
+      },
+      "description": "Pots reservar l'escriptori per a més tard amb la seva GPU actual, o canviar la GPU ara i iniciar l'escriptori immediatament."
     },
     "desktop-start-now-modal": {
       "cancel": "Cancel·la",
@@ -1340,7 +1375,9 @@
           "template": "Converteix en plantilla",
           "change-image": "Canvia la imatge",
           "storage": "Emmagatzematge",
-          "reset": "Reinicia"
+          "reset": "Reinicia",
+          "bastion-access": "Accés pel bastió (HTTP / HTTPS / SSH)",
+          "networks": "Xarxes"
         },
         "debug-options": {
           "copy-id": "Copia l'ID de l'escriptori"
@@ -1438,7 +1475,21 @@
           },
           "downloadstarting": {
             "text": "Descarregant"
+          },
+          "creatingandstarting": {
+            "action": "S'està creant i iniciant",
+            "text": "S'està creant i iniciant"
           }
+        },
+        "info": {
+          "boot": "Arrencada"
+        },
+        "networks": {
+          "more": "més"
+        },
+        "overlay": {
+          "expand": "Detalls",
+          "expand-tooltip": "Obre la finestra de detalls complets"
         }
       },
       "desktop-storage-modal": {
@@ -1768,7 +1819,14 @@
         "target-id": {
           "title": "ID de bastió"
         }
-      }
+      },
+      "error-loading-bastion-data": "Error en carregar les dades del bastió",
+      "error-loading-user-config": "Error en carregar la configuració de l'usuari",
+      "error": {
+        "title": "No s'ha pogut carregar l'accés pel bastió"
+      },
+      "no-bastion-configured": "El bastió no està activat per a aquest escriptori",
+      "no-bastion-configured-description": "Edita l'escriptori i activa l'accés HTTP/HTTPS o SSH per utilitzar el bastió."
     },
     "templates": {
       "template-type": {
@@ -1921,7 +1979,13 @@
             },
             "authorized-keys": {
               "label": "Claus SSH autoritzades (una per línia)",
-              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
+              "others-label": "Claus SSH d'altres persones (una per línia)",
+              "own-key": {
+                "add-link": "Afegeix-la al teu perfil",
+                "managed": "La teva pròpia clau s'afegeix automàticament des del teu perfil quan inicies aquest escriptori. Aquesta casella només és per a les claus públiques d'altres persones.",
+                "missing": "Encara no tens cap clau SSH del bastió al teu perfil, així que no tindràs accés SSH automàticament."
+              }
             }
           }
         },
@@ -2238,6 +2302,128 @@
     },
     "notification-modal": {
       "title": "Notificacions"
+    },
+    "bookings": {
+      "errors": {
+        "end-before-start": "L'hora de fi de la reserva no pot ser anterior a l'hora d'inici",
+        "forbid": "Necessites més temps d'antelació per crear la reserva",
+        "maximum-time": "No pots crear una reserva tan llarga",
+        "minimum-time": "La reserva ha de durar com a mínim 5 minuts",
+        "past-booking": "No pots crear una reserva en el passat"
+      },
+      "item": {
+        "enough-units": "Unitats suficients",
+        "event-titles": {
+          "available": "Disponible",
+          "overridable": "Substituïble",
+          "unavailable": "No disponible"
+        },
+        "modal": {
+          "cancel": "Cancel·la",
+          "create": {
+            "button": "Afegeix una reserva",
+            "modal-title": "Afegeix una reserva"
+          },
+          "delete": {
+            "button": "Elimina"
+          },
+          "edit": {
+            "button": "Desa els canvis",
+            "modal-title": "Edita la reserva"
+          },
+          "end-date": "Data de fi",
+          "end-time": "Hora de fi",
+          "profile": "Perfil",
+          "select-profile": "Si us plau, selecciona un perfil",
+          "start-date": "Data d'inici",
+          "start-time": "Hora d'inici",
+          "title": "Títol",
+          "view": {
+            "modal-title": "Mostra la reserva"
+          }
+        },
+        "new-planning": {
+          "bookable-item": "Nom de l'element",
+          "bookable-type": "Tipus reservable"
+        },
+        "split-labels": {
+          "availability": "Disponibilitat",
+          "bookings": "Reserves"
+        },
+        "status-bar": {
+          "buttons": {
+            "add-booking": "Afegeix una reserva"
+          },
+          "forbid-time": "Temps d'antelació necessari",
+          "max-items": "Màxim de reserves",
+          "max-time": "Temps màxim de reserva"
+        },
+        "units": "unitats"
+      },
+      "summary": {
+        "title": "Totes les teves reserves"
+      }
+    },
+    "datatable": {
+      "empty": "No hi ha escriptoris disponibles",
+      "pagination": {
+        "next": "Següent",
+        "previous": "Anterior",
+        "rows": "files",
+        "showing": "Per pàgina:"
+      }
+    },
+    "date-picker": {
+      "apply": "Aplica",
+      "cancel": "Cancel·la",
+      "today": "Avui"
+    },
+    "form": {
+      "validation": {
+        "invalid-element": "El camp {field} té un element no vàlid",
+        "invalid-format": "El camp {field} té un format no vàlid",
+        "invalid-key": "El camp {field} té una clau no vàlida",
+        "invalid-union": "El camp {field} ha de coincidir amb almenys un dels formats permesos",
+        "invalid-value": "El camp {field} té un valor no vàlid",
+        "max-array-length": "El camp {field} ha de tenir com a màxim {max} elements",
+        "max-length": "El camp {field} ha de tenir com a màxim {max} caràcters",
+        "max-value": "El camp {field} ha de ser com a màxim {max}",
+        "min-array-length": "El camp {field} ha de tenir com a mínim {min} elements",
+        "min-length": "El camp {field} ha de tenir com a mínim {min} caràcters",
+        "min-value": "El camp {field} ha de ser com a mínim {min}",
+        "multiple-of": "El camp {field} ha de coincidir amb almenys un dels formats permesos",
+        "required": "El camp {field} és obligatori",
+        "type": {
+          "array": "El camp {field} ha de ser una llista",
+          "boolean": "El camp {field} ha de ser cert o fals",
+          "email": "El camp {field} ha de ser una adreça de correu vàlida",
+          "integer": "El camp {field} ha de ser un enter",
+          "number": "El camp {field} ha de ser un número",
+          "string": "El camp {field} ha de ser una cadena de text"
+        },
+        "unique": "El camp {field} ha de ser únic",
+        "unrecognized-keys": "El camp {field} té claus no reconegudes: {keys}"
+      }
+    },
+    "session-modal": {
+      "description": {
+        "error-renew": "S'ha produït un error en renovar la sessió. Torna a iniciar la sessió.",
+        "max-renew-time": "La sessió ha caducat i ja no es pot renovar més. Torna a iniciar la sessió.",
+        "max-time": "La sessió ha caducat i ha arribat al màxim de renovacions. Torna a iniciar la sessió.",
+        "renew": "La sessió està a punt de caducar. Es pot renovar per continuar treballant sense interrupcions."
+      },
+      "options": {
+        "go-to-login": "Ves a l'inici de sessió",
+        "logout": "Tanca la sessió",
+        "renew": "Renova la sessió actual"
+      },
+      "title": "Sessió caducada"
+    },
+    "stepper": {
+      "navigation": {
+        "go-back": "Enrere",
+        "next": "Següent"
+      }
     }
   },
   "authentication": {
@@ -2379,6 +2565,33 @@
           "title": "Els reservables dels escriptoris no son iguals",
           "description": "Tots els escriptoris amb reservables en un desplegament han de tenir els mateixos reservables assignats. Si us plau, assegura't que tots els escriptoris amb reservables tinguin els mateixos reservables assignats i torna-ho a provar."
         }
+      }
+    },
+    "booking": {
+      "errors": {
+        "booking_deployment_delete_stop": "El desplegament ha d'estar aturat per eliminar aquesta reserva",
+        "booking_desktop_delete_stop": "L'escriptori ha d'estar aturat per eliminar aquesta reserva",
+        "booking_does_not_fit_date": "La reserva no encaixa en la data sol·licitada",
+        "booking_max_items_exceeded": "Has superat el màxim de reserves de l'usuari",
+        "conflict": "La reserva no encaixa en la data sol·licitada",
+        "generic": "S'ha produït un error",
+        "not_found": "Reserva no trobada"
+      }
+    },
+    "loading": "S'està carregant...",
+    "loading-error": "Error en carregar les dades",
+    "planning": {
+      "errors": {
+        "conflict": "El pla se solapa amb un pla existent",
+        "generic": "S'ha produït un error",
+        "incorrect_new_plan_body_data": "Les dades del pla són incorrectes",
+        "invalid_date_range": "L'interval de dates no és vàlid",
+        "invalid_end_date": "La data de fi no és vàlida",
+        "invalid_start_date": "La data d'inici no és vàlida",
+        "no_available_profile": "No hi ha cap perfil disponible per a aquest element",
+        "not_found": "Pla no trobat",
+        "reservable_item_not_found": "No s'ha trobat l'element reservable",
+        "unable_to_insert": "No s'ha pogut crear el pla"
       }
     },
     "edit-desktop": {
