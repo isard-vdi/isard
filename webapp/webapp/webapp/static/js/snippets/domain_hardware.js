@@ -422,7 +422,7 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
             $(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
             $(div_id+" #ram").html((data.hardware.memory).toFixed(2)+'GB');
             if(data.reservables){
-                $(div_id+" #gpu").html(data.reservable_name);
+                $(div_id+" #gpu").html([].concat(data.reservable_name || []).join(', '));
                 $(div_id+" #gpu").closest("tr").show();
            }else{
                 $(div_id+" #gpu").closest("tr").hide();
@@ -436,8 +436,8 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
                 }
             })
             $(div_id+" #net").html(interfaces.join(', '));
-            $(div_id+" #video").html(data.video_name);
-            $(div_id+" #boot").html(data.boot_name);
+            $(div_id+" #video").html([].concat(data.video_name || []).join(', '));
+            $(div_id+" #boot").html([].concat(data.boot_name || []).join(', '));
             $(div_id+" #disk_bus").html(data.hardware.disk_bus);
             if(data['forced_hyp']){
                 $(div_id+" #forced_hyp").html(data['forced_hyp']);

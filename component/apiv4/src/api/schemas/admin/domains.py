@@ -318,9 +318,7 @@ class AdminDomainHardwareInner(BaseModel):
     memory: Optional[float] = None
     disk_bus: Optional[str] = None
     boot_order: Optional[List[str]] = None
-    boot_name: Optional[List[str]] = None
     videos: Optional[List[str]] = None
-    video_name: Optional[List[str]] = None
     graphics: Optional[List[str]] = None
     interfaces: Optional[List[AdminDomainHardwareInterface]] = None
     isos: Optional[List[AdminDomainHardwareIso]] = None
@@ -364,6 +362,8 @@ class AdminDomainHardwareResponse(BaseModel):
     origin: Optional[Any] = None
     reservables: Optional[dict] = None
     reservable_name: Optional[Union[List[str], bool]] = None
+    video_name: Optional[List[str]] = None
+    boot_name: Optional[List[str]] = None
     xml_protected_sections: Optional[List[str]] = None
 
 
