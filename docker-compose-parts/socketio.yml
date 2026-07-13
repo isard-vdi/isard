@@ -29,6 +29,6 @@ services:
       # joined room on connect, then mostly Redis pub/sub).
       RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-5}
       RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
-      REDIS_HOST:
-      REDIS_PORT:
-      REDIS_PASSWORD:
+      REDIS_HOST: ${REDIS_HOST:-isard-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}

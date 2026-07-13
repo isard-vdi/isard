@@ -24,13 +24,13 @@ services:
       - isard-db
       - isard-redis
     environment:
-      REDIS_HOST:
-      REDIS_PORT:
-      REDIS_PASSWORD:
+      REDIS_HOST: ${REDIS_HOST:-isard-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       API_ISARDVDI_SECRET:
       DOMAIN:
       ENGINE_DISK_BALANCER:
-      ENGINE_HYPER_BALANCER:
+      ENGINE_HYPER_BALANCER: ${ENGINE_HYPER_BALANCER:-available_ram_percent}
       GPU_FAKE:
       LOG_LEVEL:
       QCOW2_CLUSTER_SIZE:
@@ -69,7 +69,7 @@ services:
       # Transitional NOTIFY_EMAIL* variables to import SMTP setting to db via migration 175
       NOTIFY_EMAIL:
       NOTIFY_EMAIL_SMTP_SERVER:
-      NOTIFY_EMAIL_SMPT_PORT:
+      NOTIFY_EMAIL_SMPT_PORT: ${NOTIFY_EMAIL_SMPT_PORT:-587}
       NOTIFY_EMAIL_USERNAME:
       NOTIFY_EMAIL_PASSWORD:
       # Transitional AUTHENTICATION_AUTHENTICATION_LDAP_* variables to import LDAP configuration
