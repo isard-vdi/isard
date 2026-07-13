@@ -17,7 +17,7 @@ services:
     environment:
       LOG_LEVEL:
       API_ISARDVDI_SECRET:
-      REDIS_HOST:
-      REDIS_PORT:
-      REDIS_PASSWORD:
-      USAGE:
+      REDIS_HOST: ${REDIS_HOST:-isard-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      USAGE: ${USAGE:-production}

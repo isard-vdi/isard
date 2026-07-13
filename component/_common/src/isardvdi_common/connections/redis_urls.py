@@ -30,8 +30,8 @@ def _base_url() -> str:
     url = os.environ.get("REDIS_URL")
     if url:
         return url
-    host = os.environ.get("REDIS_HOST", "isard-redis")
-    port = os.environ.get("REDIS_PORT", "6379")
+    host = os.environ.get("REDIS_HOST") or "isard-redis"
+    port = os.environ.get("REDIS_PORT") or "6379"
     password = os.environ.get("REDIS_PASSWORD", "")
     return f"redis://:{password}@{host}:{port}"
 

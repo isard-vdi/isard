@@ -47,6 +47,14 @@ class TestBaseUrl:
         monkeypatch.setenv("REDIS_PASSWORD", "secret")
         assert redis_urls._base_url() == "redis://:secret@custom-host:6380"
 
+    def test_empty_string_env_falls_back_to_defaults(self, monkeypatch, redis_urls):
+        # Docker compose injects a bare pass-through key as an empty string, and
+        # os.environ.get(k, default) returns "" for it, so the code uses `or`.
+        monkeypatch.setenv("REDIS_HOST", "")
+        monkeypatch.setenv("REDIS_PORT", "")
+        monkeypatch.setenv("REDIS_PASSWORD", "")
+        assert redis_urls._base_url() == "redis://:@isard-redis:6379"
+
     def test_redis_url_wins_over_triple(self, monkeypatch, redis_urls):
         monkeypatch.setenv("REDIS_URL", "redis://:override@other-host:1234")
         monkeypatch.setenv("REDIS_HOST", "ignored")

@@ -1037,7 +1037,7 @@ password:s:%s"""
                         "host": os.environ.get(
                             "NOTIFY_EMAIL_SMTP_SERVER", "example.com"
                         ),
-                        "port": int(os.environ.get("NOTIFY_EMAIL_SMPT_PORT", 587)),
+                        "port": int(os.environ.get("NOTIFY_EMAIL_SMPT_PORT") or 587),
                         "username": os.environ.get(
                             "NOTIFY_EMAIL_USERNAME", "user@example.com"
                         ),
@@ -8139,8 +8139,8 @@ password:s:%s"""
                 from rq import Queue
 
                 conn = Redis(
-                    host=os.environ.get("REDIS_HOST", "isard-redis"),
-                    port=int(os.environ.get("REDIS_PORT", 6379)),
+                    host=os.environ.get("REDIS_HOST") or "isard-redis",
+                    port=int(os.environ.get("REDIS_PORT") or 6379),
                     password=os.environ.get("REDIS_PASSWORD", ""),
                     db=0,
                 )

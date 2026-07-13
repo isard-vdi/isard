@@ -33,7 +33,7 @@ services:
       - /opt/isard/redis/data:/data
     command: /bin/sh -c "redis-server --port \"$$REDIS_PORT\" --requirepass \"$$REDIS_PASSWORD\""
     environment:
-      REDIS_PASSWORD:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_ARGS: --port ${REDIS_PORT:-6379}
     healthcheck:

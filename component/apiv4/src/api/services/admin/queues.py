@@ -43,8 +43,8 @@ def clear_queue_data_caches() -> None:
 
 def _connect_redis() -> Redis:
     return Redis(
-        host=os.environ.get("REDIS_HOST", "isard-redis"),
-        port=int(os.environ.get("REDIS_PORT", 6379)),
+        host=os.environ.get("REDIS_HOST") or "isard-redis",
+        port=int(os.environ.get("REDIS_PORT") or 6379),
         password=os.environ.get("REDIS_PASSWORD", ""),
         db=RQ_DB,
     )
