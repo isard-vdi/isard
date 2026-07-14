@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { NotificationFlatItem } from '@/gen/oas/apiv4'
+import DOMPurify from 'dompurify'
+import { computed } from 'vue'
 import { Icon } from '../icon'
 
 type HeadingLevel = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
@@ -12,6 +14,15 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   headingLevel: 'h2'
 })
+
+// The notification body/footer are server-provided HTML rendered via v-html;
+// sanitize them with DOMPurify to prevent stored-XSS.
+const sanitizedBody = computed(() =>
+  props.notification.body ? DOMPurify.sanitize(props.notification.body) : ''
+)
+const sanitizedFooter = computed(() =>
+  props.notification.footer ? DOMPurify.sanitize(props.notification.footer) : ''
+)
 </script>
 
 <template>
@@ -32,12 +43,14 @@ const props = withDefaults(defineProps<Props>(), {
         <component :is="props.headingLevel" class="font-bold text-lg text-brand-700">
           {{ notification.title }}
         </component>
-        <div v-if="notification.body" v-html="notification.body" class="text-md mb-2" />
+        <!-- eslint-disable vue/no-v-html -- content sanitized via DOMPurify -->
+        <div v-if="sanitizedBody" class="text-md mb-2" v-html="sanitizedBody" />
         <footer
-          v-if="notification.footer"
-          v-html="notification.footer"
+          v-if="sanitizedFooter"
           class="w-fit ml-auto border-t border-gray-warm-200 pt-1 pl-7 text-right text-sm font-semibold text-gray-warm-500"
+          v-html="sanitizedFooter"
         ></footer>
+        <!-- eslint-enable vue/no-v-html -->
       </div>
     </div>
   </article>
