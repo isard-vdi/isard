@@ -292,6 +292,25 @@ def _error_response_body(
     return body
 
 
+def _format_validation_errors(errors) -> str:
+    """Compose a human-readable ``description`` naming the offending
+    field(s) from a pydantic error list. The full structured list is
+    still returned separately under ``details``; this only makes the
+    top-level message actionable (e.g. ``body.quota.memory: Input
+    should be greater than or equal to 1``) instead of the opaque
+    ``Request validation failed``.
+    """
+    parts = []
+    for err in errors:
+        loc = err.get("loc", ()) if isinstance(err, dict) else ()
+        field = ".".join(str(x) for x in loc)
+        msg = (err.get("msg") if isinstance(err, dict) else None) or "invalid"
+        parts.append(f"{field}: {msg}" if field else msg)
+    if not parts:
+        return "Request validation failed"
+    return "Request validation failed: " + "; ".join(parts)
+
+
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(
     request: Request, exc: RequestValidationError
@@ -304,7 +323,7 @@ async def request_validation_exception_handler(
         status_code=400,
         content=_error_response_body(
             error="validation_error",
-            description="Request validation failed",
+            description=_format_validation_errors(exc.errors()),
             extra={"details": jsonable_encoder(exc.errors())},
         ),
     )
@@ -320,7 +339,7 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
         status_code=400,
         content=_error_response_body(
             error="validation_error",
-            description="Request validation failed",
+            description=_format_validation_errors(exc.errors()),
             extra={"details": exc.errors()},
         ),
     )
