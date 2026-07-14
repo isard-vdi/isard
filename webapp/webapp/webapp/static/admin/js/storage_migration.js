@@ -326,7 +326,11 @@ function loadMigrationPools () {
       return `<option value="${migEscape(p.id)}">${migEscape(p.name || p.id)}</option>`;
     }).join("");
     $("#mig_src_pool, #mig_dst_pool").html(opts);
+    // default the destination to a different pool than the source so the first
+    // estimate isn't a source==destination no-op.
+    if (rows.length > 1) $("#mig_dst_pool").prop("selectedIndex", 1);
     loadMigrationPathPrefixes();
+    migLoadSummary();
   });
 }
 
@@ -413,6 +417,91 @@ function migCreateConfig () {
   };
 }
 
+// ── Live plan summary (dry-run counts/sizes) + ETA ──────────────────────────
+// bytes_total from the last successful plan (drives the ETA recompute)
+let migLastPlanBytes = null;
+// per-disk throughput assumed for the ETA when no bwlimit cap is set (~100 MB/s)
+const MIG_DEFAULT_KBPS = 102400;
+let migSummaryTimer = null;
+// client-side cache of plan totals keyed by the selection, so toggling options
+// back and forth re-shows a previous estimate instantly without re-querying.
+const migPlanCache = {};
+
+function migSelectionKey () { return JSON.stringify(migSelection()); }
+
+function migSetSummaryState (txt, color) {
+  $("#mig_sum_state").text(txt || "").css("color", color || "#aaa");
+}
+
+// Fill the summary form from a plan `totals` (templates = base + derivative).
+function migRenderSummary (totals) {
+  totals = totals || {};
+  const bbk = totals.bytes_by_kind || {};
+  const base = totals.trees || 0;
+  const deriv = totals.derivative_templates || 0;
+  $("#mig_sum_tpl").html((base + deriv) +
+    (deriv ? ` <small>(${base} base + ${deriv} derived)</small>` : ""));
+  $("#mig_sum_tpl_sz").text(migBytes(bbk.template || 0));
+  $("#mig_sum_desk").text(totals.desktops || 0);
+  $("#mig_sum_desk_sz").text(migBytes(bbk.desktop || 0));
+  $("#mig_sum_media").text(totals.media || 0);
+  $("#mig_sum_media_sz").text(migBytes(bbk.media || 0));
+  $("#mig_sum_total").text(totals.items_total || 0);
+  $("#mig_sum_total_sz").text(migBytes(totals.bytes_total || 0));
+  migLastPlanBytes = totals.bytes_total || 0;
+  $("#mig_summary").show();
+  migRecalcEta();
+}
+
+// Recompute the ETA from the cached plan size + the current parallel / bwlimit.
+// Aggregate rate = parallel × (bwlimit, or the assumed default when uncapped).
+function migRecalcEta () {
+  const bytes = migLastPlanBytes;
+  if (bytes == null) return;
+  if (!bytes) { $("#mig_sum_eta").text("—"); $("#mig_sum_eta_note").text("nothing to move"); return; }
+  const par = Math.max(1, parseInt($("#mig_parallel").val(), 10) || 1);
+  const bw = Math.max(0, parseInt($("#mig_bwlimit").val(), 10) || 0);
+  const kbps = bw > 0 ? bw : MIG_DEFAULT_KBPS;
+  const secs = bytes / (par * kbps * 1024);
+  $("#mig_sum_eta").text(migEta(secs));
+  $("#mig_sum_eta_note").text(bw > 0
+    ? `at the ${par}×${bw} KB/s cap (${par} in parallel)`
+    : `≈ assuming ~100 MB/s per disk, ${par} in parallel — set a bwlimit for a capped estimate`);
+}
+
+// Debounced dry-run plan fetch that fills the summary form. Reuses a cached
+// result for a repeated selection (unless `immediate`, which forces a refresh).
+function migLoadSummary (immediate) {
+  clearTimeout(migSummaryTimer);
+  const key = migSelectionKey();
+  if (!immediate && Object.prototype.hasOwnProperty.call(migPlanCache, key)) {
+    $("#mig_summary").show();
+    migSetSummaryState("cached", "#7f8c8d");
+    migRenderSummary(migPlanCache[key]);
+    return;
+  }
+  const run = function () {
+    $("#mig_summary").show();
+    migSetSummaryState("estimating…");
+    $.ajax({
+      type: "POST", url: `${MIG_API}/plan`, contentType: "application/json",
+      data: JSON.stringify({ selection: migSelection() })
+    }).done(function (plan) {
+      const totals = plan.totals || {};
+      migPlanCache[key] = totals;   // retain for re-show without re-querying
+      migSetSummaryState("dry-run · nothing moved", "#27ae60");
+      migRenderSummary(totals);
+      migInitTooltips($("#mig_summary"));
+    }).fail(function (xhr) {
+      migSetSummaryState("estimate failed", "#c0392b");
+      migLastPlanBytes = null;
+      $("#mig_sum_eta").text("–");
+      $("#mig_sum_eta_note").text((xhr.responseJSON && xhr.responseJSON.description) || ("HTTP " + xhr.status));
+    });
+  };
+  if (immediate) run(); else migSummaryTimer = setTimeout(run, 350);
+}
+
 function connection_done () { loadMigrations(); }
 function connection_lost () { }
 
@@ -431,11 +520,17 @@ $(document).ready(function () {
   migKindApply();
   migInitTooltips($("#migration_new"));
 
-  // kind dropdown -> show the matching inputs
-  $("#mig_kind").on("change", migKindApply);
+  // kind dropdown -> show the matching inputs + re-estimate
+  $("#mig_kind").on("change", function () { migKindApply(); migLoadSummary(); });
 
-  // source pool changes -> re-scope the path-prefix dropdown
-  $("#mig_src_pool").on("change", loadMigrationPathPrefixes);
+  // source pool changes -> re-scope the path-prefix dropdown + re-estimate
+  $("#mig_src_pool").on("change", function () { loadMigrationPathPrefixes(); migLoadSummary(); });
+
+  // any other selection change -> re-estimate the summary (debounced)
+  $("#mig_path_prefix, #mig_category, #mig_dst_pool").on("change", function () { migLoadSummary(); });
+
+  // parallel / bwlimit -> recompute ETA only (no API call needed)
+  $("#mig_parallel, #mig_bwlimit").on("input change", migRecalcEta);
 
   // days-of-week presets on the create form
   $("#migration_new").on("click", ".mig-days-preset", function () {
@@ -451,23 +546,8 @@ $(document).ready(function () {
   $("#mig_failure_policy").on("change", migToggleQuarantine);
   migToggleQuarantine();
 
-  $("#mig_preview").on("click", function () {
-    $("#mig_preview_out").text("Building plan…");
-    $.ajax({
-      type: "POST", url: `${MIG_API}/plan`, contentType: "application/json",
-      data: JSON.stringify({ selection: migSelection() })
-    }).done(function (plan) {
-      const t = plan.totals || {};
-      const n = t.items_total || 0;
-      $("#mig_preview_out").html(
-        `<span class="text-success"><i class="fa fa-check"></i> Plan: ` +
-        `<b>${(plan.trees || []).length}</b> trees · <b>${n}</b> disks · <b>${migBytes(t.bytes_total || 0)}</b>` +
-        (n ? "" : " — nothing to move (already in destination?)") + `</span>`);
-    }).fail(function (xhr) {
-      $("#mig_preview_out").html('<span class="text-danger"><i class="fa fa-exclamation-triangle"></i> Plan failed: ' +
-        migEscape((xhr.responseJSON && xhr.responseJSON.description) || xhr.status) + "</span>");
-    });
-  });
+  // Preview = force an immediate re-estimate of the summary form.
+  $("#mig_preview").on("click", function () { migLoadSummary(true); });
 
   $("#mig_create").on("click", function () {
     const body = { selection: migSelection(), config: migCreateConfig() };
@@ -475,6 +555,8 @@ $(document).ready(function () {
       type: "POST", url: MIG_API, contentType: "application/json", data: JSON.stringify(body)
     }).done(function (mig) {
       $("#mig_preview_out").html('<span class="text-success"><i class="fa fa-check"></i> Migration created &amp; starting…</span>');
+      // the matched disks start leaving their pool -> cached estimates are stale
+      Object.keys(migPlanCache).forEach(function (k) { delete migPlanCache[k]; });
       $.ajax({ type: "POST", url: `${MIG_API}/${mig.id}/start` }).always(loadMigrations);
     }).fail(function (xhr) {
       $("#mig_preview_out").html('<span class="text-danger"><i class="fa fa-exclamation-triangle"></i> Create failed: ' +

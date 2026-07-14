@@ -120,6 +120,9 @@ class MigrationTotalsResponse(BaseModel):
     media: int = 0
     items_total: int = 0
     bytes_total: int = 0
+    #: size in bytes grouped by item kind (template/desktop/media) so the UI
+    #: can show a size next to each item-type count. Empty on older payloads.
+    bytes_by_kind: dict = Field(default_factory=dict)
     bytes_done: int = 0
     #: live count of disks past the saga (released/skipped) — drives the UI's
     #: aggregate progress bar; 0 on the dry-run plan totals.

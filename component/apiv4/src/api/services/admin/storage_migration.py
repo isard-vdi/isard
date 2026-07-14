@@ -25,9 +25,13 @@ selection / aggregation logic) and the ``StorageMigration`` /
 ``StorageMigrationItem`` ledger models. No DB driver calls live here.
 """
 
+import hashlib
+import json
 from datetime import datetime, timezone
 from time import time
 from zoneinfo import ZoneInfo
+
+from cachetools import TTLCache
 
 from api.services.error import Error
 from isardvdi_common.lib.storage import migration as mig
@@ -37,6 +41,20 @@ from isardvdi_common.models.storage_migration import (
     StorageMigrationItem,
 )
 from isardvdi_common.models.storage_pool import StoragePool
+
+#: Dry-run plan cache. The plan walks the storage tree, so identical selections
+#: — e.g. the admin panel re-estimating as options are toggled back and forth —
+#: reuse a recent result instead of re-resolving. Short TTL keeps the estimate
+#: fresh; ``create`` clears it because the "already-in-destination" set shifts
+#: as disks actually move. Keyed by the canonical selection only (parallelism /
+#: bwlimit do not affect what would move — the UI derives the ETA client-side).
+_PLAN_CACHE = TTLCache(maxsize=256, ttl=30)
+
+
+def _plan_cache_key(selection: dict) -> str:
+    return hashlib.sha1(
+        json.dumps(selection, sort_keys=True, default=str).encode()
+    ).hexdigest()
 
 #: admin-driven status transitions exposed through the `{action}` route
 _ACTION_TARGET = {
@@ -192,11 +210,18 @@ class AdminStorageMigrationService:
     @classmethod
     def plan(cls, selection: dict) -> dict:
         """Dry-run preview — resolve the selection, build the plan, summarise
-        per tree. Nothing is persisted."""
+        per tree. Nothing is persisted. Result is briefly cached per selection
+        (see ``_PLAN_CACHE``); an invalid selection raises before caching."""
+        key = _plan_cache_key(selection)
+        cached = _PLAN_CACHE.get(key)
+        if cached is not None:
+            return cached
         dst_pool = cls._dst_pool(selection)
         roots = mig.roots_for_selection(selection)
         items, totals = mig.build_plan_for_roots("__preview__", roots, dst_pool)
-        return {"trees": _tree_summaries(items), "totals": totals}
+        result = {"trees": _tree_summaries(items), "totals": totals}
+        _PLAN_CACHE[key] = result
+        return result
 
     @classmethod
     def create(cls, payload: dict, selection: dict, config: dict) -> dict:
@@ -240,6 +265,9 @@ class AdminStorageMigrationService:
         for item in items:
             StorageMigrationItem.upsert(item)
         migration.totals = totals
+        # Disks matched here will start leaving their source pool, so any cached
+        # dry-run estimate is now stale — drop it (writer invalidates the cache).
+        _PLAN_CACHE.clear()
         return cls.get(migration.id)
 
     @staticmethod

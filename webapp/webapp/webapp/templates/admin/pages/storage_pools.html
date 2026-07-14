@@ -49,6 +49,20 @@
       .mig-help:hover { color:#5499c7; }
       #migrations .mig-id { font-family:monospace; font-size:12px; }
       #migrations .mig-empty td { color:#999; text-align:center; padding:18px; font-style:italic; }
+      /* Plan summary form (live dry-run estimate) */
+      .mig-summary { border:1px solid #e2e6ea; border-radius:4px; background:#fbfcfd; padding:10px 12px; margin:2px 0 14px; }
+      .mig-summary-head { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:#95a5a6; margin-bottom:8px; }
+      .mig-summary-head .mig-sum-state { float:right; font-weight:400; text-transform:none; letter-spacing:0; color:#aaa; }
+      .mig-sum-grid { display:flex; flex-wrap:wrap; gap:10px; }
+      .mig-sum-cell { flex:1 1 130px; min-width:120px; border:1px solid #eef1f3; border-radius:3px; background:#fff; padding:8px 10px; }
+      .mig-sum-cell.total { background:#eef7ef; border-color:#cfe8d4; }
+      .mig-sum-num { font-size:20px; font-weight:600; color:#34495e; }
+      .mig-sum-num small { font-size:12px; font-weight:400; color:#7f8c8d; }
+      .mig-sum-lbl { display:block; font-size:12px; color:#95a5a6; }
+      .mig-sum-sz { display:block; font-size:12px; color:#7f8c8d; }
+      .mig-sum-eta { margin-top:10px; padding-top:8px; border-top:1px solid #eef1f3; font-size:14px; }
+      .mig-sum-eta .val { font-size:18px; font-weight:600; color:#2c7bb6; }
+      .mig-sum-eta .note { color:#95a5a6; font-size:12px; margin-left:6px; }
     </style>
     <form class="form-inline mig-form" id="migration_new" style="margin-bottom:12px;">
       <!-- ── Selection: what to move, and where to ─────────────────────────── -->
@@ -150,6 +164,42 @@
         <span id="mig_preview_out" style="margin-left:10px;color:#555;"></span>
       </fieldset>
     </form>
+
+    <!-- Live plan summary (dry-run): what would move, by type + size, and an ETA. -->
+    <div class="mig-summary" id="mig_summary" style="display:none;">
+      <div class="mig-summary-head">
+        Plan summary
+        <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="A dry-run of the current selection — how many disks would move, broken down by item type and size, and how long it would take. Nothing is moved."></i>
+        <span class="mig-sum-state" id="mig_sum_state"></span>
+      </div>
+      <div class="mig-sum-grid">
+        <div class="mig-sum-cell" title="Base templates and their derived templates that would move." data-toggle="tooltip">
+          <span class="mig-sum-num" id="mig_sum_tpl">–</span>
+          <span class="mig-sum-lbl"><i class="fa fa-clone"></i> Templates</span>
+          <span class="mig-sum-sz" id="mig_sum_tpl_sz">&nbsp;</span>
+        </div>
+        <div class="mig-sum-cell" title="Desktops that would move." data-toggle="tooltip">
+          <span class="mig-sum-num" id="mig_sum_desk">–</span>
+          <span class="mig-sum-lbl"><i class="fa fa-desktop"></i> Desktops</span>
+          <span class="mig-sum-sz" id="mig_sum_desk_sz">&nbsp;</span>
+        </div>
+        <div class="mig-sum-cell" title="Media / ISO images that would move." data-toggle="tooltip">
+          <span class="mig-sum-num" id="mig_sum_media">–</span>
+          <span class="mig-sum-lbl"><i class="fa fa-dot-circle-o"></i> Media / ISOs</span>
+          <span class="mig-sum-sz" id="mig_sum_media_sz">&nbsp;</span>
+        </div>
+        <div class="mig-sum-cell total" title="All disks that would move, and their total size." data-toggle="tooltip">
+          <span class="mig-sum-num" id="mig_sum_total">–</span>
+          <span class="mig-sum-lbl"><i class="fa fa-database"></i> Total files</span>
+          <span class="mig-sum-sz" id="mig_sum_total_sz">&nbsp;</span>
+        </div>
+      </div>
+      <div class="mig-sum-eta">
+        <i class="fa fa-clock-o text-muted"></i> Estimated time
+        <span class="val" id="mig_sum_eta">–</span>
+        <span class="note" id="mig_sum_eta_note"></span>
+      </div>
+    </div>
 
     <table id="migrations" class="table table-condensed">
       <thead>

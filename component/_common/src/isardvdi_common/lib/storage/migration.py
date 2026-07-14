@@ -119,6 +119,15 @@ def build_tree_items(migration_id, root_id, get_children, node_info):
     return items
 
 
+def _bytes_by_kind(item_dicts):
+    """Sum ``size_bytes`` grouped by item ``kind`` (template/desktop/media)."""
+    out = {}
+    for it in item_dicts:
+        k = it.get("kind") or "other"
+        out[k] = out.get(k, 0) + int(it.get("size_bytes") or 0)
+    return out
+
+
 def summarize_plan(item_dicts):
     """Aggregate per-job totals from the built item dicts.
 
@@ -133,6 +142,9 @@ def summarize_plan(item_dicts):
         if it.get("kind") == "template" and it["storage_id"] != it["tree_id"]
     )
     bytes_total = sum(int(it.get("size_bytes") or 0) for it in item_dicts)
+    #: per-kind byte totals (template / desktop / media) so the UI can show a
+    #: size next to each item-type count. Template covers root + derivative.
+    bytes_by_kind = _bytes_by_kind(item_dicts)
     return {
         "trees": len({it["tree_id"] for it in item_dicts}),
         "derivative_templates": derivative_templates,
@@ -140,6 +152,7 @@ def summarize_plan(item_dicts):
         "media": kinds.get("media", 0),
         "items_total": len(item_dicts),
         "bytes_total": bytes_total,
+        "bytes_by_kind": bytes_by_kind,
         "bytes_done": 0,
         "state_counts": {"pending": len(item_dicts)} if item_dicts else {},
     }
@@ -210,6 +223,7 @@ def aggregate_status(migration, items, *, include_items=False):
             "media": sum(t["media"] for t in trees),
             "items_total": len(items),
             "bytes_total": bytes_total,
+            "bytes_by_kind": _bytes_by_kind(items),
             "bytes_done": bytes_done,
             "done": sum(1 for it in items if item_is_done(it["state"])),
             "state_counts": compute_state_counts(items),
