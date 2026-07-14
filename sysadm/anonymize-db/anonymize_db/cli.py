@@ -43,7 +43,8 @@ def _stage(num: int, total: int, title: str, elapsed: float | None = None) -> No
 def _extract(archive: Path, dest: Path) -> Path:
     """Extract `archive` into `dest`, return the inner `<dump>/<db>` dir."""
     with tarfile.open(archive, "r:gz") as tf:
-        tf.extractall(dest)
+        # filter="data" (PEP 706) blocks path-traversal and unsafe members.
+        tf.extractall(dest, filter="data")
     # exactly one top-level dir → inside it, exactly one db dir
     tops = [p for p in dest.iterdir() if p.is_dir()]
     if len(tops) != 1:
