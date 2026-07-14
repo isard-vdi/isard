@@ -59,7 +59,7 @@ class HypervisorModel(BaseModel):
     prev_status: List[Dict[str, Any]] = []
     stats: Optional[Stats] = None
     status: str = "Offline"
-    status_time: int = 0
+    status_time: Optional[float] = None
     storage_pools: List[str] = []
     uri: str = ""
     user: str = ""
