@@ -611,8 +611,14 @@ unit-test-engine:
   script:
     - ENGINE_IMAGE="$CI_REGISTRY_IMAGE/engine:git-$CI_COMMIT_SHORT_SHA"
     - docker pull "$ENGINE_IMAGE"
+    - mkdir -p "$CI_PROJECT_DIR/ci-results"
     - |
-      docker run --rm \
+      # The container writes its junit reports to /ci-results, which is inside the
+      # ephemeral dind container (not $CI_PROJECT_DIR), so we docker cp them back
+      # into a project-relative dir afterwards for the junit artifact. Keep the
+      # container (no --rm) so the cp works even when the tests fail.
+      set +e
+      docker run --name engine-tests \
         -v "$CI_PROJECT_DIR:/build:ro" \
         -w /isard \
         "$ENGINE_IMAGE" \
@@ -630,12 +636,16 @@ unit-test-engine:
           pytest --import-mode=importlib engine/services/db -q --tb=short --junitxml=/ci-results/report-db.xml || rc=1
           exit $rc
         '
+      RC=$?
+      docker cp engine-tests:/ci-results/. "$CI_PROJECT_DIR/ci-results/" || true
+      docker rm -f engine-tests >/dev/null 2>&1 || true
+      exit $RC
   artifacts:
     when: always
     reports:
       junit:
-        - /ci-results/report.xml
-        - /ci-results/report-db.xml
+        - ci-results/report.xml
+        - ci-results/report-db.xml
 
 test-e2e:
   stage: test
