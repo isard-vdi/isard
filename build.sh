@@ -867,6 +867,42 @@ ensure_etc_timezone(){
 }
 ensure_etc_timezone
 
+disable_wgquick_apparmor(){
+	# Ubuntu >=25.04 ships an ENFORCING AppArmor profile 'wg-quick' in the
+	# `apparmor` package (/etc/apparmor.d/wg-quick; absent on <=24.04 LTS).
+	# AppArmor transitions by executable, so the profile also confines the
+	# wg-quick that runs INSIDE the isard-vpn container and denies exec of the
+	# container's /bin/busybox -> `wg-quick up` fails (exit 126) -> the WireGuard
+	# interface never comes up -> the hypervisor never registers Online ("No
+	# hypervisors online to execute next virt action"). The vpn container is
+	# privileged/unconfined, so this per-executable host profile is the ONLY
+	# thing blocking it (security_opt: apparmor=unconfined would NOT help -- an
+	# unconfined process still transitions into a named profile on exec).
+	# Disable the host profile so the VPN + hypervisor work. Reversible,
+	# non-fatal, best-effort -- same spirit as ensure_etc_timezone above.
+	# Opt out with SKIP_FIX_WGQUICK_APPARMOR=true.
+	[ "${SKIP_FIX_WGQUICK_APPARMOR:-false}" = "true" ] && return 0
+	[ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = "Y" ] || return 0
+	# Only relevant when this deployment actually runs the WireGuard vpn container.
+	grep -q "isard-vpn" docker-compose.yml 2>/dev/null || return 0
+	if [ "$(id -u)" = 0 ]; then SUDO=""; else SUDO="sudo"; fi
+	# Enforcing? (complain/absent/unloaded -> nothing to do). Profiles list is root-only.
+	$SUDO grep -qE "^wg-quick \(enforce\)$" /sys/kernel/security/apparmor/profiles 2>/dev/null || return 0
+	echo "WARNING: host AppArmor profile 'wg-quick' is ENFORCING -- on Ubuntu >=25.04 it confines the" >&2
+	echo "         isard-vpn container's wg-quick and denies exec of its busybox, so WireGuard never comes" >&2
+	echo "         up and the hypervisor stays Offline. Disabling it on this host now (reversible)." >&2
+	echo "         Opt out: SKIP_FIX_WGQUICK_APPARMOR=true . Re-enable:  sudo rm /etc/apparmor.d/disable/wg-quick && sudo apparmor_parser -r /etc/apparmor.d/wg-quick" >&2
+	$SUDO mkdir -p /etc/apparmor.d/disable 2>/dev/null
+	$SUDO ln -sf /etc/apparmor.d/wg-quick /etc/apparmor.d/disable/wg-quick 2>/dev/null
+	if $SUDO apparmor_parser -R /etc/apparmor.d/wg-quick 2>/dev/null; then
+		echo "         -> 'wg-quick' profile disabled + unloaded. If isard-vpn is already up, restart it:  $DOCKER_COMPOSE restart isard-vpn" >&2
+	else
+		echo "         -> could not unload automatically; run:  sudo apparmor_parser -R /etc/apparmor.d/wg-quick && sudo $DOCKER_COMPOSE restart isard-vpn" >&2
+	fi
+	return 0
+}
+disable_wgquick_apparmor
+
 echo "You have the docker-compose files. Have fun!"
 echo "You can download the prebuild images and bring it up:"
 echo "   $DOCKER_COMPOSE pull && $DOCKER_COMPOSE up -d"
