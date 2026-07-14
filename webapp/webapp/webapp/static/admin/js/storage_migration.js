@@ -141,27 +141,78 @@ function migStatusCell (m) {
   return s;
 }
 
-function migBar (done, total, bytesDone, bytesTotal) {
-  const pct = total ? Math.round((done / total) * 100) : 0;
-  const bpct = bytesTotal ? Math.round((bytesDone / bytesTotal) * 100) : 0;
-  return `<div class="progress" style="margin:0;min-width:140px;height:16px;" title="${migBytes(bytesDone)} / ${migBytes(bytesTotal)}">
-      <div class="progress-bar progress-bar-success" style="width:${bpct}%;line-height:16px;">${done}/${total} (${pct}%)</div>
+function migBar (done, total, bytesDone, bytesTotal, stateCounts) {
+  stateCounts = stateCounts || {};
+  // "copied" = disks whose data has physically reached the destination (past the
+  // move: moved/rebased/db_updated/released), even if the tree hasn't committed
+  // (released) them yet. `done` (released) only ticks up in a burst at the END of
+  // a tree, so without this a multi-disk tree looks frozen at 0% while it is
+  // actually most of the way there. Solid bar = committed, striped = copied.
+  const copied = (stateCounts.moved || 0) + (stateCounts.rebased || 0) +
+    (stateCounts.db_updated || 0) + (stateCounts.released || 0);
+  const moving = stateCounts.moving || 0;
+  const pct = total ? Math.round((copied / total) * 100) : 0;
+  const doneW = total ? (done / total) * 100 : 0;
+  const copiedExtraW = total ? Math.max(0, (copied - done) / total) * 100 : 0;
+  const label = (copied > done)
+    ? `${copied}/${total} copied · ${done} done`
+    : `${done}/${total} (${pct}%)`;
+  const title = `${copied}/${total} copied to destination · ${done} committed (source freed)` +
+    (moving ? ` · ${moving} copying now` : "") + ` · ${migBytes(bytesDone)} committed / ${migBytes(bytesTotal)}`;
+  return `<div class="progress" style="position:relative;margin:0;min-width:160px;height:16px;" title="${migEscape(title)}">
+      <div class="progress-bar progress-bar-success" style="width:${doneW}%;line-height:16px;"></div>
+      <div class="progress-bar progress-bar-success progress-bar-striped active" style="width:${copiedExtraW}%;line-height:16px;"></div>
+      <span style="position:absolute;left:0;right:0;top:0;text-align:center;line-height:16px;font-size:11px;color:#222;">${migEscape(label)}</span>
     </div>`;
 }
 
+// Brief transient feedback. Uses the admin theme's PNotify when present, with a
+// console fallback so it never throws where PNotify isn't loaded (offline preview).
+function migToast (text, kind) {
+  try {
+    if (typeof PNotify === "function") {
+      new PNotify({ text: text, type: (kind === "danger" ? "error" : (kind || "success")),
+        delay: 3500, buttons: { closer: true, sticker: false } });
+      return;
+    }
+  } catch (e) { /* fall through */ }
+  if (kind === "danger") console.error(text); else console.log(text);
+}
+
 // A downloadable audit report is always available (also for terminal jobs).
+// A <button> (not an <a href>): the admin auth token is injected into XHRs only,
+// so a plain link navigation hits apiv4 unauthenticated ("Not authenticated").
+// The click handler fetches it authenticated and saves it as a Blob.
 function migLogButton (m) {
-  return `<a class="btn btn-xs btn-default mig-log" href="${MIG_API}/${encodeURIComponent(m.id)}/log?format=csv" title="Download the full per-disk audit report (CSV)." data-toggle="tooltip" onclick="event.stopPropagation();"><i class="fa fa-download"></i> Log</a>`;
+  return `<button class="btn btn-xs btn-default mig-log" data-mig="${migEscape(m.id)}" title="Download the full per-disk audit report (CSV)." data-toggle="tooltip"><i class="fa fa-download"></i> Log</button>`;
+}
+
+// Which admin actions make sense for a given status (so we don't offer Start on
+// an already-running job, or Pause on a paused one).
+function migActionEnabled (status, action) {
+  if (MIG_TERMINAL.indexOf(status) !== -1) return false;
+  // Start/resume: anything not already running (planned, paused, scheduled,
+  // waiting, window_closed). Pause: only a job that is actively progressing.
+  // Cancel: any non-terminal job.
+  if (action === "start") return status !== "running" && status !== "finishing_tree";
+  if (action === "pause") return status === "running" || status === "waiting" ||
+    status === "window_closed";
+  if (action === "cancel") return true;
+  return false;
 }
 
 function migActionButtons (m) {
   if (MIG_TERMINAL.indexOf(m.status) !== -1) {
     return migStatusBadge(m.status) + " " + migLogButton(m);
   }
+  const btn = function (action, cls, icon, text, tip) {
+    const off = migActionEnabled(m.status, action) ? "" : "disabled";
+    return `<button class="btn btn-xs btn-${cls} mig-action" data-mig="${migEscape(m.id)}" data-action="${action}" ${off} title="${migEscape(tip)}" data-toggle="tooltip"><i class="fa ${icon}"></i> ${text}</button>`;
+  };
   return `
-    <button class="btn btn-xs btn-success mig-action" data-mig="${migEscape(m.id)}" data-action="start" title="Start or resume this migration." data-toggle="tooltip"><i class="fa fa-play"></i> Start</button>
-    <button class="btn btn-xs btn-warning mig-action" data-mig="${migEscape(m.id)}" data-action="pause" title="Pause after in-flight disks finish; resume later with no data loss." data-toggle="tooltip"><i class="fa fa-pause"></i> Pause</button>
-    <button class="btn btn-xs btn-danger mig-action" data-mig="${migEscape(m.id)}" data-action="cancel" title="Stop and abandon this migration. Already-moved disks stay in the destination." data-toggle="tooltip"><i class="fa fa-stop"></i> Cancel</button>
+    ${btn("start", "success", "fa-play", "Start", "Start or resume this migration.")}
+    ${btn("pause", "warning", "fa-pause", "Pause", "Pause after in-flight disks finish; resume later with no data loss.")}
+    ${btn("cancel", "danger", "fa-stop", "Cancel", "Stop and abandon this migration. Already-moved disks stay in the destination.")}
     ${migLogButton(m)}`;
 }
 
@@ -240,7 +291,7 @@ function migTreeRows (m) {
         <td>${migShortId(t.root_storage_id || t.tree_id)}</td>
         <td>${migEscape(t.derivative_templates || 0)}</td>
         <td>${migEscape(t.desktops || 0)}</td>
-        <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0)}</td>
+        <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts)}</td>
       </tr>`;
   });
   html += "</tbody></table>";
@@ -271,7 +322,7 @@ function migRowHtml (m) {
       <td><i class="fa fa-caret-${open ? "down" : "right"}"></i></td>
       <td>${migShortId(m.id)}</td>
       <td>${migStatusCell(m)}</td>
-      <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0)}</td>
+      <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts)}</td>
       <td>${migEta(m.eta_seconds)}</td>
       <td>${migEscape(migScheduleLabel(m))}</td>
       <td onclick="event.stopPropagation();">${migActionButtons(m)}</td>
@@ -438,10 +489,15 @@ function migCreateConfig () {
 }
 
 // ── Live plan summary (dry-run counts/sizes) + ETA ──────────────────────────
-// bytes_total from the last successful plan (drives the ETA recompute)
+// bytes_total / items_total from the last successful plan (drive the ETA recompute)
 let migLastPlanBytes = null;
+let migLastPlanItems = 0;
 // per-disk throughput assumed for the ETA when no bwlimit cap is set (~100 MB/s)
 const MIG_DEFAULT_KBPS = 102400;
+// The background reconciler advances each disk through the saga one tick-gated
+// step at a time (move, [verify], rebase), at most `parallel` disks in flight —
+// so for many small disks this scheduling cadence dominates, not raw transfer.
+const MIG_TICK_S = 60;   // scheduler reconciler interval (system.storage_migration_tick)
 let migSummaryTimer = null;
 // client-side cache of plan totals keyed by the selection, so toggling options
 // back and forth re-shows a previous estimate instantly without re-querying.
@@ -487,14 +543,19 @@ function migRenderSummary (totals) {
   $("#mig_sum_total").text(totals.items_total || 0);
   $("#mig_sum_total_sz").text(migBytes(totals.bytes_total || 0));
   migLastPlanBytes = totals.bytes_total || 0;
+  migLastPlanItems = totals.items_total || 0;
   $("#mig_summary").show();
   $("#mig_sum_loading").hide();
   $("#mig_sum_content").show();
   migRecalcEta();
 }
 
-// Recompute the ETA from the cached plan size + the current parallel / bwlimit.
-// Aggregate rate = parallel × (bwlimit, or the assumed default when uncapped).
+// Recompute the ETA from the cached plan size/count + the current parallel /
+// bwlimit. Two additive terms:
+//   transfer      = bytes / (parallel × rate)                 — raw copy time
+//   orchestration = ⌈items/parallel⌉ × steps × tick           — reconciler cadence
+// The orchestration term is what the old (transfer-only) estimate ignored, which
+// made it wildly optimistic for many small disks (30s predicted vs 15min real).
 function migRecalcEta () {
   const bytes = migLastPlanBytes;
   if (bytes == null) return;
@@ -502,11 +563,13 @@ function migRecalcEta () {
   const par = Math.max(1, parseInt($("#mig_parallel").val(), 10) || 1);
   const bw = Math.max(0, parseInt($("#mig_bwlimit").val(), 10) || 0);
   const kbps = bw > 0 ? bw : MIG_DEFAULT_KBPS;
-  const secs = bytes / (par * kbps * 1024);
-  $("#mig_sum_eta").text(migEta(secs));
-  $("#mig_sum_eta_note").text(bw > 0
-    ? `at the ${par}×${bw} KB/s cap (${par} in parallel)`
-    : `≈ assuming ~100 MB/s per disk, ${par} in parallel — set a bwlimit for a capped estimate`);
+  const transfer = bytes / (par * kbps * 1024);
+  // tick-gated saga steps per disk: move + rebase (+ verify when enabled)
+  const steps = 2 + ($("#mig_verify").is(":checked") ? 1 : 0);
+  const orchestration = Math.ceil((migLastPlanItems || 0) / par) * steps * MIG_TICK_S;
+  $("#mig_sum_eta").text(migEta(transfer + orchestration));
+  const rate = bw > 0 ? `${par}×${bw} KB/s` : "~100 MB/s/disk";
+  $("#mig_sum_eta_note").text(`≈ ${rate} transfer + background reconciler (~${MIG_TICK_S}s/step, ${par} in parallel)`);
 }
 
 // Debounced dry-run plan fetch that fills the summary form. Reuses a cached
@@ -603,21 +666,34 @@ $(document).ready(function () {
   // Preview = force an immediate re-estimate of the summary form.
   $("#mig_preview").on("click", function () { migLoadSummary(true); });
 
-  $("#mig_create").on("click", function () {
+  // Create the migration; `startAfter` decides whether we also POST /start (so
+  // "Create" leaves it idle for review, "Create & start" runs it immediately).
+  function migCreate (startAfter) {
     const body = { selection: migSelection(), config: migCreateConfig() };
+    $("#mig_create, #mig_create_only").prop("disabled", true);
     $.ajax({
       type: "POST", url: MIG_API, contentType: "application/json", data: JSON.stringify(body)
     }).done(function (mig) {
-      $("#mig_preview_out").html('<span class="text-success"><i class="fa fa-check"></i> Migration created &amp; starting…</span>');
+      $("#mig_preview_out").html('<span class="text-success"><i class="fa fa-check"></i> Migration created' +
+        (startAfter ? " &amp; starting…" : " (idle — press Start to run)") + "</span>");
       // the matched disks start leaving their pool -> cached estimates are stale
       Object.keys(migPlanCache).forEach(function (k) { delete migPlanCache[k]; });
       $("#mig_new_modal").modal("hide");
-      $.ajax({ type: "POST", url: `${MIG_API}/${mig.id}/start` }).always(loadMigrations);
+      $("#mig_create, #mig_create_only").prop("disabled", false);
+      if (startAfter) {
+        $.ajax({ type: "POST", url: `${MIG_API}/${mig.id}/start` }).always(loadMigrations);
+      } else {
+        migToast("Migration created (idle) — press Start when ready", "success");
+        loadMigrations();
+      }
     }).fail(function (xhr) {
+      $("#mig_create, #mig_create_only").prop("disabled", false);
       $("#mig_preview_out").html('<span class="text-danger"><i class="fa fa-exclamation-triangle"></i> Create failed: ' +
         migEscape((xhr.responseJSON && xhr.responseJSON.description) || xhr.status) + "</span>");
     });
-  });
+  }
+  $("#mig_create").on("click", function () { migCreate(true); });
+  $("#mig_create_only").on("click", function () { migCreate(false); });
 
   // expand / collapse a migration
   $("#migrations").on("click", ".mig-row", function () {
@@ -629,9 +705,41 @@ $(document).ready(function () {
   // start / pause / cancel
   $("#migrations").on("click", ".mig-action", function (e) {
     e.stopPropagation();
+    const $btn = $(this);
+    if ($btn.prop("disabled")) return;
+    const id = $btn.data("mig");
+    const action = $btn.data("action");
+    $btn.prop("disabled", true);
+    $.ajax({ type: "POST", url: `${MIG_API}/${encodeURIComponent(id)}/${action}` })
+      .done(function () {
+        // pause/cancel take effect on the next reconciler tick (~60s), so give
+        // immediate confirmation instead of a silently unchanged row.
+        migToast(`${action} requested — applies on the next cycle`, "success");
+        loadMigration(id);
+      })
+      .fail(function (xhr) {
+        migToast(`${action} failed: ` + ((xhr.responseJSON && xhr.responseJSON.description) || ("HTTP " + xhr.status)), "danger");
+        $btn.prop("disabled", false);
+      });
+  });
+
+  // Log: fetch the CSV authenticated (an <a href> would hit apiv4 without the
+  // admin token) and save it client-side as a Blob.
+  $("#migrations").on("click", ".mig-log", function (e) {
+    e.stopPropagation();
     const id = $(this).data("mig");
-    const action = $(this).data("action");
-    $.ajax({ type: "POST", url: `${MIG_API}/${id}/${action}` }).always(function () { loadMigration(id); });
+    $.ajax({ type: "GET", url: `${MIG_API}/${encodeURIComponent(id)}/log?format=csv`, dataType: "text" })
+      .done(function (csv) {
+        const blob = new Blob([csv || ""], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `migration-${id}.csv`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      })
+      .fail(function (xhr) {
+        migToast("Log download failed: " + ((xhr.responseJSON && xhr.responseJSON.description) || ("HTTP " + xhr.status)), "danger");
+      });
   });
 
   // apply per-job config
