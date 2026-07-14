@@ -175,6 +175,10 @@
         <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="A dry-run of the current selection — how many disks would move, broken down by item type and size, and how long it would take. Nothing is moved."></i>
         <span class="mig-sum-state" id="mig_sum_state"></span>
       </div>
+      <div id="mig_sum_loading" style="display:none;text-align:center;color:#7f8c8d;padding:20px;">
+        <i class="fa fa-spinner fa-spin fa-lg"></i> Estimating plan…
+      </div>
+      <div id="mig_sum_content" style="display:none;">
       <div class="mig-sum-grid">
         <div class="mig-sum-cell" title="Base templates and their derived templates that would move." data-toggle="tooltip">
           <span class="mig-sum-num" id="mig_sum_tpl">–</span>
@@ -202,6 +206,7 @@
         <span class="val" id="mig_sum_eta">–</span>
         <span class="note" id="mig_sum_eta_note"></span>
       </div>
+      </div><!-- /mig_sum_content -->
     </div>
        </div><!-- /modal-body -->
        <div class="modal-footer" style="text-align:left;">

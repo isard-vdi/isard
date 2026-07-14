@@ -325,10 +325,10 @@ function loadMigrationPools () {
     const opts = rows.map(function (p) {
       return `<option value="${migEscape(p.id)}">${migEscape(p.name || p.id)}</option>`;
     }).join("");
-    $("#mig_src_pool, #mig_dst_pool").html(opts);
-    // default the destination to a different pool than the source so the first
-    // estimate isn't a source==destination no-op.
-    if (rows.length > 1) $("#mig_dst_pool").prop("selectedIndex", 1);
+    // lead with a blank placeholder so nothing is preselected on open — the plan
+    // summary only appears once the admin has actively chosen source + destination.
+    const placeholder = '<option value="" selected>— select —</option>';
+    $("#mig_src_pool, #mig_dst_pool").html(placeholder + opts);
     loadMigrationPathPrefixes();
   });
 }
@@ -336,7 +336,7 @@ function loadMigrationPools () {
 function loadMigrationCategories () {
   $.ajax({ type: "GET", url: CATEGORIES_API }).done(function (data) {
     const rows = Array.isArray(data) ? data : (data.categories || data.data || []);
-    $("#mig_category").html(rows.map(function (c) {
+    $("#mig_category").html('<option value="" selected>— select —</option>' + rows.map(function (c) {
       return `<option value="${migEscape(c.id)}">${migEscape(c.name || c.id)}</option>`;
     }).join(""));
   });
@@ -390,6 +390,18 @@ function migSelection () {
   return { kind: "pool", src_pool_id: $("#mig_src_pool").val(), dst_pool_id: dst };
 }
 
+// True only when the selection has every field the plan query needs — a real
+// destination, plus the source/path/category for the chosen kind, and (for a
+// pool move) a source that differs from the destination. Until this holds we
+// show no summary and fire no query.
+function migSelectionComplete () {
+  const s = migSelection();
+  if (!s.dst_pool_id) return false;
+  if (s.kind === "path") return !!(s.src_pool_id && s.path_prefix && s.src_pool_id !== s.dst_pool_id);
+  if (s.kind === "category") return !!s.category_id;
+  return !!(s.src_pool_id && s.src_pool_id !== s.dst_pool_id);
+}
+
 // A window may be time-only, days-only, or both; null when neither is set.
 function migWindowFrom (start, end, days) {
   start = (start || "").trim();
@@ -432,6 +444,19 @@ function migSetSummaryState (txt, color) {
   $("#mig_sum_state").text(txt || "").css("color", color || "#aaa");
 }
 
+// Hide the whole summary box (no source/destination chosen yet).
+function migHideSummary () {
+  $("#mig_summary").hide();
+  $("#mig_sum_loading, #mig_sum_content").hide();
+}
+
+// Show the summary box with the spinner while the plan query is in flight.
+function migShowSummaryLoading () {
+  $("#mig_summary").show();
+  $("#mig_sum_content").hide();
+  $("#mig_sum_loading").show();
+}
+
 // Fill the summary form from a plan `totals` (templates = base + derivative).
 function migRenderSummary (totals) {
   totals = totals || {};
@@ -449,6 +474,8 @@ function migRenderSummary (totals) {
   $("#mig_sum_total_sz").text(migBytes(totals.bytes_total || 0));
   migLastPlanBytes = totals.bytes_total || 0;
   $("#mig_summary").show();
+  $("#mig_sum_loading").hide();
+  $("#mig_sum_content").show();
   migRecalcEta();
 }
 
@@ -472,15 +499,21 @@ function migRecalcEta () {
 // result for a repeated selection (unless `immediate`, which forces a refresh).
 function migLoadSummary (immediate) {
   clearTimeout(migSummaryTimer);
+  // Nothing chosen yet (or an incomplete/no-op selection) -> no box, no query.
+  if (!migSelectionComplete()) {
+    migHideSummary();
+    return;
+  }
   const key = migSelectionKey();
   if (!immediate && Object.prototype.hasOwnProperty.call(migPlanCache, key)) {
-    $("#mig_summary").show();
     migSetSummaryState("cached", "#7f8c8d");
     migRenderSummary(migPlanCache[key]);
     return;
   }
   const run = function () {
-    $("#mig_summary").show();
+    // guard again — the selection may have changed during the debounce
+    if (!migSelectionComplete()) { migHideSummary(); return; }
+    migShowSummaryLoading();
     migSetSummaryState("estimating…");
     $.ajax({
       type: "POST", url: `${MIG_API}/plan`, contentType: "application/json",
@@ -492,6 +525,8 @@ function migLoadSummary (immediate) {
       migRenderSummary(totals);
       migInitTooltips($("#mig_summary"));
     }).fail(function (xhr) {
+      $("#mig_sum_loading").hide();
+      $("#mig_sum_content").show();
       migSetSummaryState("estimate failed", "#c0392b");
       migLastPlanBytes = null;
       $("#mig_sum_eta").text("–");
