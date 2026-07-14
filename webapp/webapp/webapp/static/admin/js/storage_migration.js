@@ -330,7 +330,6 @@ function loadMigrationPools () {
     // estimate isn't a source==destination no-op.
     if (rows.length > 1) $("#mig_dst_pool").prop("selectedIndex", 1);
     loadMigrationPathPrefixes();
-    migLoadSummary();
   });
 }
 
@@ -532,6 +531,12 @@ $(document).ready(function () {
   // parallel / bwlimit -> recompute ETA only (no API call needed)
   $("#mig_parallel, #mig_bwlimit").on("input change", migRecalcEta);
 
+  // opening the New-migration modal -> init tooltips + load the live estimate
+  $("#mig_new_modal").on("shown.bs.modal", function () {
+    migInitTooltips($("#mig_new_modal"));
+    migLoadSummary();
+  });
+
   // days-of-week presets on the create form
   $("#migration_new").on("click", ".mig-days-preset", function () {
     const preset = $(this).data("preset");
@@ -557,6 +562,7 @@ $(document).ready(function () {
       $("#mig_preview_out").html('<span class="text-success"><i class="fa fa-check"></i> Migration created &amp; starting…</span>');
       // the matched disks start leaving their pool -> cached estimates are stale
       Object.keys(migPlanCache).forEach(function (k) { delete migPlanCache[k]; });
+      $("#mig_new_modal").modal("hide");
       $.ajax({ type: "POST", url: `${MIG_API}/${mig.id}/start` }).always(loadMigrations);
     }).fail(function (xhr) {
       $("#mig_preview_out").html('<span class="text-danger"><i class="fa fa-exclamation-triangle"></i> Create failed: ' +

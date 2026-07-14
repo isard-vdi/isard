@@ -25,15 +25,16 @@
          title="Move existing disks between storage pools in the background. Whole trees move together — a base template with its derived templates and desktops — so backing chains stay valid across the new pool. Running desktops keep working; every copy is checksum-verified before its source file is removed."></i>
     </h3>
     <ul class="nav navbar-right panel_toolbox">
+      <li><a class="btn-mig-new" role="button" style="cursor:pointer;" data-toggle="modal" data-target="#mig_new_modal"><span style="color:#5499c7;"><i class="fa fa-plus"></i> New migration</span></a></li>
       <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
     </ul>
     <div class="clearfix"></div>
   </div>
   <div class="x_content">
     <p class="text-muted" style="margin:-2px 0 14px;font-size:13px;">
-      Build a plan with <b>Preview</b> (safe &mdash; read-only, moves nothing), then <b>Create &amp; start</b>.
-      Optionally restrict it to a time window / weekdays, throttle bandwidth, move several disks in parallel and
-      set what happens on failure. Progress streams live below.
+      Move disks between storage pools in the background. Click <b><i class="fa fa-plus"></i> New migration</b> to
+      plan one &mdash; you'll see a live count/size breakdown by item type and an ETA before committing. Existing
+      and running migrations are listed below and update live.
     </p>
 
     <style>
@@ -64,6 +65,15 @@
       .mig-sum-eta .val { font-size:18px; font-weight:600; color:#2c7bb6; }
       .mig-sum-eta .note { color:#95a5a6; font-size:12px; margin-left:6px; }
     </style>
+    <!-- New-migration modal (opened by the "New migration" button above) -->
+    <div class="modal fade" id="mig_new_modal" tabindex="-1" role="dialog" aria-labelledby="mig_new_title">
+     <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+       <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="mig_new_title"><i class="fa fa-exchange"></i> New disk migration</h4>
+       </div>
+       <div class="modal-body">
     <form class="form-inline mig-form" id="migration_new" style="margin-bottom:12px;">
       <!-- ── Selection: what to move, and where to ─────────────────────────── -->
       <fieldset class="mig-fs">
@@ -155,13 +165,6 @@
         </label>
         <label style="margin-left:8px;" title="Stop a running desktop to move its disk, instead of skipping it. The desktop is restartable afterwards."><input type="checkbox" id="mig_force_stop"> force-stop</label>
         <label style="margin-left:8px;" title="Checksum-verify each destination copy before deleting the source. Strongly recommended — leave on."><input type="checkbox" id="mig_verify" checked> verify</label>
-        <button type="button" class="btn btn-default btn-sm" id="mig_preview" style="margin-left:12px;" title="Dry-run: build and count the plan (trees / disks / bytes) without moving anything.">
-          <i class="fa fa-search"></i> Preview
-        </button>
-        <button type="button" class="btn btn-primary btn-sm" id="mig_create" title="Create the migration and start it immediately.">
-          <i class="fa fa-play"></i> Create &amp; start
-        </button>
-        <span id="mig_preview_out" style="margin-left:10px;color:#555;"></span>
       </fieldset>
     </form>
 
@@ -200,6 +203,16 @@
         <span class="note" id="mig_sum_eta_note"></span>
       </div>
     </div>
+       </div><!-- /modal-body -->
+       <div class="modal-footer" style="text-align:left;">
+        <span id="mig_preview_out" style="margin-right:10px;color:#555;"></span>
+        <button type="button" class="btn btn-default btn-sm" id="mig_preview" title="Re-run the dry-run estimate for the current selection."><i class="fa fa-refresh"></i> Refresh estimate</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="mig_create" title="Create the migration and start it immediately."><i class="fa fa-play"></i> Create &amp; start</button>
+       </div>
+      </div><!-- /modal-content -->
+     </div><!-- /modal-dialog -->
+    </div><!-- /modal -->
 
     <table id="migrations" class="table table-condensed">
       <thead>
