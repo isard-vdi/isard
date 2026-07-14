@@ -416,7 +416,7 @@ class Upgrade(object):
         log.info("Now will upgrade database versions: " + str(apply_upgrades))
         for version in apply_upgrades:
             for table in tables:
-                eval("self." + table + "(" + str(version) + ")")
+                getattr(self, table)(version)
         self._system_upgrades()
         r.table("config").get(1).update({"version": release_version}).run(self.conn)
 
