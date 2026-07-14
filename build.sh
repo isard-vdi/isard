@@ -908,8 +908,8 @@ disable_wgquick_apparmor(){
 }
 disable_wgquick_apparmor
 
-migrate_prometheus_to_victoriametrics() {
-	# Warn if the variable fallback references the old isard-prometheus container
+notify_prometheus_migration_pending() {
+	# Warn if the variable fallback still references the removed isard-prometheus container
 	if [ -n "$PROMETHEUS_ADDRESS" ] && [ -z "$VICTORIAMETRICS_ADDRESS" ]; then
 		case "$PROMETHEUS_ADDRESS" in
 		*isard-prometheus*)
@@ -919,123 +919,26 @@ migrate_prometheus_to_victoriametrics() {
 		esac
 	fi
 
+	# The Prometheus -> VictoriaMetrics data import is NO LONGER run in-band here.
+	# On a monitor with real retention it takes hours and needs disk for the old
+	# TSDB, the snapshot and the imported data at once, which is unsafe inside the
+	# build/upgrade window. It is now an on-demand admin script:
+	#   sysadm/migrate-prometheus-to-victoriametrics.sh
 	_prometheus_dir="/opt/isard/stats/prometheus"
-	_victoriametrics_dir="/opt/isard/stats/victoriametrics"
-	_marker="$_victoriametrics_dir/.migrated-from-prometheus"
-	_prometheus_image="prom/prometheus:v3.5.2"
-	_prometheus_container="isard-prometheus-migrate"
-	_victoriametrics_container="isard-victoriametrics-migrate"
-
+	_marker="/opt/isard/stats/victoriametrics/.migrated-from-prometheus"
 	[ -d "$_prometheus_dir" ] || return 0
 	[ -f "$_marker" ] && return 0
 
-	_victoriametrics_tag=$(sed -n 's|.*image: *victoriametrics/victoria-metrics:\([^ ]*\).*|\1|p' docker-compose-parts/monitor.yml | head -1)
-	if [ -z "$_victoriametrics_tag" ]; then
-		echo "WARNING: could not read the VictoriaMetrics image tag from monitor.yml; skipping migration." >&2
-		return 0
-	fi
-	_victoriametrics_image="victoriametrics/victoria-metrics:$_victoriametrics_tag"
-	_vmctl_image="victoriametrics/vmctl:$_victoriametrics_tag"
-
-	echo "Migrating Prometheus metrics at $_prometheus_dir to VictoriaMetrics..."
-
-	docker rm -f "$_prometheus_container" "$_victoriametrics_container" >/dev/null 2>&1 || true
-	docker stop isard-prometheus isard-victoriametrics >/dev/null 2>&1 || true
-
-	_migrated=0
-	while :; do
-		echo "  Starting a temporary Prometheus to snapshot the old TSDB..."
-		if ! docker run -d --name "$_prometheus_container" --user root -v "$_prometheus_dir:/prometheus" "$_prometheus_image" \
-			--config.file=/etc/prometheus/prometheus.yml \
-			--storage.tsdb.path=/prometheus --web.enable-admin-api >/dev/null; then
-			echo "  ERROR: could not start the temporary Prometheus." >&2
-			break
-		fi
-
-		_prometheus_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$_prometheus_container" 2>/dev/null || true)
-		if [ -z "$_prometheus_ip" ]; then
-			echo "  ERROR: could not resolve the temporary Prometheus IP." >&2
-			break
-		fi
-
-		echo "  Creating a Prometheus snapshot (waiting for it to be ready)..."
-		_snapshot_url="http://$_prometheus_ip:9090/api/v1/admin/tsdb/snapshot"
-		_snapshot=""
-		_waited=0
-		while [ "$_waited" -lt 60 ]; do
-			_snapshot=$(curl -sf -X POST "$_snapshot_url" 2>/dev/null | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
-			[ -n "$_snapshot" ] && break
-			_waited=$((_waited + 1))
-			sleep 1
-		done
-		if [ -z "$_snapshot" ]; then
-			echo "  ERROR: the temporary Prometheus did not return a snapshot after 60s. Its logs:" >&2
-			docker logs --tail 20 "$_prometheus_container" 2>&1 | sed 's/^/    /' >&2 || true
-			break
-		fi
-		echo "  Snapshot created: $_snapshot"
-
-		echo "  Starting a temporary VictoriaMetrics..."
-		if ! docker run -d --name "$_victoriametrics_container" --user root -v "$_victoriametrics_dir:/victoria-metrics-data" "$_victoriametrics_image" \
-			-storageDataPath=/victoria-metrics-data >/dev/null; then
-			echo "  ERROR: could not start the temporary VictoriaMetrics." >&2
-			break
-		fi
-
-		_victoriametrics_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$_victoriametrics_container" 2>/dev/null || true)
-		if [ -z "$_victoriametrics_ip" ]; then
-			echo "  ERROR: could not resolve the temporary VictoriaMetrics IP." >&2
-			break
-		fi
-
-		echo "  Waiting for VictoriaMetrics to be ready..."
-		_ready=0
-		_waited=0
-		while [ "$_waited" -lt 60 ]; do
-			if curl -sf "http://$_victoriametrics_ip:8428/health" >/dev/null 2>&1; then
-				_ready=1
-				break
-			fi
-			_waited=$((_waited + 1))
-			sleep 1
-		done
-		if [ "$_ready" != 1 ]; then
-			echo "  ERROR: the temporary VictoriaMetrics was not healthy after 60s." >&2
-			break
-		fi
-
-		echo "  Importing the snapshot into VictoriaMetrics with vmctl..."
-		if ! docker run --rm -t --network host --user root \
-			-v "$_prometheus_dir/snapshots/$_snapshot:/snapshot" "$_vmctl_image" \
-			prometheus -s --prom-snapshot=/snapshot --vm-addr="http://$_victoriametrics_ip:8428"; then
-			echo "  ERROR: vmctl import failed." >&2
-			break
-		fi
-
-		_migrated=1
-		break
-	done
-
-	docker stop "$_victoriametrics_container" >/dev/null 2>&1 || true
-	docker rm -f "$_prometheus_container" "$_victoriametrics_container" >/dev/null 2>&1 || true
-
-	if [ "$_migrated" != 1 ]; then
-		echo "WARNING: Prometheus -> VictoriaMetrics migration failed; old data left intact at $_prometheus_dir." >&2
-		return 0
-	fi
-
-	_archive="$_prometheus_dir.migrated-$(date +%Y%m%d%H%M%S)"
-	if $SUDO mv "$_prometheus_dir" "$_archive"; then
-		$SUDO touch "$_marker" || true
-		echo "Prometheus data migrated to VictoriaMetrics."
-		echo "The old Prometheus data has been kept at $_archive; you can delete it once you have verified VictoriaMetrics: sudo rm -rf $_archive"
-	else
-		echo "Metrics imported into VictoriaMetrics, but archiving the old TSDB failed. Run it manually:" >&2
-		echo "   sudo mv $_prometheus_dir $_archive && sudo touch $_marker" >&2
-	fi
+	echo ""
+	echo "NOTE: existing Prometheus metrics were found at $_prometheus_dir."
+	echo "      VictoriaMetrics starts empty and collects new metrics from now on."
+	echo "      To import the old history into VictoriaMetrics, run the migration ON DEMAND"
+	echo "      (it can take hours and needs free disk space -- do it outside the window):"
+	echo "         sudo nohup bash sysadm/migrate-prometheus-to-victoriametrics.sh >./migrate-prometheus-to-victoriametrics.log 2>&1 &"
+	echo ""
 	return 0
 }
-migrate_prometheus_to_victoriametrics
+notify_prometheus_migration_pending
 
 echo "You have the docker-compose files. Have fun!"
 echo "You can download the prebuild images and bring it up:"

@@ -5,6 +5,7 @@ This directory contains system administration tools and configuration files for 
 ## Files and Directories
 
 - `upgrade.sh` - Automated upgrade script with comprehensive features
+- `migrate-prometheus-to-victoriametrics.sh` - On-demand import of a legacy Prometheus TSDB into VictoriaMetrics (see [Metrics migration](#metrics-migration-prometheus--victoriametrics))
 - `template-transfer/` - Port a template (disk + DB docs + card) to another install over SSH (see `template-transfer/README.md`)
 - `isardvdi.service` - Systemd service file for running IsardVDI as a system service
 - `INSTALL.md` - Installation guide for new deployments
@@ -118,7 +119,7 @@ The build system supports multiple deployment flavors:
 - `hypervisor-standalone`: Hypervisor without video services
 - `video-standalone`: Video proxy services only
 - `storage`: Storage services only
-- `monitor`: Monitoring services (Grafana, Prometheus, Loki)
+- `monitor`: Monitoring services (Grafana, VictoriaMetrics, Loki)
 - `web+monitor`: Combined web and monitoring
 - `web+storage`: Combined web and storage
 - `backupninja`: Standalone backup services
@@ -159,6 +160,42 @@ Older upgrade scripts have been moved to the `old/` directory:
 - `old/pacemaker-upgrade-cron.sh` - Legacy Pacemaker-aware upgrade script
 
 These are kept for reference but are deprecated. Use the new `upgrade.sh` script instead.
+
+## Metrics migration (Prometheus -> VictoriaMetrics)
+
+From the release that switches the metrics backend to VictoriaMetrics, `isard-prometheus`
+is gone. After the upgrade **VictoriaMetrics starts empty and collects new metrics from
+now on** — no history is lost going forward, but the old Prometheus history is not imported
+automatically. `build.sh` only prints a NOTE when it finds a legacy TSDB at
+`/opt/isard/stats/prometheus`; it no longer imports in-band, because on a monitor with real
+retention the import takes hours and needs disk for the old TSDB, the snapshot and the
+imported data at once — unsafe inside the build/upgrade window.
+
+To import the old history, run the migration **on demand, outside the window**:
+
+```bash
+# Foreground
+sudo bash sysadm/migrate-prometheus-to-victoriametrics.sh
+
+# Background (recommended — it can run for hours)
+sudo nohup bash sysadm/migrate-prometheus-to-victoriametrics.sh \
+    >./migrate-prometheus-to-victoriametrics.log 2>&1 &
+```
+
+- **Idempotent:** guarded by a marker (`/opt/isard/stats/victoriametrics/.migrated-from-prometheus`);
+  re-running after a successful migration is a no-op.
+- **Free-space check** before starting (override with `--force`). Check available disk first.
+- **Downtime:** `isard-victoriametrics` is stopped during the `vmctl` import and restarted at
+  the end; grafana-alloy / remote-write buffers new metrics meanwhile.
+- On success the old TSDB is archived to `/opt/isard/stats/prometheus.migrated-<timestamp>`;
+  delete it once you have verified VictoriaMetrics.
+- Overrides: `ISARD_DIR` (install dir, default autodetected then `/opt/isard`) and `STATS_DIR`
+  (default `$ISARD_DIR/stats`).
+
+> **Non-standard monitor layouts (e.g. a hand-built VictoriaMetrics using a `vmdata` volume
+> and publishing on a custom port as a remote-write gateway) do NOT match the standard
+> `/opt/isard/stats/victoriametrics` bind layout and need a site-specific reconciliation plan
+> coordinated with Systems before upgrading — do not rely on this script for them.**
 
 ## Template Transfer
 
