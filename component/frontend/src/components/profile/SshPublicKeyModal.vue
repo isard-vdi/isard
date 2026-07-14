@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { useQuery, useMutation } from '@tanstack/vue-query'
+import { useForm, type AnyFieldApi } from '@tanstack/vue-form'
 import { useI18n } from 'vue-i18n'
+import { z } from 'zod'
 import Modal from '@/components/modal/Modal.vue'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { FieldError } from '@/components/ui/field'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import {
   getUserBastionSshKeyOptions,
   setUserBastionSshKeyMutation,
   deleteUserBastionSshKeyMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface Props {
   open?: boolean
@@ -41,35 +45,25 @@ const SSH_KEY_TYPE_RE =
 
 const countKeyTypes = (value: string) => (` ${value} `.match(SSH_KEY_TYPE_RE) || []).length
 
-const keyInput = ref<string>('')
-const errorMessage = ref<string>('')
-
-const { data: sshKeyData, refetch: refetchSshKey } = useQuery({
-  ...getUserBastionSshKeyOptions(),
-  enabled: computed(() => props.open)
+const formSchema = z.object({
+  sshKey: z
+    .string()
+    .trim()
+    .regex(SSH_KEY_RE, { message: t('components.profile.ssh-key-modal.invalid') })
+    .refine((value) => countKeyTypes(value) === 1, {
+      message: t('components.profile.ssh-key-modal.invalid')
+    })
 })
 
-watch(
-  () => props.open,
-  (open) => {
-    if (open) {
-      keyInput.value = sshKeyData.value?.ssh_key || ''
-      errorMessage.value = ''
-    }
-  }
-)
-watch(
-  () => sshKeyData.value,
-  (data) => {
-    if (props.open) keyInput.value = data?.ssh_key || ''
-  }
-)
+const errorMessage = ref<string>('')
 
-const storedKey = computed(() => sshKeyData.value?.ssh_key || '')
-const hasKey = computed(() => storedKey.value.trim().length > 0)
-const isValid = computed(() => {
-  const trimmed = keyInput.value.trim()
-  return SSH_KEY_RE.test(trimmed) && countKeyTypes(trimmed) === 1
+const {
+  data: sshKeyData,
+  refetch: refetchSshKey,
+  isPending: sshKeyIspending
+} = useQuery({
+  ...getUserBastionSshKeyOptions(),
+  enabled: computed(() => props.open)
 })
 
 const { mutateAsync: setSshKey, isPending: isSaving } = useMutation(setUserBastionSshKeyMutation())
@@ -77,28 +71,35 @@ const { mutateAsync: deleteSshKey, isPending: isDeleting } = useMutation(
   deleteUserBastionSshKeyMutation()
 )
 
-const isActionDisabled = computed(() => isSaving.value || isDeleting.value)
+const isActionDisabled = computed(() => isSaving.value || isDeleting.value || sshKeyIspending.value)
+
+const form = useForm({
+  defaultValues: reactive({ sshKey: computed(() => sshKeyData.value?.ssh_key || '') }),
+  validators: {
+    onChange: formSchema
+  },
+  async onSubmit({ value }) {
+    errorMessage.value = ''
+    try {
+      await setSshKey({ body: { ssh_key: value.sshKey.trim() } })
+      await refetchSshKey()
+      emit('update:open', false)
+    } catch {
+      errorMessage.value = t('components.profile.ssh-key-modal.alert.error-save')
+    }
+  }
+})
+
+const isInvalid = (field: AnyFieldApi) => field.state.meta.isTouched && !field.state.meta.isValid
 
 const handleClose = () => {
   emit('update:open', false)
-}
-
-const handleSave = async () => {
-  errorMessage.value = ''
-  try {
-    await setSshKey({ body: { ssh_key: keyInput.value.trim() } })
-    await refetchSshKey()
-    emit('update:open', false)
-  } catch {
-    errorMessage.value = t('components.profile.ssh-key-modal.alert.error-save')
-  }
 }
 
 const handleRemove = async () => {
   errorMessage.value = ''
   try {
     await deleteSshKey({})
-    keyInput.value = ''
     await refetchSshKey()
     emit('update:open', false)
   } catch {
@@ -116,22 +117,6 @@ const handleRemove = async () => {
     @close="handleClose"
   >
     <div class="flex flex-col px-2 gap-6">
-      <Alert
-        v-if="errorMessage"
-        variant="destructive"
-        class="border-error-200 flex items-start gap-3"
-      >
-        <FeaturedIconOutline kind="outline" color="error" size="md" class="shrink-0" />
-        <div class="space-y-1 text-left">
-          <AlertTitle class="text-error-900">
-            {{ t('components.profile.ssh-key-modal.alert.error-title') }}
-          </AlertTitle>
-          <AlertDescription class="text-error-700">
-            {{ errorMessage }}
-          </AlertDescription>
-        </div>
-      </Alert>
-
       <p class="text-sm text-gray-warm-700">
         {{ t('components.profile.ssh-key-modal.description') }}
       </p>
@@ -145,22 +130,52 @@ const handleRemove = async () => {
         </div>
       </Alert>
 
-      <div class="space-y-2">
-        <Textarea
-          v-model="keyInput"
-          class="bg-base-white h-28 font-mono text-sm whitespace-pre"
-          :placeholder="t('components.profile.ssh-key-modal.placeholder')"
-        />
-        <p v-if="keyInput.trim() && !isValid" class="text-sm text-error-700">
-          {{ t('components.profile.ssh-key-modal.invalid') }}
-        </p>
-      </div>
+      <template v-if="sshKeyIspending">
+        <Skeleton class="h-28 w-full" />
+      </template>
+
+      <form v-else class="contents" @submit.prevent="form.handleSubmit">
+        <Alert
+          v-if="errorMessage"
+          variant="destructive"
+          class="border-error-200 flex items-start gap-3"
+        >
+          <FeaturedIconOutline kind="outline" color="error" size="md" class="shrink-0" />
+          <div class="space-y-1 text-left">
+            <AlertTitle class="text-error-900">
+              {{ t('components.profile.ssh-key-modal.alert.error-title') }}
+            </AlertTitle>
+            <AlertDescription class="text-error-700">
+              {{ errorMessage }}
+            </AlertDescription>
+          </div>
+        </Alert>
+
+        <form.Field v-slot="{ field }" name="sshKey">
+          <div class="space-y-2">
+            <Textarea
+              :id="field.name"
+              :name="field.name"
+              :model-value="field.state.value"
+              :destructive="isInvalid(field)"
+              class="bg-base-white h-28 font-mono text-sm whitespace-pre"
+              :placeholder="t('components.profile.ssh-key-modal.placeholder')"
+              @blur="field.handleBlur"
+              @input="field.handleChange(($event.target as HTMLTextAreaElement).value)"
+            />
+            <FieldError
+              v-if="isInvalid(field) && field.state.value.trim()"
+              :errors="field.state.meta.errors"
+            />
+          </div>
+        </form.Field>
+      </form>
     </div>
 
     <template #footer>
       <div class="w-full flex justify-center gap-2 px-6">
         <Button
-          v-if="hasKey"
+          v-if="sshKeyData?.ssh_key"
           hierarchy="destructive"
           size="md"
           :disabled="isActionDisabled"
@@ -168,14 +183,16 @@ const handleRemove = async () => {
         >
           {{ t('components.profile.ssh-key-modal.buttons.remove') }}
         </Button>
-        <Button
-          hierarchy="primary"
-          size="md"
-          :disabled="isActionDisabled || !keyInput.trim() || !isValid"
-          @click="handleSave"
-        >
-          {{ t('components.profile.ssh-key-modal.buttons.save') }}
-        </Button>
+        <form.Subscribe v-slot="{ canSubmit, values }">
+          <Button
+            hierarchy="primary"
+            size="md"
+            :disabled="isActionDisabled || !canSubmit || !values.sshKey.trim()"
+            @click="form.handleSubmit"
+          >
+            {{ t('components.profile.ssh-key-modal.buttons.save') }}
+          </Button>
+        </form.Subscribe>
       </div>
     </template>
   </Modal>
