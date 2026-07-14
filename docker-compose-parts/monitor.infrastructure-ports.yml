@@ -5,4 +5,6 @@ services:
 
   isard-victoriametrics:
     ports:
-      - "${INFRASTRUCTURE_HOST_IP}:8428:8428"
+      # Publish on 9090 (the legacy Prometheus port) mapped to VictoriaMetrics' 8428,
+      # so existing remote-write clients and firewall rules keep working across the upgrade.
+      - "${INFRASTRUCTURE_HOST_IP}:9090:8428"

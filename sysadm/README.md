@@ -192,6 +192,16 @@ sudo nohup bash sysadm/migrate-prometheus-to-victoriametrics.sh \
 - Overrides: `ISARD_DIR` (install dir, default autodetected then `/opt/isard`) and `STATS_DIR`
   (default `$ISARD_DIR/stats`).
 
+### Published port
+
+On multi-node deployments the metrics backend is published on the infrastructure IP for
+remote-write clients. That port is **kept at `9090`** (the legacy Prometheus port) mapped to
+VictoriaMetrics' internal `8428`, so existing remote-write clients, firewall rules and monitor
+gateways keep working across the upgrade with no infrastructure change. VictoriaMetrics still
+listens on its native `8428` inside the container (grafana datasource, alloy remote-write and
+haproxy backends all use `8428`); only the host publish is remapped. HTTPS path access is also
+backward-compatible: both `/prometheus` and `/victoriametrics` route to the backend.
+
 > **Non-standard monitor layouts (e.g. a hand-built VictoriaMetrics using a `vmdata` volume
 > and publishing on a custom port as a remote-write gateway) do NOT match the standard
 > `/opt/isard/stats/victoriametrics` bind layout and need a site-specific reconciliation plan

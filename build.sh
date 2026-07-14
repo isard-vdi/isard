@@ -397,7 +397,7 @@ flavour(){
 		if echo "$parts" | grep -q "\(^\|\s\)monitor\(\s\|$\)"; then
 			parts="$parts monitor.infrastructure-ports"
 			echo "      - Loki port 3100 exposed on $INFRASTRUCTURE_HOST_IP"
-			echo "      - VictoriaMetrics port 8428 exposed on $INFRASTRUCTURE_HOST_IP"
+			echo "      - VictoriaMetrics port 9090 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
 		echo ""
 	fi

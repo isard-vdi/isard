@@ -938,7 +938,7 @@ WG_GUESTS_RESERVED_HOSTS=20
 # - Database (RethinkDB) port 28015
 # - Redis port 6379
 # - Loki port 3100 (if monitoring enabled)
-# - VictoriaMetrics port 8428 (if monitoring enabled)
+# - VictoriaMetrics port 9090 (if monitoring enabled)
 #
 # ALTERNATIVE: If you don't set this variable, you'll need to configure firewall rules to allow
 # remote infrastructure nodes to reach the internal Docker container IPs (refer to documentation).

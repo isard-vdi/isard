@@ -5,4 +5,5 @@ services:
 
   isard-victoriametrics:
     ports:
-      - "8428:8428"
+      # 9090 (legacy Prometheus port) -> VictoriaMetrics' 8428, bound to the infra IP
+      - "${INFRASTRUCTURE_HOST_IP:-0.0.0.0}:9090:8428"
