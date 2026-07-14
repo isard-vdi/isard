@@ -119,6 +119,9 @@ class MigrationTotalsResponse(BaseModel):
     desktops: int = 0
     media: int = 0
     items_total: int = 0
+    #: count of disks grouped by item kind (template/desktop/media); these sum to
+    #: items_total, unlike `trees` (a standalone desktop is its own tree root).
+    items_by_kind: dict = Field(default_factory=dict)
     bytes_total: int = 0
     #: size in bytes grouped by item kind (template/desktop/media) so the UI
     #: can show a size next to each item-type count. Empty on older payloads.

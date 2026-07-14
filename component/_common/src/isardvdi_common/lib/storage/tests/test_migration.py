@@ -115,6 +115,7 @@ def test_summarize_plan_counts():
     assert s["derivative_templates"] == 1  # t2 (template, not the root)
     assert s["desktops"] == 2
     assert s["items_total"] == 4
+    assert s["items_by_kind"] == {"template": 2, "desktop": 2}
     assert s["bytes_total"] == 160
     assert s["bytes_done"] == 0
     assert s["state_counts"] == {"pending": 4}
@@ -130,6 +131,34 @@ def test_summarize_plan_multi_tree():
     assert s["trees"] == 2
     assert s["media"] == 1
     assert s["derivative_templates"] == 0
+
+
+def test_summarize_plan_items_by_kind_reconciles_with_standalone_desktops():
+    """A standalone desktop is its OWN tree root but is a desktop, not a template
+    — so `trees` (3 here) must NOT be read as the template count. The per-kind
+    counts are the only figures that sum back to items_total. Regression for the
+    "3 templates + 8 desktops = 9 total" UI mismatch."""
+    items = (
+        # one real template tree: base template + 6 derived desktops
+        [{"tree_id": "tpl", "storage_id": "tpl", "kind": "template", "size_bytes": 1}]
+        + [
+            {"tree_id": "tpl", "storage_id": f"d{i}", "kind": "desktop", "size_bytes": 1}
+            for i in range(6)
+        ]
+        # two standalone desktops, each its own tree root
+        + [
+            {"tree_id": f"s{i}", "storage_id": f"s{i}", "kind": "desktop", "size_bytes": 1}
+            for i in range(2)
+        ]
+    )
+    s = mig.summarize_plan(items)
+    assert s["trees"] == 3  # 1 template-rooted + 2 desktop-rooted
+    assert s["items_total"] == 9
+    assert s["items_by_kind"] == {"template": 1, "desktop": 8}
+    # the invariant the UI relies on: per-kind counts sum to the total
+    assert sum(s["items_by_kind"].values()) == s["items_total"]
+    # and templates != trees (the exact bug: trees over-counted templates)
+    assert s["items_by_kind"]["template"] != s["trees"]
 
 
 # --------------------------------------------------------------------------- #

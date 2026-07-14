@@ -470,14 +470,19 @@ function migShowSummaryLoading () {
 function migRenderSummary (totals) {
   totals = totals || {};
   const bbk = totals.bytes_by_kind || {};
-  const base = totals.trees || 0;
+  const ibk = totals.items_by_kind || {};
   const deriv = totals.derivative_templates || 0;
-  $("#mig_sum_tpl").html((base + deriv) +
+  // Templates = every template-kind disk (base + derivative). NOTE: use the
+  // per-kind count, NOT `trees` — a standalone desktop is its own tree root but
+  // is a desktop, so `trees` over-counts and the cells wouldn't sum to the total.
+  const tpl = (ibk.template != null) ? ibk.template : (totals.trees || 0) + deriv;
+  const base = tpl - deriv;
+  $("#mig_sum_tpl").html(tpl +
     (deriv ? ` <small>(${base} base + ${deriv} derived)</small>` : ""));
   $("#mig_sum_tpl_sz").text(migBytes(bbk.template || 0));
-  $("#mig_sum_desk").text(totals.desktops || 0);
+  $("#mig_sum_desk").text((ibk.desktop != null) ? ibk.desktop : (totals.desktops || 0));
   $("#mig_sum_desk_sz").text(migBytes(bbk.desktop || 0));
-  $("#mig_sum_media").text(totals.media || 0);
+  $("#mig_sum_media").text((ibk.media != null) ? ibk.media : (totals.media || 0));
   $("#mig_sum_media_sz").text(migBytes(bbk.media || 0));
   $("#mig_sum_total").text(totals.items_total || 0);
   $("#mig_sum_total_sz").text(migBytes(totals.bytes_total || 0));

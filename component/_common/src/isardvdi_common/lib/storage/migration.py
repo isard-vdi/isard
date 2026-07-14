@@ -128,6 +128,18 @@ def _bytes_by_kind(item_dicts):
     return out
 
 
+def _count_by_kind(item_dicts):
+    """Count items grouped by ``kind`` (template/desktop/media), mirroring
+    :func:`_bytes_by_kind`. Every item has exactly one kind, so these counts sum
+    to ``items_total`` — which ``trees`` does NOT (a standalone desktop is its own
+    tree root yet is a desktop, not a template)."""
+    out = {}
+    for it in item_dicts:
+        k = it.get("kind") or "other"
+        out[k] = out.get(k, 0) + 1
+    return out
+
+
 def summarize_plan(item_dicts):
     """Aggregate per-job totals from the built item dicts.
 
@@ -151,6 +163,7 @@ def summarize_plan(item_dicts):
         "desktops": kinds.get("desktop", 0),
         "media": kinds.get("media", 0),
         "items_total": len(item_dicts),
+        "items_by_kind": _count_by_kind(item_dicts),
         "bytes_total": bytes_total,
         "bytes_by_kind": bytes_by_kind,
         "bytes_done": 0,
@@ -222,6 +235,7 @@ def aggregate_status(migration, items, *, include_items=False):
             "desktops": sum(t["desktops"] for t in trees),
             "media": sum(t["media"] for t in trees),
             "items_total": len(items),
+            "items_by_kind": _count_by_kind(items),
             "bytes_total": bytes_total,
             "bytes_by_kind": _bytes_by_kind(items),
             "bytes_done": bytes_done,
