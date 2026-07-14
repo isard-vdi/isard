@@ -67,9 +67,18 @@ if [ -z "${ISARD_DIR:-}" ]; then
 		ISARD_DIR="/opt/isard"
 	fi
 fi
-STATS_DIR="${STATS_DIR:-$ISARD_DIR/stats}"
-
 MONITOR_YML="$ISARD_DIR/docker-compose-parts/monitor.yml"
+
+# The stats dir is NOT necessarily under ISARD_DIR: the standard layout keeps
+# code in /opt/isard/src and data in /opt/isard/stats (a sibling, not a child).
+# So $ISARD_DIR/stats would wrongly resolve to /opt/isard/src/stats and the
+# migration would silently find nothing. Derive it from the victoriametrics data
+# volume declared in monitor.yml, falling back to /opt/isard/stats.
+if [ -z "${STATS_DIR:-}" ]; then
+	STATS_DIR=$(sed -n 's|[[:space:]]*-[[:space:]]*\(/.*\)/victoriametrics:/victoria-metrics-data.*|\1|p' "$MONITOR_YML" 2>/dev/null | head -1)
+	[ -n "$STATS_DIR" ] || STATS_DIR="/opt/isard/stats"
+fi
+
 PROMETHEUS_DIR="$STATS_DIR/prometheus"
 VICTORIAMETRICS_DIR="$STATS_DIR/victoriametrics"
 MARKER="$VICTORIAMETRICS_DIR/.migrated-from-prometheus"
