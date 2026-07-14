@@ -532,7 +532,7 @@ func TestRataExtraOperations(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.Mock.On("AdminTableUpdate", mock.AnythingOfType("*context.cancelCtx"), mock.MatchedBy(func(req apiv4.AdminTableUpdateReq) bool {
 					return string(req["id"]) == `"second"` && string(req["only_forced"]) == "true"
-				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.EmptyResponse{}, nil)
+				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.AdminTableUpdateNoContent{}, nil)
 			},
 			Hypers: []*model.Hypervisor{
 				testhelper.Hypervisor(
@@ -554,7 +554,7 @@ func TestRataExtraOperations(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.Mock.On("AdminTableUpdate", mock.AnythingOfType("*context.cancelCtx"), mock.MatchedBy(func(req apiv4.AdminTableUpdateReq) bool {
 					return string(req["id"]) == `"second"` && string(req["only_forced"]) == "false"
-				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.EmptyResponse{}, nil)
+				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.AdminTableUpdateNoContent{}, nil)
 			},
 			Hypers: []*model.Hypervisor{
 				testhelper.Hypervisor(
@@ -580,10 +580,10 @@ func TestRataExtraOperations(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.Mock.On("AdminTableUpdate", mock.AnythingOfType("*context.cancelCtx"), mock.MatchedBy(func(req apiv4.AdminTableUpdateReq) bool {
 					return string(req["id"]) == `"bm-e2-03"` && string(req["only_forced"]) == "true"
-				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.EmptyResponse{}, nil)
+				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.AdminTableUpdateNoContent{}, nil)
 				c.Mock.On("AdminTableUpdate", mock.AnythingOfType("*context.cancelCtx"), mock.MatchedBy(func(req apiv4.AdminTableUpdateReq) bool {
 					return string(req["id"]) == `"bm-e2-01"` && string(req["only_forced"]) == "true"
-				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.EmptyResponse{}, nil)
+				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.AdminTableUpdateNoContent{}, nil)
 			},
 			Hypers: []*model.Hypervisor{
 				testhelper.Hypervisor(

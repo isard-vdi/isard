@@ -31,7 +31,7 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 
 				c.On("AdminTableUpdate", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req apiv4.AdminTableUpdateReq) bool {
 					return string(req["id"]) == `"theHyper"` && string(req["only_forced"]) == "false"
-				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.EmptyResponse{}, nil)
+				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.AdminTableUpdateNoContent{}, nil)
 			},
 		},
 		"should not do anything if there are no operations to do": {
@@ -93,7 +93,7 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 
 				c.On("AdminTableUpdate", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req apiv4.AdminTableUpdateReq) bool {
 					return string(req["id"]) == `"theHyper"` && string(req["only_forced"]) == "true"
-				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.EmptyResponse{}, nil)
+				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.AdminTableUpdateNoContent{}, nil)
 			},
 		},
 		"should not do anything if there are no operations to do": {

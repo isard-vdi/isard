@@ -25,7 +25,7 @@ func TestCleanup(t *testing.T) {
 	}{
 		"should kill the zombie hypervisor correctly": {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
-				c.On("AdminHypervisorDelete", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminHypervisorDeleteParams{HyperID: "zombie"}).Return(&apiv4.EmptyResponse{}, nil)
+				c.On("AdminHypervisorDelete", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminHypervisorDeleteParams{HyperID: "zombie"}).Return(&apiv4.AdminHypervisorDeleteNoContent{}, nil)
 			},
 			APIHypervisors: []*model.Hypervisor{
 				testhelper.Hypervisor(
