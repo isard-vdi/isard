@@ -38,7 +38,7 @@ from api.schemas.admin.analytics import (
     StorageUsageResponse,
     SuggestedRemovalsResponse,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.analytics import AdminAnalyticsService
 from api.services.error import Error
 from fastapi import Request
@@ -237,7 +237,8 @@ async def analytics_graph_conf_get(request: Request, conf_id: str):
 @admin_router.post(
     "/admin/item/analytics/graph",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Create analytics graph configuration",
     description="Creates a new analytics graph configuration.",
     responses={
@@ -266,7 +267,8 @@ async def analytics_graph_conf_add(request: Request, data: AnalyticsGraphCreateR
 @admin_router.put(
     "/admin/item/analytics/graph/{conf_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update analytics graph configuration",
     description="Updates an existing analytics graph configuration.",
     responses={
@@ -298,7 +300,8 @@ async def analytics_graph_conf_update(
 @admin_router.delete(
     "/admin/item/analytics/graph/{conf_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete analytics graph configuration",
     description="Deletes an analytics graph configuration by ID.",
     responses={500: {"model": ErrorResponse}},

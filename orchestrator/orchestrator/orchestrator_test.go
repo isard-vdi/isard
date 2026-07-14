@@ -150,7 +150,7 @@ func TestStart(t *testing.T) {
 				m.On("AdminOrchestratorDeadRowReset", mock.AnythingOfType("*context.timerCtx"), apiv4.AdminOrchestratorDeadRowResetParams{HypervisorID: "bm-e4-15"}).Run(func(args mock.Arguments) {
 					oHypers[2].OnlyForced = apiv4.NewOptBool(false)
 					oHypers[2].DestroyTime = apiv4.OptString{}
-				}).Return(&apiv4.EmptyResponse{}, nil)
+				}).Return(&apiv4.AdminOrchestratorDeadRowResetNoContent{}, nil)
 			},
 			CfgRata: cfg.DirectorRata{
 				MinRAMLimitPercent: 150,
@@ -399,7 +399,7 @@ func TestStart(t *testing.T) {
 					},
 				)
 
-				m.On("AdminOrchestratorStopDesktops", mock.AnythingOfType("*context.timerCtx"), apiv4.AdminOrchestratorStopDesktopsParams{HypervisorID: "bm-e2-11"}).Return(&apiv4.EmptyResponse{}, nil)
+				m.On("AdminOrchestratorStopDesktops", mock.AnythingOfType("*context.timerCtx"), apiv4.AdminOrchestratorStopDesktopsParams{HypervisorID: "bm-e2-11"}).Return(&apiv4.AdminOrchestratorStopDesktopsNoContent{}, nil)
 			},
 			CfgRata: cfg.DirectorRata{
 				MinRAMLimitPercent: 150,
@@ -508,7 +508,7 @@ func TestStart(t *testing.T) {
 					return string(req["id"]) == `"bm-e4-15"` && string(req["only_forced"]) == "false"
 				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Run(func(args mock.Arguments) {
 					oHypers[2].OnlyForced = apiv4.NewOptBool(false)
-				}).Return(&apiv4.EmptyResponse{}, nil)
+				}).Return(&apiv4.AdminTableUpdateNoContent{}, nil)
 			},
 			CfgRata: cfg.DirectorRata{
 				MinRAMLimitPercent: 150,

@@ -34,7 +34,7 @@ from api.schemas.admin.authentication import (
     ProviderConfigUpdateRequest,
     ProvidersResponse,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.authentication import AdminAuthenticationService
 from api.services.error import Error
 from fastapi import Request
@@ -51,7 +51,8 @@ tag = "admin-authentication"
 @admin_router.post(
     "/admin/item/authentication/policy",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Create authentication policy",
     description="Creates a new authentication policy.",
     responses={
@@ -137,7 +138,8 @@ async def admin_authentication_policy(request: Request, policy_id: str):
 @admin_router.put(
     "/admin/item/authentication/policy/{policy_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update authentication policy",
     description="Updates an authentication policy by its ID.",
     responses={
@@ -169,7 +171,8 @@ async def admin_authentication_policy_edit(
 @admin_router.delete(
     "/admin/item/authentication/policy/{policy_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete authentication policy",
     description="Deletes an authentication policy by its ID.",
     responses={
@@ -231,7 +234,8 @@ async def admin_authentication_providers(request: Request):
 @admin_router.put(
     "/admin/item/authentication/force_validate/email/{policy_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Force email validation at login",
     description="Forces email validation at login for users matching the policy.",
     responses={500: {"model": ErrorResponse}},
@@ -258,7 +262,8 @@ async def admin_force_email(request: Request, policy_id: str):
 @admin_router.put(
     "/admin/item/authentication/force_validate/disclaimer/{policy_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Force disclaimer acknowledgement at login",
     description="Forces disclaimer acknowledgement at login for users matching the policy.",
     responses={500: {"model": ErrorResponse}},
@@ -285,7 +290,8 @@ async def admin_force_disclaimer(request: Request, policy_id: str):
 @admin_router.put(
     "/admin/item/authentication/force_validate/password/{policy_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Force password update at login",
     description="Forces password update at login for users matching the policy.",
     responses={500: {"model": ErrorResponse}},
@@ -393,7 +399,8 @@ async def get_provider_config_route(
 @admin_router.put(
     "/admin/item/authentication/provider/{provider}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update provider configuration",
     description="Updates the configuration for a specific authentication provider.",
     responses={
@@ -466,7 +473,8 @@ async def admin_get_migration_exceptions(request: Request):
 @admin_router.post(
     "/admin/item/authentication/migrations/exceptions",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Add migration exception",
     description="Adds a migration exception for specific items.",
     responses={
@@ -496,7 +504,8 @@ async def admin_add_migration_exception(
 @admin_router.delete(
     "/admin/item/authentication/migrations/exceptions/{exception_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete migration exception",
     description="Deletes a migration exception by its ID.",
     responses={500: {"model": ErrorResponse}},

@@ -518,7 +518,7 @@ func (r *Rata) adminHypervisorOnlyForced(ctx context.Context, id string, onlyFor
 		return fmt.Errorf("update hypervisor only_forced: %w", err)
 	}
 
-	if _, ok := res.(*apiv4.EmptyResponse); ok {
+	if _, ok := res.(*apiv4.AdminTableUpdateNoContent); ok {
 		return nil
 	}
 

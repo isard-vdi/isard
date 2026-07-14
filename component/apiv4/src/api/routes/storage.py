@@ -131,7 +131,8 @@ async def set_storage_ready(request: Request, storage_id: str):
 @admin_router.put(
     "/items/storage/status",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Batch check backing chain",
     description="Check backing chain for a batch of storages by their IDs.",
     responses={
@@ -162,7 +163,8 @@ async def batch_check_backing_chain(
 @admin_router.put(
     "/items/storage/status/{status}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Batch check backing chain by status",
     description="Check backing chain for all storages with the given status.",
     responses={
@@ -497,7 +499,8 @@ async def sparsify_storage(request: Request, storage_id: str, priority: str):
 @admin_router.put(
     "/items/storage/sparsify",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Batch sparsify storages",
     description="Sparsify multiple storages by their IDs.",
     responses={
@@ -874,7 +877,8 @@ async def rsync_storage_to_storage_pool(
 @manager_router.put(
     "/item/storage/{storage_id}/stop",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Stop desktops using storage",
     description="Stops all desktops that are using the specified storage.",
     responses={
@@ -1050,7 +1054,8 @@ async def find_storage(request: Request, storage_id: str):
 @admin_router.put(
     "/items/storage/find",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Batch find storages",
     description="Finds multiple storages on disk by their IDs.",
     responses={

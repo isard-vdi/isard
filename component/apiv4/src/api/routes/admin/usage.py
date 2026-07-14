@@ -267,7 +267,8 @@ async def admin_usage_distinct_items(
 @admin_router.put(
     "/admin/items/usage/consolidate",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Consolidate all consumption data",
     description="Triggers consolidation of all usage consumption data.",
     responses={500: {"model": ErrorResponse}},
@@ -295,7 +296,8 @@ async def admin_usage_consolidate(request: Request):
 @admin_router.put(
     "/admin/items/usage/consolidate/{item_type}/{days}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Consolidate consumption for item type with days",
     description="Triggers consolidation of usage consumption data for a specific item type and number of days.",
     responses={500: {"model": ErrorResponse}},
@@ -325,7 +327,8 @@ async def admin_usage_consolidate_item_days(
 @admin_router.put(
     "/admin/items/usage/consolidate/{item_type}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Consolidate consumption for item type",
     description="Triggers consolidation of usage consumption data for a specific item type.",
     responses={500: {"model": ErrorResponse}},
@@ -1242,7 +1245,8 @@ async def admin_usage_reset_dates_add(request: Request, data: UsageResetDatesReq
 @admin_router.delete(
     "/admin/items/usage/delete_data",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete all consumption data",
     description="Deletes all usage consumption data. This operation runs in the background.",
     responses={500: {"model": ErrorResponse}},

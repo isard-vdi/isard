@@ -55,7 +55,7 @@ from api.schemas.admin.hypervisors import (
     OrchestratorHypervisor,
     OrchestratorManagedHypervisor,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.hypervisors import AdminHypervisorsService
 from api.services.error import Error
 from fastapi import Path, Request
@@ -278,7 +278,8 @@ async def admin_hypervisor_enable(
 @admin_router.delete(
     "/admin/item/hypervisor/{hyper_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Remove a hypervisor",
     description="Remove a hypervisor. Stops its domains and waits for engine removal.",
     responses={
@@ -311,7 +312,8 @@ async def admin_hypervisor_delete(
 @admin_router.put(
     "/admin/item/hypervisor/stop/{hyper_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Stop all domains on a hypervisor",
     description="Force stop all running domains on the specified hypervisor.",
     responses={
@@ -427,7 +429,8 @@ async def admin_hypervisor_wg_addr(
 @admin_router.post(
     "/admin/item/hypervisor/media_found",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Report media found on hypervisor",
     description="Register media files discovered on a hypervisor.",
     responses={
@@ -455,7 +458,8 @@ async def admin_hypervisor_media_found(
 @admin_router.post(
     "/admin/item/hypervisor/disks_found",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Report disks found on hypervisor",
     description="Register disk files discovered on a hypervisor.",
     responses={
@@ -483,7 +487,8 @@ async def admin_hypervisor_disks_found(
 @admin_router.post(
     "/admin/item/hypervisor/media_delete",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete media by paths",
     description="Delete media entries matching the specified paths.",
     responses={
@@ -658,7 +663,8 @@ async def admin_orchestrator_dead_row_set(
 @admin_router.delete(
     "/admin/item/orchestrator/hypervisor/{hypervisor_id}/dead_row",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Reset hypervisor dead row timeout",
     description="Reset (remove) the dead row timeout for an orchestrator-managed hypervisor.",
     responses={
@@ -693,7 +699,8 @@ async def admin_orchestrator_dead_row_reset(
 @admin_router.delete(
     "/admin/items/orchestrator/hypervisor/{hypervisor_id}/desktops",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Stop hypervisor desktops (orchestrator)",
     description="Stop all started desktops on an orchestrator-managed hypervisor.",
     responses={
@@ -726,7 +733,8 @@ async def admin_orchestrator_stop_desktops(
 @admin_router.post(
     "/admin/item/orchestrator/hypervisor/{hypervisor_id}/manage",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Mark hypervisor for orchestrator management",
     description="Mark a hypervisor as managed by the orchestrator.",
     responses={
@@ -757,7 +765,8 @@ async def admin_orchestrator_manage_set(
 @admin_router.delete(
     "/admin/item/orchestrator/hypervisor/{hypervisor_id}/manage",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Unmark hypervisor from orchestrator management",
     description="Remove orchestrator management flag from a hypervisor.",
     responses={
@@ -830,7 +839,8 @@ async def admin_hypervisor_virt_pools_get(
 @admin_router.put(
     "/admin/items/hypervisor/{hyper_id}/virt_pools",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update hypervisor virt pool assignment",
     description="Enable or disable a virt pool for a hypervisor.",
     responses={
@@ -943,7 +953,8 @@ async def admin_hypervisor_started_domains(
 @admin_router.post(
     "/admin/items/vlans",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Register VLANs from hypervisor",
     description="Creates network interface entries for discovered VLANs.",
     responses={500: {"model": ErrorResponse}},
@@ -966,7 +977,8 @@ async def admin_register_vlans(request: Request, data: AdminRegisterVlansRequest
 @admin_router.put(
     "/admin/item/hypervisor/{hyper_id}/boot_progress",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update hypervisor boot progress",
     description="Updates the boot progress data for a hypervisor.",
     responses={500: {"model": ErrorResponse}},
@@ -997,7 +1009,8 @@ async def admin_hypervisor_boot_progress(
 @admin_router.put(
     "/admin/item/hypervisor/{hyper_id}/gpu_applied",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Ingest a hypervisor's applied GPU profile report",
     description=(
         "A gpu-apply-capable hypervisor reports back, after registration, the "

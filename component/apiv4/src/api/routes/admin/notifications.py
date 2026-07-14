@@ -241,7 +241,8 @@ async def admin_preview_notification_template(
 @admin_router.put(
     "/admin/item/notifications/template/{template_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update notification template",
     description="Updates a notification template by its ID.",
     responses={
@@ -472,7 +473,8 @@ async def admin_update_notification(
 @admin_router.delete(
     "/admin/item/notification/{notification_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete notification",
     description="Deletes a notification by its ID.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
@@ -598,7 +600,8 @@ async def admin_get_notifications_grouped_by_status(
 @admin_router.delete(
     "/admin/items/notifications/data/user/{user_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete user notification data",
     description="Deletes all notification data for a specific user.",
     responses={500: {"model": ErrorResponse}},
@@ -623,7 +626,8 @@ async def admin_delete_user_notification_data(request: Request, user_id: str):
 @admin_router.delete(
     "/admin/item/notifications/data/{notification_data_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete specific notification data",
     description="Deletes a specific notification data entry by its ID.",
     responses={500: {"model": ErrorResponse}},
@@ -648,7 +652,8 @@ async def admin_delete_notification_data(request: Request, notification_data_id:
 @admin_router.delete(
     "/admin/items/notifications/data",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete all notification data",
     description="Deletes all notification data entries.",
     responses={500: {"model": ErrorResponse}},

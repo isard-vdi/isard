@@ -24,7 +24,7 @@ from typing import Literal, Optional
 
 from api import admin_router
 from api.schemas.admin.downloads import DownloadItem, DownloadsOverviewResponse
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.downloads import AdminDownloadsService
 from api.services.error import Error
 from fastapi import Body, Path, Request
@@ -128,7 +128,8 @@ async def admin_downloads_kind(
 @admin_router.post(
     "/admin/item/downloads/register",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Register with updates server",
     description="Register this IsardVDI instance with the updates server.",
     responses={500: {"model": ErrorResponse}},
@@ -157,7 +158,8 @@ async def admin_downloads_register(request: Request):
 @admin_router.post(
     "/admin/item/downloads/{action}/{kind}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Execute download action for all items",
     description="Execute a download action (download, abort, delete) for all new items of a kind.",
     responses={
@@ -196,7 +198,8 @@ async def admin_downloads_action(
 @admin_router.post(
     "/admin/item/downloads/{action}/{kind}/{id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Execute download action for a specific item",
     description="Execute a download action (download, abort, delete) for a specific item.",
     responses={

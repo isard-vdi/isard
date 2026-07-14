@@ -40,7 +40,7 @@ func (o *Orchestrator) adminHypervisorDelete(ctx context.Context, id string) err
 		return fmt.Errorf("delete hypervisor %q: %w", id, err)
 	}
 
-	if _, ok := res.(*apiv4.EmptyResponse); ok {
+	if _, ok := res.(*apiv4.AdminHypervisorDeleteNoContent); ok {
 		return nil
 	}
 

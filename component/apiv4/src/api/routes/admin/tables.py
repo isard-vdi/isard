@@ -24,7 +24,7 @@ from typing import Union
 
 from api import admin_router, manager_router
 from api.schemas.admin.tables import TableItem, TableListRequest
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.tables import AdminTablesService
 from api.services.error import Error
 from fastapi import Path, Request
@@ -144,7 +144,8 @@ async def admin_table_list(
 @admin_router.post(
     "/admin/item/table/add/{table}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Insert a new item into a table",
     description="Insert a new item into the specified table. "
     "Checks for duplicate names in tables that require it.",
@@ -176,7 +177,8 @@ async def admin_table_insert(
 @admin_router.put(
     "/admin/item/table/update/{table}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update an item in a table",
     description="Update an existing item in the specified table. "
     "Checks for duplicate names in tables that require it.",
@@ -208,7 +210,8 @@ async def admin_table_update(
 @admin_router.delete(
     "/admin/item/table/{table}/{item_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete an item from a table",
     description="Delete an item from the specified table by ID. "
     "Unassigns resources from desktops and deployments for relevant tables.",

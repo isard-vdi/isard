@@ -363,11 +363,12 @@ async def admin_create_user(request: Request, data: AdminUserCreateData):
 @manager_router.put(
     "/admin/item/user/{user_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update user",
     description="Updates a single user.",
     responses={
-        200: {"description": "User updated"},
+        204: {"description": "User updated"},
         500: {"model": ErrorResponse},
     },
     dependencies=[Depends(owns_user_id())],
@@ -395,11 +396,12 @@ async def admin_update_user(request: Request, user_id: str, data: AdminUserUpdat
 @manager_router.put(
     "/admin/items/users/bulk",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Bulk update users",
     description="Updates multiple users at once.",
     responses={
-        200: {"description": "Users updated"},
+        204: {"description": "Users updated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -469,11 +471,12 @@ async def admin_delete_users(
 @manager_router.put(
     "/admin/item/user/{user_id}/logout",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Force logout user",
     description="Revokes all sessions for a user.",
     responses={
-        200: {"description": "User logged out"},
+        204: {"description": "User logged out"},
         500: {"model": ErrorResponse},
     },
 )
@@ -641,11 +644,12 @@ async def admin_import_csv_users(request: Request, data: AdminCSVUserImportData)
 @manager_router.put(
     "/admin/items/users/csv",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Edit users from CSV",
     description="Updates users from validated CSV data.",
     responses={
-        200: {"description": "Users updated"},
+        204: {"description": "Users updated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -720,11 +724,12 @@ async def admin_bulk_create_users(request: Request, data: AdminBulkUserCreateDat
 @manager_router.put(
     "/admin/item/user/secondary-groups/add",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Add secondary groups",
     description="Adds secondary groups to specified users.",
     responses={
-        200: {"description": "Secondary groups added"},
+        204: {"description": "Secondary groups added"},
         500: {"model": ErrorResponse},
     },
 )
@@ -751,11 +756,12 @@ async def admin_secondary_groups_add(request: Request, data: AdminSecondaryGroup
 @manager_router.put(
     "/admin/item/user/secondary-groups/overwrite",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Overwrite secondary groups",
     description="Overwrites secondary groups for specified users.",
     responses={
-        200: {"description": "Secondary groups overwritten"},
+        204: {"description": "Secondary groups overwritten"},
         500: {"model": ErrorResponse},
     },
 )
@@ -784,11 +790,12 @@ async def admin_secondary_groups_overwrite(
 @manager_router.put(
     "/admin/item/user/secondary-groups/delete",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Remove secondary groups",
     description="Removes secondary groups from specified users.",
     responses={
-        200: {"description": "Secondary groups removed"},
+        204: {"description": "Secondary groups removed"},
         500: {"model": ErrorResponse},
     },
 )
@@ -1020,11 +1027,12 @@ async def admin_check_migration_required(request: Request, user_id: str):
 @manager_router.put(
     "/admin/item/user/reset-vpn/{user_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Reset user VPN",
     description="Resets VPN credentials for a user.",
     responses={
-        200: {"description": "VPN reset"},
+        204: {"description": "VPN reset"},
         500: {"model": ErrorResponse},
     },
 )
@@ -1186,11 +1194,12 @@ async def admin_create_group(request: Request, data: AdminGroupCreateData):
 @manager_router.put(
     "/admin/item/group/{group_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update group",
     description="Updates a group.",
     responses={
-        200: {"description": "Group updated"},
+        204: {"description": "Group updated"},
         500: {"model": ErrorResponse},
     },
     dependencies=[Depends(owns_group_id())],
@@ -1220,11 +1229,12 @@ async def admin_update_group(
 @manager_router.delete(
     "/admin/item/group/{group_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete group",
     description="Deletes a group.",
     responses={
-        200: {"description": "Group deleted"},
+        204: {"description": "Group deleted"},
         500: {"model": ErrorResponse},
     },
 )
@@ -1483,11 +1493,12 @@ async def admin_create_category(request: Request, data: AdminCategoryCreateData)
 @admin_router.put(
     "/admin/item/category/{category_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update category",
     description="Updates a category.",
     responses={
-        200: {"description": "Category updated"},
+        204: {"description": "Category updated"},
         500: {"model": ErrorResponse},
     },
     dependencies=[Depends(owns_category_id())],
@@ -1517,11 +1528,12 @@ async def admin_update_category(
 @admin_router.delete(
     "/admin/item/category/{category_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete category",
     description="Deletes a category.",
     responses={
-        200: {"description": "Category deleted"},
+        204: {"description": "Category deleted"},
         500: {"model": ErrorResponse},
     },
 )
@@ -1647,11 +1659,12 @@ async def admin_get_group_by_name_category(
 @manager_router.put(
     "/admin/item/quota/group/{group_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update group quota",
     description="Updates quota for a group.",
     responses={
-        200: {"description": "Group quota updated"},
+        204: {"description": "Group quota updated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -1680,11 +1693,12 @@ async def admin_update_group_quota(
 @admin_router.put(
     "/admin/item/quota/category/{category_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update category quota",
     description="Updates quota for a category.",
     responses={
-        200: {"description": "Category quota updated"},
+        204: {"description": "Category quota updated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -1713,11 +1727,12 @@ async def admin_update_category_quota(
 @manager_router.put(
     "/admin/item/limits/group/{group_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update group limits",
     description="Updates limits for a group.",
     responses={
-        200: {"description": "Group limits updated"},
+        204: {"description": "Group limits updated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -1746,11 +1761,12 @@ async def admin_update_group_limits(
 @admin_router.put(
     "/admin/item/limits/category/{category_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update category limits",
     description="Updates limits for a category.",
     responses={
-        200: {"description": "Category limits updated"},
+        204: {"description": "Category limits updated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -2050,11 +2066,12 @@ async def admin_get_roles(request: Request):
 @admin_router.put(
     "/admin/item/role/{role_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update role",
     description="Updates a role.",
     responses={
-        200: {"description": "Role updated"},
+        204: {"description": "Role updated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -2144,11 +2161,12 @@ async def admin_create_secret(request: Request, data: AdminSecretCreateData):
 @admin_router.delete(
     "/admin/item/secret/{kid}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete admin secret",
     description="Deletes an admin secret.",
     responses={
-        200: {"description": "Secret deleted"},
+        204: {"description": "Secret deleted"},
         500: {"model": ErrorResponse},
     },
 )
@@ -2504,11 +2522,12 @@ async def admin_check_migration(request: Request, user_id: str, target_user_id: 
 @manager_router.put(
     "/admin/item/user/migrate/resource/desktop/{user_id}/{target_user_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Migrate user desktops",
     description="Migrates desktops from one user to another.",
     responses={
-        200: {"description": "Desktops migrated"},
+        204: {"description": "Desktops migrated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -2538,11 +2557,12 @@ async def admin_migrate_user_desktops(
 @manager_router.put(
     "/admin/item/user/migrate/resource/template/{user_id}/{target_user_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Migrate user templates",
     description="Migrates templates from one user to another.",
     responses={
-        200: {"description": "Templates migrated"},
+        204: {"description": "Templates migrated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -2572,11 +2592,12 @@ async def admin_migrate_user_templates(
 @manager_router.put(
     "/admin/item/user/migrate/resource/media/{user_id}/{target_user_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Migrate user media",
     description="Migrates media from one user to another.",
     responses={
-        200: {"description": "Media migrated"},
+        204: {"description": "Media migrated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -2604,11 +2625,12 @@ async def admin_migrate_user_media(request: Request, user_id: str, target_user_i
 @manager_router.put(
     "/admin/item/user/migrate/resource/deployments/{user_id}/{target_user_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Migrate user deployments",
     description="Migrates deployments from one user to another.",
     responses={
-        200: {"description": "Deployments migrated"},
+        204: {"description": "Deployments migrated"},
         500: {"model": ErrorResponse},
     },
 )
@@ -2757,11 +2779,12 @@ async def admin_update_bastion_domain(
 @admin_router.post(
     "/admin/item/socketio/broadcast",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Broadcast admin message",
     description="Broadcasts a message to all connected users via SocketIO.",
     responses={
-        200: {"description": "Message broadcast"},
+        204: {"description": "Message broadcast"},
         500: {"model": ErrorResponse},
     },
 )

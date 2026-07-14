@@ -193,7 +193,7 @@ func (o *Orchestrator) orchestratorManageSet(ctx context.Context, id string) err
 		return fmt.Errorf("manage set hypervisor %q: %w", id, err)
 	}
 
-	if _, ok := res.(*apiv4.EmptyResponse); ok {
+	if _, ok := res.(*apiv4.AdminOrchestratorManageSetNoContent); ok {
 		return nil
 	}
 
@@ -249,7 +249,7 @@ func (o *Orchestrator) orchestratorStopDesktops(ctx context.Context, id string) 
 		return fmt.Errorf("stop desktops on hypervisor %q: %w", id, err)
 	}
 
-	if _, ok := res.(*apiv4.EmptyResponse); ok {
+	if _, ok := res.(*apiv4.AdminOrchestratorStopDesktopsNoContent); ok {
 		return nil
 	}
 
@@ -286,7 +286,7 @@ func (o *Orchestrator) orchestratorDeadRowReset(ctx context.Context, id string) 
 		return fmt.Errorf("dead row reset hypervisor %q: %w", id, err)
 	}
 
-	if _, ok := res.(*apiv4.EmptyResponse); ok {
+	if _, ok := res.(*apiv4.AdminOrchestratorDeadRowResetNoContent); ok {
 		return nil
 	}
 
@@ -359,7 +359,7 @@ func (o *Orchestrator) adminHypervisorOnlyForced(ctx context.Context, id string,
 		return fmt.Errorf("update hypervisor only_forced: %w", err)
 	}
 
-	if _, ok := res.(*apiv4.EmptyResponse); ok {
+	if _, ok := res.(*apiv4.AdminTableUpdateNoContent); ok {
 		return nil
 	}
 

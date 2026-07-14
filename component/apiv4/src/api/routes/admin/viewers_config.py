@@ -24,7 +24,7 @@ from typing import Literal
 
 from api import admin_router
 from api.schemas.admin.viewers_config import ViewerConfigItem, ViewerConfigUpdateRequest
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.viewers_config import AdminViewersConfigService
 from api.services.error import Error
 from fastapi import Request
@@ -73,7 +73,8 @@ async def admin_viewers_config(request: Request):
 @admin_router.put(
     "/admin/item/viewers-config/{viewer}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update viewer configuration",
     description="Updates the custom configuration for a specific viewer.",
     responses={500: {"model": ErrorResponse}},
@@ -102,7 +103,8 @@ async def admin_viewers_config_update(
 @admin_router.put(
     "/admin/item/viewers-config/reset/{viewer}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Reset viewer configuration",
     description="Resets a viewer custom configuration to its default. "
     "Valid viewers: file_rdpgw, file_rdpvpn, file_spice.",

@@ -7,7 +7,7 @@ import asyncio
 import traceback
 
 from api import token_router
-from api.schemas.common import EmptyResponse, ErrorResponse, SimpleResponse
+from api.schemas.common import ErrorResponse, SimpleResponse
 from api.schemas.user_networks import (
     CreateUserNetworkRequest,
     UpdateUserNetworkRequest,
@@ -160,7 +160,8 @@ async def update_user_network(
 @token_router.delete(
     "/item/user/networks/{network_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete a user network",
     description="Deletes a user network. Only the owner, manager, or admin can delete.",
     responses={
