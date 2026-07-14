@@ -267,10 +267,13 @@ def probe_actual_size(path, timeout=30):
 # --------------------------------------------------------------------------- #
 # Per-disk saga decision layer (pure) — the correctness-critical ordering
 # --------------------------------------------------------------------------- #
-#: states past which a disk needs no phase-A (move/rebase/db) work. ``quarantined``
-#: is terminal off-path, so a re-armed tree with one quarantined disk still
-#: settles (that disk is skipped in the walk like ``skipped``).
-_PHASE_A_DONE = {"db_updated", "released", "skipped", "quarantined"}
+#: states past which a disk needs no phase-A (move/rebase) work. Phase A ends at
+#: ``rebased`` (moved + backing repointed); the DB commit (db_update) is DEFERRED
+#: to Phase B, past the verify gate, so a disk whose destination fails
+#: verification is never left committed to a bad/unverified destination (F1).
+#: ``quarantined`` is terminal off-path, so a re-armed tree with one quarantined
+#: disk still settles (that disk is skipped in the walk like ``skipped``).
+_PHASE_A_DONE = {"rebased", "db_updated", "released", "skipped", "quarantined"}
 #: terminal states
 _DONE = {"released", "skipped", "quarantined"}
 
@@ -307,8 +310,12 @@ def decide_item_action(item, job_status_fn):
     its in-flight RQ task (``job_status_fn(task_id) -> status|None``).
 
     Actions: ``start_move``, ``skip_move`` (dst == src), ``mark_moved``,
-    ``start_rebase``, ``mark_rebased``, ``skip_rebase`` (root), ``db_update``,
-    ``wait`` (task still running), ``fail``, ``noop`` (already terminal).
+    ``start_rebase``, ``mark_rebased``, ``skip_rebase`` (root), ``wait`` (task
+    still running), ``fail``, ``noop`` (Phase A done / already terminal).
+
+    Phase A ends at ``rebased``: the DB commit (db_update) and the pre-release
+    verify gate are Phase B, driven by :func:`tree_next` once the WHOLE tree is
+    moved+rebased. A ``rebased`` disk therefore has no further Phase-A action.
     """
     state = str(item["state"])
     is_root = item.get("topo_index", 0) == 0 or not item.get("parent_dst_path")
@@ -342,16 +349,17 @@ def decide_item_action(item, job_status_fn):
             # Lost rebase job — re-enqueue: rebase -u is idempotent.
             return "start_rebase"
         return "wait"
-    if state == "rebased":
-        return "db_update"
+    # ``rebased`` ends Phase A; db_update is deferred to Phase B (tree_next),
+    # after the whole tree's pre-release verify gate passes.
     return "noop"
 
 
 def verify_gate_state(item, job_status_fn):
-    """State of ONE committed (``db_updated``) disk's pre-release destination
-    gate, the invariant the whole saga rests on: a disk's source is never
-    ``move_delete``d unless its destination exists, passes ``qemu-img check`` and
-    (for a non-root) backs onto the parent's NEW path. The check runs as a worker
+    """State of ONE moved+rebased (``rebased``) disk's pre-release destination
+    gate, the invariant the whole saga rests on: a disk's row is never repointed
+    (db_update) and its source never ``move_delete``d unless its destination
+    exists, passes ``qemu-img check`` and (for a non-root) backs onto the
+    parent's NEW path. The check runs as a worker
     task (the disks live on the storage worker), so the gate is async like the
     move/rebase steps:
 
@@ -942,16 +950,25 @@ def plan_tree_failure(tree_items, failed_storage_id):
 def tree_next(tree_items, job_status_fn):
     """Decide the next ``(item, action)`` for ONE tree.
 
-    Phase A (move/rebase/db) is strictly serial, top-to-bottom: advance the
-    lowest-topo disk not yet committed; a child is only reached once its parent
-    is ``db_updated`` (so the child's rebase target exists). A ``failed`` disk
-    blocks the tree. Phase B (release) only begins once EVERY disk is committed,
-    so a source is never deleted before all descendants have repointed
-    (move_delete fires last). Returns ``(None, "done")`` when the whole tree is
-    terminal, ``(item, "blocked")`` when a disk failed.
+    Phase A (move/rebase) is strictly serial, top-to-bottom: advance the
+    lowest-topo disk not yet moved+rebased; a child is only reached once its
+    parent is ``rebased`` (so the child's rebase target — the parent's file at
+    its new path — exists). A ``failed`` disk blocks the tree.
+
+    Phase B runs once EVERY disk in the tree is moved+rebased, in three strictly
+    ordered sub-steps (each one-action-per-tick): **verify-all**, then
+    **db_update-all**, then **release-all**. The DB repoint (db_update) is
+    DEFERRED to here, AFTER the whole tree's verify gate passes — so a gate
+    failure terminalizes the tree with every row still pointing at its retained
+    source, never at a bad/unverified destination (F1). Deleting the source
+    (move_delete) fires last, after every row has repointed, so a late gate
+    failure can never strand an earlier disk's child on a recycled parent source.
+
+    Returns ``(None, "done")`` when the whole tree is terminal, ``(item,
+    "blocked")`` when a disk failed.
     """
     items = sorted(tree_items, key=lambda it: it.get("topo_index", 0))
-    # Phase A — one disk in flight, parents before children.
+    # Phase A — one disk in flight, parents before children (ends at ``rebased``).
     for it in items:
         s = str(it["state"])
         if s in _PHASE_A_DONE:
@@ -959,16 +976,14 @@ def tree_next(tree_items, job_status_fn):
         if s == "failed":
             return (it, "blocked")
         return (it, decide_item_action(it, job_status_fn))
-    # Phase B — every disk committed. A source is deleted only after EVERY disk's
-    # destination has passed the unconditional verify gate (verify-all-then-
-    # release-all), so a late gate failure can never strand an earlier disk's
-    # child on a parent source that was already recycled. Two sub-steps, each
-    # one-action-per-tick:
+    # Phase B — every disk is moved+rebased. verify-all -> db_update-all ->
+    # release-all, each one-action-per-tick.
+    rebased = [it for it in items if str(it["state"]) == "rebased"]
     committed = [it for it in items if str(it["state"]) == "db_updated"]
-    # B1 — drive the destination gate on every moved disk that still needs it.
+    # B1 — drive the destination gate on every rebased disk that still needs it.
     # An in-place disk (dst == src) never moved: no destination to verify and no
     # separate source to delete, so it is excluded from the gate entirely.
-    for it in committed:
+    for it in rebased:
         if item_in_place(it):
             continue
         gate = verify_gate_state(it, job_status_fn)
@@ -978,8 +993,16 @@ def tree_next(tree_items, job_status_fn):
             return (it, "start_verify")
         if gate == "wait":
             return (it, "wait")
-    # B2 — every destination verified; now delete sources (move_delete fires
-    # last). An in-place disk has no source to delete, so it is released directly.
+    # B2 — every destination verified; NOW repoint the rows (db_update). Deferred
+    # to here (past the gate) so a verify failure never leaves a row committed to
+    # a destination that did not pass. An in-place disk is repointed too: its
+    # directory is unchanged, but a child rebased onto a moved parent still needs
+    # its backing fields synced (saga-3).
+    for it in rebased:
+        return (it, "db_update")
+    # B3 — every row committed; delete the sources last (move_delete fires last).
+    # An in-place disk has no separate source to delete, so it is released
+    # directly.
     for it in committed:
         return (it, "skip_release" if item_in_place(it) else "release")
     return (None, "done")

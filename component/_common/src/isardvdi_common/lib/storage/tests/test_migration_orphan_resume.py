@@ -116,7 +116,7 @@ def test_abandoned_verify_resumes_the_gate(started_job):
 def test_no_release_until_verify_actually_finishes(started_job):
     tid, conn, registry = started_job
     item = {
-        "state": "db_updated",
+        "state": "rebased",
         "storage_id": "s-r",
         "tree_id": "s-r",
         "topo_index": 0,
@@ -124,13 +124,17 @@ def test_no_release_until_verify_actually_finishes(started_job):
         "dst_path": "/b/s-r.qcow2",
         "verify_task_id": tid,
     }
-    # abandoned verify -> the saga re-enqueues the gate; NO release/move_delete
+    # abandoned verify -> the saga re-enqueues the gate; NO db_update/release
     _set_score(conn, registry, tid, time() - (mr.ABANDON_GRACE_S + 100))
     _it, action = mig.tree_next([item], mr.job_status)
     assert action == "start_verify"
 
-    # only once the verify task actually FINISHES does release become allowed
+    # only once the verify task actually FINISHES is the row repointed
+    # (db_update); the source delete (release) follows once it is committed
     Job.fetch(tid, connection=conn).set_status(JobStatus.FINISHED)
     conn.zrem(registry.key, tid)
+    _it, action = mig.tree_next([item], mr.job_status)
+    assert action == "db_update"
+    item["state"] = "db_updated"
     _it, action = mig.tree_next([item], mr.job_status)
     assert action == "release"

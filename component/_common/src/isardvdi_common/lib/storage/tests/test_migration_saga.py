@@ -4,10 +4,13 @@
 
 These pin the correctness-critical ordering invariants:
   * top-to-bottom, strictly serial within a tree (one disk in flight),
-  * a child only starts once its parent has been moved+rebased+committed
-    (``db_updated``) so the child's rebase target exists,
+  * a child only starts once its parent has been moved+rebased (``rebased``) so
+    the child's rebase target — the parent's file at its new path — exists,
   * the root never rebases,
-  * source deletion (release) happens only AFTER the whole tree is committed
+  * the DB commit (db_update) is DEFERRED until AFTER the whole tree's
+    pre-release verify gate passes, so a gate failure never leaves a row on a
+    bad/unverified destination (F1),
+  * source deletion (release) happens only AFTER every row is committed
     (move_delete fires last — never a parent-delete-before-child-rebase race),
   * a failed disk blocks its tree.
 The executor that performs the real RQ/DB ops is exercised live (P1 gate).
@@ -61,9 +64,42 @@ def test_nonroot_starts_then_awaits_rebase():
     assert mig.decide_item_action(it2, _status({"r1": "failed"})) == "fail"
 
 
-def test_rebased_triggers_db_update():
+def test_rebased_is_phase_a_done_no_more_move_work():
+    # F1: ``rebased`` (moved + backing repointed) ends Phase A. The DB commit
+    # (db_update) is DEFERRED to Phase B, past the verify gate — so a rebased
+    # disk has no further per-disk Phase-A action.
     it = _item(1, "rebased")
-    assert mig.decide_item_action(it, _status({})) == "db_update"
+    assert mig.decide_item_action(it, _status({})) == "noop"
+
+
+# --------------------------------------------------------------------------- #
+# F1: the storage row is NOT repointed to the destination (db_update) until the
+# pre-release verify gate PASSES. A disk whose destination fails verification
+# must never have reached db_updated — so terminalizing the tree leaves every
+# row pointing at its retained source (never at the bad/unverified destination).
+# --------------------------------------------------------------------------- #
+def test_db_update_deferred_until_destination_verified():
+    it = _item(0, "rebased", src_path="/a/r.qcow2", dst_path="/b/r.qcow2")
+    # moved+rebased but NOT yet verified -> drive the gate, never a db_update
+    # that would commit the row to an unverified destination.
+    assert mig.tree_next([it], _status({}))[1] == "start_verify"
+    it["verify_task_id"] = "v"
+    assert mig.tree_next([it], _status({"v": "started"}))[1] == "wait"
+    # gate FAILED -> fail; db_update was never issued, so the row still points at
+    # the retained source.
+    assert mig.tree_next([it], _status({"v": "failed"}))[1] == "fail"
+    # gate PASSED -> only NOW is the row repointed (db_update).
+    assert mig.tree_next([it], _status({"v": "finished"}))[1] == "db_update"
+
+
+def test_failed_verify_never_commits_row_to_destination():
+    # There must be NO saga path where a disk reaches db_updated with an
+    # unverified destination: a rebased disk whose gate has already failed goes
+    # straight to fail, never db_update.
+    it = _item(
+        0, "rebased", src_path="/a/r.qcow2", dst_path="/b/r.qcow2", verify_task_id="v"
+    )
+    assert mig.tree_next([it], _status({"v": "failed"}))[1] == "fail"
 
 
 # --------------------------------------------------------------------------- #
@@ -88,10 +124,13 @@ def test_release_skipped_when_disk_in_place():
 
 
 def test_release_deletes_source_when_moved_elsewhere():
-    items = [_item(0, "db_updated", src_path="/a/r.qcow2", dst_path="/b/r.qcow2")]
-    # the source is move_deleted only AFTER the destination passes the verify gate
+    items = [_item(0, "rebased", src_path="/a/r.qcow2", dst_path="/b/r.qcow2")]
+    # the row is repointed (db_update) only AFTER the destination passes the
+    # verify gate, and the source is move_deleted only after that.
     assert mig.tree_next(items, _status({}))[1] == "start_verify"
     items[0]["verify_task_id"] = "v"
+    assert mig.tree_next(items, _status({"v": "finished"}))[1] == "db_update"
+    items[0]["state"] = "db_updated"
     assert mig.tree_next(items, _status({"v": "finished"}))[1] == "release"
 
 
@@ -145,20 +184,22 @@ def test_tree_serial_top_to_bottom():
 
 
 def test_tree_child_starts_only_after_parent_committed():
-    # root db_updated (moved+rebased+committed) -> child may now start
-    items = [_item(0, "db_updated"), _item(1, "pending")]
+    # root moved+rebased (Phase A done) -> child may now start; the parent's
+    # file already sits at its new path, so the child's rebase target exists
+    # (the parent's DB commit is deferred to Phase B).
+    items = [_item(0, "rebased"), _item(1, "pending")]
     item, action = mig.tree_next(items, _status({}))
     assert item["topo_index"] == 1 and action == "start_move"
 
 
 def test_tree_release_phase_only_after_all_committed():
-    # one still moving -> NOT in release phase yet
-    items = [_item(0, "db_updated"), _item(1, "moving", move_task_id="m")]
+    # one still moving -> NOT in Phase B yet
+    items = [_item(0, "rebased"), _item(1, "moving", move_task_id="m")]
     item, action = mig.tree_next(items, _status({"m": "started"}))
     assert item["topo_index"] == 1 and action == "wait"
-    # all committed -> release phase begins with the unconditional destination
-    # gate (start_verify); the source delete only follows once the gate passes
-    items = [_item(0, "db_updated"), _item(1, "db_updated")]
+    # all moved+rebased -> Phase B begins with the unconditional destination
+    # gate (start_verify), BEFORE any db_update/release
+    items = [_item(0, "rebased"), _item(1, "rebased")]
     item, action = mig.tree_next(items, _status({}))
     assert action == "start_verify"
 
@@ -182,7 +223,7 @@ def test_tree_skipped_items_are_terminal():
 
 
 def test_release_phase_picks_committed_items():
-    items = [_item(0, "released"), _item(1, "db_updated")]
+    items = [_item(0, "released"), _item(1, "rebased")]
     item, action = mig.tree_next(items, _status({}))
-    # the committed disk enters the release phase at its destination gate
+    # the moved+rebased disk enters Phase B at its destination gate
     assert item["topo_index"] == 1 and action == "start_verify"

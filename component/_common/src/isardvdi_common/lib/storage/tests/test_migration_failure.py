@@ -290,21 +290,26 @@ def _committed_root():
 
 def test_release_blocked_until_destination_verified():
     item = _committed_root()
-    # no verify task yet -> the saga enqueues the gate, NOT release
+    item["state"] = "rebased"  # moved+rebased, gate not yet run (pre-db_update)
+    # no verify task yet -> the saga enqueues the gate, NOT db_update/release
     it, action = mig.tree_next([item], lambda tid: None)
     assert action == "start_verify"
     assert it["id"] == "i-r"
-    # gate enqueued, still running -> wait (still no release)
+    # gate enqueued, still running -> wait (still no db_update/release)
     item["verify_task_id"] = "v1"
     assert mig.tree_next([item], lambda tid: "started")[1] == "wait"
-    # gate passed -> NOW release is allowed
+    # gate passed -> the row is repointed (db_update), THEN the source released
+    assert mig.tree_next([item], lambda tid: "finished")[1] == "db_update"
+    item["state"] = "db_updated"
     assert mig.tree_next([item], lambda tid: "finished")[1] == "release"
 
 
 def test_failed_verify_terminalizes_never_releases():
     item = _committed_root()
+    item["state"] = "rebased"  # moved+rebased, awaiting the gate (not yet committed)
     item["verify_task_id"] = "v1"
-    # destination gate FAILED -> fail (terminalize), never release/move_delete
+    # destination gate FAILED -> fail (terminalize), never db_update/release: the
+    # row was never repointed, so it still points at the retained source (F1).
     it, action = mig.tree_next([item], lambda tid: "failed")
     assert action == "fail"
 
@@ -331,7 +336,7 @@ def test_no_source_released_until_every_destination_verified():
         "storage_id": "s-p",
         "tree_id": "s-p",
         "topo_index": 0,
-        "state": "db_updated",
+        "state": "rebased",
         "src_path": "/src/p.qcow2",
         "dst_path": "/dst/p.qcow2",
         "verify_task_id": "vp",
@@ -341,23 +346,28 @@ def test_no_source_released_until_every_destination_verified():
         "storage_id": "s-c",
         "tree_id": "s-p",
         "topo_index": 1,
-        "state": "db_updated",
+        "state": "rebased",
         "src_path": "/src/c.qcow2",
         "dst_path": "/dst/c.qcow2",
         "parent_dst_path": "/dst/p.qcow2",
         "verify_task_id": "vc",
     }
     # parent gate PASSED, child gate FAILED -> the tree fails on the child and
-    # NO release action is ever issued (parent source stays put).
+    # NO db_update/release is ever issued (parent source stays put, rows unmoved).
     status = {"vp": "finished", "vc": "failed"}
     it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
     assert action == "fail" and it["id"] == "i-c"
-    # while the child gate is still running, the parent is NOT released either.
+    # while the child gate is still running, the parent is NOT committed either.
     status = {"vp": "finished", "vc": "started"}
     it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
     assert action == "wait"
-    # only once BOTH gates pass does a release begin (parent first).
+    # only once BOTH gates pass does the commit begin: db_update-all first, then
+    # release-all (the source delete follows the last row repoint).
     status = {"vp": "finished", "vc": "finished"}
+    it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
+    assert action == "db_update"
+    parent["state"] = "db_updated"
+    child["state"] = "db_updated"
     it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
     assert action == "release"
 
