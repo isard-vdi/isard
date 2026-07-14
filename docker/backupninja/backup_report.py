@@ -1078,10 +1078,30 @@ def _post_with_retries(payload: Dict[str, Any], max_attempts: int) -> bool:
 def _build_request_body(payload: Dict[str, Any]) -> BackupReportRequest:
     """Map the dict produced by the parser to the generated BackupReportRequest.
 
-    Required fields go through the constructor; optional fields are set as
-    attributes (the generated client exposes them as plain dataclass-style
-    fields). The dict is consumed non-destructively so the queue retry
+    Required fields go through the constructor. Everything else is copied over
+    field-by-field. The dict is consumed non-destructively so the queue retry
     flow can re-marshal an identical body on the next attempt.
+
+    Every non-constructor field is copied into the model's
+    ``additional_properties`` mapping via item assignment (``body[key] =
+    value``), NOT ``setattr``. Two reasons:
+
+    * The generated attrs model uses ``__slots__`` and only declares the
+      OpenAPI schema fields (``timestamp``/``status``/``type_``/``scope``/
+      ``details``/``created_at``). The parser also emits fields that are not
+      in the schema (``disk_types``, ``actions``, the ``*_actions`` counts,
+      ``duration``, ``summary``, ``backup_types_status``, ...). ``setattr`` of
+      those raises ``AttributeError: ... no __dict__`` and — before this fix —
+      aborted the whole report build, so no report was ever POSTed and every
+      run silently queued for retry.
+    * Even the declared object-typed fields (``details``) are typed as nested
+      generated models whose ``to_dict()`` is called during serialisation, so
+      assigning a plain ``dict`` to ``body.details`` would crash ``to_dict()``.
+
+    ``additional_properties`` is serialised verbatim into the JSON body by
+    ``to_dict()`` (same wire shape as a top-level field), and the apiv4
+    ``BackupReportRequest`` schema accepts it (``extra="allow"``), so the
+    webapp backups view receives the rich fields it renders.
     """
     body = BackupReportRequest(
         timestamp=payload["timestamp"],
@@ -1092,10 +1112,7 @@ def _build_request_body(payload: Dict[str, Any]) -> BackupReportRequest:
     for key, value in payload.items():
         if key in ("timestamp", "status", "type", "scope"):
             continue
-        # The generated dataclass uses ``type_`` to avoid the Python
-        # builtin clash; re-route any stray "type" assignments accordingly.
-        attr = "type_" if key == "type" else key
-        setattr(body, attr, value)
+        body[key] = value
     return body
 
 

@@ -24,7 +24,20 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class BackupReportRequest(BaseModel):
-    """Request body for backup report submission."""
+    """Request body for backup report submission.
+
+    Permissive (``ConfigDict(extra="allow")``) to mirror ``BackupItem``: the
+    backupninja parser sends rich, free-form report fields on top of the ones
+    declared below (``disk_types``, ``actions``, the ``*_actions`` counts,
+    ``duration``, ``summary``, ``backup_types_status``, ``filesystem_metrics``,
+    ...). The webapp backups view renders several of these verbatim
+    (``total_actions``/``successful_actions``/``warning_actions``/
+    ``failed_actions``, ``duration``, ``backup_types_status``). Without
+    ``extra="allow"`` pydantic silently dropped every one of them, leaving the
+    stored record — and the admin view — with only status/type/scope/timestamp.
+    """
+
+    model_config = ConfigDict(extra="allow")
 
     timestamp: Any = Field(description="Backup timestamp")
     status: str = Field(description="Backup status")

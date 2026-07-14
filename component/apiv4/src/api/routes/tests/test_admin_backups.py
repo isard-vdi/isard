@@ -283,6 +283,84 @@ class TestBackupReport:
         assert captured["data"]["status"] == "ok"
         assert captured["data"]["details"] == {"checks": []}
 
+    def test_report_extra_fields_reach_service(self, monkeypatch, test_client):
+        """The parser emits rich fields that are not declared on the schema
+        (disk_types, actions, the *_actions counts, duration,
+        backup_types_status, ...). ``BackupReportRequest`` is
+        ``extra="allow"`` so they survive validation and reach the service —
+        otherwise pydantic drops them and the webapp backups view renders
+        empty action/duration/per-type columns.
+        """
+        captured = {}
+
+        def fake_insert(data):
+            captured["data"] = data
+            return {"id": "r-1", "status": "success", "message": "ok"}
+
+        monkeypatch.setattr(
+            "api.routes.admin.backups.AdminBackupsService.insert_backup",
+            staticmethod(fake_insert),
+        )
+        response = test_client(
+            url=self.URL,
+            method="POST",
+            jwt=MockJWT(role_id="admin"),
+            body=self._payload(
+                disk_types=["qcow2", "raw"],
+                total_actions=5,
+                successful_actions=5,
+                warning_actions=0,
+                failed_actions=0,
+                duration=42,
+                backup_types_status={"db": "success", "redis": "not_included"},
+            ),
+        )
+        assert response.status_code == 200
+        data = captured["data"]
+        assert data["disk_types"] == ["qcow2", "raw"]
+        assert data["total_actions"] == 5
+        assert data["duration"] == 42
+        assert data["backup_types_status"] == {
+            "db": "success",
+            "redis": "not_included",
+        }
+
+    def test_report_id_cannot_be_forced_by_caller(self, monkeypatch, test_client):
+        """``id`` (and the server timestamps) are server-owned. Even though the
+        schema is ``extra="allow"``, a caller-supplied ``id`` must be stripped
+        before insert — otherwise it becomes the RethinkDB primary key, the
+        insert result has no ``generated_keys``, and the endpoint 500s while the
+        row is written (poisoning the backupninja retry queue).
+        """
+        captured = {}
+
+        def fake_insert(data):
+            captured["data"] = dict(data)
+            # Mirror the DAL: a real (auto-PK) insert returns generated_keys.
+            return {"inserted": 1, "generated_keys": ["server-generated"]}
+
+        # Patch the DAL where the service module bound it, and stub the
+        # retention sweep so the real insert_backup runs without a DB.
+        monkeypatch.setattr(
+            "api.services.admin.backups.BackupsProcessed.insert",
+            staticmethod(fake_insert),
+        )
+        monkeypatch.setattr(
+            "api.services.admin.backups.AdminBackupsService._cleanup_old_backups",
+            staticmethod(lambda: 0),
+        )
+        response = test_client(
+            url=self.URL,
+            method="POST",
+            jwt=MockJWT(role_id="admin"),
+            body=self._payload(id="attacker-chosen", received_at="x", created_at="y"),
+        )
+        assert response.status_code == 200
+        assert "id" not in captured["data"]
+        assert "received_at" not in captured["data"]
+        assert "created_at" not in captured["data"]
+        assert response.json()["id"] == "server-generated"
+
     def test_missing_required_field_rejected(self, test_client):
         """status / type / scope / timestamp are required (Field(...))."""
         response = test_client(
