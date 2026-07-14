@@ -1621,15 +1621,17 @@ class DesktopsProcessed(RethinkSharedConnection):
             desktop = cls.parse_domain_update(d, data, admin_or_manager)
             domain = Caches.get_document("domains", d)
 
-            new_vgpus = (desktop_data.get("reservables") or {}).get("vgpus") or []
-            validate_reservables_vgpus(new_vgpus)
-            old_vgpus = (domain.get("create_dict", {}).get("reservables") or {}).get(
-                "vgpus"
-            ) or []
-            if set(new_vgpus) != set(old_vgpus):
-                # Delete booking when the SET of vGPU profiles changes (reordering
-                # the same profiles must not drop a still-valid booking).
-                Bookings.delete_item_bookings("desktop", d)
+            # Only when the edit actually changes reservables
+            if "reservables" in desktop_data:
+                new_vgpus = (desktop_data.get("reservables") or {}).get("vgpus") or []
+                validate_reservables_vgpus(new_vgpus)
+                old_vgpus = (
+                    domain.get("create_dict", {}).get("reservables") or {}
+                ).get("vgpus") or []
+                if set(new_vgpus) != set(old_vgpus):
+                    # Delete booking when the SET of vGPU profiles changes (reordering
+                    # the same profiles must not drop a still-valid booking).
+                    Bookings.delete_item_bookings("desktop", d)
 
             update_payload = {**desktop}
             # Only refresh ``create_dict.hardware`` when the edit

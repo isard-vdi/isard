@@ -149,11 +149,13 @@ class DeploymentService:
         legacy_desktop_description = deployment_data.pop("desktop_description", None)
         legacy_hardware = deployment_data.pop("hardware", None)
         legacy_guest_properties = deployment_data.pop("guest_properties", None)
+        legacy_reservables = deployment_data.pop("reservables", None)
         if (
             legacy_desktop_name is not None
             or legacy_desktop_description is not None
             or legacy_hardware is not None
             or legacy_guest_properties is not None
+            or legacy_reservables is not None
         ):
             if not deployment_data.get("desktops_to_edit"):
                 deployment = Caches.get_document("deployments", deployment_id)
@@ -165,6 +167,8 @@ class DeploymentService:
                         fanout_template["description"] = legacy_desktop_description
                     if legacy_hardware is not None:
                         fanout_template["hardware"] = legacy_hardware
+                    if legacy_reservables is not None:
+                        fanout_template["reservables"] = legacy_reservables
                     if legacy_guest_properties is not None:
                         fanout_template["guest_properties"] = legacy_guest_properties
                     deployment_data["desktops_to_edit"] = [

@@ -24,7 +24,7 @@ from typing import Annotated, Literal, Optional, Union
 from uuid import uuid4
 
 from api.schemas.domains.desktops import CreateDesktopRequest, DesktopEditRequest
-from api.schemas.domains.hardware import DomainImage
+from api.schemas.domains.hardware import DomainImage, Reservables
 from isardvdi_common.models.deployment import Deployment as RethinkDeployment
 from isardvdi_common.models.domain import Domain as RethinkDomain
 from isardvdi_common.models.user import User as RethinkUser
@@ -247,9 +247,9 @@ class DeploymentEditRequest(BaseModel):
     # ── Legacy compat fields (apiv3 flat shape) ───────────────────────
     # Old-frontend (vue 2) submits a flat per-deployment edit payload
     # where the recipe-level fields (`desktop_name`, `hardware`,
-    # `guest_properties`) sit at the top level instead of inside a
-    # `desktops_to_edit` entry. The service expands these across every
-    # existing tag_desktop_id so vue 2 keeps working unchanged.
+    # `reservables`, `guest_properties`) sit at the top level instead of
+    # inside a `desktops_to_edit` entry. The service expands these across
+    # every existing tag_desktop_id so vue 2 keeps working unchanged.
     desktop_name: Optional[str] = Field(
         default=None,
         description="Legacy: name to apply to every desktop in the deployment.",
@@ -264,6 +264,10 @@ class DeploymentEditRequest(BaseModel):
     hardware: Optional[dict] = Field(
         default=None,
         description="Legacy: hardware override applied to every desktop.",
+    )
+    reservables: Optional[Reservables] = Field(
+        default=None,
+        description="Legacy: bookable resources (vGPU profiles) applied to every desktop.",
     )
     guest_properties: Optional[dict] = Field(
         default=None,

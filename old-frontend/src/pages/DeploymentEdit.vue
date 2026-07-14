@@ -256,9 +256,9 @@ export default {
                 isos: domain.value.hardware.isos,
                 memory: domain.value.hardware.memory,
                 vcpus: domain.value.hardware.vcpus,
-                videos: domain.value.hardware.videos,
-                reservables: domain.value.reservables
+                videos: domain.value.hardware.videos
               },
+              reservables: domain.value.reservables,
               image: domain.value.image,
               user_permissions: userPermissions.value
             }
