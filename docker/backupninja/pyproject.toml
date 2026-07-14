@@ -7,11 +7,15 @@ dependencies = [
   "isardvdi-common",
   "pyjwt==2.10.1",
   "requests==2.32.4",
+  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true

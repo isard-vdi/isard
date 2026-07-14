@@ -5,9 +5,12 @@ RUN git clone https://gitlab.com/isard/backupninja.git && \
     bash ./autogen.sh && bash configure && \
     make && make install
 
-FROM python:3.13-alpine AS builder
+FROM alpine:3.22 AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=auto \
+    UV_PYTHON_INSTALL_DIR=/opt/uv/python
 
 RUN apk add --no-cache build-base libffi-dev libjpeg-turbo-dev musl-dev openssl-dev zlib-dev
 
@@ -21,8 +24,14 @@ RUN apk add --no-cache \
     bash borgbackup coreutils curl envsubst flock jq libffi libjpeg-turbo \
     nfs-utils openssl redis zlib
 
-COPY --from=builder /workspace/.venv /.venv
-ENV PATH="/.venv/bin:$PATH"
+# Bring the built virtualenv AND its uv-managed Python interpreter, keeping
+# the venv at its build path (/workspace/.venv) so the rethinkdb-* console
+# script shebangs stay valid. Mirrors docker/db. The previous relocate to
+# /.venv left the shebang pointing at a missing /workspace/.venv/bin/python
+# and never copied an interpreter, so rethinkdb-dump/-restore were unusable.
+COPY --from=builder /opt/uv/python /opt/uv/python
+COPY --from=builder /workspace/.venv /workspace/.venv
+ENV PATH="/workspace/.venv/bin:$PATH"
 
 COPY --from=backupninja-src /usr/local/sbin/backupninja /usr/local/sbin/backupninja
 COPY --from=backupninja-src /usr/local/sbin/ninjahelper /usr/local/sbin/ninjahelper
