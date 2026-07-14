@@ -556,7 +556,8 @@ async def get_recycle_bin_admin_entries(request: Request, status: str | None = N
     # which is registered earlier (token_router < admin_router).
     "/items/recycle-bin/cutoff-time-surpassed",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete entries past cutoff time",
     description="Permanently deletes all recycle bin entries that have surpassed the cutoff time.",
 )
@@ -580,7 +581,8 @@ async def delete_cutoff_time_surpassed(request: Request):
 @admin_router.put(
     "/item/recycle-bin/old-entries/max-time/{max_time}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Set old entries max time",
     description="Sets the maximum time (in hours) before old entries are processed.",
 )
@@ -602,7 +604,8 @@ async def set_old_entries_max_time(request: Request, max_time: str):
 @admin_router.put(
     "/item/recycle-bin/old-entries/action/{action}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Set old entries action",
     description="Sets the action to perform on old entries (delete or none).",
 )
@@ -649,7 +652,8 @@ async def get_old_entries_config(request: Request):
 @admin_router.put(
     "/item/recycle-bin/old-entries/delete",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete old entries",
     description="Permanently deletes recycle bin entries older than the configured max time.",
 )
@@ -671,7 +675,8 @@ async def delete_old_entries(request: Request):
 @admin_router.put(
     "/item/recycle-bin/config/default-delete",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Set default delete behavior",
     description="Sets whether items are sent to recycle bin or deleted permanently by default.",
 )
@@ -717,7 +722,8 @@ async def get_delete_action(request: Request):
 @admin_router.put(
     "/item/recycle-bin/config/delete-action/{action}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Set delete action",
     description="Sets the delete action (move to recycle bin or delete permanently).",
 )
@@ -823,7 +829,8 @@ async def create_unused_item_timeout_rule(
 @admin_router.put(
     "/item/recycle-bin/unused-item-timeout-rule/{rule_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update unused item timeout rule",
     description="Updates an existing unused item timeout rule.",
 )
@@ -853,7 +860,8 @@ async def update_unused_item_timeout_rule(
 @admin_router.delete(
     "/item/recycle-bin/unused-item-timeout-rule/{rule_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete unused item timeout rule",
     description="Deletes an unused item timeout rule.",
 )
@@ -877,7 +885,8 @@ async def delete_unused_item_timeout_rule(request: Request, rule_id: str):
 @admin_router.post(
     "/items/recycle-bin/unused-items",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Send unused items to recycle bin",
     description="Finds unused desktops and sends them to the recycle bin. "
     "Called by the scheduler for automatic cleanup.",

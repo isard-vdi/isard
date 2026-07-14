@@ -687,7 +687,8 @@ async def set_user_bastion_ssh_key(request: Request, data: UserSetBastionSshKeyP
 @token_router.delete(
     "/item/user/bastion-ssh-key",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete the user's bastion SSH public key",
     description="Removes the SSH public key stored on the user's profile. Keys already "
     "added to existing desktops are left untouched.",
@@ -751,11 +752,12 @@ async def get_user_api_key(request: Request):
 @advanced_router.delete(
     "/item/user/expire-api-key",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Expire user API key",
     description="Deletes the API key for the specified user, making it invalid.",
     responses={
-        200: {"description": "API key expired successfully"},
+        204: {"description": "API key expired successfully"},
         404: {"description": "User not found"},
         500: {"description": "Failed to expire API key"},
     },
@@ -819,11 +821,12 @@ async def set_user_password(request: Request, data: UserSetPasswordPutData):
 @token_router.delete(
     "/item/user",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete current user",
     description="Deletes the current user (self-deletion).",
     responses={
-        200: {"description": "User deleted successfully"},
+        204: {"description": "User deleted successfully"},
         404: {"description": "User not found"},
         500: {"description": "Failed to delete user"},
     },

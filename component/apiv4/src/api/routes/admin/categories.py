@@ -31,7 +31,7 @@ from api.schemas.admin.categories import (
     CategoryLoginNotificationEnableData,
 )
 from api.schemas.admin.users import AdminCategoryAuthenticationData
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.categories import AdminCategoryService
 from api.services.error import Error
 from fastapi import Request
@@ -80,7 +80,8 @@ async def get_category_branding(request: Request, category_id: str):
 @manager_router.put(
     "/admin/item/category/{category_id}/branding",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update category branding",
     description="Updates branding configuration (domain + logo) for a category. "
     "Logo data should be a base64 data URL.",
@@ -155,7 +156,8 @@ async def get_category_authentication(request: Request, category_id: str):
 @manager_router.put(
     "/admin/item/category/{category_id}/authentication",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update category authentication",
     description="Updates authentication provider configuration for a category. "
     "Sensitive fields (password, client_secret) are preserved if left empty in "
@@ -196,7 +198,8 @@ async def update_category_authentication(
 @manager_router.put(
     "/admin/item/category/{category_id}/login_notification",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update category login notification",
     description="Updates login notification configuration for a specific category.",
     responses={
@@ -230,7 +233,8 @@ async def update_category_login_notification(
 @manager_router.put(
     "/admin/item/category/{category_id}/login_notification/{notification_type}/enable",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Enable/disable category login notification",
     description="Enables or disables a specific login notification type for a category.",
     responses={

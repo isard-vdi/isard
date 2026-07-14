@@ -12,7 +12,7 @@ from api.schemas.admin.notify import (
     NotifyDesktopRequest,
     NotifyUserDesktopRequest,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.notify import AdminNotifyService
 from api.services.error import Error
 from fastapi import Request
@@ -29,7 +29,8 @@ tag = "admin_notify"
 @admin_router.post(
     "/admin/item/notify/user/desktop",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Notify user about desktop",
     description="Sends a notification to a user about a desktop event.",
     responses={500: {"model": ErrorResponse}},
@@ -58,7 +59,8 @@ async def admin_notify_user_desktop(request: Request, data: NotifyUserDesktopReq
 @admin_router.post(
     "/admin/item/notify/desktop",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Notify a desktop",
     description="Sends a notification to a desktop.",
     responses={500: {"model": ErrorResponse}},
@@ -87,7 +89,8 @@ async def admin_notify_desktop(request: Request, data: NotifyDesktopRequest):
 @admin_router.put(
     "/admin/item/notify/desktops/queue/{hyp_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Notify desktop queue",
     description="Parses desktop queues for a hypervisor and notifies affected users.",
     responses={

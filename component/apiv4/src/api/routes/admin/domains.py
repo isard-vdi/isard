@@ -59,7 +59,7 @@ from api.schemas.admin.domains import (
     UserLogRow,
     UserLogsViewRow,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.domains import AdminDomainsService
 from api.services.error import Error
 from fastapi import BackgroundTasks, Path, Request
@@ -517,11 +517,12 @@ async def admin_domain_template_tree(request: Request, desktop_id: str):
 @manager_router.post(
     "/admin/items/multiple_actions",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Perform multiple domain actions",
     description="Perform bulk actions (start, stop, delete, etc.) on multiple domains.",
     responses={
-        200: {"description": "Actions performed"},
+        204: {"description": "Actions performed"},
         500: {"model": ErrorResponse},
     },
 )
@@ -558,11 +559,12 @@ async def admin_multiple_actions(
 @manager_router.delete(
     "/admin/item/templates/delete/{template_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete a template",
     description="Deletes a template by ID, moving it to recycle bin.",
     responses={
-        200: {"description": "Template deleted"},
+        204: {"description": "Template deleted"},
         500: {"model": ErrorResponse},
     },
 )
@@ -712,12 +714,13 @@ async def admin_domain_hardware(request: Request, domain_id: str):
 @admin_router.put(
     "/admin/items/desktops/{current_status}/{target_status}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Change desktop status in bulk",
     description="Changes the status of all desktops matching the current status "
     "to the target status.",
     responses={
-        200: {"description": "Status changed"},
+        204: {"description": "Status changed"},
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
@@ -744,12 +747,13 @@ async def admin_desktops_status(
 @admin_router.put(
     "/admin/items/desktops/category/{category}/status/{current_status}/{target_status}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Change desktop status by category",
     description="Changes the status of desktops in a specific category matching "
     "the current status to the target status.",
     responses={
-        200: {"description": "Status changed"},
+        204: {"description": "Status changed"},
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },

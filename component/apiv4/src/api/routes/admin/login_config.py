@@ -27,7 +27,7 @@ from api.schemas.admin.login_config import (
     LoginNotificationEnableRequest,
     LoginNotificationUpdateRequest,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.categories import AdminCategoryService
 from api.services.admin.login_config import AdminLoginConfigService
 from api.services.error import Error
@@ -122,7 +122,8 @@ async def admin_login_config_by_category(
 @admin_router.put(
     "/admin/item/login_config/notification",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update login notification",
     description="Updates the login notification configuration for cover and form.",
     responses={
@@ -164,7 +165,8 @@ async def admin_login_notification_update(
 @admin_router.put(
     "/admin/item/login_config/notification/cover/enable",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Enable/disable cover login notification",
     description="Enables or disables the login notification for the cover.",
     responses={
@@ -194,7 +196,8 @@ async def admin_login_notification_cover_enable(
 @admin_router.put(
     "/admin/item/login_config/notification/form/enable",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Enable/disable form login notification",
     description="Enables or disables the login notification for the form.",
     responses={

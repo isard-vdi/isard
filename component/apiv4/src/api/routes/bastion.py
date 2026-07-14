@@ -38,7 +38,7 @@ from api.schemas.bastion import (
     BastionResponse,
     DeleteBastionDisallowedTargetsResponse,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.bastion import BastionService
 from api.services.error import Error
 from fastapi import Depends, Path, Request
@@ -160,7 +160,8 @@ async def get_desktop_bastion_active(
 @token_router.put(
     "/item/desktop/{desktop_id}/bastion",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update bastion target for desktop",
     description="Updates the bastion target configuration for a desktop. If the user cannot use individual domains, the domain field is cleared.",
     responses={
@@ -211,7 +212,8 @@ async def update_desktop_bastion(
 @token_router.put(
     "/item/desktop/{desktop_id}/bastion/authorized-keys",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update bastion SSH authorized keys",
     description="Updates the SSH authorized keys for a desktop's bastion target.",
     responses={
@@ -252,7 +254,8 @@ async def update_bastion_authorized_keys(
 @token_router.put(
     "/item/desktop/{desktop_id}/bastion/domains",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update bastion custom domains",
     description="Updates the custom domain names for a desktop's bastion target. New domains are verified via DNS if domain verification is required.",
     responses={
@@ -413,7 +416,8 @@ async def remove_disallowed_bastion_targets(request: Request):
 @admin_router.put(
     "/admin/item/config/bastion",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update bastion configuration",
     description="Updates the bastion configuration including enabled status, domain, and domain verification settings.",
     responses={

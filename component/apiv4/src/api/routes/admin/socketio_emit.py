@@ -8,7 +8,7 @@ import traceback
 
 from api import admin_router
 from api.schemas.admin.notify import AdminSocketioEmitRequest
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.socketio import AdminSocketioService
 from api.services.error import Error
 from fastapi import Request
@@ -25,7 +25,8 @@ tag = "admin_socketio"
 @admin_router.post(
     "/admin/items/socketio",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Emit socketio events",
     description="Sends one or more socketio events. Expects a JSON array of event objects.",
     responses={

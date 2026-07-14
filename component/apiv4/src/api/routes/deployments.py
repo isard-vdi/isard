@@ -115,7 +115,8 @@ async def get_all_deployments(request: Request):
 @advanced_router.get(
     "/item/deployment/check-quota",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Check deployment creation quota",
     description="Checks if the user has enough quota to create a new deployment.",
     responses={
@@ -142,7 +143,8 @@ async def check_deployment_quota_get(request: Request):
 @advanced_router.post(
     "/item/deployment/check-quota",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Check deployment creation quota with allowed users",
     description="Checks if the user has enough quota to create a new deployment with the given allowed users.",
     responses={
@@ -599,7 +601,8 @@ async def get_deployment_bastion(deployment_id: str, request: Request):
 @advanced_router.put(
     "/item/deployment/{deployment_id}/bastion",
     tags=[tag, "bastion"],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Set deployment bastion configuration",
     description="Persists the deployment-level bastion configuration and applies it (ssh/http "
     "enable + ports) to every desktop in the deployment. Each user's profile SSH key is added "
@@ -873,11 +876,12 @@ async def get_deployment_videowall(
 @advanced_router.delete(
     "/items/deployments",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Bulk delete deployments",
     description="Deletes multiple deployments. Optionally permanently.",
     responses={
-        200: {"description": "Deployments queued for deletion"},
+        204: {"description": "Deployments queued for deletion"},
         428: {"model": BulkDeleteDeploymentsErrorResponse},
         500: {"model": ErrorResponse},
     },
@@ -1186,7 +1190,8 @@ async def update_deployment_co_owners(
     summary="Edit deployment allowed users",
     description="Updates the allowed users and groups for a deployment. "
     "Removes desktops for users no longer allowed and recreates for new users.",
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     responses={
         404: {"model": ErrorResponse},
         428: {"model": ErrorResponse},

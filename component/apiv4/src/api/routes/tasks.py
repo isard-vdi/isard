@@ -7,7 +7,7 @@ import asyncio
 import traceback
 
 from api import admin_router, manager_router, token_router
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.schemas.tasks import TaskResponse
 from api.services.error import Error
 from api.services.tasks import TaskService
@@ -59,7 +59,8 @@ async def get_task(request: Request, task_id: str):
 @token_router.delete(
     "/task/{task_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Cancel a task",
     description="Cancels a queued task. Only the task owner can cancel it.",
     responses={
@@ -173,7 +174,8 @@ async def get_admin_tasks(
 @admin_router.put(
     "/admin/task/{task_id}/retry",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Retry a failed task",
     description="Retries a failed task. Admin only.",
     responses={
@@ -200,7 +202,8 @@ async def retry_task(request: Request, task_id: str):
 @admin_router.put(
     "/admin/tasks/retry",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Retry all failed storage tasks",
     description="Retries all failed storage tasks in the background. Admin only.",
     responses={500: {"model": ErrorResponse}},

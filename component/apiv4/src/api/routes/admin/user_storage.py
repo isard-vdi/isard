@@ -31,7 +31,7 @@ from api.schemas.admin.user_storage import (
     UserStorageProvider,
     UserStorageUser,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.user_storage import AdminUserStorageService
 from api.services.error import Error
 from fastapi import Request
@@ -88,7 +88,8 @@ async def admin_user_storage_auto_register(
 @admin_router.post(
     "/admin/user_storage/conn_test",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Test user storage connection",
     description="Tests the connection to a user storage provider.",
     responses={500: {"model": ErrorResponse}},
@@ -244,7 +245,8 @@ async def admin_user_storage_get(request: Request, provider_id: str):
 @admin_router.delete(
     "/admin/user_storage/{provider_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete user storage provider",
     description="Deletes a user storage provider by ID.",
     responses={500: {"model": ErrorResponse}},
@@ -272,7 +274,8 @@ async def admin_user_storage_remove(request: Request, provider_id: str):
 @admin_router.delete(
     "/admin/user_storage/{provider_id}/reset",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Reset user storage provider",
     description="Resets a user storage provider by ID.",
     responses={500: {"model": ErrorResponse}},
@@ -295,7 +298,8 @@ async def admin_user_storage_reset(request: Request, provider_id: str):
 @admin_router.delete(
     "/admin/user_storage/reset/all",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Reset all user storage providers",
     description="Resets all user storage providers.",
     responses={500: {"model": ErrorResponse}},
@@ -376,7 +380,8 @@ async def admin_user_storage_add(
 @admin_router.put(
     "/admin/user_storage/{provider_id}/sync/{item}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Sync user storage provider",
     description="Syncs groups, users, or all for a user storage provider.",
     responses={500: {"model": ErrorResponse}},

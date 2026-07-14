@@ -21,7 +21,7 @@ import asyncio
 import traceback
 
 from api import admin_router, migration_router, token_router
-from api.schemas.common import EmptyResponse, ErrorResponse, SimpleResponse
+from api.schemas.common import ErrorResponse, SimpleResponse
 from api.schemas.migrations import (
     AdminMigrationsResponse,
     ImportUserRequest,
@@ -334,7 +334,8 @@ async def get_all_migrations(request: Request):
 @admin_router.put(
     "/admin/item/user-migration/{migration_id}/revoke",
     tags=[admin_tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Revoke a user migration",
     description="Changes the status of a user migration to revoked.",
 )
@@ -356,7 +357,8 @@ async def revoke_migration(request: Request, migration_id: str):
 @admin_router.delete(
     "/admin/item/user-migration/{migration_id}",
     tags=[admin_tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete a user migration",
     description="Permanently deletes a user migration record.",
 )

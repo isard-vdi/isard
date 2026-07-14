@@ -30,7 +30,7 @@ from api.schemas.admin.tables import (
     AllowedTermRequest,
     AllowedUpdateRequest,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.alloweds import AdminAllowedsService
 from api.services.error import Error
 from fastapi import BackgroundTasks, Path, Request
@@ -94,7 +94,8 @@ async def alloweds_table_term(
 @token_router.post(
     "/item/allowed/update/{table}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update allowed access for a table item",
     description="Update the allowed access permissions (roles, categories, groups, users) "
     "for an item in the specified table. Handles special bastion table cases.",

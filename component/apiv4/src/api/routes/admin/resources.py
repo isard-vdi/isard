@@ -28,7 +28,7 @@ from api.schemas.admin.resources import (
     QosDiskUpdateRequest,
     RemoteVpnResponse,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.services.admin.resources import AdminResourcesService
 from api.services.error import Error
 from fastapi import Path, Request
@@ -131,7 +131,8 @@ async def admin_remote_vpn(
 @admin_router.post(
     "/admin/item/qos_disk",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Add QoS disk profile",
     description="Add a new QoS disk profile with IO tune parameters.",
     responses={
@@ -163,7 +164,8 @@ async def admin_qos_disk_add(
 @admin_router.put(
     "/admin/item/qos_disk",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update QoS disk profile",
     description="Update an existing QoS disk profile.",
     responses={

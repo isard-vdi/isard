@@ -23,7 +23,7 @@ import os
 import traceback
 
 from api import admin_router, maintenance_router, open_router
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.schemas.maintenance import (
     MaintenanceStatusResponse,
     MaintenanceStatusUpdate,
@@ -220,7 +220,8 @@ async def update_maintenance(
     tags=[tag],
     summary="Update maintenance text",
     description="Updates the maintenance text displayed to users.",
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     responses={503: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
 async def update_maintenance_text(

@@ -8,7 +8,7 @@ import traceback
 from typing import List, Literal, Optional
 
 from api import admin_router
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.schemas.vpn import AdminVpnConnectionsDisconnectRequest, VpnConnectionRequest
 from api.services.admin.vpn import AdminVpnService
 from api.services.error import Error
@@ -26,7 +26,8 @@ tag = "vpn"
 @admin_router.post(
     "/admin/vpn_connection/{kind}/{client_ip}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Register VPN client connection",
     description="Registers a new VPN client connection (connected).",
     responses={
@@ -69,7 +70,8 @@ async def vpn_connection_connect(
 @admin_router.put(
     "/admin/vpn_connection/{kind}/{client_ip}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update VPN client connection (roamed)",
     description="Updates a VPN client connection after roaming.",
     responses={
@@ -112,7 +114,8 @@ async def vpn_connection_roam(
 @admin_router.delete(
     "/admin/vpn_connection/{kind}/{client_ip}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Disconnect a VPN client",
     description="Disconnects a specific VPN client.",
     responses={
@@ -140,7 +143,8 @@ async def vpn_connection_disconnect(
 @admin_router.delete(
     "/admin/vpn_connection/{kind}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Reset all VPN connections for a kind",
     description="Resets all VPN connections for the specified kind (all/users/hypers).",
     responses={
@@ -166,7 +170,8 @@ async def vpn_connection_reset(request: Request, kind: Literal["all"]):
 @admin_router.delete(
     "/admin/vpn_connections",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Disconnect multiple VPN connections",
     description="Disconnects multiple VPN connections from a list.",
     responses={500: {"model": ErrorResponse}},

@@ -22,7 +22,7 @@ import traceback
 
 from api import admin_router, manager_router, token_router
 from api.dependencies.storage_pools import check_create_storage_pool_availability
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import ErrorResponse
 from api.schemas.storage_pools import (
     CheckCategoryAvailabilityRequest,
     CheckCategoryAvailabilityResponse,
@@ -127,7 +127,8 @@ async def get_storage_pool_by_path(request: Request, data: StoragePoolByPathRequ
 @admin_router.post(
     "/storage-pool",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=201,
+    response_class=Response,
     summary="Create storage pool",
     description="Creates a new storage pool.",
     responses={
@@ -244,7 +245,8 @@ async def get_storage_pool(request: Request, storage_pool_id: str):
 @admin_router.put(
     "/storage-pool/{storage_pool_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Update storage pool",
     description="Updates an existing storage pool.",
     responses={
@@ -275,7 +277,8 @@ async def update_storage_pool(
 @admin_router.delete(
     "/storage-pool/{storage_pool_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    status_code=204,
+    response_class=Response,
     summary="Delete storage pool",
     description="Deletes a storage pool by ID.",
     responses={

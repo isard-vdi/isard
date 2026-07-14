@@ -4,24 +4,40 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """B3 contract — every FastAPI endpoint MUST declare ``response_model=``
-unless its handler legitimately returns a raw
-``Response``/``StreamingResponse``/``PlainTextResponse``/``FileResponse``
-(Bucket B). Bucket B is allowlisted explicitly so a new endpoint
-without ``response_model=`` fails CI rather than silently
-re-introducing 500-on-datetime serialisation regressions.
+unless it legitimately returns no body OR a raw non-JSON body.
 
-Adding an entry to ``BUCKET_B_ALLOWLIST`` implies the route's handler
-returns a non-JSON body (binary, plain text, CSV, 204). Removing
-``response_model=`` from a handler that returns dict/list is not
-acceptable — it must round-trip through FastAPI's ``jsonable_encoder``.
-The allowlist must shrink, never grow.
+Two ways an endpoint is exempt:
+
+1. **No-content status code.** A route whose decorator sets
+   ``status_code`` to 201/204 (and returns a raw ``Response``) has no
+   response body by definition, so ``response_model=`` is meaningless.
+   These are recognised automatically — this is the honest declaration
+   for the many admin/user write endpoints that ``return
+   Response(status_code=204)`` (and ``create_storage_pool`` at 201).
+
+2. **200 response with a non-JSON body** (StreamingResponse /
+   PlainTextResponse / FileResponse / raw image or CSV bytes). These
+   still return 200, so they are NOT auto-exempt — they must be
+   allowlisted explicitly in ``BUCKET_B_ALLOWLIST`` so a new endpoint
+   silently dropping ``response_model=`` from a JSON handler fails CI
+   rather than re-introducing 500-on-datetime serialisation regressions.
+
+Removing ``response_model=`` from a handler that returns a 200 dict/list
+is not acceptable — it must round-trip through FastAPI's
+``jsonable_encoder``. The explicit allowlist must shrink, never grow.
 """
+
+# HTTP status codes that carry no response body — an endpoint declaring
+# one of these needs no ``response_model=``.
+_NO_CONTENT_STATUS_CODES = frozenset({201, 204, 304})
 
 from fastapi.routing import APIRoute
 
-# (method, path) pairs whose handlers return a raw
-# Response / StreamingResponse / PlainTextResponse / FileResponse
-# or a 204 No Content. Verified against handler bodies on 2026-04-30.
+# (method, path) pairs whose handlers return a raw non-JSON body with a
+# 200 status (StreamingResponse / PlainTextResponse / FileResponse / raw
+# image or CSV bytes). No-content 201/204 routes are NOT listed here —
+# they are recognised automatically via ``_NO_CONTENT_STATUS_CODES``.
+# Verified against handler bodies on 2026-04-30.
 BUCKET_B_ALLOWLIST: set[tuple[str, str]] = {
     # PlainTextResponse / raw image bytes
     ("GET", "/api/v4/item/category/{category_id}/custom_url"),
@@ -29,18 +45,6 @@ BUCKET_B_ALLOWLIST: set[tuple[str, str]] = {
     ("GET", "/api/v4/logo/category/{category_id}"),
     ("GET", "/api/v4/logo-collapsed"),
     ("GET", "/api/v4/logo-collapsed/category/{category_id}"),
-    # 204 No Content
-    ("PUT", "/api/v4/item/deployment/{deployment_id}/stop"),
-    ("PUT", "/api/v4/item/deployment/{deployment_id}/user/{user_id}/stop"),
-    ("PUT", "/api/v4/item/deployment/{deployment_id}/start"),
-    ("GET", "/api/v4/storage-pools/check-create-availability"),
-    ("GET", "/api/v4/quota/media/new"),
-    ("GET", "/api/v4/quota/desktop/new"),
-    ("GET", "/api/v4/quota/template/new"),
-    ("GET", "/api/v4/quota/deployment/new"),
-    ("PUT", "/api/v4/item/user/reset-vpn"),
-    ("PUT", "/api/v4/items/storage/sparsify/{status}"),
-    ("PUT", "/api/v4/items/storage/find/{status}"),
     # CSV / file download
     ("GET", "/api/v4/item/deployment/{deployment_id}/download-csv"),
     ("GET", "/api/v4/item/deployment/{deployment_id}/bastion/csv"),
@@ -57,6 +61,10 @@ def _routes_without_response_model() -> list[tuple[str, str, str]]:
         if not isinstance(route, APIRoute):
             continue
         if route.response_model is not None:
+            continue
+        # Auto-exempt no-content routes (201/204): they carry no body,
+        # so response_model= is meaningless.
+        if getattr(route, "status_code", None) in _NO_CONTENT_STATUS_CODES:
             continue
         for method in route.methods:
             if method == "HEAD":
