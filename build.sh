@@ -393,6 +393,12 @@ flavour(){
 			echo "      - Loki port 3100 exposed on $INFRASTRUCTURE_HOST_IP"
 			echo "      - Prometheus port 9090 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
+		# Pyroscope (only present on monitor/all-in-one when PYROSCOPE_EBPF=true)
+		# needs its ingest port reachable so remote flavours can ship eBPF profiles.
+		if echo "$parts" | grep -q "\(^\|\s\)monitor-pyroscope\(\s\|$\)"; then
+			parts="$parts monitor-pyroscope.infrastructure-ports"
+			echo "      - Pyroscope port 4040 exposed on $INFRASTRUCTURE_HOST_IP"
+		fi
 		echo ""
 	fi
 
@@ -575,14 +581,17 @@ create_docker_compose_file(){
 		parts="$parts openapi"
 	fi
 
-	# Expand monitoring
-	if [ "$TEMPO" = "true" ]
+	# Expand monitoring: the tempo/pyroscope SERVERS run only on the monitor (or
+	# all-in-one) node. Other flavours act as clients — apps emit traces and alloy
+	# ships eBPF profiles to the monitor via TEMPO_ADDRESS/PYROSCOPE_ADDRESS (run.sh),
+	# so they must NOT start a local, unused server here.
+	if [ "$TEMPO" = "true" ] && { [ "$FLAVOUR" = "monitor" ] || [ "$FLAVOUR" = "all-in-one" ]; }
 	then
 		echo "Adding Tempo"
 		parts="$parts monitor-tempo"
 	fi
 
-	if [ "$PYROSCOPE_EBPF" = "true" ]
+	if [ "$PYROSCOPE_EBPF" = "true" ] && { [ "$FLAVOUR" = "monitor" ] || [ "$FLAVOUR" = "all-in-one" ]; }
 	then
 		echo "Adding Pyroscope"
 		parts="$parts monitor-pyroscope"
