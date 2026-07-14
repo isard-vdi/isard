@@ -37,6 +37,10 @@ class BastionHttpConfig(BaseModel):
         default=443,
         description="HTTPS port for the bastion.",
     )
+    proxy_protocol: bool = Field(
+        default=False,
+        description="If true, the bastion sends a PROXY protocol v2 header to the guest, preserving the real client IP.",
+    )
 
 
 class BastionSshConfig(BaseModel):

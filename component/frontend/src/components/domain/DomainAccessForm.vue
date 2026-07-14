@@ -43,6 +43,7 @@ interface BastionHttpHttps {
   enabled?: boolean
   httpPort: number
   httpsPort: number
+  proxyProtocol?: boolean
 }
 
 interface BastionSsh {
@@ -88,7 +89,8 @@ const props = withDefaults(defineProps<Props>(), {
     http: {
       enabled: false,
       httpPort: 80,
-      httpsPort: 443
+      httpsPort: 443,
+      proxyProtocol: false
     },
     ssh: {
       enabled: false,
@@ -187,7 +189,8 @@ const bastion = computed<Bastion>(() => {
       http: {
         enabled: bt.http?.enabled || false,
         httpPort: bt.http?.http_port || 80,
-        httpsPort: bt.http?.https_port || 443
+        httpsPort: bt.http?.https_port || 443,
+        proxyProtocol: bt.http?.proxy_protocol || false
       },
       ssh: {
         enabled: bt.ssh?.enabled || false,
@@ -205,7 +208,8 @@ const bastion = computed<Bastion>(() => {
       http: {
         enabled: bt.http?.enabled || false,
         httpPort: bt.http?.http_port || 80,
-        httpsPort: bt.http?.https_port || 443
+        httpsPort: bt.http?.https_port || 443,
+        proxyProtocol: bt.http?.proxy_protocol || false
       },
       ssh: {
         enabled: bt.ssh?.enabled || false,
@@ -245,13 +249,20 @@ const form = useForm({
   }
 })
 
+// --- Bastion coordination ---
+
+const bastionEnabled = ref(false)
+
+function handleBastionEnabled(enabled: boolean) {
+  bastionEnabled.value = enabled
+  emit('bastion-enabled', enabled)
+}
 // Sync form fields when source data changes (e.g. stale cache replaced by fresh fetch)
 watch([templateData, desktopData], () => {
   form.setFieldValue('credentials', credentials.value)
   form.setFieldValue('fullscreen', fullscreen.value)
   form.setFieldValue('viewers', viewers.value)
 })
-
 // --- Viewer / wireguard coordination ---
 
 const selectedViewers = form.useStore((state) => state.values.viewers)
@@ -313,11 +324,6 @@ watch(
   }
 )
 
-// Symmetric of the strip-on-removal flow: when the user picks an RDP-class
-// viewer (browser_rdp / file_rdpgw / file_rdpvpn) without the wireguard
-// interface present, request that the parent hardware form add wireguard
-// for them. Mirrors the Vue 2 auto-add and removes the manual "click here
-// to add wireguard" step.
 watch(hasRdpViewer, (next, prev) => {
   if (!next || prev) return
   if ((props.hardwareInterfaces ?? []).includes('wireguard')) return
@@ -337,15 +343,6 @@ watch(hasRdpViewer, (next, prev) => {
     })
   }
 })
-
-// --- Bastion coordination ---
-
-const bastionEnabled = ref(false)
-
-function handleBastionEnabled(enabled: boolean) {
-  bastionEnabled.value = enabled
-  emit('bastion-enabled', enabled)
-}
 
 // --- Credentials conditional visibility ---
 
@@ -380,10 +377,18 @@ const getFormData = () => {
 
 const isFormValid = form.useStore((state) => state.isValid)
 
+// The bastion sub-form (ports, ssh keys, etc.) has its own tanstack-form
+// instance and validity, separate from this component's own form — combine
+// both so a Save button gated on `isValid` also blocks on an invalid
+// bastion port/key instead of letting it slip through.
+const isValid = computed(() => {
+  if (!props.showBastionConfig) return isFormValid.value
+  return isFormValid.value && (bastionFormRef.value?.isValid ?? true)
+})
+
 defineExpose({
   getFormData,
-  isValid: isFormValid,
-  removedViewerLabels
+  isValid
 })
 
 const showPassword = ref(false)
@@ -532,6 +537,8 @@ const showPassword = ref(false)
         ref="bastionFormRef"
         :bastion="bastion"
         :show-custom-domains="showCustomDomains"
+        :hardware-interfaces="props.hardwareInterfaces"
+        :on-request-add-interface="props.onRequestAddInterface"
         @bastion-enabled="handleBastionEnabled"
       />
     </FieldGroup>

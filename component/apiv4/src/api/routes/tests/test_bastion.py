@@ -175,7 +175,12 @@ def test_get_all_bastion_targets(monkeypatch, test_client, bastion_db_factory):
         {
             "desktop_id": "desktop-1",
             "domains": [],
-            "http": {"enabled": True, "http_port": 8000, "https_port": 4430},
+            "http": {
+                "enabled": True,
+                "http_port": 8000,
+                "https_port": 4430,
+                "proxy_protocol": False,
+            },
             "id": "43179a19-62e9-4a75-8529-0678afbc84a0",
             "ssh": {
                 "authorized_keys": [
@@ -189,7 +194,12 @@ def test_get_all_bastion_targets(monkeypatch, test_client, bastion_db_factory):
         {
             "desktop_id": "desktop-2",
             "domains": ["dktp2.example.com"],
-            "http": {"enabled": True, "http_port": 80, "https_port": 443},
+            "http": {
+                "enabled": True,
+                "http_port": 80,
+                "https_port": 443,
+                "proxy_protocol": False,
+            },
             "id": "521b217d-325e-4b54-bbd8-f71a7037c21b",
             "ssh": {"authorized_keys": [], "enabled": False, "port": 22},
             "user_id": jwt.payload["user_id"],

@@ -1,12 +1,34 @@
 import * as z from 'zod' // v4
 import type { Composer } from 'vue-i18n'
 
+// Zod issue paths are dotted internal field names (e.g. "http.httpPort"),
+// which read poorly when interpolated straight into a validation message.
+// Map the last path segment to the same i18n key the field's own <FieldLabel>
+// already uses, so error messages show "HTTP Port" instead of "http.httpPort".
+// Only fields known to trigger validation errors need an entry here — the raw
+// path is still used as a fallback for anything unmapped.
+const FIELD_LABEL_KEYS: Record<string, string> = {
+  httpPort: 'components.domain.access.bastion.http-https.http-port.label',
+  httpsPort: 'components.domain.access.bastion.http-https.https-port.label',
+  proxyProtocol: 'components.domain.access.bastion.http-https.proxy-protocol.label',
+  sshPort: 'components.domain.access.bastion.ssh.port.label',
+  authorizedKeys: 'components.domain.access.bastion.ssh.authorized-keys.label',
+  customDomains: 'components.domain.access.bastion.http-https.custom-domains.label'
+}
+
+function humanizeFieldPath(i18n: Composer, path: (string | number | symbol)[] | undefined): string {
+  const raw = path?.join('.') || 'field'
+  const lastSegment = path?.[path.length - 1]
+  const labelKey = typeof lastSegment === 'string' ? FIELD_LABEL_KEYS[lastSegment] : undefined
+  return labelKey ? i18n.t(labelKey) : raw
+}
+
 export function setupZodI18n(i18n: Composer) {
   const customErrorMap: z.ZodErrorMap = (issue) => {
     let message: string = i18n.t('components.form.validation.invalid-value', {
-      field: issue.path?.join('.') || 'field'
+      field: humanizeFieldPath(i18n, issue.path)
     })
-    const fieldPath = issue.path?.join('.') || 'field'
+    const fieldPath = humanizeFieldPath(i18n, issue.path)
 
     switch (issue.code) {
       case 'invalid_type':
@@ -21,24 +43,29 @@ export function setupZodI18n(i18n: Composer) {
         }
         break
 
-      case 'too_big':
-        if (issue.type === 'string') {
+      case 'too_big': {
+        const issueType =
+          (issue as { type?: string; origin?: string }).type ||
+          (issue as { type?: string; origin?: string }).origin
+
+        if (issueType === 'string') {
           message = i18n.t('components.form.validation.max-length', {
             field: fieldPath,
             max: issue.maximum
           })
-        } else if (issue.type === 'number') {
+        } else if (issueType === 'number') {
           message = i18n.t('components.form.validation.max-value', {
             field: fieldPath,
             max: issue.maximum
           })
-        } else if (issue.type === 'array') {
+        } else if (issueType === 'array') {
           message = i18n.t('components.form.validation.max-array-length', {
             field: fieldPath,
             max: issue.maximum
           })
         }
         break
+      }
 
       case 'too_small': {
         const issueType =

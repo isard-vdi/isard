@@ -26,6 +26,7 @@ class Http(BaseModel):
     enabled: bool = False
     http_port: int = 80
     https_port: int = 443
+    proxy_protocol: bool = False
 
 
 class Ssh(BaseModel):

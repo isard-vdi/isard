@@ -1923,6 +1923,10 @@
               "label": "Port HTTPS",
               "placeholder": "Introdueix el port HTTPS"
             },
+            "proxy-protocol": {
+              "label": "Proxy Protocol v2",
+              "description": "Activa-ho per reenviar la IP real del client a l'escriptori. Activa-ho només si el servidor web de l'escriptori admet Proxy Protocol v2."
+            },
             "custom-domains": {
               "label": "Nom de domini personalitzat (opcional)",
               "placeholder": "elmeescriptori.exemple.com",
@@ -1958,13 +1962,17 @@
         },
         "wireguard-warning": {
           "title": "Cal la interfície wireguard",
-          "description": "El visor seleccionat necessita la interfície de xarxa wireguard per funcionar. Afegeix-la per continuar.",
-          "add-interface-button": "Afegeix la interfície wireguard",
-          "no-permission-description": "El visor seleccionat necessita la interfície de xarxa wireguard per funcionar, però no tens permís per utilitzar-la. Contacta amb l'administrador."
+          "no-permission-description": "El visor seleccionat necessita la interfície de xarxa wireguard per funcionar, però no tens permís per utilitzar-la. Contacta amb l'administrador.",
+          "no-permission-description-bastion": "L'accés per bastió necessita la interfície de xarxa wireguard per funcionar, però no tens permís per utilitzar-la. Contacta amb l'administrador."
         },
         "wireguard-added": {
           "title": "Interfície wireguard afegida",
-          "description": "S'ha afegit automàticament perquè el visor RDP seleccionat la necessita."
+          "description": "S'ha afegit automàticament perquè el visor RDP seleccionat la necessita.",
+          "description-bastion": "S'ha afegit automàticament perquè l'accés per bastió la necessita."
+        },
+        "bastion-disabled": {
+          "title": "Accés per bastió desactivat",
+          "description": "S'ha desactivat l'accés per bastió perquè aquest escriptori no té interfície de xarxa wireguard."
         },
         "viewers-removed": {
           "title": "Visors RDP eliminats",
