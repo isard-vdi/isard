@@ -140,7 +140,6 @@ export default {
       for (let i = 0; i < domain.value.guestProperties.viewers.length; i++) {
         Object.assign(viewers, domain.value.guestProperties.viewers[i])
       }
-      const isos = domain.value.hardware.isos.map((value) => value.id)
       const image = (domain.value.image && domain.value.image.id) ? domain.value.image : null
       const domainData = {
         id: domainId.value,
@@ -161,7 +160,7 @@ export default {
           disks: domain.value.hardware.disks,
           floppies: domain.value.hardware.floppies,
           interfaces: domain.value.hardware.interfaces,
-          isos: isos,
+          isos: domain.value.hardware.isos,
           memory: domain.value.hardware.memory,
           vcpus: domain.value.hardware.vcpus,
           videos: domain.value.hardware.videos
