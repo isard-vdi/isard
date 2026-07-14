@@ -20,43 +20,72 @@
 </div>
 <div class="x_panel">
   <div class="x_title">
-    <h3><i class="fa fa-exchange"></i> Disk Migrations</h3>
+    <h3><i class="fa fa-exchange"></i> Disk Migrations
+      <i class="fa fa-question-circle mig-help" data-toggle="tooltip" data-placement="right"
+         title="Move existing disks between storage pools in the background. Whole trees move together — a base template with its derived templates and desktops — so backing chains stay valid across the new pool. Running desktops keep working; every copy is checksum-verified before its source file is removed."></i>
+    </h3>
     <ul class="nav navbar-right panel_toolbox">
       <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
     </ul>
     <div class="clearfix"></div>
   </div>
   <div class="x_content">
-    <form class="form-inline" id="migration_new" style="margin-bottom:12px;">
-      <div style="margin-bottom:6px;">
+    <p class="text-muted" style="margin:-2px 0 14px;font-size:13px;">
+      Build a plan with <b>Preview</b> (safe &mdash; read-only, moves nothing), then <b>Create &amp; start</b>.
+      Optionally restrict it to a time window / weekdays, throttle bandwidth, move several disks in parallel and
+      set what happens on failure. Progress streams live below.
+    </p>
+
+    <style>
+      /* Disk Migrations panel — compact, grouped form */
+      #migration_new .mig-fs { border:0; margin:0 0 6px; padding:6px 0 8px; border-top:1px solid #f0f0f0; }
+      #migration_new .mig-fs:first-of-type { border-top:0; }
+      #migration_new .mig-legend {
+        width:auto; border:0; margin:0 0 4px; padding:0;
+        font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:#95a5a6;
+      }
+      #migration_new label { margin-bottom:2px; }
+      .mig-help { color:#bbb; cursor:help; margin-left:3px; }
+      .mig-help:hover { color:#5499c7; }
+      #migrations .mig-id { font-family:monospace; font-size:12px; }
+      #migrations .mig-empty td { color:#999; text-align:center; padding:18px; font-style:italic; }
+    </style>
+    <form class="form-inline mig-form" id="migration_new" style="margin-bottom:12px;">
+      <!-- ── Selection: what to move, and where to ─────────────────────────── -->
+      <fieldset class="mig-fs">
+        <legend class="mig-legend">Selection <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Which disks to move, and the destination pool they should land in."></i></legend>
         <label>What
-          <select id="mig_kind" class="form-control input-sm">
-            <option value="pool">Whole pool</option>
-            <option value="path">Path prefix</option>
-            <option value="category">Category</option>
+          <select id="mig_kind" class="form-control input-sm" title="Scope of disks to move.">
+            <option value="pool" title="Every disk currently stored in the chosen source pool.">Whole pool</option>
+            <option value="path" title="Only disks whose storage path starts with the chosen prefix (a sub-tree of one pool).">Path prefix</option>
+            <option value="category" title="Every disk owned by the chosen category, wherever it currently lives.">Category</option>
           </select>
         </label>
         <!-- pool + path share the source-pool selector -->
         <label class="mig-grp mig-grp-pool mig-grp-path" style="margin-left:8px;">Source&nbsp;pool
-          <select id="mig_src_pool" class="form-control input-sm"></select>
+          <select id="mig_src_pool" class="form-control input-sm" title="The pool disks are moved FROM."></select>
         </label>
         <label class="mig-grp mig-grp-path" style="margin-left:8px;">Path
-          <select id="mig_path_prefix" class="form-control input-sm" style="min-width:180px;"></select>
+          <select id="mig_path_prefix" class="form-control input-sm" style="min-width:180px;" title="A real path prefix inside the source pool — only disks under it are moved."></select>
         </label>
         <label class="mig-grp mig-grp-category" style="margin-left:8px;">Category
-          <select id="mig_category" class="form-control input-sm"></select>
+          <select id="mig_category" class="form-control input-sm" title="Move every disk owned by this category."></select>
         </label>
-        <label style="margin-left:8px;">Destination&nbsp;pool
-          <select id="mig_dst_pool" class="form-control input-sm"></select>
+        <label style="margin-left:8px;"><i class="fa fa-arrow-right text-muted" style="margin-right:4px;"></i>Destination&nbsp;pool
+          <select id="mig_dst_pool" class="form-control input-sm" title="The pool disks are moved TO. Disks already in this pool are skipped."></select>
         </label>
-      </div>
-      <div style="margin-bottom:6px;">
+      </fieldset>
+
+      <!-- ── Schedule: when it is allowed to run ───────────────────────────── -->
+      <fieldset class="mig-fs">
+        <legend class="mig-legend">Schedule <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Optional time window and weekdays during which the migration is allowed to copy. Leave blank to run continuously until done."></i></legend>
         <label>Window
-          <input type="text" id="mig_win_start" class="form-control input-sm" placeholder="HH:MM" style="width:62px;">
+          <input type="text" id="mig_win_start" class="form-control input-sm" placeholder="HH:MM" style="width:62px;" title="Start of the daily window (24h UTC). Blank = no time restriction.">
           &ndash;
-          <input type="text" id="mig_win_end" class="form-control input-sm" placeholder="HH:MM" style="width:62px;">
+          <input type="text" id="mig_win_end" class="form-control input-sm" placeholder="HH:MM" style="width:62px;" title="End of the daily window (24h UTC). May wrap past midnight.">
+          <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="e.g. 22:00 – 06:00 to copy only overnight. Times are UTC. Blank start/end = always allowed."></i>
         </label>
-        <span style="margin-left:8px;">Days
+        <span style="margin-left:10px;">Days
           <span id="mig_days">
             <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="0"> Mon</label>
             <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="1"> Tue</label>
@@ -66,53 +95,72 @@
             <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="5"> Sat</label>
             <label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="6"> Sun</label>
           </span>
-          <span class="btn-group btn-group-xs" style="margin-left:4px;">
+          <span class="btn-group btn-group-xs" style="margin-left:4px;" title="Quick day presets.">
             <button type="button" class="btn btn-default mig-days-preset" data-preset="all">All</button>
             <button type="button" class="btn btn-default mig-days-preset" data-preset="weekdays">Mon&ndash;Fri</button>
             <button type="button" class="btn btn-default mig-days-preset" data-preset="weekend">Weekend</button>
             <button type="button" class="btn btn-default mig-days-preset" data-preset="none">Clear</button>
           </span>
+          <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Weekdays the window applies to. No day selected = every day."></i>
         </span>
-        <label style="margin-left:8px;"><input type="checkbox" id="mig_recurring"> recurring</label>
-      </div>
-      <div style="margin-bottom:6px;">
+        <label style="margin-left:10px;"><input type="checkbox" id="mig_recurring"> recurring
+          <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Keep the job alive after it drains and re-scan for newly-matching disks on the next window, instead of finishing once. Good for &ldquo;keep this category on this pool&rdquo; policies."></i>
+        </label>
+      </fieldset>
+
+      <!-- ── Behaviour: rescan cadence + failure handling ──────────────────── -->
+      <fieldset class="mig-fs">
+        <legend class="mig-legend">Behaviour <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="How aggressively to look for new matching disks, and what to do when a disk fails to copy."></i></legend>
         <label>Re-scan
-          <select id="mig_rescan_cadence" class="form-control input-sm">
-            <option value="edge_on_drain">edge + on-drain</option>
-            <option value="edge">edge only</option>
-            <option value="continuous">continuous</option>
+          <select id="mig_rescan_cadence" class="form-control input-sm" title="How often to look for new disks that match the selection.">
+            <option value="edge_on_drain" title="Re-scan when the selection changes and once more when the queue drains. Balanced — recommended.">Edge + on-drain (recommended)</option>
+            <option value="edge" title="Re-scan only when the selection changes.">Edge only</option>
+            <option value="continuous" title="Re-scan on a steady interval — heavier, for fast-changing pools.">Continuous</option>
           </select>
         </label>
         <label style="margin-left:8px;">On failure
-          <select id="mig_failure_policy" class="form-control input-sm">
-            <option value="retry_quarantine">retry, then quarantine</option>
-            <option value="pause">pause for attention</option>
-            <option value="retry_forever">retry forever</option>
+          <select id="mig_failure_policy" class="form-control input-sm" title="What to do when a single disk fails to copy or verify.">
+            <option value="retry_quarantine" title="Retry a disk a few times, then set it aside (quarantine) and carry on with the rest. Recommended.">Retry, then quarantine (recommended)</option>
+            <option value="pause" title="Stop the whole migration on the first failure and wait for an admin.">Pause for attention</option>
+            <option value="retry_forever" title="Keep retrying the failed disk indefinitely — never quarantines.">Retry forever</option>
           </select>
         </label>
         <label class="mig-quarantine-after" style="margin-left:8px;">after
-          <input type="number" id="mig_quarantine_after" class="form-control input-sm" value="3" min="1" style="width:58px;"> occ.
+          <input type="number" id="mig_quarantine_after" class="form-control input-sm" value="3" min="1" style="width:58px;" title="Number of failed attempts before a disk is quarantined."> attempts
         </label>
-      </div>
-      <div>
+      </fieldset>
+
+      <!-- ── Throughput + safety, then act ─────────────────────────────────── -->
+      <fieldset class="mig-fs mig-fs-last">
+        <legend class="mig-legend">Throughput &amp; safety <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="How fast to copy and how carefully to treat running desktops."></i></legend>
         <label>Parallel
-          <input type="number" id="mig_parallel" class="form-control input-sm" value="1" min="1" style="width:58px;">
+          <input type="number" id="mig_parallel" class="form-control input-sm" value="1" min="1" style="width:58px;" title="How many disks to copy at the same time. Higher = faster but more I/O load.">
         </label>
         <label style="margin-left:8px;">bwlimit&nbsp;KB/s
-          <input type="number" id="mig_bwlimit" class="form-control input-sm" value="0" min="0" style="width:84px;">
+          <input type="number" id="mig_bwlimit" class="form-control input-sm" value="0" min="0" style="width:84px;" title="Cap copy bandwidth per disk, in KB/s. 0 = unlimited.">
         </label>
-        <label style="margin-left:8px;"><input type="checkbox" id="mig_force_stop"> force-stop</label>
-        <label style="margin-left:8px;"><input type="checkbox" id="mig_verify" checked> verify</label>
-        <button type="button" class="btn btn-default btn-sm" id="mig_preview" style="margin-left:8px;">Preview</button>
-        <button type="button" class="btn btn-primary btn-sm" id="mig_create">Create &amp; start</button>
+        <label style="margin-left:8px;" title="Stop a running desktop to move its disk, instead of skipping it. The desktop is restartable afterwards."><input type="checkbox" id="mig_force_stop"> force-stop</label>
+        <label style="margin-left:8px;" title="Checksum-verify each destination copy before deleting the source. Strongly recommended — leave on."><input type="checkbox" id="mig_verify" checked> verify</label>
+        <button type="button" class="btn btn-default btn-sm" id="mig_preview" style="margin-left:12px;" title="Dry-run: build and count the plan (trees / disks / bytes) without moving anything.">
+          <i class="fa fa-search"></i> Preview
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" id="mig_create" title="Create the migration and start it immediately.">
+          <i class="fa fa-play"></i> Create &amp; start
+        </button>
         <span id="mig_preview_out" style="margin-left:10px;color:#555;"></span>
-      </div>
+      </fieldset>
     </form>
+
     <table id="migrations" class="table table-condensed">
       <thead>
         <tr>
-          <th style="width:18px;"></th><th>Migration</th><th>Status</th>
-          <th>Progress</th><th>ETA</th><th>Schedule</th><th>Actions</th>
+          <th style="width:18px;"></th>
+          <th>Migration</th>
+          <th>Status</th>
+          <th title="Disks copied / total, and bytes moved.">Progress</th>
+          <th title="Estimated time remaining at the current rate.">ETA</th>
+          <th title="Days + time window, and next run for recurring jobs.">Schedule</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody></tbody>

@@ -25,6 +25,47 @@ const CATEGORIES_API = "/api/v4/admin/items/categories";
 const MIG_TERMINAL = ["completed", "failed", "canceled"];
 const MIG_DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+// status -> {bootstrap label class, font-awesome icon, human tooltip}
+const MIG_STATUS = {
+  planned:   { cls: "default", icon: "fa-clock-o",        tip: "Planned — not started yet." },
+  pending:   { cls: "default", icon: "fa-clock-o",        tip: "Waiting to start." },
+  running:   { cls: "primary", icon: "fa-refresh fa-spin", tip: "Copying disks now." },
+  waiting:   { cls: "info",    icon: "fa-hourglass-half", tip: "Idle until the schedule window opens." },
+  paused:    { cls: "warning", icon: "fa-pause",          tip: "Paused — resume with Start." },
+  draining:  { cls: "info",    icon: "fa-tint",           tip: "Finishing in-flight disks before stopping." },
+  quarantined: { cls: "warning", icon: "fa-exclamation-triangle", tip: "Some disks were set aside after repeated failures." },
+  completed: { cls: "success", icon: "fa-check",          tip: "All disks moved and verified." },
+  failed:    { cls: "danger",  icon: "fa-times",          tip: "Migration stopped on a failure." },
+  canceled:  { cls: "default", icon: "fa-ban",            tip: "Canceled by an admin." }
+};
+
+// friendly labels for the enum <select>s (values stay the raw enum)
+const MIG_CADENCE_LABELS = {
+  edge_on_drain: "Edge + on-drain", edge: "Edge only", continuous: "Continuous"
+};
+const MIG_FAILURE_LABELS = {
+  retry_quarantine: "Retry, then quarantine", pause: "Pause for attention", retry_forever: "Retry forever"
+};
+
+function migStatusBadge (status) {
+  const s = MIG_STATUS[status] || { cls: "default", icon: "fa-question", tip: status };
+  return `<span class="label label-${s.cls}" title="${migEscape(s.tip)}" data-toggle="tooltip">` +
+    `<i class="fa ${s.icon}"></i> ${migEscape(status)}</span>`;
+}
+
+// Long UUIDs are noise in the table — show a short head, full id on hover + copy title.
+function migShortId (id) {
+  const full = String(id == null ? "" : id);
+  const head = full.length > 12 ? full.slice(0, 8) + "…" : full;
+  return `<span class="mig-id" title="${migEscape(full)}" data-toggle="tooltip">${migEscape(head)}</span>`;
+}
+
+// (Re)initialise Bootstrap tooltips for freshly-rendered content; no-op if the
+// plugin isn't loaded (native title= still shows).
+function migInitTooltips ($scope) {
+  try { ($scope || $(document)).find('[data-toggle="tooltip"]').tooltip({ container: "body" }); } catch (e) { /* native title fallback */ }
+}
+
 // migrations expanded in the table (preserved across re-render)
 const migExpanded = {};
 
@@ -95,8 +136,8 @@ function migScheduleLabel (m) {
 }
 
 function migStatusCell (m) {
-  let s = migEscape(m.status);
-  if (migRecurring(m)) s += ' <span class="label label-info" title="recurring">↻</span>';
+  let s = migStatusBadge(m.status);
+  if (migRecurring(m)) s += ' <span class="label label-info" title="Recurring job — re-scans and runs again each window." data-toggle="tooltip"><i class="fa fa-repeat"></i></span>';
   return s;
 }
 
@@ -110,22 +151,23 @@ function migBar (done, total, bytesDone, bytesTotal) {
 
 // A downloadable audit report is always available (also for terminal jobs).
 function migLogButton (m) {
-  return `<a class="btn btn-xs btn-default mig-log" href="${MIG_API}/${encodeURIComponent(m.id)}/log?format=csv" title="Download CSV report" onclick="event.stopPropagation();">Log</a>`;
+  return `<a class="btn btn-xs btn-default mig-log" href="${MIG_API}/${encodeURIComponent(m.id)}/log?format=csv" title="Download the full per-disk audit report (CSV)." data-toggle="tooltip" onclick="event.stopPropagation();"><i class="fa fa-download"></i> Log</a>`;
 }
 
 function migActionButtons (m) {
   if (MIG_TERMINAL.indexOf(m.status) !== -1) {
-    return migEscape(m.status) + " " + migLogButton(m);
+    return migStatusBadge(m.status) + " " + migLogButton(m);
   }
   return `
-    <button class="btn btn-xs btn-success mig-action" data-mig="${migEscape(m.id)}" data-action="start">Start</button>
-    <button class="btn btn-xs btn-warning mig-action" data-mig="${migEscape(m.id)}" data-action="pause">Pause</button>
-    <button class="btn btn-xs btn-danger mig-action" data-mig="${migEscape(m.id)}" data-action="cancel">Cancel</button>
+    <button class="btn btn-xs btn-success mig-action" data-mig="${migEscape(m.id)}" data-action="start" title="Start or resume this migration." data-toggle="tooltip"><i class="fa fa-play"></i> Start</button>
+    <button class="btn btn-xs btn-warning mig-action" data-mig="${migEscape(m.id)}" data-action="pause" title="Pause after in-flight disks finish; resume later with no data loss." data-toggle="tooltip"><i class="fa fa-pause"></i> Pause</button>
+    <button class="btn btn-xs btn-danger mig-action" data-mig="${migEscape(m.id)}" data-action="cancel" title="Stop and abandon this migration. Already-moved disks stay in the destination." data-toggle="tooltip"><i class="fa fa-stop"></i> Cancel</button>
     ${migLogButton(m)}`;
 }
 
-function migCard (label, value) {
-  return `<div style="display:inline-block;min-width:110px;margin:0 14px 8px 0;">
+function migCard (label, value, tip) {
+  const t = tip ? ` title="${migEscape(tip)}" data-toggle="tooltip"` : "";
+  return `<div style="display:inline-block;min-width:110px;margin:0 14px 8px 0;"${t}>
       <div style="font-size:20px;font-weight:600;">${migEscape(value)}</div>
       <div style="color:#888;font-size:12px;">${migEscape(label)}</div>
     </div>`;
@@ -136,60 +178,66 @@ function migConfigControls (m) {
   const c = m.config || {};
   const w = c.window || {};
   const dis = MIG_TERMINAL.indexOf(m.status) !== -1 ? "disabled" : "";
-  return `<form class="form-inline mig-config" data-mig="${migEscape(m.id)}" style="margin:8px 0;">
-      <label>Window
+  return `<form class="form-inline mig-config" data-mig="${migEscape(m.id)}" style="margin:8px 0;padding:8px;background:#fff;border:1px solid #eee;border-radius:3px;">
+      <span class="text-muted" style="margin-right:8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;" title="Live settings for this job — edit and press Apply." data-toggle="tooltip">Settings</span>
+      <label title="Daily copy window (24h UTC). Blank = always." data-toggle="tooltip">Window
         <input type="text" class="form-control input-sm cfg-win-start" placeholder="HH:MM" style="width:62px;" value="${migEscape(w.start || "")}" ${dis}>
         &ndash;
         <input type="text" class="form-control input-sm cfg-win-end" placeholder="HH:MM" style="width:62px;" value="${migEscape(w.end || "")}" ${dis}>
       </label>
-      <label style="margin-left:8px;">Parallel
+      <label style="margin-left:8px;" title="Disks copied at once. Higher = faster, more I/O." data-toggle="tooltip">Parallel
         <input type="number" class="form-control input-sm cfg-parallel" min="1" style="width:58px;" value="${migEscape(c.parallelism != null ? c.parallelism : 1)}" ${dis}>
       </label>
-      <label style="margin-left:8px;">bwlimit&nbsp;KB/s
+      <label style="margin-left:8px;" title="Per-disk bandwidth cap in KB/s. 0 = unlimited." data-toggle="tooltip">bwlimit&nbsp;KB/s
         <input type="number" class="form-control input-sm cfg-bwlimit" min="0" style="width:84px;" value="${migEscape(c.bwlimit_kbs != null ? c.bwlimit_kbs : 0)}" ${dis}>
       </label>
-      <label style="margin-left:8px;"><input type="checkbox" class="cfg-force" ${c.force_stop_desktops ? "checked" : ""} ${dis}> force-stop</label>
-      <label style="margin-left:8px;"><input type="checkbox" class="cfg-verify" ${c.verify === false ? "" : "checked"} ${dis}> verify</label>
-      <label style="margin-left:8px;"><input type="checkbox" class="cfg-recurring" ${c.recurring ? "checked" : ""} ${dis}> recurring</label>
-      <span class="cfg-days" style="margin-left:8px;">Days
+      <label style="margin-left:8px;" title="Stop a running desktop to move its disk (restartable after)." data-toggle="tooltip"><input type="checkbox" class="cfg-force" ${c.force_stop_desktops ? "checked" : ""} ${dis}> force-stop</label>
+      <label style="margin-left:8px;" title="Checksum-verify each copy before removing the source." data-toggle="tooltip"><input type="checkbox" class="cfg-verify" ${c.verify === false ? "" : "checked"} ${dis}> verify</label>
+      <label style="margin-left:8px;" title="Re-scan and run again each window instead of finishing once." data-toggle="tooltip"><input type="checkbox" class="cfg-recurring" ${c.recurring ? "checked" : ""} ${dis}> recurring</label>
+      <span class="cfg-days" style="margin-left:8px;" title="Weekdays the window applies to." data-toggle="tooltip">Days
         ${MIG_DAY_NAMES.map(function (n, i) {
           const on = ((w.days || []).indexOf(i) !== -1) ? "checked" : "";
           return `<label style="font-weight:normal;"><input type="checkbox" class="mig-day" value="${i}" ${on} ${dis}> ${n}</label>`;
         }).join("")}
       </span>
-      <label style="margin-left:8px;">Re-scan
+      <label style="margin-left:8px;" title="How often to look for newly-matching disks." data-toggle="tooltip">Re-scan
         <select class="form-control input-sm cfg-cadence" ${dis}>
-          ${migOpt(["edge_on_drain", "edge", "continuous"], c.rescan_cadence || "edge_on_drain")}
+          ${migOpt(["edge_on_drain", "edge", "continuous"], c.rescan_cadence || "edge_on_drain", MIG_CADENCE_LABELS)}
         </select>
       </label>
-      <label style="margin-left:8px;">On&nbsp;fail
+      <label style="margin-left:8px;" title="What to do when a disk fails to copy or verify." data-toggle="tooltip">On&nbsp;fail
         <select class="form-control input-sm cfg-failure" ${dis}>
-          ${migOpt(["retry_quarantine", "pause", "retry_forever"], c.failure_policy || "retry_quarantine")}
+          ${migOpt(["retry_quarantine", "pause", "retry_forever"], c.failure_policy || "retry_quarantine", MIG_FAILURE_LABELS)}
         </select>
       </label>
-      <label style="margin-left:8px;">after
+      <label style="margin-left:8px;" title="Failed attempts before a disk is quarantined." data-toggle="tooltip">after
         <input type="number" class="form-control input-sm cfg-quarantine-after" min="1" style="width:52px;" value="${migEscape(c.quarantine_after != null ? c.quarantine_after : 3)}" ${dis}>
       </label>
-      <button type="button" class="btn btn-default btn-xs mig-config-apply" style="margin-left:8px;" ${dis}>Apply</button>
+      <button type="button" class="btn btn-default btn-xs mig-config-apply" style="margin-left:8px;" ${dis} title="Apply these settings to the running job." data-toggle="tooltip"><i class="fa fa-check"></i> Apply</button>
       <span class="mig-config-out" style="margin-left:8px;color:#888;"></span>
     </form>`;
 }
 
 // <option> list with the current value pre-selected (values are safe enums).
-function migOpt (values, current) {
+// `labels` optionally maps a value to a friendlier display text.
+function migOpt (values, current, labels) {
+  labels = labels || {};
   return values.map(function (v) {
-    return `<option value="${v}"${v === current ? " selected" : ""}>${v}</option>`;
+    return `<option value="${v}"${v === current ? " selected" : ""}>${migEscape(labels[v] || v)}</option>`;
   }).join("");
 }
 
 function migTreeRows (m) {
   let html = `<table class="table table-condensed" style="margin:6px 0;background:#fafafa;">
-    <thead><tr><th style="width:18px;"></th><th>Root tree</th><th>Derivative templates</th>
-      <th>Desktops</th><th>Progress</th></tr></thead><tbody>`;
+    <thead><tr><th style="width:18px;"></th>
+      <th title="Base template at the root of the backing-chain tree." data-toggle="tooltip">Root tree</th>
+      <th title="Derived templates in this tree." data-toggle="tooltip">Derivative templates</th>
+      <th title="Desktops in this tree." data-toggle="tooltip">Desktops</th>
+      <th>Progress</th></tr></thead><tbody>`;
   (m.trees || []).forEach(function (t) {
-    html += `<tr class="mig-tree" data-mig="${migEscape(m.id)}" data-tree="${migEscape(t.tree_id)}" style="cursor:pointer;">
+    html += `<tr class="mig-tree" data-mig="${migEscape(m.id)}" data-tree="${migEscape(t.tree_id)}" style="cursor:pointer;" title="Click to list the individual disks in this tree." data-toggle="tooltip">
         <td><i class="fa fa-caret-right"></i></td>
-        <td>${migEscape(t.root_storage_id || t.tree_id)}</td>
+        <td>${migShortId(t.root_storage_id || t.tree_id)}</td>
         <td>${migEscape(t.derivative_templates || 0)}</td>
         <td>${migEscape(t.desktops || 0)}</td>
         <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0)}</td>
@@ -203,12 +251,12 @@ function migTreeRows (m) {
 function migDetail (m) {
   const t = m.totals || {};
   const cards =
-    migCard("trees", t.trees || (m.trees || []).length) +
-    migCard("derivative templates", t.derivative_templates || 0) +
-    migCard("desktops", t.desktops || 0) +
-    migCard("disks", t.items_total || 0) +
-    migCard("bytes", migBytes(t.bytes_total || 0)) +
-    migCard("ETA", migEta(m.eta_seconds));
+    migCard("trees", t.trees || (m.trees || []).length, "Independent backing-chain trees (a base template with its descendants). Each tree moves atomically.") +
+    migCard("derivative templates", t.derivative_templates || 0, "Templates derived from a base that also move as part of the tree.") +
+    migCard("desktops", t.desktops || 0, "Desktops whose disks are moved.") +
+    migCard("disks", t.items_total || 0, "Total qcow2 disks to copy.") +
+    migCard("bytes", migBytes(t.bytes_total || 0), "Total data to copy across all disks.") +
+    migCard("ETA", migEta(m.eta_seconds), "Estimated time remaining at the current copy rate.");
   return `<tr class="mig-detail" data-mig="${migEscape(m.id)}"><td></td><td colspan="6">
       <div style="margin-bottom:6px;">${cards}</div>
       ${migConfigControls(m)}
@@ -219,9 +267,9 @@ function migDetail (m) {
 function migRowHtml (m) {
   const t = m.totals || {};
   const open = migExpanded[m.id];
-  let html = `<tr class="mig-row" data-mig="${migEscape(m.id)}" style="cursor:pointer;">
+  let html = `<tr class="mig-row" data-mig="${migEscape(m.id)}" style="cursor:pointer;" title="Click to expand: totals, live settings and per-tree progress." data-toggle="tooltip">
       <td><i class="fa fa-caret-${open ? "down" : "right"}"></i></td>
-      <td>${migEscape(m.id)}</td>
+      <td>${migShortId(m.id)}</td>
       <td>${migStatusCell(m)}</td>
       <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0)}</td>
       <td>${migEta(m.eta_seconds)}</td>
@@ -236,6 +284,7 @@ function migRowHtml (m) {
 // status endpoint and the socket event).
 function renderMigration (m) {
   if (!m || !m.id) return;
+  $("#migrations tbody tr.mig-empty").remove();
   const $existing = $(`#migrations tbody tr[data-mig="${m.id}"]`);
   const $html = $(migRowHtml(m));
   if ($existing.length) $existing.first().replaceWith($html.first());
@@ -243,6 +292,16 @@ function renderMigration (m) {
   // detail row (only when expanded)
   $(`#migrations tbody tr.mig-detail[data-mig="${m.id}"]`).remove();
   if (migExpanded[m.id]) $(`#migrations tbody tr.mig-row[data-mig="${m.id}"]`).after($html.filter(".mig-detail"));
+  migInitTooltips($(`#migrations tbody tr[data-mig="${m.id}"]`));
+}
+
+// Friendly placeholder when the table is empty.
+function migShowEmpty () {
+  if ($("#migrations tbody tr").length) return;
+  $("#migrations tbody").html(
+    '<tr class="mig-empty"><td colspan="7"><i class="fa fa-inbox"></i> ' +
+    'No disk migrations yet. Choose what to move above, click <b>Preview</b> to size the plan, then <b>Create &amp; start</b>.' +
+    "</td></tr>");
 }
 
 function loadMigration (id) {
@@ -252,7 +311,9 @@ function loadMigration (id) {
 function loadMigrations () {
   $.ajax({ type: "GET", url: MIG_API }).done(function (data) {
     $("#migrations tbody").empty();
-    (data.migrations || []).forEach(function (mig) {
+    const migs = data.migrations || [];
+    if (!migs.length) { migShowEmpty(); return; }
+    migs.forEach(function (mig) {
       loadMigration(mig.id).fail(function () { renderMigration(mig); });
     });
   });
@@ -368,6 +429,7 @@ $(document).ready(function () {
   loadMigrationCategories();
   loadMigrations();
   migKindApply();
+  migInitTooltips($("#migration_new"));
 
   // kind dropdown -> show the matching inputs
   $("#mig_kind").on("change", migKindApply);
@@ -396,10 +458,14 @@ $(document).ready(function () {
       data: JSON.stringify({ selection: migSelection() })
     }).done(function (plan) {
       const t = plan.totals || {};
-      $("#mig_preview_out").text(
-        `${(plan.trees || []).length} trees · ${t.items_total || 0} disks · ${migBytes(t.bytes_total || 0)}`);
+      const n = t.items_total || 0;
+      $("#mig_preview_out").html(
+        `<span class="text-success"><i class="fa fa-check"></i> Plan: ` +
+        `<b>${(plan.trees || []).length}</b> trees · <b>${n}</b> disks · <b>${migBytes(t.bytes_total || 0)}</b>` +
+        (n ? "" : " — nothing to move (already in destination?)") + `</span>`);
     }).fail(function (xhr) {
-      $("#mig_preview_out").text("Plan failed: " + ((xhr.responseJSON && xhr.responseJSON.description) || xhr.status));
+      $("#mig_preview_out").html('<span class="text-danger"><i class="fa fa-exclamation-triangle"></i> Plan failed: ' +
+        migEscape((xhr.responseJSON && xhr.responseJSON.description) || xhr.status) + "</span>");
     });
   });
 
@@ -408,9 +474,11 @@ $(document).ready(function () {
     $.ajax({
       type: "POST", url: MIG_API, contentType: "application/json", data: JSON.stringify(body)
     }).done(function (mig) {
+      $("#mig_preview_out").html('<span class="text-success"><i class="fa fa-check"></i> Migration created &amp; starting…</span>');
       $.ajax({ type: "POST", url: `${MIG_API}/${mig.id}/start` }).always(loadMigrations);
     }).fail(function (xhr) {
-      $("#mig_preview_out").text("Create failed: " + ((xhr.responseJSON && xhr.responseJSON.description) || xhr.status));
+      $("#mig_preview_out").html('<span class="text-danger"><i class="fa fa-exclamation-triangle"></i> Create failed: ' +
+        migEscape((xhr.responseJSON && xhr.responseJSON.description) || xhr.status) + "</span>");
     });
   });
 
@@ -465,11 +533,15 @@ $(document).ready(function () {
       let h = `<tr class="mig-disks"><td></td><td colspan="4"><table class="table table-condensed" style="margin:0;">
         <thead><tr><th>Disk</th><th>Kind</th><th>State</th><th>Size</th><th>Error</th></tr></thead><tbody>`;
       disks.forEach(function (d) {
-        h += `<tr><td>${migEscape(d.storage_id)}</td><td>${migEscape(d.kind || "")}</td>
-          <td>${migEscape(d.state)}</td><td>${migBytes(d.size_bytes)}</td><td>${migEscape(d.error || "")}</td></tr>`;
+        const err = d.error
+          ? `<span class="text-danger" title="${migEscape(d.error)}" data-toggle="tooltip"><i class="fa fa-exclamation-circle"></i> ${migEscape(d.error)}</span>`
+          : "";
+        h += `<tr><td>${migShortId(d.storage_id)}</td><td>${migEscape(d.kind || "")}</td>
+          <td>${migEscape(d.state)}</td><td>${migBytes(d.size_bytes)}</td><td>${err}</td></tr>`;
       });
       h += "</tbody></table></td></tr>";
       $row.after(h);
+      migInitTooltips($row.next("tr.mig-disks"));
     });
   });
 
