@@ -301,9 +301,13 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		args.Token = &tkn
 	}
 
-	// Redirect the user after login
+	// Redirect the user after login. Sanitize the user-supplied target here,
+	// where it enters the login flow, so the provider-forced redirect (e.g. the
+	// external IdP authorization URL) that the flow may later return is never
+	// mistaken for a user-controlled value and clobbered.
 	if params.Redirect.Set {
-		args.Redirect = &params.Redirect.Value
+		redirect := safeRedirect(params.Redirect.Value)
+		args.Redirect = &redirect
 	}
 
 	// Form parameters (username + password)
