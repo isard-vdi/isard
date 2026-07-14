@@ -296,10 +296,32 @@ class StoragePoolsProcessed(RethinkSharedConnection):
         if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
             if "enabled" in data:
                 raise Error("bad_request", "Default pool can't be disabled")
-            # The default pool stays at /isard; its name/categories are fixed too.
+            # The default pool stays at /isard; its name/description/mountpoint and
+            # category set are fixed. Reject an actual change explicitly (mirroring
+            # the `enabled` guard above) instead of silently dropping it, so a client
+            # is never told the update succeeded while its rename is discarded. A
+            # no-op resend of the current value (as a full-object PUT from the webapp
+            # sends) is tolerated: the field is popped and the rest of the update
+            # proceeds.
+            current = StoragePool.get(storage_pool_id) or {}
+            protected_changed = []
             for key in ["name", "description", "mountpoint", "categories"]:
-                if key in data:
-                    data.pop(key)
+                if key not in data:
+                    continue
+                if key == "categories":
+                    differs = set(data[key] or []) != set(current.get(key) or [])
+                else:
+                    differs = data[key] != current.get(key)
+                if differs:
+                    protected_changed.append(key)
+                data.pop(key)
+            if protected_changed:
+                raise Error(
+                    "bad_request",
+                    "Default pool's "
+                    + ", ".join(protected_changed)
+                    + " can't be changed",
+                )
             if "paths" in data:
                 cls._check_default_paths(data["paths"])
         elif "mountpoint" in data:
