@@ -426,13 +426,15 @@ function getInterfaces(): string[] {
   return (form.getFieldValue('interfaces') as string[] | undefined) ?? []
 }
 
-function addInterface(ifaceId: string) {
+function addInterface(ifaceId: string): boolean | undefined {
+  if (!userAllowedHardware.value) return undefined
   const current = getInterfaces()
-  if (current.includes(ifaceId)) return
+  if (current.includes(ifaceId)) return true
   // Only add if the interface is available in the allowed-hardware catalog
   const available = networksOptions.value.some((iface) => iface.id === ifaceId)
-  if (!available) return
+  if (!available) return false
   form.setFieldValue('interfaces', [...current, ifaceId])
+  return true
 }
 
 function removeInterface(ifaceId: string) {

@@ -74,15 +74,15 @@ const hardwareFormRef = ref<{
   getFormData: () => Record<string, unknown>
   isValid: boolean
   limitedFields: Record<string, unknown> | null
-  addInterface: (ifaceId: string) => void
+  addInterface: (ifaceId: string) => boolean | undefined
   removeInterface: (ifaceId: string) => void
-  interfaces: { value: string[] }
+  interfaces: string[]
 } | null>(null)
 
-const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces?.value ?? [])
+const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces ?? [])
 
 function handleAddInterfaceFromAccessForm(ifaceId: string) {
-  hardwareFormRef.value?.addInterface(ifaceId)
+  return hardwareFormRef.value?.addInterface(ifaceId)
 }
 const hardwareFormIsValid = computed(() => hardwareFormRef.value?.isValid ?? true)
 const accessFormIsValid = computed(() => accessFormRef.value?.isValid ?? true)

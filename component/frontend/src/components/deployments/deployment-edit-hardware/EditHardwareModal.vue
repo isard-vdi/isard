@@ -13,6 +13,7 @@ import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
 import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
+import { selectedViewerKeys } from '@/lib/viewers'
 
 const { t, d } = useI18n()
 
@@ -56,20 +57,30 @@ const handleSubmit = () => {
   submitButtonLoading.value = false
 }
 
-const accessFormRef = ref<{ getFormData: () => any; isValid: boolean } | null>(null)
+const accessFormRef = ref<{
+  getFormData: () => any
+  isValid: boolean
+  removedViewerLabels: string[]
+} | null>(null)
 const hardwareFormRef = ref<{
   getFormData: () => any
   isValid: boolean
   limitedFields: any
-  addInterface: (ifaceId: string) => void
+  addInterface: (ifaceId: string) => boolean | undefined
   removeInterface: (ifaceId: string) => void
-  interfaces: { value: string[] }
+  interfaces: string[]
 } | null>(null)
 
-const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces?.value ?? [])
+const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces ?? [])
+
+const selectedViewers = computed<string[]>(() =>
+  selectedViewerKeys(desktopData.value.guest_properties?.viewers)
+)
+
+const removedViewerLabels = computed<string[]>(() => accessFormRef.value?.removedViewerLabels ?? [])
 
 function handleAddInterfaceFromAccessForm(ifaceId: string) {
-  hardwareFormRef.value?.addInterface(ifaceId)
+  return hardwareFormRef.value?.addInterface(ifaceId)
 }
 
 // Check if hardware form has limited fields (using data from DomainHardwareForm)
@@ -115,9 +126,30 @@ const hasLimitedFields = computed(() => {
 
           <DomainAccessSummary
             :credentials="desktopData.guest_properties?.credentials"
-            :viewers="Object.keys(desktopData.guest_properties?.viewers || {})"
+            :viewers="selectedViewers"
             :fullscreen="desktopData.guest_properties?.fullscreen"
           />
+
+          <Alert
+            v-if="removedViewerLabels.length && !showAccessCustomization"
+            variant="default"
+            class="border-error-600"
+          >
+            <FeaturedIconOutline kind="outline" color="error" />
+            <AlertTitle>{{ t('components.domain.access.viewers-removed.title') }}</AlertTitle>
+            <AlertDescription>
+              {{ t('components.domain.access.viewers-removed.description') }}
+              <ul class="mt-3 space-y-1">
+                <li
+                  v-for="label in removedViewerLabels"
+                  :key="label"
+                  class="text-sm font-semibold text-error-600"
+                >
+                  {{ label }}
+                </li>
+              </ul>
+            </AlertDescription>
+          </Alert>
 
           <div class="flex items-center gap-2">
             <Separator />
@@ -146,7 +178,7 @@ const hasLimitedFields = computed(() => {
               :show-bastion-config="false"
               :credentials="desktopData.guest_properties?.credentials"
               :fullscreen="desktopData.guest_properties?.fullscreen"
-              :viewers="Object.keys(desktopData.guest_properties?.viewers || {})"
+              :viewers="selectedViewers"
               :hardware-interfaces="hardwareInterfaces"
               :on-request-add-interface="handleAddInterfaceFromAccessForm"
             />

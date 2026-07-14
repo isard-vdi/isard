@@ -136,21 +136,17 @@ const hardwareFormRef = ref<{
   isValid: boolean
   limitedFields: any
   interfaces: { value: string[] }
-  addInterface: (ifaceId: string) => void
-  wireguardAvailable: { value: boolean }
+  addInterface: (ifaceId: string) => boolean | undefined
 } | null>(null)
 
 const hardwareInterfaces = ref<string[]>(defaultHardware.interfaces)
-const wireguardAvailable = computed<boolean | undefined>(
-  () => hardwareFormRef.value?.wireguardAvailable?.value
-)
 
 function handleHardwareInterfacesUpdate(interfaces: string[]) {
   hardwareInterfaces.value = interfaces
 }
 
 function handleAddInterfaceFromAccessForm(ifaceId: string) {
-  hardwareFormRef.value?.addInterface(ifaceId)
+  return hardwareFormRef.value?.addInterface(ifaceId)
 }
 
 const hardwareFormIsValid = computed(() => hardwareFormRef.value?.isValid ?? true)
@@ -471,7 +467,6 @@ const handleSubmit = () => {
               :fullscreen="defaultAccess.fullscreen"
               :hardware-interfaces="hardwareInterfaces"
               :on-request-add-interface="handleAddInterfaceFromAccessForm"
-              :wireguard-available="wireguardAvailable"
             />
           </div>
         </div>
