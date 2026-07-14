@@ -372,7 +372,16 @@ function migDaysFrom ($scope) {
 function migSetDays ($scope, days) {
   const set = {};
   (days || []).forEach(function (d) { set[d] = true; });
-  $scope.find(".mig-day").each(function () { $(this).prop("checked", !!set[parseInt($(this).val(), 10)]); });
+  // The admin theme skins checkboxes with iCheck, which hides the real <input>
+  // and shows its own control — a plain .prop("checked") updates the input but
+  // NOT the visible skin, so presets appear to do nothing. Drive it through
+  // iCheck when the plugin is present (falling back to .prop for previews/tests).
+  const hasICheck = !!($.fn && $.fn.iCheck);
+  $scope.find(".mig-day").each(function () {
+    const on = !!set[parseInt($(this).val(), 10)];
+    if (hasICheck) $(this).iCheck(on ? "check" : "uncheck");
+    else $(this).prop("checked", on);
+  });
 }
 
 // The migration selection for the currently-chosen kind (every field a
