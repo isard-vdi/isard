@@ -1,0 +1,4 @@
+services:
+  isard-pyroscope:
+    ports:
+      - "${INFRASTRUCTURE_HOST_IP}:4040:4040"
