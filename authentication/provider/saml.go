@@ -22,6 +22,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/token"
 	httpErr "gitlab.com/isard/isardvdi/authentication/transport/http/error"
 	pkgNet "gitlab.com/isard/isardvdi/pkg/net"
+	pkgTls "gitlab.com/isard/isardvdi/pkg/tls"
 
 	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
@@ -101,6 +102,7 @@ type SAML struct {
 	brandingMux   sync.RWMutex
 	brandingHosts map[string]string
 	lastModelCfg  *model.SAMLConfig
+	keyPairMux    sync.Mutex
 }
 
 func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logger, db r.QueryExecutor, httpClient *http.Client) *SAML {
@@ -257,6 +259,22 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 
 		s.log.Debug().Str("url", cfg.MetadataURL).Msg("successfully fetched IdP metadata from URL")
 	}
+
+	// Generate the self-signed key pair if it's missing.
+	s.keyPairMux.Lock()
+	_, certErr := os.Stat(cfg.CertFile)
+	_, keyErr := os.Stat(cfg.KeyFile)
+	if certErr != nil || keyErr != nil {
+		if err := pkgTls.GenerateSelfSignedKeyPair(cfg.CertFile, cfg.KeyFile, pkgTls.CertConfig{
+			CommonName: s.host,
+			Duration:   10 * 365 * 24 * time.Hour,
+		}); err != nil {
+			s.keyPairMux.Unlock()
+			return fmt.Errorf("ensure SAML key pair: %w", err)
+
+		}
+	}
+	s.keyPairMux.Unlock()
 
 	k, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
 	if err != nil {
