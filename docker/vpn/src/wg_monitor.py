@@ -48,6 +48,24 @@ from isardvdi_apiv4_client.models import VpnConnectionRequest, VpnDisconnectList
 from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
 
+def _skip_unresolved_peer(response) -> None:
+    """Tolerate the benign per-peer 404 without poisoning the poll pass.
+
+    The per-peer calls in :func:`log_wireguard_peers` share a single ``for
+    peer in peers`` loop, so letting one peer's error abort the pass would
+    stop connected-status updates for every peer after it. A users-interface
+    peer whose ``client_ip`` maps to no ``users``/``remotevpn`` row makes
+    apiv4 return ``404`` — an eventually-consistent per-peer condition that
+    must simply be skipped. Every other status (5xx, 401, ...) is a systemic
+    failure, not a per-peer one, and is re-raised so it reaches the outer
+    retry loop exactly as a transport error would.
+    """
+    if response.status_code == 404:
+        log.warning("vpn_connection update skipped: no active client for this peer")
+        return
+    raise_for_status(response)
+
+
 class RemotePeer(NamedTuple):
     """State of a remote Wireguard peer."""
 
@@ -146,7 +164,7 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
                                     remote_port=int(remote_data[1]),
                                 ),
                             )
-                            raise_for_status(resp)
+                            _skip_unresolved_peer(resp)
                         peer_state[peer.public_key] = (
                             now_connected,
                             peer.latest_handshake,
@@ -163,7 +181,7 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
                             client_ip=client_ip,
                             client=client,
                         )
-                        raise_for_status(resp)
+                        _skip_unresolved_peer(resp)
                     elif not previously_connected and now_connected:
                         log.debug("POST: 2, WAS NOT CONNECTED, NOW CONNECTED")
                         resp = vpn_connection_connect.sync_detailed(
@@ -175,7 +193,7 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
                                 remote_port=int(remote_data[1]),
                             ),
                         )
-                        raise_for_status(resp)
+                        _skip_unresolved_peer(resp)
                     elif previously_connected and remote_addr != peer.remote_addr:
                         # Peer roamed
                         log.debug(
@@ -194,7 +212,7 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
                                 remote_port=int(remote_data[1]),
                             ),
                         )
-                        raise_for_status(resp)
+                        _skip_unresolved_peer(resp)
                     peer_state[peer.public_key] = (
                         now_connected,
                         peer.latest_handshake,
@@ -215,7 +233,7 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
                             for peer in peers_to_delete
                         ],
                     )
-                    raise_for_status(resp)
+                    _skip_unresolved_peer(resp)
                 peers_to_delete = []
             time.sleep(poll_delay)
         except:
