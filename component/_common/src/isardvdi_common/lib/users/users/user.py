@@ -1532,7 +1532,7 @@ class UsersProcessed(RethinkSharedConnection):
         cls.get_user(user_id)
 
         with cls._rdb_context():
-            user_media_ids = (
+            user_media_ids = list(
                 r.table("media")
                 .get_all(user_id, index="user")["id"]
                 .run(cls._rdb_connection)
