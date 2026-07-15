@@ -43,12 +43,36 @@ monkey.patch_all()
 
 from scheduler import app, socketio  # noqa: E402
 
-if __name__ == "__main__":
+
+def _serve():
+    # use_reloader=False on purpose: gevent monkey-patching is already done by
+    # monkey.patch_all() above. flask_socketio's gevent+reloader branch would
+    # otherwise call monkey.patch_thread() a SECOND time, which on
+    # gevent 25.5.1 + Python 3.13 crashes while re-patching already-patched
+    # locks (ReferenceError: weakly-referenced object no longer exists) — it
+    # walks existing lock weakrefs and trips on one already GC'd. This is
+    # unfixed upstream in both gevent and flask_socketio, so we must not enter
+    # that branch. Prod (use_reloader=False) already took the safe path.
     socketio.run(
         app,
         host="0.0.0.0",
         port=5000,
         debug=debug_enabled,
         log_output=debug_enabled,
-        use_reloader=reload_enabled,
+        use_reloader=False,
     )
+
+
+if __name__ == "__main__":
+    if reload_enabled:
+        # We are the Werkzeug reloader worker (WERKZEUG_RUN_MAIN=true); the
+        # supervisor half already ran run_with_reloader() above. Own the reload
+        # watcher here so devel hot-reload still works WITHOUT re-entering
+        # flask_socketio's crashing gevent reloader branch: run_with_reloader
+        # runs _serve in a (green) thread and the file-watch loop in the main
+        # thread, exiting 3 on a source change so the supervisor respawns us.
+        from werkzeug._reloader import run_with_reloader
+
+        run_with_reloader(_serve)
+    else:
+        _serve()
