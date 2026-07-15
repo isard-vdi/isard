@@ -312,7 +312,36 @@ $(document).ready(function () {
       "render": function (data, type, full, meta) {
         if (full.info) {
           if (!full.stats || !full.stats.cpu_1min) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
-          return full.info.cpu_cores + "c/" + full.info.cpu_cores * full.info.threads_x_core + "th " + renderProgress(Math.round(full.stats.cpu_1min.used), 20, 40)
+          var info = full.info
+          var threadsPerCore = info.threads_x_core
+          // libvirt getInfo() reports cores/threads PER SOCKET and the socket
+          // count unreliably (it often says sockets=1 on multi-socket NUMA
+          // hosts, e.g. a dual-socket EPYC shows 48c/96th instead of the real
+          // 96c/192th). cpu_threads (active CPUs) IS the reliable grand total,
+          // so derive the real totals from it and surface the socket count.
+          var totalThreads = info.cpu_threads
+          var cpuLabel
+          if (totalThreads > 0 && threadsPerCore > 0) {
+            var totalCores = Math.round(totalThreads / threadsPerCore)
+            // Prefer the authoritative SMBIOS socket count when present;
+            // fall back to deriving it for rows registered before the engine
+            // started reporting cpu_sockets.
+            var sockets = info.cpu_sockets > 0
+              ? info.cpu_sockets
+              : (info.cpu_cores > 0 ? Math.round(totalCores / info.cpu_cores) : 1)
+            cpuLabel = totalCores + "c/" + totalThreads + "th"
+            if (sockets > 1) {
+              cpuLabel += ' (' + sockets + ' sockets)'
+            }
+            // Always expose the socket count on hover (single- and multi-socket),
+            // with the per-socket breakdown.
+            var socketTitle = sockets + (sockets === 1 ? ' socket' : ' sockets') + ', ' + info.cpu_cores + 'c/' + (info.cpu_cores * threadsPerCore) + 'th per socket'
+            cpuLabel = '<span title="' + socketTitle + '">' + cpuLabel + '</span>'
+          } else {
+            // Fallback for older rows missing cpu_threads/threads_x_core.
+            cpuLabel = info.cpu_cores + "c/" + info.cpu_cores * threadsPerCore + "th"
+          }
+          return cpuLabel + " " + renderProgress(Math.round(full.stats.cpu_1min.used), 20, 40)
         }
       }
     },
