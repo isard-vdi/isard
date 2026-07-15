@@ -34,8 +34,10 @@ and is safe to host in isard-scheduler (the singleton orchestrator).
 
 import logging
 from datetime import datetime, timezone
+from functools import partial
 from os.path import dirname
 from time import time
+from uuid import uuid4
 
 try:  # py3.9+ stdlib; always present on our 3.13 images
     from zoneinfo import ZoneInfo
@@ -56,6 +58,7 @@ from isardvdi_common.models.storage_migration import (
 )
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
+from redis.exceptions import LockError, RedisError
 from rq.registry import StartedJobRegistry
 
 log = logging.getLogger(__name__)
@@ -86,8 +89,15 @@ ABANDON_GRACE_S = 30
 MAX_ABANDON_RESTARTS = 10
 
 
-def job_status(task_id):
+def job_status(task_id, *, check_abandon=True):
     """Failure-aware RQ status of a migration task id, or ``None`` if absent.
+
+    ``check_abandon`` (default True) enables the dead-worker detection below. The
+    edge-triggered path (``advance(check_abandon=False)``) turns it OFF so a
+    still-STARTED job of a momentarily-starved live worker is not sampled as GONE
+    on every sibling's completion event — the abandoned-worker resume stays the
+    responsibility of the periodic backstop, keeping its sampling frequency
+    exactly as before.
 
     A storage task can fail in TWO ways that rq's ``Job.get_status()`` does not
     report as ``failed`` — both caused silent data loss until handled here:
@@ -152,7 +162,7 @@ def job_status(task_id):
         # A STARTED job whose worker died is abandoned -> report it GONE so the
         # reconciler RESUMES (re-enqueues) it rather than waiting out the 12h
         # timeout. Only STARTED can be orphaned; queued/deferred just wait.
-        if status == "started" and _job_abandoned(task):
+        if check_abandon and status == "started" and _job_abandoned(task):
             return None
         return status
     except Exception:
@@ -217,7 +227,12 @@ class MigrationRunner:
         return pools[0] if pools else self.dst_pool
 
     def _enqueue(self, task, queue, kwargs, timeout=None):
-        job_kwargs = {"kwargs": kwargs}
+        # Stamp the migration id into the RQ job meta (the single chokepoint) so
+        # the storage worker echoes it on the stream:task-results completion event
+        # and an edge-triggered consumer can route a wake to advance(this
+        # migration). Task.__init__ setdefaults + persists meta, so a pre-existing
+        # meta dict is preserved; harmless when edge-triggering is off.
+        job_kwargs = {"kwargs": kwargs, "meta": {"migration_id": self.migration_id}}
         if timeout:
             job_kwargs["timeout"] = timeout
         return Task(
@@ -578,18 +593,64 @@ class MigrationRunner:
         disk's task and, once past MAX_ABANDON_RESTARTS, terminalize the tree
         instead of resuming again (a task whose worker keeps dying must not loop
         forever). Returns True when the budget is spent (caller must NOT
-        re-enqueue); the first abandonment always resumes."""
-        n = int(item.get("abandon_restarts") or 0) + 1
+        re-enqueue); the first abandonment always resumes.
+
+        The increment is a server-side atomic ``incr`` (not read-modify-write) so
+        two concurrent drivers can never lose an update and defeat the bound."""
+        n = StorageMigrationItem.incr(item["id"], "abandon_restarts")
+        if n is None:  # item vanished
+            return True
+        item["abandon_restarts"] = n
         if n > MAX_ABANDON_RESTARTS:
             self._terminalize_tree_failure(item)
             return True
-        self._set(item, abandon_restarts=n)
         return False
 
     def _start_move(self, item):
-        # A move_task_id already set means this is a RE-ENQUEUE (the prior move
-        # was lost on a restart or its worker was abandoned) -> resume, bounded.
-        if item.get("move_task_id") and self._abandon_resume_blocked(item):
+        observed = item.get("move_task_id")
+        # Atomic single-writer claim: exactly one driver may (re-)enqueue this
+        # move, so two overlapping drains can never launch two rsyncs onto the
+        # same destination file (the one genuinely corrupting double-submit).
+        # FRESH (pending): flip pending->moving AND reserve move_task_id with a
+        # unique fence in ONE atomic update, so state==moving ALWAYS carries a task
+        # id (no wedge window where a crash leaves moving+no-task-id unresumable).
+        # RESUME (a gone/fenced move_task_id): re-fence the observed id.
+        fence = f"claim:{uuid4().hex}"
+        if observed is None:
+            won = StorageMigrationItem.claim(
+                item["id"],
+                when={"state": MigrationItemState.PENDING.value},
+                set_fields={
+                    "state": MigrationItemState.MOVING.value,
+                    "move_task_id": fence,
+                },
+            )
+        else:
+            # Guard the DISPATCHING state (moving), matching _start_rebase/_start_verify:
+            # _mark_moved / _fail / _terminalize_tree_failure advance state OUT of moving
+            # while leaving move_task_id unchanged, so a driver holding a stale
+            # moving-snapshot must NOT win a resume claim after the disk already left
+            # moving -- else it would regress MOVED->MOVING or resurrect a terminalized
+            # FAILED/SKIPPED disk. The state guard makes any such stale claim fail.
+            won = StorageMigrationItem.claim(
+                item["id"],
+                when={
+                    "state": MigrationItemState.MOVING.value,
+                    "move_task_id": observed,
+                },
+                set_fields={"move_task_id": fence},
+            )
+        if not won:
+            return  # another driver won the claim; do not double-submit the rsync
+        item["state"] = MigrationItemState.MOVING.value
+        item["move_task_id"] = fence
+        # RESUME of a gone move -> bound the orphan-resume (only the winner counts).
+        # A fence ("claim:<uuid>") is a slot we reserved but whose worker never ran
+        # (e.g. a scheduler crash between the claim and the enqueue), NOT an abandoned
+        # task -- re-driving it must not spend the MAX_ABANDON_RESTARTS budget meant
+        # to bound genuine worker deaths.
+        observed_real = observed and not str(observed).startswith("claim:")
+        if observed_real and self._abandon_resume_blocked(item):
             return
         # Record the storage's pre-migration status ONCE (before maintenance) so
         # release/failure restore the ORIGINAL status rather than a hardcoded
@@ -648,9 +709,22 @@ class MigrationRunner:
         self._set(item, state=MigrationItemState.MOVED.value)
 
     def _start_rebase(self, item):
+        observed = item.get("rebase_task_id")
+        # Atomic single-writer claim: fence rebase_task_id (None fresh / the gone
+        # id on resume) so exactly one driver (re-)enqueues. State stays ``moved``.
+        fence = f"claim:{uuid4().hex}"
+        if not StorageMigrationItem.claim(
+            item["id"],
+            when={"state": MigrationItemState.MOVED.value, "rebase_task_id": observed},
+            set_fields={"rebase_task_id": fence},
+        ):
+            return
+        item["rebase_task_id"] = fence
         # rebase_task_id already set -> RE-ENQUEUE of a lost/abandoned rebase
-        # (rebase -u is idempotent) -> resume, bounded.
-        if item.get("rebase_task_id") and self._abandon_resume_blocked(item):
+        # (rebase -u is idempotent) -> resume, bounded. A fence ("claim:<uuid>") is
+        # a reserved-but-never-run slot, not an abandoned task -> don't charge it.
+        observed_real = observed and not str(observed).startswith("claim:")
+        if observed_real and self._abandon_resume_blocked(item):
             return
         task_id = self._enqueue(
             "rebase",
@@ -701,9 +775,25 @@ class MigrationRunner:
         # destination pool's worker (where the file lives). Read-only, so a lost
         # job is safe to re-enqueue. A root has no in-tree parent, so no backing
         # expectation; a non-root must back onto parent_dst_path.
+        observed = item.get("verify_task_id")
+        # Atomic single-writer claim: fence verify_task_id (None fresh / the gone
+        # id on resume) so exactly one driver (re-)enqueues. State stays ``rebased``.
+        fence = f"claim:{uuid4().hex}"
+        if not StorageMigrationItem.claim(
+            item["id"],
+            when={
+                "state": MigrationItemState.REBASED.value,
+                "verify_task_id": observed,
+            },
+            set_fields={"verify_task_id": fence},
+        ):
+            return
+        item["verify_task_id"] = fence
         # verify_task_id already set -> RE-ENQUEUE of a lost/abandoned verify
-        # (read-only, idempotent) -> resume, bounded.
-        if item.get("verify_task_id") and self._abandon_resume_blocked(item):
+        # (read-only, idempotent) -> resume, bounded. A fence ("claim:<uuid>") is
+        # a reserved-but-never-run slot, not an abandoned task -> don't charge it.
+        observed_real = observed and not str(observed).startswith("claim:")
+        if observed_real and self._abandon_resume_blocked(item):
             return
         task_id = self._enqueue(
             "migration_verify_destination",
@@ -989,3 +1079,119 @@ class MigrationRunner:
             )
             for it in items
         )
+
+
+# --------------------------------------------------------------------------- #
+# advance() — the ONE serialized entry point that runs the reconciler
+# --------------------------------------------------------------------------- #
+#: statuses a migration can be driven from (mirrors the scheduler enumeration in
+#: scheduler.lib.actions.storage_migration_tick).
+_DRIVABLE_STATUSES = {
+    MigrationStatus.RUNNING.value,
+    MigrationStatus.WINDOW_CLOSED.value,
+    MigrationStatus.FINISHING_TREE.value,
+    MigrationStatus.SCHEDULED.value,
+}
+#: Per-migration advance lease TTL. MUST exceed the worst-case SINGLE tick(): a
+#: tick can block on the rethink pool-acquire timeout (~30s) plus redis
+#: round-trips, and gevent cannot preempt between the top-of-loop reacquire()
+#: calls — so the safety bound is per-tick, not per-drain. 90s leaves generous
+#: headroom over the 30s pool timeout. (Calibrate against measured p99 before the
+#: multi-driver Stage 2 turns the lease into a load-bearing efficiency guard.)
+ADVANCE_LOCK_TTL = 90
+#: Bounded backstop against a runaway drain (mirrors the historical 500-cap in
+#: scheduler.lib.actions); a normal drain breaks out after 1-2 iterations once
+#: every tree is waiting on an in-flight RQ task.
+ADVANCE_MAX_ITERATIONS = 500
+
+
+def advance(migration_id, *, check_abandon=True):
+    """Drive ONE migration forward through a single, serialized drain.
+
+    The ONLY entry point that runs the reconciler: the scheduler backstop calls
+    it (and, in a later edge-triggered stage, an orchestrator will too); nothing
+    calls ``MigrationRunner.tick()`` directly. Returns a short status string
+    (``"gone"`` / ``"not_drivable"`` / ``"busy"`` / ``"done"`` / ``"aborted"``),
+    where ``"aborted"`` (distinct from a clean ``"done"``) means the drain gave up
+    its lease mid-flight so an edge caller knows to re-wake.
+
+    Single-writer-per-MIGRATION is enforced here by the per-migration redis lease
+    (this is the load-bearing guarantee, in code — not the deployment accident of
+    one scheduler process). The atomic ``StorageMigrationItem.claim`` in every
+    enqueue action is a second, per-disk defense-in-depth layer that makes the
+    *_task_id transitions themselves atomic; note it does NOT by itself close the
+    fence-observable-as-gone window against a genuinely concurrent second driver
+    (that is a Stage-2 requirement — make a fresh "claim:" fence non-resumable
+    within a bounded window), so today the lease is what keeps drains disjoint.
+    A watchdog ``reacquire()`` at the TOP of each iteration keeps a long drain's
+    lease alive; if it can no longer be renewed the drain aborts and the periodic
+    backstop resumes from the ledger.
+
+    Gevent discipline (this runs inside the GeventScheduler greenlet, verified
+    safe by the gevent-safety audit): a NON-BLOCKING acquire (never stall the
+    drain on contention — skip and let the next pass retry); acquire / reacquire /
+    release all stay in THIS greenlet (the redis-py Lock token is greenlet-local);
+    ``ADVANCE_LOCK_TTL`` >> worst-case tick; and the release lives in a ``finally``
+    that runs even on ``GreenletExit`` (a ``BaseException`` raised on scheduler
+    shutdown, which a bare ``except Exception`` would miss and leak the lease),
+    owner-guarded so a TTL-expired-then-re-taken lock is never stolen-released.
+
+    ``check_abandon`` gates the dead-worker resume detection: the periodic
+    backstop passes True; an edge-triggered caller passes False so a still-STARTED
+    job is not sampled as GONE on every sibling's completion event.
+    """
+    if not StorageMigration.exists(migration_id):
+        return "gone"
+    if str(StorageMigration(migration_id).status) not in _DRIVABLE_STATUSES:
+        return "not_drivable"
+    # ONE connection per advance(), reused for acquire/reacquire/release, with a
+    # socket timeout so a STALLED (not down) redis surfaces as an error instead of
+    # hanging the drain while holding a lease whose TTL then lapses.
+    conn = redis.from_url(rq_url(), socket_timeout=5, socket_connect_timeout=5)
+    lock = conn.lock(
+        f"lock:migration:advance:{migration_id}",
+        timeout=ADVANCE_LOCK_TTL,
+        blocking_timeout=0,  # never spin on contention — skip this pass instead
+        thread_local=True,  # token is greenlet-local; acquire+release same greenlet
+    )
+    if not lock.acquire():
+        return "busy"  # another driver is already draining this migration
+    jf = partial(job_status, check_abandon=check_abandon)
+    aborted = False
+    try:
+        runner = MigrationRunner(migration_id, job_status_fn=jf)
+        for _ in range(ADVANCE_MAX_ITERATIONS):
+            # Watchdog at the TOP of the loop: renew the lease BEFORE doing work,
+            # so the exclusion guarantee is per-tick. If we can no longer renew --
+            # lease lost/re-taken (LockError) OR a stalled redis (Timeout/
+            # ConnectionError, both RedisError) -- abort at once (do not keep
+            # mutating the ledger unlocked); the backstop resumes from the ledger.
+            try:
+                lock.reacquire()
+            except RedisError as exc:
+                log.warning(
+                    "migration: advance could not renew its lease mid-drain for "
+                    "%s (%s); aborting (backstop will resume)",
+                    migration_id,
+                    type(exc).__name__,
+                )
+                aborted = True
+                break
+            results = runner.tick()
+            if runner.is_complete() or not mig.tick_made_progress(results):
+                break
+    finally:
+        # Runs on GreenletExit too. Owner-guarded release: release() raises
+        # LockNotOwnedError if our lease lapsed and was re-taken; a stalled redis
+        # raises TimeoutError. Swallow BOTH (RedisError) -- the lease expires via
+        # its TTL regardless -- so teardown never leaks an exception out of
+        # advance(). Then close the per-call client so we don't churn sockets.
+        try:
+            lock.release()
+        except RedisError:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
+    return "aborted" if aborted else "done"

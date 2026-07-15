@@ -69,6 +69,26 @@ def _runner(
     monkeypatch.setattr(
         mr.StorageMigrationItem, "update_document", classmethod(_update)
     )
+
+    def _claim(cls, item_id, *, when, set_fields):
+        for it in items:
+            if it["id"] == item_id:
+                if all(it.get(k) == v for k, v in when.items()):
+                    it.update(set_fields)
+                    return True
+                return False
+        return False
+
+    monkeypatch.setattr(mr.StorageMigrationItem, "claim", classmethod(_claim))
+
+    def _incr(cls, item_id, field, by=1):
+        for it in items:
+            if it["id"] == item_id:
+                it[field] = int(it.get(field) or 0) + by
+                return it[field]
+        return None
+
+    monkeypatch.setattr(mr.StorageMigrationItem, "incr", classmethod(_incr))
     monkeypatch.setattr(
         mr.StorageMigrationItem,
         "upsert",

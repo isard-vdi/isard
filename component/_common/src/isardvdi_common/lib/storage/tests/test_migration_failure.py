@@ -489,6 +489,31 @@ def _tick_runner(monkeypatch, items, status, job_status_fn):
 
     monkeypatch.setattr(mr.StorageMigrationItem, "update_document", classmethod(_upd))
 
+    # Faithful in-memory analogues of the atomic ledger primitives: claim applies
+    # set_fields iff every when-field matches (returns the winner bool); incr bumps
+    # an int field and returns the new value — same contract as the real
+    # RethinkDB r.branch / atomic-add, for the single-threaded test.
+    def _claim(cls, item_id, *, when, set_fields):
+        for it in items:
+            if it["id"] == item_id:
+                if all(it.get(k) == v for k, v in when.items()):
+                    it.update(set_fields)
+                    caps["item_updates"].append((item_id, dict(set_fields)))
+                    return True
+                return False
+        return False
+
+    monkeypatch.setattr(mr.StorageMigrationItem, "claim", classmethod(_claim))
+
+    def _incr(cls, item_id, field, by=1):
+        for it in items:
+            if it["id"] == item_id:
+                it[field] = int(it.get(field) or 0) + by
+                return it[field]
+        return None
+
+    monkeypatch.setattr(mr.StorageMigrationItem, "incr", classmethod(_incr))
+
     class _S:
         def __init__(self, sid):
             self._sid = sid
@@ -707,6 +732,13 @@ def test_abandon_resume_climbs_to_terminalize_when_stuck(monkeypatch):
     r.migration_id = "m"
 
     item = _it("s0", None, "moving", move_task_id="mt", abandon_restarts=0)
+
+    def _incr(cls, iid, field, by=1):
+        item[field] = int(item.get(field) or 0) + by
+        return item[field]
+
+    monkeypatch.setattr(mr.StorageMigrationItem, "incr", classmethod(_incr))
+
     for n in range(1, mr.MAX_ABANDON_RESTARTS + 1):
         assert r._abandon_resume_blocked(item) is False
         assert item["abandon_restarts"] == n
