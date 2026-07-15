@@ -1545,18 +1545,20 @@ class DeploymentsProcessed(RethinkSharedConnection):
 
     @staticmethod
     def _convert_and_propagate_edited_memory(deployment_hardware, desktop_data):
-        """Convert the merged GB memory to KiB on the deployment create_dict and
-        on ``desktop_data`` (which updates the domain rows), so domains store KiB
-        not the raw GB number. Rounds up to the minimum; skips the write-back on
-        a hardware-less edit (rename)."""
-        memory_kib = Helpers.memory_gib_to_kib(deployment_hardware["memory"])
-        deployment_hardware["memory"] = memory_kib
+        """Store the merged, quota-capped memory as KiB on the deployment
+        create_dict (written to the deployments row verbatim) and propagate the
+        capped value in GB onto ``desktop_data`` so ``update_desktop`` →
+        ``parse_domain_update`` converts it to KiB exactly once — propagating KiB
+        here double-converted the domain rows. Skips the write-back on a
+        hardware-less edit (rename)."""
+        memory_gib = deployment_hardware["memory"]
+        deployment_hardware["memory"] = Helpers.memory_gib_to_kib(memory_gib)
         if (
             isinstance(desktop_data.get("hardware"), dict)
             and "memory" in desktop_data["hardware"]
         ):
-            desktop_data["hardware"]["memory"] = memory_kib
-        return memory_kib
+            desktop_data["hardware"]["memory"] = memory_gib
+        return deployment_hardware["memory"]
 
     @classmethod
     def edit_deployment_desktops(

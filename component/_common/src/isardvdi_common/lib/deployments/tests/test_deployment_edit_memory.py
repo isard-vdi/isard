@@ -10,12 +10,15 @@ from isardvdi_common.lib.deployments import deployments as mod
 CONVERT = mod.DeploymentsProcessed._convert_and_propagate_edited_memory
 
 
-def test_memory_converted_to_kib_on_deployment_and_propagated_to_desktop_data():
+def test_recipe_stored_as_kib_desktop_data_stays_gib_for_single_downstream_convert():
+    # The deployment row is written verbatim, so it needs KiB. desktop_data
+    # feeds update_desktop → parse_domain_update, which converts GiB→KiB again,
+    # so it must stay GiB here — propagating KiB double-converted the domain rows.
     dep_hw = {"memory": 8.0, "vcpus": 4}
     desktop_data = {"hardware": {"memory": 8.0, "vcpus": 4}}
     CONVERT(dep_hw, desktop_data)
     assert dep_hw["memory"] == 8388608  # 8 GiB in KiB
-    assert desktop_data["hardware"]["memory"] == 8388608  # domain rows get KiB too
+    assert desktop_data["hardware"]["memory"] == 8.0  # GiB, converted once downstream
 
 
 def test_rename_without_hardware_does_not_keyerror():
@@ -42,4 +45,4 @@ def test_sub_minimum_memory_is_rounded_up():
     desktop_data = {"hardware": {"memory": 8 / 1048576}}
     CONVERT(dep_hw, desktop_data)
     assert dep_hw["memory"] == 25600  # 25 MiB floor
-    assert desktop_data["hardware"]["memory"] == 25600
+    assert desktop_data["hardware"]["memory"] == 8 / 1048576  # GiB, floored downstream
