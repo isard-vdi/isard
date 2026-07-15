@@ -2,7 +2,7 @@ services:
   isard-notifier:
     container_name: isard-notifier
     ports:
-      - "5002:5000"
+      - "${INFRASTRUCTURE_HOST_IP:-0.0.0.0}:5002:5000"
     environment:
       PYTHONPATH: /opt/isardvdi
     volumes:

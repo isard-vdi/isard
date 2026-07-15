@@ -18,8 +18,8 @@ services:
     working_dir: /usr/local/src/isard-frontend-dev/
     command: sh -c "bun install && (bun run storybook --no-open & bun run dev --host)"
     ports:
-      - "6006:6006"
-      - 5173:5173
+      - "${INFRASTRUCTURE_HOST_IP:-0.0.0.0}:6006:6006"
+      - "${INFRASTRUCTURE_HOST_IP:-0.0.0.0}:5173:5173"
     volumes:
     - ${BUILD_ROOT_PATH}/component/frontend/:/usr/local/src/isard-frontend-dev/
 

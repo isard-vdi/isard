@@ -1,7 +1,7 @@
 services:
   isard-grafana:
     ports:
-      - "3000:3000"
+      - "${INFRASTRUCTURE_HOST_IP:-0.0.0.0}:3000:3000"
 
   isard-victoriametrics:
     ports:
