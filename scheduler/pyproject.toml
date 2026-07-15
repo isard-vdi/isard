@@ -9,7 +9,7 @@ dependencies = [
   "gevent==25.5.1",
   "isardvdi-apiv4-client",
   "isardvdi-common",
-  "pyjwt==2.10.1",
+  "pyjwt==2.13.0",
   "pytz==2025.2",
   "requests==2.32.4",
   "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz",
