@@ -233,3 +233,79 @@ def test_check_default_paths_requires_every_usage_type():
     with pytest.raises(Exception) as exc:
         SPP._check_default_paths(bad)
     assert exc.value.args[0] == "bad_request"
+
+
+# --------------------------------------------------------------------------- #
+# update_storage_pool — default pool protected fields (bug #2370)
+#
+# The default pool's name/description/mountpoint/category-set are immutable.
+# Previously an attempt to change them was silently ``data.pop``-ed, so the API
+# answered 204/OK while the rename was discarded (a client can never tell its
+# edit was dropped). It must instead be rejected explicitly (like ``enabled``),
+# while a no-op resend of the current value (as a full-object PUT sends) is
+# tolerated and the non-protected fields still apply.
+# --------------------------------------------------------------------------- #
+DEFAULT_ID = mod.DEFAULT_STORAGE_POOL_ID
+
+
+@pytest.fixture
+def stub_default_pool(monkeypatch):
+    """StoragePool.get(<default id>) returns a fixed current row so
+    update_storage_pool can diff protected fields against it."""
+    current = {
+        "id": DEFAULT_ID,
+        "name": "isard",
+        "description": "Default storage pool",
+        "mountpoint": "/isard",
+        "categories": ["cat-a", "cat-b"],
+        "enabled": True,
+    }
+    monkeypatch.setattr(mod.StoragePool, "get", lambda _id: dict(current))
+    return current
+
+
+def _default_update_mock(stub_rdb):
+    """The r.table('storage_pool').get(id).update(data) mock."""
+    return stub_rdb.return_value.get.return_value.update
+
+
+def test_update_default_pool_rejects_rename(stub_default_pool, stub_rdb):
+    with pytest.raises(Exception) as exc:
+        SPP.update_storage_pool(DEFAULT_ID, {"name": "renamed"})
+    assert exc.value.args[0] == "bad_request"
+    assert "name" in exc.value.args[1]
+    # The bug: it must NOT silently reach the DB write.
+    assert not _default_update_mock(stub_rdb).called
+
+
+def test_update_default_pool_rejects_description_change(stub_default_pool, stub_rdb):
+    with pytest.raises(Exception) as exc:
+        SPP.update_storage_pool(DEFAULT_ID, {"description": "new desc"})
+    assert exc.value.args[0] == "bad_request"
+    assert "description" in exc.value.args[1]
+    assert not _default_update_mock(stub_rdb).called
+
+
+def test_update_default_pool_tolerates_noop_resend(stub_default_pool, stub_rdb):
+    # A full-object PUT resends the current name unchanged alongside a real edit.
+    SPP.update_storage_pool(DEFAULT_ID, {"name": "isard", "write": True})
+    update = _default_update_mock(stub_rdb)
+    assert update.called
+    payload = update.call_args.args[0]
+    assert "name" not in payload  # popped as a no-op, not written
+    assert payload.get("write") is True  # the real edit is applied
+
+
+def test_update_default_pool_allows_non_protected_field(stub_default_pool, stub_rdb):
+    SPP.update_storage_pool(DEFAULT_ID, {"write": True})
+    update = _default_update_mock(stub_rdb)
+    assert update.called
+    assert update.call_args.args[0].get("write") is True
+
+
+def test_update_default_pool_categories_reorder_is_noop(stub_default_pool, stub_rdb):
+    # Same set, different order → tolerated (compared as a set), reaches the DB.
+    SPP.update_storage_pool(
+        DEFAULT_ID, {"categories": ["cat-b", "cat-a"], "write": True}
+    )
+    assert _default_update_mock(stub_rdb).called
