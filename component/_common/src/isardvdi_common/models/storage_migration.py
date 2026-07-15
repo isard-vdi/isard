@@ -387,6 +387,68 @@ class StorageMigrationItem(RethinkCustomBase):
         self._update_cache(**update)
         return update
 
+    @classmethod
+    def claim(cls, item_id, *, when: dict, set_fields: dict) -> bool:
+        """Atomic conditional ledger claim (RethinkDB per-document atomicity).
+
+        Apply ``set_fields`` to the item IFF every field named in ``when``
+        currently equals its given value (a missing field matches ``None``).
+        Returns ``True`` iff THIS call is the one that applied the change, so two
+        concurrent drivers racing to (re-)enqueue the same disk's storage task
+        yield exactly ONE winner — making single-writer-per-disk a property of the
+        LEDGER, not of who happens to call the reconciler. ``set_fields`` MUST
+        change at least one field away from its ``when`` value (the callers use a
+        state transition or a unique fence), so a genuine winner always reports
+        ``replaced`` and the loser reports ``unchanged``.
+
+        A single-document ``update`` is atomic in RethinkDB, so the two racing
+        updates are serialized: the first flips the guarded field(s) and the
+        second's ``when`` predicate no longer holds, yielding ``{}`` (no-op).
+        """
+        # An empty ``when`` makes ``r.and_()`` evaluate to true, degrading the CAS
+        # to an unconditional write (every concurrent caller "wins") -- never a
+        # legitimate claim. Fail loudly instead of silently disabling the guard.
+        if not when:
+            raise ValueError("claim() requires a non-empty `when` predicate")
+        with cls._rdb_context():
+            res = (
+                r.table(cls._rdb_table)
+                .get(item_id)
+                .update(
+                    lambda row: r.branch(
+                        r.and_(*[row[f].default(None).eq(v) for f, v in when.items()]),
+                        set_fields,
+                        {},
+                    )
+                )
+                .run(cls._rdb_connection)
+            )
+        return bool(res.get("replaced", 0))
+
+    @classmethod
+    def incr(cls, item_id, field, by: int = 1):
+        """Atomically increment an integer ``field`` and return its NEW value.
+
+        Server-side ``row[field].default(0).add(by)`` so a lost read-modify-write
+        can never defeat a bound (e.g. ``abandon_restarts`` vs
+        ``MAX_ABANDON_RESTARTS``). Returns the post-increment value, or ``None`` if
+        the item is gone.
+        """
+        with cls._rdb_context():
+            res = (
+                r.table(cls._rdb_table)
+                .get(item_id)
+                .update(
+                    lambda row: {field: row[field].default(0).add(by)},
+                    return_changes=True,
+                )
+                .run(cls._rdb_connection)
+            )
+        try:
+            return res["changes"][0]["new_val"][field]
+        except (KeyError, IndexError, TypeError):
+            return None
+
 
 class StorageMigration(RethinkCustomBase):
     """Job-level ledger row."""
