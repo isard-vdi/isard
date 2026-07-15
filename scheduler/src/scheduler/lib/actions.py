@@ -77,8 +77,9 @@ from isardvdi_apiv4_client.models import (
 )
 from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 from isardvdi_common.lib.gpu_pool_policy import canonical_suffix, profile_suffix_from_id
-from isardvdi_common.lib.storage import migration as storage_migration
-from isardvdi_common.lib.storage.migration_run import MigrationRunner
+from isardvdi_common.lib.storage.migration_run import (
+    advance as storage_migration_advance,
+)
 from isardvdi_common.models.storage_migration import MigrationStatus, StorageMigration
 
 from .api_client import ApiClient
@@ -195,15 +196,12 @@ class Actions:
             return
         for mid in running:
             try:
-                runner = MigrationRunner(mid)
-                # Drain: bounded backstop; normally breaks after 1-2 iterations
-                # when every tree is waiting on a move/rebase task.
-                for _ in range(500):
-                    results = runner.tick()
-                    if runner.is_complete() or not storage_migration.tick_made_progress(
-                        results
-                    ):
-                        break
+                # The reconciler drain now lives in migration_run.advance(), which
+                # owns the per-migration lease + bounded drain and is the single
+                # serialized entry point. This periodic sweep is the crash-safety
+                # BACKSTOP, so it enables dead-worker resume detection
+                # (check_abandon=True).
+                storage_migration_advance(mid, check_abandon=True)
             except Exception:
                 log.error(
                     f"storage_migration_tick: migration {mid} failed: "

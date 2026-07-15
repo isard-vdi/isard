@@ -135,6 +135,11 @@ def _publishes_result(func):
                     task_name=task_name,
                     queue=job.origin,
                     job_status="failed",
+                    # echo the migration id (stamped into job.meta by the
+                    # reconciler _enqueue) so an edge-triggered consumer can route
+                    # a wake to advance(this migration). None for non-migration
+                    # tasks -> dropped by _publish_task_event.
+                    migration_id=(job.meta or {}).get("migration_id"),
                 )
             raise
         job = get_current_job()
@@ -146,6 +151,7 @@ def _publishes_result(func):
                 task_name=task_name,
                 queue=job.origin,
                 job_status="finished",
+                migration_id=(job.meta or {}).get("migration_id"),
             )
         return result
 
