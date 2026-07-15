@@ -298,7 +298,10 @@ def test_release_blocked_until_destination_verified():
     # gate enqueued, still running -> wait (still no db_update/release)
     item["verify_task_id"] = "v1"
     assert mig.tree_next([item], lambda tid: "started")[1] == "wait"
-    # gate passed -> the row is repointed (db_update), THEN the source released
+    # gate passed -> the pass is PERSISTED first (mark_verified, so it survives the
+    # rq job result expiring), THEN the row is repointed (db_update), THEN released
+    assert mig.tree_next([item], lambda tid: "finished")[1] == "mark_verified"
+    item["verify_passed"] = True
     assert mig.tree_next([item], lambda tid: "finished")[1] == "db_update"
     item["state"] = "db_updated"
     assert mig.tree_next([item], lambda tid: "finished")[1] == "release"
@@ -357,13 +360,20 @@ def test_no_source_released_until_every_destination_verified():
     status = {"vp": "finished", "vc": "failed"}
     it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
     assert action == "fail" and it["id"] == "i-c"
-    # while the child gate is still running, the parent is NOT committed either.
+    # while the child gate is still running, the parent is NOT committed: its pass
+    # is persisted (mark_verified) but db_update is withheld until the child passes.
     status = {"vp": "finished", "vc": "started"}
     it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
+    assert action == "mark_verified" and it["id"] == "i-p"
+    parent["verify_passed"] = True
+    it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
     assert action == "wait"
-    # only once BOTH gates pass does the commit begin: db_update-all first, then
-    # release-all (the source delete follows the last row repoint).
+    # only once BOTH gates pass (and are recorded) does the commit begin:
+    # db_update-all first, then release-all (source delete follows last repoint).
     status = {"vp": "finished", "vc": "finished"}
+    it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
+    assert action == "mark_verified" and it["id"] == "i-c"
+    child["verify_passed"] = True
     it, action = mig.tree_next([parent, child], lambda tid: status.get(tid))
     assert action == "db_update"
     parent["state"] = "db_updated"

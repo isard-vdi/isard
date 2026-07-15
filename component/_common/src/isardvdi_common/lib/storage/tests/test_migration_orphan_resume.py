@@ -129,10 +129,14 @@ def test_no_release_until_verify_actually_finishes(started_job):
     _it, action = mig.tree_next([item], mr.job_status)
     assert action == "start_verify"
 
-    # only once the verify task actually FINISHES is the row repointed
-    # (db_update); the source delete (release) follows once it is committed
+    # once the verify task actually FINISHES the pass is persisted (mark_verified)
+    # so it survives the rq job result expiring; only then is the row repointed
+    # (db_update), and the source delete (release) follows once it is committed
     Job.fetch(tid, connection=conn).set_status(JobStatus.FINISHED)
     conn.zrem(registry.key, tid)
+    _it, action = mig.tree_next([item], mr.job_status)
+    assert action == "mark_verified"
+    item["verify_passed"] = True
     _it, action = mig.tree_next([item], mr.job_status)
     assert action == "db_update"
     item["state"] = "db_updated"

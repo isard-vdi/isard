@@ -218,6 +218,11 @@ def aggregate_status(migration, items, *, include_items=False):
     payload = {
         "id": migration.id,
         "status": str(migration.status),
+        # what this job moves and where to (src/dst pool ids, kind, path/category)
+        # — static, but carried on every aggregate so the admin table + detail can
+        # always show the origin → destination route (resolved to pool names in the
+        # UI). Shared by the status endpoint and the socket emit.
+        "selection": getattr(migration, "selection", None) or {},
         "config": cfg,
         "current_window": getattr(migration, "current_window", None),
         "eta_seconds": None if eta is None else int(eta),
@@ -402,7 +407,20 @@ def verify_gate_state(item, job_status_fn):
     (rsync returns a non-zero rc WITHOUT raising) yet leaves the destination
     absent/partial, which for a ROOT disk skips rebase and would otherwise reach
     release with zero destination verification.
+
+    A passed gate is PERSISTED on the item (``verify_passed``) and short-circuits
+    here: unlike move/rebase — whose finished job is immediately recorded as a
+    state transition (``moved``/``rebased``) — a passed verify does NOT advance
+    the disk's state (db_update is deferred to Phase B2, past the whole-tree
+    gate), so without a durable flag the "passed" observation lived ONLY in the
+    ephemeral rq job result. On a many-disk tree the gate is driven one disk per
+    tick, so an early disk's verify job expires from redis (``job_status`` -> None
+    -> ``"start"``) long before the last disk is verified — the tree could never
+    see every disk passed at once and re-verified forever. The flag makes each
+    pass monotonic, exactly as the ``moved``/``rebased`` transitions do for A.
     """
+    if item.get("verify_passed"):
+        return "passed"
     if not item.get("verify_task_id"):
         return "start"
     st = job_status_fn(item.get("verify_task_id"))
@@ -508,6 +526,7 @@ PROGRESS_ACTIONS = {
     "skip_rebase",
     "db_update",
     "start_verify",
+    "mark_verified",
     "release",
     "skip_release",
 }
@@ -1011,6 +1030,16 @@ def tree_next(tree_items, job_status_fn):
     # B1 — drive the destination gate on every rebased disk that still needs it.
     # An in-place disk (dst == src) never moved: no destination to verify and no
     # separate source to delete, so it is excluded from the gate entirely.
+    # The whole tree is scanned before any non-fail action so a failed gate
+    # ALWAYS terminalizes promptly (fail takes priority over starting/recording a
+    # sibling's gate — no pointless work on a doomed tree). A "wait" does NOT
+    # short-circuit either: every disk's (idempotent, read-only) verify is
+    # enqueued and a freshly-passed one is recorded within the SAME drain cycle,
+    # so all disks verify concurrently on the worker instead of one-per-tick
+    # (which, at ~1 disk/min, let early verify results expire before the last disk
+    # was reached). "wait" is reported only once the whole tree is passed or
+    # in-flight, so db_update (B2) still waits for the entire tree's gate to pass.
+    to_start = to_mark = waiting = None
     for it in rebased:
         if item_in_place(it):
             continue
@@ -1018,9 +1047,19 @@ def tree_next(tree_items, job_status_fn):
         if gate == "fail":
             return (it, "fail")
         if gate == "start":
-            return (it, "start_verify")
-        if gate == "wait":
-            return (it, "wait")
+            to_start = to_start or it
+        elif gate == "passed" and not it.get("verify_passed"):
+            # Passed but not yet persisted -> record it durably so the pass
+            # survives the rq job result expiring (see verify_gate_state).
+            to_mark = to_mark or it
+        elif gate == "wait":
+            waiting = waiting or it
+    if to_start is not None:
+        return (to_start, "start_verify")
+    if to_mark is not None:
+        return (to_mark, "mark_verified")
+    if waiting is not None:
+        return (waiting, "wait")
     # B2 — every destination verified; NOW repoint the rows (db_update). Deferred
     # to here (past the gate) so a verify failure never leaves a row committed to
     # a destination that did not pass. An in-place disk is repointed too: its

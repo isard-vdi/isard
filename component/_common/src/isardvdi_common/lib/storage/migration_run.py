@@ -415,6 +415,7 @@ class MigrationRunner:
             move_started_at=None,
             rebase_task_id=None,
             verify_task_id=None,
+            verify_passed=False,
             move_delete_task_id=None,
             storage_orig_status=None,
             autostart_domains=None,
@@ -714,6 +715,15 @@ class MigrationRunner:
         )
         self._set(item, verify_task_id=task_id)
 
+    def _mark_verified(self, item):
+        # Persist a passed pre-release gate. The disk stays ``rebased`` (db_update
+        # is deferred to Phase B2, after the WHOLE tree's gate passes), so — unlike
+        # move/rebase, whose finished job is recorded as a state transition — the
+        # pass has no state to live in and would otherwise survive only in the
+        # ephemeral rq job result, which expires between ticks on a many-disk tree
+        # and made the gate re-verify forever. Flagging it makes the pass durable.
+        self._set(item, verify_passed=True)
+
     def _release(self, item):
         # Whole tree is committed AND every destination has passed the pre-release
         # verify gate by now (tree_next only reaches release once a disk is
@@ -787,6 +797,7 @@ class MigrationRunner:
         "skip_rebase": _skip_rebase,
         "db_update": _db_update,
         "start_verify": _start_verify,
+        "mark_verified": _mark_verified,
         "release": _release,
         "skip_release": _skip_release,
         "fail": _fail,

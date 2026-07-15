@@ -88,8 +88,60 @@ def test_db_update_deferred_until_destination_verified():
     # gate FAILED -> fail; db_update was never issued, so the row still points at
     # the retained source.
     assert mig.tree_next([it], _status({"v": "failed"}))[1] == "fail"
-    # gate PASSED -> only NOW is the row repointed (db_update).
+    # gate PASSED -> the pass is PERSISTED first (mark_verified) so it survives the
+    # rq job result expiring; only once flagged is the row repointed (db_update).
+    assert mig.tree_next([it], _status({"v": "finished"}))[1] == "mark_verified"
+    it["verify_passed"] = True
     assert mig.tree_next([it], _status({"v": "finished"}))[1] == "db_update"
+
+
+def test_passed_verify_is_persisted_and_survives_job_expiry():
+    """Regression: a passed pre-release gate must be recorded durably.
+
+    Unlike move/rebase — whose finished job is immediately turned into a state
+    transition (``moved``/``rebased``) — a passed verify keeps the disk at
+    ``rebased`` (db_update is deferred to Phase B2). So the ONLY record of the
+    pass was the rq job result, which expires from redis (``job_status`` -> None).
+    On a many-disk tree, driven one disk per tick, an early disk's verify job
+    expired before the last disk was reached, so the tree re-verified forever and
+    never advanced. The gate now emits ``mark_verified`` to persist the pass, and
+    ``verify_gate_state`` reads the flag first — so once flagged, a vanished job
+    (None) no longer re-arms a verify."""
+    it = _item(0, "rebased", src_path="/a/r.qcow2", dst_path="/b/r.qcow2",
+               verify_task_id="v")
+    # first observation of a finished verify -> persist it
+    assert mig.tree_next([it], _status({"v": "finished"}))[1] == "mark_verified"
+    # the executor sets the flag; now the job VANISHES from redis (expired result)
+    it["verify_passed"] = True
+    # pre-fix this returned start_verify (re-verify loop); now the flag holds
+    assert mig.verify_gate_state(it, _status({})) == "passed"
+    assert mig.tree_next([it], _status({}))[1] == "db_update"
+
+
+def test_multi_disk_verify_starts_all_and_defers_db_update_until_all_pass():
+    """A ``wait`` on one disk must NOT block starting/recording the others, so a
+    whole tree's verifies run concurrently within one drain cycle instead of one
+    disk per tick (which let early verify results expire before the last disk was
+    reached). db_update (B2) is still withheld until EVERY disk's gate has passed."""
+    a = _item(0, "rebased", src_path="/a/r.qcow2", dst_path="/b/r.qcow2",
+              verify_task_id="va")
+    b = _item(1, "rebased", src_path="/a/c.qcow2", dst_path="/b/c.qcow2")  # no verify yet
+    items = [a, b]
+    # a is verifying (wait), b has no verify task -> the wait on a does not stop us
+    # reaching b: start b's verify this same tick.
+    assert mig.tree_next(items, _status({"va": "started"}))[1] == "start_verify"
+    b["verify_task_id"] = "vb"
+    # a passed but b still running -> record a's pass; db_update NOT yet (b pending)
+    assert mig.tree_next(items, _status({"va": "finished", "vb": "started"})) \
+        [1] == "mark_verified"
+    a["verify_passed"] = True
+    # a flagged, b still running -> the tree waits (db_update withheld for the tree)
+    assert mig.tree_next(items, _status({"va": "finished", "vb": "started"}))[1] == "wait"
+    # b now passed -> record it; still no db_update until it too is flagged
+    assert mig.tree_next(items, _status({"vb": "finished"}))[1] == "mark_verified"
+    b["verify_passed"] = True
+    # both flagged -> NOW Phase B2 repoints the rows
+    assert mig.tree_next(items, _status({}))[1] == "db_update"
 
 
 def test_failed_verify_never_commits_row_to_destination():
@@ -129,6 +181,8 @@ def test_release_deletes_source_when_moved_elsewhere():
     # verify gate, and the source is move_deleted only after that.
     assert mig.tree_next(items, _status({}))[1] == "start_verify"
     items[0]["verify_task_id"] = "v"
+    assert mig.tree_next(items, _status({"v": "finished"}))[1] == "mark_verified"
+    items[0]["verify_passed"] = True
     assert mig.tree_next(items, _status({"v": "finished"}))[1] == "db_update"
     items[0]["state"] = "db_updated"
     assert mig.tree_next(items, _status({"v": "finished"}))[1] == "release"
