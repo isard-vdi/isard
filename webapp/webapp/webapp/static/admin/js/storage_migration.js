@@ -69,6 +69,81 @@ function migInitTooltips ($scope) {
 // migrations expanded in the table (preserved across re-render)
 const migExpanded = {};
 
+// id -> {name, mountpoint} for storage pools, and id -> name for categories,
+// filled from the same lists that populate the create-form <select>s. Used to
+// resolve a migration's selection (pool ids) into the human origin → destination
+// route shown in the table + detail. Fall back to the short id until loaded.
+const migPoolInfo = {};
+const migCatNames = {};
+// last-seen selection per migration id, so the route cell can be re-rendered when
+// the pool/category name caches arrive after the rows are already drawn.
+const migSelById = {};
+
+function migPoolName (id) {
+  if (!id) return "—";
+  const p = migPoolInfo[id];
+  return (p && p.name) ? p.name : migShortId(id);
+}
+
+// Resolve a migration's selection into a displayable origin/destination route.
+// A `pool` move goes pool→pool; a `path` move is a source pool scoped to a
+// directory prefix; a `category` move takes every disk of a category → dst pool.
+function migRouteParts (m) {
+  const s = m.selection || {};
+  const dst = migPoolName(s.dst_pool_id);
+  const dstTip = (migPoolInfo[s.dst_pool_id] || {}).mountpoint || "";
+  let origin = "—", originTip = "";
+  if (s.kind === "category") {
+    origin = "category: " + (migCatNames[s.category_id] || migShortId(s.category_id));
+  } else {
+    origin = migPoolName(s.src_pool_id);
+    originTip = (s.kind === "path")
+      ? (s.path_prefix || "")
+      : ((migPoolInfo[s.src_pool_id] || {}).mountpoint || "");
+  }
+  return { origin: origin, originTip: originTip, dst: dst, dstTip: dstTip,
+    kind: s.kind || "pool", pathPrefix: s.path_prefix, categoryId: s.category_id };
+}
+
+// Re-render the route cell + any open detail route line for every drawn row,
+// used once the pool/category name caches load after the rows.
+function migRefreshRoutes () {
+  $("#migrations tbody tr.mig-row").each(function () {
+    const id = $(this).data("mig");
+    const sel = migSelById[id];
+    if (!sel) return;
+    $(this).find("td.mig-route").html(migRouteCell({ selection: sel }));
+    const $line = $(`#migrations tbody tr.mig-detail[data-mig="${id}"] .mig-route-line`);
+    if ($line.length) $line.replaceWith(migRouteLine({ selection: sel }));
+  });
+  migInitTooltips($("#migrations"));
+}
+
+// Compact origin → destination for the table row.
+function migRouteCell (m) {
+  const r = migRouteParts(m);
+  const tip = `From ${r.origin}${r.originTip ? " (" + r.originTip + ")" : ""}` +
+    ` → to ${r.dst}${r.dstTip ? " (" + r.dstTip + ")" : ""}`;
+  return `<span class="mig-route-inner" title="${migEscape(tip)}" data-toggle="tooltip" style="white-space:nowrap;font-size:12px;">` +
+    `${migEscape(r.origin)} <i class="fa fa-long-arrow-right" style="color:#888;"></i> ${migEscape(r.dst)}</span>`;
+}
+
+// Fuller origin → destination line for the expanded detail: pool names, their
+// mountpoints, and the selection kind (+ path prefix / category scope).
+function migRouteLine (m) {
+  const r = migRouteParts(m);
+  const scope = (r.kind === "path" && r.pathPrefix) ? `path: ${r.pathPrefix}` : r.kind;
+  return `<div class="mig-route-line" style="margin-bottom:6px;font-size:13px;">
+      <b>Route:</b>
+      <span class="label label-default" title="${migEscape(r.originTip || "")}" data-toggle="tooltip">${migEscape(r.origin)}</span>
+      ${r.originTip ? `<small class="text-muted">${migEscape(r.originTip)}</small>` : ""}
+      <i class="fa fa-long-arrow-right" style="margin:0 4px;"></i>
+      <span class="label label-primary" title="${migEscape(r.dstTip || "")}" data-toggle="tooltip">${migEscape(r.dst)}</span>
+      ${r.dstTip ? `<small class="text-muted">${migEscape(r.dstTip)}</small>` : ""}
+      <small class="text-muted" style="margin-left:6px;">(${migEscape(scope)})</small>
+    </div>`;
+}
+
 function migEscape (s) {
   // Escape for use inside double-quoted HTML attributes (and text). Without the
   // quote escapes, an admin-set window value like `" autofocus onfocus=alert(1)`
@@ -141,27 +216,40 @@ function migStatusCell (m) {
   return s;
 }
 
+// Fraction of a disk's per-disk saga completed at each state. The move is the
+// bulk of the transfer; rebase → db_update → release is the commit tail, which
+// (when verify is on) also runs a checksum verify per disk — so a `rebased` disk
+// is NOT ~done, it still has the verify+release phase left. Weighting by stage
+// keeps the bar honest across ALL phases instead of jumping 0→100 at release.
+const MIG_STAGE_WEIGHT = {
+  pending: 0, preflight_ok: 0.05, moving: 0.2, moved: 0.5,
+  rebased: 0.7, db_updated: 0.85, released: 1.0,
+  skipped: 1.0, quarantined: 1.0, failed: 0
+};
+
 function migBar (done, total, bytesDone, bytesTotal, stateCounts) {
   stateCounts = stateCounts || {};
-  // "copied" = disks whose data has physically reached the destination (past the
-  // move: moved/rebased/db_updated/released), even if the tree hasn't committed
-  // (released) them yet. `done` (released) only ticks up in a burst at the END of
-  // a tree, so without this a multi-disk tree looks frozen at 0% while it is
-  // actually most of the way there. Solid bar = committed, striped = copied.
+  let weighted = 0;
+  Object.keys(stateCounts).forEach(function (s) {
+    weighted += (MIG_STAGE_WEIGHT[s] != null ? MIG_STAGE_WEIGHT[s] : 0) * stateCounts[s];
+  });
+  const released = stateCounts.released || 0;
   const copied = (stateCounts.moved || 0) + (stateCounts.rebased || 0) +
-    (stateCounts.db_updated || 0) + (stateCounts.released || 0);
+    (stateCounts.db_updated || 0) + released;
+  const committing = (stateCounts.rebased || 0) + (stateCounts.db_updated || 0);
   const moving = stateCounts.moving || 0;
-  const pct = total ? Math.round((copied / total) * 100) : 0;
-  const doneW = total ? (done / total) * 100 : 0;
-  const copiedExtraW = total ? Math.max(0, (copied - done) / total) * 100 : 0;
-  const label = (copied > done)
-    ? `${copied}/${total} copied · ${done} done`
-    : `${done}/${total} (${pct}%)`;
-  const title = `${copied}/${total} copied to destination · ${done} committed (source freed)` +
-    (moving ? ` · ${moving} copying now` : "") + ` · ${migBytes(bytesDone)} committed / ${migBytes(bytesTotal)}`;
+  const pct = total ? Math.round((weighted / total) * 100) : 0;
+  const doneW = total ? (released / total) * 100 : 0;                 // solid = committed
+  const progW = total ? Math.max(0, (weighted - released) / total) * 100 : 0; // striped = in-flight
+  const label = `${pct}% · ${released}/${total} done`;
+  let phase = "";
+  if (moving) phase += `${moving} copying · `;
+  if (committing) phase += `${committing} verifying/releasing · `;
+  const title = `${pct}% complete · ${copied}/${total} copied to destination · ` +
+    `${released} committed (source freed) · ${phase}${migBytes(bytesDone)}/${migBytes(bytesTotal)} committed`;
   return `<div class="progress" style="position:relative;margin:0;min-width:160px;height:16px;" title="${migEscape(title)}">
       <div class="progress-bar progress-bar-success" style="width:${doneW}%;line-height:16px;"></div>
-      <div class="progress-bar progress-bar-success progress-bar-striped active" style="width:${copiedExtraW}%;line-height:16px;"></div>
+      <div class="progress-bar progress-bar-success progress-bar-striped active" style="width:${progW}%;line-height:16px;"></div>
       <span style="position:absolute;left:0;right:0;top:0;text-align:center;line-height:16px;font-size:11px;color:#222;">${migEscape(label)}</span>
     </div>`;
 }
@@ -308,7 +396,8 @@ function migDetail (m) {
     migCard("disks", t.items_total || 0, "Total qcow2 disks to copy.") +
     migCard("bytes", migBytes(t.bytes_total || 0), "Total data to copy across all disks.") +
     migCard("ETA", migEta(m.eta_seconds), "Estimated time remaining at the current copy rate.");
-  return `<tr class="mig-detail" data-mig="${migEscape(m.id)}"><td></td><td colspan="6">
+  return `<tr class="mig-detail" data-mig="${migEscape(m.id)}"><td></td><td colspan="7">
+      ${migRouteLine(m)}
       <div style="margin-bottom:6px;">${cards}</div>
       ${migConfigControls(m)}
       ${migTreeRows(m)}
@@ -321,11 +410,12 @@ function migRowHtml (m) {
   let html = `<tr class="mig-row" data-mig="${migEscape(m.id)}" style="cursor:pointer;" title="Click to expand: totals, live settings and per-tree progress." data-toggle="tooltip">
       <td><i class="fa fa-caret-${open ? "down" : "right"}"></i></td>
       <td>${migShortId(m.id)}</td>
+      <td class="mig-route">${migRouteCell(m)}</td>
       <td>${migStatusCell(m)}</td>
       <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts)}</td>
       <td>${migEta(m.eta_seconds)}</td>
       <td>${migEscape(migScheduleLabel(m))}</td>
-      <td onclick="event.stopPropagation();">${migActionButtons(m)}</td>
+      <td class="mig-actions-cell">${migActionButtons(m)}</td>
     </tr>`;
   if (open) html += migDetail(m);
   return html;
@@ -335,6 +425,7 @@ function migRowHtml (m) {
 // status endpoint and the socket event).
 function renderMigration (m) {
   if (!m || !m.id) return;
+  if (m.selection) migSelById[m.id] = m.selection;  // for route re-render on cache load
   $("#migrations tbody tr.mig-empty").remove();
   const $existing = $(`#migrations tbody tr[data-mig="${m.id}"]`);
   const $html = $(migRowHtml(m));
@@ -350,7 +441,7 @@ function renderMigration (m) {
 function migShowEmpty () {
   if ($("#migrations tbody tr").length) return;
   $("#migrations tbody").html(
-    '<tr class="mig-empty"><td colspan="7"><i class="fa fa-inbox"></i> ' +
+    '<tr class="mig-empty"><td colspan="8"><i class="fa fa-inbox"></i> ' +
     'No disk migrations yet. Choose what to move above, click <b>Preview</b> to size the plan, then <b>Create &amp; start</b>.' +
     "</td></tr>");
 }
@@ -374,8 +465,12 @@ function loadMigrationPools () {
   $.ajax({ type: "GET", url: POOLS_API }).done(function (data) {
     const rows = data.storage_pools || data.data || (Array.isArray(data) ? data : []);
     const opts = rows.map(function (p) {
+      migPoolInfo[p.id] = { name: p.name || p.id, mountpoint: p.mountpoint || "" };
       return `<option value="${migEscape(p.id)}">${migEscape(p.name || p.id)}</option>`;
     }).join("");
+    // pool names just resolved -> re-render any already-drawn rows so their route
+    // shows names instead of the short-id fallback.
+    migRefreshRoutes();
     // lead with a blank placeholder so nothing is preselected on open — the plan
     // summary only appears once the admin has actively chosen source + destination.
     const placeholder = '<option value="" selected>— select —</option>';
@@ -388,8 +483,10 @@ function loadMigrationCategories () {
   $.ajax({ type: "GET", url: CATEGORIES_API }).done(function (data) {
     const rows = Array.isArray(data) ? data : (data.categories || data.data || []);
     $("#mig_category").html('<option value="" selected>— select —</option>' + rows.map(function (c) {
+      migCatNames[c.id] = c.name || c.id;
       return `<option value="${migEscape(c.id)}">${migEscape(c.name || c.id)}</option>`;
     }).join(""));
+    migRefreshRoutes();
   });
 }
 

@@ -166,6 +166,9 @@ class MigrationListResponse(BaseModel):
 class MigrationStatusResponse(BaseModel):
     id: str
     status: str
+    #: what this job moves and where to (src/dst pool ids, kind, path/category) so
+    #: the admin table + detail can show the origin → destination route.
+    selection: dict = Field(default_factory=dict)
     totals: MigrationTotalsResponse = Field(default_factory=MigrationTotalsResponse)
     state_counts: dict = Field(default_factory=dict)
     trees: list[MigrationTreeSummary] = Field(default_factory=list)
