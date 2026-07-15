@@ -23,6 +23,12 @@ else
 	export DOCKER_COMPOSE="docker compose"
 fi
 
+# Use sudo when required
+SUDO=""
+if [ "$(id -u)" != 0 ] && command -v sudo >/dev/null 2>&1; then
+	SUDO="sudo"
+fi
+
 # We need docker-compose >= 1.28 to use service profiles
 # docker-compose >= 1.27.3 to use depends_on with service_healthy
 # docker-compose < 1.26 preserves environment variable quotations
@@ -387,11 +393,11 @@ flavour(){
 			parts="$parts redis.infrastructure-ports"
 			echo "      - Redis port 6379 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
-		# Check for monitor service (contains loki and prometheus)
+		# Check for monitor service (contains loki and victoriametrics)
 		if echo "$parts" | grep -q "\(^\|\s\)monitor\(\s\|$\)"; then
 			parts="$parts monitor.infrastructure-ports"
 			echo "      - Loki port 3100 exposed on $INFRASTRUCTURE_HOST_IP"
-			echo "      - Prometheus port 9090 exposed on $INFRASTRUCTURE_HOST_IP"
+			echo "      - VictoriaMetrics port 9090 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
 		echo ""
 	fi
@@ -510,7 +516,7 @@ create_docker_compose_file(){
 			fi
 		else
 			echo "📂 Creating Grafana data directory..."
-			if mkdir -p "$TARGET_DIR" 2>/dev/null; then
+			if $SUDO mkdir -p "$TARGET_DIR" 2>/dev/null; then
 				echo "✔ Directory created successfully."
 			else
 				echo "❌ Error: Failed to create directory. Check permissions."
@@ -518,7 +524,7 @@ create_docker_compose_file(){
 		fi
 
 		# Ensure correct ownership
-		if chown -R "$REQUIRED_UID:$REQUIRED_GID" "$TARGET_DIR" 2>/dev/null; then
+		if $SUDO chown -R "$REQUIRED_UID:$REQUIRED_GID" "$TARGET_DIR" 2>/dev/null; then
 			echo "✔ Ownership set correctly for Grafana data."
 		else
 			echo "⚠ Warning: Insufficient permissions to change ownership."
@@ -847,7 +853,6 @@ ensure_etc_timezone(){
 	# work on both old (file present) and new (file absent) hosts. Idempotent and
 	# best-effort: it never aborts the build if it cannot write.
 	[ -f /etc/timezone ] && return 0
-	if [ "$(id -u)" = 0 ]; then SUDO=""; else SUDO="sudo"; fi
 	_tz=""
 	if [ -L /etc/localtime ]; then
 		_tz=$(readlink -f /etc/localtime 2>/dev/null | sed -n 's@.*/zoneinfo/@@p')
@@ -902,6 +907,38 @@ disable_wgquick_apparmor(){
 	return 0
 }
 disable_wgquick_apparmor
+
+notify_prometheus_migration_pending() {
+	# Warn if the variable fallback still references the removed isard-prometheus container
+	if [ -n "$PROMETHEUS_ADDRESS" ] && [ -z "$VICTORIAMETRICS_ADDRESS" ]; then
+		case "$PROMETHEUS_ADDRESS" in
+		*isard-prometheus*)
+			echo "WARNING: PROMETHEUS_ADDRESS references the removed isard-prometheus and VICTORIAMETRICS_ADDRESS is not set." >&2
+			echo "         Unset the PROMETHEUS_ADDRESS variable or set VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428 in isardvdi.cfg." >&2
+			;;
+		esac
+	fi
+
+	# The Prometheus -> VictoriaMetrics data import is NO LONGER run in-band here.
+	# On a monitor with real retention it takes hours and needs disk for the old
+	# TSDB, the snapshot and the imported data at once, which is unsafe inside the
+	# build/upgrade window. It is now an on-demand admin script:
+	#   sysadm/migrate-prometheus-to-victoriametrics.sh
+	_prometheus_dir="/opt/isard/stats/prometheus"
+	_marker="/opt/isard/stats/victoriametrics/.migrated-from-prometheus"
+	[ -d "$_prometheus_dir" ] || return 0
+	[ -f "$_marker" ] && return 0
+
+	echo ""
+	echo "NOTE: existing Prometheus metrics were found at $_prometheus_dir."
+	echo "      VictoriaMetrics starts empty and collects new metrics from now on."
+	echo "      To import the old history into VictoriaMetrics, run the migration ON DEMAND"
+	echo "      (it can take hours and needs free disk space -- do it outside the window):"
+	echo "         sudo nohup bash sysadm/migrate-prometheus-to-victoriametrics.sh >./migrate-prometheus-to-victoriametrics.log 2>&1 &"
+	echo ""
+	return 0
+}
+notify_prometheus_migration_pending
 
 echo "You have the docker-compose files. Have fun!"
 echo "You can download the prebuild images and bring it up:"

@@ -21,4 +21,4 @@ services:
       --config.file=/etc/tempo.yaml
     environment:
       DOMAIN:
-      PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}"
+      VICTORIAMETRICS_ADDRESS: "${VICTORIAMETRICS_ADDRESS:-${PROMETHEUS_ADDRESS:-http://isard-victoriametrics:8428}}"

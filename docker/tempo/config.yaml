@@ -17,7 +17,7 @@ metrics_generator:
   storage:
     path: /tmp/tempo/generator/wal
     remote_write:
-      - url: "${PROMETHEUS_ADDRESS}/api/v1/write"
+      - url: "${VICTORIAMETRICS_ADDRESS}/api/v1/write"
         send_exemplars: true
 
 storage:

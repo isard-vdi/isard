@@ -33,6 +33,9 @@ COPY --from=builder /opt/uv/python /opt/uv/python
 COPY --from=builder /workspace/.venv /workspace/.venv
 ENV PATH="/workspace/.venv/bin:$PATH"
 
+COPY --from=victoriametrics/vmbackup:v1.147.0 /vmbackup-prod /usr/local/bin/vmbackup
+COPY --from=victoriametrics/vmrestore:v1.147.0 /vmrestore-prod /usr/local/bin/vmrestore
+
 COPY --from=backupninja-src /usr/local/sbin/backupninja /usr/local/sbin/backupninja
 COPY --from=backupninja-src /usr/local/sbin/ninjahelper /usr/local/sbin/ninjahelper
 COPY --from=backupninja-src /usr/local/etc/backupninja.conf /usr/local/etc/backupninja.conf

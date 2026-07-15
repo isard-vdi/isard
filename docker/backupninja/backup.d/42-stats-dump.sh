@@ -3,14 +3,16 @@
 when = $BACKUP_STATS_WHEN
 
 #
-# Prometheus
+# VictoriaMetrics
 #
-rm -rf /opt/isard/stats/prometheus/snapshots/*
-
-# Create the snapshot
-curl -sX POST ${PROMETHEUS_ADDRESS}/api/v1/admin/tsdb/snapshot |
-    # Set exit code to 1 if the output doesn't contain '"status":"success"'
-    awk -v rc=1 '/"status":"success"/ { rc=0 } 1; END {exit rc}'
+if ! vmbackup \
+    -storageDataPath=/opt/isard/stats/victoriametrics \
+    -snapshot.createURL=${VICTORIAMETRICS_ADDRESS}/snapshot/create \
+    -dst=fs:///opt/isard/stats/victoriametrics-backup
+then
+    echo "Fatal: vmbackup failed" >&2
+    exit 1
+fi
 
 #
 # Loki

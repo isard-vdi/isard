@@ -1,4 +1,4 @@
-# Isard main config v2.35.9
+# Isard main config v2.36.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -876,9 +876,9 @@ WG_GUESTS_RESERVED_HOSTS=20
 #GRAFANA_TELEGRAM_CHAT_ID=
 #GRAFANA_TELEGRAM_CHAT_ID_ORCHESTRATOR=
 
-# ------ Prometheus -----------------------------------------------------
-#PROMETHEUS_ADDRESS=http://isard-prometheus:9090
-#PROMETHEUS_RETENTION_TIME=40d
+# ------ VictoriaMetrics -----------------------------------------------------
+#VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428
+#VICTORIAMETRICS_RETENTION_TIME=40d
 
 # ------ Stats -----------------------------------------------------
 #STATS_DIRECTORY=/opt/isard/stats
@@ -938,7 +938,7 @@ WG_GUESTS_RESERVED_HOSTS=20
 # - Database (RethinkDB) port 28015
 # - Redis port 6379
 # - Loki port 3100 (if monitoring enabled)
-# - Prometheus port 9090 (if monitoring enabled)
+# - VictoriaMetrics port 9090 (if monitoring enabled)
 #
 # ALTERNATIVE: If you don't set this variable, you'll need to configure firewall rules to allow
 # remote infrastructure nodes to reach the internal Docker container IPs (refer to documentation).

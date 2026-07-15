@@ -23,7 +23,7 @@ prometheus.exporter.unix "exporter_node_exporter" {
 	]
 
 	textfile {
-		directory = "/var/lib/prometheus"
+		directory = "/var/lib/node-exporter"
 	}
 }
 
@@ -155,7 +155,7 @@ prometheus.relabel "process_metrics_containers" {
 prometheus.remote_write "monitor" {
 	endpoint {
 		name = "monitor"
-		url  = env("PROMETHEUS_ADDRESS") + "/api/v1/write"
+		url  = env("VICTORIAMETRICS_ADDRESS") + "/api/v1/write"
 
 		queue_config { }
 
