@@ -1,7 +1,7 @@
 services:
   isard-tempo:
     container_name: isard-tempo
-    image: grafana/tempo:2.5.0
+    image: grafana/tempo:2.10.7
     user: root
     volumes:
       - /opt/isard/stats/tempo:/data

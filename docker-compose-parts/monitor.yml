@@ -55,7 +55,7 @@ services:
 
   isard-loki:
     container_name: isard-loki
-    image: grafana/loki:3.1.0
+    image: grafana/loki:3.7.3
     user: root
     volumes:
       - /opt/isard/stats/loki:/data

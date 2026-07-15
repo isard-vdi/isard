@@ -64,7 +64,7 @@ services:
 
   isard-grafana-alloy:
     container_name: isard-grafana-alloy
-    image: grafana/alloy:v1.16.0
+    image: grafana/alloy:v1.17.1
     privileged: true
     user: root
     pid: host

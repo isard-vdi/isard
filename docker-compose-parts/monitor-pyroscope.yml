@@ -1,7 +1,7 @@
 services:
   isard-pyroscope:
     container_name: isard-pyroscope
-    image: grafana/pyroscope:1.9.0
+    image: grafana/pyroscope:1.21.1
     user: root
     volumes:
       - /opt/isard/stats/pyroscope:/data

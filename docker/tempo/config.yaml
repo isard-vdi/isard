@@ -6,8 +6,13 @@ distributor:
   receivers:
     otlp:
       protocols:
+        # Tempo >= 2.6 bundles an OTel Collector receiver whose default bind
+        # address changed from 0.0.0.0 to localhost. Pin 0.0.0.0 explicitly so
+        # other containers can still ship traces to isard-tempo:4317/4318.
         grpc:
+          endpoint: 0.0.0.0:4317
         http:
+          endpoint: 0.0.0.0:4318
 
 metrics_generator:
   registry:
