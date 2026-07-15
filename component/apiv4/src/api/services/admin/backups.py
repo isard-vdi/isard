@@ -125,16 +125,27 @@ class AdminBackupsService:
             ):
                 details["time_breakdown"] = {}
 
+        # ``id`` and the server timestamps are server-owned. Since
+        # ``BackupReportRequest`` is ``extra="allow"`` (to carry the rich
+        # display fields), a caller could otherwise smuggle an ``id`` in —
+        # RethinkDB would use it as the primary key, drop ``generated_keys``
+        # from the result, and ``generated_keys[0]`` below would ``KeyError``
+        # into a 500 while the row was written, poisoning backupninja's retry
+        # queue. Strip them and let the DAL stamp ``received_at``/``created_at``.
+        for server_owned in ("id", "received_at", "created_at"):
+            data.pop(server_owned, None)
+
         # ``BackupsProcessed.insert`` coerces ``timestamp`` to a ReQL
         # datetime and stamps ``received_at`` / ``created_at`` server-side
         # so indexes and ordering work regardless of the client's clock
         # format.
         result = BackupsProcessed.insert(data)
 
-        if result.get("inserted") != 1:
+        generated_keys = result.get("generated_keys") or []
+        if result.get("inserted") != 1 or not generated_keys:
             raise Error("internal_server", "Failed to create backup record")
 
-        backup_id = result["generated_keys"][0]
+        backup_id = generated_keys[0]
         AdminBackupsService._cleanup_old_backups()
 
         # Email admins when the backup did not finish cleanly. Imported lazily

@@ -129,10 +129,12 @@ $(document).ready(function () {
                             return '<span class="label label-success">Success</span>';
                         } else if (data === 'ERROR') {
                             return '<span class="label label-danger">Error</span>';
+                        } else if (data === 'CRITICAL') {
+                            return '<span class="label label-danger">Critical</span>';
                         } else if (data === 'WARNING') {
                             return '<span class="label label-warning">Warning</span>';
-                        } else if (data === 'PARTIAL') {
-                            return '<span class="label label-warning">Partial</span>';
+                        } else if (data === 'UNKNOWN') {
+                            return '<span class="label label-default">Unknown</span>';
                         }
                     }
                     return data;
@@ -706,13 +708,17 @@ function loadLatestBackupStatus() {
                         break;
                     case 'failed':
                     case 'error':
+                    case 'critical':
                         statusIcon = '<i class="fa fa-times-circle text-danger fa-3x"></i>';
                         statusClass = 'danger';
                         break;
-                    default:
+                    case 'warning':
                         statusIcon = '<i class="fa fa-exclamation-triangle text-warning fa-3x"></i>';
                         statusClass = 'warning';
-                        statusText = 'Warning';
+                        break;
+                    default:
+                        statusIcon = '<i class="fa fa-question-circle text-muted fa-3x"></i>';
+                        statusClass = 'default';
                 }
                 
                 content += '<div class="text-center">';
