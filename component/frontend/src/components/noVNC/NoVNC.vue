@@ -15,6 +15,7 @@ interface Props {
   qualityLevel?: number // From 0 to 9. Default is 6
   compressionLevel?: number // From 0 to 9. Leave unset to use noVNC default (2)
   background?: string
+  sessionCookieName?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,7 +23,8 @@ const props = withDefaults(defineProps<Props>(), {
   viewOnly: false,
   qualityLevel: 6,
   compressionLevel: undefined,
-  background: 'var(--gray-warm-800)'
+  background: 'var(--gray-warm-800)',
+  sessionCookieName: 'isardvdi_session'
 })
 
 const screen = ref<HTMLElement | null>(null)
@@ -45,7 +47,7 @@ const newRFB = (target: HTMLElement) => {
     '/' +
     props.viewer.vmPort +
     '/' +
-    getCookie('isardvdi_session')
+    getCookie(props.sessionCookieName)
 
   rfb = new RFB(target, wsUrl, {
     credentials: { password: props.viewer.token }
