@@ -1595,6 +1595,14 @@ class hyp(object):
         tree = etree.parse(StringIO(xml), parser)
 
         try:
+            # One <processor> block per populated physical socket. libvirt's
+            # getInfo() reports sockets-per-NUMA-node (often 1) which
+            # undercounts multi-socket hosts, so use the SMBIOS count as the
+            # authoritative physical socket number.
+            processors = tree.xpath("/sysinfo/processor")
+            if processors:
+                self.info["cpu_sockets"] = len(processors)
+
             if tree.xpath('/sysinfo/processor/entry[@name="socket_destination"]'):
                 self.info["cpu_model"] = tree.xpath(
                     '/sysinfo/processor/entry[@name="socket_destination"]'
@@ -1649,12 +1657,25 @@ class hyp(object):
 
         # intel virtualization => cpu feature vmx
         #   amd virtualization => cpu feature svm
+        # libvirt only emits host <feature> elements that DEVIATE from the
+        # named <model> baseline. On AMD hosts svm is part of the EPYC/Opteron
+        # model baselines, so no explicit <feature name="svm"/> is present and
+        # the feature check alone leaves AMD hypervisors blank in the admin
+        # "Virt" column. Fall back to the always-present host CPU <vendor>
+        # (Intel => vmx, AMD => svm) when neither explicit feature is found.
         if tree.xpath('/capabilities/host/cpu/feature[@name="vmx"]'):
             self.info["virtualization_capabilities"] = "vmx"
         elif tree.xpath('/capabilities/host/cpu/feature[@name="svm"]'):
             self.info["virtualization_capabilities"] = "svm"
         else:
-            self.info["virtualization_capabilities"] = False
+            cpu_vendor = tree.xpath("/capabilities/host/cpu/vendor/text()")
+            cpu_vendor = cpu_vendor[0] if cpu_vendor else ""
+            if cpu_vendor == "Intel":
+                self.info["virtualization_capabilities"] = "vmx"
+            elif cpu_vendor == "AMD":
+                self.info["virtualization_capabilities"] = "svm"
+            else:
+                self.info["virtualization_capabilities"] = False
 
         # read cpu model names
         self.info["cpu_models"] = self.conn.getCPUModelNames("x86_64")
