@@ -6,13 +6,30 @@ import sys
 from pathlib import Path
 
 import pytest
+from isardvdi_changefeed.table_changefeed import REDACT_FIELDS
 from pydantic import ValidationError
 
 _SRC_DIR = Path(__file__).resolve().parent.parent
 
+_PRIVATE_KEY_PATH = ["vpn", "wireguard", "keys", "private"]
+
 
 def _config():
     return {t["table"]: t for t in json.loads((_SRC_DIR / "tables.json").read_text())}
+
+
+def _pluck_exposes_wireguard_keys(pluck):
+    """True when an explicit pluck streams ``vpn.wireguard.keys`` (which
+    includes the private key). A ``None`` pluck (full row) is handled
+    per-table below since it can carry the keypair without naming it."""
+    if pluck is None:
+        return False
+    for entry in pluck:
+        if isinstance(entry, dict) and "vpn" in entry:
+            wireguard = (entry.get("vpn") or {}).get("wireguard") or {}
+            if wireguard.get("keys"):
+                return True
+    return False
 
 
 def _load_main_module():
@@ -97,3 +114,31 @@ def test_hypervisors_vpn_pluck_includes_tunnel_status():
         p["vpn"] for p in cfg["pluck"] if isinstance(p, dict) and "vpn" in p
     )
     assert vpn_pluck.get("tunnel_status") is True
+
+
+def test_streamed_tables_plucking_wireguard_keys_redact_private():
+    """Any streamed table that plucks ``vpn.wireguard.keys`` must strip the
+    private key before publishing — otherwise it leaks to redis pub/sub, the
+    ``stream:<table>`` streams, and the admin socket via the change handler.
+    Currently users + hypervisors; this guards new tables added later."""
+    offenders = [
+        name
+        for name, cfg in _config().items()
+        if cfg.get("stream")
+        and _pluck_exposes_wireguard_keys(cfg.get("pluck"))
+        and _PRIVATE_KEY_PATH not in REDACT_FIELDS.get(name, [])
+    ]
+    assert not offenders, (
+        "streamed tables expose vpn.wireguard.keys without redacting the "
+        f"private key: {offenders}"
+    )
+
+
+def test_remotevpn_full_row_redacts_private_key():
+    """remotevpn streams the full row (no pluck), so it carries the wireguard
+    private key; the full-row case is invisible to the pluck scan above, so
+    assert its redaction explicitly."""
+    cfg = _config()["remotevpn"]
+    assert cfg.get("stream") is True
+    assert cfg.get("pluck") is None
+    assert _PRIVATE_KEY_PATH in REDACT_FIELDS["remotevpn"]
