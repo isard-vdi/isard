@@ -228,6 +228,12 @@ class DesktopDomainHandler:
         extra = await asyncio.to_thread(
             DesktopsProcessed.get_domain_enrichment, new_val.id
         )
+        if extra is None:
+            # The domain was deleted between the changefeed event and this
+            # enrichment read (TOCTOU under create/delete churn). There is
+            # nothing to emit for a domain that no longer exists; skip quietly
+            # instead of crashing on enrichment.
+            return
 
         ap = dict(new_val.additional_properties or {})
         if old_progress and new_progress and old_progress == new_progress:
