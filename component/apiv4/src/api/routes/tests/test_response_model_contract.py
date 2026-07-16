@@ -31,7 +31,7 @@ is not acceptable — it must round-trip through FastAPI's
 # one of these needs no ``response_model=``.
 _NO_CONTENT_STATUS_CODES = frozenset({201, 204, 304})
 
-from fastapi.routing import APIRoute
+from api.routes.tests.helpers import iter_api_routes
 
 # (method, path) pairs whose handlers return a raw non-JSON body with a
 # 200 status (StreamingResponse / PlainTextResponse / FileResponse / raw
@@ -58,9 +58,7 @@ def _routes_without_response_model() -> list[tuple[str, str, str]]:
     from api import app
 
     offenders = []
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
+    for route in iter_api_routes(app):
         if route.response_model is not None:
             continue
         # Auto-exempt no-content routes (201/204): they carry no body,
@@ -100,8 +98,7 @@ def test_bucket_b_allowlist_has_no_stale_entries():
 
     real_routes = {
         (method, route.path)
-        for route in app.routes
-        if isinstance(route, APIRoute)
+        for route in iter_api_routes(app)
         for method in route.methods
         if method != "HEAD"
     }

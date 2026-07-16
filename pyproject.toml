@@ -2,7 +2,7 @@
 name = "isardvdi-workspace"
 version = "0.0.0"
 description = "IsardVDI monorepo Python workspace"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14,<3.15"
 
 [tool.uv.workspace]
 members = [
@@ -52,10 +52,10 @@ dev = [
 [tool.uv]
 default-groups = ["dev"]
 constraint-dependencies = [
-  "pytest==8.4.1",
-  "pytest-asyncio==1.0.0",
-  "pytest-cov==6.2.1",
-  "pytest-xdist==3.6.1",
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
+  "pytest-cov==7.1.0",
+  "pytest-xdist==3.8.0",
   "httpx==0.28.1",
   "lxml-html-clean>=0.4.5",
   "cryptography>=49.0.0",
