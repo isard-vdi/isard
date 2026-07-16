@@ -12,6 +12,7 @@ from engine.models.numa_balancer import (
 from engine.services.db import get_table_field
 from engine.services.db.hypervisors import get_hypers_gpu_online, get_hypers_online
 from engine.services.lib.functions import get_pools_threads_running
+from engine.services.lib.mem_stats import get_hyper_free_ram_kb
 from engine.services.log import logs
 
 """ 
@@ -40,7 +41,7 @@ class Balancer_available_ram:
     # This balancer will return the hypervisor with more available ram
     def _balancer(self, hypers):
         logs.main.debug(
-            f"BALANCER AVAILABLE RAM. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
+            f"BALANCER AVAILABLE RAM. MEMORY FREE: {[{h['id']: get_hyper_free_ram_kb(h)} for h in hypers if h.get('stats',{}).get('mem_stats')]}"
         )
         return weighted_select(sort_hypervisors_ram_absolute(hypers))
 
@@ -49,7 +50,7 @@ class Balancer_available_ram_percent:
     # This balancer will return the hypervisor with more available ram in percentage
     def _balancer(self, hypers):
         logs.main.debug(
-            f"BALANCER AVAILABLE RAM%. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']*100/h['stats']['mem_stats']['total']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
+            f"BALANCER AVAILABLE RAM%. MEMORY FREE%: {[{h['id']: round((1 - _get_used_ram_percentage(h)) * 100, 1)} for h in hypers if h.get('stats',{}).get('mem_stats')]}"
         )
 
         return weighted_select(sort_hypervisors_ram_percentage(hypers))
@@ -571,13 +572,9 @@ def _get_used_ram_percentage(hyper) -> float:
     return used_ram / total_ram if total_ram > 0 else 0
 
 
-# Sort the hypervisors by used RAM (absolute) (low to high)
+# Sort the hypervisors by free RAM (absolute) (high to low)
 def sort_hypervisors_ram_absolute(hypers):
-    return sorted(
-        hypers,
-        key=lambda h: h.get("stats", {}).get("mem_stats", {}).get("available", 0),
-        reverse=True,
-    )
+    return sorted(hypers, key=get_hyper_free_ram_kb, reverse=True)
 
 
 # Sort the hypervisors by used RAM percentage (low to high)

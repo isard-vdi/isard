@@ -15,6 +15,7 @@ from engine.services.db import (
     rethink_conn,
 )
 from engine.services.db.domains import get_vgpus_mdevs
+from engine.services.lib.mem_stats import get_hyper_free_ram_kb
 from engine.services.log import log, logs
 
 # ─── Ephemeral hypervisor thread status (engine-process RAM) ────────────────
@@ -820,7 +821,7 @@ def filter_outofmem_hypers(hypers_online):
     logs.workers.debug("--------------------------------------")
     logs.workers.debug(
         "hypers_with_ram: %s"
-        % int(hyper.get("stats", {}).get("mem_stats", {}).get("available", 0))
+        % {h["id"]: get_hyper_free_ram_kb(h) for h in hypers_with_ram}
     )
     logs.workers.debug("--------------------------------------")
     return hypers_with_ram
