@@ -31,7 +31,32 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
 from isardvdi_common.models.storage import Storage
+
+
+@pytest.fixture(autouse=True)
+def _repair_storage_new_slot():
+    """Undo the process-wide damage ``patch(... "Storage.__new__")`` leaves behind.
+
+    Assigning ``__new__`` on a class switches its C-level ``tp_new`` to
+    ``slot_tp_new``. Deleting the attribute again does NOT switch it back:
+    CPython's ``update_one_slot`` special-cases ``__new__`` and re-uses the
+    type's *current* ``tp_new``. So after ``mock.patch`` restores, we are left
+    with ``tp_new == slot_tp_new`` dispatching to the inherited
+    ``object.__new__``, and every later ``Storage(some_id)`` in the same
+    interpreter dies with::
+
+        TypeError: object.__new__() takes exactly one argument (the type to instantiate)
+
+    That made the whole ``_common`` suite order-dependent: any module collected
+    after this one could no longer construct a ``Storage``. Reinstall an
+    explicit pass-through ``__new__`` (semantically identical to the default)
+    so construction keeps working.
+    """
+    yield
+    if "__new__" not in Storage.__dict__:
+        Storage.__new__ = staticmethod(lambda cls, *args, **kwargs: object.__new__(cls))
 
 
 def _bare_storage(

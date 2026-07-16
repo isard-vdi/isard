@@ -332,6 +332,8 @@ class StorageProcessed(RethinkSharedConnection):
     def get_storage_derivatives(cls, storage_id):
         """_From /api/libv2/api_storage.py get_storage_derivatives()_"""
         total = []
+        if not Storage.exists(storage_id):
+            return total
         domains = Storage(storage_id).domains
         for domain in domains:
             total.append(domain.id)

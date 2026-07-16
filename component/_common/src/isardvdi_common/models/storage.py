@@ -353,10 +353,19 @@ class Storage(RethinkCustomBase):
     def parents(self):
         """
         Returns the storage parents hierarchy.
+
+        A ``parent`` field that is missing from the storage table or whose
+        value is not a UUID (e.g. a path string left over from older code
+        paths) terminates the walk silently rather than raising — the chain
+        on disk is still readable via the ``backing_file=`` link, but the
+        parent object isn't available as a Storage instance.
         """
         if self.parent is None:
             return []
-        return [Storage(self.parent)] + Storage(self.parent).parents
+        if not Storage.exists(self.parent):
+            return []
+        parent_obj = Storage(self.parent)
+        return [parent_obj] + parent_obj.parents
 
     @property
     def operational(self):
