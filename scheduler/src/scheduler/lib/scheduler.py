@@ -266,7 +266,7 @@ class Scheduler:
                 kwargs=kwargs,
             )
         if kind == "date":
-            alarm_time = datetime.now() + timedelta(
+            alarm_time = datetime.now(pytz.utc) + timedelta(
                 hours=int(hour), minutes=int(minute)
             )
             self.scheduler.add_job(
