@@ -55,6 +55,10 @@ class AdminHypervisorCreateData(BaseModel):
     nvidia_gpus: Optional[List[Dict[str, Any]]] = None
     force_get_hyp_info: bool = False
     min_free_mem_gb: int = 0
+    # GPU_ONLY_MEM. The hypervisor reports it alongside min_free_mem_gb
+    # (docker/hypervisor/src/lib/setup.py); without the field here pydantic
+    # drops it from the body and the reserve never reaches the DB.
+    min_free_gpu_mem_gb: int = 0
     storage_pools: Optional[str] = None
     virt_pools: Optional[str] = None
     buffering_hyper: bool = False
