@@ -8,6 +8,7 @@ from engine.models.balancers import (
     Balancer_less_cpu,
     Balancer_less_cpu_till_low_ram,
     Balancer_less_cpu_till_low_ram_percent,
+    BalancerInterface,
     _build_hugepages_extra,
     _get_used_ram_percentage,
     _parse_extra_gpu_info,
@@ -126,6 +127,41 @@ def test_sort_hypervisors_ram_absolute(test_input, expected):
 )
 def test_get_hyper_free_ram_kb(test_input, expected):
     assert get_hyper_free_ram_kb(test_input) == expected
+
+
+def test_adjust_for_pending_charges_used_so_used_based_balancers_see_it():
+    """Pending starts must move the figure the used-based balancers actually read.
+
+    Charging only `available` left the anti-storm guard invisible to
+    _get_used_ram_percentage (and so to the RAM_LIMIT gate and the percentage
+    sorts, incl. the default available_ram_percent balancer), because `used` is
+    always written by the stats writer so their fallback never fires.
+    """
+    balancer = BalancerInterface(balancer_type="round_robin")
+    hypers = [{"id": "hyper1", "stats": _mem(100, 50)}]  # used = 50G
+    before = _get_used_ram_percentage(hypers[0])
+
+    balancer._record_pending("hyper1", 20)  # 20 GB start in flight
+    adjusted = balancer._adjust_for_pending(hypers)
+
+    assert _get_used_ram_percentage(adjusted[0]) > before
+    assert adjusted[0]["stats"]["mem_stats"]["used"] == 70 * GB
+    assert adjusted[0]["stats"]["mem_stats"]["available"] == 30 * GB
+    assert get_hyper_free_ram_kb(adjusted[0]) == 30 * GB
+    # The caller's dicts must not be mutated (the copy is deliberate).
+    assert hypers[0]["stats"]["mem_stats"]["used"] == 50 * GB
+
+
+def test_adjust_for_pending_caps_used_at_total():
+    balancer = BalancerInterface(balancer_type="round_robin")
+    hypers = [{"id": "hyper1", "stats": _mem(100, 50)}]
+    balancer._record_pending("hyper1", 500)  # burst far beyond the host
+
+    adjusted = balancer._adjust_for_pending(hypers)
+
+    assert adjusted[0]["stats"]["mem_stats"]["used"] == 100 * GB
+    assert adjusted[0]["stats"]["mem_stats"]["available"] == 0
+    assert get_hyper_free_ram_kb(adjusted[0]) == 0
 
 
 def test_sort_hypervisors_ram_absolute_ranks_hugepages_host_by_grantable_free():
