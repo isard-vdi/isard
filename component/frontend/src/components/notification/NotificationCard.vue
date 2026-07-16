@@ -44,10 +44,14 @@ const sanitizedFooter = computed(() =>
           {{ notification.title }}
         </component>
         <!-- eslint-disable vue/no-v-html -- content sanitized via DOMPurify -->
-        <div v-if="sanitizedBody" class="text-md mb-2" v-html="sanitizedBody" />
+        <div
+          v-if="sanitizedBody"
+          class="text-md mb-2 [&_a]:text-brand-700 [&_a]:hover:underline"
+          v-html="sanitizedBody"
+        />
         <footer
           v-if="sanitizedFooter"
-          class="w-fit ml-auto border-t border-gray-warm-200 pt-1 pl-7 text-right text-sm font-semibold text-gray-warm-500"
+          class="w-fit ml-auto border-t border-gray-warm-200 pt-1 pl-7 text-right text-sm font-semibold text-gray-warm-500 [&_a]:text-brand-700 [&_a]:hover:underline"
           v-html="sanitizedFooter"
         ></footer>
         <!-- eslint-enable vue/no-v-html -->
