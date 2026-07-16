@@ -113,7 +113,7 @@ instrumentClient(apiv4Client, 'apiv4')
 watch(
   () => authStore.token,
   (newToken) => {
-    const headers = newToken ? { Authorization: `Bearer ${newToken}` } : undefined
+    const headers = { Authorization: newToken ? `Bearer ${newToken}` : null }
 
     authClient.setConfig({
       headers
