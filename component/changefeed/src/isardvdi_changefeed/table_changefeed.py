@@ -72,6 +72,8 @@ def redact_path(doc, path):
 # (the wireguard consumer detects a key reset via ``keys is False``).
 REDACT_FIELDS = {
     "users": [["vpn", "wireguard", "keys", "private"]],
+    "hypervisors": [["vpn", "wireguard", "keys", "private"]],
+    "remotevpn": [["vpn", "wireguard", "keys", "private"]],
 }
 
 

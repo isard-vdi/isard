@@ -290,14 +290,17 @@ class TestRedactPath:
         redact_path(None, self.PRIVATE)  # must not raise
         redact_path(False, self.PRIVATE)  # must not raise
 
-    def test_users_redact_config_targets_private_key(self):
-        # The users table must be configured to strip the wireguard private key.
-        assert self.PRIVATE in REDACT_FIELDS["users"]
+    @pytest.mark.parametrize("table", ["users", "hypervisors", "remotevpn"])
+    def test_vpn_table_redact_config_targets_private_key(self, table):
+        # Every table whose stream payload can carry a wireguard keypair must
+        # be configured to strip the private key.
+        assert self.PRIVATE in REDACT_FIELDS[table]
 
-    def test_private_key_never_leaves_with_users_redact_config(self):
-        # Apply the configured users redaction end-to-end on a value.
+    @pytest.mark.parametrize("table", ["users", "hypervisors", "remotevpn"])
+    def test_private_key_never_leaves_with_redact_config(self, table):
+        # Apply the configured redaction end-to-end on a value.
         doc = {
-            "table": "users",
+            "table": table,
             "vpn": {
                 "wireguard": {
                     "keys": {"private": "SECRET", "public": "pub"},
@@ -305,7 +308,7 @@ class TestRedactPath:
                 }
             },
         }
-        for path in REDACT_FIELDS["users"]:
+        for path in REDACT_FIELDS[table]:
             redact_path(doc, path)
         assert "private" not in doc["vpn"]["wireguard"]["keys"]
         assert doc["vpn"]["wireguard"]["keys"]["public"] == "pub"
