@@ -2420,7 +2420,6 @@ function renderStorageActionsButton(data) {
             elem.attr("index", item);
             switch (item) {
                 case ("category"):
-                case ("group"):
                     $.ajax({
                         type: "GET",
                         async: false,
@@ -2433,12 +2432,16 @@ function renderStorageActionsButton(data) {
                             });
                         }
                     });
-                    if (item=='category') { elem.val([$('meta[id=user_data]').attr('data-categoryid')]); }
+                    elem.val([$('meta[id=user_data]').attr('data-categoryid')]);
                     break;
+                case ("group"):
                 case ("user"):
-                    $.each(domains_table.data(), function (pos, it) {
-                        if (it["user"] && elem.find('option[value="' + it["user"] + '"]').length === 0) {
-                            elem.append('<option value="' + it["user"] + '">' + it["user_name"] + '</option>');
+                    var source = item === 'group'
+                        ? domains_table.rows({ search: 'applied' }).data()
+                        : domains_table.data();
+                    $.each(source, function (pos, it) {
+                        if (it[item] && elem.find('option[value="' + it[item] + '"]').length === 0) {
+                            elem.append('<option value="' + it[item] + '">' + it[item + '_name'] + '</option>');
                         }
                     });
                     break;

@@ -953,6 +953,7 @@ class ApiAdmin(RethinkSharedConnection):
                 "persistent",
                 "current_action",
                 "server_autostart",
+                "group",
                 "group_name",
                 "category_name",
             ]
