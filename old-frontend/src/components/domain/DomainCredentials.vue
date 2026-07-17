@@ -69,6 +69,7 @@
             id="passwordField"
             v-model="password"
             :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
             size="sm"
           />
         </b-input-group>
