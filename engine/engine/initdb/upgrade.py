@@ -49,7 +49,8 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 200
+release_version = 201
+# release 201: normalise path-shaped storage.parent rows to their UUID
 # release 200: cleanup old single domain field for bastion targets
 # release 199: purge decommissioned core_worker RQ state (the core and
 #              core.feedback queues, their stale worker registrations and job
@@ -6325,6 +6326,53 @@ password:s:%s"""
                 log.error(
                     f"v197 cutover: recycle_bin count/last_log backfill failed: {e}"
                 )
+
+        if version == 201:
+            table = "storage"
+            try:
+                non_uuid_filter = (  # noqa: E731
+                    lambda s: s["parent"]
+                    .default("")
+                    .type_of()
+                    .eq("STRING")
+                    .and_(s["parent"].default("").match(r"^/|\.qcow2$"))
+                )
+                total = r.table(table).filter(non_uuid_filter).count().run(self.conn)
+                log.info(
+                    f"--- Storage parent normalisation: {total} non-UUID rows to migrate ---"
+                )
+                if total > 0:
+                    batch_size = 10_000
+                    processed = 0
+                    while True:
+                        result = (
+                            r.table(table)
+                            .filter(non_uuid_filter)
+                            .limit(batch_size)
+                            .update(
+                                lambda s: {
+                                    "parent": s["parent"]
+                                    .split("/")
+                                    .nth(-1)
+                                    .split(".")
+                                    .nth(0)
+                                }
+                            )
+                            .run(self.conn)
+                        )
+                        replaced = result.get("replaced", 0)
+                        if replaced == 0:
+                            break
+                        processed += replaced
+                        log.info(
+                            f"--- Storage parent normalisation: {processed}/{total} migrated ---"
+                        )
+                    log.info(
+                        f"--- Storage parent normalisation: complete ({processed} rows) ---"
+                    )
+            except Exception as e:
+                print(e)
+
         return True
 
     def gpu_profiles(self, version):
