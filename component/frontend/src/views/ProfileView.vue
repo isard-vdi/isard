@@ -605,7 +605,11 @@ watch(
   </div>
 
   <ApiKeyModal :open="showApiKeyModal" @update:open="(val) => (showApiKeyModal = val)" />
-  <SshPublicKeyModal :open="showSshKeyModal" @update:open="(val) => (showSshKeyModal = val)" />
+  <SshPublicKeyModal
+    v-if="showSshKeyModal"
+    :open="showSshKeyModal"
+    @update:open="(val) => (showSshKeyModal = val)"
+  />
   <EmailVerificationModal
     :open="showEmailVerificationModal"
     :current-email="user?.email"
