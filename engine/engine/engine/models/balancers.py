@@ -12,6 +12,7 @@ from engine.models.numa_balancer import (
 from engine.services.db import get_table_field
 from engine.services.db.hypervisors import get_hypers_gpu_online, get_hypers_online
 from engine.services.lib.functions import get_pools_threads_running
+from engine.services.lib.mem_stats import get_hyper_free_ram_kb
 from engine.services.log import logs
 
 """ 
@@ -40,7 +41,7 @@ class Balancer_available_ram:
     # This balancer will return the hypervisor with more available ram
     def _balancer(self, hypers):
         logs.main.debug(
-            f"BALANCER AVAILABLE RAM. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
+            f"BALANCER AVAILABLE RAM. MEMORY FREE: {[{h['id']: get_hyper_free_ram_kb(h)} for h in hypers if h.get('stats',{}).get('mem_stats')]}"
         )
         return weighted_select(sort_hypervisors_ram_absolute(hypers))
 
@@ -49,7 +50,7 @@ class Balancer_available_ram_percent:
     # This balancer will return the hypervisor with more available ram in percentage
     def _balancer(self, hypers):
         logs.main.debug(
-            f"BALANCER AVAILABLE RAM%. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']*100/h['stats']['mem_stats']['total']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
+            f"BALANCER AVAILABLE RAM%. MEMORY FREE%: {[{h['id']: round((1 - _get_used_ram_percentage(h)) * 100, 1)} for h in hypers if h.get('stats',{}).get('mem_stats')]}"
         )
 
         return weighted_select(sort_hypervisors_ram_percentage(hypers))
@@ -233,14 +234,30 @@ class BalancerInterface:
         return sum(ram_gb for ram_gb, _ in entries) * 1048576  # GB to KB
 
     def _adjust_for_pending(self, hypers):
-        """Return deep-copied hyper dicts with available RAM reduced by pending starts."""
+        """Deep-copied hyper dicts with free RAM reduced by pending starts.
+
+        In-flight starts are not in the stats sample yet, so without this a burst
+        all lands on whichever host looked emptiest. Charge BOTH figures the
+        balancers read: decrementing only ``available`` left the guard invisible
+        to the ``used``-based ones, whose fallback never fires because the stats
+        writer always writes ``used``.
+        """
         adjusted = copy.deepcopy(hypers)
         for h in adjusted:
             pending_kb = self._get_pending_ram_kb(h["id"])
-            if pending_kb > 0:
-                mem_stats = h.get("stats", {}).get("mem_stats")
-                if mem_stats and "available" in mem_stats:
-                    mem_stats["available"] = max(0, mem_stats["available"] - pending_kb)
+            if pending_kb <= 0:
+                continue
+            mem_stats = h.get("stats", {}).get("mem_stats")
+            if not mem_stats:
+                continue
+            if "used" in mem_stats:
+                # Cap at total: pending can exceed the free RAM under a burst.
+                mem_stats["used"] = min(
+                    mem_stats.get("total", mem_stats["used"] + pending_kb),
+                    mem_stats["used"] + pending_kb,
+                )
+            if "available" in mem_stats:
+                mem_stats["available"] = max(0, mem_stats["available"] - pending_kb)
         return adjusted
 
     def get_next_hypervisor(
@@ -571,13 +588,9 @@ def _get_used_ram_percentage(hyper) -> float:
     return used_ram / total_ram if total_ram > 0 else 0
 
 
-# Sort the hypervisors by used RAM (absolute) (low to high)
+# Sort the hypervisors by free RAM (absolute) (high to low)
 def sort_hypervisors_ram_absolute(hypers):
-    return sorted(
-        hypers,
-        key=lambda h: h.get("stats", {}).get("mem_stats", {}).get("available", 0),
-        reverse=True,
-    )
+    return sorted(hypers, key=get_hyper_free_ram_kb, reverse=True)
 
 
 # Sort the hypervisors by used RAM percentage (low to high)

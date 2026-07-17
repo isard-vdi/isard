@@ -8,6 +8,7 @@ from engine.models.balancers import (
     Balancer_less_cpu,
     Balancer_less_cpu_till_low_ram,
     Balancer_less_cpu_till_low_ram_percent,
+    BalancerInterface,
     _build_hugepages_extra,
     _get_used_ram_percentage,
     _parse_extra_gpu_info,
@@ -16,6 +17,7 @@ from engine.models.balancers import (
     sort_hypervisors_ram_percentage,
     weighted_select,
 )
+from engine.services.lib.mem_stats import get_hyper_free_ram_kb
 
 
 # Every balancer ends with `weighted_select(sorted_list)` which uses
@@ -69,38 +71,35 @@ def test_get_used_ram_percentage(test_input, expected):
     assert _get_used_ram_percentage(test_input) == pytest.approx(expected)
 
 
+GB = 1024 * 1024  # mem_stats are in KB, so a GB is 1024*1024 of them
+
+
+def _mem(total_gb, available_gb, hugepages_free_gb=0):
+    """Build a coherent mem_stats, mirroring HypStats.set_stats' arithmetic.
+
+    ``used = total - available - hugepages_free_kb`` (hyp.py:207), so the
+    hugepages-aware free is ``total - used == available + hugepages_free``.
+    """
+    total, available = total_gb * GB, available_gb * GB
+    hp_free = hugepages_free_gb * GB
+    return {
+        "mem_stats": {
+            "total": total,
+            "available": available,
+            "used": total - available - hp_free,
+            "hugepages_free_kb": hp_free,
+        }
+    }
+
+
 @pytest.mark.parametrize(
     "test_input, expected",
     [
         (
             [
-                {
-                    "id": "hyper1",
-                    "stats": {
-                        "mem_stats": {
-                            "total": 2000 * 1024 * 1024,
-                            "available": 100 * 1024 * 1024,
-                        }
-                    },
-                },
-                {
-                    "id": "hyper2",
-                    "stats": {
-                        "mem_stats": {
-                            "total": 500 * 1024,
-                            "available": 120 * 1024 * 1024,
-                        }
-                    },
-                },
-                {
-                    "id": "hyper3",
-                    "stats": {
-                        "mem_stats": {
-                            "total": 100 * 1024,
-                            "available": 80 * 1024 * 1024,
-                        }
-                    },
-                },
+                {"id": "hyper1", "stats": _mem(2000, 100)},
+                {"id": "hyper2", "stats": _mem(2000, 120)},
+                {"id": "hyper3", "stats": _mem(2000, 80)},
             ],
             "hyper2",
         )
@@ -108,6 +107,74 @@ def test_get_used_ram_percentage(test_input, expected):
 )
 def test_sort_hypervisors_ram_absolute(test_input, expected):
     assert sort_hypervisors_ram_absolute(test_input)[0]["id"] == expected
+
+
+@pytest.mark.parametrize(
+    "test_input, expected",
+    [
+        # Hugepages host: raw available is 204G but 885G of the pool is idle, so
+        # the grantable free is total-used = 1089G (a real-world shape).
+        ({"stats": _mem(1133, 204, hugepages_free_gb=885)}, 1089 * GB),
+        # No hugepages: used == total - available, so free == raw available and
+        # the hugepages-aware derivation is a no-op.
+        ({"stats": _mem(100, 40)}, 40 * GB),
+        # Stats writer has not produced `used` yet -> fall back to available.
+        ({"stats": {"mem_stats": {"total": 100 * GB, "available": 40 * GB}}}, 40 * GB),
+        # No stats at all.
+        ({"stats": {}}, 0),
+        ({}, 0),
+    ],
+)
+def test_get_hyper_free_ram_kb(test_input, expected):
+    assert get_hyper_free_ram_kb(test_input) == expected
+
+
+def test_adjust_for_pending_charges_used_so_used_based_balancers_see_it():
+    """Pending starts must move the figure the used-based balancers actually read.
+
+    Charging only `available` left the anti-storm guard invisible to
+    _get_used_ram_percentage (and so to the RAM_LIMIT gate and the percentage
+    sorts, incl. the default available_ram_percent balancer), because `used` is
+    always written by the stats writer so their fallback never fires.
+    """
+    balancer = BalancerInterface(balancer_type="round_robin")
+    hypers = [{"id": "hyper1", "stats": _mem(100, 50)}]  # used = 50G
+    before = _get_used_ram_percentage(hypers[0])
+
+    balancer._record_pending("hyper1", 20)  # 20 GB start in flight
+    adjusted = balancer._adjust_for_pending(hypers)
+
+    assert _get_used_ram_percentage(adjusted[0]) > before
+    assert adjusted[0]["stats"]["mem_stats"]["used"] == 70 * GB
+    assert adjusted[0]["stats"]["mem_stats"]["available"] == 30 * GB
+    assert get_hyper_free_ram_kb(adjusted[0]) == 30 * GB
+    # The caller's dicts must not be mutated (the copy is deliberate).
+    assert hypers[0]["stats"]["mem_stats"]["used"] == 50 * GB
+
+
+def test_adjust_for_pending_caps_used_at_total():
+    balancer = BalancerInterface(balancer_type="round_robin")
+    hypers = [{"id": "hyper1", "stats": _mem(100, 50)}]
+    balancer._record_pending("hyper1", 500)  # burst far beyond the host
+
+    adjusted = balancer._adjust_for_pending(hypers)
+
+    assert adjusted[0]["stats"]["mem_stats"]["used"] == 100 * GB
+    assert adjusted[0]["stats"]["mem_stats"]["available"] == 0
+    assert get_hyper_free_ram_kb(adjusted[0]) == 0
+
+
+def test_sort_hypervisors_ram_absolute_ranks_hugepages_host_by_grantable_free():
+    """A hugepages host with a large idle pool must outrank a smaller plain host.
+
+    Keying on the raw ``available`` puts ``plain`` first (300G > 204G) and starves
+    the hugepages host, even though it can still grant 1089G against plain's 300G.
+    """
+    hypers = [
+        {"id": "plain", "stats": _mem(400, 300)},
+        {"id": "hugepages", "stats": _mem(1133, 204, hugepages_free_gb=885)},
+    ]
+    assert sort_hypervisors_ram_absolute(hypers)[0]["id"] == "hugepages"
 
 
 @pytest.mark.parametrize(

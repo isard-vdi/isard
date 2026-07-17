@@ -110,6 +110,7 @@ class AdminHypervisorsService:
             user=data.get("user", "root"),
             only_forced=data.get("only_forced", False),
             min_free_mem_gb=data.get("min_free_mem_gb", 0),
+            min_free_gpu_mem_gb=data.get("min_free_gpu_mem_gb", 0),
             storage_pools=storage_pools,
             enabled_storage_pools=enabled_storage_pools,
             virt_pools=virt_pools,

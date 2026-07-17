@@ -15,6 +15,7 @@ from engine.services.db import (
     rethink_conn,
 )
 from engine.services.db.domains import get_vgpus_mdevs
+from engine.services.lib.mem_stats import get_hyper_free_ram_kb
 from engine.services.log import log, logs
 
 # ─── Ephemeral hypervisor thread status (engine-process RAM) ────────────────
@@ -774,7 +775,7 @@ def filter_outofGPUmem_hypers(hypers_online):
             hypers_with_ram.append(hyper)
             continue
         if (
-            int(hyper.get("stats", {}).get("mem_stats", {}).get("available", 0))
+            get_hyper_free_ram_kb(hyper)
             > int(hyper.get("min_free_gpu_mem_gb", 0)) * 1048576
             + int(hyper.get("min_free_mem_gb", 0)) * 1048576
         ):
@@ -796,16 +797,19 @@ def filter_outofGPUmem_hypers(hypers_online):
 
 
 def filter_outofmem_hypers(hypers_online):
+    # HYPER_FREEMEM reserves grantable memory ("Maximum memory for starting
+    # guests = Hypervisor memory - HYPER_FREEMEM", isardvdi.cfg.example), so it
+    # gates on the hugepages-aware free, as the webapp and rata already do.
     hypers_with_ram = []
     for hyper in hypers_online:
         if (
-            int(hyper.get("stats", {}).get("mem_stats", {}).get("available", 0))
+            get_hyper_free_ram_kb(hyper)
             >= int(hyper.get("min_free_mem_gb", 0)) * 1048576
         ):
             hypers_with_ram.append(hyper)
         else:
             logs.workers.error(
-                "Hyper %s removed from start desktops pool because low available ram. %s"
+                "Hyper %s removed from start desktops pool because low free ram. %s"
                 % (
                     hyper["id"],
                     hyper,
@@ -820,7 +824,7 @@ def filter_outofmem_hypers(hypers_online):
     logs.workers.debug("--------------------------------------")
     logs.workers.debug(
         "hypers_with_ram: %s"
-        % int(hyper.get("stats", {}).get("mem_stats", {}).get("available", 0))
+        % {h["id"]: get_hyper_free_ram_kb(h) for h in hypers_with_ram}
     )
     logs.workers.debug("--------------------------------------")
     return hypers_with_ram
