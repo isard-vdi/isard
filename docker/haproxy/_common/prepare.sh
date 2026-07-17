@@ -15,7 +15,7 @@ for part in $FLAVOUR; do
 done
 
 echo "Building haproxy.cfg for flavour: $FLAVOUR"
-if [ "$DEVELOPMENT" = "true" ]
+if [ "$USAGE" = "devel" ]
 then
   echo "Development mode: excluding abuse protection configuration"
   rm -f "$tmp_dir"/16_04_fe_http_secured_abuse.cfg

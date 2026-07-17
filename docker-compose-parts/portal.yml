@@ -37,6 +37,7 @@ services:
       - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
     environment:
       FLAVOUR: ${FLAVOUR:-all-in-one}
+      USAGE: ${USAGE:-production}
       FORBID_DOMAIN_IP: ${FORBID_DOMAIN_IP:-false}
       CORS: ${CORS:-*}
       BASTION_ENABLED: ${BASTION_ENABLED:-false}
