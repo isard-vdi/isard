@@ -13,6 +13,8 @@ import {
   duplicateTemplateMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { ErrorResponse } from '@/gen/oas/apiv4'
+import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
+import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 import { checkQuotaNewTemplateOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { QuotaExceededModal } from '@/components/modal'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
@@ -62,9 +64,15 @@ const { data: templateDetails, isPending: templateDetailsIsPending } = useQuery(
   })
 )
 
-const imageUrl = computed(() => {
-  return templateInfo.value?.image?.url || ''
-})
+const selectedImage = ref<DomainImageOutput | undefined>(undefined)
+const showChangeImageModal = ref(false)
+
+const currentImage = computed(() => selectedImage.value ?? templateInfo.value?.image)
+const imageUrl = computed(() => currentImage.value?.url || '')
+
+function handleImageSelected(image: DomainImageOutput) {
+  selectedImage.value = image
+}
 
 const duplicateTemplateErrorCode = ref<string | undefined>(undefined)
 const {
@@ -128,6 +136,9 @@ const form = useForm({
         name: value.name,
         description: value.description,
         enabled: value.enabled,
+        image: selectedImage.value
+          ? { id: selectedImage.value.id, type: selectedImage.value.type }
+          : undefined,
         allowed: {
           users: false,
           groups: false
@@ -151,6 +162,13 @@ const isPending = computed(() => {
 </script>
 
 <template>
+  <ChangeImageModal
+    :open="showChangeImageModal"
+    :current-image="currentImage"
+    @select="handleImageSelected"
+    @close="showChangeImageModal = false"
+  />
+
   <!-- Quota Exceeded Modal -->
   <QuotaExceededModal
     :open="quotaQuery.isError.value"
@@ -242,6 +260,7 @@ const isPending = computed(() => {
                   hierarchy="secondary-gray"
                   size="sm"
                   icon="image-plus"
+                  @click="showChangeImageModal = true"
                 />
               </div>
             </div>
