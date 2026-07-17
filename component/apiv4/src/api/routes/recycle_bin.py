@@ -33,6 +33,8 @@ from api.schemas.common import (
 from api.schemas.recycle_bin import (
     DeleteActionEnum,
     OldEntriesActionEnum,
+    RecoverStuckRequest,
+    RecoverStuckResponse,
     RecycleBinBulkRequest,
     RecycleBinBulkResponse,
     RecycleBinCutoffTimeResponse,
@@ -44,6 +46,7 @@ from api.schemas.recycle_bin import (
     RecycleBinStatusResponse,
     RecycleBinSystemCutoffTimeResponse,
     RecycleBinUpdateCutoffTimeRequest,
+    StuckRecycleBinEntry,
     UnusedItemTimeoutRule,
     UnusedItemTimeoutRuleCreateRequest,
     UnusedItemTimeoutRulesResponse,
@@ -574,6 +577,68 @@ async def delete_cutoff_time_surpassed(request: Request):
             request,
             "internal_server",
             "Failed to delete cutoff-surpassed entries",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/items/recycle-bin/stuck",
+    tags=[tag],
+    response_model=list[StuckRecycleBinEntry],
+    summary="List entries stuck mid-delete",
+    description="Lists recycle bin entries stranded in 'deleting' or 'queued' "
+    "(e.g. orphaned by an isard-api restart while the delete queue was draining). "
+    "Read-only; optional 'older_than_minutes' filters out entries that may still "
+    "be actively draining.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def list_stuck_recycle_bin_entries(request: Request, older_than_minutes: int = 0):
+    try:
+        return RecycleBinService.list_stuck_entries(
+            older_than_minutes=older_than_minutes
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to list stuck recycle bin entries",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/items/recycle-bin/recover-stuck",
+    tags=[tag],
+    response_model=RecoverStuckResponse,
+    summary="Recover entries stuck mid-delete",
+    description="Re-enqueues recycle bin entries stranded in 'deleting' or "
+    "'queued' so the bulk-delete worker retries them. Manual admin recovery for "
+    "entries orphaned by an isard-api restart (the startup reconcile only "
+    "recovers 'queued'). Idempotent for disks already deleted.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def recover_stuck_recycle_bin_entries(
+    request: Request, data: RecoverStuckRequest
+):
+    try:
+        recovered = await RecycleBinService.recover_stuck_entries(
+            user_id=request.token_payload["user_id"],
+            older_than_minutes=data.older_than_minutes,
+        )
+        return {"recovered": recovered, "count": len(recovered)}
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to recover stuck recycle bin entries",
             traceback.format_exc(),
         )
 

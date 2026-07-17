@@ -657,6 +657,58 @@ class Helpers(RethinkSharedConnection):
         _get_recycle_bin_entries_cutoff_time_surpassed_cache.clear()
 
     @classmethod
+    def get_stuck_delete_entries(cls, older_than_minutes=0):
+        """
+        Recycle bin entries stranded mid-delete: status ``deleting`` or
+        ``queued``.
+
+        These become orphaned when ``isard-api`` restarts while the in-memory
+        ``RecycleBinDeleteQueue`` is still draining: ``initialize()`` re-enqueues
+        only ``queued`` entries on startup, so an entry already advanced to
+        ``deleting`` whose remaining work was lost is never retried. This backs
+        the admin manual-recovery endpoint (inspect, then re-enqueue).
+
+        :param older_than_minutes: only return entries whose last activity
+            (``last_log.time`` epoch seconds) is older than this many minutes;
+            ``0`` (default) returns every stuck entry. A threshold lets an admin
+            skip entries that may still be actively draining.
+        :return: list of {id, status, owner_id, item_type, storages_count,
+            last_log}
+        :rtype: list[dict]
+        """
+        cutoff_ts = (
+            (
+                datetime.now(timezone.utc) - timedelta(minutes=older_than_minutes)
+            ).timestamp()
+            if older_than_minutes
+            else None
+        )
+        with cls._rdb_context():
+            query = r.table("recycle_bin").get_all(
+                RecycleBinStatusEnum.deleting.value,
+                RecycleBinStatusEnum.queued.value,
+                index="status",
+            )
+            if cutoff_ts is not None:
+                query = query.filter(
+                    lambda rb: rb["last_log"].default({})["time"].default(0) < cutoff_ts
+                )
+            return list(
+                query.merge(
+                    lambda rb: {"storages_count": rb["storages"].default([]).count()}
+                )
+                .pluck(
+                    "id",
+                    "status",
+                    "owner_id",
+                    "item_type",
+                    "storages_count",
+                    "last_log",
+                )
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
     def update_status(cls, rb_id, owner_id, status):
         with cls._rdb_context():
             r.table("recycle_bin").get(rb_id).update({"status": status}).run(

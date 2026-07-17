@@ -178,6 +178,30 @@ class RecycleBinStatusResponse(BaseModel):
     by_status: dict = {}
 
 
+class StuckRecycleBinEntry(BaseModel):
+    """A recycle bin entry stranded mid-delete ('deleting' or 'queued')."""
+
+    id: str
+    status: RecycleBinStatusEnum
+    owner_id: Optional[str] = None
+    item_type: Optional[str] = None
+    storages_count: int = 0
+    last_log: Optional[dict] = None
+
+
+class RecoverStuckRequest(BaseModel):
+    """Request to recover recycle bin entries stranded mid-delete."""
+
+    older_than_minutes: int = 0
+
+
+class RecoverStuckResponse(BaseModel):
+    """Result of a manual stuck-entry recovery (ids re-enqueued)."""
+
+    recovered: list[str] = []
+    count: int = 0
+
+
 class RecycleBinOldEntriesConfig(BaseModel):
     """Configuration for old entries cleanup."""
 
