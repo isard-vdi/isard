@@ -1979,6 +1979,89 @@ func TestApplyStoredBranding(t *testing.T) {
 			ProviderName: types.ProviderSAML,
 			CategoryID:   strPtr("cat1"),
 		},
+		"should apply branding to the global provider when the category inherits the global config": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				bap := provider.NewMockBrandingAwareProvider(t)
+				host := "branding.example.com"
+				bap.On("SetBrandingHost", t.Context(), "cat1", &host).Return(nil)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderGoogle: bap,
+						},
+					},
+					categories: map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{
+						"cat1": {
+							CategoryID: "cat1",
+							Host:       strPtr("branding.example.com"),
+							Authentication: &model.CategoryAuthentication{
+								Google: &model.CategoryAuthGoogle{
+									ConfigSource: model.CategoryAuthenticationConfigSourceGlobal,
+								},
+							},
+						},
+					},
+				}
+			},
+			ProviderName: types.ProviderGoogle,
+			CategoryID:   nil,
+		},
+		"should not apply branding to the global provider when the category has a custom config": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderGoogle: provider.NewMockBrandingAwareProvider(t),
+						},
+					},
+					categories: map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{
+						"cat1": {
+							CategoryID: "cat1",
+							Host:       strPtr("branding.example.com"),
+							Authentication: &model.CategoryAuthentication{
+								Google: &model.CategoryAuthGoogle{
+									ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+								},
+							},
+						},
+					},
+				}
+			},
+			ProviderName: types.ProviderGoogle,
+			CategoryID:   nil,
+		},
+		"should not apply branding to the global provider when the category disabled it": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderGoogle: provider.NewMockBrandingAwareProvider(t),
+						},
+					},
+					categories: map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{
+						"cat1": {
+							CategoryID: "cat1",
+							Host:       strPtr("branding.example.com"),
+							Authentication: &model.CategoryAuthentication{
+								Google: &model.CategoryAuthGoogle{
+									ConfigSource: model.CategoryAuthenticationConfigSourceGlobal,
+									Disabled:     true,
+								},
+							},
+						},
+					},
+				}
+			},
+			ProviderName: types.ProviderGoogle,
+			CategoryID:   nil,
+		},
 	}
 
 	for name, tc := range cases {

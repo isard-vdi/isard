@@ -162,8 +162,8 @@ class Populate(object):
                 try:
                     table = t
                     log.info("Creating new table: " + t)
-                    # CREATING TABLES WITH eval self.{name_of_table}
-                    log.info("  Result: " + str(eval("self." + table + "()")))
+                    # Dispatch to the self.<table>() creator method by name.
+                    log.info("  Result: " + str(getattr(self, table)()))
                 except Exception as e:
                     exc_type, exc_obj, exc_tb = sys.exc_info()
                     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]

@@ -496,22 +496,34 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 // applyStoredBranding applies stored branding domains to a newly enabled provider.
 // Must be called with m.mux held.
 func (m *ProviderManager) applyStoredBranding(ctx context.Context, log *zerolog.Logger, scope *providerSet, prv string, categoryID *string) {
-	if categoryID == nil {
-		return
-	}
-
 	bap, ok := scope.providers[prv].(provider.BrandingAwareProvider)
 	if !ok {
 		return
 	}
 
-	bd, ok := m.brandingDomains[*categoryID]
-	if !ok {
+	apply := func(bd categoryBrandingDomainChange) {
+		if err := bap.SetBrandingHost(ctx, bd.CategoryID, bd.Host); err != nil {
+			log.Error().Err(err).Str("category", bd.CategoryID).Msg("apply stored branding host to new provider")
+		}
+	}
+
+	if categoryID != nil {
+		if bd, ok := m.brandingDomains[*categoryID]; ok {
+			apply(bd)
+		}
+
 		return
 	}
 
-	if err := bap.SetBrandingHost(ctx, bd.CategoryID, bd.Host); err != nil {
-		log.Error().Err(err).Str("category", bd.CategoryID).Msg("apply stored branding host to new provider")
+	// Categories that inherit the global provider config log in through the global
+	// provider, so their branding domains have to be allowed on it too.
+	for _, bd := range m.brandingDomains {
+		source, disabled := providerConfigSource(bd.Authentication, prv)
+		if disabled || source != model.CategoryAuthenticationConfigSourceGlobal {
+			continue
+		}
+
+		apply(bd)
 	}
 }
 
