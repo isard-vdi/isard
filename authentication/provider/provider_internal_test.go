@@ -66,6 +66,70 @@ func TestMatchRegexMultiple(t *testing.T) {
 	}
 }
 
+func TestExtractGroups(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	nested := `^/[^/]+/(?P<primary>[^/]+)(?:/(?P<secondary>[^/]+))?$`
+
+	cases := map[string]struct {
+		Regex             string
+		RawGroups         []string
+		ExpectedPrimary   []string
+		ExpectedSecondary []string
+	}{
+		"should extract nested primary and secondary groups": {
+			Regex: nested,
+			RawGroups: []string{
+				"/ikasleak/ADFI",
+				"/ikasleak/ADFI/CF",
+				"/irakasleak/COC",
+				"/ikasleak/ADFI/GF",
+				"/ikasleak",
+				"/irakasleak",
+			},
+			ExpectedPrimary:   []string{"ADFI", "COC"},
+			ExpectedSecondary: []string{"CF", "GF"},
+		},
+		"should extract only the primary group if there's no secondary segment": {
+			Regex:             nested,
+			RawGroups:         []string{"/ikasleak/ADFI"},
+			ExpectedPrimary:   []string{"ADFI"},
+			ExpectedSecondary: []string{},
+		},
+		"should ignore strings that don't match the nested regex": {
+			Regex:             nested,
+			RawGroups:         []string{"/ikasleak", "/irakasleak"},
+			ExpectedPrimary:   []string{},
+			ExpectedSecondary: []string{},
+		},
+		"should fall back to flat matching if the regex has no primary group": {
+			Regex:             `([^,]+)+`,
+			RawGroups:         []string{"group1,group2,group3", "group1"},
+			ExpectedPrimary:   []string{"group1", "group2", "group3"},
+			ExpectedSecondary: []string{},
+		},
+		"should extract the capturing group in flat mode": {
+			Regex:             `/home/users/([^/]+)/[^/]+/[^/]+`,
+			RawGroups:         []string{"/home/users/escola/escola/nefix"},
+			ExpectedPrimary:   []string{"escola"},
+			ExpectedSecondary: []string{},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			re := regexp.MustCompile(tc.Regex)
+			primary, secondary := extractGroups(re, tc.RawGroups)
+
+			assert.Equal(tc.ExpectedPrimary, primary)
+			assert.Equal(tc.ExpectedSecondary, secondary)
+		})
+	}
+}
+
 func TestGuessCategory(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -452,6 +516,198 @@ func TestGuessCategory(t *testing.T) {
 			}
 
 			mock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGuessGroup(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	nested := `^/[^/]+/(?P<primary>[^/]+)(?:/(?P<secondary>[^/]+))?$`
+
+	cases := map[string]struct {
+		PrepareDB         func(*r.Mock)
+		DefaultGroup      string
+		RawGroups         []string
+		ExpectedPrimary   string
+		ExpectedSecondary []string
+		ExpectedErr       string
+	}{
+		"should map nested groups to a primary and secondaries": {
+			PrepareDB: func(m *r.Mock) {
+				groups := []*model.Group{
+					genExternalGroup(Unknown{}, "default", "ADFI"),
+					genExternalGroup(Unknown{}, "default", "COC"),
+				}
+				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
+					return r.Expr(groups).Contains(func(group r.Term) r.Term {
+						return r.And(
+							r.Eq(row.Field("parent_category"), group.Field("parent_category")),
+							r.Eq(row.Field("external_app_id"), group.Field("external_app_id")),
+							r.Eq(row.Field("external_gid"), group.Field("external_gid")),
+						)
+					})
+				})).Return([]any{}, nil)
+			},
+			RawGroups: []string{
+				"/ikasleak/ADFI",
+				"/ikasleak/ADFI/CF",
+				"/irakasleak/COC",
+				"/ikasleak/ADFI/GF",
+				"/ikasleak",
+				"/irakasleak",
+			},
+			ExpectedPrimary:   "ADFI",
+			ExpectedSecondary: []string{"COC", "CF", "GF"},
+		},
+		"should prefer an already-existing group as the primary": {
+			PrepareDB: func(m *r.Mock) {
+				groups := []*model.Group{
+					genExternalGroup(Unknown{}, "default", "ADFI"),
+					genExternalGroup(Unknown{}, "default", "COC"),
+				}
+				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
+					return r.Expr(groups).Contains(func(group r.Term) r.Term {
+						return r.And(
+							r.Eq(row.Field("parent_category"), group.Field("parent_category")),
+							r.Eq(row.Field("external_app_id"), group.Field("external_app_id")),
+							r.Eq(row.Field("external_gid"), group.Field("external_gid")),
+						)
+					})
+				})).Return([]any{
+					map[string]any{
+						"parent_category": "default",
+						"external_app_id": "provider-unknown",
+						"external_gid":    "COC",
+					},
+				}, nil)
+			},
+			RawGroups:         []string{"/ikasleak/ADFI", "/irakasleak/COC"},
+			ExpectedPrimary:   "COC",
+			ExpectedSecondary: []string{"ADFI"},
+		},
+		"should prefer the earliest existing group in IdP order when several exist": {
+			PrepareDB: func(m *r.Mock) {
+				groups := []*model.Group{
+					genExternalGroup(Unknown{}, "default", "ADFI"),
+					genExternalGroup(Unknown{}, "default", "COC"),
+				}
+				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
+					return r.Expr(groups).Contains(func(group r.Term) r.Term {
+						return r.And(
+							r.Eq(row.Field("parent_category"), group.Field("parent_category")),
+							r.Eq(row.Field("external_app_id"), group.Field("external_app_id")),
+							r.Eq(row.Field("external_gid"), group.Field("external_gid")),
+						)
+					})
+				})).Return([]any{
+					map[string]any{
+						"parent_category": "default",
+						"external_app_id": "provider-unknown",
+						"external_gid":    "COC",
+					},
+					map[string]any{
+						"parent_category": "default",
+						"external_app_id": "provider-unknown",
+						"external_gid":    "ADFI",
+					},
+				}, nil)
+			},
+			RawGroups:         []string{"/ikasleak/ADFI", "/irakasleak/COC"},
+			ExpectedPrimary:   "ADFI",
+			ExpectedSecondary: []string{"COC"},
+		},
+		"should deduplicate a group mapped as both a primary and a secondary": {
+			PrepareDB: func(m *r.Mock) {
+				groups := []*model.Group{
+					genExternalGroup(Unknown{}, "default", "ADFI"),
+					genExternalGroup(Unknown{}, "default", "COC"),
+					genExternalGroup(Unknown{}, "default", "GRP"),
+				}
+				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
+					return r.Expr(groups).Contains(func(group r.Term) r.Term {
+						return r.And(
+							r.Eq(row.Field("parent_category"), group.Field("parent_category")),
+							r.Eq(row.Field("external_app_id"), group.Field("external_app_id")),
+							r.Eq(row.Field("external_gid"), group.Field("external_gid")),
+						)
+					})
+				})).Return([]any{}, nil)
+			},
+			RawGroups:         []string{"/ikasleak/ADFI", "/ikasleak/COC", "/irakasleak/GRP/COC"},
+			ExpectedPrimary:   "ADFI",
+			ExpectedSecondary: []string{"COC", "GRP"},
+		},
+		"should fall back to the default group when nothing matches": {
+			DefaultGroup:      "default-group",
+			RawGroups:         []string{"/ikasleak"},
+			ExpectedPrimary:   "default-group",
+			ExpectedSecondary: []string{},
+		},
+		"should return an error when nothing matches and there's no default group": {
+			RawGroups:   []string{"/ikasleak"},
+			ExpectedErr: "invalid credentials: emtpy user group, no default",
+		},
+		"should return an internal error if the DB check fails": {
+			PrepareDB: func(m *r.Mock) {
+				groups := []*model.Group{genExternalGroup(Unknown{}, "default", "ADFI")}
+				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
+					return r.Expr(groups).Contains(func(group r.Term) r.Term {
+						return r.And(
+							r.Eq(row.Field("parent_category"), group.Field("parent_category")),
+							r.Eq(row.Field("external_app_id"), group.Field("external_app_id")),
+							r.Eq(row.Field("external_gid"), group.Field("external_gid")),
+						)
+					})
+				})).Return(nil, errors.New("boom"))
+			},
+			RawGroups:   []string{"/ikasleak/ADFI"},
+			ExpectedErr: "internal server error: guess primary group: check if groups already exist: boom",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			var sess r.QueryExecutor
+			var mock *r.Mock
+			if tc.PrepareDB != nil {
+				mock = r.NewMock()
+				tc.PrepareDB(mock)
+				sess = mock
+			}
+
+			opts := guessGroupOpts{
+				Provider:     Unknown{},
+				ReGroup:      regexp.MustCompile(nested),
+				DefaultGroup: tc.DefaultGroup,
+			}
+			u := &types.ProviderUserData{Category: "default"}
+
+			primary, secondary, err := guessGroup(t.Context(), sess, opts, u, tc.RawGroups)
+
+			if mock != nil {
+				mock.AssertExpectations(t)
+			}
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+				assert.Nil(primary)
+				assert.Empty(secondary)
+
+				return
+			}
+
+			assert.Nil(err)
+			assert.Equal(tc.ExpectedPrimary, primary.ExternalGID)
+
+			gids := []string{}
+			for _, g := range secondary {
+				gids = append(gids, g.ExternalGID)
+			}
+			assert.Equal(tc.ExpectedSecondary, gids)
 		})
 	}
 }
