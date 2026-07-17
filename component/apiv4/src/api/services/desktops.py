@@ -346,7 +346,7 @@ class DesktopService:
             if isinstance(data.image, str):
                 image_data = data.image
             else:
-                image_data = data.image.model_dump(exclude_unset=True)
+                image_data = CardService.get_card(data.image.id, data.image.type)
         else:
             image_data = CardService.get_domain_stock_card(desktop_id)
 

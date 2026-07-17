@@ -305,6 +305,10 @@ class NewTemplateRequest(BaseModel):
         description="Whether the template is enabled or not.",
         default=True,
     )
+    image: DomainImage | None = Field(
+        default=None,
+        description="Image to be used for the template. If None or not provided, a stock card derived from the new template ID is assigned.",
+    )
 
 
 class DuplicateTemplateRequest(BaseModel):
@@ -323,6 +327,10 @@ class DuplicateTemplateRequest(BaseModel):
     enabled: bool = Field(
         description="Whether the template is enabled or not.",
         default=True,
+    )
+    image: DomainImage | None = Field(
+        default=None,
+        description="Image to be used for the duplicate. If None or not provided, the source template's image is inherited.",
     )
 
 
