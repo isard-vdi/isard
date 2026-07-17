@@ -134,6 +134,37 @@ def _admin_table_list_cache_seq_key(seq):
     return repr(seq)
 
 
+_SERVER_TOKEN_CONDITIONS = {
+    "AUTO": {"server": True, "server_autostart": True},
+    "SERVER": {"server": True, "server_autostart": False},
+    "-": {"server": False},
+}
+
+
+_SERVER_INDEXED_TOKENS = tuple(
+    token
+    for token, conditions in _SERVER_TOKEN_CONDITIONS.items()
+    if conditions["server"] is True
+)
+
+
+def _server_token_filter(token):
+    """Build the ReQL predicate matching a Server column token.
+
+    ``default(False)`` maps both a missing field and a stored ``null`` to
+    ``False``, mirroring the column renderer's fallback to ``-``.
+    """
+    conditions = _SERVER_TOKEN_CONDITIONS[token]
+
+    def predicate(doc):
+        expr = r.expr(True)
+        for field, value in conditions.items():
+            expr = expr.and_(doc[field].default(False).eq(value))
+        return expr
+
+    return predicate
+
+
 class ApiAdmin(RethinkSharedConnection):
 
     @staticmethod
@@ -789,7 +820,7 @@ class ApiAdmin(RethinkSharedConnection):
         6. group alone → group
         7. user alone → user
         8. hyp_started alone → hyp_started
-        9. server alone → server
+        9. server alone → server (pre-narrowing only, always re-checked below)
         10. fallback → kind
 
         _From api/libv2/api_admin.py ApiAdmin.ListDesktopsWithFilters()_
@@ -849,11 +880,10 @@ class ApiAdmin(RethinkSharedConnection):
                 lambda d: d["kind"] == "desktop"
             )
             used_filters.add("hyp_started")
-        elif filters.get("server") is not None:
-            query = query.get_all(filters["server"], index="server").filter(
+        elif filters.get("server") in _SERVER_INDEXED_TOKENS:
+            query = query.get_all(True, index="server").filter(
                 lambda d: d["kind"] == "desktop"
             )
-            used_filters.add("server")
         else:
             query = query.get_all("desktop", index="kind")
 
@@ -862,8 +892,8 @@ class ApiAdmin(RethinkSharedConnection):
             query = query.filter(lambda d: r.expr(categories).contains(d["category"]))
         if "hyp_started" in filters and "hyp_started" not in used_filters:
             query = query.filter(lambda d: d["hyp_started"] == filters["hyp_started"])
-        if "server" in filters and "server" not in used_filters:
-            query = query.filter(lambda d: d["server"] == filters["server"])
+        if "server" in filters:
+            query = query.filter(_server_token_filter(filters["server"]))
         if "user" in filters and "user" not in used_filters:
             query = query.filter(lambda d: d["user"] == filters["user"])
         if "group" in filters and "group" not in used_filters:
@@ -913,6 +943,7 @@ class ApiAdmin(RethinkSharedConnection):
                 "hyp_started",
                 "name",
                 "status",
+                "user",
                 "user_name",
                 "accessed",
                 "forced_hyp",

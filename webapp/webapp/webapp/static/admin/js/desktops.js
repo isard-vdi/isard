@@ -2427,9 +2427,8 @@ function renderStorageActionsButton(data) {
                         url:"/api/v4/admin/item/userschema",
                         success: function (d) {
                             $.each(d[item], function(pos, it) {
-                                if (item=='category') { var value = it.id } else { var value = it.name }
-                                if ($("#" + item + " option:contains(" + it.name + ")").length == 0) {
-                                    elem.append('<option value=' + value + '>' + it.name + '</option>');
+                                if (elem.find('option[value="' + it.id + '"]').length === 0) {
+                                    elem.append('<option value="' + it.id + '">' + it.name + '</option>');
                                 }
                             });
                         }
@@ -2438,9 +2437,8 @@ function renderStorageActionsButton(data) {
                     break;
                 case ("user"):
                     $.each(domains_table.data(), function (pos, it) {
-                        var itemName = item != 'user' ? item + "_name" : "username";
-                        if ($("#" + item + " option:contains(" + it[itemName] + ")").length == 0) {
-                            elem.append('<option value=' + it[itemName] + '>' + it[itemName] + '</option>');
+                        if (it["user"] && elem.find('option[value="' + it["user"] + '"]').length === 0) {
+                            elem.append('<option value="' + it["user"] + '">' + it["user_name"] + '</option>');
                         }
                     });
                     break;
