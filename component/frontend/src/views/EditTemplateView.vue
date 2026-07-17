@@ -21,6 +21,8 @@ import { InputField } from '@/components/input-field'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { describeApiError } from '@/lib/api-errors'
+import type { DomainImageFile, DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
+import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
 import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
@@ -41,7 +43,15 @@ const { data: templateDetails, isPending: templateDetailsIsPending } = useQuery(
   refetchOnMount: 'always'
 })
 
-const imageUrl = computed(() => (templateDetails.value as any)?.image?.url || '')
+const selectedImage = ref<DomainImageOutput | undefined>(undefined)
+const pendingImageFile = ref<DomainImageFile | undefined>(undefined)
+const showChangeImageModal = ref(false)
+const imageUrl = computed(() => selectedImage.value?.url || '')
+
+function handleImageSelected(image: DomainImageOutput & { file?: DomainImageFile }) {
+  selectedImage.value = image
+  pendingImageFile.value = image.file
+}
 
 // --------------------------------------------------
 // Form
@@ -67,6 +77,8 @@ watch(
     if (!data) return
     templateInfoForm.setFieldValue('name', data.name)
     templateInfoForm.setFieldValue('description', data.description || '')
+    selectedImage.value = (data as { image?: DomainImageOutput }).image
+    pendingImageFile.value = undefined
   },
   { immediate: true }
 )
@@ -149,6 +161,13 @@ const handleSubmit = () => {
     body: {
       name: templateInfoForm.getFieldValue('name'),
       description: templateInfoForm.getFieldValue('description'),
+      image: selectedImage.value
+        ? {
+            id: selectedImage.value.id,
+            type: selectedImage.value.type,
+            ...(pendingImageFile.value ? { file: pendingImageFile.value } : {})
+          }
+        : undefined,
       guest_properties: {
         credentials: accessData?.credentials ?? templateDetails.value?.credentials,
         fullscreen: accessData?.fullscreen ?? templateDetails.value?.fullscreen,
@@ -181,6 +200,16 @@ const handleSubmit = () => {
 </script>
 
 <template>
+  <ChangeImageModal
+    :open="showChangeImageModal"
+    :domain-id="templateId"
+    :current-image="selectedImage"
+    :persist-on-save="false"
+    :allow-upload="false"
+    @select="handleImageSelected"
+    @close="showChangeImageModal = false"
+  />
+
   <div
     class="flex flex-col-reverse md:flex-row items-start justify-between max-w-480 w-full mx-auto mb-8 gap-4"
   >
@@ -246,6 +275,7 @@ const handleSubmit = () => {
                 hierarchy="secondary-gray"
                 size="sm"
                 icon="image-plus"
+                @click="showChangeImageModal = true"
               />
             </div>
           </div>
