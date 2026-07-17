@@ -175,7 +175,10 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
     async def dequeue(self):
         try:
             item = await asyncio.wait_for(self.queue.get(), timeout=1.0)
-            self.recycle_bin_ids.remove(item.get("recycle_bin_id"))
+            # ``discard`` (not ``remove``): a re-enqueue/reconcile race can leave
+            # the id absent from the set; ``remove`` would raise KeyError and kill
+            # the background worker, silently stalling every pending deletion.
+            self.recycle_bin_ids.discard(item.get("recycle_bin_id"))
             return item
         except asyncio.TimeoutError:
             return None
@@ -1889,7 +1892,9 @@ class RecycleBin(RethinkSharedConnection):
                         if not entry["storages"]:
                             start = time.time()
                             Helpers.update_status(
-                                rb.id, RecycleBinStatusEnum.deleted.value
+                                rb.id,
+                                self.owner_id,
+                                RecycleBinStatusEnum.deleted.value,
                             )
                             log.debug(
                                 "RecycleBin %s delete_storage: No storages. Updated status to deleted in %s seconds",
