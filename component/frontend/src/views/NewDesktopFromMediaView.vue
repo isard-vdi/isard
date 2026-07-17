@@ -101,7 +101,7 @@ const defaultHardware = {
 const defaultAccess = {
   credentials: {
     username: 'isard',
-    password: 'pirineus'
+    password: ''
   },
   fullscreen: false,
   viewers: ['browser_vnc', 'file_spice']
