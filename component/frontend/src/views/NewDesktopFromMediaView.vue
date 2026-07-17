@@ -35,7 +35,8 @@ import Step3Creating from '@/components/new-desktop/Step3Creating.vue'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import router from '@/router'
-import type { MediaKindEnum, VirtInstallItem } from '@/gen/oas/apiv4/types.gen'
+import type { DomainImageOutput, MediaKindEnum, VirtInstallItem } from '@/gen/oas/apiv4/types.gen'
+import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -44,11 +45,19 @@ const queryClient = useQueryClient()
 const mediaId = computed(() => route.params.mediaId as string)
 const mediaKind = computed(() => (route.query.kind as string) || 'iso')
 
-const stockImageId = (Math.floor(Math.random() * 48) + 1).toString()
-const desktopImage = {
-  id: stockImageId,
+// No desktop id yet to derive a card from, so pick one of the 48 stock cards
+// up front and let the preview show what will be created. The id carries the
+// extension, as the backend stores it everywhere else (`Cards.get_card`).
+const stockCardNumber = Math.floor(Math.random() * 48) + 1
+const desktopImage = ref<DomainImageOutput>({
+  id: `${stockCardNumber}.jpg`,
   type: 'stock',
-  url: `/assets/img/desktops/stock/${stockImageId}.jpg`
+  url: `/assets/img/desktops/stock/${stockCardNumber}.jpg`
+})
+const showChangeImageModal = ref(false)
+
+function handleImageSelected(image: DomainImageOutput) {
+  desktopImage.value = image
 }
 
 const quotaQuery = useQuery({
@@ -227,13 +236,20 @@ const handleSubmit = () => {
           vgpus: hardwareSettings?.reservables?.vgpus ?? []
         }
       },
-      image: desktopImage
+      image: { id: desktopImage.value.id, type: desktopImage.value.type }
     }
   })
 }
 </script>
 
 <template>
+  <ChangeImageModal
+    :open="showChangeImageModal"
+    :current-image="desktopImage"
+    @select="handleImageSelected"
+    @close="showChangeImageModal = false"
+  />
+
   <!-- Quota Exceeded Modal -->
   <QuotaExceededModal
     :open="quotaQuery.isError.value"
@@ -321,7 +337,15 @@ const handleSubmit = () => {
             <p class="text-sm font-regular mb-6">
               {{ t('views.new-desktop.step-2.preview.description') }}
             </p>
-            <DesktopCardBase :image-url="desktopImage.url" desktop-kind="persistent">
+            <DesktopCardBase :image-url="desktopImage.url || ''" desktop-kind="persistent">
+              <template #header-actions>
+                <Button
+                  icon="image-plus"
+                  hierarchy="secondary-gray"
+                  size="sm"
+                  @click="showChangeImageModal = true"
+                />
+              </template>
               <template #header>
                 <DesktopCardHeader
                   :name="infoFormValues.name"
