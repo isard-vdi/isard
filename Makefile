@@ -116,9 +116,12 @@ _common_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_common -
 _chandler_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_change_handler --cov-report=html:component/change-handler/src/htmlcov,)
 _cfeed_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_changefeed --cov-report=html:component/changefeed/src/htmlcov,)
 
+# Mirrors the unit-test-engine CI job: same paths, same two invocations.
+# engine/services/db needs importlib mode (see .gitlab-ci.yml for why).
 .PHONY: test-engine
 test-engine:
-	docker exec isard-engine sh -c "cd /isard && python3 -m pytest engine/models engine/services/threads engine/services/lib initdb -v --tb=short"
+	docker exec isard-engine sh -c "cd /isard && python3 -m pytest engine/models engine/controllers engine/services/threads engine/services/lib initdb -v --tb=short"
+	docker exec isard-engine sh -c "cd /isard && python3 -m pytest --import-mode=importlib engine/services/db -v --tb=short"
 
 # Hypervisor GPU lib suites (gpu_probe/gpu_apply/gpu_apply_cli/
 # gpu_change_guard/gpu_discovery). Pure stdlib + the shared gpu modules
