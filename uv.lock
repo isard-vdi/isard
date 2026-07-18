@@ -1334,6 +1334,11 @@ dependencies = [
     { name = "tabulate" },
 ]
 
+[package.dev-dependencies]
+test = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "hiredis", specifier = "==3.4.0" },
@@ -1343,6 +1348,9 @@ requires-dist = [
     { name = "rq", specifier = "==2.3.2" },
     { name = "tabulate", specifier = "==0.9.0" },
 ]
+
+[package.metadata.requires-dev]
+test = [{ name = "pytest" }]
 
 [[package]]
 name = "isardvdi-testing"

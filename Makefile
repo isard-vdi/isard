@@ -184,6 +184,10 @@ test-common:
 test-change-handler:
 	uv run --group test --package isardvdi-change-handler pytest component/change-handler/src/isardvdi_change_handler/tests -n auto $(_chandler_cov)
 
+.PHONY: test-storage
+test-storage:
+	uv run --group test --package isardvdi-storage pytest docker/storage/task/tests -q
+
 .PHONY: test-changefeed
 test-changefeed:
 	uv run --group test --package isardvdi-changefeed pytest component/changefeed/src/isardvdi_changefeed/tests -n auto $(_cfeed_cov)
@@ -300,7 +304,12 @@ ci-test-frontend:
 	cd component/frontend && bun install --frozen-lockfile && bun run test:unit --reporter=default --reporter=junit --outputFile=report.xml
 
 .PHONY: ci-test-python
-ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-socketio ci-test-openapi ci-test-notifier ci-test-scheduler ci-test-webapp ci-test-apiv4-client ci-test-vpn ci-test-codegen ci-test-anonymize-db
+ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-socketio ci-test-openapi ci-test-notifier ci-test-scheduler ci-test-webapp ci-test-apiv4-client ci-test-vpn ci-test-codegen ci-test-anonymize-db ci-test-storage
+
+.PHONY: ci-test-storage
+ci-test-storage:
+	uv sync --no-dev --group test --package isardvdi-storage
+	cd docker/storage && uv run --no-dev --group test --package isardvdi-storage pytest task/tests -q --tb=short --junitxml=report.xml
 
 .PHONY: setup-hooks
 setup-hooks:

@@ -518,6 +518,21 @@ unit-test-frontend:
     reports:
       junit: component/frontend/report.xml
 
+unit-test-storage:
+  # isard-storage worker failure-path suite (docker/storage/task/tests): the
+  # raise-on-failure contract, convert partial-dest cleanup, and the delete
+  # reachable-mount guard. The storage package depends on the generated
+  # isardvdi_apiv4_client, so this job depends on gen-protobuf via
+  # .python-test-base.
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-storage
+  artifacts:
+    when: always
+    reports:
+      junit: docker/storage/report.xml
+
 docker-image:
   image: "docker:${DOCKER_VERSION}"
   stage: build
