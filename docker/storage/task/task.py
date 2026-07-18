@@ -1230,9 +1230,17 @@ def delete(path):
     :param path: Path to disk
     :type path: str
     """
-    if not isfile(path):
-        raise FileNotFoundError(path)
-    remove(path)
+    if isfile(path):
+        remove(path)
+        return
+
+    parent = dirname(path)
+    if isdir(parent):
+        log.info(
+            f"delete: {path} absent on a reachable mount, skipping",
+        )
+        return
+    raise FileNotFoundError(f"delete: {path} parent directory unreachable")
 
 
 @_publishes_result
