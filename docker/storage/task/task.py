@@ -713,6 +713,18 @@ def _run_curl_download(
     curl_cmd = ["curl"]
     if insecure_ssl:
         curl_cmd.append("-k")
+    # Abort a genuinely STALLED transfer fast (avg below speed-limit B/s for
+    # speed-time s) so a dead upstream does not hold the worker for the whole
+    # job_timeout; and cap total curl runtime just under the RQ job_timeout so
+    # a slow-but-progressing download ends with a clean curl error instead of
+    # an RQ JobTimeoutException mid-write.
+    speed_limit = int(os.environ.get("URL_DOWNLOAD_MIN_SPEED_BPS") or 1024)
+    speed_time = int(os.environ.get("URL_DOWNLOAD_MIN_SPEED_TIME") or 60)
+    curl_cmd.extend(
+        ["--speed-limit", str(speed_limit), "--speed-time", str(speed_time)]
+    )
+    if job is not None and job.timeout:
+        curl_cmd.extend(["--max-time", str(max(1, int(job.timeout) - 30))])
     curl_cmd.extend(
         [
             "-L",

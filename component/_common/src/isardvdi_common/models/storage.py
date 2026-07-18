@@ -1211,7 +1211,6 @@ class Storage(RethinkCustomBase):
                     "format": new_storage_type.lower(),
                     "compression": compress,
                 },
-                "timeout": 4096,
             },
             dependents=[
                 {

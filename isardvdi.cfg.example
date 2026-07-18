@@ -856,6 +856,25 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## Default is 30 days. Set it to -1 so the results never expire
 #REDIS_TASK_RESULT_TTL=2592000
 
+# Storage task timeouts (RQ job_timeout, seconds)
+## Storage tasks are killed by RQ once their job_timeout elapses. Fast
+## metadata tasks (delete/touch/info/status) use the FAST value; long-running
+## tasks (download/convert/sparsify/move/create/...) get a size-derived budget
+## (size / MIN_THROUGHPUT_BPS) clamped to [FLOOR, CEIL], or CEIL when the size
+## is unknown. Widen these on slow storage or a slow uplink.
+#STORAGE_TASK_FAST_TIMEOUT=300
+#STORAGE_TASK_TIMEOUT_FLOOR=600
+#STORAGE_TASK_TIMEOUT_CEIL=21600
+#STORAGE_TASK_MIN_THROUGHPUT_BPS=5242880
+
+# URL download stall guard (curl --speed-limit / --speed-time)
+## A download is aborted when its average speed stays below MIN_SPEED_BPS
+## bytes/s for MIN_SPEED_TIME seconds (a genuinely stalled transfer), instead
+## of holding the worker until the job_timeout. A slow-but-progressing download
+## still completes (bounded by the download task's job_timeout).
+#URL_DOWNLOAD_MIN_SPEED_BPS=1024
+#URL_DOWNLOAD_MIN_SPEED_TIME=60
+
 ##################################################################
 ## STATS PARAMETERS                                             ##
 ##################################################################
