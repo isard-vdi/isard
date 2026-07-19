@@ -7,6 +7,8 @@ r = RethinkDB()
 import ipaddress
 import logging as log
 import subprocess
+import threading
+import time
 import traceback
 from subprocess import check_output
 
@@ -150,7 +152,7 @@ class Wg(object):
         # Get first one from range for us!
         self.server_ip = str(self.server_net[1])
 
-        self.clients_reserved_ips = [self.server_ip]
+        self.clients_reserved_ips = {self.server_ip}
         # Get existing users wireguard config and generate new one's if not exist.
         self.init_server()
         self.init_peers(reset_client_certs)
@@ -193,6 +195,121 @@ class Wg(object):
         check_output(("/usr/bin/wg-quick", "up", self.interface), text=True).strip()
         ## End server config
 
+    _INIT_PEERS_BATCH = 100
+
+    def _flush_peers_batch(self, table, batch, inserted, total_expected, started_at):
+        """Insert one chunk of generated peers into ``table`` and log
+        progress + ETA. Called from :meth:`init_peers` whenever
+        ``create_peers`` reaches ``_INIT_PEERS_BATCH`` (and once at the
+        end with the remainder). No-op if ``batch`` is empty.
+        """
+        if not batch:
+            return
+        with vpn_rethink_conn() as conn:
+            # update, not insert: a row deleted while the batch was generating
+            # configs must not be recreated as an {id, vpn} stub.
+            written = (
+                r.expr(batch)
+                .for_each(lambda peer: r.table(table).get(peer["id"]).update(peer))
+                .run(conn)
+            )
+        if written.get("skipped"):
+            # Nothing to undo (these come up later from the drain), but say so:
+            # a silently dropped config leaves a user with no vpn and no trace.
+            log.warning(
+                "init_peers[%s]: %d of %d rows vanished while their config was "
+                "generated; their peers were not written",
+                table,
+                written["skipped"],
+                len(batch),
+            )
+        elapsed = max(time.monotonic() - started_at, 1e-6)
+        rate = inserted / elapsed
+        remaining = max(total_expected - inserted, 0)
+        eta = remaining / rate if rate > 0 else 0.0
+        log.info(
+            "init_peers[%s]: db-backfill %d/%d (batch=%d, rate=%.0f/s, eta=%.0fs)",
+            table,
+            inserted,
+            total_expected,
+            len(batch),
+            rate,
+            eta,
+        )
+
+    def _start_background_up_peers(self, peers, remotevpn_peers):
+        """Launch the daemon thread that drains the collected up_peer
+        work. No-op if both lists are empty so we don't spawn idle
+        threads. Daemon=True so the thread dies with the process; the
+        wgadmin retry loop will create a new Wg() and a new thread on
+        the next iteration if the previous run crashed.
+        """
+        if not peers and not remotevpn_peers:
+            return
+        thread = threading.Thread(
+            target=self._run_background_up_peers,
+            args=(list(peers), list(remotevpn_peers) if remotevpn_peers else []),
+            daemon=True,
+            name=f"init_peers_up_{self.table}_{self.interface}",
+        )
+        thread.start()
+
+    def _run_background_up_peers(self, peers, remotevpn_peers):
+        """Body of the background ``up_peer`` thread.
+
+        Walks ``peers`` first (the primary table), then any remotevpn
+        peers if this Wg instance owns the users table. Catches all
+        exceptions per-iteration so one bad peer doesn't poison the rest
+        of the batch.
+        """
+        try:
+            self._drain_up_peer_queue(self.table, peers)
+            if remotevpn_peers:
+                self._drain_up_peer_queue("remotevpn", remotevpn_peers)
+        except Exception:
+            log.exception(
+                "init_peers[%s]: background up_peer terminated unexpectedly",
+                self.table,
+            )
+
+    def _drain_up_peer_queue(self, table, peers):
+        """Run ``up_peer`` for every entry in ``peers`` and log progress +
+        ETA every ``_INIT_PEERS_BATCH`` (and once at the end).
+        """
+        total = len(peers)
+        if total == 0:
+            return
+        log.info("init_peers[%s]: background up_peer starting (%d peers)", table, total)
+        started_at = time.monotonic()
+        for i, peer in enumerate(peers, start=1):
+            try:
+                self.up_peer(self._to_model(peer))
+            except Exception:
+                log.exception(
+                    "init_peers[%s]: up_peer failed for %s",
+                    table,
+                    peer.get("id", "?") if isinstance(peer, dict) else "?",
+                )
+            if i % self._INIT_PEERS_BATCH == 0 or i == total:
+                elapsed = max(time.monotonic() - started_at, 1e-6)
+                rate = i / elapsed
+                remaining = total - i
+                eta = remaining / rate if rate > 0 else 0.0
+                log.info(
+                    "init_peers[%s]: up_peer %d/%d (rate=%.1f/s, eta=%.0fs)",
+                    table,
+                    i,
+                    total,
+                    rate,
+                    eta,
+                )
+        log.info(
+            "init_peers[%s]: background up_peer complete (%d peers in %.0fs)",
+            table,
+            total,
+            time.monotonic() - started_at,
+        )
+
     def init_peers(self, reset=False):
         with vpn_rethink_conn() as conn:
             # This will reset all vpn config on restart.
@@ -224,20 +341,54 @@ class Wg(object):
                     r.table("remotevpn").pluck("id", "vpn").run(conn)
                 )
 
-        self.clients_reserved_ips = self.clients_reserved_ips + [
+        self.clients_reserved_ips.update(
             p["vpn"]["wireguard"]["Address"]
             for p in wglist
             if "vpn" in p.keys()
-            and isinstance(p.get("vpn", {}).get("wireguard"), dict)
+            and isinstance((p.get("vpn") or {}).get("wireguard"), dict)
             and "Address" in p["vpn"]["wireguard"]
-        ]
+        )
 
+        # Expected total up front so the progress log has an ETA. The lazy-init
+        # and key-rotation paths are mutually exclusive per peer.
+        lazy_init_expected = sum(
+            1
+            for p in wglist
+            if "vpn" not in p.keys()
+            or not isinstance((p.get("vpn") or {}).get("wireguard"), dict)
+        )
+        rotation_expected = sum(
+            1
+            for p in wglist
+            if "vpn" in p.keys()
+            and isinstance((p.get("vpn") or {}).get("wireguard"), dict)
+            and (
+                self.keys.update_clients == True
+                or not p["vpn"]["wireguard"].get("keys")
+            )
+        )
+        total_expected = lazy_init_expected + rotation_expected
+
+        peers_to_up = []
+        remotevpn_to_up = []
         create_peers = []
+        inserted = 0
+        started_at = time.monotonic()
         if self.keys.update_clients == True:
             log.info("Server key changed. Generating new client keys for all users...")
+        if total_expected:
+            log.info(
+                "init_peers[%s]: %d peers to backfill (%d lazy-init, %d key-rotation)",
+                self.table,
+                total_expected,
+                lazy_init_expected,
+                rotation_expected,
+            )
         for peer in wglist:
             new_peer = False
-            wg = peer.get("vpn", {}).get("wireguard")
+            # `or {}` (not a {} default) so a null vpn subtree (not just an
+            # absent one) is treated as "no config yet" instead of crashing.
+            wg = (peer.get("vpn") or {}).get("wireguard")
             wg_is_dict = isinstance(wg, dict)
             if self.keys.update_clients == True and "vpn" in peer.keys() and wg_is_dict:
                 new_peer = peer
@@ -253,50 +404,57 @@ class Wg(object):
                 new_peer = peer
                 new_peer["vpn"]["wireguard"]["keys"] = self.keys.new_client_keys()
                 create_peers.append(new_peer)
-            if new_peer == False:
-                if self.table == "users":
-                    if peer.get("active") == True:
-                        self.up_peer(self._to_model(peer))
-                else:
-                    self.up_peer(self._to_model(peer))
+            # Deferred to a background thread, drained after the backfill, so the
+            # wgadmin loop starts serving changefeed events immediately.
+            target = peer if new_peer == False else new_peer
+            if self.table == "users":
+                if target.get("active") == True:
+                    peers_to_up.append(target)
             else:
-                if self.table == "users":
-                    if new_peer.get("active") == True:
-                        self.up_peer(self._to_model(new_peer))
-                else:
-                    self.up_peer(self._to_model(new_peer))
-            # if self.table=='users':
-            #    self.uipt.add_user(peer['id'],peer['vpn']['wireguard']['Address'])
-
-        with vpn_rethink_conn() as conn:
-            # update, not insert: every peer here was read from this table at the
-            # top of the loop, and generating its config takes long enough (a
-            # subprocess per peer) that the row can be deleted meanwhile. An
-            # upsert would bring it back as an {id, vpn} stub holding a client
-            # IP; update skips a row that is gone.
-            r.expr(create_peers).for_each(
-                lambda peer: r.table(self.table).get(peer["id"]).update(peer)
-            ).run(conn)
+                peers_to_up.append(target)
+            if len(create_peers) >= self._INIT_PEERS_BATCH:
+                inserted += len(create_peers)
+                self._flush_peers_batch(
+                    self.table, create_peers, inserted, total_expected, started_at
+                )
+                create_peers = []
+        if create_peers:
+            inserted += len(create_peers)
+            self._flush_peers_batch(
+                self.table, create_peers, inserted, total_expected, started_at
+            )
 
         ##### The same for remotevpn table
         if self.table == "users":
-            self.clients_reserved_ips = self.clients_reserved_ips + [
+            self.clients_reserved_ips.update(
                 a
                 for a in [
-                    p.get("vpn", {}).get("wireguard", {}).get("Address")
+                    ((p.get("vpn") or {}).get("wireguard") or {}).get("Address")
                     for p in wglist_remotevpn
                 ]
                 if a
-            ]
+            )
+
+            rv_lazy_expected = sum(1 for p in wglist_remotevpn if "vpn" not in p.keys())
+            rv_rotation_expected = (
+                sum(
+                    1 for p in wglist_remotevpn if (p.get("vpn") or {}).get("wireguard")
+                )
+                if self.keys.update_clients == True
+                else 0
+            )
+            rv_total_expected = rv_lazy_expected + rv_rotation_expected
 
             create_peers = []
+            inserted = 0
+            started_at = time.monotonic()
             if self.keys.update_clients == True:
                 log.info(
                     "Server key changed. Generating new client keys for all remotevpn..."
                 )
             for peer in wglist_remotevpn:
                 new_peer = False
-                if self.keys.update_clients == True and peer.get("vpn", {}).get(
+                if self.keys.update_clients == True and (peer.get("vpn") or {}).get(
                     "wireguard"
                 ):
                     new_peer = peer
@@ -311,17 +469,24 @@ class Wg(object):
                         peer, extra_client_nets=extra_client_nets
                     )
                     create_peers.append(new_peer)
-                if new_peer == False:
-                    self.up_peer(self._to_model(peer))
-                else:
-                    self.up_peer(self._to_model(new_peer))
-            with vpn_rethink_conn() as conn:
-                # Same reasoning as the users loop above: these peers were read
-                # from the table, so the write must not recreate one that has
-                # been deleted since.
-                r.expr(create_peers).for_each(
-                    lambda peer: r.table("remotevpn").get(peer["id"]).update(peer)
-                ).run(conn)
+                remotevpn_to_up.append(peer if new_peer == False else new_peer)
+                if len(create_peers) >= self._INIT_PEERS_BATCH:
+                    inserted += len(create_peers)
+                    self._flush_peers_batch(
+                        "remotevpn",
+                        create_peers,
+                        inserted,
+                        rv_total_expected,
+                        started_at,
+                    )
+                    create_peers = []
+            if create_peers:
+                inserted += len(create_peers)
+                self._flush_peers_batch(
+                    "remotevpn", create_peers, inserted, rv_total_expected, started_at
+                )
+
+        self._start_background_up_peers(peers_to_up, remotevpn_to_up)
 
     def gen_new_peer(self, peer, extra_client_nets=None):
         peer_dict = peer.model_dump() if isinstance(peer, BaseModel) else peer
@@ -702,7 +867,7 @@ class Wg(object):
                 if str(host) not in self.clients_reserved_ips
             )
         )
-        self.clients_reserved_ips.append(next_ip)
+        self.clients_reserved_ips.add(next_ip)
 
         # if self.table == 'hypervisors':
         #    next_ip=next_ip+','+os.environ['WG_HYPER_GUESTNET']
