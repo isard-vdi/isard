@@ -37,7 +37,12 @@ from subprocess import check_output
 from rethinkdb import RethinkDB
 
 POLL_INTERVAL_S = 5  # steady state: every tunnel settled
-HANDSHAKE_TIMEOUT_S = 75  # 3 x persistent-keepalive (25 s)
+# wireguard refreshes latest_handshake only on a rekey (~120 s REKEY_AFTER_TIME),
+# NOT on each keepalive, so a healthy tunnel's handshake legitimately ages to
+# ~120 s. A 75 s window therefore false-reported disconnected for ~1/3 of every
+# rekey cycle. 180 s (wireguard REJECT_AFTER_TIME, when the session itself dies)
+# clears the healthy case while still catching a genuinely dead peer.
+HANDSHAKE_TIMEOUT_S = 180
 
 # A tunnel that just came up must be published quickly — BFD converges in
 # ~1-2 s (200 ms intervals) but at the 5 s steady poll the connected write

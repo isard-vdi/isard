@@ -89,3 +89,15 @@ def test_vanished_hypervisor_is_pruned(monkeypatch):
     fast = tunnel_monitor._poll_once(_FakeR(rows), None, True, tracker)
     assert fast is False
     assert tracker == {}
+
+
+def test_wireguard_handshake_window_survives_rekey(monkeypatch):
+    """A healthy wg tunnel rekeys ~every 120s, so latest_handshake ages to
+    ~120s; the window must not report it disconnected before REJECT_AFTER_TIME."""
+    monkeypatch.setattr(tunnel_monitor.time, "time", lambda: 1000.0)
+    # 100s-old handshake (past the old 75s window, still mid healthy cycle)
+    assert tunnel_monitor._connected_wireguard("PUB", {"PUB": 900.0}) is True
+    # 190s-old: peer genuinely stopped handshaking -> disconnected
+    assert tunnel_monitor._connected_wireguard("PUB", {"PUB": 810.0}) is False
+    # never handshaked
+    assert tunnel_monitor._connected_wireguard("PUB", {}) is False
