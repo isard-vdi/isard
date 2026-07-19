@@ -1677,6 +1677,7 @@ def disconnect(storage_path):
     # a sibling temp file followed by an atomic rename; the operation is
     # short and the temp-file cleanup on cancel would need its own logic.
     disconnected_path = storage_path + ".wo_chain"
+    _safe_unlink(disconnected_path)  # clear a stale sibling from a prior crashed run
 
     try:
         run(
@@ -1698,6 +1699,8 @@ def disconnect(storage_path):
         # success. Clean the partial sibling and re-raise.
         _safe_unlink(disconnected_path)
         raise
-    remove(storage_path)
+    # One atomic rename replaces the original in place. Do NOT remove() the
+    # original first: a crash between the remove and the rename would leave the
+    # disk missing and dangle any child that backs onto this path.
     rename(disconnected_path, storage_path)
     return 0

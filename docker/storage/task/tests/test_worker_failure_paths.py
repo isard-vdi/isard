@@ -258,3 +258,41 @@ def test_sparsify_falls_back_in_place_without_headroom(monkeypatch):
     assert r["exit_code"] == 0
     assert rc_calls == []  # no cancellable copy attempted
     assert any(cmd[0] == "virt-sparsify" and "--in-place" in cmd for cmd in ran)
+
+
+# ---------------------------------------------------------------------------
+# disconnect: crash-atomic swap — a single atomic rename replaces the original,
+# never remove()-then-rename (whose gap would leave the disk missing on a crash,
+# dangling any child that backs onto the path). Stale .wo_chain cleaned on entry.
+# ---------------------------------------------------------------------------
+
+
+def test_disconnect_swaps_with_single_atomic_rename(monkeypatch):
+    import task
+
+    calls = []
+    monkeypatch.setattr(task, "run", lambda *a, **k: calls.append(("run",)))
+    monkeypatch.setattr(task, "remove", lambda p: calls.append(("remove", p)))
+    monkeypatch.setattr(task, "rename", lambda s, d: calls.append(("rename", s, d)))
+    monkeypatch.setattr(task, "_safe_unlink", lambda p: calls.append(("unlink", p)))
+
+    task.disconnect("/isard/g/d.qcow2")
+
+    # the original is replaced by ONE atomic rename of the flattened sibling
+    assert ("rename", "/isard/g/d.qcow2.wo_chain", "/isard/g/d.qcow2") in calls
+    # the original is NEVER remove()d before the rename (that gap = crash window)
+    assert ("remove", "/isard/g/d.qcow2") not in calls
+
+
+def test_disconnect_cleans_stale_sibling_before_convert(monkeypatch):
+    import task
+
+    order = []
+    monkeypatch.setattr(task, "_safe_unlink", lambda p: order.append(("unlink", p)))
+    monkeypatch.setattr(task, "run", lambda *a, **k: order.append(("run",)))
+    monkeypatch.setattr(task, "rename", lambda s, d: order.append(("rename",)))
+
+    task.disconnect("/isard/g/d.qcow2")
+    # stale .wo_chain is unlinked BEFORE the convert runs
+    assert order[0] == ("unlink", "/isard/g/d.qcow2.wo_chain")
+    assert order.index(("run",)) > 0
