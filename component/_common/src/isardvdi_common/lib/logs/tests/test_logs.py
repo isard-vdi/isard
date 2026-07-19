@@ -254,3 +254,65 @@ class TestDeleteBatch:
             batch_size=10,
             backup=None,
         )
+
+
+class TestCountOlder:
+    def test_uses_per_table_retention_index_count(self, stub_rdb):
+        run = stub_rdb[
+            "mock_table"
+        ].return_value.between.return_value.count.return_value.run
+        run.return_value = 42
+        # logs_desktops keys on ``starting_time`` (always present); logs_users
+        # keys on ``started_time``.
+        n = stub_rdb["Processed"].count_older("logs_desktops", "CUTOFF")
+        assert n == 42
+        _, kwargs = stub_rdb["mock_table"].return_value.between.call_args
+        assert kwargs.get("index") == "starting_time"
+        stub_rdb["Processed"].count_older("logs_users", "CUTOFF")
+        _, kwargs = stub_rdb["mock_table"].return_value.between.call_args
+        assert kwargs.get("index") == "started_time"
+
+
+class TestDeleteOldStreamed:
+    def _run_mock(self, stub_rdb):
+        return stub_rdb[
+            "mock_table"
+        ].return_value.between.return_value.limit.return_value.delete.return_value.run
+
+    def test_pages_until_short_page_and_returns_total(self, stub_rdb):
+        # page_size=2: two full pages then a short page (1 < 2) stops the loop.
+        self._run_mock(stub_rdb).side_effect = [
+            {"deleted": 2},
+            {"deleted": 2},
+            {"deleted": 1},
+        ]
+        total = stub_rdb["Processed"].delete_old_streamed(
+            "logs_desktops", "CUTOFF", page_size=2, pause=0
+        )
+        assert total == 5
+        assert self._run_mock(stub_rdb).call_count == 3
+        # index range + soft durability, no return_changes without a backup.
+        _, bkw = stub_rdb["mock_table"].return_value.between.call_args
+        assert bkw.get("index") == "starting_time"  # logs_desktops retention key
+        delete = stub_rdb[
+            "mock_table"
+        ].return_value.between.return_value.limit.return_value.delete
+        _, dkw = delete.call_args
+        assert dkw.get("return_changes") is False
+        assert dkw.get("durability") == "soft"
+
+    def test_backup_streams_old_vals_and_sets_return_changes(self, stub_rdb):
+        self._run_mock(stub_rdb).side_effect = [
+            {"deleted": 1, "changes": [{"old_val": {"id": "a"}}]},
+        ]
+        backup = MagicMock()
+        total = stub_rdb["Processed"].delete_old_streamed(
+            "logs_users", "CUTOFF", backup=backup, page_size=2, pause=0
+        )
+        assert total == 1
+        backup.write_rows.assert_called_once_with([{"id": "a"}])
+        delete = stub_rdb[
+            "mock_table"
+        ].return_value.between.return_value.limit.return_value.delete
+        _, dkw = delete.call_args
+        assert dkw.get("return_changes") is True

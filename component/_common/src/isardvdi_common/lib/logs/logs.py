@@ -16,6 +16,7 @@ Tables touched:
 * ``categories`` — read id+name map for ``category_grouping`` view.
 """
 
+import time
 from typing import TYPE_CHECKING, Optional
 
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -476,3 +477,81 @@ class LogsProcessed(RethinkSharedConnection):
                 r.table(table).get_all(r.args(batch_ids)).delete().run(
                     cls._rdb_connection
                 )
+
+    # Retention delete tuning — hardcoded defaults (promotable to the
+    # ``config`` table later without a schema change if operators need it).
+    #
+    # Per-table retention index: the earliest ALWAYS-PRESENT, indexed lifecycle
+    # timestamp. A row is old iff any of its event times precede the cutoff,
+    # which — that field being the row's minimum and always present — is exactly
+    # ``<field> < cutoff``. Verified on 2.4M real gencat rows: ``logs_desktops``
+    # always has ``starting_time`` (~2% are incomplete sessions that never
+    # reached ``started_time``, so keying on ``started_time`` would leak them);
+    # ``logs_users`` always has ``started_time``.
+    RETENTION_INDEX = {
+        "logs_desktops": "starting_time",
+        "logs_users": "started_time",
+    }
+    RETENTION_PAGE_SIZE = 2000
+    RETENTION_PAGE_PAUSE = 0.1
+
+    @classmethod
+    def count_older(cls, table: str, cutoff) -> int:
+        """Count rows older than ``cutoff`` via the table's retention index.
+
+        Server-side range count on the earliest-timestamp index — never
+        materialises ids, so it stays cheap even on a multi-million-row
+        ``logs_desktops``.
+        """
+        with cls._rdb_context():
+            return (
+                r.table(table)
+                .between(r.minval, cutoff, index=cls.RETENTION_INDEX[table])
+                .count()
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def delete_old_streamed(
+        cls,
+        table: str,
+        cutoff,
+        *,
+        backup: "Optional[BackupWriter]" = None,
+        page_size: int = RETENTION_PAGE_SIZE,
+        pause: float = RETENTION_PAGE_PAUSE,
+    ) -> int:
+        """Delete rows older than ``cutoff`` in paced, index-bounded pages.
+
+        Retention keys on the table's earliest ALWAYS-PRESENT indexed lifecycle
+        timestamp (``RETENTION_INDEX``): a row is old iff any event timestamp
+        precedes ``cutoff``, which — that field being the row's minimum and
+        always present — is exactly ``<field> < cutoff``. Each iteration deletes
+        the oldest ``page_size`` rows of that index range with a fresh pooled
+        connection and ``durability='soft'`` (logs are disposable), so peak
+        memory is O(page) and there is no full-table scan. Naturally resumable:
+        deleted rows leave the range, so a crash/redeploy just continues from
+        the current oldest. With ``backup`` the deleted rows come back via
+        ``return_changes`` in the same op and are streamed out before the next
+        page.
+        """
+        deleted = 0
+        while True:
+            with cls._rdb_context():
+                res = (
+                    r.table(table)
+                    .between(r.minval, cutoff, index=cls.RETENTION_INDEX[table])
+                    .limit(page_size)
+                    .delete(return_changes=bool(backup), durability="soft")
+                    .run(cls._rdb_connection)
+                )
+            if backup is not None:
+                backup.write_rows(
+                    [c["old_val"] for c in res.get("changes", []) if c.get("old_val")]
+                )
+            n = res.get("deleted", 0)
+            deleted += n
+            if n < page_size:
+                break
+            time.sleep(pause)
+        return deleted

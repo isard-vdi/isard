@@ -468,28 +468,38 @@ class AdminDomainsService:
     ) -> int:
         """Delete old logs asynchronously (shared logic).
 
-        When ``LOGS_DELETE_BACKUP_DIR`` env var is set, every row that
-        is about to be deleted is first streamed to a gzipped JSONL
-        file at ``<dir>/<table>_delete_<UTC-ts>.jsonl.gz``. Restoring
-        the dump into the same table is a one-line ``rethinkdb-cli``
-        ``insert`` so the destructive cron is recoverable.
+        Resolves the retention cutoff without scanning, returns an
+        index-backed count immediately, and streams the delete from a
+        FastAPI background task in paced, index-bounded pages so a
+        multi-million-row table is purged without a memory spike or a
+        write burst (see ``LogsProcessed.delete_old_streamed``).
+
+        When ``LOGS_DELETE_BACKUP_DIR`` env var is set, every deleted row
+        is streamed to a gzipped JSONL file at
+        ``<dir>/<table>_delete_<UTC-ts>.jsonl.gz``. Restoring the dump into
+        the same table is a one-line ``rethinkdb-cli`` ``insert`` so the
+        destructive cron is recoverable.
         """
-        args = [table]
-        if max_time_arg is not None:
-            args.append(max_time_arg)
-        old_logs = ApiAdmin.get_older_than_old_entry_max_time(*args)
+        cutoff = ApiAdmin.get_old_entry_cutoff(table, max_time_arg)
+        count = LogsProcessed.count_older(table, cutoff)
         backup_dir = os.environ.get("LOGS_DELETE_BACKUP_DIR")
 
         def delete_old_logs_process() -> None:
             try:
                 backup_path: Optional[str] = None
-                if backup_dir and old_logs:
+                if backup_dir and count:
                     with BackupWriter(backup_dir, f"{table}_delete") as backup:
-                        LogsProcessed.delete_batch(table, old_logs, backup=backup)
+                        deleted = LogsProcessed.delete_old_streamed(
+                            table, cutoff, backup=backup
+                        )
                         backup_path = backup.path
                 else:
-                    LogsProcessed.delete_batch(table, old_logs)
-                payload = {"action": "delete_all", "status": "completed"}
+                    deleted = LogsProcessed.delete_old_streamed(table, cutoff)
+                payload = {
+                    "action": "delete_all",
+                    "status": "completed",
+                    "deleted": deleted,
+                }
                 if backup_path is not None:
                     payload["backup_path"] = backup_path
                 notify_admins(event_name, payload)
@@ -521,7 +531,7 @@ class AdminDomainsService:
         # replacing a gevent.spawn that silently never executed inside the
         # asyncio worker. See APIV4_THREADING_INCIDENT_ANALYSIS.md §5.1.
         background_tasks.add_task(delete_old_logs_process)
-        return len(old_logs)
+        return count
 
     @staticmethod
     def delete_old_desktop_logs(background_tasks: BackgroundTasks) -> int:

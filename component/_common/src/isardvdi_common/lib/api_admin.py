@@ -1703,3 +1703,43 @@ class ApiAdmin(RethinkSharedConnection):
 
         with cls._rdb_context():
             return list(query.run(cls._rdb_connection))
+
+    @classmethod
+    def get_old_entry_cutoff(cls, table, max_time_config=None):
+        """Resolve the retention cutoff timestamp for ``table``.
+
+        Returns the concrete server-side time before which log entries are
+        old (``now - max_time`` hours), applying the same table/max-time
+        validation as ``get_older_than_old_entry_max_time`` but WITHOUT
+        scanning or materialising ids — the streamed delete keys on the
+        ``started_time`` index against this cutoff. ``max_time_config == 0``
+        (delete-all) yields ``now``, i.e. every existing entry.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        if table == "logs_desktops":
+            if max_time_config is None:
+                max_time_config = cls.get_logs_desktops_old_entries_config()["max_time"]
+        elif table == "logs_users":
+            if max_time_config is None:
+                max_time_config = cls.get_logs_users_old_entries_config()["max_time"]
+        else:
+            raise Error(
+                "forbidden",
+                "Table not allowed to delete old entries",
+                traceback.format_exc(),
+            )
+
+        if max_time_config is None:
+            raise Error(
+                "precondition_required",
+                "Max time is not set",
+                traceback.format_exc(),
+            )
+
+        with cls._rdb_context():
+            return (
+                r.now()
+                .sub(r.expr(int(max_time_config) * 3600))
+                .run(cls._rdb_connection)
+            )
