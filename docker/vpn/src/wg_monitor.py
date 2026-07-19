@@ -260,7 +260,11 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
 
 def start_monitoring_vpn_status():
     poll_delay = 5
-    handshake_timeout = 150
+    # wireguard refreshes latest_handshake only on a rekey (~120 s), and a
+    # session is dead after REJECT_AFTER_TIME (180 s). Use 180 so this signal
+    # (vpn.wireguard.connected) and tunnel_monitor's vpn.tunnel_status agree
+    # instead of contradicting each other in the 150-180 s band.
+    handshake_timeout = 180
 
     logger_thread = threading.Thread(
         target=log_wireguard_peers, args=(poll_delay, handshake_timeout)
