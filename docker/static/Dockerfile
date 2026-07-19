@@ -17,7 +17,11 @@ COPY old-frontend/package.json /build
 COPY old-frontend/bun.lock /build
 COPY old-frontend/.npmrc /build
 
-RUN bun install --frozen-lockfile
+RUN for i in 1 2 3; do \
+      bun install --frozen-lockfile --network-concurrency 8 && break; \
+      echo "bun install failed (attempt $i) - clearing partial state, retrying"; \
+      rm -rf node_modules /root/.bun/install/cache; sleep 3; \
+    done
 
 WORKDIR /
 
@@ -40,7 +44,11 @@ WORKDIR /build
 COPY component/frontend/package.json /build
 COPY component/frontend/bun.lock* /build
 
-RUN bun install --frozen-lockfile
+RUN for i in 1 2 3; do \
+      bun install --frozen-lockfile --network-concurrency 8 && break; \
+      echo "bun install failed (attempt $i) - clearing partial state, retrying"; \
+      rm -rf node_modules /root/.bun/install/cache; sleep 3; \
+    done
 
 WORKDIR /
 
@@ -65,7 +73,11 @@ WORKDIR /build
 COPY docker/static/spice-ts/package.json /build
 COPY docker/static/spice-ts/bun.lockb /build
 
-RUN bun install --frozen-lockfile
+RUN for i in 1 2 3; do \
+      bun install --frozen-lockfile --network-concurrency 8 && break; \
+      echo "bun install failed (attempt $i) - clearing partial state, retrying"; \
+      rm -rf node_modules /root/.bun/install/cache; sleep 3; \
+    done
 
 WORKDIR /
 
