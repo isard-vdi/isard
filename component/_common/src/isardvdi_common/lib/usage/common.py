@@ -30,6 +30,7 @@ classmethod calls without a layer hop.
 
 import ast
 import logging
+import time
 from datetime import datetime
 
 from cachetools import cached
@@ -252,14 +253,26 @@ class UsageProcessed(RethinkSharedConnection):
             return r.table("usage_consumption").count().run(cls._rdb_connection)
 
     @classmethod
-    def delete_all_consumption(cls) -> None:
-        """Wipe every row from ``usage_consumption``.
+    def delete_all_consumption(cls, page_size: int = 5000, pause: float = 0.05) -> None:
+        """Wipe every row from ``usage_consumption`` in paced pages.
 
-        Used by the admin "reset usage data" path. Caller must be sure;
-        there is no soft-delete fallback.
+        Used by the admin "reset usage data" path. Caller must be sure. Deletes
+        in bounded ``page_size`` batches with a short pause between them so a
+        multi-million-row reset does not burst the DB — the same rows are
+        removed, just paced. A fresh pooled connection per page keeps no single
+        connection pinned for the whole wipe.
         """
-        with cls._rdb_context():
-            r.table("usage_consumption").delete().run(cls._rdb_connection)
+        while True:
+            with cls._rdb_context():
+                res = (
+                    r.table("usage_consumption")
+                    .limit(page_size)
+                    .delete(durability="soft")
+                    .run(cls._rdb_connection)
+                )
+            if res.get("deleted", 0) < page_size:
+                break
+            time.sleep(pause)
 
     @classmethod
     def unify_item_name(cls, item_id: str) -> str:
