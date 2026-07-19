@@ -179,7 +179,14 @@ def _poll_once(r, conn, geneve_only: bool, not_connected_since: dict[str, float]
             log.debug("tunnel_monitor %s failed:\n%s", hyper_id, traceback.format_exc())
             continue
         if connected:
-            not_connected_since.pop(hyper_id, None)
+            # Clear the fast-follow anchor only once the window has fully
+            # elapsed. A flapping hypervisor that keeps reconnecting must not
+            # re-arm a fresh 1 s window on every brief reconnect — it gets one
+            # FAST_FOLLOW_S burst anchored at its first down, then the cadence
+            # backs off even while it keeps flapping.
+            since = not_connected_since.get(hyper_id)
+            if since is None or now - since >= FAST_FOLLOW_S:
+                not_connected_since.pop(hyper_id, None)
         elif now - not_connected_since.setdefault(hyper_id, now) < FAST_FOLLOW_S:
             fast = True
     # Drop hypervisors that vanished from the table so the tracker can't grow.

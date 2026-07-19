@@ -60,13 +60,27 @@ def test_fresh_disconnect_is_fast(monkeypatch):
     assert tracker == {"h2": 1000.0}
 
 
-def test_coming_up_clears_tracker_and_goes_slow(monkeypatch):
+def test_coming_up_past_window_clears_tracker(monkeypatch):
     rows = [{"id": "h2"}]
     tracker = {"h2": 1000.0}
-    _patch(monkeypatch, {"h2": True}, [1002.0])
+    # connected, and the fast-follow window has fully elapsed -> clear
+    _patch(monkeypatch, {"h2": True}, [1000.0 + tunnel_monitor.FAST_FOLLOW_S + 1])
     fast = tunnel_monitor._poll_once(_FakeR(rows), None, True, tracker)
     assert fast is False
     assert tracker == {}
+
+
+def test_flap_within_window_keeps_anchor(monkeypatch):
+    """A brief reconnect inside the window must NOT clear the anchor, so a
+    flapping hypervisor can't re-arm a fresh fast window on every flap."""
+    rows = [{"id": "h2"}]
+    first_seen = 1000.0
+    tracker = {"h2": first_seen}
+    # connected, but only 2 s into the 60 s window -> anchor kept
+    _patch(monkeypatch, {"h2": True}, [first_seen + 2.0])
+    fast = tunnel_monitor._poll_once(_FakeR(rows), None, True, tracker)
+    assert fast is False
+    assert tracker == {"h2": first_seen}
 
 
 def test_long_dead_hypervisor_falls_back_to_slow(monkeypatch):
