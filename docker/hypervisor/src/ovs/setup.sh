@@ -171,8 +171,10 @@ if [ "$vpn_tunneling_mode" = "geneve" ]; then
 
     echo "Waiting for GENEVE tunnel BFD..."
     for i in $(seq 1 40); do
-        BFD_STATE=$(ovs-vsctl get Interface vpn-geneve bfd_status:state 2>/dev/null || echo "init")
-        if [ "$BFD_STATE" = '"up"' ]; then echo "BFD tunnel UP after ${i} polls"; break; fi
+        # bfd_status:state map-key get returns a bare value (up), not "up";
+        # strip quotes so the compare works across ovs-vsctl output forms.
+        BFD_STATE=$(ovs-vsctl get Interface vpn-geneve bfd_status:state 2>/dev/null | tr -d '"')
+        if [ "$BFD_STATE" = "up" ]; then echo "BFD tunnel UP after ${i} polls"; break; fi
         sleep 0.25
     done
 
