@@ -136,11 +136,12 @@ def test_only_404_is_skipped(wg_monitor_real):
 
     mod = wg_monitor_real
 
-    # 404 -> skipped (no active client for this peer), returns without raising.
-    assert mod._skip_unresolved_peer(_FakeResp(404, b'{"error":"not_found"}')) is None
+    # 404 -> skipped (no active client for this peer); returns True so the
+    # caller leaves peer_state unchanged and retries on a later poll.
+    assert mod._skip_unresolved_peer(_FakeResp(404, b'{"error":"not_found"}')) is True
 
-    # 2xx -> nothing to do.
-    assert mod._skip_unresolved_peer(_FakeResp(204, b"")) is None
+    # 2xx -> applied; returns False so the caller advances peer_state.
+    assert mod._skip_unresolved_peer(_FakeResp(204, b"")) is False
 
     # 5xx / 401 -> systemic, must propagate.
     with pytest.raises(ApiV4Error):
