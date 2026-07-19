@@ -516,6 +516,7 @@ class DesktopsProcessed(RethinkSharedConnection):
         insert=True,
         soft=False,
         ignore_allowed_hardware=False,
+        allocate_storage=True,
     ):
         template = Caches.get_document("domains", template_id)
         if not template:
@@ -579,31 +580,43 @@ class DesktopsProcessed(RethinkSharedConnection):
         # engine restart cleanup trace the in-flight task via the
         # ``storage_ids`` index and avoid deleting a legitimately-in-progress
         # Creating domain.
-        parent_storage_id = (
-            template.get("create_dict", {})
-            .get("hardware", {})
-            .get("disks", [{}])[0]
-            .get("storage_id")
-        )
-        if not parent_storage_id:
-            raise Error(
-                "precondition_required",
-                f"Template {template['id']} has no storage_id on disk 0; "
-                "cannot create via storage task.",
-                description_code="template_no_storage_id",
+        #
+        # ``allocate_storage=False`` skips this for callers that reuse an
+        # existing disk instead of creating a fresh one — e.g.
+        # ``convert_template_to_desktop`` repurposes the template's own
+        # storage in place. Allocating here would persist a ``non_existing``
+        # orphan storage row whose ``parent`` is the template disk; that
+        # orphan then trips ``set_maintenance('move')``'s
+        # ``storage_has_children`` guard and 500s the conversion (#843).
+        pending_storage = None
+        if allocate_storage:
+            parent_storage_id = (
+                template.get("create_dict", {})
+                .get("hardware", {})
+                .get("disks", [{}])[0]
+                .get("storage_id")
             )
-        pending_storage = Storage.new_dict(
-            user_id=user_id,
-            pool_usage="desktop",
-            parent_id=parent_storage_id,
-        )
-        pending_storage.status_logs = [{"time": int(time.time()), "status": "created"}]
-        create_dict["hardware"]["disks"][0].update(
-            {
-                "storage_id": pending_storage.id,
-                "file": pending_storage.path,
-            }
-        )
+            if not parent_storage_id:
+                raise Error(
+                    "precondition_required",
+                    f"Template {template['id']} has no storage_id on disk 0; "
+                    "cannot create via storage task.",
+                    description_code="template_no_storage_id",
+                )
+            pending_storage = Storage.new_dict(
+                user_id=user_id,
+                pool_usage="desktop",
+                parent_id=parent_storage_id,
+            )
+            pending_storage.status_logs = [
+                {"time": int(time.time()), "status": "created"}
+            ]
+            create_dict["hardware"]["disks"][0].update(
+                {
+                    "storage_id": pending_storage.id,
+                    "file": pending_storage.path,
+                }
+            )
 
         # Parse media info to have full media info (name and description) in create_dict
         try:
@@ -700,9 +713,10 @@ class DesktopsProcessed(RethinkSharedConnection):
                 with cls._rdb_context():
                     r.table("domains").insert(valid_desktop).run(cls._rdb_connection)
 
-            pending_storage.enqueue_disk_creation_chain_for_domain(
-                domain_id=valid_desktop["id"],
-            )
+            if pending_storage is not None:
+                pending_storage.enqueue_disk_creation_chain_for_domain(
+                    domain_id=valid_desktop["id"],
+                )
         if image:
             image_data = image
             # ``domain_id`` is the optional pre-allocated id passed by
@@ -1229,6 +1243,11 @@ class DesktopsProcessed(RethinkSharedConnection):
             template.user,
             data["template_id"],
             insert=False,
+            # Reuse the template's own disk in place (moved to the desktop
+            # path below); do NOT allocate a fresh child storage row, which
+            # would orphan a ``non_existing`` row under the template disk and
+            # trip the ``storage_has_children`` move guard (#843).
+            allocate_storage=False,
         )
         # We are updating the domain
         new_desktop_data = {
