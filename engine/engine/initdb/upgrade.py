@@ -49,7 +49,8 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 201
+release_version = 202
+# release 202: drop dead RethinkDB indexes and reconcile populate on hot tables
 # release 201: normalise path-shaped storage.parent rows to their UUID
 # release 200: cleanup old single domain field for bastion targets
 # release 199: purge decommissioned core_worker RQ state (the core and
@@ -3937,6 +3938,15 @@ password:s:%s"""
                     "v197 cutover: domains create_dict hardware backfill "
                     f"(disk_bus/isos/floppies/personal_vlans) failed: {e}"
                 )
+        if version == 202:
+            # kind_booking is superseded by the partial kind_valid_booking (the
+            # one actually consumed). videos is KEPT: it has a live reader in the
+            # alloweds-unassign / admin table-delete path (get_all index="videos").
+            try:
+                r.table(table).index_drop("kind_booking").run(self.conn)
+            except Exception:
+                pass
+
         return True
 
     """
@@ -4659,6 +4669,13 @@ password:s:%s"""
                     r.table(table).index_wait("status_accessed").run(self.conn)
             except Exception as e:
                 print(e)
+        if version == 202:
+            # Media quota accounting keys on status_user, never per-group.
+            try:
+                r.table(table).index_drop("status_group").run(self.conn)
+            except Exception:
+                pass
+
         return True
 
     """
@@ -7095,6 +7112,14 @@ password:s:%s"""
             except Exception as e:
                 pass
 
+        if version == 202:
+            # Written on every login-session row but read by no index query.
+            for _dead in ("stopped_time", "owner_group_id"):
+                try:
+                    r.table(table).index_drop(_dead).run(self.conn)
+                except Exception:
+                    pass
+
         return True
 
     """
@@ -7295,6 +7320,16 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 202:
+            # agent_status has no reader. The reverse-lookup multi indexes over
+            # the delete-entry arrays (storage/desktop/template/user/group/
+            # category) ARE consumed via the generic admin table endpoint's
+            # get_all(id, index=<kind>), so they are KEPT.
+            try:
+                r.table(table).index_drop("agent_status").run(self.conn)
+            except Exception:
+                pass
+
         return True
 
     def logs_desktops(self, version):
@@ -7317,6 +7352,24 @@ password:s:%s"""
                 r.table(table).index_wait("starting_time").run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 202:
+            # Drop dead indexes that cost a B-tree write on every session insert
+            # but are read by no query. Kept (consumed): desktop_id,
+            # owner_user_id, owner_category_id, started_time, starting_time.
+            for _dead in (
+                "desktop_template_hierarchy",
+                "stopped_time",
+                "stopped_status",
+                "started_by",
+                "stopped_by",
+                "owner_group_id",
+                "deployment_id",
+            ):
+                try:
+                    r.table(table).index_drop(_dead).run(self.conn)
+                except Exception:
+                    pass
 
         return True
 
