@@ -37,6 +37,7 @@ import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ErrorResponse } from '@/gen/oas/apiv4'
+import { AllowedModal } from '@/components/modal/allowed'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 
@@ -55,6 +56,8 @@ const emit = defineEmits<{
 // ------------------------------------------
 
 const desktopId = ref<string>(props.desktopId)
+const showAllowedModal = ref<boolean>(false)
+// const desktopId = ref<string>('f3861bec-69f1-47ae-8b7a-50a11bf5fa27')
 
 const { data: desktopInfo, isPending: desktopInfoIsPending } = useQuery(
   getDesktopInfoOptions({
@@ -170,6 +173,12 @@ const isPending = computed(() => {
 })
 
 defineExpose({ form, isPending })
+
+// Allowed
+const handleSaveAllowed = (allowed: { groups: string[]; users: string[] }) => {
+  console.log('Allowed saved:', allowed)
+  // Handle the allowed users and groups as needed
+}
 </script>
 
 <template>
@@ -352,9 +361,18 @@ defineExpose({ form, isPending })
         </div>
 
         <div>
-          <Button icon="plus" hierarchy="secondary-gray">{{
+          <Button icon="plus" hierarchy="secondary-gray" @click="showAllowedModal = true">{{
             t('views.new-template.form.sections.alloweds.button')
           }}</Button>
+          <AllowedModal
+            :title="t('components.allowed-modal.title')"
+            :description="
+              t('components.allowed-modal.description', { 'item-type': t('domains.templates', 1) })
+            "
+            :open="showAllowedModal"
+            @close="showAllowedModal = false"
+            @save="handleSaveAllowed"
+          />
         </div>
       </div>
     </div>

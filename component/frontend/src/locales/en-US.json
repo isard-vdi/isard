@@ -2559,6 +2559,26 @@
       "not-found": "No results found",
       "more-results": "{count} more results, refine your search",
       "remove": "Remove {name}"
+    },
+    "allowed-modal": {
+      "title": "Manage users",
+      "description": "Edit the groups and users allowed to access this {item-type}",
+      "search": {
+        "user-in-group": {
+          "placeholder": "Search user in group '{group_name}'",
+          "empty": "No user found"
+        },
+        "user": {
+          "placeholder": "Search user",
+          "empty": "No user found"
+        },
+        "group": {
+          "placeholder": "Search group",
+          "empty": "No group found"
+        }
+      },
+      "cancel": "Cancel",
+      "save": "Accept changes"
     }
   },
   "authentication": {
