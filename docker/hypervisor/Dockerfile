@@ -22,13 +22,12 @@ WORKDIR /workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-hypervisor --no-editable
 
-# Pin runtime to alpine 3.22 — alpine 3.23 ships qemu 10.1.3 which is
-# linked against libspice-server.so.1.15.0 (exports
-# spice_qxl_gl_scanout2). The custom spice-dev override below ships
-# 1.14.3 (no spice_qxl_gl_scanout2) → qemu fails to load the spice
-# module → "domain configuration does not support video model 'qxl'".
-# 3.22's qemu (9.2.x) is built against the older spice that the
-# custom override matches.
+# Runtime = python:3.14-alpine (Alpine 3.24) with qemu 11 from @edge, which links
+# against the packaged libspice-server.so.1.15.0 (exports spice_qxl_gl_scanout2).
+# Keep that packaged libspice; do NOT override it with a hand-built copy (an older
+# 1.14.3 source build lacked the symbol and broke qemu's spice/qxl module load,
+# so every qxl SPICE desktop failed to start). It was only needed for the old
+# Alpine 3.22 / qemu 9.2 base.
 FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS runtime
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
@@ -113,8 +112,8 @@ COPY docker/hypervisor/src /src
 COPY component/_common/src/isardvdi_common /src/isardvdi_common
 COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
 
-RUN rm /usr/lib/libspice*
-COPY docker/hypervisor/spice-dev/* /usr/lib/
+# Keep the packaged libspice-server (qemu 11 needs its spice_qxl_gl_scanout2
+# symbol for qxl/SPICE). See the note at the top of the runtime stage.
 
 ENV PATH="/.venv/bin:$PATH"
 ENV G_MESSAGES_DEBUG=all
