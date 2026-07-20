@@ -203,6 +203,106 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                 }
             ).run(cls._rdb_connection)
 
+    # ------------------------------------------------------------------
+    # Consumer / queue-lane awareness (pool enable/disable lifecycle):
+    # warn on disable, gate delete on "disabled + drained", detect orphans.
+    # isard-storage hosts may not reach RethinkDB, so the lane counts use only
+    # the shared RQ Redis (``Task._redis``); the DB-side counts use RethinkDB.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _lane_key_globs(storage_pool_id):
+        """RQ queue-key globs owning a pool's work: its own per-tier and
+        per-category lanes, plus the cross-pool ``storage.<src>:<dst>.<tier>``
+        move lanes where it is the source or the destination."""
+        pid = storage_pool_id
+        return [
+            f"rq:queue:storage.{pid}.*",  # own tier + per-category sub-lanes
+            f"rq:queue:storage.{pid}:*",  # move source lanes
+            f"rq:queue:storage.*:{pid}.*",  # move destination lanes
+        ]
+
+    @classmethod
+    def _pending_lane_jobs(cls, storage_pool_id):
+        """Count QUEUED jobs waiting on this pool's lanes. Queued (not started)
+        jobs are the orphan risk: with no consumer they never run. Uses the
+        shared RQ Redis only."""
+        redis = Task._redis
+        total = 0
+        seen = set()
+        for glob in cls._lane_key_globs(storage_pool_id):
+            for key in redis.scan_iter(match=glob.encode(), count=500):
+                if key in seen:
+                    continue
+                seen.add(key)
+                total += redis.llen(key)
+        return total
+
+    @classmethod
+    def _pool_coverage(cls, storage_pool_id):
+        """How many Online+enabled hypervisors register this pool as one they
+        serve (``storage_pools`` list). 0 ⇒ no node's
+        ``CAPABILITIES_STORAGE_POOLS`` covers it, so tasks routed to its lanes
+        stall unserved. This mirrors the ``storages`` count in
+        ``get_storage_pools`` for a single pool."""
+        with cls._rdb_context():
+            return (
+                r.table("hypervisors")
+                .filter(
+                    lambda h: (h["status"] == "Online")
+                    & (h["enabled"] == True)
+                    & h["storage_pools"].contains(storage_pool_id)
+                )
+                .count()
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def _residing_disks(cls, storage_pool_id, mountpoint=None):
+        """Count non-deleted disks physically under this pool's mountpoint."""
+        if mountpoint is None:
+            pool = StoragePool.get(storage_pool_id) or {}
+            mountpoint = (
+                pool.get("mountpoint") or f"{cls.STORAGE_POOLS_ROOT}/{storage_pool_id}"
+            )
+        with cls._rdb_context():
+            return (
+                r.table("storage")
+                .filter(lambda s: s["status"] != "deleted")
+                .filter(
+                    lambda s: s["directory_path"]
+                    .default("")
+                    .match("^" + re.escape(mountpoint) + "/")
+                )
+                .count()
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def pool_pending_summary(cls, storage_pool_id):
+        """Quiescence view of a pool: whether it is enabled, and how many
+        categories, residing disks, queued lane jobs and serving consumers it
+        has. Backs the disable warning, the delete gate and the drain-status
+        endpoint. ``drained`` is True when nothing would be orphaned by a
+        delete (no categories, no disks, no queued jobs)."""
+        pool = StoragePool.get(storage_pool_id)
+        if pool is None:
+            raise Error("not_found", f"Storage pool {storage_pool_id} not found")
+        mountpoint = (
+            pool.get("mountpoint") or f"{cls.STORAGE_POOLS_ROOT}/{storage_pool_id}"
+        )
+        categories = len(pool.get("categories") or [])
+        disks = cls._residing_disks(storage_pool_id, mountpoint)
+        queued = cls._pending_lane_jobs(storage_pool_id)
+        return {
+            "id": storage_pool_id,
+            "enabled": pool.get("enabled") is not False,
+            "categories": categories,
+            "disks": disks,
+            "queued_tasks": queued,
+            "coverage": cls._pool_coverage(storage_pool_id),
+            "drained": categories == 0 and disks == 0 and queued == 0,
+        }
+
     @classmethod
     def add_storage_pool(cls, data):
         """_From /api/libv2/api_storage.py add_storage_pool()_"""
@@ -223,6 +323,23 @@ class StoragePoolsProcessed(RethinkSharedConnection):
         cls.remove_common_categories_from_other_pools(data["categories"])
         with cls._rdb_context():
             r.table("storage_pool").insert(data).run(cls._rdb_connection)
+        # A brand-new pool is served by no node yet (its id is not in any
+        # ``CAPABILITIES_STORAGE_POOLS``). Assigning a category to it before a
+        # storage/hypervisor node registers and is restarted would route that
+        # tenant's disk tasks onto an unserved lane. Surface it (non-blocking).
+        return {
+            "warnings": [
+                {
+                    "code": "storage_pool_no_consumer_yet",
+                    "message": (
+                        "Pool created but no storage/hypervisor node serves it "
+                        "yet. Add its id to a node's CAPABILITIES_STORAGE_POOLS "
+                        "and restart the node before assigning categories, or "
+                        "its disk tasks will stall unserved."
+                    ),
+                }
+            ]
+        }
 
     @classmethod
     def get_storage_pools(cls):
@@ -349,45 +466,80 @@ class StoragePoolsProcessed(RethinkSharedConnection):
             r.table("storage_pool").get(storage_pool_id).update(data).run(
                 cls._rdb_connection
             )
+        # On disable, tell the admin what is still pending: the pool keeps
+        # servicing existing disks' operations (routing ignores ``enabled`` for
+        # existing disks, by design) and cannot be deleted until it has fully
+        # drained (0 disks and 0 queued tasks).
+        warnings = []
+        if data.get("enabled") is False:
+            disks = cls._residing_disks(storage_pool_id)
+            queued = cls._pending_lane_jobs(storage_pool_id)
+            if disks or queued:
+                warnings.append(
+                    {
+                        "code": "storage_pool_disabled_with_pending",
+                        "disks": disks,
+                        "queued_tasks": queued,
+                        "message": (
+                            f"Pool disabled. {disks} disk(s) and {queued} queued "
+                            "task(s) remain; the pool keeps servicing them until "
+                            "drained and cannot be deleted until both reach 0."
+                        ),
+                    }
+                )
+        return {"warnings": warnings}
 
     @classmethod
     def delete_storage_pool(cls, storage_pool_id):
-        """_From /api/libv2/api_storage.py delete_storage_pool()_"""
+        """Delete a storage pool.
+
+        A pool may be removed only once it is **disabled and fully drained**:
+        disabling first stops new placement, and requiring zero categories,
+        zero residing disks and zero queued lane jobs guarantees the removal
+        orphans nothing (no on-disk file left behind, no task left stalled on a
+        lane whose consumer is about to disappear).
+        """
         if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
             raise Error("bad_request", "Default pool can't be removed")
         pool = StoragePool.get(storage_pool_id)
         if pool is None:
             raise Error("not_found", f"Storage pool {storage_pool_id} not found")
-        # Removing a pool that still owns categories or disks orphans them: their
-        # on-disk files stay under the (now unknown) mountpoint while new disks
-        # fall back to the default pool. Require the admin to reassign/migrate
-        # first.
+        # 1) Must be disabled first. A still-enabled pool keeps receiving new
+        #    disks/tasks, so it could never be reliably drained-then-deleted.
+        if pool.get("enabled") is not False:
+            raise Error(
+                "bad_request",
+                "Disable the storage pool before deleting it: a still-enabled "
+                "pool keeps receiving new disks and tasks",
+                description_code="storage_pool_delete_requires_disabled",
+            )
+        # 2) No categories (else new disks would still be routed here).
         if pool.get("categories"):
             raise Error(
                 "bad_request",
                 "Cannot remove a storage pool that still has categories assigned; "
                 "reassign them to another pool first",
             )
+        # 3) No residing disks (their on-disk files would be orphaned).
         mountpoint = (
             pool.get("mountpoint") or f"{cls.STORAGE_POOLS_ROOT}/{storage_pool_id}"
         )
-        with cls._rdb_context():
-            disks = (
-                r.table("storage")
-                .filter(lambda s: s["status"] != "deleted")
-                .filter(
-                    lambda s: s["directory_path"]
-                    .default("")
-                    .match("^" + re.escape(mountpoint) + "/")
-                )
-                .count()
-                .run(cls._rdb_connection)
-            )
+        disks = cls._residing_disks(storage_pool_id, mountpoint)
         if disks:
             raise Error(
                 "bad_request",
                 f"Cannot remove storage pool: {disks} disk(s) still reside in it; "
                 "migrate them to another pool first",
+            )
+        # 4) Fully drained: no queued lane jobs. Once the pool (and its
+        #    consumers) are gone, anything still queued would stall forever.
+        pending = cls._pending_lane_jobs(storage_pool_id)
+        if pending:
+            raise Error(
+                "bad_request",
+                f"Cannot remove storage pool: {pending} task(s) still queued on "
+                "its queues; wait for the pool to drain before deleting",
+                description_code="storage_pool_delete_requires_drained",
             )
         with cls._rdb_context():
             r.table("storage_pool").get(storage_pool_id).delete().run(
@@ -434,6 +586,24 @@ class StoragePoolsProcessed(RethinkSharedConnection):
             r.table("storage_pool").get(storage_pool_id).update(
                 {"categories": r.row["categories"].append(category_id)}
             ).run(cls._rdb_connection)
+        # Assigning a category is the moment disks for that tenant start routing
+        # to this pool's lanes. If no node serves it, those tasks stall silently
+        # at DownloadStarting - warn loudly (non-blocking: the admin may be about
+        # to provision/restart the node).
+        warnings = []
+        if cls._pool_coverage(storage_pool_id) == 0:
+            warnings.append(
+                {
+                    "code": "storage_pool_category_no_consumer",
+                    "message": (
+                        "Category assigned to a storage pool that no online "
+                        "hypervisor/storage node serves. New disks for this "
+                        "category will stall until a node with this pool in its "
+                        "CAPABILITIES_STORAGE_POOLS is running."
+                    ),
+                }
+            )
+        return {"warnings": warnings}
 
     @classmethod
     def check_category_storage_pool_availability(
