@@ -447,6 +447,7 @@ const showPassword = ref(false)
                     :name="field.name"
                     :model-value="field.state.value"
                     :type="showPassword ? 'text' : 'password'"
+                    autocomplete="new-password"
                     :placeholder="t('components.domain.access.credentials.password.placeholder')"
                     @update:model-value="(value) => field.handleChange(String(value))"
                   />
