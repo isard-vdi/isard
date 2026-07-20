@@ -94,6 +94,22 @@ def _safety_cutoff(now: datetime) -> datetime:
     return now - timedelta(days=SAFETY_MARGIN_DAYS)
 
 
+def _ensure_date_index(conn) -> None:
+    """Create the ``usage_consumption.date`` secondary index if missing.
+
+    Idempotent and self-healing so the index-backed retention scans work on
+    installs that predate the index without an ``upgrade.py`` schema bump. It
+    blocks once on the first build (RethinkDB builds it in the background) and
+    is a cheap ``index_list`` check thereafter.
+    """
+    if "date" not in r.table("usage_consumption").index_list().run(conn):
+        try:
+            r.table("usage_consumption").index_create("date").run(conn)
+        except Exception:
+            pass  # a concurrent creator won the race — index_wait still applies
+    r.table("usage_consumption").index_wait("date").run(conn)
+
+
 def _aggregate_inc(rows: list[dict]) -> dict:
     out: dict = defaultdict(float)
     for row in rows:
@@ -258,7 +274,7 @@ def _scan_window(
 ) -> dict:
     cursor = (
         r.table("usage_consumption")
-        .filter((r.row["date"] >= start) & (r.row["date"] < end))
+        .between(start, end, index="date")
         .run(conn, array_limit=10_000_000)
     )
     groups: dict = defaultdict(list)
@@ -282,11 +298,12 @@ def run_backfill(
 ) -> dict:
     """Walk every row older than the safety margin. One-shot."""
     stats = stats if stats is not None else empty_stats()
+    _ensure_date_index(conn)
     cutoff = _safety_cutoff(datetime.now(timezone.utc))
     log.info("backfill: scanning rows older than %s", cutoff.isoformat())
     cursor = (
         r.table("usage_consumption")
-        .filter(r.row["date"] < cutoff)
+        .between(r.minval, cutoff, index="date")
         .run(conn, array_limit=10_000_000)
     )
     groups: dict = defaultdict(list)
@@ -325,6 +342,7 @@ def run_incremental(
 ) -> dict:
     """Process only the tier-transition windows (~14 days each)."""
     stats = stats if stats is not None else empty_stats()
+    _ensure_date_index(conn)
     now = datetime.now(timezone.utc)
     cutoff = _safety_cutoff(now)
     boundaries: list[tuple[str, int]] = [

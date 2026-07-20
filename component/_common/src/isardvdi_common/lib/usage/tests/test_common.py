@@ -342,11 +342,21 @@ class TestCountConsumptionRows:
 
 
 class TestDeleteAllConsumption:
-    def test_calls_delete(self, stub_rdb):
+    def test_deletes_one_short_page_soft(self, stub_rdb):
         chain = stub_rdb["mock_table"].return_value
-        chain.delete.return_value.run.return_value = {"deleted": 100}
-        stub_rdb["Processed"].delete_all_consumption()
-        chain.delete.assert_called_once()
+        # 100 < page_size(5000) → single batch, loop stops.
+        chain.limit.return_value.delete.return_value.run.return_value = {"deleted": 100}
+        stub_rdb["Processed"].delete_all_consumption(page_size=5000, pause=0)
+        chain.limit.return_value.delete.assert_called_once()
+        _, kw = chain.limit.return_value.delete.call_args
+        assert kw.get("durability") == "soft"
+
+    def test_pages_until_short_page(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        run = chain.limit.return_value.delete.return_value.run
+        run.side_effect = [{"deleted": 2}, {"deleted": 2}, {"deleted": 1}]
+        stub_rdb["Processed"].delete_all_consumption(page_size=2, pause=0)
+        assert run.call_count == 3
 
 
 class TestUnifyItemName:
