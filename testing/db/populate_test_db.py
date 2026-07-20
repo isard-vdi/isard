@@ -34,6 +34,38 @@ RESET_TABLES = ["notifications_data"]
 E2E_PREFIX_TABLES = ["notifications", "notification_tmpls"]
 
 
+def materialize_media_files(media_rows):
+    """Create placeholder files for media seeded as already Downloaded.
+
+    The media seed only inserts the DB row — it marks ``empty-iso`` as
+    ``Downloaded`` with a ``path_downloaded`` but never writes the file. Any
+    desktop that attaches the media then fails to start with "Cannot access
+    storage file ... No such file or directory". Touch an empty file so the
+    media is genuinely usable. No-op when the media volume isn't mounted (the
+    target dir is absent) — seed runs that don't drive real VM boots skip it.
+    """
+    for media in media_rows:
+        if media.get("status") != "Downloaded":
+            continue
+        path = media.get("path_downloaded")
+        if not path:
+            continue
+        media_dir = os.path.dirname(path)
+        if not os.path.isdir(media_dir):
+            print(
+                f"Media dir '{media_dir}' not mounted; skipping file for '{media.get('id')}'"
+            )
+            continue
+        if os.path.exists(path):
+            continue
+        try:
+            with open(path, "w"):
+                pass
+            print(f"Created placeholder media file '{path}'")
+        except OSError as e:
+            print(f"Could not create media file '{path}': {e}")
+
+
 def wait_for_hypervisor_online(dbconn, timeout=HYPER_READY_TIMEOUT):
     """Block until a hypervisor can serve storage-pool-gated requests.
 
@@ -101,6 +133,8 @@ def main():
                 data = [data]
             result = r.table(table_name).insert(data, conflict="update").run(dbconn)
             print(f"Result: {result}")
+            if table_name == "media":
+                materialize_media_files(data)
         except Exception as e:
             print(f"Error inserting into '{table_name}': {e}")
 

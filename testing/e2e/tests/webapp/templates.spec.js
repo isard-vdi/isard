@@ -1161,7 +1161,9 @@ test.describe('Admin Templates — webapp', () => {
 
     const modal = page.locator('#domain-info-modal')
     await modal.waitFor({ state: 'visible', timeout: 10000 })
-    await modal.locator('button[data-dismiss="modal"]').first().click()
+    // A stray "template deleted" PNotify from a prior test can overlay the button;
+    // force the click so the toast's pointer-events interception can't block dismiss.
+    await modal.locator('button[data-dismiss="modal"]').first().click({ force: true })
     await modal.waitFor({ state: 'hidden', timeout: 5000 })
   })
 
