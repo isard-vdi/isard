@@ -23,6 +23,7 @@ import os
 from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.helpers.task_timeouts import job_timeout_for
 from rq import Queue, Retry
 from rq.exceptions import NoSuchJobError
 from rq.job import Job, JobStatus
@@ -117,6 +118,14 @@ class Task(RedisBase):
             )
             kwargs["job_kwargs"].setdefault("meta", {}).setdefault(
                 "user_id", kwargs.get("user_id")
+            )
+            # Give every task an explicit, action-appropriate job_timeout so a
+            # long-running op (download / convert / sparsify / move) is not
+            # killed by RQ's 180 s Queue.DEFAULT_TIMEOUT mid-flight. A callsite
+            # that knows the disk/file size can still pass its own size-derived
+            # ``timeout`` in job_kwargs -- setdefault keeps it.
+            kwargs["job_kwargs"].setdefault(
+                "timeout", job_timeout_for(kwargs.get("task"))
             )
             dependencies = []
             for dependency in kwargs.get("dependencies", []):
