@@ -19,11 +19,9 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
-  abortStorageOperationsApiV4ItemStorageStorageIdAbortOperationsPutMutation: () => ({}),
-  getStorageApiV4ItemStorageStorageIdGetQueryKey: (o: { path: { storage_id: string } }) => [
-    { _id: 'getStorage', ...o.path }
-  ],
-  getStorageTaskApiV4ItemStorageStorageIdTaskGetQueryKey: (o: { path: { storage_id: string } }) => [
+  abortStorageOperationsMutation: () => ({}),
+  getStorageQueryKey: (o: { path: { storage_id: string } }) => [{ _id: 'getStorage', ...o.path }],
+  getStorageTaskQueryKey: (o: { path: { storage_id: string } }) => [
     { _id: 'getStorageTask', ...o.path }
   ]
 }))

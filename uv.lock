@@ -4,6 +4,7 @@ requires-python = "==3.13.*"
 
 [manifest]
 members = [
+    "isard-anonymize-db",
     "isardvdi-apiv4",
     "isardvdi-apiv4-client",
     "isardvdi-authentication-client",
@@ -352,6 +353,18 @@ wheels = [
 ]
 
 [[package]]
+name = "faker"
+version = "40.28.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cc/2d/3ead106cef42eab305e15f9c089dcc68a40387d5ce04af18585af4ebbb44/faker-40.28.1.tar.gz", hash = "sha256:2a63fb51abab8790636d4030a094cf942404cbccc9c288d1cad70e2e3e9ecd58", size = 2022717, upload-time = "2026-07-01T22:23:43.763Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/a6/6111b9f13c1564b0e2f5dbeeb611fd00dc731e6add2336f62b798598c73d/faker-40.28.1-py3-none-any.whl", hash = "sha256:e8d3f5c469100a553d246dce7937c291308068a5ec6c9c3a228d7878b50720be", size = 2061052, upload-time = "2026-07-01T22:23:41.946Z" },
+]
+
+[[package]]
 name = "fastapi"
 version = "0.115.12"
 source = { registry = "https://pypi.org/simple" }
@@ -625,6 +638,33 @@ wheels = [
 ]
 
 [[package]]
+name = "isard-anonymize-db"
+version = "0.1.0"
+source = { editable = "sysadm/anonymize-db" }
+dependencies = [
+    { name = "bcrypt" },
+    { name = "cryptography" },
+    { name = "faker" },
+    { name = "rethinkdb" },
+]
+
+[package.dev-dependencies]
+test = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "bcrypt", specifier = ">=4.0" },
+    { name = "cryptography", specifier = ">=42" },
+    { name = "faker", specifier = ">=28" },
+    { name = "rethinkdb", specifier = ">=2.4" },
+]
+
+[package.metadata.requires-dev]
+test = [{ name = "pytest" }]
+
+[[package]]
 name = "isardvdi-apiv4"
 version = "0.0.0"
 source = { editable = "component/apiv4" }
@@ -719,6 +759,11 @@ dependencies = [
     { name = "python-dateutil" },
 ]
 
+[package.dev-dependencies]
+test = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "attrs", specifier = ">=23" },
@@ -727,6 +772,9 @@ requires-dist = [
     { name = "pyjwt", specifier = ">=2.10,<3" },
     { name = "python-dateutil", specifier = ">=2.8,<3" },
 ]
+
+[package.metadata.requires-dev]
+test = [{ name = "pytest" }]
 
 [[package]]
 name = "isardvdi-authentication-client"
@@ -866,6 +914,12 @@ dependencies = [
     { name = "specktre" },
 ]
 
+[package.dev-dependencies]
+test = [
+    { name = "pydantic" },
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "docopt", specifier = ">=0.6.2" },
@@ -874,6 +928,12 @@ requires-dist = [
     { name = "pyyaml", specifier = "==6.0.2" },
     { name = "ruff", specifier = "==0.6.9" },
     { name = "specktre", specifier = "==0.3.0" },
+]
+
+[package.metadata.requires-dev]
+test = [
+    { name = "pydantic" },
+    { name = "pytest" },
 ]
 
 [[package]]

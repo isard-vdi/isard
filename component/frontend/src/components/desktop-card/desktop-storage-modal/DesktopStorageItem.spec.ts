@@ -12,12 +12,11 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
-  getStorageApiV4ItemStorageStorageIdGetOptions: () => ({}),
-  getStorageApiV4ItemStorageStorageIdGetQueryKey: () => [{}],
-  getStorageTaskApiV4ItemStorageStorageIdTaskGetQueryKey: () => [{}],
-  abortStorageOperationsApiV4ItemStorageStorageIdAbortOperationsPutMutation: () => ({}),
-  increaseStorageSizeApiV4ItemStorageStorageIdPriorityPriorityIncreaseIncrementPutMutation:
-    () => ({})
+  getStorageOptions: () => ({}),
+  getStorageQueryKey: () => [{}],
+  getStorageTaskQueryKey: () => [{}],
+  abortStorageOperationsMutation: () => ({}),
+  increaseStorageSizeMutation: () => ({})
 }))
 
 const userRef = ref<{ id: string; role_id: string } | null>({

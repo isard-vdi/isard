@@ -18,10 +18,9 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
-  increaseStorageSizeApiV4ItemStorageStorageIdPriorityPriorityIncreaseIncrementPutMutation:
-    () => ({}),
-  getStorageApiV4ItemStorageStorageIdGetQueryKey: () => [{}],
-  getStorageTaskApiV4ItemStorageStorageIdTaskGetQueryKey: () => [{}]
+  increaseStorageSizeMutation: () => ({}),
+  getStorageQueryKey: () => [{}],
+  getStorageTaskQueryKey: () => [{}]
 }))
 
 vi.mock('vue-i18n', () => ({

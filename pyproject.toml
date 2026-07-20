@@ -29,6 +29,7 @@ members = [
   "pkg/gen/asyncapi/changefeed",
   "pkg/gen/proto/python",
   "testing",
+  "sysadm/anonymize-db",
 ]
 
 [tool.uv.sources]

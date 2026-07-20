@@ -41,6 +41,12 @@ def _install_stubs() -> None:
     wg_monitor.start_monitoring_vpn_status = lambda: None  # type: ignore[attr-defined]
     sys.modules["wg_monitor"] = wg_monitor
 
+    # wgadmin calls ``tunnel_monitor.start()`` at import time, which spawns a
+    # daemon polling thread; stub it out like wg_monitor above.
+    tunnel_monitor = types.ModuleType("tunnel_monitor")
+    tunnel_monitor.start = lambda: None  # type: ignore[attr-defined]
+    sys.modules["tunnel_monitor"] = tunnel_monitor
+
     # wgtools pulls in iptc via simple_iptools; stub it with a dummy Wg class.
     wgtools = types.ModuleType("wgtools")
 

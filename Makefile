@@ -275,8 +275,32 @@ ci-test-webapp:
 	uv sync --no-dev --group test --package isardvdi-webapp
 	cd webapp/webapp && uv run --no-dev --group test --package isardvdi-webapp pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=webapp --cov-report=term --cov-report=xml:coverage.xml
 
+.PHONY: ci-test-apiv4-client
+ci-test-apiv4-client:
+	uv sync --no-dev --group test --package isardvdi-apiv4-client
+	cd component/_common/isardvdi_apiv4_client && uv run --no-dev --group test --package isardvdi-apiv4-client pytest tests -q --tb=short --junitxml=report.xml
+
+.PHONY: ci-test-vpn
+ci-test-vpn:
+	uv sync --no-dev --group test --package isardvdi-vpn
+	cd docker/vpn && uv run --no-dev --group test --package isardvdi-vpn pytest tests -q --tb=short --junitxml=report.xml
+
+.PHONY: ci-test-codegen
+ci-test-codegen:
+	uv sync --no-dev --group test --package isardvdi-codegen
+	cd docker/codegen && uv run --no-dev --group test --package isardvdi-codegen pytest tests -q --tb=short --junitxml=report.xml
+
+.PHONY: ci-test-anonymize-db
+ci-test-anonymize-db:
+	uv sync --no-dev --group test --package isard-anonymize-db
+	cd sysadm/anonymize-db && uv run --no-dev --group test --package isard-anonymize-db pytest tests -q --tb=short --junitxml=report.xml
+
+.PHONY: ci-test-frontend
+ci-test-frontend:
+	cd component/frontend && bun install --frozen-lockfile && bun run test:unit --reporter=default --reporter=junit --outputFile=report.xml
+
 .PHONY: ci-test-python
-ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-socketio ci-test-openapi ci-test-notifier ci-test-scheduler ci-test-webapp
+ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-socketio ci-test-openapi ci-test-notifier ci-test-scheduler ci-test-webapp ci-test-apiv4-client ci-test-vpn ci-test-codegen ci-test-anonymize-db
 
 .PHONY: setup-hooks
 setup-hooks:

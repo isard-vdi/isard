@@ -1,17 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
-import { ref, type Ref } from 'vue'
+import { mount, flushPromises } from '@vue/test-utils'
+import { ref, computed, type Ref } from 'vue'
 
-enableAutoUnmount(afterEach)
-
-const viewerData: Ref<unknown> = ref(null)
-const viewerError: Ref<unknown> = ref(null)
+// ── Reactive test state driving the mocked queries ──────────────────────────
+const viewerData: Ref<any> = ref(null)
+const viewerError: Ref<any> = ref(null)
 const viewerPending = ref(false)
-const loginConfig: Ref<unknown> = ref(null)
-const viewerDocs: Ref<unknown> = ref(null)
-const setQueryDataMock = vi.fn()
+const loginConfig: Ref<any> = ref(null)
+const desktopDetails: Ref<any> = ref(null)
+
+// Controllable outputs of the mocked @/lib/desktops helpers.
+const bookingText: Ref<string | null> = ref(null)
+const mainButtonAction = ref<string>('none')
+
 const cookieSetMock = vi.fn()
-const ioMock = vi.fn()
+const connectMock = vi.fn()
+const clientSetConfigMock = vi.fn()
+// useMutation is called twice in the view (resetDesktop, then startDesktop);
+// capture each returned mutate in order.
+const mutations: { mutate: ReturnType<typeof vi.fn> }[] = []
 
 let useQueryCallIndex = 0
 
@@ -19,101 +26,175 @@ vi.mock('@tanstack/vue-query', () => {
   const useQuery = () => {
     const idx = useQueryCallIndex
     useQueryCallIndex += 1
-    if (idx === 0) return { data: viewerData, error: viewerError, isPending: viewerPending }
-    if (idx === 1) return { data: viewerDocs, error: ref(null), isPending: ref(false) }
-    return { data: loginConfig, error: ref(null), isPending: ref(false) }
+    // Order matches DirectViewerView.vue: (0) desktopViewer, (1) loginConfig,
+    // (2) desktopDetails.
+    if (idx === 0)
+      return {
+        data: viewerData,
+        error: viewerError,
+        isError: computed(() => viewerError.value != null),
+        isPending: viewerPending
+      }
+    if (idx === 1) return { data: loginConfig, error: ref(null), isPending: ref(false) }
+    return { data: desktopDetails, error: ref(null), isPending: ref(false) }
   }
-  const useQueryClient = () => ({ setQueryData: setQueryDataMock })
-  return { useQuery, useQueryClient }
+  const useQueryClient = () => ({ setQueryData: vi.fn(), invalidateQueries: vi.fn() })
+  const useMutation = () => {
+    const mutate = vi.fn()
+    mutations.push({ mutate })
+    return { mutate, isPending: ref(false) }
+  }
+  return { useQuery, useQueryClient, useMutation }
 })
 
 vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
-  getDesktopViewerByTokenOptions: () => ({
-    queryKey: { _id: 'viewer' }
-  }),
+  getDesktopViewerByTokenOptions: () => ({ queryKey: { _id: 'viewer' } }),
   getDesktopViewerByTokenQueryKey: () => ({ _id: 'viewer' }),
-  getViewerDocsOptions: () => ({ queryKey: { _id: 'docs' } }),
   apiV4LoginConfigOptions: () => ({ queryKey: { _id: 'login' } })
 }))
 
 vi.mock('@/gen/oas/apiv4', () => ({
-  DesktopStatusEnum: { WAITING_IP: 'WaitingIP' }
+  resetDesktop: vi.fn(async () => ({ data: {}, error: null }))
+}))
+
+vi.mock('@/gen/oas/apiv4/types.gen', () => ({
+  DesktopStatusEnum: {
+    UNKNOWN: 'Unknown',
+    STARTED: 'Started',
+    STARTING: 'Starting',
+    WAITING_IP: 'WaitingIP'
+  }
+}))
+
+// Isolated apiv4 client the view builds with createClient(createConfig()).
+vi.mock('@/gen/oas/apiv4/client', () => ({
+  createConfig: () => ({}),
+  createClient: () => ({
+    setConfig: clientSetConfigMock,
+    get: vi.fn(async () => ({ data: null, error: null })),
+    put: vi.fn(async () => ({ data: null, error: null }))
+  })
 }))
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { token: 'tok-1' } })
 }))
 
+// The view destructures { t, d } from useI18n. `d` must exist; `t` serialises
+// its params so assertions can look for the key.
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    t: (k: string, params?: Record<string, unknown>) => {
-      if (params && Object.keys(params).length) {
-        return `${k}::${JSON.stringify(params)}`
-      }
-      return k
-    },
+    t: (k: string, params?: Record<string, unknown>) =>
+      params && Object.keys(params).length ? `${k}::${JSON.stringify(params)}` : k,
+    d: (_date: Date, opts?: Record<string, unknown>) =>
+      opts?.dateStyle ? 'DATE' : opts?.timeStyle ? 'TIME' : 'D',
     locale: ref('en-US')
+  }),
+  // @/lib/i18n.ts (pulled in transitively) calls createI18n at module load and
+  // reads i18n.global.{locale.value,t}.
+  createI18n: () => ({
+    global: { locale: { value: 'en-US' }, t: (k: string) => k }
   })
-}))
-
-vi.mock('socket.io-client', () => ({
-  io: (...args: unknown[]) => {
-    ioMock(...args)
-    return { on: vi.fn(), connect: vi.fn(), disconnect: vi.fn() }
-  }
 }))
 
 vi.mock('@vueuse/integrations/useCookies', () => ({
   useCookies: () => ({ set: cookieSetMock })
 }))
 
-vi.mock('@/lib/constants', () => ({ webSockets: '/ws' }))
-
-vi.mock('@/lib/booking/date-utils', () => ({
-  formatAsTime: (s: string) => `time(${s})`,
-  utcToLocalTime: (s: string) => `local(${s})`
+vi.mock('@/services/directViewerSocket', () => ({
+  useDirectViewerSocket: () => ({ isConnected: ref(false), connect: connectMock })
 }))
 
-vi.mock('@/components/direct-viewer', () => ({
-  DirectViewerButton: {
-    props: ['viewer', 'state', 'description', 'token'],
-    emits: ['help'],
+// @/lib/desktops — booking-notification text and the main-button action are
+// controlled per-test via the refs above.
+vi.mock('@/lib/desktops', () => ({
+  desktopBookingNotificationText: () => bookingText.value,
+  desktopActionsData: () => ({
+    actionButton: {
+      action: mainButtonAction.value,
+      hierarchy: 'primary',
+      icon: '',
+      iconClass: '',
+      label: 'action'
+    }
+  }),
+  DesktopActionsEnum: { Reset: 'reset', Stop: 'stop', Start: 'start' }
+}))
+
+// ── Child-component stubs ───────────────────────────────────────────────────
+// The desktop-card barrel transitively pulls DirectViewerCardPreview → NoVNC.vue
+// → @novnc/novnc (whose 1.6 package has no resolvable entry under vitest), so
+// stub every symbol the view imports from it. DesktopCardBase renders its slots
+// so the header/footer/viewer buttons are assertable.
+vi.mock('@/components/desktop-card', () => ({
+  DesktopCardBase: {
     template:
-      '<div class="dvb" :data-kind="viewer.kind" :data-protocol="viewer.protocol">' +
-      '<button class="help" @click="$emit(\'help\', viewer.protocol)">help</button>' +
+      '<div data-test="card-base">' +
+      '<slot name="image" /><slot name="header-actions" /><slot name="ip" />' +
+      '<slot name="overlay" /><slot name="header" /><slot name="footer" />' +
       '</div>'
   },
-  DirectViewerHelpRDP: {
-    props: ['open', 'documentationUrl'],
-    template: '<div data-test="help-rdp" :data-open="open" />'
+  DesktopCardHeader: {
+    props: ['notificationText', 'name', 'description'],
+    template:
+      '<div data-test="card-header" :data-notification="notificationText ?? \'\'">{{ name }}</div>'
   },
-  DirectViewerHelpSpice: {
-    props: ['open', 'documentationUrl'],
-    template: '<div data-test="help-spice" :data-open="open" />'
+  DesktopCardFooter: {
+    props: ['mainButtonData', 'desktopStatus', 'desktopViewers', 'desktopIp', 'preferredViewer'],
+    emits: ['mainButtonClick'],
+    template: '<button data-test="footer-main" @click="$emit(\'mainButtonClick\')">main</button>'
   },
-  DirectViewerResetModal: {
-    props: ['open', 'token'],
-    template: '<div data-test="reset" :data-open="open" />'
-  },
-  DirectViewerSkeleton: {
-    template: '<div data-test="skeleton" />'
+  DesktopCardIp: { template: '<div data-test="card-ip" />' },
+  DesktopCardNetworksOverlay: { template: '<div data-test="card-networks" />' },
+  DesktopCardSkeleton: { template: '<div data-test="desktop-card-skeleton" />' }
+}))
+
+vi.mock('@/components/desktop-card/parts/DirectViewerCardPreview.vue', () => ({
+  default: { template: '<div data-test="card-preview" />' }
+}))
+
+vi.mock('@/components/domain/DomainAccessSummary.vue', () => ({
+  default: { template: '<div data-test="access-summary" />' }
+}))
+vi.mock('@/components/domain/DomainHardwareSummary.vue', () => ({
+  default: { template: '<div data-test="hardware-summary" />' }
+}))
+
+vi.mock('@/components/login', () => ({
+  LoginNotification: {
+    props: ['config'],
+    template:
+      '<div data-test="login-notification">{{ config?.title }} {{ config?.description }}</div>'
   }
 }))
 
-vi.mock('@/components/ui/spinner', () => ({
-  Spinner: { template: '<span data-test="spinner" />' }
+vi.mock('@/components/modal', () => ({
+  AlertModal: {
+    props: ['open', 'level', 'size', 'title', 'description', 'loading'],
+    emits: ['update:open'],
+    template: '<div data-test="reset-modal" :data-open="String(open)"><slot name="footer" /></div>'
+  },
+  ChangeViewerModal: {
+    props: ['open', 'availableViewerIds', 'currentViewerId'],
+    emits: ['close', 'change'],
+    template: '<div data-test="change-viewer-modal" :data-open="String(open)" />'
+  }
 }))
-vi.mock('@/components/ui/alert', () => ({
-  Alert: { template: '<div data-test="alert"><slot /></div>' },
-  AlertDescription: { template: '<div data-test="alert-desc"><slot /></div>' },
-  AlertTitle: { template: '<div data-test="alert-title"><slot /></div>' }
-}))
+
 vi.mock('@/components/ui/button', () => ({
   Button: {
-    props: ['hierarchy', 'size'],
+    props: ['hierarchy', 'size', 'icon', 'iconClass', 'iconStrokeColor', 'disabled', 'ariaLabel'],
     emits: ['click'],
-    template: '<button data-test="btn" @click="$emit(\'click\')"><slot /></button>'
+    template:
+      '<button data-test="btn" :aria-label="ariaLabel" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>'
   }
+}))
+vi.mock('@/components/ui/button-group', () => ({
+  ButtonGroup: { template: '<div data-test="button-group"><slot /></div>' },
+  ButtonGroupSeparator: { template: '<span data-test="btn-group-sep" />' }
+}))
+vi.mock('@/components/ui/separator/Separator.vue', () => ({
+  default: { template: '<hr data-test="separator" />' }
 }))
 vi.mock('@/components/icon', () => ({
   Icon: { template: '<span data-test="icon" />' }
@@ -121,17 +202,18 @@ vi.mock('@/components/icon', () => ({
 
 import DirectViewerView from './DirectViewerView.vue'
 
-const mountView = () =>
-  mount(DirectViewerView, {
-    global: {
-      stubs: {
-        'i18n-t': {
-          props: ['keypath'],
-          template: '<span data-test="i18n-t">{{ keypath }}</span>'
-        }
-      }
-    }
-  })
+const startedDesktop = (overrides: Record<string, unknown> = {}) => ({
+  jwt: 'tok-jwt',
+  id: 'desktop-id',
+  name: 'My Desktop',
+  status: 'Started',
+  description: '',
+  image: { url: '' },
+  viewers: {},
+  ...overrides
+})
+
+const mountView = () => mount(DirectViewerView)
 
 describe('DirectViewerView', () => {
   beforeEach(() => {
@@ -139,10 +221,13 @@ describe('DirectViewerView', () => {
     viewerError.value = null
     viewerPending.value = false
     loginConfig.value = null
-    viewerDocs.value = null
-    setQueryDataMock.mockReset()
+    desktopDetails.value = null
+    bookingText.value = null
+    mainButtonAction.value = 'none'
     cookieSetMock.mockReset()
-    ioMock.mockReset()
+    connectMock.mockReset()
+    clientSetConfigMock.mockReset()
+    mutations.length = 0
     useQueryCallIndex = 0
   })
 
@@ -150,174 +235,138 @@ describe('DirectViewerView', () => {
     document.body.replaceChildren()
   })
 
-  it('renders the loading spinner while pending and no name yet', () => {
+  it('renders the loading skeleton while the viewer query is pending', () => {
     viewerPending.value = true
     const wrapper = mountView()
-    expect(wrapper.text()).toContain('views.direct-viewer.loading')
-    expect(wrapper.findAll('[data-test="skeleton"]').length).toBe(2)
+    expect(wrapper.find('[data-test="desktop-card-skeleton"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('views.direct-viewer.connecting-to')
   })
 
-  it('renders fallback error text when description_code is missing', async () => {
+  it('renders the generic error box when the viewer query errors without a code', async () => {
     viewerError.value = {}
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.text()).toContain('views.direct-viewer.errors.not_found')
+    expect(wrapper.text()).toContain('views.direct-viewer.error-title')
+    expect(wrapper.text()).toContain('views.direct-viewer.error-description')
   })
 
-  it('formats the desktop_not_booked_until error with localized start time', async () => {
-    viewerError.value = {
-      description_code: 'desktop_not_booked_until',
-      params: { start: '2026-04-25T10:00:00Z' }
-    }
+  it('renders the not-booked error variant for description_code desktop_not_booked', async () => {
+    viewerError.value = { description_code: 'desktop_not_booked' }
     const wrapper = mountView()
     await flushPromises()
-    const errKey = 'views.direct-viewer.errors.desktop_not_booked_until'
-    expect(wrapper.text()).toContain(errKey)
-    expect(wrapper.text()).toContain('local(2026-04-25T10:00:00Z)')
+    expect(wrapper.text()).toContain('views.direct-viewer.errors.not-booked.title')
+    expect(wrapper.text()).not.toContain('views.direct-viewer.error-title')
   })
 
-  it('renders generic description_code errors with their params', async () => {
-    viewerError.value = {
-      description_code: 'desktop_not_started',
-      params: { foo: 'bar' }
-    }
+  it('renders the desktop name once the viewer data resolves', async () => {
+    viewerData.value = startedDesktop({ name: 'Ubuntu Lab' })
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.text()).toContain('views.direct-viewer.errors.desktop_not_started')
+    expect(wrapper.text()).toContain('views.direct-viewer.connecting-to')
+    expect(wrapper.text()).toContain('Ubuntu Lab')
   })
 
-  it('opens the websocket and stores the cookie when viewer data resolves', async () => {
+  it('stores the viewerToken cookie and connects the socket when the jwt resolves', async () => {
     const wrapper = mountView()
-    viewerData.value = {
-      jwt: 'tok-jwt',
-      id: 'desktop-id',
-      name: 'My Desktop',
-      status: 'Started',
-      viewers: {
-        'browser-vnc': { kind: 'browser', protocol: 'vnc' },
-        'file-spice': { kind: 'file', protocol: 'spice' },
-        empty: null
-      }
-    }
+    viewerData.value = startedDesktop({ jwt: 'resolved-jwt' })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
     expect(cookieSetMock).toHaveBeenCalledWith(
       'viewerToken',
-      'tok-jwt',
+      'resolved-jwt',
       expect.objectContaining({ path: '/', sameSite: 'strict' })
     )
-    expect(ioMock).toHaveBeenCalledTimes(1)
-    const ioArgs = ioMock.mock.calls[0]
-    expect(ioArgs[0]).toBe('/userspace')
-    expect(ioArgs[1].query).toEqual({ room: 'desktop-id' })
+    expect(connectMock).toHaveBeenCalledWith('resolved-jwt')
   })
 
-  it('splits browser viewers and file viewers into separate sections', async () => {
+  it('feeds the scheduled-shutdown notification text into the card header', async () => {
+    viewerData.value = startedDesktop({ scheduled: { shutdown: '2026-04-25T20:00:00Z' } })
     const wrapper = mountView()
-    viewerData.value = {
-      jwt: 'jwt',
-      id: 'd1',
-      name: 'd1',
-      status: 'Started',
-      viewers: {
-        'browser-vnc': { kind: 'browser', protocol: 'vnc' },
-        'browser-rdp': { kind: 'browser', protocol: 'rdp' },
-        'file-spice': { kind: 'file', protocol: 'spice' },
-        'file-rdpgw': { kind: 'file', protocol: 'rdpgw' },
-        empty: null
-      }
-    }
     await flushPromises()
-
-    const cards = wrapper.findAll('.dvb')
-    expect(cards.length).toBe(4)
-    const kinds = cards.map((c) => c.attributes('data-kind'))
-    expect(kinds.filter((k) => k === 'browser').length).toBe(2)
-    expect(kinds.filter((k) => k === 'file').length).toBe(2)
+    expect(wrapper.find('[data-test="card-header"]').attributes('data-notification')).toContain(
+      'notification-bar.shutdown'
+    )
   })
 
-  it('renders shutdownText only when scheduled.shutdown is set', async () => {
+  it('prefers the booking notification text over the shutdown text', async () => {
+    bookingText.value = 'BOOKING-NOTICE'
+    viewerData.value = startedDesktop({ scheduled: { shutdown: '2026-04-25T20:00:00Z' } })
     const wrapper = mountView()
-    viewerData.value = {
-      jwt: 'jwt',
-      id: 'd1',
-      name: 'My Desktop',
-      status: 'Started',
-      viewers: {},
-      scheduled: { shutdown: '2026-04-25T20:00:00Z' }
-    }
     await flushPromises()
-    expect(wrapper.text()).toContain('components.message-modal.messages.desktop-time-limit')
-    expect(wrapper.text()).toContain('time(local(2026-04-25T20:00:00Z))')
+    expect(wrapper.find('[data-test="card-header"]').attributes('data-notification')).toBe(
+      'BOOKING-NOTICE'
+    )
   })
 
-  it('renders the notification cover banner when loginConfig provides one', async () => {
+  it('renders the login notification cover when loginConfig enables it', async () => {
     loginConfig.value = {
-      notification_cover: {
-        enabled: true,
-        title: 'Outage',
-        description: 'Maintenance in progress'
-      }
+      notification_cover: { enabled: true, title: 'Outage', description: 'Maintenance in progress' }
     }
-    viewerData.value = {
-      jwt: 'jwt',
-      id: 'd1',
-      name: 'd1',
-      status: 'Started',
-      viewers: {}
-    }
+    viewerData.value = startedDesktop()
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.text()).toContain('Outage')
     expect(wrapper.text()).toContain('Maintenance in progress')
   })
 
-  it('opens the reset modal when the restart button is clicked', async () => {
-    viewerData.value = {
-      jwt: 'jwt',
-      id: 'd1',
-      name: 'd1',
-      status: 'Started',
-      viewers: {}
-    }
+  it('opens the reset modal on the main action and calls resetDesktop on confirm', async () => {
+    mainButtonAction.value = 'reset'
+    viewerData.value = startedDesktop()
     const wrapper = mountView()
     await flushPromises()
 
-    const restart = wrapper.findAll('[data-test="btn"]')[0]
-    expect(restart).toBeTruthy()
-    await restart.trigger('click')
-    await flushPromises()
-    expect(wrapper.find('[data-test="reset"]').attributes('data-open')).toBe('true')
+    expect(wrapper.find('[data-test="reset-modal"]').attributes('data-open')).toBe('false')
+    await wrapper.find('[data-test="footer-main"]').trigger('click')
+    expect(wrapper.find('[data-test="reset-modal"]').attributes('data-open')).toBe('true')
+
+    // Footer slot renders [cancel, confirm]; confirm calls the reset mutation.
+    const modalButtons = wrapper.find('[data-test="reset-modal"]').findAll('[data-test="btn"]')
+    expect(modalButtons.length).toBe(2)
+    await modalButtons[1].trigger('click')
+    expect(mutations[0].mutate).toHaveBeenCalled()
   })
 
-  it('opens the spice help modal when a button emits help with spice', async () => {
-    viewerData.value = {
-      jwt: 'jwt',
-      id: 'd1',
-      name: 'd1',
-      status: 'Started',
-      viewers: { 'file-spice': { kind: 'file', protocol: 'spice' } }
-    }
+  it('shows the viewer button group and opens the change-viewer modal for multiple viewers', async () => {
+    viewerData.value = startedDesktop({
+      viewers: {
+        'browser-vnc': { kind: 'browser', viewer: '/viewer/vnc' },
+        'file-spice': { kind: 'file' },
+        empty: null
+      }
+    })
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.find('.dvb .help').trigger('click')
-    expect(wrapper.find('[data-test="help-spice"]').attributes('data-open')).toBe('true')
-    expect(wrapper.find('[data-test="help-rdp"]').attributes('data-open')).toBe('false')
+
+    expect(wrapper.find('[data-test="button-group"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="change-viewer-modal"]').attributes('data-open')).toBe('false')
+
+    const settings = wrapper.find('[aria-label="views.direct-viewer.select-viewer"]')
+    expect(settings.exists()).toBe(true)
+    await settings.trigger('click')
+    expect(wrapper.find('[data-test="change-viewer-modal"]').attributes('data-open')).toBe('true')
   })
 
-  it('opens the rdp help modal when a button emits help with rdpgw', async () => {
-    viewerData.value = {
-      jwt: 'jwt',
-      id: 'd1',
-      name: 'd1',
-      status: 'Started',
-      viewers: { 'file-rdpgw': { kind: 'file', protocol: 'rdpgw' } }
-    }
+  it('opens a browser viewer in a new tab with the direct flag set', async () => {
+    const openSpy = vi.fn()
+    vi.stubGlobal('open', openSpy)
+    viewerData.value = startedDesktop({
+      viewers: { 'browser-vnc': { kind: 'browser', cookie: 'ck', viewer: '/viewer/vnc' } }
+    })
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.find('.dvb .help').trigger('click')
-    expect(wrapper.find('[data-test="help-rdp"]').attributes('data-open')).toBe('true')
-    expect(wrapper.find('[data-test="help-spice"]').attributes('data-open')).toBe('false')
+
+    // The active-viewer button is the first button inside the group (no aria-label).
+    const groupButtons = wrapper.find('[data-test="button-group"]').findAll('[data-test="btn"]')
+    await groupButtons[0].trigger('click')
+
+    expect(cookieSetMock).toHaveBeenCalledWith(
+      'browser_viewer',
+      'ck',
+      expect.objectContaining({ path: '/' })
+    )
+    expect(openSpy).toHaveBeenCalledTimes(1)
+    expect(openSpy.mock.calls[0][0]).toContain('direct=1')
+    vi.unstubAllGlobals()
   })
 })

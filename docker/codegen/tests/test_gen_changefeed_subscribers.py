@@ -281,18 +281,19 @@ class TestRealTablesJson:
             / "component"
             / "changefeed"
             / "src"
+            / "isardvdi_changefeed"
             / "tables.json"
         )
         with tables_path.open("r", encoding="utf-8") as fh:
             return json.load(fh)
 
-    def test_generates_23_subscriber_files(self, real_tables, tmp_path):
+    def test_generates_one_subscriber_file_per_table(self, real_tables, tmp_path):
         generate(real_tables, tmp_path, _FAKE_HASH)
 
         subscriber_files = [f for f in tmp_path.glob("*.py") if f.name != "__init__.py"]
-        assert len(subscriber_files) == 23
+        assert len(subscriber_files) == len(real_tables)
 
-    def test_six_stream_subscribers(self, real_tables, tmp_path):
+    def test_stream_subscribers_match_stream_tables(self, real_tables, tmp_path):
         generate(real_tables, tmp_path, _FAKE_HASH)
 
         stream_tables = []
@@ -302,7 +303,8 @@ class TestRealTablesJson:
                 if "STREAM" in src:
                     stream_tables.append(entry["table"])
 
-        assert len(stream_tables) == 6
+        expected = sum(1 for entry in real_tables if entry.get("stream"))
+        assert len(stream_tables) == expected
 
     def test_all_generated_files_compile(self, real_tables, tmp_path):
         generate(real_tables, tmp_path, _FAKE_HASH)
