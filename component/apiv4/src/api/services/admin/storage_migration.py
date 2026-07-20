@@ -31,9 +31,8 @@ from datetime import datetime, timezone
 from time import time
 from zoneinfo import ZoneInfo
 
-from cachetools import TTLCache
-
 from api.services.error import Error
+from cachetools import TTLCache
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.models.storage_migration import (
     MigrationStatus,
@@ -55,6 +54,7 @@ def _plan_cache_key(selection: dict) -> str:
     return hashlib.sha1(
         json.dumps(selection, sort_keys=True, default=str).encode()
     ).hexdigest()
+
 
 #: admin-driven status transitions exposed through the `{action}` route
 _ACTION_TARGET = {

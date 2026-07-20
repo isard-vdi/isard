@@ -107,8 +107,9 @@ def test_passed_verify_is_persisted_and_survives_job_expiry():
     never advanced. The gate now emits ``mark_verified`` to persist the pass, and
     ``verify_gate_state`` reads the flag first — so once flagged, a vanished job
     (None) no longer re-arms a verify."""
-    it = _item(0, "rebased", src_path="/a/r.qcow2", dst_path="/b/r.qcow2",
-               verify_task_id="v")
+    it = _item(
+        0, "rebased", src_path="/a/r.qcow2", dst_path="/b/r.qcow2", verify_task_id="v"
+    )
     # first observation of a finished verify -> persist it
     assert mig.tree_next([it], _status({"v": "finished"}))[1] == "mark_verified"
     # the executor sets the flag; now the job VANISHES from redis (expired result)
@@ -123,20 +124,27 @@ def test_multi_disk_verify_starts_all_and_defers_db_update_until_all_pass():
     whole tree's verifies run concurrently within one drain cycle instead of one
     disk per tick (which let early verify results expire before the last disk was
     reached). db_update (B2) is still withheld until EVERY disk's gate has passed."""
-    a = _item(0, "rebased", src_path="/a/r.qcow2", dst_path="/b/r.qcow2",
-              verify_task_id="va")
-    b = _item(1, "rebased", src_path="/a/c.qcow2", dst_path="/b/c.qcow2")  # no verify yet
+    a = _item(
+        0, "rebased", src_path="/a/r.qcow2", dst_path="/b/r.qcow2", verify_task_id="va"
+    )
+    b = _item(
+        1, "rebased", src_path="/a/c.qcow2", dst_path="/b/c.qcow2"
+    )  # no verify yet
     items = [a, b]
     # a is verifying (wait), b has no verify task -> the wait on a does not stop us
     # reaching b: start b's verify this same tick.
     assert mig.tree_next(items, _status({"va": "started"}))[1] == "start_verify"
     b["verify_task_id"] = "vb"
     # a passed but b still running -> record a's pass; db_update NOT yet (b pending)
-    assert mig.tree_next(items, _status({"va": "finished", "vb": "started"})) \
-        [1] == "mark_verified"
+    assert (
+        mig.tree_next(items, _status({"va": "finished", "vb": "started"}))[1]
+        == "mark_verified"
+    )
     a["verify_passed"] = True
     # a flagged, b still running -> the tree waits (db_update withheld for the tree)
-    assert mig.tree_next(items, _status({"va": "finished", "vb": "started"}))[1] == "wait"
+    assert (
+        mig.tree_next(items, _status({"va": "finished", "vb": "started"}))[1] == "wait"
+    )
     # b now passed -> record it; still no db_update until it too is flagged
     assert mig.tree_next(items, _status({"vb": "finished"}))[1] == "mark_verified"
     b["verify_passed"] = True

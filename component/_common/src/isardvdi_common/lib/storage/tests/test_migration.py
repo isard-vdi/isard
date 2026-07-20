@@ -142,12 +142,22 @@ def test_summarize_plan_items_by_kind_reconciles_with_standalone_desktops():
         # one real template tree: base template + 6 derived desktops
         [{"tree_id": "tpl", "storage_id": "tpl", "kind": "template", "size_bytes": 1}]
         + [
-            {"tree_id": "tpl", "storage_id": f"d{i}", "kind": "desktop", "size_bytes": 1}
+            {
+                "tree_id": "tpl",
+                "storage_id": f"d{i}",
+                "kind": "desktop",
+                "size_bytes": 1,
+            }
             for i in range(6)
         ]
         # two standalone desktops, each its own tree root
         + [
-            {"tree_id": f"s{i}", "storage_id": f"s{i}", "kind": "desktop", "size_bytes": 1}
+            {
+                "tree_id": f"s{i}",
+                "storage_id": f"s{i}",
+                "kind": "desktop",
+                "size_bytes": 1,
+            }
             for i in range(2)
         ]
     )

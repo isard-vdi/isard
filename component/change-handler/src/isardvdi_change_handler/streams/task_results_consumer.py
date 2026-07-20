@@ -463,7 +463,6 @@ async def _process_entry(redis_manager, fields):
             )
         return True
 
-
     if not task_id:
         log.warning("task_results: entry missing task_id: %r", fields)
         return True
