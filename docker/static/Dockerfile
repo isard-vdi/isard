@@ -1,7 +1,12 @@
 #
 # old frontend
 #
-FROM oven/bun:1.3-alpine AS old-frontend
+# NOTE: bun is pinned to 1.3.13-alpine (NOT the floating :1.3-alpine, which
+# currently resolves to 1.3.14). bun 1.3.14 has an intermittent tarball-
+# extraction regression that fails on large packages (e.g. storybook) as
+# `error: Fail extracting tarball` — see bun#34821 (fixed by bun#34827,
+# unreleased). Bump back to a floating tag once a fixed bun release ships.
+FROM oven/bun:1.3.13-alpine AS old-frontend
 
 ARG SRC_VERSION_ID
 ARG SRC_VERSION_LINK
@@ -30,7 +35,12 @@ RUN bun run build
 #
 # frontend
 #
-FROM oven/bun:1.3-alpine AS frontend
+# NOTE: bun is pinned to 1.3.13-alpine (NOT the floating :1.3-alpine, which
+# currently resolves to 1.3.14). bun 1.3.14 has an intermittent tarball-
+# extraction regression that fails on large packages (e.g. storybook) as
+# `error: Fail extracting tarball` — see bun#34821 (fixed by bun#34827,
+# unreleased). Bump back to a floating tag once a fixed bun release ships.
+FROM oven/bun:1.3.13-alpine AS frontend
 
 ARG SRC_VERSION_ID
 ENV SRC_VERSION_ID=$SRC_VERSION_ID
@@ -58,7 +68,12 @@ RUN bun run build-only
 #
 # spice-ts
 #
-FROM oven/bun:1.3-alpine AS spice-ts
+# NOTE: bun is pinned to 1.3.13-alpine (NOT the floating :1.3-alpine, which
+# currently resolves to 1.3.14). bun 1.3.14 has an intermittent tarball-
+# extraction regression that fails on large packages (e.g. storybook) as
+# `error: Fail extracting tarball` — see bun#34821 (fixed by bun#34827,
+# unreleased). Bump back to a floating tag once a fixed bun release ships.
+FROM oven/bun:1.3.13-alpine AS spice-ts
 
 WORKDIR /build
 
