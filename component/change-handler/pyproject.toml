@@ -5,7 +5,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
   "isardvdi-changefeed-asyncapi",
   "isardvdi-common",
-  "python-socketio==5.13.0",
+  "python-socketio==5.16.2",
   "redis==5.2.1",
   "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz",
 ]

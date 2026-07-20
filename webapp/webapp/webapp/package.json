@@ -17,5 +17,10 @@
     "pnotify": "^3.2.1",
     "select2": "^4.0.13",
     "socket.io": "^4.8.1"
+  },
+  "resolutions": {
+    "protobufjs": "8.4.1",
+    "socket.io-parser": "4.2.6",
+    "ws": "8.21.0"
   }
 }
