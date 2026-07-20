@@ -128,6 +128,8 @@ $(document).ready(function () {
     }
   });
 
+  checkStorageLaneHealth();
+
   storage_pools_table = $('#storage_pools').DataTable({
     "ajax": {
       "type": 'GET',
@@ -511,6 +513,7 @@ $(document).ready(function () {
                 opacity: 1,
                 type: change == "enable" ? 'warning' : 'success'
               });
+              showPoolWarnings(data);
               storage_pools_table.ajax.reload();
             },
             error: function (xhr, ajaxOptions, thrownError) {
@@ -1076,6 +1079,7 @@ function createStoragePool(data) {
         this.reset();
       });
       $(".modal").modal("hide");
+      showPoolWarnings(data);
       storage_pools_table.ajax.reload();
     },
     error: function (xhr) {
@@ -1088,6 +1092,52 @@ function createStoragePool(data) {
         delay: 2000,
         opacity: 1,
       });
+    },
+  });
+}
+
+function showPoolWarnings(resp) {
+  // Surface the non-blocking advisories a storage-pool create/update returns
+  // (e.g. on disable: residing disks + queued tasks that keep draining; on
+  // create/category-assign: no node serves the pool yet). Sticky so the admin
+  // reads the pending/coverage note.
+  ((resp && resp.warnings) || []).forEach(function (w) {
+    new PNotify({
+      title: "Storage pool notice",
+      text: w.message,
+      hide: false,
+      icon: "fa fa-info-circle",
+      opacity: 1,
+      type: "warning",
+      addclass: "pnotify-center-large",
+      width: "550",
+    });
+  });
+}
+
+function checkStorageLaneHealth() {
+  // Orphan-lane detector: warn if a storage queue holds jobs with no worker
+  // consuming them, so its tasks stall until a node serving that pool starts.
+  $.ajax({
+    type: "GET",
+    url: "/api/v4/admin/items/queues/lane-health",
+    success: function (data) {
+      if (data && data.healthy === false && (data.orphan_pools || []).length) {
+        new PNotify({
+          title: "<b>Storage lanes stalled</b>",
+          text:
+            "Queued storage tasks have no consumer for pool(s): <b>" +
+            data.orphan_pools.join(", ") +
+            "</b>. They will stall until a storage/hypervisor node with these " +
+            "pools in its CAPABILITIES_STORAGE_POOLS is running.",
+          hide: false,
+          icon: "fa fa-warning",
+          opacity: 1,
+          type: "error",
+          addclass: "pnotify-center-large",
+          width: "550",
+        });
+      }
     },
   });
 }
