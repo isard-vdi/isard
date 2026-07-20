@@ -30,13 +30,6 @@ if [ ! -n "$ACME_SERVER" ]; then
         export ACME_SERVER="letsencrypt"
 fi
 
-# HAProxy's `.if defined(PROXY_PROTOCOL)` is true whenever the variable is
-# set, regardless of value. Unset it unless explicitly "true" so that
-# PROXY_PROTOCOL=false (or empty) disables accept-proxy binds.
-if [ "$PROXY_PROTOCOL" != "true" ]; then
-        unset PROXY_PROTOCOL
-fi
-
 # Prepare ACME variables
 if [ -n "$ACME_EMAIL" ]; then
     export ACME_DOMAIN="$DOMAIN"
