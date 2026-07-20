@@ -28,6 +28,15 @@ storage-worker → change-handler bridge.
 Started unconditionally from ``__main__.main`` — this consumer is the
 canonical executor of the chain-handler bodies that used to live on
 isard-core_worker.
+
+Idempotency invariant: delivery is at-least-once — a handler that raises leaves
+its entry in the Pending Entries List (PEL) and ``_reclaim_pending`` re-delivers
+it (up to
+``MAX_DELIVERIES`` times), replaying the whole finalize-handler chain. Every
+finalize handler must therefore be idempotent (an ``init_document`` upsert or a
+guarded delete). The only non-idempotent effect is the fire-and-forget
+``storage`` status socket; redelivery re-emits are harmless and intra-pass
+repeats are collapsed by ``dedup_status_emits``.
 """
 
 import asyncio
@@ -45,6 +54,7 @@ from rq.job import JobStatus
 
 from ..task_results.feedback import emit_task_feedback
 from ..task_results.registry import HANDLERS
+from ..task_results.storage import dedup_status_emits
 
 STREAM_KEY = "stream:task-results"
 CONSUMER_GROUP = "change-handler"
@@ -226,10 +236,13 @@ async def _process_entry(redis_manager, fields):
     """
     kind = fields.get("kind") or fields.get(b"kind")
     task_id = fields.get("task_id") or fields.get(b"task_id")
+    job_status = fields.get("job_status") or fields.get(b"job_status")
     if isinstance(kind, bytes):
         kind = kind.decode()
     if isinstance(task_id, bytes):
         task_id = task_id.decode()
+    if isinstance(job_status, bytes):
+        job_status = job_status.decode()
     if not task_id:
         log.warning("task_results: entry missing task_id: %r", fields)
         return True
@@ -252,28 +265,35 @@ async def _process_entry(redis_manager, fields):
         )
         return False
 
-    # The storage worker publishes the stream event from within the
-    # wrapped task function, *before* RQ's own post-perform code marks
-    # the Job FINISHED. Marking it ourselves here closes that race so
-    # the first direct dependent reads ``depending_status="finished"``.
-    await _set_job_status(task, JobStatus.FINISHED)
+    # The worker publishes the event before RQ marks the Job, so mark it here
+    # to close the race for the first dependent. Honour the event's job_status:
+    # a root-terminal chain (convert/delete/virt_win_reg) keys its trailing
+    # update_status off this root, so a failed/cancelled op must land FAILED to
+    # take the cleanup branch, not mark a broken disk ready. Missing field
+    # defaults to FINISHED (legacy race-closing for finished chains).
+    root_status = JobStatus.FAILED if job_status == "failed" else JobStatus.FINISHED
+    await _set_job_status(task, root_status)
 
     dependents = await asyncio.to_thread(lambda: list(_walk_core_dependents(task)))
     all_ok = True
-    for dep_task in dependents:
-        ok = await _run_handler(redis_manager, dep_task)
-        all_ok = all_ok and ok
-        # Propagate the outcome onto this dep's RQ Job before the next
-        # sibling/child runs, so handlers that gate on
-        # ``task.depending_status`` see the right value (was "deferred"
-        # otherwise — no worker on the core queue ever marks it).
-        await _set_job_status(dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED)
-        # Release any deferred storage-queue dependent of this core dep so
-        # the storage worker actually picks it up. See helper docstring
-        # for why ``set_status(FINISHED)`` alone is not enough. Skipped
-        # when the handler failed — failure must NOT advance the chain.
-        if ok:
-            await _release_storage_dependents(dep_task)
+    # Collapse duplicate (storage_id, status) socket fan-outs within this pass.
+    with dedup_status_emits():
+        for dep_task in dependents:
+            ok = await _run_handler(redis_manager, dep_task)
+            all_ok = all_ok and ok
+            # Propagate the outcome onto this dep's RQ Job before the next
+            # sibling/child runs, so handlers that gate on
+            # ``task.depending_status`` see the right value (was "deferred"
+            # otherwise — no worker on the core queue ever marks it).
+            await _set_job_status(
+                dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED
+            )
+            # Release any deferred storage-queue dependent of this core dep so
+            # the storage worker actually picks it up. See helper docstring
+            # for why ``set_status(FINISHED)`` alone is not enough. Skipped
+            # when the handler failed — failure must NOT advance the chain.
+            if ok:
+                await _release_storage_dependents(dep_task)
 
     # MR-3 of the core_worker retirement: core_worker is gone, so the
     # ``core`` queue has no consumer. RQ would otherwise move each
