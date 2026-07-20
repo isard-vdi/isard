@@ -1052,6 +1052,7 @@
           "title": "Genera una nova clau API",
           "description": "Pots generar una nova clau API per utilitzar amb aplicacions externes que integren l'API d'IsardVDI.",
           "warning": "Només podràs veure la clau API una vegada, així que assegura't de guardar-la en un lloc segur.",
+          "max-expiration-hint": "La caducitat màxima és d'un any des d'avui",
           "buttons": {
             "generate": "Genera",
             "expiration-label": "Data de caducitat",
@@ -2339,7 +2340,9 @@
     "date-picker": {
       "apply": "Aplica",
       "cancel": "Cancel·la",
-      "today": "Avui"
+      "today": "Avui",
+      "month": "Mes",
+      "year": "Any"
     },
     "form": {
       "validation": {

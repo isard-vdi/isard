@@ -1068,6 +1068,7 @@
           "title": "Generate a new API key",
           "description": "You can generate a new API key to use with external applications that integrate with the IsardVDI API.",
           "warning": "You will only be able to see the API key once, so make sure to store it in a safe place.",
+          "max-expiration-hint": "The maximum expiration is one year from today",
           "buttons": {
             "generate": "Generate",
             "expiration-label": "Expiration date",
@@ -2138,7 +2139,9 @@
     "date-picker": {
       "today": "Today",
       "cancel": "Cancel",
-      "apply": "Apply"
+      "apply": "Apply",
+      "month": "Month",
+      "year": "Year"
     },
     "media": {
       "media-type": {

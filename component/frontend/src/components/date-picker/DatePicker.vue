@@ -12,11 +12,19 @@ import {
   CalendarGridHead,
   CalendarGridRow,
   CalendarHeadCell,
-  CalendarHeading,
   CalendarNextButton,
   CalendarPrevButton,
   CalendarRoot
 } from '@/components/ui/calendar'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger
+} from '@/components/ui/select'
+import { useDateFormatter } from 'reka-ui'
+import { createYear, createYearRange, toDate } from 'reka-ui/date'
 import { DateFormatter, getLocalTimeZone, type DateValue, today } from '@internationalized/date'
 import { cn } from '@/lib/utils'
 import { useI18n } from 'vue-i18n'
@@ -29,6 +37,7 @@ export interface Props {
   placeholder?: string
   class?: HTMLAttributes['class']
   locale?: string
+  maxHint?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -38,7 +47,8 @@ const props = withDefaults(defineProps<Props>(), {
   defaultPlaceholder: undefined,
   placeholder: 'Select date',
   class: '',
-  locale: 'en-US'
+  locale: 'en-US',
+  maxHint: undefined
 })
 
 const emit = defineEmits<{
@@ -50,7 +60,60 @@ const isOpen = ref(false)
 const tempValue = ref<DateValue | undefined>(props.modelValue)
 const calendarModelValue = computed(() => tempValue.value as DateValue | undefined)
 
+const resolveInitialPlaceholder = () =>
+  props.modelValue ?? props.defaultPlaceholder ?? today(getLocalTimeZone())
+
+const calendarPlaceholder = ref<DateValue>(resolveInitialPlaceholder())
+
 const dateFormatter = computed(() => new DateFormatter(props.locale, { dateStyle: 'medium' }))
+const headingFormatter = computed(() => useDateFormatter(props.locale))
+
+const monthOptions = (date: DateValue) => createYear({ dateObj: date })
+
+const yearOptions = computed(() =>
+  createYearRange({
+    start: props.minValue ?? calendarPlaceholder.value.cycle('year', -100),
+    end: props.maxValue ?? calendarPlaceholder.value.cycle('year', 10)
+  })
+)
+
+// Month granularity index, to compare a month against the min/max bounds
+const monthIndex = (date: DateValue) => date.year * 12 + (date.month - 1)
+
+const isMonthOptionDisabled = (monthDate: DateValue) => {
+  if (props.minValue && monthIndex(monthDate) < monthIndex(props.minValue)) return true
+  if (props.maxValue && monthIndex(monthDate) > monthIndex(props.maxValue)) return true
+  return false
+}
+
+// Hint shown only on days past maxValue (days before minValue are disabled for another reason)
+const hintForDay = (day: DateValue) =>
+  props.maxHint && props.maxValue && day.compare(props.maxValue) > 0 ? props.maxHint : undefined
+
+// Keep the visible month inside [minValue, maxValue] when navigating by dropdown
+const clampPlaceholder = (candidate: DateValue) => {
+  if (props.minValue && monthIndex(candidate) < monthIndex(props.minValue)) {
+    return candidate.set({ year: props.minValue.year, month: props.minValue.month })
+  }
+  if (props.maxValue && monthIndex(candidate) > monthIndex(props.maxValue)) {
+    return candidate.set({ year: props.maxValue.year, month: props.maxValue.month })
+  }
+  return candidate
+}
+
+const handleMonthChange = (value: unknown) => {
+  if (value == null) return
+  calendarPlaceholder.value = clampPlaceholder(
+    calendarPlaceholder.value.set({ month: Number(value) })
+  )
+}
+
+const handleYearChange = (value: unknown) => {
+  if (value == null) return
+  calendarPlaceholder.value = clampPlaceholder(
+    calendarPlaceholder.value.set({ year: Number(value) })
+  )
+}
 
 const selectedLabel = computed(() => {
   if (props.modelValue) {
@@ -81,18 +144,19 @@ const handleCancel = () => {
 }
 
 const handleToday = () => {
-  tempValue.value = today(getLocalTimeZone())
+  const now = today(getLocalTimeZone())
+  tempValue.value = now
+  calendarPlaceholder.value = now
 }
 
 const handleOpenChange = (open: boolean) => {
   isOpen.value = open
   if (open) {
     tempValue.value = props.modelValue
-  } else {
+    calendarPlaceholder.value = resolveInitialPlaceholder()
+  } else if (tempValue.value) {
     // Apply the date when closing the popover (click outside)
-    if (tempValue.value) {
-      emit('update:modelValue', tempValue.value as DateValue | undefined)
-    }
+    emit('update:modelValue', tempValue.value as DateValue | undefined)
   }
 }
 </script>
@@ -121,26 +185,67 @@ const handleOpenChange = (open: boolean) => {
     <PopoverContent
       class="w-80 p-0 border border-gray-warm-200 shadow-lg bg-base-white rounded-xl max-h-[50vh] overflow-auto"
       align="start"
+      side="bottom"
       :side-offset="8"
       :avoid-collisions="true"
       :collision-padding="16"
       position-strategy="fixed"
     >
       <CalendarRoot
-        v-slot="{ grid, weekDays }"
+        v-slot="{ grid, weekDays, date }"
+        v-model:placeholder="calendarPlaceholder"
         :model-value="calendarModelValue"
         :min-value="minValue"
         :max-value="maxValue"
-        :default-placeholder="defaultPlaceholder"
         :locale="locale"
         class="px-6 py-5"
         @update:model-value="handleDateSelect"
       >
         <div class="flex flex-col gap-4">
           <!-- Header -->
-          <div class="flex justify-between items-center">
+          <div class="flex items-center justify-between gap-2">
             <CalendarPrevButton />
-            <CalendarHeading />
+            <div class="flex items-center gap-2">
+              <Select :model-value="String(date.month)" @update:model-value="handleMonthChange">
+                <SelectTrigger
+                  :aria-label="t('components.date-picker.month')"
+                  class="h-9 w-auto gap-1 px-3 font-semibold text-gray-warm-900"
+                >
+                  {{ headingFormatter.custom(toDate(date), { month: 'short' }) }}
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem
+                      v-for="month in monthOptions(date)"
+                      :key="month.toString()"
+                      :value="String(month.month)"
+                      :disabled="isMonthOptionDisabled(month)"
+                    >
+                      {{ headingFormatter.custom(toDate(month), { month: 'long' }) }}
+                    </SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <Select :model-value="String(date.year)" @update:model-value="handleYearChange">
+                <SelectTrigger
+                  :aria-label="t('components.date-picker.year')"
+                  class="h-9 w-auto gap-1 px-3 font-semibold text-gray-warm-900"
+                >
+                  {{ headingFormatter.custom(toDate(date), { year: 'numeric' }) }}
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem
+                      v-for="year in yearOptions"
+                      :key="year.toString()"
+                      :value="String(year.year)"
+                    >
+                      {{ headingFormatter.custom(toDate(year), { year: 'numeric' }) }}
+                    </SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
             <CalendarNextButton />
           </div>
 
@@ -176,6 +281,7 @@ const handleOpenChange = (open: boolean) => {
                   v-for="weekDate in weekDates"
                   :key="weekDate.toString()"
                   :date="weekDate"
+                  :title="hintForDay(weekDate)"
                 >
                   <CalendarCellTrigger :day="weekDate" :month="month.value">
                     <slot :date="weekDate">
