@@ -182,6 +182,50 @@ class RecycleBinService:
         asyncio.create_task(_process())
 
     @staticmethod
+    def list_stuck_entries(older_than_minutes: int = 0) -> list[dict]:
+        """Recycle bin entries stranded mid-delete ('deleting' or 'queued')."""
+        return RecycleBinHelpers.get_stuck_delete_entries(
+            older_than_minutes=older_than_minutes
+        )
+
+    @staticmethod
+    async def recover_stuck_entries(
+        user_id: str, older_than_minutes: int = 0
+    ) -> list[str]:
+        """
+        Re-enqueue recycle bin entries stranded mid-delete so the bulk-delete
+        worker retries them.
+
+        Manual admin recovery for entries orphaned by an ``isard-api`` restart:
+        the startup reconcile only re-enqueues ``queued``, never ``deleting``.
+        ``RecycleBin.delete_storage`` re-checks each storage's status and skips
+        ones already ``deleted``, so re-running a partly-deleted entry only
+        re-issues work for disks that are not gone yet.
+        """
+        stuck_ids = [
+            entry["id"]
+            for entry in RecycleBinHelpers.get_stuck_delete_entries(
+                older_than_minutes=older_than_minutes
+            )
+        ]
+
+        async def _process():
+            try:
+                for rb_id in stuck_ids:
+                    await RecycleBinDeleteQueue().enqueue(
+                        {
+                            "action": "delete",
+                            "recycle_bin_id": rb_id,
+                            "user_id": user_id,
+                        }
+                    )
+            except Exception as e:
+                log.error("Recover stuck entries failed: %s", e)
+
+        asyncio.create_task(_process())
+        return stuck_ids
+
+    @staticmethod
     def recycle_unused_items() -> None:
         # Apiv3 parity: ``recycle_bin_add_unused_items`` from
         # ``api/src/api/views/RecycleBinView.py`` (main). Each unused
