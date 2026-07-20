@@ -238,25 +238,38 @@ def _stub_log_delete_dependencies(monkeypatch):
     Returns a dict capturing what the inner task processed so each test
     can assert on it.
     """
+    # These route tests are not about the backup path; unset the env var so
+    # the completion payload is deterministic regardless of the container's
+    # LOGS_DELETE_BACKUP_DIR (backup behaviour is covered by
+    # test_admin_domains_logs_delete_backup.py).
+    monkeypatch.delenv("LOGS_DELETE_BACKUP_DIR", raising=False)
     captured = {"deleted": [], "notifications": []}
 
-    def fake_get_old(*args):
-        # Mirrors ApiAdmin.get_older_than_old_entry_max_time(table[, max])
-        return [{"id": f"log-{args[0]}-1"}, {"id": f"log-{args[0]}-2"}]
+    def fake_cutoff(table, *args):
+        # Mirrors ApiAdmin.get_old_entry_cutoff(table[, max_time_arg])
+        return f"cutoff-{table}"
 
-    def fake_delete_batch(table, rows):
-        captured["deleted"].append((table, [r["id"] for r in rows]))
+    def fake_count(table, cutoff):
+        return 2
+
+    def fake_stream(table, cutoff, *, backup=None):
+        captured["deleted"].append((table, cutoff))
+        return 2
 
     def fake_notify(event, payload):
         captured["notifications"].append((event, payload))
 
     monkeypatch.setattr(
-        "api.services.admin.domains.ApiAdmin.get_older_than_old_entry_max_time",
-        staticmethod(fake_get_old),
+        "api.services.admin.domains.ApiAdmin.get_old_entry_cutoff",
+        staticmethod(fake_cutoff),
     )
     monkeypatch.setattr(
-        "api.services.admin.domains.LogsProcessed.delete_batch",
-        staticmethod(fake_delete_batch),
+        "api.services.admin.domains.LogsProcessed.count_older",
+        staticmethod(fake_count),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.domains.LogsProcessed.delete_old_streamed",
+        staticmethod(fake_stream),
     )
     monkeypatch.setattr(
         "api.services.admin.domains.notify_admins",
@@ -288,11 +301,12 @@ def test_admin_logs_desktops_delete_runs_batch_after_response(monkeypatch, test_
     assert response.status_code == 200, response.text
     assert response.json() == 2
     # Background task must have run before the TestClient returned.
-    assert captured["deleted"] == [
-        ("logs_desktops", ["log-logs_desktops-1", "log-logs_desktops-2"])
-    ]
+    assert captured["deleted"] == [("logs_desktops", "cutoff-logs_desktops")]
     assert captured["notifications"] == [
-        ("logs_desktops_action", {"action": "delete_all", "status": "completed"})
+        (
+            "logs_desktops_action",
+            {"action": "delete_all", "status": "completed", "deleted": 2},
+        )
     ]
 
 
@@ -312,9 +326,7 @@ def test_admin_logs_desktops_delete_all_runs_batch_after_response(
     )
 
     assert response.status_code == 200, response.text
-    assert captured["deleted"] == [
-        ("logs_desktops", ["log-logs_desktops-1", "log-logs_desktops-2"])
-    ]
+    assert captured["deleted"] == [("logs_desktops", "cutoff-logs_desktops")]
 
 
 def test_admin_logs_users_delete_runs_batch_after_response(monkeypatch, test_client):
@@ -329,11 +341,12 @@ def test_admin_logs_users_delete_runs_batch_after_response(monkeypatch, test_cli
     )
 
     assert response.status_code == 200, response.text
-    assert captured["deleted"] == [
-        ("logs_users", ["log-logs_users-1", "log-logs_users-2"])
-    ]
+    assert captured["deleted"] == [("logs_users", "cutoff-logs_users")]
     assert captured["notifications"] == [
-        ("logs_users_action", {"action": "delete_all", "status": "completed"})
+        (
+            "logs_users_action",
+            {"action": "delete_all", "status": "completed", "deleted": 2},
+        )
     ]
 
 
@@ -351,9 +364,7 @@ def test_admin_logs_users_delete_all_runs_batch_after_response(
     )
 
     assert response.status_code == 200, response.text
-    assert captured["deleted"] == [
-        ("logs_users", ["log-logs_users-1", "log-logs_users-2"])
-    ]
+    assert captured["deleted"] == [("logs_users", "cutoff-logs_users")]
 
 
 def test_admin_multiple_actions_runs_bulk_action_after_response(

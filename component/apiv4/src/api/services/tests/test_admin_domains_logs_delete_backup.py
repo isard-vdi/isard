@@ -3,17 +3,17 @@
 """Pin the LOGS_DELETE_BACKUP_DIR plumbing through
 ``AdminDomainsService._delete_logs_async``.
 
-The destructive cron at 22:30 / 00:30 UTC deletes a year of session
-logs every day with no recovery path; the env var (container path
-``/backups`` per the apiv4 compose; host-overridable via the
-matching ``LOGS_DELETE_BACKUP_DIR`` line in ``isardvdi.cfg``,
-default ``/opt/isard/backups``) opens a streaming JSONL.gz dump
-BEFORE the delete fires so the operation is recoverable.
+The destructive cron at 22:30 / 00:30 UTC deletes old session logs; the
+env var (container path ``/backups`` per the apiv4 compose; host-overridable
+via the matching ``LOGS_DELETE_BACKUP_DIR`` line in ``isardvdi.cfg``, default
+``/opt/isard/backups``) opens a streaming JSONL.gz dump of every deleted row
+so the operation is recoverable. The delete itself now runs as a paced,
+index-bounded streamed loop (``LogsProcessed.delete_old_streamed``) instead of
+materialising every id up front.
 """
 
 import gzip
 import json
-from unittest.mock import MagicMock
 
 import pytest
 from fastapi import BackgroundTasks
@@ -21,29 +21,35 @@ from fastapi import BackgroundTasks
 
 @pytest.fixture
 def patched_service(monkeypatch):
-    """Stub the upstream `_common` calls + `notify_admins`. Return
-    handles so each test can assert on the args delete_batch saw and
-    on the SocketIO payload notify_admins received.
+    """Stub the upstream `_common` calls + `notify_admins`. Return handles so
+    each test can assert on the args the streamed delete saw and on the
+    SocketIO payload notify_admins received.
     """
     from api.services.admin import domains as svc
 
     monkeypatch.setattr(
         svc.ApiAdmin,
-        "get_older_than_old_entry_max_time",
-        staticmethod(lambda *args: ["log-1", "log-2", "log-3"]),
+        "get_old_entry_cutoff",
+        classmethod(lambda cls, *a, **kw: "CUTOFF"),
+    )
+    monkeypatch.setattr(
+        svc.LogsProcessed,
+        "count_older",
+        classmethod(lambda cls, *a, **kw: 3),
     )
     delete_calls = []
 
-    def _fake_delete(table, ids, batch_size=50000, *, backup=None):
-        # Simulate the real fetch + write_rows + delete order.
+    def _fake_stream(table, cutoff, *, backup=None, **kw):
+        # Simulate the real return_changes → write_rows order.
         if backup is not None:
-            backup.write_rows([{"id": _id} for _id in ids])
-        delete_calls.append({"table": table, "ids": ids, "backup": backup})
+            backup.write_rows([{"id": f"log-{i}"} for i in (1, 2, 3)])
+        delete_calls.append({"table": table, "cutoff": cutoff, "backup": backup})
+        return 3
 
     monkeypatch.setattr(
         svc.LogsProcessed,
-        "delete_batch",
-        classmethod(lambda cls, *a, **kw: _fake_delete(*a, **kw)),
+        "delete_old_streamed",
+        classmethod(lambda cls, *a, **kw: _fake_stream(*a, **kw)),
     )
 
     notify_payloads = []
@@ -75,6 +81,7 @@ class TestDeleteLogsAsyncBackup:
         event, payload = patched_service["notify_payloads"][-1]
         assert event == "logs_desktops_action"
         assert payload["status"] == "completed"
+        assert payload["deleted"] == 3
         assert "backup_path" not in payload  # no backup → no path field
 
     def test_backup_writes_jsonl_gz_when_env_set(
@@ -89,7 +96,7 @@ class TestDeleteLogsAsyncBackup:
         for task in bg.tasks:
             task.func(*task.args, **task.kwargs)
 
-        # delete_batch ran with the BackupWriter passed in.
+        # delete_old_streamed ran with the BackupWriter passed in.
         assert patched_service["delete_calls"][0]["backup"] is not None
 
         # Backup file exists, is gzipped JSONL, and contains the row ids.
@@ -110,15 +117,15 @@ class TestDeleteLogsAsyncBackup:
     def test_empty_old_logs_skips_backup_creation(
         self, monkeypatch, patched_service, tmp_path
     ):
-        # No old logs → no file should be created (otherwise the
-        # daily cron with no work to do leaves an empty .jsonl.gz
-        # cluttering the bind mount).
+        # Nothing to delete → no file should be created (otherwise the daily
+        # cron with no work to do leaves an empty .jsonl.gz cluttering the
+        # bind mount).
         from api.services.admin import domains as svc
 
         monkeypatch.setattr(
-            svc.ApiAdmin,
-            "get_older_than_old_entry_max_time",
-            staticmethod(lambda *args: []),
+            svc.LogsProcessed,
+            "count_older",
+            classmethod(lambda cls, *a, **kw: 0),
         )
         monkeypatch.setenv("LOGS_DELETE_BACKUP_DIR", str(tmp_path))
         bg = BackgroundTasks()
@@ -129,6 +136,6 @@ class TestDeleteLogsAsyncBackup:
         for task in bg.tasks:
             task.func(*task.args, **task.kwargs)
         assert list(tmp_path.iterdir()) == []  # no backup file written
-        # delete_batch still ran (with empty ids), no backup arg.
-        assert patched_service["delete_calls"][-1]["ids"] == []
+        # The streamed delete still ran (a cheap no-op when nothing matches),
+        # with no backup arg.
         assert patched_service["delete_calls"][-1]["backup"] is None
