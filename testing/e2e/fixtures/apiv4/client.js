@@ -79,6 +79,9 @@ export const test = baseTest.extend({
   apiv4Manager: async ({ managerE2EPage }, use) => {
     await use(apiv4ClientForPage(managerE2EPage))
   },
+  apiv4QleManager: async ({ qle2eManagerPage }, use) => {
+    await use(apiv4ClientForPage(qle2eManagerPage))
+  },
 })
 
 export { expect } from '@playwright/test'

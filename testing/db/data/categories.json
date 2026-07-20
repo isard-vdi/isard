@@ -251,5 +251,37 @@
         "quota": false,
         "recycle_bin_cutoff_time": null,
         "uid": "0519250f-e376-48c4-9609-fdae7d54a353"
+    },
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "auto": false,
+        "custom_url_name": "qle2e",
+        "description": "Dedicated category for quotas/limits e2e tests",
+        "ephimeral": false,
+        "frontend": false,
+        "id": "qle2e",
+        "limits": false,
+        "maintenance": false,
+        "name": "QuotasLimits E2E",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "qle2e"
     }
 ]
