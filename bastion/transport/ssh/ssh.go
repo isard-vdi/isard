@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"regexp"
 	"strconv"
@@ -13,7 +14,6 @@ import (
 
 	"gitlab.com/isard/isardvdi/bastion/cfg"
 	"gitlab.com/isard/isardvdi/bastion/model"
-	"gitlab.com/isard/isardvdi/bastion/transport"
 	"gitlab.com/isard/isardvdi/pkg/db"
 
 	"github.com/pires/go-proxyproto"
@@ -406,47 +406,87 @@ func (b *bastion) handleChannel(ctx context.Context, log *zerolog.Logger, target
 	}
 	defer targetChan.Close()
 
-	// Bidirectional binary copying between the client and the target
-	ioErr := transport.Proxy(targetChan, cliChan)
+	// Bidirectional binary copy with half-close semantics.
+	//
+	// The session ends when the TARGET side is fully done — its output copied
+	// AND its channel requests (crucially the final exit-status/exit-signal)
+	// drained — NOT when the client closes its stdin. A non-interactive client
+	// (`ssh host 'cmd'`, piped stdin, legacy scp) sends EOF on its stdin almost
+	// immediately; tearing the whole channel down on that first EOF killed the
+	// command before it ran and dropped its exit-status, so `ssh host 'cmd'`
+	// returned 255 with no output. Interactive PTY sessions and the sftp
+	// subsystem keep stdin open, which is why they still worked. Here we only
+	// propagate the half-close (CloseWrite) on the client→target direction.
+	go func() {
+		io.Copy(targetChan, cliChan)
+		targetChan.CloseWrite() // half-close: remote gets stdin EOF, keeps running
+	}()
 
-	// Handle SSH events
-	for {
+	// Copy the target's stdout AND stderr to the client, then signal EOF once.
+	// io.Copy over the channel itself only carries the main data stream, so
+	// stderr (SSH extended data) needs its own copy or a non-PTY
+	// `ssh host 'cmd 1>&2'` silently drops it. CloseWrite sends channel EOF for
+	// the WHOLE channel (main + extended), so it must come only AFTER both
+	// copies drain — otherwise trailing stderr sent after EOF is lost.
+	outDone := make(chan struct{})
+	go func() {
+		var iowg sync.WaitGroup
+		iowg.Add(2)
+		go func() { defer iowg.Done(); io.Copy(cliChan, targetChan) }()
+		go func() { defer iowg.Done(); io.Copy(cliChan.Stderr(), targetChan.Stderr()) }()
+		iowg.Wait()
+		cliChan.CloseWrite()
+		close(outDone)
+	}()
+
+	// Forward channel requests both ways. Requests carry
+	// pty-req/shell/exec/subsystem/window-change/env and, at the end, the
+	// target's exit-status/exit-signal. A closed request channel yields nil
+	// forever (would busy-loop), so we nil it out instead of returning. The
+	// loop runs until the target's output is fully copied (outDone) AND its
+	// requests are drained (targetReq closed) — that ordering guarantees
+	// exit-status and all stdout/stderr reach the client before the deferred
+	// channel Close.
+	for targetReq != nil || outDone != nil {
 		select {
-		case req := <-cliReq:
-			if req == nil {
-				return
+		case req, ok := <-cliReq:
+			if !ok {
+				cliReq = nil
+				continue
 			}
 
-			ok, err := targetChan.SendRequest(req.Type, req.WantReply, req.Payload)
+			replied, err := targetChan.SendRequest(req.Type, req.WantReply, req.Payload)
 			if err != nil {
 				log.Error().Err(err).Msg("send client channel request")
 				return
 			}
 
-			if err := req.Reply(ok, nil); err != nil {
-				log.Error().Err(err).Msg("reply client channel request")
+			if req.WantReply {
+				if err := req.Reply(replied, nil); err != nil {
+					log.Error().Err(err).Msg("reply client channel request")
+				}
 			}
 
-		case req := <-targetReq:
-			if req == nil {
+		case req, ok := <-targetReq:
+			if !ok {
+				targetReq = nil
+				continue
+			}
+
+			replied, err := cliChan.SendRequest(req.Type, req.WantReply, req.Payload)
+			if err != nil {
+				log.Error().Err(err).Msg("send target channel request")
 				return
 			}
 
-			ok, err := cliChan.SendRequest(req.Type, req.WantReply, req.Payload)
-			if err != nil {
-				log.Error().Err(err).Msg("send client channel request")
-				return
+			if req.WantReply {
+				if err := req.Reply(replied, nil); err != nil {
+					log.Error().Err(err).Msg("reply target channel request")
+				}
 			}
 
-			if err := req.Reply(ok, nil); err != nil {
-				log.Error().Err(err).Msg("reply client channel request")
-			}
-
-		case err := <-ioErr:
-			if err != nil {
-				log.Error().Err(err).Msg("io error")
-			}
-			return
+		case <-outDone:
+			outDone = nil
 
 		case <-ctx.Done():
 			return
