@@ -415,7 +415,7 @@ class Task(RedisBase):
                     "dependents",
                     "storage_id",
                 ]
-                and isinstance(getattr(self.__class__, name), property)
+                and isinstance(getattr(self.__class__, name, None), property)
             },
             "args": [
                 arg.to_dict() if hasattr(arg, "to_dict") else arg for arg in self.args
