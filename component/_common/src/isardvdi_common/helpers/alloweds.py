@@ -8,7 +8,7 @@
 import re
 import traceback
 
-from cachetools import cached
+from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
@@ -787,3 +787,17 @@ class Alloweds(RethinkCustomBase):
         return (
             config.get("bastion", {}).get("individual_domains", {}).get("allowed", {})
         )
+
+    @classmethod
+    @cached(cache=TTLCache(maxsize=20, ttl=60))
+    def get_indeterminate_groups(cls, allowed_users: str) -> list:
+        if not allowed_users:
+            return []
+        with cls._rdb_context():
+            indeterminate_groups = (
+                r.table("users")
+                .get_all(r.args(allowed_users), index="id")
+                .pluck("secondary_groups", "group")
+                .run(cls._rdb_connection)
+            )
+        return indeterminate_groups

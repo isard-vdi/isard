@@ -63,3 +63,10 @@ class CategoryService:
         Get all users in a specific category.
         """
         return CommonCategories.search_users_in_category(category_id, search)
+
+    @staticmethod
+    def get_available_groups_in_category(category_id: str):
+        """
+        Get all available groups in a specific category.
+        """
+        return CommonCategories.get_available_groups_in_category(category_id)

@@ -311,3 +311,13 @@ class CategoriesProcessed(RethinkSharedConnection):
         except Exception:
             return None
         return hits[0] if hits else None
+
+    @classmethod
+    def get_available_groups_in_category(cls, category_id: str):
+        with cls._rdb_context():
+            return list(
+                r.table("groups")
+                .get_all(category_id, index="parent_category")
+                .pluck("id", "name", "description")
+                .run(cls._rdb_connection)
+            )

@@ -23,7 +23,10 @@ from typing import List, Optional
 
 from api import advanced_router
 from api.dependencies.alloweds import owns_domain_id
-from api.schemas.categories import CategoriesUsersSearchResponse
+from api.schemas.categories import (
+    CategoriesUsersSearchResponse,
+    GroupsInCategoryResponse,
+)
 from api.schemas.common import ErrorResponse
 from api.services.categories import CategoryService
 from api.services.error import Error
@@ -72,5 +75,40 @@ async def search_users_in_category(
             request,
             "internal_server",
             f"Failed to retrieve group users",
+            traceback.format_exc(),
+        )
+
+
+@advanced_router.get(
+    "/item/category/allowed/get-available-groups",
+    response_model=GroupsInCategoryResponse,
+    tags=[tag],
+    summary="Get available groups for a category",
+    description="Returns a list of available groups for a specific category.",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_available_groups_for_category(
+    request: Request,
+):
+    try:
+        return JSONResponse(
+            content=GroupsInCategoryResponse(
+                available_groups=CategoryService.get_available_groups_in_category(
+                    request.token_payload["category_id"]
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error as e:
+        raise e
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve available groups for category {request.token_payload['category_id']}",
             traceback.format_exc(),
         )

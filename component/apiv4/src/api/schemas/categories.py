@@ -25,3 +25,18 @@ from pydantic import BaseModel, Field
 
 class CategoriesUsersSearchResponse(BaseModel):
     users: list[AvailableUser]
+
+
+class AvailableGroup(BaseModel):
+    id: str = Field(description="Group ID")
+    name: str = Field(description="Group name")
+    description: Optional[str] = Field(
+        default="",
+        description="Group description",
+    )
+
+
+class GroupsInCategoryResponse(BaseModel):
+    available_groups: list[AvailableGroup] = Field(
+        ..., description="List of available groups in the category"
+    )
