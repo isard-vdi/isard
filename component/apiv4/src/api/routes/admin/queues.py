@@ -23,6 +23,7 @@ from api.schemas.admin.queues import (
     QueueConsumerResponse,
     QueueJobsResponse,
     QueueRegistriesRequest,
+    StorageLaneHealthResponse,
     StorageSchedulerConfigRequest,
     StorageSchedulerConfigResponse,
 )
@@ -93,6 +94,34 @@ async def admin_queues_consumers(request: Request):
             request,
             "internal_server",
             "Failed to list queue consumers",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/items/queues/lane-health",
+    tags=[tag],
+    response_model=StorageLaneHealthResponse,
+    summary="Storage lane health (orphan-lane detector)",
+    description="Detects ORPHAN storage lanes: queues holding jobs with no "
+    "worker consuming them (their tasks stall forever). Lane-centric, so it "
+    "sees what the worker-centric consumers view cannot.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_queues_lane_health(request: Request):
+    try:
+        data = await asyncio.to_thread(AdminQueuesService.get_storage_lane_health)
+        return JSONResponse(
+            content=StorageLaneHealthResponse(**data).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to compute storage lane health",
             traceback.format_exc(),
         )
 

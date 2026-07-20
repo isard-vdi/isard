@@ -384,3 +384,27 @@ class ProblemTasksResponse(BaseModel):
     truncated: bool = False
     count: int = 0
     tasks: List[ProblemTask] = []
+
+
+class OrphanLane(BaseModel):
+    """A single storage queue lane holding jobs with no consumer."""
+
+    queue: str
+    queued: int
+
+
+class OrphanPool(BaseModel):
+    """A pool (or move-lane pair) whose queued jobs are served by no worker."""
+
+    pool: str
+    queued: int
+    lanes: List[OrphanLane]
+
+
+class StorageLaneHealthResponse(BaseModel):
+    """Lane-centric health of the storage queues: orphan lanes (jobs but no
+    consumer, so tasks stall). ``healthy`` is true when there are none."""
+
+    orphan_pools: List[str]
+    orphans: List[OrphanPool]
+    healthy: bool
