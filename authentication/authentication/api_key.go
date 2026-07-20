@@ -39,7 +39,7 @@ func (a *Authentication) GenerateAPIKey(ctx context.Context, tkn string, expirat
 		return "", err
 	}
 
-	a.Log.Info().Str("user_id", parsedTkn.Data.ID).Str("tkn", usrExternalTkn).Msg("external user")
+	a.Log.Info().Str("user_id", parsedTkn.Data.ID).Msg("generate API key")
 
 	return usrExternalTkn, nil
 }
