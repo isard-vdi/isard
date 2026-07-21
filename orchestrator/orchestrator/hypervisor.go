@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/orchestrator/log"
-	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
@@ -78,6 +77,7 @@ hyperCreate:
 
 		go func(id string) {
 			defer wg.Done()
+			h := &apiv4.OrchestratorHypervisor{ID: id}
 
 		hyperOnline:
 			for {
@@ -97,67 +97,72 @@ hyperCreate:
 						return
 					}
 
-					if v, ok := res.(*apiv4.OrchestratorHypervisor); ok {
-						h := model.NewHypervisor(v)
-						if h.Status == model.HypervisorStatusOnline {
-							// Hypervisor is online, run checks and manage it
-							if o.checkCfg.Enabled {
-								tkn, err := jwt.SignAPIJWT(o.apiSecret)
-								if err != nil {
-									o.log.Error().Str("id", h.ID).Str("status", h.Status).Err(err).Msg("sign the JWT token for the hypervisor check")
-									failed <- id
-									return
-								}
-
-								if _, err := o.checkCli.CheckHypervisor(ctx, &checkv1.CheckHypervisorRequest{
-									Host: o.apiAddress,
-									Auth: &checkv1.Auth{
-										Method: &checkv1.Auth_Token{
-											Token: &checkv1.AuthToken{
-												Token: tkn,
-											},
-										},
-									},
-									HypervisorId:        id,
-									TemplateId:          o.checkCfg.TemplateID,
-									FailMaintenanceMode: o.checkCfg.FailMaintenanceMode,
-									FailSelfSigned:      o.checkCfg.FailSelfSigned,
-								}); err != nil {
-									o.log.Error().Str("id", h.ID).Str("status", h.Status).Err(err).Msg("run the hypervisor check")
-									failed <- id
-									return
-								}
-
-								o.log.Debug().Str("id", id).Msg("hypervisor check success")
-							}
-
-							if err := o.orchestratorManageSet(ctx, h.ID); err != nil {
-								o.log.Error().Str("id", h.ID).Str("status", h.Status).Err(err).Msg("mark the hypervisor as managed by the orchestrator")
-								failed <- id
-								return
-							}
-
-							created <- id
-							break hyperOnline
+					var ok bool
+					h, ok = res.(*apiv4.OrchestratorHypervisor)
+					if !ok {
+						if apiErr := ogenclient.AsAPIError(res); !errors.Is(apiErr, ogenclient.ErrNotFound) {
+							o.log.Error().Str("id", id).Err(apiErr).Msg("load hypervisor from DB")
+							failed <- id
+							return
 						}
 
-						time.Sleep(5 * time.Second)
-						continue
+					} else {
+						if h.Status == apiv4.HypervisorStatusOnline {
+							break hyperOnline
+						}
 					}
 
-					apiErr := ogenclient.AsAPIError(res)
-					if errors.Is(apiErr, ogenclient.ErrNotFound) {
-						time.Sleep(5 * time.Second)
-						continue
-					}
-
-					o.log.Error().Str("id", id).Err(apiErr).Msg("load hypervisor from DB")
-					failed <- id
-					return
+					time.Sleep(5 * time.Second)
 				}
 			}
 
 			o.log.Debug().Str("id", id).Msg("hypervisor online")
+
+			if o.checkCfg.Enabled {
+				tkn, err := jwt.SignAPIJWT(o.apiSecret)
+				if err != nil {
+					o.log.Error().Str("id", h.ID).Str("status", string(h.Status)).Err(err).Msg("sign the JWT token for the hypervisor check")
+					failed <- id
+					return
+				}
+
+				if _, err := o.checkCli.CheckHypervisor(ctx, &checkv1.CheckHypervisorRequest{
+					Host: o.apiAddress, // TODO: CHECK THIS HOST!!!?
+					Auth: &checkv1.Auth{
+						Method: &checkv1.Auth_Token{
+							Token: &checkv1.AuthToken{
+								Token: tkn,
+							},
+						},
+					},
+					HypervisorId:        id,
+					TemplateId:          o.checkCfg.TemplateID,
+					FailMaintenanceMode: o.checkCfg.FailMaintenanceMode,
+					FailSelfSigned:      o.checkCfg.FailSelfSigned,
+				}); err != nil {
+					o.log.Error().Str("id", h.ID).Str("status", string(h.Status)).Err(err).Msg("run the hypervisor check")
+					failed <- id
+					return
+				}
+
+				o.log.Debug().Str("id", id).Msg("hypervisor check success")
+			}
+
+			res, err := o.apiCli.AdminOrchestratorManageSet(ctx, apiv4.AdminOrchestratorManageSetParams{
+				HypervisorID: h.ID,
+			})
+			if err != nil {
+				o.log.Error().Str("id", h.ID).Str("status", string(h.Status)).Err(err).Msg("mark the hypervisor as managed by the orchestrator")
+				failed <- id
+				return
+			}
+			if _, ok := res.(*apiv4.AdminOrchestratorManageSetNoContent); !ok {
+				o.log.Error().Str("id", h.ID).Str("status", string(h.Status)).Err(ogenclient.AsAPIError(res)).Msg("mark the hypervisor as managed by the orchestrator")
+				failed <- id
+				return
+			}
+
+			created <- id
 		}(id)
 	}
 
@@ -185,21 +190,6 @@ hyperCreate:
 	}
 }
 
-func (o *Orchestrator) orchestratorManageSet(ctx context.Context, id string) error {
-	res, err := o.apiCli.AdminOrchestratorManageSet(ctx, apiv4.AdminOrchestratorManageSetParams{
-		HypervisorID: id,
-	})
-	if err != nil {
-		return fmt.Errorf("manage set hypervisor %q: %w", id, err)
-	}
-
-	if _, ok := res.(*apiv4.AdminOrchestratorManageSetNoContent); ok {
-		return nil
-	}
-
-	return ogenclient.AsAPIError(res)
-}
-
 func (o *Orchestrator) destroyHypervisors(ctx context.Context, req *operationsv1.DestroyHypervisorsRequest) {
 	o.scaleMux.Lock()
 	defer o.scaleMux.Unlock()
@@ -213,8 +203,16 @@ func (o *Orchestrator) destroyHypervisors(ctx context.Context, req *operationsv1
 	}()
 
 	for _, id := range req.Ids {
-		if err := o.orchestratorStopDesktops(ctx, id); err != nil {
+		res, err := o.apiCli.AdminOrchestratorStopDesktops(ctx, apiv4.AdminOrchestratorStopDesktopsParams{
+			HypervisorID: id,
+		})
+		if err != nil {
 			o.log.Error().Str("id", id).Err(err).Msg("stop all the desktops in the hypervisor")
+			continue
+		}
+		if _, ok := res.(*apiv4.AdminOrchestratorStopDesktopsNoContent); !ok {
+			o.log.Error().Str("id", id).Err(ogenclient.AsAPIError(res)).Msg("stop all the desktops in the hypervisor")
+			continue
 		}
 	}
 
@@ -241,21 +239,6 @@ func (o *Orchestrator) destroyHypervisors(ctx context.Context, req *operationsv1
 	o.log.Info().Array("ids", log.NewModelStrArray(req.Ids)).Msg("hypervisors destroyed")
 }
 
-func (o *Orchestrator) orchestratorStopDesktops(ctx context.Context, id string) error {
-	res, err := o.apiCli.AdminOrchestratorStopDesktops(ctx, apiv4.AdminOrchestratorStopDesktopsParams{
-		HypervisorID: id,
-	})
-	if err != nil {
-		return fmt.Errorf("stop desktops on hypervisor %q: %w", id, err)
-	}
-
-	if _, ok := res.(*apiv4.AdminOrchestratorStopDesktopsNoContent); ok {
-		return nil
-	}
-
-	return ogenclient.AsAPIError(res)
-}
-
 func (o *Orchestrator) removeHypervisorsFromDeadRow(ctx context.Context, ids []string) {
 	o.scaleMux.Lock()
 	defer o.scaleMux.Unlock()
@@ -269,8 +252,15 @@ func (o *Orchestrator) removeHypervisorsFromDeadRow(ctx context.Context, ids []s
 	}()
 
 	for _, id := range ids {
-		if err := o.orchestratorDeadRowReset(ctx, id); err != nil {
+		res, err := o.apiCli.AdminOrchestratorDeadRowReset(ctx, apiv4.AdminOrchestratorDeadRowResetParams{
+			HypervisorID: id,
+		})
+		if err != nil {
 			o.log.Error().Str("id", id).Err(err).Msg("cancel hypervisor destruction")
+			return
+		}
+		if _, ok := res.(*apiv4.AdminOrchestratorDeadRowResetNoContent); !ok {
+			o.log.Error().Str("id", id).Err(ogenclient.AsAPIError(res)).Msg("cancel hypervisor destruction")
 			return
 		}
 
@@ -278,46 +268,24 @@ func (o *Orchestrator) removeHypervisorsFromDeadRow(ctx context.Context, ids []s
 	}
 }
 
-func (o *Orchestrator) orchestratorDeadRowReset(ctx context.Context, id string) error {
-	res, err := o.apiCli.AdminOrchestratorDeadRowReset(ctx, apiv4.AdminOrchestratorDeadRowResetParams{
-		HypervisorID: id,
-	})
-	if err != nil {
-		return fmt.Errorf("dead row reset hypervisor %q: %w", id, err)
-	}
-
-	if _, ok := res.(*apiv4.AdminOrchestratorDeadRowResetNoContent); ok {
-		return nil
-	}
-
-	return ogenclient.AsAPIError(res)
-}
-
 func (o *Orchestrator) addHypervisorsToDeadRow(ctx context.Context, ids []string) {
 	for _, id := range ids {
-		destroyTime, err := o.orchestratorDeadRowSet(ctx, id)
+		res, err := o.apiCli.AdminOrchestratorDeadRowSet(ctx, apiv4.AdminOrchestratorDeadRowSetParams{
+			HypervisorID: id,
+		})
 		if err != nil {
 			o.log.Error().Str("id", id).Err(err).Msg("set hypervisor to destroy")
 			return
 		}
 
-		o.log.Info().Str("id", id).Time("destroy_time", destroyTime).Msg("hypervisor destruction time scheduled")
-	}
-}
+		h, ok := res.(*apiv4.DeadRowSetResponse)
+		if !ok {
+			o.log.Error().Str("id", id).Err(ogenclient.AsAPIError(res)).Msg("set hypervisor to destroy")
+			return
+		}
 
-func (o *Orchestrator) orchestratorDeadRowSet(ctx context.Context, id string) (time.Time, error) {
-	res, err := o.apiCli.AdminOrchestratorDeadRowSet(ctx, apiv4.AdminOrchestratorDeadRowSetParams{
-		HypervisorID: id,
-	})
-	if err != nil {
-		return time.Time{}, fmt.Errorf("dead row set hypervisor %q: %w", id, err)
+		o.log.Info().Str("id", id).Time("destroy_time", h.DestroyTime).Msg("hypervisor destruction time scheduled")
 	}
-
-	if v, ok := res.(*apiv4.DeadRowSetResponse); ok {
-		return v.DestroyTime, nil
-	}
-
-	return time.Time{}, ogenclient.AsAPIError(res)
 }
 
 func (o *Orchestrator) removeHypervisorsFromOnlyForced(ctx context.Context, ids []string) {
@@ -333,33 +301,20 @@ func (o *Orchestrator) removeHypervisorsFromOnlyForced(ctx context.Context, ids 
 	}()
 
 	for _, id := range ids {
-		if err := o.adminHypervisorOnlyForced(ctx, id, false); err != nil {
+		res, err := o.apiCli.AdminOrchestratorOnlyForcedSet(ctx, &apiv4.OrchestratorOnlyForcedData{OnlyForced: false}, apiv4.AdminOrchestratorOnlyForcedSetParams{
+			HypervisorID: id,
+		})
+		if err != nil {
 			o.log.Error().Str("id", id).Err(err).Msg("unlimit hypervisor")
+			return
+		}
+		if _, ok := res.(*apiv4.AdminOrchestratorOnlyForcedSetNoContent); !ok {
+			o.log.Error().Str("id", id).Err(ogenclient.AsAPIError(res)).Msg("unlimit hypervisor")
 			return
 		}
 
 		o.log.Info().Str("id", id).Msg("hypervisor unlimited")
 	}
-}
-
-func (o *Orchestrator) adminHypervisorOnlyForced(ctx context.Context, id string, onlyForced bool) error {
-	body := apiv4.AdminTableUpdateReq{
-		"id":          model.MustJxRaw(id),
-		"only_forced": model.MustJxRaw(onlyForced),
-	}
-
-	res, err := o.apiCli.AdminTableUpdate(ctx, body, apiv4.AdminTableUpdateParams{
-		Table: "hypervisors",
-	})
-	if err != nil {
-		return fmt.Errorf("update hypervisor only_forced: %w", err)
-	}
-
-	if _, ok := res.(*apiv4.AdminTableUpdateNoContent); ok {
-		return nil
-	}
-
-	return ogenclient.AsAPIError(res)
 }
 
 func (o *Orchestrator) bufferingHypervisorOperation(ctx context.Context, onlyForced bool) error {
@@ -368,17 +323,21 @@ func (o *Orchestrator) bufferingHypervisorOperation(ctx context.Context, onlyFor
 		return fmt.Errorf("list hypervisors: %w", err)
 	}
 
-	v, ok := res.(*apiv4.AdminHypervisorsListOKApplicationJSON)
+	hypers, ok := res.(*apiv4.AdminHypervisorsListOKApplicationJSON)
 	if !ok {
-		return ogenclient.AsAPIError(res)
+		return fmt.Errorf("list hypervisors: %w", ogenclient.AsAPIError(res))
 	}
 
-	list := []apiv4.AdminHypervisor(*v)
-	for i := range list {
-		h := &list[i]
+	for _, h := range *hypers {
 		if h.BufferingHyper && h.OnlyForced != onlyForced {
-			if err := o.adminHypervisorOnlyForced(ctx, h.ID, onlyForced); err != nil {
+			res, err := o.apiCli.AdminOrchestratorOnlyForcedSet(ctx, &apiv4.OrchestratorOnlyForcedData{OnlyForced: onlyForced}, apiv4.AdminOrchestratorOnlyForcedSetParams{
+				HypervisorID: h.ID,
+			})
+			if err != nil {
 				return fmt.Errorf("set hypervisor only forced state '%t': %w", onlyForced, err)
+			}
+			if _, ok := res.(*apiv4.AdminOrchestratorOnlyForcedSetNoContent); !ok {
+				return fmt.Errorf("set hypervisor only forced state '%t': %w", onlyForced, ogenclient.AsAPIError(res))
 			}
 		}
 	}

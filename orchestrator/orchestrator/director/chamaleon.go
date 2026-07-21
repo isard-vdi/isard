@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/orchestrator/log"
-	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 	"gitlab.com/isard/isardvdi/pkg/ogenclient"
@@ -38,7 +37,7 @@ func (c *Chamaleon) String() string {
 	return DirectorTypeChamaleon
 }
 
-func (c *Chamaleon) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*model.Hypervisor) (NeedToScaleHypervisorsResult, error) {
+func (c *Chamaleon) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*apiv4.OrchestratorHypervisor) (NeedToScaleHypervisorsResult, error) {
 	operationsHypersAvail := []*operationsv1.ListHypervisorsResponseHypervisor{}
 availHypersLoop:
 	for _, h := range operationsHypers {
@@ -65,11 +64,11 @@ availHypersLoop:
 
 	totalUnits := map[string]int{}
 
-	hypersAvail := []*model.Hypervisor{}
-	hypersOnDeadRow := []*model.Hypervisor{}
+	hypersAvail := []*apiv4.OrchestratorHypervisor{}
+	hypersOnDeadRow := []*apiv4.OrchestratorHypervisor{}
 	for _, h := range hypers {
 		switch h.Status {
-		case model.HypervisorStatusOnline:
+		case apiv4.HypervisorStatusOnline:
 			if h.DestroyTime.Or(time.Time{}).IsZero() {
 				// Ensure we don't play with buffering hypervisors! :)
 				if !h.BufferingHyper && !h.OnlyForced && len(h.Gpus) != 0 {
@@ -151,7 +150,7 @@ availHypersLoop:
 	hypersToDestroy := []string{}
 	for _, h := range hypers {
 		switch h.Status {
-		case model.HypervisorStatusOnline:
+		case apiv4.HypervisorStatusOnline:
 			// Ensure we don't play with buffering hypervisors or non orchestrator managed ones! :)
 			if !h.BufferingHyper && h.OrchestratorManaged && len(h.Gpus) != 0 {
 				// Check if we need to kill the hypervisor (because it's time to kill it or it has 0 desktops started)
@@ -220,8 +219,8 @@ func chamaleonIsSmaller(this []*operationsv1.ListHypervisorsResponseHypervisor, 
 }
 
 // TODO: THIS SHOULD TAKE INTO ACCOUNT DIFFERENT DESKTOPS / BOOKINGS AND ALL THIS STUFF
-func chamaleonIsBigger(this []*model.Hypervisor, thanThis []*model.Hypervisor) bool {
-	lists := [2][]*model.Hypervisor{this, thanThis}
+func chamaleonIsBigger(this []*apiv4.OrchestratorHypervisor, thanThis []*apiv4.OrchestratorHypervisor) bool {
+	lists := [2][]*apiv4.OrchestratorHypervisor{this, thanThis}
 	mem := [2]int{}
 	dktps := [2]int{}
 	for i, l := range lists {
@@ -254,7 +253,7 @@ func chamaleonIsBigger(this []*model.Hypervisor, thanThis []*model.Hypervisor) b
 	return mem[0] > mem[1]
 }
 
-func chamaleonBestHypersToCreateIsardVDI(avail []*model.Hypervisor, minUnits map[string]int) ([]string, error) {
+func chamaleonBestHypersToCreateIsardVDI(avail []*apiv4.OrchestratorHypervisor, minUnits map[string]int) ([]string, error) {
 	hypers := []*operationsv1.ListHypervisorsResponseHypervisor{}
 	for _, h := range avail {
 		gpus := []*operationsv1.HypervisorGPU{}
@@ -356,7 +355,7 @@ combosLoop:
 	return ids, nil
 }
 
-func chamaleonCanBeDestroyed(hypers []*model.Hypervisor, total map[string]int, bookings []apiv4.GpuForecastProfile) bool {
+func chamaleonCanBeDestroyed(hypers []*apiv4.OrchestratorHypervisor, total map[string]int, bookings []apiv4.GpuForecastProfile) bool {
 	hypersUnits := map[string]int{}
 	for _, h := range hypers {
 		for _, g := range h.Gpus {
@@ -376,8 +375,8 @@ func chamaleonCanBeDestroyed(hypers []*model.Hypervisor, total map[string]int, b
 	return canBeDestroyed
 }
 
-func chamaleonBestHypersToDestroy(avail []*model.Hypervisor, total map[string]int, bookings []apiv4.GpuForecastProfile) []string {
-	var bestHypers []*model.Hypervisor
+func chamaleonBestHypersToDestroy(avail []*apiv4.OrchestratorHypervisor, total map[string]int, bookings []apiv4.GpuForecastProfile) []string {
+	var bestHypers []*apiv4.OrchestratorHypervisor
 
 	combos := combinations.All(avail)
 	for _, c := range combos {
@@ -396,7 +395,7 @@ func chamaleonBestHypersToDestroy(avail []*model.Hypervisor, total map[string]in
 	return ids
 }
 
-func (c *Chamaleon) ExtraOperations(ctx context.Context, hypers []*model.Hypervisor) error {
+func (c *Chamaleon) ExtraOperations(ctx context.Context, hypers []*apiv4.OrchestratorHypervisor) error {
 	return nil
 }
 

@@ -4,21 +4,20 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 )
 
 type ModelHypervisor struct {
-	h *model.Hypervisor
+	h *apiv4.OrchestratorHypervisor
 }
 
-func NewModelHypervisor(h *model.Hypervisor) ModelHypervisor {
+func NewModelHypervisor(h *apiv4.OrchestratorHypervisor) ModelHypervisor {
 	return ModelHypervisor{h}
 }
 
 func (m ModelHypervisor) MarshalZerologObject(e *zerolog.Event) {
 	e.Str("id", m.h.ID).
-		Str("status", m.h.Status).
+		Str("status", string(m.h.Status)).
 		Bool("only_forced", m.h.OnlyForced).
 		Bool("buffering", m.h.BufferingHyper).
 		Time("destroy_time", m.h.DestroyTime.Or(time.Time{})).
@@ -33,10 +32,10 @@ func (m ModelHypervisor) MarshalZerologObject(e *zerolog.Event) {
 }
 
 type ModelResourceLoad struct {
-	r model.ResourceLoad
+	r apiv4.OrchestratorResourceLoad
 }
 
-func NewModelResourceLoad(r model.ResourceLoad) ModelResourceLoad {
+func NewModelResourceLoad(r apiv4.OrchestratorResourceLoad) ModelResourceLoad {
 	return ModelResourceLoad{r}
 }
 
@@ -77,10 +76,10 @@ func (g ModelGPU) MarshalZerologObject(e *zerolog.Event) {
 }
 
 type ModelHypervisors struct {
-	hyps []*model.Hypervisor
+	hyps []*apiv4.OrchestratorHypervisor
 }
 
-func NewModelHypervisors(hyps []*model.Hypervisor) ModelHypervisors {
+func NewModelHypervisors(hyps []*apiv4.OrchestratorHypervisor) ModelHypervisors {
 	return ModelHypervisors{hyps}
 }
 
@@ -103,26 +102,18 @@ func (b ModelBooking) MarshalZerologObject(e *zerolog.Event) {
 		Str("model", b.b.Model).
 		Str("profile", b.b.Profile).
 		Dict("now", zerolog.Dict().
-			Time("time", parseBookingTime(b.b.Now.Date)).
+			Time("time", b.b.Now.Date).
 			Int("units", b.b.Now.Units),
 		).
 		Dict("create", zerolog.Dict().
-			Time("time", parseBookingTime(b.b.ToCreate.Date)).
+			Time("time", b.b.ToCreate.Date).
 			Int("units", b.b.ToCreate.Units),
 		).
 		Dict("destroy", zerolog.Dict().
-			Time("time", parseBookingTime(b.b.ToDestroy.Date)).
+			Time("time", b.b.ToDestroy.Date).
 			Int("units", b.b.ToDestroy.Units),
 		)
 
-}
-
-func parseBookingTime(s string) time.Time {
-	t, err := time.Parse(time.RFC3339Nano, s)
-	if err != nil {
-		return time.Time{}
-	}
-	return t
 }
 
 type ModelBookings struct {
@@ -134,7 +125,7 @@ func NewModelBookings(b []apiv4.GpuForecastProfile) ModelBookings {
 }
 
 func (b ModelBookings) MarshalZerologArray(a *zerolog.Array) {
-	for i := range b.b {
-		a.Object(NewModelBooking(&b.b[i]))
+	for _, b := range b.b {
+		a.Object(NewModelBooking(&b))
 	}
 }

@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
-	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model"
-	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model/testhelper"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 
@@ -22,7 +20,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 
 	cases := map[string]struct {
 		AvailHypers               []*operationsv1.ListHypervisorsResponseHypervisor
-		Hypers                    []*model.Hypervisor
+		Hypers                    []*apiv4.OrchestratorHypervisor
 		PrepareAPI                func(*apiv4.MockInvoker)
 		ExpectedErr               string
 		ExpectedRemoveDeadRow     []string
@@ -33,14 +31,18 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 	}{
 		"if there are enough units, it should return 0": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*model.Hypervisor{testhelper.Hypervisor(testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
-				Brand:      "NVIDIA",
-				Model:      "A10",
-				Profile:    "4Q",
-				TotalUnits: 10,
-				UsedUnits:  1,
-				FreeUnits:  9,
-			}}))},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				Status:     apiv4.HypervisorStatusOnline,
+				OnlyForced: false,
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 10,
+					UsedUnits:  1,
+					FreeUnits:  9,
+				}},
+			}},
 			PrepareAPI: func(api *apiv4.MockInvoker) {
 				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
@@ -109,7 +111,11 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				Id:    "existing",
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
 			}},
-			Hypers: []*model.Hypervisor{testhelper.Hypervisor(testhelper.WithID("existing"))},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:         "existing",
+				Status:     apiv4.HypervisorStatusOnline,
+				OnlyForced: false,
+			}},
 			PrepareAPI: func(api *apiv4.MockInvoker) {
 				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
@@ -186,7 +192,11 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				Id:    "existing",
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
 			}},
-			Hypers: []*model.Hypervisor{testhelper.Hypervisor(testhelper.WithID("existing"))},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:         "existing",
+				Status:     apiv4.HypervisorStatusOnline,
+				OnlyForced: false,
+			}},
 			PrepareAPI: func(api *apiv4.MockInvoker) {
 				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
@@ -210,20 +220,24 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's not too much free units, it should add the biggest hypervisor to the dead row": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*model.Hypervisor{testhelper.Hypervisor(
-				testhelper.WithID("to keep"),
-				testhelper.WithOrchestratorManaged(true),
-				testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "to keep",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
 					TotalUnits: 6,
 					FreeUnits:  5,
-				}}),
-			), testhelper.Hypervisor(
-				testhelper.WithID("AMONGUS!"),
-				testhelper.WithOrchestratorManaged(true),
-				testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
+				}},
+			}, {
+				ID:                  "AMONGUS!",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -243,8 +257,8 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					Model:      "A10",
 					Profile:    "4Q",
 					TotalUnits: 6,
-				}}),
-			)},
+				}},
+			}},
 			PrepareAPI: func(api *apiv4.MockInvoker) {
 				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
@@ -266,26 +280,28 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's not enough units, but there are hypervisors on the dead row, if should remove those from it": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*model.Hypervisor{testhelper.Hypervisor(
-				testhelper.WithID("destroy 1"),
-				testhelper.WithOnlyForced(true),
-				testhelper.WithOrchestratorManaged(true),
-				testhelper.WithDestroyTime(time.Now().Add(-1*time.Hour)),
-				testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "destroy 1",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(-1 * time.Hour)),
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
 					TotalUnits: 10,
 					UsedUnits:  1,
 					FreeUnits:  9,
-				}}),
-			), testhelper.Hypervisor(
-				testhelper.WithID("destroy 2"),
-				testhelper.WithOnlyForced(true),
-				testhelper.WithOrchestratorManaged(true),
-				testhelper.WithDestroyTime(time.Now().Add(1*time.Hour)),
-				testhelper.WithDesktopsStarted(0),
-				testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
+				}},
+			}, {
+				ID:                  "destroy 2",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
+				DesktopsStarted:     0,
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -299,8 +315,8 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					TotalUnits: 10,
 					UsedUnits:  1,
 					FreeUnits:  9,
-				}}),
-			)},
+				}},
+			}},
 			PrepareAPI: func(api *apiv4.MockInvoker) {
 				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
@@ -322,24 +338,27 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's an hypervisor that's been too much time on the dead row, KILL THEM!!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*model.Hypervisor{testhelper.Hypervisor(
-				testhelper.WithID("destroy 1"),
-				testhelper.WithOrchestratorManaged(true),
-				testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "destroy 1",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
 					TotalUnits: 10,
 					UsedUnits:  1,
 					FreeUnits:  9,
-				}}),
-			), testhelper.Hypervisor(
-				testhelper.WithID("destroy 2"),
-				testhelper.WithOnlyForced(true),
-				testhelper.WithOrchestratorManaged(true),
-				testhelper.WithDestroyTime(time.Now().Add(1*time.Hour)),
-				testhelper.WithDesktopsStarted(0),
-				testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
+				}},
+			}, {
+				ID:                  "destroy 2",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
+				DesktopsStarted:     0,
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -353,8 +372,8 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					TotalUnits: 10,
 					UsedUnits:  1,
 					FreeUnits:  9,
-				}}),
-			)},
+				}},
+			}},
 			PrepareAPI: func(api *apiv4.MockInvoker) {
 				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
@@ -378,59 +397,67 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there are multiple hypervisor that have been too much time on the dead row, have 0 desktops started or have exceeded the booking time, KILL THEM!!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*model.Hypervisor{testhelper.Hypervisor(
-				testhelper.WithID("destroy 1"),
-				testhelper.WithOrchestratorManaged(true),
-				testhelper.WithDestroyTime(time.Now().Add(-1*time.Hour)),
-				testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "destroy 1",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(-1 * time.Hour)),
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
 					TotalUnits: 10,
 					UsedUnits:  1,
 					FreeUnits:  9,
-				}}),
-			), testhelper.Hypervisor(
-				testhelper.WithID("non managed"),
-				testhelper.WithOrchestratorManaged(false),
-				testhelper.WithDestroyTime(time.Now().Add(-1*time.Hour)),
-				testhelper.WithDesktopsStarted(234),
-				testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
+				}},
+			}, {
+				ID:                  "non managed",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: false,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(-1 * time.Hour)),
+				DesktopsStarted:     234,
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
 					TotalUnits: 10,
 					UsedUnits:  1,
 					FreeUnits:  9,
-				}}),
-			), testhelper.Hypervisor(
-				testhelper.WithID("destroy 2"),
-				testhelper.WithOrchestratorManaged(true),
-				testhelper.WithDestroyTime(time.Now().Add(1*time.Hour)),
-				testhelper.WithDesktopsStarted(0),
-				testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
+				}},
+			}, {
+				ID:                  "destroy 2",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
+				DesktopsStarted:     0,
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
 					TotalUnits: 10,
 					UsedUnits:  1,
 					FreeUnits:  9,
-				}}),
-			), testhelper.Hypervisor(
-				testhelper.WithID("destroy 3"),
-				testhelper.WithOrchestratorManaged(true),
-				testhelper.WithDestroyTime(time.Now().Add(1*time.Hour)),
-				testhelper.WithDesktopsStarted(23),
-				testhelper.WithBookingsEndTime(time.Now().Add(-1*time.Hour)),
-				testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
+				}},
+			}, {
+				ID:                  "destroy 3",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
+				DesktopsStarted:     23,
+				BookingsEndTime:     apiv4.NewNilDateTime(time.Now().Add(-1 * time.Hour)),
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
 					TotalUnits: 10,
 					UsedUnits:  1,
 					FreeUnits:  9,
-				}}),
-			)},
+				}},
+			}},
 			PrepareAPI: func(api *apiv4.MockInvoker) {
 				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{})
 				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
@@ -457,7 +484,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					Model: "A10",
 				}},
 			}},
-			Hypers: []*model.Hypervisor{testhelper.Hypervisor(testhelper.WithID(""), testhelper.WithStatus(""))},
+			Hypers: []*apiv4.OrchestratorHypervisor{{}},
 			PrepareAPI: func(api *apiv4.MockInvoker) {
 				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
@@ -494,7 +521,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					Model: "A10",
 				}},
 			}},
-			Hypers: []*model.Hypervisor{testhelper.Hypervisor(testhelper.WithID(""), testhelper.WithStatus(""))},
+			Hypers: []*apiv4.OrchestratorHypervisor{{}},
 			PrepareAPI: func(api *apiv4.MockInvoker) {
 				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
@@ -512,131 +539,160 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 			ExpectedErr: director.ErrNoHypervisorAvailable.Error(),
 		},
 		"if there are already units, and we have a booking, it should use the available units": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(
-					testhelper.WithID("9lypvd0p4"),
-					testhelper.WithBookingsEndTime(time.Now().Add(1*time.Hour)),
-					testhelper.WithOrchestratorManaged(true),
-					testhelper.WithDesktopsStarted(8),
-					testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
-						ID:         "9lypvd0p4-pci_0000_17_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  0,
-						UsedUnits:  6,
-					}, {
-						ID:         "9lypvd0p4-pci_0000_31_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  4,
-						UsedUnits:  2,
-					}, {
-						ID:         "9lypvd0p4-pci_0000_b1_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  6,
-						UsedUnits:  0,
-					}, {
-						ID:         "9lypvd0p4-pci_0000_ca_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  6,
-						UsedUnits:  0,
-					}}),
-					testhelper.WithCPU(100, 3, 97),
-					testhelper.WithRAM(1031713, 278237, 753475),
-				),
-				testhelper.Hypervisor(
-					testhelper.WithID("1esr7wpex"),
-					testhelper.WithBookingsEndTime(time.Now().Add(1*time.Hour)),
-					testhelper.WithOrchestratorManaged(true),
-					testhelper.WithDesktopsStarted(8),
-					testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
-						ID:         "1esr7wpex-pci_0000_17_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  6,
-						UsedUnits:  0,
-					}, {
-						ID:         "1esr7wpex-pci_0000_31_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  1,
-						UsedUnits:  5,
-					}, {
-						ID:         "1esr7wpex-pci_0000_b1_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  6,
-						UsedUnits:  0,
-					}, {
-						ID:         "1esr7wpex-pci_0000_ca_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  6,
-						UsedUnits:  0,
-					}}),
-					testhelper.WithCPU(100, 3, 97),
-					testhelper.WithRAM(1031713, 278237, 753475),
-				),
-				testhelper.Hypervisor(
-					testhelper.WithID("yuv3e1hwn"),
-					testhelper.WithBookingsEndTime(time.Now().Add(1*time.Hour)),
-					testhelper.WithOrchestratorManaged(true),
-					testhelper.WithDesktopsStarted(8),
-					testhelper.WithGPUs([]apiv4.OrchestratorHypervisorGPU{{
-						ID:         "yuv3e1hwn-pci_0000_17_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  6,
-						UsedUnits:  0,
-					}, {
-						ID:         "yuv3e1hwn-pci_0000_31_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  4,
-						UsedUnits:  2,
-					}, {
-						ID:         "yuv3e1hwn-pci_0000_b1_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  0,
-						UsedUnits:  6,
-					}, {
-						ID:         "yuv3e1hwn-pci_0000_ca_00_0",
-						Brand:      "NVIDIA",
-						Model:      "A10",
-						Profile:    "4Q",
-						TotalUnits: 6,
-						FreeUnits:  6,
-						UsedUnits:  0,
-					}}),
-					testhelper.WithCPU(100, 3, 97),
-					testhelper.WithRAM(1031713, 278237, 753475),
-				),
-			},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "9lypvd0p4",
+				Status:              "Online",
+				OnlyForced:          false,
+				BufferingHyper:      false,
+				BookingsEndTime:     apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
+				OrchestratorManaged: true,
+				DesktopsStarted:     8,
+				CPU: apiv4.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  3,
+					Free:  97,
+				},
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1031713,
+					Used:  278237,
+					Free:  753475,
+				},
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
+					ID:         "9lypvd0p4-pci_0000_17_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  0,
+					UsedUnits:  6,
+				}, {
+					ID:         "9lypvd0p4-pci_0000_31_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  4,
+					UsedUnits:  2,
+				}, {
+					ID:         "9lypvd0p4-pci_0000_b1_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  6,
+					UsedUnits:  0,
+				}, {
+					ID:         "9lypvd0p4-pci_0000_ca_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  6,
+					UsedUnits:  0,
+				}},
+			}, {
+				ID:                  "1esr7wpex",
+				Status:              "Online",
+				OnlyForced:          false,
+				BufferingHyper:      false,
+				BookingsEndTime:     apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
+				OrchestratorManaged: true,
+				DesktopsStarted:     8,
+				CPU: apiv4.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  3,
+					Free:  97,
+				},
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1031713,
+					Used:  278237,
+					Free:  753475,
+				},
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
+					ID:         "1esr7wpex-pci_0000_17_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  6,
+					UsedUnits:  0,
+				}, {
+					ID:         "1esr7wpex-pci_0000_31_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  1,
+					UsedUnits:  5,
+				}, {
+					ID:         "1esr7wpex-pci_0000_b1_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  6,
+					UsedUnits:  0,
+				}, {
+					ID:         "1esr7wpex-pci_0000_ca_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  6,
+					UsedUnits:  0,
+				}},
+			}, {
+				ID:                  "yuv3e1hwn",
+				Status:              "Online",
+				OnlyForced:          false,
+				BufferingHyper:      false,
+				BookingsEndTime:     apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
+				OrchestratorManaged: true,
+				DesktopsStarted:     8,
+				CPU: apiv4.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  3,
+					Free:  97,
+				},
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1031713,
+					Used:  278237,
+					Free:  753475,
+				},
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
+					ID:         "yuv3e1hwn-pci_0000_17_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  6,
+					UsedUnits:  0,
+				}, {
+					ID:         "yuv3e1hwn-pci_0000_31_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  4,
+					UsedUnits:  2,
+				}, {
+					ID:         "yuv3e1hwn-pci_0000_b1_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  0,
+					UsedUnits:  6,
+				}, {
+					ID:         "yuv3e1hwn-pci_0000_ca_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "4Q",
+					TotalUnits: 6,
+					FreeUnits:  6,
+					UsedUnits:  0,
+				}},
+			}},
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
 				Id:           "1esr7wpex",
 				State:        operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
