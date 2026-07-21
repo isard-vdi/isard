@@ -23,6 +23,7 @@ import time
 from api.services.error import Error
 from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
@@ -413,6 +414,22 @@ class StorageService:
                 "bad_request",
                 "Priority must be low, default or high",
             )
+        # Pre-flight shed gate: reject with a typed 429 when the standard storage
+        # lane has no live consumer or is swamped, so the user is told to retry
+        # instead of the resize hanging. Done here — before set_maintenance runs
+        # and outside the wrapping try below — so nothing is left half-done and
+        # the description_code survives (the except flattens Error args).
+        resize_pool = StoragePool.get_best_for_action(
+            "resize", path=storage.directory_path
+        ).id
+        queue_coverage.check_shed(
+            Task._redis,
+            queue_tiers.retier_queue(
+                f"storage.{resize_pool}.{priority}",
+                "resize",
+                queue_tiers.resolve_category(storage.category),
+            ),
+        )
         retry = check_task_retry(payload, retry)
         try:
             return storage.increase_size(
@@ -498,10 +515,17 @@ class StorageService:
 
     @staticmethod
     def check_backing_chain(payload: dict, storage_id: str) -> dict:
-        """Create a task to check storage backing chain."""
+        """Create a task to check storage backing chain.
+
+        This is the admin datatable single "check" action: the admin clicked it
+        and wants a quicker turnaround than the idle-lane default, so route it to
+        the ``standard`` foreground lane (still not the sub-second reserved pool —
+        no user desktop is blocked on it). The automatic post-stop refresh and the
+        batch re-scans keep the ``background`` default.
+        """
         storage = get_storage(payload, storage_id)
         return storage.check_backing_chain(
-            user_id=payload.get("user_id"), blocking=False
+            user_id=payload.get("user_id"), blocking=False, priority="standard"
         )
 
     @staticmethod

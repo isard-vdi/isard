@@ -39,10 +39,16 @@ from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, StoragePool
 from isardvdi_common.models.user import User
 
-# Per-pass de-dup of the non-idempotent ``storage`` status socket: a chain
-# often lands the same (storage_id, status) via two handlers in one dispatch
-# pass. Collapse repeats within a dedup_status_emits scope; cross-delivery
-# de-dup is intentionally skipped (redelivery re-emits are harmless).
+# Per-stream-entry de-duplication of the fire-and-forget ``storage`` status
+# sockets. A single chain often touches the same storage row twice in one
+# dispatch pass (e.g. ``storage_update`` then the terminal ``update_status``
+# both land on ``ready``), fanning out the identical ``{id,status}`` event
+# more than once. The socket emit is not idempotent (unlike the DB writes),
+# so collapse repeats of the SAME ``(storage_id, status)`` within one
+# :func:`dedup_status_emits` scope. Cross-*delivery* de-dup is intentionally
+# NOT attempted here — see the idempotency note in
+# ``task_results_consumer._process_entry`` (a redelivery re-emit is safe
+# because the frontend is idempotent to status).
 _emit_dedup: contextvars.ContextVar = contextvars.ContextVar(
     "task_results_emit_dedup", default=None
 )
@@ -129,8 +135,9 @@ async def send_status_socket(redis_manager, storage_id, status, user_id=None):
     """Fan-out the ``storage`` SocketIO event identically to
     core_worker.task.send_storage_status_socket.
 
-    Repeats of the same ``(storage_id, status)`` within a ``dedup_status_emits``
-    scope are collapsed to one.
+    Repeated identical ``(storage_id, status)`` emits within the active
+    :func:`dedup_status_emits` scope are collapsed to one (a chain routinely
+    lands the same status via two handlers in one pass).
     """
     dedup = _emit_dedup.get()
     if dedup is not None:

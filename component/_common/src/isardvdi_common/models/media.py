@@ -24,7 +24,7 @@ from isardvdi_common.connections.rethink_custom_base_factory import RethinkCusto
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
-from isardvdi_common.lib import queue_tiers
+from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from isardvdi_common.models.storage_pool import StoragePool
 from pydantic import BaseModel, Field
@@ -86,6 +86,9 @@ class Media(RethinkCustomBase):
                 kwargs["queue"], kwargs.get("task"), category
             )
         queue_tiers.retier_dependents(kwargs.get("dependents"), category)
+        # Same producer-side shed gate as Storage.create_task (opt-in, foreground
+        # only): reject onto a consumer-less/swamped lane with a typed 429.
+        queue_coverage.enforce_shed(Task._redis, kwargs)
         if "blocking" in kwargs:
             blocking = kwargs.pop("blocking")
         else:

@@ -174,6 +174,25 @@ class DesktopsProcessed(RethinkSharedConnection):
 
         return desktop
 
+    @staticmethod
+    def _normalize_detail(detail):
+        # The engine writes ``domains.detail`` inconsistently: ``update_domain_status``
+        # json-dumps it, other paths store it raw. Return a clean human string either
+        # way (json-decode a dumped string; fall back to the raw value).
+        if not detail:
+            return None
+        if not isinstance(detail, str):
+            return str(detail)
+        try:
+            decoded = json.loads(detail)
+        except (ValueError, TypeError):
+            return detail
+        if isinstance(decoded, str):
+            return decoded
+        if isinstance(decoded, dict):
+            return decoded.get("detail") or decoded.get("msg") or detail
+        return detail
+
     @classmethod
     def _parse_desktop(cls, desktop):
         # TODO(separate-common-classes): move this to a desktop helpers class
@@ -274,6 +293,11 @@ class DesktopsProcessed(RethinkSharedConnection):
             "reservables": desktop["create_dict"].get("reservables", {"vgpus": None}),
             "interfaces": desktop["create_dict"]["hardware"]["interfaces"],
             "current_action": desktop.get("current_action"),
+            # Human-readable reason the engine attaches to the current status
+            # (e.g. why a start ended Failed: "no hypervisors online in pool
+            # default", GPU-capacity guidance). Surfaced so the user sees WHY,
+            # not just a bare Failed card.
+            "status_reason": cls._normalize_detail(desktop.get("detail")),
             "storage": [
                 disk.get("storage_id")
                 for disk in desktop["create_dict"]["hardware"].get("disks", [{}])
@@ -374,6 +398,11 @@ class DesktopsProcessed(RethinkSharedConnection):
                     desktop["new_data"],
                     desktop["image"],
                     soft=True,
+                    # Phase-1 tiering: a deployment is a *bulk* mass-create, so
+                    # its per-desktop disk chains land on the bulk tier and can
+                    # never crowd the reserved interactive workers that serve
+                    # single user-is-waiting creates.
+                    priority="bulk",
                 )
                 if result is not None:
                     await asyncio.to_thread(
@@ -517,6 +546,7 @@ class DesktopsProcessed(RethinkSharedConnection):
         soft=False,
         ignore_allowed_hardware=False,
         allocate_storage=True,
+        priority="interactive",
     ):
         template = Caches.get_document("domains", template_id)
         if not template:
@@ -716,6 +746,7 @@ class DesktopsProcessed(RethinkSharedConnection):
             if pending_storage is not None:
                 pending_storage.enqueue_disk_creation_chain_for_domain(
                     domain_id=valid_desktop["id"],
+                    priority=priority,
                 )
         if image:
             image_data = image
@@ -1064,6 +1095,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                         "scheduled",
                         "tag",
                         "current_action",
+                        "detail",
                     ]
                 )
                 .merge(
