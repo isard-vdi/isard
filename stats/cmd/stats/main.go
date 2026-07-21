@@ -93,7 +93,7 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 	system := cfg.Collectors.System.Enable
 	isardvdiAPI := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAPI.Enable
 	isardvdiAuthentication := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAuthentication.Enable
-	storageGovernor := hasWeb(cfg.Flavour) && cfg.Collectors.StorageGovernor.Enable
+	storageGovernor := hasWeb(cfg.Flavour)
 	oci := hasWeb(cfg.Flavour) && cfg.Collectors.OCI.Enable
 	conntrack := hasWeb(cfg.Flavour) && cfg.Collectors.Conntrack.Enable
 

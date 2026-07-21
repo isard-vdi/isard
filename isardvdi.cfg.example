@@ -946,14 +946,6 @@ WG_GUESTS_RESERVED_HOSTS=20
 #TF_VAR_region=
 #TF_VAR_private_key=
 
-# ------ Storage Governor Collector ----------------------------------------
-# Scrapes the tiered/governed storage scheduler gauges from the apiv4 admin
-# endpoint (GET /admin/items/queues/governor) and exports them as
-# isardvdi_storage_governor_* Prometheus metrics. Reuses the ISARDVDI_API
-# collector's address + service secret. Enable once the storage-governor
-# observability backend is deployed on the web node.
-#STATS_COLLECTORS_STORAGE_GOVERNOR_ENABLE=false
-
 ##################################################################
 ## CHECK PARAMETERS                                             ##
 ##################################################################
