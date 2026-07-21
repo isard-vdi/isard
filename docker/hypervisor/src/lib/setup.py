@@ -41,7 +41,7 @@ from isardvdi_apiv4_client.models import (
     AdminGpuAppliedRequest,
     AdminHypervisorCreateData,
     AdminHypervisorEnableData,
-    AdminHypervisorEnableDataNumaTopology,
+    AdminHypervisorEnableDataNumaTopologyType0,
 )
 from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 from progress import report_progress
@@ -471,7 +471,7 @@ def _refresh_numa_topology_with_libvirt():
         # raises ``AttributeError: 'dict' object has no attribute
         # 'to_dict'``. Wrap via the typed helper that the codegen
         # produced from the same OpenAPI schema.
-        numa_topology = AdminHypervisorEnableDataNumaTopology.from_dict(topo)
+        numa_topology = AdminHypervisorEnableDataNumaTopologyType0.from_dict(topo)
         with build_client("isard-hypervisor", role="hypervisor") as client:
             resp = admin_hypervisor_enable.sync_detailed(
                 client=client,
