@@ -31,6 +31,7 @@ type Collectors struct {
 	Socket                 Socket
 	IsardVDIAPI            IsardVDIAPI            `mapstructure:"isardvdi_api"`
 	IsardVDIAuthentication IsardvdiAuthentication `mapstructure:"isardvdi_authentication"`
+	StorageGovernor        StorageGovernor        `mapstructure:"storage_governor"`
 	OCI                    OCI
 	Conntrack              Conntrack
 }
@@ -60,6 +61,12 @@ type IsardVDIAPI struct {
 type IsardvdiAuthentication struct {
 	Enable      bool
 	LokiAddress string `mapstructure:"loki_address"`
+}
+
+// StorageGovernor reuses the IsardVDIAPI admin ogen client (same apiv4 web
+// endpoint + service secret) to scrape GET /admin/items/queues/governor.
+type StorageGovernor struct {
+	Enable bool
 }
 
 type OCI struct {
@@ -140,6 +147,9 @@ func setDefaults() {
 		},
 		"conntrack": map[string]interface{}{
 			"enable": true,
+		},
+		"storage_governor": map[string]interface{}{
+			"enable": false,
 		},
 	})
 }

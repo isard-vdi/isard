@@ -160,6 +160,48 @@ class Config(RethinkCustomBase):
             return {}
 
     @classmethod
+    def update_storage_scheduler(cls, updates: dict) -> None:
+        """Partial-update the ``storage_scheduler`` config block.
+
+        ``updates`` is a flat dict of keys to set inside
+        ``storage_scheduler`` (e.g. ``{"psi_limit": 40, "enabled": True}``);
+        sibling keys are preserved. This is the live-tunable governor block
+        that the elastic storage workers poll each dequeue cycle (bounded by
+        the 1s get_config cache) so admins can retune CPU/IO pressure and the
+        heavy-concurrency cap without a restart. Validation/clamping is the
+        caller's job (see the apiv4 admin service); the model write is
+        schemaless.
+
+        Clears the get_config cache after the write.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update({"storage_scheduler": updates}).run(
+                cls._rdb_connection
+            )
+        cls.clear_get_config_cache()
+
+    @classmethod
+    def get_storage_scheduler_config(cls) -> dict:
+        """Read the ``storage_scheduler`` config block (raw DB block).
+
+        Returns an empty dict when the field is missing so callers fall back
+        to their own defaults rather than seeing the rdb error. Never
+        pre-merges — the worker does a per-key DB->env->hardcoded merge, and
+        the apiv4 service applies presentation defaults.
+        """
+        try:
+            with cls._rdb_context():
+                return (
+                    r.table(cls._rdb_table)
+                    .get(1)
+                    .get_field("storage_scheduler")
+                    .default({})
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            return {}
+
+    @classmethod
     def get_backups_integrity_enabled(cls) -> bool | None:
         """Read ``config[1].backups.integrity_enabled``.
 

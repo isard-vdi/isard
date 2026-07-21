@@ -40,6 +40,7 @@ services:
       RETHINKDB_DB:
       RETHINKDB_HOST:
       RETHINKDB_PORT:
+      STORAGE_QUEUE_MULTITENANCY:
       # Engine uses the fork's ``ThreadSafeConnectionPool`` (P2 #7,
       # 2026-05-02) — own instance, distinct from `_common`'s shared
       # pool but with the same observer wiring. Env vars match the

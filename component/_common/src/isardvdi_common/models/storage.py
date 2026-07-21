@@ -24,6 +24,7 @@ from uuid import uuid4
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib import queue_tiers
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.user import User
@@ -405,11 +406,16 @@ class Storage(RethinkCustomBase):
     @property
     def category(self):
         """
-        Returns the category of the storage user_id owner
+        Returns the category of the storage user_id owner, or None if the owner
+        no longer exists.
+
+        One rdb read: fetch the owner document and read its category, instead of
+        an ``exists()`` probe followed by a second per-field pluck. This is on the
+        per-task produce hot path under queue multitenancy (every bulk/background
+        storage task resolves it), so the extra round-trip is worth removing.
         """
-        if User.exists(self.user_id):
-            return User(self.user_id).category
-        return None
+        owner = User.get(self.user_id)
+        return owner.get("category") if owner else None
 
     @classmethod
     def create_from_path(cls, path, user_id):
@@ -480,6 +486,29 @@ class Storage(RethinkCustomBase):
         """
         Create Task for a Storage.
         """
+        # Phase-1 queue tiering: normalise the root task's queue and every
+        # dependent task's queue to the interactive/standard/bulk/background
+        # model, using each task's own ``action`` for the action-aware rules.
+        # Phase-2 multitenancy: when the STORAGE_QUEUE_MULTITENANCY switch is on,
+        # thread the owning category (resolved here at produce time, where rdb is
+        # reachable) so bulk/background land on per-category lanes the elastic
+        # worker fair-schedules; the worker never re-reads the category (it parses
+        # it from the queue name). ``self.category`` is the storage owner's
+        # category, or None for a deleted owner / system task — which resolves to
+        # the NULL_CATEGORY sentinel so it rides its OWN discovered ``_nocat`` fair
+        # lane instead of the always-last flat catch-all (kept solely for legacy
+        # pre-upgrade producers). Off => None => flat, the pre-Phase-2 shape.
+        category = (
+            (self.category or queue_tiers.NULL_CATEGORY)
+            if queue_tiers.multitenancy_enabled()
+            else None
+        )
+        kwargs.setdefault("category_id", category)
+        if "queue" in kwargs:
+            kwargs["queue"] = queue_tiers.retier_queue(
+                kwargs["queue"], kwargs.get("task"), category
+            )
+        queue_tiers.retier_dependents(kwargs.get("dependents"), category)
         if "blocking" in kwargs:
             blocking = kwargs.pop("blocking")
         else:
@@ -550,12 +579,23 @@ class Storage(RethinkCustomBase):
         )
         return self.task
 
-    def check_backing_chain(self, user_id, blocking=True, retry=3):
+    def check_backing_chain(
+        self, user_id, blocking=True, retry=3, priority="background"
+    ):
         """
         Create a task to check the storage.
 
+        The tier follows the TRIGGER, not the action: a standalone backing-chain
+        refresh (post-stop size refresh, batch status re-scan) nobody is blocked
+        on defaults to ``background`` (the idle lane); an admin datatable "check"
+        click passes ``priority="standard"`` for a quicker turnaround. The user
+        still sees the result — feedback is emitted regardless of tier.
+
         :param user_id: User ID of the user executing the task
         :type user_id: str
+        :param priority: Requested tier for the refresh (``background`` by default
+            for idle lifecycle refreshes; ``standard`` for an admin-triggered one)
+        :type priority: str
         :return: Task ID
         :rtype: str
         """
@@ -563,7 +603,7 @@ class Storage(RethinkCustomBase):
         self.create_task(
             blocking=blocking,
             user_id=user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.default",
+            queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{priority}",
             task="qemu_img_info_backing_chain",
             retry=retry,
             retry_intervals=15,
@@ -888,9 +928,12 @@ class Storage(RethinkCustomBase):
                                         ],
                                     },
                                 },
-                                # Mirror "canceled": a failed/cancelled delete
-                                # restores the source to ready instead of
-                                # dropping the row while the file may be on disk.
+                                # A failed delete surfaces to the consumer as
+                                # job_status="failed" (a running-cancel raises,
+                                # too). Mirror "canceled": restore the source to
+                                # ready rather than fall through to "finished"
+                                # (which drops the DB row while the file may
+                                # still be on disk).
                                 "failed": {
                                     "ready": {
                                         "storage": [self.id],
@@ -1048,9 +1091,12 @@ class Storage(RethinkCustomBase):
                                         ],
                                     },
                                 },
-                                # virt_win_reg is in-place: a failed/cancelled
-                                # merge leaves the storage ready instead of the
-                                # missing-branch no-op.
+                                # virt_win_reg is in-place; a failed merge
+                                # surfaces as job_status="failed" (a cancel
+                                # raises, too). Mirror "canceled"/"finished":
+                                # leave the storage ready rather than the
+                                # missing-branch no-op that only worked while
+                                # the root was force-FINISHED.
                                 "failed": {
                                     "ready": {
                                         "storage": [self.id],
@@ -1260,9 +1306,12 @@ class Storage(RethinkCustomBase):
                                         "storage": [new_storage.id],
                                     },
                                 },
-                                # A failed/cancelled convert deletes the
-                                # half-written destination instead of leaving a
-                                # partial disk at its target status.
+                                # A failed convert surfaces to the consumer as
+                                # job_status="failed" (a running-cancel raises,
+                                # too). Delete the half-written destination
+                                # instead of leaving it at its target status —
+                                # otherwise a partial/corrupt disk reads as a
+                                # good one.
                                 "failed": {
                                     "deleted": {
                                         "storage": [new_storage.id],
@@ -1297,6 +1346,12 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        # recreate is a foreground op (fresh disk from the parent, then delete the
+        # old one): route its default to the seconds ``standard`` lane, not the
+        # sub-second reserved (interactive) pool a plain ``create`` would take. An
+        # explicit non-default priority from the caller is still honoured.
+        if priority == "default":
+            priority = "standard"
         if not self.parent:
             raise Exception(
                 "precondition_required",
@@ -1755,7 +1810,7 @@ class Storage(RethinkCustomBase):
         desktop_id,
         template_id,
         template_storage_id,
-        priority="default",
+        priority="template",
         retry: int = 0,
         timeout=43200,
     ):
@@ -1823,7 +1878,10 @@ class Storage(RethinkCustomBase):
         :param template_id: New template domain id (already inserted).
         :param template_storage_id: New template storage id (already
             allocated via ``Storage.new_dict``).
-        :param priority: RQ priority bucket (default ``"default"``).
+        :param priority: RQ priority bucket. Defaults to ``"template"`` so the
+            whole chain rides the dedicated governed template lane — a heavy
+            whole-disk copy that must never block (or be blocked by) quick bulk
+            creates, and never touches the reserved/std foreground pools.
         :param retry: Number of retries on the root ``move`` task.
         :param timeout: Per-task timeout in seconds (default 12 h, matches
             :meth:`rsync`).

@@ -851,6 +851,17 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## WARNING: The increase of workers could lead to cpu overload
 #REDIS_WORKERS=1
 
+# Storage task-queue multitenancy (per-category fair scheduling)
+## When false (default) all tenants share one storage task queue per tier
+## (global). When true, the bulk/background storage tasks are split into
+## per-category (per-tenant) queues and the elastic worker fair-schedules across
+## them (weighted round-robin + optional per-category in-flight caps), so one
+## category's bulk deploy cannot monopolise storage throughput.
+## Structural switch: set the SAME value on every host and recreate the
+## containers to change it (it is read by isard-api, isard-engine and
+## isard-storage).
+#STORAGE_QUEUE_MULTITENANCY=false
+
 # Redis task result TTL
 ## The time to live of the task results in the redis database in seconds
 ## Default is 30 days. Set it to -1 so the results never expire
@@ -934,6 +945,14 @@ WG_GUESTS_RESERVED_HOSTS=20
 #TF_VAR_fingerprint=
 #TF_VAR_region=
 #TF_VAR_private_key=
+
+# ------ Storage Governor Collector ----------------------------------------
+# Scrapes the tiered/governed storage scheduler gauges from the apiv4 admin
+# endpoint (GET /admin/items/queues/governor) and exports them as
+# isardvdi_storage_governor_* Prometheus metrics. Reuses the ISARDVDI_API
+# collector's address + service secret. Enable once the storage-governor
+# observability backend is deployed on the web node.
+#STATS_COLLECTORS_STORAGE_GOVERNOR_ENABLE=false
 
 ##################################################################
 ## CHECK PARAMETERS                                             ##

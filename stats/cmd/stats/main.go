@@ -93,6 +93,7 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 	system := cfg.Collectors.System.Enable
 	isardvdiAPI := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAPI.Enable
 	isardvdiAuthentication := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAuthentication.Enable
+	storageGovernor := hasWeb(cfg.Flavour) && cfg.Collectors.StorageGovernor.Enable
 	oci := hasWeb(cfg.Flavour) && cfg.Collectors.OCI.Enable
 	conntrack := hasWeb(cfg.Flavour) && cfg.Collectors.Conntrack.Enable
 
@@ -172,6 +173,21 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 
 		a := collector.NewIsardVDIAPI(ctx, log, cli)
 		collectors = append(collectors, a)
+	}
+
+	if storageGovernor {
+		httpClient := ogenclient.NewHTTPClient(ogenclient.WithIgnoreCerts())
+		cli, err := apiv4.NewClient(
+			cfg.Collectors.IsardVDIAPI.Addr,
+			ogenclient.APIv4Source{Secret: cfg.Collectors.IsardVDIAPI.Secret},
+			apiv4.WithClient(httpClient),
+		)
+		if err != nil {
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create storage governor API client")
+		}
+
+		g := collector.NewStorageGovernor(ctx, log, cli)
+		collectors = append(collectors, g)
 	}
 
 	if isardvdiAuthentication {

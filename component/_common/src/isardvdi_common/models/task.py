@@ -123,6 +123,12 @@ class Task(RedisBase):
             kwargs["job_kwargs"].setdefault("meta", {}).setdefault(
                 "user_id", kwargs.get("user_id")
             )
+            # Owner category, threaded so the storage worker can fair-schedule
+            # bulk/background throughput per category (Phase 2). None for a task
+            # with no resolvable owner (system maintenance / deleted owner).
+            kwargs["job_kwargs"].setdefault("meta", {}).setdefault(
+                "category_id", kwargs.get("category_id")
+            )
             # Give every task an explicit, action-appropriate job_timeout so a
             # long-running op (download / convert / sparsify / move) is not
             # killed by RQ's 180 s Queue.DEFAULT_TIMEOUT mid-flight. A callsite
@@ -155,6 +161,7 @@ class Task(RedisBase):
             self.job.save()
             for dependent in kwargs.get("dependents", []):
                 dependent.setdefault("user_id", kwargs.get("user_id"))
+                dependent.setdefault("category_id", kwargs.get("category_id"))
                 dependent.setdefault("retry", kwargs.get("retry", 0))
                 dependent.setdefault(
                     "retry_intervals", kwargs.get("retry_intervals", 0)
@@ -214,6 +221,10 @@ class Task(RedisBase):
     @property
     def user_id(self):
         return self.job.meta.get("user_id")
+
+    @property
+    def category_id(self):
+        return self.job.meta.get("category_id")
 
     @property
     def queue(self):

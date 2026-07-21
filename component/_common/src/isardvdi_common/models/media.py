@@ -24,6 +24,7 @@ from isardvdi_common.connections.rethink_custom_base_factory import RethinkCusto
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib import queue_tiers
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from isardvdi_common.models.storage_pool import StoragePool
 from pydantic import BaseModel, Field
@@ -71,6 +72,26 @@ class Media(RethinkCustomBase):
         """
         Create Task for a Media.
         """
+        # Phase-1 queue tiering (see isardvdi_common.lib.queue_tiers): route the
+        # media download / delete / existence-check tasks onto the canonical
+        # tiers. A media download defaults to background; delete/check resolve to
+        # interactive by their action. Phase-2 multitenancy: when the
+        # STORAGE_QUEUE_MULTITENANCY switch is on, segment the fair tiers by the
+        # media's owning category (``self.category`` is the category id field) so
+        # the elastic worker fair-schedules per tenant. A null category (system /
+        # ownerless media) resolves to the NULL_CATEGORY sentinel so it rides its
+        # own discovered ``_nocat`` fair lane, not the always-last flat catch-all.
+        category = (
+            (self.category or queue_tiers.NULL_CATEGORY)
+            if queue_tiers.multitenancy_enabled()
+            else None
+        )
+        kwargs.setdefault("category_id", category)
+        if "queue" in kwargs:
+            kwargs["queue"] = queue_tiers.retier_queue(
+                kwargs["queue"], kwargs.get("task"), category
+            )
+        queue_tiers.retier_dependents(kwargs.get("dependents"), category)
         if "blocking" in kwargs:
             blocking = kwargs.pop("blocking")
         else:
