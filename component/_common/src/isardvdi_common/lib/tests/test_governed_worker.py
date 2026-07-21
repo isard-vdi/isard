@@ -352,11 +352,11 @@ def _worker(
     # env/hardcoded fallbacks (Worker.__init__ is skipped). _refresh_live_config
     # reads the ``governor:config`` Redis key (absent here unless a test sets it)
     # and merges it over these env defaults each poll — never touching rdb.
-    w._env_enabled = True
-    w._env_psi_limit = psi_limit
-    w._env_max_heavy = max_heavy
-    w._env_backoff = 1
-    w._env_category_default_max_inflight = None
+    w._default_enabled = True
+    w._default_psi_limit = psi_limit
+    w._default_max_heavy = max_heavy
+    w._default_backoff = 1
+    w._default_category_default_max_inflight = None
     w.gov_enabled = True
     w.gov_psi_limit = psi_limit
     w.gov_max_heavy = max_heavy
@@ -936,8 +936,8 @@ def test_refresh_live_config_absent_key_is_all_env():
     w._refresh_live_config()
     assert w.gov_enabled is True
     assert w.gov_psi_limit == 40.0
-    assert w.gov_max_heavy == 2  # _env_max_heavy default
-    assert w.gov_backoff == 1  # _env_backoff set by _worker()
+    assert w.gov_max_heavy == 2  # _default_max_heavy default
+    assert w.gov_backoff == 1  # _default_backoff set by _worker()
 
 
 def test_refresh_live_config_bad_json_falls_back_to_env():
@@ -1003,7 +1003,7 @@ def test_kill_switch_disables_deferral(tmp_path):
         max_heavy=2,
         queue_class=qc,
     )
-    w._env_enabled = False  # kill-switch off; _refresh_live_config picks it up
+    w._default_enabled = False  # kill-switch off; _refresh_live_config picks it up
     w._ordered_queues = [bg]
     job, queue = w.dequeue_job_and_maintain_ttl(10)
     assert (job.id, queue.name) == ("b1", "storage.p.maintenance")

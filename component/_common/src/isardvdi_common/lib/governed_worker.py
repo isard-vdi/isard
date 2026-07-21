@@ -44,12 +44,11 @@ RethinkDB connection, so this worker does NOT read the config table directly.
 Instead apiv4 — which legitimately reaches both stores — mirrors
 ``config[1].storage_scheduler`` into the shared RQ Redis (key ``governor:config``,
 the very Redis this worker already uses as its broker) on every admin edit. Each
-dequeue poll the parent reads that key and merges it over the env/hardcoded
-startup defaults (DB -> env -> hardcoded), so an admin can retune pressure/cap or
-disable gating without a restart. The read is fault-tolerant: a missing key, a
-Redis blip or a bad value falls back per key to env/hardcoded, and — unlike an
-rdb read — it needs no fork handling because the Redis client is already
-RQ-fork-safe.
+dequeue poll the parent reads that key and merges it over the hardcoded startup
+defaults (DB -> hardcoded), so an admin can retune pressure/cap or disable gating
+without a restart. The read is fault-tolerant: a missing key, a Redis blip or a
+bad value falls back per key to the hardcoded default, and — unlike an rdb read —
+it needs no fork handling because the Redis client is already RQ-fork-safe.
 """
 
 import json
@@ -317,18 +316,11 @@ def is_deferrable_queue(name):
 class GovernedWorker(Worker):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Env/hardcoded fallbacks (the structural defaults). The live DB block
-        # overrides these per poll via _refresh_live_config; keeping the env
-        # values immutable here means a later DB read can always fall back.
-        self._env_enabled = _as_bool(os.environ.get("STORAGE_GOVERNOR_ENABLED"), True)
-        self._env_psi_limit = float(os.environ.get("STORAGE_GOVERNOR_PSI_LIMIT", "40"))
-        self._env_max_heavy = int(os.environ.get("STORAGE_GOVERNOR_MAX_HEAVY", "2"))
-        # Poll cadence: how often (seconds) we re-evaluate pressure/cap while
-        # blocking. Must be a positive integer (RQ's BLPOP rejects 0 / None
-        # here); a bad env value floors to 1.
-        self._env_backoff = max(
-            1, int(float(os.environ.get("STORAGE_GOVERNOR_BACKOFF", "3") or 3))
-        )
+        # Fallback defaults; the live governor:config DB block overrides per poll.
+        self._default_enabled = True
+        self._default_psi_limit = 40.0
+        self._default_max_heavy = 2
+        self._default_backoff = 3
         # Per-category MULTITENANCY (Phase 2) is a STRUCTURAL switch read once
         # from the docker-compose env (STORAGE_QUEUE_MULTITENANCY), NOT a live
         # knob — it must match the producers, and flipping it recreates the
@@ -340,17 +332,17 @@ class GovernedWorker(Worker):
         # multitenancy) but NEVER governs — no PSI defer, no cap, no reservation —
         # so >=1 heavy task always makes progress regardless of the live governor.
         self._floor = _as_bool(os.environ.get("STORAGE_GOVERNOR_FLOOR"), False)
-        self._env_category_default_max_inflight = _as_opt_int(
-            os.environ.get("STORAGE_GOVERNOR_CATEGORY_DEFAULT_MAX_INFLIGHT"), None
-        )
-        # Effective (live) knobs; start at the env defaults, refreshed each poll.
-        self.gov_enabled = self._env_enabled
-        self.gov_psi_limit = self._env_psi_limit
-        self.gov_max_heavy = self._env_max_heavy
-        self.gov_backoff = self._env_backoff
+        self._default_category_default_max_inflight = None
+        # Effective (live) knobs; start at the defaults, refreshed each poll.
+        self.gov_enabled = self._default_enabled
+        self.gov_psi_limit = self._default_psi_limit
+        self.gov_max_heavy = self._default_max_heavy
+        self.gov_backoff = self._default_backoff
         self.gov_category_weights = {}
         self.gov_category_max_inflight = {}
-        self.gov_category_default_max_inflight = self._env_category_default_max_inflight
+        self.gov_category_default_max_inflight = (
+            self._default_category_default_max_inflight
+        )
         # Weighted-RR rotation cursor so equal-share categories take turns across
         # polls instead of one always winning the tie.
         self._wrr_cursor = 0
@@ -400,11 +392,11 @@ class GovernedWorker(Worker):
         eff = _merge_live_config(
             block,
             {
-                "enabled": self._env_enabled,
-                "psi_limit": self._env_psi_limit,
-                "max_heavy": self._env_max_heavy,
-                "backoff": self._env_backoff,
-                "category_default_max_inflight": self._env_category_default_max_inflight,
+                "enabled": self._default_enabled,
+                "psi_limit": self._default_psi_limit,
+                "max_heavy": self._default_max_heavy,
+                "backoff": self._default_backoff,
+                "category_default_max_inflight": self._default_category_default_max_inflight,
             },
         )
         was_enabled = self.gov_enabled

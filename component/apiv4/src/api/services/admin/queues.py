@@ -86,18 +86,14 @@ category_names_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
 # cache slot instead of thrashing a single entry.
 problem_tasks_cache = SynchronizedTTLCache(maxsize=64, ttl=5)
 
-# Bounded-scan caps (env-tunable; a cap that bites is surfaced via the
-# truncated_* honesty fields, not silently dropped — plan §5/18).
-MAX_LANES = int(os.environ.get("STORAGE_GOVERNOR_MAX_LANES", "500") or 500)
-MAX_INFLIGHT_SCAN = int(
-    os.environ.get("STORAGE_GOVERNOR_MAX_INFLIGHT_SCAN", "2000") or 2000
-)
-MAX_STARTED = int(os.environ.get("STORAGE_GOVERNOR_MAX_STARTED", "500") or 500)
+# Bounded-scan caps (internal safety limits). A cap that bites is surfaced via
+# the truncated_* honesty fields, not silently dropped.
+MAX_LANES = 500
+MAX_INFLIGHT_SCAN = 2000
+MAX_STARTED = 500
 # Overall cap on job ids scanned across all target lanes by list_problem_tasks;
 # a cap that bites is surfaced via the response ``truncated`` honesty flag.
-MAX_PROBLEM_SCAN = int(
-    os.environ.get("STORAGE_GOVERNOR_MAX_PROBLEM_SCAN", "2000") or 2000
-)
+MAX_PROBLEM_SCAN = 2000
 
 # Batch size for the read-only leak scan's Job.fetch_many round-trips.
 _INFLIGHT_FETCH_BATCH = 1000
