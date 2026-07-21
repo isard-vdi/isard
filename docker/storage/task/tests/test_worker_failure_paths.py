@@ -118,3 +118,52 @@ def test_disconnect_raises_on_failure(monkeypatch):
     monkeypatch.setattr(task, "remove", lambda p: None)
     with pytest.raises(Exception):
         task.disconnect("/isard/d.qcow2")
+
+
+# ---------------------------------------------------------------------------
+# delete: a missing file is idempotent success ONLY on a reachable mount.
+#
+# `isfile()` returns False both when the disk is genuinely already gone and
+# when its storage-pool mount is down / unmounted / has a stale NFS handle.
+# Blindly raising on a missing file (the old behaviour) means that, once the
+# consumer honours job_status, a legitimately-gone disk fails forever and its
+# recycle-bin entry sticks in `deleting`. Blindly succeeding risks dropping a
+# DB row whose disk still exists on a mount that is merely down. So: missing +
+# parent dir reachable -> no-op success; missing + parent dir unreachable ->
+# raise (fail & retry).
+# ---------------------------------------------------------------------------
+
+
+def test_delete_removes_existing_file(monkeypatch):
+    import task
+
+    removed = []
+    monkeypatch.setattr(task, "isfile", lambda p: True)
+    monkeypatch.setattr(task, "remove", lambda p: removed.append(p))
+
+    task.delete("/isard/groups/x.qcow2")
+    assert removed == ["/isard/groups/x.qcow2"]
+
+
+def test_delete_missing_file_on_live_mount_is_noop(monkeypatch):
+    import task
+
+    removed = []
+    monkeypatch.setattr(task, "isfile", lambda p: False)
+    monkeypatch.setattr(task, "isdir", lambda p: True)  # parent reachable
+    monkeypatch.setattr(task, "remove", lambda p: removed.append(p))
+
+    # Must NOT raise: the disk is already gone on a live mount.
+    assert task.delete("/isard/groups/x.qcow2") is None
+    assert removed == []
+
+
+def test_delete_missing_file_on_dead_mount_raises(monkeypatch):
+    import task
+
+    monkeypatch.setattr(task, "isfile", lambda p: False)
+    monkeypatch.setattr(task, "isdir", lambda p: False)  # parent unreachable
+    monkeypatch.setattr(task, "remove", lambda p: None)
+
+    with pytest.raises(Exception):
+        task.delete("/isard/groups/x.qcow2")
