@@ -329,6 +329,13 @@ gen-protobuf:
     - chmod -R a+rwX .
   script:
     - docker run -u $(id -u) -v "$(pwd):/build" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
+    # gen.sh resolves node deps via NODE_PATH and must not touch the tracked
+    # root package.json (older versions symlinked /deps manifests over it).
+    - |-
+      if [ ! -f package.json ] || [ -L package.json ]; then
+        echo "ERROR: codegen removed or replaced the tracked root package.json"
+        exit 1
+      fi
   artifacts:
     paths:
       - pkg/gen
