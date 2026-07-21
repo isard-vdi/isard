@@ -314,11 +314,7 @@ func (o *Orchestrator) orchestratorDeadRowSet(ctx context.Context, id string) (t
 	}
 
 	if v, ok := res.(*apiv4.DeadRowSetResponse); ok {
-		t, parseErr := time.Parse(time.RFC3339Nano, v.DestroyTime)
-		if parseErr != nil {
-			return time.Time{}, fmt.Errorf("parse destroy_time %q: %w", v.DestroyTime, parseErr)
-		}
-		return t, nil
+		return v.DestroyTime, nil
 	}
 
 	return time.Time{}, ogenclient.AsAPIError(res)

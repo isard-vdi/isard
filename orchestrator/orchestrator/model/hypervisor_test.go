@@ -18,7 +18,7 @@ func TestHypervisorLoadsRAMFromStats(t *testing.T) {
 	raw := &apiv4.OrchestratorHypervisor{
 		ID:     "hyp-1",
 		Status: model.HypervisorStatusOnline,
-		Stats: apiv4.NewOptNilOrchestratorHypervisorStats(apiv4.OrchestratorHypervisorStats{
+		Stats: apiv4.NewNilOrchestratorHypervisorStats(apiv4.OrchestratorHypervisorStats{
 			MemStats: apiv4.OrchestratorHypervisorStatsMem{
 				Total: 4 * 1024 * 1024, // 4 GB in KB
 				Used:  1 * 1024 * 1024, // 1 GB in KB
@@ -39,7 +39,7 @@ func TestHypervisorLoadsCPUFromStats(t *testing.T) {
 	raw := &apiv4.OrchestratorHypervisor{
 		ID:     "hyp-2",
 		Status: model.HypervisorStatusOnline,
-		Stats: apiv4.NewOptNilOrchestratorHypervisorStats(apiv4.OrchestratorHypervisorStats{
+		Stats: apiv4.NewNilOrchestratorHypervisorStats(apiv4.OrchestratorHypervisorStats{
 			CPU5min: apiv4.OrchestratorHypervisorStatsCPU{
 				Used: 42.5,
 				Idle: 57.5,
@@ -60,6 +60,7 @@ func TestHypervisorNoStats(t *testing.T) {
 	raw := &apiv4.OrchestratorHypervisor{
 		ID:     "hyp-3",
 		Status: model.HypervisorStatusOffline,
+		Stats:  apiv4.NilOrchestratorHypervisorStats{Null: true},
 	}
 
 	h := model.NewHypervisor(raw)
@@ -74,7 +75,7 @@ func TestHypervisorRAMFreeUsesByteDivision(t *testing.T) {
 	raw := &apiv4.OrchestratorHypervisor{
 		ID:     "hyp-byte-diff",
 		Status: model.HypervisorStatusOnline,
-		Stats: apiv4.NewOptNilOrchestratorHypervisorStats(apiv4.OrchestratorHypervisorStats{
+		Stats: apiv4.NewNilOrchestratorHypervisorStats(apiv4.OrchestratorHypervisorStats{
 			MemStats: apiv4.OrchestratorHypervisorStatsMem{
 				Total: 8388608,
 				Used:  8388607,

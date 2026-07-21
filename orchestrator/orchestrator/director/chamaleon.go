@@ -70,22 +70,22 @@ availHypersLoop:
 	for _, h := range hypers {
 		switch h.Status {
 		case model.HypervisorStatusOnline:
-			if h.DestroyTime().IsZero() {
+			if h.DestroyTime.Or(time.Time{}).IsZero() {
 				// Ensure we don't play with buffering hypervisors! :)
-				if !h.BufferingHyper.Or(false) && !h.OnlyForced.Or(false) && len(h.Gpus) != 0 {
+				if !h.BufferingHyper && !h.OnlyForced && len(h.Gpus) != 0 {
 					// It's online, has GPUs and not only forced, count it as available resources
 					for _, g := range h.Gpus {
 						totalUnits[g.Profile] += g.TotalUnits
 					}
 
 					// Only work with hypervisors we manage
-					if h.OrchestratorManaged.Or(false) {
+					if h.OrchestratorManaged {
 						hypersAvail = append(hypersAvail, h)
 					}
 				}
 			} else {
 				// Only work with orchestrator managed hypervisors
-				if h.OrchestratorManaged.Or(false) && len(h.Gpus) != 0 {
+				if h.OrchestratorManaged && len(h.Gpus) != 0 {
 					hypersOnDeadRow = append(hypersOnDeadRow, h)
 				}
 			}
@@ -153,9 +153,9 @@ availHypersLoop:
 		switch h.Status {
 		case model.HypervisorStatusOnline:
 			// Ensure we don't play with buffering hypervisors or non orchestrator managed ones! :)
-			if !h.BufferingHyper.Or(false) && h.OrchestratorManaged.Or(false) && len(h.Gpus) != 0 {
+			if !h.BufferingHyper && h.OrchestratorManaged && len(h.Gpus) != 0 {
 				// Check if we need to kill the hypervisor (because it's time to kill it or it has 0 desktops started)
-				if !h.DestroyTime().IsZero() && (h.DestroyTime().Before(time.Now()) || h.DesktopsStarted.Or(0) == 0 || h.BookingsEndTime().Before(time.Now())) {
+				if !h.DestroyTime.Or(time.Time{}).IsZero() && (h.DestroyTime.Or(time.Time{}).Before(time.Now()) || h.DesktopsStarted == 0 || h.BookingsEndTime.Or(time.Time{}).Before(time.Now())) {
 					hypersToDestroy = append(hypersToDestroy, h.ID)
 				}
 			}
@@ -228,7 +228,7 @@ func chamaleonIsBigger(this []*model.Hypervisor, thanThis []*model.Hypervisor) b
 		currMem := 0
 		currDktp := 0
 		for _, h := range l {
-			currDktp += h.DesktopsStarted.Or(0)
+			currDktp += h.DesktopsStarted
 			for _, g := range h.Gpus {
 				for _, card := range chamaleonGPUProfiles {
 					if card.Brand == g.Brand && card.Model == g.Model {

@@ -20,7 +20,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 # ── Hypervisor CRUD ──────────────────────────────────────────────────────
 
@@ -135,6 +135,8 @@ class OrchestratorHypervisorStatsCPU(BaseModel):
 
 
 class OrchestratorHypervisorStatsMem(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     available: int
     buffers: int
     cached: int
@@ -147,6 +149,8 @@ class OrchestratorHypervisorStatsMem(BaseModel):
 
 
 class OrchestratorHypervisorStats(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     cpu_current: OrchestratorHypervisorStatsCPU
     cpu_5min: OrchestratorHypervisorStatsCPU
     cpu_15min: OrchestratorHypervisorStatsCPU
@@ -170,17 +174,19 @@ class OrchestratorHypervisorGPU(BaseModel):
 
 
 class OrchestratorHypervisor(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     id: str
     status: str
     only_forced: bool = False
     buffering_hyper: bool = False
-    destroy_time: Optional[str] = None
+    destroy_time: Optional[AwareDatetime] = None
     stats: Optional[OrchestratorHypervisorStats] = None
     orchestrator_managed: bool = False
     min_free_mem_gb: int = 0
     gpu_only: bool = False
     desktops_started: int = 0
-    bookings_end_time: Optional[str] = None
+    bookings_end_time: Optional[AwareDatetime] = None
     gpus: list[OrchestratorHypervisorGPU] = []
 
     @field_validator("stats", mode="before")
@@ -196,17 +202,19 @@ class OrchestratorHypervisor(BaseModel):
 
 
 class OrchestratorManagedHypervisor(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     id: str
     info: Optional[dict] = None
     stats: Optional[dict] = None
     status: str
-    destroy_time: Optional[str] = None
+    destroy_time: Optional[AwareDatetime] = None
     status_time: Optional[str] = None
     desktops_started: int = 0
 
 
 class DeadRowSetResponse(BaseModel):
-    destroy_time: str
+    destroy_time: AwareDatetime
 
 
 class AdminHypervisorCapabilities(BaseModel):

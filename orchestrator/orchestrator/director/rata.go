@@ -59,7 +59,7 @@ func (r *Rata) minCPU() int {
 }
 
 func (r *Rata) hyperMinRAM(h *model.Hypervisor) int {
-	return r.cfg.HyperMinRAM + (h.MinFreeMemGB.Or(0) * 1024) // we want it as MB, not GB
+	return r.cfg.HyperMinRAM + (h.MinFreeMemGB * 1024) // we want it as MB, not GB
 }
 
 // minRAM is the minimum MB of RAM that need to be free in the pool. If it's zero, it's not going to use it
@@ -102,7 +102,7 @@ func (r *Rata) minRAM(hypers []*model.Hypervisor) int {
 }
 
 func (r *Rata) hyperMaxRAM(h *model.Hypervisor) int {
-	return r.cfg.HyperMaxRAM + (h.MinFreeMemGB.Or(0) * 1024) // we want it as MB, not GB
+	return r.cfg.HyperMaxRAM + (h.MinFreeMemGB * 1024) // we want it as MB, not GB
 }
 
 // maxRAM is the maximum MB of RAM that can to be free in the pool. If it's zero, it's not going to use it
@@ -166,24 +166,24 @@ func (r *Rata) classifyHypervisors(hypers []*model.Hypervisor) (
 	for _, h := range hypers {
 		// Check if we need to acknowledge the hypervisor
 		if h.Status == model.HypervisorStatusOnline &&
-			!h.BufferingHyper.Or(false) &&
-			!h.GpuOnly.Or(false) {
+			!h.BufferingHyper &&
+			!h.GpuOnly {
 
-			if !h.OnlyForced.Or(false) {
+			if !h.OnlyForced {
 				hypersToAcknowledge = append(hypersToAcknowledge, h)
 			}
 
 			// Ensure we don't play with non orchestrator managed hypervisors! :)
-			if h.OrchestratorManaged.Or(false) {
+			if h.OrchestratorManaged {
 				hypersToHandle = append(hypersToHandle, h)
 
 				// Check if the hypervisor is in the dead row
-				if !h.DestroyTime().IsZero() {
+				if !h.DestroyTime.Or(time.Time{}).IsZero() {
 					hypersOnDeadRow = append(hypersOnDeadRow, h)
 
 					// If the hypervisor is not on the dead row but is only forced, is currently
 					// being resource limited
-				} else if h.OnlyForced.Or(false) {
+				} else if h.OnlyForced {
 					hypersLimited = append(hypersLimited, h)
 				}
 			}
@@ -242,7 +242,7 @@ func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*model.Hypervisor, ramAvail, 
 		if enoughRAM {
 			if hyperToPardon != nil {
 				// Get the hypervisor that has the furthest destroy time
-				if h.DestroyTime().Compare(hyperToPardon.DestroyTime()) == 1 {
+				if h.DestroyTime.Or(time.Time{}).Compare(hyperToPardon.DestroyTime.Or(time.Time{})) == 1 {
 					hyperToPardon = h
 				}
 
@@ -284,9 +284,9 @@ func (r *Rata) bestHyperToUnlimit(hypersToAcknowledge []*model.Hypervisor, ramAv
 func (r *Rata) bestHyperToDestroy(hypersToHandle []*model.Hypervisor) *model.Hypervisor {
 	for _, h := range hypersToHandle {
 		// Check if we need to kill the hypervisor (because it's time to kill it or it has 0 desktops started)
-		if !h.DestroyTime().IsZero() && (h.DestroyTime().Before(time.Now()) || h.DesktopsStarted.Or(0) == 0) {
+		if !h.DestroyTime.Or(time.Time{}).IsZero() && (h.DestroyTime.Or(time.Time{}).Before(time.Now()) || h.DesktopsStarted == 0) {
 			// Avoid killing hypervisors that aren't in only forced (are in use) due a mismanagement
-			if !h.OnlyForced.Or(false) {
+			if !h.OnlyForced {
 				r.log.Warn().Str("id", h.ID).Msg("avoided killing hypervisor due not being in only forced")
 				continue
 			}
@@ -318,11 +318,11 @@ func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*m
 		maxRAM := r.maxRAM(reducedHypersToAcknowledge)
 
 		// Ensure the hypervisor is not on the dead row
-		canBeSentenced := h.DestroyTime().IsZero() &&
+		canBeSentenced := h.DestroyTime.Or(time.Time{}).IsZero() &&
 			(
 			// If the hypervisor is only forced, the maxRAM límit is set and we've reached the maxRAM limit
 			// (we don't need to check if we can remove it, since it's already not being counted for the ramAvail limit)
-			(h.OnlyForced.Or(false) && maxRAM > 0 && ramAvail > maxRAM) ||
+			(h.OnlyForced && maxRAM > 0 && ramAvail > maxRAM) ||
 				// If the maxRAM limit is set and if we remove it, we'll have enough RAM to meet the minRAM limit
 				(maxRAM > 0 && ramAvail > maxRAM && ramAvail-h.RAM.Free > minRAM))
 
@@ -457,8 +457,8 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*model.Hypervisor) 
 	_, hypersToManage, _, _ := r.classifyHypervisors(hypers)
 	for _, h := range hypersToManage {
 		// Don't run extra operations on hypervisors on the dead row
-		if h.DestroyTime().IsZero() {
-			switch h.OnlyForced.Or(false) {
+		if h.DestroyTime.Or(time.Time{}).IsZero() {
+			switch h.OnlyForced {
 			// Set the hypervisors to only forced if there's too much load
 			case false:
 				if r.needToLimitHypervisor(h) {
@@ -480,7 +480,7 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*model.Hypervisor) 
 			case true:
 				// Don't touch hypervisors without desktops, they are probably going to
 				// be killed
-				if h.DesktopsStarted.Or(0) != 0 &&
+				if h.DesktopsStarted != 0 &&
 					// If the hypervisor has now enough free CPU
 					(r.cfg.HyperMaxCPU != 0 && (h.CPU.Free > r.cfg.HyperMaxCPU) ||
 						// If the hypervisor has now enough free RAM

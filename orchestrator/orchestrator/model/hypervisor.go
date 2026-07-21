@@ -2,7 +2,6 @@ package model
 
 import (
 	"math"
-	"time"
 
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 )
@@ -59,24 +58,4 @@ func (h *Hypervisor) calcLoad() {
 		Used:  mem.Used / 1024,
 		Free:  (mem.Total - mem.Used) / 1024,
 	}
-}
-
-func (h *Hypervisor) DestroyTime() time.Time {
-	return parseRFC3339Nano(h.OrchestratorHypervisor.DestroyTime)
-}
-
-func (h *Hypervisor) BookingsEndTime() time.Time {
-	return parseRFC3339Nano(h.OrchestratorHypervisor.BookingsEndTime)
-}
-
-func parseRFC3339Nano(opt apiv4.OptNilString) time.Time {
-	s, ok := opt.Get()
-	if !ok {
-		return time.Time{}
-	}
-	t, err := time.Parse(time.RFC3339Nano, s)
-	if err != nil {
-		return time.Time{}
-	}
-	return t
 }

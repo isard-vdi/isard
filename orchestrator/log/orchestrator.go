@@ -19,14 +19,14 @@ func NewModelHypervisor(h *model.Hypervisor) ModelHypervisor {
 func (m ModelHypervisor) MarshalZerologObject(e *zerolog.Event) {
 	e.Str("id", m.h.ID).
 		Str("status", m.h.Status).
-		Bool("only_forced", m.h.OnlyForced.Or(false)).
-		Bool("buffering", m.h.BufferingHyper.Or(false)).
-		Time("destroy_time", m.h.DestroyTime()).
-		Time("bookings_end_time", m.h.BookingsEndTime()).
-		Bool("orchestrator_managed", m.h.OrchestratorManaged.Or(false)).
-		Bool("gpu_only", m.h.GpuOnly.Or(false)).
-		Int("desktops_started", m.h.DesktopsStarted.Or(0)).
-		Int("min_free_mem_gb", m.h.MinFreeMemGB.Or(0)).
+		Bool("only_forced", m.h.OnlyForced).
+		Bool("buffering", m.h.BufferingHyper).
+		Time("destroy_time", m.h.DestroyTime.Or(time.Time{})).
+		Time("bookings_end_time", m.h.BookingsEndTime.Or(time.Time{})).
+		Bool("orchestrator_managed", m.h.OrchestratorManaged).
+		Bool("gpu_only", m.h.GpuOnly).
+		Int("desktops_started", m.h.DesktopsStarted).
+		Int("min_free_mem_gb", m.h.MinFreeMemGB).
 		Object("cpu", NewModelResourceLoad(m.h.CPU)).
 		Object("ram", NewModelResourceLoad(m.h.RAM)).
 		Array("gpus", NewModelGPUs(m.h.Gpus))

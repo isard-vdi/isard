@@ -14,6 +14,7 @@ func Hypervisor(opts ...HyperOption) *model.Hypervisor {
 	h := model.NewHypervisor(&apiv4.OrchestratorHypervisor{
 		ID:     "test-hyper",
 		Status: model.HypervisorStatusOnline,
+		Stats:  apiv4.NilOrchestratorHypervisorStats{Null: true},
 	})
 	for _, opt := range opts {
 		opt(h)
@@ -35,7 +36,7 @@ func WithStatus(status string) HyperOption {
 
 func WithOnlyForced(v bool) HyperOption {
 	return func(h *model.Hypervisor) {
-		h.OrchestratorHypervisor.OnlyForced = apiv4.NewOptBool(v)
+		h.OrchestratorHypervisor.OnlyForced = v
 	}
 }
 
@@ -55,54 +56,54 @@ func WithCPU(total, used, free int) HyperOption {
 
 func WithMinFreeMemGB(v int) HyperOption {
 	return func(h *model.Hypervisor) {
-		h.OrchestratorHypervisor.MinFreeMemGB = apiv4.NewOptInt(v)
+		h.OrchestratorHypervisor.MinFreeMemGB = v
 	}
 }
 
 func WithDesktopsStarted(v int) HyperOption {
 	return func(h *model.Hypervisor) {
-		h.OrchestratorHypervisor.DesktopsStarted = apiv4.NewOptInt(v)
+		h.OrchestratorHypervisor.DesktopsStarted = v
 	}
 }
 
 func WithGpuOnly(v bool) HyperOption {
 	return func(h *model.Hypervisor) {
-		h.OrchestratorHypervisor.GpuOnly = apiv4.NewOptBool(v)
+		h.OrchestratorHypervisor.GpuOnly = v
 	}
 }
 
 func WithBuffering(v bool) HyperOption {
 	return func(h *model.Hypervisor) {
-		h.OrchestratorHypervisor.BufferingHyper = apiv4.NewOptBool(v)
+		h.OrchestratorHypervisor.BufferingHyper = v
 	}
 }
 
 func WithOrchestratorManaged(v bool) HyperOption {
 	return func(h *model.Hypervisor) {
-		h.OrchestratorHypervisor.OrchestratorManaged = apiv4.NewOptBool(v)
+		h.OrchestratorHypervisor.OrchestratorManaged = v
 	}
 }
 
-// WithDestroyTime sets the DestroyTime field as an RFC3339Nano string.
+// WithDestroyTime sets the DestroyTime field.
 // A zero time sets the field to unset.
 func WithDestroyTime(t time.Time) HyperOption {
 	return func(h *model.Hypervisor) {
 		if t.IsZero() {
-			h.OrchestratorHypervisor.DestroyTime = apiv4.OptNilString{}
+			h.OrchestratorHypervisor.DestroyTime = apiv4.NilDateTime{Null: true}
 		} else {
-			h.OrchestratorHypervisor.DestroyTime = apiv4.NewOptNilString(t.Format(time.RFC3339Nano))
+			h.OrchestratorHypervisor.DestroyTime = apiv4.NewNilDateTime(t)
 		}
 	}
 }
 
-// WithBookingsEndTime sets the BookingsEndTime field as an RFC3339Nano string.
+// WithBookingsEndTime sets the BookingsEndTime field.
 // A zero time sets the field to unset.
 func WithBookingsEndTime(t time.Time) HyperOption {
 	return func(h *model.Hypervisor) {
 		if t.IsZero() {
-			h.OrchestratorHypervisor.BookingsEndTime = apiv4.OptNilString{}
+			h.OrchestratorHypervisor.BookingsEndTime = apiv4.NilDateTime{Null: true}
 		} else {
-			h.OrchestratorHypervisor.BookingsEndTime = apiv4.NewOptNilString(t.Format(time.RFC3339Nano))
+			h.OrchestratorHypervisor.BookingsEndTime = apiv4.NewNilDateTime(t)
 		}
 	}
 }

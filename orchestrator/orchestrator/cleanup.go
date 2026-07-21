@@ -21,7 +21,7 @@ func (o *Orchestrator) cleanup(ctx context.Context, api []*model.Hypervisor, ope
 		}
 
 		// Check if the hypervisor is a zombie
-		if !found && h.OrchestratorManaged.Or(false) && h.Status != model.HypervisorStatusOnline {
+		if !found && h.OrchestratorManaged && h.Status != model.HypervisorStatusOnline {
 			// If it's a zombie, delete it!
 			if err := o.adminHypervisorDelete(ctx, h.ID); err != nil {
 				return fmt.Errorf("kill zombie hypervisor '%s': %w", h.ID, err)
