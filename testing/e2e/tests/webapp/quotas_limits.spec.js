@@ -41,10 +41,39 @@ const U_ADV = 'qle2e-adv' // role: advanced
 // then block any child quota edit.)
 const SAMPLE_QUOTA = { desktops: 7, running: 3, vcpus: 4, memory: 6 }
 const SAMPLE_QUOTA_2 = { desktops: 9, running: 5, vcpus: 6, memory: 8 }
+// apiv4's `Quota` schema (isardvdi_common/schemas/shared/quotas.py) requires a
+// COMPLETE quota object (or `false`) — it rejects a partial dict with 400. The
+// webapp itself always submits every field (its form backfills untouched inputs
+// — see `backfillEmpty`), so `SAMPLE_QUOTA` stays partial ONLY for the UI form
+// (`applyCustomQuota` fills the sampled inputs; `deployment_desktops` has no
+// input) and for the subset assertions in `expectQuotaEventually`. The
+// `set*QuotaViaApi` precondition helpers below bypass the form, so they must
+// backfill the same way before hitting the API. Backfill value `1` mirrors the
+// form's own backfill and sits at/under SAMPLE_LIMITS and any parent quota.
+const QUOTA_API_BASE = {
+  desktops: 1,
+  volatile: 1,
+  desktops_disk_size: 1,
+  isos: 1,
+  vcpus: 1,
+  memory: 1,
+  running: 1,
+  templates: 1,
+  total_size: 1,
+  total_soft_size: 1,
+  deployments_total: 1,
+  deployment_desktops: 1,
+  deployment_users: 1,
+  started_deployment_desktops: 1,
+}
+const completeQuota = (quota) => (quota === false ? false : { ...QUOTA_API_BASE, ...quota })
+// NOTE: `volatile` is a Quota field, NOT a Limits field — the apiv4 `Limits`
+// schema (isardvdi_common/schemas/shared/quotas.py) has no `volatile`, so it is
+// never stored or returned; asserting it back yields NaN. Keep this dict to the
+// real Limits fields only.
 const SAMPLE_LIMITS = {
   users: 9,
   desktops: 12,
-  volatile: 12,
   running: 10,
   templates: 12,
   isos: 12,
@@ -84,11 +113,17 @@ const getUserQuota = (client, userId) =>
   )
 
 async function setUserQuotaViaApi(client, userId, quota) {
-  await unwrap(adminUpdateUser({ client, path: { user_id: userId }, body: { quota } }))
+  await unwrap(
+    adminUpdateUser({ client, path: { user_id: userId }, body: { quota: completeQuota(quota) } }),
+  )
 }
 async function setGroupQuotaViaApi(client, groupId, quota) {
   await unwrap(
-    adminUpdateGroupQuota({ client, path: { group_id: groupId }, body: { quota, role: 'all_roles' } }),
+    adminUpdateGroupQuota({
+      client,
+      path: { group_id: groupId },
+      body: { quota: completeQuota(quota), role: 'all_roles' },
+    }),
   )
 }
 async function setGroupLimitsViaApi(client, groupId, limits) {
@@ -99,7 +134,7 @@ async function setCategoryQuotaViaApi(client, catId, quota) {
     adminUpdateCategoryQuota({
       client,
       path: { category_id: catId },
-      body: { quota, role: 'all_roles' },
+      body: { quota: completeQuota(quota), role: 'all_roles' },
     }),
   )
 }
