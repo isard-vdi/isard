@@ -39,7 +39,7 @@ class AdminListDomainsData(BaseModel):
     group: Optional[str] = None
     user: Optional[str] = None
     hyp_started: Optional[str] = None
-    server: Optional[str] = None
+    server: Optional[Literal["SERVER", "AUTO", "-"]] = None
     name: Optional[List[str]] = None
 
 
