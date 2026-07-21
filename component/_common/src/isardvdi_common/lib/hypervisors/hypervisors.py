@@ -22,6 +22,7 @@
 import datetime
 import ipaddress
 import logging as log
+import math
 import os
 import re
 import socket
@@ -46,6 +47,7 @@ from isardvdi_common.helpers.isard_vpn import IsardVpn
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.hypervisor import HypervisorModel
+from isardvdi_common.schemas.hypervisor import HypervisorStatus
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -189,6 +191,37 @@ class HypervisorsProcessed(RethinkSharedConnection):
             data = list(query.run(cls._rdb_connection))
         return data
 
+    @staticmethod
+    def calc_resource_load(stats: dict) -> dict:
+        """CPU/RAM load derived from the 5-minute stats sample.
+
+        Mirrors the retired Go ``calcLoad``: CPU ``used`` rounds up and
+        ``idle`` rounds down, RAM converts KB to MB with integer division
+        and ``free`` comes from the KB difference.
+        """
+        if not stats:
+            return {
+                "cpu": {"total": 0, "used": 0, "free": 0},
+                "ram": {"total": 0, "used": 0, "free": 0},
+            }
+
+        cpu = stats.get("cpu_5min") or {}
+        mem = stats.get("mem_stats") or {}
+        total = int(mem.get("total", 0))
+        used = int(mem.get("used", 0))
+        return {
+            "cpu": {
+                "total": 100,
+                "used": math.ceil(cpu.get("used", 0)),
+                "free": math.floor(cpu.get("idle", 0)),
+            },
+            "ram": {
+                "total": total // 1024,
+                "used": used // 1024,
+                "free": (total - used) // 1024,
+            },
+        }
+
     @classmethod
     def get_orchestrator_hypervisors(cls, hyp_id=None):
         query = r.table("hypervisors")
@@ -223,7 +256,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 raise Error(
                     "not_found", "Hypervisor with ID " + hyp_id + " does not exist."
                 )
-            return {
+            merged = {
                 **{
                     "only_forced": False,
                     "buffering_hyper": False,
@@ -236,11 +269,13 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 **cls._get_hypervisors_gpus(hyp_id, data["status"]),
                 **data,
             }
+            return {**merged, **cls.calc_resource_load(merged["stats"])}
         else:
             with cls._rdb_context():
                 data = list(query.run(cls._rdb_connection))
-            return [
-                {
+            hypers = []
+            for d in data:
+                merged = {
                     **{
                         "only_forced": False,
                         "buffering_hyper": False,
@@ -253,8 +288,8 @@ class HypervisorsProcessed(RethinkSharedConnection):
                     **cls._get_hypervisors_gpus(d["id"], d["status"]),
                     **d,
                 }
-                for d in data
-            ]
+                hypers.append({**merged, **cls.calc_resource_load(merged["stats"])})
+            return hypers
 
     @classmethod
     def _gpu_card_data_integrity(cls, desktops_started, hyper_id, card_id=None):
@@ -304,7 +339,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
     @classmethod
     def _get_hypervisors_gpus(cls, hyp_id, hyp_status):
         data = {"bookings_end_time": None, "gpus": []}
-        if hyp_status != "Online":
+        if hyp_status != HypervisorStatus.online:
             return data
         with cls._rdb_context():
             cards = list(
@@ -650,7 +685,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
             "hypervisors_pools": ["default"],
             "id": hyper_id,
             "port": port,
-            "status": "Offline",
+            "status": HypervisorStatus.offline.value,
             "status_time": False,
             "uri": "",
             "user": user,
@@ -2020,9 +2055,9 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 )
             time.sleep(1)
             with cls._rdb_context():
-                r.table("hypervisors").get(hyper_id).update({"status": "Deleting"}).run(
-                    cls._rdb_connection
-                )
+                r.table("hypervisors").get(hyper_id).update(
+                    {"status": HypervisorStatus.deleting.value}
+                ).run(cls._rdb_connection)
         except Exception:
             return {"status": False, "msg": "Hypervisor not found", "data": {}}
 
@@ -2412,6 +2447,20 @@ class HypervisorsProcessed(RethinkSharedConnection):
     @classmethod
     def clear_get_desktops_max_timeout_cache(cls):
         _get_desktops_max_timeout_cache.clear()
+
+    @classmethod
+    def set_hyper_only_forced(cls, hyper_id: str, only_forced: bool) -> None:
+        with cls._rdb_context():
+            hypervisor = r.table("hypervisors").get(hyper_id).run(cls._rdb_connection)
+        if not hypervisor:
+            raise Error(
+                "not_found", "Hypervisor with ID " + hyper_id + " does not exist."
+            )
+
+        with cls._rdb_context():
+            r.table("hypervisors").get(hyper_id).update(
+                {"only_forced": only_forced}
+            ).run(cls._rdb_connection)
 
     @classmethod
     def set_hyper_orchestrator_managed(cls, hyper_id, reset=False):
