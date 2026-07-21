@@ -413,12 +413,12 @@ DOCKER_IMAGE_TAG=main
 # Golang image used for building the Golang microservices images
 # Defaults are set in each Dockerfile ARG and compose-parts yml fallback.
 # Uncomment to override.
-#GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22
+#GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22@sha256:6b7607461f105ccaa0615b6f7932dfd5b36c5d827a0770b5578e565107cc3adb
 # Image used for running the images the Golang microservices images
-#GOLANG_RUN_IMAGE=alpine:3.22
+#GOLANG_RUN_IMAGE=alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
-HAPROXY_RUN_IMAGE=haproxy:3.3-alpine3.22
+HAPROXY_RUN_IMAGE=haproxy:3.3-alpine3.22@sha256:3755973a59dd758b24d952649ca1f003d744b9e771f61f5e7db63e47baa68e3b
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO

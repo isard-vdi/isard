@@ -1,5 +1,5 @@
-FROM fedora:42 AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
+FROM fedora:42@sha256:99e203b80b1c3d8f7e161ec10a68fd02b081ef83a3963553e513c82846b97814 AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
 # UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
 # venv's hard-coded shebangs (#!/.venv/bin/python) keep resolving
 # after COPY --from=builder /.venv /.venv.
@@ -11,7 +11,7 @@ WORKDIR /workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-storage --no-editable
 
-FROM fedora:42 AS runtime
+FROM fedora:42@sha256:99e203b80b1c3d8f7e161ec10a68fd02b081ef83a3963553e513c82846b97814 AS runtime
 RUN dnf install -y libguestfs libguestfs-tools-c libvirt-client libvirt-daemon libvirt-daemon-config-network openssl-libs python3-cachetools python3-libguestfs python3-libvirt rsync virt-install virt-v2v virt-win-reg && dnf clean all
 
 ENV LIBGUESTFS_BACKEND=direct

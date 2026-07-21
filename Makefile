@@ -60,7 +60,11 @@ lint-system-deps:
 
 .PHONY: lint-go
 lint-go:
-	golangci-lint fmt --diff
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint fmt --diff; \
+	else \
+		go tool -modfile=tools/go.mod golangci-lint fmt --diff; \
+	fi
 
 .PHONY: lint-frontend
 lint-frontend: lint-frontend-format lint-frontend-lint
@@ -218,11 +222,9 @@ test-webapp:
 
 .PHONY: ci-test-go
 ci-test-go:
-	@command -v gotestsum >/dev/null 2>&1 || { echo "gotestsum not found. Install with: go install gotest.tools/gotestsum@latest"; exit 1; }
-	@command -v gocover-cobertura >/dev/null 2>&1 || { echo "gocover-cobertura not found. Install with: go install github.com/boumenot/gocover-cobertura@latest"; exit 1; }
-	gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
+	go tool -modfile=tools/go.mod gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
 	go tool cover -func coverage.out
-	gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
+	go tool -modfile=tools/go.mod gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
 
 .PHONY: ci-test-apiv4
 ci-test-apiv4:

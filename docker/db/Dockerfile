@@ -1,6 +1,6 @@
 # ---------- builder: build the isardvdi-db venv on the SAME base as runtime ----------
-FROM rethinkdb:2.4.4-bookworm-slim AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
+FROM rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=auto \
@@ -11,7 +11,7 @@ COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-db --no-editable
 
 # ---------- runtime: rethinkdb + only the venv and its interpreter ----------
-FROM rethinkdb:2.4.4-bookworm-slim
+FROM rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a
 
 RUN apt-get update && \
     apt-get install -y \

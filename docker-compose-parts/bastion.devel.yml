@@ -1,6 +1,6 @@
 services:
   isard-bastion:
-    image: ${GOLANG_BUILD_IMAGE:-golang:1.25.8-alpine3.22}
+    image: ${GOLANG_BUILD_IMAGE:-golang:1.25.8-alpine3.22@sha256:6b7607461f105ccaa0615b6f7932dfd5b36c5d827a0770b5578e565107cc3adb}
     build: !reset null
     command:
       - ash
@@ -8,8 +8,6 @@ services:
       - >-
         apk add --no-cache \
           openvswitch
-        go install github.com/githubnemo/CompileDaemon@latest &&
-        go install github.com/go-delve/delve/cmd/dlv@latest &&
 
         /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db ;
         mkdir -pv /var/run/openvswitch/ &&
@@ -18,17 +16,18 @@ services:
         cat /bastion/bastion/build/package/run.sh | head -n-1 | ash &&
         set -a &&
 
-        CompileDaemon \
+        go tool -modfile=/tools/go.mod CompileDaemon \
           -log-prefix=false \
           -graceful-kill=true \
           -directory=/bastion \
           -build="go build -o /bin/bastion ./bastion/cmd/bastion/main.go" \
-          -command="dlv exec --headless=true --listen=:4000 --api-version=2 --accept-multiclient --continue /bin/bastion"
+          -command="go tool -modfile=/tools/go.mod dlv exec --headless=true --listen=:4000 --api-version=2 --accept-multiclient --continue /bin/bastion"
     volumes:
       - ${BUILD_ROOT_PATH}/go.mod:/bastion/go.mod
       - ${BUILD_ROOT_PATH}/go.sum:/bastion/go.sum
       - ${BUILD_ROOT_PATH}/pkg:/bastion/pkg
       - ${BUILD_ROOT_PATH}/bastion:/bastion/bastion
+      - ${BUILD_ROOT_PATH}/tools:/tools
       - ${XDG_CACHE_HOME:-$HOME/.cache}/isardvdi/go-devel/cache:/root/.cache/go-build
       - ${XDG_CACHE_HOME:-$HOME/.cache}/isardvdi/go-devel/pkg:/go/pkg
     security_opt:
