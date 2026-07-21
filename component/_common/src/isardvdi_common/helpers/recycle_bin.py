@@ -2031,6 +2031,16 @@ class RecycleBin(RethinkSharedConnection):
                                         ],
                                     }
                                 ],
+                                # create the job DEFERRED (created +
+                                # saved, id known, dependents deferred) but do
+                                # NOT enqueue it yet. We register it in the
+                                # entry's ``tasks`` via ``_add_task`` FIRST, then
+                                # ``task.enqueue()`` below — so the storage
+                                # worker (and change-handler's completion chain)
+                                # can never run before the task is registered,
+                                # which was the lost-signal window that left
+                                # entries stuck in ``deleting``.
+                                enqueue=False,
                             )
                             log.debug(
                                 "RecycleBin %s delete_storage: Storage %s task %s created in %s seconds",
@@ -2048,7 +2058,15 @@ class RecycleBin(RethinkSharedConnection):
                                     "id": task.id,
                                     "item_id": storage.id,
                                     "item_type": "storage",
-                                    "status": task.status,
+                                    # Registered BEFORE the job is enqueued (see
+                                    # enqueue=False above), so the live chain
+                                    # status isn't readable yet (the RQ job has no
+                                    # status until enqueued). Record the honest
+                                    # pending state; ``update_task_status`` will
+                                    # overwrite it with the real terminal status on
+                                    # completion — and, now that the task is
+                                    # registered first, that signal can't be lost.
+                                    "status": "queued",
                                 }
                             )
                             log.debug(
@@ -2057,6 +2075,12 @@ class RecycleBin(RethinkSharedConnection):
                                 task.id,
                                 time.time() - start,
                             )
+                            # Now that the task is registered in the entry, it is
+                            # safe to enqueue: whenever the worker finishes and
+                            # change-handler runs ``update_task_status``, the map
+                            # will find this task and the completion signal can no
+                            # longer be lost.
+                            task.enqueue()
                             tasks.append(
                                 {
                                     "id": task.id,

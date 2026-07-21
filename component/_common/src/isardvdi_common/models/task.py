@@ -103,6 +103,10 @@ class Task(RedisBase):
             kwargs["id"] = args[0]
         if "id" in kwargs:
             self.job = Job.fetch(kwargs["id"], connection=self._redis)
+            # An existing task is, by definition, already on (or past) its
+            # queue. Record that so a stray ``.enqueue()`` is a safe no-op.
+            self._queue_name = self.job.origin
+            self._enqueued = True
         else:
             if "task" not in kwargs:
                 raise TypeError(
@@ -170,9 +174,38 @@ class Task(RedisBase):
             # event out (and runs the chain-handler bodies that used to
             # live on core_worker). See change-handler's
             # ``task_results.feedback.emit_task_feedback``.
-            self.job = Queue(
-                kwargs.get("queue", "default"), connection=self._redis
-            ).enqueue_job(self.job)
+            #
+            # The root job is created + saved (id known, dependents created
+            # and DEFERRED on it) but enqueuing it is what lets a worker pick
+            # it up. Callers that must register the task somewhere BEFORE it
+            # can run (see ``RecycleBin.delete_storage``) pass
+            # ``enqueue=False`` and call ``.enqueue()`` after registering, so
+            # the worker can never complete the task before it is registered.
+            self._queue_name = kwargs.get("queue", "default")
+            self._enqueued = False
+            if kwargs.get("enqueue", True):
+                self.enqueue()
+
+    def enqueue(self):
+        """Place the (already created + saved) root job on its queue.
+
+        Split out of ``__init__`` so a caller can do
+        ``create -> register -> enqueue`` and close the enqueue-before-register
+        race that left recycle-bin entries stuck in ``deleting``: the storage
+        worker cannot run — and change-handler cannot run the completion chain
+        — before the task is registered.
+
+        Idempotent: a second call (or a call on a task built the default,
+        already-enqueued way, or hydrated from an id) is a no-op.
+
+        :return: self, so callers can chain ``Task(..., enqueue=False).enqueue()``
+        :rtype: Task
+        """
+        if getattr(self, "_enqueued", True):
+            return self
+        self.job = Queue(self._queue_name, connection=self._redis).enqueue_job(self.job)
+        self._enqueued = True
+        return self
 
     @property
     def id(self):
@@ -382,7 +415,7 @@ class Task(RedisBase):
                     "dependents",
                     "storage_id",
                 ]
-                and isinstance(getattr(self.__class__, name), property)
+                and isinstance(getattr(self.__class__, name, None), property)
             },
             "args": [
                 arg.to_dict() if hasattr(arg, "to_dict") else arg for arg in self.args
