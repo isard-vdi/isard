@@ -1330,6 +1330,9 @@
         "bastion": {
           "label": "Bastion enabled",
           "description": "Enable access to the desktop via a bastion host.",
+          "custom-domains": {
+            "label": "Custom domains"
+          },
           "http-https": {
             "label": "HTTP / HTTPS",
             "description": "Access the desktop using a web browser or an RDP viewer that supports HTTP/HTTPS connections.",
@@ -1697,6 +1700,7 @@
     "bastion-info-modal": {
       "title": "Bastion access — {name}",
       "description": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command, or set a custom domain and authorized SSH keys below.",
+      "description-read-only": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command.",
       "no-bastion-configured": "Bastion is not enabled for this desktop",
       "no-bastion-configured-description": "Edit the desktop and enable HTTP/HTTPS or SSH access to use the bastion.",
       "error": {

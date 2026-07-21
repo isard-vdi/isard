@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
 
-import { DesktopCardHeaderActionsDropdownContent } from '..'
+import { DesktopCardHeaderActionsDropdownContent, overlayIconButtonClass } from '..'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -40,13 +40,6 @@ const emit = defineEmits<{
 
 const bastionEnabled =
   props.desktop.bastion_target?.http?.enabled || props.desktop.bastion_target?.ssh?.enabled
-
-// Highlighted state when this icon's overlay is the active one.
-const iconButtonClass = (active: boolean) =>
-  [
-    'w-9! h-9! flex align-center justify-center p-0! backdrop-blur-[4px]',
-    active ? 'bg-base-white/30 hover:bg-base-white/40' : 'bg-base-black/30 hover:bg-base-black/50'
-  ].join(' ')
 </script>
 
 <template>
@@ -55,7 +48,7 @@ const iconButtonClass = (active: boolean) =>
       <Button
         hierarchy="link-gray"
         size="sm"
-        :class="iconButtonClass(props.activeOverlay === 'info')"
+        :class="overlayIconButtonClass(props.activeOverlay === 'info')"
         icon="info-circle"
         icon-stroke-color="base-white"
         @click="emit('infoClick')"
@@ -69,7 +62,7 @@ const iconButtonClass = (active: boolean) =>
       <Button
         hierarchy="link-gray"
         size="sm"
-        :class="iconButtonClass(props.activeOverlay === 'networks')"
+        :class="overlayIconButtonClass(props.activeOverlay === 'networks')"
         icon="modem-02"
         icon-stroke-color="base-white"
         @click="emit('networkClick')"
@@ -83,7 +76,7 @@ const iconButtonClass = (active: boolean) =>
       <Button
         hierarchy="link-gray"
         size="sm"
-        :class="iconButtonClass(props.activeOverlay === 'bastion')"
+        :class="overlayIconButtonClass(props.activeOverlay === 'bastion')"
         icon="globe-04"
         icon-stroke-color="base-white"
         :aria-label="t('components.desktops.desktop-card.actions.bastion-access')"

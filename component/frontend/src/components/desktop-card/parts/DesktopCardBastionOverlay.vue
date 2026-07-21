@@ -7,7 +7,7 @@ import {
   getUserConfigOptions,
   getDesktopBastionLegacyOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import type { UserDesktop } from '@/gen/oas/apiv4/'
+import type { UserDesktop, BastionDirectViewerResponse } from '@/gen/oas/apiv4/'
 
 import { Icon, CopyIcon } from '@/components/icon'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,12 @@ import { CARD_SIZE_INJECTION_KEY, cardOverlayPaddingVariants } from '..'
 const { t } = useI18n()
 
 interface Props {
-  desktop: UserDesktop
+  // Desktop card: the bastion target is fetched here and the URLs are built
+  // from the user config.
+  desktop?: UserDesktop
+  // Direct viewer: URLs come ready-made from get-details, because that view
+  // is unauthenticated and can't read the config needed to build them.
+  bastion?: BastionDirectViewerResponse
 }
 
 const props = defineProps<Props>()
@@ -26,12 +31,27 @@ const emit = defineEmits<{ showBastionModal: [] }>()
 
 const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 
-const { data: userConfig } = useQuery(getUserConfigOptions())
-const { data: target, isPending } = useQuery(
-  getDesktopBastionLegacyOptions({
-    path: { desktop_id: props.desktop.id }
-  })
+const isCardMode = computed(() => !!props.desktop)
+
+// Both queries need a logged-in user, so they only run in card mode.
+const { data: userConfig } = useQuery({ ...getUserConfigOptions(), enabled: isCardMode })
+const { data: target, isPending } = useQuery({
+  ...getDesktopBastionLegacyOptions({ path: { desktop_id: props.desktop?.id ?? '' } }),
+  enabled: isCardMode
+})
+
+// A disabled query stays pending forever, so only card mode can use its state.
+const isLoading = computed(() => (isCardMode.value ? isPending.value : !props.bastion))
+
+const httpEnabled = computed(() =>
+  isCardMode.value ? !!target.value?.http?.enabled : !!props.bastion?.http_enabled
 )
+const sshEnabled = computed(() =>
+  isCardMode.value ? !!target.value?.ssh?.enabled : !!props.bastion?.ssh_enabled
+)
+
+// No target, or a target with both accesses disabled: nothing to connect to.
+const hasAccess = computed(() => httpEnabled.value || sshEnabled.value)
 
 // Subdomain shown in URLs: <id-with-last-dash-as-dot>.<bastion-domain>.
 // Same logic the modal uses — keeps URLs consistent across surfaces.
@@ -42,9 +62,10 @@ const targetIdSubdomain = computed(() => {
   return `${parts.slice(0, -1).join('-')}.${parts.slice(-1)[0]}`
 })
 
-// TODO: migrate to the multi-domain (domains array) UI. For now we only
-// surface the first custom domain.
+// URLs are built from the first custom domain only; the bastion modal lists
+// the whole set.
 const httpsUrl = computed(() => {
+  if (!isCardMode.value) return props.bastion?.https_url ?? ''
   if (!target.value) return ''
   const port = userConfig.value?.https_port === '443' ? '' : `:${userConfig.value?.https_port}`
   if (target.value.domains?.[0]) return `https://${target.value.domains[0]}${port}`
@@ -52,6 +73,7 @@ const httpsUrl = computed(() => {
 })
 
 const httpUrl = computed(() => {
+  if (!isCardMode.value) return props.bastion?.http_url ?? ''
   if (!target.value) return ''
   const port = userConfig.value?.http_port === '80' ? '' : `:${userConfig.value?.http_port}`
   if (target.value.domains?.[0]) return `http://${target.value.domains[0]}${port}`
@@ -59,6 +81,7 @@ const httpUrl = computed(() => {
 })
 
 const sshUrl = computed(() => {
+  if (!isCardMode.value) return props.bastion?.ssh_command ?? ''
   if (!target.value) return ''
   const port =
     userConfig.value?.bastion_ssh_port === '22' ? '' : ` -p ${userConfig.value?.bastion_ssh_port}`
@@ -75,15 +98,15 @@ const sshUrl = computed(() => {
       </span>
     </div>
 
-    <div v-if="isPending" class="flex flex-col gap-1.5">
+    <div v-if="isLoading" class="flex flex-col gap-1.5">
       <Skeleton class="bg-base-white/20 h-4 w-full" />
       <Skeleton class="bg-base-white/20 h-4 w-3/4" />
     </div>
-    <div v-else-if="!target" class="text-[11px] text-base-white/80">
+    <div v-else-if="!hasAccess" class="text-[11px] text-base-white/80">
       {{ t('components.bastion-info-modal.no-bastion-configured') }}
     </div>
     <div v-else class="flex flex-col gap-1 text-xs">
-      <div v-if="target.http?.enabled" class="flex items-center gap-1.5 min-w-0">
+      <div v-if="httpEnabled" class="flex items-center gap-1.5 min-w-0">
         <Icon name="globe-04" size="xs" stroke-color="base-white" class="shrink-0" />
         <code class="font-mono truncate flex-1 min-w-0">{{ httpsUrl }}</code>
         <a :href="httpsUrl" target="_blank" :title="httpsUrl" class="shrink-0">
@@ -96,12 +119,12 @@ const sshUrl = computed(() => {
         </a>
         <CopyIcon :value="httpsUrl" size="xs" stroke-color="base-white" class="shrink-0" />
       </div>
-      <div v-if="target.http?.enabled" class="flex items-center gap-1.5 min-w-0">
+      <div v-if="httpEnabled" class="flex items-center gap-1.5 min-w-0">
         <span class="w-3 shrink-0" />
         <code class="font-mono truncate flex-1 min-w-0 text-base-white/70">{{ httpUrl }}</code>
         <CopyIcon :value="httpUrl" size="xs" stroke-color="base-white" class="shrink-0" />
       </div>
-      <div v-if="target.ssh?.enabled" class="flex items-center gap-1.5 min-w-0">
+      <div v-if="sshEnabled" class="flex items-center gap-1.5 min-w-0">
         <Icon name="terminal-square" size="xs" stroke-color="base-white" class="shrink-0" />
         <code class="font-mono truncate flex-1 min-w-0">{{ sshUrl }}</code>
         <CopyIcon :value="sshUrl" size="xs" stroke-color="base-white" class="shrink-0" />

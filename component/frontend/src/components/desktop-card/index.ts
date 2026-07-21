@@ -26,6 +26,15 @@ export type CardSize = (typeof cardSizes)[number]
 
 export const CARD_SIZE_INJECTION_KEY = Symbol('cardSize') as InjectionKey<CardSize>
 
+// --- Header icon buttons ---
+
+// Highlighted state when this icon's overlay is the active one.
+export const overlayIconButtonClass = (active: boolean) =>
+  [
+    'w-9! h-9! flex align-center justify-center p-0! backdrop-blur-[4px]',
+    active ? 'bg-base-white/30 hover:bg-base-white/40' : 'bg-base-black/30 hover:bg-base-black/50'
+  ].join(' ')
+
 export const cardBaseVariants = cva('overflow-hidden p-0', {
   variants: {
     size: {

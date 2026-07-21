@@ -146,7 +146,23 @@ vi.mock('@/components/desktop-card', () => ({
   },
   DesktopCardIp: { template: '<div data-test="card-ip" />' },
   DesktopCardNetworksOverlay: { template: '<div data-test="card-networks" />' },
-  DesktopCardSkeleton: { template: '<div data-test="desktop-card-skeleton" />' }
+  DesktopCardBastionOverlay: { template: '<div data-test="card-bastion" />' },
+  DesktopCardSkeleton: { template: '<div data-test="desktop-card-skeleton" />' },
+  overlayIconButtonClass: (active: boolean) => (active ? 'active' : '')
+}))
+
+vi.mock('@/components/desktops', () => ({
+  DesktopBastionInfoModal: {
+    props: ['open', 'desktopId', 'desktopName', 'bastion'],
+    emits: ['close'],
+    template: '<div data-test="bastion-modal" :data-open="String(open)" />'
+  }
+}))
+
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: { template: '<div><slot /></div>' },
+  TooltipTrigger: { props: ['asChild'], template: '<div><slot /></div>' },
+  TooltipContent: { props: ['title'], template: '<div :data-title="title"></div>' }
 }))
 
 vi.mock('@/components/desktop-card/parts/DirectViewerCardPreview.vue', () => ({
