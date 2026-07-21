@@ -941,9 +941,7 @@ function parse_media(data){
         "kind":data["kind"],
         "name":data["name"],
         "description":data["description"],
-        // Modal has no viewer/credentials picker; default to browser_vnc so
-        // the apiv4 ``one viewer minimum`` check passes.
-        "guest_properties": { "viewers": { "browser_vnc": { "options": null } } },
+        "guest_properties": { "viewers": { "browser_vnc": { "options": null }, "file_spice": { "options": null } } },
         "hardware": {
             ...("vcpus" in hardware) && {"vcpus": parseInt(hardware["vcpus"])},
             ...("memory" in hardware) && {"memory": parseFloat(hardware["memory"])},
