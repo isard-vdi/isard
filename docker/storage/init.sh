@@ -5,12 +5,6 @@ export PYTHONWARNINGS="ignore:Unverified HTTPS request"
 
 REDIS_WORKERS=${REDIS_WORKERS:-1}
 
-if [ "${REDIS_WORKERS}" -eq 0 ]
-then
-    echo "REDIS_WORKERS is set to 0, not starting any workers, sleeping forever"
-    sleep infinity
-fi
-
 # --- Phase-1 queue tiering: reserved + standard-lane + elastic pools ---------
 #
 # Latency isolation comes from partitioning the worker fleet by tier and from a
@@ -114,7 +108,7 @@ start_worker() {
     worker_spec[$!]="${_role} ${_wclass} $*"
 }
 
-if ${CAPABILITIES_DISK:-true}
+if [ "${REDIS_WORKERS:-1}" -ne 0 ] && ${CAPABILITIES_DISK:-true}
 then
     # Wait for Redis to be ready before starting workers
     /utils/wait_for_redis
@@ -211,5 +205,6 @@ then
     # Drain: let the workers we signalled finish their warm shutdown.
     wait
 else
+    echo "storage worker fleet disabled (REDIS_WORKERS=0 or CAPABILITIES_DISK=false); sleeping forever"
     sleep infinity
 fi
