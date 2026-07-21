@@ -67,7 +67,7 @@ func verifyServer(apiAddr string) func(context.Context, string) (bool, error) {
 		}
 
 		res, err := cli.UserOwnsDesktop(ctx, &apiv4.UserOwnsDesktopRequest{
-			IP: apiv4.NewOptString(ip),
+			IP: apiv4.NewOptNilString(ip),
 		})
 		if err != nil {
 			return false, fmt.Errorf("unknown error: %w", err)

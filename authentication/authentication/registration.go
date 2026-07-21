@@ -18,11 +18,14 @@ func (a *Authentication) registerUser(ctx context.Context, u *model.User) error 
 		return fmt.Errorf("sign register claims: %w", err)
 	}
 
-	rsp, err := a.API.AdminAutoRegister(ctx, &apiv4.AutoRegisterRequest{
-		RoleID:          string(u.Role),
-		GroupID:         u.Group,
-		SecondaryGroups: u.SecondaryGroups,
-	}, apiv4.AdminAutoRegisterParams{
+	req := &apiv4.AutoRegisterRequest{
+		RoleID:  string(u.Role),
+		GroupID: u.Group,
+	}
+	if u.SecondaryGroups != nil {
+		req.SecondaryGroups = apiv4.NewOptNilStringArray(u.SecondaryGroups)
+	}
+	rsp, err := a.API.AdminAutoRegister(ctx, req, apiv4.AdminAutoRegisterParams{
 		RegisterClaims: registerClaims,
 	})
 	if err != nil {
@@ -44,12 +47,12 @@ func (a *Authentication) registerGroup(ctx context.Context, g *model.Group) erro
 	rsp, err := a.API.AdminCreateGroup(
 		ctx,
 		&apiv4.AdminGroupCreateData{
-			UID:            apiv4.NewOptString(g.Name),
+			UID:            apiv4.NewOptNilString(g.Name),
 			Name:           g.Name,
 			Description:    apiv4.NewOptString(g.Description),
-			ParentCategory: apiv4.NewOptString(g.Category),
-			ExternalAppID:  apiv4.NewOptString(g.ExternalAppID),
-			ExternalGid:    apiv4.NewOptString(g.ExternalGID),
+			ParentCategory: apiv4.NewOptNilString(g.Category),
+			ExternalAppID:  apiv4.NewOptNilString(g.ExternalAppID),
+			ExternalGid:    apiv4.NewOptNilString(g.ExternalGID),
 		},
 	)
 	if err != nil {

@@ -543,10 +543,8 @@ def _custom_openapi():
         _normalize_operation_ids,
         _strip_colliding_component_titles,
         _strip_component_property_titles,
-        _strip_null_unions,
         _strip_parameter_titles,
         _strip_path_inline_body_titles,
-        _strip_path_parameter_anyof_null,
     )
 
     spec = get_openapi(
@@ -556,8 +554,6 @@ def _custom_openapi():
         description=app.description,
         routes=app.routes,
     )
-    _strip_path_parameter_anyof_null(spec)
-    _strip_null_unions(spec)
     _strip_parameter_titles(spec)
     _strip_component_property_titles(spec)
     _strip_colliding_component_titles(spec)

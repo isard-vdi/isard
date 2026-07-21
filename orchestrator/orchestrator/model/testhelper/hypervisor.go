@@ -88,9 +88,9 @@ func WithOrchestratorManaged(v bool) HyperOption {
 func WithDestroyTime(t time.Time) HyperOption {
 	return func(h *model.Hypervisor) {
 		if t.IsZero() {
-			h.OrchestratorHypervisor.DestroyTime = apiv4.OptString{}
+			h.OrchestratorHypervisor.DestroyTime = apiv4.OptNilString{}
 		} else {
-			h.OrchestratorHypervisor.DestroyTime = apiv4.NewOptString(t.Format(time.RFC3339Nano))
+			h.OrchestratorHypervisor.DestroyTime = apiv4.NewOptNilString(t.Format(time.RFC3339Nano))
 		}
 	}
 }
@@ -100,9 +100,9 @@ func WithDestroyTime(t time.Time) HyperOption {
 func WithBookingsEndTime(t time.Time) HyperOption {
 	return func(h *model.Hypervisor) {
 		if t.IsZero() {
-			h.OrchestratorHypervisor.BookingsEndTime = apiv4.OptString{}
+			h.OrchestratorHypervisor.BookingsEndTime = apiv4.OptNilString{}
 		} else {
-			h.OrchestratorHypervisor.BookingsEndTime = apiv4.NewOptString(t.Format(time.RFC3339Nano))
+			h.OrchestratorHypervisor.BookingsEndTime = apiv4.NewOptNilString(t.Format(time.RFC3339Nano))
 		}
 	}
 }

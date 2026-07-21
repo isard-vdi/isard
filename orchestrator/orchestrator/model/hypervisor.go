@@ -69,7 +69,7 @@ func (h *Hypervisor) BookingsEndTime() time.Time {
 	return parseRFC3339Nano(h.OrchestratorHypervisor.BookingsEndTime)
 }
 
-func parseRFC3339Nano(opt apiv4.OptString) time.Time {
+func parseRFC3339Nano(opt apiv4.OptNilString) time.Time {
 	s, ok := opt.Get()
 	if !ok {
 		return time.Time{}

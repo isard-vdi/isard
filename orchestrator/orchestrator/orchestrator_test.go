@@ -25,8 +25,8 @@ import (
 
 // orchStats builds an OrchestratorHypervisorStats with the given CPU and RAM values.
 // cpuUsed/cpuIdle are percentages (0-100). ramTotalMB/ramUsedMB are in MB.
-func orchStats(cpuUsed, cpuIdle float64, ramTotalMB, ramUsedMB int) apiv4.OptOrchestratorHypervisorStats {
-	return apiv4.NewOptOrchestratorHypervisorStats(apiv4.OrchestratorHypervisorStats{
+func orchStats(cpuUsed, cpuIdle float64, ramTotalMB, ramUsedMB int) apiv4.OptNilOrchestratorHypervisorStats {
+	return apiv4.NewOptNilOrchestratorHypervisorStats(apiv4.OrchestratorHypervisorStats{
 		CPU5min: apiv4.OrchestratorHypervisorStatsCPU{
 			Used: cpuUsed,
 			Idle: cpuIdle,
@@ -132,7 +132,7 @@ func TestStart(t *testing.T) {
 					Status:              model.HypervisorStatusOnline,
 					OnlyForced:          apiv4.NewOptBool(true),
 					BufferingHyper:      apiv4.NewOptBool(false),
-					DestroyTime:         apiv4.NewOptString(time.Now().Add(1 * time.Hour).Format(time.RFC3339)),
+					DestroyTime:         apiv4.NewOptNilString(time.Now().Add(1 * time.Hour).Format(time.RFC3339)),
 					OrchestratorManaged: apiv4.NewOptBool(true),
 					GpuOnly:             apiv4.NewOptBool(false),
 					DesktopsStarted:     apiv4.NewOptInt(30),
@@ -149,7 +149,7 @@ func TestStart(t *testing.T) {
 
 				m.On("AdminOrchestratorDeadRowReset", mock.AnythingOfType("*context.timerCtx"), apiv4.AdminOrchestratorDeadRowResetParams{HypervisorID: "bm-e4-15"}).Run(func(args mock.Arguments) {
 					oHypers[2].OnlyForced = apiv4.NewOptBool(false)
-					oHypers[2].DestroyTime = apiv4.OptString{}
+					oHypers[2].DestroyTime = apiv4.OptNilString{}
 				}).Return(&apiv4.AdminOrchestratorDeadRowResetNoContent{}, nil)
 			},
 			CfgRata: cfg.DirectorRata{
@@ -265,7 +265,7 @@ func TestStart(t *testing.T) {
 					Status:              model.HypervisorStatusOnline,
 					OnlyForced:          apiv4.NewOptBool(true),
 					BufferingHyper:      apiv4.NewOptBool(false),
-					DestroyTime:         apiv4.NewOptString(time.Date(2024, 2, 14, 23, 12, 19, 0, time.UTC).Format(time.RFC3339)),
+					DestroyTime:         apiv4.NewOptNilString(time.Date(2024, 2, 14, 23, 12, 19, 0, time.UTC).Format(time.RFC3339)),
 					OrchestratorManaged: apiv4.NewOptBool(true),
 					GpuOnly:             apiv4.NewOptBool(false),
 					DesktopsStarted:     apiv4.NewOptInt(27),
@@ -276,7 +276,7 @@ func TestStart(t *testing.T) {
 					Status:              model.HypervisorStatusOnline,
 					OnlyForced:          apiv4.NewOptBool(true),
 					BufferingHyper:      apiv4.NewOptBool(false),
-					DestroyTime:         apiv4.NewOptString(time.Date(2024, 2, 14, 23, 12, 30, 0, time.UTC).Format(time.RFC3339)),
+					DestroyTime:         apiv4.NewOptNilString(time.Date(2024, 2, 14, 23, 12, 30, 0, time.UTC).Format(time.RFC3339)),
 					OrchestratorManaged: apiv4.NewOptBool(true),
 					GpuOnly:             apiv4.NewOptBool(false),
 					DesktopsStarted:     apiv4.NewOptInt(20),
@@ -287,7 +287,7 @@ func TestStart(t *testing.T) {
 					Status:              model.HypervisorStatusOnline,
 					OnlyForced:          apiv4.NewOptBool(true),
 					BufferingHyper:      apiv4.NewOptBool(false),
-					DestroyTime:         apiv4.NewOptString(time.Date(2024, 2, 14, 21, 56, 55, 0, time.UTC).Format(time.RFC3339)),
+					DestroyTime:         apiv4.NewOptNilString(time.Date(2024, 2, 14, 21, 56, 55, 0, time.UTC).Format(time.RFC3339)),
 					OrchestratorManaged: apiv4.NewOptBool(true),
 					GpuOnly:             apiv4.NewOptBool(false),
 					DesktopsStarted:     apiv4.NewOptInt(6),
@@ -298,7 +298,7 @@ func TestStart(t *testing.T) {
 					Status:              model.HypervisorStatusOnline,
 					OnlyForced:          apiv4.NewOptBool(true),
 					BufferingHyper:      apiv4.NewOptBool(false),
-					DestroyTime:         apiv4.NewOptString(time.Date(2024, 2, 14, 22, 45, 5, 0, time.UTC).Format(time.RFC3339)),
+					DestroyTime:         apiv4.NewOptNilString(time.Date(2024, 2, 14, 22, 45, 5, 0, time.UTC).Format(time.RFC3339)),
 					OrchestratorManaged: apiv4.NewOptBool(true),
 					GpuOnly:             apiv4.NewOptBool(false),
 					DesktopsStarted:     apiv4.NewOptInt(27),
@@ -309,7 +309,7 @@ func TestStart(t *testing.T) {
 					Status:              model.HypervisorStatusOnline,
 					OnlyForced:          apiv4.NewOptBool(true),
 					BufferingHyper:      apiv4.NewOptBool(false),
-					DestroyTime:         apiv4.NewOptString(time.Date(2024, 2, 15, 1, 2, 11, 0, time.UTC).Format(time.RFC3339)),
+					DestroyTime:         apiv4.NewOptNilString(time.Date(2024, 2, 15, 1, 2, 11, 0, time.UTC).Format(time.RFC3339)),
 					OrchestratorManaged: apiv4.NewOptBool(true),
 					GpuOnly:             apiv4.NewOptBool(false),
 					DesktopsStarted:     apiv4.NewOptInt(40),
@@ -320,7 +320,7 @@ func TestStart(t *testing.T) {
 					Status:              model.HypervisorStatusOnline,
 					OnlyForced:          apiv4.NewOptBool(true),
 					BufferingHyper:      apiv4.NewOptBool(false),
-					DestroyTime:         apiv4.NewOptString(time.Date(2024, 2, 15, 1, 17, 52, 0, time.UTC).Format(time.RFC3339)),
+					DestroyTime:         apiv4.NewOptNilString(time.Date(2024, 2, 15, 1, 17, 52, 0, time.UTC).Format(time.RFC3339)),
 					OrchestratorManaged: apiv4.NewOptBool(true),
 					GpuOnly:             apiv4.NewOptBool(false),
 					DesktopsStarted:     apiv4.NewOptInt(20),
@@ -341,7 +341,7 @@ func TestStart(t *testing.T) {
 					Status:              model.HypervisorStatusOnline,
 					OnlyForced:          apiv4.NewOptBool(true),
 					BufferingHyper:      apiv4.NewOptBool(false),
-					DestroyTime:         apiv4.NewOptString(time.Date(2024, 2, 14, 22, 45, 16, 0, time.UTC).Format(time.RFC3339)),
+					DestroyTime:         apiv4.NewOptNilString(time.Date(2024, 2, 14, 22, 45, 16, 0, time.UTC).Format(time.RFC3339)),
 					OrchestratorManaged: apiv4.NewOptBool(true),
 					GpuOnly:             apiv4.NewOptBool(false),
 					DesktopsStarted:     apiv4.NewOptInt(49),
