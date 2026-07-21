@@ -186,38 +186,56 @@ def served_coverage(conn):
 def lane_shed_decision(conn, queue):
     """Decide what to do with a task about to enqueue on ``queue``.
 
-    Returns ``(decision, ctx)`` where ``decision`` is ``"reject"`` (foreground
-    lane with no consumer or above its hard cap), ``"warn"`` (backed up but will
-    run) or ``"ok"``. ``ctx`` carries ``pool``/``tier``/``backlog``/
-    ``has_consumer``/``stranded``/``reason`` for the caller's error or notify.
-    Never raises — any failure degrades to ``("ok", ...)``."""
+    Returns ``(decision, ctx)`` where ``decision`` is ``"reject"`` (no live
+    consumer for the lane, any tier; or a foreground lane above its hard cap),
+    ``"warn"`` (backed up but will run) or ``"ok"``. ``ctx`` carries ``pool``/
+    ``category``/``tier``/``backlog``/``has_consumer``/``stranded``/``reason``
+    for the caller's error or notify. Never raises — any failure degrades to
+    ``("ok", ...)``."""
     parsed = queue_tiers.parse_storage_queue(queue)
     if not parsed:
         return "ok", {"reason": "non_storage_queue"}
-    pool, _category, tier = parsed
+    pool, category, tier = parsed
     try:
         covered, opaque_pools = served_coverage(conn)
         if not covered and not opaque_pools:
             # No worker visible at all — a full-fleet restart blip is far more
             # likely than a deliberate zero-consumer state; fail open.
-            return "ok", {"reason": "no_coverage_data", "pool": pool, "tier": tier}
+            return "ok", {
+                "reason": "no_coverage_data",
+                "pool": pool,
+                "category": category,
+                "tier": tier,
+            }
         backlog = conn.llen(_RQ_QUEUE_PREFIX + queue)
     except Exception:
-        return "ok", {"reason": "coverage_error", "pool": pool, "tier": tier}
+        return "ok", {
+            "reason": "coverage_error",
+            "pool": pool,
+            "category": category,
+            "tier": tier,
+        }
 
     has_consumer = (pool, tier) in covered
     stranded = (not has_consumer) and (pool not in opaque_pools)
     ctx = {
         "pool": pool,
+        "category": category,
         "tier": tier,
         "backlog": backlog,
         "has_consumer": has_consumer,
         "stranded": stranded,
     }
 
+    # A lane with NO live consumer is refused for EVERY tier: a task nothing can
+    # drain must not be enqueued — it would strand forever. Because the lane is
+    # per-(pool, category), the refusal is naturally scoped to the categories a
+    # dead pool serves. A live-but-busy consumer is not stranded: foreground
+    # gets the extra hard-cap rule below, governed tiers still accumulate.
+    if stranded:
+        return "reject", {**ctx, "reason": "no_consumer"}
+
     if tier in FOREGROUND_TIERS:
-        if stranded:
-            return "reject", {**ctx, "reason": "no_consumer"}
         cap = hard_cap(tier)
         if cap is not None and backlog >= cap:
             return "reject", {**ctx, "reason": "overloaded", "hard_cap": cap}
@@ -227,16 +245,12 @@ def lane_shed_decision(conn, queue):
     return "ok", ctx
 
 
-def check_shed(conn, queue):
-    """Raise a typed 429 ``Error`` if a foreground task must not enqueue on
-    ``queue`` (stranded, or above its hard backlog cap). Call this BEFORE any
-    state mutation so a reject leaves nothing half-done. No-op for governed
-    tiers, and on any coverage uncertainty (fail-open)."""
-    decision, ctx = lane_shed_decision(conn, queue)
-    if decision != "reject":
-        return
-    # Imported lazily: resolves to apiv4's rich Error (→ 429) in-process, or to
-    # ErrorBase elsewhere; both carry the status code + description_code.
+def _raise_lane_429(ctx):
+    """Raise the typed 429 ``Error`` for a rejected lane, carrying its
+    (pool, category, tier) so the caller can surface a category-scoped notice.
+
+    Imported lazily: resolves to apiv4's rich Error (→ 429) in-process, or to
+    ErrorBase elsewhere; both carry the status code + description_code."""
     from isardvdi_common.helpers.error_factory import Error
 
     code = (
@@ -249,15 +263,50 @@ def check_shed(conn, queue):
         f"Storage lane {ctx.get('pool')}/{ctx.get('tier')} is temporarily "
         "unable to accept work; please retry shortly",
         description_code=code,
-        params={"pool": ctx.get("pool"), "tier": ctx.get("tier")},
+        params={
+            "pool": ctx.get("pool"),
+            "category": ctx.get("category"),
+            "tier": ctx.get("tier"),
+        },
     )
 
 
+def check_no_consumer(conn, queue):
+    """Raise a typed 429 when ``queue`` has NO live consumer for its
+    (pool, category) — a task nothing can drain must never be enqueued, for any
+    tier. Mandatory on every producer and category-scoped (a dead pool only
+    refuses the categories it serves); fail-open on any coverage uncertainty.
+    Distinct from :func:`check_shed`, the opt-in backlog-overload gate."""
+    decision, ctx = lane_shed_decision(conn, queue)
+    if decision == "reject" and ctx.get("reason") == "no_consumer":
+        _raise_lane_429(ctx)
+
+
+def check_shed(conn, queue):
+    """Raise a typed 429 ``Error`` if a task must not enqueue on ``queue``
+    (stranded for any tier, or a foreground lane above its hard backlog cap).
+    Call this BEFORE any state mutation so a reject leaves nothing half-done.
+    Fail-open on any coverage uncertainty."""
+    decision, ctx = lane_shed_decision(conn, queue)
+    if decision == "reject":
+        _raise_lane_429(ctx)
+
+
 def enforce_shed(conn, kwargs):
-    """create_task gate: pop the ``shed`` kwarg (so it never reaches ``Task``)
-    and, when the caller opted in, apply :func:`check_shed` to the target lane.
-    For op-methods that mutate state before enqueueing, prefer calling
-    :func:`check_shed` up front instead."""
+    """create_task gate with two independent rules:
+
+    * **Mandatory** — refuse to enqueue on a lane with no live consumer
+      (:func:`check_no_consumer`), for every producer and every tier, scoped to
+      the lane's own (pool, category). A task nothing can drain must not be
+      enqueued.
+    * **Opt-in** — when the caller passes ``shed=True``, additionally apply the
+      backlog-overload gate (:func:`check_shed`) for foreground lanes.
+
+    Pops the ``shed`` kwarg so it never reaches ``Task``."""
     shed = kwargs.pop("shed", False)
-    if shed and "queue" in kwargs:
-        check_shed(conn, kwargs["queue"])
+    queue = kwargs.get("queue")
+    if not queue:
+        return
+    check_no_consumer(conn, queue)
+    if shed:
+        check_shed(conn, queue)
