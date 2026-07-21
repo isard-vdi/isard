@@ -61,7 +61,6 @@ from isardvdi_common.lib.queue_tiers import (
     DEFERRABLE_TIERS,
     HEAVY_TIERS,
     NULL_CATEGORY,
-    multitenancy_enabled,
     parse_storage_queue,
 )
 from rq import Worker
@@ -321,12 +320,12 @@ class GovernedWorker(Worker):
         self._default_psi_limit = 40.0
         self._default_max_heavy = 2
         self._default_backoff = 3
-        # Per-category MULTITENANCY (Phase 2) is a STRUCTURAL switch read once
-        # from the docker-compose env (STORAGE_QUEUE_MULTITENANCY), NOT a live
-        # knob — it must match the producers, and flipping it recreates the
-        # container. Off (default) -> the P1 flat-queue path. On -> discover +
-        # weighted-RR fair-schedule per-category bulk/background lanes.
-        self.multitenancy = multitenancy_enabled()
+        # Per-category multitenancy: producers thread the owner category into
+        # per-category fair lanes and this worker discovers + weighted-RR
+        # fair-schedules across them. Always on in production; kept as an instance
+        # flag so a flat-queue worker can still be built (e.g. to drain stray
+        # lanes) and for the observability status.
+        self.multitenancy = True
         # The bg-floor worker runs this class in FLOOR mode: it discovers and
         # serves per-category lanes (so heavy work on them can't starve under
         # multitenancy) but NEVER governs — no PSI defer, no cap, no reservation —

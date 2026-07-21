@@ -21,9 +21,11 @@ from time import time
 from typing import Any, Dict, List, Literal, Optional, Union
 from uuid import uuid4
 
+from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib import queue_tiers
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from isardvdi_common.models.storage_pool import StoragePool
@@ -35,6 +37,16 @@ from rq.job import JobStatus
 from ..schemas.storage import *
 from . import domain
 from .task import Task
+
+# Owner category is resolved on every storage-task produce; cache per user so a
+# burst of produces for one owner does not re-hit rethinkdb.
+_owner_category_cache = SynchronizedTTLCache(maxsize=4096, ttl=60)
+
+
+@cached(_owner_category_cache)
+def _owner_category(user_id):
+    owner = User.get(user_id)
+    return owner.get("category") if owner else None
 
 
 class StorageModel(BaseModel):
@@ -405,17 +417,10 @@ class Storage(RethinkCustomBase):
 
     @property
     def category(self):
-        """
-        Returns the category of the storage user_id owner, or None if the owner
-        no longer exists.
-
-        One rdb read: fetch the owner document and read its category, instead of
-        an ``exists()`` probe followed by a second per-field pluck. This is on the
-        per-task produce hot path under queue multitenancy (every bulk/background
-        storage task resolves it), so the extra round-trip is worth removing.
-        """
-        owner = User.get(self.user_id)
-        return owner.get("category") if owner else None
+        """The category of the storage owner (user_id), or None if the owner no
+        longer exists. Cached per user (see ``_owner_category``); this is on the
+        per-produce hot path."""
+        return _owner_category(self.user_id)
 
     @classmethod
     def create_from_path(cls, path, user_id):
@@ -486,23 +491,13 @@ class Storage(RethinkCustomBase):
         """
         Create Task for a Storage.
         """
-        # Phase-1 queue tiering: normalise the root task's queue and every
-        # dependent task's queue to the interactive/standard/bulk/background
-        # model, using each task's own ``action`` for the action-aware rules.
-        # Phase-2 multitenancy: when the STORAGE_QUEUE_MULTITENANCY switch is on,
-        # thread the owning category (resolved here at produce time, where rdb is
-        # reachable) so bulk/background land on per-category lanes the elastic
-        # worker fair-schedules; the worker never re-reads the category (it parses
-        # it from the queue name). ``self.category`` is the storage owner's
-        # category, or None for a deleted owner / system task — which resolves to
-        # the NULL_CATEGORY sentinel so it rides its OWN discovered ``_nocat`` fair
-        # lane instead of the always-last flat catch-all (kept solely for legacy
-        # pre-upgrade producers). Off => None => flat, the pre-Phase-2 shape.
-        category = (
-            (self.category or queue_tiers.NULL_CATEGORY)
-            if queue_tiers.multitenancy_enabled()
-            else None
-        )
+        # Normalise the root task's queue and every dependent's queue to the tier
+        # model, using each task's own ``action`` for the action-aware rules, and
+        # thread the owning category so bulk/background land on the per-category
+        # fair lanes the elastic worker schedules (the worker parses the category
+        # back from the queue name). A None owner (deleted or system task)
+        # resolves to the NULL_CATEGORY sentinel lane.
+        category = self.category or queue_tiers.NULL_CATEGORY
         kwargs.setdefault("category_id", category)
         if "queue" in kwargs:
             kwargs["queue"] = queue_tiers.retier_queue(

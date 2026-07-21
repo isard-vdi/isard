@@ -88,31 +88,6 @@ DEFERRABLE_TIERS = frozenset({"template", "maintenance", "reclaim", "background"
 # consume a slot the heavy converts need. ``bulk`` is neither deferred nor capped.
 HEAVY_TIERS = frozenset({"template", "maintenance"})
 
-# Docker-compose env var that switches per-category task-queue MULTITENANCY on.
-_MULTITENANCY_ENV = "STORAGE_QUEUE_MULTITENANCY"
-
-
-def multitenancy_enabled():
-    """True iff per-category task-queue multitenancy is switched ON for this
-    container via the ``STORAGE_QUEUE_MULTITENANCY`` docker-compose env var.
-
-    This is a STRUCTURAL, deploy-time switch (like the worker-pool sizing), NOT a
-    live config knob: it is set from a single ``isardvdi.cfg`` value onto every
-    producer (api, engine, storage) and the storage workers, and flipping it
-    requires recreating the containers. It defaults to **OFF** — one global queue
-    per tier (``storage.<pool>.<tier>``), the pre-multitenancy behaviour. When ON,
-    producers segment the fair-scheduled tiers (bulk/background) by the owning
-    category (``storage.<pool>.<category>.<tier>``) and the elastic worker
-    discovers and fair-schedules across those per-category lanes.
-    """
-    return str(os.environ.get(_MULTITENANCY_ENV, "")).strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
-
-
 # Legacy high/default/low priority strings still flow in from older call sites
 # and admin API params during rollout. ``default`` is action-dependent and is
 # resolved separately (see normalize_tier). ``low`` maps to the maintenance lane
@@ -165,12 +140,9 @@ NULL_CATEGORY = "_nocat"
 
 def resolve_category(owner_category):
     """The category segment a producer threads into a fair lane: the owner's
-    category (or the NULL_CATEGORY sentinel for an ownerless/system task) when
-    multitenancy is on, else None. Mirrors the inline resolution create_task
-    does, for callers that need the retiered lane up front (e.g. a pre-flight
-    shed check)."""
-    if not multitenancy_enabled():
-        return None
+    category, or the NULL_CATEGORY sentinel for an ownerless/system task. Mirrors
+    the inline resolution create_task does, for callers that need the retiered
+    lane up front (e.g. a pre-flight shed check)."""
     return owner_category or NULL_CATEGORY
 
 

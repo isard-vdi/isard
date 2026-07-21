@@ -458,27 +458,3 @@ def test_retier_dependents_threads_category():
 )
 def test_parse_storage_queue(name, expected):
     assert qt.parse_storage_queue(name) == expected
-
-
-@pytest.mark.parametrize(
-    "value,expected",
-    [
-        ("true", True),
-        ("True", True),
-        ("1", True),
-        ("yes", True),
-        ("on", True),
-        (" TRUE ", True),
-        ("false", False),
-        ("0", False),
-        ("no", False),
-        ("", False),
-        (None, False),  # unset env -> default OFF (global queues)
-    ],
-)
-def test_multitenancy_enabled(monkeypatch, value, expected):
-    if value is None:
-        monkeypatch.delenv("STORAGE_QUEUE_MULTITENANCY", raising=False)
-    else:
-        monkeypatch.setenv("STORAGE_QUEUE_MULTITENANCY", value)
-    assert qt.multitenancy_enabled() is expected

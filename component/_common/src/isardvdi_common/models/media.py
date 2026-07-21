@@ -75,17 +75,11 @@ class Media(RethinkCustomBase):
         # Phase-1 queue tiering (see isardvdi_common.lib.queue_tiers): route the
         # media download / delete / existence-check tasks onto the canonical
         # tiers. A media download defaults to background; delete/check resolve to
-        # interactive by their action. Phase-2 multitenancy: when the
-        # STORAGE_QUEUE_MULTITENANCY switch is on, segment the fair tiers by the
-        # media's owning category (``self.category`` is the category id field) so
-        # the elastic worker fair-schedules per tenant. A null category (system /
-        # ownerless media) resolves to the NULL_CATEGORY sentinel so it rides its
-        # own discovered ``_nocat`` fair lane, not the always-last flat catch-all.
-        category = (
-            (self.category or queue_tiers.NULL_CATEGORY)
-            if queue_tiers.multitenancy_enabled()
-            else None
-        )
+        # interactive by their action. The fair tiers are segmented by the media's
+        # owning category (``self.category`` is the category id field) so the
+        # elastic worker fair-schedules per tenant. A null category (system or
+        # ownerless media) resolves to the NULL_CATEGORY sentinel lane.
+        category = self.category or queue_tiers.NULL_CATEGORY
         kwargs.setdefault("category_id", category)
         if "queue" in kwargs:
             kwargs["queue"] = queue_tiers.retier_queue(

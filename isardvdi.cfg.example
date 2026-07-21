@@ -851,17 +851,6 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## WARNING: The increase of workers could lead to cpu overload
 #REDIS_WORKERS=1
 
-# Storage task-queue multitenancy (per-category fair scheduling)
-## When false (default) all tenants share one storage task queue per tier
-## (global). When true, the bulk/background storage tasks are split into
-## per-category (per-tenant) queues and the elastic worker fair-schedules across
-## them (weighted round-robin + optional per-category in-flight caps), so one
-## category's bulk deploy cannot monopolise storage throughput.
-## Structural switch: set the SAME value on every host and recreate the
-## containers to change it (it is read by isard-api, isard-engine and
-## isard-storage).
-#STORAGE_QUEUE_MULTITENANCY=false
-
 # Redis task result TTL
 ## The time to live of the task results in the redis database in seconds
 ## Default is 30 days. Set it to -1 so the results never expire
