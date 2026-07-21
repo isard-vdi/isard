@@ -527,18 +527,20 @@ func TestGuessGroup(t *testing.T) {
 	nested := `^/[^/]+/(?P<primary>[^/]+)(?:/(?P<secondary>[^/]+))?$`
 
 	cases := map[string]struct {
-		PrepareDB         func(*r.Mock)
-		DefaultGroup      string
-		RawGroups         []string
-		ExpectedPrimary   string
-		ExpectedSecondary []string
-		ExpectedErr       string
+		PrepareDB           func(*r.Mock)
+		ProviderName        string
+		DefaultGroup        string
+		RawGroups           []string
+		ExpectedPrimary     string
+		ExpectedPrimaryName string
+		ExpectedSecondary   []string
+		ExpectedErr         string
 	}{
 		"should map nested groups to a primary and secondaries": {
 			PrepareDB: func(m *r.Mock) {
 				groups := []*model.Group{
-					genExternalGroup(Unknown{}, "default", "ADFI"),
-					genExternalGroup(Unknown{}, "default", "COC"),
+					genExternalGroup(Unknown{}, "", "default", "ADFI"),
+					genExternalGroup(Unknown{}, "", "default", "COC"),
 				}
 				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
 					return r.Expr(groups).Contains(func(group r.Term) r.Term {
@@ -564,8 +566,8 @@ func TestGuessGroup(t *testing.T) {
 		"should prefer an already-existing group as the primary": {
 			PrepareDB: func(m *r.Mock) {
 				groups := []*model.Group{
-					genExternalGroup(Unknown{}, "default", "ADFI"),
-					genExternalGroup(Unknown{}, "default", "COC"),
+					genExternalGroup(Unknown{}, "", "default", "ADFI"),
+					genExternalGroup(Unknown{}, "", "default", "COC"),
 				}
 				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
 					return r.Expr(groups).Contains(func(group r.Term) r.Term {
@@ -590,8 +592,8 @@ func TestGuessGroup(t *testing.T) {
 		"should prefer the earliest existing group in IdP order when several exist": {
 			PrepareDB: func(m *r.Mock) {
 				groups := []*model.Group{
-					genExternalGroup(Unknown{}, "default", "ADFI"),
-					genExternalGroup(Unknown{}, "default", "COC"),
+					genExternalGroup(Unknown{}, "", "default", "ADFI"),
+					genExternalGroup(Unknown{}, "", "default", "COC"),
 				}
 				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
 					return r.Expr(groups).Contains(func(group r.Term) r.Term {
@@ -621,9 +623,9 @@ func TestGuessGroup(t *testing.T) {
 		"should deduplicate a group mapped as both a primary and a secondary": {
 			PrepareDB: func(m *r.Mock) {
 				groups := []*model.Group{
-					genExternalGroup(Unknown{}, "default", "ADFI"),
-					genExternalGroup(Unknown{}, "default", "COC"),
-					genExternalGroup(Unknown{}, "default", "GRP"),
+					genExternalGroup(Unknown{}, "", "default", "ADFI"),
+					genExternalGroup(Unknown{}, "", "default", "COC"),
+					genExternalGroup(Unknown{}, "", "default", "GRP"),
 				}
 				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
 					return r.Expr(groups).Contains(func(group r.Term) r.Term {
@@ -640,10 +642,30 @@ func TestGuessGroup(t *testing.T) {
 			ExpectedSecondary: []string{"COC", "GRP"},
 		},
 		"should fall back to the default group when nothing matches": {
-			DefaultGroup:      "default-group",
-			RawGroups:         []string{"/ikasleak"},
-			ExpectedPrimary:   "default-group",
-			ExpectedSecondary: []string{},
+			DefaultGroup:        "default-group",
+			RawGroups:           []string{"/ikasleak"},
+			ExpectedPrimary:     "default-group",
+			ExpectedPrimaryName: "[unknown] default-group",
+			ExpectedSecondary:   []string{},
+		},
+		"should prefix the group name with the provider name": {
+			ProviderName: "ACME",
+			PrepareDB: func(m *r.Mock) {
+				groups := []*model.Group{genExternalGroup(Unknown{}, "ACME", "default", "ADFI")}
+				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
+					return r.Expr(groups).Contains(func(group r.Term) r.Term {
+						return r.And(
+							r.Eq(row.Field("parent_category"), group.Field("parent_category")),
+							r.Eq(row.Field("external_app_id"), group.Field("external_app_id")),
+							r.Eq(row.Field("external_gid"), group.Field("external_gid")),
+						)
+					})
+				})).Return([]any{}, nil)
+			},
+			RawGroups:           []string{"/ikasleak/ADFI"},
+			ExpectedPrimary:     "ADFI",
+			ExpectedPrimaryName: "[ACME] ADFI",
+			ExpectedSecondary:   []string{},
 		},
 		"should return an error when nothing matches and there's no default group": {
 			RawGroups:   []string{"/ikasleak"},
@@ -651,7 +673,7 @@ func TestGuessGroup(t *testing.T) {
 		},
 		"should return an internal error if the DB check fails": {
 			PrepareDB: func(m *r.Mock) {
-				groups := []*model.Group{genExternalGroup(Unknown{}, "default", "ADFI")}
+				groups := []*model.Group{genExternalGroup(Unknown{}, "", "default", "ADFI")}
 				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
 					return r.Expr(groups).Contains(func(group r.Term) r.Term {
 						return r.And(
@@ -681,6 +703,7 @@ func TestGuessGroup(t *testing.T) {
 
 			opts := guessGroupOpts{
 				Provider:     Unknown{},
+				ProviderName: tc.ProviderName,
 				ReGroup:      regexp.MustCompile(nested),
 				DefaultGroup: tc.DefaultGroup,
 			}
@@ -702,6 +725,10 @@ func TestGuessGroup(t *testing.T) {
 
 			assert.Nil(err)
 			assert.Equal(tc.ExpectedPrimary, primary.ExternalGID)
+
+			if tc.ExpectedPrimaryName != "" {
+				assert.Equal(tc.ExpectedPrimaryName, primary.Name)
+			}
 
 			gids := []string{}
 			for _, g := range secondary {

@@ -21,6 +21,16 @@
 #}
 {% with id_prefix = 'ldap-config-show-' if disabled is true else 'ldap-config-edit-' %}
   {% include '/snippets/config_enable_field.html' %}
+  {% with name_prefix="ldap_config" %}
+    {% with
+      name="name",
+      label="Provider Name",
+      placeholder="",
+      required=false
+    %}
+      {% include '/snippets/form_field.html' %}
+    {% endwith %}
+  {% endwith %}
   <div class="config-fields">
     {% with name_prefix="ldap_config" %}
       {% include '/snippets/ldap_config_form.html' %}

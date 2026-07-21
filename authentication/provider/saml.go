@@ -41,6 +41,8 @@ var _ ConfigurableProvider[model.SAMLConfig] = &SAML{}
 var _ BrandingAwareProvider = &SAML{}
 
 type SAMLConfig struct {
+	Name string
+
 	Middleware          *samlsp.Middleware
 	BrandingMiddlewares map[string]*samlsp.Middleware
 	BrandingHosts       map[string]string
@@ -387,6 +389,8 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 		prvCfg.ReCategory = nil
 	}
 
+	prvCfg.Name = cfg.Name
+
 	prvCfg.FieldGroup = cfg.FieldGroup
 	prvCfg.GroupDefault = cfg.GroupDefault
 
@@ -692,6 +696,7 @@ func (s *SAML) GuessGroups(ctx context.Context, u *types.ProviderUserData, rawGr
 
 	return guessGroup(ctx, s.db, guessGroupOpts{
 		Provider:     s,
+		ProviderName: cfg.Name,
 		ReGroup:      cfg.ReGroup,
 		DefaultGroup: cfg.GroupDefault,
 	}, u, rawGroups)

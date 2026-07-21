@@ -274,6 +274,30 @@ class TestGetCategoryAuthentication:
         assert "client_secret" not in google_config
         assert google_config.get("client_secret_set") is True
 
+    def test_admin_gets_provider_name(self, test_client):
+        """The optional ``<provider>_config.name`` must round-trip out of the
+        GET while secrets are still stripped."""
+        jwt = MockJWT(role_id="admin")
+        response = test_client(
+            url="/admin/item/category/test-cat/authentication",
+            jwt=jwt,
+            db_tables_data=_db(
+                authentication={
+                    "saml": {
+                        "config_source": "custom",
+                        "disabled": False,
+                        "email_domain_restriction": {"enabled": False, "allowed": []},
+                        "saml_config": {"name": "ACME Keycloak", "password": "s3cret"},
+                    }
+                }
+            ),
+        )
+        assert response.status_code == 200
+        saml_config = response.json().get("saml", {}).get("saml_config", {})
+        assert saml_config.get("name") == "ACME Keycloak"
+        assert "password" not in saml_config
+        assert saml_config.get("password_set") is True
+
     def test_manager_with_permission_gets_auth(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
         response = test_client(
@@ -342,6 +366,19 @@ class TestUpdateCategoryAuthentication:
             method="PUT",
             jwt=jwt,
             body=self._payload(),
+            db_tables_data=_db(),
+        )
+        assert response.status_code == 204
+
+    def test_admin_updates_authentication_with_provider_name(self, test_client):
+        """A ``name`` inside ``<provider>_config`` must pass validation and be
+        accepted by the update path."""
+        jwt = MockJWT(role_id="admin")
+        response = test_client(
+            url="/admin/item/category/test-cat/authentication",
+            method="PUT",
+            jwt=jwt,
+            body=self._payload(saml={"saml_config": {"name": "ACME Keycloak"}}),
             db_tables_data=_db(),
         )
         assert response.status_code == 204

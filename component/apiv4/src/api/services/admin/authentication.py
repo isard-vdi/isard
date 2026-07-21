@@ -20,6 +20,7 @@
 
 from typing import Optional
 
+from api.schemas.admin.authentication import ProvidersResponse, ProviderWithNameEntry
 from api.services.error import Error
 from cachetools import cached
 from html_sanitizer import Sanitizer
@@ -118,10 +119,18 @@ class AdminAuthenticationService:
     def get_providers() -> dict:
         # Global availability is the admin-toggled DB config (config.auth.<provider>.enabled), the source the global auth page reads
         auth = (Config.get_config() or {}).get("auth", {})
-        return {
-            provider: bool(auth.get(provider, {}).get("enabled", provider == "local"))
-            for provider in ("local", "google", "saml", "ldap")
-        }
+        providers = {}
+        for provider, field in ProvidersResponse.model_fields.items():
+            provider_cfg = auth.get(provider, {})
+            entry: dict = {
+                "enabled": bool(provider_cfg.get("enabled", provider == "local"))
+            }
+            if issubclass(field.annotation, ProviderWithNameEntry):
+                entry["name"] = (provider_cfg.get(f"{provider}_config") or {}).get(
+                    "name"
+                )
+            providers[provider] = entry
+        return providers
 
     # ── Force validate at login ───────────────────────────────────────────
 

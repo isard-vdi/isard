@@ -318,17 +318,23 @@ class TestProvidersList:
         monkeypatch.setattr(
             "api.routes.admin.authentication.AdminAuthenticationService.get_providers",
             staticmethod(
-                lambda: {"local": True, "google": False, "saml": False, "ldap": False}
+                lambda: {
+                    "local": {"enabled": True},
+                    "google": {"enabled": False, "name": None},
+                    "saml": {"enabled": True, "name": "ACME"},
+                    "ldap": {"enabled": False, "name": None},
+                }
             ),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
-        assert response.json()["local"] is True
+        assert response.json()["local"] == {"enabled": True}
+        assert response.json()["saml"] == {"enabled": True, "name": "ACME"}
 
     def test_manager_lists_providers(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.authentication.AdminAuthenticationService.get_providers",
-            staticmethod(lambda: {"local": True}),
+            staticmethod(lambda: {"local": {"enabled": True}}),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="manager"))
         assert response.status_code == 200
