@@ -591,11 +591,10 @@ class AnalyticsProcessed(RethinkSharedConnection):
         """Return desktops with the most ``logs_desktops`` start events."""
         query = (
             r.table("logs_desktops")
-            .filter(
-                lambda log: log["starting_time"].during(
-                    r.now().sub(r.expr(60 * 60 * 24 * days_before)),
-                    r.now(),
-                )
+            .between(
+                r.now().sub(r.expr(60 * 60 * 24 * days_before)),
+                r.now(),
+                index="starting_time",
             )
             .group("desktop_id")
             .count()

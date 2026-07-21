@@ -1615,19 +1615,10 @@ class Populate(object):
             log.info("Table logs_desktops not found, creating...")
             r.table_create("logs_desktops", primary_key="id").run(self.conn)
             r.table("logs_desktops").index_create("desktop_id").run(self.conn)
-            r.table("logs_desktops").index_create("deployment_id").run(self.conn)
             r.table("logs_desktops").index_create("owner_user_id").run(self.conn)
             r.table("logs_desktops").index_create("owner_category_id").run(self.conn)
-            r.table("logs_desktops").index_create("owner_group_id").run(self.conn)
-            r.table("logs_desktops").index_create("started_by").run(self.conn)
-            r.table("logs_desktops").index_create("stopped_by").run(self.conn)
             r.table("logs_desktops").index_create("started_time").run(self.conn)
-            r.table("logs_desktops").index_create("stopped_time").run(self.conn)
-            r.table("logs_desktops").index_create("stopped_status").run(self.conn)
-            r.table("logs_desktops").index_create(
-                "desktop_template_hierarchy",
-                multi=True,
-            ).run(self.conn)
+            r.table("logs_desktops").index_create("starting_time").run(self.conn)
         except:
             None
 
@@ -1636,7 +1627,6 @@ class Populate(object):
             log.info("Table logs_users not found, creating...")
             r.table_create("logs_users", primary_key="id").run(self.conn)
             r.table("logs_users").index_create("started_time").run(self.conn)
-            r.table("logs_users").index_create("stopped_time").run(self.conn)
         except:
             None
 

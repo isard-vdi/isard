@@ -49,13 +49,11 @@ class DesktopUsageProcessed(RethinkSharedConnection):
         with cls._rdb_context():
             return list(
                 r.table("logs_desktops")
+                .between(r.minval, consolidation_day_after, index="started_time")
                 .without("events")
                 .filter(
-                    lambda log: (
-                        (log["stopped_time"] > consolidation_day)
-                        | log.has_fields("stopped_time").not_()
-                    )
-                    & (log["started_time"] < consolidation_day_after)
+                    lambda log: (log["stopped_time"] > consolidation_day)
+                    | log.has_fields("stopped_time").not_()
                 )
                 .merge(
                     r.branch(
