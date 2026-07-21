@@ -53,6 +53,34 @@ services:
       -retentionPeriod=${VICTORIAMETRICS_RETENTION_TIME:-${PROMETHEUS_RETENTION_TIME:-40d}}
       -selfScrapeInterval=30s
 
+  isard-vmalert:
+    container_name: isard-vmalert
+    image: victoriametrics/vmalert:v1.147.0
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.69
+    volumes:
+      - ${BUILD_ROOT_PATH}/docker/vmalert/rules:/etc/vmalert/rules:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    depends_on:
+      - isard-victoriametrics
+    command: >-
+      -datasource.url=http://isard-victoriametrics:8428
+      -remoteWrite.url=http://isard-victoriametrics:8428
+      -remoteRead.url=http://isard-victoriametrics:8428
+      -notifier.blackhole
+      -rule=/etc/vmalert/rules/*.rules.yml
+      -evaluationInterval=30s
+      -external.label=source=vmalert
+
   isard-loki:
     container_name: isard-loki
     image: grafana/loki:3.7.3@sha256:70b9f699fc9bb868b62f1cfd4f787dfa50242f1fd92e6089787d5d7daea75fe8

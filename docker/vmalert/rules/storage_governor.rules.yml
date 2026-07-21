@@ -1,0 +1,324 @@
+# IsardVDI storage-governor observability — Prometheus recording + alert rules.
+#
+# All series are emitted by the stats-go `storage_governor` collector, which
+# scrapes apiv4 `GET /admin/items/queues/governor`. Every expression below
+# references ONLY metric names that collector actually exports (prefix
+# `isardvdi_storage_governor_`, all gauges). The metrics arrive with whatever
+# job/instance labels Alloy adds on remote-write, so the rules never hard-depend
+# on a specific `job=` label.
+#
+# Cardinality is bounded to pool x category x tier x worker. A job id, traceback
+# or retries_left value is NEVER a label — those live only in the apiv4 drawer.
+#
+# Discipline honored verbatim:
+#   * Per-category alerts (CategoryStarved, CategoryAtCap) are gated on
+#     `isardvdi_storage_governor_multitenancy_active == 1` (absent => not firing,
+#     because absence must not read as a flat/healthy install).
+#   * FailedSpike uses `clamp_min(increase(...failed[15m]), 0)` so an auto-delete
+#     registry shrink can never be read as a spike.
+#   * StrandedLane requires the `stranded_lane` series to be present (it is only
+#     emitted when consumer coverage is known) AND backlog>0, crit, for: 10m.
+#   * for: windows -> leak 30m, at-cap 15m, stranded 10m, worker-loss 2m,
+#     redis-down 2m, PSIPinned 15m, DataStale 5m (see each rule).
+
+groups:
+  # ---------------------------------------------------------------------------
+  # Recording rules: precompute the derived series the alerts (and dashboards)
+  # consume, so the anti-shrink clamp / windowed deltas / worker roll-up live in
+  # exactly one place.
+  # ---------------------------------------------------------------------------
+  - name: storage_governor_recording
+    rules:
+      # Anti-shrink failed-spike counter. `increase` treats the gauge as a
+      # counter; the clamp guarantees an auto-delete shrink can only ever read
+      # as 0, never as a negative that later inverts.
+      - record: isardvdi_storage_governor:failed:increase15m
+        expr: clamp_min(increase(isardvdi_storage_governor_failed[15m]), 0)
+
+      # Redis eviction pressure over the last 15m (evictions silently corrupt
+      # the inflight SCARD gauges, so surface any movement).
+      - record: isardvdi_storage_governor:redis_evicted_keys:increase15m
+        expr: clamp_min(increase(isardvdi_storage_governor_redis_evicted_keys[15m]), 0)
+
+      # Backlog trend per lane over 30m (delta may legitimately be negative
+      # while a lane drains — that is fine, BacklogRising only cares about >25).
+      - record: isardvdi_storage_governor:backlog:delta30m
+        expr: delta(isardvdi_storage_governor_backlog[30m])
+
+      # Fleet-wide count of storage workers reporting up. `sum()` over an empty
+      # set yields no series, so NoStorageWorkers cannot false-fire when the
+      # exporter itself is blind (that case is GovernorScrapeFailed's job).
+      - record: isardvdi_storage_governor:worker_up:sum
+        expr: sum(isardvdi_storage_governor_worker_up)
+
+      # Heavy-pool utilisation ratio for dashboards (cap floored to 1 to avoid a
+      # divide-by-zero when the cap is momentarily 0).
+      - record: isardvdi_storage_governor:heavy_utilization:ratio
+        expr: isardvdi_storage_governor_heavy_running / clamp_min(isardvdi_storage_governor_heavy_cap, 1)
+
+  # ---------------------------------------------------------------------------
+  # Alert rules.
+  # ---------------------------------------------------------------------------
+  - name: storage_governor_alerts
+    rules:
+      # --- Backlog / lane health (catalog #1) --------------------------------
+      - alert: BacklogHigh
+        expr: isardvdi_storage_governor_backlog > 200
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage lane backlog is high"
+          description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} has {{ $value }} queued jobs (>200) sustained for 30m. Raise max_heavy or add elastic workers."
+
+      - alert: BacklogRising
+        expr: isardvdi_storage_governor:backlog:delta30m > 25
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage lane backlog is rising"
+          description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} backlog grew by {{ $value }} over 30m (>25) and keeps rising. Growth confined to bulk/background while interactive is flat is expected shedding."
+
+      # --- Wedged QUEUED lane, per-tier SLA (catalog #2) ---------------------
+      # Reserved tiers (interactive/standard) carry the `_pool` sentinel as
+      # category; fair tiers (bulk/background) carry a real category id. One
+      # rule, per-tier thresholds selected by the series `tier` label via `or`:
+      #   interactive>300s, standard>900s, bulk>7200s (between std and bg),
+      #   background>21600s. A single rule keeps the alertname stable and avoids
+      #   duplicate-rule lint on identical static label sets.
+      - alert: OldestQueuedAgeHigh
+        expr: |
+          (isardvdi_storage_governor_oldest_queued_age_seconds{tier="interactive"} > 300)
+          or (isardvdi_storage_governor_oldest_queued_age_seconds{tier="standard"} > 900)
+          or (isardvdi_storage_governor_oldest_queued_age_seconds{tier="bulk"} > 7200)
+          or (isardvdi_storage_governor_oldest_queued_age_seconds{tier="background"} > 21600)
+        labels:
+          severity: warning
+        annotations:
+          summary: "Oldest queued job exceeds its tier SLA"
+          description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} head job has been queued for {{ $value }}s, past its tier SLA (interactive 300s / standard 900s / bulk 7200s / background 21600s). Inspect head-task drawer and consumer coverage."
+
+      # --- Hung STARTED task holding a slot (catalog #2b) --------------------
+      - alert: StartedJobStuck
+        expr: isardvdi_storage_governor_started_over_timeout > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Storage job stuck in STARTED past its timeout"
+          description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} has {{ $value }} started job(s) past their timeout for 10m, holding reserved/heavy slots. Inspect the long-running drawer and admin-cancel to free the slot."
+
+      # --- Failed spike (catalog #4) ----------------------------------------
+      # clamp_min(increase(...)) so an auto-delete registry shrink reads as 0.
+      - alert: FailedSpike
+        expr: isardvdi_storage_governor:failed:increase15m > 5
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage failures rising"
+          description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} accrued {{ $value }} failures in 15m (>5). Read the traceback drawer, fix, then retry."
+
+      - alert: FailedSpike
+        expr: isardvdi_storage_governor:failed:increase15m > 20
+        labels:
+          severity: critical
+        annotations:
+          summary: "Storage failures spiking"
+          description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} accrued {{ $value }} failures in 15m (>20). Read the traceback drawer, fix, then retry."
+
+      # --- Heavy pool at cap (catalog #5) -----------------------------------
+      - alert: HeavyAtCap
+        expr: (isardvdi_storage_governor_heavy_running >= isardvdi_storage_governor_heavy_cap) and (isardvdi_storage_governor_heavy_cap > 0)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Heavy storage pool at admission cap"
+          description: "Heavy running ({{ $value }}) has been at/above the effective max_heavy cap for 15m; global heavy admission is blocked. Raise max_heavy / add capacity; at-cap plus low throughput suggests a leaked counter (InflightLeak)."
+
+      # --- Per-category starvation, fair tiers only (catalog #6) ------------
+      # Gated on worker-reported multitenancy AND a live serving worker.
+      - alert: CategoryStarved
+        expr: |
+          (isardvdi_storage_governor_category_starved == 1)
+          and on() (isardvdi_storage_governor_multitenancy_active == 1)
+          and on() (isardvdi_storage_governor:worker_up:sum > 0)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Per-category storage lane is starved"
+          description: "Category {{ $labels.category }} in pool {{ $labels.pool }} has backlog but no inflight for 15m while peers run and a worker is alive. Raise its weight/cap or lower a hogging category."
+
+      # --- Per-category at cap, fair tiers only (catalog #7) ----------------
+      - alert: CategoryAtCap
+        expr: |
+          (isardvdi_storage_governor_category_at_cap == 1)
+          and on() (isardvdi_storage_governor_multitenancy_active == 1)
+        for: 20m
+        labels:
+          severity: info
+        annotations:
+          summary: "Per-category storage lane at its cap"
+          description: "Category {{ $labels.category }} in pool {{ $labels.pool }} has been at its per-category inflight cap with backlog behind it for 20m. Raise the cap only if the node is unpressured; otherwise fair-share is working."
+
+      # --- Governor deferring under PSI (catalog #8) ------------------------
+      # deferring==1 AND a per-worker PSI over the global psi_limit for 15m.
+      - alert: PSIPinned
+        expr: |
+          (isardvdi_storage_governor_worker_deferring == 1)
+          and on(worker)
+          (
+            (isardvdi_storage_governor_worker_psi_cpu > on() group_left() isardvdi_storage_governor_psi_limit)
+            or
+            (isardvdi_storage_governor_worker_psi_io  > on() group_left() isardvdi_storage_governor_psi_limit)
+          )
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage worker pinned by PSI pressure"
+          description: "Worker {{ $labels.worker }} has been deferring under CPU/IO pressure above psi_limit for 15m (held by host stall, not the cap). Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
+
+      # --- Worker heartbeat loss (catalog #9) -------------------------------
+      - alert: WorkerHeartbeatLost
+        expr: isardvdi_storage_governor_worker_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Storage worker lost its heartbeat"
+          description: "Worker {{ $labels.worker }} (pool {{ $labels.pool }}, kind {{ $labels.kind }}) has reported up=0 for 2m (hash expired or heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+
+      - alert: NoStorageWorkers
+        expr: isardvdi_storage_governor:worker_up:sum == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No storage workers are up"
+          description: "No storage worker has reported up for 2m; nothing is draining the storage queues. Restart the worker containers."
+
+      # --- Broker / Redis health (catalog #15) ------------------------------
+      - alert: RedisDown
+        expr: isardvdi_storage_governor_redis_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Governor Redis broker is down"
+          description: "The RQ Redis broker has reported down for 2m; governor state and admission control are blind. Restore Redis."
+
+      - alert: RedisNearMaxmemory
+        expr: isardvdi_storage_governor_redis_used_memory_ratio > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Governor Redis near maxmemory"
+          description: "RQ Redis used-memory ratio is {{ $value }} (>0.9) for 10m; evictions will silently corrupt the inflight SCARD gauges. Grow Redis / raise maxmemory."
+
+      - alert: RedisEvicting
+        expr: isardvdi_storage_governor:redis_evicted_keys:increase15m > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Governor Redis is evicting keys"
+          description: "RQ Redis evicted {{ $value }} keys in 15m; evicted governor sets silently lower the inflight counters. Grow Redis / raise maxmemory."
+
+      # --- Leaked in-flight counters, sustained only (catalog #12) ----------
+      # Reconcile runs only at boot/at-cap, so a real leak persists -> 30m.
+      - alert: InflightLeak
+        expr: isardvdi_storage_governor_heavy_leak > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Heavy in-flight counter leaked"
+          description: "The heavy in-flight counter has been over-counting live jobs for 30m (a SIGKILLed worker inflated SCARD). Usually self-heals at the next reconcile; if persistent, restart a worker to force a boot reconcile."
+
+      - alert: CategoryInflightLeak
+        expr: isardvdi_storage_governor_category_leak > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Per-category in-flight counter leaked"
+          description: "Category {{ $labels.category }} in pool {{ $labels.pool }} has been over-counting live jobs for 30m. Usually self-heals at the next reconcile; if persistent, restart a worker."
+
+      # --- Governor config / mode (catalog #13, #14) ------------------------
+      - alert: GovernorGatingDisabled
+        expr: isardvdi_storage_governor_config_enabled == 0
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: "Storage governor gating is disabled"
+          description: "The governor kill-switch has been off for 30m; PSI/heavy-cap admission control is not enforcing. Re-enable via the storage_scheduler config if unintended."
+
+      - alert: GovernorConfigNotMirrored
+        expr: isardvdi_storage_governor_config_mirrored == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Governor config not mirrored to Redis"
+          description: "The Redis governor:config has been missing/stale versus the DB for 10m (e.g. after a Redis restart); workers may run on env fallback. Open the config GET/PUT to re-publish."
+
+      # --- Stranded lane (catalog #10) --------------------------------------
+      # The `stranded_lane` series is emitted ONLY when consumer coverage is
+      # known, so its mere presence encodes coverage_known==1; we additionally
+      # require backlog>0. Suppressed (no series) during rolling upgrades.
+      - alert: StrandedLane
+        expr: |
+          (isardvdi_storage_governor_stranded_lane > 0)
+          and on(pool, category, tier) (isardvdi_storage_governor_backlog > 0)
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Stranded storage lane: backlog with no consumer"
+          description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} has backlog but no live consumer (coverage known) for 10m. Start/scale a worker for that pool/tier; confirm producer intent."
+
+      # --- Exporter / data honesty (catalog #16, #17, #18) ------------------
+      - alert: GovernorScrapeFailed
+        expr: isardvdi_storage_governor_scrape_duration_success == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Storage governor scrape failing"
+          description: "The storage-governor exporter has failed its scrape of apiv4 for 5m; all gauges are blind. Fix apiv4 reachability / the stats-go admin token."
+
+      # heavy_running is only CONDITIONALLY emitted (the collector emits the
+      # heavy block only when the payload carries it), so a healthy scrape with
+      # a missing heavy block would false-page. scrape_duration_seconds is a
+      # label-less singleton emitted on EVERY collect path (success and both
+      # error paths), so absent() means the target/exporter is truly gone.
+      - alert: GovernorExporterAbsent
+        expr: absent(isardvdi_storage_governor_scrape_duration_seconds)
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Storage governor metrics absent"
+          description: "No storage-governor metrics have been ingested for 10m (exporter/target gone). Check the stats-go collector and apiv4 reachability."
+
+      - alert: GovernorDataStale
+        expr: isardvdi_storage_governor_data_age_seconds > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage governor data is stale"
+          description: "The governor payload age has exceeded 60s for 5m even though scrapes succeed (frozen cache / slow Redis). Investigate Redis latency or apiv4 to_thread starvation."
+
+      - alert: GovernorLanesTruncated
+        expr: isardvdi_storage_governor_truncated_lanes > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage governor lane scan truncated"
+          description: "The bounded lane scan has been hitting its cap for 30m ({{ $value }} lanes truncated); the view is not seeing every lane. Narrow by pool/category or raise the cap deliberately; investigate a lane explosion."

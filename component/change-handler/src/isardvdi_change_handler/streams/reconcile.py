@@ -238,7 +238,13 @@ async def _finalize_stuck_storage(redis_manager, storage):
         )
         return 1
     try:
-        storage.check_backing_chain(user_id=getattr(storage, "user_id", None))
+        # A self-heal recheck of a STUCK storage: recover it soon rather than on
+        # the idle ``background`` lane (the method default), but off the reserved
+        # pool — no user desktop is blocked on it. Trigger-driven, like the admin
+        # datatable "check" click.
+        storage.check_backing_chain(
+            user_id=getattr(storage, "user_id", None), priority="standard"
+        )
         log.warning(
             "reconcile: stuck storage %s has no valid disk info; re-issued "
             "check_backing_chain",
