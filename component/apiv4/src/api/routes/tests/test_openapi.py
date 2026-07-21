@@ -37,37 +37,12 @@ def test_openapi_includes_load_bearing_endpoints(test_client):
         "/api/v4/item/user/desktops",
         "/api/v4/items/templates",
         "/api/v4/items/desktops",
-        "/api/v4/admin/users",
-        "/api/v4/admin/categories",
-        "/api/v4/admin/hypervisors",
+        "/api/v4/admin/items/users",
+        "/api/v4/admin/items/categories",
+        "/api/v4/admin/items/hypervisors",
     }
     missing = load_bearing - paths
     assert not missing, f"Missing load-bearing endpoints in OpenAPI: {missing}"
-
-
-@pytest.mark.skipif(_is_production, reason="OpenAPI docs disabled in production")
-def test_openapi_response_models_have_no_anyof_with_null_in_query_params(
-    test_client,
-):
-    """ogen rejects `anyOf: [..., {"type":"null"}]` for query/path params.
-    `gen_openapi.py::_strip_null_unions()` exists specifically to remove
-    those. If a future Pydantic field re-introduces them, codegen breaks.
-    """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", UserWarning)
-        response = test_client(url="/api/v4/openapi.json")
-    schema = response.json()
-
-    for path, ops in schema.get("paths", {}).items():
-        for verb, op in ops.items():
-            if not isinstance(op, dict):
-                continue
-            for param in op.get("parameters", []):
-                pschema = param.get("schema", {})
-                for branch in pschema.get("anyOf", []):
-                    assert (
-                        branch.get("type") != "null"
-                    ), f"{verb.upper()} {path}: parameter {param.get('name')} has anyOf:null — strip in gen_openapi.py"
 
 
 @pytest.mark.skipif(_is_production, reason="OpenAPI docs disabled in production")

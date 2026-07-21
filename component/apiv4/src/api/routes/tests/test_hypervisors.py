@@ -13,6 +13,8 @@ on ``admin_router`` so the default ``MockJWT()`` (admin role) is
 enough. Service-level calls are monkeypatched so no real DB is hit.
 """
 
+from datetime import datetime, timezone
+
 from api.routes.tests.helpers import MockJWT
 
 
@@ -78,6 +80,18 @@ def test_admin_hypervisors_list_by_status(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert captured == {"status": "Online"}
+
+
+def test_admin_hypervisors_list_by_status_rejects_invalid(test_client):
+    """The ``HypervisorStatus`` path-param typing is load-bearing: invalid
+    values get the 400 validation_error envelope before any service code
+    runs."""
+    jwt = MockJWT()
+
+    response = test_client(url="/admin/items/hypervisors/Bogus", jwt=jwt)
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "validation_error"
 
 
 def test_admin_hypervisor_create(monkeypatch, test_client):
@@ -257,7 +271,13 @@ def test_admin_hypervisor_started_domains(monkeypatch, test_client):
 
 def test_admin_orchestrator_managed_list(monkeypatch, test_client):
     jwt = MockJWT()
-    stub = [{"id": "hyper-1", "status": "Online"}]
+    stub = [
+        {
+            "id": "hyper-1",
+            "status": "Online",
+            "destroy_time": "2026-07-20T13:00:00+00:00",
+        }
+    ]
     monkeypatch.setattr(
         "api.services.admin.hypervisors.AdminHypervisorsService.get_orchestrator_managed_hypervisors",
         staticmethod(lambda: stub),
@@ -273,6 +293,104 @@ def test_admin_orchestrator_managed_list(monkeypatch, test_client):
     body = response.json()
     assert body[0]["id"] == "hyper-1"
     assert body[0]["status"] == "Online"
+    parsed = datetime.fromisoformat(body[0]["destroy_time"].replace("Z", "+00:00"))
+    assert parsed.tzinfo is not None
+    assert parsed == datetime(2026, 7, 20, 13, 0, 0, tzinfo=timezone.utc)
+
+
+def test_admin_orchestrator_hypervisors_list_dates_roundtrip(monkeypatch, test_client):
+    """The orchestrator (Go) consumes these dates as ``time.Time`` via the
+    generated client; the wire values are the tz-aware isoformat strings
+    written by ``isardvdi_common``. Pin that a stub row round-trips to an
+    ISO-8601 tz-aware value and that absent dates stay null/absent."""
+    jwt = MockJWT()
+    load = {
+        "cpu": {"total": 100, "used": 41, "free": 59},
+        "ram": {"total": 65536, "used": 32768, "free": 32768},
+    }
+    zero_load = {
+        "cpu": {"total": 0, "used": 0, "free": 0},
+        "ram": {"total": 0, "used": 0, "free": 0},
+    }
+    stub = [
+        {
+            "id": "hyper-1",
+            "status": "Online",
+            "destroy_time": "2026-07-20T13:00:00+00:00",
+            "bookings_end_time": "2026-07-21T09:30:00+00:00",
+            **load,
+        },
+        {"id": "hyper-2", "status": "Offline", **zero_load},
+    ]
+    monkeypatch.setattr(
+        "api.services.admin.hypervisors.AdminHypervisorsService.get_orchestrator_hypervisors",
+        staticmethod(lambda: stub),
+    )
+
+    response = test_client(url="/admin/items/orchestrator/hypervisors", jwt=jwt)
+
+    assert response.status_code == 200
+    body = response.json()
+    h1 = next(h for h in body if h["id"] == "hyper-1")
+    for field, expected in (
+        ("destroy_time", datetime(2026, 7, 20, 13, 0, 0, tzinfo=timezone.utc)),
+        ("bookings_end_time", datetime(2026, 7, 21, 9, 30, 0, tzinfo=timezone.utc)),
+    ):
+        parsed = datetime.fromisoformat(h1[field].replace("Z", "+00:00"))
+        assert parsed.tzinfo is not None, f"{field} must be tz-aware"
+        assert parsed == expected
+    h2 = next(h for h in body if h["id"] == "hyper-2")
+    assert h2.get("destroy_time") is None
+    assert h2.get("bookings_end_time") is None
+
+
+def test_admin_orchestrator_only_forced_set(monkeypatch, test_client):
+    """PUT .../only_forced replaces the orchestrator's generic
+    ``admin/table/update/hypervisors`` RAW-JSON write with a typed call."""
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_set(hyper_id, only_forced):
+        captured["hyper_id"] = hyper_id
+        captured["only_forced"] = only_forced
+
+    monkeypatch.setattr(
+        "api.services.admin.hypervisors.AdminHypervisorsService.set_hyper_only_forced",
+        staticmethod(fake_set),
+    )
+
+    response = test_client(
+        url="/admin/item/orchestrator/hypervisor/hyper-1/only_forced",
+        method="PUT",
+        body={"only_forced": True},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 204
+    assert captured == {"hyper_id": "hyper-1", "only_forced": True}
+
+
+def test_admin_orchestrator_only_forced_clear(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_set(hyper_id, only_forced):
+        captured["only_forced"] = only_forced
+
+    monkeypatch.setattr(
+        "api.services.admin.hypervisors.AdminHypervisorsService.set_hyper_only_forced",
+        staticmethod(fake_set),
+    )
+
+    response = test_client(
+        url="/admin/item/orchestrator/hypervisor/hyper-1/only_forced",
+        method="PUT",
+        body={"only_forced": False},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 204
+    assert captured == {"only_forced": False}
 
 
 def test_admin_orchestrator_manage_unset(monkeypatch, test_client):

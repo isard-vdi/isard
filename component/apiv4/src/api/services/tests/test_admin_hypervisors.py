@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 from api.services.admin.hypervisors import AdminHypervisorsService, _overlay_max
 from api.services.error import Error
+from isardvdi_common.schemas.hypervisor import HypervisorStatus
 
 
 class TestGetHypervisors:
@@ -25,19 +26,12 @@ class TestGetHypervisors:
         "api.services.admin.hypervisors.HypervisorsProcessed.get_hypervisors",
         return_value=[],
     )
-    @pytest.mark.parametrize("status", ["Online", "Offline", "Error"])
+    @pytest.mark.parametrize("status", list(HypervisorStatus))
     def test_accepts_valid_status_filter(self, mock_get, status):
+        # Invalid values are rejected by the route-level ``HypervisorStatus``
+        # typing (pinned in test_hypervisors.py), not by the service.
         AdminHypervisorsService.get_hypervisors(status)
-        mock_get.assert_called_once_with(status)
-
-    @pytest.mark.parametrize("bad", ["online", "Foo", "starting", ""])
-    def test_rejects_invalid_status_filter(self, bad):
-        # Empty string is falsy → no filter validation, falls through to dispatch.
-        # Test only the truthy bad cases here.
-        if not bad:
-            return
-        with pytest.raises(Error):
-            AdminHypervisorsService.get_hypervisors(bad)
+        mock_get.assert_called_once_with(status.value)
 
 
 class TestGetHyperStatus:

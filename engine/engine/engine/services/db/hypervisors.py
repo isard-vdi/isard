@@ -4,6 +4,7 @@ from datetime import datetime
 
 import pytz
 from isardvdi_common.lib.gpu_pool_policy import profile_suffix_from_id
+from isardvdi_common.schemas.hypervisor import HypervisorStatus
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -206,18 +207,9 @@ def update_hyp_status(id, status, detail="", uri=""):
     # como una especie de log de cuando cambio de estado
 
     # INFO TO DEVELOPER: pasarlo a una función en functions
-    defined_status = [
-        "Offline",
-        #'TryConnection',
-        #'ReadyToStart',
-        #'StartingThreads',
-        "Error",
-        "Deleting",
-        "Online",
-    ]
-    #'Blocked',
-    #'DestroyingDomains',
-    #'StoppingThreads']
+    # Legacy states no longer emitted: 'TryConnection', 'ReadyToStart',
+    # 'StartingThreads', 'Blocked', 'DestroyingDomains', 'StoppingThreads'.
+    defined_status = [s.value for s in HypervisorStatus]
     if status == "Error":
         pass
     if status in defined_status:

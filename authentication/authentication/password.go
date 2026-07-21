@@ -137,7 +137,7 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd, remoteAddr
 			if errors.As(apiErr, &e) {
 				e.StatusCode = 400
 				ppErr := PasswordPolicyError{APIError: e}
-				if num, ok := policyErr.Params.Num.Get(); ok {
+				if num, ok := policyErr.Params.Value.Num.Get(); ok {
 					ppErr.Num = &num
 				}
 				apiErr = ppErr

@@ -20,7 +20,8 @@
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from isardvdi_common.schemas.hypervisor import HypervisorStatus
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 # ── Hypervisor CRUD ──────────────────────────────────────────────────────
 
@@ -135,6 +136,8 @@ class OrchestratorHypervisorStatsCPU(BaseModel):
 
 
 class OrchestratorHypervisorStatsMem(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     available: int
     buffers: int
     cached: int
@@ -147,6 +150,8 @@ class OrchestratorHypervisorStatsMem(BaseModel):
 
 
 class OrchestratorHypervisorStats(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     cpu_current: OrchestratorHypervisorStatsCPU
     cpu_5min: OrchestratorHypervisorStatsCPU
     cpu_15min: OrchestratorHypervisorStatsCPU
@@ -169,19 +174,31 @@ class OrchestratorHypervisorGPU(BaseModel):
     profile: str
 
 
+class OrchestratorResourceLoad(BaseModel):
+    """CPU/RAM load computed by ``HypervisorsProcessed.calc_resource_load``."""
+
+    total: int
+    used: int
+    free: int
+
+
 class OrchestratorHypervisor(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     id: str
-    status: str
+    status: HypervisorStatus
     only_forced: bool = False
     buffering_hyper: bool = False
-    destroy_time: Optional[str] = None
+    destroy_time: Optional[AwareDatetime] = None
     stats: Optional[OrchestratorHypervisorStats] = None
     orchestrator_managed: bool = False
     min_free_mem_gb: int = 0
     gpu_only: bool = False
     desktops_started: int = 0
-    bookings_end_time: Optional[str] = None
+    bookings_end_time: Optional[AwareDatetime] = None
     gpus: list[OrchestratorHypervisorGPU] = []
+    cpu: OrchestratorResourceLoad
+    ram: OrchestratorResourceLoad
 
     @field_validator("stats", mode="before")
     @classmethod
@@ -196,17 +213,25 @@ class OrchestratorHypervisor(BaseModel):
 
 
 class OrchestratorManagedHypervisor(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     id: str
     info: Optional[dict] = None
     stats: Optional[dict] = None
-    status: str
-    destroy_time: Optional[str] = None
+    status: HypervisorStatus
+    destroy_time: Optional[AwareDatetime] = None
     status_time: Optional[str] = None
     desktops_started: int = 0
 
 
+class OrchestratorOnlyForcedData(BaseModel):
+    """Request body for setting a hypervisor's only_forced flag."""
+
+    only_forced: bool
+
+
 class DeadRowSetResponse(BaseModel):
-    destroy_time: str
+    destroy_time: AwareDatetime
 
 
 class AdminHypervisorCapabilities(BaseModel):
@@ -238,7 +263,7 @@ class AdminHypervisor(BaseModel):
     isard_hyper_vpn_host: str
     kvm_module: Optional[str] = None
     nested: Optional[bool] = None
-    status: str = "Offline"
+    status: HypervisorStatus = HypervisorStatus.offline
     user: str = ""
     enabled: bool = False
     detail: str = ""
@@ -408,7 +433,7 @@ class AdminHypervisorStatusResponse(BaseModel):
     model_config = {"extra": "allow"}
 
     id: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[HypervisorStatus] = None
     only_forced: Optional[bool] = None
 
 

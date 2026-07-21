@@ -26,9 +26,14 @@ from pydantic import BaseModel
 from rethinkdb import r
 
 
-class HypervisorStatusEnum(str, Enum):
+class HypervisorStatus(str, Enum):
+    """Closed status set enforced by the engine's ``update_hyp_status``
+    whitelist (plus the ``Offline``/``Deleting`` writes in
+    ``HypervisorsProcessed``)."""
+
     online = "Online"
     offline = "Offline"
+    error = "Error"
     deleting = "Deleting"
 
 

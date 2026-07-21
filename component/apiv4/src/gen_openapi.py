@@ -1,89 +1,3 @@
-def _strip_null_unions(node):
-    """Recursively remove ``{"type": "null"}`` branches from ``anyOf``/``oneOf``.
-
-    Pydantic v2 emits ``Optional[X]`` as ``anyOf: [X, {"type": "null"}]`` in
-    OpenAPI 3.1. ogen rejects that combination for query/path parameters, and
-    ``@hey-api/openapi-ts`` has historically stumbled on it too. The parameter
-    ``required: false`` flag already encodes optionality for ogen, so stripping
-    the null branch yields a spec both generators can consume.
-    """
-    if isinstance(node, dict):
-        for key in ("anyOf", "oneOf"):
-            branches = node.get(key)
-            if isinstance(branches, list):
-                non_null = [
-                    b
-                    for b in branches
-                    if not (isinstance(b, dict) and b.get("type") == "null")
-                ]
-                if len(non_null) != len(branches):
-                    if len(non_null) == 1:
-                        merged = dict(non_null[0])
-                        for meta_key in ("title", "description", "default"):
-                            if meta_key in node and meta_key not in merged:
-                                merged[meta_key] = node[meta_key]
-                        node.pop(key, None)
-                        for meta_key in ("title", "description", "default"):
-                            node.pop(meta_key, None)
-                        node.update(merged)
-                    else:
-                        node[key] = non_null
-        for value in node.values():
-            _strip_null_unions(value)
-    elif isinstance(node, list):
-        for item in node:
-            _strip_null_unions(item)
-
-
-def _collapse_anyof_null(schema: dict) -> None:
-    """In-place: replace ``anyOf: [X, {"type": "null"}]`` with X
-    and mark the schema nullable. Idempotent."""
-    if not isinstance(schema, dict):
-        return
-    any_of = schema.get("anyOf")
-    if isinstance(any_of, list) and len(any_of) == 2:
-        null_branch = next(
-            (b for b in any_of if isinstance(b, dict) and b.get("type") == "null"),
-            None,
-        )
-        other_branch = next(
-            (b for b in any_of if b is not null_branch),
-            None,
-        )
-        if null_branch is not None and isinstance(other_branch, dict):
-            schema.pop("anyOf")
-            schema.update(other_branch)
-            schema.setdefault("nullable", True)
-
-
-def _strip_path_parameter_anyof_null(spec: dict) -> None:
-    """Collapse ``anyOf: [X, null]`` on path/query parameter schemas.
-
-    The recursive :func:`_strip_null_unions` pass already removes null
-    branches from component and body schemas, but FastAPI also emits
-    ``Optional[str] = Query(None, ...)`` as ``anyOf: [{"type": "string"},
-    {"type": "null"}]`` under ``paths[*][*].parameters[*].schema``. ogen
-    rejects this combination for parameters; the regression test
-    ``test_openapi_response_models_have_no_anyof_with_null_in_query_params``
-    guards against it. This walker mirrors the collapse on parameter
-    schemas (and their optional ``content[*].schema`` variant).
-    """
-    for path_item in spec.get("paths", {}).values():
-        if not isinstance(path_item, dict):
-            continue
-        for op in path_item.values():
-            if not isinstance(op, dict):
-                continue
-            for param in op.get("parameters", []) or []:
-                schema = param.get("schema")
-                if isinstance(schema, dict):
-                    _collapse_anyof_null(schema)
-                for media in (param.get("content") or {}).values():
-                    media_schema = media.get("schema")
-                    if isinstance(media_schema, dict):
-                        _collapse_anyof_null(media_schema)
-
-
 def _strip_parameter_titles(spec: dict) -> None:
     """Remove auto-generated ``title`` fields from inline parameter schemas.
 
@@ -289,8 +203,6 @@ def write_openapi_json(path: str = "/apiv4.json"):
         description=app.description,
         routes=app.routes,
     )
-    _strip_path_parameter_anyof_null(spec)
-    _strip_null_unions(spec)
     _strip_parameter_titles(spec)
     _strip_component_property_titles(spec)
     _strip_colliding_component_titles(spec)
