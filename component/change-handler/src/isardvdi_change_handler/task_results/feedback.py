@@ -60,6 +60,28 @@ def _resolve_user_category(user_id):
         return None
 
 
+def _enrich_feedback(task, task_dict):
+    """Add the live queue estimate and the root task's ``storage_id`` to the
+    emitted payload so the frontend can map the task to its desktop card and show
+    position / ETA. ``storage_id`` is excluded from ``Task.to_dict`` (it triggers
+    a db query on every dependent); resolve it once here for the root only.
+    Best-effort — never breaks the emit."""
+    try:
+        from isardvdi_common.lib.queue_estimate import estimate_task
+
+        est = estimate_task(task)
+        task_dict["effective_position"] = est.get("effective_position")
+        task_dict["eta_seconds"] = est.get("eta_seconds")
+        task_dict["has_consumer"] = est.get("has_consumer")
+        task_dict["stranded"] = est.get("stranded")
+    except Exception:
+        pass
+    try:
+        task_dict["storage_id"] = task.storage_id
+    except Exception:
+        task_dict.setdefault("storage_id", None)
+
+
 def _build_events(task, task_as_json, user_category):
     """Mirror the exact event list emitted by core_worker.task.feedback."""
     queue_event = task.queue.split(".")[0]
@@ -100,6 +122,7 @@ async def emit_task_feedback(redis_manager, task_id):
 
     try:
         task_dict = await asyncio.to_thread(task.to_dict)
+        await asyncio.to_thread(_enrich_feedback, task, task_dict)
         task_as_json = json.dumps(task_dict)
     except Exception:
         log.exception("task_results.feedback: failed to serialise Task(%s)", task_id)

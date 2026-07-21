@@ -356,6 +356,10 @@ class UserDesktop(BaseModel):
     status: DesktopStatusEnum = Field(
         description="Status of the desktop.",
     )
+    status_reason: Optional[str] = Field(
+        default=None,
+        description="Human-readable reason for the current status, set by the engine (e.g. why a start ended Failed: no hypervisor online / no GPU capacity). None when there is no reason.",
+    )
     type: str = Field(
         description="Type of the desktop, e.g., 'persistent', 'non-persistent'.",
     )

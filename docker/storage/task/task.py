@@ -36,6 +36,7 @@ from pathlib import Path
 from re import search
 from subprocess import (
     PIPE,
+    STDOUT,
     CalledProcessError,
     Popen,
     TimeoutExpired,
@@ -45,6 +46,12 @@ from subprocess import (
 from time import sleep, time
 
 from isardvdi_common.helpers.task_cancel import TaskCancelWatcher
+from isardvdi_common.helpers.task_streams import (
+    PROGRESS_STREAM,
+    PROGRESS_STREAM_MAXLEN,
+    maxlen_for_stream,
+    stream_for_kind,
+)
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.media import Media
 from isardvdi_common.models.task import Task
@@ -54,13 +61,14 @@ log = logging.getLogger(__name__)
 
 QEMU_IMG_TIMEOUT = 30  # seconds; prevents indefinite hangs on NFS
 
-# Stream used to deliver task completion + progress events to
-# isard-change-handler, which is the canonical consumer of the chain
-# work that used to run on isard-core_worker. MAXLEN caps the stream
-# at ~10k entries (approximate) so it doesn't grow unbounded when the
-# consumer is briefly down.
-TASK_RESULTS_STREAM = "stream:task-results"
-TASK_RESULTS_STREAM_MAXLEN = 10000
+# Stream names + routing (RESULT_STREAM / PROGRESS_STREAM / stream_for_kind /
+# maxlen_for_stream) live in isardvdi_common.helpers.task_streams — the single
+# source of truth shared with the change-handler consumer.
+
+# Admission backpressure is applied at ENQUEUE time in
+# isardvdi_common.models.task (see Task._await_result_stream_admission), NOT here
+# in the worker body: throttling inflow keeps this worker free to DRAIN the
+# backlog instead of holding a slot asleep while the consumer catches up.
 
 
 def _publish_task_event(connection, *, kind, task_id, task_name, queue, **extra):
@@ -83,10 +91,11 @@ def _publish_task_event(connection, *, kind, task_id, task_name, queue, **extra)
             if v is None:
                 continue
             fields[k] = str(v)
+        stream = stream_for_kind(kind)
         connection.xadd(
-            TASK_RESULTS_STREAM,
+            stream,
             fields,
-            maxlen=TASK_RESULTS_STREAM_MAXLEN,
+            maxlen=maxlen_for_stream(stream),
             approximate=True,
         )
     except Exception:
@@ -136,13 +145,86 @@ def _publishes_result(func):
 
 
 def _safe_unlink(path):
-    """Best-effort removal of a partial file; never raises so cleanup can't
-    mask the original error on a failing task's path."""
+    """Best-effort removal of a (possibly partial) file. Never raises — used
+    to clean a half-written destination on the failure/cancel path of a task
+    that is itself already raising, so a cleanup error must not mask the
+    original one.
+    """
     try:
         if isfile(path):
             remove(path)
     except OSError:
         log.exception("could not remove file %s", path)
+
+
+def _free_space(path):
+    """Bytes available to a non-root user on the filesystem holding ``path``.
+    Returns ``None`` if it can't be determined."""
+    try:
+        st = os.statvfs(path)
+        return st.f_bavail * st.f_frsize
+    except OSError:
+        return None
+
+
+def _run_cancellable(command):
+    """Run ``command`` in its own process group, terminating it if the task is
+    cancelled, and raising on failure.
+
+    Like :func:`run_with_progress` but for long operations with no
+    machine-parsable progress (a disk byte-copy, ``virt-sparsify``,
+    ``virt-win-reg``): it polls the :class:`TaskCancelWatcher` on a timer
+    instead of reading stdout. ``stderr`` is merged into ``stdout`` and
+    surfaced on failure.
+
+    :raises subprocess.CalledProcessError: rc 130 when cancelled mid-run
+        (so the ``_publishes_result`` decorator publishes
+        ``job_status="failed"`` and the chain takes its cleanup branch), or
+        the real non-zero rc on a genuine failure.
+    """
+    job = get_current_job()
+    if job is None:
+        # No RQ context (unit test / manual call): run synchronously. Raises
+        # CalledProcessError on a non-zero rc, matching the wired path.
+        run(command, check=True, stdout=PIPE, stderr=STDOUT)
+        return 0
+    process = Popen(command, stdout=PIPE, stderr=STDOUT, preexec_fn=os.setsid)
+    aborted = False
+    output = b""
+    try:
+        with TaskCancelWatcher(job.id) as watcher:
+            while process.poll() is None:
+                if watcher.wait(timeout=2):
+                    aborted = True
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    break
+        try:
+            process.wait(timeout=10)
+        except TimeoutExpired:
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+    finally:
+        if process.stdout:
+            try:
+                output = process.stdout.read() or b""
+            except Exception:
+                output = b""
+            process.stdout.close()
+    if aborted:
+        raise CalledProcessError(returncode=130, cmd=command)
+    if process.returncode != 0:
+        raise CalledProcessError(
+            returncode=process.returncode,
+            cmd=command,
+            output=output.decode(errors="replace"),
+        )
+    return 0
 
 
 def _same_file(file1, file2):
@@ -408,9 +490,9 @@ def task_heartbeat(task_name, interval_s=30, timeout_s=None, **extra):
                                 "progress": str(pseudo_progress),
                             }
                             job.connection.xadd(
-                                "stream:task-results",
+                                PROGRESS_STREAM,
                                 fields,
-                                maxlen=10000,
+                                maxlen=PROGRESS_STREAM_MAXLEN,
                                 approximate=True,
                             )
                         except Exception:
@@ -1211,12 +1293,18 @@ def convert(source_disk_path, dest_disk_path, format, compression):
             extract_progress_from_qemu_img_convert_output,
         )
     except BaseException:
-        # Cancel/crash leaves a partial destination; drop it and re-raise.
+        # Cancelled (run_with_progress raises rc 130) or crashed mid-run:
+        # qemu-img leaves a partial destination file. Remove it so a
+        # half-written disk can never be picked up as good, then re-raise so
+        # the terminal update_status takes its cleanup branch.
         _safe_unlink(dest_disk_path)
         raise
     if rc != 0:
-        # run_with_progress returns a non-zero rc instead of raising; returning
-        # it would publish job_status="finished" and mark a partial disk ready.
+        # qemu-img convert failed (e.g. ENOSPC). run_with_progress returns the
+        # non-zero rc instead of raising, so returning it here would let the
+        # _publishes_result decorator publish job_status="finished" and the
+        # destination would be marked ready — a partial/corrupt disk read as a
+        # good one. Remove it and raise.
         _safe_unlink(dest_disk_path)
         raise CalledProcessError(returncode=rc, cmd="qemu-img convert")
     return rc
@@ -1257,35 +1345,45 @@ def virt_win_reg(storage_path, registry_patch):
     :return: Exit code of regedit command
     :rtype: int
     """
-    # Cancel intentionally not wired: virt-win-reg edits the disk in
-    # place via guestfish; killing it mid-run can corrupt the registry
-    # hive.
+    # Safe-cancel: virt-win-reg edits the hive in place via guestfish,
+    # so killing it mid-run can corrupt the disk. Work on a sibling copy and
+    # atomically swap it in only on success — a cancel/failure never touches
+    # the live disk.
+    #
+    # ⚠ The copy MUST be a byte-for-byte file copy (``cp``): the qcow2 header
+    # carries the backing-file reference, so a plain copy preserves the
+    # backing chain. NEVER use ``qemu-img convert -O qcow2`` here — that
+    # FLATTENS the chain (drops the backing link), doubling disk usage and
+    # breaking the template→desktop relationship.
+    tmp_path = storage_path + ".regtmp"
     try:
-        with tempfile.NamedTemporaryFile() as fp:
-            fp.write(registry_patch.encode())
-            fp.flush()
-            with task_heartbeat("virt_win_reg", storage_path=storage_path):
-                result = run(
-                    [
-                        "virt-win-reg",
-                        "--merge",
-                        storage_path,
-                        fp.name,
-                    ],
-                    capture_output=True,  # Capture stdout and stderr
-                    text=True,  # Decode output as text
-                    check=True,  # Raise CalledProcessError on failure
-                )
-            return result.returncode
+        with task_heartbeat("virt_win_reg", storage_path=storage_path):
+            # ``--reflink=auto`` is instant on CoW filesystems and a full copy
+            # elsewhere; either way the backing header is preserved.
+            _run_cancellable(["cp", "--reflink=auto", "-f", storage_path, tmp_path])
+            with tempfile.NamedTemporaryFile() as fp:
+                fp.write(registry_patch.encode())
+                fp.flush()
+                _run_cancellable(["virt-win-reg", "--merge", tmp_path, fp.name])
+        # Atomic swap onto the live disk (same directory → same filesystem).
+        rename(tmp_path, storage_path)
+        return 0
     except CalledProcessError as cpe:
         # Returning an error string publishes job_status="finished" for a
-        # failed merge, marking the disk ready. Log stderr and re-raise.
+        # failed merge, marking the disk ready. Log stderr (merged into the
+        # CalledProcessError output by _run_cancellable), discard the temp so
+        # the live disk is untouched, and re-raise.
         log.error(
             "virt-win-reg failed for %s (exit %s): %s",
             storage_path,
             cpe.returncode,
-            (cpe.stderr or "").strip() or "No error message provided.",
+            (cpe.stderr or cpe.output or "").strip() or "No error message provided.",
         )
+        _safe_unlink(tmp_path)
+        raise
+    except BaseException:
+        # Cancel (rc 130) or failure: discard the temp, live disk untouched.
+        _safe_unlink(tmp_path)
         raise
 
 
@@ -1316,8 +1414,9 @@ def resize(storage_path, increment):
             check=True,  # Raise on a non-zero qemu-img rc
         ).returncode
     except Exception:
-        # A returned value publishes job_status="finished", recording a failed
-        # resize as success. Log and re-raise.
+        # Do NOT return the exception: a returned value is published as
+        # job_status="finished", so a failed resize would be recorded as a
+        # success. Log and re-raise so the chain fails.
         log.exception("qemu-img resize failed for %s", storage_path)
         raise
 
@@ -1468,9 +1567,6 @@ def sparsify(storage_path):
     :return: Exit code of virt-sparsify command and saved space
     :rtype: dict
     """
-    # Cancel intentionally not wired: ``virt-sparsify --in-place``
-    # modifies the qcow2 directly; killing it mid-run can leave the disk
-    # corrupt.
     try:
         old_size = _get_disk_usage(storage_path)
     except Exception as e:
@@ -1485,36 +1581,62 @@ def sparsify(storage_path):
         _format_size(old_size),
     )
 
+    # Safe-cancel: sparsify the disk on a sibling copy and atomically
+    # swap it in only on success, so a cancel/failure never corrupts the live
+    # disk. The copy MUST be a byte-for-byte ``cp`` (preserves the qcow2
+    # backing header) — never ``qemu-img -O qcow2`` (which flattens the chain).
+    #
+    # Trade-off: the copy needs ~old_size free in the same filesystem. sparsify
+    # is often run *because* space is tight, so when there isn't headroom we
+    # fall back to the classic in-place op (un-cancellable) rather than fail.
+    tmp_path = storage_path + ".sparsetmp"
+    free = _free_space(dirname(storage_path))
+    need = int(old_size) * 1024  # _get_disk_usage is KB, _free_space is bytes
+    safe_cancel = old_size > 0 and free is not None and free > need * 1.1
     try:
         with task_heartbeat("sparsify", storage_path=storage_path):
-            result = run(
-                ["virt-sparsify", "--in-place", storage_path],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        if result.stderr:
-            log.info(
-                "virt-sparsify stderr for %s: %s", storage_path, result.stderr.strip()
-            )
+            if safe_cancel:
+                _run_cancellable(["cp", "--reflink=auto", "-f", storage_path, tmp_path])
+                _run_cancellable(["virt-sparsify", "--in-place", tmp_path])
+                new_size = _get_disk_usage(tmp_path)
+                rename(tmp_path, storage_path)  # atomic swap
+            else:
+                log.warning(
+                    "sparsify: no headroom for a safe-cancel copy (free=%s need~%s); "
+                    "running in-place, cancel not wired",
+                    free,
+                    need,
+                )
+                result = run(
+                    ["virt-sparsify", "--in-place", storage_path],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                if result.stderr:
+                    log.info(
+                        "virt-sparsify stderr for %s: %s",
+                        storage_path,
+                        result.stderr.strip(),
+                    )
+                new_size = _get_disk_usage(storage_path)
     except CalledProcessError as cpe:
         # A returned value publishes job_status="finished", recording a failed
-        # sparsify as success. Log and re-raise.
+        # sparsify as success. Log stderr (in .stderr on the in-place fallback,
+        # merged into .output by _run_cancellable), discard any temp, re-raise.
         log.error(
-            "virt-sparsify failed for %s (exit %d): %s",
+            "virt-sparsify failed for %s (exit %s): %s",
             storage_path,
             cpe.returncode,
-            cpe.stderr.strip() if cpe.stderr else "No error message",
+            (cpe.stderr or cpe.output or "").strip() or "No error message",
         )
+        _safe_unlink(tmp_path)
         raise
-
-    try:
-        new_size = _get_disk_usage(storage_path)
-    except Exception as e:
-        log.warning(
-            "Failed to get disk usage after sparsify for %s: %s", storage_path, e
-        )
-        new_size = 0
+    except BaseException:
+        # Cancel (rc 130) or failure: discard the temp; in the fallback path
+        # there is no temp and the in-place op already raised.
+        _safe_unlink(tmp_path)
+        raise
 
     saved = int(old_size) - int(new_size)
     log.info(
@@ -1526,7 +1648,7 @@ def sparsify(storage_path):
     )
 
     return {
-        "exit_code": result.returncode,
+        "exit_code": 0,
         "saved_space": saved,
         "old_size": old_size,
         "new_size": new_size,
@@ -1563,8 +1685,9 @@ def disconnect(storage_path):
             check=True,
         )
     except BaseException:
-        # A returned value publishes job_status="finished", recording a failed
-        # disconnect as success. Clean the partial sibling and re-raise.
+        # Do NOT return an error string: a returned value is published as
+        # job_status="finished", so a failed disconnect would be recorded as a
+        # success. Clean the partial sibling and re-raise.
         _safe_unlink(disconnected_path)
         raise
     remove(storage_path)

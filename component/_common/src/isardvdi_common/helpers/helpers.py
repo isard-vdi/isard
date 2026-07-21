@@ -19,6 +19,7 @@ from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.lib import queue_tiers
 from isardvdi_common.schemas.domains import DesktopStatusEnum
 from rethinkdb import r
 
@@ -1630,24 +1631,38 @@ class Helpers(RethinkSharedConnection):
     def check_task_priority(cls, payload, priority):
         """_From api/views/StorageView check_task_priority(payload, priority)_
 
-        Check and normalize the task priority value.
+        Validate the requested task priority/tier.
+
+        Phase-1 queue tiering (docs/superpowers/specs/
+        2026-07-01-queue-worker-dimensioning-design.md §3): the **action**
+        decides the tier, so role no longer *demotes* a caller to ``low`` — a
+        non-admin's interactive action stays interactive and is protected by the
+        reserved worker pool. This validator only rejects unknown values and
+        passes the request through unchanged; the action-aware resolution (and
+        the C2 hard-floor to background) happens at enqueue time in
+        ``Storage.create_task`` / ``Media.create_task`` via
+        :func:`isardvdi_common.lib.queue_tiers.retier_queue`.
+
+        Accepts the four tiers (interactive/standard/bulk/background) and the
+        legacy ``high``/``default``/``low`` values for backward compatibility.
 
         :param payload: The user payload
         :type payload: dict
-        :param priority: The priority value to check
+        :param priority: The priority/tier value to check
         :type priority: str
-        :return: The normalized priority value
+        :return: The validated priority/tier value (unchanged)
         :rtype: str
 
         """
-        if payload.get("role_id", "") != "admin":
-            priority = "low"
-        else:
-            if priority not in ["low", "default", "high"]:
-                raise Error(
-                    error="bad_request",
-                    description=f"Priority must be low, default or high",
-                )
+        valid = set(queue_tiers.TIERS) | {"high", "default", "low"}
+        if priority not in valid:
+            raise Error(
+                error="bad_request",
+                description=(
+                    "Priority must be one of interactive, standard, bulk, "
+                    "background (or legacy high/default/low)"
+                ),
+            )
         return priority
 
     @classmethod

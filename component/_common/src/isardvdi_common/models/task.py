@@ -19,10 +19,12 @@
 
 import logging as log
 import os
+from time import sleep
 
 from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.helpers.task_streams import result_stream_backpressured
 from isardvdi_common.helpers.task_timeouts import job_timeout_for
 from rq import Queue, Retry
 from rq.exceptions import NoSuchJobError
@@ -89,6 +91,32 @@ def register_dependencies(job_kwargs, dependencies):
     )
 
 
+# Enqueue admission backpressure (stopgap ①). When the change-handler consumer is
+# far behind (result stream near its 100k floor), briefly throttle the INFLOW of
+# new result-producing storage work at enqueue. The caller (API / engine creating
+# the task) waits here instead of a storage worker sleeping mid-job, so the worker
+# fleet stays free to DRAIN the backlog. Bounded + non-fatal: only storage.* queues,
+# never longer than the cap, never raises (a redis blip must not fail task creation).
+TASK_ADMISSION_MAX_WAIT_S = int(os.environ.get("TASK_RESULTS_ADMISSION_MAX_WAIT_S", 10))
+
+
+def _await_result_stream_admission(connection, queue):
+    """Throttle enqueue of a result-producing storage task while the consumer is behind."""
+    if not str(queue).startswith("storage."):
+        return
+    waited = 0.0
+    while result_stream_backpressured(connection):
+        if waited >= TASK_ADMISSION_MAX_WAIT_S:
+            log.warning(
+                "task admission: result stream at floor after %ss; enqueuing %r anyway",
+                waited,
+                queue,
+            )
+            break
+        sleep(1.0)
+        waited += 1.0
+
+
 class Task(RedisBase):
     """
     Manage tasks with RQ backend.
@@ -120,15 +148,12 @@ class Task(RedisBase):
                     2592000,  # 30 days
                 ),
             )
-            kwargs["job_kwargs"].setdefault("meta", {}).setdefault(
-                "user_id", kwargs.get("user_id")
-            )
+            meta = kwargs["job_kwargs"].setdefault("meta", {})
+            meta.setdefault("user_id", kwargs.get("user_id"))
             # Owner category, threaded so the storage worker can fair-schedule
             # bulk/background throughput per category (Phase 2). None for a task
             # with no resolvable owner (system maintenance / deleted owner).
-            kwargs["job_kwargs"].setdefault("meta", {}).setdefault(
-                "category_id", kwargs.get("category_id")
-            )
+            meta.setdefault("category_id", kwargs.get("category_id"))
             # Give every task an explicit, action-appropriate job_timeout so a
             # long-running op (download / convert / sparsify / move) is not
             # killed by RQ's 180 s Queue.DEFAULT_TIMEOUT mid-flight. A callsite
@@ -168,7 +193,13 @@ class Task(RedisBase):
                 )
                 register_dependencies(dependent.setdefault("job_kwargs", {}), [self])
                 task = Task(**dependent)
-                task.job.allow_dependency_failure = True
+                # A dependent must NOT run when its dependency failed (e.g.
+                # qemu_img_info after a failed create — nothing to inspect);
+                # finalize dependents are run by the change-handler stream
+                # consumer regardless of RQ state. So do not set
+                # allow_dependency_failures here — the plural is the real
+                # attribute, and setting it True would wrongly run storage
+                # dependents after a failure.
                 task.job.save()
                 self.job.meta.setdefault("dependent_ids", []).append(task.id)
             self.job.save_meta()
@@ -210,6 +241,7 @@ class Task(RedisBase):
         """
         if getattr(self, "_enqueued", True):
             return self
+        _await_result_stream_admission(self._redis, self._queue_name)
         self.job = Queue(self._queue_name, connection=self._redis).enqueue_job(self.job)
         self._enqueued = True
         return self
@@ -426,6 +458,11 @@ class Task(RedisBase):
                     "dependents",
                     "storage_id",
                 ]
+                # getattr with a default: instance-only attributes (e.g.
+                # _enqueued / _queue_name set in __init__) appear in dir(self)
+                # but are NOT class attributes, so a bare getattr(self.__class__,
+                # name) raises AttributeError and breaks the whole dict. None is
+                # not a property, so they are simply skipped.
                 and isinstance(getattr(self.__class__, name, None), property)
             },
             "args": [

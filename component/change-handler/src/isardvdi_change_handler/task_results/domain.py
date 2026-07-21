@@ -59,13 +59,17 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     in a pre-libvirt creation status, advances it to ``CreatingDomain``
     so engine's libvirt-define handler takes over.
 
-    When the storage isn't ready and the domain is still in a create state
-    the chain failed upstream. This is terminal — the handler runs right after
-    ``storage_update`` in the same pass, so a not-ready storage never recovers
-    on redelivery. Fail both rows in place (what the trailing ``update_status``
-    FAILED branch would do) and return instead of raising: raising leaves the
-    entry unACKed, redelivered to exhaustion and dead-lettered for a normal
-    condition.
+    When the storage isn't ready and the domain is still in a create
+    state the chain failed upstream (create/qemu-img-info produced a disk
+    that ``storage_update`` marked deleted/orphan/broken_chain). This is a
+    **terminal** condition, not a transient one: the handler runs in the
+    same in-process pass right after ``storage_update``, so a not-ready
+    storage will never recover on a redelivery. Fail both rows in place —
+    exactly what the trailing ``update_status`` FAILED branch would do —
+    and return, instead of raising: a raise leaves the stream entry unACKed
+    → redelivered ``MAX_DELIVERIES`` times → dead-lettered for a normal
+    condition (#2307). Returning lets the consumer ACK the entry and
+    finalise the chain cleanly.
     """
     if not Domain.exists(domain_id):
         return

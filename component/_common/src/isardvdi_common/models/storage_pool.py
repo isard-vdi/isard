@@ -23,6 +23,7 @@ from uuid import uuid4
 
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.storage.storage_pools.paths import usage_subpath_matches
 from pydantic import BaseModel, Field
 from rethinkdb import r
@@ -246,8 +247,14 @@ class StoragePool(RethinkCustomBase):
             storage_pools = cls.get_by_path(path)
         else:
             storage_pools = cls.get_all()
-        # This should not happen, but just in case we'll get one
+        # No eligible pool (empty/misconfigured storage_pool table). Surface a
+        # typed error instead of returning None — every caller dereferences
+        # ``.id`` on the result, so a None would become an opaque 500 for what
+        # is really a "no storage pool available, try later" condition.
         if not len(storage_pools):
-            # return cls.get_all()[0]
-            return None
+            raise Error(
+                "precondition_required",
+                f"No storage pool available for action '{action}'",
+                description_code="no_storage_pool_available",
+            )
         return choice(storage_pools)

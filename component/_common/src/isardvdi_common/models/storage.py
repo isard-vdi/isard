@@ -26,7 +26,7 @@ from isardvdi_common.connections.rethink_custom_base_factory import RethinkCusto
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
-from isardvdi_common.lib import queue_tiers
+from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.user import User
@@ -504,6 +504,11 @@ class Storage(RethinkCustomBase):
                 kwargs["queue"], kwargs.get("task"), category
             )
         queue_tiers.retier_dependents(kwargs.get("dependents"), category)
+        # Reject an interactive/standard task bound for a lane with no live
+        # consumer or one already swamped, so the caller can tell the user to
+        # retry instead of the task hanging forever. Opt-in (shed=True) and only
+        # for callers that can surface a 429; governed tiers never reject.
+        queue_coverage.enforce_shed(Task._redis, kwargs)
         if "blocking" in kwargs:
             blocking = kwargs.pop("blocking")
         else:

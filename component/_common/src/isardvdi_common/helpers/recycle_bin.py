@@ -17,6 +17,7 @@ from isardvdi_common.helpers.helpers import Helpers as CommonHelpers
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.user_storage import UserStorage
+from isardvdi_common.lib import queue_tiers
 from isardvdi_common.lib.notifications.notifications_data import (
     NotificationsDataProcessed,
 )
@@ -1978,10 +1979,32 @@ class RecycleBin(RethinkSharedConnection):
                                 storage.id,
                                 time.time() - start,
                             )
+                            # Route through the queue-tier resolver instead of a raw
+                            # ``.default`` queue (the one storage-task producer that
+                            # otherwise bypasses it). The input ``.bulk`` is a hint,
+                            # but ``delete``/``move_delete`` hard-floor to the LOWEST
+                            # ``reclaim`` tier: the user already saw the item vanish
+                            # (its domain row + view were removed synchronously), so
+                            # freeing the bytes is best-effort and must never crowd a
+                            # create/start/template. Under multitenancy, thread the
+                            # storage owner's category (or the _nocat sentinel for a
+                            # deleted owner) so the cleanup is fair-scheduled per tenant
+                            # like every other producer.
+                            category = (
+                                (storage.category or queue_tiers.NULL_CATEGORY)
+                                if queue_tiers.multitenancy_enabled()
+                                else None
+                            )
+                            delete_queue = queue_tiers.retier_queue(
+                                f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.bulk",
+                                task_name,
+                                category,
+                            )
                             start = time.time()
                             task = Task(
                                 user_id=rb.owner_id,
-                                queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
+                                queue=delete_queue,
+                                category_id=category,
                                 task=task_name,
                                 job_kwargs={
                                     "kwargs": {
