@@ -1735,6 +1735,29 @@ class Storage(RethinkCustomBase):
         # exactly) and root the chain on the first storage task.
         from isardvdi_common.models.domain import Domain
 
+        # Pre-flight: refuse a disk-create whose pool has no live consumer
+        # BEFORE mutating the domain/storage state, and mark the domain Failed
+        # with a category-scoped reason (the storage analog of "no hypervisors
+        # online") so the desktop shows why instead of stranding in
+        # CreatingDisk. check_no_consumer fails open on coverage uncertainty,
+        # so a worker-restart blip never falsely fails a desktop.
+        create_queue = queue_tiers.retier_queue(
+            f"storage.{self.pool.id}.{priority}",
+            "create",
+            queue_tiers.resolve_category(self.category),
+        )
+        try:
+            queue_coverage.check_no_consumer(Task._redis, create_queue)
+        except Error as no_consumer:
+            if Domain.exists(domain_id):
+                domain = Domain(domain_id)
+                domain.status = "Failed"
+                domain.detail = (
+                    f"desktop disk not created: storage pool {self.pool.id} "
+                    "has no online storage worker"
+                )
+            raise no_consumer
+
         if Domain.exists(domain_id):
             _d = Domain(domain_id)
             if _d.status in ("Creating", "CreatingDiskFromScratch"):
