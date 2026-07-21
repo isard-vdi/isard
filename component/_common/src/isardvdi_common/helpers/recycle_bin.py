@@ -2593,8 +2593,9 @@ class RecycleBinBulk(RecycleBin):
         rcb_desktop = RecycleBinDesktop(id=self.id, user_id=self.agent_id)
         desktops = []
 
-        for i in range(0, len(desktops_ids), 200):
-            batch_ids = desktops_ids[i : i + 200]
+        batch_size = 50
+        for i in range(0, len(desktops_ids), batch_size):
+            batch_ids = desktops_ids[i : i + batch_size]
             CommonHelpers.desktops_stop(batch_ids, 5)
             # Move desktops to recycle_bin
             with self._rdb_context():
@@ -2607,6 +2608,11 @@ class RecycleBinBulk(RecycleBin):
                 r.table("domains").get_all(r.args(batch_ids)).delete().run(
                     self._rdb_connection
                 )
+            # Callers may hand over a whole deployment group at once, so this
+            # loop needs its own pacing: the outer per-caller batching does not
+            # bound it.
+            if i + batch_size < len(desktops_ids):
+                time.sleep(0.5)
         rcb_desktop.add_desktops(desktops)
         return self._set_data(self.id)
 
