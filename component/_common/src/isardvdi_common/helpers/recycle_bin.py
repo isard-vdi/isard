@@ -2215,14 +2215,22 @@ class RecycleBin(RethinkSharedConnection):
                 ).run(cls._rdb_connection)
 
     @classmethod
-    def delete_old_entries(cls, rcb_list):
-        with cls._rdb_context():
-            results = (
-                r.table("recycle_bin")
-                .get_all(r.args(rcb_list))
-                .delete()
-                .run(cls._rdb_connection, array_limit=500000)
-            )
+    def delete_old_entries(cls, rcb_list, chunk_size=500):
+        # ``r.args`` expands the list into query arguments, so ``array_limit``
+        # bounds the request itself: a single call over the limit raises
+        # ReqlResourceLimitError and the whole purge aborts without deleting
+        # anything, leaving the table to grow until the next run fails too.
+        if not rcb_list:
+            return
+        rcb_list = list(rcb_list)
+        for i in range(0, len(rcb_list), chunk_size):
+            chunk = rcb_list[i : i + chunk_size]
+            with cls._rdb_context():
+                r.table("recycle_bin").get_all(r.args(chunk)).delete().run(
+                    cls._rdb_connection, array_limit=200000
+                )
+            if i + chunk_size < len(rcb_list):
+                time.sleep(0.5)
 
     # @classmethod
     # def archive_old_entries(cls, rcb_list):
