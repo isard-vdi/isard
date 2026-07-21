@@ -134,15 +134,21 @@ def not_storage_children(storage: Storage) -> None:
 
 
 def check_task_priority(payload: dict, priority: str) -> str:
-    """Validate and return task priority."""
+    """Validate and return task priority.
+
+    The governor resolves tiers role-blind, so a non-admin task must not be
+    forced to ``low`` (which normalize_tier maps to the maintenance lane) —
+    that would shove a user's own resize/create behind template copies and
+    PSI-defer it. Non-admins get ``default`` (the action's natural tier);
+    only admins may pin a priority.
+    """
     if payload["role_id"] != "admin":
-        priority = "low"
-    else:
-        if priority not in ["low", "default", "high"]:
-            raise Error(
-                "bad_request",
-                "Priority must be low, default or high",
-            )
+        return "default"
+    if priority not in ["low", "default", "high"]:
+        raise Error(
+            "bad_request",
+            "Priority must be low, default or high",
+        )
     return priority
 
 
@@ -393,8 +399,8 @@ class StorageService:
         - resolves the storage with ownership check via ``get_storage``,
         - validates the user's ``desktops_disk_size`` quota against the
           requested increment,
-        - normalises the priority to ``low`` for non-admin callers and
-          rejects unknown priorities,
+        - resolves the priority via ``check_task_priority`` (non-admin →
+          the action's default tier; admin may pin low/default/high),
         - validates the retry count,
         - delegates to ``Storage.increase_size``.
         """
@@ -407,13 +413,7 @@ class StorageService:
             if quota.get("desktops_disk_size") < (virtual_size_gb - int(increment)):
                 raise Error("bad_request", "Disk size quota exceeded")
 
-        if payload["role_id"] != "admin":
-            priority = "low"
-        if priority not in ["low", "default", "high"]:
-            raise Error(
-                "bad_request",
-                "Priority must be low, default or high",
-            )
+        priority = check_task_priority(payload, priority)
         # Pre-flight shed gate: reject with a typed 429 when the standard storage
         # lane has no live consumer or is swamped, so the user is told to retry
         # instead of the resize hanging. Done here — before set_maintenance runs

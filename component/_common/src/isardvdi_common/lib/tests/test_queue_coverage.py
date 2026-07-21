@@ -156,16 +156,30 @@ def test_reject_foreground_over_hard_cap():
     assert ctx["has_consumer"] is True  # a consumer exists, but it is swamped
 
 
-# --- lane_shed_decision: never reject a governed tier ----------------------
+# --- lane_shed_decision: a NO-CONSUMER lane is rejected for EVERY tier -------
+# (fail-fast: a task nothing can drain must not be enqueued — it would strand
+# forever. The backlog/hard-cap rules below stay foreground-only.)
 
 
-def test_governed_tier_never_rejected_even_when_stranded():
+def test_reject_governed_tier_stranded_no_consumer():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)  # serves DEF, not "ghost"
+    # a governed (background) lane on a pool with NO live worker must be refused
+    decision, ctx = qc.lane_shed_decision(r, "storage.ghost.background")
+    assert decision == "reject"
+    assert ctx["reason"] == "no_consumer"
+    assert ctx["stranded"] is True and ctx["has_consumer"] is False
+
+
+def test_reject_ctx_carries_category_for_scoped_notification():
     r = _FakeRedis()
     _governed_worker(r, "w1", DEF)
-    # a stranded background lane: no consumer, but background never blocks
-    decision, ctx = qc.lane_shed_decision(r, "storage.ghost.background")
-    assert decision == "ok"
-    assert ctx["stranded"] is True  # informed, but accepted (accumulates)
+    # per-category lane on an unserved pool -> reject, and the ctx names the
+    # category so the caller can scope the "pool unavailable" signal to it.
+    decision, ctx = qc.lane_shed_decision(r, "storage.ghost.cat-abc.maintenance")
+    assert decision == "reject" and ctx["reason"] == "no_consumer"
+    assert ctx["pool"] == "ghost"
+    assert ctx["category"] == "cat-abc"
 
 
 def test_governed_tier_over_backlog_warns_not_rejects():
@@ -268,11 +282,31 @@ def test_enforce_shed_rejects_stranded_foreground_with_429():
     )
 
 
-def test_enforce_shed_never_rejects_governed_tier():
+def test_enforce_shed_rejects_stranded_even_without_opt_in():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)  # serves DEF, not ghost
+    # No shed=True: the no-consumer refusal is MANDATORY (fail-fast), so a
+    # produce to a dead pool is rejected even for a governed tier.
+    kwargs = {"queue": "storage.ghost.maintenance"}
+    try:
+        qc.enforce_shed(r, kwargs)
+        raised = None
+    except Exception as exc:
+        raised = exc
+    assert getattr(raised, "status_code", None) == 429
+    assert getattr(raised, "error", {}).get("description_code") == (
+        "storage_no_consumer_retry_later"
+    )
+
+
+def test_enforce_shed_noop_when_consumer_present_but_backed_up():
     r = _FakeRedis()
     _governed_worker(r, "w1", DEF)
-    kwargs = {"queue": "storage.ghost.background", "shed": True}
-    qc.enforce_shed(r, kwargs)  # background is never rejected
+    r.lists[f"rq:queue:storage.{DEF}.background"] = 999
+    # a governed lane WITH a live consumer but backed up: accepted (accumulates),
+    # only the truly-stranded (no-consumer) case is refused.
+    kwargs = {"queue": f"storage.{DEF}.background", "shed": True}
+    qc.enforce_shed(r, kwargs)
     assert "shed" not in kwargs
 
 

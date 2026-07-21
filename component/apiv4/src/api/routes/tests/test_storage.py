@@ -259,6 +259,41 @@ def test_delete_storage(monkeypatch, test_client):
     assert captured == {"storage_id": "stor-1"}
 
 
+def test_delete_storage_no_consumer_returns_429(monkeypatch, test_client):
+    """A produce onto a pool with no live storage worker is refused with a
+    typed 429 (any tier — delete floors to the governed ``reclaim`` lane).
+    The route must surface it as HTTP 429 carrying
+    ``storage_no_consumer_retry_later`` and the affected category, so the
+    frontend can show a category-scoped "storage pool unavailable" notice
+    instead of the delete hanging. Pins the route↔frontend body contract.
+    """
+    from isardvdi_common.helpers.error_factory import Error
+
+    jwt = MockJWT()
+
+    def fake_delete(payload, storage_id):
+        raise Error(
+            "too_many_requests",
+            "Storage lane poolA/reclaim is temporarily unable to accept work; "
+            "please retry shortly",
+            description_code="storage_no_consumer_retry_later",
+            params={"pool": "poolA", "category": "cat-1", "tier": "reclaim"},
+        )
+
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.delete_storage",
+        staticmethod(fake_delete),
+    )
+
+    response = test_client(url="/item/storage/stor-1", method="DELETE", jwt=jwt)
+
+    assert response.status_code == 429
+    body = response.json()
+    assert body["description_code"] == "storage_no_consumer_retry_later"
+    assert body["params"]["category"] == "cat-1"
+    assert body["params"]["pool"] == "poolA"
+
+
 # ─── Admin storage listing (T1/admin/storage* shim replacements) ───────
 
 

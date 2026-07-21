@@ -506,6 +506,87 @@ def test_enqueue_disk_creation_raises_typed_error_when_parent_missing():
         assert "not found" in str(exc_info.value).lower()
 
 
+def test_enqueue_disk_creation_fails_domain_with_reason_on_no_consumer():
+    """When the disk-create lane has NO live consumer, the chain must NOT be
+    enqueued (it would strand). Instead the just-created domain is marked
+    Failed with a category-scoped reason — the storage analog of "no
+    hypervisors online" — and the typed 429 is re-raised for the caller."""
+    import pytest
+
+    Error = _import_error_class()
+    s = _bare_storage(id="child-storage", parent=None)
+    domain_obj = MagicMock()
+
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage,
+            "pool",
+            new_callable=PropertyMock,
+            return_value=MagicMock(id="poolA"),
+        ),
+        patch.object(
+            Storage,
+            "category",
+            new_callable=PropertyMock,
+            return_value="cat-1",
+            create=True,
+        ),
+        patch("isardvdi_common.models.domain.Domain") as MockDomain,
+        patch(
+            "isardvdi_common.models.storage.queue_coverage.check_no_consumer",
+            side_effect=Error(
+                "too_many_requests",
+                "Storage lane poolA/interactive is temporarily unable to accept work",
+                description_code="storage_no_consumer_retry_later",
+            ),
+        ),
+    ):
+        MockDomain.exists.return_value = True
+        MockDomain.return_value = domain_obj
+        with pytest.raises(Error) as exc_info:
+            s.enqueue_disk_creation_chain_for_domain(domain_id="d1", size="10G")
+
+    assert getattr(exc_info.value, "status_code", None) == 429
+    assert domain_obj.status == "Failed"
+    assert "no online storage worker" in domain_obj.detail
+    mock_create.assert_not_called()  # aborted before enqueuing anything
+
+
+def test_enqueue_disk_creation_preflights_consumer_then_proceeds():
+    """The pre-flight runs on EVERY disk-create, but when a consumer exists
+    it is a no-op and the chain enqueues normally (no false Failed)."""
+    s = _bare_storage(id="child-storage", parent=None)
+
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage,
+            "pool",
+            new_callable=PropertyMock,
+            return_value=MagicMock(id="poolA"),
+        ),
+        patch.object(
+            Storage,
+            "category",
+            new_callable=PropertyMock,
+            return_value="cat-1",
+            create=True,
+        ),
+        patch("isardvdi_common.models.domain.Domain") as MockDomain,
+        patch(
+            "isardvdi_common.models.storage.queue_coverage.check_no_consumer",
+        ) as mock_check,
+    ):
+        MockDomain.exists.return_value = False  # skip the CreatingDisk flip
+        s.enqueue_disk_creation_chain_for_domain(domain_id="d1", size="10G")
+
+    mock_check.assert_called_once()  # pre-flight ran (fails on pre-change code)
+    mock_create.assert_called_once()  # and proceeded to enqueue
+
+
 def test_enqueue_template_creation_raises_typed_error_when_template_storage_missing():
     """``enqueue_template_creation_chain_from_desktop`` not-found branch
     must raise typed Error so the route layer maps to 404 instead of 500."""

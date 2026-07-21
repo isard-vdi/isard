@@ -86,8 +86,8 @@ class Media(RethinkCustomBase):
                 kwargs["queue"], kwargs.get("task"), category
             )
         queue_tiers.retier_dependents(kwargs.get("dependents"), category)
-        # Same producer-side shed gate as Storage.create_task (opt-in, foreground
-        # only): reject onto a consumer-less/swamped lane with a typed 429.
+        # Same producer-side gate as Storage.create_task: mandatory no-consumer
+        # fail-fast (any tier, category-scoped) + opt-in foreground overload.
         queue_coverage.enforce_shed(Task._redis, kwargs)
         if "blocking" in kwargs:
             blocking = kwargs.pop("blocking")
