@@ -16,6 +16,7 @@ services:
           -directory=/authentication \
           -build="go build -o /bin/authentication ./authentication/cmd/authentication/main.go" \
           -command="go tool -modfile=/tools/go.mod dlv exec --headless=true --listen=:4000 --api-version=2 --accept-multiclient --continue /bin/authentication"
+    working_dir: /authentication
     volumes:
       - ${BUILD_ROOT_PATH}/go.mod:/authentication/go.mod
       - ${BUILD_ROOT_PATH}/go.sum:/authentication/go.sum
