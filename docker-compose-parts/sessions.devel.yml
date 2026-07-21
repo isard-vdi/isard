@@ -13,6 +13,7 @@ services:
           -directory=/sessions \
           -build="go build -o /bin/sessions ./sessions/cmd/sessions/main.go" \
           -command="go tool -modfile=/tools/go.mod dlv exec --headless=true --listen=:4000 --api-version=2 --accept-multiclient --continue /bin/sessions"
+    working_dir: /sessions
     volumes:
       - ${BUILD_ROOT_PATH}/go.mod:/sessions/go.mod
       - ${BUILD_ROOT_PATH}/go.sum:/sessions/go.sum

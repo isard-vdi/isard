@@ -22,6 +22,7 @@ services:
           -directory=/bastion \
           -build="go build -o /bin/bastion ./bastion/cmd/bastion/main.go" \
           -command="go tool -modfile=/tools/go.mod dlv exec --headless=true --listen=:4000 --api-version=2 --accept-multiclient --continue /bin/bastion"
+    working_dir: /bastion
     volumes:
       - ${BUILD_ROOT_PATH}/go.mod:/bastion/go.mod
       - ${BUILD_ROOT_PATH}/go.sum:/bastion/go.sum
