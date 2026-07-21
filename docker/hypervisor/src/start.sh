@@ -9,13 +9,16 @@ export WHITELIST_IPTABLES
 
 BOOT_TOTAL=9
 
-# Report boot progress step to API (fire-and-forget)
+# Report boot progress to the API. Fire-and-forget AND backgrounded: each call
+# cold-starts python and imports the apiv4 client (~1.5 s), so run inline it
+# stalls boot ~1.5 s per step across 10 steps; progress is advisory and its
+# errors were already ignored, so boot must never block on it.
 report_step() {
   python3 -c "
 import sys; sys.path.insert(0, '/src/lib')
 from progress import report_progress
 report_progress($1, $BOOT_TOTAL, '$2', $3)
-" 2>/dev/null || true
+" >/dev/null 2>&1 &
 }
 
 # Graceful hypervisor shutdown. Runs in parallel: API unregister +
