@@ -70,13 +70,17 @@ class AdminDomainsService:
         filters: Optional[dict] = None,
     ) -> list[dict]:
         """List desktops, optionally filtered by categories and indexed filters."""
+        filters = filters or {}
         if payload["role_id"] == "manager":
             categories = [payload["category_id"]]
+            # Hypervisor placement is an admin-only column, hide it from managers
+            if filters:
+                filters.pop("hyp_started", None)
+                filters.pop("forced_hyp", None)
         elif categories:
             categories = (
                 json.loads(categories) if isinstance(categories, str) else categories
             )
-        filters = filters or {}
         if filters or categories:
             return ApiAdmin.list_desktops_with_filters(
                 categories=categories, filters=filters
