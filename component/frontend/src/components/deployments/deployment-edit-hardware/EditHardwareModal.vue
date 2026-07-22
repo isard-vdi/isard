@@ -73,6 +73,12 @@ const hardwareFormRef = ref<{
 
 const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces ?? [])
 
+const selectedViewers = computed<string[]>(() =>
+  selectedViewerKeys(desktopData.value.guest_properties?.viewers)
+)
+
+const removedViewerLabels = computed<string[]>(() => accessFormRef.value?.removedViewerLabels ?? [])
+
 function handleAddInterfaceFromAccessForm(ifaceId: string) {
   return hardwareFormRef.value?.addInterface(ifaceId)
 }
