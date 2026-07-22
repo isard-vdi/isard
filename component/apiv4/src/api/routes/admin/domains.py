@@ -108,11 +108,17 @@ async def admin_list_domains(request: Request, data: AdminListDomainsData):
                 }.items()
                 if value is not None
             }
+            negated = {
+                field
+                for field, operator in (data.operators or {}).items()
+                if operator == "is-not" and field in filters
+            }
             result = await asyncio.to_thread(
                 AdminDomainsService.list_desktops,
                 request.token_payload,
                 data.categories,
                 filters,
+                negated,
             )
         else:
             result = await asyncio.to_thread(

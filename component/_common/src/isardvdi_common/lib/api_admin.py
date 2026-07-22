@@ -157,6 +157,16 @@ _SERVER_INDEXED_TOKENS = tuple(
 )
 
 
+def _equals_filter(field, value, negate=False):
+    """ReQL predicate for ``doc[field] == value``, ``!=`` when negated.
+
+    ``default(None)`` so documents missing the field survive a negation.
+    """
+    if negate:
+        return lambda doc: doc[field].default(None) != value
+    return lambda doc: doc[field].default(None) == value
+
+
 def _server_token_filter(token):
     """Build the ReQL predicate matching a Server column token.
 
@@ -840,10 +850,13 @@ class ApiAdmin(RethinkSharedConnection):
 
     @classmethod
     def list_desktops_with_filters(
-        cls, categories=None, filters=None, bastion=True, placement=True
+        cls, categories=None, filters=None, bastion=True, placement=True, negated=None
     ):
         """
         Smart index selection based on provided filters.
+
+        ``negated`` holds the ``filters`` keys using the ``is not``
+        operator: no index serves a ``!=``, so they are post-filters.
 
         Index priority (composite indexes preferred):
         1. status + category → kind_status_category
@@ -869,11 +882,15 @@ class ApiAdmin(RethinkSharedConnection):
 
         query = r.table("domains")
         used_filters = set()
+        negated = set(negated or ())
 
-        status = filters.get("status")
+        def indexable(field):
+            return None if field in negated else filters.get(field)
+
+        status = indexable("status")
         category = categories[0] if categories and len(categories) == 1 else None
-        user_filter = filters.get("user")
-        group_filter = filters.get("group")
+        user_filter = indexable("user")
+        group_filter = indexable("group")
 
         # Select the most selective index for the available filters
         if status and category:
@@ -909,12 +926,12 @@ class ApiAdmin(RethinkSharedConnection):
                 lambda d: d["kind"] == "desktop"
             )
             used_filters.add("user")
-        elif filters.get("hyp_started"):
+        elif indexable("hyp_started"):
             query = query.get_all(filters["hyp_started"], index="hyp_started").filter(
                 lambda d: d["kind"] == "desktop"
             )
             used_filters.add("hyp_started")
-        elif filters.get("server") in _SERVER_INDEXED_TOKENS:
+        elif indexable("server") in _SERVER_INDEXED_TOKENS:
             query = query.get_all(True, index="server").filter(
                 lambda d: d["kind"] == "desktop"
             )
@@ -924,18 +941,25 @@ class ApiAdmin(RethinkSharedConnection):
         # Apply remaining filters not covered by the primary index
         if categories and len(categories) > 1 and "category" not in used_filters:
             query = query.filter(lambda d: r.expr(categories).contains(d["category"]))
-        if "hyp_started" in filters and "hyp_started" not in used_filters:
-            query = query.filter(lambda d: d["hyp_started"] == filters["hyp_started"])
+        for field in ("status", "hyp_started", "user", "group"):
+            if field in filters and field not in used_filters:
+                query = query.filter(
+                    _equals_filter(field, filters[field], field in negated)
+                )
         if "server" in filters:
-            query = query.filter(_server_token_filter(filters["server"]))
-        if "user" in filters and "user" not in used_filters:
-            query = query.filter(lambda d: d["user"] == filters["user"])
-        if "group" in filters and "group" not in used_filters:
-            query = query.filter(lambda d: d["group"] == filters["group"])
+            server_predicate = _server_token_filter(filters["server"])
+            query = query.filter(
+                (lambda d: server_predicate(d).not_())
+                if "server" in negated
+                else server_predicate
+            )
         if filters.get("name"):
             names = filters["name"]
             names = [names] if isinstance(names, str) else names
-            query = query.filter(lambda d: r.expr(names).contains(d["name"]))
+            if "name" in negated:
+                query = query.filter(lambda d: r.expr(names).contains(d["name"]).not_())
+            else:
+                query = query.filter(lambda d: r.expr(names).contains(d["name"]))
 
         return cls._apply_domain_joins_and_pluck(query, bastion, placement)
 

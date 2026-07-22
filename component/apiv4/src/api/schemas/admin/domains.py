@@ -20,7 +20,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Generic, List, Literal, Optional, TypeVar, Union
+from typing import Any, Dict, Generic, List, Literal, Optional, TypeVar, Union
 
 from api.schemas.bastion import BastionHttpConfig, BastionSshConfig
 from pydantic import BaseModel, ConfigDict, Field, RootModel
@@ -41,6 +41,8 @@ class AdminListDomainsData(BaseModel):
     hyp_started: Optional[str] = None
     server: Optional[Literal["SERVER", "AUTO", "-"]] = None
     name: Optional[List[str]] = None
+    # e.g. ``{"status": "is-not"}``; fields missing here default to ``is``
+    operators: Optional[Dict[str, Literal["is", "is-not"]]] = None
 
 
 # ── Multiple Actions ─────────────────────────────────────────────────────
