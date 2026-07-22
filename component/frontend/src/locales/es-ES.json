@@ -1321,9 +1321,14 @@
         "title": "No hay perfiles disponibles"
       },
       "gpu-select": {
-        "placeholder": "Perfiles de GPU disponibles",
-        "value": "Cambiar a '{profile}'",
-        "label": "Nuevo perfil de GPU"
+        "placeholder": "Selecciona los perfiles que se utilizarán",
+        "label": "Perfiles de GPU"
+      },
+      "errors": {
+        "title": "No se ha podido cambiar la GPU",
+        "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
+        "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host.",
+        "generic": "No se ha podido cambiar e iniciar el escritorio. Inténtalo de nuevo."
       }
     },
     "desktops": {
