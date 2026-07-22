@@ -1986,15 +1986,14 @@ class RecycleBin(RethinkSharedConnection):
                             # ``reclaim`` tier: the user already saw the item vanish
                             # (its domain row + view were removed synchronously), so
                             # freeing the bytes is best-effort and must never crowd a
-                            # create/start/template. Under multitenancy, thread the
-                            # storage owner's category (or the _nocat sentinel for a
-                            # deleted owner) so the cleanup is fair-scheduled per tenant
-                            # like every other producer.
-                            category = (
-                                (storage.category or queue_tiers.NULL_CATEGORY)
-                                if queue_tiers.multitenancy_enabled()
-                                else None
-                            )
+                            # create/start/template. Thread the storage owner's
+                            # category (or the _nocat sentinel for a deleted owner)
+                            # so the cleanup is fair-scheduled per tenant, exactly as
+                            # ``Storage.create_task`` and ``Media.create_task`` do —
+                            # per-category fairness is structural in the worker
+                            # (``GovernedWorker.multitenancy`` is always on), so
+                            # producers resolve the category unconditionally.
+                            category = storage.category or queue_tiers.NULL_CATEGORY
                             delete_queue = queue_tiers.retier_queue(
                                 f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.bulk",
                                 task_name,

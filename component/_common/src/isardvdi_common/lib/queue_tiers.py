@@ -1,4 +1,4 @@
-"""Phase-1 queue-tier resolver (pure logic; one env read for the multitenancy switch).
+"""Phase-1 queue-tier resolver (pure logic, no I/O and no environment reads).
 
 Replaces the role-demoting ``Helpers.check_task_priority`` with an
 **action-driven** tier model. The storage worker pool is partitioned so that a
@@ -46,8 +46,6 @@ the governed set ``template``/``maintenance`` are *heavy* (PSI-deferred AND
 max-heavy-capped); ``reclaim``/``background`` are PSI-deferred but not capped
 (trivial deletes / metadata reads); ``bulk`` is neither.
 """
-
-import os
 
 # Most-urgent -> least-urgent. Order is relied upon by the worker subscription
 # order in docker/storage/init.sh.
