@@ -7,14 +7,17 @@ import { getToken as getAuthToken, useCookies as useAuthCookies, getBearer } fro
 import {
   apiV4LoginConfigOptions,
   getMaintenanceOptions,
+  getMaintenanceQueryKey,
   maintenanceStatusOptions,
-  getMaintenanceTextFrontendOptions
+  maintenanceStatusQueryKey as maintenanceStatusQueryKeyFn,
+  getMaintenanceTextFrontendOptions,
+  getMaintenanceTextFrontendQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 const cookies = useAuthCookies()
 
 const maintenanceTextOpts = computed(() => getMaintenanceTextFrontendOptions())
-const maintenanceTextQueryKey = computed(() => getMaintenanceTextFrontendOptions())
+const maintenanceTextQueryKey = computed(() => getMaintenanceTextFrontendQueryKey())
 
 const {
   isPending: maintenanceTextIsPending,
@@ -28,7 +31,7 @@ const {
 })
 
 const maintenanceStatusOpts = computed(() => maintenanceStatusOptions())
-const maintenanceStatusQueryKey = computed(() => maintenanceStatusOptions())
+const maintenanceStatusQueryKey = computed(() => maintenanceStatusQueryKeyFn())
 
 const {
   isPending: maintenanceStatusIsPending,
@@ -45,7 +48,7 @@ const {
 
 const maintenanceOpts = computed(() => getMaintenanceOptions())
 const maintenanceQueryKey = computed(() =>
-  getMaintenanceOptions({
+  getMaintenanceQueryKey({
     headers: {
       Authorization: `Bearer ${getBearer(cookies)}`
     }
