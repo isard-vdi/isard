@@ -34,7 +34,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SearchableTags } from '@/components/searchable-tags'
 import SelectNetworksModal from '@/components/modal/SelectNetworksModal.vue'
 import { Button } from '@/components/ui/button'
-import { MAX_VGPU_PROFILES, isVgpuSelectable } from '@/lib/vgpuSelection'
+import { MAX_VGPU_PROFILES, NO_VGPU_ID, isVgpuSelectable } from '@/lib/vgpuSelection'
 
 interface LimitedHardwareValue {
   old_value: unknown
@@ -165,7 +165,7 @@ const vgpus = computed<string[]>(() => {
     desktopData.value?.reservables?.vgpus ||
     props.reservables?.vgpus ||
     []
-  )
+  ).filter((id) => id !== NO_VGPU_ID)
 })
 const interfaces = computed(() => {
   return (
@@ -270,7 +270,9 @@ const videosOptions = computed(() => userAllowedHardware.value?.videos || [])
 const bootsOptions = computed(() => userAllowedHardware.value?.boot_order || [])
 const isosOptions = computed(() => userAllowedHardware.value?.isos || [])
 const floppiesOptions = computed(() => userAllowedHardware.value?.floppies || [])
-const vgpusOptions = computed(() => userAllowedHardware.value?.reservables.vgpus || [])
+const vgpusOptions = computed(
+  () => userAllowedHardware.value?.reservables.vgpus.filter((v) => v.id !== NO_VGPU_ID) || []
+)
 
 // A vGPU (esp. passthrough) can be hosted on several hypervisors / NUMA sockets.
 // The backend tags each option with its hypervisor groups + NUMA placement so
@@ -322,16 +324,6 @@ const groupedVgpus = computed<{ label: string | null; items: VgpuOption[] }[]>((
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([label, items]) => ({ label: label || null, items }))
 })
-// Comma-separated names of the currently-selected vGPU profiles, for the trigger
-// summary (reka-ui's SelectValue doesn't render a multiple selection).
-const vgpuSummary = (ids: string[] | undefined): string => {
-  const selected = ids ?? []
-  return (vgpusOptions.value as VgpuOption[])
-    .filter((o) => selected.includes(o.id))
-    .map((o) => o.name)
-    .join(', ')
-}
-
 // Grey out a profile that can't be added to the current selection (count limit
 // reached or not co-locatable on a single hypervisor). The backend enforces the
 // same rules; this just prevents obviously-invalid picks.
@@ -839,12 +831,7 @@ defineExpose({
                 @update:model-value="field.handleChange"
               >
                 <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
-                  <span v-if="(field.state.value ?? []).length" class="truncate text-left">
-                    {{ vgpuSummary(field.state.value) }}
-                  </span>
-                  <span v-else class="text-muted-foreground">
-                    {{ t('components.domain.hardware.vgpus.placeholder') }}
-                  </span>
+                  <SelectValue :placeholder="t('components.domain.hardware.vgpus.placeholder')" />
                 </SelectTrigger>
                 <SelectContent position="item-aligned">
                   <SelectGroup v-for="(grp, gi) in groupedVgpus" :key="gi">
