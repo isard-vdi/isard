@@ -564,6 +564,69 @@ def test_set_user_language(monkeypatch, test_client):
     assert captured == {"user_id": jwt.payload["user_id"], "lang": "ca"}
 
 
+def test_set_user_language_admin_bypasses_maintenance(monkeypatch, test_client):
+    """token_router (has_token) must keep the admin bypass after the
+    role check moved inside ``maintenance()``."""
+    from isardvdi_common.helpers.maintenance import Maintenance
+
+    monkeypatch.setattr(Maintenance, "_enabled", True)
+    monkeypatch.setattr(
+        "api.services.users.UsersService.set_user_language",
+        staticmethod(lambda user_id, lang: None),
+    )
+
+    jwt = MockJWT()
+    response = test_client(
+        url="/item/user/set-lang",
+        method="PUT",
+        body={"lang": "ca"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+
+
+def test_set_user_language_non_admin_blocked_during_maintenance(
+    monkeypatch, test_client
+):
+    from isardvdi_common.helpers.maintenance import Maintenance
+
+    monkeypatch.setattr(Maintenance, "_enabled", True)
+    monkeypatch.setattr(
+        "api.services.users.UsersService.set_user_language",
+        staticmethod(lambda user_id, lang: None),
+    )
+
+    jwt = MockJWT(role_id="user")
+    response = test_client(
+        url="/item/user/set-lang",
+        method="PUT",
+        body={"lang": "ca"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 503
+
+
+def test_register_blocked_during_maintenance(monkeypatch, test_client):
+    """Register tokens are pre-login and carry no admin role —
+    ``maintenance()`` must keep blocking them after the role check
+    moved inside the helper."""
+    from isardvdi_common.helpers.maintenance import Maintenance
+
+    monkeypatch.setattr(Maintenance, "_enabled", True)
+
+    jwt = MockJWT(role_id="user", token_type="register")
+    response = test_client(
+        url="/item/user/register",
+        method="POST",
+        body={"code": "a-register-code"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 503
+
+
 def test_set_user_email(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}
@@ -642,6 +705,50 @@ def test_set_user_email_rejects_unrelated_token(monkeypatch, test_client, token_
     )
 
     assert response.status_code == 403
+
+
+def test_set_user_email_admin_bypasses_maintenance(monkeypatch, test_client):
+    """has_email_verification_required_or_login_token used to call
+    ``maintenance()`` unconditionally — admin login tokens must get the
+    same bypass has_token grants (see the migration_router regression in
+    test_migrations.py)."""
+    from isardvdi_common.helpers.maintenance import Maintenance
+
+    monkeypatch.setattr(Maintenance, "_enabled", True)
+    monkeypatch.setattr(
+        "api.services.users.UsersService.set_user_email",
+        staticmethod(lambda user_id, email: None),
+    )
+
+    jwt = MockJWT()
+    response = test_client(
+        url="/item/user/set-email",
+        method="PUT",
+        body={"email": "me@example.com"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+
+
+def test_set_user_email_non_admin_blocked_during_maintenance(monkeypatch, test_client):
+    from isardvdi_common.helpers.maintenance import Maintenance
+
+    monkeypatch.setattr(Maintenance, "_enabled", True)
+    monkeypatch.setattr(
+        "api.services.users.UsersService.set_user_email",
+        staticmethod(lambda user_id, email: None),
+    )
+
+    jwt = MockJWT(role_id="user")
+    response = test_client(
+        url="/item/user/set-email",
+        method="PUT",
+        body={"email": "me@example.com"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 503
 
 
 # ─── Admin user migrate check (T1/admin/user/migrate/check shim) ──────

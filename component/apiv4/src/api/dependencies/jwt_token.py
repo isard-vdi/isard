@@ -47,13 +47,18 @@ def get_remote_addr(request):
     return request.headers.get("x-forwarded-for", request.client.host).split(",")[0]
 
 
-def maintenance(category_id=None):
+def maintenance(payload):
+    if payload.get("role_id") == "admin":
+        return
+
     if Maintenance.enabled:
         raise Error(
             "maintenance",
             "Maintenance mode is enabled. Please try again later.",
         )
-    elif category_id and Maintenance.category_enabled(category_id):
+
+    category_id = payload.get("category_id")
+    if category_id and Maintenance.category_enabled(category_id):
         raise Error(
             "maintenance",
             "Maintenance mode is enabled for this category. Please try again later.",
@@ -149,8 +154,7 @@ async def has_token(
         except Error as e:
             raise e
 
-    if payload.get("role_id") != "admin":
-        maintenance(payload.get("category_id"))
+    maintenance(payload)
 
     # Propagate session_id into payload so downstream code can check it
     payload["session_id"] = session_id
@@ -230,7 +234,7 @@ async def has_token_register(
             traceback.format_exc(),
         )
 
-    maintenance(payload.get("category_id"))
+    maintenance(payload)
     request.token_payload = payload
 
     return payload
@@ -334,7 +338,7 @@ async def has_migration_required_or_login_token(
             except Error as e:
                 raise e
 
-    maintenance(payload.get("category_id"))
+    maintenance(payload)
 
     # Save the payload in the request for later use
     request.token_payload = payload
@@ -364,7 +368,7 @@ async def has_email_verification_required_or_login_token(
             except Error as e:
                 raise e
 
-    maintenance(payload.get("category_id"))
+    maintenance(payload)
 
     request.token_payload = payload
 
