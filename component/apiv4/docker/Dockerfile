@@ -18,6 +18,9 @@ RUN uv sync --frozen --no-dev --package isardvdi-apiv4 --no-editable
 FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS runtime
 RUN apk add --no-cache libffi libjpeg-turbo openssh-client openssl ttf-liberation zlib
 
+ARG SRC_VERSION_ID
+RUN echo -n "$SRC_VERSION_ID" > /version
+
 WORKDIR /app
 COPY --from=builder /.venv /.venv
 COPY component/apiv4/src /app

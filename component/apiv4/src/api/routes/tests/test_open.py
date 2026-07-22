@@ -28,6 +28,7 @@ _is_production = os.environ.get("USAGE", "production") == "production"
 
 def test_api_version_success(monkeypatch, test_client):
     monkeypatch.setenv("USAGE", "test-usage")
+    monkeypatch.setattr("api.routes.open.version", "main")
     response = test_client(
         url="/api/v4",
     )
@@ -35,7 +36,7 @@ def test_api_version_success(monkeypatch, test_client):
     assert response.json() == {
         "name": "IsardVDI",
         "api_version": "4.0-alpha1",
-        "isardvdi_version": "fastapi",
+        "isardvdi_version": "main",
         "usage": "test-usage",
     }
 
