@@ -49,7 +49,9 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 202
+release_version = 203
+# release 203: drop null-valued guest_properties.viewers entries on domains and
+#              deployment (a disabled viewer is an absent key)
 # release 202: drop dead RethinkDB indexes and reconcile populate on hot tables
 # release 201: normalise path-shaped storage.parent rows to their UUID
 # release 200: cleanup old single domain field for bastion targets
@@ -3947,6 +3949,60 @@ password:s:%s"""
             except Exception:
                 pass
 
+        if version == 203:
+            try:
+                null_viewers = (
+                    lambda d: d["guest_properties"]
+                    .default({})["viewers"]
+                    .default({})
+                    .values()
+                    .contains(None)
+                )
+                total = r.table(table).filter(null_viewers).count().run(self.conn)
+                log.info(
+                    f"--- Domains null viewers cleanup: {total} rows to migrate ---"
+                )
+                if total > 0:
+                    batch_size = 10_000
+                    processed = 0
+                    while True:
+                        result = (
+                            r.table(table)
+                            .filter(null_viewers)
+                            .limit(batch_size)
+                            .update(
+                                lambda d: {
+                                    "guest_properties": {
+                                        "viewers": r.literal(
+                                            d["guest_properties"]["viewers"]
+                                            .keys()
+                                            .filter(
+                                                lambda k: d["guest_properties"][
+                                                    "viewers"
+                                                ][k].ne(None)
+                                            )
+                                            .map(
+                                                lambda k: [
+                                                    k,
+                                                    d["guest_properties"]["viewers"][k],
+                                                ]
+                                            )
+                                            .coerce_to("object")
+                                        )
+                                    }
+                                }
+                            )
+                            .run(self.conn)
+                        )
+                        replaced = result.get("replaced", 0)
+                        if replaced == 0:
+                            break
+                        processed += replaced
+                    log.info(
+                        f"--- Domains null viewers cleanup: complete ({processed} rows) ---"
+                    )
+            except Exception as e:
+                log.error(f"v203: domains null viewers cleanup failed: {e}")
         return True
 
     """
@@ -4462,6 +4518,33 @@ password:s:%s"""
                         )
             except Exception as e:
                 print(e)
+
+        if version == 203:
+            try:
+                migrated = 0
+                for deployment in r.table(table).run(self.conn):
+                    create_dict = deployment.get("create_dict")
+                    if not isinstance(create_dict, list):
+                        continue
+                    changed = False
+                    for recipe in create_dict:
+                        viewers = (recipe.get("guest_properties") or {}).get("viewers")
+                        if not isinstance(viewers, dict):
+                            continue
+                        clean = {k: v for k, v in viewers.items() if v is not None}
+                        if len(clean) != len(viewers):
+                            recipe["guest_properties"]["viewers"] = clean
+                            changed = True
+                    if changed:
+                        r.table(table).get(deployment["id"]).update(
+                            {"create_dict": create_dict}
+                        ).run(self.conn)
+                        migrated += 1
+                log.info(
+                    f"--- Deployments null viewers cleanup: {migrated} deployments migrated ---"
+                )
+            except Exception as e:
+                log.error(f"v203: deployments null viewers cleanup failed: {e}")
         return True
 
     """
