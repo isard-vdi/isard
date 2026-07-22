@@ -77,7 +77,7 @@ def _enrich_feedback(task, task_dict):
     except Exception:
         pass
     try:
-        task_dict["storage_id"] = task.storage_id
+        task_dict["storage_id"] = getattr(task.storage_id, "id", None)
     except Exception:
         task_dict.setdefault("storage_id", None)
 
