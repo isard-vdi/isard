@@ -38,8 +38,12 @@ from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
-# with open("/version", "r") as file:
-#     version = file.read()
+try:
+    with open("/version", "r") as file:
+        version = file.read()
+except OSError:
+    # /version is baked into the image at build time; absent when running tests
+    version = ""
 
 # Named caches: api_version is a constant during a process lifetime, and
 # category custom_url is admin-edited via writers that should invalidate.
@@ -67,7 +71,7 @@ async def api_version():
             content=ApiVersion(
                 name="IsardVDI",
                 api_version="4.0-alpha1",
-                isardvdi_version="fastapi",
+                isardvdi_version=version,
                 usage=os.environ["USAGE"],  # Raises KeyError if missing
             ).model_dump(mode="json"),
             status_code=200,
