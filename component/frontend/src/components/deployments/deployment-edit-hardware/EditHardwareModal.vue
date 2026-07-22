@@ -221,10 +221,10 @@ const hasLimitedFields = computed(() => {
             :videos="desktopData.hardware?.videos"
             :interfaces="desktopData.hardware?.interfaces"
             :boot-order="desktopData.hardware?.boot_order"
-            :isos="desktopData.hardware?.isos"
-            :floppies="desktopData.hardware?.floppies"
+            :isos="desktopData.hardware?.isos?.map((iso) => iso.name)"
+            :floppies="desktopData.hardware?.floppies?.map((floppy) => floppy.name)"
             :loading="false"
-            :reservables="desktopData.reservables?.vgpus"
+            :vgpus="desktopData.reservables?.vgpus"
           />
 
           <div class="flex items-center gap-2">
@@ -256,11 +256,11 @@ const hasLimitedFields = computed(() => {
               :vcpus="desktopData.hardware?.vcpus"
               :memory="desktopData.hardware?.memory"
               :disk-bus="desktopData.hardware?.disk_bus"
-              :videos="desktopData.hardware?.videos"
+              :videos="desktopData.hardware?.videos?.[0]"
               :interfaces="desktopData.hardware?.interfaces"
-              :boot-order="desktopData.hardware?.boot_order"
-              :isos="desktopData.hardware?.isos"
-              :floppies="desktopData.hardware?.floppies"
+              :boot-order="desktopData.hardware?.boot_order?.[0]"
+              :isos="desktopData.hardware?.isos?.map((iso) => iso.id)"
+              :floppies="desktopData.hardware?.floppies?.map((floppy) => floppy.id)"
               :reservables="desktopData.reservables"
               :limited-hardware="desktopData.limited_hardware"
             />

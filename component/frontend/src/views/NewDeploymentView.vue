@@ -11,7 +11,11 @@ import * as z from 'zod'
 
 import { useQuery, useMutation } from '@tanstack/vue-query'
 
-import type { CreateDesktopRequest, DesktopNameExistsErrorResponse } from '@/gen/oas/apiv4'
+import type {
+  CreateDesktopRequest,
+  DesktopNameExistsErrorResponse,
+  DomainInfoMedia
+} from '@/gen/oas/apiv4'
 import { getTemplateInfo, getTemplateDetails } from '@/gen/oas/apiv4'
 import {
   createDeploymentMutation,
@@ -329,6 +333,9 @@ const steps = computed<StepperFormStep[]>(() => {
   ]
 })
 
+const toMediaResources = (media?: DomainInfoMedia[]) =>
+  media?.map(({ id, name }) => ({ id, name: name ?? id }))
+
 async function addDesktop(templateId: string) {
   const {
     id,
@@ -352,10 +359,8 @@ async function addDesktop(templateId: string) {
         interfaces: templateInterfaces.map((iface) =>
           typeof iface === 'string' ? iface : iface.id
         ),
-        isos: templateIsos?.map((iso) => (typeof iso === 'string' ? iso : iso.id)),
-        floppies: templateFloppies?.map((floppy) =>
-          typeof floppy === 'string' ? floppy : floppy.id
-        )
+        isos: toMediaResources(templateIsos),
+        floppies: toMediaResources(templateFloppies)
       },
 
       _id: `${Date.now()}-${Math.random()}`,
@@ -377,7 +382,13 @@ const deleteDesktop = (index: number) => {
 async function updateDesktopTemplate(templateId: string, index: number) {
   const {
     id,
-    hardware: { interfaces: templateInterfaces, ...templateHardware },
+    hardware: {
+      interfaces: templateInterfaces,
+      isos: templateIsos,
+      floppies: templateFloppies,
+
+      ...templateHardware
+    },
     ...templateData
   } = await getTemplateInfoAsync(templateId)
 
@@ -390,7 +401,9 @@ async function updateDesktopTemplate(templateId: string, index: number) {
         ...templateHardware,
         interfaces: templateInterfaces.map((iface) =>
           typeof iface === 'string' ? iface : iface.id
-        )
+        ),
+        isos: toMediaResources(templateIsos),
+        floppies: toMediaResources(templateFloppies)
       },
 
       _id: currentDesktops[index]._id,
@@ -424,7 +437,8 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
   const currentDesktops = form.getFieldValue('desktops') || []
 
   // convert from camelCase to snake_case
-  const { bootOrder, diskBus, reservables, interfaces, ...restHardwareSettings } = hardwareSettings
+  const { bootOrder, diskBus, reservables, interfaces, videos, ...restHardwareSettings } =
+    hardwareSettings
 
   const updatedDesktop = {
     ...currentDesktops[index],
@@ -435,7 +449,8 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
         ...restHardwareSettings,
         interfaces: interfaces.map((iface: any) => (typeof iface === 'string' ? iface : iface.id)),
         disk_bus: diskBus,
-        boot_order: bootOrder
+        videos: [videos],
+        boot_order: [bootOrder]
       }
     },
     reservables
