@@ -12,6 +12,12 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from time import sleep
 
+from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.redact import redact_secrets
+from isardvdi_common.models.domain import Domain
+from rethinkdb import r
+from tabulate import tabulate
+
 from engine.config import (
     POLLING_INTERVAL_BACKGROUND,
     STATUS_POLLING_INTERVAL,
@@ -22,14 +28,12 @@ from engine.controllers.broom import launch_thread_broom
 from engine.controllers.events_recolector import launch_thread_hyps_event
 from engine.controllers.ui_actions import UiActions
 from engine.models.hypervisor_orchestrator import HypervisorsOrchestratorThread
-from engine.models.pool_hypervisors import PoolDiskoperations, PoolHypervisors
+from engine.models.pool_hypervisors import PoolHypervisors
 from engine.services.db import (
     delete_table_item,
     get_domain,
     get_domain_hyp_started,
     get_hypers_ids_with_status,
-    get_if_all_disk_template_created,
-    remove_domain,
     update_domain_history_from_id_domain,
 )
 from engine.services.db.db import (
@@ -37,12 +41,8 @@ from engine.services.db.db import (
     update_table_dict,
     update_table_field,
 )
-from engine.services.db.domains import (
-    update_domain_start_after_created,
-    update_domain_status,
-)
+from engine.services.db.domains import update_domain_status
 from engine.services.db.hypervisors import update_all_hyps_status
-from engine.services.db.storage_pool import get_storage_pool_ids
 from engine.services.lib.functions import (
     QueuesThreads,
     clean_intermediate_status,
@@ -51,14 +51,9 @@ from engine.services.lib.functions import (
     get_threads_running,
     get_tid,
 )
-from engine.services.lib.status import get_next_disk, get_next_hypervisor
+from engine.services.lib.status import get_next_hypervisor
 from engine.services.lib.telegram import telegram_send_thread
 from engine.services.log import logs
-from engine.services.threads.download_thread import launch_thread_download_changes
-from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
-from isardvdi_common.domain import Domain
-from rethinkdb import r
-from tabulate import tabulate
 
 WAIT_HYP_ONLINE = 2.0
 
@@ -91,20 +86,18 @@ class Engine(object):
         self.t_workers = {}
         self.t_status = {}
         self.pools = {}
-        self.diskoperations_pools = {}
-        self.t_disk_operations = {}
-        self.q_disk_operations = {}
         self.t_orchestrator = None
         self.t_events = None
         self.t_changes_domains = None
         self.t_broom = None
         self.t_background = None
-        self.t_downloads_changes = None
+        # Media downloads were retired from the engine: they now run as
+        # ``download_url`` storage RQ tasks on isard-storage workers
+        # (low-priority queue). Apiv4 enqueues the chain directly.
         self.quit = False
 
         self.threads_info_main = {}
         self.threads_info_hyps = {}
-        self.hypers_disk_operations_tested = []
 
         self.num_workers = 0
         self.threads_main_started = False
@@ -152,11 +145,6 @@ class Engine(object):
             q = self.manager.q.background
             first_loop = True
             pool_id = "default"
-            # can't launch downloads if download changes thread is not ready and hyps are not online
-            update_table_field(
-                "hypervisors_pools", pool_id, "download_changes", "Stopped"
-            )
-
             # if domains have intermedite states (updating, download_aborting...)
             # to Failed, Stopped or Delete
             clean_intermediate_status()
@@ -229,21 +217,6 @@ class Engine(object):
                             for t in threads_started
                             if t[0].startswith("worker_")
                         ]
-                        diskop_started = [
-                            t[0].split("_")[1]
-                            for t in threads_started
-                            if t[0].startswith("diskop_")
-                        ]
-                        # Sometimes engine starts with no hypervisors available
-                        # Afterwards we are testing if hypervisors are available through balancer
-                        # if not len(workers_started) or not len(diskop_started):
-                        #     telegram_send_thread("DOWN", "No hypervisors available")
-                        if len(workers_started) != len(diskop_started):
-                            telegram_send_thread(
-                                "WARN",
-                                f"Engine Workers threads ({workers_started}) and diskop threads ({diskop_started}) are not equal",
-                            )
-                            next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
 
                         for t in threads_dead:
                             if t[0].startswith("worker_"):
@@ -261,23 +234,6 @@ class Engine(object):
                                 telegram_send_thread(
                                     "WARN",
                                     f"Hypervisor {hyp_id} worker is dead\n",
-                                )
-                                next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
-                            if t[0].startswith("diskop_"):
-                                hyp_id = t[0].split("_")[1]
-                                if hyp_id in diskop_started:
-                                    logs.main.info(
-                                        f"Dead diskop for {hyp_id} already replaced by new thread, skipping cap_status downgrade"
-                                    )
-                                    continue
-                                update_table_dict(
-                                    "hypervisors",
-                                    hyp_id,
-                                    {"cap_status": {"disk_operations": False}},
-                                )
-                                telegram_send_thread(
-                                    "WARN",
-                                    f"Hypervisor {hyp_id} disk_operations is dead\n",
                                 )
                                 next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
 
@@ -304,29 +260,18 @@ class Engine(object):
                                 f"Video {k} connection to hypervisor {w} not functional",
                             )
 
-                disk = get_next_disk()
                 virt = get_next_hypervisor()
                 if next_available is True:
-                    if not disk and not virt:
-                        telegram_send_thread(
-                            "DOWN",
-                            "No hypervisor for virtualization neither disk operations available.",
-                        )
-                    elif not virt:
+                    if not virt:
                         telegram_send_thread(
                             "DOWN", "No hypervisor for virtualization available."
                         )
-                    elif not disk:
-                        telegram_send_thread(
-                            "DOWN", "No disk operations hypervisor available."
-                        )
-                    if not disk or not virt:
                         next_available = False
                 else:
-                    if disk and virt:
+                    if virt:
                         telegram_send_thread(
                             "UP",
-                            f"Engine threads changes detected, workers started: {workers_started}, diskop started: {diskop_started}",
+                            f"Engine threads changes detected, workers started: {workers_started}",
                         )
                         next_available = True
                 # pprint.pprint(threads_running)
@@ -360,18 +305,6 @@ class Engine(object):
 
                     # Hypervisors balancer pools
                     self.manager.pools["default"] = PoolHypervisors("default")
-                    # Diskoperations balancer pools
-                    for pool_id in get_storage_pool_ids(only_enabled=False):
-                        self.manager.diskoperations_pools[pool_id] = PoolDiskoperations(
-                            pool_id
-                        )
-
-                    # launch downloads changes thread
-                    self.manager.t_downloads_changes = launch_thread_download_changes(
-                        self.manager,
-                        self.manager.q.workers,
-                        self.manager.t_disk_operations,
-                    )
 
                     # launch brom thread
                     self.manager.t_broom = launch_thread_broom(self.manager)
@@ -385,8 +318,6 @@ class Engine(object):
                         "orchestrator",
                         t_workers=self.manager.t_workers,
                         t_events=self.manager.t_events,
-                        t_disk_operations=self.manager.t_disk_operations,
-                        q_disk_operations=self.manager.q_disk_operations,
                         queues_object=self.manager.q,
                         manager=self.manager,
                     )
@@ -467,6 +398,23 @@ class Engine(object):
                     return False
 
     class DomainsChangesThread(threading.Thread):
+        # Engine-side consumer of the `domains` + `engine` changefeeds.
+        #
+        # The changefeed service ALSO watches `domains` and publishes to
+        # Redis (so change-handler can emit SocketIO events to the
+        # frontend). That means a single DB mutation fans out to two
+        # independent consumers: this thread (for engine state transitions)
+        # and change-handler (for UI notifications). Ordering between the
+        # two is not coordinated — don't rely on UI updates before or
+        # after engine actions.
+        #
+        # This thread intentionally stays on direct RethinkDB .changes():
+        # moving to the shared Redis stream would still leave two
+        # consumers (just with extra hops), and the engine needs the full
+        # row for decisions, not the summarized payload the changefeed
+        # service publishes. See migration/ENGINE_CHANGE_HANDLING.md for
+        # the long-term plan (converge to a single stream with consumer
+        # groups).
         def __init__(self, name, parent):
             threading.Thread.__init__(self)
             self.manager = parent
@@ -499,7 +447,13 @@ class Engine(object):
             )
             ui = UiActions(self.manager)
 
-            self.r_conn = new_rethink_connection()
+            # Long-lived changes() cursor: held for the process
+            # lifetime, so it MUST NOT come from the shared pool —
+            # holding a pool slot forever starves every other caller.
+            # Bypass the pool with a direct ``r.connect()``.
+            from engine.config import RETHINK_DB, RETHINK_HOST, RETHINK_PORT
+
+            self.r_conn = r.connect(RETHINK_HOST, RETHINK_PORT, db=RETHINK_DB)
 
             cursor = (
                 r.table("domains")
@@ -581,7 +535,7 @@ class Engine(object):
                     new_domain = False
                     new_status = False
                     old_status = False
-                    logs.changes.debug(pprint.pformat(c))
+                    logs.changes.debug(pprint.pformat(redact_secrets(c)))
 
                     # action deleted
                     if c.get("new_val", None) is None:
@@ -603,7 +557,12 @@ class Engine(object):
                     ):
                         old_status = c["old_val"]["status"]
                         new_status = c["new_val"]["status"]
-                        new_detail = c["new_val"]["detail"]
+                        # ``detail`` is optional: apiv4's Pydantic schemas
+                        # (DesktopFromTemplate, DomainModel) do not declare
+                        # it, so rows inserted through those paths omit the
+                        # field entirely and pluck yields no key. Default
+                        # to None so the change-handler keeps flowing.
+                        new_detail = c["new_val"].get("detail")
                         domain_id = c["new_val"]["id"]
                         logs.changes.debug("domain_id: {}".format(domain_id))
                         # if engine is stopped/restarting or not hypervisors online
@@ -623,108 +582,42 @@ class Engine(object):
                             #       format(domain_id,old_status,new_status,new_detail))
                             pass
 
-                    if new_domain is True and new_status == "CreatingDiskFromScratch":
-                        self._submit_action(ui.creating_disk_from_scratch, domain_id)
-
-                    if new_domain is True and new_status == "Creating":
-                        self._submit_action(ui.creating_disks_from_template, domain_id)
-
-                    if new_domain is True and new_status == "CreatingAndStarting":
-
-                        def _creating_and_starting(domain_id):
-                            update_domain_start_after_created(domain_id)
-                            ui.creating_disks_from_template(domain_id)
-
-                        self._submit_action(_creating_and_starting, domain_id)
-
-                        # INFO TO DEVELOPER
-                        # recoger template de la que hay que derivar
-                        # verificar que realmente es una template
-                        # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
+                    # apiv4 edit (routes/domains/desktops.py PUT .../edit
+                    # → parse_domain_update) flips status to "Updating".
+                    # The engine validates the new XML and moves to
+                    # "Stopped" (or "Failed" if invalid). Ported from
+                    # apiv4-and-websockets. Without this handler the
+                    # desktop is stuck in "Updating" forever after every
+                    # edit.
+                    if (
+                        old_status in ["Stopped", "Failed", "Downloaded"]
+                        and new_status == "Updating"
+                    ):
+                        self._submit_action(
+                            ui.updating_from_create_dict, domain_id, True
+                        )
 
                     if (
-                        old_status in ["CreatingDisk", "CreatingDiskFromScratch"]
+                        old_status
+                        in [
+                            "CreatingDisk",
+                            "CreatingDiskFromScratch",
+                            "CreatingAndStarting",
+                        ]
                         and new_status == "CreatingDomain"
-                    ) or (
-                        new_domain is True and new_status == "CreatingDomainFromDisk"
                     ):
                         logs.changes.debug(
                             "llamo a creating_and_test_xml con domain id {}".format(
                                 domain_id
                             )
                         )
-                        if (
-                            new_status == "CreatingDomain"
-                            or new_status == "CreatingDomainFromDisk"
-                        ):
-                            self._submit_action(
-                                ui.creating_and_test_xml_start,
-                                domain_id,
-                                creating_from_create_dict=True,
-                                ssl=True,
-                                start_paused=False,
-                            )
-
-                    if old_status == "Stopped" and new_status == "CreatingTemplate":
                         self._submit_action(
-                            ui.create_template_disks_from_domain, domain_id
+                            ui.creating_and_test_xml_start,
+                            domain_id,
+                            creating_from_create_dict=True,
+                            ssl=True,
+                            start_paused=False,
                         )
-
-                    if (
-                        old_status not in ["Started", "Shutting-down"]
-                        and new_status == "Deleting"
-                    ):
-                        # or \
-                        #     old_status == 'Failed' and new_status == "Deleting" or \
-                        #     old_status == 'Downloaded' and new_status == "Deleting":
-                        self._submit_action(ui.deleting_disks_from_domain, domain_id)
-
-                    if (
-                        old_status == "DeletingDomainDisk"
-                        and new_status == "DiskDeleted"
-                    ):
-
-                        def _disk_deleted_action(domain_id):
-                            logs.changes.debug(
-                                "disk deleted, mow remove domain form database"
-                            )
-                            remove_domain(domain_id)
-                            if get_domain(domain_id) is None:
-                                logs.changes.info(
-                                    "domain {} deleted from database".format(domain_id)
-                                )
-                            else:
-                                update_domain_status(
-                                    "Failed",
-                                    domain_id,
-                                    detail="domain {} can not be deleted from database".format(
-                                        domain_id
-                                    ),
-                                )
-
-                        self._submit_action(_disk_deleted_action, domain_id)
-
-                    if (
-                        old_status == "CreatingTemplateDisk"
-                        and new_status == "TemplateDiskCreated"
-                    ):
-
-                        def _template_disk_created_action(domain_id):
-                            # create_template_from_dict(dict_new_template)
-                            if get_if_all_disk_template_created(domain_id):
-                                ui.create_template_in_db(domain_id)
-                            else:
-                                # INFO TO DEVELOPER, este else no se si tiene mucho sentido, hay que hacer pruebas con la
-                                # creación de una template con dos discos y ver si pasa por aquí
-                                # waiting to create other disks
-                                update_domain_status(
-                                    status="CreatingTemplateDisk",
-                                    id_domain=domain_id,
-                                    hyp_id=False,
-                                    detail="Waiting to create more disks for template",
-                                )
-
-                        self._submit_action(_template_disk_created_action, domain_id)
 
                     if (old_status == "Stopped" and new_status == "StartingPaused") or (
                         old_status == "Failed" and new_status == "StartingPaused"
@@ -811,8 +704,11 @@ class Engine(object):
                         "CreatingDomain",
                     ] and new_status in ["Stopped"]:
 
-                        def _stopped_storage_find(domain_id):
-                            # Create storage find tasks to update qemu-img info
+                        def _stopped_storage_refresh(domain_id):
+                            # Refresh qemu-img-info on each attached storage after the
+                            # VM stops. Uses check_backing_chain (qemu_img_info_backing_chain
+                            # + storage_update) instead of the heavier find() — we only
+                            # need a fresh qemu-img-info dict, not a filesystem walk.
                             if Domain.exists(domain_id):
                                 try:
                                     domain = Domain(domain_id)
@@ -822,34 +718,19 @@ class Engine(object):
                                             storage, "readonly", False
                                         ):
                                             try:
-                                                storage.find(user_id)
+                                                storage.check_backing_chain(
+                                                    user_id, blocking=False, retry=1
+                                                )
                                             except Exception as e:
                                                 logs.main.debug(
-                                                    f"Could not create find task for storage {storage.id}: {e}"
+                                                    f"Could not create qemu-img-info refresh task for storage {storage.id}: {e}"
                                                 )
                                 except Exception as e:
                                     logs.main.debug(
-                                        f"Could not create storage find tasks for domain {domain_id}: {e}"
+                                        f"Could not create qemu-img-info refresh tasks for domain {domain_id}: {e}"
                                     )
 
-                        self._submit_action(_stopped_storage_find, domain_id)
-
-                    if (
-                        old_status == "Started" and new_status == "StoppingAndDeleting"
-                    ) or (
-                        old_status == "Suspended"
-                        and new_status == "StoppingAndDeleting"
-                    ):
-
-                        def _stopping_and_deleting_action(domain_id):
-                            hyp_started = get_domain_hyp_started(domain_id)
-                            ui.stop_domain(
-                                id_domain=domain_id,
-                                hyp_id=hyp_started,
-                                delete_after_stopped=True,
-                            )
-
-                        self._submit_action(_stopping_and_deleting_action, domain_id)
+                        self._submit_action(_stopped_storage_refresh, domain_id)
 
                     if new_domain is False and new_status == "ForceDeleting":
                         self._submit_action(ui.force_deleting, domain_id, old_status)
@@ -880,7 +761,6 @@ class Engine(object):
         for name in [
             "events",
             "broom",
-            "downloads_changes",
             "orchestrator",
             "changes_domains",
         ]:
@@ -903,7 +783,7 @@ class Engine(object):
         alive = []
         dead = []
         not_defined = []
-        for name in ["workers", "status", "disk_operations"]:
+        for name in ["workers", "status"]:
             for hyp, t in self.__getattribute__("t_" + name).items():
                 try:
                     (
@@ -935,8 +815,6 @@ class Engine(object):
         #    pass
         self.t_broom.stop_thread()
         # operations / status
-        for k, v in self.t_disk_operations.items():
-            v.stop = True
         for k, v in self.t_workers.items():
             v.stop = True
         for k, v in self.t_status.items():

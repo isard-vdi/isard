@@ -1,0 +1,25 @@
+[project]
+name = "isardvdi-codegen"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "grpcio-tools==1.66.2",
+  "pyyaml==6.0.2",
+  "openapi-python-client==0.25.2",
+  "ruff==0.6.9",
+  "docopt>=0.6.2",
+  "specktre==0.3.0",
+]
+
+[dependency-groups]
+test = [
+  "pytest",
+  "pydantic",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true

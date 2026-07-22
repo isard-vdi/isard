@@ -8,6 +8,10 @@ from pathlib import PurePath
 from typing import TypedDict
 
 from cachetools import TTLCache
+from isardvdi_common.lib.vgpu_state import vgpu_pool_frees_for_domain
+from rethinkdb import r
+from rethinkdb.errors import ReqlNonExistenceError
+
 from engine.config import TRANSITIONAL_STATUS
 from engine.services.db import (
     close_rethink_connection,
@@ -16,11 +20,7 @@ from engine.services.db import (
     rethink_conn,
 )
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
-from engine.services.lib.storage import update_storage_deleted_domain
 from engine.services.log import logs
-from isardvdi_common.vgpu_state import vgpu_pool_frees_for_domain
-from rethinkdb import r
-from rethinkdb.errors import ReqlNonExistenceError
 
 STATUS_STABLE_DOMAIN_RUNNING = ["Started", "ShuttingDown", "Paused"]
 ALL_STATUS_RUNNING = ["Stopping", "Started", "Stopping", "Shutting-down"]
@@ -52,19 +52,64 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     if only_domain_id:
-        results = (
+        candidates = list(
             rtable.get_all(only_domain_id, index="id")
             .filter(lambda d: r.expr(status_to_delete).contains(d["status"]))
-            .delete()
             .run(r_conn)
         )
     else:
-        results = (
+        candidates = list(
             rtable.get_all(r.args(status_to_delete), index="status")
             .filter({"kind": kind})
-            .delete()
             .run(r_conn)
         )
+
+    # Skip any candidate whose first disk points at a storage with an
+    # active task. That signals task-based disk creation is in flight
+    # (apiv4 pre-created the storage and kicked off the RQ chain) and
+    # deleting the domain would orphan the storage row and the qcow2.
+    storage_ids = [
+        sid
+        for domain in candidates
+        for sid in [
+            (
+                (domain.get("create_dict") or {})
+                .get("hardware", {})
+                .get("disks", [{}])[0]
+                .get("storage_id")
+            )
+        ]
+        if sid
+    ]
+    active_storage_ids = set()
+    if storage_ids:
+        active_storage_ids = set(
+            row["id"]
+            for row in r.table("storage")
+            .get_all(r.args(list(set(storage_ids))), index="id")
+            .filter(lambda s: s.has_fields("task") & (s["task"] != None))  # noqa: E711
+            .pluck("id")
+            .run(r_conn)
+        )
+
+    domains_to_delete = [
+        d["id"]
+        for d in candidates
+        if (
+            (d.get("create_dict") or {})
+            .get("hardware", {})
+            .get("disks", [{}])[0]
+            .get("storage_id")
+        )
+        not in active_storage_ids
+    ]
+
+    if domains_to_delete:
+        results = (
+            rtable.get_all(r.args(domains_to_delete), index="id").delete().run(r_conn)
+        )
+    else:
+        results = {"deleted": 0, "errors": 0, "skipped": 0, "inserted": 0}
     close_rethink_connection(r_conn)
     return results
 
@@ -72,6 +117,8 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
 def fail_incomplete_creating_domains(
     only_domain_id=None, detail="Failed by engine as it was incomplete", kind="desktop"
 ):
+    # Statuses that always have to converge to Failed when the
+    # transition that put them there is no longer in flight.
     status_to_failed = [
         "Updating",
         "Deleting",
@@ -80,6 +127,19 @@ def fail_incomplete_creating_domains(
         "DeletingDomainDisk",
         "StartingDomainDisposable",
     ]
+    # ``CreatingDisk`` and ``CreatingTemplate`` are driven by the
+    # storage-worker RQ chain; the chain ends with a
+    # ``core.update_status`` task that flips the domain to Failed when
+    # any earlier step failed. If the chain succeeded, the desktop
+    # has already moved to Stopped. So a desktop that is *still* in
+    # one of these states by the time the engine reaches this cleanup
+    # — and whose first disk's storage row no longer carries an
+    # active task — is genuinely stuck (e.g. the storage worker
+    # crashed mid-chain, the redis registry was dropped, or the parent
+    # template file disappeared so qemu-img exited 1 and downstream
+    # update_status never got the chance). Mark them Failed instead of
+    # leaving them blocking the desktop list forever.
+    status_to_failed_if_no_task = ["CreatingDisk", "CreatingTemplate"]
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     if only_domain_id:
@@ -95,6 +155,93 @@ def fail_incomplete_creating_domains(
         .update({"status": "Failed", "detail": detail})
         .run(r_conn)
     )
+
+    # Phase 2 — task-conditional sweep for ``CreatingDisk`` /
+    # ``CreatingTemplate``. Defer the actual classification to the
+    # storage ``find`` chain (``find → storage_update_pool →
+    # storage_domains_force_update``) which already does the right
+    # thing: when the disk file exists on the host the storage flips
+    # to ``ready`` and the linked domain converges to ``Stopped``;
+    # when the file is gone the storage flips to ``deleted`` /
+    # ``failed`` and the domain converges to ``Failed``. So we just
+    # need to (1) skip stuck domains whose original chain is still in
+    # flight, (2) re-enqueue ``find`` for the rest, (3) fall back to
+    # marking the domain ``Failed`` only when there is no storage row
+    # to find or the find re-enqueue itself raises.
+    candidates = list(
+        rtable.get_all(r.args(status_to_failed_if_no_task), index="status")
+        .filter({"kind": kind})
+        .pluck("id", "status", "create_dict", "user")
+        .run(r_conn)
+    )
+    if candidates:
+        # Lazy import — engine boot has these on the path but this
+        # function is also called from the pool-hypervisors path where
+        # the imports would otherwise fan out earlier than needed.
+        from isardvdi_common.models.storage import Storage
+        from isardvdi_common.models.task import Task
+
+        storage_by_domain = {}
+        all_storage_ids = []
+        for domain in candidates:
+            sid = (
+                (domain.get("create_dict") or {})
+                .get("hardware", {})
+                .get("disks", [{}])[0]
+                .get("storage_id")
+            )
+            storage_by_domain[domain["id"]] = sid
+            if sid:
+                all_storage_ids.append(sid)
+
+        storage_rows = (
+            {
+                row["id"]: row
+                for row in r.table("storage")
+                .get_all(r.args(list(set(all_storage_ids))), index="id")
+                .pluck("id", "status", "task")
+                .run(r_conn)
+            }
+            if all_storage_ids
+            else {}
+        )
+
+        domain_ids_to_fail = []
+        for domain in candidates:
+            sid = storage_by_domain[domain["id"]]
+            storage = storage_rows.get(sid) if sid else None
+
+            # No storage row → nothing the find chain could resolve;
+            # straight to Failed.
+            if storage is None:
+                domain_ids_to_fail.append(domain["id"])
+                continue
+
+            task_id = storage.get("task")
+            if task_id and Task.exists(task_id):
+                try:
+                    if Task(task_id).pending:
+                        # Chain is still in flight — leave alone.
+                        continue
+                except Exception:
+                    # Task model raised; fall through and try to
+                    # re-enqueue find so the desktop doesn't hang.
+                    pass
+
+            # Task is missing, terminal-failed, or unreadable → kick
+            # off a fresh ``find`` chain and trust it to converge the
+            # storage + linked domains. ``blocking=False`` because the
+            # old task pointer is dead by definition.
+            try:
+                Storage(sid).find(user_id=domain.get("user"), blocking=False, retry=0)
+            except Exception:
+                domain_ids_to_fail.append(domain["id"])
+
+        if domain_ids_to_fail:
+            rtable.get_all(r.args(domain_ids_to_fail), index="id").update(
+                {"status": "Failed", "detail": detail}
+            ).run(r_conn)
+
     close_rethink_connection(r_conn)
     return results
 
@@ -268,7 +415,6 @@ def update_domain_status(
     hyp_id=None,
     detail="",
     keep_hyp_id=False,
-    storage_id=None,
 ):
     if DEBUG_CHANGES:
         thread_name = threading.currentThread().name
@@ -365,16 +511,6 @@ def update_domain_status(
                     .run(conn)
                 )
 
-        if status == "DiskDeleted":
-            try:
-                update_storage_deleted_domain(
-                    storage_id, results.get("changes", [{}])[0].get("new_val")
-                )
-            except Exception as e:
-                logs.main.error("Exception in update_storage_deleted_domain")
-                logs.main.error("Traceback: \n .{}".format(traceback.format_exc()))
-                logs.main.error("Exception message: {}".format(e))
-
         if status == "Failed":
             remove_fieds_when_stopped(id_domain)
 
@@ -434,29 +570,6 @@ def get_domain_hyp_started(id_domain):
     if not results:
         return False
     return results.get("hyp_started")
-
-
-def get_custom_dict_from_domain(id_domain):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    results = rtable.get(id_domain).pluck("custom").run(r_conn)
-    close_rethink_connection(r_conn)
-    if results is None:
-        return False
-    if "custom" not in results.keys():
-        return False
-    if len(results["custom"]) == 0:
-        return False
-
-    return results["custom"]
-
-
-def update_custom_all_dict(id_domain, d_custom):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    results = rtable.get(id_domain).update({"custom": d_custom}).run(r_conn)
-    close_rethink_connection(r_conn)
-    return results
 
 
 def get_domain_hyp_started_and_status_and_detail(id_domain):
@@ -535,33 +648,6 @@ def update_domain_dict_create_dict(id, create_dict):
     return results
 
 
-def update_domain_dict_hardware(domain_id, domain_dict, xml=False):
-    """Update domain xml.
-
-    NOTE: No longer writes hardware to root - field is deprecated.
-    The domain_dict parameter is kept for signature compatibility but ignored.
-
-    Args:
-        domain_id: The domain ID
-        domain_dict: DEPRECATED - Hardware dictionary (ignored, kept for compatibility)
-        xml: Optional XML string to update
-    """
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    update_dict = {}
-    if xml is not False:
-        update_dict["xml"] = xml
-
-    if update_dict:
-        results = rtable.get(domain_id).update(update_dict).run(r_conn)
-    else:
-        results = {}
-
-    close_rethink_connection(r_conn)
-    return results
-
-
 def remove_domain_viewer_values(domain_id):
     with rethink_conn() as conn:
         try:
@@ -597,81 +683,6 @@ def remove_domain_viewer_values(domain_id):
         return False
     logs.main.info(f"Viewer values removed for domain {domain_id}")
     return True
-
-
-def update_disk_template_created(id_domain, index_disk):
-    with rethink_conn() as conn:
-        dict_disk_templates = (
-            r.table("domains").get(id_domain).pluck("disk_template_created").run(conn)
-        )
-    dict_disk_templates["disk_template_created"][index_disk] = 1
-    with rethink_conn() as conn:
-        results = (
-            r.table("domains").get(id_domain).update(dict_disk_templates).run(conn)
-        )
-    return results
-
-
-def remove_disk_template_created_list_in_domain(id_domain):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    results = (
-        rtable.get(id_domain)
-        .replace(r.row.without("disk_template_created"))
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    return results
-
-
-def update_origin_and_parents_to_new_template(id_domain, template_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    new_create_dict_origin = {"create_dict": {"origin": template_id}}
-    results = rtable.get(id_domain).update(new_create_dict_origin).run(r_conn)
-    close_rethink_connection(r_conn)
-    return results
-
-
-def remove_dict_new_template_from_domain(id_domain):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    results = (
-        rtable.get(id_domain)
-        .replace(r.row.without({"create_dict": "template_dict"}))
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    return results
-
-
-def get_if_all_disk_template_created(id_domain):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    dict_disk_templates = (
-        rtable.get(id_domain).pluck("disk_template_created").run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    created = len(dict_disk_templates["disk_template_created"]) == sum(
-        dict_disk_templates["disk_template_created"]
-    )
-    return created
-
-
-def create_disk_template_created_list_in_domain(id_domain):
-    dict_domain = get_domain(id_domain)
-    disks = dict_domain["create_dict"]["hardware"].get("disks", [])
-    created_disk_finalished_list = [0 for a in range(len(disks))]
-
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    results = (
-        rtable.get(id_domain)
-        .update({"disk_template_created": created_disk_finalished_list})
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    return results
 
 
 def get_domain_forced_hyp(id_domain):
@@ -947,7 +958,7 @@ def update_vgpu_uuid_domain_action(
                             lambda d: {
                                 "vgpu_info": r.branch(
                                     d["vgpu_info"].default([]).type_of().eq("ARRAY"),
-                                    d["vgpu_info"],
+                                    d["vgpu_info"].default([]),
                                     [],
                                 )
                                 .filter(lambda e: e["uuid"].ne(mdev_uuid))
@@ -991,7 +1002,7 @@ def update_vgpu_uuid_domain_action(
                             lambda d: {
                                 "vgpu_info": r.branch(
                                     d["vgpu_info"].default([]).type_of().eq("ARRAY"),
-                                    d["vgpu_info"],
+                                    d["vgpu_info"].default([]),
                                     [],
                                 ).map(
                                     lambda e: r.branch(
@@ -1032,7 +1043,7 @@ def update_vgpu_uuid_domain_action(
                             lambda d: {
                                 "vgpu_info": r.branch(
                                     d["vgpu_info"].default([]).type_of().eq("ARRAY"),
-                                    d["vgpu_info"],
+                                    d["vgpu_info"].default([]),
                                     [],
                                 ).filter(lambda e: e["uuid"].ne(mdev_uuid))
                             }
@@ -1158,7 +1169,7 @@ def update_vgpu_info_if_stopped(dom_id):
                     lambda d: {
                         "vgpu_info": r.branch(
                             d["vgpu_info"].default([]).type_of().eq("ARRAY"),
-                            d["vgpu_info"],
+                            d["vgpu_info"].default([]),
                             [],
                         ).filter(lambda e: e["uuid"].ne(bad_uuid))
                     }
@@ -1228,15 +1239,6 @@ def insert_domain(dict_domain):
     rtable = r.table("domains")
 
     result = rtable.insert(dict_domain).run(r_conn)
-    close_rethink_connection(r_conn)
-    return result
-
-
-def remove_domain(id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    result = rtable.get(id).delete().run(r_conn)
     close_rethink_connection(r_conn)
     return result
 

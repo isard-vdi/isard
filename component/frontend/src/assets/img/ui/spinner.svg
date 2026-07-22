@@ -1,0 +1,20 @@
+<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clip-path="url(#paint0_angular_9164_101886_clip_path)">
+        <g transform="matrix(0 0.024 -0.024 0 24 24)">
+            <foreignObject x="-1020" y="-1020" width="2040" height="2040">
+                <div xmlns="http://www.w3.org/1999/xhtml"
+                    style="background:conic-gradient(from 90deg,currentColor 0deg,currentColor 63.243deg,rgba(255, 255, 255, 0) 300deg);height:100%;width:100%;opacity:1"></div>
+            </foreignObject>
+        </g>
+    </g>
+    <path
+        d="M48 24C48 37.2548 37.2548 48 24 48C10.7452 48 0 37.2548 0 24C0 10.7452 10.7452 0 24 0C37.2548 0 48 10.7452 48 24ZM7.17664 24C7.17664 33.2913 14.7087 40.8234 24 40.8234C33.2913 40.8234 40.8234 33.2913 40.8234 24C40.8234 14.7087 33.2913 7.17664 24 7.17664C14.7087 7.17664 7.17664 14.7087 7.17664 24Z"
+    />
+    <circle cx="24.24" cy="44.4" r="3.6" fill="currentColor" />
+    <defs>
+        <clipPath id="paint0_angular_9164_101886_clip_path">
+            <path
+                d="M48 24C48 37.2548 37.2548 48 24 48C10.7452 48 0 37.2548 0 24C0 10.7452 10.7452 0 24 0C37.2548 0 48 10.7452 48 24ZM7.17664 24C7.17664 33.2913 14.7087 40.8234 24 40.8234C33.2913 40.8234 40.8234 33.2913 40.8234 24C40.8234 14.7087 33.2913 7.17664 24 7.17664C14.7087 7.17664 7.17664 14.7087 7.17664 24Z" />
+        </clipPath>
+    </defs>
+</svg>

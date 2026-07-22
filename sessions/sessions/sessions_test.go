@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	pkgRedis "gitlab.com/isard/isardvdi/pkg/redis"
 	"gitlab.com/isard/isardvdi/sessions/cfg"
 	"gitlab.com/isard/isardvdi/sessions/model"
 	"gitlab.com/isard/isardvdi/sessions/sessions"
@@ -26,16 +27,18 @@ func TestNew(t *testing.T) {
 	now := time.Now()
 
 	cases := map[string]struct {
-		PrepareRedis func(redismock.ClientMock)
-		UserID       string
-		RemoteAddr   string
-		CheckSession func(*model.Session)
-		ExpectedErr  string
+		PrepareSessions func(*sessions.Sessions)
+		PrepareRedis    func(redismock.ClientMock)
+		UserID          string
+		RemoteAddr      string
+		CheckSession    func(*model.Session)
+		ExpectedErr     string
 	}{
 		"should work as expected": {
 			PrepareRedis: func(m redismock.ClientMock) {
 				var sessionID string
 
+				m.ExpectSetNX("lock:user:7005e5a3-6eba-4247-a771-2a2d575cf349", "", 5*time.Second).SetVal(true)
 				m.ExpectGet("user:7005e5a3-6eba-4247-a771-2a2d575cf349").RedisNil()
 				m.CustomMatch(func(expected, actual []interface{}) error {
 					assert.Equal(len(expected), len(actual))
@@ -104,6 +107,8 @@ func TestNew(t *testing.T) {
 
 					return nil
 				}).ExpectSet(`user:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetVal("OK")
+
+				m.ExpectDel("lock:user:7005e5a3-6eba-4247-a771-2a2d575cf349").SetVal(1)
 			},
 			UserID:     "7005e5a3-6eba-4247-a771-2a2d575cf349",
 			RemoteAddr: "127.0.0.1",
@@ -123,6 +128,7 @@ func TestNew(t *testing.T) {
 		},
 		"should return an error if there's an error setting the new session in redis": {
 			PrepareRedis: func(m redismock.ClientMock) {
+				m.ExpectSetNX("lock:user:05837779-35f8-4f17-a4a9-b0540cc0fe81", "", 5*time.Second).SetVal(true)
 				m.ExpectGet("user:05837779-35f8-4f17-a4a9-b0540cc0fe81").RedisNil()
 				m.CustomMatch(func(expected, actual []interface{}) error {
 					assert.Equal(len(expected), len(actual))
@@ -164,6 +170,7 @@ func TestNew(t *testing.T) {
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetErr(errors.New("i'm really tired :("))
 
+				m.ExpectDel("lock:user:05837779-35f8-4f17-a4a9-b0540cc0fe81").SetVal(1)
 			},
 			UserID:      "05837779-35f8-4f17-a4a9-b0540cc0fe81",
 			RemoteAddr:  "127.0.0.1",
@@ -192,6 +199,7 @@ func TestNew(t *testing.T) {
 				bUsr, err := json.Marshal(usr)
 				assert.NoError(err)
 
+				m.ExpectSetNX("lock:user:"+usr.ID, "", 5*time.Second).SetVal(true)
 				m.ExpectGet("user:" + usr.ID).SetVal(string(bUsr))
 				sess := &model.Session{
 					ID:         "05837779-35f8-4f17-a4a9-b0540cc0fe81",
@@ -212,16 +220,6 @@ func TestNew(t *testing.T) {
 				m.ExpectGet("user:" + usr.ID).SetVal(string(bUsr))
 				m.ExpectDel("user:" + usr.ID).SetVal(1)
 
-				sess = &model.Session{
-					ID:         "89d11dea-6cf5-442f-bf8f-aebf3d0596bd",
-					UserID:     "75a52380-7a9f-45b9-814a-3448870ec0a9",
-					RemoteAddr: "127.0.0.1",
-					Time: &model.SessionTime{
-						MaxTime:        now.Add(-5 * time.Minute),
-						MaxRenewTime:   now.Add(30 * time.Second),
-						ExpirationTime: now.Add(-5 * time.Minute),
-					},
-				}
 				m.CustomMatch(func(expected, actual []interface{}) error {
 					assert.Equal(len(expected), len(actual))
 
@@ -289,6 +287,8 @@ func TestNew(t *testing.T) {
 
 					return nil
 				}).ExpectSet(`user:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetVal("OK")
+
+				m.ExpectDel("lock:user:75a52380-7a9f-45b9-814a-3448870ec0a9").SetVal(1)
 			},
 			UserID:     "75a52380-7a9f-45b9-814a-3448870ec0a9",
 			RemoteAddr: "127.0.0.1",
@@ -316,7 +316,9 @@ func TestNew(t *testing.T) {
 				_, err := json.Marshal(usr)
 				assert.NoError(err)
 
+				m.ExpectSetNX("lock:user:"+usr.ID, "", 5*time.Second).SetVal(true)
 				m.ExpectGet("user:" + usr.ID).SetErr(errors.New("random error"))
+				m.ExpectDel("lock:user:" + usr.ID).SetVal(1)
 			},
 			UserID:      "this is an ID",
 			RemoteAddr:  "127.0.0.1",
@@ -332,6 +334,7 @@ func TestNew(t *testing.T) {
 				bUsr, err := json.Marshal(usr)
 				assert.NoError(err)
 
+				m.ExpectSetNX("lock:user:"+usr.ID, "", 5*time.Second).SetVal(true)
 				m.ExpectGet("user:" + usr.ID).SetVal(string(bUsr))
 				sess := &model.Session{
 					ID:         "05837779-35f8-4f17-a4a9-b0540cc0fe81",
@@ -348,6 +351,8 @@ func TestNew(t *testing.T) {
 				assert.NoError(err)
 
 				m.ExpectGet("session:" + usr.SessionID).SetErr(errors.New("random error"))
+
+				m.ExpectDel("lock:user:" + usr.ID).SetVal(1)
 			},
 			UserID:      "this is an ID",
 			RemoteAddr:  "127.0.0.1",
@@ -357,6 +362,7 @@ func TestNew(t *testing.T) {
 			PrepareRedis: func(m redismock.ClientMock) {
 				var sessionID string
 
+				m.ExpectSetNX("lock:user:7005e5a3-6eba-4247-a771-2a2d575cf349", "", 5*time.Second).SetVal(true)
 				m.ExpectGet("user:7005e5a3-6eba-4247-a771-2a2d575cf349").RedisNil()
 				m.CustomMatch(func(expected, actual []interface{}) error {
 					assert.Equal(len(expected), len(actual))
@@ -425,10 +431,27 @@ func TestNew(t *testing.T) {
 
 					return nil
 				}).ExpectSet(`user:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetErr(errors.New("randomn't error"))
+
+				m.ExpectDel("lock:user:7005e5a3-6eba-4247-a771-2a2d575cf349").SetVal(1)
 			},
 			UserID:      "7005e5a3-6eba-4247-a771-2a2d575cf349",
 			RemoteAddr:  "127.0.0.1",
 			ExpectedErr: "create new user: save user: update: randomn't error",
+		},
+		"should return an error if the user lock is busy": {
+			PrepareSessions: func(s *sessions.Sessions) {
+				s.LockOpts = pkgRedis.LockOptions{
+					TTL:        5 * time.Second,
+					MaxWait:    0,
+					RetryDelay: time.Millisecond,
+				}
+			},
+			PrepareRedis: func(m redismock.ClientMock) {
+				m.ExpectSetNX("lock:user:7005e5a3-6eba-4247-a771-2a2d575cf349", "", 5*time.Second).SetVal(false)
+			},
+			UserID:      "7005e5a3-6eba-4247-a771-2a2d575cf349",
+			RemoteAddr:  "127.0.0.1",
+			ExpectedErr: sessions.ErrUserLockBusy.Error(),
 		},
 	}
 
@@ -445,6 +468,9 @@ func TestNew(t *testing.T) {
 			tc.PrepareRedis(redisMock)
 
 			s := sessions.Init(ctx, &log, cfg.Sessions, redis)
+			if tc.PrepareSessions != nil {
+				tc.PrepareSessions(s)
+			}
 
 			sess, err := s.New(ctx, tc.UserID, tc.RemoteAddr)
 
@@ -751,11 +777,12 @@ func TestRenew(t *testing.T) {
 	now := time.Now()
 
 	cases := map[string]struct {
-		PrepareRedis func(redismock.ClientMock)
-		SessionID    string
-		RemoteAddr   string
-		CheckTime    func(*model.SessionTime)
-		ExpectedErr  string
+		PrepareSessions func(*sessions.Sessions)
+		PrepareRedis    func(redismock.ClientMock)
+		SessionID       string
+		RemoteAddr      string
+		CheckTime       func(*model.SessionTime)
+		ExpectedErr     string
 	}{
 		"should return an error if the session's max renew time has been reached": {
 			PrepareRedis: func(m redismock.ClientMock) {
@@ -803,6 +830,7 @@ func TestRenew(t *testing.T) {
 			PrepareRedis: func(m redismock.ClientMock) {
 				sess := &model.Session{
 					ID:         "hola Néfix :)",
+					UserID:     "renew-cap-user",
 					RemoteAddr: "127.0.0.1",
 					Time: &model.SessionTime{
 						MaxTime:        now.Add(8 * time.Hour),
@@ -814,6 +842,8 @@ func TestRenew(t *testing.T) {
 				b, err := json.Marshal(sess)
 				require.NoError(err)
 
+				m.ExpectGet("session:hola Néfix :)").SetVal(string(b))
+				m.ExpectSetNX("lock:user:renew-cap-user", "", 5*time.Second).SetVal(true)
 				m.ExpectGet("session:hola Néfix :)").SetVal(string(b))
 
 				m.CustomMatch(func(expected, actual []interface{}) error {
@@ -853,6 +883,7 @@ func TestRenew(t *testing.T) {
 
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(now.Add(8*time.Hour))).SetVal("OK")
+				m.ExpectDel("lock:user:renew-cap-user").SetVal(1)
 			},
 			SessionID:  "hola Néfix :)",
 			RemoteAddr: "127.0.0.1",
@@ -871,6 +902,7 @@ func TestRenew(t *testing.T) {
 			PrepareRedis: func(m redismock.ClientMock) {
 				sess := &model.Session{
 					ID:         "12345678-90ab-cdef-ghij-klmnopqrstuv",
+					UserID:     "renew-user",
 					RemoteAddr: "127.0.0.1",
 					Time: &model.SessionTime{
 						MaxTime:        now.Add(8 * time.Hour),
@@ -882,6 +914,8 @@ func TestRenew(t *testing.T) {
 				b, err := json.Marshal(sess)
 				require.NoError(err)
 
+				m.ExpectGet("session:12345678-90ab-cdef-ghij-klmnopqrstuv").SetVal(string(b))
+				m.ExpectSetNX("lock:user:renew-user", "", 5*time.Second).SetVal(true)
 				m.ExpectGet("session:12345678-90ab-cdef-ghij-klmnopqrstuv").SetVal(string(b))
 
 				m.CustomMatch(func(expected, actual []interface{}) error {
@@ -921,7 +955,7 @@ func TestRenew(t *testing.T) {
 
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(now.Add(8*time.Hour))).SetVal("OK")
-
+				m.ExpectDel("lock:user:renew-user").SetVal(1)
 			},
 			SessionID:  "12345678-90ab-cdef-ghij-klmnopqrstuv",
 			RemoteAddr: "127.0.0.1",
@@ -988,6 +1022,7 @@ func TestRenew(t *testing.T) {
 			PrepareRedis: func(m redismock.ClientMock) {
 				sess := &model.Session{
 					ID:         "ID",
+					UserID:     "renew-err-user",
 					RemoteAddr: "127.0.0.1",
 					Time: &model.SessionTime{
 						MaxTime:        now.Add(8 * time.Hour),
@@ -999,6 +1034,8 @@ func TestRenew(t *testing.T) {
 				b, err := json.Marshal(sess)
 				require.NoError(err)
 
+				m.ExpectGet("session:ID").SetVal(string(b))
+				m.ExpectSetNX("lock:user:renew-err-user", "", 5*time.Second).SetVal(true)
 				m.ExpectGet("session:ID").SetVal(string(b))
 
 				m.CustomMatch(func(expected, actual []interface{}) error {
@@ -1038,10 +1075,64 @@ func TestRenew(t *testing.T) {
 
 					return nil
 				}).ExpectSet("session:ID", nil, time.Until(now.Add(8*time.Hour))).SetErr(errors.New("i'm really tired :("))
+				m.ExpectDel("lock:user:renew-err-user").SetVal(1)
 			},
 			SessionID:   "ID",
 			RemoteAddr:  "127.0.0.1",
 			ExpectedErr: "update the renewed session: update: i'm really tired :(",
+		},
+		"should return ErrUserLockBusy if the user lock is busy": {
+			PrepareSessions: func(s *sessions.Sessions) {
+				s.LockOpts = pkgRedis.LockOptions{
+					TTL:        5 * time.Second,
+					MaxWait:    0,
+					RetryDelay: time.Millisecond,
+				}
+			},
+			PrepareRedis: func(m redismock.ClientMock) {
+				sess := &model.Session{
+					ID:         "busy",
+					UserID:     "busy-user",
+					RemoteAddr: "127.0.0.1",
+					Time: &model.SessionTime{
+						MaxTime:        now.Add(8 * time.Hour),
+						MaxRenewTime:   now.Add(30 * time.Minute),
+						ExpirationTime: now.Add(5 * time.Minute),
+					},
+				}
+				b, err := json.Marshal(sess)
+				require.NoError(err)
+
+				m.ExpectGet("session:busy").SetVal(string(b))
+				m.ExpectSetNX("lock:user:busy-user", "", 5*time.Second).SetVal(false)
+			},
+			SessionID:   "busy",
+			RemoteAddr:  "127.0.0.1",
+			ExpectedErr: sessions.ErrUserLockBusy.Error(),
+		},
+		"should return an error if the session was revoked while waiting for the lock": {
+			PrepareRedis: func(m redismock.ClientMock) {
+				sess := &model.Session{
+					ID:         "gone",
+					UserID:     "gone-user",
+					RemoteAddr: "127.0.0.1",
+					Time: &model.SessionTime{
+						MaxTime:        now.Add(8 * time.Hour),
+						MaxRenewTime:   now.Add(30 * time.Minute),
+						ExpirationTime: now.Add(5 * time.Minute),
+					},
+				}
+				b, err := json.Marshal(sess)
+				require.NoError(err)
+
+				m.ExpectGet("session:gone").SetVal(string(b))
+				m.ExpectSetNX("lock:user:gone-user", "", 5*time.Second).SetVal(true)
+				m.ExpectGet("session:gone").RedisNil()
+				m.ExpectDel("lock:user:gone-user").SetVal(1)
+			},
+			SessionID:   "gone",
+			RemoteAddr:  "127.0.0.1",
+			ExpectedErr: "reload session: not found",
 		},
 	}
 
@@ -1059,6 +1150,9 @@ func TestRenew(t *testing.T) {
 			tc.PrepareRedis(redisMock)
 
 			s := sessions.Init(ctx, &log, cfg.Sessions, redis)
+			if tc.PrepareSessions != nil {
+				tc.PrepareSessions(s)
+			}
 
 			sessTime, err := s.Renew(ctx, tc.SessionID, tc.RemoteAddr)
 
@@ -1084,9 +1178,10 @@ func TestRevoke(t *testing.T) {
 	require := require.New(t)
 
 	cases := map[string]struct {
-		PrepareRedis func(redismock.ClientMock)
-		SessionID    string
-		ExpectedErr  string
+		PrepareSessions func(*sessions.Sessions)
+		PrepareRedis    func(redismock.ClientMock)
+		SessionID       string
+		ExpectedErr     string
 	}{
 		"should work as expected": {
 			PrepareRedis: func(m redismock.ClientMock) {
@@ -1099,8 +1194,10 @@ func TestRevoke(t *testing.T) {
 				require.NoError(err)
 
 				m.ExpectGet("session:hola Pau :)").SetVal(string(b))
+				m.ExpectSetNX("lock:user:Pau", "", 5*time.Second).SetVal(true)
+				m.ExpectGet("session:hola Pau :)").SetVal(string(b))
 				m.ExpectDel("session:hola Pau :)").SetVal(1)
-				u := map[string]interface{}{
+				u := map[string]any{
 					"user": &model.User{
 						ID:        "Pau",
 						SessionID: "hola Pau :)",
@@ -1111,6 +1208,8 @@ func TestRevoke(t *testing.T) {
 				require.NoError(err)
 				m.ExpectGet("user:Pau").SetVal(string(ub))
 				m.ExpectDel("user:Pau").SetVal(1)
+
+				m.ExpectDel("lock:user:Pau").SetVal(1)
 			},
 			SessionID: "hola Pau :)",
 		},
@@ -1125,7 +1224,11 @@ func TestRevoke(t *testing.T) {
 				require.NoError(err)
 
 				m.ExpectGet("session:hola Néfix :)").SetVal(string(b))
+				m.ExpectSetNX("lock:user:Néfix", "", 5*time.Second).SetVal(true)
+				m.ExpectGet("session:hola Néfix :)").SetVal(string(b))
 				m.ExpectDel("session:hola Néfix :)").SetErr(errors.New("i'm really tired :("))
+
+				m.ExpectDel("lock:user:Néfix").SetVal(1)
 			},
 			SessionID:   "hola Néfix :)",
 			ExpectedErr: "delete session: delete: i'm really tired :(",
@@ -1141,8 +1244,12 @@ func TestRevoke(t *testing.T) {
 				require.NoError(err)
 
 				m.ExpectGet("session:hola Melina :)").SetVal(string(b))
+				m.ExpectSetNX("lock:user:Melina", "", 5*time.Second).SetVal(true)
+				m.ExpectGet("session:hola Melina :)").SetVal(string(b))
 				m.ExpectDel("session:hola Melina :)").SetVal(1)
 				m.ExpectGet("user:Melina").SetErr(errors.New("i'm really tired :("))
+
+				m.ExpectDel("lock:user:Melina").SetVal(1)
 			},
 			SessionID:   "hola Melina :)",
 			ExpectedErr: "load user: get: i'm really tired :(",
@@ -1158,8 +1265,10 @@ func TestRevoke(t *testing.T) {
 				require.NoError(err)
 
 				m.ExpectGet("session:79d4df90-fd30-46b6-b439-70b70f335dbe").SetVal(string(b))
+				m.ExpectSetNX("lock:user:79d4df90", "", 5*time.Second).SetVal(true)
+				m.ExpectGet("session:79d4df90-fd30-46b6-b439-70b70f335dbe").SetVal(string(b))
 				m.ExpectDel("session:79d4df90-fd30-46b6-b439-70b70f335dbe").SetVal(1)
-				u := map[string]interface{}{
+				u := map[string]any{
 					"user": &model.User{
 						ID:        "79d4df90",
 						SessionID: "79d4df90-fd30-46b6-b439-70b70f335dbe",
@@ -1170,9 +1279,44 @@ func TestRevoke(t *testing.T) {
 				require.NoError(err)
 				m.ExpectGet("user:79d4df90").SetVal(string(ub))
 				m.ExpectDel("user:79d4df90").SetErr(errors.New("i'm really tired :("))
+
+				m.ExpectDel("lock:user:79d4df90").SetVal(1)
 			},
 			SessionID:   "79d4df90-fd30-46b6-b439-70b70f335dbe",
 			ExpectedErr: "delete user: delete: i'm really tired :(",
+		},
+		"should return ErrUserLockBusy if the user lock is busy": {
+			PrepareSessions: func(s *sessions.Sessions) {
+				s.LockOpts = pkgRedis.LockOptions{
+					TTL:        5 * time.Second,
+					MaxWait:    0,
+					RetryDelay: time.Millisecond,
+				}
+			},
+			PrepareRedis: func(m redismock.ClientMock) {
+				sess := &model.Session{ID: "busy", UserID: "busy-user"}
+				b, err := json.Marshal(sess)
+				require.NoError(err)
+
+				m.ExpectGet("session:busy").SetVal(string(b))
+				m.ExpectSetNX("lock:user:busy-user", "", 5*time.Second).SetVal(false)
+			},
+			SessionID:   "busy",
+			ExpectedErr: sessions.ErrUserLockBusy.Error(),
+		},
+		"should return not found if the session was revoked while waiting for the lock": {
+			PrepareRedis: func(m redismock.ClientMock) {
+				sess := &model.Session{ID: "gone", UserID: "gone-user"}
+				b, err := json.Marshal(sess)
+				require.NoError(err)
+
+				m.ExpectGet("session:gone").SetVal(string(b))
+				m.ExpectSetNX("lock:user:gone-user", "", 5*time.Second).SetVal(true)
+				m.ExpectGet("session:gone").RedisNil()
+				m.ExpectDel("lock:user:gone-user").SetVal(1)
+			},
+			SessionID:   "gone",
+			ExpectedErr: "load session: not found",
 		},
 	}
 
@@ -1189,6 +1333,9 @@ func TestRevoke(t *testing.T) {
 			tc.PrepareRedis(redisMock)
 
 			s := sessions.Init(ctx, &log, cfg.Sessions, redis)
+			if tc.PrepareSessions != nil {
+				tc.PrepareSessions(s)
+			}
 
 			err := s.Revoke(ctx, tc.SessionID)
 

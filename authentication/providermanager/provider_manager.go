@@ -20,7 +20,7 @@ type Interface interface {
 	Manage(ctx context.Context, wg *sync.WaitGroup)
 	Providers(categoryID string) []string
 	Provider(p string, categoryID string) provider.Provider
-	Healthcheck() error
+	Healthcheck(ctx context.Context) error
 	SAML(categoryID string, host string) *samlsp.Middleware
 }
 
@@ -496,22 +496,34 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 // applyStoredBranding applies stored branding domains to a newly enabled provider.
 // Must be called with m.mux held.
 func (m *ProviderManager) applyStoredBranding(ctx context.Context, log *zerolog.Logger, scope *providerSet, prv string, categoryID *string) {
-	if categoryID == nil {
-		return
-	}
-
 	bap, ok := scope.providers[prv].(provider.BrandingAwareProvider)
 	if !ok {
 		return
 	}
 
-	bd, ok := m.brandingDomains[*categoryID]
-	if !ok {
+	apply := func(bd categoryBrandingDomainChange) {
+		if err := bap.SetBrandingHost(ctx, bd.CategoryID, bd.Host); err != nil {
+			log.Error().Err(err).Str("category", bd.CategoryID).Msg("apply stored branding host to new provider")
+		}
+	}
+
+	if categoryID != nil {
+		if bd, ok := m.brandingDomains[*categoryID]; ok {
+			apply(bd)
+		}
+
 		return
 	}
 
-	if err := bap.SetBrandingHost(ctx, bd.CategoryID, bd.Host); err != nil {
-		log.Error().Err(err).Str("category", bd.CategoryID).Msg("apply stored branding host to new provider")
+	// Categories that inherit the global provider config log in through the global
+	// provider, so their branding domains have to be allowed on it too.
+	for _, bd := range m.brandingDomains {
+		source, disabled := providerConfigSource(bd.Authentication, prv)
+		if disabled || source != model.CategoryAuthenticationConfigSourceGlobal {
+			continue
+		}
+
+		apply(bd)
 	}
 }
 
@@ -722,29 +734,60 @@ func (m *ProviderManager) restoreInheritedFormSubProvider(scope *providerSet, ca
 	scopeForm.EnableProvider(p)
 }
 
-func (m *ProviderManager) Healthcheck() error {
+// Healthcheck probes every provider and persists each result.
+func (m *ProviderManager) Healthcheck(ctx context.Context) error {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
 
 	for _, p := range m.global.providers {
-		if err := p.Healthcheck(); err != nil {
-			m.log.Warn().Err(err).Str("provider", p.String()).Msg("service unhealthy")
-
+		if err := m.persistProviderStatus(ctx, nil, p); err != nil {
 			return err
 		}
 	}
 
 	for categoryID, scope := range m.categories {
 		for _, p := range scope.providers {
-			if err := p.Healthcheck(); err != nil {
-				m.log.Warn().Err(err).Str("provider", p.String()).Str("provider_category", categoryID).Msg("service unhealthy")
-
+			if err := m.persistProviderStatus(ctx, &categoryID, p); err != nil {
 				return err
 			}
 		}
 	}
 
 	return nil
+}
+
+func (m *ProviderManager) persistProviderStatus(ctx context.Context, categoryID *string, p provider.Provider) error {
+	if f, ok := p.(*provider.Form); ok {
+		for _, name := range f.Providers() {
+			if err := m.persistProviderStatus(ctx, categoryID, f.Provider(name)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	name := p.String()
+	if name == types.ProviderUnknown || name == types.ProviderExternal {
+		return nil
+	}
+
+	healthy := true
+	msg := ""
+	if err := p.Healthcheck(); err != nil {
+		healthy = false
+		msg = err.Error()
+
+		evt := m.log.Warn().Err(err).Str("provider", name)
+		if categoryID != nil {
+			evt = evt.Str("provider_category", *categoryID)
+		}
+		evt.Msg("provider unhealthy")
+	}
+
+	if categoryID == nil {
+		return model.SaveProviderStatus(ctx, m.db, name, healthy, msg)
+	}
+	return model.SaveCategoryProviderStatus(ctx, m.db, *categoryID, name, healthy, msg)
 }
 
 func (m *ProviderManager) SAML(categoryID string, host string) *samlsp.Middleware {

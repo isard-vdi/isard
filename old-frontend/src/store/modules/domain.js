@@ -24,7 +24,7 @@ const getDefaultState = () => {
       guestProperties: {
         credentials: {
           username: 'isard',
-          password: 'pirineus'
+          password: ''
         },
         fullscreen: false,
         viewers: [{
@@ -119,7 +119,7 @@ export default {
       return state.mediaInstalls
     },
     getMediaInstallsLoaded: state => {
-      return state.mediaInstalls
+      return state.mediaInstallsLoaded
     },
     getBastion: state => {
       return state.bastion
@@ -174,13 +174,18 @@ export default {
     },
     removeGuestProperties: (state) => {
       state.domain.guestProperties.credentials.username = 'isard'
-      state.domain.guestProperties.credentials.password = 'pirineus'
+      state.domain.guestProperties.credentials.password = ''
     },
     setSelectedOSTemplateId: (state, selectedOSTemplateId) => {
       state.domain.OSTemplateId = selectedOSTemplateId
     },
     setMediaInstalls: (state, installs) => {
-      state.mediaInstalls = installs
+      state.mediaInstalls = (installs || []).map((install) => ({
+        ...install,
+        // Vue2 table renders the version column from ``version``.
+        // APIv4 installs endpoint returns ``vers``.
+        version: install.version ?? install.vers ?? ''
+      }))
       state.mediaInstallsLoaded = true
     },
     changeVideos: (state, videos) => {
@@ -197,7 +202,7 @@ export default {
     fetchDesktopImages (context) {
       const itemId = context.getters.getEditDomainId
       const data = { params: { desktop_id: itemId } }
-      axios.get(`${apiV3Segment}/images/desktops`, data).then(response => {
+      axios.get(`${apiV3Segment}/items/images/desktops`, data).then(response => {
         context.commit('setImages', ImageUtils.parseImages(orderBy(orderBy(response.data, ['id'], ['desc']), ['type'], ['desc'])))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -210,6 +215,8 @@ export default {
     },
     async uploadImageFile (context, payload) {
       const itemId = context.getters.getEditDomainId
+      const itemKind = context.getters.getDomain.kind === 'template' ? 'template' : 'desktop'
+      const editEndpoint = `${apiV3Segment}/item/${itemKind}/${itemId}/edit`
 
       const reader = new FileReader()
       reader.onloadend = () => {
@@ -217,12 +224,16 @@ export default {
           .replace('data:', '')
           .replace(/^.+,/, '')
 
-        const data = `{"image": {"type": "user","file": {"data": "${decodeURIComponent(base64String)}", "filename": "${payload.filename}"}}}`
+        // ``id`` is required by the apiv4 ``DomainImage`` schema even on
+        // upload — the backend assigns the persistent id server-side.
+        // Vue 3's ChangeImageModal sends the same empty-string sentinel.
+        const data = `{"image": {"id": "","type": "user","file": {"data": "${decodeURIComponent(base64String)}", "filename": "${payload.filename}"}}}`
 
-        axios.put(`${apiV3Segment}/domain/${itemId}`, JSON.stringify(JSON.parse(data)), { headers: { 'Content-Type': 'application/json' } }).then(response => {
+        axios.put(editEndpoint, JSON.stringify(JSON.parse(data)), { headers: { 'Content-Type': 'application/json' } }).then(() => {
           ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.image-uploaded'), '', true, 1000)
           context.dispatch('fetchDesktopImages')
-        }).catch(e => {
+          context.dispatch('fetchDomain', itemId)
+        }).catch((e) => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })
       }
@@ -238,10 +249,11 @@ export default {
       context.dispatch('navigate', 'newfrommedia')
     },
     fetchDomain (context, domainId) {
-      axios.get(`${apiV3Segment}/domain/info/${domainId}`).then(response => {
-        if (!context.getters.getEditDomainId) { // Only keep the domain name when editing
+      axios.get(`${apiV3Segment}/item/desktop/${domainId}/get-info`).then(response => {
+        if (!context.getters.getEditDomainId) { // Keep the user-entered name/description, not the template's
           response.data.name = context.getters.getDomain.name
-        } else { // only fetch bastion when editing
+          response.data.description = context.getters.getDomain.description
+        } else if (response.data.kind !== 'template') { // bastion is desktop-only
           context.dispatch('fetchBastion', domainId)
         }
         context.commit('setDomain', DomainsUtils.parseDomain(response.data))
@@ -250,14 +262,14 @@ export default {
       })
     },
     fetchHardware (context) {
-      axios.get(`${apiV3Segment}/user/hardware/allowed`).then(response => {
+      axios.get(`${apiV3Segment}/item/user/get-allowed-hardware`).then(response => {
         context.commit('setHardware', DomainsUtils.parseAvailableHardware(response.data))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchBookables (context) {
-      axios.get(`${apiV3Segment}/domains/allowed/reservables`).then(response => {
+      axios.get(`${apiV3Segment}/items/domains/get-allowed-reservables`).then(response => {
         context.commit('setBookables', response.data)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -266,9 +278,13 @@ export default {
     editDomain (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
 
-      axios.put(`${apiV3Segment}/domain/${data.id}`, data).then(response => {
-        context.dispatch('updateBastion', data.id)
-        router.push({ name: 'desktops' })
+      const kindSegment = data.kind === 'template' ? 'template' : 'desktop'
+      const redirectName = data.kind === 'template' ? 'templates' : 'desktops'
+      axios.put(`${apiV3Segment}/item/${kindSegment}/${data.id}/edit`, data).then(response => {
+        if (data.kind !== 'template') {
+          context.dispatch('updateBastion', data.id)
+        }
+        router.push({ name: redirectName })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
@@ -278,9 +294,15 @@ export default {
       context.commit('removeGuestProperties')
     },
     fetchMediaInstalls ({ commit }) {
-      axios.get(`${apiV3Segment}/media/installs`).then(response => {
+      axios.get(`${apiV3Segment}/items/media/installs`).then(response => {
+        // Backward-compatible parsing:
+        // - legacy shape: [ {...}, ... ]
+        // - current shape: { installs: [ {...}, ... ] }
+        const installs = Array.isArray(response.data)
+          ? response.data
+          : (response.data?.installs || [])
         commit(
-          'setMediaInstalls', response.data, ['desc']
+          'setMediaInstalls', installs
         )
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -295,7 +317,7 @@ export default {
     fetchBastion (context, domainId) {
       const config = context.getters.getConfig
       if (config.canUseBastion === true) {
-        axios.get(`${apiV3Segment}/desktop/bastion/${domainId}`).then(response => {
+        axios.get(`${apiV3Segment}/item/desktop/${domainId}/get-bastion`).then(response => {
           const bastion = response.data
           if (response.data.ssh.enabled || response.data.http.enabled) {
             bastion.enabled = true
@@ -306,7 +328,7 @@ export default {
         }).catch(e => {
           // We can ignore 404, since the first time the bastion
           // won't be created
-          if (e.respponse.status !== 404) {
+          if (e.response?.status !== 404) {
             ErrorUtils.handleErrors(e, this._vm.$snotify)
           }
         })
@@ -321,7 +343,7 @@ export default {
         bastion.http.https_port = bastion.http.https_port ? parseInt(bastion.http.https_port) : 443
         bastion.ssh.port = bastion.ssh.port ? parseInt(bastion.ssh.port) : 22
 
-        axios.put(`${apiV3Segment}/desktop/bastion/${domainId}`, bastion).then(response => {
+        axios.put(`${apiV3Segment}/item/desktop/${domainId}/bastion`, bastion).then(response => {
         }).catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })

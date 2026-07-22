@@ -1,7 +1,7 @@
 import i18n from '@/i18n'
 
-export const apiV3Segment = '/api/v3'
-export const apiWebSockets = '/api/v3/socket.io'
+export const apiV3Segment = '/api/v4'
+export const apiWebSockets = '/socket.io'
 export const apiAdminSegment = '/isard-admin'
 export const authenticationSegment = '/authentication'
 export const appTitle = 'IsardVDI'
@@ -29,6 +29,11 @@ export const desktopStates = {
   updating: 'updating',
   maintenance: 'maintenance',
   creating: 'creating',
+  // Source desktop is having its qcow2 turned into a template by the
+  // apiv4 + isard-storage chain; the template row is in the same
+  // status. Lower-cased to match getState's case-insensitive
+  // whitelist check.
+  creatingTemplate: 'creatingtemplate',
   unknown: 'unknown',
   verifying: 'verifying'
 }
@@ -54,7 +59,7 @@ export const status = {
     variant: 'success'
   },
   failed: {
-    action: 'updating',
+    action: 'retry',
     icon: 'arrow-repeat'
   },
   'shutting-down': {

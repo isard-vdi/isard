@@ -1,4 +1,8 @@
 {
+  "frontend_toggler": {
+    "to_vue3": "Canviar a la nova interfície",
+    "no_equivalent": "Sense equivalent a la nova interfície"
+  },
   "components": {
     "select-search": {
       "empty": "No hi han opcions disponibles"
@@ -127,7 +131,7 @@
       "no-info-default": "No hi ha cap descripció disponible",
       "open-with": "Accedir amb visor",
       "storage-operation": {
-        "increase": "La mida del disc d'aquest escriptori s'està incrementant",
+        "resize": "La mida del disc d'aquest escriptori s'està incrementant",
         "virt_win_reg": "S'està editant el registre",
         "move": "El disc d'aquest escriptori s'està movent"
       },
@@ -138,7 +142,8 @@
         "edit": "Editar",
         "direct-link": "Enllaç directe",
         "recreate": "Recrear",
-        "bastion": "Bastió"
+        "bastion": "Bastió",
+        "increase-storage": "Ampliar emmagatzematge"
       },
       "filter-label": "Filtre",
       "queue": "Posició a la cua: {position}",
@@ -308,6 +313,7 @@
         "unit": "Mida unitat personal / Mida total unitat personal (MB)",
         "deployments_total": "Desplegaments creats / Total de desplegaments",
         "deployment_desktops": "Maxim d'escriptoris per desplegament",
+        "deployment_users": "Maxim d'usuaris per desplegament",
         "started_deployment_desktops": {
           "title": "Escriptoris de desplegament arrencats / Total escriptoris de desplegament arrencats",
           "description": "Quantitat total d'escriptoris de desplegaments que pot arrencar l'usuari"
@@ -321,13 +327,13 @@
     "start-now-modal": {
       "title": "Iniciar ara",
       "profile": "Perfil",
-      "profiles": "Perfils",
       "select-profile": "Selecciona el perfil que es farà servir",
-      "select-profiles": "Selecciona els perfils que es faran servir",
       "end-date": "Data de finalització",
       "end-time": "Hora de finalització",
       "select-end-date": "Selecciona fins a quan es farà servir",
-      "button": "Iniciar escriptori"
+      "button": "Iniciar escriptori",
+      "profiles": "Perfils",
+      "select-profiles": "Selecciona els perfils que es faran servir"
     },
     "cant-start-now-modal": {
       "title": {
@@ -676,9 +682,17 @@
       "loading-modal": {
         "title": "Creant escriptoris per a '{name}'",
         "body": {
-          "title": "Espereu mentre creem els vostres escriptoris.",
-          "desktops-total-creating": "{total} escriptoris en total, amb {creating} creant-se actualment",
-          "desktops-created": "Els teus escriptoris s'han creat correctament"
+          "title": "Els teus escriptoris s'estan aprovisionant en dues etapes. No es podran fer servir fins que les dues acabin.",
+          "desktops-created-of-total": "{created} de {total} escriptoris creats",
+          "desktops-created": "Els teus {total} escriptoris estan a punt",
+          "stage1-title": "Etapa 1 — Afegint escriptoris al desplegament",
+          "stage1-progress": "{current} de {total} escriptoris afegits",
+          "stage1-pending": "Esperant que el motor comenci a crear escriptoris...",
+          "stage1-done": "{total} de {total} escriptoris afegits",
+          "stage2-title": "Etapa 2 — Aprovisionant emmagatzematge",
+          "stage2-progress": "{current} de {total} escriptoris aprovisionats",
+          "stage2-pending": "Esperant que la Etapa 1 acabi abans d'aprovisionar emmagatzematge",
+          "stage2-done": "{total} de {total} escriptoris aprovisionats"
         }
       }
     },
@@ -743,7 +757,7 @@
         "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
       },
       "no-shared-templates": {
-        "title": "No hi ha cap platilla compartida amb l'usuari actual",
+        "title": "No hi ha cap plantilla compartida amb l'usuari actual",
         "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
       },
       "table-header": {
@@ -783,7 +797,8 @@
             "delete": "AVÍS! Aquestes plantilles i escriptoris depenen d'aquesta plantilla i també seran esborrats.",
             "footer": "No pots esborrar aquesta plantilla. Contacta amb el teu administrador.",
             "cross_category": "Aquesta plantilla té derivats en altres categories que no gestioneu. No podeu eliminar aquest element.",
-            "cross_category_footer": "No podeu eliminar aquesta plantilla perquè té derivats en categories que no gestioneu. Contacteu amb l'administrador."
+            "cross_category_footer": "No podeu eliminar aquesta plantilla perquè té derivats en categories que no gestioneu. Contacteu amb l'administrador.",
+            "deployments": "Per eliminar aquesta plantilla, tots els desplegaments dependents també seran eliminats. Recordeu que les plantilles també poden fer-se invisibles als usuaris en lloc de ser eliminades."
           },
           "button": {
             "delete": "Esborrar plantilla"
@@ -1216,6 +1231,7 @@
     "new-deployment": {
       "title": "Crear nou desplegament:",
       "name": "Nom del desplegament",
+      "description": "Descripció del desplegament",
       "visible": "Visible pels usuaris",
       "not-visible": "No visible pels usuaris",
       "section-title-template": "Seleccionar una plantilla:",
@@ -1495,7 +1511,6 @@
     "deployment_stop": "Per realitzar aquesta acció és necessari que els escriptoris del desplegament estiguin aturats",
     "desktop_not_booked": "Per iniciar l'escriptori ha d'estar reservat",
     "desktop_not_booked_until": "No es pot iniciar l'escriptori fins a la propera reserva {start}",
-    "desktop_reservable_not_found": "El perfil de GPU de l'escriptori ja no existeix i s'ha eliminat. Edita l'escriptori per seleccionar un perfil de GPU disponible abans d'iniciar-lo.",
     "only_works_rdp": "Mode 'Only GPU' només funciona amb visors RDP",
     "current_plan_doesnt_match": "No hi ha cap GPU disponible amb el perfil de l'escriptori",
     "needs_deployment_booking": "Ara mateix no es pot iniciar l'escriptori, contacta amb el propietari d'aquest desplegament perquè creï una reserva",
@@ -1574,7 +1589,8 @@
     "bastion_domain_dns_error": "S'ha produït un error al comprovar el DNS del domini. Torna-ho a provar més tard.",
     "bastion_domain_dns_mismatch": "El registre DNS del domini no coincideix amb el valor esperat. Si us plau, comprova-ho i torna-ho a provar.",
     "bastion_domain_exists": "El domini ja existeix. Si us plau, tria un altre nom de domini.",
-    "parent_template_not_found": "L'element no es pot restaurar ja que la plantilla pare no existeix."
+    "parent_template_not_found": "L'element no es pot restaurar ja que la plantilla pare no existeix.",
+    "desktop_reservable_not_found": "El perfil de GPU de l'escriptori ja no existeix i s'ha eliminat. Edita l'escriptori per seleccionar un perfil de GPU disponible abans d'iniciar-lo."
   },
   "messages": {
     "title": {
@@ -1583,7 +1599,7 @@
     "confirmation": {
       "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. A l'aturar-ho totes les dades seràn esborrades. Crear escriptori?",
       "visible-deployment": "Els escriptoris seran visibles",
-      "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearan de nou, continuar?",
+      "recreate-deployment": "'{name}': es crearan {count} escriptori(s) que falten per als usuaris dels grups/usuaris permesos que encara no en tenen. Continuar?",
       "edit-deployment": "Els escriptoris de '{name}' s'editaran, continuar?",
       "delete-deployment": "'{name}' s'esborrarà, continuar?",
       "delete-deployment-desktop": "L'escriptori de '{name}' s'esborrarà, continuar?",
@@ -1616,6 +1632,7 @@
       "recreating-deployment": "Recreant desplegament",
       "deployment-desktops-created": "Escriptoris del desplegament creats",
       "deleting-deployment": "Esborrant desplegament",
+      "deployment-deleted": "Desplegament eliminat",
       "making-visible-deployment": "Fent el desplegament visible",
       "making-invisible-deployment": "Fent el desplegament invisible",
       "making-visible-desktop": "Fent l'escriptori visible",

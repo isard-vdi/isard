@@ -86,10 +86,10 @@ export default {
     }
 
     const submitForm = () => {
-      // Check if the form is valid
       v$.value.$touch()
       if (v$.value.$invalid) {
         document.getElementById(v$.value.$errors[0].$property).focus()
+        return
       }
       $store.dispatch('updateEmail', { email: emailAddress.value }).then(() => {
         closeEmailVerificationModal()

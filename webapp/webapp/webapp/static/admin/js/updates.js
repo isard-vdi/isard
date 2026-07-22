@@ -8,7 +8,7 @@ table={}
 $(document).ready(function() {
     $.ajax({
         type: "GET",
-        url: '/admin/downloads',
+        url: '/api/v4/admin/items/downloads',
         dataType: 'json',
         success: function (resp) {
           $('.registered').show();
@@ -22,7 +22,7 @@ $(document).ready(function() {
                 $('.not_registered').find('button').on('click', function(){
                     $.ajax({
                         type: "POST",
-                        url: '/api/v3/admin/downloads/register',
+                        url: '/api/v4/admin/item/downloads/register',
                         dataType: 'json',
                         success: function (resp) {
                             $('.not_registered').hide();
@@ -56,7 +56,7 @@ function load_data(){
 
     table['domains']=$('#domains_tbl').DataTable({
         "ajax": {
-            "url": "/admin/downloads/domains",
+            "url": "/api/v4/admin/items/downloads/domains",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}
@@ -150,7 +150,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/download/domains/" + id,
+                    url:"/api/v4/admin/item/downloads/download/domains/" + id,
                     data: JSON.stringify(table['domains'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['domains'].ajax.reload();}
                 })
@@ -159,7 +159,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/abort/domains/" + id,
+                    url:"/api/v4/admin/item/downloads/abort/domains/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['domains'].ajax.reload();}
                 })
@@ -168,7 +168,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/delete/domains/" + id,
+                    url:"/api/v4/admin/item/downloads/delete/domains/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['domains'].ajax.reload();}
                 })
@@ -178,7 +178,7 @@ function load_data(){
 
     table['media']=$('#media_tbl').DataTable({
             "ajax": {
-                "url": "/admin/downloads/media",
+                "url": "/api/v4/admin/items/downloads/media",
                 "dataSrc": "",
                 "type" : "GET",
                 "data": function(d){return JSON.stringify({})}
@@ -253,9 +253,14 @@ function load_data(){
                                 return '<i class="fa fa-spinner fa-pulse fa-fw"></i>'
                             }}],
                 "initComplete": function(settings, json){
-                    socket.on('media_data', function(data){
+                    socket.on('media_add', function(data){
                         var data = JSON.parse(data);
-                            dtUpdateOnly(table['media'],data);
+                        dtUpdateOnly(table['media'],data);
+                    });
+
+                    socket.on('media_update', function(data){
+                        var data = JSON.parse(data);
+                        dtUpdateOnly(table['media'],data);
                     });
 
                     socket.on('media_delete', function(data){
@@ -273,7 +278,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/download/media/" + id,
+                    url:"/api/v4/admin/item/downloads/download/media/" + id,
                     data: JSON.stringify(table['media'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['media'].ajax.reload();}
                 })
@@ -282,7 +287,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/abort/media/" + id,
+                    url:"/api/v4/admin/item/downloads/abort/media/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['media'].ajax.reload();}
                 })
@@ -291,7 +296,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/delete/media/" + id,
+                    url:"/api/v4/admin/item/downloads/delete/media/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['media'].ajax.reload();}
                 })
@@ -301,7 +306,7 @@ function load_data(){
 
     table['virt_install']=$('#virt_install_tbl').DataTable({
             "ajax": {
-                "url": "/admin/downloads/virt_install",
+                "url": "/api/v4/admin/items/downloads/virt_install",
                 "dataSrc": "",
                 "type" : "GET",
                 "data": function(d){return JSON.stringify({})}
@@ -358,7 +363,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/download/virt_install/" + id,
+                    url:"/api/v4/admin/item/downloads/download/virt_install/" + id,
                     data: JSON.stringify(table['virt_install'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['virt_install'].ajax.reload();}
                 })
@@ -367,7 +372,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/delete/virt_install/" + id,
+                    url:"/api/v4/admin/item/downloads/delete/virt_install/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['virt_install'].ajax.reload();}
                 })
@@ -377,7 +382,7 @@ function load_data(){
 
     table['videos']=$('#videos_tbl').DataTable({
             "ajax": {
-                "url": "/admin/downloads/videos",
+                "url": "/api/v4/admin/items/downloads/videos",
                 "dataSrc": "",
                 "type" : "GET",
                 "data": function(d){return JSON.stringify({})}
@@ -434,7 +439,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/download/videos/" + id,
+                    url:"/api/v4/admin/item/downloads/download/videos/" + id,
                     data: JSON.stringify(table['videos'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['videos'].ajax.reload();}
                 })
@@ -443,7 +448,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/delete/videos/" + id,
+                    url:"/api/v4/admin/item/downloads/delete/videos/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['videos'].ajax.reload();}
                 })
@@ -472,7 +477,7 @@ function load_data(){
         }).get().on('pnotify.confirm', function(){
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/downloads/download/" + id,
+                url:"/api/v4/admin/item/downloads/download/" + id,
                 success: function(data){table[id].ajax.reload();}
             });
         })
@@ -480,7 +485,7 @@ function load_data(){
 
     table['viewers']=$('#viewers_tbl').DataTable({
             "ajax": {
-                "url": "/admin/downloads/viewers",
+                "url": "/api/v4/admin/items/downloads/viewers",
                 "dataSrc": "",
                 "type" : "GET",
                 "data": function(d){return JSON.stringify({})}
@@ -527,10 +532,10 @@ function renderName(data){
 }
 
 function renderProgress(data){
-            perc = data.progress.received_percent
-            if(!('progress' in data) || !('received_percent' in data['progress'])){
+            if(!data.progress || !('received_percent' in data.progress)){
                 return ""
             }
+            perc = data.progress.received_percent
             return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
                   <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
                   aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \

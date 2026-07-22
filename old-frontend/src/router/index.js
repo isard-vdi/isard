@@ -5,8 +5,10 @@ import { jwtDecode } from 'jwt-decode'
 import { getCookie } from 'tiny-cookie'
 import { isEmpty } from 'lodash'
 import { appTitle } from '../shared/constants'
+import { resolveVue3Path } from '@/shared/frontendModeMap'
 import i18n from '@/i18n'
 import store from '@/store'
+import { setFaroView } from '@/lib/faro'
 
 Vue.use(VueRouter)
 
@@ -263,25 +265,6 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/userstorage',
-      component: () => import('@/layouts/MainLayout.vue'),
-      children: [
-        {
-          path: '',
-          name: 'userstorage',
-          component: () => import('@/pages/Storage.vue'),
-          meta: {
-            title: i18n.t('router.titles.storage'),
-            allowedRoles: ['admin', 'manager', 'advanced', 'user']
-          }
-        }
-      ],
-      meta: {
-        title: i18n.t('router.titles.storage'),
-        requiresAuth: true
-      }
-    },
-    {
       path: '/',
       name: 'RecycleBins',
       redirect: '/recycleBins',
@@ -367,14 +350,6 @@ const router = new VueRouter({
       meta: {
         title: i18n.t('router.titles.not_found')
       }
-    },
-    {
-      path: '/vw/*',
-      name: 'DirectViewer',
-      component: () => import('@/views/DirectViewer.vue'),
-      meta: {
-        title: i18n.t('router.titles.direct_viewer')
-      }
     }
   ],
   mode: 'history'
@@ -458,9 +433,11 @@ router.beforeEach(async (to, from, next) => {
         store.dispatch('openSocket', {})
         if (isEmpty(store.getters.getConfig)) {
           await store.dispatch('fetchConfig')
-          if (store.getters.getConfig.migrationsBlock) {
-            window.location.pathname = '/export-user'
-          }
+        }
+        if (store.getters.getConfig.frontendMode === 'actual') {
+          const target = resolveVue3Path(to) || '/frontend/desktops'
+          window.location.assign(target)
+          return
         }
         if (!store.getters.getMaxTime) {
           store.dispatch('fetchMaxTime')
@@ -492,6 +469,14 @@ router.beforeEach(async (to, from, next) => {
       )
     ) {
       router.push({ name: 'ResetPassword' })
+    // Requires user migration, will be redirected
+    } else if (
+      to.name !== 'ExportUser' &&
+      ['user-migration-required'].includes(
+        sessionData.type
+      )
+    ) {
+      window.location.assign('/export-user')
     } else {
       next()
     }
@@ -507,6 +492,12 @@ router.beforeEach(async (to, from, next) => {
       next()
     }
   }
+})
+
+// Keep Faro's view.name in sync with the active route so `view_name` in
+// Loki maps to the URL path the user is actually on.
+router.afterEach((to) => {
+  setFaroView(to.path)
 })
 
 export default router

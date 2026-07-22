@@ -71,9 +71,7 @@ if [ "$has_video" = true ] && [ "$has_web" = false ]; then
 fi
 
 
-# Prepare HAProxy configuration
-prepare.sh
-
+# Ensure SSL certificate exists BEFORE prepare.sh generates crt-list.cfg
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Checking for SSL certificate..."
 if [ ! -f /certs/chain.pem ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] No SSL certificate found, generating self-signed certificate"
@@ -85,13 +83,20 @@ else
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] SSL certificate found ($(stat -c%s /certs/chain.pem) bytes)"
 fi
 
+# Prepare HAProxy configuration (creates crt-list.cfg referencing the cert above)
+prepare.sh
+
 # Start file monitoring for HAProxy reloads
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting file monitoring for automatic reloads..."
 inotifyd haproxy-reload /usr/local/etc/haproxy/lists/black.lst:c /usr/local/etc/haproxy/lists/external/black.lst:c /usr/local/etc/haproxy/lists/white.lst:c &
 
 
-# Load the ACME generated thumbprint
-export ACME_ACCOUNT_THUMBPRINT="$(cat /etc/acme/account-thumbprint)"
+# Load the ACME generated thumbprint (may not exist if ACME is not configured)
+if [ -f /etc/acme/account-thumbprint ]; then
+        export ACME_ACCOUNT_THUMBPRINT="$(cat /etc/acme/account-thumbprint)"
+else
+        export ACME_ACCOUNT_THUMBPRINT=""
+fi
 
 # first arg is `-f` or `--some-option`
 if [ "${1#-}" != "$1" ]; then
@@ -122,13 +127,14 @@ fi
 
 for part in $FLAVOUR; do
   if [ "$part" = "web" ]; then
-    # Start haproxy-sync AFTER haproxy starts (in background)
-    # This ensures the stats socket exists before the microservice tries to connect
+    # Supervise haproxy-sync: it waits for the admin socket itself, and this
+    # loop restarts it if it ever exits.
     (
-        # Wait a moment for HAProxy to start and create the socket
-        sleep 2
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting haproxy-sync microservice..."
-        haproxy-sync
+        while true; do
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting haproxy-sync microservice..."
+            haproxy-sync || echo "[$(date '+%Y-%m-%d %H:%M:%S')] haproxy-sync exited ($?), restarting in 1s..."
+            sleep 1
+        done
     ) &
   fi
 done

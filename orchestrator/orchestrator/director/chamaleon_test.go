@@ -1,14 +1,13 @@
 package director_test
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
 
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -16,12 +15,13 @@ import (
 )
 
 func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	cases := map[string]struct {
 		AvailHypers               []*operationsv1.ListHypervisorsResponseHypervisor
-		Hypers                    []*sdk.OrchestratorHypervisor
-		PrepareAPI                func(*sdk.MockSdk)
+		Hypers                    []*apiv4.OrchestratorHypervisor
+		PrepareAPI                func(*apiv4.MockInvoker)
 		ExpectedErr               string
 		ExpectedRemoveDeadRow     []string
 		ExpectedRemoveOnlyForced  []string
@@ -31,10 +31,10 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 	}{
 		"if there are enough units, it should return 0": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
-				Status:     sdk.HypervisorStatusOnline,
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -43,24 +43,22 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					FreeUnits:  9,
 				}},
 			}},
-			PrepareAPI: func(api *sdk.MockSdk) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.OrchestratorGPUBooking{{
+			PrepareAPI: func(api *apiv4.MockInvoker) {
+				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
-					Now: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now(),
+					Now: apiv4.GpuForecastUnit{
 						Units: 5,
 					},
-					Create: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(30 * time.Minute),
+					ToCreate: apiv4.GpuForecastUnit{
 						Units: 7,
 					},
-					Destroy: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(60 * time.Minute),
+					ToDestroy: apiv4.GpuForecastUnit{
 						Units: 4,
 					},
-				}}, nil)
+				}})
+				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
 			},
 		},
 		"if there are not enough units, it should return the ID of the hypervisor that needs to be created": {
@@ -113,29 +111,27 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				Id:    "existing",
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
 			}},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:         "existing",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
 			}},
-			PrepareAPI: func(api *sdk.MockSdk) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.OrchestratorGPUBooking{{
+			PrepareAPI: func(api *apiv4.MockInvoker) {
+				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
-					Now: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now(),
+					Now: apiv4.GpuForecastUnit{
 						Units: 5,
 					},
-					Create: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(30 * time.Minute),
+					ToCreate: apiv4.GpuForecastUnit{
 						Units: 7,
 					},
-					Destroy: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(60 * time.Minute),
+					ToDestroy: apiv4.GpuForecastUnit{
 						Units: 4,
 					},
-				}}, nil)
+				}})
+				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
 			},
 			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorsRequest{
 				Ids: []string{"testing good"},
@@ -196,29 +192,27 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				Id:    "existing",
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
 			}},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:         "existing",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
 			}},
-			PrepareAPI: func(api *sdk.MockSdk) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.OrchestratorGPUBooking{{
+			PrepareAPI: func(api *apiv4.MockInvoker) {
+				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
-					Now: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now(),
+					Now: apiv4.GpuForecastUnit{
 						Units: 8, // One A10 card has 6 4Q profiles
 					},
-					Create: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(30 * time.Minute),
+					ToCreate: apiv4.GpuForecastUnit{
 						Units: 9,
 					},
-					Destroy: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(60 * time.Minute),
+					ToDestroy: apiv4.GpuForecastUnit{
 						Units: 4,
 					},
-				}}, nil)
+				}})
+				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
 			},
 			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorsRequest{
 				Ids: []string{"testing good 1", "testing good 2"},
@@ -226,12 +220,12 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's not too much free units, it should add the biggest hypervisor to the dead row": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "to keep",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -240,10 +234,10 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}, {
 				ID:                  "AMONGUS!",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -265,36 +259,34 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					TotalUnits: 6,
 				}},
 			}},
-			PrepareAPI: func(api *sdk.MockSdk) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.OrchestratorGPUBooking{{
+			PrepareAPI: func(api *apiv4.MockInvoker) {
+				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
-					Now: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now(),
+					Now: apiv4.GpuForecastUnit{
 						Units: 4, // One A10 card has 6 4Q profiles
 					},
-					Create: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(30 * time.Minute),
+					ToCreate: apiv4.GpuForecastUnit{
 						Units: 4,
 					},
-					Destroy: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(60 * time.Minute),
+					ToDestroy: apiv4.GpuForecastUnit{
 						Units: 4,
 					},
-				}}, nil)
+				}})
+				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
 			},
 			ExpectedAddDeadRow: []string{"AMONGUS!"},
 		},
 		"if there's not enough units, but there are hypervisors on the dead row, if should remove those from it": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "destroy 1",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
-				DestroyTime:         time.Now().Add(-1 * time.Hour),
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(-1 * time.Hour)),
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -304,12 +296,12 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}, {
 				ID:                  "destroy 2",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
-				DestroyTime:         time.Now().Add(1 * time.Hour),
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
 				DesktopsStarted:     0,
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -325,35 +317,33 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					FreeUnits:  9,
 				}},
 			}},
-			PrepareAPI: func(api *sdk.MockSdk) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.OrchestratorGPUBooking{{
+			PrepareAPI: func(api *apiv4.MockInvoker) {
+				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
-					Now: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now(),
+					Now: apiv4.GpuForecastUnit{
 						Units: 13,
 					},
-					Create: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(30 * time.Minute),
+					ToCreate: apiv4.GpuForecastUnit{
 						Units: 7,
 					},
-					Destroy: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(60 * time.Minute),
+					ToDestroy: apiv4.GpuForecastUnit{
 						Units: 8,
 					},
-				}}, nil)
+				}})
+				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
 			},
 			ExpectedRemoveDeadRow: []string{"destroy 1", "destroy 2"},
 		},
 		"if there's an hypervisor that's been too much time on the dead row, KILL THEM!!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "destroy 1",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -363,12 +353,12 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}, {
 				ID:                  "destroy 2",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
-				DestroyTime:         time.Now().Add(1 * time.Hour),
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
 				DesktopsStarted:     0,
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -384,24 +374,22 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					FreeUnits:  9,
 				}},
 			}},
-			PrepareAPI: func(api *sdk.MockSdk) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.OrchestratorGPUBooking{{
+			PrepareAPI: func(api *apiv4.MockInvoker) {
+				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
-					Now: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now(),
+					Now: apiv4.GpuForecastUnit{
 						Units: 4,
 					},
-					Create: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(30 * time.Minute),
+					ToCreate: apiv4.GpuForecastUnit{
 						Units: 3,
 					},
-					Destroy: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(60 * time.Minute),
+					ToDestroy: apiv4.GpuForecastUnit{
 						Units: 5,
 					},
-				}}, nil)
+				}})
+				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
 			},
 			ExpectedDestroyHypervisor: &operationsv1.DestroyHypervisorsRequest{
 				Ids: []string{"destroy 2"},
@@ -409,13 +397,13 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there are multiple hypervisor that have been too much time on the dead row, have 0 desktops started or have exceeded the booking time, KILL THEM!!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "destroy 1",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				DestroyTime:         time.Now().Add(-1 * time.Hour),
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(-1 * time.Hour)),
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -425,12 +413,12 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}, {
 				ID:                  "non managed",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: false,
-				DestroyTime:         time.Now().Add(-1 * time.Hour),
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(-1 * time.Hour)),
 				DesktopsStarted:     234,
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -440,12 +428,12 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}, {
 				ID:                  "destroy 2",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				DestroyTime:         time.Now().Add(1 * time.Hour),
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
 				DesktopsStarted:     0,
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -455,13 +443,13 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}, {
 				ID:                  "destroy 3",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				DestroyTime:         time.Now().Add(1 * time.Hour),
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
 				DesktopsStarted:     23,
-				BookingsEndTime:     time.Now().Add(-1 * time.Hour),
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				BookingsEndTime:     apiv4.NewNilDateTime(time.Now().Add(-1 * time.Hour)),
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					Brand:      "NVIDIA",
 					Model:      "A10",
 					Profile:    "4Q",
@@ -470,8 +458,9 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					FreeUnits:  9,
 				}},
 			}},
-			PrepareAPI: func(api *sdk.MockSdk) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.OrchestratorGPUBooking{}, nil)
+			PrepareAPI: func(api *apiv4.MockInvoker) {
+				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{})
+				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
 			},
 			ExpectedDestroyHypervisor: &operationsv1.DestroyHypervisorsRequest{
 				Ids: []string{"destroy 1", "destroy 2", "destroy 3"},
@@ -495,21 +484,20 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					Model: "A10",
 				}},
 			}},
-			Hypers: []*sdk.OrchestratorHypervisor{{}},
-			PrepareAPI: func(api *sdk.MockSdk) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.OrchestratorGPUBooking{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{}},
+			PrepareAPI: func(api *apiv4.MockInvoker) {
+				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "24Q",
-					Now: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now(),
+					Now: apiv4.GpuForecastUnit{
 						Units: 2,
 					},
-					Create: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(30 * time.Minute),
+					ToCreate: apiv4.GpuForecastUnit{
 						Units: 0,
 					},
-				}}, nil)
+				}})
+				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
 			},
 			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorsRequest{
 				Ids: []string{"NOT BIG HUMONGUS AMONGUS"},
@@ -533,44 +521,43 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					Model: "A10",
 				}},
 			}},
-			Hypers: []*sdk.OrchestratorHypervisor{{}},
-			PrepareAPI: func(api *sdk.MockSdk) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.OrchestratorGPUBooking{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{}},
+			PrepareAPI: func(api *apiv4.MockInvoker) {
+				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "24Q",
-					Now: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now(),
+					Now: apiv4.GpuForecastUnit{
 						Units: 1,
 					},
-					Create: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(30 * time.Minute),
+					ToCreate: apiv4.GpuForecastUnit{
 						Units: 0,
 					},
-				}}, nil)
+				}})
+				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
 			},
 			ExpectedErr: director.ErrNoHypervisorAvailable.Error(),
 		},
 		"if there are already units, and we have a booking, it should use the available units": {
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "9lypvd0p4",
 				Status:              "Online",
 				OnlyForced:          false,
-				Buffering:           false,
-				BookingsEndTime:     time.Now().Add(1 * time.Hour),
+				BufferingHyper:      false,
+				BookingsEndTime:     apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
 				OrchestratorManaged: true,
 				DesktopsStarted:     8,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  3,
 					Free:  97,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 1031713,
 					Used:  278237,
 					Free:  753475,
 				},
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					ID:         "9lypvd0p4-pci_0000_17_00_0",
 					Brand:      "NVIDIA",
 					Model:      "A10",
@@ -607,21 +594,21 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				ID:                  "1esr7wpex",
 				Status:              "Online",
 				OnlyForced:          false,
-				Buffering:           false,
-				BookingsEndTime:     time.Now().Add(1 * time.Hour),
+				BufferingHyper:      false,
+				BookingsEndTime:     apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
 				OrchestratorManaged: true,
 				DesktopsStarted:     8,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  3,
 					Free:  97,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 1031713,
 					Used:  278237,
 					Free:  753475,
 				},
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					ID:         "1esr7wpex-pci_0000_17_00_0",
 					Brand:      "NVIDIA",
 					Model:      "A10",
@@ -658,21 +645,21 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				ID:                  "yuv3e1hwn",
 				Status:              "Online",
 				OnlyForced:          false,
-				Buffering:           false,
-				BookingsEndTime:     time.Now().Add(1 * time.Hour),
+				BufferingHyper:      false,
+				BookingsEndTime:     apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
 				OrchestratorManaged: true,
 				DesktopsStarted:     8,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  3,
 					Free:  97,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 1031713,
 					Used:  278237,
 					Free:  753475,
 				},
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					ID:         "yuv3e1hwn-pci_0000_17_00_0",
 					Brand:      "NVIDIA",
 					Model:      "A10",
@@ -783,38 +770,37 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 					Model: "A10",
 				}},
 			}},
-			PrepareAPI: func(api *sdk.MockSdk) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.OrchestratorGPUBooking{{
+			PrepareAPI: func(api *apiv4.MockInvoker) {
+				bookings := apiv4.GetGpuBookingsForecastOKApplicationJSON([]apiv4.GpuForecastProfile{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
-					Now: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now(),
+					Now: apiv4.GpuForecastUnit{
 						Units: 53,
 					},
-					Create: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(30 * time.Minute),
+					ToCreate: apiv4.GpuForecastUnit{
 						Units: 1,
 					},
-					Destroy: sdk.OrchestratorGPUBookingTime{
-						Time:  time.Now().Add(60 * time.Minute),
+					ToDestroy: apiv4.GpuForecastUnit{
 						Units: 1,
 					},
-				}}, nil)
+				}})
+				api.On("GetGpuBookingsForecast", mock.AnythingOfType("*context.cancelCtx")).Return(&bookings, nil)
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			log := zerolog.New(os.Stdout)
-			api := sdk.NewMockSdk(t)
+			api := apiv4.NewMockInvoker(t)
 
 			tc.PrepareAPI(api)
 
 			chamaleon := director.NewChamaleon(&log, api)
 
-			scale, err := chamaleon.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
+			scale, err := chamaleon.NeedToScaleHypervisors(t.Context(), tc.AvailHypers, tc.Hypers)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -822,10 +808,10 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				assert.NoError(err)
 			}
 
-			assert.Equal(tc.ExpectedRemoveDeadRow, scale.HypersToRemoveFromDeadRow)
-			assert.Equal(tc.ExpectedRemoveOnlyForced, scale.HypersToRemoveFromOnlyForced)
+			assert.ElementsMatch(tc.ExpectedRemoveDeadRow, scale.HypersToRemoveFromDeadRow)
+			assert.ElementsMatch(tc.ExpectedRemoveOnlyForced, scale.HypersToRemoveFromOnlyForced)
 			assert.Equal(tc.ExpectedCreateHypervisor, scale.Create)
-			assert.Equal(tc.ExpectedAddDeadRow, scale.HypersToAddToDeadRow)
+			assert.ElementsMatch(tc.ExpectedAddDeadRow, scale.HypersToAddToDeadRow)
 			assert.Equal(tc.ExpectedDestroyHypervisor, scale.Destroy)
 		})
 	}

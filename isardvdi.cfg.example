@@ -1,4 +1,4 @@
-# Isard main config v2.34.0
+# Isard main config v2.36.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -71,6 +71,26 @@ WEBAPP_ADMIN_PWD=IsardVDI
 FRONTEND_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/
 FRONTEND_VIEWERS_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/
 
+# ------ Frontend exposure mode ---------------------------------------------
+## Controls which of the two frontends (old vue2 / new vue3) the user can reach
+## and whether a toggler is shown to switch between them.
+## Values: (first value is the default one)
+##  - deprecated: only the vue2 frontend, no toggler.
+##                Vue 3 routes (/frontend/*) silently redirect to their Vue 2
+##                equivalents — apiv4 returns frontend_mode=deprecated to the
+##                Vue 3 SPA which then calls window.location.assign(<vue2-path>).
+##                This is the safe production-migration default.
+##  - actual:     only the vue3 frontend, no toggler
+##  - all:        both frontends reachable, toggler shown on view pages.
+##                Required for Vue 3 e2e tests + recommended for devel work
+##                on the apiv4-integration branch (.gitlab-ci.yml's test-e2e
+##                and integration-real jobs both set FRONTEND_MODE=all).
+##  - hidden:     both frontends reachable by direct path, NO toggler shown.
+##                Like 'all' but without advertising the switch: neither
+##                router redirects, so users who know the URLs can use either
+##                frontend, while the toggler button stays hidden.
+#FRONTEND_MODE=deprecated
+
 # ------ Frontend Direct Viewer cookie ---------------------------------------
 ## Where will the direct viewer cookie be retrieved from.
 ## Values: (first value is the default one)
@@ -84,7 +104,7 @@ DIRECTVIEWER_MODE=browser
 ## administration web interface.
 # NOTIFY_EMAIL=True
 # NOTIFY_EMAIL_SMTP_SERVER=smtp.gmail.com
-# NOTIFY_EMAIL_SMPT_PORT=587
+# NOTIFY_EMAIL_SMTP_PORT=587
 # NOTIFY_EMAIL_USERNAME=example@isardvdi.com
 # NOTIFY_EMAIL_PASSWORD=IsardVDI
 
@@ -130,16 +150,6 @@ SESSIONS_SESSIONS_EXPIRATION_TIME=5m
 # one, it will reach the limit. If the limit is reached, the sessions service will return an error to the user
 # This is done to further prevent token replay attacks, as the attacker would need to have the same IP as the client.
 #SESSIONS_SESSIONS_REMOTE_ADDR_CONTROL=false
-# The hostname of the Redis
-#SESSIONS_SESSIONS_REDIS_HOST=isard-redis
-# The port of the Redis
-#SESSIONS_SESSIONS_REDIS_PORT=6379
-# The username of the Redis
-#SESSIONS_SESSIONS_REDIS_USR=
-# The password of the Redis
-#SESSIONS_SESSIONS_REDIS_PWD=
-# The sessions database in the Redis
-#SESSIONS_SESSIONS_REDIS_DB=1
 # The address where the sessions service will listen to gRPC connections (empty is equivalent to 0.0.0.0)
 #SESSIONS_SESSIONS_GRPC_HOST=
 # The port where the sessions service will listen to gRPC connections
@@ -371,6 +381,20 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 #BACKUP_DISKS_GROUPS_ENABLED=false
 #BACKUP_DISKS_MEDIA_ENABLED=false
 
+## Host directory for the gzipped JSONL dumps written by apiv4
+## before the daily logs_desktops / logs_users retention cron
+## deletes their rows. This is a separate path from backupninja's
+## ``BACKUP_DIR`` above (which holds DB / redis / disks dumps);
+## these app-level operational dumps must NOT live under
+## backupninja's tree, or backupninja would re-include them in its
+## own tarballs. The default reuses /opt/isard/backups, the host
+## directory previously bind-mounted into isard-scheduler that no
+## code references anymore. Container path is fixed at /backups
+## and is not configurable. Comment out (or set empty) to disable
+## backups entirely; the cron will then delete with no recovery
+## path.
+#LOGS_DELETE_BACKUP_DIR=/opt/isard/backups
+
 ##################################################################
 ##################################################################
 ## DO NOT EDIT FROM HERE UNLESS YOU KNOW WHAT YOU ARE DOING !!! ##
@@ -387,12 +411,14 @@ DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 DOCKER_IMAGE_TAG=main
 
 # Golang image used for building the Golang microservices images
-GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22
+# Defaults are set in each Dockerfile ARG and compose-parts yml fallback.
+# Uncomment to override.
+#GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22@sha256:6b7607461f105ccaa0615b6f7932dfd5b36c5d827a0770b5578e565107cc3adb
 # Image used for running the images the Golang microservices images
-GOLANG_RUN_IMAGE=alpine:3.22.0
+#GOLANG_RUN_IMAGE=alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
-HAPROXY_RUN_IMAGE=haproxy:3.3-alpine3.22
+HAPROXY_RUN_IMAGE=haproxy:3.3-alpine3.22@sha256:3755973a59dd758b24d952649ca1f003d744b9e771f61f5e7db63e47baa68e3b
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
@@ -545,6 +571,23 @@ HAPROXY_LOGGING=.
 #RETHINKDB_PORT=28015
 #RETHINKDB_DB=isard
 
+# ------ apiv4 thread / pool sizing ------------------------------------------
+## apiv4 fans out concurrent rdb queries via asyncio.to_thread; the executor
+## thread count and the rdb connection pool MUST be sized together (the
+## invariant is `executor <= pool`). Default 128/128 absorbs ~200 simultaneous
+## inbound connections without PoolExhaustedError. Tune the pair higher if
+## the lifespan-shutdown log line `apiv4 pool peak in_use=N / max=128` shows
+## peak ~ max under your load.
+#APIV4_EXECUTOR_MAX_WORKERS=128
+#RETHINKDB_POOL_SIZE=128
+## Slow-query observer threshold (ms). Each rdb query slower than this
+## emits an `rdb_query_slow` log line with pool stats — primary signal for
+## identifying helpers that should migrate to async-native (W2).
+#RETHINKDB_SLOW_QUERY_MS=500
+## How often (seconds) the lifespan sampler polls pool_in_use to track the
+## peak. Lower = more accurate peak; higher = less overhead.
+#APIV4_POOL_SAMPLE_INTERVAL_S=1.0
+
 # ------ Authentication host -------------------------------------------------
 
 # Authentication host
@@ -554,11 +597,11 @@ HAPROXY_LOGGING=.
 #AUTHENTICATION_DB_HOST=isard-db
 
 # ------ Api host ------------------------------------------------------------
-## Where can this host reach the isard-api host?
+## Where can this host reach the isard-apiv4 host?
 ## Need to be set for flavours:
 ##   - hypervisor
 ##   - hypervisor-standalone
-#API_DOMAIN=isard-api
+#API_DOMAIN=isard-apiv4
 
 # ------ Static nginx host ----------------------------------------------------
 ## Where the clients browsers will load static when connecting to this host 
@@ -578,18 +621,7 @@ HAPROXY_LOGGING=.
 ## Infrastructure MTU: physical/underlay network MTU between nodes.
 ## All internal MTU values (WireGuard, DHCP, OVS bridge) are derived from this.
 ##
-## Default: 1500 (safe Ethernet, applies to both wg+geneve and geneve-only).
-##
-## NOTE: changing this value requires the docker isard-network to be
-## recreated; docker does NOT recreate networks on driver_opt changes, so a
-## raised MTU silently has no effect until the network is removed and
-## brought up again. `build.sh` prints a drift warning when it detects this.
-##
-## NOTE: in multi-host deployments, set the same value on every host
-## running `build.sh` (web, hypervisor, storage, video, ...). Each host
-## renders its own docker isard-network independently from its local cfg,
-## and the hypervisor OVS warns at startup when its bridge MTU exceeds
-## the local eth0 MTU.
+## Default: 1500 (safe Ethernet) in every code path and tunneling mode.
 ##
 ## NOTE: the guest VM MTU is auto-derived from this value + the tunneling
 ## mode (no jumbo required for a normal 1500 underlay) and is enforced on
@@ -599,7 +631,7 @@ HAPROXY_LOGGING=.
 ## (superseded by INFRASTRUCTURE_MTU; a backward-compat warning is logged).
 ##
 ## Common values:
-##   9000 - datacenter with jumbo frames (entire underlay must support it)
+##   9000 - datacenter with jumbo frames
 ##   1500 - standard Ethernet (default for most networks)
 ##   1492 - PPPoE connections
 ##   1400 - when running behind another VPN/tunnel overlay
@@ -619,12 +651,33 @@ HAPROXY_LOGGING=.
 #STORAGE_DOMAIN=isard-storage
 
 # ------ WEB PORTS -----------------------------------------------------------
-# Note: On web flavours, if you set this variables you may also change
-#       accordingly the VIEWER_SPICE and VIEWER_BROWSER ports
-# Note: In flavours that include web or monitor (all-in-one, web, web+video,
-#       monitor...) the opened port will always be HTTP_PORT/HTTPS_PORT,
-#       not VIEWER_SPICE/VIEWER_BROWSER. Only video-only flavours (video,
-#       video-standalone, hypervisor) open VIEWER_SPICE/VIEWER_BROWSER ports.
+## Docs: https://isard.gitlab.io/isardvdi-docs/install/insights/ports_and_nat/
+##
+## Every IsardVDI haproxy container (portal, video, monitor: all the same
+## image) listens on exactly TWO ports and routes by port + protocol:
+##
+##   HTTP_PORT   plain HTTP      -> ACME http-01 challenge, bastion web,
+##                                  redirect to https://<domain>:HTTPS_PORT
+##               HTTP CONNECT    -> SPICE proxy (squid)        [video parts]
+##               TLS             -> RDP gateway                [web parts]
+##   HTTPS_PORT  TLS             -> web UI, /api/v4, /authentication,
+##                                  /socket.io, /isard-admin, /engine,
+##                                  /scheduler, /openapi, guacamole
+##                                                             [web parts]
+##               TLS + websocket -> noVNC / spice-web-client   [video parts]
+##               TLS             -> /monitor, /loki, /prometheus
+##                                                             [monitor parts]
+##   Anything else is dropped.
+##
+## These two variables REALLY change the port haproxy binds to and the port
+## published on the host. They are NOT a way to declare an external NAT port
+## (for that see VIEWER_SPICE / VIEWER_BROWSER / VIEWER_RDP_GW below).
+## Only set them when this host must serve IsardVDI somewhere other than
+## 80/443, e.g. two IsardVDI installations sharing a single host.
+##
+## WARNING: setting HTTP_PORT moves the ACME http-01 challenge off port 80,
+## so Let's Encrypt can no longer renew certificates on its own unless the
+## router forwards 80 -> HTTP_PORT.
 #HTTP_PORT=8081
 #HTTPS_PORT=8443
 
@@ -649,12 +702,41 @@ HAPROXY_LOGGING=.
 #VIDEO_DOMAIN=$DOMAIN
 
 # ------ Video external NAT ports --------------------------------------------
-## The port that SPICE/RDP clients will use to connect to their desktops.
-## This is always used in all flavours to set the client connection port
-## (e.g. external router NAT port).
-## In video-only flavours (video, video-standalone, hypervisor) it also
-## sets the haproxy listening port. In flavours with web or monitor,
-## haproxy uses HTTP_PORT/HTTPS_PORT instead.
+## Docs: https://isard.gitlab.io/isardvdi-docs/install/insights/ports_and_nat/
+##
+## The ports viewer clients will use to reach the desktops running on THIS
+## host. They are ANNOUNCED to the client: the hypervisor writes them to the
+## database when it registers (hypervisors.viewer.spice_ext_port and
+## .html5_ext_port) and the api builds every viewer file and URL from there.
+## Because they are stored per host, each hypervisor can publish its own ports.
+##
+##   VIEWER_SPICE   = SPICE proxy port. HTTP_PORT of the haproxy serving this
+##                    host's video parts (isard-video; the portal, in
+##                    all-in-one).
+##   VIEWER_BROWSER = HTML5 viewers port (noVNC, spice-web-client). HTTPS_PORT
+##                    of that same haproxy.
+##   VIEWER_RDP_GW  = RDP gateway port. HTTP_PORT of the WEB haproxy, which
+##                    serves the gateway as TLS. Defaults to HTTP_PORT.
+##
+## The three are independent on purpose. Even though the RDP gateway and the
+## SPICE proxy can share a port on an all-in-one, keeping the announced ports
+## separate lets the firewall treat each viewer protocol on its own, for
+## instance to apply QoS to SPICE traffic only.
+##
+## In video-only flavours (video, video-standalone, hypervisor) VIEWER_SPICE
+## and VIEWER_BROWSER also become the haproxy listening and published ports:
+## the entrypoint exports HTTP_PORT=$VIEWER_SPICE and HTTPS_PORT=$VIEWER_BROWSER.
+## WARNING: that moves the ACME http-01 challenge off port 80 and breaks
+## automatic certificate renewal unless the router forwards 80 -> VIEWER_SPICE.
+##
+## In flavours including web or monitor (all-in-one, web, web+video...) haproxy
+## keeps listening on HTTP_PORT/HTTPS_PORT and these variables open nothing:
+## they only announce a port. Either leave them equal to the listening ports,
+## or set them to the external port of a NAT that forwards to them. Example: an
+## all-in-one listening on 80/443 but reachable from the outside at 4104/4105
+## (router DNAT 4104 -> 80, 4105 -> 80) sets VIEWER_SPICE=4104 and
+## VIEWER_RDP_GW=4105. Announce a port nothing forwards and the desktop will
+## start fine while its viewer silently fails to connect.
 #VIEWER_SPICE=80
 #VIEWER_RDP_GW=80
 #VIEWER_BROWSER=443
@@ -671,7 +753,7 @@ HAPROXY_LOGGING=.
 ## The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 ## The duration will be trucated up to minutes
 #RDPGW_IDLE_TIMEOUT=30m
-#RDPGW_API_ADDR=isard-api:5000
+#RDPGW_API_ADDR=isard-apiv4:5000
 
 # ------ Docker networking ---------------------------------------------------
 ## Assign a docker /24 network. The host part will be set by system
@@ -738,6 +820,16 @@ WG_GUESTS_RESERVED_HOSTS=20
 
 # ------ Redis ---------------------------------------------------------------
 
+## IsardVDI uses four logical Redis databases on a single shared instance.
+## DB numbers are hardcoded per service and cannot be changed from here:
+##   DB 0: RQ task queues (apiv4, storage, notifier) and the
+##         stream:task-results bridge between isard-storage and
+##         isard-change-handler.
+##   DB 1: Sessions (Go sessions service)
+##   DB 2: Changefeed bus (changefeed, change-handler, engine, vpn)
+##   DB 3: Socket.io fan-out (socketio, apiv4, change-handler)
+## Operators only configure the shared connection below.
+
 # Redis password
 ## The password used with AUTH inside redis connections.
 ## WARNING it is sent unencrypted, so the connection should be securized.
@@ -745,11 +837,12 @@ WG_GUESTS_RESERVED_HOSTS=20
 #REDIS_PASSWORD=
 
 # Redis host
-## Where can isard-api and isard-storage host reach isard-redis host?
+## Where can isard-apiv4 and isard-storage host reach isard-redis host?
 ## Need to be set for flavours:
 ##   - storage
 ##   - hypervisor
 ##   - hypervisor-standalone
+## Shared by every IsardVDI service that connects to Redis.
 #REDIS_HOST=isard-redis
 #REDIS_PORT=6379
 
@@ -762,6 +855,25 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## The time to live of the task results in the redis database in seconds
 ## Default is 30 days. Set it to -1 so the results never expire
 #REDIS_TASK_RESULT_TTL=2592000
+
+# Storage task timeouts (RQ job_timeout, seconds)
+## Storage tasks are killed by RQ once their job_timeout elapses. Fast
+## metadata tasks (delete/touch/info/status) use the FAST value; long-running
+## tasks (download/convert/sparsify/move/create/...) get a size-derived budget
+## (size / MIN_THROUGHPUT_BPS) clamped to [FLOOR, CEIL], or CEIL when the size
+## is unknown. Widen these on slow storage or a slow uplink.
+#STORAGE_TASK_FAST_TIMEOUT=300
+#STORAGE_TASK_TIMEOUT_FLOOR=600
+#STORAGE_TASK_TIMEOUT_CEIL=21600
+#STORAGE_TASK_MIN_THROUGHPUT_BPS=5242880
+
+# URL download stall guard (curl --speed-limit / --speed-time)
+## A download is aborted when its average speed stays below MIN_SPEED_BPS
+## bytes/s for MIN_SPEED_TIME seconds (a genuinely stalled transfer), instead
+## of holding the worker until the job_timeout. A slow-but-progressing download
+## still completes (bounded by the download task's job_timeout).
+#URL_DOWNLOAD_MIN_SPEED_BPS=1024
+#URL_DOWNLOAD_MIN_SPEED_TIME=60
 
 ##################################################################
 ## STATS PARAMETERS                                             ##
@@ -783,9 +895,9 @@ WG_GUESTS_RESERVED_HOSTS=20
 #GRAFANA_TELEGRAM_CHAT_ID=
 #GRAFANA_TELEGRAM_CHAT_ID_ORCHESTRATOR=
 
-# ------ Prometheus -----------------------------------------------------
-#PROMETHEUS_ADDRESS=http://isard-prometheus:9090
-#PROMETHEUS_RETENTION_TIME=40d
+# ------ VictoriaMetrics -----------------------------------------------------
+#VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428
+#VICTORIAMETRICS_RETENTION_TIME=40d
 
 # ------ Stats -----------------------------------------------------
 #STATS_DIRECTORY=/opt/isard/stats
@@ -806,6 +918,14 @@ WG_GUESTS_RESERVED_HOSTS=20
 #TEMPO_ADDRESS=http://isard-tempo:3200
 #TEMPO_ADDRESS_OTEL_GRPC=isard-tempo:4317
 
+# ------ Faro (Frontend errors) ------------------------------------------
+#
+# Captures Vue 3 frontend errors (uncaught exceptions, unhandled promise
+# rejections, console.error and console.warn) and ships them to Loki via
+# Grafana Alloy. Requires the stats flavour, or set FARO_URL to point to an
+# external Faro receiver (e.g. Grafana Cloud).
+#FARO_ENABLED=false
+#FARO_URL=/faro/collect
 
 # ------ OCI Collector -----------------------------------------------------
 #STATS_COLLECTORS_OCI_ENABLE=false
@@ -837,7 +957,7 @@ WG_GUESTS_RESERVED_HOSTS=20
 # - Database (RethinkDB) port 28015
 # - Redis port 6379
 # - Loki port 3100 (if monitoring enabled)
-# - Prometheus port 9090 (if monitoring enabled)
+# - VictoriaMetrics port 9090 (if monitoring enabled)
 #
 # ALTERNATIVE: If you don't set this variable, you'll need to configure firewall rules to allow
 # remote infrastructure nodes to reach the internal Docker container IPs (refer to documentation).
@@ -858,9 +978,9 @@ WG_GUESTS_RESERVED_HOSTS=20
 #ORCHESTRATOR_ORCHESTRATOR_OPERATIONS_ADDRESS=isard-operations:1312
 # The address of the check gRPC service
 #ORCHESTRATOR_ORCHESTRATOR_CHECK_ADDRESS=isard-check:1312
-# The API address is the address of isard-api, which is going to be used for both making orchestrator operations and for the check service
-#ORCHESTRATOR_ORCHESTRATOR_API_ADDRESS=http://isard-api:5000
-# The API secret is the secret used to sign JWT tokens in order to talk with isard-api. By default, it gets the
+# The API address is the address of isard-apiv4, which is going to be used for both making orchestrator operations and for the check service
+#ORCHESTRATOR_ORCHESTRATOR_API_ADDRESS=http://isard-apiv4:5000
+# The API secret is the secret used to sign JWT tokens in order to talk with isard-apiv4. By default, it gets the
 # value of API_ISARDVDI_SECRET
 #ORCHESTRATOR_ORCHESTRATOR_API_SECRET=
 # The director is the decision taker of the orchestrator.

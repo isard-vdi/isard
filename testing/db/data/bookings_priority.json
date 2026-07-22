@@ -1,0 +1,90 @@
+[
+    {
+        "id": "default",
+        "rule_id": "default",
+        "name": "default",
+        "description": "Applied to non matching users",
+        "allowed": {
+            "roles": [],
+            "categories": [],
+            "groups": [],
+            "users": []
+        },
+        "priority": 1,
+        "forbid_time": 0,
+        "max_time": 60,
+        "max_items": 1
+    },
+    {
+        "id": "default admins",
+        "rule_id": "default",
+        "name": "default admins",
+        "description": "Applied to all admin users",
+        "allowed": {
+            "roles": [
+                "admin"
+            ],
+            "categories": [],
+            "groups": [],
+            "users": []
+        },
+        "priority": 999,
+        "forbid_time": 1,
+        "max_time": 999999,
+        "max_items": 999999
+    },
+    {
+        "id": "test-low-forbid-time",
+        "rule_id": "test-booking-rule",
+        "name": "Test Low Forbid Time",
+        "description": "Priority rule with forbid_time < 30 to test not_enough_advanced_time modal",
+        "allowed": {
+            "roles": [
+                "user"
+            ],
+            "categories": [],
+            "groups": [],
+            "users": []
+        },
+        "priority": 500,
+        "forbid_time": 15,
+        "max_time": 120,
+        "max_items": 2
+    },
+    {
+        "id": "test-override-advanced",
+        "rule_id": "test-override-rule",
+        "name": "Test Override Advanced",
+        "description": "E2E: advanced role gets high priority so it can override user-role bookings (users/groups/categories set to false so role matching is reached)",
+        "allowed": {
+            "roles": [
+                "advanced"
+            ],
+            "categories": false,
+            "groups": false,
+            "users": false
+        },
+        "priority": 800,
+        "forbid_time": 1,
+        "max_time": 999999,
+        "max_items": 999999
+    },
+    {
+        "id": "test-override-user",
+        "rule_id": "test-override-rule",
+        "name": "Test Override User",
+        "description": "E2E: user role gets low priority so it cannot override advanced-role bookings (users/groups/categories set to false so role matching is reached)",
+        "allowed": {
+            "roles": [
+                "user"
+            ],
+            "categories": false,
+            "groups": false,
+            "users": false
+        },
+        "priority": 300,
+        "forbid_time": 1,
+        "max_time": 999999,
+        "max_items": 999999
+    }
+]

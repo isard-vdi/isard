@@ -1,0 +1,56 @@
+[project]
+name = "isardvdi-apiv4"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "bcrypt==4.2.1",
+  "cachetools==5.5.0",
+  "dnspython==2.8.0",
+  "fastapi==0.115.12",
+  "gevent==25.5.1",
+  "html-sanitizer==2.6.0",
+  "isardvdi-authentication-client",
+  "isardvdi-common",
+  "isardvdi-protobuf",
+  "pillow==12.3.0",
+  "portion==2.6.1",
+  "pydantic==2.12.0",
+  "pyjwt==2.13.0",
+  "python-json-logger==3.3.0",
+  "python-socketio==5.16.2",
+  "pytz==2025.2",
+  "redis==5.2.1",
+  "requests==2.32.4",
+  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz",
+  "rq==2.3.2",
+  "specktre==0.3.0",
+  "user-agents==2.2.0",
+  "uvicorn==0.34.2",
+  "watchfiles==1.0.4",
+  "websockets==15.0.1",
+  "zstandard==0.25.0",
+]
+
+[dependency-groups]
+test = [
+  "httpx",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-cov",
+  "pytest-xdist",
+  "rethinkdb-mock @ https://github.com/isard-vdi/rethinkdb-mock/archive/082aec0f78baa619e77bcb63d1f2fa6e2581e7a5.tar.gz",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/api"]
+
+[tool.isardvdi.system-deps]
+apk-build = ["build-base", "libffi-dev", "libjpeg-turbo-dev", "musl-dev", "openssl-dev", "zlib-dev"]
+apk-runtime = ["libffi", "libjpeg-turbo", "openssh-client", "openssl", "ttf-liberation", "zlib"]

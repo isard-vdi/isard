@@ -5,7 +5,7 @@
     size="lg"
     :title="title"
     centered
-    :hide-footer="modal.type !== 'delete' && modal.type !== 'coOwners'"
+    :hide-footer="modal.type !== 'delete' && modal.type !== 'coOwners' && modal.type !== 'bastion'"
     :header-class="`bg-${modal.color}
     text-white`"
     @hidden="closeModal"
@@ -116,7 +116,7 @@
               variant="outline-primary"
               block
               size="sm"
-              @click="toggleVisibility"
+              @click="toggleVisibility(false)"
             >
               {{ $t(`views.deployment.modal.confirmation.make-visible`) }}
             </b-button>
@@ -233,6 +233,89 @@
     <span v-else-if="modal.type === 'coOwners'">
       <DeploymentCoOwnersForm />
     </span>
+    <span v-else-if="modal.type === 'bastion'">
+      <div
+        v-if="bastionLoading"
+        class="text-center my-4"
+      >
+        <b-spinner />
+      </div>
+      <span v-else>
+        <b-alert
+          show
+          variant="info"
+          class="ml-2 mb-2 pr-3"
+        >
+          <p
+            class="mb-0"
+          >
+            {{ $t('views.deployment.modal.body.bastion-info') }}
+          </p>
+        </b-alert>
+        <b-row class="ml-2 my-2 pr-3">
+          <b-col cols="6">
+            <b-form-checkbox
+              id="deploymentBastionSshEnabled"
+              v-model="bastionForm.ssh.enabled"
+              switch
+            >
+              {{ $t('forms.domain.bastion.ssh.checkbox') }}
+            </b-form-checkbox>
+          </b-col>
+          <b-col
+            v-if="bastionForm.ssh.enabled"
+            cols="6"
+          >
+            <label for="deploymentBastionSshPort">{{ $t('forms.domain.bastion.ssh.port') }}</label>
+            <b-form-input
+              id="deploymentBastionSshPort"
+              v-model.number="bastionForm.ssh.port"
+              type="number"
+              min="1"
+              max="65535"
+            />
+          </b-col>
+        </b-row>
+        <hr>
+        <b-row class="ml-2 my-2 pr-3">
+          <b-col cols="6">
+            <b-form-checkbox
+              id="deploymentBastionHttpEnabled"
+              v-model="bastionForm.http.enabled"
+              switch
+            >
+              {{ $t('forms.domain.bastion.http.checkbox') }}
+            </b-form-checkbox>
+          </b-col>
+          <b-col
+            v-if="bastionForm.http.enabled"
+            cols="3"
+          >
+            <label for="deploymentBastionHttpPort">{{ $t('forms.domain.bastion.http.http-port') }}</label>
+            <b-form-input
+              id="deploymentBastionHttpPort"
+              v-model.number="bastionForm.http.http_port"
+              type="number"
+              min="1"
+              max="65535"
+            />
+          </b-col>
+          <b-col
+            v-if="bastionForm.http.enabled"
+            cols="3"
+          >
+            <label for="deploymentBastionHttpsPort">{{ $t('forms.domain.bastion.http.https-port') }}</label>
+            <b-form-input
+              id="deploymentBastionHttpsPort"
+              v-model.number="bastionForm.http.https_port"
+              type="number"
+              min="1"
+              max="65535"
+            />
+          </b-col>
+        </b-row>
+      </span>
+    </span>
     <template
       #modal-footer
     >
@@ -263,12 +346,22 @@
         >
           {{ $t(`views.deployment.modal.confirmation.co-owners`) }}
         </b-button>
+        <b-button
+          v-else-if="modal.type === 'bastion'"
+          squared
+          variant="primary"
+          size="sm"
+          :disabled="bastionLoading"
+          @click="updateBastion"
+        >
+          {{ $t(`views.deployment.modal.confirmation.bastion`) }}
+        </b-button>
       </span>
     </template>
   </b-modal>
 </template>
 <script>
-import { computed, ref } from '@vue/composition-api'
+import { computed, ref, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
 import DeploymentCoOwnersForm from './DeploymentCoOwnersForm.vue'
 
@@ -300,10 +393,58 @@ export default {
         return i18n.t('views.deployment.modal.title.delete', { name: modal.value.item.name })
       } else if (modal.value.type === 'coOwners') {
         return i18n.t('views.deployment.modal.title.co-owners', { name: modal.value.item.name })
+      } else if (modal.value.type === 'bastion') {
+        return i18n.t('views.deployment.modal.title.bastion', { name: modal.value.item.name })
       }
 
       return ''
     })
+
+    // Deployment-level bastion config: two toggles + ports. Loaded from the
+    // deployment row when the modal opens; PUT applies it to every current
+    // desktop's target and is inherited by new/recreated desktops at start.
+    // Starts ``true`` so the form can't render (and take input) with default
+    // values before the stored config arrives — the fetch watcher below only
+    // fires after the modal is already visible.
+    const bastionLoading = ref(true)
+    const bastionForm = ref({
+      ssh: { enabled: false, port: 22 },
+      http: { enabled: false, http_port: 80, https_port: 443 }
+    })
+
+    watch(
+      () => (modal.value.type === 'bastion' && modal.value.show) ? modal.value.item.id : null,
+      (id) => {
+        if (!id) return
+        bastionLoading.value = true
+        $store.dispatch('fetchDeploymentBastion', { id }).then((data) => {
+          bastionForm.value = {
+            ssh: { enabled: false, port: 22, ...(data.ssh || {}) },
+            http: { enabled: false, http_port: 80, https_port: 443, ...(data.http || {}) }
+          }
+        }).catch(() => {
+          // Error already toasted by the action.
+        }).finally(() => {
+          bastionLoading.value = false
+        })
+      },
+      { immediate: true }
+    )
+
+    const updateBastion = () => {
+      bastionLoading.value = true
+      $store.dispatch('updateDeploymentBastion', {
+        id: modal.value.item.id,
+        ssh: bastionForm.value.ssh,
+        http: bastionForm.value.http
+      }).then(() => {
+        closeModal()
+      }).catch(() => {
+        // Error already toasted by the action — keep the modal open.
+      }).finally(() => {
+        bastionLoading.value = false
+      })
+    }
 
     const toggleVisibility = (stopStartedDomains) => {
       $store.dispatch('toggleVisible', { id: modal.value.item.id, visible: modal.value.item.visible, stopStartedDomains }).then(() => {
@@ -322,16 +463,44 @@ export default {
     }
 
     const deleteDeployment = () => {
-      $store.dispatch('deleteDeployment', { id: modal.value.item.id, permanent: !sendToRecycleBin.value, pathName: 'deployments' }).then(() => {
+      $store.dispatch('deleteDeployment', {
+        id: modal.value.item.id,
+        permanent: !sendToRecycleBin.value,
+        pathName: 'deployments'
+      }).then(() => {
         sendToRecycleBin.value = $store.getters.getDefaultCheck
+        closeModal()
+      }).catch(() => {
+        // Error already toasted by the action — close the modal anyway so
+        // the user isn't stuck on a frozen confirmation screen.
         closeModal()
       })
     }
 
-    const isOwner = () => {
-      $store.dispatch('fetchCoOwners', modal.value.item.id)
-      return $store.getters.getUser.user_id === $store.getters.getCoOwners.owner.id
-    }
+    // ``isOwner`` MUST be a computed, not a plain function — Vue
+    // evaluates ``v-if="isOwner"`` against the function reference
+    // when it isn't called with ``()``, which is *always* truthy and
+    // makes the "Update co-owners" footer button visible to every
+    // viewer (including co-owners who are not the owner). Loading
+    // ``fetchCoOwners`` lives in a watcher that fires when either the
+    // co-owners modal or the delete modal opens, so the side effect
+    // doesn't ride on the render. The delete modal also needs it: its
+    // footer "Delete" button is gated on ``isOwner``, and opening the
+    // delete modal from the deployments LIST (which doesn't eagerly
+    // fetch co-owners) used to leave ``getCoOwners.owner`` empty →
+    // ``isOwner=false`` → user saw a misleading "you're a co-owner"
+    // warning and had no delete button.
+    watch(
+      () => (['coOwners', 'delete'].includes(modal.value.type)) ? modal.value.item.id : null,
+      (id) => { if (id) $store.dispatch('fetchCoOwners', id) },
+      { immediate: true }
+    )
+
+    const isOwner = computed(() => {
+      const owner = $store.getters.getCoOwners?.owner
+      if (!owner || !owner.id) return false
+      return $store.getters.getUser?.user_id === owner.id
+    })
 
     const updateCoOwners = () => {
       const selectedUsers = computed(() => $store.getters.getSelectedUsers)
@@ -358,6 +527,9 @@ export default {
       title,
       toggleVisibility,
       downloadDirectViewerCSV,
+      bastionLoading,
+      bastionForm,
+      updateBastion,
       deleteDeployment,
       updateCoOwners,
       maxTime,

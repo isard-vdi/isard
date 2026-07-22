@@ -24,7 +24,7 @@ function connection_lost(){
 $(document).ready(function() {
   $.ajax({
     type: "GET",
-    url:"/api/v3/admin/quotas",
+    url:"/api/v4/admin/items/quotas",
     success: function (data) {
         drawUserQuota(data)
     }
@@ -37,7 +37,7 @@ function drawUserQuota(data){
     return
   }
 
-  if( "limits" in data ){
+  if( "limits" in data && data.limits ){
     if ( "dqp" in data.limits ){
       $('.manager-status').show()
       drawCategoryLimits(data.limits)

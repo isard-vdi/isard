@@ -326,7 +326,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 			},
 			Expected: expected{Cfg: &SAMLConfig{AutoRegister: true}},
 		},
-		"should return error for invalid key pair": {
+		"should return error when key pair cannot be generated": {
 			NeedTLS: false,
 			Input: func(_, _, _ string) model.SAMLConfig {
 				dir := t.TempDir()
@@ -339,7 +339,27 @@ func TestSAMLLoadConfig(t *testing.T) {
 					CertFile:     "/nonexistent/cert.pem",
 				}
 			},
-			Expected: expected{Err: "load key pair"},
+			Expected: expected{Err: "ensure SAML key pair"},
+		},
+		"should auto-generate key pair when files are missing": {
+			NeedTLS: false,
+			Input: func(_, _, _ string) model.SAMLConfig {
+				dir := t.TempDir()
+				metadataPath := filepath.Join(dir, "metadata.xml")
+				require.NoError(t, os.WriteFile(metadataPath, []byte(testSAMLMetadata), 0644))
+
+				return model.SAMLConfig{
+					MetadataFile:  metadataPath,
+					KeyFile:       filepath.Join(dir, "isardvdi.key"),
+					CertFile:      filepath.Join(dir, "isardvdi.cert"),
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+				}
+			},
+			Expected: expected{Cfg: &SAMLConfig{}},
 		},
 		"should fallback to URL when metadata file has invalid XML": {
 			NeedTLS:     false,
@@ -753,7 +773,7 @@ func TestValidateMetadataURL(t *testing.T) {
 		},
 		"should reject a hostname resolving to loopback": {
 			URL:         "https://localhost/metadata",
-			ExpectedErr: "resolves to this server",
+			ExpectedErr: "must not point to this server",
 		},
 	}
 

@@ -78,7 +78,7 @@ $(document).ready(function () {
     // Initialize DataTable with standard IsardVDI pattern
     var backupsTable = $('#backups-table').DataTable({
         ajax: {
-            url: '/api/v3/admin/backups',
+            url: '/api/v4/admin/items/backups',
             type: 'GET',
             dataSrc: ""
         },
@@ -129,10 +129,12 @@ $(document).ready(function () {
                             return '<span class="label label-success">Success</span>';
                         } else if (data === 'ERROR') {
                             return '<span class="label label-danger">Error</span>';
+                        } else if (data === 'CRITICAL') {
+                            return '<span class="label label-danger">Critical</span>';
                         } else if (data === 'WARNING') {
                             return '<span class="label label-warning">Warning</span>';
-                        } else if (data === 'PARTIAL') {
-                            return '<span class="label label-warning">Partial</span>';
+                        } else if (data === 'UNKNOWN') {
+                            return '<span class="label label-default">Unknown</span>';
                         }
                     }
                     return data;
@@ -242,7 +244,7 @@ $(document).ready(function () {
     // Integrity check toggle
     function loadIntegrityToggle() {
         $.ajax({
-            url: '/api/v3/admin/backups/integrity',
+            url: '/api/v4/admin/item/backups/integrity',
             type: 'GET',
             success: function (data) {
                 $('#integrity-enabled').prop('checked', !!(data && data.integrity_enabled));
@@ -254,7 +256,7 @@ $(document).ready(function () {
     $('#integrity-save').on('click', function () {
         var enabled = $('#integrity-enabled').is(':checked');
         $.ajax({
-            url: '/api/v3/admin/backups/integrity',
+            url: '/api/v4/admin/item/backups/integrity',
             type: 'PUT',
             data: JSON.stringify({ integrity_enabled: enabled }),
             contentType: 'application/json',
@@ -307,7 +309,7 @@ $(document).ready(function () {
 
     function showBackupDetails(backupId) {
         $.ajax({
-            url: '/api/v3/admin/backups/' + backupId,
+            url: '/api/v4/admin/item/backups/' + backupId,
             type: 'GET',
             success: function (data) {
                 var content = '<div class="row">';
@@ -683,7 +685,7 @@ function loadBackupDashboard() {
 
 function loadLatestBackupStatus() {
     $.ajax({
-        url: '/api/v3/admin/backups',
+        url: '/api/v4/admin/items/backups',
         type: 'GET',
         success: function (data) {
             if (data && data.length > 0) {
@@ -706,13 +708,17 @@ function loadLatestBackupStatus() {
                         break;
                     case 'failed':
                     case 'error':
+                    case 'critical':
                         statusIcon = '<i class="fa fa-times-circle text-danger fa-3x"></i>';
                         statusClass = 'danger';
                         break;
-                    default:
+                    case 'warning':
                         statusIcon = '<i class="fa fa-exclamation-triangle text-warning fa-3x"></i>';
                         statusClass = 'warning';
-                        statusText = 'Warning';
+                        break;
+                    default:
+                        statusIcon = '<i class="fa fa-question-circle text-muted fa-3x"></i>';
+                        statusClass = 'default';
                 }
                 
                 content += '<div class="text-center">';
@@ -751,7 +757,7 @@ function loadLatestBackupStatus() {
 
 function loadStorageStatus() {
     $.ajax({
-        url: '/api/v3/admin/backups',
+        url: '/api/v4/admin/items/backups',
         type: 'GET',
         success: function (data) {
             if (data && data.length > 0) {
@@ -813,7 +819,7 @@ function loadStorageStatus() {
 
 function loadBackupScheduleStatus() {
     $.ajax({
-        url: '/api/v3/admin/backups',
+        url: '/api/v4/admin/items/backups',
         type: 'GET',
         success: function (data) {
             if (data && data.length > 0) {

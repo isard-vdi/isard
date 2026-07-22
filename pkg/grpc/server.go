@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -23,8 +24,18 @@ func Serve(ctx context.Context, log *zerolog.Logger, wg *sync.WaitGroup, desc *g
 		log.Fatal().Err(err).Str("addr", cfg.Addr()).Msg("listen gRPC address")
 	}
 
+	// Accept the Python client's 10s keepalive pings on idle channels
+	// (component/_common/isardvdi_common/connections/grpc_client.py).
+	// Without this, the Go default MinTime=5m sends GOAWAY
+	// ENHANCE_YOUR_CALM to every apiv4 gRPC channel every few minutes,
+	// forcing reconnects that surface as latency spikes in production
+	// and cascade failures under audit load.
 	s := grpc.NewServer(
 		grpc.UnaryInterceptor(newUnaryInterceptorLogger(log)),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             5 * time.Second,
+			PermitWithoutStream: true,
+		}),
 	)
 
 	// TODO: testEmbeddedByValue

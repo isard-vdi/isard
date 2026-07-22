@@ -10,7 +10,7 @@ function startClientVpnSocket(socket){
     $('#btn-uservpnconfig').on('click', function () {
         $.ajax({
             type: "GET",
-            url:"/api/v3/user/vpn/config",
+            url:"/api/v4/item/user/vpn/config",
             success: function (data) {
                 const el = document.createElement('a')
                 const content = data.content
@@ -26,29 +26,13 @@ function startClientVpnSocket(socket){
             }
         })
     });
-
-    socket.on('vpn', function (data) {
-        var data = JSON.parse(data);
-        if(data['kind']=='url'){
-            window.open(data['url'], '_blank');
-        }
-        if(data['kind']=='file'){
-            var vpnFile = new Blob([data['content']], {type: data['mime']});
-            var a = document.createElement('a');
-                a.download = data['name']+'.'+data['ext'];
-                a.href = window.URL.createObjectURL(vpnFile);
-            var ev = document.createEvent("MouseEvents");
-                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                a.dispatchEvent(ev);              
-        }
-    });
 }
 
 
 function setViewerButtons(desktop_id){
     $.ajax({
         type: "GET",
-        url:"/api/v3/admin/domain/" + desktop_id + "/viewer_data",
+        url:"/api/v4/admin/item/domain/" + desktop_id + "/viewer_data",
         // async: false,
         success: function (resp) {
             setViewerButtonData(desktop_id,resp)
@@ -58,7 +42,7 @@ function setViewerButtons(desktop_id){
 function setViewerButtonData(desktop_id,data){
     offer=[]
     // Check if desktop has guest_ip (required for RDP viewers)
-    const hasGuestIp = 'viewer' in data && 'guest_ip' in data['viewer'];
+    const hasGuestIp = 'viewer' in data && 'guest_ip' in data['viewer'] && data['viewer']['guest_ip'];
 
     if ("file_spice" in data["guest_properties"]["viewers"]){
         offer.push({
@@ -138,7 +122,7 @@ function setViewerButtonData(desktop_id,data){
             html=br+html+prehtml+'<button data-pk="'+desktop_id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br
     })
     if (data.create_dict.hardware.interfaces.includes("wireguard")) {
-        if('viewer' in data && 'guest_ip' in data['viewer']){
+        if('viewer' in data && 'guest_ip' in data['viewer'] && data['viewer']['guest_ip']){
             html+=prehtml+'<div id="vpn-ip-'+desktop_id+'" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via VPN): '+data['viewer']['guest_ip']+'</div>'+posthtml
         }else{
             html+=prehtml+'<div id="vpn-ip-'+desktop_id+'" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via VPN): <i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i></div>'+posthtml
@@ -154,7 +138,7 @@ function setViewerButtonData(desktop_id,data){
         }
         $.ajax({
             type: "GET",
-            url:"/api/v3/desktop/" + desktop_id + "/viewer/" + $(this).data('client') + "-" + $(this).data('type'),
+            url:"/api/v4/item/desktop/" + desktop_id + "/get-viewer/" + $(this).data('client') + "-" + $(this).data('type'),
             success: function (data) {
                 var el = document.createElement('a')
                 if (data.kind === 'file') {
@@ -197,35 +181,37 @@ function setCookie(name,value,days) {
 }
 
 function setViewers(div,data){
-    if(data.guest_properties.fullscreen){
+    var gp = data.guest_properties || {};
+    var viewers = gp.viewers || {};
+    if(gp.fullscreen){
         $(div+' #guest_properties-fullscreen').iCheck('check');
     }else{
-        $(div+' #guest_properties-fullscreen').iCheck('update')[0].unchecked;
+        $(div+' #guest_properties-fullscreen').iCheck('uncheck');
     }
-    if("file_spice" in data.guest_properties.viewers){
+    if(viewers.file_spice){
         $(div+' #viewers-file_spice').iCheck('check');
     }else{
-        $(div+' #viewers-file_spice').iCheck('update')[0].unchecked;
+        $(div+' #viewers-file_spice').iCheck('uncheck');
     }
-    if("file_rdpgw" in data.guest_properties.viewers){
+    if(viewers.file_rdpgw){
         $(div+' #viewers-file_rdpgw').iCheck('check');
     }else{
-        $(div+' #viewers-file_rdpgw').iCheck('update')[0].unchecked;
+        $(div+' #viewers-file_rdpgw').iCheck('uncheck');
     }
-    if("file_rdpvpn" in data.guest_properties.viewers){
+    if(viewers.file_rdpvpn){
         $(div+' #viewers-file_rdpvpn').iCheck('check');
     }else{
-        $(div+' #viewers-file_rdpvpn').iCheck('update')[0].unchecked;
+        $(div+' #viewers-file_rdpvpn').iCheck('uncheck');
     }
-    if("browser_vnc" in data.guest_properties.viewers){
+    if(viewers.browser_vnc){
         $(div+' #viewers-browser_vnc').iCheck('check');
     }else{
-        $(div+' #viewers-browser_vnc').iCheck('update')[0].unchecked;
+        $(div+' #viewers-browser_vnc').iCheck('uncheck');
     }
-    if("browser_rdp" in data.guest_properties.viewers){
+    if(viewers.browser_rdp){
         $(div+' #viewers-browser_rdp').iCheck('check');
     }else{
-        $(div+' #viewers-browser_rdp').iCheck('update')[0].unchecked;
+        $(div+' #viewers-browser_rdp').iCheck('uncheck');
     }
 }
 

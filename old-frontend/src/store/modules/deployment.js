@@ -33,7 +33,15 @@ const getDefaultState = () => {
     },
     permissions: [],
     recreateButtonDisabled: false,
-    showDeploymentLoadingModal: false
+    showDeploymentLoadingModal: false,
+    // Deployment ids currently in the engine's bulk-spawn loop. Bracketed by the
+    // ``creating_desktops`` / ``end_creating_desktops`` WS events from
+    // ``DesktopsProcessed.new_from_templateTh.process_desktops``. The detail
+    // page reads this to keep the loading modal open across the whole spawn
+    // pipeline — purely deriving from per-desktop states flickers between
+    // batches because every loaded desktop momentarily reaches a terminal
+    // state before the next ``deploymentdesktop_add`` arrives.
+    bulkCreatingDeployments: []
   }
 }
 
@@ -68,11 +76,19 @@ export default {
     },
     getShowDeploymentLoadingModal: state => {
       return state.showDeploymentLoadingModal
-    }
+    },
+    isDeploymentBulkCreating: state => id => state.bulkCreatingDeployments.includes(id)
   },
   mutations: {
     resetDeploymentState: (state) => {
+      // Preserve ``bulkCreatingDeployments`` across page navigation. It
+      // tracks engine bulk-spawn operations that are scoped to the
+      // session, not to whatever deployment row the user is currently
+      // viewing — clearing it on every ``destroyed`` hook would lose the
+      // open/close gate if the user briefly navigates away mid-spawn.
+      const preserved = state.bulkCreatingDeployments
       Object.assign(state, getDefaultState())
+      state.bulkCreatingDeployments = preserved
     },
     setDeployment: (state, deployment) => {
       state.deployment = deployment
@@ -102,6 +118,11 @@ export default {
       const deploymentIndex = state.deployment.desktops.findIndex(d => d.id === deploymentdesktop.id)
       if (deploymentIndex !== -1) {
         state.deployment.desktops.splice(deploymentIndex, 1)
+        // Keep totalDesktops in sync or desktopsCreatingLen sees a phantom
+        // pending count and re-opens the provisioning modal on delete.
+        if (typeof state.deployment.totalDesktops === 'number') {
+          state.deployment.totalDesktops = Math.max(0, state.deployment.totalDesktops - 1)
+        }
       }
     },
     toggleDeploymentsShowStarted: (state, type) => {
@@ -127,6 +148,14 @@ export default {
     },
     setShowDeploymentLoadingModal (state, value) {
       state.showDeploymentLoadingModal = value
+    },
+    addBulkCreatingDeployment (state, id) {
+      if (!state.bulkCreatingDeployments.includes(id)) {
+        state.bulkCreatingDeployments = [...state.bulkCreatingDeployments, id]
+      }
+    },
+    removeBulkCreatingDeployment (state, id) {
+      state.bulkCreatingDeployments = state.bulkCreatingDeployments.filter(d => d !== id)
     }
   },
   actions: {
@@ -134,7 +163,10 @@ export default {
       context.commit('resetDeploymentState')
     },
     socket_deploymentUpdate (context, data) {
-      const deployment = DeploymentsUtils.parseDeployment(JSON.parse(data))
+      // Partial-row merge — keep keys present in the payload so the
+      // exclude_none=True change-handler emit doesn't overwrite
+      // cached fields with undefined.
+      const deployment = DeploymentsUtils.parseDeployment(JSON.parse(data), { partial: true })
       context.commit('update_deployment', deployment)
     },
     socket_deploymentdesktopAdd (context, data) {
@@ -144,7 +176,10 @@ export default {
       }
     },
     socket_deploymentdesktopUpdate (context, data) {
-      const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data))
+      // Partial-row merge — keep keys present in the payload so the
+      // exclude_none=True change-handler emit doesn't overwrite
+      // cached fields with undefined.
+      const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data), { partial: true })
       if (deploymentdesktop.tag === context.state.deployment.id) {
         context.commit('update_deploymentdesktop', deploymentdesktop)
       }
@@ -156,17 +191,48 @@ export default {
       }
     },
     socket_creatingDesktops (context, data) {
-      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === JSON.parse(data).deployment_id) {
+      const payload = JSON.parse(data)
+      // Track this regardless of route so the modal gate is correct even
+      // when the event arrives BEFORE the detail page has mounted (engine
+      // fires ``creating_desktops`` as soon as the POST returns).
+      context.commit('addBulkCreatingDeployment', payload.deployment_id)
+      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === payload.deployment_id) {
         context.commit('setDisableRecreateButton', true)
       }
     },
     socket_endCreatingDesktops (context, data) {
-      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === JSON.parse(data).deployment_id) {
+      const payload = JSON.parse(data)
+      context.commit('removeBulkCreatingDeployment', payload.deployment_id)
+      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === payload.deployment_id) {
         context.commit('setDisableRecreateButton', false)
+        // Re-fetch the deployment so the desktop list, total counts, and
+        // top-bar badges reconcile to the final state. Without this
+        // re-fetch the page only shows the desktops that arrived via
+        // ``deploymentdesktop_add`` AFTER ``fetchDeployment`` resolved —
+        // and on apiv4-integration the engine's asyncio fan-out is fast
+        // enough that most ``deploymentdesktop_add`` events fire BEFORE
+        // ``fetchDeployment`` sets ``state.deployment.id``, so the
+        // listener filter ``tag === state.deployment.id`` drops them.
+        // The result was the user seeing 3 of 32 desktops with no error.
+        context.dispatch('fetchDeployment', { id: payload.deployment_id })
       }
     },
     fetchDeployment (context, data) {
-      axios.get(`${apiV3Segment}/deployment/${data.id}`).then(response => {
+      // The Vue 2 detail page (Deployment.vue) renders a flat list of desktops
+      // tagged in the deployment. apiv4's /item/deployment/{id} returns
+      // {info, users} where each user only carries desktops_statuses counts,
+      // so it's not enough on its own. The /videowall endpoint returns the
+      // legacy flat {…, desktops:[…]} shape parseDeployment was written for,
+      // and apiv4 also enriches it with total_users/total_desktops/desktops_each_user
+      // so the recreate confirmation count is populated.
+      axios.get(`${apiV3Segment}/item/deployment/${data.id}/videowall`).then(response => {
+        context.commit('setDeployment', DeploymentsUtils.parseDeployment(response.data))
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    fetchDeploymentVideowall (context, data) {
+      axios.get(`${apiV3Segment}/item/deployment/${data.id}/videowall`).then(response => {
         context.commit('setDeployment', DeploymentsUtils.parseDeployment(response.data))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -175,38 +241,58 @@ export default {
     setSelectedDesktop (context, selectedDesktop) {
       context.commit('setSelectedDesktop', selectedDesktop)
     },
-    toggleVisible (_, payload) {
+    toggleVisible (context, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t(payload.visible ? 'messages.info.making-invisible-deployment' : 'messages.info.making-visible-deployment'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/visible/${payload.id}`, { stop_started_domains: payload.stopStartedDomains }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
-      })
-    },
-
-    deleteDeployment (context, payload) {
-      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
-      const url = payload.permanent
-        ? `${apiV3Segment}/deployments/${payload.id}/permanent`
-        : `${apiV3Segment}/deployments/${payload.id}`
-      axios.delete(url).then(response => {
-        context.commit('remove_deployments', { id: payload.id })
-        this._vm.$snotify.clear()
-        if (payload.pathName) {
-          context.dispatch('navigate', payload.pathName)
+      axios.put(`${apiV3Segment}/item/deployment/${payload.id}/toggle-visibility`, { stop_started_domains: payload.stopStartedDomains }).then(() => {
+        // The change-handler `deployments_update` event will eventually push
+        // the new value, but apply it locally now so the StatusBar icon and
+        // the in-flight modal show the new state immediately.
+        if (context.state.deployment && context.state.deployment.id === payload.id) {
+          context.commit('update_deployment', { visible: !payload.visible })
         }
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
+
+    deleteDeployment (context, payload) {
+      // Return the axios promise so callers can await — DeploymentModal.vue
+      // chained `.then(() => closeModal())` against this dispatch and was
+      // closing the modal *immediately* (before the API call returned)
+      // because the action wasn't returning a Promise. The post-delete
+      // navigate then raced with the user, who saw nothing happen on the
+      // detail page until they manually went back to /deployments.
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
+      const url = payload.permanent
+        ? `${apiV3Segment}/item/deployment/${payload.id}?permanent=true`
+        : `${apiV3Segment}/item/deployment/${payload.id}`
+      return axios.delete(url).then(response => {
+        context.commit('remove_deployments', { id: payload.id })
+        this._vm.$snotify.clear()
+        // Explicit success toast — confirms the action to the user. The
+        // detail page's deployment getter still holds the old row until
+        // navigation completes, so without this the user sees no feedback
+        // at all between clicking "Delete" and the router push.
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deployment-deleted'), '', false, 2500)
+        if (payload.pathName) {
+          context.dispatch('navigate', payload.pathName)
+        }
+      }).catch(e => {
+        this._vm.$snotify.clear()
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+        throw e
+      })
+    },
     recreateDeployment (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.recreating-deployment'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/${payload.id}`).then(response => {
+      axios.put(`${apiV3Segment}/item/deployment/${payload.id}/recreate`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     downloadDirectViewerCSV (_, payload) {
-      axios.get(`${apiV3Segment}/deployments/directviewer_csv/${payload.id}`, { params: { reset: payload.reset } }).then(response => {
+      axios.get(`${apiV3Segment}/item/deployment/${payload.id}/download-csv`, { params: { reset: payload.reset } }).then(response => {
         this._vm.$snotify.clear()
         const el = document.createElement('a')
         el.setAttribute(
@@ -223,9 +309,69 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
+    fetchDeploymentBastion (_, payload) {
+      return axios.get(`${apiV3Segment}/item/deployment/${payload.id}/bastion`).then(response => {
+        return response.data
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+        throw e
+      })
+    },
+    updateDeploymentBastion (_, payload) {
+      return axios.put(`${apiV3Segment}/item/deployment/${payload.id}/bastion`, { ssh: payload.ssh, http: payload.http }).then(() => {
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deployment-bastion-updated'), '', false, 2000)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+        throw e
+      })
+    },
+    downloadDeploymentBastionCSV (_, payload) {
+      axios.get(`${apiV3Segment}/item/deployment/${payload.id}/bastion/csv`).then(response => {
+        this._vm.$snotify.clear()
+        const el = document.createElement('a')
+        el.setAttribute(
+          'href',
+            `data: text/csv;charset=utf-8,${encodeURIComponent(response.data)}`
+        )
+        el.setAttribute('download', `${payload.id}_bastion.csv`)
+        el.style.display = 'none'
+        document.body.appendChild(el)
+        el.click()
+        document.body.removeChild(el)
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.file-downloaded'), '', false, 1000)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    fetchDeploymentDesktopBastion (context, payload) {
+      axios.get(`${apiV3Segment}/item/deployment/${payload.deploymentId}/desktop/${payload.desktopId}/bastion`).then(response => {
+        const data = response.data
+        if (!data.exists || !((data.ssh && data.ssh.enabled) || (data.http && data.http.enabled))) {
+          ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-not-configured'), '', true, 2000)
+          return
+        }
+        // Map the deployment-scoped BastionActiveResponse onto the shape the
+        // shared BastionModal expects. No keys come back from this endpoint,
+        // so the modal must be opened read-only.
+        context.dispatch('bastionModalShow', {
+          show: true,
+          readOnly: true,
+          bastion: {
+            id: data.id,
+            desktop_id: payload.desktopId,
+            http: data.http || { enabled: false },
+            ssh: { ...(data.ssh || { enabled: false }), authorized_keys: [] },
+            domains: data.domains || []
+          },
+          desktop: { id: payload.desktopId, name: payload.desktopName }
+        })
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
     startDeploymentDesktops (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.starting-desktops'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/start/${payload.id}`).then(response => {
+      axios.put(`${apiV3Segment}/item/deployment/${payload.id}/start`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -233,7 +379,7 @@ export default {
     },
     stopDeploymentDesktops (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.stopping-desktops'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/stop/${payload.id}`).then(response => {
+      axios.put(`${apiV3Segment}/item/deployment/${payload.id}/stop`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -241,12 +387,12 @@ export default {
     },
     countGroupsUsers (_, groups) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.counting-desktops'), '', true, 1000)
-      return axios.put(`${apiV3Segment}/groups_users/count`, groups).catch(e => {
+      return axios.put(`${apiV3Segment}/items/groups-users/count`, groups).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     checkDeploymentsCreateQuota (context, data) {
-      return axios.post(`${apiV3Segment}/deployments/new/check_quota`, data).catch(e => {
+      return axios.post(`${apiV3Segment}/item/deployment/check-quota`, data).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
@@ -268,14 +414,17 @@ export default {
         }
       })
     },
-    goToEditDeployment (context, editDeploymentId) {
-      context.commit('setEditDeploymentId', editDeploymentId)
+    goToEditDeployment (_context, editDeploymentId) {
       router.replace({ name: 'deploymentEdit', params: { id: editDeploymentId } })
     },
     fetchDeploymentInfo (context, deploymentId) {
-      axios.get(`${apiV3Segment}/deployment/info/${deploymentId}`).then(response => {
+      axios.get(`${apiV3Segment}/item/deployment/${deploymentId}/info`).then(response => {
         context.commit('setDomain', DomainsUtils.parseDomain(response.data))
-        context.commit('setDeployment', { name: response.data.tag_name })
+        // /info returns the recipe under `name` and the deployment name
+        // under `tag_name`. The form's "Deployment name" input must bind
+        // to the deployment row, not the recipe.
+        const deploymentName = response.data.tag_name || response.data.name
+        context.commit('setDeployment', { name: deploymentName, description: response.data.tag_description })
         context.dispatch('setAllowedGroupsUsers', { groups: response.data.allowed.groups, users: response.data.allowed.users })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -283,7 +432,7 @@ export default {
     },
     editDeployment (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
-      axios.put(`${apiV3Segment}/deployment/${data.id}`, data).then(response => {
+      axios.put(`${apiV3Segment}/item/deployment/${data.id}/edit`, data).then(response => {
         context.dispatch('navigate', 'deployments')
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -291,12 +440,12 @@ export default {
     },
     editDeploymentUsers (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
-      axios.put(`${apiV3Segment}/deployment/users/${data.id}`, data).catch(e => {
+      axios.put(`${apiV3Segment}/item/deployment/${data.id}/edit-users`, data).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchCoOwners (context, deploymentId) {
-      return axios.get(`${apiV3Segment}/deployment/co-owners/${deploymentId}`).then(response => {
+      return axios.get(`${apiV3Segment}/item/deployment/${deploymentId}/co-owners`).then(response => {
         const owner = AllowedUtils.parseUser(response.data.owner)
         const coOwners = AllowedUtils.parseAllowed('users', response.data.co_owners)
         context.commit('setCoOwners', { owner: owner, coOwners: coOwners })
@@ -307,14 +456,14 @@ export default {
     },
     updateCoOwners (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
-      axios.put(`${apiV3Segment}/deployment/co-owners/${data.id}`, { co_owners: data.users }).then(response => {
+      axios.put(`${apiV3Segment}/item/deployment/${data.id}/co-owners`, { co_owners: data.users }).then(response => {
         context.dispatch('fetchCoOwners', data.id)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchPermissions (context, deploymentId) {
-      axios.get(`${apiV3Segment}/deployment/permissions/${deploymentId}`).then(response => {
+      axios.get(`${apiV3Segment}/item/deployment/${deploymentId}/permissions`).then(response => {
         context.commit('setPermissions', response.data)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

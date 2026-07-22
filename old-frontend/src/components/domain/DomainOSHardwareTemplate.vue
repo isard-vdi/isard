@@ -93,6 +93,7 @@
             <!-- Scoped slot for image -->
             <template #cell(image)="data">
               <img
+                v-if="data.item.image"
                 :src="`..${data.item.image.url}`"
                 alt=""
                 style="height: 2rem; border: 1px solid #555;"

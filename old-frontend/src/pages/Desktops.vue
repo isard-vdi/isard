@@ -13,6 +13,7 @@
         <CantStartNowModal />
         <DesktopModal />
         <BastionModal />
+        <IncreaseModal />
         <template #title>
           <b-spinner
             v-if="!getDesktopsLoaded"
@@ -59,7 +60,7 @@
       >
         <template #title>
           <b-spinner
-            v-if="!getTemplatesLoaded"
+            v-if="currentTab === 'templates' && !getTemplatesLoaded"
             type="border"
             small
           />
@@ -110,6 +111,7 @@ import StartNowModal from '@/components/booking/StartNowModal.vue'
 import CantStartNowModal from '@/components/booking/CantStartNowModal.vue'
 import DesktopModal from '@/components/desktops/DesktopModal.vue'
 import BastionModal from '@/components/BastionModal.vue'
+import IncreaseModal from '@/components/desktops/IncreaseModal.vue'
 
 export default {
   components: {
@@ -119,25 +121,23 @@ export default {
     StartNowModal,
     CantStartNowModal,
     DesktopModal,
-    BastionModal
+    BastionModal,
+    IncreaseModal
   },
   setup (_, context) {
     const $store = context.root.$store
     const config = computed(() => $store.getters.getConfig)
 
     watch(config, (newVal, prevVal) => {
-      if (newVal.showTemporalTab) {
-        $store.dispatch('fetchAllowedTemplates', 'all')
-      } else {
-        $store.dispatch('setTemplatesLoaded', true)
-      }
       if (newVal.canUseBastion) {
         $store.dispatch('fetchBastionTargets')
+        $store.dispatch('fetchUserBastionSshKey')
       }
     }, { immediate: true })
 
     $store.dispatch('fetchDesktops')
     $store.dispatch('fetchProfile')
+    $store.dispatch('fetchStorage')
 
     const currentTab = computed(() => $store.getters.getCurrentTab)
     const showStarted = computed(() => $store.getters.getShowStarted)

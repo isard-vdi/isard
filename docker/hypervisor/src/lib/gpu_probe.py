@@ -13,7 +13,7 @@ import cycle: both modules now import THIS leaf one-directionally (and
 ``_get_vgpu_profiles`` / ``_vfio_group_in_use`` at module level, which is acyclic
 now that ``gpu_discovery`` no longer imports ``gpu_apply``).
 
-Loads under both the container layout (``/src/_common``) and the tests'
+Loads under both the container layout (``/src/isardvdi_common/lib``) and the tests'
 ``sys.path.insert(0, dirname)`` bootstrap: imported by bare name from the same
 lib directory, and loads the shared ``gpu_pool_policy`` via the same
 ``__file__``-relative fallback ``gpu_apply`` uses.
@@ -25,10 +25,12 @@ from importlib.machinery import SourceFileLoader
 
 
 def _load_shared(name):
-    """Load a shared leaf (``gpu_cmds`` / ``gpu_pool_policy``). ``/src/_common``
-    in the container; the repo path in a dev/test checkout."""
+    """Load a shared leaf (``gpu_cmds`` / ``gpu_pool_policy``).
+    ``/src/isardvdi_common/lib`` in the container (the hypervisor image
+    ships the isardvdi_common package there); the repo path in a dev/test
+    checkout."""
     candidates = [
-        os.path.join("/src/_common", name + ".py"),
+        os.path.join("/src/isardvdi_common/lib", name + ".py"),
         os.path.join(
             os.path.dirname(__file__),
             "..",
@@ -38,6 +40,8 @@ def _load_shared(name):
             "component",
             "_common",
             "src",
+            "isardvdi_common",
+            "lib",
             name + ".py",
         ),
     ]
@@ -52,6 +56,10 @@ canonical_suffix = _load_shared("gpu_pool_policy").canonical_suffix
 # Sentinel for "card is physically in MIG mode but the live GPU-instance profile
 # isn't determined here" -- enough to route the MIG teardown at apply time.
 MIG_CURRENT = "__mig__"
+
+# The two vGPU sysfs frameworks a card can speak (see vgpu_framework below).
+FRAMEWORK_LEGACY_MDEV = "legacy_mdev"
+FRAMEWORK_VFIO_VARIANT = "vfio_variant"
 
 
 # --------------------------------------------------------------------------- #
@@ -161,6 +169,38 @@ def _live_mdev_suffix(pci_bdf, run, profiles_for):
         if prof.get("type_id") == type_id and "-" in (prof.get("name") or ""):
             return canonical_suffix(prof["name"].split("-", 1)[1])
     return None
+
+
+def vgpu_framework(pf_bdf, run):
+    """Detect, per physical card, which vGPU sysfs framework this host speaks.
+
+    Returns ``FRAMEWORK_VFIO_VARIANT`` ("vfio_variant") on Linux kernel >= 6.8
+    (Ubuntu 24.04+), where NVIDIA dropped the legacy mediated-device framework
+    and each SR-IOV VF instead exposes
+    ``/sys/bus/pci/devices/<VF>/nvidia/creatable_vgpu_types`` (write a type-id
+    to ``current_vgpu_type`` to create the vGPU). Returns
+    ``FRAMEWORK_LEGACY_MDEV`` ("legacy_mdev") otherwise -- the kernel <= 6.x /
+    Ubuntu 22.04 fleet, where vGPUs are mdevs under ``mdev_supported_types``.
+
+    Detection is per-card (not just per-kernel) so a mixed fleet works: the
+    presence of ANY ``virtfn*/nvidia/creatable_vgpu_types`` under the PF means
+    the new framework. Cheap, sysfs-only, read-only.
+
+    The ``ISARD_VGPU_FORCE_FRAMEWORK`` env var is a debugging/mixed-fleet escape
+    hatch: set it to ``legacy_mdev`` or ``vfio_variant`` to force the result;
+    any other value is ignored and live detection runs.
+    """
+    forced = os.environ.get("ISARD_VGPU_FORCE_FRAMEWORK")
+    if forced in (FRAMEWORK_LEGACY_MDEV, FRAMEWORK_VFIO_VARIANT):
+        return forced
+    res = run(
+        [
+            f"ls -d /sys/bus/pci/devices/{pf_bdf}/virtfn*/nvidia/creatable_vgpu_types "
+            f"2>/dev/null | head -1"
+        ],
+        timeout=10,
+    )
+    return FRAMEWORK_VFIO_VARIANT if _out(res).strip() else FRAMEWORK_LEGACY_MDEV
 
 
 def _enumerate_vf_sub_paths(pci_bdf, run):

@@ -139,8 +139,9 @@ $.fn.dataTable.pipeline = function ( opts ) {
             return $.ajax( {
                 "type":     conf.method,
                 "url":      conf.url,
-                "data":     request,
+                "data":     JSON.stringify(request),
                 "dataType": "json",
+                "contentType": "application/json",
                 "cache":    false,
                 "success":  function ( json ) {
                     cacheLastJson = $.extend(true, {}, json);
@@ -235,7 +236,7 @@ function raw_table(){
         autoWidth: false,
         searching: false,
         ajax: $.fn.dataTable.pipeline({
-            url: "/api/v3/admin/logs_desktops",
+            url: "/api/v4/admin/items/logs_desktops",
             pages: 5, // number of pages to cache
             method: 'POST',
         }),
@@ -330,7 +331,7 @@ function raw_table(){
             childTable = $("#cl" + id).DataTable({
               dom: "t",
               ajax: {
-                url: "/api/v3/storage/" + id+"/parents",
+                url: "/api/v4/item/storage/" + id+"/parents",
                 contentType: "application/json",
                 type: "GET",
               },
@@ -374,7 +375,7 @@ function desktop_table(){
         processing: true,
         searching: false,
         ajax: $.fn.dataTable.pipeline({
-            url: "/api/v3/admin/logs_desktops/desktop_grouping",
+            url: "/api/v4/admin/items/logs_desktops/desktop_grouping",
             pages: 5, // number of pages to cache
             method: 'POST',
         }),
@@ -449,7 +450,7 @@ function desktop_by_category_table(){
         processing: true,
         searching: false,
         ajax: $.fn.dataTable.pipeline({
-            url: "/api/v3/admin/logs_desktops/category_grouping",
+            url: "/api/v4/admin/items/logs_desktops/category_grouping",
             pages: 5, // number of pages to cache
             method: 'POST',
         }),

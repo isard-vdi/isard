@@ -1,6 +1,15 @@
 services:
   isard-hypervisor:
     volumes:
+    # Bind sources track the post-uv-migration src-layout
+    # (component/_common/<pkg>/src/<pkg>/...). The pre-migration paths
+    # (component/_common/<pkg>/<pkg>) are now empty stubs.
     - ${BUILD_ROOT_PATH}/docker/hypervisor/src:/src
-    - ${BUILD_ROOT_PATH}/component/_common/src:/src/_common
+    - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/src/isardvdi_common
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client:/src/isardvdi_apiv4_client
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client_auth:/src/isardvdi_apiv4_client_auth
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client:/src/isardvdi_notifier_client
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client_auth:/src/isardvdi_notifier_client_auth
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client:/src/isardvdi_scheduler_client
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client_auth:/src/isardvdi_scheduler_client_auth
     - ${BUILD_ROOT_PATH}/docker/hypervisor/kvm/hooks:/etc/libvirt/hooks

@@ -1,59 +1,52 @@
-FROM alpine:3.22 as build
-MAINTAINER isard <info@isard.com>
-RUN apk add --no-cache \
-    automake \
-    autoconf \
-    bash \
-    gcc \
-    git \
-    make
+FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS backupninja-src
+RUN apk add --no-cache automake autoconf bash gcc git make
 RUN git clone https://gitlab.com/isard/backupninja.git && \
     cd backupninja && \
+    git checkout 183b8c30911d9fa96b66c9f5b436813457240f86 && \
     bash ./autogen.sh && bash configure && \
     make && make install
 
-FROM alpine:3.22 as production
-MAINTAINER isard <info@isard.com>
+FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=auto \
+    UV_PYTHON_INSTALL_DIR=/opt/uv/python
 
+RUN apk add --no-cache build-base libffi-dev libjpeg-turbo-dev musl-dev openssl-dev zlib-dev
+
+WORKDIR /workspace
+COPY . .
+RUN uv sync --frozen --no-dev --package isardvdi-backupninja --no-editable
+
+FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS runtime
 RUN apk -U upgrade --no-cache
-
 RUN apk add --no-cache \
-    bash \
-    envsubst \
-    nfs-utils \
-    borgbackup \
-    redis \
-    curl \
-    coreutils \
-    flock \
-    py3-pip \
-    jq
-## Optional packages
-#cryptsetup duplicity flashrom gzip hwinfo rdiff-backup restic rsync sfdisk
+    bash borgbackup coreutils curl envsubst flock jq libffi libjpeg-turbo \
+    nfs-utils openssl redis zlib
 
-RUN pip3 install \
-    --no-cache-dir \
-    --break-system-packages \
-    rethinkdb \
-    requests \
-    pyjwt
+# Bring the built virtualenv AND its uv-managed Python interpreter, keeping
+# the venv at its build path (/workspace/.venv) so the rethinkdb-* console
+# script shebangs stay valid. Mirrors docker/db. The previous relocate to
+# /.venv left the shebang pointing at a missing /workspace/.venv/bin/python
+# and never copied an interpreter, so rethinkdb-dump/-restore were unusable.
+COPY --from=builder /opt/uv/python /opt/uv/python
+COPY --from=builder /workspace/.venv /workspace/.venv
+ENV PATH="/workspace/.venv/bin:$PATH"
 
-# Set up Python path for common imports
-ENV PYTHONPATH /opt/isardvdi
-COPY component/_common/src /opt/isardvdi/isardvdi_common
+COPY --from=victoriametrics/vmbackup:v1.147.0@sha256:911a96ab75fd83f9380ac8021681e978a1a7570409f44f7086d7ba23c0fe61ef /vmbackup-prod /usr/local/bin/vmbackup
+COPY --from=victoriametrics/vmrestore:v1.147.0@sha256:4de4c9d1c185638260c0846f55ac0de01311da509bc8dbd0bce878f6cdd3f53c /vmrestore-prod /usr/local/bin/vmrestore
 
-# Install backupninja
-COPY --from=build /usr/local/sbin/backupninja /usr/local/sbin/backupninja
-COPY --from=build /usr/local/sbin/ninjahelper /usr/local/sbin/ninjahelper
-COPY --from=build /usr/local/etc/backupninja.conf /usr/local/etc/backupninja.conf
-COPY --from=build /usr/local/lib/backupninja /usr/local/lib/backupninja
-COPY --from=build /usr/local/share/backupninja /usr/local/share/backupninja
+COPY --from=backupninja-src /usr/local/sbin/backupninja /usr/local/sbin/backupninja
+COPY --from=backupninja-src /usr/local/sbin/ninjahelper /usr/local/sbin/ninjahelper
+COPY --from=backupninja-src /usr/local/etc/backupninja.conf /usr/local/etc/backupninja.conf
+COPY --from=backupninja-src /usr/local/lib/backupninja /usr/local/lib/backupninja
+COPY --from=backupninja-src /usr/local/share/backupninja /usr/local/share/backupninja
 RUN sed -i '/^reportemail =/s/^/#/' /usr/local/etc/backupninja.conf
 RUN sed -i '/^reportprom =/s/^/#/' /usr/local/etc/backupninja.conf
 RUN sed -i 's|^configdirectory = /etc/backup.d|configdirectory = /usr/local/etc/backup.d|' /usr/local/etc/backupninja.conf
 RUN ln -s /usr/local/sbin/backupninja /etc/periodic/hourly/backupninja
 
-# Copy scripts
 COPY docker/backupninja/run.sh /usr/local/bin/
 COPY docker/backupninja/nfs_mount.sh /usr/local/bin/
 COPY docker/backupninja/nfs_umount.sh /usr/local/bin/
@@ -74,5 +67,4 @@ RUN chmod +x /etc/periodic/15min/backupninja-self-heal
 COPY docker/backupninja/backup.d /usr/local/share/backup.d
 
 WORKDIR /
-
 ENTRYPOINT [ "run.sh" ]

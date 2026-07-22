@@ -2,17 +2,17 @@ $(document).ready(function () {
 
   /////////////// DOMAINS STATUS EVENTS
   waitDefined("socket", function () {
-    socket.on('domain_stats', function (data) {
+    socket.on('desktop_hyp_start', function (data) {
       var data = JSON.parse(data);
       if ($('#domains-table-' + data.hyp_started).is(':visible')) {
         dtUpdateInsert(domains_table[data.hyp_started], data, false)
       }
     });
 
-    socket.on('domain_stats_stopped', function (data) {
+    socket.on('desktop_hyp_stop', function (data) {
       var data = JSON.parse(data);
       if ($('#domains-table-' + data.hyp_started).is(':visible')) {
-        var row = domains_table[data.hyp_started].row('#' + data.id).remove().draw();
+        domains_table[data.hyp_started].row('#' + data.id).remove().draw();
       }
     });
   })
@@ -28,7 +28,7 @@ function tableHypervisorDomains(hyp) {
       "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
     },
     "ajax": {
-      "url": "/api/v3/hypervisor/started_domains/" + hyp,
+      "url": "/api/v4/admin/items/hypervisor/started_domains/" + hyp,
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -87,7 +87,7 @@ function setMountpoints(id) {
       "loadingRecords": "Mountpoints information still not available"
     },
     "ajax": {
-      "url": "/api/v3/hypervisor/mountpoints/" + id,
+      "url": "/api/v4/admin/items/hypervisor/mountpoints/" + id,
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -135,7 +135,7 @@ function setVirtPoolsTable(id) {
       "loadingRecords": "Virtualization pools information still not available"
     },
     "ajax": {
-      "url": "/api/v3/hypervisor/" + id + "/virt_pools",
+      "url": "/api/v4/admin/items/hypervisor/" + id + "/virt_pools",
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -204,7 +204,7 @@ function setVirtPoolsTable(id) {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "PUT",
-            "url": "/api/v3/hypervisor/" + id + "/virt_pools",
+            "url": "/api/v4/admin/items/hypervisor/" + id + "/virt_pools",
             data: JSON.stringify({ 'id': row.data().id, 'enable_virt_pool': !row.data().enabled_virt_pool }),
             contentType: "application/json",
             success: function (data) {
@@ -213,7 +213,7 @@ function setVirtPoolsTable(id) {
                 text: '',
                 hide: true,
                 delay: 7000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: change == "enable" ? 'warning' : 'success'
               });

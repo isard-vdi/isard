@@ -1,7 +1,8 @@
 from cachetools import TTLCache, cached
+from rethinkdb import r
+
 from engine.services.db import rethink_conn
 from engine.services.log import *
-from rethinkdb import r
 
 _media_cache = TTLCache(maxsize=50, ttl=30)
 
@@ -29,13 +30,6 @@ def update_status_table(table, status, id_table, detail=""):
         logs.main.error(
             f"Error when updated status in table: {table}, status: {status}, id: {id_table}, detail: {detail}"
         )
-
-
-def update_status_media_from_path(path, status, detail=""):
-    with rethink_conn() as conn:
-        r.table("media").filter({"path_downloaded": path}).update(
-            {"status": status, "detail": detail}
-        ).run(conn)
 
 
 def update_download_percent(done, table, id):

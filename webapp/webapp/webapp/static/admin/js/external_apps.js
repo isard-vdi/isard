@@ -8,7 +8,7 @@
 $(document).ready(function(){
     var table=$('#externalapps').DataTable({
         "ajax": {
-            "url": "/admin/secrets",
+            "url": "/api/v4/admin/items/secrets",
             "dataSrc": "",
             "type" : "GET",
         },
@@ -66,7 +66,7 @@ $(document).ready(function(){
                 })
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/secret",
+                    url:"/api/v4/admin/item/secret",
                     data: JSON.stringify({
                         "id": data["name"],
                         "description": data["description"],
@@ -83,7 +83,7 @@ $(document).ready(function(){
                             text: 'Secret created successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         });
@@ -127,7 +127,7 @@ $(document).ready(function(){
                 }).get().on('pnotify.confirm', function() {
                     $.ajax({
                         type: "DELETE",
-                        url: "/api/v3/admin/secret/" + id,
+                        url: "/api/v4/admin/item/secret/" + id,
                     });
                     table.ajax.reload()
                 }).on('pnotify.cancel', function() {});
@@ -139,7 +139,7 @@ $(document).ready(function(){
 function setRoleCategory(){
     $.ajax({
         type: "GET",
-        url:"/api/v3/admin/userschema",
+        url:"/api/v4/admin/item/userschema",
         async: false,
         success: function (d) {
             $.each(d, function (key, value) {

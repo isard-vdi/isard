@@ -11,7 +11,7 @@ export default {
         i18n.t('views.select-template.notification.loading.description'),
         i18n.t('views.select-template.notification.loading.title'))
 
-      axios.get(`${apiV3Segment}/user/vpn/config`).then(response => {
+      axios.get(`${apiV3Segment}/item/user/vpn/config`).then(response => {
         this._vm.$snotify.clear()
 
         const el = document.createElement('a')

@@ -29,19 +29,21 @@ $(document).ready(function () {
         $(modal + ' :checkbox').iCheck('uncheck').iCheck('update');
         $(modal + "Form #provider").val(provider);
         addProviderConfigModalListeners(modal);
-        populateNotificationTemplate(modal);
-        $.ajax({
-            type: "GET",
-            url: `/api/v3/authentication/provider/${provider}`,
-            success: function (data) {
-                $(modal + "Form > [class*='_config']").each(function () {
-                    toggleFormSection($(this), $(this).hasClass(provider + '_config'));
-                });
-                fillFormData($(modal + "Form"), data);
-                toggleProviderSections(modal, provider, data.enabled);
-                $(modal + " select#level").trigger("change");
-                addProviderConditionalRequiredListeners(modal);
-            }
+        // Populate templates before fetching config so the saved value can be selected
+        populateNotificationTemplate(modal).always(function () {
+            $.ajax({
+                type: "GET",
+                url: `/api/v4/admin/item/authentication/provider/${provider}`,
+                success: function (data) {
+                    $(modal + "Form > [class*='_config']").each(function () {
+                        toggleFormSection($(this), $(this).hasClass(provider + '_config'));
+                    });
+                    fillFormData($(modal + "Form"), data);
+                    toggleProviderSections(modal, provider, data.enabled);
+                    $(modal + " select#level").trigger("change");
+                    addProviderConditionalRequiredListeners(modal);
+                }
+            });
         });
         $(modal).modal({
             backdrop: 'static',
@@ -62,7 +64,7 @@ $(document).ready(function () {
                 placeholder: 'Select a category to filter ' + type + ' by',
                 ajax: {
                     type: "POST",
-                    url: `/api/v3/admin/allowed/term/categories`,
+                    url: `/api/v4/items/alloweds/term/categories`,
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
@@ -95,7 +97,7 @@ $(document).ready(function () {
             multiple: true,
             ajax: {
                 type: "POST",
-                url: `/api/v3/admin/allowed/term/${type}`,
+                url: `/api/v4/items/alloweds/term/${type}`,
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -138,7 +140,7 @@ $(document).ready(function () {
         var data = collectFormData($("#modalProviderConfigForm"));
         $.ajax({
             type: "PUT",
-            url: `/api/v3/authentication/provider/${provider}`,
+            url: `/api/v4/admin/item/authentication/provider/${provider}`,
             data: JSON.stringify(data),
             contentType: "application/json",
             success: function (data) {
@@ -168,7 +170,7 @@ $(document).ready(function () {
         var formData = $("#modalExemptionsForm").serializeObject();
         $.ajax({
             type: "POST",
-            url: "/api/v3/authentication/migrations/exceptions",
+            url: "/api/v4/admin/item/authentication/migrations/exceptions",
             data: JSON.stringify(formData),
             contentType: "application/json",
             success: function (data) {
@@ -209,7 +211,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: `/api/v3/authentication/migrations/exceptions/${data.id}`,
+                    url: `/api/v4/admin/item/authentication/migrations/exceptions/${data.id}`,
                     accept: "application/json",
                     success: function (resp) {
                         new PNotify({
@@ -278,19 +280,17 @@ function showHideContent(content, display) {
 
 function populateNotificationTemplate(modal) {
     $(modal + " select#template").empty();
-    $.ajax({
-        url: "/api/v3/admin/notifications/templates",
+    return $.ajax({
+        url: "/api/v4/admin/items/notifications/templates",
         type: "GET"
     }).then(response => {
-        $.each(response, function (key, template) {
+        $.each(response.templates, function (key, template) {
             if (!["password", "email", "deleted_gpu"].includes(template.kind)) {
                 $(modal + " select#template").append(`
                    <option value="${template.id}">${template.name}</option>
                 `);
             }
         });
-        $(modal + " select#template").trigger("change");
-
     });
 }
 
@@ -311,8 +311,13 @@ function addProviderConfigModalListeners(modal) {
             toggleProviderSections(modal, provider, $(this).is(":checked"));
         });
     $(modal + " select#template").off("change").on("change", function () {
+        var templateId = $(this).val();
+        if (!templateId) {
+            $(modal + " #notification-preview").empty().hide();
+            return;
+        }
         $.ajax({
-            url: "/api/v3/admin/notifications/template/" + $(this).val(),
+            url: "/api/v4/admin/item/notifications/template/" + templateId,
             type: "GET",
         }).then((template) => {
             $(modal + " #notification-preview")
@@ -341,7 +346,7 @@ function addProviderConditionalRequiredListeners(modal) {
 function renderProviderDataTable(provider) {
     $(`#${provider}-table`).DataTable({
         "ajax": {
-            "url": `/api/v3/authentication/provider/${provider}`,
+            "url": `/api/v4/admin/item/authentication/provider/${provider}`,
             "type": 'GET',
             "dataSrc": function (json) {
                 $(`#${provider}-enabled`).css("color", json["enabled"] ? "green" : "darkgrey");
@@ -395,7 +400,12 @@ function renderProviderDataTable(provider) {
                     }
                 }
             },
-            { "data": "action_after_migrate" },
+            {
+                "data": "action_after_migrate",
+                "render": function (data, type, full, meta) {
+                    return { "delete": "Delete original user", "disable": "Disable original user" }[data] || "Nothing";
+                }
+            },
             {
                 "data": "force_migration",
                 "render": function (data, type, full, meta) {
@@ -449,7 +459,7 @@ function renderExemptionsDataTable() {
     };
     $('#exemptions-table').DataTable({
         "ajax": {
-            "url": "/api/v3/authentication/migrations/exceptions",
+            "url": "/api/v4/admin/items/authentication/migrations/exceptions",
             "type": 'GET',
             "dataSrc": function (json) {
                 return json;

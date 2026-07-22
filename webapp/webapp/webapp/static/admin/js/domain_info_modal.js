@@ -227,8 +227,9 @@
         $modal.find('#domain-info-loading').hide();
         $modal.find('#domain-info-error').hide();
 
-        var domain = data.domain || {};
-        var owner = data.owner || {};
+        var domain = data || {};
+        var owner = domain.owner || {};
+        var bastion = domain.bastion_target || null;
 
         // Update title
         $modal.find('#domain-info-title').text(domain.name || 'Domain Information');
@@ -259,7 +260,7 @@
         // Populate owner info
         var ownerTable = $modal.find('#owner-info-table');
         ownerTable.empty();
-        if (owner.id) {
+        if (owner && owner.id) {
             addRowHtml(ownerTable, 'User ID', formatCopyable(owner.id));
             addRowText(ownerTable, 'Username', owner.username);
             addRowText(ownerTable, 'Name', owner.name);
@@ -293,15 +294,14 @@
         var bastionTable = $modal.find('#bastion-info-table');
         bastionTable.empty();
 
-        var bastion = data.bastion;
-        if (bastion && bastion.target_id) {
+        if (bastion && bastion.id && bastion.bastion_domain) {
             bastionSection.show();
-            var autoSubdomain = bastion.target_id + '.' + bastion.bastion_domain;
+            var autoSubdomain = bastion.id + '.' + bastion.bastion_domain;
 
             // SSH Access
             if (bastion.ssh && bastion.ssh.enabled) {
                 var sshPort = bastion.ssh_port || '443';
-                var sshCommand = 'ssh ' + bastion.target_id + '@' + bastion.bastion_domain + ' -p ' + sshPort;
+                var sshCommand = 'ssh ' + bastion.id + '@' + bastion.bastion_domain + ' -p ' + sshPort;
                 addRowHtml(bastionTable, 'SSH Command', formatCode(sshCommand));
             } else {
                 addRowHtml(bastionTable, 'SSH Access', '<span class="text-muted">Disabled</span>');
@@ -314,8 +314,8 @@
 
                 // Custom CNAMEs with links
                 if (bastion.domains && bastion.domains.length > 0) {
-                    var cnameLinks = bastion.domains.map(function(domain) {
-                        return formatExternalLink('https://' + domain, domain);
+                    var cnameLinks = bastion.domains.map(function(d) {
+                        return formatExternalLink('https://' + d, d);
                     }).join('<br>');
                     addRowHtml(bastionTable, 'Custom Domains', cnameLinks);
                 }
@@ -368,7 +368,7 @@
 
         $.ajax({
             type: 'GET',
-            url: '/api/v3/admin/domain/' + encodeURIComponent(domainId) + '/info',
+            url: '/api/v4/item/desktop/' + encodeURIComponent(domainId) + '/get-info',
             contentType: 'application/json',
             success: function(data) {
                 showContent(data);
@@ -397,8 +397,8 @@
         e.preventDefault();
         var domainId = $(this).data('id');
         $.ajax({
-            type: 'GET',
-            url: '/api/v3/desktop/start/' + domainId,
+            type: 'PUT',
+            url: '/api/v4/item/desktop/' + domainId + '/start',
             success: function() {
                 new PNotify({ title: 'Starting', text: 'Desktop is starting...', type: 'success', hide: true, delay: 2000 });
                 showDomainInfo(domainId);
@@ -414,8 +414,8 @@
         e.preventDefault();
         var domainId = $(this).data('id');
         $.ajax({
-            type: 'GET',
-            url: '/api/v3/desktop/stop/' + domainId,
+            type: 'PUT',
+            url: '/api/v4/item/desktop/' + domainId + '/stop',
             success: function() {
                 new PNotify({ title: 'Stopping', text: 'Desktop is stopping...', type: 'success', hide: true, delay: 2000 });
                 showDomainInfo(domainId);
@@ -442,7 +442,7 @@
         }).get().on('pnotify.confirm', function() {
             $.ajax({
                 type: 'DELETE',
-                url: '/api/v3/desktop/' + domainId,
+                url: '/api/v4/item/desktop/' + domainId,
                 success: function() {
                     new PNotify({ title: 'Deleted', text: 'Desktop deleted', type: 'success', hide: true, delay: 2000 });
                     $('#' + MODAL_ID).modal('hide');

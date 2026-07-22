@@ -1,6 +1,9 @@
 export class ProfileUtils {
   static parseProfile (item) {
-    const { category_name: category, email, group_name: group, name, provider, quota, used, restriction_applied: restrictionApplied, role_name: role, username, photo, secondary_groups_names: secondaryGroups, total_disk_size: totalDiskSize, user_storage: userStorage, email_verified: emailVerified } = item
+    const { category_name: category, email, group_name: group, name, provider, quota, used, restriction_applied: restrictionApplied, role_name: role, username, photo, secondary_groups_data: secondaryGroupsData, total_disk_size: totalDiskSize, user_storage: userStorage, email_verified: emailVerified } = item
+    const secondaryGroupNames = Array.isArray(secondaryGroupsData)
+      ? secondaryGroupsData.map(g => (g && g.name) ? g.name : g).filter(Boolean)
+      : []
     return {
       category,
       email,
@@ -13,7 +16,7 @@ export class ProfileUtils {
       role,
       username,
       photo,
-      secondaryGroups: secondaryGroups.length > 0 ? this.parseSecondaryGroups(secondaryGroups) : '-',
+      secondaryGroups: secondaryGroupNames.length > 0 ? this.parseSecondaryGroups(secondaryGroupNames) : '-',
       totalDiskSize,
       userStorage: {
         tokenWeb: userStorage ? userStorage.token_web : false,
@@ -29,7 +32,7 @@ export class ProfileUtils {
 
   static parseQuota (quota) {
     const {
-      desktops, volatile, templates, isos, deployments_total: deploymentsTotal, deployment_desktops: deploymentDesktops, started_deployment_desktops: startedDeploymentDesktops, memory, running, vcpus, total_size: totalSize, total_soft_size: totalSoftSize, storage_size: storageSize, media_size: mediaSize
+      desktops, volatile, templates, isos, deployments_total: deploymentsTotal, deployment_desktops: deploymentDesktops, deployment_users: deploymentUsers, started_deployment_desktops: startedDeploymentDesktops, memory, running, vcpus, total_size: totalSize, total_soft_size: totalSoftSize, storage_size: storageSize, media_size: mediaSize
     } = quota
     return {
       desktops,
@@ -38,6 +41,7 @@ export class ProfileUtils {
       isos,
       deploymentsTotal,
       deploymentDesktops,
+      deploymentUsers,
       startedDeploymentDesktops,
       memory,
       running,

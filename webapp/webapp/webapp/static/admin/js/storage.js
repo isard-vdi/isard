@@ -23,11 +23,18 @@ function getGroupParam() {
 
 $(document).ready(function () {
   $template = $(".template-storage-detail");
+  storagesMaintenance = null;
   storagesOtherTable = null;
   $('#status').attr('disabled', 'disabled')
   addCheckboxListeners();
   addRadioButtonsListeners();
   addSelectMethodListeners();
+
+  // populate the filter select before initial_filters() so its removal of
+  // the category option takes effect instead of being a no-op
+  const filter_list = ['category', 'user', 'parent', 'path'];
+  const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
+  $('#filter-select').append(options.join(''));
 
   // set the filter box category on loading the document
   if (!getGroupParam()) {
@@ -57,13 +64,44 @@ $(document).ready(function () {
     }
   })
 
-  // Other storage status dropdown populate
+  // Storage maintenance table. Always loaded — storages with a chain in
+  // flight (sparsify / find / convert / move / increase / …) sit here so
+  // admins can see them transition without having to pick a status from
+  // the "Other status" dropdown below. The ``storage`` SocketIO event
+  // from change-handler moves rows in and out of this table as their
+  // status flips between ``ready`` (top table), ``maintenance`` (this
+  // table), and any other status (bottom table).
+  let maintenanceTableId = '#storagesMaintenance'
+  storagesMaintenance = createDatatable(maintenanceTableId, 'maintenance', function () {
+    let searchStorageId = getGroupParam()
+    if (searchStorageId) {
+      storagesMaintenance.column(4).search(searchStorageId).draw();
+      $(maintenanceTableId + ' tfoot input').eq(3).val(searchStorageId);
+    }
+  })
+  $(maintenanceTableId + " tbody").off('click').on('click', 'button', function () {
+    let tr = $(this).closest("tr")
+    let row = storagesMaintenance.row(tr)
+    switch ($(this).attr('id')) {
+      case 'btn-details':
+        showRowDetails(storagesMaintenance, tr, row);
+        break;
+      case 'btn-info':
+        var storageId = $(this).data('id');
+        openStorageSearchModal(storageId);
+        break;
+    }
+  })
+
+  // Other storage status dropdown populate.
+  // Exclude ``ready`` and ``maintenance`` — they have their own dedicated
+  // tables above, so showing them here would be redundant.
   $.ajax({
     type: "GET",
-    url: "/api/v3/storage/status",
+    url: "/api/v4/admin/item/storage/status",
     success: function (data) {
       $('#status').removeAttr('disabled')
-      let notShownStatus = ['ready']
+      let notShownStatus = ['ready', 'maintenance']
       let status = data.filter((s) => !notShownStatus.includes(s.status))
       $.each(status, function (index, currentStatus) {
         if (currentStatus.status) {
@@ -147,29 +185,32 @@ $(document).ready(function () {
         var notify = new PNotify();
         $.ajax({
           type: "PUT",
-          url: `/api/v3/storages/${action}`,
+          url: `/api/v4/items/storage/${action}`,
           data: JSON.stringify({
             ids: ids
           }),
           contentType: "application/json",
           success: function (data) {
+            document.body.classList.remove('loading-cursor')
             $('.mactionsStorage option[value="none"]').prop("selected", true);
             $('thead #select-all').prop("checked", false);
             notify.update({
-              title: 'Processing',
-              text: `Processing action: ${action} on ${ids.length} storage(s)`,
-              type: 'info',
-              hide: false,
-              icon: 'fa fa-spinner fa-pulse',
+              title: `Action queued: ${action}`,
+              text: `Queued ${action} on ${ids.length} storage(s). Rows will refresh as the operation progresses.`,
+              type: 'success',
+              hide: true,
+              delay: 4000,
+              icon: 'fa fa-success',
               opacity: 1
             });
+            storage_ready.ajax.reload(null, false);
           },
           error: function (xhr) {
             document.body.classList.remove('loading-cursor')
             $('.mactionsStorage option[value="none"]').prop("selected", true);
             notify.update({
               title: "ERROR " + action + " storage(s)",
-              text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+              text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
               hide: true,
               delay: 3000,
               icon: 'fa fa-alert-sign',
@@ -205,19 +246,22 @@ $(document).ready(function () {
                   var notify = new PNotify();
                   $.ajax({
                     type: "PUT",
-                    url: `/api/v3/storages/${action}/${status}`,
+                    url: `/api/v4/items/storage/${action}/${status}`,
                     contentType: "application/json",
                     success: function (data) {
+                      document.body.classList.remove('loading-cursor')
                       $('.mactionsStorage option[value="none"]').prop("selected", true);
                       $('thead #select-all').prop("checked", false);
                       notify.update({
-                        title: 'Processing',
-                        text: `Processing action: ${action} to ALL storage(s)`,
-                        type: 'info',
-                        hide: false,
-                        icon: 'fa fa-spinner fa-pulse',
+                        title: `Action queued: ${action}`,
+                        text: `Queued ${action} on ALL storage(s). Rows will refresh as the operation progresses.`,
+                        type: 'success',
+                        hide: true,
+                        delay: 4000,
+                        icon: 'fa fa-success',
                         opacity: 1
                       });
+                      storage_ready.ajax.reload(null, false);
                     },
                     error: function (data) {
                       document.body.classList.remove('loading-cursor')
@@ -261,7 +305,7 @@ $(document).ready(function () {
   // storagesDuplicatedUUID status dropdown populate
   $.ajax({
     type: "GET",
-    url: "/api/v3/storage/storages_with_uuid/status",
+    url: "/api/v4/items/storage/storages_with_uuid/status",
     success: function (data) {
       $('#uuid_status').removeAttr('disabled')
       let notShownStatus = []
@@ -292,9 +336,12 @@ $(document).ready(function () {
       $(tableId).empty()
     }
 
+    let uuidUrl = newStatus === 'all'
+      ? '/api/v4/items/storage/storages_with_uuid'
+      : `/api/v4/items/storage/storages_with_uuid/${encodeURIComponent(newStatus)}`
     storagesUUID = $(tableId).DataTable({
       ajax: {
-        url: newStatus === 'all' ? `/api/v3/storage/storages_with_uuid` : `/api/v3/storage/storages_with_uuid/${newStatus}`,
+        url: uuidUrl,
         contentType: 'application/json',
         type: 'GET',
       },
@@ -344,13 +391,10 @@ $(document).ready(function () {
     });
   })
 
-  const filter_list = ['category', 'user', 'parent', 'path'];
-  const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
-  $('#filter-select').append(options.join(''));
   var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
 
   $("#btn-search").on("click", function () {
-    var tables = [storage_ready, storagesOtherTable];
+    var tables = [storage_ready, storagesMaintenance, storagesOtherTable];
     tables.forEach(table => {
       // do for each item filter box
       $("#filter-boxes .filter-item").each(function () {
@@ -436,7 +480,7 @@ $(document).on('click', '.btn-task-info', function () {
   element.html('<i class="fa fa-spinner fa-pulse"></i>')
   $.ajax({
     type: 'GET',
-    url: '/api/v3/task/' + task,
+    url: '/api/v4/task/' + task,
     contentType: 'application/json',
     success: function (result) {
       element.html('<i class="fa fa-tasks"></i>')
@@ -483,7 +527,7 @@ $(document).on('click', '.btn-task-info', function () {
 //   element.html('<i class="fa fa-spinner fa-pulse"></i>')
 //   $.ajax({
 //     type: 'PUT',
-//     url: '/api/v3/storage/' + id + '/check_backing_chain',
+//     url: '/api/v4/item/storage/' + id + '/check_backing_chain',
 //     contentType: 'application/json',
 //     success: function (result) {
 //       element.html('<i class="fa fa-refresh"></i>')
@@ -567,12 +611,16 @@ $(document).on('click', '.btn-find', function () {
   var id = element.data("id");
   $.ajax({
     type: 'GET',
-    url: '/api/v3/storage/' + id + '/find',
+    url: '/api/v4/item/storage/' + id + '/find',
     contentType: 'application/json',
     success: function (result) {
+      // The endpoint only enqueues the find task — the asynchronous
+      // chain handler updates the storage status (ready / deleted)
+      // when the scan actually completes. Saying "Storage found" here
+      // misleads operators when the file is genuinely gone.
       new PNotify({
-        title: 'Find',
-        text: 'Storage found',
+        title: 'Find task started',
+        text: 'Status will update when the scan completes',
         hide: true,
         delay: 2000,
         icon: '',
@@ -621,7 +669,7 @@ $(document).on('click', '.btn-delete-orphan', function () {
   }).get().on('pnotify.confirm', function () {
     $.ajax({
       type: 'DELETE',
-      url: `/api/v3/storage/${id}`,
+      url: `/api/v4/item/storage/${id}`,
       contentType: 'application/json',
       success: function (result) {
         new PNotify({
@@ -633,6 +681,9 @@ $(document).on('click', '.btn-delete-orphan', function () {
           opacity: 1,
           type: 'success'
         })
+        if (storagesMaintenance) {
+          storagesMaintenance.ajax.reload();
+        }
         if (storagesOtherTable) {
           storagesOtherTable.ajax.reload();
         }
@@ -657,7 +708,7 @@ $(document).on('click', '.btn-delete-orphan', function () {
 function retryFailedTask(taskId) {
     $.ajax({
     type: 'PUT',
-    url: `/api/v3/task/${taskId}/retry`,
+    url: `/api/v4/admin/task/${taskId}/retry`,
     contentType: 'application/json',
     success: function (result) {
     new PNotify({
@@ -690,7 +741,7 @@ $(document).on('click', '.btn-convert', function () {
   element = $(this);
   var storageId = element.data("id");
   $.ajax({
-    url: `/api/v3/storage/${storageId}/has_derivatives`,
+    url: `/api/v4/item/storage/${storageId}/has-derivatives`,
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
@@ -732,7 +783,7 @@ $("#modalConvertStorage #send").on("click", function () {
     }
 
     $.ajax({
-      url: `/api/v3/storage/${formData.storage_id}/convert`,
+      url: `/api/v4/item/storage/${formData.storage_id}/convert`,
       type: 'POST',
       data: JSON.stringify(body),
       contentType: 'application/json'
@@ -761,116 +812,6 @@ $("#modalConvertStorage #send").on("click", function () {
   }
 });
 
-
-$(document).on('click', '.btn-increase', function () {
-  element = $(this);
-  var storageId = element.data("id");
-  modal = "#modalIncreaseStorage";
-  $(modal + " input").empty();
-  $(modal + " #id").val(storageId);
-  $(modal + " select#priority").empty();
-
-  if ($("#user_data").data("role") == "admin") {
-    $(modal + " select#priority").append(`
-      <option selected value="low">Low</option>
-      <option value="default">Default</option>
-      <option value="high">High</option>
-    `);
-  } else {
-    $(modal + " select#priority").append(`
-    <option selected disabled value="low">Low</option>
-    `);
-    $(modal + " .different_pool").hide();
-  }
-
-  $.ajax({
-    url: `/api/v3/admin/storage/info/${storageId}`,
-    type: 'GET',
-    contentType: "application/json",
-  }).done(function (storage) {
-    $.ajax({
-      url: `/api/v3/storage/${storageId}/has_derivatives`,
-    }).done(function (data) {
-      if (data.derivatives <= 1) {
-        var virtual_size = storage.virtual_size / 1024 / 1024 / 1024
-        $(modal + " #current-size").text(virtual_size.toFixed(0) + " GB");
-        $(modal + " #current_size").val(virtual_size);
-        $(modal + " #new-size").val(virtual_size.toFixed(0)).prop("min", (virtual_size + 1).toFixed(0));
-
-        $.ajax({
-          url: "/api/v3/admin/user/appliedquota/" + storage["user_id"],
-          type: 'GET',
-        }).done(function (quota) {
-          if (quota.quota) {
-            $(modal + " #max-quota-div").show();
-            $(modal + " #max-quota").text(quota.quota.desktops_disk_size);
-            $(modal + " #new-size").prop("max", quota.quota.desktops_disk_size);
-          } else {
-            $(modal + " #max-quota-div").hide();
-            $(modal + " #new-size").removeAttr("max");
-          }
-
-
-          $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
-        }).fail(function (data) {
-          new PNotify({
-            title: `ERROR trying to fetch storage size`,
-            text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
-            type: 'error',
-            hide: true,
-            icon: 'fa fa-warning',
-            delay: 5000,
-            opacity: 1
-          });
-        });
-      } else {
-        new PNotify({
-          title: `ERROR`,
-          text: 'Size of disks with derivatives cannot be modified',
-          type: 'error',
-          hide: true,
-          icon: 'fa fa-warning',
-          delay: 5000,
-          opacity: 1
-        });
-      }
-    }).fail(function (data) {
-      new PNotify({
-        title: `ERROR`,
-        text: 'Something went wrong',
-        type: 'error',
-        hide: true,
-        icon: 'fa fa-warning',
-        delay: 5000,
-        opacity: 1
-      });
-    });
-
-  }).fail(function (data) {
-    new PNotify({
-      title: `ERROR`,
-      text: 'Something went wrong',
-      type: 'error',
-      hide: true,
-      icon: 'fa fa-warning',
-      delay: 5000,
-      opacity: 1
-    });
-  });
-});
-
-$("#modalIncreaseStorage #send").on("click", function () {
-  var form = $('#modalIncreaseStorageForm');
-  form.parsley().validate();
-  if (form.parsley().isValid()) {
-    formData = form.serializeObject();
-    var priority = formData.priority ? formData.priority : "low";
-    formData.increment = (formData.new_size - formData.current_size).toFixed(0);
-    delete formData.new_size;
-    var url = `/api/v3/storage/${formData.storage_id}/priority/${priority}/increase/${formData.increment}/retry/${formData.retry}`;
-    performStorageOperation(formData, formData.storage_id, "increase", url);
-  }
-});
 
 // UUID validation helper for storage
 function isValidStorageUUID(str) {
@@ -916,7 +857,7 @@ function initStorageSearchModal() {
       }
 
       $.ajax({
-        url: "/api/v3/admin/storage/search-info/" + storageId,
+        url: "/api/v4/admin/item/storage/search-info/" + storageId,
         type: "GET",
         contentType: "application/json",
       })
@@ -930,7 +871,13 @@ function initStorageSearchModal() {
             { label: 'ID', value: data.id || '-', selector: '#storage-info-id' },
             { label: 'Status', value: data.status || '-', selector: '#storage-info-status' },
             { label: 'Path', value: (data.directory_path && data.id && data.type) ? `${data.directory_path}/${data.id}.${data.type}` : '-', selector: '#storage-info-path' },
-            { label: 'Size', value: data.virtual_size ? (data.virtual_size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '-', selector: '#storage-info-size' }
+            // Sub-GiB disks (load-test fixtures, freshly-created empty
+            // disks, etc.) would render as "0.00 GB" / "0.02 GB" with a
+            // fixed GB unit and read as "0" to operators. Pick the unit
+            // dynamically (B / KiB / MiB / GiB) so the number is always
+            // meaningful at a glance. Guard against 0 explicitly so the
+            // `value ? ... : '-'` truthy-check above doesn't swallow it.
+            { label: 'Size', value: (data.virtual_size === undefined || data.virtual_size === null) ? '-' : humanizeBytes(data.virtual_size), selector: '#storage-info-size' }
           ];
           storageFields.forEach(field => {
             const html = `${field.value}${copyBtn(field.value)}`;
@@ -973,9 +920,12 @@ function initStorageSearchModal() {
           }
           $(modal + " #storage-info").show();
 
-          // Show actions panel and populate button data-ids
+          // Show actions panel and populate button data-ids. Set the
+          // jQuery data cache too: the action handlers read $(this).data("id"),
+          // which caches the value on first access — .attr() alone leaves it
+          // stale, so every storage opened after the first kept the first id.
           $(modal + " #storage-actions").show();
-          $(modal + " #storage-action-buttons button").attr("data-id", data.id);
+          $(modal + " #storage-action-buttons button").attr("data-id", data.id).data("id", data.id);
 
           // Show admin-only actions if user is admin
           if ($("#user_data").data("role") === "admin") {
@@ -1081,15 +1031,17 @@ $(document).on("click", ".btn-modal-disconnect", function() {
 $(document).on("click", ".btn-modal-find", function() {
   var storageId = $(this).data("id");
   $("#modalSearchStorage").modal("hide");
-  // Find action is a direct API call
+  // Find action is a direct API call. The endpoint only enqueues the
+  // task — see the .btn-find handler above for why this toaster cannot
+  // honestly say "Storage found".
   $.ajax({
     type: 'GET',
-    url: '/api/v3/storage/' + storageId + '/find',
+    url: '/api/v4/item/storage/' + storageId + '/find',
     contentType: 'application/json',
     success: function (result) {
       new PNotify({
-        title: 'Find',
-        text: 'Storage found',
+        title: 'Find task started',
+        text: 'Status will update when the scan completes',
         hide: true,
         delay: 2000,
         icon: '',
@@ -1134,7 +1086,7 @@ $(document).on("click", ".btn-modal-delete", function() {
   }).get().on('pnotify.confirm', function () {
     $.ajax({
       type: 'DELETE',
-      url: '/api/v3/storage/' + storageId,
+      url: '/api/v4/item/storage/' + storageId,
       contentType: 'application/json',
       success: function (result) {
         new PNotify({
@@ -1148,6 +1100,9 @@ $(document).on("click", ".btn-modal-delete", function() {
         });
         if (storage_ready) {
           storage_ready.ajax.reload();
+        }
+        if (storagesMaintenance) {
+          storagesMaintenance.ajax.reload();
         }
         if (storagesOtherTable) {
           storagesOtherTable.ajax.reload();
@@ -1224,7 +1179,7 @@ $(document).on('click', '.btn-add-storage', function () {
     dropdownParent: $(modal),
     ajax: {
       type: "POST",
-      url: '/admin/allowed/term/users',
+      url: '/api/v4/items/alloweds/term/users',
       dataType: 'json',
       contentType: "application/json",
       delay: 250,
@@ -1258,12 +1213,12 @@ $(document).on('click', '.btn-create', function () {
   resetCreateDiskForm();
 
   $.ajax({
-    url: `/api/v3/admin/storage/info/${id}`,
+    url: `/api/v4/admin/item/storage/info/${id}`,
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
     $.ajax({
-      url: `/api/v3/admin/storage_pool/path`,
+      url: `/api/v4/storage-pool/by-path`,
       type: 'PUT',
       data: JSON.stringify({ "path": data["directory_path"] }),
       contentType: "application/json",
@@ -1310,12 +1265,14 @@ $("#modalCreateStorage #send").on("click", function () {
     formData.size = formData.size + unit;
     var priority = $("#user_data").data("role") == "admin" ? formData.priority : "low";
     formData.storage_type = "qcow2";
+    formData.usage = formData.usage_type;
+    formData.parent = formData.parent || "";
     delete formData.size_unit;
     if (formData.parent) {
-      performStorageOperation(formData, formData.parent, "create", "/api/v3/storage/priority/" + priority);
+      performStorageOperation(formData, formData.parent, "create", "/api/v4/item/storage/priority/" + priority);
     } else {
       $.ajax({
-        url: "/api/v3/storage/priority/" + priority,
+        url: "/api/v4/item/storage/priority/" + priority,
         type: 'POST',
         data: JSON.stringify(formData),
         contentType: 'application/json',
@@ -1350,7 +1307,7 @@ $(document).on('click', '.btn-virt_win_reg', function () {
   var storageId = element.data("id");
   modal = "#modalVirtWinReg";
   $.ajax({
-    url: `/api/v3/storage/${storageId}/has_derivatives`,
+    url: `/api/v4/item/storage/${storageId}/has-derivatives`,
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
@@ -1418,7 +1375,7 @@ $("#modalVirtWinReg #send").on("click", function () {
         var fileContents = event.target.result;
         data["registry_patch"] = fileContents;
         var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
-        var url = "/api/v3/storage/virt-win-reg/" + data["storage_id"] + "/priority/" + priority;
+        var url = "/api/v4/item/storage/" + data["storage_id"] + "/virt-win-reg/priority/" + priority;
         performStorageOperation(data, data["storage_id"], "virt_win_reg", url);
       }
       reader.readAsText(file, 'UTF-8');
@@ -1432,7 +1389,7 @@ $(document).on('click', '.btn-sparsify', function () {
   var storageId = element.data("id");
   modal = "#modalSparsify";
   $.ajax({
-    url: `/api/v3/storage/${storageId}/has_derivatives`,
+    url: `/api/v4/item/storage/${storageId}/has-derivatives`,
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
@@ -1461,7 +1418,7 @@ $("#modalSparsify #send").on("click", function () {
     data = form.serializeObject();
     var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
     var retry = $("#user_data").data("role") == "admin" ? data.retry : "0";
-    var url = `/api/v3/storage/sparsify/${data["storage_id"]}/priority/${priority}/retry/${retry}`;
+    var url = `/api/v4/item/storage/${data["storage_id"]}/sparsify/priority/${priority}`;
     performStorageOperation(data, data["storage_id"], "sparsify", url);
   }
 });
@@ -1476,7 +1433,7 @@ $(document).on('click', '.btn-move', function () {
   populateSelectMethod(modal);
   populateSelectAfterRSync(modal);
   $.ajax({
-    url: `/api/v3/storage/${storageId}/has_derivatives`,
+    url: `/api/v4/item/storage/${storageId}/has-derivatives`,
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
@@ -1492,12 +1449,12 @@ $(document).on('click', '.btn-move', function () {
       });
     } else {
       $.ajax({
-        url: `/api/v3/admin/storage/info/${storageId}`,
+        url: `/api/v4/admin/item/storage/info/${storageId}`,
         type: 'GET',
         contentType: "application/json",
       }).done(function (data) {
         $.ajax({
-          url: `/api/v3/admin/storage_pool/path`,
+          url: `/api/v4/storage-pool/by-path`,
           type: 'PUT',
           data: JSON.stringify({ "path": data["directory_path"] }),
           contentType: "application/json",
@@ -1514,7 +1471,7 @@ $(document).on('click', '.btn-move', function () {
           populateSelectByPool(modal, pool, data, pool.is_default);
           // addSelectStoragePoolListeners(data);
           $.ajax({
-            url: `/api/v3/admin/storage_pools`,
+            url: `/api/v4/storage-pools`,
             type: 'GET',
           }).done(function (data) {
             $(modal + " #storage_pool").append(`<option disabled>-- Select a destination storage pool --</option>`)
@@ -1576,114 +1533,118 @@ $("#modalDisconnect #send").on("click", function () {
     data = form.serializeObject();
     var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
     var retry = $("#user_data").data("role") == "admin" ? data.retry : "0";
-    var url = `/api/v3/storage/disconnect/${data["storage_id"]}/priority/${priority}/retry/${retry}`;
+    var url = `/api/v4/item/storage/${data["storage_id"]}/disconnect/priority/${priority}`;
     performStorageOperation(data, data["storage_id"], "disconnect", url);
   }
 });
 
 function socketio_on() {
-  socket.on('storage', function (data) {
-    var data = JSON.parse(data);
-    if (data) {
-      let id = '#' + data.id.replaceAll("/", "_");
-      let actual_data;
-      let table;
+  socket.on('storage', function (rawData) {
+    const data = JSON.parse(rawData);
+    if (!data || !data.id) return;
+    const id = '#' + data.id.replaceAll("/", "_");
 
-      if (typeof (storage_ready.row(id).id()) != 'undefined') {
-        table = storage_ready;
-      } else if (storagesOtherTable && (typeof (storagesOtherTable.row(id).id()) != 'undefined')) {
-        table = storagesOtherTable;
+    // Locate the row across the three tables. ``storage_ready`` and
+    // ``storagesMaintenance`` are always loaded; ``storagesOtherTable``
+    // is only present once the user picks a status from the dropdown.
+    const tables = [storage_ready, storagesMaintenance];
+    if (storagesOtherTable) tables.push(storagesOtherTable);
+    let fromTable = null;
+    for (const t of tables) {
+      if (t && typeof t.row(id).id() !== 'undefined') {
+        fromTable = t;
+        break;
       }
+    }
 
-      if (table) {
-        actual_data = table.row(id).data();
-        if ("status" in data) {
-          if (data.status != 'ready') {
-            if (!$("#status #" + data.status).length) {
-              $('#status').append($('<option>', {
-                value: data.status,
-                id: data.status,
-                text: `${data.status} (1 item)`
-              }));
-            }
-            table.row(id).remove().draw();
-            if (newStatus && newStatus == data.status) {
-              storagesOtherTable.row.add({ ...actual_data, ...data }).draw();
-              if (actual_data.status != data.status) {
-                showNotification(data.status);
-              }
-            }
-          } else {
-            if (storagesOtherTable) {
-              storagesOtherTable.row(id).remove().draw();
-              if (typeof (storage_ready.row(id).id()) == 'undefined') {
-                storage_ready.row.add({ ...actual_data, ...data }).draw();
-                showNotification(data.status);
-              }
-            }
-          }
-        } else {
-          table.row(id).data({ ...actual_data, ...data }).invalidate();
-        }
-      } else if (newStatus) {
-        if (typeof (storagesOtherTable.row(id).id()) != 'undefined') {
-          actual_data = storagesOtherTable.row(id).data();
-          if ("status" in data && data.status != newStatus) {
-            storagesOtherTable.row(id).remove().draw();
-            storagesOtherTable.row.add({ ...actual_data, ...data }).draw();
-            showNotification(data.status);
-          } else {
-            storagesOtherTable.row(id).data({ ...actual_data, ...data }).invalidate();
-          }
-        } else if (newStatus == data.status) {
-          storagesOtherTable.row.add(data).draw();
+    // Data-only update (no status field in the event): refresh the row
+    // in place if it's visible somewhere. Driven by the changefeed
+    // ``StorageHandler`` when only data fields (e.g. ``qemu-img-info``,
+    // ``storages_with_uuid``) changed.
+    if (!("status" in data)) {
+      if (fromTable) {
+        const actual_data = fromTable.row(id).data();
+        fromTable.row(id).data({ ...actual_data, ...data }).invalidate();
+      }
+      return;
+    }
+
+    // Status-changed update. Route to the target table:
+    //   - ``ready``        → top table
+    //   - ``maintenance``  → middle table
+    //   - else             → bottom (Other status) table, but only if the
+    //                        user has picked that status in the dropdown
+    let toTable = null;
+    if (data.status === 'ready') {
+      toTable = storage_ready;
+    } else if (data.status === 'maintenance') {
+      toTable = storagesMaintenance;
+    } else if (storagesOtherTable && newStatus && newStatus === data.status) {
+      toTable = storagesOtherTable;
+    }
+
+    // Make sure the Other-status dropdown shows the new status's option
+    // so admins can drill into it. ``ready`` / ``maintenance`` have
+    // dedicated tables so they don't belong on this dropdown.
+    if (data.status !== 'ready' && data.status !== 'maintenance') {
+      if (!$("#status #" + data.status).length) {
+        $('#status').append($('<option>', {
+          value: data.status,
+          id: data.status,
+          text: `${data.status} (1 item)`
+        }));
+      }
+    }
+
+    if (fromTable) {
+      const actual_data = fromTable.row(id).data();
+      const status_changed = actual_data.status !== data.status;
+      if (toTable === fromTable) {
+        // Same table — update in place.
+        fromTable.row(id).data({ ...actual_data, ...data }).invalidate();
+      } else {
+        fromTable.row(id).remove().draw();
+        if (toTable) {
+          toTable.row.add({ ...actual_data, ...data }).draw();
         }
       }
-
+      if (status_changed) {
+        showNotification(data.status);
+      }
+    } else if (toTable) {
+      // Row not currently displayed; add it to the matching table.
+      toTable.row.add(data).draw();
     }
   });
   socket.on('task', function (data) {
-    if (storagesOtherTable && storagesOtherTable.selector) {
-      var data = JSON.parse(data);
-      var taskRow = $(`tr[data-task="${data.id}"]`);
-      if (taskRow.length > 0) {
-        var rowData = storagesOtherTable.row(taskRow).data();
+    var data = JSON.parse(data);
+    var taskRow = $(`tr[data-task="${data.id}"]`);
+    if (taskRow.length > 0) {
+      // The row carrying ``data-task`` could be in any of the three
+      // storage tables — pick the one that actually has it.
+      const tables = [storage_ready, storagesMaintenance];
+      if (storagesOtherTable) tables.push(storagesOtherTable);
+      for (const t of tables) {
+        if (!t || !t.selector) continue;
+        var rowData = t.row(taskRow).data();
         if (rowData) {
           rowData.progress = data.progress;
-          storagesOtherTable.row(taskRow).data(rowData).draw();
+          t.row(taskRow).data(rowData).draw();
+          break;
         }
       }
-    }
-  });
-  socket.on('storage_action', function (data) {
-    PNotify.removeAll();
-    var data = JSON.parse(data);
-    if (data.status === 'failed') {
-      new PNotify({
-        title: `ERROR: ${data.action} on ${data.count} storage(s)`,
-        text: data.msg,
-        hide: false,
-        icon: 'fa fa-warning',
-        opacity: 1,
-        type: 'error'
-      });
-    } else if (data.status === 'completed') {
-      storage_ready.ajax.reload();
-      new PNotify({
-        title: `Action Succeeded: ${data.action}`,
-        text: `The action "${data.action}" completed on ${data.count} storage(s).`,
-        hide: true,
-        delay: 4000,
-        icon: 'fa fa-success',
-        opacity: 1,
-        type: 'success'
-      });
     }
   });
 }
 
 function showNotification(status) {
-  let storageTable = status === "ready" ? "ready" : "other status";
+  // Map the new status to the table the row was just moved to. Keep the
+  // table names in sync with the three ``<table>`` ids in storage.html.
+  const tableNames = {
+    'ready': 'ready storage',
+    'maintenance': 'maintenance',
+  };
+  const storageTable = tableNames[status] || 'other status';
   new PNotify({
     title: `Disk status changed to ${status}`,
     text: `Disk is now ${status} and moved to the ${storageTable} storage table`,
@@ -1735,7 +1696,7 @@ function loadTableFilters(table) {
 function createDatatable(tableId, status, initCompleteFn = null) {
   return $(tableId).DataTable({
     ajax: {
-      url: `/api/v3/admin/storage/${status}`,
+      url: `/api/v4/admin/items/storage/by-status/${status}`,
       contentType: 'application/json',
       type: 'POST',
       data: function () {
@@ -1922,7 +1883,7 @@ function showRowDetails(table, tr, row) {
     childTable = $('#cl' + row.data().id).DataTable({
       dom: "t",
       ajax: {
-        url: "/api/v3/storage/" + row.data().id + "/parents",
+        url: "/api/v4/item/storage/" + row.data().id + "/parents",
         contentType: "application/json",
         type: "GET",
       },
@@ -1957,7 +1918,7 @@ function showRowDetails(table, tr, row) {
     StoragesWithUUIDTable = $('#StoragesWithUUID' + row.data().id).DataTable({
       dom: "t",
       ajax: {
-        url: "/api/v3/storage/" + row.data().id + "/storages_with_uuid",
+        url: "/api/v4/item/storage/" + row.data().id + "/storages_with_uuid",
         contentType: "application/json",
         type: "GET",
       },
@@ -2020,7 +1981,7 @@ $(document).on('click', '.btn-uuid-delete', function () {
   }).get().on('pnotify.confirm', function () {
     $.ajax({
       type: 'DELETE',
-      url: `/api/v3/storage/${storage_id}/path`,
+      url: `/api/v4/item/storage/${storage_id}/path`,
       contentType: 'application/json',
       data: JSON.stringify({ "path": path }),
       success: function (result) {
@@ -2074,7 +2035,7 @@ $(document).on('click', '.btn-uuid-set-path', function () {
   }).get().on('pnotify.confirm', function () {
     $.ajax({
       type: 'PUT',
-      url: `/api/v3/storage/${storage_id}/path`,
+      url: `/api/v4/item/storage/${storage_id}/path`,
       contentType: 'application/json',
       data: JSON.stringify({ "path": path }),
       success: function (result) {
@@ -2104,8 +2065,13 @@ $(document).on('click', '.btn-uuid-set-path', function () {
 });
 
 function detailButtons(storage) {
-  return storage.status == "ready" ?
-    `<div class="col-md-12 col-sm-12 col-xs-12">
+  // Replaces the previous inline button cluster (Move / Increase /
+  // Sparsify / etc.) with a single "Storage actions" button that opens
+  // the existing #modalSearchStorage modal pre-populated for this row.
+  // The modal already shows storage info and the same action buttons,
+  // grouped by role — see storage_modals.html (#storage-action-buttons).
+  if (storage.status != "ready") return "";
+  return `<div class="col-md-12 col-sm-12 col-xs-12">
       <div class="x_panel" style="background-color: #F7F7F7;">
         <div class="row">
           <div class="col-md-12 col-sm-12 col-xs-12">
@@ -2113,37 +2079,10 @@ function detailButtons(storage) {
               <div class="row">
                 <div class="col-md-12 col-sm-12 col-xs-12">
                   <div class="x_panel" style="margin:3px;">
-                    <button class="btn btn-success btn-xs btn-move" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Move to another path"><i class="fa fa-truck m-right-xs"></i>
-                      Move
+                    <button class="btn btn-info btn-xs btn-storage-actions" data-id="${storage.id}" type="button"
+                      data-placement="top" title="Open storage info and actions"><i class="fa fa-cogs m-right-xs"></i>
+                      Storage actions
                     </button>
-                    <!--<button class="btn btn-success btn-xs btn-convert" data-id="${storage.id}" data-current_type=${storage.type} type="button"
-                      data-placement="top" title="Convert to another disk format"><i class="fa fa-exchange m-right-xs"></i>
-                      Convert
-                    </button>-->
-                    <button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Add windows registry"><i class="fa fa-edit m-right-xs"></i>
-                      Windows registry
-                    </button>
-                    <button class="btn btn-info btn-xs btn-increase" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Increase disk size"><i class="fa fa-external-link-square m-right-xs"></i>
-                      Increase
-                    </button>
-                ${(function () {
-                  return ($("#user_data").data("role") == "admin") ? `
-                    <button class="btn btn-info btn-xs btn-create" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Create new disk derivated from this one"><i class="fa fa-plus m-right-xs"></i>
-                      Add disk
-                    </button>
-                    <button class="btn btn-info btn-xs btn-sparsify" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Sparsify disk"><i class="fa fa-compress m-right-xs"></i>
-                      Sparsify disk
-                    </button>
-                    <button class="btn btn-info btn-xs btn-disconnect" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Disconnect storage from backing chain"><i class="fa fa-plug m-right-xs"></i>
-                      Disconnect
-                    </button>` : ""
-                  })()}
                   </div>
                 </div>
               </div>
@@ -2151,8 +2090,16 @@ function detailButtons(storage) {
           </div>
         </div>
       </div>
-    </div>` : "";
+    </div>`;
 }
+
+// Single entry point for the per-row actions modal. Mirrors the
+// btn-info handler but lives on the detail-row panel so admins don't
+// have to scroll back up to the per-row info icon after expanding a
+// chain.
+$(document).on('click', '.btn-storage-actions', function () {
+  openStorageSearchModal($(this).data('id'));
+});
 
 function populateDiskFormatSelects(currentType) {
   $("#current-disk_format").append(`<option selected disabled value="${currentType}">.${currentType}</option>`);
@@ -2214,130 +2161,6 @@ function resetCreateDiskForm() {
   populatePrioritySelect(modal);
 }
 
-function stopAllDesktops(storageId) {
-  $.ajax({
-    type: "PUT",
-    url: `/api/v3/storage/${storageId}/stop`
-  }).done(function (data) {
-    new PNotify({
-      title: 'Stopping desktops...',
-      hide: true,
-      delay: 2000,
-      icon: 'fa fa-' + data.icon,
-      opacity: 1,
-      type: 'success'
-    });
-  }).fail(function (data) {
-    new PNotify({
-      title: 'ERROR stopping desktops',
-      text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
-      type: 'error',
-      hide: true,
-      icon: 'fa fa-warning',
-      delay: 5000,
-      opacity: 1
-    });
-  });
-}
-
-function scheduleUntilDesktopsAreStopped(storageId, action, kwargs) {
-  data = {}
-  data["kwargs"] = {
-    storage_id: storageId,
-    action: action,
-    ...kwargs
-  };
-  $.ajax({
-    url: "/scheduler/system/interval/wait_desktops_to_do_storage_action/00/05/" + storageId + ".stg_action",
-    type: "POST",
-    data: JSON.stringify(data),
-    contentType: "application/json",
-  }).done(function () {
-    new PNotify({
-      title: 'Success',
-      text: ' Storages ' + action + ' scheduled successfully',
-      hide: true,
-      delay: 2000,
-      icon: 'fa fa-' + data.icon,
-      opacity: 1,
-      type: 'success'
-    });
-    $('.modal').modal('hide');
-  }).fail(function (data) {
-    new PNotify({
-      title: 'ERROR scheduling the action ' + action,
-      text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
-      type: 'error',
-      hide: true,
-      icon: 'fa fa-warning',
-      delay: 5000,
-      opacity: 1
-    });
-  });
-}
-
-function performStorageOperation(formData, storageId, action, url) {
-  $.ajax({
-    url: url,
-    type: action === "create" ? 'POST' : 'PUT',
-    data: JSON.stringify(formData),
-    contentType: 'application/json'
-  }).done(function () {
-    new PNotify({
-      title: 'Task created successfully',
-      text: `Performing ${action} on storage...`,
-      hide: true,
-      delay: 2000,
-      opacity: 1,
-      type: 'success'
-    });
-    $('.modal').modal('hide');
-  }).fail(function (data) {
-    if (data.responseJSON && data.responseJSON.description_code === "desktops_not_stopped" && $("#user_data").data("role") == "admin") {
-      new PNotify({
-        title: "All desktops must be 'Stopped' for storage operations",
-        text: "You can force stop now all desktops associated with the storage" + ($("#user_data").data("role") == "admin" ? " or schedule the action when desktops are stopped" : ""),
-        hide: false,
-        opacity: 0.9,
-        type: "error",
-        confirm: {
-          confirm: true,
-          buttons: [
-            {
-              text: "Force Stop desktops", click: function (notice) {
-                stopAllDesktops(storageId);
-                scheduleUntilDesktopsAreStopped(storageId, action, formData)
-                notice.remove();
-              }
-            },
-            {
-              text: "Schedule", click: function (notice) {
-                scheduleUntilDesktopsAreStopped(storageId, action, formData);
-                notice.remove();
-              }
-            },
-            { text: "Cancel", click: function (notice) { notice.remove(); } }
-          ]
-        },
-        buttons: { closer: false, sticker: false },
-        history: { history: false },
-        addclass: 'pnotify-center-large',
-        width: '550'
-      });
-    } else {
-      new PNotify({
-        title: `ERROR trying to ${action} storage`,
-        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
-        type: 'error',
-        hide: true,
-        icon: 'fa fa-warning',
-        delay: 5000,
-        opacity: 1
-      });
-    }
-  });
-}
-
 function performMoveOperation(formData, type) {
   var url = "";
   var data = {};
@@ -2345,7 +2168,7 @@ function performMoveOperation(formData, type) {
     case "rsync":
       switch (type) {
         case "byStoragePool":
-          url = `/api/v3/storage/${formData.storage_id}/rsync/to-storage-pool`;
+          url = `/api/v4/item/storage/${formData.storage_id}/rsync/to-storage-pool`;
           data = {
             storage_id: formData.storage_id,
             destination_storage_pool_id: formData.storage_pool,
@@ -2355,7 +2178,7 @@ function performMoveOperation(formData, type) {
           };
           break;
         case "byPath":
-          url = `/api/v3/storage/${formData.storage_id}/rsync/to-path`;
+          url = `/api/v4/item/storage/${formData.storage_id}/rsync/to-path`;
           data = {
             storage_id: formData.storage_id,
             destination_path: formData.destination_path,
@@ -2369,7 +2192,7 @@ function performMoveOperation(formData, type) {
     case "move":
       switch (type) {
         case "byPath":
-          url = `/api/v3/storage/${formData.storage_id}/move/by-path`;
+          url = `/api/v4/item/storage/${formData.storage_id}/move/by-path`;
           data = {
             storage_id: formData.storage_id,
             dest_path: formData.destination_path,
@@ -2488,7 +2311,7 @@ function addSelectStoragePoolListeners(storageData) {
   $("#modalMoveStorageForm #storage_pool").off('change').on('change', function () {
     const pool_id = $(this).val();
     $.ajax({
-      url: `/api/v3/admin/storage_pool/${pool_id}`,
+      url: `/api/v4/storage-pool/${pool_id}`,
       type: "GET",
     }).done(function (pool) {
       populateSelectByPool("#modalMoveStorageForm", pool, storageData, pool.is_default);
@@ -2551,7 +2374,7 @@ function populateSelect(item) {
       $.ajax({
         type: "GET",
         async: false,
-        url: "/api/v3/admin/userschema",
+        url: "/api/v4/admin/item/userschema",
         success: function (d) {
           $.each(d[item], function (pos, it) {
             if (item == 'category') { var value = it.id } else { var value = it.name }

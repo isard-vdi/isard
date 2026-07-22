@@ -22,11 +22,15 @@ services:
       - /etc/localtime:/etc/localtime:ro
     depends_on:
       - isard-db
+      - isard-redis
     environment:
+      REDIS_HOST: ${REDIS_HOST:-isard-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       API_ISARDVDI_SECRET:
       DOMAIN:
       ENGINE_DISK_BALANCER:
-      ENGINE_HYPER_BALANCER:
+      ENGINE_HYPER_BALANCER: ${ENGINE_HYPER_BALANCER:-available_ram_percent}
       GPU_FAKE:
       LOG_LEVEL:
       QCOW2_CLUSTER_SIZE:
@@ -36,6 +40,26 @@ services:
       RETHINKDB_DB:
       RETHINKDB_HOST:
       RETHINKDB_PORT:
+      # Engine uses the fork's ``ThreadSafeConnectionPool`` (P2 #7,
+      # 2026-05-02) — own instance, distinct from `_common`'s shared
+      # pool but with the same observer wiring. Env vars match the
+      # rest of the Python stack so operators tune one knob:
+      # - ``RETHINKDB_POOL_SIZE`` — engine is the heaviest rdb
+      #   consumer (desktop balancer threads, hyper status threads,
+      #   the changes cursor); 50-slot historical sizing kept.
+      # - ``RETHINKDB_SLOW_QUERY_MS`` — slow-query threshold for the
+      #   ``rdb_query_slow`` log line emitted by the observer wired
+      #   into ``_connection_factory``.
+      # - ``RETHINKDB_POOL_IDLE_SEC`` — idle eviction window
+      #   (default 1800s in code; bumped from `_common`'s 300s
+      #   because engine has long-quiet worker threads).
+      # - ``RETHINKDB_ACQUIRE_TIMEOUT_SEC`` — pool exhaustion fast-
+      #   fail (raises ``PoolExhaustedError``, a ``ReqlDriverError``
+      #   subclass engine's outer reconnect loops catch).
+      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-50}
+      RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
+      RETHINKDB_POOL_IDLE_SEC: ${RETHINKDB_POOL_IDLE_SEC:-1800}
+      RETHINKDB_ACQUIRE_TIMEOUT_SEC: ${RETHINKDB_ACQUIRE_TIMEOUT_SEC:-30}
       STATS_RETHINKDB_PORT:
       TELEGRAM_ENGINE_CHAT_ID:
       TELEGRAM_ENGINE_TOKEN:
@@ -45,7 +69,8 @@ services:
       # Transitional NOTIFY_EMAIL* variables to import SMTP setting to db via migration 175
       NOTIFY_EMAIL:
       NOTIFY_EMAIL_SMTP_SERVER:
-      NOTIFY_EMAIL_SMPT_PORT:
+      # NOTIFY_EMAIL_SMPT_PORT is the pre-rename misspelling, still honoured for cfgs that set it
+      NOTIFY_EMAIL_SMTP_PORT: ${NOTIFY_EMAIL_SMTP_PORT:-${NOTIFY_EMAIL_SMPT_PORT:-587}}
       NOTIFY_EMAIL_USERNAME:
       NOTIFY_EMAIL_PASSWORD:
       # Transitional AUTHENTICATION_AUTHENTICATION_LDAP_* variables to import LDAP configuration

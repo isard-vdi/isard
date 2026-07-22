@@ -18,7 +18,7 @@ $(document).ready(function() {
             }
         },
         "ajax": {
-            "url": "/admin/users/management/groups",
+            "url": "/api/v4/admin/items/users/management/groups",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}
@@ -153,7 +153,7 @@ $(document).ready(function() {
         $('.modal').modal('hide');
         $.ajax({
             type: "DELETE",
-            url:"/api/v3/admin/group/"+id ,
+            url:"/api/v4/admin/item/group/" + id ,
             contentType: "application/json",
             error: function(data) {
                 notice.update({
@@ -197,7 +197,7 @@ $(document).ready(function() {
             multiple: true,
             ajax: {
                 type: "POST",
-                url: '/api/v3/admin/allowed/term/groups/',
+                url: '/api/v4/items/alloweds/term/groups/',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -225,7 +225,7 @@ $(document).ready(function() {
         });
         $.ajax({
             type: "GET",
-            url:"/api/v3/admin/userschema",
+            url:"/api/v4/admin/item/userschema",
             success: function (d) {
                 $.each(d, function(key, value) {
                     if(key == 'category'){
@@ -265,7 +265,7 @@ $(document).ready(function() {
                 })
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/group",
+                    url:"/api/v4/admin/item/group",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function(data)
@@ -277,7 +277,7 @@ $(document).ready(function() {
                             text: 'Group created successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -327,7 +327,7 @@ function actionsGroupDetail(){
             multiple: true,
             ajax: {
                 type: "POST",
-                url: '/api/v3/admin/allowed/term/groups/',
+                url: '/api/v4/items/alloweds/term/groups/',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -356,7 +356,7 @@ function actionsGroupDetail(){
 
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/group/" + pk,
+            url: "/api/v4/admin/item/group/" + pk,
             contentType: "application/json",
             success: function (group) {
                 $('#modalEditGroupForm #id').val(pk);
@@ -370,11 +370,6 @@ function actionsGroupDetail(){
 
                 // autoDesktopsShow('#modalEditGroupForm', group)
                 ephemeralDesktopsShow('#modalEditGroupForm', group)
-
-                $.each(group.linked_groups_data, function(i, group) {
-                    var newOption = new Option(group.category_name + ' - ' + group.name, group.id, true, true);
-                    $("#modalEditGroupForm #linked_groups").append(newOption).trigger('change');
-                })
             }
         });
 
@@ -408,7 +403,7 @@ function actionsGroupDetail(){
                 })
                 $.ajax({
                     type: "PUT",
-                    url: "/api/v3/admin/group/" + data['id'],
+                    url: "/api/v4/admin/item/group/" + data['id'],
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -417,7 +412,7 @@ function actionsGroupDetail(){
                             text: 'Group updated successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -459,7 +454,7 @@ function actionsGroupDetail(){
         showLoadingData('#modalDeleteGroup #table_modal_delete_groups')
         $.ajax({
             type: "POST",
-            url: "/api/v3/admin/group/delete/check",
+            url: "/api/v4/admin/item/group/delete/check",
             data: JSON.stringify({
                 "ids": [pk]
             }),
@@ -484,7 +479,7 @@ function actionsGroupDetail(){
         }).modal('show');
         $.ajax({
             type: 'GET',
-            url: '/api/v3/admin/group/' + pk,
+            url: '/api/v4/admin/item/group/' + pk,
         }).done(function(data) {
             if(data.enrollment.manager != false){
                 $('#manager-key').show();
@@ -539,7 +534,7 @@ function actionsGroupDetail(){
         var current_category = null
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/userschema",
+            url: "/api/v4/admin/item/userschema",
             async: false,
             success: function (d) {
                 $.each(d, function (key, value) {
@@ -584,7 +579,7 @@ function actionsGroupDetail(){
         showLoadingData('#modalMigrateUsersGroup #table_modal_migrate_users_group')
         $.ajax({
             type: "POST",
-            url: "/api/v3/admin/group/delete/check",
+            url: "/api/v4/admin/item/group/delete/check",
             data: JSON.stringify({
                 "ids": [pk]
             }),
@@ -601,7 +596,7 @@ function actionsGroupDetail(){
                 data = form.serializeObject();
                 $.ajax({
                     type: "GET",
-                    url: "/api/v3/admin/group/" + data['id'] + "/users/",
+                    url: "/api/v4/admin/items/group/" + data['id'] + "/users/",
                     contentType: "application/json",
                     success: function (users) {
                         data = JSON.unflatten(data)
@@ -613,7 +608,7 @@ function actionsGroupDetail(){
                         })
                         $.ajax({
                             type: "PUT",
-                            url: "/api/v3/admin/users/bulk/",
+                            url: "/api/v4/admin/items/users/bulk/",
                             data: JSON.stringify({
                                 ids: users,
                                 category: data['category'],
@@ -683,7 +678,7 @@ function actionsGroupDetail(){
         showLoadingData('#modalEmptyGroup #table_modal_delete_groups')
         $.ajax({
             type: "POST",
-            url: "/api/v3/admin/group/delete/check",
+            url: "/api/v4/admin/item/group/delete/check",
             data: JSON.stringify({
                 "ids": [pk]
             }),
@@ -705,7 +700,7 @@ function actionsGroupDetail(){
                 data = form.serializeObject();
                 $.ajax({
                     type: "GET",
-                    url: "/api/v3/admin/group/" + pk + "/users/",
+                    url: "/api/v4/admin/items/group/" + pk + "/users/",
                     contentType: "application/json",
                     success: function (users) {
                         var notice = new PNotify({
@@ -716,9 +711,9 @@ function actionsGroupDetail(){
                         })
                         $.ajax({
                             type: "DELETE",
-                            url: "/api/v3/admin/user",
+                            url: "/api/v4/admin/items/users",
                             data: JSON.stringify({
-                                user: users,
+                                user: users.map(u => u.id),
                                 delete_user: true
                             }),
                             contentType: "application/json",
@@ -773,10 +768,10 @@ function actionsGroupDetail(){
             $.ajax({
                 type: "POST",
                 data: JSON.stringify(data),
-                url:"/api/v3/admin/group/enrollment",
+                url:"/api/v4/admin/item/group/enrollment",
                 contentType: "application/json",
                 success: function(data){
-                    $('#manager-key').val(data);
+                    $('#manager-key').val(data.code);
                 }
             });
             $('#manager-key').show();
@@ -810,7 +805,7 @@ function actionsGroupDetail(){
             $.ajax({
                 type: "POST",
                 data: JSON.stringify(data),
-                url:"/api/v3/admin/group/enrollment",
+                url:"/api/v4/admin/item/group/enrollment",
                 contentType: "application/json",
                 success: function(data){
                     $('#manager-key').val('');
@@ -833,11 +828,11 @@ function actionsGroupDetail(){
             data['action']="reset";
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/group/enrollment",
+                url:"/api/v4/admin/item/group/enrollment",
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data){
-                    $('#advanced-key').val(data);
+                    $('#advanced-key').val(data.code);
                 }
             });
             $('#advanced-key').show();
@@ -870,7 +865,7 @@ function actionsGroupDetail(){
             pk=$('#modalEnrollmentForm #id').val();
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/group/enrollment",
+                url:"/api/v4/admin/item/group/enrollment",
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data) {
@@ -894,11 +889,11 @@ function actionsGroupDetail(){
             data['action']="reset";
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/group/enrollment",
+                url:"/api/v4/admin/item/group/enrollment",
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data){
-                    $('#user-key').val(data);
+                    $('#user-key').val(data.code);
                 }
             });
             $('#user-key').show();
@@ -931,7 +926,7 @@ function actionsGroupDetail(){
             pk=$('#modalEnrollmentForm #id').val();
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/group/enrollment",
+                url:"/api/v4/admin/item/group/enrollment",
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data) {

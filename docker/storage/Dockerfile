@@ -1,40 +1,26 @@
-FROM fedora:42 as production
-MAINTAINER isard <info@isard.com>
+FROM fedora:42@sha256:99e203b80b1c3d8f7e161ec10a68fd02b081ef83a3963553e513c82846b97814 AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
+# UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
+# venv's hard-coded shebangs (#!/.venv/bin/python) keep resolving
+# after COPY --from=builder /.venv /.venv.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never UV_PROJECT_ENVIRONMENT=/.venv
 
-COPY docker/storage/requirements.txt /requirements.txt
+RUN dnf install -y autoconf automake gcc gettext-devel git libffi-devel libtool openssl-devel pkg-config python3-devel && dnf clean all
 
-RUN dnf update -y \
-    && dnf install -y libguestfs libguestfs-tools-c virt-v2v \
-    libvirt-daemon libvirt-daemon-config-network \
-    python3-pip python3-libvirt python3-libguestfs \
-    git autoconf automake pkg-config gettext-devel libtool python3-devel gcc rsync \
-    virt-install python3-cachetools virt-win-reg
+WORKDIR /workspace
+COPY . .
+RUN uv sync --frozen --no-dev --package isardvdi-storage --no-editable
 
-RUN pip3 install --upgrade pip \
-    && pip3 install --no-cache-dir -r requirements.txt
+FROM fedora:42@sha256:99e203b80b1c3d8f7e161ec10a68fd02b081ef83a3963553e513c82846b97814 AS runtime
+RUN dnf install -y libguestfs libguestfs-tools-c libvirt-client libvirt-daemon libvirt-daemon-config-network openssl-libs python3-cachetools python3-libguestfs python3-libvirt rsync virt-install virt-v2v virt-win-reg && dnf clean all
 
-RUN dnf remove -y git autoconf automake pkg-config gettext-devel libtool python3-devel gcc \
-    && dnf clean all \
-    && dnf autoremove -y \
-    && rm -rf /var/cache/yum
-
-
-# This is required for virt-v2v because neither systemd nor
-# root libvirtd runs, and therefore there is no virbr0, and
-# therefore virt-v2v cannot set up the network through libvirt.
-ENV LIBGUESTFS_BACKEND direct
-
-# https://bugzilla.redhat.com/show_bug.cgi?id=1045069
+ENV LIBGUESTFS_BACKEND=direct
 RUN useradd -ms /bin/bash v2v
-#USER v2v
-#WORKDIR /home/v2v
 
-ENV PYTHONPATH /opt/isardvdi
-ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/utils"
-COPY pkg/gen/proto/python_old /opt/isardvdi/isardvdi_protobuf_old
-COPY component/_common/src /opt/isardvdi/isardvdi_common
+COPY --from=builder /.venv /.venv
 COPY docker/storage/task /opt/isardvdi/isardvdi_task
 COPY docker/storage/init.sh /init.sh
 RUN mkdir /utils
 COPY docker/storage/utils /utils
+ENV PATH="/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/utils"
 CMD ["/init.sh"]

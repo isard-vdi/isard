@@ -8,14 +8,18 @@ export class MediaUtils {
     }) || []
   }
 
-  static parseMedia (item) {
+  static parseMedia (item, { partial = false } = {}) {
+    // ``partial`` keeps only keys present in the payload so a
+    // change-handler ``media_update`` (emitted with
+    // ``model_dump(exclude_none=True)``) doesn't clobber cached
+    // ``description`` / ``allowed`` / ``progress`` with ``undefined``.
     const {
       id,
       name,
       description,
       status,
       user,
-      user_name: userName,
+      user_name: userNameRaw,
       category,
       category_name: categoryName,
       group,
@@ -25,7 +29,8 @@ export class MediaUtils {
       kind,
       editable
     } = item
-    return {
+    const userName = userNameRaw ?? (user && typeof user === 'object' ? user.name : undefined)
+    const out = {
       id,
       name,
       description,
@@ -41,6 +46,8 @@ export class MediaUtils {
       kind,
       editable
     }
+    if (!partial) return out
+    return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined))
   }
 
   static parseMediaDesktops (items) {
@@ -56,8 +63,9 @@ export class MediaUtils {
       kind,
       status,
       user,
-      user_name: userName
+      user_name: userNameRaw
     } = item
+    const userName = userNameRaw ?? (user && typeof user === 'object' ? user.name : undefined)
     return {
       id,
       name,

@@ -1,0 +1,21 @@
+{
+    "name": "isardvdi-e2e-tests",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "playwright": "node_modules/@playwright/test/cli.js",
+        "test": "playwright test",
+        "test:headed": "playwright test --headed",
+        "test:ui": "playwright test --ui",
+        "test:debug": "playwright test --debug",
+        "test:fast": "E2E_SCREENSHOT=off E2E_TRACE=off E2E_WORKERS=4 playwright test",
+        "test:full": "E2E_SCREENSHOT=on E2E_TRACE=on E2E_VIDEO=on playwright test",
+        "test:ci": "CI=1 playwright test",
+        "report": "playwright show-report"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.57.0",
+        "@types/node": "^24.10.2",
+        "typescript": "^5.8.3"
+    }
+}

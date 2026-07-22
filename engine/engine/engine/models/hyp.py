@@ -17,8 +17,18 @@ from copy import deepcopy
 from io import StringIO
 
 import libvirt
-import paramiko
 import xmltodict
+from isardvdi_common.lib.gpu_cmds import (
+    build_companion_bind_cmds,
+    build_companion_release_cmds,
+    build_mig_transition_cmds,
+    build_vfio_bind_cmds,
+    build_vfio_group_mknod_cmds,
+    build_vfio_unbind_cmds,
+)
+from libpci import LibPCI
+from lxml import etree
+
 from engine.config import *
 from engine.models._gpu_pool import _profile_pool_size
 from engine.services.db import (
@@ -63,21 +73,10 @@ from engine.services.lib.functions import (
     get_tid,
     hostname_to_uri,
     test_hypervisor_conn,
-    try_socket,
 )
 from engine.services.lib.libvirt_dicts import virDomainState
 from engine.services.lib.status import get_hypervisor_video_status
 from engine.services.log import *
-from isardvdi_common.gpu_cmds import (
-    build_companion_bind_cmds,
-    build_companion_release_cmds,
-    build_mig_transition_cmds,
-    build_vfio_bind_cmds,
-    build_vfio_group_mknod_cmds,
-    build_vfio_unbind_cmds,
-)
-from libpci import LibPCI
-from lxml import etree
 
 # Lock file the hypervisor's local registration apply holds (setup.py
 # SETUP_GPU_LOCK, fcntl.flock = BSD flock(2)). The engine's SSH-issued GPU
@@ -199,6 +198,11 @@ class HypStats(object):
         memory["hugepages_total_kb"] = hugepages_total_kb
         memory["hugepages_free_kb"] = hugepages_free_kb
         memory["hugepages_used_kb"] = hugepages_total_kb - hugepages_free_kb
+        # Per-NUMA free hugepages (``{"0": kb, "1": kb, ...}``) — empty when
+        # the sysfs read fails or the host has a single NUMA cell. The
+        # consumer (``ui_actions``) uses this to pick the node with most
+        # free hugepages for non-GPU desktops; falls back to hash-distribute
+        # when empty.
         memory["numa_hugepages_free_kb"] = numa_hugepages_free_kb or {}
         memory["used"] = memory["total"] - memory["available"] - hugepages_free_kb
         current_libvirt_stats = {"memory": memory, "cpu": cpu}
@@ -238,7 +242,6 @@ class hyp(object):
         port=22,
         nvidia_enabled=False,
         capture_events=False,
-        try_ssh_autologin=False,
     ):
         # dictionary of domains
         # self.id = 0
@@ -269,11 +272,9 @@ class hyp(object):
         else:
             self.port = 22
         # log.info('El port es: '+str(self.port))
-        self.try_ssh_autologin = try_ssh_autologin
         self.user = user
         self.hostname = address
         self.connected = False
-        self.ssh_autologin_fail = False
         self.fail_connected_reason = ""
         self.eventLoopThread = None
         self.info = {}
@@ -300,159 +301,63 @@ class hyp(object):
             if self.capture_events:
                 self.launch_events()
 
-    def try_ssh(self):
-        # try socket
-        timeout = float(CONFIG_DICT["TIMEOUTS"]["ssh_paramiko_hyp_test_connection"])
-        if try_socket(self.hostname, self.port, timeout):
-            # ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh = paramiko.SSHClient()
-            # ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            # INFO TO DEVELOPER: OJO, load_system_host_keys debería ir pero el problema está en que hay ciertos algoritmos de firma
-            # que la librería actual de paramiko da error. Seguramente haciendo un update de la librearía en un futuro
-            # esto se arreglará espero: si solo existe el hash ecdsa-sha2-nistp256
-            # ssh -o "HostKeyAlgorithms ssh-rsa" root@ajenti.escoladeltreball.org
-
-            ssh.load_system_host_keys()
-            # ssh.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
-            # time.sleep(1)
-            try:
-                # timelimit(3,test_hypervisor_conn,self.hostname,
-                #             username=self.user,
-                #             port= self.port,
-                #             timeout=CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
-                ssh.connect(
-                    self.hostname,
-                    username=self.user,
-                    port=self.port,
-                    timeout=timeout,
-                    banner_timeout=timeout,
-                )
-
-                log.debug(
-                    "host {} with ip {} TEST CONNECTION OK, ssh connect without password".format(
-                        self.hostname, self.ip
-                    )
-                )
-                ssh.close()
-            except paramiko.SSHException as e:
-                log.error(
-                    "host {} with ip {} can't connect with ssh without password. Paramiko except Reason: {}".format(
-                        self.hostname, self.ip, e
-                    )
-                )
-                log.error("")
-                # message when host not found or key format not supported: not found in known_hosts
-                self.fail_connected_reason = (
-                    "ssh authentication fail when connect: {}".format(e)
-                )
-                self.ssh_autologin_fail = True
-            except Exception as e:
-                logs.exception_id.debug("0026")
-                log.error(
-                    "host {} with ip {} can't connect with ssh without password. Reasons? timeout, ssh authentication with keys is needed, port is correct?".format(
-                        self.hostname, self.ip
-                    )
-                )
-                log.error("reason: {}".format(e))
-                self.fail_connected_reason = (
-                    "ssh authentication fail when connect: {}".format(e)
-                )
-                self.ssh_autologin_fail = True
-
-        else:
-            self.ssh_autologin_fail = True
-            self.fail_connected_reason = (
-                "socket error in ssh port, sshd disabled or firewall"
-            )
-            log.error(
-                "socket error, try if ssh is listen in hostname {} with ip address {} and port {}".format(
-                    self.hostname, self.ip, self.port
-                )
-            )
-
     def connect_to_hyp(self):
         try:
             self.ip = socket.gethostbyname(self.hostname)
 
-            if self.try_ssh_autologin == True:
-                self.try_ssh()
-
-            if self.ssh_autologin_fail is False:
-                try:
-                    self.uri = hostname_to_uri(
-                        self.hostname, user=self.user, port=self.port
-                    )
-                    if self.id_hyp_rethink is None:
-                        try:
-                            self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
-                        except Exception as e:
-                            logs.exception_id.debug("0027")
-                            log.error(
-                                "error when hypervisor have not rethink id. {}".format(
-                                    e
-                                )
-                            )
-                    # timeout_libvirt = float(CONFIG_DICT['TIMEOUTS']['libvirt_hypervisor_timeout_connection'])
-                    # self.conn = timelimit(timeout_libvirt, test_hypervisor_conn, self.uri)
-                    self.conn = test_hypervisor_conn(self.uri)
-
-                    # timeout = float(CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
-
-                    if self.conn != False:
-                        self.connected = True
-                        # prueba de alberto para que indique cuando ha caído y para que mantenga alive la conexión
-
-                        # OJO INFO TO DEVELOPER
-                        # self.startEvent()
-
-                        # Enable keepalive: connection closed after interval*(count+1) seconds
-                        # of no response (5*4=20 seconds with these settings)
-                        self.conn.setKeepAlive(5, 3)
-                        log.debug("connected to hypervisor: %s" % self.hostname)
-                        self.set_status(HYP_STATUS_CONNECTED)
-                        self.fail_connected_reason = ""
-                        # para que le de tiempo a los eventos a quedarse registrados hay que esperar un poquillo, ya
-                        # que se arranca otro thread
-                        # self.get_hyp_info()
-                        return True
-                    else:
+            try:
+                self.uri = hostname_to_uri(
+                    self.hostname, user=self.user, port=self.port
+                )
+                if self.id_hyp_rethink is None:
+                    try:
+                        self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
+                    except Exception as e:
+                        logs.exception_id.debug("0027")
                         log.error(
-                            "libvirt can't connect to hypervisor {}".format(
-                                self.hostname
-                            )
+                            "error when hypervisor have not rethink id. {}".format(e)
                         )
-                        log.info(
-                            """connection to hypervisor fail, try policykit or permissions,
-                              or try in the hypervisor if libvirtd service is started
-                              (in Fedora/Centos: systemctl status libvirtd )
-                              or if the port 22 is open"""
-                        )
-                        self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT)
-                        self.fail_connected_reason = "Hypervisor policykit or permissions or libvirtd has not started"
+                self.conn = test_hypervisor_conn(self.uri)
 
-                        return False
-
-                # except TimeLimitExpired:
-                #     log.error("""Time Limit Expired connecting to hypervisor""")
-                #     self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT_TIMELIMIT)
-                #     self.fail_connected_reason = 'Time Limit Expired connecting to hypervisor'
-                #     return False
-
-                except Exception as e:
-                    logs.exception_id.debug("0028")
+                if self.conn != False:
+                    self.connected = True
+                    # Enable keepalive: connection closed after interval*(count+1) seconds
+                    # of no response (5*4=20 seconds with these settings)
+                    self.conn.setKeepAlive(5, 3)
+                    log.debug("connected to hypervisor: %s" % self.hostname)
+                    self.set_status(HYP_STATUS_CONNECTED)
+                    self.fail_connected_reason = ""
+                    return True
+                else:
                     log.error(
-                        "connection to hypervisor {} fail with unexpected error: {}".format(
-                            self.hostname, e
-                        )
+                        "libvirt can't connect to hypervisor {}".format(self.hostname)
                     )
-                    log.error("libvirt uri: {}".format(self.uri))
+                    log.info(
+                        """connection to hypervisor fail, try policykit or permissions,
+                          or try in the hypervisor if libvirtd service is started
+                          (in Fedora/Centos: systemctl status libvirtd )
+                          or if the port 22 is open"""
+                    )
                     self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT)
-                    self.fail_connected_reason = (
-                        "connection to hypervisor {} fail with unexpected error".format(
-                            self.hostname
-                        )
-                    )
+                    self.fail_connected_reason = "Hypervisor policykit or permissions or libvirtd has not started"
+
                     return False
+
+            except Exception as e:
+                logs.exception_id.debug("0028")
+                log.error(
+                    "connection to hypervisor {} fail with unexpected error: {}".format(
+                        self.hostname, e
+                    )
+                )
+                log.error("libvirt uri: {}".format(self.uri))
+                self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT)
+                self.fail_connected_reason = (
+                    "connection to hypervisor {} fail with unexpected error".format(
+                        self.hostname
+                    )
+                )
+                return False
 
         except socket.error as e:
             log.error(e)
@@ -571,7 +476,34 @@ class hyp(object):
                 f"[{self.id_hyp_rethink}] Scanning hypervisor capabilities..."
             )
             self.info = {}
-            self.get_kvm_mod()
+            # KVM module type is reported by the hypervisor container at
+            # registration (admin_hypervisor_create) — see
+            # docker/hypervisor/src/lib/setup.py:_detect_kvm_module. Hypervisors
+            # registered before this field existed surface as None here, which
+            # fails the kvm_module gate in hyp_worker_thread and forces the
+            # operator to restart the hypervisor container so it re-registers.
+            kvm_module = hyper_record.get("kvm_module") if hyper_record else None
+            if kvm_module is None:
+                log.error(
+                    f"hypervisor {self.id_hyp_rethink} did not self-report "
+                    "kvm_module at registration; restart the hypervisor "
+                    "container so it re-registers with the new field"
+                )
+                self.info["kvm_module"] = False
+            else:
+                self.info["kvm_module"] = kvm_module
+                if kvm_module == "bios_disabled":
+                    log.error(
+                        "Hardware acceleration is supported, but disabled "
+                        "in BIOS settings on hypervisor "
+                        f"{self.id_hyp_rethink}"
+                    )
+                elif kvm_module == "false":
+                    log.error(
+                        "No kvm module loaded on hypervisor "
+                        f"{self.id_hyp_rethink}; check qemu-kvm install "
+                        "and CPU virtualization support"
+                    )
 
             if use_db_gpu_detection:
                 # New path: use hypervisor-discovered GPU data
@@ -721,7 +653,9 @@ class hyp(object):
 
         return True
 
-    def _apply_via_cli(self, gpu_id, pci_info, new_profile, mig_profile_id=None):
+    def _apply_via_cli(
+        self, gpu_id, pci_info, new_profile, mig_profile_id=None, mig_count=None
+    ):
         """Invoke the hypervisor's local gpu_apply over SSH for ONE card and
         return the parsed report dict, or None on any invocation/parse failure
         (caller falls back to the engine inline apply). The hypervisor owns the
@@ -737,14 +671,17 @@ class hyp(object):
         so the count cannot be re-derived on the hypervisor)."""
         from datetime import datetime, timezone
 
-        from isardvdi_common.vgpu_state import parse_apply_report
+        from isardvdi_common.lib.vgpu_state import parse_apply_report
 
         pci_bdf = pci_info["path"].split("/")[-1]
         # Fresh reset timestamp = the no-fight key: ingested as
         # mdevs_last_synced_at so the next reconcile confirms (does not rebuild).
         reset_at = datetime.now(timezone.utc).isoformat()
         target_type = (pci_info.get("types") or {}).get(new_profile) or {}
-        mig_count = target_type.get("mig_count") or target_type.get("max")
+        # An explicit mig_count (derived by the caller from the sibling +gfx GI
+        # for a MIG-backed vGPU target that is not itself in info.types) wins;
+        # else fall back to the target type's own count when it IS enumerated.
+        mig_count = mig_count or target_type.get("mig_count") or target_type.get("max")
         # --deliberate: this is an operator/scheduler-initiated runtime change,
         # so the hypervisor force-stops any qemu still holding the card before
         # teardown (defense-in-depth; the engine already quiesced inline) instead
@@ -780,7 +717,7 @@ class hyp(object):
         WITHOUT touching sibling profiles or the rest of the pool. Anything else
         -> failure, no DB touch. Returns True on success, False on a reported
         error / unexpected result."""
-        from isardvdi_common.vgpu_state import (
+        from isardvdi_common.lib.vgpu_state import (
             build_applied_state_patch,
             reconcile_pool_to_live,
         )
@@ -901,9 +838,6 @@ class hyp(object):
         # Check if mdevs data exists for this PCI device and the new profile
         pci_mdevs = self.mdevs.get(pci_id, {})
         if not pci_mdevs.get(new_profile):
-            d_type = (
-                self.info_nvidia.get(pci_id, {}).get("types", {}).get(new_profile, {})
-            )
             if new_profile == "passthrough":
                 # Lazily create passthrough mdevs entry if it doesn't exist yet
                 pt_uuid = str(uuid.uuid4())
@@ -920,31 +854,6 @@ class hyp(object):
                 update_vgpu_uuids(gpu_id, pci_mdevs)
                 logs.main.info(
                     f"Created lazy passthrough mdevs entry for {gpu_id} with uuid {pt_uuid}"
-                )
-            elif d_type.get("mig"):
-                # MIG profiles are not seeded by discovery (the host has no
-                # /sys/bus/mdev nodes for MIG); bootstrap a placeholder pool
-                # so the upcoming MIG transition has UUIDs to bind to.
-                bdf = self.info_nvidia[pci_id]["path"].split("/")[-1]
-                capacity = _profile_pool_size(d_type)
-                new_map = {
-                    str(uuid.uuid4()): {
-                        "pci_mdev_id": bdf,
-                        "type_id": d_type["id"],
-                        "mig": True,
-                        "mig_profile_id": d_type.get("mig_profile_id"),
-                        "created": False,
-                        "domain_started": False,
-                        "domain_reserved": False,
-                    }
-                    for _ in range(capacity)
-                }
-                pci_mdevs[new_profile] = new_map
-                self.mdevs[pci_id] = pci_mdevs
-                update_vgpu_uuids(gpu_id, pci_mdevs)
-                logs.main.info(
-                    f"Created lazy MIG mdevs entry for {gpu_id} profile "
-                    f"{new_profile} ({len(new_map)} placeholders)"
                 )
             else:
                 # Lazy-init pool for any profile defined in info.types — covers
@@ -985,13 +894,40 @@ class hyp(object):
                         )
                         return False
                 else:
-                    logs.main.error(
-                        f"Cannot change to profile {new_profile} for {gpu_id}: "
-                        f"profile not in info.types. GPU may need "
-                        f"re-initialization or rediscovery."
+                    # A MIG-backed vGPU profile ("<slices>_<mem>Q", e.g. "1_24Q")
+                    # is NOT in info.types while the card is in vGPU mode (its
+                    # type only appears once MIG is enabled), and its mdev pool
+                    # cannot be seeded before the GIs exist. So don't bail here:
+                    # recognise it via the sibling "<slices>g.<mem>gb+gfx" GI
+                    # (enumerated in every mode) and fall through to the CLI path,
+                    # which enables MIG, carves the GIs and seeds the pool from the
+                    # apply report.
+                    _h, _u, _t = (new_profile or "").partition("_")
+                    _gi = (pci_info.get("types") or {}).get(
+                        f"{_h}g.{_t[:-1]}gb+gfx"
+                    ) or {}
+                    _mig_backed = (
+                        bool(_u)
+                        and _h.isdigit()
+                        and _t[-1:] in ("A", "B", "C", "Q")
+                        and _t[:-1].isdigit()
+                        and _gi.get("mig")
+                        and _gi.get("mig_profile_id") is not None
                     )
-                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
-                    return False
+                    if not _mig_backed:
+                        logs.main.error(
+                            f"Cannot change to profile {new_profile} for {gpu_id}: "
+                            f"profile not in info.types. GPU may need "
+                            f"re-initialization or rediscovery."
+                        )
+                        update_table_field(
+                            "vgpus", gpu_id, "changing_to_profile", False
+                        )
+                        return False
+                    logs.main.info(
+                        f"{new_profile} is a MIG-backed vGPU profile not yet in "
+                        f"info.types; deferring pool seed to the MIG carve."
+                    )
 
         pci_info = self.info_nvidia.get(pci_id, {})
         if not pci_info.get("path"):
@@ -1246,9 +1182,8 @@ class hyp(object):
                 if old_profile
                 else False
             )
-            new_is_mig = (
-                pci_info.get("types", {}).get(new_profile, {}).get("mig", False)
-            )
+            types = pci_info.get("types", {})
+            new_is_mig = types.get(new_profile, {}).get("mig", False)
 
             # Runtime changes go through the hypervisor CLI -- including MIG. A
             # MIG-disabled card lists nothing in `nvidia-smi mig -lgip`, so the
@@ -1259,14 +1194,37 @@ class hyp(object):
             # When the target is MIG but the id can't be resolved, fall back to
             # the proven inline MIG path instead of routing a half-known change.
             mig_profile_id = (
-                pci_info.get("types", {}).get(new_profile, {}).get("mig_profile_id")
-                if new_is_mig
-                else None
+                types.get(new_profile, {}).get("mig_profile_id") if new_is_mig else None
             )
+            mig_count = types.get(new_profile, {}).get("mig_count") or types.get(
+                new_profile, {}
+            ).get("max")
+
+            # A MIG-backed vGPU profile ("<slices>_<mem>Q", e.g. "1_24Q") is only
+            # enumerable in info.types while the card is ALREADY in MIG mode; in
+            # vGPU/passthrough mode the type is absent, so the lookups above miss
+            # it and the carve would wrongly take the plain vGPU path (then fail to
+            # resolve the type). Derive the MIG metadata from the sibling graphics
+            # GPU-instance profile ("<slices>g.<mem>gb+gfx"), which IS enumerated
+            # in every mode, so the carve routes to the MIG-backed vGPU sequence
+            # (build_mig_vgpu_carve_cmds) with the correct +gfx GI id and slice
+            # count -- the sequence validated by hand on RTX PRO 6000 Blackwell.
+            if not new_is_mig and new_profile and "_" in new_profile:
+                _head, _, _tail = new_profile.partition("_")
+                if (
+                    _head.isdigit()
+                    and _tail[-1:] in ("A", "B", "C", "Q")
+                    and _tail[:-1].isdigit()
+                ):
+                    _gi = types.get(f"{_head}g.{_tail[:-1]}gb+gfx") or {}
+                    if _gi.get("mig") and _gi.get("mig_profile_id") is not None:
+                        new_is_mig = True
+                        mig_profile_id = _gi["mig_profile_id"]
+                        mig_count = _gi.get("mig_count") or _gi.get("max") or mig_count
             mig_cli_ok = (not new_is_mig) or (mig_profile_id is not None)
             if mig_cli_ok:
                 report = self._apply_via_cli(
-                    gpu_id, pci_info, new_profile, mig_profile_id
+                    gpu_id, pci_info, new_profile, mig_profile_id, mig_count
                 )
                 if report is not None and report.get("result") in ("applied", "noop"):
                     self._ingest_cli_report(gpu_id, pci_id, new_profile, report)
@@ -1296,6 +1254,24 @@ class hyp(object):
                     f"(result={report.get('result') if report else None}); "
                     "falling back to the engine inline apply"
                 )
+
+            # vfio_variant cards have NO mdev sysfs layer: the inline apply below
+            # (mdev_supported_types/.../create) cannot work on them. The local
+            # gpu_apply CLI is the ONLY correct vfio apply mechanism, so if it did
+            # not cleanly apply, fail cleanly here instead of attempting a
+            # meaningless (and confusingly-failing) mdev create on a vfio card.
+            if pci_info.get("framework") == "vfio_variant":
+                reason = (
+                    "vfio_variant card: gpu_apply_cli did not cleanly apply and "
+                    "there is no inline mdev fallback for the vendor VFIO framework"
+                )
+                logs.main.error(
+                    f"gpu_apply_cli fallback unavailable for vfio card {gpu_id} "
+                    f"-> {new_profile}: {reason}"
+                )
+                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                update_table_field("vgpus", gpu_id, "last_apply_error", reason)
+                return False
 
             if old_is_mig or new_is_mig:
                 result = self._execute_mig_transition(
@@ -1547,103 +1523,6 @@ class hyp(object):
             f"[{self.id_hyp_rethink}] NVIDIA initialization completed in {time.time() - start_time:.2f}s"
         )
 
-    def get_kvm_mod(self):
-        for i in range(MAX_GET_KVM_RETRIES):
-            try:
-                d = exec_remote_cmd(
-                    "lsmod |grep kvm", self.hostname, username=self.user, port=self.port
-                )
-                if len(d["err"]) > 0:
-                    log.error(
-                        "error {} returned from command: lsmod |grep kvm".format(
-                            d["err"].decode("utf-8")
-                        )
-                    )
-                else:
-                    s = d["out"].decode("utf-8")
-                    if s.find("kvm_intel") >= 0:
-                        self.info["kvm_module"] = "intel"
-                    elif s.find("kvm_amd") >= 0:
-                        self.info["kvm_module"] = "amd"
-                    elif s.find("kvm") >= 0:
-                        self.info["kvm_module"] = "bios_disabled"
-                        log.error(
-                            "No kvm module kvm_amd or kvm_intel activated. You must review your BIOS"
-                        )
-                        log.error(
-                            "Hardware acceleration is supported, but disabled in the BIOS settings"
-                        )
-                    else:
-                        self.info["kvm_module"] = False
-                        log.error(
-                            "No kvm module installed. You must review if qemu-kvm is installed and CPU capabilities"
-                        )
-                return True
-
-            except Exception as e:
-                logs.exception_id.debug("0030")
-                log.error(
-                    "Exception while executing remote command in hypervisor to list kvm modules: {}".format(
-                        e
-                    )
-                )
-                log.error(
-                    f"Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second."
-                )
-            time.sleep(1)
-
-        self.info["kvm_module"] = False
-        log.error(
-            f"remote ssh command in hypervisor {self.hostname} fail with {MAX_GET_KVM_RETRIES} retries"
-        )
-        return False
-
-    def get_nested(self):
-        for i in range(MAX_GET_KVM_RETRIES):
-            try:
-                d = exec_remote_cmd(
-                    "cat /sys/module/kvm_intel/parameters/nested",
-                    self.hostname,
-                    username=self.user,
-                    port=self.port,
-                )
-                if len(d["err"]) > 0:
-                    d = exec_remote_cmd(
-                        "cat /sys/module/kvm_amd/parameters/nested",
-                        self.hostname,
-                        username=self.user,
-                        port=self.port,
-                    )
-                    if len(d["err"]) > 0:
-                        log.warning(
-                            f"Nested virtualization NOT enabled for hypervisor {self.hostname}"
-                        )
-                        return False
-                s = d["out"].decode("utf-8")
-                if s.find("1") == 0 or s.find("Y") == 0:
-                    log.info(
-                        f"Nested virtualization enabled for hypervisor {self.hostname}"
-                    )
-                    return True
-                return False
-
-            except Exception as e:
-                logs.exception_id.debug("0036")
-                log.error(
-                    "Exception while executing remote command in hypervisor to check nested virtualization: {}".format(
-                        e
-                    )
-                )
-                log.error(
-                    f"Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second."
-                )
-            time.sleep(1)
-
-        log.error(
-            f"remote ssh command in hypervisor {self.hostname} fail with {MAX_GET_KVM_RETRIES} retries"
-        )
-        return False
-
     def get_storage_used(self):
         for i in range(MAX_GET_KVM_RETRIES):
             try:
@@ -1716,6 +1595,14 @@ class hyp(object):
         tree = etree.parse(StringIO(xml), parser)
 
         try:
+            # One <processor> block per populated physical socket. libvirt's
+            # getInfo() reports sockets-per-NUMA-node (often 1) which
+            # undercounts multi-socket hosts, so use the SMBIOS count as the
+            # authoritative physical socket number.
+            processors = tree.xpath("/sysinfo/processor")
+            if processors:
+                self.info["cpu_sockets"] = len(processors)
+
             if tree.xpath('/sysinfo/processor/entry[@name="socket_destination"]'):
                 self.info["cpu_model"] = tree.xpath(
                     '/sysinfo/processor/entry[@name="socket_destination"]'
@@ -1770,12 +1657,25 @@ class hyp(object):
 
         # intel virtualization => cpu feature vmx
         #   amd virtualization => cpu feature svm
+        # libvirt only emits host <feature> elements that DEVIATE from the
+        # named <model> baseline. On AMD hosts svm is part of the EPYC/Opteron
+        # model baselines, so no explicit <feature name="svm"/> is present and
+        # the feature check alone leaves AMD hypervisors blank in the admin
+        # "Virt" column. Fall back to the always-present host CPU <vendor>
+        # (Intel => vmx, AMD => svm) when neither explicit feature is found.
         if tree.xpath('/capabilities/host/cpu/feature[@name="vmx"]'):
             self.info["virtualization_capabilities"] = "vmx"
         elif tree.xpath('/capabilities/host/cpu/feature[@name="svm"]'):
             self.info["virtualization_capabilities"] = "svm"
         else:
-            self.info["virtualization_capabilities"] = False
+            cpu_vendor = tree.xpath("/capabilities/host/cpu/vendor/text()")
+            cpu_vendor = cpu_vendor[0] if cpu_vendor else ""
+            if cpu_vendor == "Intel":
+                self.info["virtualization_capabilities"] = "vmx"
+            elif cpu_vendor == "AMD":
+                self.info["virtualization_capabilities"] = "svm"
+            else:
+                self.info["virtualization_capabilities"] = False
 
         # read cpu model names
         self.info["cpu_models"] = self.conn.getCPUModelNames("x86_64")
@@ -1784,8 +1684,16 @@ class hyp(object):
         if nvidia_enabled:
             self.get_nvidia_capabilities()
 
-        # nested virtualization
-        self.info["nested"] = self.get_nested()
+        # Nested virtualization is reported by the hypervisor container at
+        # registration (admin_hypervisor_create) — see
+        # docker/hypervisor/src/lib/setup.py:_detect_nested_virtualization.
+        # Re-fetch the row here so a hypervisor that toggled the kvm_*.nested
+        # module parameter and re-registered shows up correctly without
+        # restarting the engine worker.
+        hyper_record = get_hypervisor(self.id_hyp_rethink)
+        self.info["nested"] = bool(
+            hyper_record.get("nested") if hyper_record else False
+        )
 
     def get_hyp_video_status(self):
         return get_hypervisor_video_status(
@@ -1802,20 +1710,22 @@ class hyp(object):
         """Parse getFreePages result regardless of libvirt-python format.
 
         Handles:
-          - dict of dicts {cell_idx: {page_size_kb: count}, ...}
-          - list of dicts [{page_size_kb: count}, ...]
           - flat list [count, ...] (len = num_reported_cells * len(page_sizes))
+          - list of dicts [{page_size_kb: count}, ...]
+          - dict of dicts {cell_idx: {page_size_kb: count}, ...}
         """
         total_free_kb = 0
         if isinstance(free_pages, dict):
             for _cell_idx, sizes in free_pages.items():
                 for page_size_kb, free_count in sizes.items():
                     total_free_kb += free_count * page_size_kb
+            reported_cells = len(free_pages)
         elif isinstance(free_pages, list):
             if len(free_pages) > 0 and isinstance(free_pages[0], dict):
                 for cell_dict in free_pages:
                     for page_size_kb, free_count in cell_dict.items():
                         total_free_kb += free_count * page_size_kb
+                reported_cells = len(free_pages)
             else:
                 idx = 0
                 for _cell in range(num_cells):
@@ -1823,8 +1733,12 @@ class hyp(object):
                         if idx < len(free_pages):
                             total_free_kb += free_pages[idx] * page_size_kb
                             idx += 1
+                reported_cells = len(free_pages) // len(page_sizes) if page_sizes else 0
         else:
             return 0
+
+        if 0 < reported_cells < num_cells:
+            total_free_kb = total_free_kb * num_cells // reported_cells
 
         return total_free_kb
 
@@ -1834,17 +1748,20 @@ class hyp(object):
         Uses per-size sysfs files instead of /proc/meminfo because the latter
         only reports the default hugepage size and silently ignores others.
 
-        Reads per-NUMA free counts when numa_topology is available in the
+        Reads per-NUMA free counts when ``numa_topology`` is available in the
         hypervisor record, deriving the global total from the per-node sum.
         Falls back to global-only reads when per-NUMA data is unavailable.
 
         Returns:
-            tuple: (total_free_kb, numa_free_kb) where numa_free_kb is a dict
-                   {"0": kb, "1": kb, ...} or {} if per-NUMA data unavailable.
-                   Returns (None, {}) on any failure.
+            tuple: ``(total_free_kb, numa_free_kb, total_live_kb)`` where
+                ``numa_free_kb`` is a dict ``{"0": kb, "1": kb, ...}`` or ``{}``
+                if per-NUMA data is unavailable, and ``total_live_kb`` is the
+                live ``nr_hugepages`` total (KB) read in the same pass. Returns
+                ``(None, {}, None)`` on any failure so the caller can fall back
+                to libvirt ``getFreePages``.
         """
         numa_topo = self.hypervisor.get("numa_topology", {}) if self.hypervisor else {}
-        node_ids = sorted(numa_topo.get("nodes", {}).keys())
+        node_ids = sorted((numa_topo.get("nodes") or {}).keys())
 
         sizes_kb = []
         if hugepages_total_1g > 0:
@@ -1852,17 +1769,21 @@ class hyp(object):
         if hugepages_total_2m > 0:
             sizes_kb.append(2048)
         if not sizes_kb:
-            return None, {}
+            return None, {}, None
 
-        # Try per-NUMA reads first (one SSH command for all nodes and sizes)
+        # Try per-NUMA reads first (one SSH command for all nodes and sizes).
+        # Read free_hugepages AND nr_hugepages per node/size so the caller gets
+        # a live total (nr) alongside free, all in a single round-trip.
         if len(node_ids) > 1:
             cmd_parts = []
             for node_id in node_ids:
                 for size_kb in sizes_kb:
-                    cmd_parts.append(
-                        f"cat /sys/devices/system/node/node{node_id}"
-                        f"/hugepages/hugepages-{size_kb}kB/free_hugepages"
+                    base = (
+                        f"/sys/devices/system/node/node{node_id}"
+                        f"/hugepages/hugepages-{size_kb}kB"
                     )
+                    cmd_parts.append(f"cat {base}/free_hugepages")
+                    cmd_parts.append(f"cat {base}/nr_hugepages")
             cmd = " && echo '---' && ".join(cmd_parts)
             try:
                 result = exec_remote_cmd(
@@ -1875,28 +1796,30 @@ class hyp(object):
                 if not result["err"]:
                     out = result["out"].decode("utf-8", errors="replace").strip()
                     parts = [p.strip() for p in out.split("---")]
-                    expected = len(node_ids) * len(sizes_kb)
+                    expected = len(node_ids) * len(sizes_kb) * 2
                     if len(parts) == expected:
                         numa_free_kb = {}
                         total_free_kb = 0
+                        total_live_kb = 0
                         idx = 0
                         for node_id in node_ids:
                             node_free = 0
                             for size_kb in sizes_kb:
                                 node_free += int(parts[idx]) * size_kb
-                                idx += 1
+                                total_live_kb += int(parts[idx + 1]) * size_kb
+                                idx += 2
                             numa_free_kb[node_id] = node_free
                             total_free_kb += node_free
-                        return total_free_kb, numa_free_kb
+                        return total_free_kb, numa_free_kb, total_live_kb
             except (SSHTimeoutError, Exception) as e:
                 log.debug(f"[{self.id_hyp_rethink}] per-NUMA sysfs read failed: {e}")
 
-        # Fallback: global-only reads
+        # Fallback: global-only reads (single NUMA cell or per-NUMA failed)
         cmd_parts = []
         for size_kb in sizes_kb:
-            cmd_parts.append(
-                f"cat /sys/kernel/mm/hugepages/hugepages-{size_kb}kB/free_hugepages"
-            )
+            base = f"/sys/kernel/mm/hugepages/hugepages-{size_kb}kB"
+            cmd_parts.append(f"cat {base}/free_hugepages")
+            cmd_parts.append(f"cat {base}/nr_hugepages")
         cmd = " && echo '---' && ".join(cmd_parts)
         try:
             result = exec_remote_cmd(
@@ -1907,26 +1830,28 @@ class hyp(object):
                 timeout=5,
             )
             if result["err"]:
-                return None, {}
+                return None, {}, None
 
             out = result["out"].decode("utf-8", errors="replace").strip()
             parts = [p.strip() for p in out.split("---")]
-            if len(parts) != len(sizes_kb):
-                return None, {}
+            if len(parts) != len(sizes_kb) * 2:
+                return None, {}, None
 
             total_free_kb = 0
-            for free_str, size_kb in zip(parts, sizes_kb):
-                total_free_kb += int(free_str) * size_kb
-            return total_free_kb, {}
+            total_live_kb = 0
+            for i, size_kb in enumerate(sizes_kb):
+                total_free_kb += int(parts[2 * i]) * size_kb
+                total_live_kb += int(parts[2 * i + 1]) * size_kb
+            return total_free_kb, {}, total_live_kb
         except (SSHTimeoutError, Exception) as e:
             log.debug(f"[{self.id_hyp_rethink}] sysfs hugepages read failed: {e}")
-            return None, {}
+            return None, {}, None
 
     def _get_hugepages_stats(self):
-        """Return (total_kb, free_kb, numa_free_kb).
+        """Return ``(total_kb, free_kb, numa_free_kb)``.
 
-        numa_free_kb is {"0": kb, "1": kb, ...} when per-NUMA data is
-        available, {} otherwise.
+        ``numa_free_kb`` is ``{"0": kb, "1": kb, ...}`` when per-NUMA data
+        is available, ``{}`` otherwise.
         """
         hugepages_info = (
             self.hypervisor.get("hugepages_info", {}) if self.hypervisor else {}
@@ -1937,18 +1862,28 @@ class hyp(object):
         if hugepages_total_kb == 0:
             return 0, 0, {}
 
-        # Primary: read from kernel sysfs via SSH (authoritative, handles all sizes)
-        hugepages_free_kb, numa_free_kb = self._get_hugepages_free_from_sysfs(
-            hugepages_total_1g, hugepages_total_2m
+        # Primary: read from kernel sysfs via SSH (authoritative, handles all
+        # page sizes, supports per-NUMA accounting).
+        hugepages_free_kb, numa_free_kb, live_total_kb = (
+            self._get_hugepages_free_from_sysfs(hugepages_total_1g, hugepages_total_2m)
         )
         if hugepages_free_kb is not None:
+            # Prefer the live total (nr_hugepages from sysfs) over the stored
+            # registration value: a pool drained at runtime must report 0
+            # total, not the stale figure captured at hypervisor registration.
+            total_kb = (
+                live_total_kb if live_total_kb is not None else hugepages_total_kb
+            )
             return (
-                hugepages_total_kb,
-                min(hugepages_free_kb, hugepages_total_kb),
+                total_kb,
+                min(hugepages_free_kb, total_kb),
                 numa_free_kb,
             )
 
-        # Fallback: libvirt getFreePages with dict-collision detection
+        # Fallback: libvirt getFreePages with dict-collision detection.
+        # libvirt sometimes reports duplicate cell IDs on the host capability
+        # XML, which makes ``getFreePages`` return fewer dict keys than there
+        # are NUMA nodes; retry with a single-cell query in that case.
         hugepages_free_kb = 0
         try:
             page_sizes = []
@@ -1959,8 +1894,6 @@ class hyp(object):
             num_cells = self.conn.getInfo()[4]
             free_pages = self.conn.getFreePages(page_sizes, 0, num_cells)
 
-            # Detect libvirt bug: duplicate cell IDs cause dict key collision,
-            # resulting in fewer keys than expected NUMA cells.
             if isinstance(free_pages, dict) and len(free_pages) < num_cells:
                 log.warning(
                     f"[{self.id_hyp_rethink}] getFreePages returned "
@@ -2045,8 +1978,8 @@ class hyp(object):
         Args:
             nvidia_gpus: list of GPU dicts from hypervisor discovery
         """
-        # Card-bound model per PCI slot.  Once the API binds a model to a
-        # gpus[card_id] row it is immutable, so we use it as the canonical
+        # Card-bound model per PCI slot.  Once apiv4 binds a model to a
+        # gpus[card_id] row it is immutable, so use it as the canonical
         # name for self.info["nvidia"][pci] — that's what the balancer
         # compares against the desktop's reservable model string.  Without
         # this override, fresh-discovery model strings can momentarily
@@ -2169,6 +2102,9 @@ class hyp(object):
 
             # Prefer the card-bound model (DB sticky); fall back to the
             # fresh discovery value, then to the profile-name fallback.
+            # This keeps info["nvidia"][pci] in lock-step with the
+            # gpu_profiles / reservables_vgpus catalog through driver
+            # upgrades and normalization-rule changes.
             model_gpu = (
                 sticky_models.get(pci_name)
                 or gpu.get("_resolved_model")
@@ -2192,6 +2128,12 @@ class hyp(object):
                     type_max_gpus = suffix
 
             info_nvidia["mig_mode"] = gpu.get("mig_mode", "[N/A]")
+            # Per-card vGPU sysfs framework ("legacy_mdev" | "vfio_variant") from
+            # discovery. The functional dispatch uses the per-pool-entry framework
+            # and the live build_card_descriptor probe; this persists the card-level
+            # value into vgpus.info for observability (so a DB inspection shows which
+            # cards use the kernel>=6.8 vendor VFIO path). Absent => legacy mdev.
+            info_nvidia["framework"] = gpu.get("framework", "legacy_mdev")
             info_nvidia["types"] = d_types
             info_nvidia["type_max_gpus"] = type_max_gpus
             info_nvidia["device_name"] = gpu["name"]
@@ -2350,6 +2292,9 @@ class hyp(object):
                         info_nvidia["max_count"] = max_count
                         info_nvidia["max_gpus"] = d_types[type_max_gpus]["max"]
                         info_nvidia["model"] = model_gpu
+                        # This libvirt-capability-XML fallback serves older cards
+                        # (T4 etc.) that predate the vendor VFIO framework.
+                        info_nvidia["framework"] = "legacy_mdev"
                         if sub_paths is not False:
                             info_nvidia["sub_paths"] = sub_paths
                         if path_parent is not False:

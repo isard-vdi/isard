@@ -45,7 +45,7 @@ $(document).ready(function() {
                 addclass: "pnotify-center",
             }).get().on('pnotify.confirm', function() {
                 $.ajax({
-                    url: `/api/v3/admin/migrations/${migrationId}/revoke`,
+                    url: `/api/v4/admin/item/user-migration/${migrationId}/revoke`,
                     type: 'PUT',
                     success: function() {
                         new PNotify({
@@ -94,7 +94,7 @@ $(document).ready(function() {
                 addclass: "pnotify-center",
             }).get().on('pnotify.confirm', function() {
                 $.ajax({
-                    url: `/api/v3/admin/migrations/${migrationId}`,
+                    url: `/api/v4/admin/item/user-migration/${migrationId}`,
                     type: 'DELETE',
                     success: function() {
                         new PNotify({
@@ -171,10 +171,10 @@ function renderMigrationDataTable() {
     $migration_detail = $(".template-migration-detail");
     migrationTable = $(`#migration-table`).DataTable({
         "ajax": {
-            "url": `/api/v3/admin/migrations`,
+            "url": `/api/v4/admin/item/user-migrations`,
             "type": 'GET'
         },
-        "sAjaxDataProp": "",
+        "sAjaxDataProp": "migrations",
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },

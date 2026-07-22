@@ -2,4 +2,4 @@ services:
   isard-redis:
     container_name: isard-redis
     ports:
-      - "8001:8001"
+      - "${INFRASTRUCTURE_HOST_IP:-0.0.0.0}:8001:8001"

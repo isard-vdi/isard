@@ -1,7 +1,0 @@
-co_owners:
-  type: list
-  required: true
-  schema:
-    required: false
-    type: string
-    coerce: sanitize

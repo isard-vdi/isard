@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
 	"gitlab.com/isard/isardvdi/stats/cfg"
 	"gitlab.com/isard/isardvdi/stats/collector"
@@ -18,10 +17,9 @@ import (
 	"github.com/oracle/oci-go-sdk/v65/common"
 	"github.com/oracle/oci-go-sdk/v65/usageapi"
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
-	"libvirt.org/go/libvirt"
 )
 
 func main() {
@@ -32,7 +30,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	collectors, libvirtConn, sshConn := startCollectors(ctx, cfg, log)
+	collectors, libvirtPool, sshPool := startCollectors(ctx, cfg, log)
 
 	enabledCollectors := []string{}
 	for _, c := range collectors {
@@ -42,12 +40,12 @@ func main() {
 	http := &http.StatsServer{
 		Addr:       cfg.HTTP.Addr(),
 		Log:        log,
-		WG:         &wg,
 		Collectors: collectors,
 	}
 
-	go http.Serve(ctx, log)
-	wg.Add(1)
+	wg.Go(func() {
+		http.Serve(ctx, log)
+	})
 
 	log.Info().Strs("collectors", enabledCollectors).Msg("service started")
 
@@ -59,13 +57,14 @@ func main() {
 	log.Info().Msg("stopping service")
 
 	cancel()
+	wg.Wait()
 
-	if libvirtConn != nil {
-		libvirtConn.Close()
+	if libvirtPool != nil {
+		libvirtPool.Close()
 	}
 
-	if sshConn != nil {
-		sshConn.Close()
+	if sshPool != nil {
+		sshPool.Close()
 	}
 }
 
@@ -87,20 +86,20 @@ func hasWeb(flavour string) bool {
 	}
 }
 
-func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *libvirt.Connect, *ssh.Client) {
+func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *collector.LibvirtPool, *collector.SSHPool) {
 	domain := hasHypervisor(cfg.Flavour) && cfg.Collectors.Domain.Enable
 	hypervisor := hasHypervisor(cfg.Flavour) && cfg.Collectors.Hypervisor.Enable
 	socket := hasHypervisor(cfg.Flavour) && cfg.Collectors.Socket.Enable
 	system := cfg.Collectors.System.Enable
 	isardvdiAPI := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAPI.Enable
 	isardvdiAuthentication := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAuthentication.Enable
+	storageGovernor := hasWeb(cfg.Flavour)
 	oci := hasWeb(cfg.Flavour) && cfg.Collectors.OCI.Enable
 	conntrack := hasWeb(cfg.Flavour) && cfg.Collectors.Conntrack.Enable
 
-	var sshConn *ssh.Client
-	var sshMux sync.Mutex
+	var sshPool *collector.SSHPool
 	if domain || socket {
-		kHosts, err := knownhosts.New(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))
+		hostKeyCB, err := collector.NewSelfHealingHostKeyCallback(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"), log)
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("read known hosts")
 		}
@@ -120,28 +119,22 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 			Auth: []ssh.AuthMethod{
 				ssh.PublicKeys(pKey),
 			},
-			HostKeyCallback: kHosts,
+			HostKeyCallback: hostKeyCB,
 		}
 
-		sshConn, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port), sshCfg)
+		sshPool, err = collector.NewSSHPool(fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port), sshCfg, log)
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Str("host", cfg.SSH.Host).Int("port", cfg.SSH.Port).Msg("connect using SSH")
 		}
 	}
 
-	var libvirtConn *libvirt.Connect
-	var libvirtMux sync.Mutex
+	var libvirtPool *collector.LibvirtPool
 	if hypervisor || domain {
 		// TODO: We should add a libvirt timeout
 		var err error
-		libvirtConn, err = libvirt.NewConnectReadOnly(cfg.LibvirtURI)
+		libvirtPool, err = collector.NewLibvirtPool(cfg.LibvirtURI, log)
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("connect to libvirt")
-		}
-
-		alive, err := libvirtConn.IsAlive()
-		if err != nil || !alive {
-			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("connection not alive")
 		}
 	}
 
@@ -153,42 +146,48 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 	}
 
 	if hypervisor {
-		h := collector.NewHypervisor(&libvirtMux, cfg, log, libvirtConn)
+		h := collector.NewHypervisor(cfg, log, libvirtPool)
 		collectors = append(collectors, h)
 	}
 
 	if domain {
-		d := collector.NewDomain(ctx, &libvirtMux, &sshMux, cfg, log, libvirtConn, sshConn)
+		d := collector.NewDomain(ctx, cfg, log, libvirtPool, sshPool)
 		collectors = append(collectors, d)
 	}
 
 	if socket {
-		s := collector.NewSocket(&sshMux, cfg, log, sshConn)
+		s := collector.NewSocket(cfg, log, sshPool)
 		collectors = append(collectors, s)
 	}
 
 	if isardvdiAPI {
-		cli, err := sdk.NewClient(&sdk.Cfg{
-			Host:        cfg.Collectors.IsardVDIAPI.Addr,
-			IgnoreCerts: true,
-		})
+		httpClient := ogenclient.NewHTTPClient(ogenclient.WithIgnoreCerts())
+		cli, err := apiv4.NewClient(
+			cfg.Collectors.IsardVDIAPI.Addr,
+			ogenclient.APIv4Source{Secret: cfg.Collectors.IsardVDIAPI.Secret},
+			apiv4.WithClient(httpClient),
+		)
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create API client")
 		}
 
-		cli.SetBeforeRequestHook(func(c *sdk.Client) error {
-			tkn, err := jwt.SignAPIJWT(cfg.Collectors.IsardVDIAPI.Secret)
-			if err != nil {
-				return fmt.Errorf("sign JWT token for calling the API: %w", err)
-			}
-
-			c.SetToken(tkn)
-
-			return nil
-		})
-
-		a := collector.NewIsardVDIAPI(log, cli)
+		a := collector.NewIsardVDIAPI(ctx, log, cli)
 		collectors = append(collectors, a)
+	}
+
+	if storageGovernor {
+		httpClient := ogenclient.NewHTTPClient(ogenclient.WithIgnoreCerts())
+		cli, err := apiv4.NewClient(
+			cfg.Collectors.IsardVDIAPI.Addr,
+			ogenclient.APIv4Source{Secret: cfg.Collectors.IsardVDIAPI.Secret},
+			apiv4.WithClient(httpClient),
+		)
+		if err != nil {
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create storage governor API client")
+		}
+
+		g := collector.NewStorageGovernor(ctx, log, cli)
+		collectors = append(collectors, g)
 	}
 
 	if isardvdiAuthentication {
@@ -218,5 +217,5 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 		collectors = append(collectors, c)
 	}
 
-	return collectors, libvirtConn, sshConn
+	return collectors, libvirtPool, sshPool
 }

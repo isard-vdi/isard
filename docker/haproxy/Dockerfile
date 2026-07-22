@@ -1,17 +1,13 @@
 ARG HAPROXY_RUN_IMAGE
-ARG GOLANG_BUILD_IMAGE
+ARG GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22@sha256:6b7607461f105ccaa0615b6f7932dfd5b36c5d827a0770b5578e565107cc3adb
 
 # Build haproxy-sync binary
 FROM ${GOLANG_BUILD_IMAGE} as haproxy-sync-build
 
 WORKDIR /build
 
-RUN mkdir -p /build/pkg/sdk
-
 COPY go.mod /build
 COPY go.sum /build
-COPY pkg/sdk/go.mod /build/pkg/sdk
-COPY pkg/sdk/go.sum /build/pkg/sdk
 
 RUN go mod download
 

@@ -1,0 +1,2206 @@
+[
+    {
+        "id": "template-test-001",
+        "kind": "template",
+        "name": "Template Test Frontend",
+        "description": "Test template used by deployment-test-001",
+        "status": "Stopped",
+        "enabled": true,
+        "category": "default",
+        "group": "default-default",
+        "user": "local-default-admin-admin",
+        "username": "admin",
+        "persistent": true,
+        "server": false,
+        "icon": "fa-circle-o",
+        "os": "linux",
+        "accessed": 1758268070,
+        "booking_id": false,
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "hypervisors_pools": [
+            "default"
+        ],
+        "allowed": {
+            "categories": false,
+            "groups": [],
+            "roles": false,
+            "users": false
+        },
+        "image": {
+            "id": "1.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/1.jpg"
+        },
+        "guest_properties": {
+            "credentials": {
+                "username": "isard",
+                "password": "pirineus"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "create_dict": {
+            "hardware": {
+                "vcpus": 1,
+                "memory": 1048576,
+                "videos": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:00:00:01"
+                    }
+                ],
+                "graphics": [
+                    "default"
+                ],
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "qos_disk_id": false,
+                "virtualization_nested": false,
+                "isos": [],
+                "floppies": [],
+                "disks": [
+                    {
+                        "storage_id": "storage-template-test-001"
+                    }
+                ]
+            },
+            "personal_vlans": false,
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "xml": "<domain type=\"kvm\"><name>template-test-001</name><uuid>00000000-0000-0000-0000-000000000001</uuid><memory unit=\"KiB\">1048576</memory><vcpu placement=\"static\">1</vcpu><os><type arch=\"x86_64\" machine=\"pc-i440fx-2.11\">hvm</type></os><devices/></domain>"
+    },
+    {
+        "accessed": 1758268070,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "37925f51-6620-4262-91a6-72d468545ce6"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:7e:b6:8c"
+                    },
+                    {
+                        "id": "wireguard",
+                        "mac": "52:54:00:7e:b6:8d"
+                    }
+                ],
+                "isos": [],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Base desktop",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "dae8fee5-93d6-4f80-ae0c-121d304910e4",
+        "image": {
+            "id": "7.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/7.jpg"
+        },
+        "kind": "desktop",
+        "name": "Desktop with storage",
+        "os": "win",
+        "persistent": true,
+        "server": false,
+        "status": "Stopped",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "c7e77d70-e443-53d2-9933-d9b83e4a19a1",
+        "username": "admin_e2e_09",
+        "xml": "<domain type=\"kvm\"><name>template-test-001</name><uuid>00000000-0000-0000-0000-000000000001</uuid><memory unit=\"KiB\">1048576</memory><vcpu placement=\"static\">1</vcpu><os><type arch=\"x86_64\" machine=\"pc-i440fx-2.11\">hvm</type></os><devices><emulator>/usr/bin/qemu-system-x86_64</emulator></devices></domain>"
+    },
+    {
+        "accessed": 1758268075,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "6029bc91-f82d-4a42-8bf1-aed6fcaa3c30"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "wireguard",
+                        "mac": "52:54:00:a1:b2:c3"
+                    }
+                ],
+                "isos": [
+                    {
+                        "id": "empty-iso"
+                    }
+                ],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": [
+                    "NVIDIA-A16-2Q"
+                ]
+            }
+        },
+        "description": "GPU-enabled desktop with WireGuard network and RDP access.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_rdp": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "3c6b1eaa-2d4f-4f43-9f87-2b1ac2c3d4e5",
+        "image": {
+            "id": "1.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/1.jpg"
+        },
+        "kind": "desktop",
+        "name": "Test desktop with GPU",
+        "os": "win",
+        "persistent": true,
+        "server": false,
+        "status": "Stopped",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "67d9d771-8e2d-5a43-9f1b-b75130af513a",
+        "username": "admin_e2e_01",
+        "xml": null
+    },
+    {
+        "accessed": 1758268080,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": "0a1b2c3d-4e5f-6789-abcd-ef0123456789",
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "160cb6af-d15a-428a-a442-8b6258dfab61"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:aa:bb:cc"
+                    }
+                ],
+                "isos": [
+                    {
+                        "id": "empty-iso"
+                    }
+                ],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": [
+                    "NVIDIA-A16-2Q"
+                ]
+            }
+        },
+        "description": "Desktop with reservables and a booking assigned.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "file_rdpvpn": {
+                    "options": null
+                },
+                "browser_vnc": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "7a9d3c12-1b23-4a56-8c9d-0e1f2a3b4c5d",
+        "image": {
+            "id": "12.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/12.jpg"
+        },
+        "kind": "desktop",
+        "name": "Booked desktop",
+        "os": "win",
+        "persistent": true,
+        "server": false,
+        "status": "Stopped",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "9b612af1-2e83-5a73-acab-9e1f8cc6d960",
+        "username": "admin_e2e_02",
+        "xml": null
+    },
+    {
+        "accessed": 1758268085,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "1d4f9c36-a477-42e5-9909-b7f2e2882e9d"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:de:ad:01"
+                    }
+                ],
+                "isos": [
+                    {
+                        "id": "empty-iso"
+                    }
+                ],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Desktop intentionally set to Failed for negative path tests.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "8b7c6d5e-4f3a-2b1c-9d8e-7f6a5b4c3d2e",
+        "image": {
+            "id": "23.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/23.jpg"
+        },
+        "kind": "desktop",
+        "name": "Failed desktop",
+        "os": "win",
+        "persistent": true,
+        "server": false,
+        "status": "Failed",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "0232270e-27c5-5554-b548-85a1d35feb4d",
+        "username": "admin_e2e_03",
+        "xml": null
+    },
+    {
+        "accessed": 1758268090,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "current_action": "increase",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "6e274355-add7-47b6-8d32-14c2faebfcdb"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:de:ad:02"
+                    }
+                ],
+                "isos": [
+                    {
+                        "id": "empty-iso"
+                    }
+                ],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Under maintenance for disk size operation.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "browser_rdp": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "1f2e3d4c-5b6a-7c8d-9e0f-a1b2c3d4e5f6",
+        "image": {
+            "id": "34.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/34.jpg"
+        },
+        "kind": "desktop",
+        "name": "Test maintenance desktop",
+        "os": "win",
+        "persistent": true,
+        "server": false,
+        "status": "Maintenance",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "96f984bc-fa8f-5e83-ae34-af5d24fef029",
+        "username": "admin_e2e_04",
+        "xml": null
+    },
+    {
+        "accessed": 1758268095,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "a2db3b58-cccf-456e-ac3c-f9963ff71d78"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:de:ad:03"
+                    }
+                ],
+                "isos": [
+                    {
+                        "id": "empty-iso"
+                    }
+                ],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Running desktop for connectivity and viewer tests.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "file_rdpgw": {
+                    "options": null
+                },
+                "browser_vnc": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "hyp_started": "isard-hypervisor",
+        "id": "9a8b7c6d-5e4f-3a2b-1c9d-8e7f6a5b4c3d",
+        "image": {
+            "id": "45.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/45.jpg"
+        },
+        "kind": "desktop",
+        "name": "Test started desktop",
+        "os": "win",
+        "persistent": true,
+        "server": false,
+        "status": "Started",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "bd703f20-a54d-5be0-a2d3-a0eb34c01ede",
+        "username": "admin_e2e_12",
+        "xml": null
+    },
+    {
+        "accessed": 1758268100,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "9f63355e-0c32-45db-97b5-139d081bce51"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:de:ad:04"
+                    }
+                ],
+                "isos": [
+                    {
+                        "id": "empty-iso"
+                    }
+                ],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Desktop currently downloading its base image.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "browser_rdp": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "2f1a7d4b-09d4-4b7b-8a1a-2d6b0f0f1234",
+        "image": {
+            "id": "5.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/5.jpg"
+        },
+        "kind": "desktop",
+        "name": "Downloading desktop",
+        "os": "win",
+        "persistent": true,
+        "server": false,
+        "status": "Downloading",
+        "progress": {
+            "size": "412M",
+            "throughput_average": "7.8M",
+            "time_left": "0:00:69",
+            "percentage": 42,
+            "total": "412M",
+            "speed_download_average": "7.8M",
+            "received_percent": 42
+        },
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "979fa7ca-537a-56c6-b40f-f7c798419f3f",
+        "username": "admin_e2e_05",
+        "xml": null
+    },
+    {
+        "accessed": 1758268105,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "c94fd06b-b819-40a8-8c3a-993f8e28e3eb"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:de:ad:05"
+                    }
+                ],
+                "isos": [
+                    {
+                        "id": "empty-iso"
+                    }
+                ],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Desktop with unknown state for resilience checks.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "5b4c3d2e-1f0a-4c9b-9d2e-1a2b3c4d5e6f",
+        "image": {
+            "id": "9.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/9.jpg"
+        },
+        "kind": "desktop",
+        "name": "Unknown status",
+        "os": "win",
+        "persistent": true,
+        "server": false,
+        "status": "Unknown",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "6f5c0b03-53cf-5047-b56e-5e83b5530be4",
+        "username": "admin_e2e_06",
+        "xml": null
+    },
+    {
+        "accessed": 1758268110,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "f1a2b3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:de:ad:06"
+                    }
+                ],
+                "isos": [],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "To test 'recreate' action in frontend.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "a1b2c3d4-5e6f-7a8b-9c0d-e1f2a3b4c5d6",
+        "image": {
+            "id": "15.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/15.jpg"
+        },
+        "kind": "desktop",
+        "name": "Recreable Desktop Test",
+        "os": "linux",
+        "persistent": true,
+        "server": false,
+        "status": "Stopped",
+        "tag": "deployment-test-001",
+        "tag_desktop_id": "00000000-0000-4000-8000-000000000001",
+        "tag_name": "Deployment-Test-Frontend",
+        "tag_visible": true,
+        "user": "8ddebf86-faf4-52d0-b2d6-586806dc2bf2",
+        "username": "admin_e2e_07",
+        "xml": null
+    },
+    {
+        "accessed": 1758268115,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "a9b8c7d6-e5f4-3a2b-1c0d-9e8f7a6b5c4d"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:de:ad:07"
+                    }
+                ],
+                "isos": [
+                    {
+                        "id": "empty-iso"
+                    }
+                ],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Temporary non-persistent desktop. Data is lost after shutdown.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "hyp_started": "isard-hypervisor",
+        "id": "b2c3d4e5-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
+        "image": {
+            "id": "22.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/22.jpg"
+        },
+        "kind": "desktop",
+        "name": "Temporary Desktop",
+        "os": "linux",
+        "persistent": false,
+        "server": false,
+        "status": "Started",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "29b9841e-325d-5911-b2ff-4480b4465602",
+        "username": "admin_e2e_11",
+        "xml": null
+    },
+    {
+        "accessed": 1758268120,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "test-storage-not-enough-time"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:de:ad:99"
+                    }
+                ],
+                "isos": [],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": [
+                    "NVIDIA-T4-2Q"
+                ]
+            }
+        },
+        "description": "Triggers not_enough_advanced_time modal",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-desktop",
+        "id": "test-desktop-not-enough-advanced-time",
+        "image": {
+            "id": "25.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/25.jpg"
+        },
+        "kind": "desktop",
+        "name": "Test Not Enough Advanced Time",
+        "os": "linux",
+        "persistent": true,
+        "server": false,
+        "status": "Stopped",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "4e2aec3a-b3ac-5829-a692-51c10e493da8",
+        "username": "user_e2e_01",
+        "xml": null
+    },
+    {
+        "accessed": 1730354400,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "test-storage-gpu-unavailable"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:de:ad:aa"
+                    }
+                ],
+                "isos": [],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": [
+                    "NVIDIA-A16-4Q"
+                ]
+            }
+        },
+        "description": "Triggers change_and_start modal",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-desktop",
+        "id": "test-desktop-gpu-unavailable",
+        "image": {
+            "id": "26.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/26.jpg"
+        },
+        "kind": "desktop",
+        "name": "Test GPU Unavailable",
+        "needs_booking": true,
+        "os": "linux",
+        "persistent": true,
+        "server": false,
+        "status": "Stopped",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "ca96982b-326b-52ff-a0ee-2e588aae3607",
+        "username": "admin_e2e_10",
+        "xml": null
+    },
+    {
+        "accessed": 1758268080,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "ubuntu22Virtio",
+            "hardware": {
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "10G",
+                        "storage_id": "d3b07384-d9a8-4f9a-9a12-3e5d6c7b8a9f"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "wireguard",
+                        "mac": "52:54:00:ba:57:10"
+                    }
+                ],
+                "isos": [],
+                "memory": 2097152,
+                "qos_disk_id": false,
+                "vcpus": 2,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Desktop with Bastion SSH and HTTP",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-server",
+        "id": "3a1f2b4c-6d78-4e90-9a12-b3c4d5e6f7a8",
+        "image": {
+            "id": "42.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/42.jpg"
+        },
+        "jumperurl": "LpHdQlJlW1SF7BN20Qoz5ZUKaSYsQl6zpS5QFb52jIM",
+        "kind": "desktop",
+        "name": "Desktop with Bastion",
+        "os": "linux",
+        "persistent": true,
+        "server": false,
+        "status": "Stopped",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "11a3abb2-3888-5af2-8a14-91340405a89f",
+        "username": "admin_e2e_08",
+        "xml": null
+    },
+    {
+        "accessed": 1762259047,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "virtio",
+                        "storage_id": "e1390601-7aee-485b-877c-12180cccf73c"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:30:3e:92"
+                    },
+                    {
+                        "id": "wireguard",
+                        "mac": "52:54:00:5b:29:88"
+                    },
+                    {
+                        "id": "private2",
+                        "mac": "52:54:00:71:32:44"
+                    },
+                    {
+                        "id": "private3",
+                        "mac": "52:54:00:64:6c:84"
+                    },
+                    {
+                        "id": "private4",
+                        "mac": "52:54:00:55:75:16"
+                    },
+                    {
+                        "id": "virtio_shared",
+                        "mac": "52:54:00:24:52:2e"
+                    },
+                    {
+                        "id": "private1",
+                        "mac": "52:54:00:32:08:39"
+                    },
+                    {
+                        "id": "e1000_isolated",
+                        "mac": "52:54:00:45:27:f2"
+                    },
+                    {
+                        "id": "private5",
+                        "mac": "52:54:00:69:6d:4e"
+                    }
+                ],
+                "isos": [
+                    {
+                        "id": "empty-iso"
+                    }
+                ],
+                "memory": 1048576,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "name": "d9cf9dc9-841c-4bdc-996d-945c675b81f5",
+            "personal_vlans": false,
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "I also have a really really looooong description that does not fit the card",
+        "detail": "\"Updated hardware\"",
+        "disks_info": [
+            {
+                "actual-size": 16384,
+                "children": [
+                    {
+                        "info": {
+                            "actual-size": 16384,
+                            "children": [],
+                            "dirty-flag": false,
+                            "filename": "/isard/groups/e1390601-7aee-485b-877c-12180cccf73c.qcow2",
+                            "format": "file",
+                            "format-specific": {
+                                "data": {},
+                                "type": "file"
+                            },
+                            "virtual-size": 16384
+                        },
+                        "name": "file"
+                    }
+                ],
+                "cluster-size": 4096,
+                "dirty-flag": false,
+                "filename": "/isard/groups/e1390601-7aee-485b-877c-12180cccf73c.qcow2",
+                "format": "qcow2",
+                "format-specific": {
+                    "data": {
+                        "compat": "1.1",
+                        "compression-type": "zlib",
+                        "corrupt": false,
+                        "extended-l2": false,
+                        "lazy-refcounts": false,
+                        "refcount-bits": 16
+                    },
+                    "type": "qcow2"
+                },
+                "virtual-size": 1073741824
+            }
+        ],
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": true,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_rdpgw": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hardware": {
+            "boot_menu_enable": [
+                null
+            ],
+            "boot_order": [
+                "cdrom"
+            ],
+            "cdroms": [
+                {
+                    "dev": "sda",
+                    "file": "/isard/media/empty.iso"
+                }
+            ],
+            "currentMemory": 1048576,
+            "currentMemory_unit": "KiB",
+            "disks": [
+                {
+                    "bus": "virtio",
+                    "dev": "vda",
+                    "file": "/isard/groups/e1390601-7aee-485b-877c-12180cccf73c.qcow2",
+                    "type": "qcow2"
+                }
+            ],
+            "floppies": [],
+            "graphics": {
+                "defaultMode": "any",
+                "type": "spice"
+            },
+            "interfaces": [
+                {
+                    "mac": "52:54:00:30:3e:92",
+                    "model": "virtio",
+                    "net": "default",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:5b:29:88",
+                    "model": "virtio",
+                    "net": "ovsbr0",
+                    "qos": null,
+                    "type": "bridge"
+                },
+                {
+                    "mac": "52:54:00:71:32:44",
+                    "model": "virtio",
+                    "net": "private2",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:64:6c:84",
+                    "model": "virtio",
+                    "net": "private3",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:55:75:16",
+                    "model": "virtio",
+                    "net": "private4",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:24:52:2e",
+                    "model": "virtio",
+                    "net": "shared",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:32:08:39",
+                    "model": "virtio",
+                    "net": "private1",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:45:27:f2",
+                    "model": "e1000",
+                    "net": "default",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:69:6d:4e",
+                    "model": "virtio",
+                    "net": "private5",
+                    "qos": null,
+                    "type": "network"
+                }
+            ],
+            "isos": [
+                {
+                    "path": "/isard/media/empty.iso"
+                }
+            ],
+            "memory": 1048576,
+            "memory_unit": "KiB",
+            "name": "d9cf9dc9-841c-4bdc-996d-945c675b81f5",
+            "uuid": "fc715062-16c2-47ea-8240-5083f1c3f15d",
+            "vcpus": 1,
+            "video": {
+                "heads": "1",
+                "ram": "65536",
+                "type": "qxl",
+                "vram": "65536"
+            }
+        },
+        "hardware_from_xml": {
+            "boot_menu_enable": [
+                null
+            ],
+            "boot_order": [
+                "cdrom"
+            ],
+            "cdroms": [
+                {
+                    "dev": "sda",
+                    "file": "/isard/media/empty.iso"
+                }
+            ],
+            "currentMemory": 1048576,
+            "currentMemory_unit": "KiB",
+            "disks": [
+                {
+                    "bus": "virtio",
+                    "dev": "vda",
+                    "file": "/isard/groups/e1390601-7aee-485b-877c-12180cccf73c.qcow2",
+                    "type": "qcow2"
+                }
+            ],
+            "graphics": {
+                "defaultMode": null,
+                "type": "spice"
+            },
+            "interfaces": [
+                {
+                    "mac": "52:54:00:30:3e:92",
+                    "model": "virtio",
+                    "net": "default",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:5b:29:88",
+                    "model": "virtio",
+                    "net": "ovsbr0",
+                    "qos": null,
+                    "type": "bridge"
+                },
+                {
+                    "mac": "52:54:00:71:32:44",
+                    "model": "virtio",
+                    "net": "private2",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:64:6c:84",
+                    "model": "virtio",
+                    "net": "private3",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:55:75:16",
+                    "model": "virtio",
+                    "net": "private4",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:24:52:2e",
+                    "model": "virtio",
+                    "net": "shared",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:32:08:39",
+                    "model": "virtio",
+                    "net": "private1",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:45:27:f2",
+                    "model": "e1000",
+                    "net": "default",
+                    "qos": null,
+                    "type": "network"
+                },
+                {
+                    "mac": "52:54:00:69:6d:4e",
+                    "model": "virtio",
+                    "net": "private5",
+                    "qos": null,
+                    "type": "network"
+                }
+            ],
+            "memory": 1048576,
+            "memory_unit": "KiB",
+            "name": "d9cf9dc9-841c-4bdc-996d-945c675b81f5",
+            "uuid": "fc715062-16c2-47ea-8240-5083f1c3f15d",
+            "vcpus": 1,
+            "video": {
+                "heads": "1",
+                "ram": "65536",
+                "type": "qxl",
+                "vram": "65536"
+            }
+        },
+        "history_domain": [],
+        "hyp_started": false,
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "d9cf9dc9-841c-4bdc-996d-945c675b81f5",
+        "image": {
+            "id": "6.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/6.jpg"
+        },
+        "jumperurl": "yTGNAmm1H4JDA7TuGW3D7feX3bGcoHCfGSn8dY44Rf8",
+        "kind": "desktop",
+        "name": "I am a desktop with a really really loooooong name",
+        "os": "win",
+        "persistent": true,
+        "scheduled": {
+            "shutdown": false
+        },
+        "server": false,
+        "start_logs_id": null,
+        "status": "Stopped",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "local-default-admin-admin",
+        "username": "admin",
+        "xml": null
+    },
+    {
+        "accessed": 1758268070,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "37925f51-6620-4262-91a6-72d468545ce6"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:e2:e1:30"
+                    }
+                ],
+                "isos": [],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Desktop for search test",
+        "detail": "",
+        "group": "default-default",
+        "group_name": "Default",
+        "icon": "default",
+        "id": "e2e-search-test-desktop-14",
+        "image": {
+            "id": "default",
+            "type": "stock",
+            "url": ""
+        },
+        "ip": null,
+        "kind": "desktop",
+        "name": "Test search desktop",
+        "os": "linux",
+        "persistent": true,
+        "progress": {},
+        "server": false,
+        "status": "Stopped",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "type": "persistent",
+        "user": "43f042bc-cfef-56eb-894a-e8fed340d4ed",
+        "username": "admin_e2e_14",
+        "viewers": {
+            "browser-vnc": "available",
+            "file-spice": "available"
+        },
+        "guest_properties": {
+            "credentials": {
+                "password": "test",
+                "username": "test"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "file_spice": {
+                    "options": null
+                },
+                "browser_vnc": {
+                    "options": null
+                }
+            }
+        }
+    },
+    {
+        "accessed": 1758268200,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "storage-ws-ip-arrival-fixture"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:e2:e2:00"
+                    },
+                    {
+                        "id": "wireguard",
+                        "mac": "52:54:00:e2:e2:01"
+                    }
+                ],
+                "isos": [],
+                "memory": 1048576,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Fixture for WS IP-arrival e2e tests. Owned by bootstrap admin, status=Started, wireguard interface, viewer.guest_ip starts null.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_rdp": {
+                    "options": null
+                },
+                "file_rdpgw": {
+                    "options": null
+                },
+                "file_rdpvpn": {
+                    "options": null
+                },
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "ws-ip-arrival-fixture-0001",
+        "image": {
+            "id": "45.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/45.jpg"
+        },
+        "kind": "desktop",
+        "name": "WS IP-arrival fixture",
+        "os": "linux",
+        "persistent": true,
+        "server": false,
+        "status": "Started",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "local-default-admin-admin",
+        "username": "admin",
+        "hyp_started": "isard-hypervisor",
+        "viewer": {
+            "guest_ip": null,
+            "passwd": "test-passwd",
+            "base_port": 5900,
+            "ports": [
+                5900,
+                5901,
+                5902,
+                5700
+            ],
+            "static": null,
+            "proxy_video": null,
+            "proxy_hyper_host": null,
+            "html5_ext_port": null,
+            "spice_ext_port": null,
+            "tls": {}
+        },
+        "xml": null
+    },
+    {
+        "accessed": 1758268070,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "e121c990-de63-42fe-b838-20aa4cbaf756"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:7e:b6:8c"
+                    },
+                    {
+                        "id": "wireguard",
+                        "mac": "52:54:00:7e:b6:8d"
+                    }
+                ],
+                "isos": [],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Base desktop",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "238b6c50-fc3f-40b9-8dc5-2f331c00c925",
+        "image": {
+            "id": "7.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/7.jpg"
+        },
+        "kind": "desktop",
+        "name": "Desktop S16 storage",
+        "os": "win",
+        "persistent": true,
+        "server": false,
+        "status": "Stopped",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "c7e77d70-e443-53d2-9933-d9b83e4a19a1",
+        "username": "admin_e2e_09",
+        "xml": "<domain type=\"kvm\"><name>template-test-001</name><uuid>00000000-0000-0000-0000-000000000001</uuid><memory unit=\"KiB\">1048576</memory><vcpu placement=\"static\">1</vcpu><os><type arch=\"x86_64\" machine=\"pc-i440fx-2.11\">hvm</type></os><devices><emulator>/usr/bin/qemu-system-x86_64</emulator></devices></domain>"
+    },
+    {
+        "id": "template-s9-seed",
+        "kind": "template",
+        "name": "Template S9 Cross Category",
+        "description": "Seed template for S9: has a desktop derivative in a different category.",
+        "status": "Stopped",
+        "enabled": true,
+        "category": "default",
+        "group": "default-default",
+        "user": "local-default-admin-admin",
+        "username": "admin",
+        "persistent": true,
+        "server": false,
+        "icon": "fa-circle-o",
+        "os": "linux",
+        "accessed": 1758268070,
+        "booking_id": false,
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "hypervisors_pools": [
+            "default"
+        ],
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "image": {
+            "id": "1.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/1.jpg"
+        },
+        "guest_properties": {
+            "credentials": {
+                "username": "isard",
+                "password": "pirineus"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "create_dict": {
+            "hardware": {
+                "vcpus": 1,
+                "memory": 1048576,
+                "videos": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:00:00:0a"
+                    }
+                ],
+                "graphics": [
+                    "default"
+                ],
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "qos_disk_id": false,
+                "virtualization_nested": false,
+                "isos": [],
+                "floppies": [],
+                "disks": [
+                    {
+                        "storage_id": "storage-template-s9-seed"
+                    }
+                ]
+            },
+            "personal_vlans": false,
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "xml": null
+    },
+    {
+        "id": "desktop-s9-cross-cat-01",
+        "kind": "desktop",
+        "name": "S9 Cross-category desktop",
+        "description": "Desktop derived from template-s9-seed but in Another category.",
+        "status": "Stopped",
+        "enabled": true,
+        "category": "ae26368b-26d3-4692-ba2f-62e99ceb054e",
+        "group": "8b8054ff-0e53-47c9-8bed-1091f6c4d0c9",
+        "user": "f62e3d74-aadd-4ce3-9b43-38f34f368323",
+        "username": "user03",
+        "parents": [
+            "template-s9-seed"
+        ],
+        "persistent": true,
+        "server": false,
+        "icon": "fa-circle-o",
+        "os": "linux",
+        "accessed": 1758268070,
+        "booking_id": false,
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "hypervisors_pools": [
+            "default"
+        ],
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "image": {
+            "id": "1.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/1.jpg"
+        },
+        "guest_properties": {
+            "credentials": {
+                "username": "isard",
+                "password": "pirineus"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "create_dict": {
+            "hardware": {
+                "vcpus": 1,
+                "memory": 524288,
+                "videos": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:00:00:0b"
+                    }
+                ],
+                "graphics": [
+                    "default"
+                ],
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "qos_disk_id": false,
+                "virtualization_nested": false,
+                "isos": [],
+                "floppies": [],
+                "disks": [
+                    {
+                        "storage_id": "storage-desktop-s9-cross-cat-01"
+                    }
+                ]
+            },
+            "personal_vlans": false,
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "xml": null
+    }
+]

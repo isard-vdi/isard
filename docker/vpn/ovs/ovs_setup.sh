@@ -9,14 +9,14 @@ if [ -n "${API_DOMAIN:-}" ]; then
     API_ACCESS="${API_DOMAIN}"
     echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Using API_DOMAIN for access: ${API_ACCESS}"
 else
-    # All-in-one deployment: resolve isard-api service to IP
-    API_ACCESS=$(getent hosts isard-api | awk '{print $1}' | head -1)
+    # All-in-one deployment: resolve isard-apiv4 service to IP
+    API_ACCESS=$(getent hosts isard-apiv4 | awk '{print $1}' | head -1)
     if [ -z "$API_ACCESS" ]; then
         # Fallback to container IP if resolution fails
         API_ACCESS="${DOCKER_NET:-172.31.255}.10"
-        echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Could not resolve isard-api, using fallback IP: ${API_ACCESS}"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Could not resolve isard-apiv4, using fallback IP: ${API_ACCESS}"
     else
-        echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Resolved isard-api service to IP: ${API_ACCESS}"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Resolved isard-apiv4 service to IP: ${API_ACCESS}"
     fi
 fi
 

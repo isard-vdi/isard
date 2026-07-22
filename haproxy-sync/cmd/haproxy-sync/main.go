@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -21,12 +20,13 @@ func main() {
 
 	log := log.New("haproxy-sync", cfg.Log.Level)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 	var wg sync.WaitGroup
 
-	haproxy, err := haproxy.NewHAProxy(log, cfg.HAProxy.SocketAddress)
-	if err != nil {
-		log.Fatal().Err(err).Msg("connect to HAProxy admin stats socket")
+	haproxy := haproxy.NewHAProxy(log, cfg.HAProxy.SocketAddress)
+	if err := haproxy.WaitReady(ctx, cfg.HAProxy.StartupTimeout); err != nil {
+		log.Fatal().Err(err).Msg("wait for the HAProxy admin socket to become ready")
 	}
 
 	acme := acme.NewACME(log, cfg.HAProxy.Domains.CertsPath)
@@ -40,13 +40,9 @@ func main() {
 
 	log.Info().Msg("service started")
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-
-	<-stop
-	fmt.Println("")
+	<-ctx.Done()
 	log.Info().Msg("stopping service")
 
-	cancel()
+	stop()
 	wg.Wait()
 }

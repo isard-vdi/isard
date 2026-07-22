@@ -2,7 +2,8 @@ import base64
 import json
 
 from cachetools import TTLCache, cached
-from engine.models.pool_hypervisors import PoolDiskoperations
+from flask import Blueprint, current_app, jsonify, request
+
 from engine.services.db import (
     get_domains_started_in_vgpu,
     get_hyp_hostname_user_port_from_id,
@@ -14,16 +15,10 @@ from engine.services.db.hypervisors import (
     update_operator_passthrough,
     update_requested_profile,
 )
-from engine.services.db.storage_pool import get_storage_pools
 from engine.services.lib import live_xml_cache
 from engine.services.lib.functions import execute_commands
-from engine.services.lib.status import (
-    engine_threads,
-    get_next_disk,
-    get_next_hypervisor,
-)
+from engine.services.lib.status import engine_threads, get_next_hypervisor
 from engine.services.log import logs
-from flask import Blueprint, current_app, jsonify, request
 
 api = Blueprint("api", __name__)
 
@@ -64,46 +59,9 @@ def engine_status(payload):
                 else False
             ):
                 return "Thread {} dead.".format(t), 428
-        disk = get_next_disk()
         virt = get_next_hypervisor()
-        if not disk and not virt:
-            return "No hypervisor available.", 428
-        if not disk:
-            return "No hypervisor for disk operations available.", 428
         if not virt:
             return "No hypervisor for virtualization available.", 428
-
-        # Check if any disk operations pool is not available
-        if not len(app.m.diskoperations_pools.keys()):
-            return "No disk operations hypervisors registered.", 428
-        failed_storage_pools = ""
-        enabled_storage_pools = get_storage_pools()
-        app.logger.debug(
-            "----------------------------------STORAGE POOLS----------------------------------"
-        )
-        app.logger.debug(
-            "enabled_storage_pools: {}".format(
-                [esp["id"] for esp in enabled_storage_pools]
-            )
-        )
-        app.logger.debug(
-            "diskoperations_pools: {}".format(app.m.diskoperations_pools.keys())
-        )
-        for esp in enabled_storage_pools:
-            if esp["id"] not in app.m.diskoperations_pools.keys():
-                app.m.diskoperations_pools[esp["id"]] = PoolDiskoperations(esp["id"])
-            if not app.m.diskoperations_pools[
-                esp["id"]
-            ].balancer.get_next_diskoperations():
-                failed_storage_pools += esp["id"] + ", "
-        if len(failed_storage_pools):
-            return (
-                "No disk operations hypervisors available for storage pools: {}".format(
-                    failed_storage_pools
-                ),
-                428,
-            )
-
         return "Ok", 200
     except Exception as e:
         logs.main.error("engine_status: {}".format(e))
@@ -121,26 +79,18 @@ def engine_status_detail(payload):
         "operational": True,
         "status_main": 0,
         "status_virt": 0,
-        "status_disk": 0,
         "problems": [],
         "hypers_virt": 0,
-        "hypers_diskop": 0,
         "hypervisors": {},
         "virt_th": {},
-        "disk_th": {},
         "virt_th_alive": 0,
-        "disk_th_alive": 0,
         "virt_queued_total": 0,
-        "disk_queued_total": 0,
         "queued_virtop": 0,
-        "queued_diskop": 0,
         "alive": True,
         "alive_level": 0,
         "alive_detail": "System operational",
         "hypers_virt_next": False,
-        "hypers_diskop_next": False,
         "next_virt": False,
-        "next_diskop": False,
     }
     try:
         # Background thread
@@ -167,13 +117,11 @@ def engine_status_detail(payload):
                 [2, "main", "Dead thread(s): " + ", ".join(deads)]
             )
 
-        # HYPERVISORS VIRT/DISKOP DATABASE
+        # Hypervisor virtualization status from database
         db_hypers = get_hyp_system_info()
         for hyper in db_hypers:
             virtualization = None
             virtualization_queued = 0
-            disk_operations = None
-            disk_operations_queued = 0
             if hyper["status"] == "Online":
                 if hyper["capabilities"]["hypervisor"]:
                     if (
@@ -194,75 +142,33 @@ def engine_status_detail(payload):
                                 ),
                             ]
                         )
-                if hyper["capabilities"]["disk_operations"]:
-                    if (
-                        hyper["id"] in app.m.t_disk_operations
-                        and app.m.t_disk_operations[hyper["id"]].is_alive()
-                    ):
-                        disk_operations = True
-                        engine["hypers_diskop"] += 1
-                        disk_operations_queued = app.m.q_disk_operations[
-                            hyper["id"]
-                        ].qsize()
-                    else:
-                        disk_operations = False
-                        engine["problems"].append(
-                            [
-                                1,
-                                "hypervisor",
-                                "Hypervisor {} disk operations capability not alive".format(
-                                    hyper["id"]
-                                ),
-                            ]
-                        )
             engine["hypervisors"][hyper["id"]] = {
                 "status": hyper["status"],
                 "stats": hyper.get("stats"),
                 "virt_cap": virtualization,
                 "virt_op_queued": virtualization_queued,
-                "disk_cap": disk_operations,
-                "disk_op_queued": disk_operations_queued,
             }
             engine["queued_virtop"] += virtualization_queued
-            engine["queued_diskop"] += disk_operations_queued
 
-        if not len(db_hypers):
-            if engine["hypers_virt"] == 0:
-                engine["problems"].append(
-                    [2, "database", "No virtualization hypervisors registered."]
-                )
-                engine["operational"] = False
-                engine["hypers_virt_next"] = False
-        else:
-            if engine["hypers_virt"] == 0:
-                engine["problems"].append(
-                    [2, "database", "No virtualization hypervisors registered."]
-                )
-                engine["operational"] = False
-                engine["hypers_virt_next"] = False
-            else:
-                engine["hypers_virt_next"] = get_next_hypervisor()
-            if engine["hypers_diskop"] == 0:
-                engine["problems"].append(
-                    [2, "database", "No disk operations hypervisors registered."]
-                )
-                engine["operational"] = False
-                engine["hypers_diskop_next"] = False
-            else:
-                engine["hypers_diskop_next"] = get_next_disk()
+        if engine["hypers_virt"] == 0:
+            engine["problems"].append(
+                [2, "database", "No virtualization hypervisors registered."]
+            )
+            engine["operational"] = False
+            engine["hypers_virt_next"] = False
+        elif len(db_hypers):
+            engine["hypers_virt_next"] = get_next_hypervisor()
 
-        # Next host to execute virtualization and disk operations
+        # Next host to execute virtualization
         engine["next_virt"] = get_next_hypervisor()
         if not engine["next_virt"]:
             engine["alive_level"] = 2
             engine["operational"] = False
             engine["alive_detail"] = "No hypervisor for virtualization available"
-        engine["next_diskop"] = get_next_disk()
-        if not engine["next_diskop"]:
-            engine["alive_level"] = 2
-            engine["operational"] = False
-            engine["alive_detail"] = "No hypervisor for disk operations available"
-        # Virtualization and disk operations threads and queues
+
+        # Virtualization threads and queues. Disk operations no longer run
+        # on engine-side hypervisor threads — they execute as RQ tasks in
+        # isard-storage workers (see isardvdi_common.models.storage chains).
         for hyp in db_hypers:
             if hyp["id"] in app.m.t_workers and app.m.t_workers[hyp["id"]].is_alive():
                 engine["virt_th"][hyp["id"]] = {}
@@ -273,26 +179,8 @@ def engine_status_detail(payload):
                 engine["virt_queued_total"] += app.m.q.workers[hyp["id"]].qsize()
             else:
                 engine["virt_th"][hyp["id"]] = False
-            if (
-                hyp["id"] in app.m.t_disk_operations
-                and app.m.t_disk_operations[hyp["id"]].is_alive()
-            ):
-                engine["disk_th"][hyp["id"]] = {}
-                engine["disk_th_alive"] += 1
-                engine["disk_th"][hyp["id"]]["queued"] = app.m.q_disk_operations[
-                    hyp["id"]
-                ].qsize()
-                engine["disk_queued_total"] += app.m.q_disk_operations[
-                    hyp["id"]
-                ].qsize()
-            else:
-                engine["disk_th"][hyp["id"]] = False
         # Compute alive
-        engine["alive"] = (
-            engine["alive"]
-            and engine["virt_th_alive"] == len(db_hypers)
-            and engine["disk_th_alive"] == len(db_hypers)
-        )
+        engine["alive"] = engine["alive"] and engine["virt_th_alive"] == len(db_hypers)
         return jsonify(engine), 200
     except Exception as e:
         logs.main.error(e)
@@ -303,7 +191,7 @@ def engine_status_detail(payload):
 @api.route("/engine/profile/gpu/<string:gpu_id>", methods=["PUT"])
 @is_admin
 def set_gpu_profile(payload, gpu_id):
-    from isardvdi_common.gpu_pool_policy import profile_suffix_from_id
+    from isardvdi_common.lib.gpu_pool_policy import profile_suffix_from_id
 
     logs.main.info("set_gpu_profile: {}".format(gpu_id))
     d = request.get_json(force=True)

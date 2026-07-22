@@ -21,8 +21,8 @@ import os
 
 from flask import render_template
 from html_sanitizer import Sanitizer
-from isardvdi_common.api_exceptions import Error
-from isardvdi_common.task import Task
+from isardvdi_common.helpers.api_exceptions_flask import Error
+from isardvdi_common.models.task import Task
 from jinja2.exceptions import TemplateNotFound
 from spectree import Response
 
@@ -168,6 +168,15 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
         link=json.url
     )
     user_id = get_user_by_email_and_category(json.email, json.category)
+    if not user_id:
+        # Unknown email: return the same response as a successful request to
+        # avoid leaking which accounts exist via the password-reset flow.
+        app.logger.info(
+            "Password reset requested for unknown email %s in category %s",
+            json.email,
+            json.category,
+        )
+        return notifier.NotifyPasswordResetMailResponse()
 
     email_content = get_notification_message(
         {

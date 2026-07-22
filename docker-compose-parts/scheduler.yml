@@ -9,10 +9,16 @@ services:
         max-file: "5"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     volumes:
-      - /opt/isard/backups:/src/backups:rw
+      # /src/backups was the legacy apiv3 ApiBackups dump path; no
+      # code under component/_common, scheduler, apiv4 or the engine
+      # references it anymore (verified via rg). Removed so the
+      # orphan host dir doesn't grow new state. New destructive
+      # cleanups (logs_desktops/users retention) write to
+      # /opt/isard-local/backup via apiv4 instead — see apiv4.yml's
+      # LOGS_DELETE_BACKUP_DIR mount.
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-      - ${BUILD_ROOT_PATH}/frontend/src/locales:/src/scheduler/locales:ro
+      - ${BUILD_ROOT_PATH}/old-frontend/src/locales:/src/scheduler/locales:ro
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.24
@@ -25,5 +31,10 @@ services:
       RETHINKDB_HOST: ${RETHINKDB_HOST-isard-db}
       RETHINKDB_PORT: ${RETHINKDB_PORT-28015}
       RETHINKDB_DB: ${RETHINKDB_DB-isard}
+      # APScheduler fires cron-like jobs that run apiv4 client calls
+      # over HTTP — direct rdb traffic is occasional (jobstore, a few
+      # background sweeps). 5 slots is generous.
+      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-5}
+      RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
       API_ISARDVDI_SECRET:
-      USAGE:
+      USAGE: ${USAGE:-production}

@@ -1,0 +1,32 @@
+services:
+  isard-apiv4:
+    container_name: isard-apiv4
+    #image: isard/webapp:${TAG:-latest}
+    # watchfiles is now a regular dep of isardvdi-apiv4 (uvicorn picks it
+    # up automatically for --reload, replacing the slower StatReload
+    # poller that hangs across the /opt/isardvdi/isardvdi_common bind
+    # mount). The Dockerfile places the venv at /.venv (outside /app)
+    # because this devel YML bind-mounts ./component/apiv4/src onto
+    # /app, which would otherwise shadow /app/.venv and hide uvicorn.
+    # PYTHONPATH=/opt/isardvdi puts the bind-mounted shared packages
+    # (isardvdi_common, isardvdi_*_client, *_auth) ahead of the
+    # baked-in venv copies, so edits to component/_common/* are
+    # actually loaded by uvicorn --reload instead of silently
+    # shadowed by the install-time snapshot in /.venv.
+    environment:
+      PYTHONPATH: /opt/isardvdi
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--reload", "--reload-dir", "api", "--reload-dir", "/opt/isardvdi/isardvdi_common", "--proxy-headers", "--forwarded-allow-ips=*"]
+    volumes:
+      - ${BUILD_ROOT_PATH}/component/apiv4/src:/app
+      - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client_auth:/opt/isardvdi/isardvdi_apiv4_client_auth
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client:/opt/isardvdi/isardvdi_authentication_client
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client_auth:/opt/isardvdi/isardvdi_authentication_client_auth
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client:/opt/isardvdi/isardvdi_notifier_client
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client_auth:/opt/isardvdi/isardvdi_notifier_client_auth
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client:/opt/isardvdi/isardvdi_scheduler_client
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth
+      - ${BUILD_ROOT_PATH}/component/frontend/src/assets/logo.svg:/usr/share/nginx/html/default_logo.svg:ro
+      - ${BUILD_ROOT_PATH}/component/frontend/src/assets/logo-collapsed.svg:/usr/share/nginx/html/default_logo_collapsed.svg:ro
+      # - ${BUILD_ROOT_PATH}/pkg/gen/proto/python:/opt/isardvdi/isardvdi_protobuf

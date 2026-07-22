@@ -92,13 +92,16 @@ func (b *bastion) handleConn(ctx context.Context, conn net.Conn) {
 
 	connLog := *b.log
 	var remoteIP string
-	var remotePort string
+	var remotePort int
 	if proxyConn, ok := conn.(*proxyproto.Conn); ok {
-		if proxyConn.ProxyHeader() != nil {
-			remoteConn := proxyConn.ProxyHeader().SourceAddr.String()
-			remoteIP = remoteConn[:strings.LastIndex(remoteConn, ":")]
-			remotePort = remoteConn[strings.LastIndex(remoteConn, ":")+1:]
-			connLog = b.log.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
+		if h := proxyConn.ProxyHeader(); h != nil && h.SourceAddr != nil {
+			if host, port, err := net.SplitHostPort(h.SourceAddr.String()); err == nil {
+				if portNum, err := strconv.Atoi(port); err == nil {
+					remoteIP = host
+					remotePort = portNum
+					connLog = b.log.With().Str("remote_ip", remoteIP).Int("remote_port", remotePort).Logger()
+				}
+			}
 		}
 	}
 
@@ -199,9 +202,9 @@ func (b *bastion) extractTargetIDAndURL(ctx context.Context, host string) (strin
 }
 
 // TODO: Send helpful messages to the client
-func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *bytes.Buffer, remoteIP string, remotePort string) {
+func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *bytes.Buffer, remoteIP string, remotePort int) {
 	httpLog := *b.log
-	httpLog = httpLog.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
+	httpLog = httpLog.With().Str("remote_ip", remoteIP).Int("remote_port", remotePort).Logger()
 	// Recreate the previously peeked buffer
 	prevBuf := io.MultiReader(prevPeeked, conn)
 
@@ -226,9 +229,9 @@ func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *byt
 	b.handleProxy(ctx, conn, peeked, false, targetID, targetURL, remoteIP, remotePort)
 }
 
-func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, hello *tls.ClientHelloInfo, remoteIP string, remotePort string) {
+func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, hello *tls.ClientHelloInfo, remoteIP string, remotePort int) {
 	httpsLog := *b.log
-	httpsLog = httpsLog.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
+	httpsLog = httpsLog.With().Str("remote_ip", remoteIP).Int("remote_port", remotePort).Logger()
 	targetID, targetURL, err := b.extractTargetIDAndURL(ctx, hello.ServerName)
 	if err != nil {
 		httpsLog.Debug().Msg("invalid target")
@@ -238,7 +241,7 @@ func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.
 	b.handleProxy(ctx, conn, peeked, true, targetID, targetURL, remoteIP, remotePort)
 }
 
-func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, https bool, targetID string, targetURL string, remoteIP string, remotePort string) {
+func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, https bool, targetID string, targetURL string, remoteIP string, remotePort int) {
 	// Initial proxyLog setup
 	protocol := "http"
 	if https {
@@ -247,7 +250,7 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 	baseLog := b.log.With().
 		Str("protocol", protocol).
 		Str("remote_ip", remoteIP).
-		Str("remote_port", remotePort).
+		Int("remote_port", remotePort).
 		Str("target_id", targetID).
 		Str("target_domain", targetURL).Logger()
 
@@ -411,7 +414,7 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 		proxyLog.Info().Str("local_addr_to_target", targetConn.LocalAddr().String()).Str("remote_addr_to_target", targetConn.RemoteAddr().String()).Msg("Connection to target established")
 
 		// Conditionally send PROXY Protocol v2 header based on target configuration
-		if remoteIP != "" && remotePort != "" && currentTarget.HTTP.ProxyProtocol {
+		if remoteIP != "" && remotePort != 0 && currentTarget.HTTP.ProxyProtocol {
 			targetConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 			if err := sendProxyProtocolV2(targetConn, remoteIP, remotePort, *currentDesktop.Viewer.GuestIP, targetPort); err != nil {
 				proxyLog.Error().Err(err).Msg("Failed to send PROXY protocol v2 header")
@@ -516,12 +519,7 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 
 // sendProxyProtocolV2 sends a PROXY Protocol v2 header to the target connection
 // to forward the real client IP address
-func sendProxyProtocolV2(targetConn net.Conn, remoteIP string, remotePort string, destIP string, destPort int) error {
-	srcPort, err := strconv.Atoi(remotePort)
-	if err != nil {
-		return fmt.Errorf("parse remote port: %w", err)
-	}
-
+func sendProxyProtocolV2(targetConn net.Conn, remoteIP string, remotePort int, destIP string, destPort int) error {
 	srcIP := net.ParseIP(remoteIP)
 	if srcIP == nil {
 		return fmt.Errorf("parse remote IP: %s", remoteIP)
@@ -546,7 +544,7 @@ func sendProxyProtocolV2(targetConn net.Conn, remoteIP string, remotePort string
 		TransportProtocol: transportProtocol,
 		SourceAddr: &net.TCPAddr{
 			IP:   srcIP,
-			Port: srcPort,
+			Port: remotePort,
 		},
 		DestinationAddr: &net.TCPAddr{
 			IP:   dstIP,
@@ -554,8 +552,7 @@ func sendProxyProtocolV2(targetConn net.Conn, remoteIP string, remotePort string
 		},
 	}
 
-	_, err = header.WriteTo(targetConn)
-	if err != nil {
+	if _, err := header.WriteTo(targetConn); err != nil {
 		return fmt.Errorf("write proxy protocol header: %w", err)
 	}
 

@@ -1,0 +1,203 @@
+{
+    "auth": {
+        "local": {
+            "enabled": true,
+            "migration": {
+                "action_after_migrate": "none",
+                "export": false,
+                "import": false,
+                "notification_bar": {
+                    "enabled": false,
+                    "level": null,
+                    "template": null
+                }
+            }
+        },
+        "ldap": {
+            "enabled": true,
+            "ldap_config": {
+                "protocol": "ldap",
+                "host": "isard-authentication-test-ldap",
+                "port": 10389,
+                "bind_dn": "cn=admin,dc=planetexpress,dc=com",
+                "password": "GoodNewsEveryone",
+                "base_search": "ou=people,dc=planetexpress,dc=com",
+                "filter": "(&(objectClass=person)(uid=%s))",
+                "field_uid": "uid",
+                "regex_uid": ".*",
+                "field_username": "cn",
+                "regex_username": ".*",
+                "field_name": "cn",
+                "regex_name": ".*",
+                "field_email": "mail",
+                "regex_email": ".*",
+                "field_photo": "",
+                "regex_photo": ".*",
+                "auto_register": true,
+                "auto_register_roles": "",
+                "guess_category": false,
+                "field_category": "",
+                "regex_category": ".*",
+                "field_group": "",
+                "regex_group": ".*",
+                "group_default": "default",
+                "role_list_search_base": "",
+                "role_list_filter": "(&(objectClass=posixGroup)(memberUid=%s))",
+                "role_list_use_user_dn": false,
+                "role_list_field": "",
+                "role_list_regex": ".*",
+                "role_admin_ids": "",
+                "role_manager_ids": "",
+                "role_advanced_ids": "",
+                "role_user_ids": "",
+                "role_default": "user",
+                "save_email": true
+            },
+            "migration": {
+                "action_after_migrate": "none",
+                "export": false,
+                "import": false,
+                "notification_bar": {
+                    "enabled": false,
+                    "level": null,
+                    "template": null
+                }
+            }
+        },
+        "saml": {
+            "enabled": true,
+            "saml_config": {
+                "metadata_url": "",
+                "metadata_file": "/keys/test-idp-metadata.xml",
+                "entity_id": "",
+                "signature_method": "",
+                "key_file": "/keys/isardvdi.key",
+                "cert_file": "/keys/isardvdi.cert",
+                "max_issue_delay": "90s",
+                "field_uid": "uid",
+                "regex_uid": ".*",
+                "field_username": "uid",
+                "regex_username": ".*",
+                "field_name": "cn",
+                "regex_name": ".*",
+                "field_email": "mail",
+                "regex_email": ".*",
+                "field_photo": "",
+                "regex_photo": ".*",
+                "auto_register": false,
+                "auto_register_roles": "",
+                "guess_category": false,
+                "field_category": "",
+                "regex_category": ".*",
+                "field_group": "",
+                "regex_group": ".*",
+                "group_default": "default",
+                "field_role": "",
+                "regex_role": ".*",
+                "role_admin_ids": "",
+                "role_manager_ids": "",
+                "role_advanced_ids": "",
+                "role_user_ids": "",
+                "role_default": "user",
+                "logout_redirect_url": "",
+                "save_email": true
+            },
+            "migration": {
+                "action_after_migrate": "none",
+                "export": false,
+                "import": false,
+                "notification_bar": {
+                    "enabled": false,
+                    "level": null,
+                    "template": null
+                }
+            }
+        },
+        "google": {
+            "enabled": false,
+            "google_config": {
+                "client_id": "",
+                "client_secret": ""
+            },
+            "migration": {
+                "action_after_migrate": "none",
+                "export": false,
+                "import": false,
+                "notification_bar": {
+                    "enabled": false,
+                    "level": null,
+                    "template": null
+                }
+            }
+        }
+    },
+    "id": 1,
+    "login": {
+        "notification_cover": {
+            "button": {
+                "extra_styles": "color: #114955;",
+                "text": "",
+                "url": ""
+            },
+            "description": "This is a login notification",
+            "enabled": true,
+            "extra_styles": "background-color: #ffffff;",
+            "icon": "info-circle",
+            "title": "Hello"
+        },
+        "notification_form": {
+            "button": {
+                "extra_styles": "color: #114955;",
+                "text": "",
+                "url": ""
+            },
+            "description": "",
+            "enabled": false,
+            "extra_styles": "background-color: #ffffff;",
+            "icon": "",
+            "title": ""
+        }
+    },
+    "smtp": {
+        "enabled": true,
+        "server": "localhost",
+        "port": 587,
+        "sender_address": "test@isardvdi.com",
+        "sender_name": "IsardVDI Test"
+    },
+    "maintenance": false,
+    "maintenance_text": {
+        "body": "The service is going to be available again in a few minutes. Sorry for the inconvenience",
+        "title": "Currently, Isard service is under maintenance"
+    },
+    "resources": {
+        "code": "2WI126QJTTTOBV8OVSGI",
+        "url": "https://repository.isardvdi.com"
+    },
+    "bastion": {
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": []
+        },
+        "enabled": true,
+        "individual_domains": {
+            "allowed": {
+                "categories": false,
+                "groups": false,
+                "roles": false,
+                "users": false
+            }
+        }
+    },
+    "recycle_bin": {
+        "default_delete": false,
+        "delete_action": "delete",
+        "old_entries": {
+            "action": "keep",
+            "max_time": null
+        },
+        "recycle_bin_cutoff_time": 1
+    }
+}

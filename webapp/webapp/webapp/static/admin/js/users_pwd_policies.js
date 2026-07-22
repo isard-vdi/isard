@@ -23,7 +23,7 @@ $(document).ready(function () {
 
     user_policy_table = $('#users-password-policy').DataTable({
         "ajax": {
-            "url": "/api/v3/admin/authentication/policies",
+            "url": "/api/v4/admin/items/authentication/policies",
             "type": 'GET',
         },
         "sAjaxDataProp": "",
@@ -150,7 +150,7 @@ $(document).ready(function () {
 
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/categories",
+            url: "/api/v4/admin/items/categories",
             async: false,
             cache: false,
             success: function (category) {
@@ -167,7 +167,7 @@ $(document).ready(function () {
 
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/roles",
+            url: "/api/v4/admin/items/roles",
             async: false,
             cache: false,
             success: function (role) {
@@ -182,7 +182,7 @@ $(document).ready(function () {
 
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/authentication/providers",
+            url: "/api/v4/admin/items/authentication/providers",
             async: false,
             cache: false,
             success: function (type) {
@@ -227,14 +227,14 @@ $(document).ready(function () {
                         'not_username': data['not_username'].toLowerCase() === 'true',
                     },
                     'email_verification': data['verification-cb'] == 'on',
-                    'disclaimer': data['disclaimer-cb'] != 'on' && data['category'] !== "all" ? false :
+                    'disclaimer': data['disclaimer-cb'] != 'on' || data['category'] !== "all" ? false :
                         {
                             'template': data['disclaimer-template']
                         }
                 };
                 $.ajax({
                     type: 'POST',
-                    url: `/api/v3/admin/authentication/policy/`,
+                    url: `/api/v4/admin/item/authentication/policy`,
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -283,7 +283,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: `/api/v3/admin/authentication/policy/${data.id}`,
+                    url: `/api/v4/admin/item/authentication/policy/${data.id}`,
                     accept: "application/json",
                     success: function (resp) {
                         new PNotify({
@@ -313,7 +313,7 @@ $(document).ready(function () {
             var modal = "#modalForceVerification";
             if (data.password.expiration) { $(modal + " #force-password").show() } else { $(modal + " #force-password").hide() }
             if (data.email_verification) { $(modal + " #force-email").show() } else { $(modal + " #force-email").hide() }
-            if (data.disclaimer) { $(modal + " #force_disclaimer").show() } else { $(modal + " #force_disclaimer").hide() }
+            if (data.disclaimer) { $(modal + " #force-disclaimer").show() } else { $(modal + " #force-disclaimer").hide() }
 
             $(modal + " h5 #span-category").html(data.category_name);
             $(modal + " h5 #span-role").html(data.role);
@@ -338,7 +338,7 @@ $(document).ready(function () {
             populateTextTemplateSelect(modal);
             $.ajax({
                 type: "GET",
-                url: "/api/v3/admin/roles",
+                url: "/api/v4/admin/items/roles",
                 async: false,
                 cache: false,
                 success: function (role) {
@@ -352,7 +352,7 @@ $(document).ready(function () {
             });
             $.ajax({
                 type: "GET",
-                url: "/api/v3/admin/authentication/providers",
+                url: "/api/v4/admin/items/authentication/providers",
                 async: false,
                 cache: false,
                 success: function (type) {
@@ -373,7 +373,7 @@ $(document).ready(function () {
             }
             $.ajax({
                 type: "GET",
-                url: `/api/v3/admin/authentication/policy/${data.id}`,
+                url: `/api/v4/admin/item/authentication/policy/${data.id}`,
                 success: function (policy) {
                     $(modal + " #digits").val(policy.password.digits);
                     $(modal + " #expiration").val(policy.password.expiration);
@@ -435,7 +435,7 @@ $(document).ready(function () {
                         'not_username': formData['not_username'].toLowerCase() === 'true',
                     },
                     'email_verification': formData['verification-cb'] == 'on',
-                    'disclaimer': formData['disclaimer-cb'] != 'on' && formData['category'] !== "all" ? null :
+                    'disclaimer': formData['disclaimer-cb'] != 'on' ? false :
                         {
                             'template': formData['disclaimer-template']
                         }
@@ -443,7 +443,7 @@ $(document).ready(function () {
     
                 $.ajax({
                     type: 'PUT',
-                    url: `/api/v3/admin/authentication/policy/${formData.id}`,
+                    url: `/api/v4/admin/item/authentication/policy/${formData.id}`,
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -481,7 +481,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
             $.ajax({
                 type: 'PUT',
-                url: `/api/v3/admin/authentication/force_validate/${data.policy}/${data.id}`,
+                url: `/api/v4/admin/item/authentication/force_validate/${data.policy}/${data.id}`,
                 accept: "application/json",
                 success: function (resp) {
                     new PNotify({
@@ -521,7 +521,7 @@ $(document).ready(function () {
     });
     $('.disclaimer-template').on('change', function () {
         $.ajax({
-            url: "/api/v3/admin/notifications/template/" + $(this).val(),
+            url: "/api/v4/admin/item/notifications/template/" + $(this).val(),
             type: "GET"
         }).then(template => {
             $(this).siblings("#preview-panel")
@@ -555,11 +555,11 @@ function populateTextTemplateSelect(modal) {
     $(modal + " #preview-panel").hide();
 
     $.ajax({
-        url: "/api/v3/admin/notifications/templates",
+        url: "/api/v4/admin/items/notifications/templates",
         type: "GET"
     }).then(response => {
         $(modal + " #template-content p").hide();
-        $.each(response, function (key, template) {
+        $.each(response.templates, function (key, template) {
             if (!["password", "email", "deleted_gpu"].includes(template.kind)) {
                 $(modal + " .disclaimer-template").append(`
                         <option value="${template.id}">${template.name}</option>

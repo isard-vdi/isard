@@ -1,4 +1,5 @@
 import pytest
+
 from engine.models.numa_balancer import (
     _cpulist_size,
     aggregate_pending_by_node,

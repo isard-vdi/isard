@@ -162,8 +162,8 @@ class Populate(object):
                 try:
                     table = t
                     log.info("Creating new table: " + t)
-                    # CREATING TABLES WITH eval self.{name_of_table}
-                    log.info("  Result: " + str(eval("self." + table + "()")))
+                    # Dispatch to the self.<table>() creator method by name.
+                    log.info("  Result: " + str(getattr(self, table)()))
                 except Exception as e:
                     exc_type, exc_obj, exc_tb = sys.exc_info()
                     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -1223,7 +1223,42 @@ class Populate(object):
         self.create_table("storage")
 
     def storage_pool(self):
-        self.create_table("storage_pool")
+        # On a FRESH install (table just created) seed the default pool under a
+        # named leaf /isard/storage_pools/default, so its disks live alongside
+        # category pools instead of the legacy top-level /isard/{groups,...}.
+        # Existing installs keep whatever upgrade v121 created (/isard).
+        if not self.create_table("storage_pool"):
+            self.result(
+                r.table("storage_pool")
+                .insert(
+                    {
+                        "id": "00000000-0000-0000-0000-000000000000",
+                        "name": "Default",
+                        "description": "Default storage pool",
+                        "mountpoint": "/isard/storage_pools/default",
+                        "enabled": True,
+                        "read": True,
+                        "write": True,
+                        "startable": True,
+                        "categories": [],
+                        "allowed": {
+                            "categories": False,
+                            "groups": False,
+                            "roles": [],
+                            "users": False,
+                        },
+                        "paths": {
+                            "desktop": [{"path": "desktops", "weight": 100}],
+                            "template": [{"path": "templates", "weight": 100}],
+                            "media": [{"path": "media", "weight": 100}],
+                            "volatile": [{"path": "volatile", "weight": 100}],
+                        },
+                    },
+                    conflict="update",
+                )
+                .run(self.conn)
+            )
+            log.info("Table storage_pool populated with default pool.")
 
     def user_storage(self):
         self.create_table("user_storage")
@@ -1580,19 +1615,10 @@ class Populate(object):
             log.info("Table logs_desktops not found, creating...")
             r.table_create("logs_desktops", primary_key="id").run(self.conn)
             r.table("logs_desktops").index_create("desktop_id").run(self.conn)
-            r.table("logs_desktops").index_create("deployment_id").run(self.conn)
             r.table("logs_desktops").index_create("owner_user_id").run(self.conn)
             r.table("logs_desktops").index_create("owner_category_id").run(self.conn)
-            r.table("logs_desktops").index_create("owner_group_id").run(self.conn)
-            r.table("logs_desktops").index_create("started_by").run(self.conn)
-            r.table("logs_desktops").index_create("stopped_by").run(self.conn)
             r.table("logs_desktops").index_create("started_time").run(self.conn)
-            r.table("logs_desktops").index_create("stopped_time").run(self.conn)
-            r.table("logs_desktops").index_create("stopped_status").run(self.conn)
-            r.table("logs_desktops").index_create(
-                "desktop_template_hierarchy",
-                multi=True,
-            ).run(self.conn)
+            r.table("logs_desktops").index_create("starting_time").run(self.conn)
         except:
             None
 
@@ -1601,7 +1627,6 @@ class Populate(object):
             log.info("Table logs_users not found, creating...")
             r.table_create("logs_users", primary_key="id").run(self.conn)
             r.table("logs_users").index_create("started_time").run(self.conn)
-            r.table("logs_users").index_create("stopped_time").run(self.conn)
         except:
             None
 

@@ -1,93 +1,52 @@
-ARG GOLANG_BUILD_IMAGE
+ARG GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22@sha256:6b7607461f105ccaa0615b6f7932dfd5b36c5d827a0770b5578e565107cc3adb
 
-# Build rdpgw binary
-FROM ${GOLANG_BUILD_IMAGE} as rdpgw-build
-
+FROM ${GOLANG_BUILD_IMAGE} AS rdpgw-build
 WORKDIR /build
-
-RUN mkdir -p /build/pkg/sdk
-
 COPY go.mod /build
 COPY go.sum /build
-COPY pkg/sdk/go.mod /build/pkg/sdk
-COPY pkg/sdk/go.sum /build/pkg/sdk
-
 RUN go mod download
-
 WORKDIR /
-
 COPY pkg /build/pkg
 COPY rdpgw /build/rdpgw
-
 WORKDIR /build/rdpgw
-
 RUN CGO_ENABLED=0 go build -o bin/rdpgw cmd/rdpgw/main.go
 
-#
-# VPN
-#
-FROM alpine:3.22 as production
-MAINTAINER isard <info@isardvdi.com>
+FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
+# UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
+# venv's hard-coded shebangs keep resolving after the cross-stage COPY.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/.venv
 
+RUN apk add --no-cache \
+    autoconf automake build-base git libffi-dev libtool linux-headers \
+    musl-dev openssl-dev python3-dev
+
+WORKDIR /workspace
+COPY . .
+RUN uv sync --frozen --no-dev --package isardvdi-vpn --no-editable
+
+FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS runtime
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
-
 RUN apk -U upgrade --no-cache
-
 RUN apk add --no-cache \
-    wireguard-tools \
-    openssh \
-    openvswitch@community \
-    dnsmasq \
-    # For WireGuard and others
-    iptables \
-    # For python-iptables
-    iptables-legacy \
-    # For guacd (RDP Web)
-    guacamole-server@community \
-    guacamole-server-dev@community \
-    guacamole-server-rdp@community \
-    # For RDP stats
-    conntrack-tools \
-    # For the aplication itself
-    python3 \
-    py3-pip
+    conntrack-tools dnsmasq guacamole-server guacamole-server-dev \
+    guacamole-server-rdp iptables libffi openssh openssl \
+    openvswitch@community wireguard-tools
 
-# OpenSSH
-RUN rm -rf /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_dsa_key
-
-# OpenVSwitch
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
 COPY docker/vpn/ovs /ovs
 
-# VPN
-RUN pip3 install --break-system-package --no-cache-dir --upgrade pip
-COPY docker/vpn/requirements.txt /requirements.txt
-RUN apk add --no-cache --virtual .build_deps \
-    build-base \
-    python3-dev \
-    libffi-dev \
-    openssl-dev \ 
-    autoconf \
-    automake \
-    libtool \
-    libmnl-dev \
-    libnftnl-dev \
-    git && \
-    pip3 install --break-system-package --no-cache-dir  -r requirements.txt && \
-    rm requirements.txt
-    # apk del .build_deps
-
-# Required for python-iptables
 ENV XTABLES_LIBDIR=/usr/lib/xtables
 RUN ln -s /usr/sbin/iptables /sbin/iptables
 
+COPY --from=builder /.venv /.venv
 COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
 COPY docker/vpn/run.sh /
-
 COPY --from=rdpgw-build /build/rdpgw/bin/rdpgw /rdpgw
-
-CMD [ "sh", "run.sh"]
+ENV PATH="/.venv/bin:$PATH"
+WORKDIR /
+CMD ["sh", "run.sh"]

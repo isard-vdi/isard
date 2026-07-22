@@ -1,10 +1,12 @@
-frontend/node_modules
+component/frontend/node_modules
 old-frontend/node_modules
+**/.ruff_cache
 .git
 .github
 .gitlab
 .vscode
 testing
+!testing/pyproject.toml
 e2e
 certs
 *.md

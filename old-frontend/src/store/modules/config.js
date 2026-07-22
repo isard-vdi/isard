@@ -4,6 +4,16 @@ import { ConfigUtils } from '../../utils/configUtils'
 import { jwtDecode } from 'jwt-decode'
 import store from '@/store'
 
+let faroInitPromise = null
+function ensureFaroInitialized (faroConfig) {
+  if (!faroConfig?.enabled || !faroConfig.url) return
+  if (faroInitPromise) return faroInitPromise
+  faroInitPromise = import('@/lib/faro').then(({ initFaro }) => {
+    initFaro(faroConfig.url)
+  })
+  return faroInitPromise
+}
+
 export default {
   state: {
     providers: [],
@@ -50,8 +60,10 @@ export default {
       // Clear all existing timeouts before setting new ones
       context.commit('clearTimeouts')
 
-      const rsp = await axios.get(`${apiV3Segment}/user/config`)
+      const rsp = await axios.get(`${apiV3Segment}/item/user/get-config`)
       context.commit('setConfig', ConfigUtils.parseConfig(rsp.data))
+
+      ensureFaroInitialized(rsp.data.faro)
 
       // Skip session management for isardvdi-service sessions
       if (context.getters.getConfig.session?.id === 'isardvdi-service') {
@@ -136,7 +148,7 @@ export default {
       return rsp.data
     },
     async fetchStatusBarNotification ({ commit }) {
-      const rsp = await axios.get(`${apiV3Segment}/notifications/status_bar`)
+      const rsp = await axios.get(`${apiV3Segment}/items/notifications/status-bar`)
       commit('setStatusBarNotification', rsp.data)
     }
   }

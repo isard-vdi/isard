@@ -1,0 +1,135 @@
+services:
+  isard-apiv4:
+    container_name: isard-apiv4
+    image: ${DOCKER_IMAGE_PREFIX}apiv4:${DOCKER_IMAGE_TAG:-latest}
+    # ``unless-stopped`` is required: the SIGSEGV class of failure that
+    # this branch's apiv4 has historically been vulnerable to crashes
+    # the worker process abruptly. The previous policy ``no`` left the
+    # container down for 43 min on 2026-05-01 (incident analysis at
+    # /opt/load-testing/APIV4_THREADING_INCIDENT_ANALYSIS.md). A second
+    # incident on 2026-05-05 (kernel-logged segfault in
+    # corecext.cpython-313-...so at 17:59:55) confirmed the SIGSEGV
+    # signature was rooted in gevent's libev native extension being
+    # driven from a process that never called ``monkey.patch_all()``.
+    # That root cause is now fixed in the apiv4 connections refactor:
+    # the gRPC client factories live in apiv4 (``api.connections.grpc_client``)
+    # rather than ``isardvdi_common``, the unconditional
+    # ``grpc.experimental.gevent.init_gevent()`` call is gone, and gevent
+    # is no longer loaded into the apiv4 worker at all.
+    #
+    # ``unless-stopped`` is kept as defence-in-depth — any future native
+    # crash (rethinkdb fork, novnc esbuild plugin, third-party C
+    # extension) still respawns the container automatically. Respects
+    # an explicit ``docker stop``, which is what the team's deploy
+    # pipeline issues.
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    depends_on:
+      - isard-db
+      - isard-redis
+      - isard-scheduler
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.151
+    # Bumped from default ~1024 so the rdb pool (default 128 conns)
+    # plus inbound websocket / SSE connections + healthcheck sockets
+    # have ample headroom under VU>=200 load. See user memory
+    # `reference_apiv4_hang_pool_starvation` for the failure mode the
+    # 128/128 default protects against.
+    ulimits:
+      nofile:
+        soft: 16384
+        hard: 16384
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',5000)); s.close()"]
+      start_period: 30s
+      interval: 5s
+    volumes:
+      - /opt/isard/sshkeys/:/sshkeys:rw
+      - /opt/isard/certs/viewers:/viewers:ro
+      - /opt/isard/frontend/custom:/static/custom:rw
+      - /opt/isard/assets/img/desktops:/app/api/static/assets/img/desktops:rw
+      - /opt/isard-local/haproxy/bastion_domains:/api/api/bastion_domains
+      - /opt/isard/config:/usr/local/etc/isardvdi
+      - /opt/isard/frontend/custom/categories:/opt/isard/frontend/custom/categories:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      # Destination for the gzipped JSONL dumps written before
+      # logs_desktops / logs_users retention deletes (and any future
+      # opt-in destructive rewrites that flow through BackupWriter).
+      # The cfg variable controls the HOST path only; the container
+      # path is fixed at /backups so application code never has to
+      # learn where the host stores files. The default reuses
+      # /opt/isard/backups, the host directory previously bind-
+      # mounted into isard-scheduler that no code references
+      # anymore. Deliberately NOT under /opt/isard-local/backup
+      # (backupninja's tree) so backupninja doesn't re-include
+      # these files in its own tarballs.
+      - ${LOGS_DELETE_BACKUP_DIR-/opt/isard/backups}:/backups:rw
+    environment:
+      PYTHONUNBUFFERED: 1
+      GRPC_VERBOSITY: ERROR
+      NOTIFY_EMAIL:
+      DOMAIN:
+      LOG_LEVEL:
+      DEBUG_STATS: "false"
+      DEBUG_WEBSOCKETS: "false"
+      FARO_ENABLED:
+      FARO_URL:
+      RETHINKDB_HOST:
+      RETHINKDB_PORT:
+      RETHINKDB_DB:
+      # The asyncio-default executor and the rdb pool MUST be sized
+      # together (`executor <= pool`) — see lifespan log line at apiv4
+      # startup. Default 128/128 absorbs VU>=200 k6 bursts without
+      # PoolExhaustedError. Tune the pair higher (e.g. 256/256) if
+      # `apiv4 pool peak in_use` (logged at lifespan shutdown) hits
+      # max. Lower only if rdb-server fd budget tightens.
+      APIV4_EXECUTOR_MAX_WORKERS: ${APIV4_EXECUTOR_MAX_WORKERS:-128}
+      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-128}
+      RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
+      APIV4_POOL_SAMPLE_INTERVAL_S: ${APIV4_POOL_SAMPLE_INTERVAL_S:-1.0}
+      API_ISARDVDI_SECRET:
+      API_HYPERVISORS_SECRET:
+      BACKUP_RETENTION: ${BACKUP_RETENTION:-30}
+      # Container-side path the apiv4 background task reads. Always
+      # /backups - the bind-mount above is what makes the cfg
+      # variable LOGS_DELETE_BACKUP_DIR (a HOST path) reach this
+      # fixed in-container location. The same name is reused on
+      # purpose: operators set it once in isardvdi.cfg and the
+      # bind-mount + container env both pick it up.
+      LOGS_DELETE_BACKUP_DIR: /backups
+      WG_USERS_PORT:
+      WG_HYPERS_NET:
+      WG_GUESTS_NETS:
+      WG_GUESTS_DHCP_MASK:
+      INFRASTRUCTURE_MTU: ${INFRASTRUCTURE_MTU:-1500}
+      VPN_MTU:
+      GENEVE_ONLY_INFRA: ${GENEVE_ONLY_INFRA:-false}
+      USAGE: ${USAGE:-production}
+      VIEWER_RDP_GW:
+      FRONTEND_SHOW_BOOKINGS:
+      FRONTEND_DOCS_URI:
+      FRONTEND_VIEWERS_DOCS_URI:
+      FRONTEND_SHOW_TEMPORAL:
+      FRONTEND_MODE:
+      DIRECTVIEWER_MODE:
+      AUTHENTICATION_AUTHENTICATION_TOKEN_DURATION:
+      REDIS_HOST: ${REDIS_HOST:-isard-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      WEBAPP_ADMIN_PWD:
+      NEXTCLOUD_INSTANCE:
+      HTTP_PORT:
+      HTTPS_PORT:
+      BASTION_ENABLED:
+      BASTION_SSH_PORT:
+      OPERATIONS_API_ENABLED:
+      AUTHENTICATION_AUTHENTICATION_LDAP_SAVE_EMAIL:
+      AUTHENTICATION_AUTHENTICATION_SAML_SAVE_EMAIL:
+      URL_DOWNLOAD_INSECURE_SSL:

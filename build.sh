@@ -23,6 +23,12 @@ else
 	export DOCKER_COMPOSE="docker compose"
 fi
 
+# Use sudo when required
+SUDO=""
+if [ "$(id -u)" != 0 ] && command -v sudo >/dev/null 2>&1; then
+	SUDO="sudo"
+fi
+
 # We need docker-compose >= 1.28 to use service profiles
 # docker-compose >= 1.27.3 to use depends_on with service_healthy
 # docker-compose < 1.26 preserves environment variable quotations
@@ -48,7 +54,6 @@ ALLINONE_PARTS="
 	webapp
 	stats
 	monitor
-	api
 	scheduler
 	authentication
 	vpn
@@ -56,12 +61,15 @@ ALLINONE_PARTS="
 	redis
 	storage
 	backupninja
-	core_worker
 	infrastructure
 	check
 	notifier
 	sessions
 	bastion
+	apiv4
+	socketio
+	changefeed
+	change-handler
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -107,19 +115,21 @@ WEB_PARTS="
 	static
 	portal
 	webapp
-	api
 	scheduler
 	authentication
 	vpn
 	stats
 	guac
 	redis
-	core_worker
 	infrastructure
 	notifier
 	sessions
 	bastion
 	backupninja
+	apiv4
+	socketio
+	changefeed
+	change-handler
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
@@ -193,7 +203,7 @@ check_docker_compose_version(){
 }
 
 get_config_files(){
-	ls isardvdi*.cfg
+	ls isardvdi*.cfg 2>/dev/null
 }
 
 get_config_name(){
@@ -383,11 +393,17 @@ flavour(){
 			parts="$parts redis.infrastructure-ports"
 			echo "      - Redis port 6379 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
-		# Check for monitor service (contains loki and prometheus)
+		# Check for monitor service (contains loki and victoriametrics)
 		if echo "$parts" | grep -q "\(^\|\s\)monitor\(\s\|$\)"; then
 			parts="$parts monitor.infrastructure-ports"
 			echo "      - Loki port 3100 exposed on $INFRASTRUCTURE_HOST_IP"
-			echo "      - Prometheus port 9090 exposed on $INFRASTRUCTURE_HOST_IP"
+			echo "      - VictoriaMetrics port 9090 exposed on $INFRASTRUCTURE_HOST_IP"
+		fi
+		# Pyroscope (only present on monitor/all-in-one when PYROSCOPE_EBPF=true)
+		# needs its ingest port reachable so remote flavours can ship eBPF profiles.
+		if echo "$parts" | grep -q "\(^\|\s\)monitor-pyroscope\(\s\|$\)"; then
+			parts="$parts monitor-pyroscope.infrastructure-ports"
+			echo "      - Pyroscope port 4040 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
 		echo ""
 	fi
@@ -427,14 +443,6 @@ create_docker_compose_file(){
 	if [ -z "$BACKUP_DISKS_ENABLED" ]
 	then
 		BACKUP_DISKS_ENABLED="false"
-	fi
-	if [ -z "$GOLANG_BUILD_IMAGE" ]
-	then
-		export GOLANG_BUILD_IMAGE="golang:1.25.8-alpine3.22"
-	fi
-	if [ -z "$GOLANG_RUN_IMAGE" ]
-	then
-		export GOLANG_RUN_IMAGE="alpine:3.22"
 	fi
 	if [ -z "$FLAVOUR" ]
 	then
@@ -514,7 +522,7 @@ create_docker_compose_file(){
 			fi
 		else
 			echo "📂 Creating Grafana data directory..."
-			if mkdir -p "$TARGET_DIR" 2>/dev/null; then
+			if $SUDO mkdir -p "$TARGET_DIR" 2>/dev/null; then
 				echo "✔ Directory created successfully."
 			else
 				echo "❌ Error: Failed to create directory. Check permissions."
@@ -522,7 +530,7 @@ create_docker_compose_file(){
 		fi
 
 		# Ensure correct ownership
-		if chown -R "$REQUIRED_UID:$REQUIRED_GID" "$TARGET_DIR" 2>/dev/null; then
+		if $SUDO chown -R "$REQUIRED_UID:$REQUIRED_GID" "$TARGET_DIR" 2>/dev/null; then
 			echo "✔ Ownership set correctly for Grafana data."
 		else
 			echo "⚠ Warning: Insufficient permissions to change ownership."
@@ -579,14 +587,17 @@ create_docker_compose_file(){
 		parts="$parts openapi"
 	fi
 
-	# Expand monitoring
-	if [ "$TEMPO" = "true" ]
+	# Expand monitoring: the tempo/pyroscope SERVERS run only on the monitor (or
+	# all-in-one) node. Other flavours act as clients — apps emit traces and alloy
+	# ships eBPF profiles to the monitor via TEMPO_ADDRESS/PYROSCOPE_ADDRESS (run.sh),
+	# so they must NOT start a local, unused server here.
+	if [ "$TEMPO" = "true" ] && { [ "$FLAVOUR" = "monitor" ] || [ "$FLAVOUR" = "all-in-one" ]; }
 	then
 		echo "Adding Tempo"
 		parts="$parts monitor-tempo"
 	fi
 
-	if [ "$PYROSCOPE_EBPF" = "true" ]
+	if [ "$PYROSCOPE_EBPF" = "true" ] && { [ "$FLAVOUR" = "monitor" ] || [ "$FLAVOUR" = "all-in-one" ]; }
 	then
 		echo "Adding Pyroscope"
 		parts="$parts monitor-pyroscope"
@@ -600,6 +611,12 @@ create_docker_compose_file(){
 	then
 		echo "Clean Tempo vars"
 		sed -i '/\bTEMPO.*/d' docker-compose*.yml
+	fi
+
+	if [ "$FARO_ENABLED" != "true" ]
+	then
+		echo "Clean Faro vars"
+		sed -i '/\bFARO_.*/d' docker-compose*.yml
 	fi
 
 	if [ "$PYROSCOPE_EBPF" != "true" ]
@@ -634,12 +651,16 @@ generate_code(){
 		USAGE="production"
 	fi
 
-	case "$USAGE" in 
-	build)
+	case "$USAGE" in
+	build | devel)
+		if ! docker buildx version >/dev/null 2>&1; then
+			echo "ERROR: 'docker buildx' is required to build the codegen image. Install the docker-buildx package for your distribution." >&2
+			exit 1
+		fi
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
-		docker build -t "$DOCKER_IMAGE" -f ./docker/codegen/Dockerfile .
+		docker build --pull -t "$DOCKER_IMAGE" -f ./docker/codegen/Dockerfile .
 		;;
-	devel | test | production)
+	test | production)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
 		docker pull "$DOCKER_IMAGE"
 		;;
@@ -649,7 +670,19 @@ generate_code(){
 		;;
 	esac
 
-	docker run --rm -u "$(id -u)" -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$DOCKER_IMAGE"
+        # Ensure the codegen cache directory exists
+	CODEGEN_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/isardvdi/codegen"
+	mkdir -p "$CODEGEN_CACHE"
+
+	# Redirect stdin from /dev/null so the codegen container does not
+	# steal stdin from the outer `echo "$CONFIG_FILES" | while read`
+	# loop — without it, only the first cfg gets processed when more
+	# than one isardvdi*.cfg exists in cwd.
+	docker run --rm -u "$(id -u)" \
+		-e HOME=/tmp \
+		-v "$(pwd):/build" \
+		-v "$CODEGEN_CACHE:/cache" \
+		"$DOCKER_IMAGE" </dev/null
 	echo "Generated the code successfully"
 }
 
@@ -661,9 +694,16 @@ Use SKIP_CHECK_DOCKER_COMPOSE_VERSION=true environment variable to skip the chec
 fi
 
 git submodule init
-git submodule update --recursive --remote
+git submodule update --recursive
 
-get_config_files | while read config_file
+CONFIG_FILES=$(get_config_files)
+if [ -z "$CONFIG_FILES" ]; then
+	echo "ERROR: no isardvdi*.cfg found in $(pwd)." >&2
+	echo "Copy isardvdi.cfg.example to isardvdi.cfg and set USAGE=." >&2
+	exit 1
+fi
+
+for config_file in $CONFIG_FILES
 do
 	(create_docker_compose_file "$config_file")
 
@@ -811,6 +851,103 @@ EOF
 	exit 1
 }
 check_isard_network_mtu
+
+ensure_etc_timezone(){
+	# Ubuntu 26.04+ (and other modern systemd distros) ship NO /etc/timezone
+	# file -- only the /etc/localtime symlink. The generated compose bind-mounts
+	# `/etc/timezone:ro` into every container; when the host file is missing
+	# Docker auto-creates it as an empty DIRECTORY, which then cannot mount onto
+	# the container's /etc/timezone file and breaks every service at `up`.
+	# Materialize it from /etc/localtime (or timedatectl) so the existing mounts
+	# work on both old (file present) and new (file absent) hosts. Idempotent and
+	# best-effort: it never aborts the build if it cannot write.
+	[ -f /etc/timezone ] && return 0
+	_tz=""
+	if [ -L /etc/localtime ]; then
+		_tz=$(readlink -f /etc/localtime 2>/dev/null | sed -n 's@.*/zoneinfo/@@p')
+	fi
+	if [ -z "$_tz" ] && command -v timedatectl >/dev/null 2>&1; then
+		_tz=$(timedatectl show -p Timezone --value 2>/dev/null)
+	fi
+	[ -z "$_tz" ] && _tz="Etc/UTC"
+	# A prior failed Docker mount may have left /etc/timezone as an empty dir.
+	[ -d /etc/timezone ] && $SUDO rmdir /etc/timezone 2>/dev/null || true
+	if printf '%s\n' "$_tz" | $SUDO tee /etc/timezone >/dev/null 2>&1; then
+		echo "Created /etc/timezone ($_tz) for container bind-mounts (this host shipped none)."
+	else
+		echo "WARNING: /etc/timezone is missing and could not be created ($_tz). Containers that bind-mount it will fail to start; create it manually:  echo $_tz | sudo tee /etc/timezone" >&2
+	fi
+	return 0
+}
+ensure_etc_timezone
+
+disable_wgquick_apparmor(){
+	# Ubuntu >=25.04 ships an ENFORCING AppArmor profile 'wg-quick' in the
+	# `apparmor` package (/etc/apparmor.d/wg-quick; absent on <=24.04 LTS).
+	# AppArmor transitions by executable, so the profile also confines the
+	# wg-quick that runs INSIDE the isard-vpn container and denies exec of the
+	# container's /bin/busybox -> `wg-quick up` fails (exit 126) -> the WireGuard
+	# interface never comes up -> the hypervisor never registers Online ("No
+	# hypervisors online to execute next virt action"). The vpn container is
+	# privileged/unconfined, so this per-executable host profile is the ONLY
+	# thing blocking it (security_opt: apparmor=unconfined would NOT help -- an
+	# unconfined process still transitions into a named profile on exec).
+	# Disable the host profile so the VPN + hypervisor work. Reversible,
+	# non-fatal, best-effort -- same spirit as ensure_etc_timezone above.
+	# Opt out with SKIP_FIX_WGQUICK_APPARMOR=true.
+	[ "${SKIP_FIX_WGQUICK_APPARMOR:-false}" = "true" ] && return 0
+	[ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = "Y" ] || return 0
+	# Only relevant when this deployment actually runs the WireGuard vpn container.
+	grep -q "isard-vpn" docker-compose.yml 2>/dev/null || return 0
+	if [ "$(id -u)" = 0 ]; then SUDO=""; else SUDO="sudo"; fi
+	# Enforcing? (complain/absent/unloaded -> nothing to do). Profiles list is root-only.
+	$SUDO grep -qE "^wg-quick \(enforce\)$" /sys/kernel/security/apparmor/profiles 2>/dev/null || return 0
+	echo "WARNING: host AppArmor profile 'wg-quick' is ENFORCING -- on Ubuntu >=25.04 it confines the" >&2
+	echo "         isard-vpn container's wg-quick and denies exec of its busybox, so WireGuard never comes" >&2
+	echo "         up and the hypervisor stays Offline. Disabling it on this host now (reversible)." >&2
+	echo "         Opt out: SKIP_FIX_WGQUICK_APPARMOR=true . Re-enable:  sudo rm /etc/apparmor.d/disable/wg-quick && sudo apparmor_parser -r /etc/apparmor.d/wg-quick" >&2
+	$SUDO mkdir -p /etc/apparmor.d/disable 2>/dev/null
+	$SUDO ln -sf /etc/apparmor.d/wg-quick /etc/apparmor.d/disable/wg-quick 2>/dev/null
+	if $SUDO apparmor_parser -R /etc/apparmor.d/wg-quick 2>/dev/null; then
+		echo "         -> 'wg-quick' profile disabled + unloaded. If isard-vpn is already up, restart it:  $DOCKER_COMPOSE restart isard-vpn" >&2
+	else
+		echo "         -> could not unload automatically; run:  sudo apparmor_parser -R /etc/apparmor.d/wg-quick && sudo $DOCKER_COMPOSE restart isard-vpn" >&2
+	fi
+	return 0
+}
+disable_wgquick_apparmor
+
+notify_prometheus_migration_pending() {
+	# Warn if the variable fallback still references the removed isard-prometheus container
+	if [ -n "$PROMETHEUS_ADDRESS" ] && [ -z "$VICTORIAMETRICS_ADDRESS" ]; then
+		case "$PROMETHEUS_ADDRESS" in
+		*isard-prometheus*)
+			echo "WARNING: PROMETHEUS_ADDRESS references the removed isard-prometheus and VICTORIAMETRICS_ADDRESS is not set." >&2
+			echo "         Unset the PROMETHEUS_ADDRESS variable or set VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428 in isardvdi.cfg." >&2
+			;;
+		esac
+	fi
+
+	# The Prometheus -> VictoriaMetrics data import is NO LONGER run in-band here.
+	# On a monitor with real retention it takes hours and needs disk for the old
+	# TSDB, the snapshot and the imported data at once, which is unsafe inside the
+	# build/upgrade window. It is now an on-demand admin script:
+	#   sysadm/migrate-prometheus-to-victoriametrics.sh
+	_prometheus_dir="/opt/isard/stats/prometheus"
+	_marker="/opt/isard/stats/victoriametrics/.migrated-from-prometheus"
+	[ -d "$_prometheus_dir" ] || return 0
+	[ -f "$_marker" ] && return 0
+
+	echo ""
+	echo "NOTE: existing Prometheus metrics were found at $_prometheus_dir."
+	echo "      VictoriaMetrics starts empty and collects new metrics from now on."
+	echo "      To import the old history into VictoriaMetrics, run the migration ON DEMAND"
+	echo "      (it can take hours and needs free disk space -- do it outside the window):"
+	echo "         sudo nohup bash sysadm/migrate-prometheus-to-victoriametrics.sh >./migrate-prometheus-to-victoriametrics.log 2>&1 &"
+	echo ""
+	return 0
+}
+notify_prometheus_migration_pending
 
 echo "You have the docker-compose files. Have fun!"
 echo "You can download the prebuild images and bring it up:"

@@ -1,0 +1,315 @@
+method,path,status,bucket,exception_class,exception_msg,location,payload_source,body_excerpt
+POST,/api/v4/admin/allowed/term/{table},200,,,,,openapi,
+POST,/api/v4/admin/allowed/update/{table},200,,,,,openapi,
+PUT,/api/v4/admin/authentication/force_validate/disclaimer/{policy_id},404,HTTP404 @ <unknown>: Authentication policy default not found,HTTP404,Authentication policy default not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""auth_policy_not_found"",""description"":""Authentication policy default not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/authentication/force_validate/email/{policy_id},404,HTTP404 @ <unknown>: Authentication policy default not found,HTTP404,Authentication policy default not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""auth_policy_not_found"",""description"":""Authentication policy default not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/authentication/force_validate/password/{policy_id},404,HTTP404 @ <unknown>: Authentication policy default not found,HTTP404,Authentication policy default not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""auth_policy_not_found"",""description"":""Authentication policy default not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/authentication/policies,200,,,,,none,
+POST,/api/v4/admin/authentication/policy,200,,,,,openapi,
+DELETE,/api/v4/admin/authentication/policy/{policy_id},404,HTTP404 @ <unknown>: Authentication policy default not found,HTTP404,Authentication policy default not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""auth_policy_not_found"",""description"":""Authentication policy default not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/authentication/policy/{policy_id},404,HTTP404 @ <unknown>: Authentication policy default not found,HTTP404,Authentication policy default not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""auth_policy_not_found"",""description"":""Authentication policy default not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/authentication/policy/{policy_id},200,,,,,openapi,
+GET,/api/v4/admin/authentication/providers,200,,,,,none,
+GET,/api/v4/admin/backups,200,,,,,none,
+GET,/api/v4/admin/backups/config,200,,,,,none,
+GET,/api/v4/admin/backups/{backup_id},404,HTTP404 @ <unknown>: Backup not found,HTTP404,Backup not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Backup not found"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/bulk/user,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/categories,200,,,,,none,
+GET,/api/v4/admin/categories/{frontend},200,,,,,none,
+POST,/api/v4/admin/category,409,HTTP409 @ <unknown>: Item with this name: e2e_real_w0_1776256342_c already exists in categories,HTTP409,Item with this name: e2e_real_w0_1776256342_c already exists in categories,<unknown>,override,"{""error"":""conflict"",""msg"":""Conflict"",""description_code"":""duplicated_name"",""description"":""Item with this name: e2e_real_w0_1776256342_c already exists in categories"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/category/delete/check,200,,,,,openapi,
+GET,/api/v4/admin/category/get/{category_name},404,HTTP404 @ <unknown>: Category x not found,HTTP404,Category x not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Category x not found"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/category/{category_id},200,,,,,none,
+GET,/api/v4/admin/category/{category_id},404,HTTP404 @ <unknown>: Category <UUID> not found,HTTP404,Category 12d1cf94-4f96-4828-8259-9f1abea5992a not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Category 12d1cf94-4f96-4828-8259-9f1abea5992a not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/category/{category_id},200,,,,,override,
+GET,/api/v4/admin/category/{category_id}/authentication,404,HTTP404 @ <unknown>: Document with id <UUID> does not exist.,HTTP404,Document with id 12d1cf94-4f96-4828-8259-9f1abea5992a does not exist.,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Document with id 12d1cf94-4f96-4828-8259-9f1abea5992a does not exist."",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/category/{category_id}/authentication,404,HTTP404 @ <unknown>: Document with id <UUID> does not exist.,HTTP404,Document with id 12d1cf94-4f96-4828-8259-9f1abea5992a does not exist.,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Document with id 12d1cf94-4f96-4828-8259-9f1abea5992a does not exist."",""data"":"""",""params"":null}"
+GET,/api/v4/admin/category/{category_id}/bastion_domain,200,,,,,none,
+PUT,/api/v4/admin/category/{category_id}/bastion_domain,428,"HTTP428 @ <unknown>: DNS record for ""_isardvdi-bastion-category.e2e_real_w0_1776256342_x"" not foun...",HTTP428,"DNS record for ""_isardvdi-bastion-category.e2e_real_w0_1776256342_x"" not found. Make sure the record exists and try again in a few minutes.",<unknown>,openapi,"{""error"":""precondition_required"",""msg"":""Precondition required"",""description_code"":""bastion_domain_dns_not_found"",""description"":""DNS record for \""_isardvdi-bastion-category.e2e_real_w0_1776256342_x\"" not found. Make sure the record exists and try again in a few minutes."",""data"":"""",""params"":null}"
+GET,/api/v4/admin/category/{category_id}/branding,404,HTTP404 @ <unknown>: Document with id <UUID> does not exist.,HTTP404,Document with id 12d1cf94-4f96-4828-8259-9f1abea5992a does not exist.,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Document with id 12d1cf94-4f96-4828-8259-9f1abea5992a does not exist."",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/category/{category_id}/branding,404,HTTP404 @ <unknown>: Document with id <UUID> does not exist.,HTTP404,Document with id 12d1cf94-4f96-4828-8259-9f1abea5992a does not exist.,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Document with id 12d1cf94-4f96-4828-8259-9f1abea5992a does not exist."",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/category/{category_id}/login_notification,404,HTTP404 @ <unknown>: Document with id <UUID> does not exist.,HTTP404,Document with id 12d1cf94-4f96-4828-8259-9f1abea5992a does not exist.,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Document with id 12d1cf94-4f96-4828-8259-9f1abea5992a does not exist."",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/category/{category_id}/login_notification/{notification_type}/enable,400,ValidationError @ <schema>: path.notification_type: Input should be 'cover' or 'form',ValidationError,path.notification_type: Input should be 'cover' or 'form',<schema>,openapi,"{""error"":""validation_error"",""description"":""Request validation failed"",""details"":[{""type"":""literal_error"",""loc"":[""path"",""notification_type""],""msg"":""Input should be 'cover' or 'form'"",""input"":""x"",""ctx"":{""expected"":""'cover' or 'form'""}}]}"
+GET,/api/v4/admin/category/{category_id}/users,200,,,,,none,
+POST,/api/v4/admin/check/group/category,200,,,,,openapi,
+GET,/api/v4/admin/config/user-migration,200,,,,,none,
+PUT,/api/v4/admin/config/user-migration,200,,,,,openapi,
+GET,/api/v4/admin/deployment/{deployment_id}/viewer_data,404,HTTP404 @ <unknown>: Deployment <UUID> not found,HTTP404,Deployment 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Deployment 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/desktops/tree_list/{template_id},404,HTTP404 @ <unknown>: Template <UUID> not found,HTTP404,Template 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Template 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/domain/search-info/{domain_id},404,HTTP404 @ <unknown>: Domain <UUID> not found,HTTP404,Domain 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Domain 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/domain/storage/{domain_id},200,,,,,none,
+GET,/api/v4/admin/domain/template_tree/{desktop_id},200,,,,,none,
+GET,/api/v4/admin/domain/{domain_id}/details,404,HTTP404 @ <unknown>: Domain <UUID> not found,HTTP404,Domain 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Domain 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/domain/{domain_id}/viewer_data,404,HTTP404 @ <unknown>: Domain <UUID> not found,HTTP404,Domain 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Domain 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/domain/{domain_id}/xml,404,HTTP404 @ <unknown>: Domain <UUID> not found,HTTP404,Domain 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Domain 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/domain/{domain_id}/xml,404,HTTP404 @ <unknown>: Domain <UUID> not found,HTTP404,Domain 00000000-0000-0000-0000-000000000000 not found,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Domain 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/domains,200,,,,,openapi,
+GET,/api/v4/admin/domains/started-count,200,,,,,none,
+PUT,/api/v4/admin/domains/status/{status}/find_storages,200,,,,,none,
+GET,/api/v4/admin/domains/xml_capabilities,200,,,,,none,
+POST,/api/v4/admin/domains/xml_sections/parse,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/domains/xml_sections/{domain_id},200,,,,,none,
+POST,/api/v4/admin/domains/xml_sections/{domain_id},400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/domains/xml_sections/{domain_id}/save_virt_install,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/domains/{field}/{kind},200,,,,,none,
+GET,/api/v4/admin/domains_status/{status},200,,,,,none,
+GET,/api/v4/admin/downloads,200,,,,,none,
+POST,/api/v4/admin/downloads/register,200,,,,,none,
+POST,/api/v4/admin/downloads/{action}/{kind},200,,,,,none,
+POST,/api/v4/admin/downloads/{action}/{kind}/{id},200,,,,,none,
+GET,/api/v4/admin/downloads/{kind},200,,,,,none,
+POST,/api/v4/admin/echart/{view},400,HTTP400 @ <unknown>: Unknown echart view: x,HTTP400,Unknown echart view: x,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Unknown echart view: x"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/group,409,HTTP409 @ <unknown>: Item with this name: e2e_real_w0_1776256342_g already exists in groups,HTTP409,Item with this name: e2e_real_w0_1776256342_g already exists in groups,<unknown>,override,"{""error"":""conflict"",""msg"":""Conflict"",""description_code"":""duplicated_name"",""description"":""Item with this name: e2e_real_w0_1776256342_g already exists in groups"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/group/delete/check,200,,,,,openapi,
+POST,/api/v4/admin/group/enrollment,404,HTTP404 @ <unknown>: Group e2e_real_w0_1776256342_x not found,HTTP404,Group e2e_real_w0_1776256342_x not found,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""group_not_found"",""description"":""Group e2e_real_w0_1776256342_x not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/group/get/{category_name}/{group_name},404,HTTP404 @ <unknown>: Not found group name x,HTTP404,Not found group name x,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Not found group name x"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/group/{group_id},200,,,,,none,
+GET,/api/v4/admin/group/{group_id},404,HTTP404 @ <unknown>: Not found group_id <UUID>,HTTP404,Not found group_id 1408b32d-89aa-4406-b675-f3124f98de69,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""group_not_found"",""description"":""Not found group_id 1408b32d-89aa-4406-b675-f3124f98de69"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/group/{group_id},200,,,,,override,
+GET,/api/v4/admin/group/{group_id}/users,200,,,,,none,
+GET,/api/v4/admin/groups,200,,,,,none,
+POST,/api/v4/admin/hypervisor,400,HTTP400 @ <unknown>: DNS resolution failed for e2e_real_w0_1776256342_x,HTTP400,DNS resolution failed for e2e_real_w0_1776256342_x,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""DNS resolution failed for e2e_real_w0_1776256342_x"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/hypervisor/disks_found,200,,,,,openapi,
+POST,/api/v4/admin/hypervisor/media_delete,200,,,,,openapi,
+POST,/api/v4/admin/hypervisor/media_found,200,,,,,openapi,
+GET,/api/v4/admin/hypervisor/mountpoints/{hyper_id},404,HTTP404 @ <unknown>: Mountpoints information still not available,HTTP404,Mountpoints information still not available,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Mountpoints information still not available"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/hypervisor/started_domains/{hyper_id},200,,,,,none,
+GET,/api/v4/admin/hypervisor/status/{hyper_id},404,HTTP404 @ <unknown>: Hypervisor isard-hypervisor not found,HTTP404,Hypervisor isard-hypervisor not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""hypervisor_not_found"",""description"":""Hypervisor isard-hypervisor not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/hypervisor/stop/{hyper_id},200,,,,,none,
+POST,/api/v4/admin/hypervisor/vm/wg_addr,404,HTTP404 @ <unknown>: Domain with mac e2e_real_w0_1776256342_x not found in wireguard cache,HTTP404,Domain with mac e2e_real_w0_1776256342_x not found in wireguard cache,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Domain with mac e2e_real_w0_1776256342_x not found in wireguard cache"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/hypervisor/{hyper_id},200,,,,,none,
+PUT,/api/v4/admin/hypervisor/{hyper_id},400,HTTP400 @ <unknown>: Hypervisor update bad data,HTTP400,Hypervisor update bad data,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Hypervisor update bad data"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/hypervisor/{hyper_id}/boot_progress,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/hypervisor/{hyper_id}/virt_pools,404,HTTP404 @ <unknown>: Hypervisor isard-hypervisor not found,HTTP404,Hypervisor isard-hypervisor not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Hypervisor isard-hypervisor not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/hypervisor/{hyper_id}/virt_pools,404,HTTP404 @ <unknown>: Hypervisor isard-hypervisor not found,HTTP404,Hypervisor isard-hypervisor not found,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Hypervisor isard-hypervisor not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/hypervisor_vpn/{hyper_id},404,HTTP404 @ <unknown>: Hypervisor not found for id isard-hypervisor,HTTP404,Hypervisor not found for id isard-hypervisor,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""hypervisor_not_found"",""description"":""Hypervisor not found for id isard-hypervisor"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/hypervisors,200,,,,,none,
+PUT,/api/v4/admin/hypervisors/gpus,200,,,,,none,
+POST,/api/v4/admin/hypervisors/orchestrator_managed,200,,,,,none,
+GET,/api/v4/admin/hypervisors/{status},400,HTTP400 @ <unknown>: Hypervisor status incorrect,HTTP400,Hypervisor status incorrect,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Hypervisor status incorrect"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/images/desktops/generate,200,,,,,openapi,
+GET,/api/v4/admin/items/desktops,200,,,,,none,
+GET,/api/v4/admin/items/templates,200,,,,,none,
+GET,/api/v4/admin/jwt/{user_id},200,,,,,none,
+PUT,/api/v4/admin/limits/category/{category_id},400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/limits/group/{group_id},400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/logs_desktops,400,HTTP400 @ <unknown>: Request body must be JSON or multipart form data,HTTP400,Request body must be JSON or multipart form data,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON or multipart form data"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/logs_desktops/list,200,,,,,none,
+POST,/api/v4/admin/logs_desktops/{view},400,HTTP400 @ <unknown>: Request body must be multipart form data,HTTP400,Request body must be multipart form data,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be multipart form data"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/logs_users,400,HTTP400 @ <unknown>: Request body must be JSON or multipart form data,HTTP400,Request body must be JSON or multipart form data,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON or multipart form data"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/logs_users/list,200,,,,,none,
+POST,/api/v4/admin/logs_users/{view},400,HTTP400 @ <unknown>: Request body must be multipart form data,HTTP400,Request body must be multipart form data,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be multipart form data"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/media,200,,,,,none,
+GET,/api/v4/admin/media/domains/{storage_id},200,,,,,none,
+GET,/api/v4/admin/media/{status},200,,,,,none,
+GET,/api/v4/admin/migrations,200,,,,,none,
+DELETE,/api/v4/admin/migrations/{migration_id},404,HTTP404 @ <unknown>: No migration found when deleting,HTTP404,No migration found when deleting,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""migration_not_found"",""description"":""No migration found when deleting"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/migrations/{migration_id}/revoke,404,HTTP404 @ <unknown>: Migration x not found,HTTP404,Migration x not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""migration_not_found"",""description"":""Migration x not found"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/multiple_actions,200,,,,,openapi,
+POST,/api/v4/admin/notification,200,,,,,openapi,
+GET,/api/v4/admin/notification/actions,200,,,,,none,
+DELETE,/api/v4/admin/notification/{notification_id},400,ValidationError @ <schema>: body: Field required,ValidationError,body: Field required,<schema>,none,"{""error"":""validation_error"",""description"":""Request validation failed"",""details"":[{""type"":""missing"",""loc"":[""body""],""msg"":""Field required"",""input"":null}]}"
+GET,/api/v4/admin/notification/{notification_id},200,,,,,none,
+PUT,/api/v4/admin/notification/{notification_id},200,,,,,openapi,
+GET,/api/v4/admin/notifications,200,,,,,none,
+DELETE,/api/v4/admin/notifications/data,200,,,,,none,
+GET,/api/v4/admin/notifications/data/by_status/{status},200,,,,,none,
+GET,/api/v4/admin/notifications/data/status/{status}/user/{user_id},200,,,,,none,
+DELETE,/api/v4/admin/notifications/data/user/{user_id},200,,,,,none,
+DELETE,/api/v4/admin/notifications/data/{notification_data_id},200,,,,,none,
+GET,/api/v4/admin/notifications/statuses,200,,,,,none,
+POST,/api/v4/admin/notifications/template,400,HTTP400 @ <unknown>: Template must include 'default' and matching 'lang' entry,HTTP400,Template must include 'default' and matching 'lang' entry,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""template_missing_default_lang"",""description"":""Template must include 'default' and matching 'lang' entry"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/notifications/template/preview,404,HTTP404 @ <unknown>: Unknown notification event: e2e_real_w0_1776256342_x,HTTP404,Unknown notification event: e2e_real_w0_1776256342_x,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""event_not_found"",""description"":""Unknown notification event: e2e_real_w0_1776256342_x"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/notifications/template/{template_id},404,HTTP404 @ <unknown>: Notification template <UUID> not found,HTTP404,Notification template 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""template_not_found"",""description"":""Notification template 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/notifications/template/{template_id},404,HTTP404 @ <unknown>: Notification template with ID: <UUID> not found,HTTP404,Notification template with ID: 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Notification template with ID: 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/notifications/template/{template_id},200,,,,,openapi,
+GET,/api/v4/admin/notifications/templates,200,,,,,none,
+GET,/api/v4/admin/notifications/templates/custom,200,,,,,none,
+GET,/api/v4/admin/notifications/templates/system,200,,,,,none,
+GET,/api/v4/admin/notifications/user/displays/{user_id}/{trigger},200,,,,,none,
+POST,/api/v4/admin/notify/desktop,200,,,,,openapi,
+PUT,/api/v4/admin/notify/desktops/queue/{hyp_id},400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/notify/user/desktop,200,,,,,openapi,
+DELETE,/api/v4/admin/operations/hypervisor/{hypervisor_id},403,HTTP403 @ <unknown>: Operations API is not enabled,HTTP403,Operations API is not enabled,<unknown>,none,"{""error"":""forbidden"",""msg"":""Forbidden"",""description_code"":""forbidden"",""description"":""Operations API is not enabled"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/operations/hypervisor/{hypervisor_id},403,HTTP403 @ <unknown>: Operations API is not enabled,HTTP403,Operations API is not enabled,<unknown>,none,"{""error"":""forbidden"",""msg"":""Forbidden"",""description_code"":""forbidden"",""description"":""Operations API is not enabled"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/operations/hypervisors,403,HTTP403 @ <unknown>: Operations API is not enabled,HTTP403,Operations API is not enabled,<unknown>,none,"{""error"":""forbidden"",""msg"":""Forbidden"",""description_code"":""forbidden"",""description"":""Operations API is not enabled"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/orchestrator/hypervisor/{hypervisor_id},404,HTTP404 @ <unknown>: Hypervisor with ID x does not exist.,HTTP404,Hypervisor with ID x does not exist.,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Hypervisor with ID x does not exist."",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/orchestrator/hypervisor/{hypervisor_id}/dead_row,404,HTTP404 @ <unknown>: Hypervisor with ID x does not exist.,HTTP404,Hypervisor with ID x does not exist.,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Hypervisor with ID x does not exist."",""data"":"""",""params"":null}"
+POST,/api/v4/admin/orchestrator/hypervisor/{hypervisor_id}/dead_row,404,HTTP404 @ <unknown>: Hypervisor with ID x does not exist.,HTTP404,Hypervisor with ID x does not exist.,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Hypervisor with ID x does not exist."",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/orchestrator/hypervisor/{hypervisor_id}/desktops,200,,,,,none,
+DELETE,/api/v4/admin/orchestrator/hypervisor/{hypervisor_id}/manage,200,,,,,none,
+POST,/api/v4/admin/orchestrator/hypervisor/{hypervisor_id}/manage,200,,,,,none,
+GET,/api/v4/admin/orchestrator/hypervisors,200,,,,,none,
+GET,/api/v4/admin/queues,200,,,,,none,
+GET,/api/v4/admin/queues/consumers,200,,,,,none,
+DELETE,/api/v4/admin/queues/old_tasks,400,ValidationError @ <schema>: body: Field required,ValidationError,body: Field required,<schema>,none,"{""error"":""validation_error"",""description"":""Request validation failed"",""details"":[{""type"":""missing"",""loc"":[""body""],""msg"":""Field required"",""input"":null}]}"
+DELETE,/api/v4/admin/queues/old_tasks/auto,200,,,,,none,
+GET,/api/v4/admin/queues/old_tasks/config,200,,,,,none,
+PUT,/api/v4/admin/queues/old_tasks/config/enabled,200,,,,,openapi,
+PUT,/api/v4/admin/queues/old_tasks/config/max_time/{max_time},200,,,,,none,
+PUT,/api/v4/admin/queues/old_tasks/config/queue_registries,200,,,,,openapi,
+GET,/api/v4/admin/queues/old_tasks/{older_than},400,"ValidationError @ <schema>: path.older_than: Input should be a valid integer, unable to parse string as a...",ValidationError,"path.older_than: Input should be a valid integer, unable to parse string as an integer",<schema>,none,"{""error"":""validation_error"",""description"":""Request validation failed"",""details"":[{""type"":""int_parsing"",""loc"":[""path"",""older_than""],""msg"":""Input should be a valid integer, unable to parse string as an integer"",""input"":""x""}]}"
+PUT,/api/v4/admin/quota/category/{category_id},400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/quota/group/{group_id},400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/quota/{kind},400,HTTP400 @ <unknown>: Unknown quota kind 'domains',HTTP400,Unknown quota kind 'domains',<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Unknown quota kind 'domains'"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/quota/{kind}/{item_id},400,HTTP400 @ <unknown>: Unknown quota kind 'domains',HTTP400,Unknown quota kind 'domains',<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Unknown quota kind 'domains'"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/quotas,200,,,,,none,
+PUT,/api/v4/admin/reservables/{reservable_type}/{item_id},400,HTTP400 @ <unknown>: Unknown reservable type: x,HTTP400,Unknown reservable type: x,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Unknown reservable type: x"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/role/{role_id},404,HTTP404 @ <unknown>: Role not found,HTTP404,Role not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Role not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/role/{role_id},400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/roles,200,,,,,none,
+GET,/api/v4/admin/scheduler/jobs/bookings,200,,,,,none,
+GET,/api/v4/admin/scheduler/jobs/system,200,,,,,none,
+POST,/api/v4/admin/secret,404,HTTP404 @ <unknown>: Category e2e_real_w0_1776256342_x not found,HTTP404,Category e2e_real_w0_1776256342_x not found,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Category e2e_real_w0_1776256342_x not found"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/secret/{kid},404,HTTP404 @ <unknown>: Item <UUID> not found,HTTP404,Item 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Item 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/secrets,200,,,,,none,
+POST,/api/v4/admin/socketio,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/socketio/broadcast,200,,,,,openapi,
+GET,/api/v4/admin/storage,200,,,,,none,
+POST,/api/v4/admin/storage,200,,,,,openapi,
+GET,/api/v4/admin/storage/by-role/{role},400,"HTTP400 @ <unknown>: Invalid role: x. Valid roles are: admin, manager, advanced, user",HTTP400,"Invalid role: x. Valid roles are: admin, manager, advanced, user",<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""invalid_role"",""description"":""Invalid role: x. Valid roles are: admin, manager, advanced, user"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/storage/by-status/{status},200,,,,,none,
+POST,/api/v4/admin/storage/by-status/{status},200,,,,,openapi,
+GET,/api/v4/admin/storage/domains/{storage_id},404,HTTP404 @ <unknown>: Storage x not found,HTTP404,Storage x not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Storage x not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/storage/info/{storage_id},404,HTTP404 @ <unknown>: Storage x not found,HTTP404,Storage x not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Storage x not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/storage/search-info/{storage_id},404,HTTP404 @ <unknown>: Storage x not found,HTTP404,Storage x not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Storage x not found"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/storage/{storage_id},404,HTTP404 @ <unknown>: Storage x not found,HTTP404,Storage x not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""storage_not_found"",""description"":""Storage x not found"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/table/add/{table},400,HTTP400 @ <unknown>: Missing 'id' field in request body,HTTP400,Missing 'id' field in request body,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Missing 'id' field in request body"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/table/update/{table},400,HTTP400 @ <unknown>: Missing 'id' field in request body,HTTP400,Missing 'id' field in request body,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Missing 'id' field in request body"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/table/{table},200,,,,,none,
+POST,/api/v4/admin/table/{table},200,,,,,openapi,
+DELETE,/api/v4/admin/table/{table}/{item_id},404,HTTP404 @ <unknown>: Item default not found,HTTP404,Item default not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Item default not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/task/{task_id}/retry,404,HTTP404 @ <unknown>: Task not found,HTTP404,Task not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Task not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/tasks,200,,,,,none,
+PUT,/api/v4/admin/tasks/retry,200,,,,,none,
+GET,/api/v4/admin/templates,200,,,,,none,
+DELETE,/api/v4/admin/templates/delete/{template_id},404,HTTP404 @ <unknown>: Template <UUID> not found,HTTP404,Template 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""template_not_found"",""description"":""Template 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/usage,400,HTTP400 @ <unknown>: start_date and end_date are required (YYYY-MM-DD),HTTP400,start_date and end_date are required (YYYY-MM-DD),<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""usage_dates_required"",""description"":""start_date and end_date are required (YYYY-MM-DD)"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/usage/category_credits,200,,,,,none,
+GET,/api/v4/admin/usage/category_credits/{category_credit_id},404,HTTP404 @ <unknown>: Category credit ID not found in database,HTTP404,Category credit ID not found in database,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Category credit ID not found in database"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/usage/check/overlapping/{credit_id}/{start_date}/{end_date},404,HTTP404 @ <unknown>: Category credit ID not found in database,HTTP404,Category credit ID not found in database,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Category credit ID not found in database"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/usage/consolidate,200,,,,,none,
+PUT,/api/v4/admin/usage/consolidate/{item_type},400,HTTP400 @ <unknown>: Item type x not valid for consumption calculation,HTTP400,Item type x not valid for consumption calculation,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Item type x not valid for consumption calculation"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/usage/consolidate/{item_type}/{days},400,"ValidationError @ <schema>: path.days: Input should be a valid integer, unable to parse string as an integer",ValidationError,"path.days: Input should be a valid integer, unable to parse string as an integer",<schema>,none,"{""error"":""validation_error"",""description"":""Request validation failed"",""details"":[{""type"":""int_parsing"",""loc"":[""path"",""days""],""msg"":""Input should be a valid integer, unable to parse string as an integer"",""input"":""x""}]}"
+GET,/api/v4/admin/usage/consumers,200,,,,,none,
+GET,/api/v4/admin/usage/consumers/{item_type},200,,,,,none,
+POST,/api/v4/admin/usage/credits,400,HTTP400 @ <unknown>: Invalid start_date 'e2e_real_w0_1776256342_x': expected YYYY-MM-DD,HTTP400,Invalid start_date 'e2e_real_w0_1776256342_x': expected YYYY-MM-DD,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""invalid_date"",""description"":""Invalid start_date 'e2e_real_w0_1776256342_x': expected YYYY-MM-DD"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/usage/credits/{consumer}/{item_type}/{item_id}/{grouping_id}/{start_date}/{end_date},400,HTTP400 @ <unknown>: Invalid start_date 'x': expected YYYY-MM-DD,HTTP400,Invalid start_date 'x': expected YYYY-MM-DD,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""invalid_date"",""description"":""Invalid start_date 'x': expected YYYY-MM-DD"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/usage/credits/{credit_id},404,HTTP404 @ <unknown>: Credit with ID x not found in database,HTTP404,Credit with ID x not found in database,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Credit with ID x not found in database"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/usage/credits/{credit_id},404,HTTP404 @ <unknown>: Usage credit not found,HTTP404,Usage credit not found,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Usage credit not found"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/usage/delete_data,200,,,,,none,
+GET,/api/v4/admin/usage/distinct_items/{item_consumer}/{start}/{end},400,HTTP400 @ <unknown>: Invalid start_date 'x': expected YYYY-MM-DD,HTTP400,Invalid start_date 'x': expected YYYY-MM-DD,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""invalid_date"",""description"":""Invalid start_date 'x': expected YYYY-MM-DD"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/usage/grouping/{grouping_id},404,HTTP404 @ <unknown>: Grouping not found,HTTP404,Grouping not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Grouping not found"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/usage/groupings,200,,,,,none,
+POST,/api/v4/admin/usage/groupings,200,,,,,openapi,
+DELETE,/api/v4/admin/usage/groupings/{grouping_id},404,HTTP404 @ <unknown>: Parameter grouping with ID x not found in database,HTTP404,Parameter grouping with ID x not found in database,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Parameter grouping with ID x not found in database"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/usage/groupings/{grouping_id},200,,,,,openapi,
+GET,/api/v4/admin/usage/groupings_dropdown,200,,,,,none,
+GET,/api/v4/admin/usage/limits,200,,,,,none,
+POST,/api/v4/admin/usage/limits,400,HTTP400 @ <unknown>: Expected maximum must be greater than the expected minimum,HTTP400,Expected maximum must be greater than the expected minimum,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Expected maximum must be greater than the expected minimum"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/usage/limits/{limit_id},404,HTTP404 @ <unknown>: Limit with ID x not found in database,HTTP404,Limit with ID x not found in database,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Limit with ID x not found in database"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/usage/limits/{limit_id},400,HTTP400 @ <unknown>: Expected maximum must be greater than the expected minimum,HTTP400,Expected maximum must be greater than the expected minimum,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Expected maximum must be greater than the expected minimum"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/usage/list_parameters,200,,,,,openapi,
+GET,/api/v4/admin/usage/parameters,200,,,,,none,
+POST,/api/v4/admin/usage/parameters,200,,,,,openapi,
+DELETE,/api/v4/admin/usage/parameters/{parameter_id},404,HTTP404 @ <unknown>: Parameter with ID x not found in database,HTTP404,Parameter with ID x not found in database,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Parameter with ID x not found in database"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/usage/parameters/{parameter_id},200,,,,,openapi,
+GET,/api/v4/admin/usage/reset_date,200,,,,,none,
+GET,/api/v4/admin/usage/reset_date/{start_date}/{end_date},400,HTTP400 @ <unknown>: Invalid date: expected YYYY-MM-DD,HTTP400,Invalid date: expected YYYY-MM-DD,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""invalid_date"",""description"":""Invalid date: expected YYYY-MM-DD"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/usage/reset_dates,200,,,,,openapi,
+PUT,/api/v4/admin/usage/start_end,400,HTTP400 @ <unknown>: start_date and end_date are required (YYYY-MM-DD),HTTP400,start_date and end_date are required (YYYY-MM-DD),<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""usage_dates_required"",""description"":""start_date and end_date are required (YYYY-MM-DD)"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/usage/unify/{item_id}/item_name,404,HTTP404 @ <unknown>: No consumption data for item default,HTTP404,No consumption data for item default,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""consumption_not_found"",""description"":""No consumption data for item default"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/user,200,,,,,override,
+POST,/api/v4/admin/user,409,HTTP409 @ <unknown>: User with uid e2e_real_w0_1776256342_u already exists in category default for...,HTTP409,User with uid e2e_real_w0_1776256342_u already exists in category default for provider local,<unknown>,override,"{""error"":""conflict"",""msg"":""Conflict"",""description_code"":""conflict"",""description"":""User with uid e2e_real_w0_1776256342_u already exists in category default for provider local"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/user/appliedquota/{user_id},200,,,,,none,
+POST,/api/v4/admin/user/auto-register,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/user/check/migrated,200,,,,,openapi,
+POST,/api/v4/admin/user/delete/check,200,,,,,override,
+GET,/api/v4/admin/user/email-category/{email}/{category},404,HTTP404 @ <unknown>: No verified user with email x in category x,HTTP404,No verified user with email x in category x,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""user_not_found"",""description"":""No verified user with email x in category x"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/user/migrate/check/{user_id}/{target_user_id},200,,,,,none,
+PUT,/api/v4/admin/user/migrate/resource/deployments/{user_id}/{target_user_id},200,,,,,none,
+PUT,/api/v4/admin/user/migrate/resource/desktop/{user_id}/{target_user_id},200,,,,,none,
+PUT,/api/v4/admin/user/migrate/resource/media/{user_id}/{target_user_id},200,,,,,none,
+PUT,/api/v4/admin/user/migrate/resource/template/{user_id}/{target_user_id},200,,,,,none,
+PUT,/api/v4/admin/user/migrate/{user_id}/{target_user_id},200,,,,,none,
+GET,/api/v4/admin/user/password-policy/{user_id},200,,,,,none,
+GET,/api/v4/admin/user/required/disclaimer-acknowledgement/{user_id},200,,,,,none,
+GET,/api/v4/admin/user/required/email-verification/{user_id},200,,,,,none,
+GET,/api/v4/admin/user/required/password-reset/{user_id},200,,,,,none,
+PUT,/api/v4/admin/user/reset-vpn/{user_id},200,,,,,none,
+PUT,/api/v4/admin/user/secondary-groups/add,200,,,,,openapi,
+PUT,/api/v4/admin/user/secondary-groups/delete,200,,,,,openapi,
+PUT,/api/v4/admin/user/secondary-groups/overwrite,200,,,,,openapi,
+GET,/api/v4/admin/user/{user_id},200,,,,,none,
+PUT,/api/v4/admin/user/{user_id},200,,,,,override,
+GET,/api/v4/admin/user/{user_id}/desktops,200,,,,,none,
+GET,/api/v4/admin/user/{user_id}/exists,200,,,,,none,
+PUT,/api/v4/admin/user/{user_id}/logout,200,,,,,none,
+GET,/api/v4/admin/user/{user_id}/raw,200,,,,,none,
+GET,/api/v4/admin/user/{user_id}/templates,200,,,,,none,
+GET,/api/v4/admin/user/{user_id}/vpn/{kind},400,HTTP400 @ <unknown>: UserVpn: no OS supplied,HTTP400,UserVpn: no OS supplied,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""UserVpn: no OS supplied"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/user/{user_id}/vpn/{kind}/{os},400,"HTTP400 @ <unknown>: Unknown VPN kind 'domains'; expected one of: config, install",HTTP400,"Unknown VPN kind 'domains'; expected one of: config, install",<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""vpn_kind_invalid"",""description"":""Unknown VPN kind 'domains'; expected one of: config, install"",""data"":"""",""params"":null}"
+GET,/api/v4/admin/user_storage,200,,,,,none,
+POST,/api/v4/admin/user_storage/auto_register,200,,,,,openapi,
+POST,/api/v4/admin/user_storage/conn_test,200,,,,,openapi,
+POST,/api/v4/admin/user_storage/new/{auth_protocol},400,HTTP400 @ <unknown>: Auth protocol 'x' is not supported,HTTP400,Auth protocol 'x' is not supported,<unknown>,openapi,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Auth protocol 'x' is not supported"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/user_storage/reset/all,200,,,,,none,
+GET,/api/v4/admin/user_storage/users,200,,,,,none,
+DELETE,/api/v4/admin/user_storage/{provider_id},200,,,,,none,
+GET,/api/v4/admin/user_storage/{provider_id},200,,,,,none,
+DELETE,/api/v4/admin/user_storage/{provider_id}/reset,200,,,,,none,
+PUT,/api/v4/admin/user_storage/{provider_id}/sync/{item},200,,,,,none,
+GET,/api/v4/admin/users,200,,,,,none,
+PUT,/api/v4/admin/users/bulk,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/users/csv,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/users/csv,200,,,,,openapi,
+POST,/api/v4/admin/users/csv/validate,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/users/csv/validate,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/users/reset-password,404,HTTP404 @ <unknown>: User e2e_real_w0_1776256342_x not found,HTTP404,User e2e_real_w0_1776256342_x not found,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""user_not_found"",""description"":""User e2e_real_w0_1776256342_x not found"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/users/search,200,,,,,openapi,
+GET,/api/v4/admin/users/{nav}/categories,200,,,,,none,
+GET,/api/v4/admin/users/{nav}/groups,200,,,,,none,
+GET,/api/v4/admin/users/{nav}/users,200,,,,,none,
+GET,/api/v4/admin/userschema,200,,,,,none,
+GET,/api/v4/admin/viewers-config,200,,,,,none,
+PUT,/api/v4/admin/viewers-config/reset/{viewer},400,HTTP400 @ <unknown>: Invalid viewer value to reset,HTTP400,Invalid viewer value to reset,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Invalid viewer value to reset"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/viewers-config/{viewer},200,,,,,openapi,
+GET,/api/v4/admin/virt_install/xml_sections/{virt_id},404,HTTP404 @ <unknown>: virt_install x not found,HTTP404,virt_install x not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""virt_install x not found"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/virt_install/xml_sections/{virt_id},400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/vlans,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/vpn_connection/{kind},400,HTTP400 @ <unknown>: Unsupported reset kind 'domains'; expected 'all',HTTP400,Unsupported reset kind 'domains'; expected 'all',<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Unsupported reset kind 'domains'; expected 'all'"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/vpn_connection/{kind}/{client_ip},404,HTTP404 @ <unknown>: Active client vpn connection: Vpn kind domains not found,HTTP404,Active client vpn connection: Vpn kind domains not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""vpn_kind_not_found"",""description"":""Active client vpn connection: Vpn kind domains not found"",""data"":"""",""params"":null}"
+POST,/api/v4/admin/vpn_connection/{kind}/{client_ip},404,HTTP404 @ <unknown>: Active client vpn connection: Vpn kind domains not found,HTTP404,Active client vpn connection: Vpn kind domains not found,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""vpn_kind_not_found"",""description"":""Active client vpn connection: Vpn kind domains not found"",""data"":"""",""params"":null}"
+PUT,/api/v4/admin/vpn_connection/{kind}/{client_ip},404,HTTP404 @ <unknown>: Active client vpn connection: Vpn kind domains not found,HTTP404,Active client vpn connection: Vpn kind domains not found,<unknown>,openapi,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""vpn_kind_not_found"",""description"":""Active client vpn connection: Vpn kind domains not found"",""data"":"""",""params"":null}"
+DELETE,/api/v4/admin/vpn_connections,400,HTTP400 @ <unknown>: Request body must be JSON,HTTP400,Request body must be JSON,<unknown>,none,"{""error"":""bad_request"",""msg"":""Bad request"",""description_code"":""bad_request"",""description"":""Request body must be JSON"",""data"":"""",""params"":null}"
+GET,/api/v4/bastion/config,200,,,,,none,
+GET,/api/v4/item/desktop/{desktop_id},404,HTTP404 @ <unknown>: Desktop with ID <UUID> not found,HTTP404,Desktop with ID 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Desktop with ID 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+GET,/api/v4/item/desktop/{desktop_id}/get-details,404,HTTP404 @ <unknown>: Desktop with ID <UUID> not found,HTTP404,Desktop with ID 00000000-0000-0000-0000-000000000000 not found,<unknown>,none,"{""error"":""not_found"",""msg"":""Not found"",""description_code"":""not_found"",""description"":""Desktop with ID 00000000-0000-0000-0000-000000000000 not found"",""data"":"""",""params"":null}"
+GET,/api/v4/item/login-config,200,,,,,none,
+GET,/api/v4/item/recycle-bin/count,200,,,,,none,
+GET,/api/v4/item/recycle-bin/get-default-delete-config,200,,,,,none,
+GET,/api/v4/item/recycle-bin/get-user-cutoff-time,200,,,,,none,
+GET,/api/v4/item/user/desktops,200,,,,,none,
+GET,/api/v4/item/user/get-allowed-hardware,200,,,,,none,
+GET,/api/v4/item/user/get-config,200,,,,,none,
+GET,/api/v4/item/user/get-details,200,,,,,none,
+GET,/api/v4/item/user/get-quotas,200,,,,,none,
+GET,/api/v4/item/user/webapp-desktops,200,,,,,none,
+GET,/api/v4/item/user/webapp-templates,200,,,,,none,
+GET,/api/v4/items/bookings/all,200,,,,,none,
+GET,/api/v4/items/categories,200,,,,,none,
+GET,/api/v4/items/media,200,,,,,none,
+GET,/api/v4/items/media/get-allowed,200,,,,,none,
+GET,/api/v4/items/media/get-shared,200,,,,,none,
+GET,/api/v4/items/media/installs,200,,,,,none,
+GET,/api/v4/items/templates,200,,,,,none,
+GET,/api/v4/items/templates/get-allowed,200,,,,,none,
+GET,/api/v4/items/templates/get-shared,200,,,,,none,
+GET,/api/v4/media/status,200,,,,,none,
+GET,/api/v4/notifications/status-bar,200,,,,,none,
+GET,/api/v4/quota/media/new,204,,,,,none,
+GET,/api/v4/stats/categories,200,,,,,none,
+GET,/api/v4/stats/categories/deployments,200,,,,,none,
+GET,/api/v4/stats/desktops/status,200,,,,,none,
+GET,/api/v4/stats/domains/status,200,,,,,none,
+GET,/api/v4/storage-pool/availability,428,HTTP428 @ <unknown>: No hypervisors available for category default with storage pool <UUID>,HTTP428,No hypervisors available for category default with storage pool 00000000-0000-0000-0000-000000000000,<unknown>,none,"{""error"":""precondition_required"",""msg"":""Precondition required"",""description_code"":""no_storage_pool_available"",""description"":""No hypervisors available for category default with storage pool 00000000-0000-0000-0000-000000000000"",""data"":"""",""params"":null}"

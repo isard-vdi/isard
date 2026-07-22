@@ -50,7 +50,7 @@
           <div
             id="deployment-logo"
             class="rounded-circle bg-red mx-auto d-block align-items-center "
-            style="background-image: url(/api/v3/logo);background-size: 70px 70px; opacity: 0.5;"
+            style="background-image: url(/api/v4/logo);background-size: 70px 70px; opacity: 0.5;"
           />
           <p class="text-center text-white">
             {{ $t('views.deployment.desktop.not-available') }}
@@ -80,7 +80,7 @@ export default {
     const viewType = computed(() => $store.getters.getViewType)
     const selectedDesktop = computed(() => $store.getters.getSelectedDesktop)
 
-    $store.dispatch('fetchDeployment', { id: context.root.$route.params.id })
+    $store.dispatch('fetchDeploymentVideowall', { id: context.root.$route.params.id })
     $store.dispatch('setSelectedDesktop', deployment.value.desktops[0])
 
     const sortedDesktops = computed(() => {

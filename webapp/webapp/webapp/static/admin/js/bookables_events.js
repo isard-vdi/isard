@@ -15,7 +15,7 @@ $(document).ready(function () {
     planning_table = $('#table-planning').DataTable({
         "ajax": {
             "type": "GET",
-            "url": "/api/v3/admin/reservables_planner",
+            "url": "/api/v4/items/reservables-planner",
         },
         "sAjaxDataProp": "",
         "language": {
@@ -32,7 +32,7 @@ $(document).ready(function () {
                 "data": "start", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -41,7 +41,7 @@ $(document).ready(function () {
                 "data": "end", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -110,7 +110,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: `/api/v3/admin/booking/empty/${data.id}`,
+                    url: `/api/v4/item/booking/empty/${data.id}`,
                     accept: "application/json",
                     success: function (resp) {
                         new PNotify({
@@ -122,6 +122,7 @@ $(document).ready(function () {
                             type: 'success'
                         });
                         planning_table.ajax.reload();
+                        booking_table.ajax.reload();
                     },
                     error: function (data) {
                         new PNotify({
@@ -148,7 +149,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: `/api/v3/admin/reservables_planner/${data.id}`,
+                    url: `/api/v4/item/reservables-planner/${data.id}`,
                     accept: "application/json",
                     success: function (resp) {
                         new PNotify({
@@ -160,6 +161,7 @@ $(document).ready(function () {
                             type: 'success'
                         });
                         planning_table.ajax.reload();
+                        booking_table.ajax.reload();
                     },
                     error: function (data) {
                         new PNotify({
@@ -186,7 +188,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: `/api/v3/booking/event/${data.id}`,
+                    url: `/api/v4/item/booking/event/${data.id}`,
                     accept: "application/json",
                     success: function (resp) {
                         new PNotify({
@@ -198,6 +200,10 @@ $(document).ready(function () {
                             type: 'success'
                         });
                         booking_table.ajax.reload();
+                        // Refresh the plan-detail subtable
+                        if (p_detail_table && typeof p_detail_table.ajax === 'object') {
+                            p_detail_table.ajax.reload(null, false);
+                        }
                     },
                     error: function (data) {
                         new PNotify({
@@ -220,7 +226,7 @@ $(document).ready(function () {
     booking_table = $('#table-booking').DataTable({
         "ajax": {
             "type": "GET",
-            "url": "/api/v3/bookings",
+            "url": "/api/v4/items/bookings/all",
         },
         "sAjaxDataProp": "",
         "language": {
@@ -237,7 +243,7 @@ $(document).ready(function () {
                 "data": "start", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -246,7 +252,7 @@ $(document).ready(function () {
                 "data": "end", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -318,7 +324,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: `/api/v3/booking/event/${data.id}`,
+                    url: `/api/v4/item/booking/event/${data.id}`,
                     accept: "application/json",
                     success: function (resp) {
                         new PNotify({
@@ -353,7 +359,7 @@ $(document).ready(function () {
     booking_scheduler_table=$('#table-booking-scheduler').DataTable({
         "ajax": {
             "type": "GET",
-            "url": "/api/v3/admin/scheduler/jobs/bookings",
+            "url": "/api/v4/admin/items/scheduler/jobs/bookings",
         },
         "sAjaxDataProp": "",
         "language": {
@@ -412,7 +418,7 @@ function renderPlanningDetailDatatable(planId) {
     p_detail_table = $('#table-p-detail').DataTable({
         "ajax": {
             "type": "GET",
-            "url": `/api/v3/admin/reservables_planner/${planId}/bookings`,
+            "url": `/api/v4/item/reservables-planner/${planId}/bookings`,
         },
         "sAjaxDataProp": "",
         "language": {
@@ -426,7 +432,7 @@ function renderPlanningDetailDatatable(planId) {
                 "data": "start", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -435,7 +441,7 @@ function renderPlanningDetailDatatable(planId) {
                 "data": "end", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -483,7 +489,7 @@ function renderBookingDetailDatatable(bookingId) {
     b_detail_table = $('#table-b-detail').DataTable({
         "ajax": {
             "type": "GET",
-            "url": `/api/v3/admin/booking/${bookingId}/plans`
+            "url": `/api/v4/item/booking/${bookingId}/plans`
         },
         "sAjaxDataProp": "",
         "language": {
@@ -497,7 +503,7 @@ function renderBookingDetailDatatable(bookingId) {
                 "data": "start", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -506,7 +512,7 @@ function renderBookingDetailDatatable(bookingId) {
                 "data": "end", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -14,44 +14,39 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		PrepareAPI  func(*sdk.MockSdk)
+		PrepareAPI  func(*apiv4.MockInvoker)
 		ExpectedErr string
 	}{
 		"should work as expected": {
-			PrepareAPI: func(c *sdk.MockSdk) {
-				f := false
-				t := true
-				id := "theHyper"
-
-				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.Hypervisor{{
-					Buffering: &f,
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				list := apiv4.AdminHypervisorsListOKApplicationJSON([]apiv4.AdminHypervisor{{
+					BufferingHyper: false,
 				}, {
-					ID:         &id,
-					Buffering:  &t,
-					OnlyForced: &t,
-				}}, nil)
+					ID:             "theHyper",
+					BufferingHyper: true,
+					OnlyForced:     true,
+				}})
+				c.On("AdminHypervisorsList", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminHypervisorsListParams{}).Return(&list, nil)
 
-				c.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "theHyper", false).Return(nil)
+				c.On("AdminOrchestratorOnlyForcedSet", mock.AnythingOfType("context.backgroundCtx"), &apiv4.OrchestratorOnlyForcedData{OnlyForced: false}, apiv4.AdminOrchestratorOnlyForcedSetParams{HypervisorID: "theHyper"}).Return(&apiv4.AdminOrchestratorOnlyForcedSetNoContent{}, nil)
 			},
 		},
 		"should not do anything if there are no operations to do": {
-			PrepareAPI: func(c *sdk.MockSdk) {
-				f := false
-				t := true
-
-				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.Hypervisor{{
-					Buffering: &f,
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				list := apiv4.AdminHypervisorsListOKApplicationJSON([]apiv4.AdminHypervisor{{
+					BufferingHyper: false,
 				}, {
-					Buffering:  &t,
-					OnlyForced: &f,
-				}}, nil)
+					BufferingHyper: true,
+					OnlyForced:     false,
+				}})
+				c.On("AdminHypervisorsList", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminHypervisorsListParams{}).Return(&list, nil)
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := sdk.NewMockSdk(t)
+			api := apiv4.NewMockInvoker(t)
 			o := &Orchestrator{
 				apiCli: api,
 			}
@@ -76,44 +71,39 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		PrepareAPI  func(*sdk.MockSdk)
+		PrepareAPI  func(*apiv4.MockInvoker)
 		ExpectedErr string
 	}{
 		"should work as expected": {
-			PrepareAPI: func(c *sdk.MockSdk) {
-				f := false
-				t := true
-				id := "theHyper"
-
-				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.Hypervisor{{
-					Buffering: &f,
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				list := apiv4.AdminHypervisorsListOKApplicationJSON([]apiv4.AdminHypervisor{{
+					BufferingHyper: false,
 				}, {
-					ID:         &id,
-					Buffering:  &t,
-					OnlyForced: &f,
-				}}, nil)
+					ID:             "theHyper",
+					BufferingHyper: true,
+					OnlyForced:     false,
+				}})
+				c.On("AdminHypervisorsList", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminHypervisorsListParams{}).Return(&list, nil)
 
-				c.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "theHyper", true).Return(nil)
+				c.On("AdminOrchestratorOnlyForcedSet", mock.AnythingOfType("context.backgroundCtx"), &apiv4.OrchestratorOnlyForcedData{OnlyForced: true}, apiv4.AdminOrchestratorOnlyForcedSetParams{HypervisorID: "theHyper"}).Return(&apiv4.AdminOrchestratorOnlyForcedSetNoContent{}, nil)
 			},
 		},
 		"should not do anything if there are no operations to do": {
-			PrepareAPI: func(c *sdk.MockSdk) {
-				f := false
-				t := true
-
-				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.Hypervisor{{
-					Buffering: &f,
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				list := apiv4.AdminHypervisorsListOKApplicationJSON([]apiv4.AdminHypervisor{{
+					BufferingHyper: false,
 				}, {
-					Buffering:  &t,
-					OnlyForced: &t,
-				}}, nil)
+					BufferingHyper: true,
+					OnlyForced:     true,
+				}})
+				c.On("AdminHypervisorsList", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminHypervisorsListParams{}).Return(&list, nil)
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := sdk.NewMockSdk(t)
+			api := apiv4.NewMockInvoker(t)
 			o := &Orchestrator{
 				apiCli: api,
 			}

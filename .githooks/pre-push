@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Pre-push hook: runs unit tests before pushing
+# Install: git config core.hooksPath .githooks  (or `make setup-hooks`)
+
+set -e
+
+echo ">> Running Python unit tests (uv)..."
+make test-python
+
+echo ">> Running Go unit tests..."
+make test-go
+
+echo "All unit tests passed."

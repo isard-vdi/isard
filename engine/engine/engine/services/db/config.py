@@ -1,20 +1,20 @@
 import traceback
 
-from engine.config import RETHINK_DB, RETHINK_HOST, RETHINK_PORT
-from engine.services.db.db import close_rethink_connection, new_rethink_connection
-from engine.services.log import logs
 from rethinkdb import r
+
+from engine.config import RETHINK_DB, RETHINK_HOST, RETHINK_PORT
+from engine.services.db.db import rethink_conn
+from engine.services.log import logs
 
 
 def get_config_branch(key):
-    r_conn = new_rethink_connection()
     rtable = r.table("config")
     try:
-        d_config = rtable.get(1)[key].run(r_conn)
+        with rethink_conn() as r_conn:
+            d_config = rtable.get(1)[key].run(r_conn)
     except r.ReqlNonExistenceError:
         d_config = False
 
-    close_rethink_connection(r_conn)
     return d_config
 
 
@@ -28,14 +28,12 @@ def table_config_created_and_populated():
             r.conn_test.close()
             return False
         else:
-            r_conn = new_rethink_connection()
+            with rethink_conn() as r_conn:
+                out = False
+                if r.table_list().contains("config").run(r_conn):
+                    rtable = r.table("config")
+                    out = rtable.get(1).run(r_conn)
 
-            out = False
-            if r.table_list().contains("config").run(r_conn):
-                rtable = r.table("config")
-                out = rtable.get(1).run(r_conn)
-
-            close_rethink_connection(r_conn)
             if out is not False:
                 if out != None:
                     # print('table config populated in database')

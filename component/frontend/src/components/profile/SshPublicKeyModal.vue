@@ -1,0 +1,199 @@
+<script setup lang="ts">
+import { computed, ref, reactive } from 'vue'
+import { useQuery, useMutation } from '@tanstack/vue-query'
+import { useForm, type AnyFieldApi } from '@tanstack/vue-form'
+import { useI18n } from 'vue-i18n'
+import { z } from 'zod'
+import Modal from '@/components/modal/Modal.vue'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { FieldError } from '@/components/ui/field'
+import { FeaturedIconOutline } from '@/components/icon/featured-outline'
+import {
+  getUserBastionSshKeyOptions,
+  setUserBastionSshKeyMutation,
+  deleteUserBastionSshKeyMutation
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { Skeleton } from '@/components/ui/skeleton'
+
+interface Props {
+  open?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  open: false
+})
+
+const emit = defineEmits<{
+  'update:open': [value: boolean]
+}>()
+
+const { t } = useI18n()
+
+// Mirrors the server-side validation in apiv4 `validate_ssh_public_key`:
+// a single known key type followed by a base64 blob and an optional comment.
+const SSH_KEY_RE =
+  /^(ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)\s+[A-Za-z0-9+/]+={0,3}(\s+\S.*)?$/
+
+// The optional trailing comment in SSH_KEY_RE is greedy enough to swallow a
+// second key pasted on the same line ("ssh-ed25519 AAA... ssh-ed25519 BBB..."),
+// so it would validate as one key with a comment. This modal only accepts a
+// SINGLE key, so also require exactly one key-type token in the input.
+const SSH_KEY_TYPE_RE =
+  /(?:^|\s)(?:ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)\s/g
+
+const countKeyTypes = (value: string) => (` ${value} `.match(SSH_KEY_TYPE_RE) || []).length
+
+const formSchema = z.object({
+  sshKey: z
+    .string()
+    .trim()
+    .regex(SSH_KEY_RE, { message: t('components.profile.ssh-key-modal.invalid') })
+    .refine((value) => countKeyTypes(value) === 1, {
+      message: t('components.profile.ssh-key-modal.invalid')
+    })
+})
+
+const errorMessage = ref<string>('')
+
+const {
+  data: sshKeyData,
+  refetch: refetchSshKey,
+  isPending: sshKeyIspending
+} = useQuery({
+  ...getUserBastionSshKeyOptions(),
+  enabled: computed(() => props.open)
+})
+
+const { mutateAsync: setSshKey, isPending: isSaving } = useMutation(setUserBastionSshKeyMutation())
+const { mutateAsync: deleteSshKey, isPending: isDeleting } = useMutation(
+  deleteUserBastionSshKeyMutation()
+)
+
+const isActionDisabled = computed(() => isSaving.value || isDeleting.value || sshKeyIspending.value)
+
+const form = useForm({
+  defaultValues: reactive({ sshKey: computed(() => sshKeyData.value?.ssh_key || '') }),
+  validators: {
+    onChange: formSchema
+  },
+  async onSubmit({ value }) {
+    errorMessage.value = ''
+    try {
+      await setSshKey({ body: { ssh_key: value.sshKey.trim() } })
+      await refetchSshKey()
+      emit('update:open', false)
+    } catch {
+      errorMessage.value = t('components.profile.ssh-key-modal.alert.error-save')
+    }
+  }
+})
+
+const isInvalid = (field: AnyFieldApi) => field.state.meta.isTouched && !field.state.meta.isValid
+
+const handleClose = () => {
+  emit('update:open', false)
+}
+
+const handleRemove = async () => {
+  errorMessage.value = ''
+  try {
+    await deleteSshKey({})
+    await refetchSshKey()
+    emit('update:open', false)
+  } catch {
+    errorMessage.value = t('components.profile.ssh-key-modal.alert.error-remove')
+  }
+}
+</script>
+
+<template>
+  <Modal
+    :open="props.open"
+    :title="t('components.profile.ssh-key-modal.title')"
+    size="3xl"
+    :close-on-backdrop-click="true"
+    @close="handleClose"
+  >
+    <div class="flex flex-col px-2 gap-6">
+      <p class="text-sm text-gray-warm-700">
+        {{ t('components.profile.ssh-key-modal.description') }}
+      </p>
+
+      <Alert class="border-warning-200 flex items-start gap-3">
+        <FeaturedIconOutline kind="outline" color="warning" size="md" class="shrink-0" />
+        <div class="space-y-1 text-left">
+          <AlertDescription class="text-gray-warm-700">
+            {{ t('components.profile.ssh-key-modal.security-note') }}
+          </AlertDescription>
+        </div>
+      </Alert>
+
+      <template v-if="sshKeyIspending">
+        <Skeleton class="h-28 w-full" />
+      </template>
+
+      <form v-else class="contents" @submit.prevent="form.handleSubmit">
+        <Alert
+          v-if="errorMessage"
+          variant="destructive"
+          class="border-error-200 flex items-start gap-3"
+        >
+          <FeaturedIconOutline kind="outline" color="error" size="md" class="shrink-0" />
+          <div class="space-y-1 text-left">
+            <AlertTitle class="text-error-900">
+              {{ t('components.profile.ssh-key-modal.alert.error-title') }}
+            </AlertTitle>
+            <AlertDescription class="text-error-700">
+              {{ errorMessage }}
+            </AlertDescription>
+          </div>
+        </Alert>
+
+        <form.Field v-slot="{ field }" name="sshKey">
+          <div class="space-y-2">
+            <Textarea
+              :id="field.name"
+              :name="field.name"
+              :model-value="field.state.value"
+              :destructive="isInvalid(field)"
+              class="bg-base-white h-28 font-mono text-sm whitespace-pre"
+              :placeholder="t('components.profile.ssh-key-modal.placeholder')"
+              @blur="field.handleBlur"
+              @input="field.handleChange(($event.target as HTMLTextAreaElement).value)"
+            />
+            <FieldError
+              v-if="isInvalid(field) && field.state.value.trim()"
+              :errors="field.state.meta.errors"
+            />
+          </div>
+        </form.Field>
+      </form>
+    </div>
+
+    <template #footer>
+      <div class="w-full flex justify-center gap-2 px-6">
+        <Button
+          v-if="sshKeyData?.ssh_key"
+          hierarchy="destructive"
+          size="md"
+          :disabled="isActionDisabled"
+          @click="handleRemove"
+        >
+          {{ t('components.profile.ssh-key-modal.buttons.remove') }}
+        </Button>
+        <form.Subscribe v-slot="{ canSubmit, values }">
+          <Button
+            hierarchy="primary"
+            size="md"
+            :disabled="isActionDisabled || !canSubmit || !values.sshKey.trim()"
+            @click="form.handleSubmit"
+          >
+            {{ t('components.profile.ssh-key-modal.buttons.save') }}
+          </Button>
+        </form.Subscribe>
+      </div>
+    </template>
+  </Modal>
+</template>

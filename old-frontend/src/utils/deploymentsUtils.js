@@ -8,31 +8,52 @@ export class DeploymentsUtils {
     }) || []
   }
 
-  static parseDeploymentsItem (deployment) {
-    const { id, name, description, visibleDesktops, startedDesktops, totalDesktops, creatingDesktops, visible, needs_booking: needsBooking, desktop_name: desktopName, template } = deployment
-    return {
+  static parseDeploymentsItem (deployment, { partial = false } = {}) {
+    const {
+      id,
+      name,
+      description,
+      visible_desktops: visibleDesktops,
+      started_desktops: startedDesktops,
+      total_desktops: totalDesktops,
+      tag_visible: visible,
+      needs_booking: needsBooking,
+      desktop_names: desktopNames,
+      template_names: templateNames
+    } = deployment
+    const hasDesktopNames = desktopNames !== undefined
+    const hasTemplateNames = templateNames !== undefined
+    const isMultiDesktop = hasDesktopNames && Array.isArray(desktopNames) && desktopNames.length > 1 && hasTemplateNames && Array.isArray(templateNames) && templateNames.length > 1
+    const out = {
       id,
       name,
       description,
       visibleDesktops,
       startedDesktops,
       totalDesktops,
-      creatingDesktops,
+      creatingDesktops: partial ? undefined : 0,
       visible,
       needsBooking,
-      desktopName,
-      template
+      desktopName: hasDesktopNames ? (isMultiDesktop ? `${desktopNames.length} desktop types` : (hasDesktopNames && desktopNames[0]) || '') : undefined,
+      template: hasTemplateNames ? (isMultiDesktop ? '' : (hasTemplateNames && templateNames[0]) || '') : undefined,
+      isMultiDesktop: hasDesktopNames ? isMultiDesktop : undefined
     }
+    if (!partial) return out
+    return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined))
   }
 
-  static parseDeployment (deployment) {
-    const { id, name, desktop_name: desktopName, description, visible, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId } = deployment
+  static parseDeployment (deployment, { partial = false } = {}) {
+    // apiv4 uses tag_visible at the deployment root; old-frontend has always
+    // read `visible`. Accept either so this parser works on the apiv4 wire
+    // shape without a per-call adapter.
+    const { id, name, desktop_name: desktopName, description, tag_visible: tagVisible, visible: legacyVisible, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, total_desktops: totalDesktops, total_users: totalUsers, desktops_each_user: desktopsEachUser } = deployment
+    const visible = tagVisible !== undefined ? tagVisible : legacyVisible
     const desktops = deployment.desktops
       ? deployment.desktops.map((desktop) => {
         return DeploymentsUtils.parseDeploymentDesktop(desktop)
       })
-      : []
-    return {
+      : (partial ? undefined : [])
+    const out = {
       id,
       name,
       desktops,
@@ -41,14 +62,19 @@ export class DeploymentsUtils {
       visible,
       needsBooking,
       bookingId,
-      nextBookingStart: nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : '',
-      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''
+      nextBookingStart: nextBookingStart === undefined ? undefined : (nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : ''),
+      nextBookingEnd: nextBookingEnd === undefined ? undefined : (nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''),
+      totalDesktops,
+      totalUsers,
+      desktopsEachUser
     }
+    if (!partial) return out
+    return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined))
   }
 
-  static parseDeploymentDesktop (desktop) {
+  static parseDeploymentDesktop (desktop, { partial = false } = {}) {
     const { id, ip, name, user, user_name: userName, user_photo: userPhoto, category_name: categoryName, group_name: groupName, state, viewer, viewers, image, accessed, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, visible, tag } = desktop
-    return {
+    const out = {
       id,
       ip,
       name,
@@ -61,14 +87,16 @@ export class DeploymentsUtils {
       state,
       viewer,
       viewers,
-      buttonIconName: desktop.state ? DesktopUtils.buttonIconName(desktop) : '',
+      buttonIconName: state === undefined ? undefined : (state ? DesktopUtils.buttonIconName(desktop) : ''),
       last: accessed,
       bookingId,
       needsBooking,
-      nextBookingStart: nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : '',
-      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : '',
+      nextBookingStart: nextBookingStart === undefined ? undefined : (nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : ''),
+      nextBookingEnd: nextBookingEnd === undefined ? undefined : (nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''),
       visible,
       tag
     }
+    if (!partial) return out
+    return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined))
   }
 }

@@ -288,9 +288,7 @@ func TestCategoryExistsWithUID(t *testing.T) {
 	}{
 		"should return true when category with UID exists": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(
-					r.Eq(r.Row.Field("uid"), "my-uid"),
-				)).Return([]interface{}{
+				m.On(r.Table("categories").GetAllByIndex("uid", "my-uid")).Return([]interface{}{
 					map[string]interface{}{
 						"id":   "some-id",
 						"uid":  "my-uid",
@@ -303,18 +301,14 @@ func TestCategoryExistsWithUID(t *testing.T) {
 		},
 		"should return false when category with UID does not exist": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(
-					r.Eq(r.Row.Field("uid"), "nonexistent-uid"),
-				)).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").GetAllByIndex("uid", "nonexistent-uid")).Return([]interface{}{}, nil)
 			},
 			Category:       &model.Category{UID: "nonexistent-uid"},
 			ExpectedExists: false,
 		},
 		"should return an error on DB failure": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(
-					r.Eq(r.Row.Field("uid"), "my-uid"),
-				)).Return(nil, errors.New("connection refused"))
+				m.On(r.Table("categories").GetAllByIndex("uid", "my-uid")).Return(nil, errors.New("connection refused"))
 			},
 			Category:    &model.Category{UID: "my-uid"},
 			ExpectedErr: "connection refused",
@@ -441,6 +435,102 @@ func TestCategoryConfigurationsLoad(t *testing.T) {
 			assert.Equal(tc.ExpectedResult, result)
 
 			mock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestSaveCategoryProviderStatus(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		CategoryID  string
+		Provider    string
+		Healthy     bool
+		Msg         string
+		PrepareDB   func(*r.Mock)
+		ExpectedErr string
+	}{
+		"should work as expected": {
+			CategoryID: "cat-1",
+			Provider:   "saml",
+			Healthy:    true,
+			Msg:        "",
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("cat-1").Update(map[string]any{
+					"authentication": map[string]any{
+						"saml": map[string]any{
+							"status": map[string]any{
+								"healthy":      true,
+								"msg":          "",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(r.WriteResponse{Replaced: 1}, nil)
+			},
+		},
+		"should write the error message if the provider is unhealthy": {
+			CategoryID: "cat-2",
+			Provider:   "ldap",
+			Healthy:    false,
+			Msg:        "bind failed",
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("cat-2").Update(map[string]any{
+					"authentication": map[string]any{
+						"ldap": map[string]any{
+							"status": map[string]any{
+								"healthy":      false,
+								"msg":          "bind failed",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(r.WriteResponse{Replaced: 1}, nil)
+			},
+		},
+		"should return an error if the DB update fails": {
+			CategoryID: "cat-3",
+			Provider:   "google",
+			Healthy:    true,
+			Msg:        "",
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("cat-3").Update(map[string]any{
+					"authentication": map[string]any{
+						"google": map[string]any{
+							"status": map[string]any{
+								"healthy":      true,
+								"msg":          "",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(nil, errors.New("connection refused"))
+			},
+			ExpectedErr: "update category provider status: connection refused",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			dbMock := r.NewMock()
+			tc.PrepareDB(dbMock)
+
+			err := model.SaveCategoryProviderStatus(t.Context(), dbMock, tc.CategoryID, tc.Provider, tc.Healthy, tc.Msg)
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+
+				var dbErr *db.Err
+				assert.ErrorAs(err, &dbErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			dbMock.AssertExpectations(t)
 		})
 	}
 }

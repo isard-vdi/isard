@@ -49,7 +49,7 @@
           </template>
           <template #cell(status)="data">
             <b-tooltip
-              v-if="data.item.status.toLowerCase() === 'downloadfailedinvalidformat'"
+              v-if="(data.item.status || '').toLowerCase() === 'downloadfailedinvalidformat'"
               :target="() => $refs['invalidTooltip']"
               :title="$t(`errors.media_invalid`)"
               triggers="hover"
@@ -57,7 +57,7 @@
               show
             />
             <span
-              v-if="data.item.status.toLowerCase() === 'downloadfailedinvalidformat'"
+              v-if="(data.item.status || '').toLowerCase() === 'downloadfailedinvalidformat'"
               ref="invalidTooltip"
             >
               <b-icon
@@ -66,14 +66,14 @@
                 class="danger-icon cursor-pointer"
               />
             </span>
-            {{ $t(`views.media.status.${data.item.status.toLowerCase()}`) }}
+            {{ $t(`views.media.status.${(data.item.status || '').toLowerCase()}`) }}
           </template>
           <template #cell(progressSize)="data">
             <p
               v-if="['Downloaded', 'DownloadFailedInvalidFormat'].includes(data.item.status)"
               class="text-dark-gray m-0"
             >
-              {{ data.item.progress.received }}
+              {{ (data.item.progress || {}).received || "" }}
             </p>
             <div v-else-if="data.item.status !== 'DownloadFailed'">
               <b-progress
@@ -82,11 +82,11 @@
               >
                 <b-progress-bar
                   variant="info"
-                  :value="data.item.progress.total_percent"
+                  :value="(data.item.progress || {}).total_percent || 0"
                   show-progress
                   animated
                 >
-                  <strong>{{ data.item.progress.total_percent }} %</strong>
+                  <strong>{{ (data.item.progress || {}).total_percent || 0 }} %</strong>
                 </b-progress-bar>
               </b-progress>
             </div>
@@ -97,7 +97,7 @@
               class="d-flex align-items-center"
             >
               <b-button
-                v-if="!['DownloadFailed', 'DownloadFailedInvalidFormat'].includes(data.item.status) && data.item.kind === 'iso'"
+                v-if="data.item.status === 'Downloaded' && data.item.kind === 'iso'"
                 class="rounded-circle px-2 mr-2 btn-green"
                 :title="$t('views.media.buttons.new-desktop.title')"
                 @click="onClickGoToNewFromMedia(data.item)"
@@ -200,7 +200,7 @@
           </template>
           <template #cell(user)="data">
             <p class="text-dark-gray m-0">
-              {{ data.item.userName }}
+              {{ data.item.userName || (data.item.user && data.item.user.name) || '' }}
             </p>
           </template>
           <template #cell(category)="data">
@@ -215,7 +215,7 @@
           </template>
           <template #cell(status)="data">
             <b-tooltip
-              v-if="data.item.status.toLowerCase() === 'downloadfailedinvalidformat'"
+              v-if="(data.item.status || '').toLowerCase() === 'downloadfailedinvalidformat'"
               :target="() => $refs['invalidTooltip']"
               :title="$t(`errors.media_invalid`)"
               triggers="hover"
@@ -223,7 +223,7 @@
               show
             />
             <span
-              v-if="data.item.status.toLowerCase() === 'downloadfailedinvalidformat'"
+              v-if="(data.item.status || '').toLowerCase() === 'downloadfailedinvalidformat'"
               ref="invalidTooltip"
             >
               <b-icon
@@ -232,14 +232,14 @@
                 class="danger-icon cursor-pointer"
               />
             </span>
-            {{ $t(`views.media.status.${data.item.status.toLowerCase()}`) }}
+            {{ $t(`views.media.status.${(data.item.status || '').toLowerCase()}`) }}
           </template>
           <template #cell(progressSize)="data">
             <p
               v-if="['Downloaded', 'DownloadFailedInvalidFormat'].includes(data.item.status)"
               class="text-dark-gray m-0"
             >
-              {{ data.item.progress.received }}
+              {{ (data.item.progress || {}).received || "" }}
             </p>
             <div v-else-if="data.item.status !== 'DownloadFailed'">
               <b-progress
@@ -248,18 +248,18 @@
               >
                 <b-progress-bar
                   variant="info"
-                  :value="data.item.progress.total_percent"
+                  :value="(data.item.progress || {}).total_percent || 0"
                   show-progress
                   animated
                 >
-                  <strong>{{ data.item.progress.total_percent }} %</strong>
+                  <strong>{{ (data.item.progress || {}).total_percent || 0 }} %</strong>
                 </b-progress-bar>
               </b-progress>
             </div>
           </template>
           <template #cell(actions)="data">
             <b-button
-              v-if="!['Downloading', 'maintenance', 'DownloadFailed', 'DownloadFailedInvalidFormat'].includes(data.item.status) && data.item.kind === 'iso'"
+              v-if="data.item.status === 'Downloaded' && data.item.kind === 'iso'"
               class="rounded-circle px-2 mr-2 btn-green"
               :title="$t('views.media.buttons.new-desktop.title')"
               @click="onClickGoToNewFromMedia(data.item)"

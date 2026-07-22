@@ -10,24 +10,11 @@
 
     function parseMedia(parent_id,id){
         d=$(parent_id+" #"+id).select2("val")
-        if(d==null){
-                return [];
-        }
-        nd=[]
-        d.forEach(function(data)
-        {
-            nd.push({'id':data})
-        });
-        return nd
+        return d == null ? [] : d
     }
 
     function setMediaIds(isos){
-        nd=[]
-        isos.forEach(function(iso)
-        {
-            nd.push({'id':iso})
-        });
-        return nd
+        return isos.map(function(iso){ return iso.id || iso })
     }
 
 
@@ -40,7 +27,7 @@
                 multiple: true,
                 ajax: {
                     type: "POST",
-                    url: '/api/v3/admin/allowed/term/media',
+                    url: '/api/v4/items/alloweds/term/media',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,

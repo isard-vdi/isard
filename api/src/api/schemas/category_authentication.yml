@@ -1,3 +1,0 @@
-authentication:
-  type: dict
-  schema: category_authentication

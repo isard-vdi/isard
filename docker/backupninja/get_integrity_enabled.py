@@ -14,14 +14,23 @@ import sys
 
 def main() -> int:
     try:
-        from isardvdi_common.api_rest import ApiRest
+        from isardvdi_apiv4_client.api.role_admin import admin_backup_integrity_get
+        from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
-        data = ApiRest("isard-api").get("/admin/backups/integrity") or {}
+        with build_client("isard-backupninja") as client:
+            resp = admin_backup_integrity_get.sync_detailed(client=client)
+            raise_for_status(resp)
+        body = getattr(resp, "parsed", None) or {}
+        enabled = (
+            body.get("integrity_enabled")
+            if isinstance(body, dict)
+            else getattr(body, "integrity_enabled", None)
+        )
     except Exception as exc:  # noqa: BLE001 - helper must never crash the container
         sys.stderr.write(f"integrity toggle fetch failed: {exc}\n")
         return 0
 
-    print("true" if data.get("integrity_enabled") else "false")
+    print("true" if enabled else "false")
     return 0
 
 

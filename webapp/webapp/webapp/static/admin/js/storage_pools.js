@@ -22,7 +22,7 @@ $(document).ready(function () {
   DEFAULT_STORAGE_POOL_ID = ""
   $.ajax({
     type: "GET",
-    url: "/admin/storage_pool/default",
+    url: "/api/v4/storage-pool/default",
     success: function (data) {
       DEFAULT_STORAGE_POOL_ID = data.id;
     }
@@ -31,8 +31,8 @@ $(document).ready(function () {
   storage_pools_table = $('#storage_pools').DataTable({
     "ajax": {
       "type": 'GET',
-      "url": "/admin/storage_pools",
-      "dataSrc": "",
+      "url": "/api/v4/storage-pools",
+      "dataSrc": "storage_pools",
       "contentType": "application/json",
     },
     "language": {
@@ -276,7 +276,7 @@ $(document).ready(function () {
                 pathText = pathObj.path;
               }
               typeCell.innerHTML = title;
-              pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-path" class="roundbox" pattern="^[\\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇa-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathText}">`;
+              pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-path" class="roundbox" pattern="^(\\{category\\}|[\\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇa-zA-Z0-9]+)(/(\\{category\\}|[\\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇa-zA-Z0-9]+))*$" data-parsley-trigger="change" type="text" value="${pathText}">`;
               weightCell.innerHTML = `<input id="weight" name="${type}-weight" type="number" value="${pathObj.weight}">`;
               buttonAddDelCell.innerHTML = `<input id='modalEdit-addrow-${type}' type='button' value='+' onclick='addRow("${type}", "modalEdit", ${isDefault})'/> \
                                           <input class='modalEdit-delrow-${type}' type='button' value='-' onclick='delRow("${type}", "modalEdit")'/>`;
@@ -317,7 +317,7 @@ $(document).ready(function () {
           "From now on, disks from this pool's categories will be created in default paths";
 
         let msg = (change == "enable") ?
-          "This pool <b>will only become operational</b> after a system restart.Ensure that there is at least one hypervisor associated with this storage pool."
+          "This pool <b>only becomes operational</b> after a hypervisor/storage node that serves it is restarted (each node reads the pools it serves at startup). Ensure at least one hypervisor is associated with this storage pool. Editing an existing pool's paths or mountpoints takes effect automatically, with no restart."
           :
           "";
 
@@ -342,7 +342,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "PUT",
-            url: "/admin/storage_pool/" + data["id"],
+            url: "/api/v4/storage-pool/" + data["id"],
             data: JSON.stringify({ 'name': data["name"], 'enabled': !data.enabled }),
             contentType: "application/json",
             success: function (data) {
@@ -351,7 +351,7 @@ $(document).ready(function () {
                 text: msg,
                 hide: true,
                 delay: 7000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: change == "enable" ? 'warning' : 'success'
               });
@@ -394,7 +394,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "PUT",
-            url: "/admin/storage_pool/" + data["id"],
+            url: "/api/v4/storage-pool/" + data["id"],
             data: JSON.stringify({ 'enabled_virt': !data.enabled_virt }),
             contentType: "application/json",
             success: function (data) {
@@ -403,7 +403,7 @@ $(document).ready(function () {
                 text: '',
                 hide: true,
                 delay: 7000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: 'success'
               });
@@ -440,7 +440,7 @@ $(document).ready(function () {
           title: "<b>WARNING</b>",
           type: "error",
           text: `Are you sure you want to <b>delete</b> pool ${data["name"]}?
-                \nNote: The storage pool deletion will only be completed after <strong>restarting the engine</strong>`,
+                \nNote: Deleting a pool only fully takes effect after the hypervisor/storage nodes that served it are <strong>restarted</strong> (they stop serving its queue at startup).`,
           hide: false,
           opacity: 0.9,
           confirm: {
@@ -458,7 +458,7 @@ $(document).ready(function () {
         }).get().on("pnotify.confirm", function () {
           $.ajax({
             type: "DELETE",
-            url: "/admin/storage_pool/" + data["id"],
+            url: "/api/v4/storage-pool/" + data["id"],
             contentType: "application/json",
             success: function (data) {
               new PNotify({
@@ -466,7 +466,7 @@ $(document).ready(function () {
                 text: 'Pool deleted successfully',
                 hide: true,
                 delay: 1000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: 'success'
               })
@@ -498,6 +498,21 @@ function renderEnabled(enabled, kind) {
   return '<i class="fa fa-' + icon + '" style="color:' + color + '"></i>'
 }
 
+function storagePoolOnDiskPath(mountpoint, category, subpath) {
+  // Mirror build_category_pool_dir: with the {category} token present the token
+  // is substituted in place and the category is NOT auto-prepended; without it
+  // the category id is inserted after the mountpoint; the default pool (no
+  // category) uses the subpath as-is.
+  var token = "{category}";
+  if (category && subpath.indexOf(token) !== -1) {
+    return `${mountpoint}/${subpath.split(token).join(category["id"])}`;
+  }
+  if (category) {
+    return `${mountpoint}/${category["id"]}/${subpath}`;
+  }
+  return `${mountpoint}/${subpath}`;
+}
+
 function renderStoragePoolsPaths(data) {
   var $newPanel = "";
   if (data["categories_names"].length) {
@@ -527,7 +542,7 @@ function renderStoragePoolsPaths(data) {
       $pathsTBody.append(
         $('<tr>').append(
           $('<td>').append($('<i class="fa">').addClass(getTypeDefaultValue(type).icon)).append(' ').append(`<b> ${getTypeDefaultValue(type).title}</b>`),
-          $('<td>').text(`${data.mountpoint}/${category ? category["id"] + "/" : ""}${path.path}`),
+          $('<td>').text(storagePoolOnDiskPath(data.mountpoint, category, path.path)),
           $('<td>').text(path.weight)
         )
       );
@@ -546,6 +561,35 @@ function addRow(type, modal, isDefault) {
 function delRow(type, modal) {
   currentRow = $(`.${modal}-delrow-${type}`).parent().parent().last();
   currentRow.remove();
+}
+
+// A pool's mountpoint is its on-disk identity: the backend resolves a disk path
+// back to a pool by mountpoint, so two pools sharing one make that lookup
+// ambiguous (the API rejects it with 400). Pre-check against the already-loaded
+// pools so the admin gets immediate feedback instead of a round-trip. excludeId
+// skips the pool itself when editing/renaming it.
+function mountpointInUse(mountpoint, excludeId) {
+  var clash = false;
+  storage_pools_table.rows().every(function () {
+    var row = this.data();
+    if (row && row.mountpoint === mountpoint && row.id !== excludeId) {
+      clash = true;
+    }
+  });
+  return clash;
+}
+
+function notifyMountpointInUse(mountpoint) {
+  new PNotify({
+    title: "Mountpoint already in use",
+    type: "error",
+    text: `Another storage pool already uses the mountpoint <b>${mountpoint}</b>. Each storage pool must have a unique mountpoint.`,
+    hide: false,
+    opacity: 0.9,
+    buttons: { closer: true, sticker: false },
+    addclass: 'pnotify-center-large',
+    width: '550'
+  });
 }
 
 $("#modalAddStoragePool #send").off('click').on('click', function (e) {
@@ -591,10 +635,14 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
     data["paths"] = pathsTableAdd
     data["mountpoint"] = form.find(".path_base_mountpoint").text() + data.mountpoint
 
+    if (mountpointInUse(data["mountpoint"], data.id)) {
+      notifyMountpointInUse(data["mountpoint"]);
+      return;
+    }
 
     $.ajax({
       type: "POST",
-      url: `/api/v3/admin/storage_pool/check_category_availability`,
+      url: `/api/v4/storage-pool/check-category-availability`,
       data: JSON.stringify({ "categories": data.categories, "storage_pool_id": data.id }),
       contentType: "application/json",
       success: function (xhr) {
@@ -683,9 +731,14 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
     data["mountpoint"] = form.find(".path_base_mountpoint").text() + data.mountpoint;
     data["categories"] = data["categories"] || [];
 
+    if (mountpointInUse(data["mountpoint"], data.id)) {
+      notifyMountpointInUse(data["mountpoint"]);
+      return;
+    }
+
     $.ajax({
       type: "POST",
-      url: `/api/v3/admin/storage_pool/check_category_availability`,
+      url: `/api/v4/storage-pool/check-category-availability`,
       data: JSON.stringify({ "categories": data.categories, "storage_pool_id": data.id }),
       contentType: "application/json",
       success: function (xhr) {
@@ -769,7 +822,7 @@ function populateQosDisk(modal, qos_disk_id) {
   );
   $.ajax({
     type: "GET",
-    url: "/api/v3/admin/table/qos_disk",
+    url: "/api/v4/admin/items/table/qos_disk",
     cache: false,
     success: function (qos_disk) {
       $.each(qos_disk, function (key, value) {
@@ -788,7 +841,7 @@ function populateCategory(modal, category_id) {
   $(modal + " #category").empty();
   $.ajax({
     type: "GET",
-    url: "/api/v3/admin/categories",
+    url: "/api/v4/admin/items/categories",
     cache: false,
     success: function (category) {
       $.each(category, function (key, value) {
@@ -809,7 +862,7 @@ function updateStoragePool(data) {
     icon: 'fa fa-spinner fa-pulse'
   })
   $.ajax({
-    url: "/admin/storage_pool/" + data["id"],
+    url: "/api/v4/storage-pool/" + data["id"],
     type: "PUT",
     data: JSON.stringify(data),
     contentType: "application/json",
@@ -819,7 +872,7 @@ function updateStoragePool(data) {
         text: 'Pool updated successfully',
         hide: true,
         delay: 1000,
-        icon: 'fa fa-' + data.icon,
+        icon: 'fa fa-' + data?.icon,
         opacity: 1,
         type: 'success'
       })
@@ -849,7 +902,7 @@ function createStoragePool(data) {
     icon: "fa fa-spinner fa-pulse",
   });
   $.ajax({
-    url: "/admin/storage_pool",
+    url: "/api/v4/storage-pool",
     type: "POST",
     data: JSON.stringify(data),
     contentType: "application/json",
@@ -859,7 +912,7 @@ function createStoragePool(data) {
         text: "Pool created successfully",
         hide: true,
         delay: 1000,
-        icon: "fa fa-" + data.icon,
+        icon: "fa fa-" + data?.icon,
         opacity: 1,
         type: "success",
       });
@@ -908,7 +961,7 @@ function addDefaultCheckboxListeners(modal, checkbox) {
 function getTypeDefaultValue(type) {
   const valueMap = {
     "desktop": {
-      "path": "groups",
+      "path": "desktops",
       "icon": "fa-desktop",
       "title": "Desktop"
     },
@@ -943,7 +996,7 @@ function renderNewRow(type, defaultPool) {
     </td>
     <td id="type"><i class="fa ${typeData.icon} fa-1x"></i><b> ${typeData.title}</b></td>
     <td>
-      <span class="path_base">${defaultPool ? typeData.path + "/" : ""}</span><input id="path" name="${type}-path" value="${typeData.path}" class="roundbox" required pattern="^[\\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇa-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+      <span class="path_base">${defaultPool ? typeData.path + "/" : ""}</span><input id="path" name="${type}-path" value="${typeData.path}" class="roundbox" required pattern="^(\\{category\\}|[\\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇa-zA-Z0-9]+)(/(\\{category\\}|[\\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇa-zA-Z0-9]+))*$" data-parsley-trigger="change" type="text">
     </td>
     <td><input id="weight" name="${type}-weight" type="number" value="100"></td>
     <td>

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "name": "Default",
+    "description": "Default storage pool, bound to the default category so e2e specs that create deployments / desktops in 'default' resolve a hypervisor.",
+    "enabled": true,
+    "enabled_virt": true,
+    "categories": ["default"],
+    "allowed": {
+      "categories": false,
+      "groups": false,
+      "roles": [],
+      "users": false
+    },
+    "mountpoint": "/isard",
+    "paths": {
+      "desktop":  [{"path": "groups",    "weight": 100}],
+      "media":    [{"path": "media",     "weight": 100}],
+      "template": [{"path": "templates", "weight": 100}],
+      "volatile": [{"path": "volatile",  "weight": 100}]
+    },
+    "read": true,
+    "write": true,
+    "startable": true
+  }
+]

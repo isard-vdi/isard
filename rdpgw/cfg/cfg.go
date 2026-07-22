@@ -25,6 +25,6 @@ func New() Cfg {
 func setDefaults() {
 	cfg.SetHTTPDefaults()
 
-	viper.SetDefault("api_addr", "isard-api:5000")
+	viper.SetDefault("api_addr", "isard-apiv4:5000")
 	viper.SetDefault("idle_timeout", "30m")
 }

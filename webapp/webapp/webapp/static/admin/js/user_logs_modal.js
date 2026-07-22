@@ -100,8 +100,14 @@
             autoWidth: false,
             searching: false,
             ajax: {
-                url: '/api/v3/admin/logs_users/user/' + encodeURIComponent(userId),
-                type: 'POST'
+                url: '/api/v4/admin/items/logs_users',
+                type: 'POST',
+                contentType: 'application/json',
+                data: function(d) {
+                    d.filter_field = 'owner_user_id';
+                    d.filter_value = userId;
+                    return JSON.stringify(d);
+                }
             },
             columns: columns,
             columnDefs: [
@@ -130,15 +136,21 @@
             var $btn = $(this);
             $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Downloading...');
 
-            var formData = 'draw=1&start=0&length=100000&order[0][column]=0&order[0][dir]=desc';
-            columns.forEach(function(col, i) {
-                formData += '&columns[' + i + '][data]=' + encodeURIComponent(col.data);
-            });
+            var body = {
+                draw: 1,
+                start: 0,
+                length: 100000,
+                order: [{ column: 0, dir: 'desc' }],
+                columns: columns.map(function(col) { return { data: col.data }; }),
+                filter_field: 'owner_user_id',
+                filter_value: currentUserId
+            };
 
             $.ajax({
-                url: '/api/v3/admin/logs_users/user/' + encodeURIComponent(currentUserId),
+                url: '/api/v4/admin/items/logs_users',
                 type: 'POST',
-                data: formData,
+                contentType: 'application/json',
+                data: JSON.stringify(body),
                 success: function(resp) {
                     var headers = ['Login Time', 'Logout Time', 'User Name', 'IP', 'Group', 'Category'];
                     var rows = resp.data.map(function(r) {

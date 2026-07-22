@@ -81,7 +81,7 @@ func setDefaults() {
 	})
 
 	viper.SetDefault("api", map[string]interface{}{
-		"address": "http://isard-api:5000",
+		"address": "http://isard-apiv4:5000",
 	})
 
 	viper.SetDefault("notifier", map[string]interface{}{

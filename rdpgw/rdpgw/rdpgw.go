@@ -9,7 +9,8 @@ import (
 
 	"github.com/bolkedebruin/rdpgw/protocol"
 	"github.com/patrickmn/go-cache"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"gitlab.com/isard/isardvdi/rdpgw/cfg"
 )
 
@@ -41,9 +42,13 @@ func verifyToken(ctx context.Context, tkn string) (bool, error) {
 func verifyServer(apiAddr string) func(context.Context, string) (bool, error) {
 	return func(ctx context.Context, host string) (bool, error) {
 		s := ctx.Value("SessionInfo").(*protocol.SessionInfo)
-		tkn, ok := c.Get(s.ConnId)
+		tknAny, ok := c.Get(s.ConnId)
 		if !ok {
 			return false, errors.New("missing token")
+		}
+		tkn, ok := tknAny.(string)
+		if !ok {
+			return false, fmt.Errorf("unexpected token type %T", tknAny)
 		}
 
 		ip, _, err := net.SplitHostPort(host)
@@ -51,24 +56,30 @@ func verifyServer(apiAddr string) func(context.Context, string) (bool, error) {
 			return false, fmt.Errorf("split host ip and port: %w", err)
 		}
 
-		cli, err := sdk.NewClient(&sdk.Cfg{
-			Host:  fmt.Sprintf("http://%s", apiAddr),
-			Token: tkn.(string),
-		})
+		httpClient := ogenclient.NewHTTPClient()
+		cli, err := apiv4.NewClient(
+			fmt.Sprintf("http://%s", apiAddr),
+			ogenclient.APIv4Static{Token: tkn},
+			apiv4.WithClient(httpClient),
+		)
 		if err != nil {
 			return false, fmt.Errorf("error creating the client: %w", err)
 		}
 
-		if err := cli.UserOwnsDesktop(ctx, &sdk.UserOwnsDesktopOpts{
-			IP: ip,
-		}); err != nil {
-			if errors.Is(err, sdk.ErrForbidden) {
-				return false, errors.New("unauthorized")
-			}
-
+		res, err := cli.UserOwnsDesktop(ctx, &apiv4.UserOwnsDesktopRequest{
+			IP: apiv4.NewOptNilString(ip),
+		})
+		if err != nil {
 			return false, fmt.Errorf("unknown error: %w", err)
 		}
+		if _, ok := res.(*apiv4.EmptyResponse); ok {
+			return true, nil
+		}
 
-		return true, nil
+		apiErr := ogenclient.AsAPIError(res)
+		if errors.Is(apiErr, ogenclient.ErrForbidden) {
+			return false, errors.New("unauthorized")
+		}
+		return false, fmt.Errorf("unexpected API response: %w", apiErr)
 	}
 }

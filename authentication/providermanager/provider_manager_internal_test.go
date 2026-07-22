@@ -617,64 +617,315 @@ func TestProviderManagerHealthcheck(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		PrepareManager func(*testing.T) *ProviderManager
+		PrepareManager func(*testing.T, r.QueryExecutor) *ProviderManager
+		PrepareDB      func(*r.Mock)
 		ExpectedErr    string
 	}{
-		"should return nil when all providers are healthy": {
-			PrepareManager: func(_ *testing.T) *ProviderManager {
-				return &ProviderManager{
-					log: log.New("test", "debug"),
-					global: providerSet{
-						providers: map[string]provider.Provider{
-							types.ProviderUnknown: &provider.Unknown{},
-						},
-					},
-					categories:      map[string]*providerSet{},
-					brandingDomains: map[string]categoryBrandingDomainChange{},
-				}
-			},
-		},
-		"should return an error when a global provider is unhealthy": {
-			PrepareManager: func(t *testing.T) *ProviderManager {
-				mockPrv := provider.NewMockProvider(t)
-				mockPrv.On("Healthcheck").Return(errors.New("connection refused"))
-				mockPrv.On("String").Return("mock")
+		"should work as expected": {
+			PrepareManager: func(t *testing.T, db r.QueryExecutor) *ProviderManager {
+				saml := provider.NewMockProvider(t)
+				saml.On("Healthcheck").Return(nil)
+				saml.On("String").Return(types.ProviderSAML)
+
+				google := provider.NewMockProvider(t)
+				google.On("Healthcheck").Return(nil)
+				google.On("String").Return(types.ProviderGoogle)
 
 				return &ProviderManager{
 					log: log.New("test", "debug"),
+					db:  db,
 					global: providerSet{
 						providers: map[string]provider.Provider{
-							"mock": mockPrv,
+							types.ProviderUnknown:  &provider.Unknown{},
+							types.ProviderExternal: &provider.External{},
+							types.ProviderSAML:     saml,
+							types.ProviderGoogle:   google,
 						},
 					},
 					categories: map[string]*providerSet{},
 				}
 			},
-			ExpectedErr: "connection refused",
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Update(map[string]any{
+					"auth": map[string]any{
+						"saml": map[string]any{
+							"status": map[string]any{
+								"healthy":      true,
+								"msg":          "",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(r.WriteResponse{Replaced: 1}, nil)
+				m.On(r.Table("config").Get(1).Update(map[string]any{
+					"auth": map[string]any{
+						"google": map[string]any{
+							"status": map[string]any{
+								"healthy":      true,
+								"msg":          "",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(r.WriteResponse{Replaced: 1}, nil)
+			},
 		},
-		"should return an error when a category provider is unhealthy": {
-			PrepareManager: func(t *testing.T) *ProviderManager {
-				mockPrv := provider.NewMockProvider(t)
-				mockPrv.On("Healthcheck").Return(errors.New("category connection refused"))
-				mockPrv.On("String").Return("mock")
+		"should write an unhealthy status if a provider fails its healthcheck": {
+			PrepareManager: func(t *testing.T, db r.QueryExecutor) *ProviderManager {
+				saml := provider.NewMockProvider(t)
+				saml.On("Healthcheck").Return(errors.New("connection refused"))
+				saml.On("String").Return(types.ProviderSAML)
 
 				return &ProviderManager{
 					log: log.New("test", "debug"),
+					db:  db,
 					global: providerSet{
 						providers: map[string]provider.Provider{
-							types.ProviderUnknown: &provider.Unknown{},
+							types.ProviderSAML: saml,
 						},
 					},
-					categories: map[string]*providerSet{
-						"cat1": {
-							providers: map[string]provider.Provider{
-								"mock": mockPrv,
+					categories: map[string]*providerSet{},
+				}
+			},
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Update(map[string]any{
+					"auth": map[string]any{
+						"saml": map[string]any{
+							"status": map[string]any{
+								"healthy":      false,
+								"msg":          "connection refused",
+								"last_updated": r.Now(),
 							},
+						},
+					},
+				})).Return(r.WriteResponse{Replaced: 1}, nil)
+			},
+		},
+		"should recurse into form sub-providers": {
+			PrepareManager: func(t *testing.T, db r.QueryExecutor) *ProviderManager {
+				local := provider.NewMockProvider(t)
+				local.On("Healthcheck").Return(nil)
+				local.On("String").Return(types.ProviderLocal)
+
+				ldap := provider.NewMockProvider(t)
+				ldap.On("Healthcheck").Return(errors.New("dial tcp: timeout"))
+				ldap.On("String").Return(types.ProviderLDAP)
+
+				form := provider.InitForm(cfg.Authentication{}, log.New("test", "debug"), nil, nil)
+				form.EnableProvider(local)
+				form.EnableProvider(ldap)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					db:  db,
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderForm: form,
+						},
+					},
+					categories: map[string]*providerSet{},
+				}
+			},
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Update(map[string]any{
+					"auth": map[string]any{
+						"local": map[string]any{
+							"status": map[string]any{
+								"healthy":      true,
+								"msg":          "",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(r.WriteResponse{Replaced: 1}, nil)
+				m.On(r.Table("config").Get(1).Update(map[string]any{
+					"auth": map[string]any{
+						"ldap": map[string]any{
+							"status": map[string]any{
+								"healthy":      false,
+								"msg":          "dial tcp: timeout",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(r.WriteResponse{Replaced: 1}, nil)
+			},
+		},
+		"should write status if the provider is in a category scope": {
+			PrepareManager: func(t *testing.T, db r.QueryExecutor) *ProviderManager {
+				saml := provider.NewMockProvider(t)
+				saml.On("Healthcheck").Return(nil)
+				saml.On("String").Return(types.ProviderSAML)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					db:  db,
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories: map[string]*providerSet{
+						"cat-1": {
+							providers: map[string]provider.Provider{
+								types.ProviderSAML: saml,
+							},
+							formCustomSubProviders: map[string]bool{},
 						},
 					},
 				}
 			},
-			ExpectedErr: "category connection refused",
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("cat-1").Update(map[string]any{
+					"authentication": map[string]any{
+						"saml": map[string]any{
+							"status": map[string]any{
+								"healthy":      true,
+								"msg":          "",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(r.WriteResponse{Replaced: 1}, nil)
+			},
+		},
+		"should return an error if a DB write fails": {
+			PrepareManager: func(t *testing.T, db r.QueryExecutor) *ProviderManager {
+				saml := provider.NewMockProvider(t)
+				saml.On("Healthcheck").Return(nil)
+				saml.On("String").Return(types.ProviderSAML)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					db:  db,
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderSAML: saml,
+						},
+					},
+					categories: map[string]*providerSet{},
+				}
+			},
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Update(map[string]any{
+					"auth": map[string]any{
+						"saml": map[string]any{
+							"status": map[string]any{
+								"healthy":      true,
+								"msg":          "",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(nil, errors.New("db down"))
+			},
+			ExpectedErr: "update provider status: db down",
+		},
+		"should return an error if a category DB write fails": {
+			PrepareManager: func(t *testing.T, db r.QueryExecutor) *ProviderManager {
+				saml := provider.NewMockProvider(t)
+				saml.On("Healthcheck").Return(nil)
+				saml.On("String").Return(types.ProviderSAML)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					db:  db,
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories: map[string]*providerSet{
+						"cat-1": {
+							providers: map[string]provider.Provider{
+								types.ProviderSAML: saml,
+							},
+							formCustomSubProviders: map[string]bool{},
+						},
+					},
+				}
+			},
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("cat-1").Update(map[string]any{
+					"authentication": map[string]any{
+						"saml": map[string]any{
+							"status": map[string]any{
+								"healthy":      true,
+								"msg":          "",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(nil, errors.New("db down"))
+			},
+			ExpectedErr: "update category provider status: db down",
+		},
+		"should write an unhealthy status if a category provider fails its healthcheck": {
+			PrepareManager: func(t *testing.T, db r.QueryExecutor) *ProviderManager {
+				saml := provider.NewMockProvider(t)
+				saml.On("Healthcheck").Return(errors.New("connection refused"))
+				saml.On("String").Return(types.ProviderSAML)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					db:  db,
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories: map[string]*providerSet{
+						"cat-1": {
+							providers: map[string]provider.Provider{
+								types.ProviderSAML: saml,
+							},
+							formCustomSubProviders: map[string]bool{},
+						},
+					},
+				}
+			},
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("cat-1").Update(map[string]any{
+					"authentication": map[string]any{
+						"saml": map[string]any{
+							"status": map[string]any{
+								"healthy":      false,
+								"msg":          "connection refused",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(r.WriteResponse{Replaced: 1}, nil)
+			},
+		},
+		"should return an error if a form sub-provider DB write fails": {
+			PrepareManager: func(t *testing.T, db r.QueryExecutor) *ProviderManager {
+				local := provider.NewMockProvider(t)
+				local.On("Healthcheck").Return(nil)
+				local.On("String").Return(types.ProviderLocal)
+
+				form := provider.InitForm(cfg.Authentication{}, log.New("test", "debug"), nil, nil)
+				form.EnableProvider(local)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					db:  db,
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderForm: form,
+						},
+					},
+					categories: map[string]*providerSet{},
+				}
+			},
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Update(map[string]any{
+					"auth": map[string]any{
+						"local": map[string]any{
+							"status": map[string]any{
+								"healthy":      true,
+								"msg":          "",
+								"last_updated": r.Now(),
+							},
+						},
+					},
+				})).Return(nil, errors.New("db down"))
+			},
+			ExpectedErr: "update provider status: db down",
 		},
 	}
 
@@ -682,15 +933,20 @@ func TestProviderManagerHealthcheck(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			m := tc.PrepareManager(t)
+			dbMock := r.NewMock()
+			tc.PrepareDB(dbMock)
 
-			err := m.Healthcheck()
+			m := tc.PrepareManager(t, dbMock)
+
+			err := m.Healthcheck(t.Context())
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
 			} else {
 				assert.NoError(err)
 			}
+
+			dbMock.AssertExpectations(t)
 		})
 	}
 }
@@ -1722,6 +1978,89 @@ func TestApplyStoredBranding(t *testing.T) {
 			},
 			ProviderName: types.ProviderSAML,
 			CategoryID:   strPtr("cat1"),
+		},
+		"should apply branding to the global provider when the category inherits the global config": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				bap := provider.NewMockBrandingAwareProvider(t)
+				host := "branding.example.com"
+				bap.On("SetBrandingHost", t.Context(), "cat1", &host).Return(nil)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderGoogle: bap,
+						},
+					},
+					categories: map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{
+						"cat1": {
+							CategoryID: "cat1",
+							Host:       strPtr("branding.example.com"),
+							Authentication: &model.CategoryAuthentication{
+								Google: &model.CategoryAuthGoogle{
+									ConfigSource: model.CategoryAuthenticationConfigSourceGlobal,
+								},
+							},
+						},
+					},
+				}
+			},
+			ProviderName: types.ProviderGoogle,
+			CategoryID:   nil,
+		},
+		"should not apply branding to the global provider when the category has a custom config": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderGoogle: provider.NewMockBrandingAwareProvider(t),
+						},
+					},
+					categories: map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{
+						"cat1": {
+							CategoryID: "cat1",
+							Host:       strPtr("branding.example.com"),
+							Authentication: &model.CategoryAuthentication{
+								Google: &model.CategoryAuthGoogle{
+									ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+								},
+							},
+						},
+					},
+				}
+			},
+			ProviderName: types.ProviderGoogle,
+			CategoryID:   nil,
+		},
+		"should not apply branding to the global provider when the category disabled it": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderGoogle: provider.NewMockBrandingAwareProvider(t),
+						},
+					},
+					categories: map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{
+						"cat1": {
+							CategoryID: "cat1",
+							Host:       strPtr("branding.example.com"),
+							Authentication: &model.CategoryAuthentication{
+								Google: &model.CategoryAuthGoogle{
+									ConfigSource: model.CategoryAuthenticationConfigSourceGlobal,
+									Disabled:     true,
+								},
+							},
+						},
+					},
+				}
+			},
+			ProviderName: types.ProviderGoogle,
+			CategoryID:   nil,
 		},
 	}
 

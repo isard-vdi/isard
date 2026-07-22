@@ -94,7 +94,7 @@ $(document).ready(function () {
             }
         },
         "ajax": {
-            "url": "/admin/users/management/categories",
+            "url": "/api/v4/admin/items/users/management/categories",
             "dataSrc": "",
             "type": "GET",
             "data": function (d) { return JSON.stringify({}) }
@@ -119,6 +119,7 @@ $(document).ready(function () {
                 "render": function (data, type, full, meta) {
                     switch (data) {
                         case null:
+                        case undefined:
                             return `<i class="fa fa-circle" aria-hidden="true" style="color:green" title="Default domain."></i>`
                         case false:
                             return `<i class="fa fa-circle" aria-hidden="true" style="color:darkgray" title="Bastion access disabled."></i>`
@@ -158,8 +159,6 @@ $(document).ready(function () {
                 "targets": 5,
                 "render": function (data, type, full, meta) {
                     domains = ""
-                    
-                    console.warn(full)
 
                     if (full.authentication) {
                         const providers = [
@@ -172,7 +171,7 @@ $(document).ready(function () {
                             const provider = full.authentication[key];
                             const restriction = provider?.email_domain_restriction;
                             if (
-                                provider.disabled !== true &&
+                                provider?.disabled !== true &&
                                 restriction &&
                                 restriction.enabled !== false &&
                                 restriction.allowed
@@ -267,7 +266,7 @@ $(document).ready(function () {
         $('.modal').modal('hide');
         $.ajax({
             type: "DELETE",
-            url: "/api/v3/admin/category/" + id,
+            url: "/api/v4/admin/item/category/" + id,
             contentType: "application/json",
             error: function (data) {
                 notice.update({
@@ -300,7 +299,7 @@ $(document).ready(function () {
         var modal = "#modalAuthentication";
         var data = collectFormData($(modal + " form"));
         ajaxPutWithNotice(
-            "/api/v3/admin/category/" + $(modal + " #id").val() + "/authentication",
+            "/api/v4/admin/item/category/" + $(modal + " #id").val() + "/authentication",
             data,
             "authentication",
             function () {
@@ -327,7 +326,7 @@ $(document).ready(function () {
         $("#modalAddCategoryForm #storage_pool").empty();
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/storage_pools",
+            url: "/api/v4/storage-pools",
             contentType: "application/json",
             success: function (data) {
                 $.each(data, function (index, value) {
@@ -385,7 +384,7 @@ $(document).ready(function () {
             })
             $.ajax({
                 type: "POST",
-                url: "/api/v3/admin/category",
+                url: "/api/v4/admin/item/category",
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function (data) {
@@ -440,7 +439,7 @@ $(document).ready(function () {
 
             $.ajax({
                 type: "PUT",
-                url: `/api/v3/admin/category/${formData.id}/bastion_domain`,
+                url: `/api/v4/admin/item/category/${formData.id}/bastion_domain`,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function (response) {
@@ -476,7 +475,7 @@ $(document).ready(function () {
         const form = $(`${modal} form`);
         if (!validateForm(form)) return;
         ajaxPutWithNotice(
-            "/api/v3/admin/category/" + $(`${modal} #id`).val() + "/branding",
+            "/api/v4/admin/item/category/" + $(`${modal} #id`).val() + "/branding",
             collectFormData(form).branding,
             "branding",
             function () {
@@ -493,7 +492,7 @@ $(document).ready(function () {
         var categoryId = $(modal + " #id").val();
         var data = collectLoginNotificationData(form, "category_enable_");
         ajaxPutWithNotice(
-            "/api/v3/admin/category/" + categoryId + "/login_notification",
+            "/api/v4/admin/item/category/" + categoryId + "/login_notification",
             data,
             "login notification",
             function () {
@@ -545,7 +544,7 @@ function actionsCategoryDetail() {
         }).modal('show');
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/category/" + pk,
+            url: "/api/v4/admin/item/category/" + pk,
             contentType: "application/json",
             accept: "application/json"
         }).done(function (category) {
@@ -626,7 +625,7 @@ function actionsCategoryDetail() {
                 })
                 $.ajax({
                     type: "PUT",
-                    url: "/api/v3/admin/category/" + data['id'],
+                    url: "/api/v4/admin/item/category/" + data['id'],
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (response) {
@@ -677,7 +676,7 @@ function actionsCategoryDetail() {
         showLoadingData('#modalDeleteCategory #table_modal_delete_groups')
         $.ajax({
             type: "POST",
-            url: "/api/v3/admin/category/delete/check",
+            url: "/api/v4/admin/item/category/delete/check",
             data: JSON.stringify({
                 "ids": [pk]
             }),
@@ -736,12 +735,12 @@ function actionsCategoryDetail() {
         $.when(
           $.ajax({
             type: "GET",
-            url: "/api/v3/admin/authentication/providers",
+            url: "/api/v4/admin/items/authentication/providers",
             contentType: "application/json",
           }),
           $.ajax({
             type: "GET",
-            url: `/api/v3/admin/category/${pk}/authentication`,
+            url: `/api/v4/admin/item/category/${pk}/authentication`,
             contentType: "application/json",
           })
         ).done(function (providersResult, authenticationResult) {
@@ -830,7 +829,7 @@ function actionsCategoryDetail() {
         var verificationRequired = true;
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/bastion/config/",
+            url: "/api/v4/admin/item/config/bastion",
             contentType: "application/json",
             success: function (category) {
                 verificationRequired = category.domain_verification_required || true;
@@ -838,7 +837,7 @@ function actionsCategoryDetail() {
         });
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/category/" + pk + "/bastion_domain",
+            url: "/api/v4/admin/item/category/" + pk + "/bastion_domain",
             contentType: "application/json",
             success: function (category) {
                 switch (category.bastion_domain) {
@@ -915,10 +914,16 @@ function actionsCategoryDetail() {
             toggleFormSection(settingsContainer, $(this).is(":checked"));
         }).trigger("ifChanged");
 
+        // Set up collapsed logo enabled checkbox toggle
+        $form.find("input[name='branding[logo_collapsed][enabled]']").off("ifChanged").on("ifChanged", function () {
+            var settingsContainer = $(this).closest(".x_content").find(".branding-logo_collapsed-settings");
+            toggleFormSection(settingsContainer, $(this).is(":checked"));
+        }).trigger("ifChanged");
+
         // Fetch branding data and populate form
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/category/" + pk + "/branding",
+            url: "/api/v4/admin/item/category/" + pk + "/branding",
             contentType: "application/json",
             success: function (data) {
                 fillFormData($form, { branding: data });
@@ -945,7 +950,7 @@ function actionsCategoryDetail() {
         // Fetch category login notification data, populate form and preview
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/login_config/" + pk,
+            url: "/api/v4/admin/item/login-config/" + pk,
             contentType: "application/json",
             success: function (data) {
                 populateLoginNotificationForm(modal, data, "category_enable_");
@@ -1019,59 +1024,6 @@ function ephemeralDesktopsShow(form, item) {
         $(form + (" #ephimeral-data")).hide();
     });
 }
-
-// function autoDesktopsShow(form, item) {
-//     if (item.auto) {
-//         $(form + (" #auto-desktops-enabled")).iCheck('check').iCheck('update');
-//         $(form + (" #auto-desktops")).empty()
-
-//         item['auto']['desktops'].forEach(function (dom_id) {
-//             api.ajax('/api/v3/admin/table/domains', 'POST', { 'id': dom_id, 'pluck': ['id', 'name'] }).done(function (dom) {
-//                 var newOption = new Option(dom.name, dom.id, true, true);
-//                 $(form + (" #auto-desktops")).append(newOption).trigger('change');
-//             });
-//         });
-//         $(form + (" #auto-desktops-data")).show();
-//     } else {
-//         $(form + (" #auto-desktops-enabled")).iCheck('unckeck').iCheck('update');
-//         $(form + (" #auto-desktops-data")).hide();
-//     }
-
-//         $(form + (" #auto-desktops")).select2({
-//         minimumInputLength: 2,
-//         multiple: true,
-//         ajax: {
-//             type: "GET",
-//             url: '/api/v3/user/templates/allowed/all',
-//             dataType: 'json',
-//             contentType: "application/json",
-//             delay: 250,
-//             data: function (params) {
-//                 return  JSON.stringify({
-//                     term: params.term,
-//                     pluck: ['id','name']
-//                 });
-//             },
-//             processResults: function (data) {
-//                 return {
-//                     results: $.map(data, function (item, i) {
-//                         return {
-//                             text: item.name,
-//                             id: item.id
-//                         }
-//                     })
-//                 };
-//             }
-//         },
-//     });
-
-//     $(form + (" #auto-desktops-enabled")).on('ifChecked', function(event){
-//         $(form + (" #auto-desktops-data")).show();
-//     });
-//     $(form + (" #auto-desktops-enabled")).on('ifUnchecked', function(event){
-//         $(form + (" #auto-desktops-data")).hide();
-//     });
-// }
 
 function maxTimeEnabledShow (form) {
     $(form + (" #recycle-bin-cutoff-time-enabled")).on('ifChecked', function(event){

@@ -125,8 +125,7 @@ func TestExistsWithVerifiedEmail(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareTest: func(m *r.Mock) {
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("category"), "default"),
+				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
 					r.Ne(r.Row.Field("email_verified"), nil),
 				))).Return([]interface{}{

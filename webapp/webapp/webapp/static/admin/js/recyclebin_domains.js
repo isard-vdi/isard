@@ -245,7 +245,7 @@ $(document).ready(function () {
 
   var recyclebin_domains = $('#recyclebin_domains').DataTable({
     "ajax": {
-      "url": "/api/v3/recycle_bin/item_count",
+      "url": "/api/v4/items/recycle-bin/admin-entries",
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -294,7 +294,10 @@ $(document).ready(function () {
       },
       {
         "data": "owner_name",
-        "title": "Owner name"
+        "title": "Owner name",
+        render: function (owner_name) {
+          return owner_name ?? '<i class="text-muted">(deleted)</i>'
+        }
       },
       {
         "data": "item_type",
@@ -437,7 +440,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "DELETE",
-            url: '/api/v3/recycle_bin/' + row.data()['id'],
+            url: '/api/v4/item/recycle-bin/' + row.data()['id'],
             contentType: "application/json",
             error: function (xhr, ajaxOptions, thrownError) {
               new PNotify({
@@ -473,7 +476,7 @@ $(document).ready(function () {
             icon: 'fa fa-spinner fa-pulse'
           })
           $.ajax({
-            url: "/api/v3/recycle_bin/restore/" + data.id,
+            url: "/api/v4/item/recycle-bin/" + data.id + "/restore",
             method: "PUT",
             error: function (xhr) {
               notice.update({
@@ -514,7 +517,7 @@ $(document).ready(function () {
 
   function fetchRecycleBin(recycle_bin_id, parentTableId = '#recyclebin_domains') {
     $.ajax({
-      url: "/api/v3/recycle_bin/" + recycle_bin_id,
+      url: "/api/v4/item/recycle-bin/" + recycle_bin_id,
       contentType: "application/json",
       type: "GET",
       success: function (result) {
@@ -546,35 +549,16 @@ $(document).ready(function () {
 
   function socketio_on() {
     socket.on('update_recycle_bin', function (data) {
+      var data = JSON.parse(data);
       dtUpdateInsert(recyclebin_domains, data, false);
     })
     socket.on('add_recycle_bin', function (data) {
-      dtUpdateInsert(recyclebin_domains, data, false);
-    }),
-    socket.on('recyclebin_action', function (data) {
-      PNotify.removeAll();
       var data = JSON.parse(data);
-      if (data.status === 'failed') {
-        new PNotify({
-          title: `ERROR: ${data.action} on ${data.count} entries`,
-          text: data.msg,
-          hide: false,
-          icon: 'fa fa-warning',
-          opacity: 1,
-          type: 'error'
-        });
-      } else if (data.status === 'completed') {
-        recyclebin_domains.ajax.reload();
-        new PNotify({
-          title: `Action Succeeded: ${data.action}`,
-          text: `The action "${data.action}" completed on ${data.count} entries.`,
-          hide: true,
-          delay: 4000,
-          icon: 'fa fa-success',
-          opacity: 1,
-          type: 'success'
-        });
-      }
+      dtUpdateInsert(recyclebin_domains, data, false);
+    });
+    socket.on('delete_recycle_bin', function (data) {
+      var data = JSON.parse(data);
+      dtUpdateInsert(recyclebin_domains, data, false);
     });
   }
 
@@ -634,7 +618,7 @@ $(document).ready(function () {
         var notify = new PNotify();
         $.ajax({
           type: "PUT",
-          url: '/api/v3/recycle_bin/' + action + '/',
+          url: '/api/v4/items/recycle-bin/' + action,
           data: JSON.stringify({'recycle_bin_ids':ids}),
           contentType: "application/json",
           success: function (data) {
@@ -643,13 +627,15 @@ $(document).ready(function () {
             $('#recyclebin_domains tr.active').removeClass('active')
             $('thead #select-all').prop("checked", false);
             notify.update({
-              title: 'Processing',
-              text: `Processing action: ${action} ${ids.length} entries`,
-              type: 'info',
-              hide: false,
-              icon: 'fa fa-spinner fa-pulse',
+              title: `Action queued: ${action}`,
+              text: `Queued ${action} on ${ids.length} entries. The list will refresh as entries are processed.`,
+              type: 'success',
+              hide: true,
+              delay: 4000,
+              icon: 'fa fa-success',
               opacity: 1
             })
+            recyclebin_domains.ajax.reload(null, false);
           },
           error: function (xhr) {
             notify.update({
@@ -685,14 +671,14 @@ $(document).ready(function () {
   });
   $.ajax({
     type: "GET",
-    url: "/api/v3/recycle_bin/status",
+    url: "/api/v4/items/recycle-bin/status",
     success: function (data) {
       let notShownStatus = ['recycled', 'deleting']
-      let status = data.filter((s) => !notShownStatus.includes(s.status))
-      $.each(status, function (index, currentStatus) {
+      $.each(data.by_status || {}, function (status, count) {
+        if (notShownStatus.includes(status)) return;
         $('#status').append($('<option>', {
-          value: currentStatus.status,
-          text: `${currentStatus.status} (${currentStatus.count} items)`
+          value: status,
+          text: `${status} (${count} items)`
         }));
       })
     }
@@ -706,7 +692,7 @@ $(document).ready(function () {
     }
     recyclebin_domains_other = $('#recyclebin_domains_other').DataTable({
       "ajax": {
-        "url": `/api/v3/recycle_bin/item_count/status/${newStatus}`,
+        "url": `/api/v4/items/recycle-bin/admin-entries?status=${encodeURIComponent(newStatus)}`,
         "contentType": "application/json",
         "type": 'GET',
       },
@@ -744,7 +730,10 @@ $(document).ready(function () {
         },
         {
           "data": "owner_name",
-          "title": "Owner name"
+          "title": "Owner name",
+          render: function (owner_name) {
+            return owner_name ?? '<i class="text-muted">(deleted)</i>'
+          }
         },
         {
           "data": "item_type",
@@ -826,7 +815,7 @@ $("#maxtime").on("change", function () {
     .get()
     .on("pnotify.confirm", function () {
       $.ajax({
-        url: "/api/v3/recycle-bin/system/cutoff-time",
+        url: "/api/v4/item/recycle-bin/system/cutoff-time",
         method: "PUT",
         data: JSON.stringify({ recycle_bin_cuttoff_time: parseInt(recycle_bin_cutoff_time) }),
         contentType: "application/json",
@@ -849,7 +838,7 @@ $("#maxtime").on("change", function () {
 function selectAutomaticDelete() {
   $.ajax({
     type: "GET",
-    url: "/api/v3/recycle-bin/system/cutoff-time",
+    url: "/api/v4/item/recycle-bin/system/cutoff-time",
     success: function (data) {
       if ($('meta[id=user_data]').attr('data-role') != 'admin') {
         $('#maxtime').val(data.recycle_bin_cuttoff_time.category)

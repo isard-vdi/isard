@@ -1,3 +1,68 @@
+// Dropdown ceilings (1 TB RAM, 128 vCPU, 2 TB disk) with coarsening steps so
+// the option list stays bounded even when the quota is the "unlimited" sentinel.
+var MEMORY_TIERS = [
+    { from: 0.5, to: 4, step: 0.5 },
+    { from: 5, to: 16, step: 1 },
+    { from: 18, to: 32, step: 2 },
+    { from: 36, to: 64, step: 4 },
+    { from: 72, to: 128, step: 8 },
+    { from: 144, to: 256, step: 16 },
+    { from: 288, to: 512, step: 32 },
+    { from: 576, to: 1024, step: 64 }
+];
+var VCPU_TIERS = [
+    { from: 1, to: 16, step: 1 },
+    { from: 18, to: 32, step: 2 },
+    { from: 36, to: 64, step: 4 },
+    { from: 72, to: 128, step: 8 }
+];
+var DISK_TIERS = [
+    { from: 1, to: 16, step: 1 },
+    { from: 18, to: 32, step: 2 },
+    { from: 36, to: 64, step: 4 },
+    { from: 72, to: 128, step: 8 },
+    { from: 144, to: 256, step: 16 },
+    { from: 288, to: 512, step: 32 },
+    { from: 576, to: 1024, step: 64 },
+    { from: 1152, to: 2048, step: 128 }
+];
+
+function buildTieredOptions(quotaMax, tiers) {
+    if (quotaMax == null || !(quotaMax > 0)) return [];
+    var result = [];
+    for (var t = 0; t < tiers.length; t++) {
+        var tier = tiers[t];
+        var limit = Math.min(tier.to, quotaMax);
+        if (tier.from > limit) break;
+        for (var v = tier.from; v <= limit + 1e-9; v += tier.step) {
+            result.push(+v.toFixed(2));
+        }
+    }
+    return result;
+}
+
+// Snap a non-tier-aligned legacy value to the nearest dropdown option so the
+// form submits a valid value. Ties break low.
+function selectNearestOption(selector, target) {
+    if (target == null || !isFinite(target)) return;
+    var $opts = $(selector + ' option');
+    if ($opts.length === 0) return;
+    var bestVal = null;
+    var bestDiff = Infinity;
+    $opts.each(function () {
+        var v = parseFloat($(this).val());
+        if (isNaN(v)) return;
+        var diff = Math.abs(v - target);
+        if (diff < bestDiff) {
+            bestDiff = diff;
+            bestVal = v;
+        }
+    });
+    if (bestVal !== null) {
+        $(selector + ' option[value="' + bestVal + '"]').prop('selected', true);
+    }
+}
+
 function setHardwareOptions(id,default_boot,domain_id,callback){
     default_boot = typeof default_boot !== 'undefined' ? default_boot : 'hd' ;
         // id is the main div id containing hardware.html
@@ -10,9 +75,9 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
         $(id+" #hardware-qos_id").find('option').remove();
         $(id+" #hardware-disk_bus").find('option').remove();
         if (typeof domain_id !== 'undefined'){
-            url = '/api/v3/user/hardware/allowed/'+domain_id
+            url = '/api/v4/item/user/get-allowed-hardware/'+domain_id
         }else{
-            url = '/api/v3/user/hardware/allowed'
+            url = '/api/v4/item/user/get-allowed-hardware'
         }
         $.ajax({
             type: 'GET',
@@ -64,29 +129,25 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
             });
 
             if(hardware.quota == false){
-                hardware.quota={'memory':128, 'vcpus':128, 'desktops_disk_size':500}
+                // Unlimited → tier maxima, so large values aren't capped/snapped down.
+                hardware.quota={'memory':1024, 'vcpus':128, 'desktops_disk_size':2048}
             }
 
-            for (var i = 0.5; i <= hardware.quota.memory; i += 0.5) {
-                $(id+" #hardware-memory").append('<option value="'+i+'">' + i +'</option>');
+            var memoryOpts = buildTieredOptions(hardware.quota.memory, MEMORY_TIERS);
+            for (var mi = 0; mi < memoryOpts.length; mi++) {
+                $(id+" #hardware-memory").append('<option value="'+memoryOpts[mi]+'">' + memoryOpts[mi] +'</option>');
             }
 
-            for (var i = 1; i <= hardware.quota.vcpus; i += 1) {
-                $(id+" #hardware-vcpus").append('<option value="'+i+'">' + i +' vCPU</option>');
+            var vcpuOpts = buildTieredOptions(hardware.quota.vcpus, VCPU_TIERS);
+            for (var vi = 0; vi < vcpuOpts.length; vi++) {
+                $(id+" #hardware-vcpus").append('<option value="'+vcpuOpts[vi]+'">' + vcpuOpts[vi] +' vCPU</option>');
             }
 
             if($(id+" #disk_size").length != 0) {
                 $(id+" #disk_size").find('option').remove();
-                if(hardware.quota.desktops_disk_size <= 10){
-                    for (var i = 1; i <= hardware.quota.desktops_disk_size; i += 1) {
-                        $(id+" #disk_size").append('<option value="'+i+'">' + i +' GB</option>');
-                    }
-                }else{
-                    $(id+" #disk_size").append('<option value=1>1 GB</option>');
-                    $(id+" #disk_size").append('<option value=5>5 GB</option>');
-                    for (var i = 10; i <= hardware.quota.desktops_disk_size; i += 5) {
-                        $(id+" #disk_size").append('<option value="'+i+'">' + i +' GB</option>');
-                    }
+                var diskOpts = buildTieredOptions(hardware.quota.desktops_disk_size, DISK_TIERS);
+                for (var di = 0; di < diskOpts.length; di++) {
+                    $(id+" #disk_size").append('<option value="'+diskOpts[di]+'">' + diskOpts[di] +' GB</option>');
                 }
             }
 
@@ -162,6 +223,17 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                 ungrouped.forEach(function(value){
                     $(id+" #reservables-vgpus").append(optHtml(value));
                 });
+                $(id+" #reservables-vgpus").off('change.nogpu').on('change.nogpu', function(){
+                    var $sel = $(this);
+                    var selected = $sel.val() || [];
+                    if(selected.length === 0){
+                        // Nothing selected -> fall back to "No GPU".
+                        $sel.find('option[value="None"]').prop('selected', true);
+                    } else if(selected.length > 1 && selected.indexOf('None') !== -1){
+                        // A real profile is selected alongside "No GPU" -> drop "No GPU".
+                        $sel.find('option[value="None"]').prop('selected', false);
+                    }
+                });
                 // Hard-restrict: once a profile is chosen, disable any profile not
                 // hostable on a hypervisor common to the whole selection, then
                 // tell select2 to re-render so the greyed-out options show.
@@ -224,6 +296,10 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                     width: '100%',
                     closeOnSelect: false,
                     placeholder: 'Select GPU profile(s)',
+                    templateResult: function(opt){
+                        if(opt.id === 'None'){ return null; }
+                        return opt.text;
+                    },
                 });
             }
             if (callback) {
@@ -235,7 +311,7 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
 function setHardwareDomainIdDefaults(div_id,domain_id){
     $.ajax({
         type: 'GET',
-        url: '/api/v3/domain/info/'+domain_id,
+        url: '/api/v4/item/desktop/'+domain_id+'/get-info',
         accept: 'application/json',
     }).done(function(domain) {
         setHardwareDomainDefaults(div_id,domain)
@@ -251,8 +327,9 @@ function setHardwareDomainDefaults(div_id,domain){
     }
     $(div_id+' #description').val(domain.description);
     $(div_id+' #id').val(domain.id);
-    $(div_id+' #guest_properties-credentials-username').val(domain["guest_properties"]["credentials"]["username"]);
-    $(div_id+' #guest_properties-credentials-password').val(domain["guest_properties"]["credentials"]["password"]);
+    var credentials = ((domain || {}).guest_properties || {}).credentials || {};
+    $(div_id+' #guest_properties-credentials-username').val(credentials.username || '');
+    $(div_id+' #guest_properties-credentials-password').val(credentials.password || '');
     setViewers('#modalEditDesktop',domain)
     if (domain.hardware.virtualization_nested) {
         $(div_id+' #hardware-virtualization_nested').prop('checked',true).iCheck('update');
@@ -279,25 +356,9 @@ function setHardwareDomainDefaults(div_id,domain){
     if(domain.hardware.boot_order[0]=='network'){domain.hardware.boot_order[0]='pxe'}
     $(div_id+' #hardware-boot_order option[value="'+domain.hardware.boot_order[0]+'"]').prop("selected",true);
 
-    if(domain.hardware.memory > $(div_id+' #hardware-memory option:last-child').val()){
-        $(div_id+' #hardware-memory option:last-child').prop("selected",true);
-    }else{
-        if($(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').length > 0){
-            $(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').prop("selected",true);
-        }else{
-            $(div_id+' #hardware-memory option:first').prop("selected",true);
-        }
-    }
-
-    if(domain.hardware.vcpus > $(div_id+' #hardware-vcpus option:last-child').val()){
-        $(div_id+' #hardware-vcpus option:last-child').prop("selected",true);
-    }else{
-        if($(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').length > 0){
-            $(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').prop("selected",true);
-        }else{
-            $(div_id+' #hardware-vcpus option:first').prop("selected",true);
-        }
-    }
+    // Snap legacy non-tier-aligned values to the nearest option, not the first.
+    selectNearestOption(div_id+' #hardware-memory', parseFloat(domain.hardware.memory));
+    selectNearestOption(div_id+' #hardware-vcpus', parseInt(domain.hardware.vcpus, 10));
 
     if('qos_id' in domain.hardware.disks[0]){
         if(domain.hardware.disks[0]['qos_id']==false){
@@ -347,9 +408,9 @@ function setHardwareDomainDefaults(div_id,domain){
 
 function setHardwareDomainDefaultsDetails(domain_id,item){
     if (item == "domain"){
-        ajaxUrl = "/api/v3/domain/hardware/"+domain_id
+        ajaxUrl = "/api/v4/admin/item/domain/hardware/"+domain_id
     } else if (item == "deployment"){
-        ajaxUrl = "/api/v3/deployment/hardware/"+domain_id
+        ajaxUrl = "/api/v4/item/deployment/"+domain_id+"/hardware"
     }
     $.ajax({
         type: "GET",
@@ -361,7 +422,7 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
             $(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
             $(div_id+" #ram").html((data.hardware.memory).toFixed(2)+'GB');
             if(data.reservables){
-                $(div_id+" #gpu").html(data.reservable_name);
+                $(div_id+" #gpu").html([].concat(data.reservable_name || []).join(', '));
                 $(div_id+" #gpu").closest("tr").show();
            }else{
                 $(div_id+" #gpu").closest("tr").hide();
@@ -375,8 +436,8 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
                 }
             })
             $(div_id+" #net").html(interfaces.join(', '));
-            $(div_id+" #video").html(data.video_name);
-            $(div_id+" #boot").html(data.boot_name);
+            $(div_id+" #video").html([].concat(data.video_name || []).join(', '));
+            $(div_id+" #boot").html([].concat(data.boot_name || []).join(', '));
             $(div_id+" #disk_bus").html(data.hardware.disk_bus);
             if(data['forced_hyp']){
                 $(div_id+" #forced_hyp").html(data['forced_hyp']);
@@ -397,7 +458,7 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
 function setDomainStorage(domain_id) {
     storage_table = $("#table-storage-" + domain_id.replaceAll('.', '\\.')).DataTable({
         "ajax": {
-            "url": "/api/v3/admin/domain/storage/" + domain_id,
+            "url": "/api/v4/admin/item/domain/storage/" + domain_id,
             "contentType": "application/json",
             "type": 'GET'
         },
@@ -424,13 +485,18 @@ function setDomainStorage(domain_id) {
             {
                 "targets": 1,
                 "render": function (data, type, full, meta) {
-                    return full.actual_size.toFixed(1)
+                    // actual_size/virtual_size are GiB floats; render in human
+                    // units so sub-GiB disks don't collapse to "0.0". Keep the
+                    // raw value for sorting.
+                    if (type !== 'display') return full.actual_size || 0;
+                    return formatBytes((full.actual_size || 0) * 1024 * 1024 * 1024);
                 }
             },
             {
                 "targets": 2,
                 "render": function (data, type, full, meta) {
-                    return full.virtual_size.toFixed(1)
+                    if (type !== 'display') return full.virtual_size || 0;
+                    return formatBytes((full.virtual_size || 0) * 1024 * 1024 * 1024);
                 }
             }
         ],

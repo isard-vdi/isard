@@ -47,6 +47,48 @@
   </div>
 </div>
 
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-archive"></i> Retention<small> &mdash; tiered rollup of usage_consumption rows</small></h3>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <form id="form-retention" class="form-inline" autocomplete="off">
+          <div class="form-group" style="margin-right:1em;">
+            <label for="retention_daily_months">Daily granularity (months)</label>
+            <input type="number" id="retention_daily_months" name="daily_months"
+                   class="form-control" min="1" max="120" required>
+          </div>
+          <div class="form-group" style="margin-right:1em;">
+            <label for="retention_weekly_months">Weekly granularity until (months)</label>
+            <input type="number" id="retention_weekly_months" name="weekly_months"
+                   class="form-control" min="2" max="120" required>
+          </div>
+          <div class="form-group" style="margin-right:1em;">
+            <label for="retention_total_months">Hard delete after (months, optional)</label>
+            <input type="number" id="retention_total_months" name="total_months"
+                   class="form-control" min="1" max="240" placeholder="never">
+          </div>
+          <button type="submit" id="btn-retention-save" class="btn btn-primary">
+            <i class="fa fa-save"></i> Save
+          </button>
+          <span id="retention-save-msg" style="margin-left:1em;"></span>
+        </form>
+        <p style="margin-top:0.5em;color:#888;">
+          Daily rows older than the daily threshold collapse into weekly buckets
+          (Monday-of-week); past the weekly threshold they collapse into monthly
+          buckets (first-of-month). The next incremental rollup runs after the
+          following consolidation; running
+          <code>rollup_usage_consumption.py --mode=backfill</code> migrates the
+          historical tail.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="row computed">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">

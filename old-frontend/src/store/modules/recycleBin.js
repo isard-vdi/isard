@@ -106,7 +106,7 @@ export default {
     },
     socket_updateRecycleBin (context, data) {
       const recycleBinsListItem = RecycleBinUtils.parseRecycleBinListItem(data)
-      if (['restored', 'deleting', 'deleted'].includes(data.status)) {
+      if (['restored', 'deleting', 'deleted'].includes(recycleBinsListItem.status)) {
         context.commit('removeRecycleBinsItem', recycleBinsListItem)
       } else {
         context.commit('insertUpdateRecycleBinsItem', recycleBinsListItem)
@@ -129,34 +129,38 @@ export default {
       })
     },
     fetchRecycleBins (context) {
-      axios.get(`${apiV3Segment}/recycle_bin/item_count/user`).then(response => {
-        context.commit('setRecycleBins', RecycleBinUtils.parseRecycleBinList(response.data))
+      // GET /items/recycle-bin returns { entries: [...] }; the singular
+      // /item/recycle-bin/count returns just an integer used by the
+      // status-bar badge.
+      axios.get(`${apiV3Segment}/items/recycle-bin`).then(response => {
+        const entries = (response.data && response.data.entries) || []
+        context.commit('setRecycleBins', RecycleBinUtils.parseRecycleBinList(entries))
       })
     },
     fetchRecycleBin (context, data) {
-      axios.get(`${apiV3Segment}/recycle_bin/${data.id}`).then(response => {
+      axios.get(`${apiV3Segment}/item/recycle-bin/${data.id}`).then(response => {
         context.commit('setRecycleBin', RecycleBinUtils.parseRecycleBin(response.data))
       })
     },
     fetchMaxTime (context, data) {
-      axios.get(`${apiV3Segment}/recycle-bin/user/cutoff-time`).then(response => {
+      axios.get(`${apiV3Segment}/item/recycle-bin/get-user-cutoff-time`).then(response => {
         context.commit('setMaxTime', RecycleBinUtils.parseMaxTime(response.data.recycle_bin_cuttoff_time))
       }).catch(e => {
       })
     },
     fetchItemsInRecycleBin (context) {
-      axios.get(`${apiV3Segment}/recycle_bin/count`).then(response => {
+      axios.get(`${apiV3Segment}/item/recycle-bin/count`).then(response => {
         context.commit('setItemsInRecycleBin', response.data)
       })
     },
     fetchDefaultCheck (context) {
-      return axios.get(`${apiV3Segment}/recycle_bin/config/default-delete`).then(response => {
+      return axios.get(`${apiV3Segment}/item/recycle-bin/get-default-delete-config`).then(response => {
         context.commit('setDefaultCheck', response.data)
       })
     },
     restoreRecycleBin (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.restoring-recycle-bin'), '', true, 1000)
-      return axios.put(`${apiV3Segment}/recycle_bin/restore/${data.id}`).then(response => {
+      return axios.put(`${apiV3Segment}/item/recycle-bin/${data.id}/restore`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -164,7 +168,7 @@ export default {
     },
     deleteRecycleBin (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-recycle-bin'), '', true, 1000)
-      return axios.delete(`${apiV3Segment}/recycle_bin/${data.id}`).then(response => {
+      return axios.delete(`${apiV3Segment}/item/recycle-bin/${data.id}`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -172,7 +176,7 @@ export default {
     },
     emptyRecycleBin (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-recycle-bin'), '', true, 1000)
-      return axios.delete(`${apiV3Segment}/recycle_bin/empty`).then(response => {
+      return axios.delete(`${apiV3Segment}/item/recycle-bin/empty`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

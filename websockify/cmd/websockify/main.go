@@ -1,20 +1,24 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	"gitlab.com/isard/isardvdi/pkg/log"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 )
 
 var (
@@ -42,8 +46,8 @@ func init() {
 	logger.Info().Str("log_level", logLevel).Msg("Starting websockify service")
 
 	apiAddr = os.Getenv("API_DOMAIN")
-	if apiAddr == "" || apiAddr == "isard-api" {
-		apiAddr = "isard-api:5000"
+	if apiAddr == "" || apiAddr == "isard-apiv4" {
+		apiAddr = "isard-apiv4:5000"
 		apiIgnoreCerts = false
 		apiProtocol = "http"
 		logger.Info().Str("api_addr", apiAddr).Msg("Using internal API")
@@ -192,11 +196,16 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cli, err := sdk.NewClient(&sdk.Cfg{
-		Host:        fmt.Sprintf("%s://%s", apiProtocol, apiAddr),
-		IgnoreCerts: apiIgnoreCerts,
-		Token:       tkn,
-	})
+	var clientOpts []ogenclient.Option
+	if apiIgnoreCerts {
+		clientOpts = append(clientOpts, ogenclient.WithIgnoreCerts())
+	}
+	httpClient := ogenclient.NewHTTPClient(clientOpts...)
+	cli, err := apiv4.NewClient(
+		fmt.Sprintf("%s://%s", apiProtocol, apiAddr),
+		ogenclient.APIv4Static{Token: tkn},
+		apiv4.WithClient(httpClient),
+	)
 	if err != nil {
 		logger.Error().Err(err).Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("Error creating API client")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -204,20 +213,32 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Debug().Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("Validating user ownership")
-	if err := cli.UserOwnsDesktop(r.Context(), &sdk.UserOwnsDesktopOpts{
-		ProxyVideo:     r.Host,
-		ProxyHyperHost: hyper,
-		Port:           port,
-	}); err != nil {
-		if errors.Is(err, sdk.ErrForbidden) {
-			logger.Warn().Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("Unauthorized: user does not own desktop")
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
+	res, err := cli.UserOwnsDesktop(r.Context(), &apiv4.UserOwnsDesktopRequest{
+		ProxyVideo:     apiv4.NewOptNilString(r.Host),
+		ProxyHyperHost: apiv4.NewOptNilString(hyper),
+		Port:           apiv4.NewOptNilInt(port),
+	})
+	if err != nil {
 		logger.Error().Err(err).Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("API validation error")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+	if _, ok := res.(*apiv4.EmptyResponse); !ok {
+		apiErr := ogenclient.AsAPIError(res)
+		switch {
+		case errors.Is(apiErr, ogenclient.ErrForbidden):
+			logger.Warn().Err(apiErr).Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("Unauthorized: user does not own desktop")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		case errors.Is(apiErr, ogenclient.ErrNotFound), errors.Is(apiErr, ogenclient.ErrBadRequest):
+			logger.Warn().Err(apiErr).Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("Not found validating desktop ownership")
+			w.WriteHeader(http.StatusNotFound)
+			return
+		default:
+			logger.Error().Err(apiErr).Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("Unexpected API response validating desktop ownership")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
 
 	logger.Debug().Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("User validation successful, upgrading to WebSocket")
@@ -375,11 +396,36 @@ func connQuality(w http.ResponseWriter, r *http.Request) {
 func main() {
 	logger.Info().Msg("Starting websockify server on :8080")
 
-	http.HandleFunc("/conn-quality", connQuality)
-	http.HandleFunc("/{hyper}/{port}/{token}", handler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/conn-quality", connQuality)
+	mux.HandleFunc("/{hyper}/{port}/{token}", handler)
 
-	logger.Info().Msg("Websockify server listening on :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		logger.Fatal().Err(err).Msg("Failed to start server on port 8080")
+	srv := &http.Server{Addr: ":8080", Handler: mux}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info().Msg("Websockify server listening on :8080")
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
+		}
+		errCh <- nil
+	}()
+
+	select {
+	case <-ctx.Done():
+		logger.Info().Msg("Shutdown signal received, stopping server")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			logger.Error().Err(err).Msg("Server shutdown error")
+		}
+	case err := <-errCh:
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Failed to start server on port 8080")
+		}
 	}
 }

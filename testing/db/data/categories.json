@@ -1,0 +1,287 @@
+[
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "auto": false,
+        "custom_url_name": "maintenance",
+        "description": "Category in maintenance",
+        "frontend": true,
+        "id": "99beca35-1d46-41d8-8319-8cc54dbe3db0",
+        "limits": false,
+        "maintenance": true,
+        "name": "Maintenance",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "99beca35-1d46-41d8-8319-8cc54dbe3db0"
+    },
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "auto": false,
+        "custom_url_name": "disclaimer",
+        "description": "With active disclaimer verification policy",
+        "ephimeral": false,
+        "frontend": false,
+        "id": "4f0408cc-4fd8-4d33-8173-f23f24d79cc3",
+        "limits": false,
+        "maintenance": false,
+        "name": "Dislcaimer",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "4f0408cc-4fd8-4d33-8173-f23f24d79cc3"
+    },
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "auto": false,
+        "custom_url_name": "hidden",
+        "description": "Hidden in frontend",
+        "ephimeral": false,
+        "frontend": false,
+        "id": "07962917-9649-436e-b103-559c36c04afd",
+        "limits": false,
+        "maintenance": false,
+        "name": "Hidden category",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "07962917-9649-436e-b103-559c36c04afd"
+    },
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "auto": false,
+        "custom_url_name": "email",
+        "description": "With active email verification policy",
+        "ephimeral": false,
+        "frontend": false,
+        "id": "5389a10b-8509-4b62-b94e-674dfcb372d8",
+        "limits": false,
+        "maintenance": false,
+        "name": "Email",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "5389a10b-8509-4b62-b94e-674dfcb372d8"
+    },
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "auto": false,
+        "custom_url_name": "another",
+        "description": "Shown in frontend",
+        "frontend": true,
+        "id": "ae26368b-26d3-4692-ba2f-62e99ceb054e",
+        "limits": false,
+        "maintenance": false,
+        "name": "Another category",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "ae26368b-26d3-4692-ba2f-62e99ceb054e"
+    },
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "bastion_domain": null,
+        "custom_url_name": "default",
+        "description": "Default category",
+        "frontend": true,
+        "id": "default",
+        "limits": false,
+        "maintenance": false,
+        "name": "Default",
+        "photo": "",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "default"
+    },
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "auto": false,
+        "custom_url_name": "notifications",
+        "description": "To test fullpage notifications",
+        "ephimeral": false,
+        "frontend": false,
+        "id": "0efd17b5-2cc6-4f72-bbe1-18958d5b6c73",
+        "limits": false,
+        "maintenance": false,
+        "name": "Notifications",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "0efd17b5-2cc6-4f72-bbe1-18958d5b6c73"
+    },
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "auto": false,
+        "custom_url_name": "password_reset",
+        "description": "Users will be force to change password",
+        "frontend": false,
+        "id": "0519250f-e376-48c4-9609-fdae7d54a353",
+        "limits": false,
+        "maintenance": false,
+        "name": "Reset password",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "0519250f-e376-48c4-9609-fdae7d54a353"
+    },
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "auto": false,
+        "custom_url_name": "qle2e",
+        "description": "Dedicated category for quotas/limits e2e tests",
+        "ephimeral": false,
+        "frontend": false,
+        "id": "qle2e",
+        "limits": false,
+        "maintenance": false,
+        "name": "QuotasLimits E2E",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "qle2e"
+    }
+]

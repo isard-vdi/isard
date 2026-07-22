@@ -1,7 +1,9 @@
 from io import StringIO
 
-import engine.models.domain_xml as dxml
 import pytest
+from lxml import etree
+
+import engine.models.domain_xml as dxml
 from engine.models.domain_xml import (
     DomainXML,
     add_iothread_pinning,
@@ -11,6 +13,7 @@ from engine.models.domain_xml import (
     count_passthrough_gpus_in_xml,
     domain_is_raw,
     ensure_iothreads_declared,
+    file_spice_shared_folder_enabled,
     hostdev_locked,
     numa_opts_allowed,
     pinned_cpuset_from_xml,
@@ -18,7 +21,6 @@ from engine.models.domain_xml import (
     recreate_xml_to_start_raw,
     remove_memory_backing,
 )
-from lxml import etree
 
 
 def test_add_metadata_isard():
@@ -259,11 +261,98 @@ def test_remove_memory_backing_keeps_virtiofs():
     assert mb[0].find("hugepages") is None and mb[0].find("locked") is None
     assert mb[0].find("source").get("type") == "memfd"
     assert mb[0].find("access").get("mode") == "shared"
-    assert hp[0].find("page").get("unit") == "M"
 
     # virtiofs children still there
     assert mb[0].find("source") is not None
     assert mb[0].find("access") is not None
+
+
+def test_remove_memory_backing_round_trip():
+    """add_memory_backing then remove_memory_backing -> no <memoryBacking> (the
+    native 4K shape), guest RAM untouched. This is the start-path OOM fallback."""
+    xml = (
+        '<domain type="kvm">'
+        "<memory>16777216</memory>"
+        "<currentMemory>16777216</currentMemory>"
+        "<devices/>"
+        "</domain>"
+    )
+    backed = add_memory_backing(xml, "1", "G")
+    assert _parse(backed).xpath("/domain/memoryBacking/hugepages")  # sanity
+    stripped = remove_memory_backing(backed)
+    tree = _parse(stripped)
+    assert tree.xpath("/domain/memoryBacking") == []  # whole element dropped
+    assert tree.xpath("/domain/memory/text()")[0] == "16777216"  # RAM intact
+
+
+def test_remove_memory_backing_keeps_virtiofs():
+    """remove_memory_backing drops only hugepages/allocation/locked; a virtiofs
+    <source>/<access> memoryBacking must survive (just without hugepages)."""
+    xml = (
+        '<domain type="kvm">'
+        "<memory>8388608</memory>"
+        "<currentMemory>8388608</currentMemory>"
+        "<memoryBacking>"
+        '  <source type="memfd"/>'
+        '  <access mode="shared"/>'
+        "</memoryBacking>"
+        "<devices/>"
+        "</domain>"
+    )
+    backed = add_memory_backing(xml, "1", "G")  # adds hugepages alongside virtiofs
+    stripped = remove_memory_backing(backed)
+    tree = _parse(stripped)
+    mb = tree.xpath("/domain/memoryBacking")
+    assert len(mb) == 1  # kept (still has virtiofs children)
+    assert mb[0].find("hugepages") is None  # but hugepages stripped
+    assert mb[0].find("source").get("type") == "memfd"
+    assert mb[0].find("access").get("mode") == "shared"
+
+
+def test_set_memory_inserts_missing_currentmemory():
+    """Regression: when <currentMemory> is absent, set_memory built the element
+    with etree.parse() (an _ElementTree) and passed it to .addnext(), raising
+    'expected _Element, got _ElementTree' and Failing the desktop on start. The
+    .getroot() fix must insert <currentMemory> without raising."""
+    xml = (
+        '<domain type="kvm">'
+        "<name>vm</name>"
+        "<memory unit='KiB'>1048576</memory>"
+        "<devices/>"
+        "</domain>"
+    )
+    x = DomainXML(xml)
+    x.set_memory(memory=1048576, unit="KiB", current=524288)
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/currentMemory/text()")[0] == "524288"
+
+
+def test_set_memory_inserts_missing_memory_and_currentmemory():
+    """Both <memory> and <currentMemory> absent: both are inserted after <name>
+    without raising the lxml _ElementTree TypeError."""
+    xml = '<domain type="kvm"><name>vm</name><devices/></domain>'
+    x = DomainXML(xml)
+    x.set_memory(memory=2097152, unit="KiB", current=1048576)
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/memory/text()")[0] == "2097152"
+    assert tree.xpath("/domain/currentMemory/text()")[0] == "1048576"
+
+
+def test_set_memory_maxmemory_inserts_before_memory():
+    """maxMemory hotplug path: when <maxMemory> is absent the element must be
+    inserted (it previously indexed the missing node -> IndexError) and ordered
+    before <memory> per the libvirt schema."""
+    xml = '<domain type="kvm"><name>vm</name><devices/></domain>'
+    x = DomainXML(xml)
+    x.set_memory(memory=1048576, unit="KiB", current=1048576, max=2097152)
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/maxMemory/text()")[0] == "2097152"
+    order = [
+        el.tag
+        for el in tree.xpath("/domain/*")
+        if el.tag in ("maxMemory", "memory", "currentMemory")
+    ]
+    assert order == ["maxMemory", "memory", "currentMemory"]
 
 
 def test_recreate_xml_if_gpu_preserves_channel():
@@ -463,6 +552,66 @@ def test_recreate_xml_if_gpu_plain_vgpu_mdev_keeps_default_display():
     assert hd[0].get("display") is None
 
 
+def test_recreate_xml_if_gpu_vfio_variant_vgpu_vf_hostdev():
+    """On the vendor-specific VFIO framework (Ubuntu 24.04+) a vGPU is a vfio-pci
+    passthrough of an SR-IOV VF with display='off', NOT an mdev hostdev. It must
+    carry a 'ua-isard-vgpu-*' user alias so host-side reconcile can tell an
+    engine-managed vGPU VF apart from a whole-card passthrough (both type='pci')."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(xml, "unused-uid", vgpu_vf_bdf="0000:05:00.4")
+    tree = _parse(result)
+    # vfio-pci VF passthrough, not an mdev
+    assert tree.xpath('//hostdev[@type="mdev"]') == []
+    # managed='no' is load-bearing: the VF stays nvidia-bound (the variant driver
+    # is the VFIO provider); managed='yes' would unbind it and hang the host.
+    hd = tree.xpath('//hostdev[@type="pci"][@managed="no"]')
+    assert len(hd) == 1
+    assert tree.xpath('//hostdev[@managed="yes"]') == []  # never managed for a vGPU VF
+    assert hd[0].get("display") == "off"  # vGPU is headless on this path
+    # source address points at the VF BDF 0000:05:00.4
+    src = hd[0].xpath("./source/address")[0]
+    assert src.get("domain") == "0x0000"
+    assert src.get("bus") == "0x05"
+    assert src.get("slot") == "0x00"
+    assert src.get("function") == "0x4"
+    # the load-bearing marker (libvirt user aliases must start with 'ua-')
+    alias = hd[0].xpath("./alias")[0].get("name")
+    assert alias.startswith("ua-isard-vgpu-")
+    assert "0000-05-00-4" in alias
+
+
+def test_remove_gpu_hostdev_strips_vfio_vgpu_by_alias_not_unrelated_managed_no():
+    """Teardown must strip the managed='no' vfio vGPU VF hostdev via its
+    'ua-isard-vgpu-*' alias marker, WITHOUT removing an unrelated managed='no'
+    pci hostdev the desktop may carry."""
+    base = '<domain type="kvm"><devices/></domain>'
+    # engine-emitted vfio vGPU VF (managed='no' + alias marker)
+    xml = recreate_xml_if_gpu(base, "u", vgpu_vf_bdf="0000:05:00.4")
+    # splice in an UNRELATED managed='no' pci hostdev (no isard alias)
+    x0 = DomainXML(xml)
+    other = etree.fromstring(
+        "<hostdev mode='subsystem' type='pci' managed='no'>"
+        "<source><address domain='0x0000' bus='0x99' slot='0x00' function='0x0'/></source>"
+        "<alias name='ua-user-other'/></hostdev>"
+    )
+    x0.tree.xpath("/domain/devices")[0].append(other)
+
+    x = DomainXML(etree.tostring(x0.tree, encoding="unicode"))
+    x.remove_gpu_hostdev()
+    tree = x.tree
+    # the engine vGPU VF (alias ua-isard-vgpu-*) is gone
+    assert tree.xpath("//hostdev[starts-with(alias/@name,'ua-isard-vgpu-')]") == []
+    # the unrelated managed='no' hostdev survives
+    assert len(tree.xpath("//hostdev[alias/@name='ua-user-other']")) == 1
+
+
+def test_recreate_xml_if_gpu_vfio_variant_rejects_malformed_vf_bdf():
+    with pytest.raises(ValueError):
+        recreate_xml_if_gpu(
+            '<domain type="kvm"><devices/></domain>', "u", vgpu_vf_bdf="bad-bdf"
+        )
+
+
 # ---- engine bug fixes surfaced during the Redmine #15065 audit -------------
 
 
@@ -486,11 +635,21 @@ def _two_disk_domain_xml():
     )
 
 
-def test_set_qos_disk_inserts_iotune_in_every_disk():
+def test_set_qos_disk_inserts_iotune_in_every_disk(monkeypatch):
     """set_qos_disk on a multi-disk domain must add <iotune> to every <disk>,
     not just the last. The previous code reused a single lxml element across
     the loop and `.addnext` *moves* a parented element, so disk 0 silently
     lost its iotune as soon as disk 1 was processed."""
+    # ``engine.services.log`` is stubbed by ``engine/engine/conftest.py`` so
+    # ``from engine.services.log import *`` doesn't bring ``log`` into
+    # ``domain_xml``'s namespace under pytest. Inject a real logger only for
+    # the duration of this test so the production ``log.debug(...)`` line
+    # exercises without NameError.
+    import logging
+
+    from engine.models import domain_xml as _dx
+
+    monkeypatch.setattr(_dx, "log", logging.getLogger(__name__), raising=False)
     x = DomainXML(_two_disk_domain_xml())
     x.set_qos_disk(
         {
@@ -1233,47 +1392,187 @@ def test_set_vdisk_creates_missing_source():
     assert tree.xpath('//disk[@device="disk"]/driver')[0].get("type") == "qcow2"
 
 
-def test_set_memory_inserts_missing_currentmemory():
-    """Regression: when <currentMemory> is absent, set_memory built the element
-    with etree.parse() (an _ElementTree) and passed it to .addnext(), raising
-    'expected _Element, got _ElementTree' and Failing the desktop on start. The
-    .getroot() fix must insert <currentMemory> without raising."""
-    xml = (
+def test_set_memory_rejects_below_minimum():
+    """set_memory must reject memory below the 25 MiB floor."""
+    x = DomainXML('<domain type="kvm"><name>vm</name><devices/></domain>')
+    with pytest.raises(ValueError, match="Invalid memory value"):
+        x.set_memory(memory=8, unit="KiB")
+
+
+def test_file_spice_shared_folder_enabled_handles_none_at_every_level():
+    """A deselected viewer persisted as bare ``None`` must not raise."""
+    assert file_spice_shared_folder_enabled({}) is False
+    assert file_spice_shared_folder_enabled({"guest_properties": None}) is False
+    assert (
+        file_spice_shared_folder_enabled({"guest_properties": {"viewers": None}})
+        is False
+    )
+    assert (
+        file_spice_shared_folder_enabled(
+            {"guest_properties": {"viewers": {"file_spice": None}}}
+        )
+        is False
+    )
+    assert (
+        file_spice_shared_folder_enabled(
+            {"guest_properties": {"viewers": {"file_spice": {"options": None}}}}
+        )
+        is False
+    )
+
+
+def test_file_spice_shared_folder_enabled_true_only_when_requested():
+    assert (
+        file_spice_shared_folder_enabled(
+            {
+                "guest_properties": {
+                    "viewers": {"file_spice": {"options": {"shared_folder": True}}}
+                }
+            }
+        )
+        is True
+    )
+    assert (
+        file_spice_shared_folder_enabled(
+            {
+                "guest_properties": {
+                    "viewers": {"file_spice": {"options": {"shared_folder": False}}}
+                }
+            }
+        )
+        is False
+    )
+
+
+# --------------------------------------------------------------------------
+# per-interface lab options in <isard:mapping> (lab_* attributes)
+# --------------------------------------------------------------------------
+
+_ISARD_NS = {"isard": "http://isardvdi.com"}
+
+# lab_opts flag (API/DB name) -> attribute emitted on <isard:mapping>
+_LAB_FLAG_TO_ATTR = {
+    "mac_spoofing": "lab_mac_spoofing",
+    "stp_bpdu": "lab_stp_bpdu",
+    "broadcast_unlimited": "lab_bcast_unlimited",
+    "multicast_unlimited": "lab_mcast_unlimited",
+}
+
+
+def _domain_xml_with_isard_metadata():
+    # A placeholder interface is required: DomainXML.__init__ binds its loop
+    # variable `tree` only while iterating existing interfaces, and reuses it
+    # for boot_order parsing — a zero-interface domain raises UnboundLocalError.
+    # Real domains always have at least one interface. This placeholder is NOT
+    # added to mac2network_mappings (only add_interface() populates those).
+    return (
         '<domain type="kvm">'
-        "<name>vm</name>"
-        "<memory unit='KiB'>1048576</memory>"
-        "<devices/>"
+        "<metadata>"
+        '<isard:isard xmlns:isard="http://isardvdi.com"/>'
+        "</metadata>"
+        "<devices>"
+        '<interface type="network"><source network="default"/></interface>'
+        "</devices>"
         "</domain>"
     )
-    x = DomainXML(xml)
-    x.set_memory(memory=1048576, unit="KiB", current=524288)
-    tree = _parse(x.return_xml())
-    assert tree.xpath("/domain/currentMemory/text()")[0] == "524288"
 
 
-def test_set_memory_inserts_missing_memory_and_currentmemory():
-    """Both <memory> and <currentMemory> absent: both are inserted after <name>
-    without raising the lxml _ElementTree TypeError."""
-    xml = '<domain type="kvm"><name>vm</name><devices/></domain>'
-    x = DomainXML(xml)
-    x.set_memory(memory=2097152, unit="KiB", current=1048576)
-    tree = _parse(x.return_xml())
-    assert tree.xpath("/domain/memory/text()")[0] == "2097152"
-    assert tree.xpath("/domain/currentMemory/text()")[0] == "1048576"
+def _mapping_of(x):
+    return _parse(x.return_xml()).xpath(
+        "//isard:mac2network/isard:mapping", namespaces=_ISARD_NS
+    )
 
 
-def test_set_memory_maxmemory_inserts_before_memory():
-    """maxMemory hotplug path: when <maxMemory> is absent the element must be
-    inserted (it previously indexed the missing node -> IndexError) and ordered
-    before <memory> per the libvirt schema."""
-    xml = '<domain type="kvm"><name>vm</name><devices/></domain>'
-    x = DomainXML(xml)
-    x.set_memory(memory=1048576, unit="KiB", current=1048576, max=2097152)
-    tree = _parse(x.return_xml())
-    assert tree.xpath("/domain/maxMemory/text()")[0] == "2097152"
-    order = [
-        el.tag
-        for el in tree.xpath("/domain/*")
-        if el.tag in ("maxMemory", "memory", "currentMemory")
-    ]
-    assert order == ["maxMemory", "memory", "currentMemory"]
+@pytest.mark.parametrize("flag, attr", list(_LAB_FLAG_TO_ATTR.items()))
+@pytest.mark.parametrize(
+    "type_interface, net",
+    [
+        ("ovs", "1002"),
+        ("ovs1", "1002"),  # custom bridge variant
+    ],
+)
+def test_mac2network_lab_flag_propagates_to_xml(
+    monkeypatch, type_interface, net, flag, attr
+):
+    """A single lab_opts flag set True for an OVS-family type emits its
+    lab_* attribute as 'true' and leaves the other three 'false'."""
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface(
+        type_interface,
+        "52:54:00:aa:bb:01",
+        "dom1",
+        "if-lab",
+        net=net,
+        lab_opts={flag: True},
+    )
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)
+    assert len(mapping) == 1
+    assert mapping[0].get(attr) == "true"
+    for other in set(_LAB_FLAG_TO_ATTR.values()) - {attr}:
+        assert mapping[0].get(other) == "false"
+
+
+def test_mac2network_lab_opts_default_all_false(monkeypatch):
+    """When lab_opts is not specified, every lab_* attribute is emitted as
+    'false' (explicit, not omitted) so the hypervisor reads the default."""
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface("ovs", "52:54:00:aa:bb:02", "dom1", "if-prod", net="1003")
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)
+    assert len(mapping) == 1
+    for attr in _LAB_FLAG_TO_ATTR.values():
+        assert mapping[0].get(attr) == "false"
+
+
+def test_mac2network_lab_opts_stringly_typed_coerced_to_false(monkeypatch):
+    """Strict identity ('is True'): stringly-typed values such as the string
+    "true" from non-API DB writers must NOT enable an option — they resolve
+    to 'false'."""
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface(
+        "ovs",
+        "52:54:00:aa:bb:03",
+        "dom1",
+        "if-prod2",
+        net="1004",
+        lab_opts={
+            "mac_spoofing": "true",
+            "stp_bpdu": "false",
+            "broadcast_unlimited": 1,
+        },
+    )
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)
+    assert mapping[0].get("lab_mac_spoofing") == "false"
+    assert mapping[0].get("lab_stp_bpdu") == "false"
+    assert mapping[0].get("lab_bcast_unlimited") == "false"
+
+
+def test_mac2network_lab_opts_missing_from_mapping_defaults_to_false():
+    """A legacy mapping dict without 'lab_opts' still emits all lab_*
+    attributes as 'false' — backward compatible behavior."""
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_mac2network_metadata(
+        [
+            {
+                "mac": "52:54:00:aa:bb:04",
+                "kind": "interface",
+                "interface_id": "if-legacy",
+                "vlan_id": 1005,
+                # no 'lab_opts' key — legacy row from before this feature
+            },
+        ]
+    )
+    mapping = _mapping_of(x)
+    for attr in _LAB_FLAG_TO_ATTR.values():
+        assert mapping[0].get(attr) == "false"

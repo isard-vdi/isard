@@ -3,7 +3,7 @@
     id="recycleBinModal"
     v-model="modal.show"
     size="lg"
-    :title="$t(`views.desktop.modal.title.${modal.type}`)"
+    :title="modal.type ? $t(`views.desktop.modal.title.${modal.type}`) : ''"
     centered
     header-class="bg-red text-white"
     @hidden="closeModal"

@@ -44,7 +44,7 @@
             <!-- IMAGE -->
             <div
               class="rounded-circle bg-red"
-              :style="{'background-image': `url('..${data.item.image.url}')`}"
+              :style="{'background-image': data.item.image ? `url('..${data.item.image.url}')` : ''}"
             />
           </template>
           <template #cell(name)="data">
@@ -53,7 +53,27 @@
             </p>
           </template>
           <template #cell(description)="data">
-            <p class="text-dark-gray m-0">
+            <div
+              v-if="(data.item.status || '').toLowerCase() === desktopStates.creatingTemplate"
+            >
+              <b-progress
+                :max="100"
+                height="2rem"
+              >
+                <b-progress-bar
+                  variant="info"
+                  :value="(data.item.progress || {}).total_percent || 0"
+                  show-progress
+                  animated
+                >
+                  <strong>{{ (data.item.progress || {}).total_percent || 0 }} %</strong>
+                </b-progress-bar>
+              </b-progress>
+            </div>
+            <p
+              v-else
+              class="text-dark-gray m-0"
+            >
               {{ data.item.description }}
             </p>
           </template>
@@ -149,7 +169,7 @@
             <!-- IMAGE -->
             <div
               class="rounded-circle bg-red"
-              :style="{'background-image': `url('..${data.item.image.url}')`}"
+              :style="{'background-image': data.item.image ? `url('..${data.item.image.url}')` : ''}"
             />
           </template>
           <template #cell(name)="data">

@@ -137,29 +137,36 @@ export default {
       context.commit('remove_plan', plan)
     },
     fetchReservableTypes (context) {
-      return axios.get(`${apiV3Segment}/admin/reservables`).then(response => {
-        context.commit('setPlanningReservableTypes', response.data)
+      return axios.get(`${apiV3Segment}/items/reservables`).then(response => {
+        const types = (response.data && response.data.reservables) || response.data || []
+        context.commit('setPlanningReservableTypes', types)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchReservableItems (context, data) {
-      return axios.get(`${apiV3Segment}/admin/reservables/${data.itemType}`).then(response => {
-        context.commit('setPlanningReservableItems', PlanningUtils.parseItems(response.data))
+      return axios.get(`${apiV3Segment}/items/reservables/${data.itemType}`).then(response => {
+        const items = (response.data && response.data.items) || response.data || []
+        context.commit('setPlanningReservableItems', PlanningUtils.parseItems(items))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchReservableSubitems (context, data) {
-      return axios.get(`${apiV3Segment}/admin/reservables/enabled/${data.itemType}/${data.itemId}`).then(response => {
+      return axios.get(`${apiV3Segment}/item/reservable/enabled/${data.itemType}/${data.itemId}`).then(response => {
         context.commit('setPlanningReservableSubitems', PlanningUtils.parseSubitems(response.data))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchPlanning (context, data) {
-      return axios.get(`${apiV3Segment}/admin/reservables_planner/${data.itemId}/${data.start}/${data.end}`).then(response => {
-        context.commit('setPlanningEvents', PlanningUtils.parseEvents(response.data))
+      return axios.get(`${apiV3Segment}/item/reservables-planner/by-item/${data.itemId}`, {
+        params: {
+          start: new Date(data.start).toISOString(),
+          end: new Date(data.end).toISOString()
+        }
+      }).then(response => {
+        context.commit('setPlanningEvents', PlanningUtils.parseEvents(response.data || []))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
@@ -217,7 +224,7 @@ export default {
         end: DateUtils.formatAsUTC(payload.end)
       }
 
-      axios.post(`${apiV3Segment}/admin/reservables_planner`, data).then(response => {
+      axios.post(`${apiV3Segment}/item/reservables-planner`, data).then(response => {
         this._vm.$snotify.clear()
         context.dispatch('resetPlanningModalData')
         context.dispatch('showPlanningModal', false)
@@ -226,13 +233,10 @@ export default {
       })
     },
     editPlanningEvent (context, payload) {
-      const data = {
-        subitem_id: payload.subitemId,
-        start: DateUtils.formatAsUTC(payload.start),
-        end: DateUtils.formatAsUTC(payload.end)
-      }
+      const startUTC = encodeURIComponent(DateUtils.formatAsUTC(payload.start))
+      const endUTC = encodeURIComponent(DateUtils.formatAsUTC(payload.end))
 
-      axios.put(`${apiV3Segment}/admin/reservables_planner/${payload.id}`, data).then(response => {
+      axios.put(`${apiV3Segment}/item/reservables-planner/${payload.id}/${startUTC}/${endUTC}`).then(response => {
         this._vm.$snotify.clear()
         context.dispatch('resetPlanningModalData')
         context.dispatch('showPlanningModal', false)
@@ -242,7 +246,7 @@ export default {
     },
     deletePlanningEvent (context, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-event'), '', true, 1000)
-      axios.delete(`${apiV3Segment}/admin/reservables_planner/${payload.id}`).then(response => {
+      axios.delete(`${apiV3Segment}/item/reservables-planner/${payload.id}`).then(response => {
         this._vm.$snotify.clear()
         context.dispatch('resetPlanningModalData')
         context.dispatch('showPlanningModal', false)

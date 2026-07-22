@@ -1,0 +1,12 @@
+{
+  "name": "isardvdi-codegen-node",
+  "private": true,
+  "dependencies": {
+    "@asyncapi/modelina": "5.10.1",
+    "@asyncapi/parser": "3.6.0",
+    "@bufbuild/protobuf": "2.6.0",
+    "@bufbuild/protoc-gen-es": "2.6.0",
+    "@bufbuild/protoplugin": "2.6.0",
+    "@hey-api/openapi-ts": "0.92.4"
+  }
+}

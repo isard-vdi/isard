@@ -89,7 +89,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: "/api/v3/admin/notifications/template/" + id,
+                    url: "/api/v4/admin/item/notifications/template/" + id,
                     contentType: 'application/json',
                     success: function () {
                         new PNotify({
@@ -121,12 +121,13 @@ $(document).ready(function () {
             renderModal(modal, "edit");
             $.ajax({
                 type: 'GET',
-                url: `/api/v3/admin/notifications/template/${id}`,
+                url: `/api/v4/admin/item/notifications/template/${id}`,
                 contentType: 'application/json',
                 success: function (data) {
-                    availableLanguages = Object.keys(data.lang)
-                    language = data.default != "system" ?
-                        data.default : Object.keys(data.lang)[0];
+                    var lang = data.lang || {};
+                    availableLanguages = Object.keys(lang);
+                    language = data.default && data.default != "system" ?
+                        data.default : availableLanguages[0];
                     if (data.default == language) {
                         $(modal + " #default-lang").iCheck('check').iCheck('update');
                     } else {
@@ -138,10 +139,10 @@ $(document).ready(function () {
                     $(modal + ' #name').val(data.name);
                     $(modal + ' #language').val(language);
                     $(modal + ' #description').val(data.description);
-                    if (data.lang[language]) {
-                        $(modal + ' #title').val(data.lang[language].title);
-                        $(modal + ' #body').val(data.lang[language].body);
-                        $(modal + ' #footer').val(data.lang[language].footer);
+                    if (language && lang[language]) {
+                        $(modal + ' #title').val(lang[language].title);
+                        $(modal + ' #body').val(lang[language].body);
+                        $(modal + ' #footer').val(lang[language].footer);
                     }
                     showParameters(modal, data.vars);
                 }
@@ -168,7 +169,7 @@ $(document).ready(function () {
                 if ($(this).data("action") == "edit") {
                     $.ajax({
                         type: 'PUT',
-                        url: '/api/v3/admin/notifications/template/' + pk,
+                        url: '/api/v4/admin/item/notifications/template/' + pk,
                         data: JSON.stringify(data),
                         contentType: "application/json",
                         success: function (data) {
@@ -201,7 +202,7 @@ $(document).ready(function () {
                     data.default = data.language;
                     $.ajax({
                         type: 'POST',
-                        url: '/api/v3/admin/notifications/template/',
+                        url: '/api/v4/admin/item/notifications/template/',
                         data: JSON.stringify(data),
                         contentType: "application/json",
                         success: function (data) {
@@ -236,13 +237,24 @@ $(document).ready(function () {
 });
 
 function addDetailPannel(tmpl, kind) {
-    let template = kind === "custom" ? tmpl.lang[tmpl["default"]] : tmpl.system;
+    let template;
+    if (kind === "custom") {
+        template = (tmpl.lang && tmpl["default"]) ? tmpl.lang[tmpl["default"]] : null;
+    } else {
+        template = tmpl.system;
+    }
     $newPanel = $template_detail.clone();
     $newPanel.find('#notification-tmpl\\.id').remove();
     $newPanel.find(`#${kind}-title`).show();
-    $newPanel.find("#system_tmpl-title").html(template.title);
-    $newPanel.find("#system_tmpl-body").html(template.body);
-    $newPanel.find("#system_tmpl-footer").html("<hr>" + template.footer);
+    if (!template) {
+        $newPanel.find("#system_tmpl-title").html("(template data missing)");
+        $newPanel.find("#system_tmpl-body").html("");
+        $newPanel.find("#system_tmpl-footer").html("");
+        return $newPanel;
+    }
+    $newPanel.find("#system_tmpl-title").html(template.title || "");
+    $newPanel.find("#system_tmpl-body").html(template.body || "");
+    $newPanel.find("#system_tmpl-footer").html("<hr>" + (template.footer || ""));
     return $newPanel
 }
 
@@ -277,24 +289,26 @@ function showParameters(modal, parameterList) {
 function changeBodyLanguage(modal, language) {
     if ($(modal).hasClass("editModal")) {
         $.ajax({
-            url: "/api/v3/admin/notifications/template/" + $(modal + " #id").val(),
+            url: "/api/v4/admin/item/notifications/template/" + $(modal + " #id").val(),
             type: "GET",
             contentType: 'application/json',
             success: function (data) {
-                if (data.lang[language]) {
+                var lang = data.lang || {};
+                if (lang[language]) {
                     if (data.default == language) {
                         $(modal + " #default-lang").iCheck('check').iCheck('update');
                     } else {
                         $(modal + " #default-lang").iCheck('uncheck').iCheck('update');
                     }
-                    $(modal + " #title").val(data.lang[language].title);
-                    $(modal + " #body").val(data.lang[language].body);
-                    $(modal + " #footer").val(data.lang[language].footer);
+                    $(modal + " #title").val(lang[language].title);
+                    $(modal + " #body").val(lang[language].body);
+                    $(modal + " #footer").val(lang[language].footer);
                 } else {
                     $(modal + " #default-lang").iCheck('uncheck').iCheck('update');
-                    $(modal + " #title").val(data.system.title);
-                    $(modal + " #body").val(data.system.body);
-                    $(modal + " #footer").val(data.system.footer);
+                    var source = data.system || {};
+                    $(modal + " #title").val(source.title || '');
+                    $(modal + " #body").val(source.body || '');
+                    $(modal + " #footer").val(source.footer || '');
                 }
                 togglePreviewMode(modal, false);
             }
@@ -352,11 +366,13 @@ function populateLanguage(modal, availableLanguageList, defaultLang) {
 function renderTableNotificationTemplates() {
     custom_notification_tmpls_table = $('#custom-notification-tmpls-table').DataTable({
         "ajax": {
-            "url": "/api/v3/admin/notifications/templates/custom",
+            "url": "/api/v4/admin/items/notifications/templates/custom",
             "contentType": "application/json",
             "type": 'GET',
         },
-        "sAjaxDataProp": "",
+        // apiv4 wraps the list in {"templates": [...]} per
+        // TemplateListResponse — point DataTables at that key.
+        "sAjaxDataProp": "templates",
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
@@ -389,11 +405,11 @@ function renderTableNotificationTemplates() {
 
     system_notification_tmpls_table = $('#system-notification-tmpls-table').DataTable({
         "ajax": {
-            "url": "/api/v3/admin/notifications/templates/system",
+            "url": "/api/v4/admin/items/notifications/templates/system",
             "contentType": "application/json",
             "type": 'GET',
         },
-        "sAjaxDataProp": "",
+        "sAjaxDataProp": "templates",
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
@@ -467,7 +483,7 @@ function applyMessage() {
         if (form.parsley().isValid()) {
             togglePreviewMode('#modalNotificationTemplate', false)
             $.ajax({
-                url: "/api/v3/admin/notifications/template/" + data.id,
+                url: "/api/v4/admin/item/notifications/template/" + data.id,
                 type: "PUT",
                 data: JSON.stringify(data),
                 contentType: 'application/json',

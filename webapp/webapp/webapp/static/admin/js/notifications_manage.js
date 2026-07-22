@@ -52,7 +52,7 @@ $(document).ready(function () {
             if (data.operation === "edit") {
                 delete data.operation;
                 $.ajax({
-                    url: `/api/v3/admin/notification/${data.id}`,
+                    url: `/api/v4/admin/item/notification/${data.id}`,
                     type: 'PUT',
                     contentType: 'application/json',
                     data: JSON.stringify(data),
@@ -84,7 +84,7 @@ $(document).ready(function () {
                 delete data.operation;
                 delete data.id;
                 $.ajax({
-                    url: '/api/v3/admin/notification',
+                    url: '/api/v4/admin/item/notification',
                     type: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify(data),
@@ -123,7 +123,7 @@ $(document).ready(function () {
                 setupNotificationModal(modal, "edit", "fa fa-pencil");
                 $(modal + " #id").val(data.id);
                 $.ajax({
-                    url: `/api/v3/admin/notification/${data.id}`,
+                    url: `/api/v4/admin/item/notification/${data.id}`,
                     type: 'GET',
                     success: function (notification) {
                         $(modal + " #name").val(notification.name);
@@ -186,10 +186,10 @@ $(document).ready(function () {
 function renderNotificationsDatatable() {
     $('#notifications-table').DataTable({
         "ajax": {
-            url: '/api/v3/admin/notifications',
+            url: '/api/v4/admin/items/notifications',
             type: 'GET',
         },
-        "sAjaxDataProp": "",
+        "sAjaxDataProp": "notifications",
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
@@ -281,13 +281,19 @@ function renderNotificationsDatatable() {
 
 function addTemplatePreviewListener(modal) {
     $(modal + " #template_id").on("change", function () {
-        $(this).val()
+        var templateId = $(this).val();
+        if (!templateId) {
+            $(modal + " #preview-panel").empty().hide();
+            return;
+        }
         $.ajax({
-            url: '/api/v3/admin/notifications/template/' + $(this).val(),
+            url: '/api/v4/admin/item/notifications/template/' + templateId,
             type: 'GET',
             success: function (template) {
-                var template_title = template.lang[template.default] ? template.lang[template.default].title : template.system.title;
-                var template_body = template.lang[template.default] ? template.lang[template.default].body : template.system.body;
+                var langEntry = (template.lang && template.default) ? template.lang[template.default] : null;
+                var source = langEntry || template.system || {};
+                var template_title = source.title || '';
+                var template_body = source.body || '';
 
                 $(modal + " #preview-panel").empty().html(`
                 <h4>${template_title}</h4>
@@ -355,7 +361,7 @@ function populateItemTypeSelect(modal, operation) {
 function deleteNotification(id, delete_logs) {
     $.ajax({
         type: 'DELETE',
-        url: `/api/v3/admin/notification/${id}`,
+        url: `/api/v4/admin/item/notification/${id}`,
         data: JSON.stringify({ "delete_logs": delete_logs }),
         contentType: "application/json",
         accept: "application/json",
@@ -387,10 +393,10 @@ function deleteNotification(id, delete_logs) {
 function resetTemplateDropdown(modal, callback) {
     $(modal + " #template_id").empty();
     $.ajax({
-        url: '/api/v3/admin/notifications/templates',
+        url: '/api/v4/admin/items/notifications/templates',
         type: 'GET',
         success: function (data) {
-            $.each(data, function (_, template) {
+            $.each(data.templates, function (_, template) {
                 $(modal + " #template_id").append(new Option(template.name, template.id));
             });
             callback();
@@ -401,10 +407,10 @@ function resetTemplateDropdown(modal, callback) {
 function resetActionDropdown(modal, callback) {
     $(modal + " #action_id").empty();
     $.ajax({
-        url: '/api/v3/admin/notification/actions/all',
+        url: '/api/v4/admin/items/notification/actions',
         type: 'GET',
         success: function (data) {
-            $.each(data, function (_, action) {
+            $.each(data.actions, function (_, action) {
                 $(modal + " #action_id").append(`<option value="${action.id}" title="${action.description}">${action.id}</option>`);
             });
             callback();

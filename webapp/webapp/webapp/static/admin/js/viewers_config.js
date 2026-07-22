@@ -3,7 +3,7 @@ $(document).ready(function () {
     const tableId = '#viewers-conf-table'
     const viewersConfTable = $(tableId).DataTable({
         ajax: {
-            url: `/api/v3/admin/viewers-config`,
+            url: `/api/v4/admin/items/viewers-config`,
             contentType: 'application/json',
             type: 'GET',
         },
@@ -83,7 +83,7 @@ $(document).ready(function () {
                     .get()
                     .on("pnotify.confirm", function () {
                         $.ajax({
-                            url: "/api/v3/admin/viewers-config/reset/" + row.data().key,
+                            url: "/api/v4/admin/item/viewers-config/reset/" + row.data().key,
                             method: "PUT"
                         }).done(function (data) {
                             viewersConfTable.ajax.reload();
@@ -110,7 +110,7 @@ $(document).ready(function () {
         })
         data=$('#modalEditViewersConfig').serializeObject();
         $.ajax({
-            url: "/api/v3/admin/viewers-config/" + $('#modalEditViewersConfig #viewer').val(),
+            url: "/api/v4/admin/item/viewers-config/" + $('#modalEditViewersConfig #viewer').val(),
             method: "PUT",
             contentType: 'application/json',
             data: JSON.stringify({

@@ -1,0 +1,2644 @@
+{
+  "frontend_toggler": {
+    "to_vue2": "Cambiar a interfaz antigua",
+    "no_equivalent": "Sin equivalente en la interfaz antigua"
+  },
+  "router": {
+    "login": {
+      "title": "Iniciar sesión"
+    },
+    "register": {
+      "title": "Registro"
+    },
+    "migration": {
+      "title": "Migración"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "subtitle": "Mensajes y avisos del sistema"
+    },
+    "maintenance": {
+      "title": "Mantenimiento"
+    },
+    "verify-email": {
+      "title": "Verificar correo"
+    },
+    "forgot-password": {
+      "title": "¿Has olvidado tu contraseña?"
+    },
+    "export-user": {
+      "title": "Exportar elementos del usuario",
+      "subtitle": "Migrar elementos del usuario mediante un código de migración"
+    },
+    "profile": {
+      "title": "Perfil",
+      "subtitle": "Gestiona tu perfil y preferencias"
+    },
+    "desktops": {
+      "title": "Escritorios",
+      "subtitle": "Crea y comienza a trabajar al instante con muchos tipos de escritorios virtuales",
+      "new": {
+        "title": "Nuevo Escritorio",
+        "subtitle": "Crea escritorios virtuales a partir de una plantilla"
+      },
+      "edit": {
+        "title": "Editar escritorio",
+        "subtitle": "Modifica nombre, hardware y opciones de acceso"
+      }
+    },
+    "templates": {
+      "title": "Plantillas",
+      "subtitle": "Crea y gestiona plantillas de escritorios",
+      "new": {
+        "title": "Nueva Plantilla",
+        "subtitle": "Crea una nueva plantilla a partir de un escritorio existente"
+      },
+      "edit": {
+        "title": "Editar Plantilla",
+        "subtitle": "Edita las propiedades, visibilidad y configuración de hardware de la plantilla"
+      },
+      "duplicate": {
+        "title": "Duplicar Plantilla",
+        "subtitle": "Crea una nueva plantilla duplicando una existente"
+      }
+    },
+    "media": {
+      "title": "Medios",
+      "subtitle": "Crea y gestiona medios propios o utiliza medios ajenos para crear nuevos escritorios",
+      "new-desktop-from-media": {
+        "title": "Nuevo escritorio desde un medio",
+        "subtitle": "Crear un nuevo escritorio desde un medio de instalación"
+      }
+    },
+    "deployments": {
+      "title": "Despliegues",
+      "subtitle": "Crea y administra múltiples escritorios para distintos usuarios",
+      "new": {
+        "title": "Nuevo Despliegue",
+        "subtitle": "Crea un nuevo despliegue seleccionando los escritorios que quieres incluir en él"
+      }
+    },
+    "deployment": {
+      "title": "Gestión de despliegues",
+      "subtitle": "Consulta los detalles del despliegue y revisa el estado de los usuarios"
+    },
+    "deployment-videowall": {
+      "title": "Videowall",
+      "subtitle": "Vista en directo de cada escritorio del despliegue"
+    },
+    "shared-deployments": {
+      "title": "Compartidos contigo",
+      "subtitle": "Empieza a trabajar con despliegues creados para ti"
+    },
+    "bookings": {
+      "summary": {
+        "title": "Reservas",
+        "subtitle": "Revisa todas tus reservas próximas y recientes"
+      },
+      "item": {
+        "title": "Reservas",
+        "subtitle": "Reserva tiempo para un escritorio o despliegue"
+      }
+    },
+    "planning": {
+      "title": "Planificación",
+      "subtitle": "Planifica la disponibilidad de los recursos reservables"
+    },
+    "direct-viewer": {
+      "title": "Visor directo"
+    },
+    "error": {
+      "title": "Error"
+    },
+    "recycle-bin": {
+      "entry": {
+        "subtitle": "Revisa el elemento eliminado y su contenido",
+        "title": "Elemento de la papelera"
+      },
+      "subtitle": "Visualiza, restaura o elimina los elementos de la papelera",
+      "title": "Papelera"
+    }
+  },
+  "views": {
+    "export-user": {
+      "title": "Exportar elementos del usuario",
+      "description": "Migrar elementos del usuario mediante un código de migración",
+      "migration-instructions1": "Genera y copia este código de migración en el portapapeles.",
+      "migration-instructions2": "Guarda este código, ya que lo necesitarás para la importación.",
+      "migration-instructions3": "El código es válido durante 1 hora.",
+      "migration-instructions4": "Para migrar este usuario a otro, cierra esta sesión e inicia sesión con el nuevo usuario.",
+      "migration-instructions5": "En el perfil del usuario nuevo encontrarás el botón de importación donde pegar este código.",
+      "warning": "ATENCIÓN",
+      "migration-warning": "Si ya se ha generado un código de migración anteriormente para este usuario, generar uno nuevo invalidará el código anterior.",
+      "generate-token": "Generar un código de migración",
+      "generate-token-warning": "Este código de migración no será accesible de nuevo. Asegúrate de haberlo copiado antes de continuar.",
+      "logout": "Cerrar sesión",
+      "logout-and-continue": "Cerrar sesión y continuar con el nuevo usuario",
+      "logout-tooltip": "Genera y copia el código de migración antes de cerrar la sesión para continuar con la migración",
+      "error-title": "Error",
+      "error-generate": "No se ha podido generar el código de migración. Inténtalo de nuevo.",
+      "token-label": "Token de migración",
+      "generating": "Generando token de migración…"
+    },
+    "verify-email": {
+      "title": "La dirección de correo debe ser verificada por IsardVDI",
+      "description": "Introduce tu dirección de correo para recibir un enlace de verificación.",
+      "email-label": "Correo electrónico",
+      "email-placeholder": "nombre{'@'}ejemplo.com",
+      "invalid-email": "Introduce una dirección de correo válida",
+      "error-generic": "Se ha producido un error. Vuelve a intentarlo.",
+      "success": "Se ha enviado un correo de verificación. Revisa tu bandeja de entrada.",
+      "redirecting": "Redirigiendo al inicio de sesión en {seconds} s…",
+      "verifying": "Verificando tu correo…",
+      "verified": {
+        "title": "Correo verificado",
+        "description": "Tu dirección de correo se ha verificado."
+      },
+      "link-error": {
+        "title": "Enlace de verificación no válido",
+        "description": "El enlace ha caducado o ya se ha utilizado. Inicia sesión y solicita un nuevo correo de verificación."
+      },
+      "buttons": {
+        "verify": "Enviar el correo de verificación",
+        "logout": "Cerrar sesión",
+        "login": "Ir al inicio de sesión"
+      }
+    },
+    "login": {
+      "separator": "Otros accesos",
+      "select-category": "Selecciona una categoría"
+    },
+    "new-desktop": {
+      "desktop-template": "Plantilla",
+      "step-1": {
+        "title": "Selecciona una plantilla",
+        "description": "Elige la plantilla que deseas utilizar para crear tu escritorio.",
+        "buttons": {
+          "next": {
+            "label": "Siguiente"
+          }
+        }
+      },
+      "header": {
+        "cancel": "Cancelar",
+        "previous": "Anterior"
+      },
+      "step-2": {
+        "title": "Configura tu escritorio",
+        "description": "Personaliza los ajustes de tu escritorio antes de crearlo.",
+        "buttons": {
+          "change-template": {
+            "label": "Cambiar plantilla"
+          },
+          "create-desktop": {
+            "label": "Crear escritorio",
+            "disabled-tooltip": {
+              "title": "Debes completar todos los campos obligatorios para crear el escritorio",
+              "description": "Por favor, revisa el formulario en busca de errores"
+            }
+          }
+        },
+        "preview": {
+          "title": "Vista previa",
+          "description": "Así es como se verá tu escritorio. Estos datos se pueden editar"
+        },
+        "desktop-information": {
+          "title": "Información del escritorio",
+          "description": "Proporciona un nombre y una descripción para identificar tu escritorio"
+        },
+        "desktop-kind": {
+          "title": "Tipo de escritorio",
+          "description": "Selecciona el tipo de escritorio que deseas crear",
+          "persistent": {
+            "title": "Persistente",
+            "description": "Un escritorio persistente guarda todos los cambios y archivos de forma permanente."
+          },
+          "nonpersistent": {
+            "title": "Temporal",
+            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene. Solo se permite un escritorio temporal por plantilla."
+          }
+        },
+        "access": {
+          "title": "Resumen de acceso",
+          "description": "Este es un resumen de los métodos de acceso disponibles para tu escritorio",
+          "show-access-customization": "Cambiar acceso",
+          "hide-access-customization": "Ocultar acceso"
+        },
+        "all-access": {
+          "title": "Configuración de todo el acceso",
+          "description": "Configuración de seguridad y acceso"
+        },
+        "hardware-limited": {
+          "title": "Hardware limitado",
+          "description": "Los siguientes valores de hardware han sido limitados por permisos de usuario:"
+        },
+        "hardware-summary": {
+          "title": "Resumen de hardware",
+          "description": "Este es un resumen del hardware heredado de la plantilla. Se utilizará para tu escritorio",
+          "show-hardware-customization": "Cambiar hardware",
+          "hide-hardware-customization": "Ocultar hardware"
+        },
+        "all-hardware": {
+          "title": "Todo el hardware",
+          "description": "El hardware se puede editar mediante el siguiente formulario"
+        }
+      },
+      "creating": {
+        "title": "Creando el escritorio",
+        "description": "Tu escritorio se está creando, puede tardar varios minutos"
+      },
+      "success": {
+        "title": "Escritorio creado correctamente",
+        "description": "Puedes iniciar el escritorio ahora o ir a la página de escritorios",
+        "go-to-desktops": "Ir a Escritorios"
+      }
+    },
+    "migration": {
+      "title": "Migración de usuario",
+      "subtitle": "Migrar \"{old_user_name}\" (autenticación {old_user_provider}) a \"{new_user_name}\" (autenticación {new_user_provider})",
+      "notification": {
+        "title": "Información importante al realizar una migración:",
+        "description": {
+          "delete_user": "El usuario anterior \"{old_user_name}\" (autenticación {old_user_provider}) será eliminado.",
+          "disable_user": "El usuario anterior \"{old_user_name}\" (autenticación {old_user_provider}) se desactivará.",
+          "user_description": "Los escritorios iniciados se detendrán. \nLa papelera del usuario se eliminará. \nLas reservas del usuario se eliminarán. \nLos escritorios temporales serán ELIMINADOS \nLos recursos (como redes, RAM, CPU, GPUS) no permitidos para el nuevo usuario serán eliminados o restringidos.",
+          "description": "Los escritorios iniciados se detendrán. \nLa papelera del usuario se eliminará. \nLas reservas del usuario se eliminarán. \nLos escritorios temporales serán ELIMINADOS \nLa lista de co-propietarios en los despliegues será eliminada. \nLos escritorios pertenecientes a otros usuarios en los despliegues migrados permanecerán intactos. \nLos recursos (como redes, RAM, CPU, GPUS) no permitidos para el nuevo usuario serán eliminados o restringidos. \nSi el usuario de destino tiene algún nombre coincidente, los elementos migrados tendrán '(migrated)' añadido a su nombre.",
+          "footer": "El proceso de migración es irreversible."
+        }
+      },
+      "form": {
+        "accept": {
+          "title": "Entiendo y acepto los riesgos asociados con el proceso de migración",
+          "required": "Debes marcar esta casilla para continuar"
+        },
+        "submit": "Confirmar migración"
+      },
+      "error": {
+        "title": "Hubo errores en el proceso de migración:"
+      },
+      "success": {
+        "title": "Migración completada",
+        "description": "Tus elementos se han migrado a esta cuenta. Ya puedes ir a tus escritorios.",
+        "button": "Ir a Escritorios"
+      },
+      "progress": {
+        "title": "Importando tus datos…",
+        "description": "Mantén esta ventana abierta mientras se migran tus elementos.",
+        "overall": "Progreso total"
+      }
+    },
+    "recycle-bin": {
+      "title": "Papelera de reciclaje",
+      "table-title": "Lista de elementos eliminados pendientes de ser restaurados o eliminados permanentemente. Haz clic para ver más detalles sobre cada entrada",
+      "alert": {
+        "title": "Atención",
+        "empty-after": "Los elementos de la papelera se eliminarán permanentemente después de haber estado aquí {time}.",
+        "infinite": "Los elementos de la papelera no se eliminarán automáticamente.",
+        "immediately": "Los elementos de la papelera se eliminarán permanentemente de manera inmediata."
+      },
+      "empty": {
+        "title": "La papelera está vacía",
+        "description": "Los elementos que elimines aparecerán aquí hasta que se restauren o se eliminen permanentemente."
+      },
+      "empty-recycle-bin": "Vaciar papelera",
+      "columns": {
+        "name": "Nombre",
+        "size": "Tamaño",
+        "content": "Contenido",
+        "deleted-at": "Eliminado el",
+        "deleted-by": "Eliminado por",
+        "actions": "Acciones"
+      },
+      "actions": {
+        "restore": "Restaurar",
+        "delete-permanently": "Eliminar permanentemente"
+      },
+      "filters": {
+        "search": {
+          "placeholder": "Buscar entradas en la papelera..."
+        }
+      },
+      "error": {
+        "title": "Error cargando datos de la papelera",
+        "generic": "Se ha producido un error",
+        "restore-failed": "Error al restaurar el elemento",
+        "delete-failed": "Error al eliminar el elemento"
+      },
+      "entry": {
+        "banner": {
+          "alt": "Banner de entrada de la papelera",
+          "title": "Detalles del elemento eliminado",
+          "description": "Revisa el contenido de este elemento eliminado antes de restaurarlo o eliminarlo permanentemente.",
+          "deleted-on": "Eliminado el",
+          "total-size": "Tamaño total",
+          "unknown-size": "Tamaño desconocido",
+          "unknown-date": "Fecha desconocida"
+        },
+        "tabs": {
+          "desktops": "Escritorios",
+          "deployments": "Despliegues",
+          "templates": "Plantillas",
+          "storages": "Almacenamiento"
+        },
+        "filters": {
+          "search": {
+            "placeholder": "Buscar elementos en esta entrada..."
+          }
+        },
+        "tables": {
+          "common": {
+            "name": "Nombre",
+            "owner": "Propietario",
+            "category": "Categoría",
+            "group": "Grupo",
+            "accessed": "Último acceso"
+          },
+          "deployments": {
+            "deployment-desktop": "Escritorio"
+          },
+          "storages": {
+            "id": "ID de almacenamiento",
+            "path": "Ruta",
+            "status": "Estado",
+            "format": "Formato",
+            "size": "Tamaño",
+            "used": "Usado",
+            "total": "Total",
+            "parent": "Disco padre",
+            "owner": "Propietario",
+            "domains": "Dominios"
+          }
+        },
+        "empty": {
+          "title": "No se han encontrado elementos",
+          "description": "Prueba a cambiar la pestaña o ajustar la búsqueda."
+        }
+      }
+    },
+    "register": {
+      "title": "Registro"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "no-notifications": "No hay notificaciones pendientes",
+      "go-to-desktops": "Ir a mis escritorios",
+      "loading": "Cargando notificaciones",
+      "error": {
+        "title": "No se pudieron cargar las notificaciones",
+        "generic": "Se ha producido un error. Vuelve a intentarlo."
+      }
+    },
+    "desktops": {
+      "new-desktop": "Nuevo escritorio",
+      "stop-all": "Parar todos los escritorios",
+      "stop-all-tooltip": {
+        "title": "No hay escritorios iniciados ahora"
+      },
+      "filters": {
+        "kind": {
+          "all": "Todos",
+          "deployment": "Despliegue | Despliegues",
+          "nonpersistent": "Temporal | Temporales",
+          "persistent": "Persistente | Persistentes"
+        },
+        "search": {
+          "placeholder": "Busca los escritorios"
+        },
+        "status": {
+          "all": "Todos",
+          "started": "Iniciados",
+          "stopped": "Parados"
+        }
+      },
+      "go-to-desktops": "Ir a mis escritorios",
+      "go-to-media": "Ir a mis medios",
+      "desktop-created": {
+        "title": "Escritorio creado correctamente",
+        "description": "Puedes iniciarlo ahora o volver a tus escritorios."
+      },
+      "desktop-updated": {
+        "title": "Escritorio actualizado correctamente",
+        "description": "@:views.desktops.desktop-created.description"
+      }
+    },
+    "templates": {
+      "new-template": "Nueva plantilla",
+      "filters": {
+        "search": {
+          "placeholder": "Buscar"
+        }
+      },
+      "table": {
+        "headers": {
+          "name": "Nombre",
+          "description": "Descripción",
+          "owner": "Propietario"
+        },
+        "actions": {
+          "edit": "Editar plantilla",
+          "hide": "Ocultar plantilla",
+          "show": "Hacer la plantilla visible",
+          "update-alloweds": "Actualizar permisos",
+          "template-to-desktop": "Convertir en escritorio",
+          "delete": "Eliminar plantilla",
+          "duplicate": "Duplicar plantilla",
+          "info": "Información"
+        },
+        "failed-badge": "Plantilla con errores",
+        "failed-message": "Esta plantilla ha fallado y no se puede usar para crear escritorios ni despliegues"
+      }
+    },
+    "new-template": {
+      "header": {
+        "cancel": "Cancelar",
+        "create-template": "Crear plantilla",
+        "next": "Siguiente",
+        "previous": "Anterior"
+      },
+      "stepper-steps": {
+        "select-desktop": "Selecciona un escritorio",
+        "configure-template": "Configura la plantilla"
+      },
+      "select": {
+        "title": "Selecciona un escritorio para crear una plantilla a partir de él",
+        "desktop-not-stopped": "El escritorio debe estar parado para crear una plantilla."
+      },
+      "form": {
+        "title": "Configura tu plantilla",
+        "subtitle": "Puedes editar el nombre de la plantilla, la imagen y quién puede usarla.",
+        "sections": {
+          "preview": {
+            "title": "Vista previa",
+            "subtitle": "Edita la plantilla y sus permisos. Esta es la información que se mostrará una vez creada.",
+            "fields": {
+              "name": {
+                "label": "Nombre",
+                "placeholder": "Introduce el nombre de la plantilla",
+                "default": "Plantilla {desktop_name}"
+              },
+              "description": {
+                "label": "Descripción",
+                "placeholder": "Introduce la descripción de la plantilla (opcional)"
+              }
+            }
+          },
+          "visibility": {
+            "title": "Visibilidad",
+            "subtitle": "Edita las diferentes opciones de visibilidad para esta plantilla",
+            "label": "Visible para otros usuarios"
+          },
+          "alloweds": {
+            "title": "Grupos y Usuarios Permitidos",
+            "subtitle": "Esta plantilla se compartirá con {groups} y {users}.",
+            "button": "Gestionar usuarios y grupos"
+          },
+          "access": {
+            "title": "Resumen de acceso",
+            "subtitle": "Este es un resumen de los métodos de acceso disponibles para tu plantilla."
+          },
+          "hardware": {
+            "title": "Resumen de Hardware",
+            "subtitle": "Este es un resumen del hardware heredado que se utilizará para tu plantilla."
+          }
+        },
+        "errors": {
+          "title": "Hubo un error al crear la plantilla",
+          "fields": {
+            "name": {
+              "exists": "Por favor, elige un nombre diferente."
+            }
+          }
+        }
+      }
+    },
+    "profile": {
+      "personal-info": {
+        "title": "Información personal",
+        "fields": {
+          "profile-image": "Imagen decorativa del perfil",
+          "name": "Nombre",
+          "email": "Correo electrónico",
+          "language": "Idioma"
+        }
+      },
+      "security": {
+        "title": "Seguridad",
+        "actions": {
+          "change-password": "Cambiar contraseña",
+          "verify-email": "Verificar / Cambiar correo",
+          "api-key": "Llave API",
+          "reset-vpn": "Restablecer VPN",
+          "download-vpn": "Descargar VPN",
+          "ssh-key": "Llave SSH del bastión"
+        }
+      },
+      "information": {
+        "title": "Información",
+        "fields": {
+          "username": "Nombre de usuario",
+          "authentication": "Autenticación",
+          "category": "Categoría",
+          "group": "Grupo",
+          "role": "Rol",
+          "secondary-groups": "Grupos secundarios"
+        },
+        "actions": {
+          "view-quota": "Ver cuota"
+        }
+      },
+      "migrations": {
+        "title": "Migraciones",
+        "actions": {
+          "export-user": "Exportar usuario",
+          "import-user": "Importar usuario"
+        }
+      },
+      "storage": {
+        "title": "Almacenamiento de usuario",
+        "fields": {
+          "user-storage-link": "Tu URL de almacenamiento de usuario"
+        },
+        "actions": {
+          "manage-user-storage": "Abrir almacenamiento"
+        }
+      },
+      "email-verified": "Correo verificado",
+      "email-not-verified": "Correo no verificado",
+      "no-data": "No hay datos de usuario disponibles"
+    },
+    "media": {
+      "data-table": {
+        "headers": {
+          "name": "Nombre",
+          "description": "Descripción",
+          "status": "Estado",
+          "progress": "Progreso",
+          "kind": "Tipo",
+          "date": "Fecha de creación",
+          "size": "Tamaño",
+          "user": "Usuario",
+          "category": "Categoría",
+          "group": "Grupo"
+        }
+      },
+      "status": {
+        "downloading": "Descargando",
+        "downloaded": "Descargado",
+        "deleting": "Borrando",
+        "downloadfailed": "Descarga fallida",
+        "downloadfailedinvalidformat": "Formato no válido",
+        "downloadstarting": "Iniciando descarga",
+        "downloadaborting": "Abortando descarga",
+        "resetdownloading": "Reiniciando descarga",
+        "maintenance": "Mantenimiento",
+        "download": "Descarga pendiente",
+        "unknown": "Estado desconocido"
+      },
+      "filters": {
+        "search": {
+          "placeholder": "Busca un medio"
+        }
+      },
+      "tooltip": {
+        "buttons": {
+          "allowed": {
+            "title": "Cambiar permisos"
+          },
+          "delete": {
+            "title": "Eliminar medio"
+          },
+          "new-desktop": {
+            "title": "Crear nuevo escritorio"
+          },
+          "download": {
+            "title": "Descargar medio"
+          },
+          "stop-download": {
+            "title": "Parar descarga"
+          },
+          "create-desktop": {
+            "title": "Crear escritorio desde el medio"
+          }
+        },
+        "unavailable": "Contenido multimedia no disponible. Por favor, inténtalo más tarde.",
+        "invalid-format": "El archivo descargado no es una imagen ISO/disquete válida. Elimina esta entrada y prueba con otra URL."
+      },
+      "delete-confirmation-modal": {
+        "title": "Eliminar el medio '{name}'",
+        "subtitle": "Esta acción no se puede deshacer y se perderán todos los datos asociados.",
+        "cancel": "Cancelar",
+        "confirm": "Eliminar"
+      },
+      "action-error-modal": {
+        "abort": "No se ha podido cancelar la descarga.",
+        "close": "Cerrar",
+        "delete": "No se ha podido eliminar el medio.",
+        "download": "No se ha podido iniciar la descarga del medio.",
+        "fallback": "Error inesperado.",
+        "title": "La acción ha fallado"
+      }
+    },
+    "deployments": {
+      "data-table": {
+        "headers": {
+          "visibility": "Visibilidad",
+          "name": "Despliegue",
+          "description": "Descripción",
+          "started-desktops": "Iniciados",
+          "visible-desktops": "Visibles",
+          "total-users": "Usuarios"
+        }
+      },
+      "table-title": "Haz clic en un desplegable para ver y gestionar los detalles",
+      "filters": {
+        "search": {
+          "placeholder": "Buscar despliegues"
+        },
+        "status": {
+          "all": "Todos",
+          "started": "Iniciados",
+          "visible": "Visibles"
+        }
+      },
+      "dropdown": {
+        "buttons": {
+          "edit": "Editar despliegue",
+          "download-viewer": "Descargar enlaces directos",
+          "recreate": "Recrear despliegue",
+          "reserve": "Reservar",
+          "bastion": "Bastión",
+          "bastion-csv": "Descargar el CSV del bastión",
+          "delete": "Eliminar despliegue"
+        }
+      },
+      "visibility": {
+        "visible": "Visible",
+        "hidden": "Oculto"
+      },
+      "empty": {
+        "subtitle": "Crea un despliegue para empezar a proporcionar escritorios a tus usuarios"
+      }
+    },
+    "deployment": {
+      "menu": {
+        "bastion": "Bastión",
+        "bastion-csv": "Descargar el CSV del bastión",
+        "edit": "Editar",
+        "recreate": "Recrear",
+        "toggle-visibility": "Cambiar la visibilidad",
+        "delete": "Eliminar",
+        "book": "Reservar",
+        "create-template": "Crear una plantilla"
+      },
+      "user-bastion": {
+        "title": "Acceso por bastión del usuario"
+      },
+      "banner": {
+        "alt": "Banner del despliegue",
+        "users": "Usuarios",
+        "started": "Iniciados",
+        "visible": "Visibles"
+      },
+      "search-placeholder": "Buscar usuario",
+      "buttons": {
+        "users-and-groups": "Usuarios y grupos",
+        "videowall": "Videowall",
+        "stop-all": "Parar todos",
+        "enter": "Entrar",
+        "stop": "Apagar"
+      },
+      "data-table": {
+        "headers": {
+          "visible": "Visible",
+          "last-access": "Último acceso",
+          "user": "Usuario",
+          "started-desktops": "Escritorios arrancados",
+          "actions": "Acciones"
+        }
+      },
+      "tooltips": {
+        "videowall": "Videowall",
+        "resources": "Recursos",
+        "bastion": "Acceso por bastión del usuario",
+        "delete": "Eliminar"
+      },
+      "recreate-modal": {
+        "title": "Recrear despliegue '{name}'",
+        "description": "Restablece los escritorios al estado inicial en el que se crearon. Solo los escritorios eliminados se restablecerán",
+        "button": "Recrear despliegue"
+      },
+      "actions": {
+        "access": "Acceder",
+        "stop": "Parar"
+      },
+      "delete-user": {
+        "title": "Eliminar los escritorios del usuario",
+        "description": "Se eliminarán todos los escritorios de este usuario del despliegue. Esta acción no se puede deshacer.",
+        "error": "No se han podido eliminar los escritorios del usuario",
+        "loading": "Eliminando los escritorios del usuario…",
+        "confirm": "Eliminar"
+      },
+      "detail": {
+        "users": "Usuarios",
+        "started-desktops": "Escritorios iniciados",
+        "visible": "Escritorios visibles"
+      },
+      "headers": {
+        "visible": "Visible",
+        "last-access": "Último acceso",
+        "user": "Usuario",
+        "started-desktops": "Escritorios iniciados",
+        "actions": "Acciones"
+      },
+      "recreate": {
+        "title": "Recrear el despliegue",
+        "description": "Restaura los escritorios al estado inicial en que se crearon. Solo se restaurarán los escritorios eliminados.",
+        "error": "No se ha podido recrear el despliegue",
+        "loading": "Recreando el despliegue…"
+      },
+      "stop-all": {
+        "title": "Parar todos los escritorios",
+        "description": "Se pararán todos los escritorios iniciados del despliegue. Los usuarios pueden perder el trabajo no guardado.",
+        "error": "No se han podido parar los escritorios del despliegue",
+        "loading": "Parando los escritorios del despliegue…"
+      },
+      "stop-user": {
+        "title": "Parar los escritorios del usuario",
+        "description": "Se pararán los escritorios iniciados de este usuario. Puede perder el trabajo no guardado.",
+        "error": "No se han podido parar los escritorios del usuario",
+        "loading": "Parando los escritorios del usuario…"
+      },
+      "toggle-lab-visibility": {
+        "title-visible": "Hacer visible el despliegue",
+        "title-invisible": "Hacer invisible el despliegue",
+        "description-visible": "Los usuarios del despliegue verán y podrán utilizar sus escritorios.",
+        "description-invisible": "Los usuarios del despliegue dejarán de ver sus escritorios. También puede parar los iniciados.",
+        "only-hide": "Solo ocultar",
+        "hide-and-stop": "Ocultar y parar los escritorios"
+      },
+      "toggle-user-visibility": {
+        "title-visible": "Hacer visibles los escritorios del usuario",
+        "title-invisible": "Hacer invisibles los escritorios del usuario",
+        "description-visible": "El usuario verá y podrá utilizar sus escritorios del despliegue.",
+        "description-invisible": "El usuario dejará de ver sus escritorios del despliegue."
+      }
+    },
+    "new-deployment": {
+      "title": "Nuevo Despliegue",
+      "subtitle": "Crea un nuevo despliegue seleccionando los escritorios que quieres incluir en él y asignándole un nombre.",
+      "steps": {
+        "configuration": {
+          "title": "Configuración"
+        },
+        "select-desktops": {
+          "title": "Escritorios",
+          "add-desktop": "Añadir escritorio",
+          "add-desktop-max": "@:views.new-deployment.steps.select-desktops.add-desktop {current} / {max}",
+          "errors": {
+            "no-desktops": "Al menos un escritorio debe ser añadido al despliegue."
+          }
+        }
+      },
+      "header": {
+        "cancel": "Cancelar",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "create-deployment": "Crear Despliegue"
+      }
+    },
+    "deployment-videowall": {
+      "gpu-warning": "El videowall no funciona con visores RDP",
+      "desktop-not-available": "Escritorio no disponible",
+      "filter-placeholder": "Filtrar por usuario",
+      "only-started": "Solo iniciados",
+      "back-to-deployment": "Volver al despliegue",
+      "view": {
+        "grid": "Vista en cuadrícula",
+        "single": "Vista completa"
+      }
+    },
+    "shared-deployments": {
+      "error": {
+        "loading": "Error al cargar los despliegues:"
+      }
+    },
+    "new-desktop-from-media": {
+      "os-template": {
+        "title": "Plantilla de sistema operativo",
+        "description": "Selecciona la plantilla de sistema operativo para la instalación",
+        "placeholder": "Selecciona una plantilla"
+      }
+    },
+    "direct-viewer": {
+      "title": "Visor directo",
+      "connecting-to": "Accede al escritorio",
+      "loading": {
+        "title": "Cargando escritorio",
+        "description": "El escritorio se está preparando, esto puede tardar unos momentos"
+      },
+      "error-title": "No se ha podido conectar",
+      "error-description": "El enlace del visor directo no es válido o ha caducado.",
+      "errors": {
+        "not-booked": {
+          "title": "Escritorio no reservado",
+          "description": "El escritorio que estás intentando acceder necesita ser reservado para poder iniciarlo. \nContacta con el propietario del escritorio para reservarlo y así poder acceder a él."
+        }
+      },
+      "reset-modal": {
+        "title": "¿Forzar reinicio del escritorio?",
+        "description": "Forzar un reinicio del escritorio es una acción peligrosa. Es el equivalente a quitarle la corriente mientras está en marcha. Si puedes, páralo desde dentro de un visor.",
+        "confirm": "Forzar reinicio del escritorio",
+        "cancel": "Cancelar"
+      },
+      "hardware-summary": "Resumen de hardware",
+      "access-summary": "Resumen de acceso"
+    },
+    "edit-desktop": {
+      "title": "Editar escritorio",
+      "subtitle": "Editando «{name}»",
+      "header": {
+        "cancel": "Cancelar",
+        "save": "Guardar cambios"
+      },
+      "errors": {
+        "title": "Error al guardar el escritorio"
+      },
+      "info": {
+        "title": "Nombre y descripción",
+        "description": "Define el nombre y la descripción del escritorio."
+      },
+      "access": {
+        "title": "Acceso",
+        "description": "Visores, credenciales y configuración del bastion."
+      },
+      "hardware": {
+        "title": "Hardware",
+        "description": "vCPU, memoria, orden de arranque, interfaces y reservables."
+      },
+      "save-confirmation": {
+        "title": "Algunos campos de hardware están restringidos",
+        "description": "Al guardar se aplicarán los cambios restringidos. ¿Continuar?",
+        "cancel": "Cancelar",
+        "confirm": "Guardar de todas formas"
+      },
+      "unsaved-changes": {
+        "title": "Cambios sin guardar",
+        "description": "Tienes cambios sin guardar. Si sales se perderán.",
+        "stay": "Quedarme",
+        "leave": "Descartar cambios"
+      }
+    },
+    "edit-template": {
+      "header": {
+        "cancel": "Cancelar",
+        "save": "Guardar cambios"
+      },
+      "errors": {
+        "title": "Error al guardar la plantilla"
+      }
+    },
+    "error": {
+      "400": {
+        "title": "Solicitud incorrecta",
+        "description": "La solicitud que has enviado no es válida. Revisa los datos e inténtalo de nuevo."
+      },
+      "403": {
+        "title": "Acceso denegado",
+        "description": "No tienes permiso para acceder a este recurso."
+      },
+      "404": {
+        "title": "Página no encontrada",
+        "description": "La página que estás buscando no existe o ha sido eliminada."
+      },
+      "500": {
+        "title": "Error interno del servidor",
+        "description": "Estamos trabajando para solucionar el problema. Por favor, inténtalo de nuevo en unos minutos."
+      },
+      "actions": {
+        "go_back": "Volver",
+        "go_to_login": "Ir al inicio de sesión"
+      }
+    },
+    "forgot-password": {
+      "title": "Restablecer contraseña",
+      "invalid-email": "Introduce una dirección de correo válida",
+      "title-sent": "Correo enviado",
+      "description": "Introduce tu dirección de correo y te enviaremos un enlace para restablecerla.",
+      "email-label": "Correo",
+      "email-placeholder": "nombre{'@'}ejemplo.com",
+      "error-generic": "Se ha producido un error. Inténtalo de nuevo.",
+      "email-sent": "Si tu dirección de correo existe en nuestra base de datos, recibirás un enlace de recuperación de contraseña en breve.",
+      "redirecting": "Redirigiendo al inicio de sesión en {seconds} segundos.",
+      "go-login": "Volver al inicio de sesión",
+      "buttons": {
+        "reset": "Enviar enlace de restablecimiento"
+      }
+    },
+    "reset-password": {
+      "policy": {
+        "length": "Al menos {num} carácter(es)",
+        "uppercase": "Al menos {num} letra(s) mayúscula(s)",
+        "lowercase": "Al menos {num} letra(s) minúscula(s)",
+        "digits": "Al menos {num} número(s)",
+        "special_characters": "Al menos {num} carácter(es) especial(es)",
+        "not_username": "No puede contener tu nombre de usuario",
+        "old_passwords": "No puede ser ninguna de las últimas {num} contraseñas",
+        "expiration": "Caduca cada {num} día(s)",
+        "info-heading": "Además:",
+        "aria-label": "Requisitos de la contraseña",
+        "state": {
+          "met": "cumplido",
+          "unmet": "no cumplido"
+        }
+      },
+      "expired": {
+        "title": "Enlace caducado",
+        "description": "Este enlace para restablecer la contraseña ha caducado. Los enlaces de restablecimiento solo son válidos durante un tiempo limitado.",
+        "action": "Vuelve al inicio de sesión para solicitar uno nuevo."
+      },
+      "invalid": {
+        "title": "Enlace no válido",
+        "description": "Este enlace para restablecer la contraseña ya no es válido. Es posible que ya se haya utilizado para cambiar la contraseña.",
+        "action": "Vuelve al inicio de sesión para solicitar uno nuevo."
+      },
+      "submit-error": {
+        "policy-heading": "La nueva contraseña no cumple los requisitos:",
+        "generic": "Se ha producido un error. Inténtalo de nuevo en unos segundos."
+      },
+      "title": "Cambiar contraseña",
+      "submit": "Actualizar contraseña",
+      "success": {
+        "message": "Contraseña cambiada con éxito.",
+        "redirecting": "Redirigiendo al inicio de sesión en {seconds} segundo(s)."
+      }
+    }
+  },
+  "layouts": {
+    "login": {
+      "title": "Iniciar sesión",
+      "works-with": "Funciona con"
+    },
+    "single-page": {
+      "go-back": "Volver atrás",
+      "logout": "Cerrar sesión"
+    },
+    "maintenance": {
+      "title": "En mantenimiento",
+      "description": "El servicio de IsardVDI volverá a estar disponible en un rato. Disculpen las molestias.",
+      "button": "Ir a inicio de sesión"
+    }
+  },
+  "components": {
+    "quota-exceeded-modal": {
+      "go-to-profile": "Ver cuota"
+    },
+    "metric-item": {
+      "labels": {
+        "low": "Bajo",
+        "medium": "Medio",
+        "high": "Alto"
+      }
+    },
+    "recycle-bin": {
+      "permanent-delete-modal": {
+        "title": "Eliminar permanentemente {name}",
+        "description": "Esta acción no se puede deshacer.",
+        "cancel": "Cancelar",
+        "confirm": "Eliminar",
+        "unknown-item": "este elemento"
+      },
+      "restore-modal": {
+        "title": "Restaurar {name}",
+        "description": "Este elemento volverá a estar disponible para su uso.",
+        "cancel": "Cancelar",
+        "confirm": "Restaurar",
+        "unknown-item": "este elemento",
+        "errors": {
+          "generic": "Se produjo un error al restaurar el elemento. Inténtalo de nuevo.",
+          "unable_to_restore_user": "No se puede restaurar. El usuario \"{user}\" ha sido eliminado.",
+          "unable_to_restore_category": "No se puede restaurar. La categoría asociada ha sido eliminada.",
+          "unable_to_restore_group": "No se puede restaurar. El grupo asociado ha sido eliminado.",
+          "parent_template_not_found": "No se puede restaurar. La plantilla padre ya no existe."
+        }
+      },
+      "empty-modal": {
+        "title": "Vaciar la papelera",
+        "description": "Esto eliminará permanentemente todas las entradas de la papelera. Esta acción es irreversible",
+        "cancel": "Cancelar",
+        "confirm": "Vaciar",
+        "error": "Error al vaciar la papelera"
+      }
+    },
+    "profile": {
+      "api-key-modal": {
+        "title": "Llave API",
+        "alert": {
+          "expired": "Tu antigua llave API ha caducado. Necesitarás generar una nueva para seguir utilizando la API de IsardVDI con aplicaciones externas. Puedes generar una nueva a continuación.",
+          "regenerated": "Tu antigua llave API fue eliminada. A continuación puedes copiar la nueva.",
+          "expired-title": "Llave API caducada",
+          "error-title": "Error en la solicitud",
+          "error-fetch": "No se pudo cargar el estado de tu llave API. Por favor, inténtalo de nuevo.",
+          "error-generate": "No se pudo generar la llave API. Por favor, inténtalo de nuevo.",
+          "error-expire": "No se pudo caducar la llave API. Por favor, inténtalo de nuevo.",
+          "valid-title": "Llave API activa",
+          "valid-description": "Tu llave API es válida hasta el {date}. Después de esa fecha, caducará y no podrás usarla más."
+        },
+        "errors": {
+          "unauthorized": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.",
+          "not_found": "No se pudo encontrar tu llave API.",
+          "internal_server": "Ha ocurrido un error interno del servidor. Por favor, inténtalo más tarde."
+        },
+        "new-key": {
+          "title": "Generar una nueva llave API",
+          "description": "Puedes generar una nueva llave API para usar con aplicaciones externas que integren la API de IsardVDI.",
+          "warning": "Solo podrás ver la llave API una vez, así que asegúrate de guardarla en un lugar seguro.",
+          "buttons": {
+            "generate": "Generar",
+            "expiration-label": "Fecha de caducidad",
+            "show": "Mostrar",
+            "copy": "Copiar",
+            "key-copied": "Llave copiada al portapapeles"
+          }
+        },
+        "existing-key": {
+          "description-1": "Tu llave API es válida hasta el {date}. Después de eso, caducará y no podrás usarla más.",
+          "description-2": "Puedes hacerla caducar ahora para generar una nueva.",
+          "description-expired": "Tu llave API ha caducado. Haz clic en el botón de abajo para eliminarla y generar una nueva.",
+          "buttons": {
+            "expire": "Caducar",
+            "delete": "Eliminar",
+            "expire-tooltip": "Caducar la llave existente"
+          }
+        }
+      },
+      "email-verification-modal": {
+        "title": "Cambiar correo",
+        "description": "Escribe tu nuevo correo. Recibirás un email de verificación para confirmar el cambio.",
+        "email-label": "Correo electrónico",
+        "email-placeholder": "nombre{'@'}ejemplo.com",
+        "invalid-email": "Escribe un correo válido",
+        "error-generic": "Ha ocurrido un error al actualizar tu correo. Por favor, inténtalo de nuevo.",
+        "errors": {
+          "unauthorized": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.",
+          "not_found": "El recurso solicitado no fue encontrado.",
+          "internal_server": "Ha ocurrido un error interno del servidor. Por favor, inténtalo más tarde.",
+          "email_already_in_use": "Este correo ya está en uso",
+          "invalid_email": "El formato del correo es inválido"
+        },
+        "buttons": {
+          "cancel": "Cancelar",
+          "verify": "Actualizar y verificar"
+        }
+      },
+      "import-user-modal": {
+        "title": "Importar usuario",
+        "description": "Importa los elementos de otro usuario a esta cuenta",
+        "instructions-title": "Cómo obtener un código de migración",
+        "migration-instructions1": "Para empezar, necesitas un código de migración de la cuenta que deseas importar.",
+        "migration-instructions2": "Si no tienes uno, primero debes iniciar sesión en la cuenta que quieres migrar, hacer clic en \"Exportar Usuario\" en la página de perfil y seguir las instrucciones indicadas.",
+        "migration-instructions3": "Una vez tengas el código de migración, pégalo en el campo de abajo.",
+        "token-label": "Código de migración",
+        "placeholder": "Introduce el código de migración",
+        "migrate-tooltip": "Ve a la página de migración para continuar el proceso",
+        "buttons": {
+          "migrate": "Iniciar migración"
+        },
+        "errors": {
+          "title": "Error de importación",
+          "generic": "Ha ocurrido un error al importar el usuario. Inténtalo de nuevo.",
+          "unknown": "Se ha producido un error",
+          "migration_not_found": "El token de migración no existe",
+          "token_expired": "El token proporcionado ha expirado",
+          "invalid_token": "El token proporcionado no es válido",
+          "no_items_to_migrate": "No hay elementos para migrar",
+          "multiple_migrations_found_target_user": "Hay múltiples migraciones para el nuevo usuario",
+          "same_user_migration": "No puedes migrar a la misma cuenta. Cuando obtengas el token, debes cerrar la sesión e iniciar sesión con la nueva cuenta",
+          "different_category_migration": "No puedes migrar a una cuenta de una categoría diferente",
+          "role_migration_admin": "No puedes migrar desde una cuenta de administrador",
+          "role_migration_user": "No puedes migrar a una cuenta de usuario desde una cuenta con un rol superior",
+          "migration_desktop_quota_error": "El usuario tiene más escritorios que la cuota del nuevo usuario",
+          "migration_template_quota_error": "El usuario tiene más plantillas que la cuota del nuevo usuario",
+          "migration_media_quota_error": "El usuario tiene más medios que la cuota del nuevo usuario",
+          "migration_deployments_quota_error": "El usuario tiene más despliegues que la cuota del nuevo usuario"
+        }
+      },
+      "password-modal": {
+        "title": "Cambiar contraseña",
+        "new-password": {
+          "label": "Contraseña nueva",
+          "placeholder": "Contraseña nueva"
+        },
+        "confirm-new-password": {
+          "label": "Confirma la contraseña",
+          "placeholder": "Confirmar contraseña"
+        },
+        "current-password": {
+          "label": "Contraseña actual",
+          "placeholder": "Contraseña actual"
+        },
+        "buttons": {
+          "update": "Actualizar",
+          "cancel": "Cancelar"
+        },
+        "errors": {
+          "required": "Este campo es obligatorio",
+          "mismatch": "Las contraseñas no coinciden",
+          "password_character_length": "La contraseña debe tener al menos {num} caracter(es)",
+          "password_uppercase": "La contraseña debe tener al menos {num} caracter(es) en mayúscula",
+          "password_lowercase": "La contraseña debe tener al menos {num} caracter(es) en minúscula",
+          "password_digits": "La contraseña debe tener al menos {num} número(s)",
+          "password_special_characters": "La contraseña debe tener al menos {num} caracter(es) especiales: !{'@'}{'#'}$%^&*()-_=+[]{'{'}{'}'}{'|'};:'\",.<>/?",
+          "password_already_used": "Esta contraseña ya se ha utilizado anteriormente",
+          "password_username": "La contraseña no puede contener el nombre de usuario",
+          "wrong_password_entered": "La contraseña introducida es incorrecta",
+          "generic": "Se ha producido un error inesperado. Vuelve a intentarlo.",
+          "internal_server": "Ha ocurrido un error interno del servidor. Por favor, inténtalo más tarde."
+        }
+      },
+      "quota-modal": {
+        "title": "Cuota",
+        "description": "Aquí puedes consultar el uso de tus recursos.",
+        "total_size": "Usando {0} del espacio de almacenamiento.",
+        "storage_current_usage": "Uso actual del almacenamiento",
+        "restriction_title": "Restricción aplicada",
+        "restriction_description": "La restricción que se aplica es",
+        "restrictions": {
+          "user_quota": "Cuota de usuario",
+          "group_quota": "Cuota de grupo",
+          "category_quota": "Cuota de categoría"
+        },
+        "metrics": {
+          "desktops": "Escritorios persistentes",
+          "volatile": "Escritorios temporales",
+          "media": "Medios",
+          "memory": "Memoria usada (GB)",
+          "running": "Escritorios en ejecución",
+          "templates": "Plantillas",
+          "vcpus": "vCPUs usadas",
+          "total-disk-size": "Tamaño de disco usado",
+          "total-media-size": "Tamaño de medios usado",
+          "total-size": "Tamaño usado (GB)",
+          "unit": "Tamaño de unidad personal (MB)",
+          "deployments_total": "Despliegues",
+          "deployment_desktops": "Máx. de escritorios por despliegue",
+          "deployment_users": "Máx. de usuarios por despliegue",
+          "started_deployment_desktops": "Escritorios en ejecución del despliegue"
+        }
+      },
+      "reset-vpn-modal": {
+        "title": "Restablecer claves VPN",
+        "description": "¿Restablecer las claves VPN? Tendrás que descargar un nuevo archivo VPN",
+        "cancel": "Cancelar",
+        "confirm": "Restablecer VPN",
+        "errors": {
+          "unauthorized": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.",
+          "internal_server": "No pudimos restablecer tus claves VPN por un error del servidor. Inténtalo más tarde.",
+          "generic": "No pudimos restablecer tus claves VPN. Inténtalo de nuevo."
+        }
+      },
+      "ssh-key-modal": {
+        "alert": {
+          "error-remove": "No se ha podido eliminar la llave SSH. Inténtalo de nuevo.",
+          "error-save": "No se ha podido guardar la llave SSH. Comprueba la llave e inténtalo de nuevo.",
+          "error-title": "La solicitud ha fallado"
+        },
+        "buttons": {
+          "remove": "Eliminar llave",
+          "save": "Guardar llave"
+        },
+        "description": "Añade tu propia llave pública SSH al perfil. Se añade automáticamente al acceso SSH del bastión de cualquier escritorio que inicies (cuando el acceso SSH por bastión está activado en ese escritorio), de modo que no tienes que añadirla a cada escritorio.",
+        "invalid": "Esto no parece una llave pública SSH válida.",
+        "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... usuario{'@'}host",
+        "security-note": "Añade solo tu propia llave pública. Añadir la llave de otra persona puede violar la política de seguridad de tu organización.",
+        "title": "Llave SSH del bastión"
+      }
+    },
+    "login": {
+      "login-provider-form": {
+        "category": "Categoría",
+        "username": "Nombre de usuario",
+        "password": "Contraseña",
+        "forgot-password": "¿Has olvidado tu contraseña?",
+        "login": "Iniciar sesión"
+      },
+      "login-provider-external": {
+        "default-text": {
+          "saml": "Iniciar sesión con SAML",
+          "google": "Iniciar sesión con Google"
+        }
+      },
+      "login-categories-dropdown": {
+        "placeholder": "Selecciona una categoría",
+        "not-found": "No se ha encontrado ninguna categoría"
+      },
+      "login-category-select": {
+        "logged-in-as": "Has iniciado sesión como {name}",
+        "logout": "Cerrar sesión"
+      }
+    },
+    "register": {
+      "register-form": {
+        "code": "Código de registro",
+        "register": "Registrarse",
+        "cancel": "Cancelar"
+      }
+    },
+    "sidebar": {
+      "collapse": "Colapsar menú",
+      "expand": "Expandir menú",
+      "desktops": "Escritorios",
+      "templates": "Plantillas",
+      "media": "Medios",
+      "deployments": {
+        "title": "Despliegues",
+        "created-by-you": "Creados por ti",
+        "shared-deployments": "Compartidos contigo"
+      },
+      "user-deployments": "Mis despliegues",
+      "bookings": {
+        "title": "Reservas",
+        "summary": "Resumen",
+        "planning": "Planificación"
+      },
+      "help": {
+        "title": "Ayuda",
+        "docs": "Documentación",
+        "viewers": "Visores"
+      },
+      "recycle-bin": "Papelera",
+      "administration": "Administración",
+      "profile": "Ir a tu perfil",
+      "logout": "Cerrar sesión",
+      "websockets-on": "Actualizaciones en tiempo real activadas",
+      "websockets-off": "Actualizaciones en tiempo real desactivadas"
+    },
+    "migration": {
+      "migration-item-table": {
+        "name": "Nombre"
+      },
+      "migration-item-box": {
+        "quota_exceeded": "Las cuotas de '{type}' se superarán"
+      }
+    },
+    "not-enough-advanced-time-modal": {
+      "title": "No hay suficiente tiempo de antelación",
+      "description": "Necesitas reservar este escritorio con antelación para usarlo. Por favor, ve a la página de reservas para programar tu sesión.",
+      "book": "Reservar escritorio",
+      "cancel": "Cancelar"
+    },
+    "desktop-gpu-unavailable-modal": {
+      "title": "La GPU '{current-gpu}' no está disponible para el escritorio '{name}' en este momento.",
+      "change-and-start": {
+        "title": "Cambiar e iniciar",
+        "subtitle": "Se puede cambiar a un modelo de tarjeta gráfica disponible ahora e iniciarlo (Podría afectar el rendimiento del escritorio).",
+        "action-button": "Cambiar e iniciar"
+      },
+      "book": {
+        "title": "Reservar el escritorio",
+        "subtitle": "Reserva el escritorio con su perfil de tarjeta gráfica actual comprobando su planificación",
+        "action-button": "Reservar escritorio"
+      },
+      "description": "Puedes reservar el escritorio para más tarde con su GPU actual, o cambiar la GPU ahora e iniciar el escritorio inmediatamente."
+    },
+    "desktop-start-now-modal": {
+      "cancel": "Cancelar",
+      "confirm": "Inicia el escritorio",
+      "description": "Seleccione hasta cuándo se utilizará el escritorio.",
+      "title": "Iniciar",
+      "select": {
+        "label": "Hora de finalización",
+        "placeholder": "Seleccione hasta cuando se utilizará"
+      }
+    },
+    "desktop-gpu-change-and-start-modal": {
+      "title": "Cambiar e iniciar",
+      "book": "Reservar escritorio",
+      "cancel": "Cancelar",
+      "confirm": "Cambiar e iniciar",
+      "description": "Cambie la GPU del escritorio e inícielo inmediatamente.",
+      "empty": {
+        "description": "No hay perfiles disponibles para este escritorio",
+        "title": "No hay perfiles disponibles"
+      },
+      "gpu-select": {
+        "placeholder": "Perfiles de GPU disponibles",
+        "value": "Cambiar a '{profile}'",
+        "label": "Nuevo perfil de GPU"
+      }
+    },
+    "desktops": {
+      "desktop-card": {
+        "ip-address": "Dirección IP: {ip}",
+        "actions": {
+          "bastion": "Bastion",
+          "book": "Reservar",
+          "delete": "Eliminar",
+          "edit": "Editar",
+          "direct-link": "Enlace directo",
+          "info": "Información",
+          "recreate": "Recrear",
+          "template": "Convertir en plantilla",
+          "change-image": "Cambiar imagen",
+          "storage": "Almacenamiento",
+          "reset": "Reiniciar",
+          "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",
+          "networks": "Redes"
+        },
+        "debug-options": {
+          "copy-id": "Copiar ID del escritorio"
+        },
+        "notification-bar": {
+          "booking-ends": "La reserva termina el {date} a las {time}",
+          "needs-booking": "Este escritorio necesita una reserva para iniciarse",
+          "next-booking": "Próxima reserva: {date} a las {time}",
+          "no-next-booking": "No hay próximas reservas programadas",
+          "shutdown": "El escritorio se apagará el {date} a las {time}",
+          "queue-position": "Posición en cola: {position}",
+          "maintenance": {
+            "default": "Una operación de mantenimiento está en curso",
+            "resize": "El tamaño de disco de este escritorio está siendo incrementado",
+            "virt_win_reg": "Se está editando el registro",
+            "move": "El disco de este escritorio se está moviendo",
+            "sparsify": "El disco de este escritorio está siendo optimizado"
+          }
+        },
+        "status": {
+          "notCreated": {
+            "action": "Crear"
+          },
+          "creating": {
+            "text": "Creando",
+            "action": "Creando"
+          },
+          "failed": {
+            "text": "Fallido",
+            "action": "Reintentar"
+          },
+          "started": {
+            "text": "Iniciado",
+            "action": "Parar"
+          },
+          "starting": {
+            "text": "Iniciando",
+            "action": "Iniciando"
+          },
+          "stopped": {
+            "text": "Parado",
+            "action": "Iniciar",
+            "start-now": "Iniciar"
+          },
+          "stopping": {
+            "text": "Parando",
+            "action": "Parando"
+          },
+          "waitingip": {
+            "text": "Esperando IP",
+            "action": "Parar"
+          },
+          "readyCreation": {
+            "text": "Listo para crear"
+          },
+          "working": {
+            "text": "Esperando",
+            "action": "trabajando"
+          },
+          "shutting-down": {
+            "text": "Apagando",
+            "action": "Forzar parada"
+          },
+          "downloading": {
+            "text": "Descargando"
+          },
+          "forcedeleting": {
+            "text": "Borrando",
+            "action": "Borrando"
+          },
+          "paused": {
+            "text": "Pausado",
+            "action": "Parar"
+          },
+          "reset": {
+            "text": "Reiniciar",
+            "action": "Reiniciando"
+          },
+          "updating": {
+            "text": "Procesando",
+            "action": "Procesando"
+          },
+          "maintenance": {
+            "text": "En mantenimiento",
+            "action": "Cancelar operación"
+          },
+          "unknown": {
+            "text": "Temporalmente no disponible"
+          },
+          "downloadfailed": {
+            "text": "Descarga fallida"
+          },
+          "downloadaborting": {
+            "text": "Cancelando descarga"
+          },
+          "downloadstarting": {
+            "text": "Descargando"
+          },
+          "creatingandstarting": {
+            "action": "Creando e iniciando",
+            "text": "Creando e iniciando"
+          }
+        },
+        "info": {
+          "boot": "Arranque"
+        },
+        "networks": {
+          "more": "más"
+        },
+        "overlay": {
+          "expand": "Detalles",
+          "expand-tooltip": "Abre la ventana de detalles completos"
+        }
+      },
+      "desktop-storage-modal": {
+        "title": "Almacenamiento — {name}",
+        "description": "Discos de almacenamiento asociados a este escritorio. Las acciones están disponibles mientras el escritorio está parado.",
+        "close": "Cerrar",
+        "no-storages": "Este escritorio no tiene almacenamiento asociado.",
+        "load-error": "No se han podido cargar los datos del almacenamiento.",
+        "virtual-size": "Tamaño virtual",
+        "actual-size": "Tamaño real",
+        "status": {
+          "ready": "Listo",
+          "maintenance": "En mantenimiento",
+          "deleted": "Eliminado",
+          "orphan": "Huérfano",
+          "broken_chain": "Cadena rota",
+          "non_existing": "Aún no creado",
+          "downloading": "Descargando",
+          "unknown": "Desconocido"
+        },
+        "actions": {
+          "cancel": "Cancelar operación",
+          "cancel-tooltip": "Cancela la tarea de almacenamiento en curso sobre este disco.",
+          "increase": "Aumentar tamaño",
+          "increase-tooltip": "Añade capacidad al disco.",
+          "increase-needs-stopped": "El escritorio debe estar parado para aumentar el tamaño del disco.",
+          "increase-needs-ready": "El disco debe estar listo para redimensionarlo.",
+          "no-actions": "No hay acciones disponibles para este almacenamiento."
+        },
+        "cancel-modal": {
+          "title": "¿Cancelar la operación de almacenamiento?",
+          "description": "¿Cancelar la tarea de almacenamiento en curso sobre {name}? Los archivos parciales se limpiarán después de abortar la tarea.",
+          "dismiss": "Mantener",
+          "confirm": "Cancelar operación",
+          "fallback-error": "No se ha podido cancelar la operación de almacenamiento."
+        },
+        "increase-modal": {
+          "title": "Aumentar el tamaño del disco",
+          "description": "Añade capacidad al disco del escritorio. El incremento se aplica al tamaño virtual y no se puede deshacer.",
+          "field-label": "Incremento en GB",
+          "field-placeholder": "10",
+          "help": "El disco crece según la cantidad de gigabytes especificada. Las cuotas se validan en el servidor.",
+          "dismiss": "Cancelar",
+          "confirm": "Aumentar",
+          "fallback-error": "No se ha podido aumentar el tamaño del disco."
+        },
+        "error": {
+          "title": "La acción de almacenamiento ha fallado",
+          "close": "Cerrar"
+        }
+      },
+      "direct-viewer-modal": {
+        "title": "Enlace de acceso directo",
+        "enable-access": "Habilitar el acceso directo",
+        "disable-confirmation": {
+          "title": "¿Desactivar el enlace de acceso directo?",
+          "description": "El enlace actual dejará de funcionar. Si vuelves a habilitar el acceso directo en el futuro, se generará un nuevo enlace y el anterior ya no será válido.",
+          "cancel": "Cancelar",
+          "confirm": "Desactivar"
+        }
+      },
+      "data-table": {
+        "headers": {
+          "name": "Nombre",
+          "description": "Descripción",
+          "status": "Estado",
+          "actions": "Acciones",
+          "viewers": "Visores"
+        }
+      },
+      "quota-exceeded-modal": {
+        "title": "Cuota de creación de escritorios superada",
+        "description": "Cuota de creación de escritorios superada. Debe eliminarse un escritorio para crear uno nuevo.",
+        "go-to-profile": "Ver cuota",
+        "cancel": "Volver a escritorios"
+      },
+      "start-quota-exceeded-modal": {
+        "title": "Cuota de arranque de escritorios superada",
+        "description": "Se ha alcanzado el número máximo de escritorios en ejecución. Se debe detener un escritorio para iniciar uno nuevo.",
+        "cancel": "Volver a escritorios"
+      },
+      "storage-unavailable-modal": {
+        "title": "Almacenamiento no disponible",
+        "description": "El almacenamiento de creación no está disponible actualmente y no se pueden crear escritorios. Por favor, inténtelo más tarde.",
+        "go-to-desktops": "Volver a escritorios",
+        "go-to-media": "Volver a medios"
+      },
+      "start-storage-unavailable-modal": {
+        "title": "Recursos del sistema no disponibles",
+        "description": "Los recursos del sistema no estan disponibles actualmente y no se pueden iniciar escritorios. Por favor, inténtelo más tarde.",
+        "go-to-desktops": "Volver a escritorios"
+      },
+      "fields": {
+        "ip": {
+          "title-full": "@:components.domain-info-modal.fields.ip.title del @:domains.desktops"
+        }
+      }
+    },
+    "empty": {
+      "clear-filters": "Limpiar filtros",
+      "description": "Sus {kind} aparecerán aquí una vez que se creen o se te asignen.",
+      "title": "No hay {kind} disponibles"
+    },
+    "empty-search": {
+      "title": "No se encontraron resultados"
+    },
+    "recreate-desktop-confirmation-modal": {
+      "cancel": "Cancelar",
+      "confirm": "Recrear escritorio",
+      "description": "Recrear el escritorio borrará todos los cambios que hayas hecho y lo restaurara al estado original de su plantilla\nEsta acción no puede deshacerse.",
+      "title": "Recrear el escritorio '{name}'"
+    },
+    "stop-all-desktops-confirmation-modal": {
+      "cancel": "Cancelar",
+      "confirm": "Pararlos todos",
+      "description": "Esta acción detendrá todos los escritorios iniciados. ¿Estás seguro/a que quieres continuar?",
+      "title": "Parar todos los escritorios",
+      "force": "Forzar la parada de los escritorios"
+    },
+    "desktop-networks-modal": {
+      "title": "Redes del escritorio '{name}'",
+      "description": "Interfaces de red conectadas a este escritorio. La interfaz Wireguard se muestra primero cuando está presente y expone la IP enrutable del huésped.",
+      "empty": "Este escritorio no tiene ninguna red conectada",
+      "error": "No se ha podido cargar la información de red",
+      "no-ip": "Sin IP asignada",
+      "fields": {
+        "id": "ID",
+        "mac": "Dirección MAC",
+        "ip": "Dirección IP"
+      }
+    },
+    "domain-info-modal": {
+      "desktop": {
+        "description-prefix": "Estos son los detalles del escritorio",
+        "fields": {
+          "id": "ID del escritorio",
+          "template": {
+            "id": "ID de la plantilla",
+            "title": "Plantilla"
+          }
+        }
+      },
+      "template": {
+        "description-prefix": "Estos son los detalles de la plantilla",
+        "fields": {
+          "id": "ID de la plantilla"
+        }
+      },
+      "title": "Información",
+      "fields": {
+        "description": {
+          "title": "Descripción"
+        },
+        "hardware": {
+          "ram": "{ram} GB RAM",
+          "title": "Hardware",
+          "vcpu": "{vcpu} vCPU"
+        },
+        "ip": {
+          "title": "Dirección IP"
+        },
+        "peripherals": {
+          "title": "Periféricos"
+        },
+        "reservables": {
+          "title": "Reservables"
+        },
+        "status": {
+          "title": "Estado"
+        },
+        "system": {
+          "title": "Sistema"
+        },
+        "viewers": {
+          "fullscreen-disabled": "Pantalla completa deshabilitada",
+          "fullscreen-enabled": "Pantalla completa habilitada",
+          "title": "Visores"
+        }
+      }
+    },
+    "domain-access-summary": {
+      "credentials": {
+        "title": "Credenciales"
+      },
+      "viewers": {
+        "title": "Visores"
+      },
+      "bastion": {
+        "title": "Bastión"
+      }
+    },
+    "viewers-selector": {
+      "browser-viewers": {
+        "label": "Visores de navegador",
+        "info": "Estos visores te permiten conectarte directamente desde el navegador web. No se necesita software adicional.",
+        "rdp-browser": "RDP en navegador",
+        "vnc-browser": "VNC en navegador"
+      },
+      "file-viewers": {
+        "label": "Visores de archivo",
+        "info": "Estos visores requieren descargar un archivo para conectarte al escritorio. Se necesita un software específico para usarlos.",
+        "rdp": "RDP",
+        "spice": "SPICE",
+        "rdp-vpn": "RDP VPN"
+      }
+    },
+    "change-viewer-modal": {
+      "title": "Cambiar visor",
+      "subtitle": "Puedes ver este escritorio desde tu navegador o con un cliente de escritorio remoto.",
+      "badge": {
+        "browser": "Navegador",
+        "application": "Aplicación"
+      },
+      "show-guide": "Ver guía",
+      "confirm": "Cambiar",
+      "cancel": "Cancelar",
+      "bullets": {
+        "browser-vnc": {
+          "0": "Funciona en cualquier navegador moderno",
+          "1": "Latencia media",
+          "2": "Sin audio disponible"
+        },
+        "browser-rdp": {
+          "0": "Funciona en cualquier navegador moderno",
+          "1": "Latencia baja",
+          "2": "Con audio y portapapeles",
+          "3": "Requiere la red WireGuard"
+        },
+        "file-spice": {
+          "0": "Latencia baja con audio",
+          "1": "Conecta con dispositivos externos (USB, etc.)",
+          "2": "Requiere virt-viewer instalado"
+        },
+        "file-rdpgw": {
+          "0": "Latencia baja con audio",
+          "1": "Conecta con dispositivos externos (USB, etc.)",
+          "2": "Mejor experiencia en escritorios Windows",
+          "3": "Requiere la red WireGuard"
+        },
+        "file-rdpvpn": {
+          "0": "Latencia baja con audio",
+          "1": "Conecta dispositivos externos (USB, etc.)",
+          "2": "Mejor experiencia en escritorios Windows",
+          "3": "Requiere acceso VPN con cliente WireGuard"
+        }
+      },
+      "guide-url": {
+        "browser-vnc": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#vnc-browser",
+        "browser-rdp": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#rdp-browser-viewer",
+        "file-spice": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#spice",
+        "file-rdpgw": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#native-rdp",
+        "file-rdpvpn": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#native-rdp"
+      }
+    },
+    "domain-hardware-summary": {
+      "system": {
+        "title": "Sistema"
+      },
+      "networks": {
+        "title": "Redes"
+      },
+      "peripherals": {
+        "title": "Periféricos"
+      },
+      "reservables": {
+        "title": "Reservables"
+      }
+    },
+    "datatable": {
+      "empty": "No hay escritorios disponibles",
+      "pagination": {
+        "rows": "filas",
+        "showing": "Por página:",
+        "previous": "Anterior",
+        "next": "Siguiente"
+      }
+    },
+    "notification-modal": {
+      "title": "Notificaciones"
+    },
+    "message-modal": {
+      "title": "Información importante",
+      "extend-time": "Ampliar {minutes} min",
+      "messages": {
+        "desktop-time-limit": "El escritorio '{name}' se apagará automáticamente a las {date}.",
+        "searching-resources": "Estamos buscando recursos para el escritorio. Se iniciará en breves minutos, por favor espere."
+      }
+    },
+    "delete-confirmation-modal": {
+      "cancel": "Cancelar",
+      "title": "Eliminar {kind} '{name}'",
+      "confirm": {
+        "permanent": "Eliminar permanentemente",
+        "recycle-bin": "Enviar a la papelera de reciclaje"
+      },
+      "description": {
+        "permanent": {
+          "title": "Esta acción no se puede deshacer y se perderán todos los datos asociados."
+        },
+        "recycle-bin": {
+          "subtitle": "Los elementos de la papelera de reciclaje se eliminarán permanentemente después de: {hours} horas.",
+          "title": "Envíe el elemento a la papelera de reciclaje (su almacenamiento aún se considerará en la cuota de usuario hasta que se elimine permanentemente).",
+          "infinite-subtitle": "Los elementos de la papelera no se eliminarán automáticamente."
+        }
+      }
+    },
+    "deployment-bastion-modal": {
+      "title": "Bastión — {name}",
+      "description": "Active o desactive el acceso por bastión para todos los escritorios de este despliegue. Los escritorios en marcha se actualizan inmediatamente; los escritorios nuevos y recreados heredan esta configuración cuando se inician por primera vez.",
+      "error-loading": "No se ha podido cargar la configuración del bastión del despliegue",
+      "error-saving": "No se ha podido guardar la configuración del bastión del despliegue",
+      "buttons": {
+        "save": "Guardar"
+      }
+    },
+    "deployment-user-bastion-modal": {
+      "title": "Acceso por bastión — {name}",
+      "description": "Seleccione un escritorio para ver sus detalles de acceso por bastión.",
+      "error-loading": "No se han podido cargar los escritorios del usuario",
+      "no-desktops": "Este usuario no tiene escritorios en este despliegue",
+      "view-bastion": "Acceso por bastión",
+      "back": "Volver a los escritorios"
+    },
+    "bastion-info-modal": {
+      "description": "Utilice la siguiente información para conectarse al escritorio a través del bastión.",
+      "title": "Información de bastión para el escritorio '{name}'",
+      "fields": {
+        "http": {
+          "title": "HTTP / HTTPS",
+          "custom-domain": {
+            "less-details": "Menos detalles",
+            "more-details": "Más detalles",
+            "title": "Nombre de dominio personalizado",
+            "placeholder": "miescritorio.example.com",
+            "alert": {
+              "description": "Añade un registro CNAME a tu proveedor de DNS que apunte a: {cname-url}",
+              "title": "Puedes usar tu propio nombre de dominio para acceder a este escritorio a través del bastión."
+            }
+          }
+        },
+        "ssh": {
+          "title": "SSH",
+          "authorized-keys": {
+            "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
+            "title": "Claves SSH autorizadas (una por línea)"
+          }
+        },
+        "target-id": {
+          "title": "ID de bastión"
+        }
+      },
+      "error-loading-bastion-data": "Error al cargar los datos del bastión",
+      "error-loading-user-config": "Error al cargar la configuración del usuario",
+      "error": {
+        "title": "No se ha podido cargar el acceso por bastión"
+      },
+      "no-bastion-configured": "El bastión no está activado para este escritorio",
+      "no-bastion-configured-description": "Edita el escritorio y activa el acceso HTTP/HTTPS o SSH para usar el bastión."
+    },
+    "templates": {
+      "template-type": {
+        "owned": "Mis plantillas",
+        "shared": "Plantillas compartidas"
+      },
+      "change-visibility-confirmation-modal": {
+        "hide": {
+          "title": "Ocultar la plantilla '{name}'",
+          "description": "Ocultar la plantilla la hará invisible para que otros usuarios puedan crear escritorios a partir de ella. Cualquier escritorio temporal creado a partir de esta plantilla será eliminado.",
+          "confirm": "Ocultar plantilla"
+        },
+        "show": {
+          "title": "Hacer visible la plantilla '{name}'",
+          "description": "Hacer visible la plantilla permitirá que otros usuarios creen escritorios a partir de ella.",
+          "confirm": "Hacer visible la plantilla"
+        },
+        "cancel": "Cancelar"
+      },
+      "delete-confirmation-modal": {
+        "title": "Eliminar la plantilla '{name}'",
+        "subtitle": "Esta acción no se puede deshacer y se perderán todos los datos asociados.",
+        "fields": {
+          "dependency": {
+            "alert": {
+              "title": "Aviso de dependencia",
+              "description": "Los siguientes escritorios y plantillas dependen de esta plantilla y serán eliminados. Esta acción no se puede deshacer y se perderán todos sus datos asociados.",
+              "pending": "Hay algunos elementos que dependen de esta plantilla que no son tuyos. Por favor, contacta con un administrador para eliminar esta plantilla."
+            },
+            "datatable": {
+              "headers": {
+                "kind": "Tipo",
+                "name": "Nombre",
+                "user": "Usuario"
+              }
+            }
+          }
+        },
+        "cancel": "Cancelar",
+        "confirm": "Eliminar plantilla",
+        "debug-options": {
+          "copy-id": "Copiar ID"
+        }
+      },
+      "convert-to-desktop-modal": {
+        "title": "Convertir la plantilla '{name}' en un escritorio",
+        "form": {
+          "name": {
+            "label": "Nuevo nombre",
+            "description": "Puedes renombrar la plantilla ahora para darle un nombre diferente al escritorio."
+          }
+        },
+        "alert": {
+          "title": "Conversión bloqueada",
+          "description": {
+            "duplicated": "Esta plantilla es una copia de otra plantilla y no se puede convertir en un escritorio. Por favor, contacta con un administrador.",
+            "dependencies": "Esta plantilla tiene derivados y no se puede convertir en un escritorio. Por favor, contacta con un administrador.",
+            "pending": "@:components.templates.convert-to-desktop-modal.alert.description.dependencies",
+            "error": "Hubo un error al comprobar las dependencias de esta plantilla. Por favor, inténtalo de nuevo más tarde o contacta con un administrador si el problema persiste."
+          }
+        },
+        "cancel": "Cancelar",
+        "confirm": "Convertir en escritorio",
+        "debug-options": {
+          "copy-id": "@:components.templates.delete-confirmation-modal.debug-options.copy-id"
+        }
+      },
+      "quota-exceeded-modal": {
+        "title": "Cuota de creación de plantillas superada",
+        "description": "Cuota de creación de plantillas superada. Debe eliminarse una plantilla para crear una nueva.",
+        "cancel": "Volver a plantillas",
+        "go-to-profile": "Comprobar tu cuota"
+      },
+      "datatable": {
+        "debug-options": {
+          "copy-id": "Copiar ID de la plantilla"
+        }
+      }
+    },
+    "domain": {
+      "info": {
+        "name": {
+          "label": "Nombre",
+          "placeholder": "Introduce el nombre del escritorio"
+        },
+        "description": {
+          "label": "Descripción",
+          "placeholder": "Introduce la descripción del escritorio (opcional)"
+        }
+      },
+      "access": {
+        "sections": {
+          "credentials": "Credenciales",
+          "viewers": "Visores",
+          "bastion": "Bastión",
+          "bastion-configuration": "Configuración del bastión"
+        },
+        "credentials": {
+          "username": {
+            "label": "Nombre de usuario",
+            "placeholder": "Introduce el nombre de usuario"
+          },
+          "password": {
+            "label": "Contraseña",
+            "placeholder": "Introduce la contraseña",
+            "help": "AVISO: La contraseña se guardará sin cifrar en la base de datos."
+          }
+        },
+        "fullscreen": {
+          "label": "Activar pantalla completa por defecto",
+          "description": "Si se activa, el visor se abrirá en pantalla completa."
+        },
+        "viewers": {
+          "label": "Visores"
+        },
+        "bastion": {
+          "label": "Bastión activado",
+          "description": "Permite el acceso al escritorio a través de un host bastión.",
+          "http-https": {
+            "label": "HTTP / HTTPS",
+            "description": "Accede al escritorio usando un navegador web o un visor RDP compatible con conexiones HTTP/HTTPS.",
+            "http-port": {
+              "label": "Puerto HTTP",
+              "placeholder": "Introduce el puerto HTTP"
+            },
+            "https-port": {
+              "label": "Puerto HTTPS",
+              "placeholder": "Introduce el puerto HTTPS"
+            },
+            "proxy-protocol": {
+              "label": "Proxy Protocol v2",
+              "description": "Actívalo para reenviar la IP real del cliente al escritorio. Actívalo solo si el servidor web del escritorio soporta Proxy Protocol v2."
+            },
+            "custom-domains": {
+              "label": "Nombre de dominio personalizado (opcional)",
+              "placeholder": "miescritorio.ejemplo.com",
+              "empty": "No se han añadido dominios personalizados",
+              "add": "Añadir dominio personalizado",
+              "more-details": "Más detalles",
+              "less-details": "Menos detalles",
+              "alert": {
+                "title": "Puedes usar tu propio nombre de dominio para acceder a este escritorio a través del bastión.",
+                "description": "Añade un registro CNAME a tu proveedor de DNS apuntando a: {cname-url}",
+                "cname-example": "00000000-0000-0000-0000.000000000000.ejemplo.com"
+              }
+            }
+          },
+          "ssh": {
+            "label": "SSH",
+            "description": "Usa un cliente SSH para conectarte al escritorio a través del host bastión.",
+            "port": {
+              "label": "Puerto SSH",
+              "placeholder": "Introduce el puerto SSH"
+            },
+            "authorized-keys": {
+              "label": "Claves SSH autorizadas (una por línea)",
+              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
+              "others-label": "Claves SSH de otras personas (una por línea)",
+              "own-key": {
+                "add-link": "Añádela en tu perfil",
+                "managed": "Tu propia clave se añade automáticamente desde tu perfil cuando inicias este escritorio. Esta casilla solo es para las claves públicas de otras personas.",
+                "missing": "Aún no tienes ninguna clave SSH del bastión en tu perfil, así que no tendrás acceso SSH automáticamente."
+              }
+            }
+          }
+        },
+        "wireguard-warning": {
+          "title": "Se requiere la interfaz wireguard",
+          "no-permission-description": "El visor seleccionado necesita la interfaz de red wireguard para funcionar, pero no tienes permiso para usarla. Contacta con el administrador para que te la habilite.",
+          "no-permission-description-bastion": "El acceso por bastión necesita la interfaz de red wireguard para funcionar, pero no tienes permiso para usarla. Contacta con el administrador para que te la habilite."
+        },
+        "wireguard-added": {
+          "title": "Interfaz wireguard añadida",
+          "description": "Se ha añadido automáticamente porque el visor RDP seleccionado la necesita.",
+          "description-bastion": "Se ha añadido automáticamente porque el acceso por bastión la necesita."
+        },
+        "bastion-disabled": {
+          "title": "Acceso por bastión desactivado",
+          "description": "Se ha desactivado el acceso por bastión porque este escritorio no tiene interfaz de red wireguard."
+        },
+        "viewers-removed": {
+          "title": "Visores RDP eliminados",
+          "description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard:",
+          "toast-description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard: {viewers}"
+        }
+      },
+      "hardware": {
+        "vcpus": {
+          "label": "vCPUs",
+          "placeholder": "Introduce el número de vCPUs"
+        },
+        "memory": {
+          "label": "Memoria (GB)",
+          "placeholder": "Introduce la cantidad de memoria en GB"
+        },
+        "disk-bus": {
+          "label": "Bus de disco",
+          "placeholder": "Selecciona un tipo de bus de disco"
+        },
+        "disk-size": {
+          "label": "Tamaño de disco (GB)",
+          "placeholder": "Introduce el tamaño en GB"
+        },
+        "videos": {
+          "label": "Vídeos",
+          "placeholder": "Selecciona un tipo de vídeo"
+        },
+        "boot-order": {
+          "label": "Arranque",
+          "placeholder": "Selecciona el dispositivo de arranque"
+        },
+        "isos": {
+          "label": "ISOs",
+          "placeholder": "Selecciona ISOs"
+        },
+        "floppies": {
+          "label": "Disquetes",
+          "placeholder": "Selecciona disquetes"
+        },
+        "vgpus": {
+          "label": "vGPU",
+          "placeholder": "Selecciona una vGPU"
+        },
+        "hardwareGroups": {
+          "hardware": "Hardware",
+          "system": "Sistema",
+          "peripherals": "Periféricos",
+          "reservables": "Reservables"
+        },
+        "networks": {
+          "label": "Redes",
+          "placeholder": "Selecciona redes",
+          "modal": {
+            "title": "Configurar redes",
+            "description": "Añade, elimina o reordena las redes asignadas a este dominio",
+            "selected": "Redes seleccionadas",
+            "drop-here": "Arrastra redes aquí",
+            "available": "Redes disponibles",
+            "empty-selected": "Arrastra redes aquí o pulsa + para añadir",
+            "empty-available": "Todas las redes están seleccionadas",
+            "cancel": "Cancelar",
+            "save": "Guardar"
+          }
+        },
+        "limited": {
+          "warning": {
+            "title": "Restricciones aplicadas",
+            "subtitle": "Este valor ha sido limitado por permisos de usuario."
+          },
+          "restricted": "Valor restringido: {old_value} → Establecido a: {new_value}",
+          "quota": "Este valor supera tu cuota"
+        }
+      }
+    },
+    "media": {
+      "media-type": {
+        "owned": "Mis medios",
+        "shared": "Medios compartidos"
+      },
+      "new": {
+        "button": "Nuevo medio",
+        "title": "Nuevo medio",
+        "submit": "Crear medio",
+        "fields": {
+          "name": {
+            "label": "Nombre",
+            "placeholder": "Introduce el nombre del medio"
+          },
+          "url": {
+            "label": "URL",
+            "placeholder": "https://ejemplo.com/medio.iso"
+          },
+          "description": {
+            "label": "Descripción",
+            "placeholder": "Introduce la descripción del medio"
+          },
+          "kind": {
+            "label": "Tipo",
+            "placeholder": "Selecciona el tipo de medio",
+            "options": {
+              "iso": "ISO CD/DVD",
+              "floppy": "Floppy"
+            }
+          }
+        },
+        "validation": {
+          "invalid-url": "Introduce una URL válida",
+          "min-length": "Debe tener al menos {min} caracteres",
+          "max-length": "Debe tener como máximo {max} caracteres",
+          "https-required": "La URL del medio debe comenzar con https://"
+        },
+        "errors": {
+          "duplicated_name": "Ya existe un medio con este nombre. Por favor, elige un nombre diferente."
+        }
+      },
+      "quota-exceeded-modal": {
+        "title": "Cuota de creación de medios superada",
+        "description": "Cuota de creación de medios superada. Debe eliminarse un medio para poder subir uno nuevo.",
+        "cancel": "Volver a medios"
+      }
+    },
+    "deployments": {
+      "form-sections": {
+        "preview": {
+          "title": "Vista previa",
+          "subtitle": "Así es como se verá el despliegue para los usuarios. Edítalo para hacerlo más fácil de identificar."
+        },
+        "info": {
+          "title": "Información del despliegue",
+          "subtitle": "Edita el nombre y descripción del despliegue.",
+          "fields": {
+            "name": {
+              "label": "Nombre",
+              "placeholder": "Introduce el nombre del despliegue",
+              "errors": {
+                "exists": "Elige un nombre diferente."
+              }
+            },
+            "description": {
+              "label": "Descripción",
+              "placeholder": "Introduce la descripción del despliegue (opcional)"
+            }
+          }
+        },
+        "visibility": {
+          "title": "Visibilidad del despliegue",
+          "subtitle": "Edita las diferentes opciones de visibilidad para este despliegue",
+          "fields": {
+            "visible": {
+              "label": "Visible para los usuarios"
+            }
+          }
+        },
+        "alloweds": {
+          "title": "Grupos y usuarios permitidos",
+          "subtitle": "Este despliegue será compartido con {groups} y {users}.",
+          "fields": {
+            "alloweds": {
+              "button": "Gestionar usuarios y grupos"
+            }
+          }
+        },
+        "other-options": {
+          "title": "Otras opciones",
+          "fields": {
+            "create-owner-desktop": {
+              "label": "Crear un escritorio para el propietario del despliegue",
+              "description": "Si está activado, se creará automáticamente un escritorio para el propietario del despliegue."
+            }
+          }
+        },
+        "user-permissions": {
+          "title": "Permisos de usuario",
+          "subtitle": "Edita los permisos para usuarios en este despliegue. Estos permisos se aplicarán a todos los escritorios en el despliegue y no se podrán editar en escritorios individuales.",
+          "fields": {
+            "recreate": {
+              "label": "Permitir a los usuarios recrear escritorios en el despliegue",
+              "description": "Si está activado, los usuarios podrán restaurar sus escritorios al estado original de la plantilla."
+            }
+          }
+        }
+      },
+      "form-desktop-card": {
+        "header": {
+          "title": "Escritorio {index}",
+          "title-name": "@:components.deployments.form-desktop-card.header.title ({desktop-name})",
+          "buttons": {
+            "change-template": "Cambiar plantilla",
+            "delete-desktop": "Eliminar escritorio"
+          }
+        },
+        "sections": {
+          "preview": {
+            "title": "Vista previa",
+            "subtitle": "Así es como se verá el escritorio. Edita su nombre y descripción para que sea más fácil de identificar.",
+            "fields": {
+              "name": {
+                "label": "Nombre",
+                "placeholder": "Introduce el nombre del escritorio",
+                "errors": {
+                  "exists": "Elige un nombre diferente."
+                }
+              },
+              "description": {
+                "label": "Descripción",
+                "placeholder": "Introduce la descripción del escritorio (opcional)"
+              }
+            }
+          },
+          "hardware": {
+            "title": "Hardware",
+            "subtitle": "Aquí puedes editar la configuración de hardware y acceso que se utilizará para el escritorio.",
+            "button": "Editar configuración de hardware y acceso"
+          }
+        }
+      },
+      "form-delete-desktop-modal": {
+        "title": "Eliminar escritorio '{desktop-name}' del despliegue",
+        "description": "Esta acción eliminará el escritorio '{desktop-name}' del despliegue. El escritorio será eliminado y todos sus datos asociados se perderán. Esta acción no se puede deshacer.",
+        "cancel": "Cancelar",
+        "confirm": "Eliminar"
+      },
+      "form-select-template-modal": {
+        "add": {
+          "title": "Añadir un escritorio al despliegue",
+          "description": "Selecciona una plantilla para crear un nuevo escritorio y añadirlo al despliegue."
+        },
+        "replace": {
+          "title": "Cambiar plantilla del escritorio '{desktop-name}'",
+          "description": "Esta acción cambiará la plantilla del escritorio '{desktop-name}' a la nueva plantilla seleccionada.",
+          "alert": {
+            "title": "Advertencia",
+            "description": "Cambiar la plantilla de un escritorio eliminará todos los cambios que hayas hecho y lo restaurará al estado de la nueva plantilla. Esta acción no se puede deshacer."
+          }
+        },
+        "cancel": "Cancelar"
+      },
+      "form-update-hardware-modal": {
+        "title": "Editar configuración de hardware y acceso del escritorio '{desktop-name}'",
+        "description": "Esta es la configuración de hardware y acceso que se utilizará para el escritorio '{desktop-name}'. Edítala para que se ajuste a tus necesidades.",
+        "cancel": "Cancelar",
+        "confirm": "Guardar cambios"
+      },
+      "quota-exceeded-modal": {
+        "title": "Cuota de creación de despliegues superada",
+        "description": "Cuota de creación de despliegues superada. Debe eliminarse un desplegamiento para crear uno nuevo.",
+        "go-to-profile": "Comprobar tu cuota",
+        "cancel": "Volver a despliegues"
+      },
+      "download-csv-modal": {
+        "title": "Descargar CSV de visores directos de '{name}'",
+        "options": {
+          "keep-urls": {
+            "title": "Mantener URLs",
+            "description": "Mantener los enlaces y descargar el archivo CSV."
+          },
+          "regenerate-urls": {
+            "title": "Regenerar URLs",
+            "description": "Restablecer los enlaces del despliegue y descargar el archivo CSV (los enlaces generados anteriormente dejarán de estar disponibles)."
+          }
+        },
+        "cancel": "Cancelar",
+        "confirm": "Confirmar"
+      }
+    },
+    "change-image-modal": {
+      "title": "Cambiar imagen del escritorio",
+      "description": "Elige una imagen para la vista previa del escritorio.",
+      "selected": "Seleccionada",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "load-error": "No se han podido cargar las imágenes",
+      "errors": {
+        "title": "Error al cambiar la imagen",
+        "generic": "Se ha producido un error al cambiar la imagen. Inténtalo de nuevo."
+      },
+      "hint": "Elige una imagen existente o sube una nueva (PNG, JPG o GIF, máximo 5 MB).",
+      "hint-select-only": "Elige una imagen existente.",
+      "upload": {
+        "label": "Subir imagen",
+        "uploading": "Subiendo…"
+      },
+      "upload-errors": {
+        "title": "Error al subir la imagen",
+        "generic": "No se ha podido subir. Inténtalo de nuevo.",
+        "invalid_type": "Tipo de archivo no válido. Elige un PNG, JPG o GIF.",
+        "too_large": "El archivo es demasiado grande. Tamaño máximo: 5 MB."
+      }
+    },
+    "bookings": {
+      "errors": {
+        "end-before-start": "La hora de fin de la reserva no puede ser anterior a la hora de inicio",
+        "forbid": "Necesitas más tiempo de antelación para crear la reserva",
+        "maximum-time": "No puedes crear una reserva tan larga",
+        "minimum-time": "La reserva debe durar al menos 5 minutos",
+        "past-booking": "No puedes crear una reserva en el pasado"
+      },
+      "item": {
+        "enough-units": "Unidades suficientes",
+        "event-titles": {
+          "available": "Disponible",
+          "overridable": "Sustituible",
+          "unavailable": "No disponible"
+        },
+        "modal": {
+          "cancel": "Cancelar",
+          "create": {
+            "button": "Añadir reserva",
+            "modal-title": "Añadir reserva"
+          },
+          "delete": {
+            "button": "Eliminar"
+          },
+          "edit": {
+            "button": "Guardar cambios",
+            "modal-title": "Editar reserva"
+          },
+          "end-date": "Fecha de fin",
+          "end-time": "Hora de fin",
+          "profile": "Perfil",
+          "select-profile": "Por favor, selecciona un perfil",
+          "start-date": "Fecha de inicio",
+          "start-time": "Hora de inicio",
+          "title": "Título",
+          "view": {
+            "modal-title": "Ver reserva"
+          }
+        },
+        "new-planning": {
+          "bookable-item": "Nombre del elemento",
+          "bookable-type": "Tipo reservable"
+        },
+        "split-labels": {
+          "availability": "Disponibilidad",
+          "bookings": "Reservas"
+        },
+        "status-bar": {
+          "buttons": {
+            "add-booking": "Añadir reserva"
+          },
+          "forbid-time": "Tiempo de antelación necesario",
+          "max-items": "Máximo de reservas",
+          "max-time": "Tiempo máximo de reserva"
+        },
+        "units": "unidades"
+      },
+      "summary": {
+        "title": "Todas tus reservas"
+      }
+    },
+    "date-picker": {
+      "apply": "Aplicar",
+      "cancel": "Cancelar",
+      "today": "Hoy"
+    },
+    "form": {
+      "validation": {
+        "invalid-element": "El campo {field} tiene un elemento no válido",
+        "invalid-format": "El campo {field} tiene un formato no válido",
+        "invalid-key": "El campo {field} tiene una clave no válida",
+        "invalid-union": "El campo {field} debe coincidir con al menos uno de los formatos permitidos",
+        "invalid-value": "El campo {field} tiene un valor no válido",
+        "max-array-length": "El campo {field} debe tener como máximo {max} elementos",
+        "max-length": "El campo {field} debe tener como máximo {max} caracteres",
+        "max-value": "El campo {field} debe ser como máximo {max}",
+        "min-array-length": "El campo {field} debe tener al menos {min} elementos",
+        "min-length": "El campo {field} debe tener al menos {min} caracteres",
+        "min-value": "El campo {field} debe ser al menos {min}",
+        "multiple-of": "El campo {field} debe coincidir con al menos uno de los formatos permitidos",
+        "required": "El campo {field} es obligatorio",
+        "type": {
+          "array": "El campo {field} debe ser una lista",
+          "boolean": "El campo {field} debe ser verdadero o falso",
+          "email": "El campo {field} debe ser una dirección de correo válida",
+          "integer": "El campo {field} debe ser un entero",
+          "number": "El campo {field} debe ser un número",
+          "string": "El campo {field} debe ser una cadena de texto"
+        },
+        "unique": "El campo {field} debe ser único",
+        "unrecognized-keys": "El campo {field} tiene claves no reconocidas: {keys}"
+      }
+    },
+    "session-modal": {
+      "description": {
+        "error-renew": "Se ha producido un error al renovar la sesión. Vuelve a iniciar sesión.",
+        "max-renew-time": "La sesión ha caducado y ya no se puede renovar. Vuelve a iniciar sesión.",
+        "max-time": "La sesión ha caducado y ha alcanzado el máximo de renovaciones. Vuelve a iniciar sesión.",
+        "renew": "La sesión está a punto de caducar. Se puede renovar para seguir trabajando sin interrupciones."
+      },
+      "options": {
+        "go-to-login": "Ir al inicio de sesión",
+        "logout": "Cerrar sesión",
+        "renew": "Renovar la sesión actual"
+      },
+      "title": "Sesión caducada"
+    },
+    "stepper": {
+      "navigation": {
+        "go-back": "Atrás",
+        "next": "Siguiente"
+      }
+    }
+  },
+  "authentication": {
+    "login": {
+      "errors": {
+        "unknown": "Se ha producido un error",
+        "missing_category": "Hace falta seleccionar una categoría",
+        "invalid_credentials": "Usuario o contraseña incorrecta",
+        "user_disabled": "El usuario está deshabilitado",
+        "user_disallowed": "El usuario no puede utilizar IsardVDI",
+        "rate_limit_date": "Se han producido demasiados intentos de inicio de sesión. Vuélve a intentarlo a {time}",
+        "rate_limit": "Se han producido demasiados intentos de inicio de sesión. Vuélve a intentarlo mas tarde"
+      }
+    }
+  },
+  "api": {
+    "user": {
+      "errors": {
+        "unauthorized": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.",
+        "not_found": "El recurso solicitado no fue encontrado.",
+        "internal_server": "Ha ocurrido un error interno del servidor. Por favor, inténtalo más tarde.",
+        "email_already_in_use": "Este correo ya está en uso",
+        "invalid_email": "El formato del correo es inválido"
+      }
+    },
+    "user_migration": {
+      "errors": {
+        "unknown": "Se ha producido un error",
+        "token_expired": "El token proporcionado ha expirado",
+        "invalid_token": "El token proporcionado no es válido",
+        "no_active_migration": "No hay ninguna migración activa para tu cuenta.",
+        "no_items_to_migrate": "No hay elementos para migrar",
+        "migration_no_items_available": "No hay elementos disponibles para migrar",
+        "multiple_migrations_found_target_user": "Hay múltiples migraciones para el nuevo usuario",
+        "same_user_migration": "No puedes migrar a la misma cuenta. Cuando obtengas el token, debes cerrar la sesión e iniciar sesión con la nueva cuenta",
+        "different_category_migration": "No puedes migrar a una cuenta de una categoría diferente",
+        "role_migration_admin": "No puedes migrar desde una cuenta de administrador",
+        "role_migration_user": "No puedes migrar a una cuenta de usuario desde una cuenta con un rol superior",
+        "migration_desktop_quota_error": "El usuario tiene más escritorios que la cuota del nuevo usuario",
+        "migration_template_quota_error": "El usuario tiene más plantillas que la cuota del nuevo usuario",
+        "migration_media_quota_error": "El usuario tiene más medios que la cuota del nuevo usuario",
+        "migration_deployments_quota_error": "El usuario tiene más despliegues que la cuota del nuevo usuario"
+      }
+    },
+    "register": {
+      "errors": {
+        "unauthorized": "Sesión expirada",
+        "forbidden": "El dominio de correo electrónico que estás intentando utilizar no está autorizado para tu categoría.",
+        "not_found": "Código no encontrado",
+        "conflict": "El usuario ya existe",
+        "internal_server": "Error en el servidor"
+      }
+    },
+    "new-desktop": {
+      "errors": {
+        "generic": {
+          "title": "Error al crear el escritorio",
+          "description": "Hubo un error al crear tu escritorio, por favor, inténtalo de nuevo."
+        },
+        "internal_server": {
+          "title": "Error interno del servidor",
+          "description": "Hubo un error interno del servidor al crear tu escritorio, por favor, inténtalo de nuevo."
+        },
+        "new_desktop_name_exists": {
+          "title": "El nombre del escritorio ya existe",
+          "description": "Ya existe un escritorio con el mismo nombre. Por favor, elige un nombre diferente."
+        },
+        "desktop_new_user_quota_exceeded": {
+          "title": "Cuota de usuario superada",
+          "description": "Has superado tu cuota de creación de escritorios. Debes eliminar un escritorio para poder crear uno nuevo."
+        },
+        "no_storage_pool_available": {
+          "title": "No hay almacenamiento disponible",
+          "description": "No hay almacenamiento disponible para crear el escritorio. Contacta con un administrador o inténtalo más tarde."
+        },
+        "temporal_new_reservable": {
+          "title": "Los escritorios temporales no pueden tener reservables",
+          "description": "Los escritorios temporales no pueden tener reservables asignados. Elimina los reservables e inténtalo de nuevo."
+        }
+      }
+    },
+    "new-template": {
+      "errors": {
+        "new_template_name_exists": "Ya existe una plantilla con este nombre. Por favor, elige un nombre diferente.",
+        "generic": "Hubo un error al crear la plantilla, por favor, inténtalo de nuevo.",
+        "storage_pending_task": "El disco de este escritorio está ocupado con otra operación. Espera un momento e inténtalo de nuevo.",
+        "template_failed": "Esta plantilla ha fallado y no se puede duplicar."
+      }
+    },
+    "edit-template": {
+      "errors": {
+        "generic": "Se ha producido un error al guardar la plantilla. Inténtalo de nuevo.",
+        "internal_server": "Error interno del servidor al guardar la plantilla.",
+        "new_template_name_exists": "Ya existe una plantilla con este nombre. Por favor, elige un nombre diferente.",
+        "not_found": "No se encontró la plantilla.",
+        "precondition_required": "La plantilla debe estar detenida antes de poder editarla.",
+        "bad_request": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a esta plantilla o elimina los visores RDP."
+      }
+    },
+    "new-media": {
+      "errors": {
+        "generic": {
+          "title": "Error al crear el medio",
+          "description": "Hubo un error al crear tu medio, por favor, inténtalo de nuevo."
+        },
+        "duplicated_name": {
+          "title": "El nombre del medio ya existe",
+          "description": "Ya existe un medio con este nombre. Por favor, elige un nombre diferente."
+        },
+        "quota_exceeded": {
+          "title": "Cuota superada",
+          "description": "Has superado tu cuota de creación de medios. Debes eliminar un medio para poder crear uno nuevo."
+        },
+        "media_url_not_valid": {
+          "title": "URL de medio no válida",
+          "description": "La URL del medio proporcionada no es válida. Revisa la URL e inténtalo de nuevo."
+        },
+        "media_url_bad_format": {
+          "title": "Formato de URL no válido",
+          "description": "La URL del medio debe cumplir los requisitos de formato."
+        }
+      }
+    },
+    "new-deployment": {
+      "errors": {
+        "generic": {
+          "title": "Error al crear el despliegue",
+          "description": "Hubo un error al crear tu despliegue, por favor, inténtalo de nuevo más tarde."
+        },
+        "new_desktop_name_exists": {
+          "title": "Uno o más usuarios tienen un escritorio con este nombre",
+          "description": "Los siguientes usuarios ya tienen un escritorio con el nombre {desktop_name}. Por favor, elige un nombre diferente."
+        },
+        "duplicated_name": {
+          "title": "Nombre de despliegue ya existe",
+          "description": "Ya existe un despliegue con el nombre {deployment_name}. Por favor, elige un nombre diferente."
+        },
+        "deployment_reservables_not_equal": {
+          "title": "Los reservables de los escritorios no son iguales",
+          "description": "Todos los escritorios con reservables en un despliegue deben tener los mismos reservables asignados. Por favor, asegúrate de que todos los escritorios con reservables tengan los mismos reservables asignados y vuelve a intentarlo."
+        }
+      }
+    },
+    "edit-desktop": {
+      "errors": {
+        "generic": "Se ha producido un error al guardar el escritorio. Inténtalo de nuevo.",
+        "internal_server": "Error interno del servidor al guardar el escritorio.",
+        "desktop_not_stopped": "El escritorio debe estar detenido antes de editarlo."
+      }
+    },
+    "booking": {
+      "errors": {
+        "booking_deployment_delete_stop": "El despliegue debe estar detenido para eliminar esta reserva",
+        "booking_desktop_delete_stop": "El escritorio debe estar detenido para eliminar esta reserva",
+        "booking_does_not_fit_date": "La reserva no encaja en la fecha solicitada",
+        "booking_max_items_exceeded": "Has superado el máximo de reservas del usuario",
+        "conflict": "La reserva no encaja en la fecha solicitada",
+        "generic": "Se ha producido un error",
+        "not_found": "Reserva no encontrada"
+      }
+    },
+    "loading": "Cargando...",
+    "loading-error": "Error al cargar los datos",
+    "planning": {
+      "errors": {
+        "conflict": "El plan se solapa con un plan existente",
+        "generic": "Se ha producido un error",
+        "incorrect_new_plan_body_data": "Los datos del plan son incorrectos",
+        "invalid_date_range": "El rango de fechas no es válido",
+        "invalid_end_date": "La fecha de fin no es válida",
+        "invalid_start_date": "La fecha de inicio no es válida",
+        "no_available_profile": "No hay ningún perfil disponible para este elemento",
+        "not_found": "Plan no encontrado",
+        "reservable_item_not_found": "No se ha encontrado el elemento reservable",
+        "unable_to_insert": "No se ha podido crear el plan"
+      }
+    }
+  },
+  "domains": {
+    "desktops": "escritorio | escritorios",
+    "templates": "plantilla | plantillas",
+    "media": "medio | medios",
+    "deployments": "despliegue | despliegues",
+    "with-article": {
+      "desktops": "el escritorio | los escritorios",
+      "templates": "la plantilla | las plantillas",
+      "media": "el medio | los medios",
+      "deployments": "el despliegue | los despliegues"
+    },
+    "capitalized": {
+      "desktops": "@.capitalize:domains.desktops",
+      "templates": "@.capitalize:domains.templates",
+      "media": "@.capitalize:domains.media",
+      "deployments": "@.capitalize:domains.deployments"
+    }
+  },
+  "viewers": {
+    "file-spice": "SPICE",
+    "browser-vnc": "VNC en navegador",
+    "file-rdpvpn": "RDP VPN",
+    "browser-rdp": "RDP en navegador",
+    "file-rdpgw": "RDP",
+    "tooltip-dismiss": "No volver a mostrar",
+    "tooltip": {
+      "browser-vnc": {
+        "title": "VNC en navegador",
+        "description": "Conéctate al escritorio con el protocolo VNC directamente desde el navegador. No se necesita software cliente."
+      },
+      "browser-rdp": {
+        "title": "RDP en navegador",
+        "description": "Conéctate al escritorio con el protocolo RDP directamente desde el navegador. No se necesita software cliente."
+      },
+      "file-rdpgw": {
+        "title": "RDP",
+        "description": "Conéctate al escritorio con el protocolo RDP a través de una pasarela. Descarga y abre el archivo de conexión con un cliente RDP."
+      },
+      "file-rdpvpn": {
+        "title": "RDP VPN",
+        "description": "Conéctate al escritorio con el protocolo RDP a través de una VPN. Descarga y abre el archivo de conexión con un cliente RDP."
+      },
+      "file-spice": {
+        "title": "SPICE",
+        "description": "Conéctate al escritorio con el protocolo SPICE, optimizado para máquinas virtuales. Descarga y abre el archivo de conexión con un cliente SPICE."
+      }
+    }
+  },
+  "users": {
+    "count": {
+      "users": "{n} usuarios | {n} usuario | {n} usuarios",
+      "groups": "{n} grupos | {n} grupo | {n} grupos",
+      "categories": "{n} categorías | {n} categoría | {n} categorías"
+    }
+  },
+  "forms": {
+    "validation": {
+      "required": "Este campo es obligatorio"
+    },
+    "common": {
+      "cancel": "Cancelar"
+    }
+  },
+  "common": {
+    "units": {
+      "mb": "MB",
+      "gb": "GB"
+    }
+  }
+}

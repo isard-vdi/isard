@@ -20,7 +20,16 @@
           target="nav-collapse"
         />
 
+        <!--
+          ``v-if="getUser"`` gates the whole collapse on a populated
+          user. ``logout`` runs ``resetStore`` which sets
+          ``state.auth.user = null``; without this gate, every
+          ``getUser.role_id`` / ``getUser.name`` access in the
+          children below dereferenced ``null`` and pushed two
+          TypeErrors per logout into the JS console.
+        -->
         <b-collapse
+          v-if="getUser"
           id="nav-collapse"
           is-nav
         >
@@ -112,15 +121,6 @@
                 {{ $t("components.navbar.bookings.planning") }}
               </b-dropdown-item>
             </b-nav-item-dropdown>
-            <b-nav-item
-              :to="{ name: 'userstorage' }"
-              active-class="active"
-            >
-              <b-icon
-                icon="folder-fill"
-              />
-              {{ $t("components.navbar.storage") }}
-            </b-nav-item>
             <b-nav-item
               v-if="['admin', 'manager'].includes(getUser.role_id)"
               href="/isard-admin/admin/landing"

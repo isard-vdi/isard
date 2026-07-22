@@ -31,10 +31,13 @@ from .exceptions import Error
 
 
 class ApiClient:
-    def __init__(self, service="api"):
+    def __init__(self, service):
+        if service not in ("engine", "scheduler"):
+            raise ValueError(
+                "ApiClient only supports 'engine' and 'scheduler'; "
+                "use isardvdi_apiv4_client_auth.build_client for apiv4."
+            )
         self.service = service
-        if service == "api":
-            subpath = "/api/v3"
         if service == "engine":
             subpath = ""
         if service == "scheduler":
@@ -43,7 +46,8 @@ class ApiClient:
         if api_domain:
             self.base_url = "https://" + api_domain + subpath
         else:
-            self.base_url = "http://isard-" + service + ":5000" + subpath
+            hostname = "isard-" + service
+            self.base_url = "http://" + hostname + ":5000" + subpath
         self.verifycert = False
         logging.info("Api base url to " + service + " set to " + self.base_url)
 

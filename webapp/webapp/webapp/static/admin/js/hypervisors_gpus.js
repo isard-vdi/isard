@@ -27,11 +27,11 @@ $(document).ready(function () {
 
   gpus_table = $("#table-gpus").DataTable({
     ajax: {
-      url: "/api/v3/admin/reservables/gpus",
+      url: "/api/v4/items/reservables/gpus",
       contentType: "application/json",
       type: "GET",
     },
-    sAjaxDataProp: "",
+    sAjaxDataProp: "items",
     language: {
       loadingRecords:
         '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
@@ -73,8 +73,6 @@ $(document).ready(function () {
         data: null, render: function (data, type, full, meta) {
           var text = "Err"
           if (data.physical_device != null) {
-              // changing_to_profile is null/false when no change is pending;
-              // `!= false` is truthy for null, so it rendered "<profile>->null".
               if (data.changing_to_profile) {
                 text = data.active_profile + "->" + data.changing_to_profile
               } else {
@@ -181,7 +179,7 @@ $(document).ready(function () {
       childTable = $("#cl" + id).DataTable({
         dom: "t",
         ajax: {
-          url: "/admin/reservables/gpus/" + id,
+          url: "/api/v4/items/reservables/gpus/" + id,
           contentType: "application/json",
           type: "GET",
         },
@@ -295,7 +293,7 @@ $(document).ready(function () {
 
     $.ajax({
       type: "POST",
-      url: "/admin/domains",
+      url: "/api/v4/admin/items/domains",
       contentType: "application/json",
       data: JSON.stringify({
         kind: "desktop",
@@ -387,7 +385,7 @@ $(document).ready(function () {
             $.ajax({
               type: "GET",
               url:
-                "/api/v3/admin/reservables/check/last/" +
+                "/api/v4/item/reservable/check-last/" +
                 reservable_type +
                 "/" +
                 subitem_id +
@@ -400,14 +398,13 @@ $(document).ready(function () {
                   text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
                   hide: true,
                   delay: 2000,
-                  icon: 'fa fa-' + data.icon,
+                  icon: 'fa fa-' + data?.icon,
                   opacity: 1,
                   type: 'error'
               })
               profile_checkbox.prop("checked", true)
             },
             }).done(function(data) {
-              data = JSON.parse(data)
               // check if the profile is in any domain or has plans
               if (data['last'].includes(true)) {
                 // Last card for this profile: the whole reservable is removed and
@@ -490,7 +487,7 @@ $(document).ready(function () {
             $.ajax({
               type: "GET",
               url:
-                "/api/v3/admin/reservables/check/last/" +
+                "/api/v4/item/reservable/check-last/" +
                 reservable_type +
                 "/" +
                 item_id,
@@ -501,13 +498,12 @@ $(document).ready(function () {
                   text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
                   hide: true,
                   delay: 2000,
-                  icon: 'fa fa-' + data.icon,
+                  icon: 'fa fa-' + data?.icon,
                   opacity: 1,
                   type: 'error'
                 });
               }
             }).done(function (data) {
-              data = JSON.parse(data);
               if (data['last'].includes(true)) {
                 // Warn whenever ANY reference exists -- a deployment-only or
                 // booking-only GPU is destroyed by the cascade too.
@@ -531,7 +527,7 @@ $(document).ready(function () {
         $('#modalEditGpuForm #description').val(data.description);
         var $catSel = $('#modalEditGpuForm #category');
         $catSel.find('option:not(:first)').remove();
-        $.ajax({ url: '/api/v3/admin/categories', type: 'GET', contentType: 'application/json',
+        $.ajax({ url: '/api/v4/admin/items/categories', type: 'GET', contentType: 'application/json',
           success: function (categories) {
             (categories || []).forEach(function (c) {
               $catSel.append($('<option>', { value: c.id, text: c.name }));
@@ -596,6 +592,17 @@ $(document).ready(function () {
             opacity: 1
           })
         }
+        if (!data["physical_device"]) {
+          return notice.update({
+            title: 'ERROR',
+            text: 'This GPU has no physical device assigned. Its profile can only be forced while the GPU is present on an online hypervisor.',
+            type: 'error',
+            hide: true,
+            icon: 'fa fa-warning',
+            delay: 5000,
+            opacity: 1
+          })
+        }
         // Detect MIG ↔ vGPU/passthrough mode switch and warn user
         var oldIsMig = /^\d+g\./.test(data["actual_active_profile"]);
         var newIsMig = /^\d+g\./.test(profile_id);
@@ -630,7 +637,7 @@ $(document).ready(function () {
                     text: 'GPU active profile updated successfully',
                     hide: true,
                     delay: 2000,
-                    icon: 'fa fa-' + data.icon,
+                    icon: 'fa fa-' + data?.icon,
                     opacity: 1,
                     type: 'success'
                 })
@@ -646,7 +653,7 @@ $(document).ready(function () {
             var item_id = data.id;
             $.ajax({
                 type: 'PUT',
-                url: '/api/v3/admin/reservables/gpus/' + item_id,
+                url: '/api/v4/admin/items/reservables/gpus/' + item_id,
                 data: JSON.stringify({ name: data.name, description: data.description, category: data.category }),
                 contentType: 'application/json',
                 success: function(data) {
@@ -765,7 +772,7 @@ $(document).ready(function () {
       $("#modalEditVariant").modal("hide");
       $.ajax({
         type: "GET",
-        url: "/api/v3/admin/reservables/check/last/" +
+        url: "/api/v4/item/reservable/check-last/" +
           reservable_type + "/" + enabledId + "/" + item_id,
         contentType: "application/json",
         error: function (data) {
@@ -776,7 +783,9 @@ $(document).ready(function () {
           });
         },
       }).done(function (data) {
-        data = JSON.parse(data);
+        // apiv4 returns application/json, so jQuery has already parsed `data`;
+        // re-parsing the object throws "unexpected character" (the old v3 path
+        // returned text). Mirrors the JSON.parse removals in 0cbaac730.
         var isLast = data["last"].includes(true);
         var hasRefs = isLast
           ? (data["desktops"].length > 0 || data["plans"].length > 0 ||
@@ -859,7 +868,7 @@ function showDeleteGPUModal(subitem_id, item_id, reservable_type, data, isLast, 
   if (data['deployments'].length > 0) {
     $.each(data['deployments'], function (key, value) {
       value['kind'] = 'deployment';
-      value['name'] = value["tag_name"];
+      value['name'] = value["name"];
       value['user_name'] = value['username'];
       infoDomains(value, $('#deployments_table tbody'));
     });
@@ -883,7 +892,7 @@ function modal_add_gpu_datatables(reservable_type) {
 
   modal_add_gpu = $("#modal_add_gpu").DataTable({
     ajax: {
-      url: "/api/v3/admin/profiles/" + reservable_type, // defined through attribute data-panel in add new button
+      url: "/api/v4/items/reservables/profiles/" + reservable_type, // defined through attribute data-panel in add new button
       dataSrc: "",
     },
     scrollY: "125px",
@@ -957,7 +966,7 @@ function initalize_bookables_modal_events() {
         $.ajax({
           type: "POST",
           url:
-            "/api/v3/admin/reservables/" +
+            "/api/v4/item/reservable/" +
             $("#modalAddGpu #reservable_type").val(),
           data: JSON.stringify(data),
           contentType: "application/json",
@@ -972,10 +981,21 @@ function initalize_bookables_modal_events() {
               text: 'GPU created successfully.',
               hide: true,
               delay: 2000,
-              icon: 'fa fa-' + data.icon,
+              icon: 'fa fa-' + data?.icon,
               opacity: 1,
               type: 'success'
           })
+          },
+          error: function (data) {
+            new PNotify({
+              title: "ERROR creating GPU",
+              text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+              hide: true,
+              delay: 5000,
+              icon: 'fa fa-warning',
+              opacity: 1,
+              type: 'error'
+            })
           },
         });
       } else {
@@ -994,12 +1014,12 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
   $.ajax({
     type: "PUT",
     url:
-      "/api/v3/admin/reservables/enable/" +
+      "/api/v4/item/reservable/enable/" +
       reservable_type +
       "/" +
       item_id +
       "/" +
-      subitem_id  + (notify_user ? "/notify_user" : ""),
+      subitem_id + (notify_user ? "?notify_user=true" : ""),
     data: JSON.stringify({ enabled, desktops, plans }),
     contentType: "application/json",
     success: function(data)
@@ -1011,7 +1031,7 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
               text: 'Updated ' + subitem_id,
               hide: true,
               delay: 2000,
-              icon: 'fa fa-' + data.icon,
+              icon: 'fa fa-' + data?.icon,
               opacity: 1,
               type: 'success'
           })
@@ -1023,7 +1043,7 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
         text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
         hide: true,
         delay: 2000,
-        icon: 'fa fa-' + data.icon,
+        icon: 'fa fa-' + data?.icon,
         opacity: 1,
         type: 'error'
     })
@@ -1039,8 +1059,8 @@ function rekeyVariant(reservable_type, item_id, oldId, newId, desktops, plans, n
   $.ajax({
     type: "PUT",
     url:
-      "/api/v3/admin/reservables/enable/" + reservable_type + "/" + item_id + "/" +
-      oldId + (notify_user ? "/notify_user" : ""),
+      "/api/v4/item/reservable/enable/" + reservable_type + "/" + item_id + "/" +
+      oldId + (notify_user ? "?notify_user=true" : ""),
     data: JSON.stringify({ enabled: false, desktops: desktops, plans: plans }),
     contentType: "application/json",
     error: function (data) {
@@ -1053,7 +1073,7 @@ function rekeyVariant(reservable_type, item_id, oldId, newId, desktops, plans, n
   }).done(function () {
     $.ajax({
       type: "PUT",
-      url: "/api/v3/admin/reservables/enable/" + reservable_type + "/" + item_id + "/" + newId,
+      url: "/api/v4/item/reservable/enable/" + reservable_type + "/" + item_id + "/" + newId,
       data: JSON.stringify({ enabled: true, desktops: null, plans: null }),
       contentType: "application/json",
       success: function (data) {
@@ -1082,7 +1102,7 @@ function GpuEnabledProfilesDropdown(gpu_id) {
   $.ajax({
     method: "POST",
     async: false,
-    url: "/api/v3/admin/table/gpus",
+    url: "/api/v4/admin/items/table/gpus",
     data: JSON.stringify({"id": gpu_id}),
     contentType: "application/json",
     accept: "application/json",
@@ -1099,7 +1119,7 @@ function forceProfilePreview(card_id, target_profile) {
   $panel.html('<span class="text-muted"><i class="fa fa-spinner fa-pulse"></i> Checking impact…</span>');
   $.ajax({
     method: "POST",
-    url: "/api/v3/admin/gpu/" + card_id + "/force_profile_preview",
+    url: "/api/v4/admin/item/hypervisor/gpus/" + card_id + "/force_profile_preview",
     data: JSON.stringify({ "target_profile": target_profile }),
     contentType: "application/json",
   }).done(function (p) {
@@ -1132,10 +1152,10 @@ function deleteReservable(reservable_type, item_id, notify_user) {
   $.ajax({
     type: "DELETE",
     url:
-      "/api/v3/admin/reservables/delete/" +
+      "/api/v4/item/reservable/" +
       reservable_type +
       "/" +
-      item_id + (notify_user ? "/notify_user" : ""),
+      item_id + (notify_user ? "?notify_user=true" : ""),
     contentType: "application/json",
     success: function (data) {
       $('form').each(function () { this.reset() });

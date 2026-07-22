@@ -101,7 +101,7 @@ $(document).ready(function() {
 
     $.ajax({
         type: "GET",
-        url: "/api/v3/media/status",
+        url: "/api/v4/admin/item/media/status",
         success: function (data) {
             $('#status').removeAttr('disabled')
             let notShownStatus = ['Downloaded']
@@ -159,7 +159,7 @@ $(document).ready(function() {
         let pk = $('#modalChangeOwnerMediaForm #id').val()
         $.ajax({
             type: "PUT",
-            url:`/api/v3/media/owner/${pk}/${data['new_owner']}`,
+            url:`/api/v4/admin/item/media/${pk}/change-owner/${data['new_owner']}`,
             contentType: 'application/json',
             success: function(data)
             {
@@ -209,7 +209,7 @@ $(document).ready(function() {
                 })
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/media",
+                    url:"/api/v4/item/media",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     error: function (data) {
@@ -232,7 +232,7 @@ $(document).ready(function() {
                             text: 'Media created successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -253,7 +253,7 @@ $(document).ready(function() {
 
             $.ajax({
                 type: 'DELETE',
-                url: '/api/v3/media/'+media_id,
+                url: '/api/v4/item/media/'+media_id,
                 error: function(data) {
                     notice.update({
                         title: 'ERROR deleting media',
@@ -278,7 +278,7 @@ $(document).ready(function() {
         if( $("#media_physical").length != 0){
             var media_physical=$('#media_physical').DataTable( {
               "ajax": {
-              "url": "/api/v3/admin/storage/physical/media",
+              "url": "/api/v4/admin/storage/physical/media",
                       "contentType": "application/json",
                       "type": 'GET',
               },
@@ -313,7 +313,7 @@ $(document).ready(function() {
                     $.ajax({
                       type: "GET",
                       url:
-                        "/api/v3/admin/storage/physical/storage_host",
+                        "/api/v4/admin/storage/physical/storage_host",
                       contentType: "application/json",
                       success: function (storage_host) {
                         $.ajax({
@@ -342,81 +342,28 @@ $(document).ready(function() {
     function socketio_on(){
         socket.on('media_add', function(data){
             var data = JSON.parse(data);
-            data = {...mediaReady.row("#"+data.id).data(),...data}
-            dtUpdateInsert(mediaReady,data,false);
+            data = {...mediaOtherTable.row("#"+data.id).data(),...data}
+            dtUpdateInsert(mediaOtherTable,data,false);
         });
 
         socket.on('media_update', function(data){
             var data = JSON.parse(data);
-            data = {...mediaReady.row("#"+data.id).data(),...data}
-            row = mediaOtherTable.row('#'+data.id).remove().draw();
-            dtUpdateInsert(mediaReady,data,false);
+            if (data.status == 'Downloaded') {
+                data = {...mediaReady.row("#"+data.id).data(),...data}
+                dtUpdateInsert(mediaReady,data,false);
+                mediaOtherTable.row('#'+data.id).remove().draw();
+            } else {
+                data = {...mediaOtherTable.row("#"+data.id).data(),...data}
+                dtUpdateInsert(mediaOtherTable,data,false);
+            }
         });
     
         socket.on('media_delete', function(data){
             var data = JSON.parse(data);
-            var row = mediaReady.row('#'+data.id).remove().draw();
-            new PNotify({
-                    title: "Media deleted",
-                    text: "Media "+data.name+" has been deleted",
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-success',
-                    opacity: 1,
-                    type: 'success'
-            });
+            mediaReady.row('#'+data.id).remove().draw();
             if ('status' in data){
                 handleStatusChange({target: {value: newStatus}})
             }
-        });
-    
-        socket.on('result', function (data) {
-            var data = JSON.parse(data);
-            new PNotify({
-                    title: data.title,
-                    text: data.text,
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-'+data.icon,
-                    opacity: 1,
-                    type: data.type
-            });
-        });
-    
-        socket.on('add_form_result', function (data) {
-            var data = JSON.parse(data);
-            if(data.result){
-                $("#modalAddMediaForm")[0].reset();
-                $("#modalAddMedia").modal('hide');
-                $("#modalAddFromMedia #modalAdd")[0].reset();
-                $("#modalAddFromMedia").modal('hide');
-            }
-            new PNotify({
-                    title: data.title,
-                    text: data.text,
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-'+data.icon,
-                    opacity: 1,
-                    type: data.type
-            });
-        });
-    
-        socket.on('edit_form_result', function (data) {
-            var data = JSON.parse(data);
-            if(data.result){
-                $("#modalEdit")[0].reset();
-                $("#modalEditDesktop").modal('hide');
-            }
-            new PNotify({
-                    title: data.title,
-                    text: data.text,
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-'+data.icon,
-                    opacity: 1,
-                    type: data.type
-            });
         });
     }
 })
@@ -425,7 +372,7 @@ $(document).ready(function() {
 function createDatatable(tableId, status, initCompleteFn = null) {
     return $(tableId).DataTable({
         ajax: {
-            url: `/api/v3/admin/media/${status}`,
+            url: `/api/v4/admin/items/media/${status}`,
             contentType: 'application/json',
             type: 'GET',
         },
@@ -566,7 +513,7 @@ function showRowDetails(table, tr, row) {
         childTable = $('#cl' + id).DataTable({
             dom: "t",
             ajax: {
-                url: "/api/v3/admin/media/domains/" + id,
+                url: "/api/v4/admin/items/media/domains/" + id,
                 contentType: "application/json",
                 type: "GET",
             },
@@ -617,7 +564,7 @@ function showActions(table ,tr, row, button) {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: "PUT",
-                    url: '/api/v3/media/check/' + data['id'],
+                    url: '/api/v4/admin/item/media/' + data['id'] + '/check',
                     error: function (data) {
                         new PNotify({
                             title: "ERROR checking the media status",
@@ -637,7 +584,7 @@ function showActions(table ,tr, row, button) {
                             text: 'Media status checked successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -649,7 +596,7 @@ function showActions(table ,tr, row, button) {
         case 'btn-task':
             $.ajax({
                 type: 'GET',
-                url: '/api/v3/task/' + data.task,
+                url: '/api/v4/task/' + data.task,
                 contentType: 'application/json',
                 success: function (result) {
                     element.html('<i class="fa fa-tasks"></i>')
@@ -686,7 +633,7 @@ function showActions(table ,tr, row, button) {
             }).modal('show');
             $.ajax({
                 type: "GET",
-                url: "/api/v3/media/desktops/"+data['id'],
+                url: "/api/v4/item/media/"+data['id']+"/get-desktops",
             }).done(function(domains) {
                 $('#table_modal_media_delete tbody').empty()
                 $.each(domains, function(key, value) {
@@ -713,8 +660,8 @@ function showActions(table ,tr, row, button) {
                     addclass: 'pnotify-center'
                 }).get().on('pnotify.confirm', function() {
                     $.ajax({
-                        type: "POST",
-                        url:"/api/v3/media/abort/" + data['id'],
+                        type: "PUT",
+                        url:"/api/v4/item/media/" + data['id'] + "/abort",
                     });
                 }).on('pnotify.cancel', function() {
                 });
@@ -738,8 +685,8 @@ function showActions(table ,tr, row, button) {
                     addclass: 'pnotify-center'
                 }).get().on('pnotify.confirm', function() {
                     $.ajax({
-                        type: "POST",
-                        url:"/api/v3/media/download/" + data['id'],
+                        type: "PUT",
+                        url:"/api/v4/item/media/" + data['id'] + "/download",
                     });
                 }).on('pnotify.cancel', function() {
                 });
@@ -807,7 +754,7 @@ function showActions(table ,tr, row, button) {
                 dropdownParent: $('#modalChangeOwnerMedia'),
                 ajax: {
                     type: "POST",
-                    url: '/admin/allowed/term/users',
+                    url: '/api/v4/items/alloweds/term/users',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
@@ -900,8 +847,8 @@ function modal_add_install_datatables(){
 
     modal_add_install = $('#modal_add_install').DataTable({
         "ajax": {
-            "url": "/api/v3/media/installs",
-            "dataSrc": ""
+            "url": "/api/v4/items/media/installs",
+            "dataSrc": "installs"
         },
         "scrollY":        "125px",
         "scrollCollapse": true,
@@ -952,7 +899,7 @@ function modal_add_install_datatables(){
                 })
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/desktop/from/media",
+                    url:"/api/v4/item/desktop/from-media",
                     contentType: "application/json",
                     data: JSON.stringify(data),
                     error: function(data){
@@ -974,7 +921,7 @@ function modal_add_install_datatables(){
                             text: 'Desktop created successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -988,18 +935,22 @@ function modal_add_install_datatables(){
 }
 
 function parse_media(data){
+    var hardware = data["hardware"] || {};
     return {"media_id":data["media"],
-        "xml_id":data["install"],
+        "os_template":data["install"],
         "kind":data["kind"],
         "name":data["name"],
         "description":data["description"],
+        "guest_properties": { "viewers": { "browser_vnc": { "options": null }, "file_spice": { "options": null } } },
         "hardware": {
-            ...("vcpus" in data["hardware"]) && {"vcpus": parseInt(data["hardware"]["vcpus"])},
-            ...("memory" in data["hardware"]) && {"memory": parseFloat(data["hardware"]["memory"])},
-            ...("videos" in data["hardware"]) && {"videos": [data["hardware"]["videos"]]},
-            ...("boot_order" in data["hardware"]) && {"boot_order": [data["hardware"]["boot_order"]]},
-            ...("interfaces" in data["hardware"]) && {"interfaces": data["hardware"]["interfaces"]},
-            ...("disk_bus" in data["hardware"]) && {"disk_bus": data["hardware"]["disk_bus"]},
+            ...("vcpus" in hardware) && {"vcpus": parseInt(hardware["vcpus"])},
+            ...("memory" in hardware) && {"memory": parseFloat(hardware["memory"])},
+            ...("videos" in hardware) && {"videos": [hardware["videos"]]},
+            ...("boot_order" in hardware) && {"boot_order": [hardware["boot_order"]]},
+            "interfaces": Array.isArray(hardware["interfaces"]) && hardware["interfaces"].length
+                ? hardware["interfaces"]
+                : ["default"],
+            ...("disk_bus" in hardware) && {"disk_bus": hardware["disk_bus"]},
             ...("disk_size" in data) && {"disk_size": parseInt(data["disk_size"])},
         },
     }

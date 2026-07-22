@@ -18,9 +18,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
+import os
+import shlex
 import shutil
+import signal
 import tempfile
+import threading
 import traceback
+from contextlib import contextmanager
+from functools import wraps
 from json import loads
 from os import environ, makedirs, remove, rename
 from os import stat as os_stat
@@ -30,20 +36,195 @@ from pathlib import Path
 from re import search
 from subprocess import (
     PIPE,
+    STDOUT,
     CalledProcessError,
     Popen,
     TimeoutExpired,
     check_output,
     run,
 )
-from time import sleep
+from time import sleep, time
+
+from isardvdi_common.helpers.task_cancel import TaskCancelWatcher
+from isardvdi_common.helpers.task_streams import (
+    PROGRESS_STREAM,
+    PROGRESS_STREAM_MAXLEN,
+    maxlen_for_stream,
+    stream_for_kind,
+)
+from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.media import Media
+from isardvdi_common.models.task import Task
+from rq import get_current_job
 
 log = logging.getLogger(__name__)
 
-from isardvdi_common.task import Task
-from rq import Queue, get_current_job
-
 QEMU_IMG_TIMEOUT = 30  # seconds; prevents indefinite hangs on NFS
+
+# Stream names + routing (RESULT_STREAM / PROGRESS_STREAM / stream_for_kind /
+# maxlen_for_stream) live in isardvdi_common.helpers.task_streams — the single
+# source of truth shared with the change-handler consumer.
+
+# Admission backpressure is applied at ENQUEUE time in
+# isardvdi_common.models.task (see Task._await_result_stream_admission), NOT here
+# in the worker body: throttling inflow keeps this worker free to DRAIN the
+# backlog instead of holding a slot asleep while the consumer catches up.
+
+
+def _publish_task_event(connection, *, kind, task_id, task_name, queue, **extra):
+    """Best-effort XADD to ``stream:task-results``.
+
+    The change-handler stream consumer is the canonical executor of the
+    chain-handler work that used to live on isard-core_worker, and this
+    XADD is the only signal it has. Failures are logged but never
+    propagated so a transient Redis blip can't fail the underlying RQ
+    task body.
+    """
+    try:
+        fields = {
+            "kind": kind,
+            "task_id": task_id,
+            "task_name": task_name,
+            "queue": queue,
+        }
+        for k, v in extra.items():
+            if v is None:
+                continue
+            fields[k] = str(v)
+        stream = stream_for_kind(kind)
+        connection.xadd(
+            stream,
+            fields,
+            maxlen=maxlen_for_stream(stream),
+            approximate=True,
+        )
+    except Exception:
+        log.exception("Failed to XADD task-result event for %s", task_id)
+
+
+def _publishes_result(func):
+    """Decorator for storage-worker RQ task functions.
+
+    Publishes a single ``kind=result`` event to ``stream:task-results``
+    when the wrapped function returns (``job_status=finished``) or
+    raises (``job_status=failed``). Re-raises the original exception so
+    RQ's chain semantics are unchanged. A no-op outside an RQ context
+    so unit tests that call the bare function still work.
+    """
+    task_name = func.__name__
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            result = func(*args, **kwargs)
+        except BaseException:
+            job = get_current_job()
+            if job is not None:
+                _publish_task_event(
+                    job.connection,
+                    kind="result",
+                    task_id=job.id,
+                    task_name=task_name,
+                    queue=job.origin,
+                    job_status="failed",
+                )
+            raise
+        job = get_current_job()
+        if job is not None:
+            _publish_task_event(
+                job.connection,
+                kind="result",
+                task_id=job.id,
+                task_name=task_name,
+                queue=job.origin,
+                job_status="finished",
+            )
+        return result
+
+    return wrapper
+
+
+def _safe_unlink(path):
+    """Best-effort removal of a (possibly partial) file. Never raises — used
+    to clean a half-written destination on the failure/cancel path of a task
+    that is itself already raising, so a cleanup error must not mask the
+    original one.
+    """
+    try:
+        if isfile(path):
+            remove(path)
+    except OSError:
+        log.exception("could not remove file %s", path)
+
+
+def _free_space(path):
+    """Bytes available to a non-root user on the filesystem holding ``path``.
+    Returns ``None`` if it can't be determined."""
+    try:
+        st = os.statvfs(path)
+        return st.f_bavail * st.f_frsize
+    except OSError:
+        return None
+
+
+def _run_cancellable(command):
+    """Run ``command`` in its own process group, terminating it if the task is
+    cancelled, and raising on failure.
+
+    Like :func:`run_with_progress` but for long operations with no
+    machine-parsable progress (a disk byte-copy, ``virt-sparsify``,
+    ``virt-win-reg``): it polls the :class:`TaskCancelWatcher` on a timer
+    instead of reading stdout. ``stderr`` is merged into ``stdout`` and
+    surfaced on failure.
+
+    :raises subprocess.CalledProcessError: rc 130 when cancelled mid-run
+        (so the ``_publishes_result`` decorator publishes
+        ``job_status="failed"`` and the chain takes its cleanup branch), or
+        the real non-zero rc on a genuine failure.
+    """
+    job = get_current_job()
+    if job is None:
+        # No RQ context (unit test / manual call): run synchronously. Raises
+        # CalledProcessError on a non-zero rc, matching the wired path.
+        run(command, check=True, stdout=PIPE, stderr=STDOUT)
+        return 0
+    process = Popen(command, stdout=PIPE, stderr=STDOUT, preexec_fn=os.setsid)
+    aborted = False
+    output = b""
+    try:
+        with TaskCancelWatcher(job.id) as watcher:
+            while process.poll() is None:
+                if watcher.wait(timeout=2):
+                    aborted = True
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    break
+        try:
+            process.wait(timeout=10)
+        except TimeoutExpired:
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+    finally:
+        if process.stdout:
+            try:
+                output = process.stdout.read() or b""
+            except Exception:
+                output = b""
+            process.stdout.close()
+    if aborted:
+        raise CalledProcessError(returncode=130, cmd=command)
+    if process.returncode != 0:
+        raise CalledProcessError(
+            returncode=process.returncode,
+            cmd=command,
+            output=output.decode(errors="replace"),
+        )
+    return 0
 
 
 def _same_file(file1, file2):
@@ -126,7 +307,7 @@ def extract_progress_from_rsync_output(process):
         raise ValueError("Source rsync file not found")
 
 
-def run_with_progress(command, extract_progress):
+def run_with_progress(command, extract_progress, on_progress=None, initial_check=None):
     """
     Run command reporting progress to RQ job metadata.
 
@@ -134,25 +315,207 @@ def run_with_progress(command, extract_progress):
     :type command: List of str
     :param extract_progress: Function to extract progress from stdout of command executed
     :type extrct_progress: Callable function with progress as firt parameter
+    :param on_progress: Optional callback invoked with the rounded progress
+        fraction (0.0–1.0) on each tick AND once with ``1.0`` on success.
+        Used by ``move()`` to mirror the rsync percentage onto a Domain row's
+        ``progress`` field so the user-facing templates list can render a
+        progress bar the same way Media downloads do.
+    :type on_progress: Callable[[float], None] | None
+    :param initial_check: Optional one-shot callable invoked by
+        :class:`TaskCancelWatcher` on entry to close the
+        publish-before-subscribe race (see ``_media_aborting``). May be
+        ``None`` when the cancel signal can only arrive *after* the
+        subprocess is already running (the usual case for the
+        ``abort-operations`` storage path).
+    :type initial_check: Callable[[], bool] | None
     :return: Exit code of command executed
     :rtype: int
+    :raises subprocess.CalledProcessError: returncode 130 if the run is
+        cancelled mid-flight via :func:`request_task_cancel`. Raising (not
+        returning the rc) is what makes RQ mark the job non-FINISHED so the
+        chain's terminal ``update_status`` sees ``depending_status`` as
+        canceled/failed and can flip the affected rows.
     """
     job = get_current_job()
-    with Popen(command, stdout=PIPE) as process:
-        while process.poll() is None:
-            job.meta["progress"] = round(extract_progress(process), 2)
-            job.save_meta()
-            Queue("core", connection=job.connection).enqueue(
-                "task.feedback", task_id=job.id, result_ttl=0
-            )
-            sleep(5)
-            process.stdout.read1()
-        if process.returncode == 0:
-            job.meta["progress"] = 1
-            job.save_meta()
-        return process.returncode
+    aborted = False
+    # ``preexec_fn=os.setsid`` puts the child in its own process group so
+    # SIGTERM via ``killpg`` reaches qemu-img/rsync (and any helpers they
+    # fork) rather than just the immediate child.
+    process = Popen(command, stdout=PIPE, preexec_fn=os.setsid)
+    try:
+        with TaskCancelWatcher(job.id, initial_check=initial_check) as watcher:
+            while process.poll() is None:
+                if watcher.cancelled:
+                    aborted = True
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    break
+                pct = round(extract_progress(process), 2)
+                job.meta["progress"] = pct
+                job.save_meta()
+                # MR-2 of the core_worker retirement: the legacy per-tick
+                # ``Queue("core").enqueue("task.feedback", …)`` is removed
+                # — change-handler's stream consumer now emits the per-tick
+                # SocketIO ``task`` event from this ``kind=progress`` XADD.
+                _publish_task_event(
+                    job.connection,
+                    kind="progress",
+                    task_id=job.id,
+                    task_name=job.func_name.rsplit(".", 1)[-1],
+                    queue=job.origin,
+                    progress=pct,
+                )
+                if on_progress is not None:
+                    try:
+                        on_progress(pct)
+                    except Exception:
+                        log.exception("run_with_progress: on_progress callback failed")
+                sleep(5)
+                process.stdout.read1()
+        try:
+            process.wait(timeout=10)
+        except TimeoutExpired:
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+    finally:
+        if process.stdout:
+            process.stdout.close()
+
+    if aborted:
+        raise CalledProcessError(returncode=130, cmd=command)
+    if process.returncode == 0:
+        job.meta["progress"] = 1
+        job.save_meta()
+        if on_progress is not None:
+            try:
+                on_progress(1.0)
+            except Exception:
+                log.exception("run_with_progress: final on_progress callback failed")
+    return process.returncode
 
 
+@contextmanager
+def task_heartbeat(task_name, interval_s=30, timeout_s=None, **extra):
+    """Emit a periodic structured log entry while a long task runs and
+    publish a matching ``kind=progress`` event to ``stream:task-results``.
+
+    Wraps the call site of long-running synchronous tasks (``sparsify``,
+    ``virt_win_reg``, ``find`` full-walk) that don't go through
+    ``run_with_progress``. For those tasks the operator gets nothing
+    between start and end of the operation — making them indistinguishable
+    from a stuck worker. This helper spawns a daemon thread that:
+
+      - emits one log line every ``interval_s`` seconds with ``task``,
+        ``job_id``, and ``elapsed_s`` fields, so Loki / log grep can show a
+        clear "still alive" signal; and
+      - publishes a ``kind=progress`` event to ``stream:task-results`` so
+        the change-handler stream consumer fans out a ``task`` SocketIO
+        event the webapp already renders as a progress bar. The
+        ``progress`` value is the elapsed-time / timeout ratio, capped at
+        ``0.95`` so the bar never reads 100% before the wrapped function
+        actually returns (RQ's post-perform code then marks the Job
+        ``FINISHED`` and ``Task.progress`` naturally returns 1.0).
+
+    Both signals are best-effort: failures inside the heartbeat thread
+    are swallowed so the wrapped operation can't be poisoned by a
+    transient Redis blip or a logging hiccup.
+
+    ``timeout_s`` defaults to the RQ job's configured timeout when not
+    supplied; pass it explicitly when a callsite knows a tighter bound
+    (e.g. an operation with an external SLA shorter than the queue
+    default).
+
+    Usage::
+
+        with task_heartbeat("sparsify", storage_path=path, timeout_s=job.timeout):
+            subprocess.run([...])
+    """
+    job = get_current_job()
+    job_id = job.id if job else None
+    if timeout_s is None and job is not None:
+        # Fall back to the RQ job's own timeout. ``rq.Queue.DEFAULT_TIMEOUT``
+        # is 180s in upstream RQ but per-callsite overrides are common
+        # (sparsify uses 12h). The publish loop just clamps to ≤ 0.95 so
+        # an under-estimated timeout caps the bar instead of skewing it.
+        timeout_s = job.timeout
+    start_t = time()
+    stop = threading.Event()
+
+    def _beat():
+        while not stop.wait(interval_s):
+            try:
+                elapsed = time() - start_t
+                log.info(
+                    "task heartbeat: %s alive (elapsed %.1fs)",
+                    task_name,
+                    elapsed,
+                    extra={
+                        "task": task_name,
+                        "job_id": job_id,
+                        "elapsed_s": round(elapsed, 1),
+                        **extra,
+                    },
+                )
+                # Surface the same "still alive" signal to the UI via the
+                # ``stream:task-results`` Redis stream consumed by
+                # change-handler. Cap ``progress`` at 0.95 so the
+                # progress bar can't read 100% before the wrapped task
+                # actually returns — real completion bumps it to 1.0
+                # through the ``kind=result`` path. If ``run_with_progress``
+                # ever wraps one of these callsites and writes a real
+                # progress meta value, defer to it.
+                #
+                # The XADD is open-coded (rather than calling the shared
+                # ``_publish_task_event`` helper that ``_publishes_result``
+                # uses) so this branch is self-contained — it lands
+                # independently of the task-results-stream-consumer MR
+                # chain. If both code paths converge later, the two XADD
+                # shapes are identical (``stream:task-results``,
+                # maxlen=10_000, approximate=True, the same field set).
+                if job is not None and timeout_s:
+                    real_progress = (job.meta or {}).get("progress", 0) or 0
+                    pseudo_progress = min(0.95, elapsed / float(timeout_s))
+                    if pseudo_progress > real_progress:
+                        try:
+                            fields = {
+                                "kind": "progress",
+                                "task_id": str(job_id or ""),
+                                "task_name": str(task_name),
+                                "queue": str(job.origin or ""),
+                                "progress": str(pseudo_progress),
+                            }
+                            job.connection.xadd(
+                                PROGRESS_STREAM,
+                                fields,
+                                maxlen=PROGRESS_STREAM_MAXLEN,
+                                approximate=True,
+                            )
+                        except Exception:
+                            # publish is best-effort: transient Redis
+                            # errors, stream-not-yet-created on first
+                            # boot, etc. — never let it surface to the
+                            # worker. Heartbeat log line above still
+                            # provides the operator signal.
+                            pass
+            except Exception:
+                # heartbeat is best-effort; never let it leak from the worker
+                pass
+
+    thread = threading.Thread(target=_beat, daemon=True, name=f"heartbeat-{task_name}")
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(timeout=1.0)
+
+
+@_publishes_result
 def create(storage_path, storage_type, size=None, parent_path=None, parent_type=None):
     """
     Create disk.
@@ -170,8 +533,25 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     :return: Exit code of qemu-img command
     :rtype: int
     """
+    # Cancel intentionally not wired: typically a thin clone (seconds).
+    # If a future caller needs cancel for fully-allocated creation,
+    # refactor from ``run()`` to Popen + ``run_with_progress``.
     if not isdir(dirname(storage_path)):
         makedirs(dirname(storage_path), exist_ok=True)
+    # Idempotency: if the destination disk already exists, treat the
+    # task as already done and return success. ``qemu-img create``
+    # would otherwise fail with ``File exists`` on the second run, and
+    # engine-restart recovery / manual re-trigger flows rely on being
+    # able to re-enqueue the create chain safely. The downstream
+    # ``qemu_img_info_backing_chain`` step still validates the file is
+    # a valid qcow2 with the expected backing chain; corrupted /
+    # mismatched files surface there as a clean Failed.
+    if isfile(storage_path):
+        log.info(
+            "task.create: %s already exists, skipping qemu-img create (idempotent)",
+            storage_path,
+        )
+        return 0
     backing_file = []
     if parent_path and parent_type:
         backing_file = ["-b", parent_path, "-F", parent_type]
@@ -261,6 +641,7 @@ def qemu_img_info(storage_id, storage_path):
     return {"id": storage_id, "status": "ready", "qemu-img-info": qemu_img_info_data}
 
 
+@_publishes_result
 def qemu_img_info_backing_chain(storage_id, storage_path):
     """
     Get storage data with `qemu-img info` data updated.
@@ -331,6 +712,389 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
     return storage_data
 
 
+_CURL_PROGRESS_KEYS = (
+    "total_percent",
+    "total",
+    "received_percent",
+    "received",
+    "xferd_percent",
+    "xferd",
+    "speed_download_average",
+    "speed_upload_average",
+    "time_total",
+    "time_spent",
+    "time_left",
+    "speed_current",
+)
+
+_DOWNLOAD_PROGRESS_FLUSH_SECONDS = 1.0
+
+
+def _curl_progress_dict(line):
+    """Parse a single curl progress meter line into the legacy 12-key dict.
+
+    Curl's default progress meter prints whitespace-separated columns
+    matching ``_CURL_PROGRESS_KEYS``. This mirrors the parser the engine's
+    ``DownloadThread`` used to ship — kept identical so the frontend
+    renders the same fields without any change.
+    """
+    values = line.split()
+    if len(values) != len(_CURL_PROGRESS_KEYS):
+        return None
+    progress = dict(zip(_CURL_PROGRESS_KEYS, values))
+    try:
+        progress["total_percent"] = int(float(progress["total_percent"]))
+        progress["received_percent"] = int(float(progress["received_percent"]))
+    except ValueError:
+        progress["total_percent"] = 0
+        progress["received_percent"] = 0
+    return progress
+
+
+def _media_aborting(media_id):
+    """Return True if the media row's status was flipped to DownloadAborting.
+
+    This is the one-shot startup check used by ``TaskCancelWatcher`` to
+    close the narrow race where apiv4 publishes the cancel signal before
+    the worker subscribes. After startup, the pub/sub listener is the
+    primary signal — no per-iteration rethink lookup.
+    """
+    try:
+        return Media(media_id).status == "DownloadAborting"
+    except Exception:
+        # If the row vanished mid-flight, treat as abort.
+        return True
+
+
+def _domain_aborting(domain_id):
+    """Same pattern as ``_media_aborting`` but for the domain table.
+
+    The registry-download chain flips the row status to
+    ``DownloadAborting`` when apiv4 cancels — the
+    :class:`TaskCancelWatcher` checks this once on entry to close the
+    pub/sub-before-subscribe race.
+    """
+    try:
+        return Domain(domain_id).status == "DownloadAborting"
+    except Exception:
+        return True
+
+
+def _run_curl_download(
+    *,
+    url,
+    dest_path,
+    headers,
+    insecure_ssl,
+    google_drive_cookie,
+    flush_progress,
+    is_aborting,
+):
+    """Run the curl download with live progress reporting and pub/sub
+    cancellation. ``flush_progress`` and ``is_aborting`` are callbacks
+    so the same body can drive media-row updates *or* domain-row
+    updates without duplicating the curl plumbing.
+
+    Returns ``True`` on success, raises ``CalledProcessError`` on
+    failure (RQ marks the chain FAILED so the dependent
+    ``update_status`` can flip the row terminal).
+    """
+    job = get_current_job()
+    makedirs(dirname(dest_path), exist_ok=True)
+
+    curl_cmd = ["curl"]
+    if insecure_ssl:
+        curl_cmd.append("-k")
+    # Abort a genuinely STALLED transfer fast (avg below speed-limit B/s for
+    # speed-time s) so a dead upstream does not hold the worker for the whole
+    # job_timeout; and cap total curl runtime just under the RQ job_timeout so
+    # a slow-but-progressing download ends with a clean curl error instead of
+    # an RQ JobTimeoutException mid-write.
+    speed_limit = int(os.environ.get("URL_DOWNLOAD_MIN_SPEED_BPS") or 1024)
+    speed_time = int(os.environ.get("URL_DOWNLOAD_MIN_SPEED_TIME") or 60)
+    curl_cmd.extend(
+        ["--speed-limit", str(speed_limit), "--speed-time", str(speed_time)]
+    )
+    if job is not None and job.timeout:
+        curl_cmd.extend(["--max-time", str(max(1, int(job.timeout) - 30))])
+    curl_cmd.extend(
+        [
+            "-L",
+            "--max-redirs",
+            "5",
+            "--connect-timeout",
+            "30",
+            "--no-netrc",
+            "-o",
+            dest_path,
+        ]
+    )
+    if google_drive_cookie:
+        curl_cmd.extend(["-b", google_drive_cookie])
+    for h in headers or []:
+        curl_cmd.extend(["-H", h])
+    curl_cmd.append(url)
+
+    process = Popen(
+        curl_cmd,
+        stdout=PIPE,
+        stderr=PIPE,
+        preexec_fn=os.setsid,
+    )
+
+    # Skip the two header lines curl prints before the progress meter.
+    process.stderr.readline()
+    process.stderr.readline()
+
+    last_flush = 0.0
+    line = ""
+    aborted = False
+    with TaskCancelWatcher(job.id, initial_check=is_aborting) as watcher:
+        while process.poll() is None:
+            if watcher.cancelled:
+                aborted = True
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                break
+
+            c = process.stderr.read(1)
+            if not c:
+                sleep(0.1)
+                continue
+            ch = c.decode("utf-8", errors="replace")
+            if ch in ("\r", "\n"):
+                progress = _curl_progress_dict(line)
+                line = ""
+                now = time()
+                if progress and (now - last_flush) >= _DOWNLOAD_PROGRESS_FLUSH_SECONDS:
+                    last_flush = now
+                    try:
+                        flush_progress(progress)
+                    except Exception:
+                        log.exception("download: failed to persist progress")
+                    if progress.get("received_percent") is not None:
+                        pct = progress["received_percent"] / 100.0
+                        job.meta["progress"] = pct
+                        job.save_meta()
+                        # MR-2 of the core_worker retirement: the legacy
+                        # ``Queue("core").enqueue("task.feedback", …)`` is
+                        # removed — change-handler's stream consumer now
+                        # emits the per-tick SocketIO ``task`` event from
+                        # this ``kind=progress`` XADD.
+                        _publish_task_event(
+                            job.connection,
+                            kind="progress",
+                            task_id=job.id,
+                            task_name=job.func_name.rsplit(".", 1)[-1],
+                            queue=job.origin,
+                            progress=pct,
+                        )
+                continue
+            line += ch
+
+        if not aborted and watcher.cancelled:
+            aborted = True
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+
+    process.wait(timeout=10)
+
+    if aborted:
+        try:
+            os.unlink(dest_path)
+        except OSError:
+            pass
+        raise CalledProcessError(returncode=130, cmd=curl_cmd)
+
+    if is_aborting():
+        try:
+            os.unlink(dest_path)
+        except OSError:
+            pass
+        raise CalledProcessError(returncode=130, cmd=curl_cmd)
+
+    if process.returncode != 0:
+        stderr = process.stderr.read().decode("utf-8", errors="replace")
+        log.error("download failed (rc=%s): %s", process.returncode, stderr.strip())
+        try:
+            os.unlink(dest_path)
+        except OSError:
+            pass
+        raise CalledProcessError(
+            returncode=process.returncode, cmd=curl_cmd, stderr=stderr
+        )
+
+    job.meta["progress"] = 1.0
+    job.save_meta()
+    return True
+
+
+@_publishes_result
+def download_url(
+    media_id,
+    url,
+    dest_path,
+    headers=None,
+    insecure_ssl=False,
+    google_drive_cookie=None,
+):
+    """Download a URL to ``dest_path`` reporting progress on the media row.
+
+    Replaces the engine's SSH-to-hypervisor curl path with an RQ task on
+    isard-storage. The curl invocation matches what
+    ``engine/services/threads/download_thread.py`` used to issue. Progress
+    is written live to ``Media(media_id).progress`` so the existing
+    frontend keeps rendering the same fields (received / total_percent /
+    speed_current / time_left). The single ``job.meta['progress']`` float
+    is also kept up to date for the generic task panel.
+
+    :param media_id: Media row id to update progress on
+    :param url: Source URL (already validated by apiv4)
+    :param dest_path: Absolute destination path under the media pool mount
+    :param headers: List of ``"Header: value"`` strings to forward to curl
+    :param insecure_ssl: When True, pass ``-k`` (mirrors
+        ``URL_DOWNLOAD_INSECURE_SSL`` on the legacy engine path)
+    :param google_drive_cookie: Path to a cookie jar file when ``url`` is a
+        Google Drive sharing link (requires the upstream to issue a
+        confirmation cookie). Optional; the regular curl branch handles
+        ordinary URLs.
+    :raises CalledProcessError: when curl exits non-zero (RQ marks the
+        job FAILED → dependent ``update_status`` task flips media to
+        ``DownloadFailed``)
+    """
+    job = get_current_job()
+    makedirs(dirname(dest_path), exist_ok=True)
+
+    curl_cmd = ["curl"]
+    if insecure_ssl:
+        curl_cmd.append("-k")
+    curl_cmd.extend(
+        [
+            "-L",
+            "--max-redirs",
+            "5",
+            "--connect-timeout",
+            "30",
+            "--no-netrc",
+            "-o",
+            dest_path,
+        ]
+    )
+    if google_drive_cookie:
+        curl_cmd.extend(["-b", google_drive_cookie])
+    for h in headers or []:
+        curl_cmd.extend(["-H", h])
+    curl_cmd.append(url)
+
+    log.info("download_url: media=%s dest=%s", media_id, dest_path)
+    # Flip the row to Downloading so the user sees curl is now actually
+    # running (the chain root shows DownloadStarting while queued).
+    try:
+        Media(media_id).status = "Downloading"
+    except Exception:
+        log.exception("download_url: failed to flip media %s to Downloading", media_id)
+
+    def _flush(progress):
+        Media(media_id).progress = progress
+
+    _run_curl_download(
+        url=url,
+        dest_path=dest_path,
+        headers=headers,
+        insecure_ssl=insecure_ssl,
+        google_drive_cookie=google_drive_cookie,
+        flush_progress=_flush,
+        is_aborting=lambda: _media_aborting(media_id),
+    )
+
+    return {
+        "id": media_id,
+        "path_downloaded": dest_path,
+    }
+
+
+@_publishes_result
+def download_url_for_domain(
+    domain_id,
+    storage_id,
+    url,
+    dest_path,
+    headers=None,
+    insecure_ssl=False,
+    google_drive_cookie=None,
+):
+    """Download a URL into the storage path of a registry-download desktop.
+
+    Replaces the engine's deleted SSH-curl path for ``domains`` rows
+    (the ``DownloadThread.table == "domains"`` branch in the
+    pre-merge ``download_thread.py``). The chain that wraps this task
+    looks like::
+
+        storage.{pool}.low: download_url_for_domain
+          -> storage.{pool}.low: qemu_img_info_backing_chain
+            -> core: storage_update          # flips storage to ``ready``
+              -> core: update_status         # FAILED/CANCELED → Failed
+
+    On the success path ``storage_update`` calls
+    ``_promote_domains_to_stopped`` which transitions the domain row
+    from ``DownloadStarting`` / ``Downloading`` → ``Stopped``, mirroring
+    the legacy "Downloaded → Stopped" pair the engine used to emit.
+
+    Cancellation rides the same ``task:cancel:<id>`` pub/sub primitive
+    used by media downloads. apiv4 sets ``Domain.status =
+    DownloadAborting`` to cover the publish-before-subscribe race
+    (the watcher's ``initial_check``).
+
+    :param domain_id: Domain row id whose ``status`` / ``progress`` to update
+    :param storage_id: Pre-allocated Storage row id (the row already
+        exists with ``status="non_existing"``; ``qemu_img_info_backing_chain``
+        flips it to ``ready`` after the file is on disk)
+    :param url: Source URL (validated by apiv4)
+    :param dest_path: Absolute path to write the qcow2 to (matches
+        ``Storage(storage_id).path``)
+    :raises CalledProcessError: when curl exits non-zero (RQ marks
+        the job FAILED → dependent ``update_status`` flips domain +
+        storage to ``Failed``)
+    """
+    log.info(
+        "download_url_for_domain: domain=%s storage=%s dest=%s",
+        domain_id,
+        storage_id,
+        dest_path,
+    )
+    try:
+        Domain(domain_id).status = "Downloading"
+    except Exception:
+        log.exception(
+            "download_url_for_domain: failed to flip domain %s to Downloading",
+            domain_id,
+        )
+
+    def _flush(progress):
+        Domain(domain_id).progress = progress
+
+    _run_curl_download(
+        url=url,
+        dest_path=dest_path,
+        headers=headers,
+        insecure_ssl=insecure_ssl,
+        google_drive_cookie=google_drive_cookie,
+        flush_progress=_flush,
+        is_aborting=lambda: _domain_aborting(domain_id),
+    )
+
+    return {
+        "id": domain_id,
+        "storage_id": storage_id,
+        "path_downloaded": dest_path,
+    }
+
+
+@_publishes_result
 def check_media_existence(media_id, path):
     """
     Returns Media data with `Downloaded` status if file exists otherwise with `deleted` status.
@@ -349,6 +1113,7 @@ def check_media_existence(media_id, path):
     return media
 
 
+@_publishes_result
 def check_backing_filename():
     """
     Check backing filename
@@ -370,7 +1135,15 @@ def check_backing_filename():
     return result
 
 
-def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=True):
+@_publishes_result
+def move(
+    origin_path,
+    destination_path,
+    method,
+    bwlimit=0,
+    remove_source_file=True,
+    progress_domain_id=None,
+):
     """
     Move disk.
 
@@ -378,8 +1151,22 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
     :type origin_path: str
     :param destination_path: Path of the destination file
     :type destination_path: str
-    :param rsync: True to use rsync
-    :type rsync: bool
+    :param method: ``"mv"``, ``"rsync"``, or ``"auto"``. ``"auto"`` compares
+        ``os.stat(dirname(...)).st_dev`` on both sides and picks ``mv`` when
+        the directories share a filesystem (atomic rename, microseconds),
+        otherwise ``rsync`` (cross-fs, with progress). On ``OSError`` during
+        the probe it falls back to ``rsync`` — works cross-fs and creates the
+        destination dir.
+    :type method: str
+    :param progress_domain_id: Optional Domain row id to receive a
+        ``progress = {"total_percent", "received_percent"}`` field for every
+        rsync tick (and a final 100 on success). Mirrors the
+        ``Media.progress`` pattern that drives the existing list-page
+        progress bars in old-frontend (``Media.vue``) and Vue 3
+        (``MediaView.vue``). For the ``mv`` branch the file move is
+        instantaneous, so progress is written once at completion. Has no
+        effect when ``None``.
+    :type progress_domain_id: str | None
     :return: Exit code of rsync command or 0 if rsync is False
     :rtype: int
     """
@@ -393,8 +1180,38 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
 
     if not isdir(dirname(destination_path)):
         makedirs(dirname(destination_path), exist_ok=True)
+
+    if method == "auto":
+        try:
+            src_dev = os_stat(dirname(origin_path)).st_dev
+            dst_dev = os_stat(dirname(destination_path)).st_dev
+            method = "mv" if src_dev == dst_dev else "rsync"
+        except OSError as exc:
+            log.warning(
+                "move(auto): st_dev probe failed (%s); falling back to rsync",
+                exc,
+            )
+            method = "rsync"
+
+    on_progress = None
+    if progress_domain_id is not None:
+
+        def _flush_domain_progress(pct):
+            percent_int = int(round(pct * 100))
+            Domain(progress_domain_id).progress = {
+                "total_percent": percent_int,
+                "received_percent": percent_int,
+            }
+
+        on_progress = _flush_domain_progress
+
     if method == "mv":
         shutil.move(origin_path, destination_path)
+        if on_progress is not None:
+            try:
+                on_progress(1.0)
+            except Exception:
+                log.exception("move(mv): on_progress callback failed")
         return 0
     elif method == "rsync":
         return run_with_progress(
@@ -408,11 +1225,13 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
                 destination_path,
             ],
             extract_progress_from_rsync_output,
+            on_progress=on_progress,
         )
     else:
         raise ValueError(f"Invalid move method: {method}")
 
 
+@_publishes_result
 def move_delete(path):
     """
     Move the disk to a "deleted" subdirectory within the same directory path
@@ -432,6 +1251,7 @@ def move_delete(path):
         raise ValueError(f"Path {path} not found")
 
 
+@_publishes_result
 def convert(source_disk_path, dest_disk_path, format, compression):
     """
     Convert disk.
@@ -458,21 +1278,39 @@ def convert(source_disk_path, dest_disk_path, format, compression):
     else:
         compress = []
 
-    return run_with_progress(
-        [
-            "qemu-img",
-            "convert",
-            "-p",
-            *compress,
-            "-O",
-            format,
-            source_disk_path,
-            dest_disk_path,
-        ],
-        extract_progress_from_qemu_img_convert_output,
-    )
+    try:
+        rc = run_with_progress(
+            [
+                "qemu-img",
+                "convert",
+                "-p",
+                *compress,
+                "-O",
+                format,
+                source_disk_path,
+                dest_disk_path,
+            ],
+            extract_progress_from_qemu_img_convert_output,
+        )
+    except BaseException:
+        # Cancelled (run_with_progress raises rc 130) or crashed mid-run:
+        # qemu-img leaves a partial destination file. Remove it so a
+        # half-written disk can never be picked up as good, then re-raise so
+        # the terminal update_status takes its cleanup branch.
+        _safe_unlink(dest_disk_path)
+        raise
+    if rc != 0:
+        # qemu-img convert failed (e.g. ENOSPC). run_with_progress returns the
+        # non-zero rc instead of raising, so returning it here would let the
+        # _publishes_result decorator publish job_status="finished" and the
+        # destination would be marked ready — a partial/corrupt disk read as a
+        # good one. Remove it and raise.
+        _safe_unlink(dest_disk_path)
+        raise CalledProcessError(returncode=rc, cmd="qemu-img convert")
+    return rc
 
 
+@_publishes_result
 def delete(path):
     """
     Delete disk.
@@ -480,11 +1318,20 @@ def delete(path):
     :param path: Path to disk
     :type path: str
     """
-    if not isfile(path):
-        raise FileNotFoundError(path)
-    remove(path)
+    if isfile(path):
+        remove(path)
+        return
+
+    parent = dirname(path)
+    if isdir(parent):
+        log.info(
+            f"delete: {path} absent on a reachable mount, skipping",
+        )
+        return
+    raise FileNotFoundError(f"delete: {path} parent directory unreachable")
 
 
+@_publishes_result
 def virt_win_reg(storage_path, registry_patch):
     """
     Copy reg file to tmp
@@ -498,33 +1345,49 @@ def virt_win_reg(storage_path, registry_patch):
     :return: Exit code of regedit command
     :rtype: int
     """
+    # Safe-cancel: virt-win-reg edits the hive in place via guestfish,
+    # so killing it mid-run can corrupt the disk. Work on a sibling copy and
+    # atomically swap it in only on success — a cancel/failure never touches
+    # the live disk.
+    #
+    # ⚠ The copy MUST be a byte-for-byte file copy (``cp``): the qcow2 header
+    # carries the backing-file reference, so a plain copy preserves the
+    # backing chain. NEVER use ``qemu-img convert -O qcow2`` here — that
+    # FLATTENS the chain (drops the backing link), doubling disk usage and
+    # breaking the template→desktop relationship.
+    tmp_path = storage_path + ".regtmp"
     try:
-        with tempfile.NamedTemporaryFile() as fp:
-            fp.write(registry_patch.encode())
-            fp.flush()
-            result = run(
-                [
-                    "virt-win-reg",
-                    "--merge",
-                    storage_path,
-                    fp.name,
-                ],
-                capture_output=True,  # Capture stdout and stderr
-                text=True,  # Decode output as text
-                check=True,  # Raise CalledProcessError on failure
-            )
-            return result.returncode
+        with task_heartbeat("virt_win_reg", storage_path=storage_path):
+            # ``--reflink=auto`` is instant on CoW filesystems and a full copy
+            # elsewhere; either way the backing header is preserved.
+            _run_cancellable(["cp", "--reflink=auto", "-f", storage_path, tmp_path])
+            with tempfile.NamedTemporaryFile() as fp:
+                fp.write(registry_patch.encode())
+                fp.flush()
+                _run_cancellable(["virt-win-reg", "--merge", tmp_path, fp.name])
+        # Atomic swap onto the live disk (same directory → same filesystem).
+        rename(tmp_path, storage_path)
+        return 0
     except CalledProcessError as cpe:
-        # Return error details, including captured stderr
-        return (
-            f"Error: Command failed with return code {cpe.returncode}. "
-            f"stderr: {cpe.stderr.strip() or 'No error message provided.'}"
+        # Returning an error string publishes job_status="finished" for a
+        # failed merge, marking the disk ready. Log stderr (merged into the
+        # CalledProcessError output by _run_cancellable), discard the temp so
+        # the live disk is untouched, and re-raise.
+        log.error(
+            "virt-win-reg failed for %s (exit %s): %s",
+            storage_path,
+            cpe.returncode,
+            (cpe.stderr or cpe.output or "").strip() or "No error message provided.",
         )
-    except Exception as e:
-        # Handle other exceptions
-        return f"Error: {str(e)}"
+        _safe_unlink(tmp_path)
+        raise
+    except BaseException:
+        # Cancel (rc 130) or failure: discard the temp, live disk untouched.
+        _safe_unlink(tmp_path)
+        raise
 
 
+@_publishes_result
 def resize(storage_path, increment):
     """
     Increase disk size
@@ -536,6 +1399,9 @@ def resize(storage_path, increment):
     :return: Exit code of qemu-img command
     :rtype: int
     """
+    # Cancel intentionally not wired: qemu-img resize is bounded by
+    # ``QEMU_IMG_TIMEOUT``; killing a shrink mid-run risks truncating
+    # live data inside the qcow2.
     try:
         return run(
             [
@@ -545,11 +1411,17 @@ def resize(storage_path, increment):
                 f"+{increment}G",
             ],
             timeout=QEMU_IMG_TIMEOUT,
+            check=True,  # Raise on a non-zero qemu-img rc
         ).returncode
-    except Exception as e:
-        return e
+    except Exception:
+        # Do NOT return the exception: a returned value is published as
+        # job_status="finished", so a failed resize would be recorded as a
+        # success. Log and re-raise so the chain fails.
+        log.exception("qemu-img resize failed for %s", storage_path)
+        raise
 
 
+@_publishes_result
 def find(storage_id, storage_path, full_walk=False):
     """
     Find storage path from storage_id recursively in base_path.
@@ -570,6 +1442,8 @@ def find(storage_id, storage_path, full_walk=False):
     :return: Dict with storage id, status, and list of matching files
     :rtype: dict
     """
+    # Cancel intentionally not wired: admin-only filesystem walk; the
+    # fast path is O(1) and the full walk has no user-facing waiter.
     try:
         root_dir = "/isard"
         matching_files = []
@@ -602,34 +1476,42 @@ def find(storage_id, storage_path, full_walk=False):
                 "matching_files": matching_files,
             }
 
-        # Full walk: file not at expected path, or full_walk explicitly requested
-        for root, _, files in walk(root_dir):
-            for filename in files:
-                if storage_id in filename:
-                    file_path = join(root, filename)
-                    try:
-                        modified_time = getmtime(file_path)
-                    except OSError:
-                        modified_time = None
-                    # Skip if the file is not a qcow2 file or it is a hidden file (starts with a dot)
-                    if not file_path.endswith(".qcow2") or basename(
-                        file_path
-                    ).startswith("."):
-                        storage_data = None
-                    else:
-                        storage_data = qemu_img_info_backing_chain(
-                            storage_id, file_path
+        # Full walk: file not at expected path, or full_walk explicitly requested.
+        # Heartbeat surfaces "still walking" while the recursive scan runs — on
+        # large /isard trees this can take minutes and otherwise looks identical
+        # to a stuck worker in the logs.
+        with task_heartbeat("find", storage_id=storage_id, full_walk=full_walk):
+            for root, _, files in walk(root_dir):
+                for filename in files:
+                    if storage_id in filename:
+                        file_path = join(root, filename)
+                        try:
+                            modified_time = getmtime(file_path)
+                        except OSError:
+                            modified_time = None
+                        # Skip if the file is not a qcow2 file or it is a hidden file (starts with a dot)
+                        if not file_path.endswith(".qcow2") or basename(
+                            file_path
+                        ).startswith("."):
+                            storage_data = None
+                        else:
+                            storage_data = qemu_img_info_backing_chain(
+                                storage_id, file_path
+                            )
+                        matching_files.append(
+                            {
+                                "path": file_path,
+                                "mtime": modified_time,
+                                "storage_data": storage_data,
+                            }
                         )
-                    matching_files.append(
-                        {
-                            "path": file_path,
-                            "mtime": modified_time,
-                            "storage_data": storage_data,
-                        }
-                    )
-                    if storage_path == file_path and storage_data:
-                        status = storage_data["status"]
-        return {"id": storage_id, "status": status, "matching_files": matching_files}
+                        if storage_path == file_path and storage_data:
+                            status = storage_data["status"]
+            return {
+                "id": storage_id,
+                "status": status,
+                "matching_files": matching_files,
+            }
     except Exception:
         log.error(
             "task.find failed: storage_id=%s storage_path=%s full_walk=%s\n%s",
@@ -641,6 +1523,7 @@ def find(storage_id, storage_path, full_walk=False):
         raise
 
 
+@_publishes_result
 def touch(path):
     """
     Update the access and modification times of a file.
@@ -673,6 +1556,7 @@ def _format_size(kb):
         return f"{kb / (1024 * 1024):.2f} GB"
 
 
+@_publishes_result
 def sparsify(storage_path):
     """
     Sparsify disk
@@ -697,48 +1581,62 @@ def sparsify(storage_path):
         _format_size(old_size),
     )
 
+    # Safe-cancel: sparsify the disk on a sibling copy and atomically
+    # swap it in only on success, so a cancel/failure never corrupts the live
+    # disk. The copy MUST be a byte-for-byte ``cp`` (preserves the qcow2
+    # backing header) — never ``qemu-img -O qcow2`` (which flattens the chain).
+    #
+    # Trade-off: the copy needs ~old_size free in the same filesystem. sparsify
+    # is often run *because* space is tight, so when there isn't headroom we
+    # fall back to the classic in-place op (un-cancellable) rather than fail.
+    tmp_path = storage_path + ".sparsetmp"
+    free = _free_space(dirname(storage_path))
+    need = int(old_size) * 1024  # _get_disk_usage is KB, _free_space is bytes
+    safe_cancel = old_size > 0 and free is not None and free > need * 1.1
     try:
-        result = run(
-            ["virt-sparsify", "--in-place", storage_path],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        if result.stderr:
-            log.info(
-                "virt-sparsify stderr for %s: %s", storage_path, result.stderr.strip()
-            )
+        with task_heartbeat("sparsify", storage_path=storage_path):
+            if safe_cancel:
+                _run_cancellable(["cp", "--reflink=auto", "-f", storage_path, tmp_path])
+                _run_cancellable(["virt-sparsify", "--in-place", tmp_path])
+                new_size = _get_disk_usage(tmp_path)
+                rename(tmp_path, storage_path)  # atomic swap
+            else:
+                log.warning(
+                    "sparsify: no headroom for a safe-cancel copy (free=%s need~%s); "
+                    "running in-place, cancel not wired",
+                    free,
+                    need,
+                )
+                result = run(
+                    ["virt-sparsify", "--in-place", storage_path],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                if result.stderr:
+                    log.info(
+                        "virt-sparsify stderr for %s: %s",
+                        storage_path,
+                        result.stderr.strip(),
+                    )
+                new_size = _get_disk_usage(storage_path)
     except CalledProcessError as cpe:
+        # A returned value publishes job_status="finished", recording a failed
+        # sparsify as success. Log stderr (in .stderr on the in-place fallback,
+        # merged into .output by _run_cancellable), discard any temp, re-raise.
         log.error(
-            "virt-sparsify failed for %s (exit %d): %s",
+            "virt-sparsify failed for %s (exit %s): %s",
             storage_path,
             cpe.returncode,
-            cpe.stderr.strip() if cpe.stderr else "No error message",
+            (cpe.stderr or cpe.output or "").strip() or "No error message",
         )
-        return {
-            "exit_code": cpe.returncode,
-            "saved_space": 0,
-            "old_size": old_size,
-            "new_size": old_size,
-            "error": cpe.stderr.strip() if cpe.stderr else "No error message provided.",
-        }
-    except Exception as e:
-        log.error("Unexpected error during sparsify of %s: %s", storage_path, e)
-        return {
-            "exit_code": -1,
-            "saved_space": 0,
-            "old_size": old_size,
-            "new_size": old_size,
-            "error": str(e),
-        }
-
-    try:
-        new_size = _get_disk_usage(storage_path)
-    except Exception as e:
-        log.warning(
-            "Failed to get disk usage after sparsify for %s: %s", storage_path, e
-        )
-        new_size = 0
+        _safe_unlink(tmp_path)
+        raise
+    except BaseException:
+        # Cancel (rc 130) or failure: discard the temp; in the fallback path
+        # there is no temp and the in-place op already raised.
+        _safe_unlink(tmp_path)
+        raise
 
     saved = int(old_size) - int(new_size)
     log.info(
@@ -750,13 +1648,14 @@ def sparsify(storage_path):
     )
 
     return {
-        "exit_code": result.returncode,
+        "exit_code": 0,
         "saved_space": saved,
         "old_size": old_size,
         "new_size": new_size,
     }
 
 
+@_publishes_result
 def disconnect(storage_path):
     """
     Disconnect storage_id from backing file
@@ -766,10 +1665,13 @@ def disconnect(storage_path):
     :return: Exit code of qemu-img command
     :rtype: int
     """
+    # Cancel intentionally not wired: single-layer qemu-img convert into
+    # a sibling temp file followed by an atomic rename; the operation is
+    # short and the temp-file cleanup on cancel would need its own logic.
     disconnected_path = storage_path + ".wo_chain"
 
     try:
-        convert = run(
+        run(
             [
                 "qemu-img",
                 "convert",
@@ -782,12 +1684,12 @@ def disconnect(storage_path):
             ],
             check=True,
         )
-        if convert.returncode == 0:
-            remove(storage_path)
-            rename(disconnected_path, storage_path)
-        else:
-            remove(disconnected_path)
-
-        return convert.returncode
-    except Exception as e:
-        return f"Error: {str(e)}"
+    except BaseException:
+        # Do NOT return an error string: a returned value is published as
+        # job_status="finished", so a failed disconnect would be recorded as a
+        # success. Clean the partial sibling and re-raise.
+        _safe_unlink(disconnected_path)
+        raise
+    remove(storage_path)
+    rename(disconnected_path, storage_path)
+    return 0

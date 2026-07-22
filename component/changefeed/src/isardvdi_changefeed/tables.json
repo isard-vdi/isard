@@ -1,0 +1,284 @@
+[
+  {
+    "table": "deployments"
+  },
+  {
+    "table": "domains",
+    "stream": true,
+    "pluck": [
+      "id",
+      {
+        "create_dict": {
+          "hardware": [
+            "interfaces",
+            "videos",
+            "disks",
+            "vcpus",
+            "memory"
+          ],
+          "reservables": true
+        }
+      },
+      "kind",
+      "server",
+      "hyp_started",
+      "icon",
+      "name",
+      "status",
+      "username",
+      "accessed",
+      "forced_hyp",
+      "favourite_hyp",
+      "booking_id",
+      "tag",
+      "start_logs_id",
+      "user",
+      "category",
+      "viewer",
+      "image",
+      "description",
+      "progress",
+      "server_autostart",
+      "persistent",
+      "group",
+      "parents",
+      "tag_visible",
+      "guest_properties",
+      "jumperurl",
+      "scheduled",
+      "detail",
+      "enabled",
+      "allowed",
+      "current_action",
+      "url-isard",
+      "url-web"
+    ]
+  },
+  {
+    "table": "media",
+    "stream": true,
+    "pluck": [
+      "id",
+      "kind",
+      "url-isard",
+      "url-web",
+      "status",
+      "category",
+      "user",
+      "name",
+      "accessed",
+      "allowed",
+      "description",
+      "group",
+      "progress",
+      "task",
+      "username",
+      "icon"
+    ]
+  },
+  {
+    "table": "categories"
+  },
+  {
+    "table": "groups"
+  },
+  {
+    "table": "users",
+    "stream": true,
+    "pluck": [
+      "accessed",
+      "active",
+      "category",
+      "email",
+      "email_verified",
+      "group",
+      "id",
+      "name",
+      "role",
+      "secondary_groups",
+      "username",
+      {
+        "vpn": {
+          "iptables": true,
+          "wireguard": {
+            "Address": true,
+            "AllowedIPs": true,
+            "connected": true,
+            "extra_client_nets": true,
+            "keys": true,
+            "remote_ip": true,
+            "remote_port": true
+          }
+        }
+      }
+    ]
+  },
+  {
+    "table": "hypervisors",
+    "stream": true,
+    "pluck": [
+      "enabled",
+      "hostname",
+      "id",
+      "only_forced",
+      "stats",
+      "cap_status",
+      "capabilities",
+      "viewer_status",
+      "status",
+      "thread_status",
+      "hypervisors_pools",
+      "status_time",
+      {
+        "stats": {
+          "mem_stats": {
+            "total": true,
+            "available": true,
+            "used": true,
+            "hugepages_total_kb": true,
+            "hugepages_free_kb": true,
+            "hugepages_used_kb": true
+          },
+          "cpu_1min": {
+            "used": true
+          },
+          "last_action": true,
+          "positioned_items": true
+        }
+      },
+      {
+        "vpn": {
+          "tunneling_mode": true,
+          "tunnel_status": true,
+          "wireguard": {
+            "Address": true,
+            "AllowedIPs": true,
+            "connected": true,
+            "extra_client_nets": true,
+            "keys": true
+          }
+        }
+      },
+      "min_free_mem_gb",
+      "min_free_gpu_mem_gb",
+      "gpu_only",
+      "orchestrator_managed",
+      "destroy_time",
+      "boot_progress"
+    ]
+  },
+  {
+    "table": "vgpus",
+    "pluck": [
+      "id",
+      "vgpu_profile",
+      "requested_profile",
+      "operator_passthrough",
+      "changing_to_profile",
+      "last_apply_error",
+      {
+        "mdevs": true
+      }
+    ]
+  },
+  {
+    "table": "targets"
+  },
+  {
+    "table": "bookings"
+  },
+  {
+    "table": "resource_planner"
+  },
+  {
+    "table": "recycle_bin",
+    "pluck": [
+      "id",
+      "status",
+      "owner_id"
+    ]
+  },
+  {
+    "table": "remotevpn",
+    "stream": true
+  },
+  {
+    "table": "engine",
+    "stream": true,
+    "pluck": [
+      "threads",
+      "status_all_threads"
+    ]
+  },
+  {
+    "table": "scheduler_jobs",
+    "pluck": [
+      "action",
+      "hour",
+      "id",
+      "kind",
+      "kwargs",
+      "minute",
+      "name",
+      "next_run_time",
+      "type"
+    ]
+  },
+  {
+    "table": "graphics"
+  },
+  {
+    "table": "videos"
+  },
+  {
+    "table": "interfaces"
+  },
+  {
+    "table": "qos_net"
+  },
+  {
+    "table": "qos_disk"
+  },
+  {
+    "table": "boots"
+  },
+  {
+    "table": "user_storage",
+    "pluck": [
+      "id",
+      "name",
+      "description",
+      "provider",
+      "status",
+      "enabled"
+    ]
+  },
+  {
+    "table": "users_migrations"
+  },
+  {
+    "table": "storage",
+    "stream": true,
+    "pluck": [
+      "id",
+      "status",
+      "status_time",
+      "user_id",
+      "directory_path",
+      "type",
+      "parent",
+      "task",
+      "storages_with_uuid",
+      {
+        "progress": true
+      },
+      {
+        "qemu-img-info": {
+          "virtual-size": true,
+          "actual-size": true,
+          "full-backing-filename": true
+        }
+      }
+    ]
+  }
+]

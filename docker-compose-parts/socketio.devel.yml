@@ -1,0 +1,16 @@
+services:
+  isard-socketio:
+    # watchfiles is a regular dep of isardvdi-socketio so uvicorn
+    # picks it up automatically for --reload (inotify-based) instead
+    # of falling back to StatReload polling, which hangs across the
+    # bind-mounted /opt/isardvdi/isardvdi_common tree.
+    # /app (own service code) and /opt/isardvdi/isardvdi_common are
+    # separate bind mounts. inotify on /app does NOT recurse through
+    # sub-mounts, so each one must be listed explicitly as a
+    # --reload-dir or changes to _common get silently dropped.
+    command: ["uvicorn", "isardvdi_socketio:app", "--host", "0.0.0.0", "--port", "5000", "--reload", "--reload-dir", "/app", "--reload-dir", "/opt/isardvdi/isardvdi_common", "--proxy-headers", "--forwarded-allow-ips=*"]
+    environment:
+      PYTHONPATH: /opt/isardvdi
+    volumes:
+      - ${BUILD_ROOT_PATH}/component/socketio/src:/app
+      - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common

@@ -5,13 +5,38 @@ from rethinkdb import RethinkDB
 r = RethinkDB()
 import ipaddress
 import logging as log
+import shlex
 import traceback
-from subprocess import check_call, check_output
+from subprocess import check_output
 
-import iptc
+from db import vpn_rethink_conn
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
-REJECT = {"target": {"REJECT": {"reject-with": "icmp-host-prohibited"}}}
+IPTABLES = "/sbin/iptables"
+
+
+def _forward_rule_specs():
+    """Token lists for every ``-A FORWARD ...`` rule, from ``iptables -S FORWARD``.
+
+    ``-S`` prints each rule as its append-equivalent command, so swapping the
+    leading ``-A`` for ``-D`` reproduces an exact delete. Non-append lines
+    (e.g. the ``-P FORWARD DROP`` policy) are skipped.
+    """
+    out = check_output((IPTABLES, "-S", "FORWARD"), text=True)
+    specs = []
+    for line in out.splitlines():
+        line = line.strip()
+        if line.startswith("-A FORWARD"):
+            specs.append(shlex.split(line))
+    return specs
+
+
+def _rule_addr(tokens, flag):
+    """Mask-stripped address passed to ``flag`` (``-s``/``-d``), or None."""
+    try:
+        return tokens[tokens.index(flag) + 1].split("/")[0]
+    except (ValueError, IndexError):
+        return None
 
 
 class UserIpTools(object):
@@ -21,19 +46,21 @@ class UserIpTools(object):
         self.init_domains_started()
 
     def init_domains_started(self):
-        domains_started = (
-            r.table("domains")
-            .get_all("Started", index="status")
-            .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
-            .run()
-        )
+        with vpn_rethink_conn() as conn:
+            domains_started = (
+                r.table("domains")
+                .get_all("Started", index="status")
+                .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
+                .run(conn)
+            )
         for ds in domains_started:
             if ds.get("viewer") and "guest_ip" in ds["viewer"].keys():
                 self.desktop_add(ds["user"], ds["viewer"]["guest_ip"])
 
     def desktop_add(self, user_id, desktop_ip):
         try:
-            user = r.table("users").get(user_id).run()
+            with vpn_rethink_conn() as conn:
+                user = r.table("users").get(user_id).run(conn)
             user_addr = user["vpn"]["wireguard"]["Address"]
         except Exception as e:
             log.debug("EXCEPTION READING USERS: " + str(e))
@@ -80,7 +107,8 @@ class UserIpTools(object):
 
     def desktop_remove(self, user_id, desktop_ip):
         try:
-            user = r.table("users").get(user_id).run()
+            with vpn_rethink_conn() as conn:
+                user = r.table("users").get(user_id).run(conn)
             user_addr = user["vpn"]["wireguard"]["Address"]
         except Exception as e:
             log.error("EXCEPTION READING USERS: " + e)
@@ -143,12 +171,6 @@ class UserIpTools(object):
         self.remove_remote_vpn(user, desktop_ip)
         return
 
-    def add_rule(self, rule, table=iptc.Table.FILTER, chain="FORWARD"):
-        table = iptc.Table(table)
-        chain = iptc.Chain(table, chain)
-        rule = iptc.easy.encode_iptc_rule(rule)
-        chain.insert_rule(rule)
-
     def set_default_policy(self):
         guests_net = ipaddress.ip_network(
             os.environ.get("WG_GUESTS_NETS", "10.2.0.0/16"), strict=False
@@ -157,16 +179,16 @@ class UserIpTools(object):
             ipaddress.ip_network(f"{guests_net.network_address}/28", strict=False)
         )
         check_output(("/sbin/iptables", "-P", "FORWARD", "DROP"), text=True).strip()
-        # Block user-to-user traffic (wg0 to wg0)
+        # Block user-to-user traffic (users <-> users on the WireGuard iface)
         check_output(
             (
                 "/sbin/iptables",
                 "-I",
                 "FORWARD",
                 "-i",
-                "wg0",
+                "users",
                 "-o",
-                "wg0",
+                "users",
                 "-j",
                 "REJECT",
                 "--reject-with",
@@ -181,7 +203,7 @@ class UserIpTools(object):
                 "-I",
                 "FORWARD",
                 "-i",
-                "wg0",
+                "users",
                 "-d",
                 infra_cidr,
                 "-j",
@@ -194,9 +216,6 @@ class UserIpTools(object):
 
     def flush_chains(self):
         check_output(("/sbin/iptables", "-F", "FORWARD"), text=True).strip()
-
-    def wireguard_default_postup(self):
-        str = "iptables -I FORWARD -i wg0 -o wg0 -j REJECT --reject-with icmp-host-prohibited"
 
     ## Remote vpn host (for external server access to desktops)
     def apply_remote_vpn(self, user, desktop_ip):
@@ -329,7 +348,8 @@ class UserIpTools(object):
                         pass
 
     def get_extra_alloweds(self, user, table="remotevpn"):
-        data = r.table(table).run()
+        with vpn_rethink_conn() as conn:
+            data = list(r.table(table).run(conn))
         allowed_data = []
         for d in data:
             # False doesn't check, [] means all allowed
@@ -367,48 +387,37 @@ class UserIpTools(object):
 
     def remove_matching_rules(self, peer):
         try:
-            if peer["vpn"]["wireguard"]["extra_client_nets"]:
-                ips = peer["vpn"]["wireguard"]["extra_client_nets"].split(",") + [
-                    peer["vpn"]["wireguard"]["Address"]
-                ]
-            else:
-                ips = [peer["vpn"]["wireguard"]["Address"]]
-            rules = iptc.easy.dump_table("filter")["FORWARD"]
-            for rule in rules:
-                for ip in ips:
-                    if (
-                        rule["dst"].split("/")[0] in ip
-                        or rule["src"].split("/")[0] in ips
-                    ):
-                        try:
-                            check_output(
-                                (
-                                    "/sbin/iptables",
-                                    "-D",
-                                    "FORWARD",
-                                    "-s",
-                                    rule["src"],
-                                    "-d",
-                                    rule["dst"],
-                                    "-j",
-                                    "ACCEPT",
-                                )
-                            )
-                            check_output(
-                                (
-                                    "/sbin/iptables",
-                                    "-D",
-                                    "FORWARD",
-                                    "-s",
-                                    rule["dst"],
-                                    "-d",
-                                    rule["src"],
-                                    "-j",
-                                    "ACCEPT",
-                                )
-                            )
-                        except:
-                            pass
-                            # It doesn't exist
-        except Exception as e:
+            wg = ((peer or {}).get("vpn") or {}).get("wireguard") or {}
+            address = wg.get("Address")
+            if not address:
+                # Peer never completed wireguard setup (no Address yet);
+                # there's no rule pinned to its IP to remove.
+                return
+            targets = {address.split("/")[0]}
+            extra = wg.get("extra_client_nets")
+            if extra:
+                targets |= {a.split("/")[0] for a in extra.split(",")}
+
+            for tokens in _forward_rule_specs():
+                # Only the per-peer ACCEPT pairs are reaped; the REJECT
+                # isolation rules and the DROP policy are never deleted.
+                try:
+                    target = tokens[tokens.index("-j") + 1]
+                except (ValueError, IndexError):
+                    continue
+                if target != "ACCEPT":
+                    continue
+                if (
+                    _rule_addr(tokens, "-s") in targets
+                    or _rule_addr(tokens, "-d") in targets
+                ):
+                    try:
+                        # tokens[2:] is everything after "-A FORWARD".
+                        check_output(
+                            (IPTABLES, "-D", "FORWARD", *tokens[2:]), text=True
+                        )
+                    except Exception:
+                        # already gone / lost a race
+                        pass
+        except Exception:
             log.error("Removing matched rule except: \n" + traceback.format_exc())

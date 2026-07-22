@@ -53,17 +53,6 @@ class Scheduler:
         """
         self.rStore = RethinkDBJobStore()
 
-        # GeventScheduler (not BackgroundScheduler): this service runs as a single
-        # gevent process (Flask-SocketIO under monkey-patch), so the gevent
-        # scheduler runs jobs as greenlets cooperatively with the loop, with no
-        # fixed thread-pool cap (BackgroundScheduler defaults to ThreadPoolExecutor
-        # with max_workers=10, which throttles booking-transition bursts).
-        # job_defaults: date jobs previously inherited APScheduler's 1-second
-        # misfire grace, so when the scheduler fell minutes behind during a burst
-        # the booking-end jobs (gpu_desktops_destroy / gpu_profile_set /
-        # domain_reservable_set) were silently DROPPED. A large grace makes a late
-        # run happen instead of a missed one (a late GPU teardown beats a stuck GPU);
-        # coalesce collapses accumulated misfires into a single run.
         self.scheduler = GeventScheduler(
             timezone=pytz.timezone("UTC"),
             job_defaults={
@@ -277,7 +266,7 @@ class Scheduler:
                 kwargs=kwargs,
             )
         if kind == "date":
-            alarm_time = datetime.now() + timedelta(
+            alarm_time = datetime.now(pytz.utc) + timedelta(
                 hours=int(hour), minutes=int(minute)
             )
             self.scheduler.add_job(

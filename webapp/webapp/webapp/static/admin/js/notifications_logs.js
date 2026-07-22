@@ -39,7 +39,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
             $.ajax({
                 type: 'DELETE',
-                url: `/api/v3/admin/notifications/data`,
+                url: `/api/v4/admin/items/notifications/data`,
                 contentType: 'application/json',
                 success: function (data) {
                     new PNotify({
@@ -73,9 +73,11 @@ function populateStatusSelect() {
     var statusSelect = $('#status');
     $('#status').empty();
     $.ajax({
-        url: '/api/v3/admin/notifications/statuses',
+        url: '/api/v4/admin/items/notifications/statuses',
         type: 'GET',
-        success: function (statuses) {
+        "dataSrc": 'statuses',
+        success: function (response) {
+            var statuses = Array.isArray(response) ? response : (response.statuses || []);
             statusSelect.empty();
             statusSelect.append('<option value="none" disabled selected> -- Select a notification status --</option>');
             statuses.forEach(function (status) {
@@ -94,10 +96,10 @@ function populateStatusSelect() {
 function renderNotificationsLogsDatatable(table, status, user_id) {
     table.DataTable({
         "ajax": {
-            url: '/api/v3/admin/notifications/data/' + status + "/" + user_id,
+            url: '/api/v4/admin/items/notifications/data/status/' + status + "/user/" + user_id,
             type: 'GET',
         },
-        "sAjaxDataProp": "",
+        "sAjaxDataProp": "data",
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
@@ -168,14 +170,14 @@ function renderNotificationsLogsDatatable(table, status, user_id) {
 function renderNotificationUsersDatatable(status) {
     $('#notifications-users-table').DataTable({
         "ajax": {
-            url: '/api/v3/admin/notifications/data/user/' + status,
+            url: '/api/v4/admin/items/notifications/data/by_status/' + status,
             type: 'GET',
         },
-        "sAjaxDataProp": "",
+        "sAjaxDataProp": "data",
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
-        "rowId": "item_id",
+        "rowId": "user_id",
         "searching": true,
         "footer": true,
         "deferRender": true,
@@ -232,7 +234,8 @@ function renderNotificationLogsDetailPannel(d) {
 
 function addDeleteButtonListeners() {
     $("#notifications-users-table").find('tbody').on('click', 'button', function () {
-        var data = $(this).closest("table").DataTable().row($(this).parents('tr')).data();
+        var table = $(this).closest("table").DataTable();
+        var data = table.row($(this).parents('tr')).data();
         switch ($(this).attr('id')) {
             case "btn-delete":
                 new PNotify({
@@ -250,9 +253,9 @@ function addDeleteButtonListeners() {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: 'DELETE',
-                        url: `/api/v3/admin/notifications/data/${data.user_id}`,
+                        url: `/api/v4/admin/items/notifications/data/user/${data.user_id}`,
                         contentType: 'application/json',
-                        success: function (data) {
+                        success: function () {
                             new PNotify({
                                 title: 'Deleted',
                                 text: `Notification data deleted successfully`,
@@ -261,7 +264,7 @@ function addDeleteButtonListeners() {
                                 opacity: 1,
                                 type: 'success'
                             });
-                            $("#notifications-logs-table").DataTable().row('#' + data.id).remove().draw();
+                            table.row('#' + data.user_id).remove().draw();
                         },
                         error: function (data) {
                             new PNotify({
@@ -283,7 +286,8 @@ function addDeleteButtonListeners() {
 
 function addDetailDeleteButtonListeners() {
     $("#notifications-logs-table").find('tbody').on('click', 'button', function () {
-        var data = $(this).closest("table").DataTable().row($(this).parents('tr')).data();
+        var table = $(this).closest("table").DataTable();
+        var data = table.row($(this).parents('tr')).data();
         switch ($(this).attr('id')) {
             case "btn-delete-notification-data":
                 new PNotify({
@@ -301,9 +305,9 @@ function addDetailDeleteButtonListeners() {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: 'DELETE',
-                        url: `/api/v3/admin/notifications/data/${data.id}`,
+                        url: `/api/v4/admin/item/notifications/data/${data.id}`,
                         contentType: 'application/json',
-                        success: function (data) {
+                        success: function () {
                             new PNotify({
                                 title: 'Deleted',
                                 text: `Notification deleted successfully`,
@@ -312,7 +316,7 @@ function addDetailDeleteButtonListeners() {
                                 opacity: 1,
                                 type: 'success'
                             });
-                            $("#notifications-logs-table").DataTable().row('#' + data.id).remove().draw();
+                            table.row('#' + data.id).remove().draw();
                         },
                         error: function (data) {
                             new PNotify({

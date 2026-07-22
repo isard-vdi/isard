@@ -8,7 +8,7 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    url: ${PROMETHEUS_ADDRESS}
+    url: ${VICTORIAMETRICS_ADDRESS}
     isDefault: true
     jsonData:
       httpMethod: POST

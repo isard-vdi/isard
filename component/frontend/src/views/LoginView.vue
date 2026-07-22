@@ -1,0 +1,751 @@
+<script setup lang="ts">
+import { computed, type ComputedRef, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import {
+  providersOptions,
+  providersQueryKey
+} from '@/gen/oas/authentication/@tanstack/vue-query.gen'
+import { login, type LoginData, type LoginError as AuthLoginError } from '@/gen/oas/authentication'
+import type { CategoryResponseList } from '@/gen/oas/apiv4'
+import {
+  apiV4CategoriesOptions,
+  apiV4CategoriesQueryKey,
+  apiV4CategoryOptions,
+  apiV4CategoryQueryKey,
+  apiV4LoginConfigOptions,
+  getLoginConfigByCategoryOptions,
+  getLoginConfigByCategoryQueryKey
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import {
+  parseToken as parseAuthToken,
+  getToken as getAuthToken,
+  isCategorySelectClaims,
+  isRegisterClaims,
+  useCookies as useAuthCookies,
+  isLoginClaims,
+  setToken as setAuthToken,
+  getBearer as getAuthBearer,
+  removeToken as removeAuthToken,
+  checkLoginRegister as checkAuthLoginRegister,
+  TokenType
+} from '@/lib/auth'
+import { dateIsToday } from '@/lib/utils'
+import { Locale, setLocale } from '@/lib/i18n'
+import { LoginLayout } from '@/layouts/login'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Provider,
+  LoginProviderForm,
+  LoginProviderExternal,
+  LoginCategoriesDropdown,
+  LoginCategorySelect,
+  LoginNotification,
+  isProvider
+} from '@/components/login'
+import { Separator } from '@/components/ui/separator'
+
+const { t, te, d } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const cookies = useAuthCookies()
+const queryClient = useQueryClient()
+
+/*
+ * Route arguments
+ */
+const routeProvider = computed(() => {
+  const provider = Array.isArray(route.params.provider)
+    ? route.params.provider[0]
+    : route.params.provider
+  if (provider === 'all') {
+    return 'all'
+  }
+
+  // Check that the provider specified in the route is valid
+  if (!isProvider(provider)) {
+    // TODO: Router push to /login if the provider in the URL is invalid / not active / whatever
+    return undefined
+  }
+
+  return provider
+})
+
+const routeCategory = computed(() => {
+  const category = Array.isArray(route.params.category)
+    ? route.params.category[0]
+    : route.params.category
+  if (category) {
+    return category
+  }
+  // Legacy `/login/<category>` URLs (Vue 2 convention): when the first
+  // segment isn't a known provider or 'all', treat it as the category.
+  const provider = Array.isArray(route.params.provider)
+    ? route.params.provider[0]
+    : route.params.provider
+  if (provider && provider !== 'all' && !isProvider(provider)) {
+    return provider
+  }
+  return undefined
+})
+
+/*
+ * Data loading
+ */
+const {
+  isPending: globalConfigIsPending,
+  isError: globalConfigIsError,
+  error: globalConfigError,
+  data: globalConfig
+} = useQuery(apiV4LoginConfigOptions())
+
+const categoriesOpts = computed(() => apiV4CategoriesOptions())
+const categoriesQueryKey = computed(() => apiV4CategoriesQueryKey())
+const {
+  isPending: categoriesIsPending,
+  isError: categoriesIsError,
+  error: categoriesError,
+  data: categories
+} = useQuery({
+  ...categoriesOpts.value,
+  queryKey: categoriesQueryKey,
+  enabled: computed(() => !routeCategory.value)
+})
+
+const categoryOpts = computed(() =>
+  apiV4CategoryOptions({
+    path: {
+      custom_url: routeCategory.value || ''
+    }
+  })
+)
+const categoryQueryKey = computed(() =>
+  apiV4CategoryQueryKey({
+    path: {
+      custom_url: routeCategory.value || ''
+    }
+  })
+)
+const {
+  isPending: categoryIsPending,
+  isError: categoryIsError,
+  error: categoryError,
+  data: category
+} = useQuery({
+  ...categoryOpts.value,
+  queryKey: categoryQueryKey,
+  enabled: computed(() => !!routeCategory.value),
+  retry: false
+})
+
+const categoriesDropdownModel = ref<CategoryResponseList['categories'][number] | undefined>(
+  undefined
+)
+
+const providersCategoryId = computed(() => {
+  if (category.value) {
+    return category.value.id
+  }
+  if (categoriesDropdownModel.value) {
+    return categoriesDropdownModel.value.id
+  }
+  if (categories.value?.categories?.length === 1) {
+    return categories.value.categories[0].id
+  }
+  return 'default'
+})
+
+const categoryConfigOpts = computed(() =>
+  getLoginConfigByCategoryOptions({
+    path: {
+      category_id: providersCategoryId.value || ''
+    }
+  })
+)
+const categoryConfigQKey = computed(() =>
+  getLoginConfigByCategoryQueryKey({
+    path: {
+      category_id: providersCategoryId.value || ''
+    }
+  })
+)
+const {
+  isPending: categoryConfigIsPending,
+  isError: categoryConfigIsError,
+  error: categoryConfigError,
+  data: categoryConfig
+} = useQuery({
+  ...categoryConfigOpts.value,
+  queryKey: categoryConfigQKey,
+  enabled: computed(() => !!providersCategoryId.value)
+})
+
+const configIsPending = computed(() =>
+  providersCategoryId.value ? categoryConfigIsPending.value : globalConfigIsPending.value
+)
+const configIsError = computed(() =>
+  providersCategoryId.value ? categoryConfigIsError.value : globalConfigIsError.value
+)
+const configError = computed(() =>
+  providersCategoryId.value ? categoryConfigError.value : globalConfigError.value
+)
+const config = computed(() =>
+  providersCategoryId.value ? categoryConfig.value : globalConfig.value
+)
+
+const providersOpts = computed(() =>
+  providersOptions({
+    query: {
+      category_id: providersCategoryId.value
+    }
+  })
+)
+const providersQKey = computed(() =>
+  providersQueryKey({
+    query: {
+      category_id: providersCategoryId.value
+    }
+  })
+)
+const {
+  isPending: providersIsPending,
+  isError: providersIsError,
+  error: providersError,
+  data: providers
+} = useQuery({
+  ...providersOpts.value,
+  queryKey: providersQKey
+})
+
+const isPending = computed(
+  () =>
+    providersIsPending.value ||
+    configIsPending.value ||
+    (categoriesIsPending.value && categoryIsPending.value)
+)
+
+const isError = computed(
+  () =>
+    providersIsError.value ||
+    configIsError.value ||
+    categoriesIsError.value ||
+    categoryIsError.value
+)
+const error = computed(
+  () => providersError.value || configError.value || categoriesError.value || categoryError.value
+)
+
+/*
+ * View logic
+ */
+const showProvider = (provider: Provider): ComputedRef<boolean> =>
+  computed(() => {
+    // Check that the provider is enabled by authentication
+    if (!providers.value?.providers.includes(provider)) {
+      return false
+    }
+
+    // If there's a provider on the route, show it if it corresponds
+    if (routeProvider.value) {
+      return routeProvider.value === 'all' ? true : provider === routeProvider.value
+    }
+
+    // If the providers are limited in the login configuration, follow this config
+    const displayProviders = config.value?.providers?.all?.display_providers
+    if (displayProviders) {
+      return displayProviders.includes(provider)
+    }
+
+    // Otherwise, display the provider
+    return true
+  })
+
+const providersToShow = computed(() =>
+  Object.values(Provider).filter((provider) => showProvider(provider).value)
+)
+
+const showCategoriesDropdown = computed(() => {
+  let display = true
+
+  // If there's a category set in the URL, don't show the dropdown
+  if (routeCategory.value) {
+    return false
+  }
+
+  // If there is only one category, don't show the dropdown
+  if (!categories.value || categories.value.categories?.length === 1) {
+    return false
+  }
+
+  const providersConfig = config.value?.providers
+  if (providersConfig) {
+    // Check if there's a general hide
+    if (providersConfig.all?.hide_categories_dropdown) {
+      display = false
+    }
+
+    // If there's an active provider, check the configuration for it
+    if (routeProvider.value) {
+      const hide = providersConfig[routeProvider.value]?.hide_categories_dropdown
+      if (hide !== undefined) {
+        display = !hide
+      }
+
+      // Otherwise, check the other providers
+    } else {
+      for (const provider of providersToShow.value) {
+        const hide = providersConfig[provider]?.hide_categories_dropdown
+        if (hide !== undefined) {
+          // If there's a provider that explicitelly enables the category dropdown,
+          // takes preference over the rest
+          if (!hide) {
+            break
+          }
+
+          display = !hide
+        }
+      }
+    }
+  }
+
+  return display
+})
+
+const selectedCategory = computed(() => {
+  if (category.value) {
+    return category.value.id
+  }
+
+  // If the dropdown is shown, always use this value
+  if (showCategoriesDropdown.value) {
+    return categoriesDropdownModel.value ? categoriesDropdownModel.value.id : undefined
+  }
+
+  // If there's only one category, use it
+  if (categories?.value?.categories?.length === 1) {
+    return categories.value.categories[0].id
+  }
+
+  // Fallback to the 'default' category if there's no category
+  // in the URL and the dropdown isn't shown. This is useful for
+  // external providers that can guess the category
+  return 'default'
+})
+
+// Swap the login logo to the selected category's branding logo (the
+// per-category endpoint falls back to the default logo when none is enabled).
+const logoSrc = computed(() =>
+  selectedCategory.value && selectedCategory.value !== 'default'
+    ? `/api/v4/logo/category/${selectedCategory.value}`
+    : '/api/v4/logo'
+)
+
+const categoriesDropdownEl = ref<InstanceType<typeof LoginCategoriesDropdown> | null>(null)
+const focusCategoriesDropdown = () => {
+  loginError.value = 'missing_category'
+  categoriesDropdownEl.value?.focus()
+}
+
+const description = computed(() => {
+  let description: string | undefined = undefined
+  if (config.value?.providers?.all?.description) {
+    description = config.value.providers.all.description
+  }
+
+  if (providersToShow.value.length === 1) {
+    if (config.value?.providers?.[providersToShow.value[0]]?.description) {
+      description = config.value.providers[providersToShow.value[0]]?.description
+    }
+  }
+
+  return description
+})
+
+// TODO: Type this!
+type LoginError = AuthLoginError['error'] | 'unknown' | 'missing_category'
+
+const isLoginError = (error: string): error is LoginError => {
+  switch (error) {
+    case 'unknown':
+    case 'missing_category':
+    case 'invalid_credentials':
+    case 'user_disabled':
+    case 'user_disallowed':
+    case 'rate_limit':
+      return true
+
+    default:
+      return false
+  }
+}
+
+const loginError = ref<LoginError | undefined>(
+  (() => {
+    const error = Array.isArray(route.query.error) ? route.query.error[0] : route.query.error
+    if (!error || error === '') {
+      return undefined
+    }
+
+    if (!isLoginError(error)) {
+      return 'unknown'
+    }
+
+    return error
+  })()
+)
+const loginErrorParams = ref<Date | undefined>(undefined)
+const loginErrorMsg = computed(() => {
+  const baseKey = 'authentication.login.errors.'
+  const key = baseKey + loginError.value
+
+  // Check if the error exists in the base locale
+  if (te(key, 'en-US')) {
+    // If the error is a rate_limit_date error, show the extra parameters
+    if (loginError.value === 'rate_limit_date' && loginErrorParams.value) {
+      let timeParam = d(loginErrorParams.value, {
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric'
+      })
+
+      if (!dateIsToday(loginErrorParams.value)) {
+        timeParam = d(loginErrorParams.value, {
+          day: 'numeric',
+          month: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+          second: 'numeric'
+        })
+      }
+      return t(key, { time: timeParam })
+    }
+
+    return t(key)
+  }
+
+  return t(baseKey + 'unknown')
+})
+
+const categorySelectToken = computed(() => {
+  const token = getAuthToken(cookies)
+  if (!token || !isCategorySelectClaims(token)) {
+    return undefined
+  }
+
+  return token.categories
+})
+
+/*
+ * Actions
+ */
+const submitLogin = async (options: ClientOptions<LoginData>) => {
+  // Cleanup old tokens
+  removeAuthToken(cookies)
+
+  const { error, response } = await login(options)
+  const check = checkAuthLoginRegister(error, response)
+  if (check !== undefined) {
+    if (check.error) {
+      loginError.value = check.error
+    }
+    if (check.errorParams) {
+      loginErrorParams.value = check.errorParams
+    }
+    return
+  }
+
+  const authorization = response.headers.get('authorization')
+  if (authorization === null) {
+    loginError.value = 'unknown'
+    return
+  }
+
+  const bearer = authorization.replace(/^Bearer /g, '')
+  if (bearer.length === authorization.length) {
+    loginError.value = 'unknown'
+    return
+  }
+
+  const jwt = parseAuthToken(bearer)
+  if (isCategorySelectClaims(jwt)) {
+    return
+  }
+
+  if (isRegisterClaims(jwt)) {
+    router.push({ name: 'register' })
+    return
+  }
+
+  // Handle non-login token types that need redirects (email verification, etc.)
+  if (jwt.type && jwt.type !== TokenType.Login) {
+    setAuthToken(cookies, bearer)
+    // Use router-based redirect for token types handled by Vue3 routes
+    if (jwt.type === TokenType.EmailVerificationRequired) {
+      router.push({ name: 'verify-email' })
+      return
+    }
+    // Fall through to window.location for other types (disclaimer, password reset, etc.)
+  }
+
+  if (isLoginClaims(jwt)) {
+    // Calculate and store time drift for session management
+    const serverTime = jwt.iat * 1000 // Convert from seconds to milliseconds
+    const localTime = Date.now()
+    let drift = serverTime - localTime
+
+    // Maximum allowed drift: 24 hours in either direction
+    const MAX_DRIFT = 24 * 60 * 60 * 1000
+    if (Math.abs(drift) > MAX_DRIFT) {
+      console.warn(`Extreme time drift detected: ${drift}ms. Changing to a safe range.`)
+      drift = drift > 0 ? MAX_DRIFT : -MAX_DRIFT
+    }
+
+    localStorage.setItem('auth_time_drift', drift.toString())
+
+    // Set the auth cookie before any awaits so downstream consumers (e.g.
+    // the e2e fixture polling for the JWT cookie) see it immediately,
+    // even if the webapp bridge below stalls under heavy parallel load.
+    setAuthToken(cookies, bearer)
+
+    // Login to Webapp
+    if (['admin', 'manager'].includes(jwt.data.role_id)) {
+      try {
+        await fetch('/isard-admin/login', {
+          method: 'POST',
+          headers: {
+            Authorization: authorization
+          }
+        })
+      } catch (error) {
+        // If there's an error logging to Webapp, log it and continue.
+        // It probably is a 503, because is in maintenance
+        console.error(error)
+      }
+    }
+  } else {
+    setAuthToken(cookies, bearer)
+  }
+
+  const location = response.headers.get('location')
+  if (location) {
+    // Use Vue router for paths handled by the Vue3 app
+    if (location.startsWith('/notifications/')) {
+      router.push(location)
+      return
+    }
+    window.location.pathname = location
+    return
+  }
+
+  window.location.pathname = '/'
+}
+
+const onFormSubmit = async (values) => {
+  loginError.value = undefined
+
+  if (!selectedCategory.value) {
+    if (showCategoriesDropdown.value) {
+      focusCategoriesDropdown()
+      return
+    }
+
+    loginError.value = 'missing_category'
+    return
+  }
+
+  await submitLogin({
+    body: values,
+    query: {
+      category_id: selectedCategory.value,
+      provider: 'form'
+    }
+  })
+}
+
+const onExternalSubmit = async (provider: Provider) => {
+  loginError.value = undefined
+
+  if (!selectedCategory.value) {
+    if (showCategoriesDropdown.value) {
+      focusCategoriesDropdown()
+      return
+    }
+
+    loginError.value = 'missing_category'
+    return
+  }
+
+  const data: LoginData = {
+    query: {
+      category_id: selectedCategory.value,
+      provider: provider,
+      redirect: '/'
+    }
+  }
+
+  const url = new URL('/authentication/login', window.location.origin)
+  for (const [k, v] of Object.entries(data.query)) {
+    url.searchParams.set(k, v)
+  }
+
+  // We need to create a form in order to do a POST
+  // request, with multipart/form-data in the window
+  // of the browser instead of a threaded request
+  const form = document.createElement('form')
+  document.body.appendChild(form)
+  form.method = 'POST'
+  form.enctype = 'multipart/form-data'
+  form.action = url.toString()
+  form.submit()
+}
+
+const onCategorySelectSubmit = async (categoryId: string) => {
+  // We extract it outside the interceptor, because afterwards will get deleted
+  const bearer = getAuthBearer(cookies)
+
+  await submitLogin({
+    headers: {
+      Authorization: 'Bearer ' + bearer
+    },
+    query: {
+      category_id: categoryId,
+      provider: 'form'
+    }
+  })
+}
+
+const onForgotPassword = () => {
+  loginError.value = undefined
+
+  if (!selectedCategory.value) {
+    if (showCategoriesDropdown.value) {
+      focusCategoriesDropdown()
+      return
+    }
+
+    loginError.value = 'missing_category'
+    return
+  }
+
+  router.push({ name: 'forgot-password', query: { categoryId: selectedCategory.value } })
+}
+
+/*
+ * Watchers
+ */
+
+// Redirect to the maintenance page if there's a maintenance error
+watch(error, (newErr) => {
+  if (newErr && newErr.message?.includes('503')) {
+    window.location.href = '/maintenance'
+  }
+})
+
+// Set the locale if there's a configuration set
+watch(config, (newCfg) => {
+  if (newCfg?.locale?.default) {
+    setLocale(newCfg.locale.default as Locale)
+    localStorage.language = newCfg.locale.default
+  }
+})
+
+watch(categoryError, (newErr) => {
+  if (newErr?.message && JSON.parse(newErr.message).error === 'not_found') {
+    router
+      .push({
+        name: 'login',
+        params: {
+          provider: routeProvider.value
+        }
+      })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: categoryQueryKey.value })
+      })
+  }
+})
+</script>
+
+<template>
+  <LoginLayout
+    :loading="isPending"
+    :hide-locale-switch="config?.locale?.hide"
+    :hide-logo="config?.logo?.hide"
+    :logo-src="logoSrc"
+    :title="category?.name || config?.info?.title"
+    :description="categorySelectToken ? t('views.login.select-category') : description"
+  >
+    <template #cover>
+      <template v-for="(notification, index) in config?.notification_cover" :key="index">
+        <LoginNotification
+          v-if="notification?.enabled"
+          :config="notification"
+          class="border-error-600"
+        />
+      </template>
+    </template>
+
+    <template #default>
+      <div class="flex flex-col space-y-4">
+        <Skeleton v-if="isPending" class="h-6" />
+
+        <Alert v-else-if="isError" variant="destructive">{{
+          t('authentication.login.errors.unknown')
+        }}</Alert>
+
+        <template v-else>
+          <template v-for="(notification, index) in config?.notification_form" :key="index">
+            <LoginNotification v-if="notification?.enabled" :config="notification" />
+          </template>
+          <Alert v-if="loginError" variant="destructive">
+            <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
+          </Alert>
+
+          <LoginCategorySelect
+            v-if="categorySelectToken"
+            :categories="categorySelectToken"
+            @submit="onCategorySelectSubmit"
+          />
+
+          <template v-else>
+            <LoginCategoriesDropdown
+              v-if="showCategoriesDropdown"
+              ref="categoriesDropdownEl"
+              v-model:model-value="categoriesDropdownModel"
+              :categories="categories?.categories || []"
+            />
+
+            <LoginProviderForm
+              v-if="showProvider(Provider.Form).value"
+              :text="config?.providers?.form?.submit_text"
+              :hide-forgot-password="config?.providers?.form?.hide_forgot_password"
+              :style="config?.providers?.form?.submit_extra_styles"
+              @submit="onFormSubmit"
+              @forgot-password="onForgotPassword"
+            />
+
+            <Separator
+              v-if="providersToShow.length > 1 && providersToShow.includes(Provider.Form)"
+              :label="t('views.login.separator')"
+              :class="'py-2'"
+            />
+
+            <template v-for="provider in providersToShow" :key="provider">
+              <LoginProviderExternal
+                v-if="provider !== Provider.Form"
+                :provider="provider"
+                :text="config?.providers?.[provider]?.submit_text"
+                :icon="config?.providers?.[provider]?.submit_icon"
+                :style="config?.providers?.[provider]?.submit_extra_styles"
+                @submit="onExternalSubmit"
+              />
+            </template>
+          </template>
+        </template>
+      </div>
+    </template>
+  </LoginLayout>
+</template>

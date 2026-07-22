@@ -5,7 +5,7 @@
   "scripts": {
     "serve": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service serve",
     "build": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service build",
-    "test:e2e": "vue-cli-service test:e2e",
+    "test:e2e": "playwright test",
     "lint": "vue-cli-service lint",
     "i18n:report": "vue-cli-service i18n:report --src './src/**/*.?(js|vue)' --locales './src/locales/**/*.json'"
   },
@@ -15,6 +15,7 @@
     "@fortawesome/free-brands-svg-icons": "^5.13.0",
     "@fortawesome/free-solid-svg-icons": "^5.13.0",
     "@fortawesome/vue-fontawesome": "^0.1.9",
+    "@grafana/faro-web-sdk": "2.4.0",
     "@isard/guacamole-common-js": "^1.6.60",
     "@novnc/novnc": "^1.2.0",
     "@vue/composition-api": "^1.7.2",
@@ -43,8 +44,9 @@
   "devDependencies": {
     "@babel/core": "^7.12.16",
     "@babel/eslint-parser": "^7.12.16",
+    "@babel/plugin-proposal-class-properties": "7.12.1",
     "@babel/preset-stage-2": "^7.8.3",
-    "@playwright/test": "1.38.0",
+    "@playwright/test": "^1.57.0",
     "@vue/cli-plugin-babel": "^4.2.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "^4.2.0",
@@ -71,6 +73,9 @@
     "root": true,
     "env": {
       "node": true
+    },
+    "globals": {
+      "__APP_VERSION__": "readonly"
     },
     "plugins": [],
     "extends": [

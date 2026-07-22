@@ -35,6 +35,14 @@ variables:
   DOCKER_TLS_CERTDIR: "/certs"
   GITLAB_ADVANCED_SAST_ENABLED: "true"
   MAX_UNVERIFIED_CORES: "16"
+  # Cache bun's content-addressed global install store (hash-verified, self-healing)
+  # instead of the derived node_modules tree. A corrupt or truncated file inside a
+  # cached node_modules (e.g. a 0-byte dependency file) otherwise persists across
+  # pipelines forever, because the cache key is the lockfile hash and
+  # `bun install --frozen-lockfile` reuses the restored tree without per-file
+  # integrity checks. Caching the global store lets bun detect a bad entry by hash
+  # and refetch it, rebuilding node_modules fresh each run.
+  BUN_INSTALL_CACHE_DIR: "$CI_PROJECT_DIR/.bun-cache"
   # Secret Detection scans third-party Go module testdata fixtures (RSA/SSH keys,
   # AWS sample IDs, etc.) inside .go-mod-cache as critical findings. Those are
   # not project secrets — they ship inside dependency tarballs. Excluding the
@@ -50,24 +58,24 @@ default:
           - go.sum
       paths:
         - /go/pkg/mod
+        - .cache/go-build
     - key:
         files:
-          - frontend/package.json
-          - frontend/bun.lockb
+          - component/frontend/bun.lockb
+          - old-frontend/bun.lock
       paths:
-        - frontend/node_modules
+        - .bun-cache
     - key:
         files:
-          - old-frontend/package.json
-          - old-frontend/yarn.lock
+          - testing/e2e/package.json
+          - testing/e2e/yarn.lock
       paths:
-        - old-frontend/node_modules
+        - testing/e2e/node_modules
     - key:
         files:
-          - e2e/package.json
-          - e2e/yarn.lock
+          - uv.lock
       paths:
-        - e2e/node_modules
+        - .uv-cache
 
 include:
   - template: Jobs/Dependency-Scanning.gitlab-ci.yml
@@ -88,60 +96,69 @@ stages:
 
 commit-lint:
   stage: lint
-  image: node:lts
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
-    - npm install -g commitlint@19.2.2 @commitlint/config-conventional@19.2.2
+    - apk add --no-cache git
+    - bun install --frozen-lockfile
   script:
     - git fetch https://gitlab.com/isard/isardvdi.git main
-    - commitlint --from=$(git merge-base HEAD FETCH_HEAD)
+    - bunx commitlint --from=$(git merge-base HEAD FETCH_HEAD)
 
 version:
   stage: lint
-  image: node:lts
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   rules:
     # semantic-release checks repository write access and we cannot use
     # GITLAB_TOKEN in unprotected branches due to security reasons.
     # https://github.com/semantic-release/semantic-release/issues/2207
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   before_script:
-    - npm install -g semantic-release@23 @semantic-release/exec @semantic-release/gitlab conventional-changelog-conventionalcommits@6
+    - apk add --no-cache git
+    - bun install --frozen-lockfile
   script:
-    - semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
+    - bunx semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
   artifacts:
     paths:
       - .VERSION
 
 check-alloy-config:
   stage: lint
-  image: alpine
+  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
   before_script:
-    - apk add --no-cache alloy
+    - apk add --no-cache alloy make
   script:
-    - find . -iname "*.alloy" | xargs -n1 alloy fmt -t
+    - make lint-alloy
+
+.lint-uv-job:
+  stage: lint
+  image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
+  before_script:
+    - apk add --no-cache make
+    - uv sync --only-group dev
 
 check-python:
-  stage: lint
-  image: python:3.10-bullseye
+  extends: .lint-uv-job
   script:
-    - pip install isort==5.13.2 black==24.3.0
-    - isort --check .
-    - black --check .
+    - make lint-python
+
+check-system-deps:
+  extends: .lint-uv-job
+  script:
+    - make lint-system-deps
 
 check-golang:
   stage: lint
-  image: golangci/golangci-lint
+  image: golangci/golangci-lint@sha256:5cceeef04e53efe1470638d4b4b4f5ceefd574955ab3941b2d9a68a8c9ad5240
   script:
-    - golangci-lint fmt --diff
+    - make lint-go
 
 check-frontend:
   stage: lint
-  image: oven/bun:1.1.24-alpine
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   parallel:
     matrix:
-      - JOB: "format --write=false --check"
+      - JOB: "format"
       - JOB: "lint"
-        # TODO: Remove this when all lint errors are fixed
-        ALLOW_FAILURE: "true"
       # - JOB: "type-check"
       #   # TODO: Remove this when all type errors are fixed
       #   ALLOW_FAILURE: "true"
@@ -150,35 +167,36 @@ check-frontend:
       allow_failure: true
     - if: $ALLOW_FAILURE != "true"
       allow_failure: false
+  before_script:
+    - apk add --no-cache make
   script:
-    - cd frontend
-    - bun install --frozen-lockfile
-    - bun run $JOB
+    - make lint-frontend-$JOB
 
 check-old-frontend:
   stage: lint
-  image: node:18.17
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
+  before_script:
+    - apk add --no-cache make
   script:
-    - cd old-frontend
-    - yarn install --frozen-lockfile
-    - yarn lint --no-fix --max-warnings 0
+    - make lint-old-frontend
 
 check-protobuf:
   stage: lint
   image:
-    name: bufbuild/buf:1.44.0
+    name: bufbuild/buf:1.44.0@sha256:7e06f3027a16f8f63c25db6a1b5544866b677ad16e3907c14563c4a61d408228
     entrypoint: [""]
   allow_failure: $[[ inputs.allow-protobuf-lint-failure ]]
+  # bufbuild/buf image is distroless — no package manager to install make.
+  # Keep invocation inline; commands match `make lint-protobuf`.
   script:
     - buf lint
     - buf breaking --against https://gitlab.com/isard/isardvdi.git
 
 docker-image-codegen:
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   stage: build-codegen
-  needs: []
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
   parallel:
     matrix:
       - DOCKERFILE: docker/codegen/Dockerfile
@@ -206,26 +224,37 @@ docker-image-codegen:
 
 gen-protobuf:
   stage: generate
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
   before_script:
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - docker run -u $(id -u) -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
+    - docker run -u $(id -u) -v "$(pwd):/build" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
   artifacts:
     paths:
       - pkg/gen
-      - frontend/src/gen
+      - component/frontend/src/gen
+      - testing/e2e/src/gen
       - "**/testing_*_mock.go"
+      # openapi-python-client output. Each client's src/<pkg>/__init__.py is
+      # tracked but the rest of the tree (client.py, errors.py, types.py,
+      # api/, models/) is gitignored — codegen regenerates it. Without
+      # propagating these paths the downstream unit-test-apiv4 /
+      # unit-test-webapp jobs see only __init__.py whose first line is
+      # `from .client import …`, which raises ModuleNotFoundError at import.
+      - component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client
+      - component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client
+      - component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client
+      - component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client
 
 docker-compose-build:
   stage: generate
   needs: []
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
   before_script:
     - apk add bash git docker-compose yq
   script:
@@ -245,12 +274,15 @@ docker-compose-build:
     - echo "FLAVOUR=check" >> isardvdi.check.build.cfg
     - BACKUP_DB_ENABLED=true CODEGEN=false ./build.sh
     - |-
+      # Cache from the branch we are merging into (apiv4-integration today, main
+      # after the apiv4->main cutover — self-adjusting), with :main as fallback.
+      CACHE_REF="${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-${CI_COMMIT_REF_SLUG:-main}}"
       for file in docker-compose*.yml; do
         cp "$file" "no-cache-$file"
         if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
-          yq -i '.services |= map_values(.build.cache_from = [ "'"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
+          yq -i '.services |= map_values(.build.cache_from = [ "'"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
         else
-          yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
+          yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
         fi
       done
   artifacts:
@@ -261,16 +293,13 @@ docker-compose-build:
 unit-test-go:
   stage: unit-test
   needs: ["gen-protobuf"]
-  image: golang:1.25.8
+  image: golang:1.25.8@sha256:3ac2864710f25e84381bf5d4272261c7ba73ada0339d62034df4de20dabb33ca
+  variables:
+    GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
   before_script:
-    - apt-get update && apt-get install -y libvirt-dev
-    - go install gotest.tools/gotestsum@latest
-    - go install github.com/boumenot/gocover-cobertura@latest
+    - apt-get update && apt-get install -y libvirt-dev make
   script:
-    - export PATH=$PATH:~/go/bin
-    - gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
-    - go tool cover -func coverage.out
-    - gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
+    - make ci-test-go
   artifacts:
     when: always
     reports:
@@ -280,43 +309,248 @@ unit-test-go:
       junit: report.xml
   coverage: /total:\s+\(statements\)\s+\d+.\d+%/
 
-unit-test-python-gpu:
+# Shared Python test config — uv cache dir cached via default cache entry.
+.python-test-base:
+  stage: unit-test
+  needs: ["gen-protobuf"]
+  image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
+  variables:
+    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
+  before_script:
+    - apk add --no-cache git make
+
+.python-test-job:
+  extends: .python-test-base
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: ${COVERAGE_DIR}/coverage.xml
+      junit: ${COVERAGE_DIR}/report.xml
+  coverage: '/TOTAL\s+\d+\s+\d+\s+\d+%/'
+
+unit-test-apiv4:
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: component/apiv4/src
+    USAGE: "production"
+  script:
+    - make ci-test-apiv4
+
+unit-test-change-handler:
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: component/change-handler/src
+  script:
+    - make ci-test-change-handler
+
+unit-test-changefeed:
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: component/changefeed/src
+  script:
+    - make ci-test-changefeed
+
+unit-test-webapp:
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: webapp/webapp
+    USAGE: "test"
+    API_ISARDVDI_SECRET: "ci-test-secret"
+  script:
+    - make ci-test-webapp
+
+unit-test-common:
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: component/_common/src
+  script:
+    - make ci-test-common
+
+unit-test-hypervisor-lib:
+  # Hypervisor GPU lib suites. Dependency-free
+  # pytest: the shared gpu modules load from
+  # component/_common/src/isardvdi_common/lib via gpu_probe._load_shared.
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-hypervisor-lib
+  artifacts:
+    when: always
+    reports:
+      junit: docker/hypervisor/src/lib/report.xml
+
+unit-test-hypervisor-ovs:
+  # OVS worker flow-generation suite for the per-interface lab_opts feature
+  # Pure-stdlib pytest: ovs-worker.py is loaded via importlib and
+  # subprocess.run is monkeypatched, so no OVS bridge, root, or extra runtime
+  # deps are needed. The engine domain_xml lab_opts test rides unit-test-engine
+  # and the apiv4 validation test rides unit-test-apiv4; this closes the last
+  # gap (docker/hypervisor/src/ovs is not covered by unit-test-hypervisor-lib).
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-hypervisor-ovs
+  artifacts:
+    when: always
+    reports:
+      junit: docker/hypervisor/src/ovs/report.xml
+
+check-codegen-freshness:
+  # Catches commits that modify ``pkg/oas/apiv4/*.json`` / ``.proto`` /
+  # SDK interfaces without regenerating the tracked mocks. ``pkg/gen/**``
+  # and ``component/frontend/src/gen/**`` are gitignored so they do not
+  # participate, but ``pkg/sdk/testing_*_mock.go`` IS tracked and must
+  # be kept current. The ``gen-protobuf`` job produces fresh artifacts;
+  # we compare them to what was committed.
+  stage: unit-test
+  needs: ["gen-protobuf"]
+  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+  before_script:
+    - apk add --no-cache git
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+  script:
+    - |-
+      if ! git diff --exit-code -- '**/testing_*_mock.go' pkg/oas; then
+        echo ""
+        echo "ERROR: Generated code is out of date."
+        echo "Re-run codegen locally (bash build.sh with CODEGEN unset)"
+        echo "and commit the regenerated mocks + oas."
+        exit 1
+      fi
+    - echo "Generated code is up to date."
+
+unit-test-socketio:
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: component/socketio/src
+  script:
+    - make ci-test-socketio
+
+unit-test-openapi:
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: component/openapi/src
+  script:
+    - make ci-test-openapi
+
+unit-test-notifier:
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: notifier
+  script:
+    - make ci-test-notifier
+
+unit-test-scheduler:
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: scheduler
+  script:
+    - make ci-test-scheduler
+
+unit-test-apiv4-client:
+  # isardvdi_apiv4_client / isardvdi_apiv4_client_auth suites. The generated
+  # isardvdi_apiv4_client/src tree is gitignored and produced by gen-protobuf,
+  # so this job depends on it (like unit-test-apiv4 / unit-test-webapp).
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-apiv4-client
+  artifacts:
+    when: always
+    reports:
+      junit: component/_common/isardvdi_apiv4_client/report.xml
+
+unit-test-vpn:
+  # isard-vpn wgtools/wgadmin/simple_iptools/db suites. test_wgadmin_dispatch
+  # imports the generated changefeed_subscribers package (pkg/gen), so this
+  # job depends on gen-protobuf via .python-test-base.
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-vpn
+  artifacts:
+    when: always
+    reports:
+      junit: docker/vpn/report.xml
+
+unit-test-codegen:
+  # Changefeed AsyncAPI / subscriber generator suites. One test compiles the
+  # real generated changefeed_models tree (pkg/gen) when present, otherwise
+  # skips; gen-protobuf (via .python-test-base) makes it present.
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-codegen
+  artifacts:
+    when: always
+    reports:
+      junit: docker/codegen/report.xml
+
+unit-test-anonymize-db:
+  # sysadm/anonymize-db scrub/prune/safety/streaming/fake-storage suites.
+  # Self-contained (no generated code) but kept in the shared unit-test stage.
+  extends: .python-test-base
   stage: unit-test
   needs: []
-  image: python:3.10-bullseye
   script:
-    - pip install pytest==8.3.3
-    # Hypervisor GPU lib suites. The shared gpu_cmds / gpu_pool_policy load from
-    # component/_common/src via the in-tree fallback in _load_shared, so no
-    # install of isardvdi_common is needed here.
-    - cd "$CI_PROJECT_DIR/docker/hypervisor/src/lib"
-    - python -m pytest -q gpu_apply_test.py gpu_apply_cli_test.py gpu_discovery_test.py gpu_probe_test.py
-    # Shared _common GPU policy/state suites.
-    - cd "$CI_PROJECT_DIR/component/_common/src"
-    - python -m pytest -q gpu_pool_policy_test.py vgpu_state_test.py
-    # Engine pool-sizing + reconcile re-export (needs isardvdi_common on the path).
-    - ln -s "$CI_PROJECT_DIR/component/_common/src" /tmp/isardvdi_common
-    - cd "$CI_PROJECT_DIR"
-    - PYTHONPATH="/tmp:$CI_PROJECT_DIR/engine/engine" python -m pytest -q engine/engine/engine/models/_gpu_pool_test.py
-    # Tier-1 NUMA-node balancer (dependency-free pure logic).
-    - PYTHONPATH="$CI_PROJECT_DIR/engine/engine" python -m pytest -q engine/engine/engine/models/numa_balancer_test.py
+    - make ci-test-anonymize-db
+  artifacts:
+    when: always
+    reports:
+      junit: sysadm/anonymize-db/report.xml
+
+unit-test-frontend:
+  # Vue 3 (component/frontend) vitest unit suites. The specs vi.mock the
+  # generated @/gen/oas/apiv4 client, but the alias must still resolve, so the
+  # gen-protobuf-produced component/frontend/src/gen tree must be present.
+  stage: unit-test
+  needs: ["gen-protobuf"]
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
+  before_script:
+    - apk add --no-cache make
+  script:
+    - make ci-test-frontend
+  artifacts:
+    when: always
+    reports:
+      junit: component/frontend/report.xml
+
+unit-test-storage:
+  # isard-storage worker failure-path suite (docker/storage/task/tests): the
+  # raise-on-failure contract, convert partial-dest cleanup, and the delete
+  # reachable-mount guard. The storage package depends on the generated
+  # isardvdi_apiv4_client, so this job depends on gen-protobuf via
+  # .python-test-base.
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-storage
+  artifacts:
+    when: always
+    reports:
+      junit: docker/storage/report.xml
 
 docker-image:
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   stage: build
-  needs: ["docker-compose-build", "gen-protobuf"]
+  needs:
+    - docker-compose-build
+    - gen-protobuf
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
   parallel:
     matrix:
       - DOCKER_COMPOSE: build
         IMAGE: &containers
-          - api
+          - apiv4
+          - changefeed
+          - change-handler
           - scheduler
           - authentication
           - backupninja
           - bastion
-          - core_worker
           - db
           - engine
           - grafana
@@ -325,6 +559,7 @@ docker-image:
           - notifier
           - openapi
           - sessions
+          - socketio
           - squid
           - static
           - stats-go
@@ -351,7 +586,7 @@ docker-image:
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - git submodule update --init --recursive --remote
+    - git submodule update --init --recursive
     - |
       if $[[ inputs.use-image-build-cache ]]
       then
@@ -369,39 +604,214 @@ docker-image:
         docker push $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest
       fi
 
-# test-e2e:
-#   stage: test
-#   variables:
-#     DOCKER_TLS_CERTDIR: "/certs-root"
-#   services:
-#     - name: "docker:dind"
-#       variables:
-#         DOCKER_TLS_CERTDIR: "/certs-root"
-#       alias: docker
-#   image: "docker:latest"
-#   before_script:
-#     - apk add git docker-compose
-#     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
-#     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-#     - cp isardvdi.cfg.example isardvdi.e2e.cfg
-#     - echo "USAGE=test" >> isardvdi.e2e.cfg
-#     - echo "DOMAIN=host.docker.internal" >> isardvdi.e2e.cfg
-#     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
-#     - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
-#     - CODEGEN=false ./build.sh
-#     - docker compose -f docker-compose.e2e.yml pull
-#     - docker compose -f docker-compose.e2e.yml up -d
-#   script:
-#     - cd frontend
-#     - docker run --rm -w "/frontend" -v "$PWD:/frontend" node:18 yarn
-#     - export PORTAL="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' isard-portal | tr -d '\n')"
-#     - export NETWORK="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' isard-portal | tr -d '\n')"
-#     - docker run --rm --ipc=host -w "/frontend" -v "$PWD:/frontend" -e "DOCKER=true" -e "CI=true" --add-host="host.docker.internal:$PORTAL" --network="$NETWORK" mcr.microsoft.com/playwright:v1.36.0-jammy yarn playwright test
-#   artifacts:
-#     when: always
-#     paths:
-#       - frontend/test-results
-#       - frontend/playwright-report
+unit-test-engine:
+  # Engine tests under ``engine/services/threads`` and ``engine/models``
+  # import libvirt + paramiko + ``changefeed_models`` at module load,
+  # so running them in a generic python image is impractical. Re-use
+  # the freshly-built engine image as the runner — it already has the
+  # full runtime (libvirt-dev, paramiko, ``/opt/isardvdi/asyncapi_changefeed``
+  # on PYTHONPATH). Overlay the source tree via ``docker cp`` into
+  # ``/isard`` and pytest against it.
+  stage: test
+  needs: ["docker-image", "gen-protobuf"]
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
+  services:
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
+      alias: docker
+  before_script:
+    - apk add bash git
+    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - ENGINE_IMAGE="$CI_REGISTRY_IMAGE/engine:git-$CI_COMMIT_SHORT_SHA"
+    - docker pull "$ENGINE_IMAGE"
+    - mkdir -p "$CI_PROJECT_DIR/ci-results"
+    - |
+      # The container writes its junit reports to /ci-results, which is inside the
+      # ephemeral dind container (not $CI_PROJECT_DIR), so we docker cp them back
+      # into a project-relative dir afterwards for the junit artifact. Keep the
+      # container (no --rm) so the cp works even when the tests fail.
+      set +e
+      docker run --name engine-tests \
+        -v "$CI_PROJECT_DIR:/build:ro" \
+        -w /isard \
+        "$ENGINE_IMAGE" \
+        sh -c '
+          set -e
+          mkdir -p /ci-results
+          cp -r /build/engine/engine/. /isard/
+          cp -r /build/component/_common/src/isardvdi_common /opt/isardvdi/isardvdi_common 2>/dev/null || true
+          rc=0
+          pytest engine/models engine/controllers engine/services/threads engine/services/lib initdb -q --tb=short --junitxml=/ci-results/report.xml || rc=1
+          # engine/services/db is stubbed as MagicMock by conftest.py; its tests
+          # pop the stub and load the real module, which only works under the
+          # importlib import mode. Run it as a separate invocation so the default
+          # prepend-mode suite above is unaffected.
+          pytest --import-mode=importlib engine/services/db -q --tb=short --junitxml=/ci-results/report-db.xml || rc=1
+          exit $rc
+        '
+      RC=$?
+      docker cp engine-tests:/ci-results/. "$CI_PROJECT_DIR/ci-results/" || true
+      docker rm -f engine-tests >/dev/null 2>&1 || true
+      exit $RC
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - ci-results/report.xml
+        - ci-results/report-db.xml
+
+test-e2e:
+  stage: test
+  when: manual
+  tags:
+    - gpu
+    - kvm
+  needs: ["docker-image", "gen-protobuf"]
+  timeout: 30m
+  allow_failure: true
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs-root"
+  services:
+    - name: "docker:${DOCKER_VERSION}-dind@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
+      variables:
+        DOCKER_TLS_CERTDIR: "/certs-root"
+      alias: docker
+      entrypoint:
+        - "sh"
+        - "-c"
+        - "apk add --no-cache fuse-overlayfs && exec dockerd-entrypoint.sh"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
+  before_script:
+    # Get dependencies:
+    - |
+      # git: build.sh
+      # make: seeding the instance
+      # libstdc++, libgcc: bun runtime
+      apk add git make libstdc++ libgcc
+
+    # Configure the instance
+    - cp isardvdi.cfg.example isardvdi.e2e.cfg
+    - cat testing/config/isardvdi.e2e.cfg.template >> isardvdi.e2e.cfg
+    # CI-only vars appended by the runner
+    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
+    - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
+    - echo "FRONTEND_MODE=all" >> isardvdi.e2e.cfg
+    # /dev/hugepages bind loses the hugetlbfs type through nested dind
+    # layers; libvirtd's QEMU driver init aborts unless we point it at a
+    # placeholder dir (the hypervisor never exercises hugepages in test).
+    - mkdir -p /tmp/isard-real-hugepages
+    - echo "HUGEPAGES_PATH=/tmp/isard-real-hugepages" >> isardvdi.e2e.cfg
+    # Build the docker-compose file
+    - CODEGEN=false ./build.sh
+    # Start the instance
+    - docker-compose -f docker-compose.e2e.yml pull --quiet
+    - docker-compose -f docker-compose.e2e.yml up -d
+    ## Download bun
+    - docker create --name bun-bin oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
+    - docker cp bun-bin:/usr/local/bin/bun /usr/local/bin/bun
+    - docker rm bun-bin
+  script:
+    - make test-e2e
+  after_script:
+    - docker-compose -f docker-compose.e2e.yml logs &> docker-compose.log
+    # Playwright writes [[ATTACHMENT|<path>]] relative to junit.xml; GitLab
+    # resolves them from CI_PROJECT_DIR, so prepend the dir prefix.
+    - |
+      if [ -f testing/e2e/test-results/junit.xml ]; then
+        sed -i 's#\[\[ATTACHMENT|#\[\[ATTACHMENT|testing/e2e/test-results/#g' testing/e2e/test-results/junit.xml
+      fi
+  artifacts:
+    when: always
+    paths:
+      - docker-compose.log
+      - testing/e2e/test-results/
+      - testing/e2e/playwright-report/
+    reports:
+      junit: testing/e2e/test-results/junit.xml
+
+integration-real:
+  # Runs the Python lifecycle suite (testing/integration/) against a
+  # full dind-rootless stack. Uses the same docker-compose.e2e.yml the
+  # Playwright job builds, so one stack serves both. Manual trigger +
+  # allow_failure: we're still bedding in the TCG hypervisor path; any
+  # intermittent archive.org outage shouldn't fail the pipeline.
+  stage: test
+  when: manual
+  tags:
+    - gpu
+  needs: ["docker-image"]
+  timeout: 20m
+  allow_failure: true
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs-root"
+  services:
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
+      variables:
+        DOCKER_TLS_CERTDIR: "/certs-root"
+      alias: docker
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
+  before_script:
+    - apk add bash git docker-compose python3 curl
+    - curl -fsSL -o /tmp/uv.tar.gz https://github.com/astral-sh/uv/releases/download/0.11.23/uv-x86_64-unknown-linux-musl.tar.gz
+    - echo "6be47081100ff1ce0ac7e85ba2ac12e32f2ffa6f946d78bf7f24ee9ce3a46181  /tmp/uv.tar.gz" | sha256sum -c -
+    - tar -xzf /tmp/uv.tar.gz -C /tmp
+    - mv /tmp/uv-x86_64-unknown-linux-musl/uv /usr/local/bin/uv
+    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - cp isardvdi.cfg.example isardvdi.e2e.cfg
+    - echo "USAGE=test" >> isardvdi.e2e.cfg
+    - echo "DOMAIN=host.docker.internal" >> isardvdi.e2e.cfg
+    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
+    - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
+    - echo "ENABLE_STATS=false" >> isardvdi.e2e.cfg
+    # FRONTEND_MODE=all keeps the Vue 3 SPA reachable for the e2e suite — the
+    # cfg.example default is "deprecated" (Vue 3 redirects to Vue 2) for safe
+    # production migrations, but every Vue 3 e2e spec navigates to /frontend/*
+    # and would silently land on Vue 2 without this override.
+    - echo "FRONTEND_MODE=all" >> isardvdi.e2e.cfg
+    # Test runs MUST disable the login rate limiter — cfg.example enables it
+    # (good for production), but serial/parallel test logins trip it and the
+    # whole run cascades into 429 failures. testing/config/isardvdi.e2e.cfg.template
+    # does the same for the test-e2e job.
+    - echo "AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=false" >> isardvdi.e2e.cfg
+    # Redirect nvidia-smi / libnvidia-ml / sriov-manage mounts to an
+    # always-present file — rootless dind cannot mkdir /usr/bin/nvidia-smi
+    # or /usr/lib/nvidia/sriov-manage to satisfy the default bind. GPU
+    # discovery exits cleanly when exec fails.
+    - echo "NVIDIA_SMI_PATH=/etc/hostname" >> isardvdi.e2e.cfg
+    - echo "NVIDIA_ML_LIB_PATH=/etc/hostname" >> isardvdi.e2e.cfg
+    - echo "NVIDIA_SRIOV_MANAGE_PATH=/etc/hostname" >> isardvdi.e2e.cfg
+    # /dev/hugepages mount: see test-e2e job comment.
+    - mkdir -p /tmp/isard-real-hugepages
+    - echo "HUGEPAGES_PATH=/tmp/isard-real-hugepages" >> isardvdi.e2e.cfg
+    - CODEGEN=false ./build.sh
+    - "sed -i 's|source: /opt/isard/|source: /tmp/isard-real/opt/isard/|g; s|source: /opt/isard-local/|source: /tmp/isard-real/opt/isard-local/|g' docker-compose.e2e.yml"
+    - docker compose -f docker-compose.e2e.yml pull
+    - docker compose -f docker-compose.e2e.yml up -d
+    - uv sync --frozen --package isardvdi-testing --group test --no-editable
+    - uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py
+  script:
+    - |
+      NETWORK_ID="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' isard-portal | tr -d '\n')"
+      docker run --rm \
+        --network="$NETWORK_ID" \
+        -v "$(pwd):/src" -w /src/testing \
+        -e E2E_ADMIN_USER=admin_e2e_01 \
+        -e E2E_ADMIN_PWD='IsardTest1!' \
+        -e E2E_SKIP_VM_BOOT=1 \
+        ghcr.io/astral-sh/uv:0.11.23-python3.13-trixie-slim bash -c '
+          apt-get update -qq && apt-get install -y -qq curl > /dev/null
+          bash /src/testing/integration/wait-for-stack.sh 240
+          cd /src && uv sync --frozen --package isardvdi-testing --group test --no-editable
+          cd /src/testing && uv run --group test --package isardvdi-testing pytest integration/ -v -m real --tb=short --junitxml=/src/testing/integration/report.xml
+        '
+  after_script:
+    - docker compose -f docker-compose.e2e.yml down || true
+  artifacts:
+    when: always
+    reports:
+      junit: testing/integration/report.xml
 
 gemnasium-dependency_scanning:
   variables:
@@ -413,7 +823,7 @@ gemnasium-dependency_scanning:
 docker-tag:
   stage: release
   image:
-    name: gcr.io/go-containerregistry/crane:debug
+    name: gcr.io/go-containerregistry/crane:debug@sha256:1b1fb24d2b1bb27a9daf81a588157e68463876904e8e537a812edba6284fb252
     entrypoint: [""]
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -436,14 +846,16 @@ docker-tag:
 
 release:
   stage: release
-  image: node:lts
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - apk add --no-cache git sed
+    - bun install --frozen-lockfile
   script:
     - test ! -e ".VERSION" && exit 0
     - 'sed -i "s/^\(\s*DOCKER_IMAGE_TAG: \)$CI_DEFAULT_BRANCH$/\1v$(cat .VERSION | tr "." "-")/" docker-compose*.yml'
-    - npm install -g semantic-release@23 @semantic-release/exec @semantic-release/gitlab conventional-changelog-conventionalcommits@6
-    - semantic-release --branches $CI_DEFAULT_BRANCH
+    - bunx semantic-release --branches $CI_DEFAULT_BRANCH
 
 container_scanning:
   stage: container-scan

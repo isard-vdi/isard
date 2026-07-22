@@ -3,7 +3,7 @@ $(document).ready(function () {
         var modal = "#modalEditLoginNotification";
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/login_config",
+            url: "/api/v4/admin/item/login-config",
         }).done(function (data) {
             populateLoginNotificationForm(modal, data);
         });
@@ -19,7 +19,7 @@ $(document).ready(function () {
         data = collectLoginNotificationData(form);
         $.ajax({
             type: "PUT",
-            url: "/api/v3/login_config/notification",
+            url: "/api/v4/admin/item/login_config/notification",
             contentType: 'application/json',
             data: JSON.stringify(data)
         }).done(function (xhr) {
@@ -54,7 +54,7 @@ var _updatingCheckboxes = false;
 function showConfig() {
     $.ajax({
         type: "GET",
-        url: "/api/v3/admin/login_config",
+        url: "/api/v4/admin/item/login-config",
     }).done(function (data) {
         _updatingCheckboxes = true;
         $("#enable_cover_notification_checkbox").iCheck(data.notification_cover?.enabled ? 'check' : 'uncheck');
@@ -83,7 +83,7 @@ enableNotificationBindCheckbox = () => {
 enableNotificationUpdateStatus = (type, enabled) => {
     $.ajax({
         type: "PUT",
-        url: "/api/v3/login_config/notification/" + type + "/enable",
+        url: "/api/v4/admin/item/login_config/notification/" + type + "/enable",
         accept: "application/json",
         data: JSON.stringify({
             enabled: enabled

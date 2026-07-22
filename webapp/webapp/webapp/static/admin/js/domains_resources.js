@@ -9,7 +9,7 @@
 $(document).ready(function () {
     remotevpn_table = $('#table-remotevpn').DataTable({
         "ajax": {
-            "url": "/admin/table/remotevpn",
+            "url": "/api/v4/admin/items/table/remotevpn",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -92,7 +92,7 @@ $(document).ready(function () {
                 $('#modalRemotevpn #modalRemotevpnForm').parsley();
                 $.ajax({
                     type: "POST",
-                    url: "/api/v3/admin/table/remotevpn",
+                    url: "/api/v4/admin/items/table/remotevpn",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -127,7 +127,7 @@ $(document).ready(function () {
                     data['table'] = 'remotevpn'
                     $.ajax({
                         type: "DELETE",
-                        url: "/admin/table/remotevpn/" + data["id"],
+                        url: "/api/v4/admin/item/table/remotevpn/" + data["id"],
                         data: JSON.stringify(data),
                         contentType: "application/json",
                         success: function (data) {
@@ -141,7 +141,7 @@ $(document).ready(function () {
             case 'btn-download':
                 $.ajax({
                     type: "GET",
-                    url: "/api/v3/remote_vpn/" + data['id'] + "/config/" + getOS(),
+                    url: "/api/v4/admin/item/remote_vpn/" + data['id'] + "/config/" + getOS(),
                     success: function (data) {
                         var el = document.createElement('a')
                         var content = data.content
@@ -196,7 +196,7 @@ $(document).ready(function () {
             })
             $.ajax({
                 type: "POST",
-                url: "/admin/table/add/remotevpn",
+                url: "/api/v4/admin/item/table/add/remotevpn",
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function (data) {
@@ -205,7 +205,7 @@ $(document).ready(function () {
                         text: 'Remote VPN created successfully',
                         hide: true,
                         delay: 1000,
-                        icon: 'fa fa-' + data.icon,
+                        icon: 'fa fa-' + data?.icon,
                         opacity: 1,
                         type: 'success'
                     })
@@ -230,7 +230,7 @@ $(document).ready(function () {
     // QOS NET
     qosnet_table = $('#table-qos-net').DataTable({
         "ajax": {
-            "url": "/admin/table/qos_net",
+            "url": "/api/v4/admin/items/table/qos_net",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -274,7 +274,7 @@ $(document).ready(function () {
                 $('#modalQosNet #modalQosNetForm').parsley();
                 $.ajax({
                     type: "POST",
-                    url: "/api/v3/admin/table/qos_net",
+                    url: "/api/v4/admin/items/table/qos_net",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -327,7 +327,7 @@ $(document).ready(function () {
                 })
                 $.ajax({
                     type: "POST",
-                    url: "/admin/table/add/qos_net",
+                    url: "/api/v4/admin/item/table/add/qos_net",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -336,7 +336,7 @@ $(document).ready(function () {
                             text: 'Network Qos created successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -366,7 +366,7 @@ $(document).ready(function () {
                 data['name'] = $('#modalQosNetForm #name').val();
                 $.ajax({
                     type: "PUT",
-                    url: "/admin/table/update/qos_net",
+                    url: "/api/v4/admin/item/table/update/qos_net",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -375,7 +375,7 @@ $(document).ready(function () {
                             text: 'Network Qos updated successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -403,7 +403,7 @@ $(document).ready(function () {
     // QOS DISK
     qosdisk_table = $('#table-qos-disk').DataTable({
         "ajax": {
-            "url": "/admin/table/qos_disk",
+            "url": "/api/v4/admin/items/table/qos_disk",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -450,7 +450,7 @@ $(document).ready(function () {
                 $('#modalQosDisk .modal-footer button#send').text("Edit Disk QoS");
                 $.ajax({
                     type: "POST",
-                    url: "/api/v3/admin/table/qos_disk",
+                    url: "/api/v4/admin/items/table/qos_disk",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -490,7 +490,7 @@ $(document).ready(function () {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: "DELETE",
-                        url: "/admin/table/qos_disk/" + data["id"],
+                        url: "/api/v4/admin/item/table/qos_disk/" + data["id"],
                         contentType: "application/json",
                         success: function (data) {
                             $('form').each(function () { this.reset() });
@@ -547,7 +547,7 @@ $(document).ready(function () {
                 })
                 $.ajax({
                     type: "POST",
-                    url: "/api/v3/qos_disk",
+                    url: "/api/v4/admin/item/qos_disk",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -556,7 +556,7 @@ $(document).ready(function () {
                             text: 'Disk QoS created successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -603,7 +603,7 @@ $(document).ready(function () {
                 data['name'] = $('#modalQosDiskForm #name').val();
                 $.ajax({
                     type: "PUT",
-                    url: "/api/v3/qos_disk",
+                    url: "/api/v4/admin/item/qos_disk",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -612,7 +612,7 @@ $(document).ready(function () {
                             text: 'Disk QoS updated successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -660,6 +660,53 @@ $(document).ready(function () {
         return values.length === 2 && values[0] <= values[1] && 1 <= values[0] && values[0] <= 4094 && 1 <= values[1] && values[1] <= 4094
     })
 
+    // helpers for the per-interface lab options (lab_opts).
+    // Shown only on OVS-family kinds (`ovs`, `personal`) and never on VLAN
+    // 4095 (wireguard infrastructure). For `personal`, `net` is a range
+    // `xxxx-yyyy`; we hide the controls if the range covers 4095.
+    // Keep these in lockstep with the server schema (interfaces.yml) and the
+    // engine/hypervisor lab_* attribute names.
+    var LAB_OPT_IDS = ['lab_mac_spoofing', 'lab_stp_bpdu', 'lab_bcast_unlimited', 'lab_mcast_unlimited']
+    // checkbox id -> lab_opts key sent to / received from the API.
+    var LAB_OPT_KEYS = {
+        lab_mac_spoofing: 'mac_spoofing',
+        lab_stp_bpdu: 'stp_bpdu',
+        lab_bcast_unlimited: 'broadcast_unlimited',
+        lab_mcast_unlimited: 'multicast_unlimited'
+    }
+    // Only mac_spoofing reduces security -> drives the warning banner.
+    function refreshLabOptsWarning() {
+        $('#lab_opts_warning').toggle($('#modalInterfaces #lab_mac_spoofing').is(':checked'))
+    }
+    function resetLabOpts() {
+        // iCheck wraps each native checkbox and renders its own overlay.
+        // Setting .prop('checked', ...) updates only the native input — the
+        // iCheck visual stays stuck. Route every reset through iCheck.
+        LAB_OPT_IDS.forEach(function (id) {
+            $('#modalInterfaces #' + id).iCheck('uncheck').iCheck('update')
+        })
+        $('#lab_opts_warning').hide()
+    }
+    function netRangeIncludes4095(s) {
+        var m = String(s || '').match(/^(\d+)\s*-\s*(\d+)$/)
+        if (!m) return false
+        var a = parseInt(m[1], 10), b = parseInt(m[2], 10)
+        return a <= 4095 && b >= 4095
+    }
+    function refreshLabOptsVisibility() {
+        var kind = $('#modalInterfaces #kind').val()
+        var net = $('#modalInterfaces #ifname').val()
+        var isOvsFamily = (kind === 'ovs' || kind === 'personal')
+        var isNot4095 = (kind === 'ovs') ? (String(net) !== '4095')
+                      : (kind === 'personal') ? !netRangeIncludes4095(net)
+                      : false
+        var canShow = isOvsFamily && isNot4095
+        $('#row_lab_opts').toggle(canShow)
+        if (!canShow) {
+            resetLabOpts()
+        }
+    }
+
     $('#kind').on('change', function () {
         $('#ifname').removeAttr('min').removeAttr('max').removeAttr('data-parsley-vlanrange')
         if ($('#kind').val() == 'bridge') {
@@ -680,10 +727,42 @@ $(document).ready(function () {
             $('#ifname_label').html('Input vlan range (i.e. 2000-3000)')
             $('#ifname').attr('type', 'text').attr('data-parsley-vlanrange', 'true')
         }
+        refreshLabOptsVisibility()
     });
+
+    // re-evaluate visibility of the lab options row when the
+    // user types a VLAN id / range, not only when kind changes.
+    $('#modalInterfaces #ifname').on('change keyup', refreshLabOptsVisibility)
+
+    // Show the in-situ security warning as soon as MAC spoofing is ticked.
+    // iCheck-wrapped checkboxes fire ifChanged/ifChecked/ifUnchecked, NOT the
+    // native 'change' event, so bind the iCheck event.
+    $('#modalInterfaces #lab_mac_spoofing').on('ifChanged', refreshLabOptsWarning)
+
+    // Initialise the data-html tooltips on the info icons (Bootstrap does not
+    // do this automatically; without it the markup renders as literal text).
+    $('#modalInterfaces [data-toggle="tooltip"]').tooltip({ container: 'body' })
+
+    // Always normalize lab-options UI state when the modal closes so the next
+    // open starts clean, regardless of how the previous session ended (save,
+    // cancel, X button, backdrop click, Esc). form.reset() resets the native
+    // inputs but NOT iCheck's overlays — without .iCheck('uncheck').iCheck('update')
+    // the visuals stay "checked" while the form values are false.
+    $('#modalInterfaces').on('hidden.bs.modal', function () {
+        resetLabOpts()
+        $('#row_lab_opts').hide()
+    })
+
+    // Belt-and-suspenders: also force-reset the lab checkboxes on EVERY modal
+    // show, before any AJAX runs. The edit-path's iCheck restore lands later
+    // via its $.ajax success callback, so it correctly reapplies the persisted
+    // values. Defeats any close path that skips hidden.bs.modal and autofill.
+    $('#modalInterfaces').on('show.bs.modal', function () {
+        resetLabOpts()
+    })
     int_table = $('#table-interfaces').DataTable({
         "ajax": {
-            "url": "/admin/table/interfaces",
+            "url": "/api/v4/admin/items/table/interfaces",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -704,6 +783,23 @@ $(document).ready(function () {
             { "data": "name" },
             { "data": "description" },
             { "data": "net" },
+            {
+                // at-a-glance flag for lab interfaces (any lab option enabled).
+                // Renders an orange flask icon listing the enabled options.
+                // Legacy rows without the field render empty.
+                "data": "lab_opts",
+                "title": "",
+                "orderable": false,
+                "width": "20px",
+                "defaultContent": "",
+                "render": function (d) {
+                    if (!d) return ''
+                    var on = Object.keys(d).filter(function (k) { return d[k] === true })
+                    if (!on.length) return ''
+                    return '<i class="fa fa-flask" style="color:#d35400;" data-toggle="tooltip" '
+                        + 'title="Lab options enabled: ' + on.join(', ') + '"></i>'
+                }
+            },
             {
                 "className": 'actions-control',
                 "orderable": false,
@@ -732,7 +828,7 @@ $(document).ready(function () {
                 $('#modalInterfaces #modalInterfacesForm').parsley();
                 $.ajax({
                     type: "POST",
-                    url: "/api/v3/admin/table/interfaces",
+                    url: "/api/v4/admin/items/table/interfaces",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -757,8 +853,24 @@ $(document).ready(function () {
                         $('#modalInterfacesForm #kind').val(interface.kind)
                         $('#modalInterfacesForm #kind').trigger('change')
                         $.each(interface, function (key, value) {
+                            // `lab_opts` is an object of checkbox states,
+                            // restored via iCheck below — `.val()` would set a
+                            // value attribute, not check the boxes.
+                            if (key === 'lab_opts') return
                             $('#modalInterfacesForm #' + key).val(value)
                         });
+                        // Restore each lab option via iCheck — the checkboxes
+                        // are iCheck-wrapped and .prop('checked', ...) updates
+                        // only the native input, leaving the overlay stuck.
+                        var lab = interface.lab_opts || {}
+                        LAB_OPT_IDS.forEach(function (id) {
+                            var on = lab[LAB_OPT_KEYS[id]] === true
+                            $('#modalInterfacesForm #' + id)
+                                .iCheck(on ? 'check' : 'uncheck')
+                                .iCheck('update')
+                        })
+                        refreshLabOptsWarning()
+                        refreshLabOptsVisibility()
                     }
                 });
                 break;
@@ -782,7 +894,7 @@ $(document).ready(function () {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: "DELETE",
-                        url: "/admin/table/interfaces/" + data["id"],
+                        url: "/api/v4/admin/item/table/interfaces/" + data["id"],
                         contentType: "application/json",
                         success: function (data) {
                             $('form').each(function () { this.reset() });
@@ -804,6 +916,10 @@ $(document).ready(function () {
         }).modal('show');
         populateDropdown('qos_net', '#qos_id', 'unlimited', false)
         $('#modalInterfaces #modalInterfacesForm').parsley();
+        // hide the lab options row by default; refresh once the
+        // user has picked a kind. form.reset() already unchecked the boxes.
+        $('#lab_opts_warning').hide()
+        refreshLabOptsVisibility()
 
         window.Parsley.addValidator('cidr', {
             validateString: function (value, id) {
@@ -823,6 +939,15 @@ $(document).ready(function () {
         if (form.parsley().isValid()) {
             data['net'] = data['ifname']
             data['table'] = 'interfaces'
+            // serializeObject() sends raw "lab_*"="true" strings only for the
+            // ticked checkboxes. Build the lab_opts object explicitly as real
+            // booleans (every flag always present) and drop the raw keys so
+            // the JSON payload matches the interfaces schema.
+            data['lab_opts'] = {}
+            LAB_OPT_IDS.forEach(function (id) {
+                data['lab_opts'][LAB_OPT_KEYS[id]] = $('#modalInterfaces #' + id).is(':checked')
+                delete data[id]
+            })
             if (data['id'] == "") {
                 //Insert
                 data['allowed'] = { 'roles': false, 'categories': false, 'groups': false, 'users': false }
@@ -835,7 +960,7 @@ $(document).ready(function () {
                 })
                 $.ajax({
                     type: "POST",
-                    url: "/admin/table/add/interfaces",
+                    url: "/api/v4/admin/item/table/add/interfaces",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -844,7 +969,7 @@ $(document).ready(function () {
                             text: 'Interface created successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -874,7 +999,7 @@ $(document).ready(function () {
                 })
                 $.ajax({
                     type: "PUT",
-                    url: "/admin/table/update/interfaces",
+                    url: "/api/v4/admin/item/table/update/interfaces",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -883,7 +1008,7 @@ $(document).ready(function () {
                             text: 'Interface updated successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -913,7 +1038,7 @@ $(document).ready(function () {
     // VIDEOS
     videos_table = $('#videos').DataTable({
         "ajax": {
-            "url": "/admin/table/videos",
+            "url": "/api/v4/admin/items/table/videos",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -979,7 +1104,7 @@ $(document).ready(function () {
         })
         $.ajax({
             type: "POST",
-            url: "/admin/table/add/videos",
+            url: "/api/v4/admin/item/table/add/videos",
             data: JSON.stringify(data),
             contentType: "application/json",
             success: function (data) {
@@ -988,7 +1113,7 @@ $(document).ready(function () {
                     text: 'Video created successfully',
                     hide: true,
                     delay: 1000,
-                    icon: 'fa fa-' + data.icon,
+                    icon: 'fa fa-' + data?.icon,
                     opacity: 1,
                     type: 'success'
                 })
@@ -1041,7 +1166,7 @@ $(document).ready(function () {
     // BOOTS
     boots_table = $('#boots').DataTable({
         "ajax": {
-            "url": "/admin/table/boots",
+            "url": "/api/v4/admin/items/table/boots",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -1139,7 +1264,7 @@ $(document).ready(function () {
 
     $.ajax({
         type: 'GET',
-        url: "/api/v3/admin/bastion/",
+        url: "/api/v4/admin/item/config/bastion",
         contentType: 'application/json',
         success: function (data) {
             if (data['bastion_enabled_in_cfg'] === true) {
@@ -1189,7 +1314,7 @@ $(document).ready(function () {
                         text: 'Delete', click: function (notice) {
                             $.ajax({
                                 type: "DELETE",
-                                url: "/api/v3/admin/bastion/disallowed",
+                                url: "/api/v4/admin/items/bastion/disallowed",
                                 accept: "application/json",
                             }).done(() => {
                                 new PNotify({
@@ -1234,7 +1359,7 @@ $(document).ready(function () {
         $('#modalEditBastion #modalEditBastionForm').parsley();
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/bastion/",
+            url: "/api/v4/admin/item/config/bastion",
             contentType: "application/json",
             accept: "application/json",
             success: function (response) {
@@ -1253,7 +1378,7 @@ $(document).ready(function () {
             console.log(data)
             $.ajax({
                 type: "PUT",
-                url: "/api/v3/admin/bastion/config",
+                url: "/api/v4/admin/item/config/bastion",
                 data: JSON.stringify({
                     "enabled": "bastion-enabled" in data,
                     "bastion_domain": data["bastion-domain"],
@@ -1294,7 +1419,7 @@ $(document).ready(function () {
     // virt_install table
     virtinstall_table = $('#table-virt-install').DataTable({
         "ajax": {
-            "url": "/admin/table/virt_install",
+            "url": "/api/v4/admin/items/table/virt_install",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name', 'without': ['xml'] }) }
@@ -1347,7 +1472,7 @@ $(document).ready(function () {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: "DELETE",
-                        url: "/admin/table/virt_install/" + data["id"],
+                        url: "/api/v4/admin/item/table/virt_install/" + data["id"],
                         contentType: "application/json",
                         success: function (data) {
                             virtinstall_table.ajax.reload();
@@ -1388,36 +1513,6 @@ function socketio_on() {
                 break;
         }
 
-    });
-
-    socket.on('vpn', function (data) {
-        var data = JSON.parse(data);
-        if (data['kind'] == 'url') {
-            window.open(data['url'], '_blank');
-        }
-        if (data['kind'] == 'file') {
-            var vpnFile = new Blob([data['content']], { type: data['mime'] });
-            var a = document.createElement('a');
-            a.download = data['name'] + '.' + data['ext'];
-            a.href = window.URL.createObjectURL(vpnFile);
-            var ev = document.createEvent("MouseEvents");
-            ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-            a.dispatchEvent(ev);
-        }
-    });
-
-    socket.on('result', function (data) {
-        var data = JSON.parse(data);
-        new PNotify({
-            title: data.title,
-            text: data.text,
-            hide: true,
-            delay: 4000,
-            icon: 'fa fa-' + data.icon,
-            opacity: 1,
-            type: data.type
-        });
-        //users_table.ajax.reload()
     });
 
     socket.on('delete', function (data) {
@@ -1510,7 +1605,7 @@ function populateDropdown(table, dropdown_id, selected_id, custom) {
     pluck = ['id', 'name', 'description']
     $.ajax({
         type: "POST",
-        url: "/api/v3/admin/table/" + table,
+        url: "/api/v4/admin/items/table/" + table,
         data: JSON.stringify({ 'pluck': pluck }),
         contentType: "application/json",
         accept: "application/json",

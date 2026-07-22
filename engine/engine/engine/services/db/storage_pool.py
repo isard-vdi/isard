@@ -18,15 +18,28 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from cachetools import TTLCache, cached
-from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from rethinkdb import r
 
 from .db import rethink
 
+# Module-level named caches so they can be explicitly invalidated. A short TTL
+# also bounds how long a storage_pool / QoS change takes to propagate to the
+# engine (it was 30s, so a pool or QoS edit could be ignored for half a minute).
+_all_storage_pools_cache = TTLCache(maxsize=10, ttl=10)
+_storage_pools_cache = TTLCache(maxsize=10, ttl=10)
+
+
+def clear_storage_pools_cache():
+    """Invalidate the cached storage-pool lists (call after any pool change)."""
+    _all_storage_pools_cache.clear()
+    _storage_pools_cache.clear()
+
 
 @rethink
 @cached(
-    cache=TTLCache(maxsize=10, ttl=30),
+    cache=_all_storage_pools_cache,
     key=lambda connection: "storage_pools",
 )
 def get_all_storage_pools(connection):
@@ -40,7 +53,7 @@ def get_all_storage_pools(connection):
 
 @rethink
 @cached(
-    cache=TTLCache(maxsize=10, ttl=30),
+    cache=_storage_pools_cache,
     key=lambda connection: "storage_pools",
 )
 def get_storage_pools(connection):
@@ -81,6 +94,30 @@ def get_category_storage_pool_id(category_id):
     return storage_pool["id"]
 
 
+def get_path_storage_pool(path):
+    """
+    Resolve the storage pool a path physically belongs to.
+
+    Matches by the longest mountpoint that is a prefix of the path, mirroring
+    isardvdi_common.storage_pool.StoragePool.get_by_path. Used to bind a disk's
+    QoS to the pool it actually lives in, instead of the pool currently mapped
+    to the owner's category (which differs after a category is moved).
+
+    Returns the (enabled) pool dict, or None when no mountpoint matches.
+    """
+    if not path:
+        return None
+    best = None
+    for sp in get_storage_pools():
+        mountpoint = sp.get("mountpoint")
+        if not mountpoint:
+            continue
+        if path == mountpoint or path.startswith(mountpoint.rstrip("/") + "/"):
+            if best is None or len(mountpoint) > len(best["mountpoint"]):
+                best = sp
+    return best
+
+
 def _parse_category_storage_pool_paths(pool, category_id):
     parsed_pool = pool.copy()
     if pool["id"] == DEFAULT_STORAGE_POOL_ID:
@@ -95,8 +132,8 @@ def _parse_category_storage_pool_paths(pool, category_id):
             continue
         path_list = []
         for path in paths:
-            path_key = (
-                parsed_pool["mountpoint"] + "/" + category_id + "/" + path["path"]
+            path_key = build_category_pool_dir(
+                parsed_pool["mountpoint"], category_id, path["path"]
             )
             path_list.append({"path": path_key, "weight": path["weight"]})
         pool_paths[type_path] = path_list
@@ -113,7 +150,10 @@ def _parse_default_storage_pool_paths(pool):
         paths = pool["paths"].get(type_path, [])
         path_list = []
         for path in paths:
-            path_key = "/isard/" + path["path"]
+            # Honour the pool's mountpoint instead of hardcoding "/isard". Legacy
+            # default pools keep mountpoint "/isard" (-> /isard/<path>); fresh
+            # installs use "/isard/storage_pools/default" (-> that/<path>).
+            path_key = pool["mountpoint"] + "/" + path["path"]
             path_list.append({"path": path_key, "weight": path["weight"]})
         pool_paths[type_path] = path_list
     pool["paths"] = pool_paths

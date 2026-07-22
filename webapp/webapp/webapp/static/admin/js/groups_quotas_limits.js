@@ -18,7 +18,7 @@ $(document).ready(function() {
             }
         },
         "ajax": {
-            "url": "/admin/users/quotas_limits/groups",
+            "url": "/api/v4/admin/items/users/quotas_limits/groups",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}
@@ -59,8 +59,8 @@ $(document).ready(function() {
             { "data": "limits.isos", className: "xe-isos", defaultContent: "-"},
             { "data": "quota.deployments_total", className: "xe-deployments", defaultContent: "-"},
             { "data": "limits.deployments_total", className: "xe-deployments", defaultContent: "-"},
-            { "data": "quota.deployment_desktops", className: "xe-deployments", defaultContent: "-"},
-            { "data": "limits.deployment_desktops", className: "xe-deployments", defaultContent: "-"},
+            { "data": "quota.deployment_users", className: "xe-deployments", defaultContent: "-"},
+            { "data": "limits.deployment_users", className: "xe-deployments", defaultContent: "-"},
             { "data": "id", "visible": false}
         ],
         "columnDefs": [
@@ -217,7 +217,7 @@ function actionsGroupDetail(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/quota/group/"+pk ,
+                url:"/api/v4/admin/item/quota/group/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)
@@ -229,7 +229,7 @@ function actionsGroupDetail(){
                         text: 'Quotas updated successfully',
                         hide: true,
                         delay: 1000,
-                        icon: 'fa fa-' + data.icon,
+                        icon: 'fa fa-' + data?.icon,
                         opacity: 1,
                         type: 'success'
                     })
@@ -285,7 +285,7 @@ function actionsGroupDetail(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/limits/group/"+pk ,
+                url:"/api/v4/admin/item/limits/group/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)
@@ -297,7 +297,7 @@ function actionsGroupDetail(){
                         text: 'Limits updated successfully',
                         hide: true,
                         delay: 1000,
-                        icon: 'fa fa-' + data.icon,
+                        icon: 'fa fa-' + data?.icon,
                         opacity: 1,
                         type: 'success'
                     })

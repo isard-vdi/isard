@@ -1,14 +1,85 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+"""HTTP API helpers for the storage CLI subcommands.
+
+Ported from main 2026-06-01 to use the apiv4 generated client
+(``isardvdi_apiv4_client``) instead of the apiv3 ``ApiRest`` removed
+from ``isardvdi_common`` on apiv4-integration. The same auth +
+client-builder pattern is used by ``move_disks`` and ``update_storages``
+in this container.
+
+Each helper returns plain dicts (via generated-model ``.to_dict()``) so
+existing CLI consumers' dict-access patterns (``s["id"]``,
+``s.get("accessed")``) keep working without rewrites.
+"""
+
 import time
 
-from isardvdi_common.api_rest import ApiRest
+import httpx
+from isardvdi_apiv4_client.api.role_admin import admin_storage_by_role
+from isardvdi_apiv4_client.api.role_admin import (
+    disconnect_storage as disconnect_storage_op,
+)
+from isardvdi_apiv4_client.api.role_admin import find_storage as find_storage_op
+from isardvdi_apiv4_client.api.role_admin import set_storage_path as set_storage_path_op
+from isardvdi_apiv4_client.api.role_manager import (
+    admin_media_list,
+    admin_storage_by_status,
+    admin_storage_info,
+    admin_storage_list,
+    admin_table_list,
+)
+from isardvdi_apiv4_client.api.role_user import get_task as get_task_op
+from isardvdi_apiv4_client.models import StoragePathRequest, TableListRequest
+from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
 from .formatting import log
 
+_SERVICE = "isard-storage"
 
-def _get_api():
-    return ApiRest()
+
+def _client(timeout=120.0):
+    """Return an ``AuthenticatedClient`` for apiv4 with a fixed timeout.
+
+    Used inside ``with _client() as client:`` blocks so the underlying
+    httpx connection is closed deterministically.
+    """
+    return build_client(_SERVICE).with_timeout(httpx.Timeout(timeout))
+
+
+def _as_dict(obj):
+    """Convert a generated-client model (or list of them) to plain dict(s).
+
+    Generated models are ``attrs`` classes with ``to_dict()`` that
+    flattens ``additional_properties`` back to their server-side keys
+    (preserving hyphens, etc. — e.g. ``qemu-img-info``,
+    ``directory_path``).
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, list):
+        return [_as_dict(i) for i in obj]
+    if hasattr(obj, "to_dict"):
+        return obj.to_dict()
+    return obj
+
+
+def _fetch_table(table, *, pluck=None, timeout=120.0):
+    """Generic POST /admin/items/table/{table} reader.
+
+    Used by the ``fetch_*`` helpers below that previously called
+    apiv3's ``POST /admin/table/{table}`` with ``{"pluck": [...]}``.
+    """
+    body = TableListRequest()
+    if pluck is not None:
+        body.pluck = pluck
+    with _client(timeout=timeout) as client:
+        resp = admin_table_list.sync_detailed(table=table, client=client, body=body)
+        raise_for_status(resp)
+        rows = _as_dict(resp.parsed) or []
+    if isinstance(rows, dict):
+        rows = [rows]
+    return rows
 
 
 def fetch_storages(status_filter=None):
@@ -19,14 +90,18 @@ def fetch_storages(status_filter=None):
 
     The 'path' field is constructed as directory_path/id.type.
     """
-    log("Fetching storage records from API (GET /admin/storage)...")
-    api = _get_api()
+    log("Fetching storage records from API (GET /admin/items/storage)...")
     start = time.time()
     try:
-        if status_filter:
-            storages = api.get(f"/admin/storage?status={status_filter}", timeout=120)
-        else:
-            storages = api.get("/admin/storage", timeout=120)
+        with _client() as client:
+            if status_filter:
+                resp = admin_storage_by_status.sync_detailed(
+                    status=status_filter, client=client
+                )
+            else:
+                resp = admin_storage_list.sync_detailed(client=client)
+            raise_for_status(resp)
+            storages = _as_dict(resp.parsed) or []
     except Exception as e:
         log(f"WARNING: could not fetch storage from API: {e}")
         return None
@@ -123,20 +198,16 @@ def fetch_domains_accessed():
 
     Returns dict mapping storage_id -> domain_accessed (ISO string).
     """
-    log("Fetching domain accessed times from API (POST /admin/table/domains)...")
-    api = _get_api()
+    log("Fetching domain accessed times from API (POST /admin/items/table/domains)...")
     start = time.time()
     try:
-        domains = api.post(
-            "/admin/table/domains",
-            data={
-                "pluck": [
-                    "id",
-                    "accessed",
-                    {"create_dict": {"hardware": {"disks": True}}},
-                ]
-            },
-            timeout=120,
+        domains = _fetch_table(
+            "domains",
+            pluck=[
+                "id",
+                "accessed",
+                {"create_dict": {"hardware": {"disks": True}}},
+            ],
         )
     except Exception as e:
         log(f"WARNING: could not fetch domains from API: {e}")
@@ -162,18 +233,13 @@ def fetch_domains_accessed():
 
 
 def fetch_users_roles():
-    """Fetch user → role mapping from API (POST /admin/table/users).
+    """Fetch user → role mapping from API (POST /admin/items/table/users).
 
     Returns {user_id: role}. Roles in IsardVDI: admin, manager, advanced, user.
     """
-    log("Fetching user roles from API (POST /admin/table/users)...")
-    api = _get_api()
+    log("Fetching user roles from API (POST /admin/items/table/users)...")
     try:
-        users = api.post(
-            "/admin/table/users",
-            data={"pluck": ["id", "role"]},
-            timeout=60,
-        )
+        users = _fetch_table("users", pluck=["id", "role"], timeout=60.0)
     except Exception as e:
         log(f"WARNING: could not fetch users: {e}")
         return {}
@@ -194,23 +260,19 @@ def fetch_domain_deployments():
       - storage_to_deployment:{storage_id: deployment_id}
       - deployments:    {deployment_id: [domain_id, ...]}
     """
-    log("Fetching domain deployments from API (POST /admin/table/domains)...")
-    api = _get_api()
+    log("Fetching domain deployments from API (POST /admin/items/table/domains)...")
     start = time.time()
     try:
-        domains = api.post(
-            "/admin/table/domains",
-            data={
-                "pluck": [
-                    "id",
-                    "name",
-                    "kind",
-                    "user",
-                    "tag",
-                    {"create_dict": {"hardware": {"disks": True}}},
-                ]
-            },
-            timeout=120,
+        domains = _fetch_table(
+            "domains",
+            pluck=[
+                "id",
+                "name",
+                "kind",
+                "user",
+                "tag",
+                {"create_dict": {"hardware": {"disks": True}}},
+            ],
         )
     except Exception as e:
         log(f"WARNING: could not fetch domains from API: {e}")
@@ -281,14 +343,11 @@ def fetch_unused_item_timeouts():
     (timedelta(days=cutoff_time * 30)). A value of None disables the rule.
     """
     log(
-        "Fetching unused_item_timeout config (POST /admin/table/unused_item_timeout)..."
+        "Fetching unused_item_timeout config (POST /admin/items/table/unused_item_timeout)..."
     )
-    api = _get_api()
     try:
-        rows = api.post(
-            "/admin/table/unused_item_timeout",
-            data={"pluck": ["id", "cutoff_time"]},
-            timeout=30,
+        rows = _fetch_table(
+            "unused_item_timeout", pluck=["id", "cutoff_time"], timeout=30.0
         )
     except Exception as e:
         log(f"WARNING: could not fetch unused_item_timeout: {e}")
@@ -302,8 +361,10 @@ def fetch_storages_by_role(role):
     Returns list of storage dicts with path constructed.
     Filters to ready/recycled desktop storages.
     """
-    api = _get_api()
-    storages = api.get(f"/admin/storage/by-role/{role}", timeout=120)
+    with _client() as client:
+        resp = admin_storage_by_role.sync_detailed(role=role, client=client)
+        raise_for_status(resp)
+        storages = _as_dict(resp.parsed) or []
 
     from datetime import datetime
 
@@ -328,7 +389,7 @@ def fetch_storages_by_role(role):
 
 
 def fetch_medias():
-    """Fetch all medias from API (GET /admin/media).
+    """Fetch all medias from API (GET /admin/items/media).
 
     Returns list of dicts with at least: id, status, path_downloaded,
     kind ('iso' | 'floppy' | 'qcow2' | …), domains (count of VMs that
@@ -341,11 +402,13 @@ def fetch_medias():
     Returns None on API failure (caller should skip media classification
     and keep going — qcow2 cleanup is still valuable).
     """
-    log("Fetching media records from API (GET /admin/media)...")
-    api = _get_api()
+    log("Fetching media records from API (GET /admin/items/media)...")
     start = time.time()
     try:
-        medias = api.get("/admin/media", timeout=120)
+        with _client() as client:
+            resp = admin_media_list.sync_detailed(client=client)
+            raise_for_status(resp)
+            medias = _as_dict(resp.parsed) or []
     except Exception as e:
         log(f"WARNING: could not fetch media from API: {e}")
         return None
@@ -396,10 +459,12 @@ fetch_medias.last_info_never_downloaded = []
 def trigger_find(storage_id):
     """Trigger a find task for a storage.
 
-    GET /storage/{id}/find — returns task_id string.
+    GET /item/storage/{id}/find — returns a ``{task_id: ...}`` dict.
     """
-    api = _get_api()
-    return api.get(f"/storage/{storage_id}/find", timeout=30)
+    with _client(timeout=30.0) as client:
+        resp = find_storage_op.sync_detailed(storage_id=storage_id, client=client)
+        raise_for_status(resp)
+        return _as_dict(resp.parsed)
 
 
 def poll_task(task_id):
@@ -407,35 +472,48 @@ def poll_task(task_id):
 
     GET /task/{task_id} — returns task dict with at least 'status' key.
     """
-    api = _get_api()
-    return api.get(f"/task/{task_id}", timeout=30)
+    with _client(timeout=30.0) as client:
+        resp = get_task_op.sync_detailed(task_id=task_id, client=client)
+        raise_for_status(resp)
+        return _as_dict(resp.parsed)
 
 
 def fetch_storage_by_id(storage_id):
     """Fetch a single storage record by ID.
 
-    GET /admin/storage/info/{id} — returns storage dict.
+    GET /admin/item/storage/info/{id} — returns storage dict.
     """
-    api = _get_api()
-    return api.get(f"/admin/storage/info/{storage_id}", timeout=30)
+    with _client(timeout=30.0) as client:
+        resp = admin_storage_info.sync_detailed(storage_id=storage_id, client=client)
+        raise_for_status(resp)
+        return _as_dict(resp.parsed)
 
 
 def trigger_disconnect(storage_id, priority="low"):
     """Trigger disconnect (flatten) task for a storage.
 
-    GET /storage/disconnect/{id}/priority/{priority} — flattens the backing
-    chain via qemu-img convert, making the file standalone.
-    Returns task_id string.
+    PUT /item/storage/{id}/disconnect/priority/{priority} — flattens
+    the backing chain via qemu-img convert, making the file standalone.
+    Returns a ``{task_id: ...}`` dict.
     """
-    api = _get_api()
-    return api.get(f"/storage/disconnect/{storage_id}/priority/{priority}", timeout=30)
+    with _client(timeout=30.0) as client:
+        resp = disconnect_storage_op.sync_detailed(
+            storage_id=storage_id, priority=priority, client=client
+        )
+        raise_for_status(resp)
+        return _as_dict(resp.parsed)
 
 
 def update_storage_path(storage_id, new_path):
     """Update a storage's path in the DB and trigger validation.
 
-    PUT /storage/{id}/path — sets directory_path, triggers find + pool update.
-    Returns task_id string.
+    PUT /item/storage/{id}/path — sets directory_path, triggers find +
+    pool update. Returns a ``{task_id: ...}`` dict.
     """
-    api = _get_api()
-    return api.put(f"/storage/{storage_id}/path", data={"path": new_path}, timeout=30)
+    body = StoragePathRequest(path=new_path)
+    with _client(timeout=30.0) as client:
+        resp = set_storage_path_op.sync_detailed(
+            storage_id=storage_id, client=client, body=body
+        )
+        raise_for_status(resp)
+        return _as_dict(resp.parsed)

@@ -9,12 +9,21 @@ import (
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
-
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 )
 
 var ErrUserNotFound = errors.New("user not found")
+
+type PasswordPolicyError struct {
+	ogenclient.APIError
+	Num *int
+}
+
+func (e PasswordPolicyError) Unwrap() error {
+	return e.APIError
+}
 
 // ForgotPassword sends a password reset email with a password-reset token
 func (a *Authentication) ForgotPassword(ctx context.Context, categoryID, email string) error {
@@ -115,15 +124,27 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd, remoteAddr
 		return token.ErrInvalidTokenType
 	}
 
-	if err := a.API.AdminUserResetPassword(ctx, userID, pwd); err != nil {
-		var apiErr *sdk.Err
-		if !errors.As(err, &apiErr) {
-			a.Log.Info().Str("user_id", userID).Str("ip", remoteAddr).Err(err).Msg("password reset failed")
-			return fmt.Errorf("unknown API error: %w", err)
-		}
-
+	rsp, err := a.API.AdminResetPassword(ctx, &apiv4.AdminPasswordResetData{UserID: userID, Password: pwd})
+	if err != nil {
 		a.Log.Info().Str("user_id", userID).Str("ip", remoteAddr).Err(err).Msg("password reset failed")
-		return err
+		return fmt.Errorf("unknown API error: %w", err)
+	}
+
+	if _, ok := rsp.(*apiv4.EmptyResponse); !ok {
+		apiErr := ogenclient.AsAPIError(rsp)
+		if policyErr, ok := rsp.(*apiv4.PasswordPolicyErrorResponse); ok {
+			var e ogenclient.APIError
+			if errors.As(apiErr, &e) {
+				e.StatusCode = 400
+				ppErr := PasswordPolicyError{APIError: e}
+				if num, ok := policyErr.Params.Value.Num.Get(); ok {
+					ppErr.Num = &num
+				}
+				apiErr = ppErr
+			}
+		}
+		a.Log.Info().Str("user_id", userID).Str("ip", remoteAddr).Err(apiErr).Msg("password reset failed")
+		return apiErr
 	}
 
 	u := &model.User{

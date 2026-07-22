@@ -3,22 +3,17 @@ import random
 import threading
 import time
 
+from isardvdi_common.lib.gpu_pool_policy import profile_suffix_from_id
+
 from engine.models.numa_balancer import (
     aggregate_pending_by_node,
     select_balanced_numa_node,
 )
 from engine.services.db import get_table_field
-from engine.services.db.hypervisors import (
-    get_diskopts_online,
-    get_hypers_gpu_online,
-    get_hypers_online,
-)
-from engine.services.lib.functions import (
-    get_diskoperations_pools_threads_running,
-    get_pools_threads_running,
-)
+from engine.services.db.hypervisors import get_hypers_gpu_online, get_hypers_online
+from engine.services.lib.functions import get_pools_threads_running
+from engine.services.lib.mem_stats import get_hyper_free_ram_kb
 from engine.services.log import logs
-from isardvdi_common.gpu_pool_policy import profile_suffix_from_id
 
 """ 
 BALANCERS 
@@ -46,7 +41,7 @@ class Balancer_available_ram:
     # This balancer will return the hypervisor with more available ram
     def _balancer(self, hypers):
         logs.main.debug(
-            f"BALANCER AVAILABLE RAM. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
+            f"BALANCER AVAILABLE RAM. MEMORY FREE: {[{h['id']: get_hyper_free_ram_kb(h)} for h in hypers if h.get('stats',{}).get('mem_stats')]}"
         )
         return weighted_select(sort_hypervisors_ram_absolute(hypers))
 
@@ -55,7 +50,7 @@ class Balancer_available_ram_percent:
     # This balancer will return the hypervisor with more available ram in percentage
     def _balancer(self, hypers):
         logs.main.debug(
-            f"BALANCER AVAILABLE RAM%. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']*100/h['stats']['mem_stats']['total']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
+            f"BALANCER AVAILABLE RAM%. MEMORY FREE%: {[{h['id']: round((1 - _get_used_ram_percentage(h)) * 100, 1)} for h in hypers if h.get('stats',{}).get('mem_stats')]}"
         )
 
         return weighted_select(sort_hypervisors_ram_percentage(hypers))
@@ -173,10 +168,6 @@ class BalancerInterface:
     # NOTE: Now domain and it's storage belong to the same category. If we decide could not,
     # we should change the way to get the pool_id from the storage user owner category
 
-    # Disk operations uses the domain category to decide the pool:
-    # pool_id = get_category_storage_pool_id(dict_domain.get("category"))
-    # To call the balancer for get_next_diskoperations
-
     def __init__(self, id_pool="default", balancer_type="round_robin"):
         if balancer_type not in BALANCERS:
             logs.hmlog.error(f"Balancer type {balancer_type} not found in {BALANCERS}")
@@ -243,14 +234,30 @@ class BalancerInterface:
         return sum(ram_gb for ram_gb, _ in entries) * 1048576  # GB to KB
 
     def _adjust_for_pending(self, hypers):
-        """Return deep-copied hyper dicts with available RAM reduced by pending starts."""
+        """Deep-copied hyper dicts with free RAM reduced by pending starts.
+
+        In-flight starts are not in the stats sample yet, so without this a burst
+        all lands on whichever host looked emptiest. Charge BOTH figures the
+        balancers read: decrementing only ``available`` left the guard invisible
+        to the ``used``-based ones, whose fallback never fires because the stats
+        writer always writes ``used``.
+        """
         adjusted = copy.deepcopy(hypers)
         for h in adjusted:
             pending_kb = self._get_pending_ram_kb(h["id"])
-            if pending_kb > 0:
-                mem_stats = h.get("stats", {}).get("mem_stats")
-                if mem_stats and "available" in mem_stats:
-                    mem_stats["available"] = max(0, mem_stats["available"] - pending_kb)
+            if pending_kb <= 0:
+                continue
+            mem_stats = h.get("stats", {}).get("mem_stats")
+            if not mem_stats:
+                continue
+            if "used" in mem_stats:
+                # Cap at total: pending can exceed the free RAM under a burst.
+                mem_stats["used"] = min(
+                    mem_stats.get("total", mem_stats["used"] + pending_kb),
+                    mem_stats["used"] + pending_kb,
+                )
+            if "available" in mem_stats:
+                mem_stats["available"] = max(0, mem_stats["available"] - pending_kb)
         return adjusted
 
     def get_next_hypervisor(
@@ -318,45 +325,6 @@ class BalancerInterface:
             return False, {}
 
         return hypervisor, extra
-
-    def get_next_diskoperations(self, forced_hyp=None, favourite_hyp=None):
-        hypers = get_diskopts_online(self.id_pool, forced_hyp, favourite_hyp)
-        hypers_w_threads = get_diskoperations_pools_threads_running(hypers)
-        if len(hypers) != len(hypers_w_threads):
-            logs.main.error("####################### BALANCER #######################")
-            logs.main.error(
-                "Some disk operations hypervisors are not online in pool %s."
-                % self.id_pool
-            )
-            logs.main.error(
-                "Hypervisors online: %s. Hypervisors with disks threads running: %s."
-                % (
-                    [h["id"] for h in hypers],
-                    [h["id"] for h in hypers_w_threads],
-                )
-            )
-
-        if len(hypers_w_threads) == 0:
-            logs.main.error("####################### BALANCER #######################")
-            logs.main.error(
-                "No disk operations online to execute next diskopts action in pool %s."
-                % self.id_pool
-            )
-            return False
-        if len(hypers_w_threads) == 1:
-            logs.main.debug("####################### BALANCER #######################")
-            logs.main.debug(
-                "Executing next disk operations action in the only diskopts available: %s in pool %s."
-                % (hypers_w_threads[0]["id"], self.id_pool)
-            )
-            return hypers[0]["id"]
-        hyper_selected = self._balancer._balancer(hypers_w_threads)["id"]
-        logs.main.debug("####################### BALANCER #######################")
-        logs.main.debug(
-            "Executing next disk operations action in hypervisor: %s (current hypers avail: %s) in pool %s"
-            % (hyper_selected, [h["id"] for h in hypers_w_threads], self.id_pool)
-        ),
-        return hyper_selected
 
     def _record_gpu_node_pending(
         self, hyp_id, gpu_extra, domain_memory_gb, domain_vcpus
@@ -557,21 +525,30 @@ class BalancerInterface:
 
 
 def _build_hugepages_extra(hyper_dict):
-    """Extract hugepages fallback info for non-GPU desktops."""
+    """Extract hugepages + NUMA fallback info for non-GPU desktops.
+
+    Surfaces numa_topology and per-NUMA hugepages free so ui_actions can
+    emit ``<cputune>`` + ``<numatune>`` for NUMA-local CPU/memory placement.
+    Falls back to hash-distributed node pick when ``numa_hugepages_free_kb``
+    is empty (stats writer hasn't run yet or libvirt unavailable).
+    """
     hugepages_info = hyper_dict.get("hugepages_info", {})
     mem_stats = hyper_dict.get("stats", {}).get("mem_stats", {})
     if not hugepages_info or not hugepages_info.get("mounted"):
+        # No hugepages, but still surface NUMA topology + per-node free so
+        # ui_actions can NUMA-balance non-GPU desktops (cputune/numatune) on
+        # hosts without a hugepage pool.
         return {
-            "numa_topology": hyper_dict.get("numa_topology", {}),
-            "numa_hugepages_free_kb": mem_stats.get("numa_hugepages_free_kb", {}),
+            "numa_topology": hyper_dict.get("numa_topology", {}) or {},
+            "numa_hugepages_free_kb": mem_stats.get("numa_hugepages_free_kb", {}) or {},
         }
     return {
         "hugepages": hugepages_info,
         "min_free_mem_gb": hyper_dict.get("min_free_mem_gb", 0) or 0,
         "mem_available_kb": mem_stats.get("available", 0),
         "hugepages_free_kb": mem_stats.get("hugepages_free_kb", 0),
-        "numa_hugepages_free_kb": mem_stats.get("numa_hugepages_free_kb", {}),
-        "numa_topology": hyper_dict.get("numa_topology", {}),
+        "numa_topology": hyper_dict.get("numa_topology", {}) or {},
+        "numa_hugepages_free_kb": mem_stats.get("numa_hugepages_free_kb", {}) or {},
     }
 
 
@@ -589,13 +566,17 @@ def _parse_extra_gpu_info(gpu_selected):
             else ""
         ),
         "pci_bus_id": gpu_selected.get("pci_bus_id"),
+        "gpu_numa_node": gpu_selected.get("gpu_numa_node"),
         "mig": gpu_selected.get("mig", False),
+        # vendor-specific VFIO framework (Ubuntu 24.04+): the start path emits a
+        # vfio-pci VF hostdev keyed by vf_bdf instead of an mdev. None on legacy.
+        "framework": gpu_selected.get("framework"),
+        "vf_bdf": gpu_selected.get("vf_bdf"),
         "companion_pci_bdfs": gpu_selected.get("companion_pci_bdfs") or [],
         "hugepages": gpu_selected.get("hugepages_info", {}),
         "hugepages_free_kb": gpu_selected.get("hugepages_free_kb", 0),
         "numa_hugepages_free_kb": gpu_selected.get("numa_hugepages_free_kb", {}),
-        "gpu_numa_node": gpu_selected.get("gpu_numa_node"),
-        "numa_topology": gpu_selected.get("numa_topology", {}),
+        "numa_topology": gpu_selected.get("numa_topology", {}) or {},
     }
 
 
@@ -607,13 +588,9 @@ def _get_used_ram_percentage(hyper) -> float:
     return used_ram / total_ram if total_ram > 0 else 0
 
 
-# Sort the hypervisors by used RAM (absolute) (low to high)
+# Sort the hypervisors by free RAM (absolute) (high to low)
 def sort_hypervisors_ram_absolute(hypers):
-    return sorted(
-        hypers,
-        key=lambda h: h.get("stats", {}).get("mem_stats", {}).get("available", 0),
-        reverse=True,
-    )
+    return sorted(hypers, key=get_hyper_free_ram_kb, reverse=True)
 
 
 # Sort the hypervisors by used RAM percentage (low to high)

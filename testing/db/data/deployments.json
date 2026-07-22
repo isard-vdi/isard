@@ -1,0 +1,60 @@
+[
+    {
+        "id": "deployment-test-001",
+        "name": "Deployment Test Frontend",
+        "description": "Deployment for frontend",
+        "kind": "desktops",
+        "tag": "deployment-test-001",
+        "tag_visible": true,
+        "image": {
+            "id": "1.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/1.jpg"
+        },
+        "allowed": {
+            "roles": false,
+            "categories": false,
+            "groups": ["default-default"],
+            "users": false
+        },
+        "create_dict": [
+            {
+                "name": "Desktop from deployment",
+                "description": "Desktop from deployment",
+                "template": "template-test-001",
+                "image": {
+                    "id": "1.jpg",
+                    "type": "stock",
+                    "url": "/assets/img/desktops/stock/1.jpg"
+                },
+                "hardware": {
+                    "vcpus": 1,
+                    "memory": 1048576,
+                    "videos": ["default"],
+                    "interfaces": ["default"],
+                    "graphics": ["default"],
+                    "boot_order": ["disk"],
+                    "disk_bus": "default",
+                    "qos_disk_id": false,
+                    "virtualization_nested": false,
+                    "isos": [],
+                    "floppies": [],
+                    "disks": []
+                },
+                "guest_properties": {
+                    "credentials": {"username": "", "password": ""},
+                    "fullscreen": false,
+                    "viewers": {}
+                },
+                "reservables": {},
+                "tag_desktop_id": "00000000-0000-4000-8000-000000000001"
+            }
+        ],
+        "user": "local-default-admin-admin",
+        "category": "default",
+        "group": "default-default",
+        "enabled": true,
+        "co_owners": [],
+        "user_permissions": ["recreate"]
+    }
+]

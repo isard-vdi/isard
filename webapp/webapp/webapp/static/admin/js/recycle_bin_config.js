@@ -34,7 +34,7 @@ $(document).ready(function () {
                 renderModal(modal, "edit");
                 $.ajax({
                     type: 'GET',
-                    url: `/api/v3/recycle_bin/unused_item_timeout_rule/${data.id}`,
+                    url: `/api/v4/item/recycle-bin/unused-item-timeout-rule/${data.id}`,
                     contentType: 'application/json',
                     success: function (data) {
                         $(modal + ' #id').val(data.id);
@@ -59,7 +59,7 @@ $(document).ready(function () {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: 'DELETE',
-                        url: `/api/v3/recycle_bin/unused_item_timeout_rule/${data.id}`,
+                        url: `/api/v4/item/recycle-bin/unused-item-timeout-rule/${data.id}`,
                         contentType: 'application/json',
                         success: function () {
                             new PNotify({
@@ -111,7 +111,7 @@ $(document).ready(function () {
             if ($(this).data("action") == "edit") {
                 $.ajax({
                     type: 'PUT',
-                    url: `/api/v3/recycle_bin/unused_item_timeout_rule/${pk}`,
+                    url: `/api/v4/item/recycle-bin/unused-item-timeout-rule/${pk}`,
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function () {
@@ -143,7 +143,7 @@ $(document).ready(function () {
                 delete data["id"];
                 $.ajax({
                     type: 'POST',
-                    url: '/api/v3/recycle_bin/unused_item_timeout_rules/',
+                    url: '/api/v4/items/recycle-bin/unused-item-timeout-rules',
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function () {
@@ -179,7 +179,7 @@ $(document).ready(function () {
         var max_time = ($(this).val());
         $.ajax({
             type: "PUT",
-            url: "/api/v3/recycle_bin/config/old_entries/max_time/" + max_time,
+            url: "/api/v4/item/recycle-bin/old-entries/max-time/" + max_time,
             accept: "application/json",
         }).done(() => {
             new PNotify({
@@ -210,7 +210,7 @@ $(document).ready(function () {
 function toggleOldEntriesAction(action) {
     $.ajax({
         type: "PUT",
-        url: "/api/v3/recycle_bin/config/old_entries/action/" + action,
+        url: "/api/v4/item/recycle-bin/old-entries/action/" + action,
         accept: "application/json",
     }).done(() => {
         updateSchedulerJob(action);
@@ -220,7 +220,7 @@ function toggleOldEntriesAction(action) {
 function checkOldEntriesAction() {
     $.ajax({
         type: "GET",
-        url: "/api/v3/recycle_bin/config/old_entries",
+        url: "/api/v4/item/recycle-bin/old-entries/config",
         accept: "application/json",
     }).done(function (oldEntriesConfig) {
         $('#archive-delete_wrapper input[name="archive-delete-action"][value="' + oldEntriesConfig.action + '"]').prop("checked", true).iCheck('update')
@@ -283,7 +283,7 @@ function updateSchedulerJob(action) {
 function toggleDefaultDelete(set) {
     $.ajax({
         type: "PUT",
-        url: "/api/v3/recycle_bin/config/default-delete",
+        url: "/api/v4/item/recycle-bin/config/default-delete",
         accept: "application/json",
         data: JSON.stringify({
             'rb_default': set
@@ -305,7 +305,7 @@ function toggleDefaultDelete(set) {
 function checkDefaultDelete() {
     $.ajax({
         type: "GET",
-        url: "/api/v3/recycle_bin/config/default-delete",
+        url: "/api/v4/item/recycle-bin/get-default-delete-config",
         accept: "application/json",
     }).done(function (defaultDelete) {
         $("#default-delete-checkbox").iCheck(defaultDelete ? "check" : "uncheck").iCheck('update');
@@ -322,7 +322,7 @@ function checkDefaultDelete() {
 function toggleDeleteAction(action) {
     $.ajax({
         type: "PUT",
-        url: "/api/v3/recycle_bin/config/delete-action/" + action,
+        url: "/api/v4/item/recycle-bin/config/delete-action/" + action,
         accept: "application/json",
     }).done(() => {
         new PNotify({
@@ -350,7 +350,7 @@ function toggleDeleteAction(action) {
 function checkDeleteAction() {
     $.ajax({
         type: "GET",
-        url: "/api/v3/recycle_bin/config/delete-action/",
+        url: "/api/v4/item/recycle-bin/config/delete-action",
         accept: "application/json",
     }).done(function (deleteAction) {
         $('#default-action_wrapper input[name="deleted-action"][value="' + deleteAction + '"]').prop("checked", true).iCheck('update')
@@ -373,10 +373,10 @@ function checkDeleteAction() {
 function renderUnusedItemTimeoutsDatatable() {
     $('#unused-desktops-table').DataTable({
         "ajax": {
-            url: '/api/v3/recycle_bin/unused_item_timeout_rules',
+            url: '/api/v4/items/recycle-bin/unused-item-timeout-rules',
             type: 'GET',
         },
-        "sAjaxDataProp": "",
+        "sAjaxDataProp": "rules",
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },

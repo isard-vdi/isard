@@ -14,4 +14,5 @@ source /tmp/env
 #export HOSTNAME=$HOSTNAME
 [[ ! -z "$API_DOMAIN" ]] && export API_DOMAIN=$API_DOMAIN
 export API_HYPERVISORS_SECRET=$API_HYPERVISORS_SECRET
-/usr/bin/python3 /src/lib/update-client-ips.py "$@"
+# Use the venv interpreter: alpine base may not ship /usr/bin/python3, and isardvdi_apiv4_client only lives in the venv.
+/.venv/bin/python3 /src/lib/update-client-ips.py "$@"

@@ -1,4 +1,8 @@
 {
+  "frontend_toggler": {
+    "to_vue3": "Cambiar a nueva interfaz",
+    "no_equivalent": "Sin equivalente en la nueva interfaz"
+  },
   "validations": {
     "required": "El campo {property} es obligatorio.",
     "sameAs": "El campo {property} ha de tener el mismo valor que {property2}.",
@@ -92,6 +96,7 @@
     "new-deployment": {
       "title": "Crear nuevo despliegue:",
       "name": "Nombre del despliegue",
+      "description": "Descripción del despliegue",
       "visible": "Visible para los usuarios",
       "not-visible": "No visible para los usuarios",
       "section-title-template": "Seleccionar una plantilla:",
@@ -405,7 +410,8 @@
         "edit": "Editar",
         "direct-link": "Enlace directo",
         "recreate": "Recrear",
-        "bastion": "Bastión"
+        "bastion": "Bastión",
+        "increase-storage": "Ampliar almacenamiento"
       },
       "table-header": {
         "name": "Nombre",
@@ -425,7 +431,7 @@
       "no-info-default": "No hay descripción disponible",
       "open-with": "Acceder con visor",
       "storage-operation": {
-        "increase": "El tamaño de disco de este escritorio está siendo incrementado",
+        "resize": "El tamaño de disco de este escritorio está siendo incrementado",
         "virt_win_reg": "Se está editando el registro",
         "move": "El disco de este escritorio se está moviendo"
       },
@@ -597,6 +603,7 @@
         "unit": "Tamaño unidad personal / Tamaño total unidad personal (MB)",
         "deployments_total": "Despliegues creados / Total de despliegues",
         "deployment_desktops": "Maximo de escritorios por despliegue",
+        "deployment_users": "Maximo de usuarios por despliegue",
         "started_deployment_desktops": {
           "title": "Escritorios de despliegue arrancados",
           "description": "Cantidad total de escritorios de despliegues que puede arrancar el usuario"
@@ -610,13 +617,13 @@
     "start-now-modal": {
       "title": "Iniciar ahora",
       "profile": "Perfil",
-      "profiles": "Perfiles",
       "select-profile": "Selecciona el perfil que se utilizará",
-      "select-profiles": "Selecciona los perfiles que se utilizarán",
       "end-date": "Fecha de finalización",
       "end-time": "Hora de finalización",
       "select-end-date": "Selecciona hasta cuando se utilizará",
-      "button": "Iniciar escritorio"
+      "button": "Iniciar escritorio",
+      "profiles": "Perfiles",
+      "select-profiles": "Selecciona los perfiles que se utilizarán"
     },
     "cant-start-now-modal": {
       "title": {
@@ -965,9 +972,17 @@
       "loading-modal": {
         "title": "Creando escritorios para '{name}'",
         "body": {
-          "title": "Por favor, espera mientras creamos tus escritorios.",
-          "desktops-total-creating": "{total} escritorios en total, de los cuales {creating} están siendo creados",
-          "desktops-created": "Tus escritorios han sido creados correctamente"
+          "title": "Tus escritorios se están aprovisionando en dos etapas. No podrán usarse hasta que ambas terminen.",
+          "desktops-created-of-total": "{created} de {total} escritorios creados",
+          "desktops-created": "Tus {total} escritorios están listos",
+          "stage1-title": "Etapa 1 — Añadiendo escritorios al despliegue",
+          "stage1-progress": "{current} de {total} escritorios añadidos",
+          "stage1-pending": "Esperando a que el motor empiece a crear escritorios...",
+          "stage1-done": "{total} de {total} escritorios añadidos",
+          "stage2-title": "Etapa 2 — Aprovisionando almacenamiento",
+          "stage2-progress": "{current} de {total} escritorios aprovisionados",
+          "stage2-pending": "Esperando a que termine la Etapa 1 antes de aprovisionar el almacenamiento",
+          "stage2-done": "{total} de {total} escritorios aprovisionados"
         }
       }
     },
@@ -1084,7 +1099,8 @@
             "delete": "AVISO! Estas plantillas y escritorios dependen de esta plantilla y también serán eliminados.",
             "footer": "No puedes eliminar esta plantilla. Contacta con tu administrador.",
             "cross_category": "Esta plantilla tiene derivados en otras categorías que no gestionas. No puedes eliminar este elemento.",
-            "cross_category_footer": "No puedes eliminar esta plantilla porque tiene derivados en categorías que no gestionas. Contacta con tu administrador."
+            "cross_category_footer": "No puedes eliminar esta plantilla porque tiene derivados en categorías que no gestionas. Contacta con tu administrador.",
+            "deployments": "Para eliminar esta plantilla, todos los despliegues dependientes también serán eliminados. Recuerda que las plantillas también pueden hacerse invisibles a los usuarios en lugar de ser eliminadas."
           },
           "button": {
             "delete": "Eliminar plantilla"
@@ -1431,7 +1447,7 @@
     "confirmation": {
       "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?",
       "visible-deployment": "Los escritorios serán visibles",
-      "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
+      "recreate-deployment": "'{name}': se crearán {count} escritorio(s) que faltan para los usuarios de los grupos/usuarios permitidos que aún no tienen uno. ¿Continuar?",
       "edit-deployment": "Los escritorios de '{name}' se editarán, continuar?",
       "delete-deployment": "'{name}' se borrará, continuar?",
       "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
@@ -1463,6 +1479,7 @@
       "recreating-deployment": "Recreando despliegue",
       "deployment-desktops-created": "Escritorios del despliegue creados",
       "deleting-deployment": "Eliminando despliegue",
+      "deployment-deleted": "Despliegue eliminado",
       "making-visible-deployment": "Haciendo el despliegue visible",
       "making-invisible-deployment": "Haciendo el despliegue invisible",
       "making-visible-desktop": "Haciendo el escritorio visible",
@@ -1592,7 +1609,6 @@
     "deployment_stop": "Para realizar esta acción es necesario que los escritorios del despliegue estén parados",
     "desktop_not_booked": "Para arrancar el escritorio debe estar reservado",
     "desktop_not_booked_until": "No se puede arrancar el escritorio hasta su próxima reserva: {start}",
-    "desktop_reservable_not_found": "El perfil de GPU del escritorio ya no existe y se ha eliminado. Edita el escritorio para seleccionar un perfil de GPU disponible antes de arrancarlo.",
     "booking_does_not_fit_date": "La reserva no se ajusta a la fecha solicitada",
     "booking_desktop_delete_stop": "Para eliminar esta reserva el escritorio debe estar parado",
     "booking_deployment_delete_stop": "Para eliminar esta reserva es necesario que los escritorios del despliegue estén parados",
@@ -1680,7 +1696,8 @@
     "bastion_domain_error": "Se ha producido un error al comprobar el dominio. Por favor, inténtalo de nuevo más tarde.",
     "bastion_domain_mismatch": "El dominio no coincide con el valor esperado. Por favor, comprueba el nombre del dominio e inténtalo de nuevo.",
     "bastion_domain_exists": "El dominio ya existe. Por favor, elige un nombre de dominio diferente.",
-    "parent_template_not_found": "El elemento no se puede restaurar ya que la plantilla padre no existe."
+    "parent_template_not_found": "El elemento no se puede restaurar ya que la plantilla padre no existe.",
+    "desktop_reservable_not_found": "El perfil de GPU del escritorio ya no existe y se ha eliminado. Edita el escritorio para seleccionar un perfil de GPU disponible antes de arrancarlo."
   },
   "router": {
     "titles": {

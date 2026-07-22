@@ -1,0 +1,431 @@
+apiVersion: 1
+
+# Storage-governor CRITICAL alerts, delivered via Grafana unified alerting.
+#
+# No Telegram contact point is provisioned elsewhere in this repo, so we define
+# one here from the same env vars the isard-grafana container already receives
+# (see docker-compose-parts/monitor.yml: GRAFANA_TELEGRAM_TOKEN /
+# GRAFANA_TELEGRAM_CHAT_ID). Env interpolation follows the same ${VAR} form used
+# by docker/grafana/datasources/stats.yml.
+#
+# REQUIRED when this file is provisioned: GRAFANA_TELEGRAM_TOKEN and
+# GRAFANA_TELEGRAM_CHAT_ID MUST be set to non-empty values. Grafana treats an
+# empty Telegram bot token as a FATAL provisioning error ("could not find Bot
+# Token in settings") and CRASH-LOOPS on startup — it does not degrade to a
+# warning. Telegram alerting is therefore OPT-IN: the grafana entrypoint
+# (docker/grafana/run.sh) removes this file from the provisioning dir when
+# GRAFANA_TELEGRAM_TOKEN / GRAFANA_TELEGRAM_CHAT_ID are unset, so grafana still
+# starts. The Prometheus recording/alerting rules in
+# docker/prometheus/rules/storage_governor.rules.yml carry the same alerts and
+# have no external-secret dependency.
+#
+# Every alert expression references ONLY metrics exported by the storage-governor
+# collector (prefix isardvdi_storage_governor_). Queries run against the
+# Prometheus datasource (uid PBFA97CFB590B2093, the uid used by the provisioned
+# dashboards). Each rule routes straight to the Telegram contact point via
+# per-rule notification_settings, so the global notification-policy tree is left
+# untouched.
+
+contactPoints:
+  - orgId: 1
+    name: storage-governor-telegram
+    receivers:
+      - uid: sg-telegram
+        type: telegram
+        settings:
+          bottoken: ${GRAFANA_TELEGRAM_TOKEN}
+          chatid: ${GRAFANA_TELEGRAM_CHAT_ID}
+        disableResolveMessage: false
+
+groups:
+  - orgId: 1
+    name: storage-governor-critical
+    folder: Storage Governor
+    interval: 1m
+    rules:
+      # ------------------------------------------------------------------
+      # RedisDown — governor's Redis backend unreachable (redis_up == 0)
+      # ------------------------------------------------------------------
+      - uid: sg-redis-down
+        title: RedisDown
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          service: storage-governor
+        annotations:
+          summary: Storage-governor Redis is down
+          description: >-
+            isardvdi_storage_governor_redis_up has reported 0 for at least 2m.
+            The governor cannot read/write lane state in Redis.
+        notification_settings:
+          receiver: storage-governor-telegram
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              editorMode: code
+              expr: isardvdi_storage_governor_redis_up == bool 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]
+
+      # ------------------------------------------------------------------
+      # WorkerHeartbeatLost — a storage worker stopped heartbeating
+      # (worker_up == 0), one alert instance per {worker,pool,kind}
+      # ------------------------------------------------------------------
+      - uid: sg-worker-hb-lost
+        title: WorkerHeartbeatLost
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          service: storage-governor
+        annotations:
+          summary: Storage worker heartbeat lost
+          description: >-
+            isardvdi_storage_governor_worker_up == 0 for at least 2m for at
+            least one worker. Storage jobs on its pool may not drain.
+        notification_settings:
+          receiver: storage-governor-telegram
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              editorMode: code
+              expr: isardvdi_storage_governor_worker_up == bool 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]
+
+      # ------------------------------------------------------------------
+      # NoStorageWorkers — zero workers serving at all (sum(worker_up)==0).
+      # noDataState=Alerting so an empty worker_up series (no workers
+      # registered) still pages.
+      # ------------------------------------------------------------------
+      - uid: sg-no-storage-workers
+        title: NoStorageWorkers
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Error
+        labels:
+          severity: critical
+          service: storage-governor
+        annotations:
+          summary: No storage workers available
+          description: >-
+            sum(isardvdi_storage_governor_worker_up) == 0 for at least 2m: no
+            storage worker is serving any pool. All storage operations stall.
+        notification_settings:
+          receiver: storage-governor-telegram
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              editorMode: code
+              expr: sum(isardvdi_storage_governor_worker_up) == bool 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]
+
+      # ------------------------------------------------------------------
+      # StrandedLane — a lane has queued work (backlog>0) but its serving
+      # coverage is stranded (stranded_lane present, only emitted when
+      # coverage is known). One instance per {pool,category,tier}.
+      # ------------------------------------------------------------------
+      - uid: sg-stranded-lane
+        title: StrandedLane
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          service: storage-governor
+        annotations:
+          summary: Storage lane stranded with backlog
+          description: >-
+            isardvdi_storage_governor_stranded_lane is set while
+            isardvdi_storage_governor_backlog > 0 for at least 10m: queued jobs
+            in this lane have no worker that can serve them.
+        notification_settings:
+          receiver: storage-governor-telegram
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              editorMode: code
+              expr: (isardvdi_storage_governor_stranded_lane > 0) and on(pool, category, tier) (isardvdi_storage_governor_backlog > 0)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 900
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 900
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]
+
+      # ------------------------------------------------------------------
+      # StartedJobStuck — jobs marked started but past their timeout
+      # (started_over_timeout>0). started rows are always the _pool sentinel.
+      # ------------------------------------------------------------------
+      - uid: sg-started-job-stuck
+        title: StartedJobStuck
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          service: storage-governor
+        annotations:
+          summary: Started storage job stuck past timeout
+          description: >-
+            isardvdi_storage_governor_started_over_timeout > 0 for at least 10m:
+            one or more jobs are stuck in the started state beyond their timeout.
+        notification_settings:
+          receiver: storage-governor-telegram
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              editorMode: code
+              expr: isardvdi_storage_governor_started_over_timeout > 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 900
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 900
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]
+
+      # ------------------------------------------------------------------
+      # GovernorScrapeFailed — the governor collector's own scrape failed
+      # (scrape_duration_success == 0): metrics below are unreliable.
+      # ------------------------------------------------------------------
+      - uid: sg-scrape-failed
+        title: GovernorScrapeFailed
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          service: storage-governor
+        annotations:
+          summary: Storage-governor scrape failed
+          description: >-
+            isardvdi_storage_governor_scrape_duration_success == 0 for at least
+            5m: the collector could not gather governor state, so all other
+            storage-governor metrics are stale/unreliable.
+        notification_settings:
+          receiver: storage-governor-telegram
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              refId: A
+              editorMode: code
+              expr: isardvdi_storage_governor_scrape_duration_success == bool 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 600
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]

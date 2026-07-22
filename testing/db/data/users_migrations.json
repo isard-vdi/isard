@@ -1,0 +1,180 @@
+[
+    {
+        "id": "e2e-mig-ro-exported",
+        "created": 1780918806,
+        "origin_user": "e2e-mig-origin",
+        "status": "exported",
+        "token": "e2e-mig-seed-token-e2e-mig-ro-exported"
+    },
+    {
+        "id": "e2e-mig-ro-imported",
+        "created": 1780832406,
+        "import_time": 1780832406,
+        "origin_user": "e2e-mig-origin",
+        "target_user": "e2e-mig-target",
+        "status": "imported",
+        "token": "e2e-mig-seed-token-e2e-mig-ro-imported"
+    },
+    {
+        "id": "e2e-mig-ro-migrating",
+        "created": 1780746006,
+        "import_time": 1780746006,
+        "migration_start_time": 1780746006,
+        "origin_user": "e2e-mig-origin",
+        "target_user": "e2e-mig-target",
+        "status": "migrating",
+        "migrated_items": {
+            "deployments": [
+                "e2e-mig-deployment"
+            ],
+            "desktops": [
+                "e2e-mig-desktop"
+            ],
+            "media": [
+                "e2e-mig-media"
+            ],
+            "templates": [
+                "e2e-mig-template"
+            ]
+        },
+        "token": "e2e-mig-seed-token-e2e-mig-ro-migrating"
+    },
+    {
+        "id": "e2e-mig-ro-migrated",
+        "created": 1780659606,
+        "import_time": 1780659606,
+        "migration_start_time": 1780659606,
+        "migration_end_time": 1780659606,
+        "origin_user": "e2e-mig-origin",
+        "target_user": "e2e-mig-target",
+        "status": "migrated",
+        "migrated_items": {
+            "deployments": [
+                "e2e-mig-deployment"
+            ],
+            "desktops": [
+                "e2e-mig-desktop"
+            ],
+            "media": [
+                "e2e-mig-media"
+            ],
+            "templates": [
+                "e2e-mig-template"
+            ]
+        },
+        "migrated_desktops": true,
+        "migrated_templates": true,
+        "migrated_media": true,
+        "migrated_deployments": true,
+        "token": "e2e-mig-seed-token-e2e-mig-ro-migrated"
+    },
+    {
+        "id": "e2e-mig-ro-failed",
+        "created": 1780573206,
+        "import_time": 1780573206,
+        "migration_start_time": 1780573206,
+        "migration_end_time": 1780573206,
+        "origin_user": "e2e-mig-origin",
+        "target_user": "e2e-mig-target",
+        "status": "failed",
+        "migrated_items": {
+            "deployments": [
+                "e2e-mig-deployment"
+            ],
+            "desktops": [
+                "e2e-mig-desktop"
+            ],
+            "media": [
+                "e2e-mig-media"
+            ],
+            "templates": [
+                "e2e-mig-template"
+            ]
+        },
+        "migrated_desktops": true,
+        "migrated_templates": true,
+        "migrated_media": false,
+        "migrated_media_error": "User E2E Migration Target already has media with name e2e-mig media",
+        "migrated_deployments": true,
+        "token": "e2e-mig-seed-token-e2e-mig-ro-failed"
+    },
+    {
+        "id": "e2e-mig-ro-revoked",
+        "created": 1780486806,
+        "origin_user": "e2e-mig-origin",
+        "status": "revoked",
+        "token": "e2e-mig-seed-token-e2e-mig-ro-revoked"
+    },
+    {
+        "id": "e2e-mig-del-ok",
+        "created": 1780659600,
+        "import_time": 1780659600,
+        "migration_start_time": 1780659600,
+        "migration_end_time": 1780659600,
+        "origin_user": "e2e-mig-origin",
+        "target_user": "e2e-mig-target",
+        "status": "migrated",
+        "migrated_items": {
+            "deployments": [
+                "e2e-mig-deployment"
+            ],
+            "desktops": [
+                "e2e-mig-desktop"
+            ],
+            "media": [
+                "e2e-mig-media"
+            ],
+            "templates": [
+                "e2e-mig-template"
+            ]
+        },
+        "migrated_desktops": true,
+        "migrated_templates": true,
+        "migrated_media": true,
+        "migrated_deployments": true,
+        "token": "e2e-mig-seed-token-e2e-mig-del-ok"
+    },
+    {
+        "id": "e2e-mig-del-cancel",
+        "created": 1780659500,
+        "import_time": 1780659500,
+        "migration_start_time": 1780659500,
+        "migration_end_time": 1780659500,
+        "origin_user": "e2e-mig-origin",
+        "target_user": "e2e-mig-target",
+        "status": "migrated",
+        "migrated_items": {
+            "deployments": [
+                "e2e-mig-deployment"
+            ],
+            "desktops": [
+                "e2e-mig-desktop"
+            ],
+            "media": [
+                "e2e-mig-media"
+            ],
+            "templates": [
+                "e2e-mig-template"
+            ]
+        },
+        "migrated_desktops": true,
+        "migrated_templates": true,
+        "migrated_media": true,
+        "migrated_deployments": true,
+        "token": "e2e-mig-seed-token-e2e-mig-del-cancel"
+    },
+    {
+        "id": "e2e-mig-rev-ok",
+        "created": 1780918700,
+        "origin_user": "e2e-mig-origin",
+        "status": "exported",
+        "token": "e2e-mig-seed-token-e2e-mig-rev-ok"
+    },
+    {
+        "id": "e2e-mig-rev-cancel",
+        "created": 1780918600,
+        "origin_user": "e2e-mig-origin",
+        "status": "exported",
+        "token": "e2e-mig-seed-token-e2e-mig-rev-cancel"
+    }
+]

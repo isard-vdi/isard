@@ -148,6 +148,18 @@
       <template #cell(options)="data">
         <div class="d-flex align-items-center">
           <b-button
+            v-if="getConfig.canUseBastion"
+            class="rounded-circle btn-dark-blue px-2 mr-2"
+            :title="$t('components.deployment-desktop-list.actions.bastion')"
+            :disabled="desktopsCreating"
+            @click="onClickShowDesktopBastion(data.item)"
+          >
+            <b-icon
+              icon="shield-lock"
+              scale="0.75"
+            />
+          </b-button>
+          <b-button
             class="rounded-circle btn-red px-2 mr-2"
             :title="$t('components.deployment-desktop-list.actions.delete')"
             :disabled="desktopsCreating"
@@ -173,6 +185,7 @@
       </template>
     </IsardTable>
     <DeploymentLoadingModal />
+    <BastionModal />
   </b-container>
 </template>
 <script>
@@ -181,9 +194,10 @@ import IsardTable from '@/components/shared/IsardTable.vue'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
 import DeploymentLoadingModal from '@/components/deployments/DeploymentLoadingModal.vue'
+import BastionModal from '@/components/BastionModal.vue'
 import { mapActions, mapGetters } from 'vuex'
 import { desktopStates, status } from '@/shared/constants'
-import { computed, ref, reactive, watch } from '@vue/composition-api'
+import { computed, ref, reactive, watch, onBeforeUnmount } from '@vue/composition-api'
 import { DateUtils } from '@/utils/dateUtils'
 import { DesktopUtils } from '@/utils/desktopsUtils'
 import { ErrorUtils } from '@/utils/errorUtils'
@@ -194,7 +208,8 @@ export default {
     IsardTable,
     DesktopButton,
     IsardDropdown,
-    DeploymentLoadingModal
+    DeploymentLoadingModal,
+    BastionModal
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -237,16 +252,38 @@ export default {
       }
     })
 
-    const desktopsCreatingLen = computed(() => deployment.value.desktops.filter(d => [desktopStates.creating].includes(d.state.toLowerCase())).length)
-    const desktopsCreating = computed(() => desktopsCreatingLen.value !== 0)
+    const CREATION_STATES = ['creating', 'creatingdisk', 'creatingandstarting']
+    const isBulkCreating = computed(() =>
+      !!deployment.value.id && $store.getters.isDeploymentBulkCreating(deployment.value.id)
+    )
+    const desktopsCreatingLen = computed(() =>
+      deployment.value.desktops.filter(d => {
+        const s = (d.state || '').toLowerCase()
+        return s && CREATION_STATES.includes(s)
+      }).length
+    )
+    const desktopsCreating = computed(() => isBulkCreating.value || desktopsCreatingLen.value > 0)
 
+    let pendingCloseTimer = null
     watch(desktopsCreating, (newVal) => {
       if (newVal) {
+        if (pendingCloseTimer) {
+          clearTimeout(pendingCloseTimer)
+          pendingCloseTimer = null
+        }
         $store.dispatch('showDeploymentLoadingModal', true)
       } else {
-        setTimeout(() => {
+        if (pendingCloseTimer) clearTimeout(pendingCloseTimer)
+        pendingCloseTimer = setTimeout(() => {
+          pendingCloseTimer = null
           $store.dispatch('showDeploymentLoadingModal', false)
         }, 2000)
+      }
+    }, { immediate: true })
+    onBeforeUnmount(() => {
+      if (pendingCloseTimer) {
+        clearTimeout(pendingCloseTimer)
+        pendingCloseTimer = null
       }
     })
 
@@ -370,7 +407,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getDeployment', 'getDeploymentLoaded', 'getViewers', 'isPendingOperation']),
+    ...mapGetters(['getDeployment', 'getDeploymentLoaded', 'getViewers', 'isPendingOperation', 'getConfig']),
     sortedDesktops () {
       return this.getDeployment.desktops.slice().sort(d => {
         // return started desktops first
@@ -431,16 +468,23 @@ export default {
     },
     getDefaultViewer (desktop) {
       if (desktop.viewers !== undefined) {
-        if (this.getViewers[desktop.id] !== undefined && desktop.viewers.includes(this.getViewers[desktop.id])) {
-          return this.getViewers[desktop.id]
+        if (this.getViewers[desktop.id] !== undefined && desktop.viewers.map(s => s.replaceAll('_', '-')).includes(this.getViewers[desktop.id])) {
+          return this.getViewers[desktop.id].replaceAll('_', '-')
         } else if (desktop.viewers.length > 0) {
-          return desktop.viewers.includes('browser-vnc') ? 'browser-vnc' : desktop.viewers[0]
+          return desktop.viewers.map(s => s.replaceAll('_', '-')).includes('browser-vnc') ? 'browser-vnc' : desktop.viewers[0].replaceAll('_', '-')
         }
       }
       return ''
     },
     onClickDesktopVisible (desktop) {
       this.$store.dispatch('toggleDesktopVisible', { id: desktop.id, visible: desktop.visible })
+    },
+    onClickShowDesktopBastion (desktop) {
+      this.$store.dispatch('fetchDeploymentDesktopBastion', {
+        deploymentId: this.getDeployment.id,
+        desktopId: desktop.id,
+        desktopName: desktop.name || desktop.userName
+      })
     },
     onClickDeleteDesktop (desktop) {
       if ([desktopStates.failed, desktopStates.stopped].includes(this.getItemState(desktop))) {

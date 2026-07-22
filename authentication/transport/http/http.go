@@ -25,7 +25,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -135,7 +135,7 @@ func (a *AuthenticationServer) healthcheck(w http.ResponseWriter, r *http.Reques
 
 	status := a.healthcheckCache.Get(healthcheckCacheKey)
 	if status == nil || status.IsExpired() {
-		err := a.Authentication.Healthcheck()
+		err := a.Authentication.Healthcheck(r.Context())
 
 		status = a.healthcheckCache.Set(healthcheckCacheKey, err, ttlcache.DefaultTTL)
 	}
@@ -214,6 +214,9 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 		case *oasAuthentication.LoginOKHeaders:
 			w.Header().Add("Authorization", t.Authorization)
 			w.Header().Set("Set-Cookie", t.SetCookie)
+			if t.Location.Set {
+				w.Header().Set("Location", t.Location.Value)
+			}
 
 			w.WriteHeader(http.StatusOK)
 			b, err := io.ReadAll(t.Response.Data)
@@ -298,9 +301,13 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		args.Token = &tkn
 	}
 
-	// Redirect the user after login
+	// Redirect the user after login. Sanitize the user-supplied target here,
+	// where it enters the login flow, so the provider-forced redirect (e.g. the
+	// external IdP authorization URL) that the flow may later return is never
+	// mistaken for a user-controlled value and clobbered.
 	if params.Redirect.Set {
-		args.Redirect = &params.Redirect.Value
+		redirect := safeRedirect(params.Redirect.Value)
+		args.Redirect = &redirect
 	}
 
 	// Form parameters (username + password)
@@ -652,7 +659,7 @@ func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.Che
 	}
 
 	if err := a.Authentication.Check(ctx, tkn, remoteAddr); err != nil {
-		if !errors.Is(err, token.ErrInvalidToken) || !errors.Is(err, token.ErrInvalidTokenType) {
+		if !errors.Is(err, token.ErrInvalidToken) && !errors.Is(err, token.ErrInvalidTokenType) {
 			return nil, fmt.Errorf("check JWT: %w", err)
 		}
 
@@ -701,7 +708,7 @@ func (a *AuthenticationServer) AcknowledgeDisclaimer(ctx context.Context, req *o
 		}
 
 		var dbErr *db.Err
-		if !errors.As(err, &dbErr) {
+		if errors.As(err, &dbErr) {
 			return &oasAuthentication.AcknowledgeDisclaimerInternalServerError{
 				Error: oasAuthentication.AcknowledgeDisclaimerErrorErrorInternalServer,
 				Msg:   "database error",
@@ -884,7 +891,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 			}
 		}
 
-		var apiErr *sdk.Err
+		var apiErr ogenclient.APIError
 		if errors.As(err, &apiErr) {
 			// Extract the extra description_code and params from the error
 			var (
@@ -892,27 +899,23 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 				params   oasAuthentication.OptResetPasswordErrorParams
 			)
 
-			if apiErr.DescriptionCode != nil {
+			if apiErr.DescriptionCode != "" {
 				var code oasAuthentication.ResetPasswordErrorDescriptionCode
 				// Only set the code if there's no error unmarshaling it
-				if err := code.UnmarshalText([]byte(*apiErr.DescriptionCode)); err == nil {
+				if err := code.UnmarshalText([]byte(apiErr.DescriptionCode)); err == nil {
 					descCode = oasAuthentication.NewOptResetPasswordErrorDescriptionCode(code)
 				}
 			}
 
-			if apiErr.Params != nil {
-				params = oasAuthentication.NewOptResetPasswordErrorParams(oasAuthentication.ResetPasswordErrorParams{})
-				rawNum, ok := (*apiErr.Params)["num"]
-				if ok {
-					num, ok := rawNum.(float64)
-					if ok {
-						params.Value.Num = oasAuthentication.NewOptFloat64(num)
-					}
-				}
+			var policyErr authentication.PasswordPolicyError
+			if errors.As(err, &policyErr) && policyErr.Num != nil {
+				params = oasAuthentication.NewOptResetPasswordErrorParams(oasAuthentication.ResetPasswordErrorParams{
+					Num: oasAuthentication.NewOptFloat64(float64(*policyErr.Num)),
+				})
 			}
 
 			// Handle the error
-			if errors.Is(err, sdk.ErrBadRequest) {
+			if errors.Is(err, ogenclient.ErrBadRequest) {
 				return &oasAuthentication.ResetPasswordBadRequest{
 					Error:           oasAuthentication.ResetPasswordErrorErrorBadRequest,
 					DescriptionCode: descCode,
@@ -921,7 +924,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 				}, nil
 			}
 
-			if errors.Is(err, sdk.ErrInternalServer) {
+			if errors.Is(err, ogenclient.ErrInternalServer) {
 				return &oasAuthentication.ResetPasswordInternalServerError{
 					Error:           oasAuthentication.ResetPasswordErrorErrorInternalServer,
 					DescriptionCode: descCode,
@@ -1036,7 +1039,7 @@ func (a *AuthenticationServer) GenerateAPIKey(ctx context.Context, req *oasAuthe
 	APIKey, err := a.Authentication.GenerateAPIKey(ctx, tkn, req.ExpirationMinutes)
 	if err != nil {
 
-		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) || errors.Is(err, token.ErrInvalidTokenRole) {
 			return &oasAuthentication.GenerateAPIKeyForbidden{
 				Error: oasAuthentication.GenerateAPIKeyErrorErrorInvalidToken,
 				Msg:   err.Error(),

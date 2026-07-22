@@ -12,10 +12,10 @@ if [ "$ENABLE_STATS" = "" ] || [ "$ENABLE_STATS" = "true" ]; then
 		    # Print the information in Prometheus format
 		    awk '{ print "rethinkdb_server_client_connections_ip{ip=\"" $2 "\"} " $1}' | \
 		    # Save the result to the pertinent directory and pretty
-		    sponge > /var/lib/prometheus/rethinkdb.prom.$$
+		    sponge > /var/lib/node-exporter/rethinkdb.prom.$$
 
 		# Make the stats extraction atomic
-		mv /var/lib/prometheus/rethinkdb.prom.$$ /var/lib/prometheus/rethinkdb.prom
+		mv /var/lib/node-exporter/rethinkdb.prom.$$ /var/lib/node-exporter/rethinkdb.prom
 
 		sleep 30
 

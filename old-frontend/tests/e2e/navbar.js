@@ -24,9 +24,16 @@ export class Navbar {
     await expect(this.page).toHaveURL('/isard-admin/admin/landing')
   }
 
-  async profile (profile) {
-    const item = this.page.getByText(profile, { exact: true })
-    await expect(item).toBeVisible()
+  async profile (_profile) {
+    // The navbar profile dropdown displays a span with
+    // ``{{ getUser.name }} [{{ getUser.role_name }}]``. The
+    // exact name varies per logged-in user (bootstrap admin =
+    // "Administrator", per-worker pool admin = "e2e_admin_0",
+    // …) so don't pin to a specific string — match the SHAPE
+    // ``<word(s)> [<word>]`` and click whichever profile span
+    // is rendered.
+    const item = this.page.getByText(/^\s*\S.+?\s*\[[^\]]+\]\s*$/).first()
+    await expect(item).toBeVisible({ timeout: 10000 })
 
     await item.click()
 
@@ -34,7 +41,9 @@ export class Navbar {
     await expect(profileItem).toBeVisible()
     await profileItem.click()
 
-    await expect(this.page).toHaveURL('/profile/')
+    // Vue 2 router has historically rendered ``/profile`` and
+    // ``/profile/`` interchangeably; accept either.
+    await expect(this.page).toHaveURL(/\/profile\/?$/)
   }
 }
 

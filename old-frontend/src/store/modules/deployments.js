@@ -33,7 +33,14 @@ export default {
       state.deployments_loaded = true
     },
     add_deployments: (state, deployment) => {
-      state.deployments = [...state.deployments, deployment]
+      // Idempotent — see add_desktop in modules/desktops.js for the
+      // same race-against-cache pattern.
+      const existingIndex = state.deployments.findIndex(d => d.id === deployment.id)
+      if (existingIndex === -1) {
+        state.deployments = [...state.deployments, deployment]
+      } else {
+        state.deployments = state.deployments.map(d => d.id === deployment.id ? { ...d, ...deployment } : d)
+      }
     },
     update_deployments: (state, deployment) => {
       const item = state.deployments.find(d => d.id === deployment.id)
@@ -57,7 +64,10 @@ export default {
       context.commit('add_deployments', deployment)
     },
     socket_deploymentsUpdate (context, data) {
-      const deployments = DeploymentsUtils.parseDeploymentsItem(JSON.parse(data))
+      // Partial-row merge — keep keys present in the payload so the
+      // exclude_none=True change-handler emit doesn't overwrite
+      // cached fields with undefined.
+      const deployments = DeploymentsUtils.parseDeploymentsItem(JSON.parse(data), { partial: true })
       context.commit('update_deployments', deployments)
     },
     socket_deploymentsDelete (context, data) {
@@ -65,13 +75,13 @@ export default {
       context.commit('remove_deployments', deployment)
     },
     fetchDeployments (context) {
-      axios.get(`${apiV3Segment}/deployments`).then(response => {
-        context.commit('setDeployments', DeploymentsUtils.parseDeployments(response.data))
+      axios.get(`${apiV3Segment}/items/deployments`).then(response => {
+        context.commit('setDeployments', DeploymentsUtils.parseDeployments(response.data.deployments))
       })
     },
     createNewDeployment (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-deployment'), '', true, 1000)
-      axios.post(`${apiV3Segment}/deployments`, payload).then(response => {
+      axios.post(`${apiV3Segment}/item/deployment`, payload).then(response => {
         // this._vm.$snotify.clear()
         router.push({ name: 'deployment_desktops', params: { id: response.data.id } })
       }).catch(e => {

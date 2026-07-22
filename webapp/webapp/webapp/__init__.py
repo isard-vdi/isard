@@ -20,6 +20,7 @@
 
 import os
 import secrets
+from pathlib import Path
 
 from flask import Flask, render_template, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -28,8 +29,21 @@ app = Flask(__name__, static_url_path="")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.url_map.strict_slashes = False
 
-# Generate a random session secret key at startup (in-memory only)
-app.secret_key = secrets.token_bytes(32)
+# Session secret key handling
+usage = os.getenv("USAGE", "production")
+if usage == "devel":
+    # In development mode, persist session key to file for convenience. Avoids invalidating sessions on webapp restart.
+    secret_file = Path("/tmp/isard_webapp_session_secret")
+    if secret_file.exists():
+        app.secret_key = secret_file.read_bytes()
+    else:
+        app.secret_key = secrets.token_bytes(32)
+        secret_file.write_bytes(app.secret_key)
+        secret_file.chmod(0o600)
+else:
+    # Generate a random session secret key at startup (in-memory only)
+    # Sessions will be invalidated on restart (security feature)
+    app.secret_key = secrets.token_bytes(32)
 
 from .lib.log import *
 
@@ -72,6 +86,15 @@ def send_static_js(path):
     return send_from_directory(os.path.join(app.root_path, "static"), path)
 
 
+@app.context_processor
+def inject_faro():
+    enabled = os.getenv("FARO_ENABLED", "false").lower() == "true"
+    return {
+        "faro_enabled": enabled,
+        "faro_url": (os.getenv("FARO_URL") or "/faro/collect") if enabled else None,
+    }
+
+
 @app.errorhandler(404)
 def not_found_error(error):
     return render_template("page_404.html"), 404
@@ -82,7 +105,12 @@ def internal_error(error):
     return render_template("page_500.html"), 500
 
 
+@app.errorhandler(503)
+def service_unavailable_error(error):
+    return render_template("maintenance.html"), 503
+
+
 """
 Import all views
 """
-from .views import AdminBackupsWebView, AdminViews
+from .views import AdminViews

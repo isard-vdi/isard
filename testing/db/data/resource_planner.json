@@ -1,0 +1,59 @@
+[
+    {
+        "end": {
+            "$reql_type$": "TIME",
+            "epoch_time": 10000000000,
+            "timezone": "+00:00"
+        },
+        "event_type": "available",
+        "id": "24ee2910-c0e5-44bd-9a2b-5603ddc65d57",
+        "item_id": "e2e8b73f-b989-47b4-9864-9e0da97f7b21",
+        "item_type": "gpus",
+        "start": {
+            "$reql_type$": "TIME",
+            "epoch_time": 1000000000,
+            "timezone": "+00:00"
+        },
+        "subitem_id": "NVIDIA-A16-2Q",
+        "units": 8,
+        "user_id": "6bd3f296-5f2b-4a80-8b8a-2ac42ea3c88d"
+    },
+    {
+        "end": {
+            "$reql_type$": "TIME",
+            "epoch_time": 10000000000,
+            "timezone": "+00:00"
+        },
+        "event_type": "available",
+        "id": "test-t4-2q-available-plan",
+        "item_id": "c33b8926-afd3-4d90-bc88-93be1357c9e5",
+        "item_type": "gpus",
+        "start": {
+            "$reql_type$": "TIME",
+            "epoch_time": 1000000000,
+            "timezone": "+00:00"
+        },
+        "subitem_id": "NVIDIA-T4-2Q",
+        "units": 8,
+        "user_id": "6bd3f296-5f2b-4a80-8b8a-2ac42ea3c88d"
+    },
+    {
+        "end": {
+            "$reql_type$": "TIME",
+            "epoch_time": 10000000000,
+            "timezone": "+00:00"
+        },
+        "event_type": "available",
+        "id": "test-t4-override-available-plan",
+        "item_id": "e2e-gpu-override-t4",
+        "item_type": "gpus",
+        "start": {
+            "$reql_type$": "TIME",
+            "epoch_time": 1000000000,
+            "timezone": "+00:00"
+        },
+        "subitem_id": "NVIDIA-T4-OVERRIDE",
+        "units": 1,
+        "user_id": "6bd3f296-5f2b-4a80-8b8a-2ac42ea3c88d"
+    }
+]

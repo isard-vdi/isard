@@ -1,7 +1,7 @@
     function setAlloweds_viewer(div_id,id, table = 'domains'){
         $.ajax({
             type: "POST",
-            url: '/api/v3/allowed/table/' + table,
+            url: '/api/v4/item/allowed/table/' + table,
             contentType: "application/json",
             data: JSON.stringify({'id':id}),
             accept: "application/json",
@@ -88,7 +88,7 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/admin/allowed/term/'+id.replace('a-',''),
+                        url: '/api/v4/items/alloweds/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
@@ -116,7 +116,7 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/admin/allowed/term/'+id.replace('a-',''),
+                        url: '/api/v4/items/alloweds/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
@@ -151,7 +151,7 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/admin/allowed/term/'+id.replace('a-',''),
+                        url: '/api/v4/items/alloweds/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
@@ -192,7 +192,7 @@
         setAlloweds_add('#modalAlloweds #alloweds-add');
         $.ajax({
             type: "POST",
-            url: '/api/v3/allowed/table/'+table,
+            url: '/api/v4/item/allowed/table/'+table,
             accept: "application/json",
             contentType: "application/json",
             data: JSON.stringify({'id':data.id}),
@@ -242,7 +242,7 @@
                     data['table']=table
                     $.ajax({
                         type: "POST",
-                        url: '/admin/allowed/update/' + table,
+                        url: '/api/v4/item/allowed/update/' + table,
                         dataType: 'json',
                         contentType: "application/json",
                         data: JSON.stringify(data),

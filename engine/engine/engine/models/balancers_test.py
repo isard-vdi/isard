@@ -1,15 +1,38 @@
+from unittest.mock import patch
+
 import pytest
+
 from engine.models.balancers import (
     Balancer_available_ram,
     Balancer_available_ram_percent,
     Balancer_less_cpu,
     Balancer_less_cpu_till_low_ram,
     Balancer_less_cpu_till_low_ram_percent,
+    BalancerInterface,
+    _build_hugepages_extra,
     _get_used_ram_percentage,
+    _parse_extra_gpu_info,
     sort_hypervisors_cpu_percentage,
     sort_hypervisors_ram_absolute,
     sort_hypervisors_ram_percentage,
+    weighted_select,
 )
+from engine.services.lib.mem_stats import get_hyper_free_ram_kb
+
+
+# Every balancer ends with `weighted_select(sorted_list)` which uses
+# `random.choices` to distribute load across candidates while still
+# favouring the best-ranked one (3:2:1 weights for 3 hypers = 50/33/17%).
+# The selection tests want to assert the sort/filter logic, not the
+# randomness — so mock weighted_select to just return the top element.
+# A separate TestWeightedSelect class covers the probabilistic side.
+@pytest.fixture
+def deterministic_select():
+    with patch(
+        "engine.models.balancers.weighted_select",
+        new=lambda sorted_hypers: sorted_hypers[0],
+    ) as p:
+        yield p
 
 
 @pytest.mark.parametrize(
@@ -48,38 +71,35 @@ def test_get_used_ram_percentage(test_input, expected):
     assert _get_used_ram_percentage(test_input) == pytest.approx(expected)
 
 
+GB = 1024 * 1024  # mem_stats are in KB, so a GB is 1024*1024 of them
+
+
+def _mem(total_gb, available_gb, hugepages_free_gb=0):
+    """Build a coherent mem_stats, mirroring HypStats.set_stats' arithmetic.
+
+    ``used = total - available - hugepages_free_kb`` (hyp.py:207), so the
+    hugepages-aware free is ``total - used == available + hugepages_free``.
+    """
+    total, available = total_gb * GB, available_gb * GB
+    hp_free = hugepages_free_gb * GB
+    return {
+        "mem_stats": {
+            "total": total,
+            "available": available,
+            "used": total - available - hp_free,
+            "hugepages_free_kb": hp_free,
+        }
+    }
+
+
 @pytest.mark.parametrize(
     "test_input, expected",
     [
         (
             [
-                {
-                    "id": "hyper1",
-                    "stats": {
-                        "mem_stats": {
-                            "total": 2000 * 1024 * 1024,
-                            "available": 100 * 1024 * 1024,
-                        }
-                    },
-                },
-                {
-                    "id": "hyper2",
-                    "stats": {
-                        "mem_stats": {
-                            "total": 500 * 1024,
-                            "available": 120 * 1024 * 1024,
-                        }
-                    },
-                },
-                {
-                    "id": "hyper3",
-                    "stats": {
-                        "mem_stats": {
-                            "total": 100 * 1024,
-                            "available": 80 * 1024 * 1024,
-                        }
-                    },
-                },
+                {"id": "hyper1", "stats": _mem(2000, 100)},
+                {"id": "hyper2", "stats": _mem(2000, 120)},
+                {"id": "hyper3", "stats": _mem(2000, 80)},
             ],
             "hyper2",
         )
@@ -87,6 +107,74 @@ def test_get_used_ram_percentage(test_input, expected):
 )
 def test_sort_hypervisors_ram_absolute(test_input, expected):
     assert sort_hypervisors_ram_absolute(test_input)[0]["id"] == expected
+
+
+@pytest.mark.parametrize(
+    "test_input, expected",
+    [
+        # Hugepages host: raw available is 204G but 885G of the pool is idle, so
+        # the grantable free is total-used = 1089G (a real-world shape).
+        ({"stats": _mem(1133, 204, hugepages_free_gb=885)}, 1089 * GB),
+        # No hugepages: used == total - available, so free == raw available and
+        # the hugepages-aware derivation is a no-op.
+        ({"stats": _mem(100, 40)}, 40 * GB),
+        # Stats writer has not produced `used` yet -> fall back to available.
+        ({"stats": {"mem_stats": {"total": 100 * GB, "available": 40 * GB}}}, 40 * GB),
+        # No stats at all.
+        ({"stats": {}}, 0),
+        ({}, 0),
+    ],
+)
+def test_get_hyper_free_ram_kb(test_input, expected):
+    assert get_hyper_free_ram_kb(test_input) == expected
+
+
+def test_adjust_for_pending_charges_used_so_used_based_balancers_see_it():
+    """Pending starts must move the figure the used-based balancers actually read.
+
+    Charging only `available` left the anti-storm guard invisible to
+    _get_used_ram_percentage (and so to the RAM_LIMIT gate and the percentage
+    sorts, incl. the default available_ram_percent balancer), because `used` is
+    always written by the stats writer so their fallback never fires.
+    """
+    balancer = BalancerInterface(balancer_type="round_robin")
+    hypers = [{"id": "hyper1", "stats": _mem(100, 50)}]  # used = 50G
+    before = _get_used_ram_percentage(hypers[0])
+
+    balancer._record_pending("hyper1", 20)  # 20 GB start in flight
+    adjusted = balancer._adjust_for_pending(hypers)
+
+    assert _get_used_ram_percentage(adjusted[0]) > before
+    assert adjusted[0]["stats"]["mem_stats"]["used"] == 70 * GB
+    assert adjusted[0]["stats"]["mem_stats"]["available"] == 30 * GB
+    assert get_hyper_free_ram_kb(adjusted[0]) == 30 * GB
+    # The caller's dicts must not be mutated (the copy is deliberate).
+    assert hypers[0]["stats"]["mem_stats"]["used"] == 50 * GB
+
+
+def test_adjust_for_pending_caps_used_at_total():
+    balancer = BalancerInterface(balancer_type="round_robin")
+    hypers = [{"id": "hyper1", "stats": _mem(100, 50)}]
+    balancer._record_pending("hyper1", 500)  # burst far beyond the host
+
+    adjusted = balancer._adjust_for_pending(hypers)
+
+    assert adjusted[0]["stats"]["mem_stats"]["used"] == 100 * GB
+    assert adjusted[0]["stats"]["mem_stats"]["available"] == 0
+    assert get_hyper_free_ram_kb(adjusted[0]) == 0
+
+
+def test_sort_hypervisors_ram_absolute_ranks_hugepages_host_by_grantable_free():
+    """A hugepages host with a large idle pool must outrank a smaller plain host.
+
+    Keying on the raw ``available`` puts ``plain`` first (300G > 204G) and starves
+    the hugepages host, even though it can still grant 1089G against plain's 300G.
+    """
+    hypers = [
+        {"id": "plain", "stats": _mem(400, 300)},
+        {"id": "hugepages", "stats": _mem(1133, 204, hugepages_free_gb=885)},
+    ]
+    assert sort_hypervisors_ram_absolute(hypers)[0]["id"] == "hugepages"
 
 
 @pytest.mark.parametrize(
@@ -126,8 +214,9 @@ def test_sort_hypervisors_ram_absolute(test_input, expected):
         ),
     ],
 )
-def test_available_ram(test_input, expected):
+def test_available_ram(test_input, expected, deterministic_select):
     balancer = Balancer_available_ram()
+    assert balancer._balancer(test_input)["id"] == expected
 
 
 @pytest.mark.parametrize(
@@ -167,7 +256,7 @@ def test_available_ram(test_input, expected):
         ),
     ],
 )
-def test_available_ram_percent(test_input, expected):
+def test_available_ram_percent(test_input, expected, deterministic_select):
     balancer = Balancer_available_ram_percent()
 
     assert balancer._balancer(test_input)["id"] == expected
@@ -236,7 +325,7 @@ def test_available_ram_percent(test_input, expected):
         ),
     ],
 )
-def test_less_cpu(test_input, expected):
+def test_less_cpu(test_input, expected, deterministic_select):
     balancer = Balancer_less_cpu()
 
     assert balancer._balancer(test_input)["id"] == expected
@@ -331,7 +420,7 @@ def test_less_cpu(test_input, expected):
         ),
     ],
 )
-def test_less_cpu_till_low_ram(test_input, expected):
+def test_less_cpu_till_low_ram(test_input, expected, deterministic_select):
     balancer = Balancer_less_cpu_till_low_ram()
 
     assert balancer._balancer(test_input)["id"] == expected
@@ -426,7 +515,163 @@ def test_less_cpu_till_low_ram(test_input, expected):
         ),
     ],
 )
-def test_less_cpu_till_low_ram_percent(test_input, expected):
+def test_less_cpu_till_low_ram_percent(test_input, expected, deterministic_select):
     balancer = Balancer_less_cpu_till_low_ram_percent()
 
     assert balancer._balancer(test_input)["id"] == expected
+
+
+# --------------------------------------------------------------------------
+# weighted_select covers the probabilistic side left out of the balancer
+# selection tests above — pin the design contract (best candidate favoured
+# ~50%, no candidate can be starved) with a statistical sample.
+# --------------------------------------------------------------------------
+
+
+class TestWeightedSelect:
+    def test_single_hyper_always_returned(self):
+        h = {"id": "only"}
+        assert weighted_select([h]) is h
+
+    def test_best_ranked_has_higher_probability_but_others_still_picked(self):
+        # 3 candidates: weights 3:2:1 → best ~50%, middle ~33%, last ~17%.
+        candidates = [{"id": "best"}, {"id": "mid"}, {"id": "worst"}]
+        # Seed so the assertion is deterministic.
+        import random
+
+        random.seed(0)
+        picks = [weighted_select(candidates)["id"] for _ in range(1000)]
+        count_best = picks.count("best")
+        count_mid = picks.count("mid")
+        count_worst = picks.count("worst")
+        # Every candidate must appear at least once — confirms no starvation.
+        assert count_best > 0 and count_mid > 0 and count_worst > 0
+        # Probability ordering holds: best > mid > worst.
+        assert count_best > count_mid > count_worst
+        # And best is roughly half the picks (50% ± 5% for 1000 trials).
+        assert 450 <= count_best <= 550
+
+
+class TestParseExtraGpuInfo:
+    """`_parse_extra_gpu_info` must forward the per-host hugepage figures so
+    `ui_actions` can back GPU desktops with hugepages.
+
+    Regression: the numa-aware GPU placement port dropped `hugepages_free_kb`
+    and `numa_hugepages_free_kb` from this dict. With them absent the GPU gate
+    reads `extra_info.get("hugepages_free_kb", 0)` == 0, so `0 >= guest_RAM` is
+    always False and every GPU desktop silently starts on 4K pages (anonymous
+    RAM) instead of the reserved 1 GiB hugepage pool — exhausting normal RAM.
+    """
+
+    def test_forwards_hugepages_free_figures(self):
+        gpu_selected = {
+            "next_available_uid": "uid-1",
+            "next_gpu_id": "gpu-1",
+            "gpu_profile": "nvidia-rtxpro6000-8Q",
+            "hugepages_info": {"1G": {"free": 900, "total": 900}, "mounted": True},
+            "hugepages_free_kb": 900 * 1048576,
+            "numa_hugepages_free_kb": {"0": 450 * 1048576, "1": 450 * 1048576},
+            "gpu_numa_node": 1,
+            "numa_topology": {"libvirt_numa_ok": False, "nodes": {}},
+        }
+
+        extra = _parse_extra_gpu_info(gpu_selected)
+
+        assert extra["hugepages_free_kb"] == 900 * 1048576
+        assert extra["numa_hugepages_free_kb"] == {
+            "0": 450 * 1048576,
+            "1": 450 * 1048576,
+        }
+        # The descriptive dict is still passed through unchanged.
+        assert extra["hugepages"] == {
+            "1G": {"free": 900, "total": 900},
+            "mounted": True,
+        }
+
+    def test_forwards_vfio_variant_framework_and_vf_bdf(self):
+        # On the vendor-specific VFIO framework the start path must emit a
+        # vfio-pci VF hostdev keyed by vf_bdf instead of an mdev, so the picked
+        # entry's framework + vf_bdf must reach ei (and thence recreate_xml_if_gpu).
+        extra = _parse_extra_gpu_info(
+            {
+                "next_available_uid": "0000:05:00.4",  # VF BDF is the entry key
+                "next_gpu_id": "hyp1-pci_0000_05_00_0",
+                "gpu_profile": "NVIDIA-A16-2Q",
+                "framework": "vfio_variant",
+                "vf_bdf": "0000:05:00.4",
+            }
+        )
+        assert extra["framework"] == "vfio_variant"
+        assert extra["vf_bdf"] == "0000:05:00.4"
+        assert extra["uid"] == "0000:05:00.4"
+        assert extra["profile"] == "2Q"
+
+    def test_legacy_mdev_has_no_framework(self):
+        extra = _parse_extra_gpu_info(
+            {
+                "next_available_uid": "uid-1",
+                "next_gpu_id": "gpu-1",
+                "gpu_profile": "nvidia-a16-1Q",
+            }
+        )
+        assert extra["framework"] is None
+        assert extra["vf_bdf"] is None
+
+    def test_hugepages_free_figures_default_safely(self):
+        # A host that has not reported hugepage stats yet must not blow up.
+        extra = _parse_extra_gpu_info(
+            {
+                "next_available_uid": "uid-1",
+                "next_gpu_id": "gpu-1",
+                "gpu_profile": "nvidia-a16-1Q",
+            }
+        )
+
+        assert extra["hugepages_free_kb"] == 0
+        assert extra["numa_hugepages_free_kb"] == {}
+
+
+class TestBuildHugepagesExtra:
+    """`_build_hugepages_extra` (non-GPU path) must still surface the NUMA
+    topology + per-node free figures even when the host has no mounted
+    hugepage pool, so `ui_actions` can NUMA-balance non-GPU desktops.
+
+    Regression: the numa-aware placement port short-circuited the unmounted
+    branch with `return {}`, dropping numa_topology/numa_hugepages_free_kb —
+    which makes `ui_actions` see no NUMA nodes and skip cputune/numatune for
+    non-GPU desktops on hosts without hugepages.
+    """
+
+    def test_unmounted_still_surfaces_numa(self):
+        hyper = {
+            "hugepages_info": {"mounted": False},
+            "numa_topology": {"nodes": {"0": {}, "1": {}}},
+            "stats": {"mem_stats": {"numa_hugepages_free_kb": {"0": 0, "1": 0}}},
+        }
+
+        extra = _build_hugepages_extra(hyper)
+
+        assert extra["numa_topology"] == {"nodes": {"0": {}, "1": {}}}
+        assert extra["numa_hugepages_free_kb"] == {"0": 0, "1": 0}
+        # No hugepage pool → no hugepage-backing fields.
+        assert "hugepages" not in extra
+
+    def test_mounted_surfaces_full_hugepage_extra(self):
+        hyper = {
+            "hugepages_info": {"1G": {"free": 4, "total": 8}, "mounted": True},
+            "min_free_mem_gb": 16,
+            "numa_topology": {"nodes": {"0": {}}},
+            "stats": {
+                "mem_stats": {
+                    "available": 100 * 1048576,
+                    "hugepages_free_kb": 4 * 1048576,
+                    "numa_hugepages_free_kb": {"0": 4 * 1048576},
+                }
+            },
+        }
+
+        extra = _build_hugepages_extra(hyper)
+
+        assert extra["hugepages"] == {"1G": {"free": 4, "total": 8}, "mounted": True}
+        assert extra["hugepages_free_kb"] == 4 * 1048576
+        assert extra["numa_hugepages_free_kb"] == {"0": 4 * 1048576}

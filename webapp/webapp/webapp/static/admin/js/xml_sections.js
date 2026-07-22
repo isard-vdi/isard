@@ -30,9 +30,9 @@ var xmlSectionsFullXml = '';     // the stored full <domain> XML
 
 function xmlSectionsApiUrl(id) {
     if (xmlSectionsMode === 'virt_install') {
-        return '/api/v3/admin/virt_install/xml_sections/' + id;
+        return '/api/v4/admin/item/virt_install/xml_sections/' + id;
     }
-    return '/api/v3/admin/domains/xml_sections/' + id;
+    return '/api/v4/admin/item/domains/xml_sections/' + id;
 }
 
 function openXmlSections(domainId, mode) {
@@ -61,7 +61,7 @@ function openXmlSections(domainId, mode) {
     // Fetch sections and capabilities in parallel
     $.when(
         $.ajax({type: "GET", url: xmlSectionsApiUrl(domainId)}),
-        $.ajax({type: "GET", url: "/api/v3/admin/domains/xml_capabilities"})
+        $.ajax({type: "GET", url: "/api/v4/admin/item/domains/xml_capabilities"})
     ).done(function(sectionsResp, capsResp) {
         renderXmlSections(sectionsResp[0].sections, capsResp[0]);
         // RAW mode detection (xml_protected_sections == ['raw']).
@@ -352,7 +352,7 @@ $(document).on('change', '#xmlUploadFile', function(e) {
 
         $.ajax({
             type: 'POST',
-            url: '/api/v3/admin/domains/xml_sections/parse',
+            url: '/api/v4/admin/item/domains/xml_sections/parse',
             data: JSON.stringify({xml: xmlContent}),
             contentType: 'application/json',
             success: function(resp) {
@@ -446,7 +446,7 @@ $(document).on('click', '#xmlSectionsContainer .xml-lock-toggle', function() {
     var hiddenInput = panel.find('.xml-section-protect');
     var isLocked = hiddenInput.val() === '1';
     var titleSuffix = panel.attr('data-section-derived') === '1'
-        ? ' (engine respects this lock; values won’t be auto-overridden on next start)'
+        ? ' (engine respects this lock; values won&apos;t be auto-overridden on next start)'
         : '';
 
     if (isLocked) {
@@ -615,12 +615,15 @@ $(document).on('click', '#xmlSectionsLiveXml', function() {
     $('#xmlLiveCompare').html('<div class="text-center"><i class="fa fa-spinner fa-pulse fa-2x"></i></div>');
     xmlSectionsShowCompareView();
     $.when(
-        $.ajax({type: 'GET', url: '/api/v3/admin/domains/' + encodeURIComponent(domainId) + '/live_xml'}),
-        $.ajax({type: 'GET', url: '/api/v3/admin/domains/xml/' + encodeURIComponent(domainId)})
+        $.ajax({type: 'GET', url: '/api/v4/admin/item/domain/' + encodeURIComponent(domainId) + '/live_xml'}),
+        $.ajax({type: 'GET', url: '/api/v4/admin/item/domain/' + encodeURIComponent(domainId) + '/xml'})
     ).done(function(liveResp, storedResp) {
         var live = (liveResp[0] && liveResp[0].xml) || '';
         var hyp = (liveResp[0] && liveResp[0].hyp) || '';
-        var stored = (typeof storedResp[0] === 'string') ? storedResp[0] : (storedResp[0] || '');
+        // apiv4 wraps the stored XML as {"xml": ...} (v3 returned a bare JSON
+        // string — keep that fallback so the line also survives a raw body).
+        var stored = (storedResp[0] && storedResp[0].xml) ||
+            ((typeof storedResp[0] === 'string') ? storedResp[0] : '');
         var banner = '<div class="alert alert-warning" style="margin-bottom:8px;">' +
             '<i class="fa fa-exclamation-triangle"></i> Live XML from libvirt' +
             (hyp ? ' on hypervisor <b>' + escapeHtml(hyp) + '</b>' : '') +
@@ -782,7 +785,7 @@ $(document).on('click', '#virtInstallNameConfirm', function() {
 
     $.ajax({
         type: 'POST',
-        url: '/api/v3/admin/domains/xml_sections/' + domainId + '/save_virt_install',
+        url: '/api/v4/admin/item/domains/xml_sections/' + domainId + '/save_virt_install',
         data: JSON.stringify(data),
         contentType: 'application/json',
         success: function(resp) {

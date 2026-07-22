@@ -1,0 +1,69 @@
+[
+    {
+        "architecture": "NVIDIA Ampere",
+        "brand": "NVIDIA",
+        "description": "A16 mock for testing",
+        "id": "e2e8b73f-b989-47b4-9864-9e0da97f7b21",
+        "memory": "16 GB GDDR",
+        "model": "A16",
+        "name": "GPU A16",
+        "physical_device": null,
+        "profiles_enabled": [
+            "NVIDIA-A16-2Q",
+            "NVIDIA-A16-4Q"
+        ]
+    },
+    {
+        "architecture": "NVIDIA Turing",
+        "brand": "NVIDIA",
+        "description": "For knowledge workers using modern productivity applications. ",
+        "id": "c33b8926-afd3-4d90-bc88-93be1357c9e5",
+        "memory": "16GB GDDR5",
+        "model": "T4",
+        "name": "GPU T4",
+        "physical_device": null,
+        "profiles_enabled": [
+            "NVIDIA-T4-2Q"
+        ]
+    },
+    {
+        "architecture": "NVIDIA Ampere",
+        "brand": "NVIDIA",
+        "description": "A40 mock with active profile for force-profile tests",
+        "id": "e2e-gpu-force-a40",
+        "memory": "48 GB GDDR",
+        "model": "A40",
+        "name": "GPU A40 force-profile",
+        "physical_device": "e2e-hyp-force-pci_0000_01_00_0",
+        "profiles_enabled": [
+            "NVIDIA-A40-2Q"
+        ],
+        "reservable_type": "gpus"
+    },
+    {
+        "architecture": "NVIDIA Turing",
+        "brand": "NVIDIA",
+        "description": "T4 mock for E2E priority-override tests (single-unit NVIDIA-T4-OVERRIDE profile)",
+        "id": "e2e-gpu-override-t4",
+        "memory": "16GB GDDR5",
+        "model": "T4",
+        "name": "GPU T4 Override",
+        "physical_device": null,
+        "profiles_enabled": [
+            "NVIDIA-T4-OVERRIDE"
+        ]
+    },
+    {
+        "architecture": "NVIDIA Turing",
+        "brand": "NVIDIA",
+        "description": "T4 mock for E2E admin planning tests (no seeded resource_planner so the admin owns the whole timeline)",
+        "id": "e2e-gpu-planning",
+        "memory": "16GB GDDR5",
+        "model": "T4",
+        "name": "GPU T4 Planning",
+        "physical_device": null,
+        "profiles_enabled": [
+            "NVIDIA-T4-2Q"
+        ]
+    }
+]

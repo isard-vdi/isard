@@ -1,0 +1,28 @@
+[project]
+name = "isardvdi-storage"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "hiredis==3.4.0",
+  "isardvdi-apiv4-client",
+  "isardvdi-common",
+  "redis==5.2.1",
+  "rq==2.3.2",
+  "tabulate==0.9.0",
+]
+
+[dependency-groups]
+test = [
+  "pytest",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.isardvdi.system-deps]
+dnf-build = ["autoconf", "automake", "gcc", "gettext-devel", "git", "libffi-devel", "libtool", "openssl-devel", "pkg-config", "python3-devel"]
+dnf-runtime = ["libguestfs", "libguestfs-tools-c", "libvirt-client", "libvirt-daemon", "libvirt-daemon-config-network", "openssl-libs", "python3-cachetools", "python3-libguestfs", "python3-libvirt", "rsync", "virt-install", "virt-v2v", "virt-win-reg"]

@@ -9,14 +9,14 @@ if [ -n "${API_DOMAIN:-}" ]; then
     API_ACCESS="${API_DOMAIN}"
     echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Using API_DOMAIN for access: ${API_ACCESS}"
 else
-    # All-in-one deployment: resolve isard-api service to IP
-    API_ACCESS=$(getent hosts isard-api | awk '{print $1}' | head -1)
+    # All-in-one deployment: resolve isard-apiv4 service to IP
+    API_ACCESS=$(getent hosts isard-apiv4 | awk '{print $1}' | head -1)
     if [ -z "$API_ACCESS" ]; then
         # Fallback to container IP if resolution fails
         API_ACCESS="${DOCKER_NET:-172.31.255}.10"
-        echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Could not resolve isard-api, using fallback IP: ${API_ACCESS}"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Could not resolve isard-apiv4, using fallback IP: ${API_ACCESS}"
     else
-        echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Resolved isard-api service to IP: ${API_ACCESS}"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Resolved isard-apiv4 service to IP: ${API_ACCESS}"
     fi
 fi
 
@@ -160,14 +160,22 @@ if [ "$vpn_tunneling_mode" = "geneve" ]; then
     ovs-vsctl add-port ovsbr0 vpn-geneve -- set interface vpn-geneve \
         type=geneve options:remote_ip=$VPN_REMOTE_IP \
         options:dst_port=$GENEVE_DST_PORT
-    ovs-vsctl set Interface vpn-geneve bfd:enable=true bfd:min_tx=1000 bfd:min_rx=1000
+    # Geneve-only mode has no underlying wireguard keepalive to detect tunnel
+    # loss, so BFD is the liveness signal we publish into the hypervisors row
+    # (vpn.tunnel_status). Tight 200 ms intervals give sub-second detection
+    # (~600 ms = 3 missed probes) while staying well clear of the per-port CPU
+    # cost in OVS. The wait loop polls every 250 ms with a 10 s cap — enough
+    # for a healthy tunnel to converge in 2-3 ticks; a hung tunnel still
+    # bottoms out fast so container start does not stall a full minute.
+    ovs-vsctl set Interface vpn-geneve bfd:enable=true bfd:min_tx=200 bfd:min_rx=200
 
-    # Wait for BFD tunnel to come up
     echo "Waiting for GENEVE tunnel BFD..."
-    for i in $(seq 1 30); do
-        BFD_STATE=$(ovs-vsctl get Interface vpn-geneve bfd_status:state 2>/dev/null || echo "init")
-        if [ "$BFD_STATE" = '"up"' ]; then echo "BFD tunnel UP"; break; fi
-        sleep 2
+    for i in $(seq 1 40); do
+        # bfd_status:state map-key get returns a bare value (up), not "up";
+        # strip quotes so the compare works across ovs-vsctl output forms.
+        BFD_STATE=$(ovs-vsctl get Interface vpn-geneve bfd_status:state 2>/dev/null | tr -d '"')
+        if [ "$BFD_STATE" = "up" ]; then echo "BFD tunnel UP after ${i} polls"; break; fi
+        sleep 0.25
     done
 
     GENEVE_PORT=$(ovs-vsctl get Interface vpn-geneve ofport)
@@ -175,18 +183,13 @@ else
     echo "Configuring OVS for WireGuard + Geneve tunneling"
     ovs-vsctl add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=$WG_HYPERS_GW
     echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Geneve tunnel to VPN gateway $WG_HYPERS_GW (from WG_HYPERS_NET)"
-    # BFD must be symmetric: the VPN side enables BFD on its end, so without
-    # BFD here OVS holds this port at forwarding=false and RSTP moves it to
-    # Disabled/Discarding, which silently drops DHCP DISCOVER from VLAN 4095.
-    ovs-vsctl set Interface "$DOMAIN" bfd:enable=true bfd:min_tx=1000 bfd:min_rx=1000
-
-    echo "Waiting for GENEVE tunnel BFD..."
-    for i in $(seq 1 30); do
-        BFD_STATE=$(ovs-vsctl get Interface "$DOMAIN" bfd_status:state 2>/dev/null || echo "init")
-        if [ "$BFD_STATE" = '"up"' ]; then echo "BFD tunnel UP"; break; fi
-        sleep 2
-    done
-
+    # No BFD in wireguard+geneve mode. WireGuard's own 25 s persistent-
+    # keepalive is the tunnel liveness signal (vpn.tunnel_status is derived
+    # from wg's latest_handshake on the VPN side); a second OVS-level BFD
+    # session here costs CPU, adds a 60 s startup wait, and (worst case) can
+    # silently park the port at forwarding=false when the asymmetric VPN side
+    # disagrees on BFD enable state. Cross-host L2 then works without BFD via
+    # the priority=200 from-geneve flow set the engine installs at start.
     GENEVE_PORT=$(ovs-vsctl get Interface "$DOMAIN" ofport)
 fi
 

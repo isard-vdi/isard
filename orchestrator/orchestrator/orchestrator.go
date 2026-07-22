@@ -9,9 +9,10 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/log"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 
 	"github.com/rs/zerolog"
 )
@@ -30,7 +31,7 @@ type Orchestrator struct {
 	checkCli      checkv1.CheckServiceClient
 	apiAddress    string
 	apiSecret     string
-	apiCli        sdk.Interface
+	apiCli        apiv4.Invoker
 
 	scaleMux sync.Mutex
 	scaling  bool
@@ -53,7 +54,9 @@ type NewOrchestratorOpts struct {
 	CheckCfg cfg.Check
 	CheckCli checkv1.CheckServiceClient
 
-	APICli sdk.Interface
+	APIAddress string
+	APISecret  string
+	APICli     apiv4.Invoker
 }
 
 func New(cfg *NewOrchestratorOpts) *Orchestrator {
@@ -69,6 +72,8 @@ func New(cfg *NewOrchestratorOpts) *Orchestrator {
 		operationsCli: cfg.OperationsCli,
 		checkCfg:      cfg.CheckCfg,
 		checkCli:      cfg.CheckCli,
+		apiAddress:    cfg.APIAddress,
+		apiSecret:     cfg.APISecret,
 		apiCli:        cfg.APICli,
 
 		log: &log2,
@@ -86,10 +91,21 @@ func (o *Orchestrator) Start(ctx context.Context) {
 		default:
 			time.Sleep(o.pollingInterval)
 
-			hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
+			res, err := o.apiCli.AdminOrchestratorHypervisorsList(ctx)
 			if err != nil {
 				o.log.Error().Err(err).Msg("get hypervisors")
 				continue
+			}
+
+			hypersRes, ok := res.(*apiv4.AdminOrchestratorHypervisorsListOKApplicationJSON)
+			if !ok {
+				o.log.Error().Err(ogenclient.AsAPIError(res)).Msg("get hypervisors")
+				continue
+			}
+
+			hypers := make([]*apiv4.OrchestratorHypervisor, len(*hypersRes))
+			for i := range *hypersRes {
+				hypers[i] = &(*hypersRes)[i]
 			}
 
 			if err := o.director.ExtraOperations(ctx, hypers); err != nil {
@@ -102,10 +118,21 @@ func (o *Orchestrator) Start(ctx context.Context) {
 			o.scaleMux.Unlock()
 
 			if !scaling {
-				hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
+				res, err := o.apiCli.AdminOrchestratorHypervisorsList(ctx)
 				if err != nil {
 					o.log.Error().Err(err).Msg("get hypervisors")
 					continue
+				}
+
+				hypersRes, ok := res.(*apiv4.AdminOrchestratorHypervisorsListOKApplicationJSON)
+				if !ok {
+					o.log.Error().Err(ogenclient.AsAPIError(res)).Msg("get hypervisors")
+					continue
+				}
+
+				hypers := make([]*apiv4.OrchestratorHypervisor, len(*hypersRes))
+				for i := range *hypersRes {
+					hypers[i] = &(*hypersRes)[i]
 				}
 
 				operationsHypers, err := o.operationsCli.ListHypervisors(ctx, &operationsv1.ListHypervisorsRequest{})

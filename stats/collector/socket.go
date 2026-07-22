@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"gitlab.com/isard/isardvdi/stats/cfg"
@@ -15,10 +14,9 @@ import (
 )
 
 type Socket struct {
-	mux    *sync.Mutex
 	domain string
 	Log    *zerolog.Logger
-	conn   *ssh.Client
+	ssh    *SSHPool
 
 	descScrapeDuration *prometheus.Desc
 	descScrapeSuccess  *prometheus.Desc
@@ -26,12 +24,11 @@ type Socket struct {
 	descRecv           *prometheus.Desc
 }
 
-func NewSocket(mux *sync.Mutex, cfg cfg.Cfg, log *zerolog.Logger, conn *ssh.Client) *Socket {
+func NewSocket(cfg cfg.Cfg, log *zerolog.Logger, sshPool *SSHPool) *Socket {
 	s := &Socket{
-		mux:    mux,
 		domain: cfg.Domain,
 		Log:    log,
-		conn:   conn,
+		ssh:    sshPool,
 	}
 
 	s.descScrapeDuration = prometheus.NewDesc(
@@ -114,17 +111,13 @@ type viewer struct {
 }
 
 func (s *Socket) collectViewers() (map[int]*viewer, error) {
-	s.mux.Lock()
-	defer s.mux.Unlock()
-
-	sess, err := s.conn.NewSession()
-	if err != nil {
-		return nil, fmt.Errorf("create ssh session: %w", err)
-	}
-	defer sess.Close()
-
+	var b []byte
 	// TODO: 5700 for websocket ports?
-	b, err := sess.CombinedOutput(`ss -t state established -o state established -t -n -p -i "( sport > 5900 )" -O`)
+	err := s.ssh.WithSession(func(sess *ssh.Session) error {
+		out, oerr := sess.CombinedOutput(`ss -t state established -o state established -t -n -p -i "( sport > 5900 )" -O`)
+		b = out
+		return oerr
+	})
 	if err != nil {
 		return nil, fmt.Errorf("collect viewers: %w", err)
 	}

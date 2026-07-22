@@ -25,6 +25,10 @@ services:
       - published: ${WG_HYPERS_PORT:-4443}
         target: ${WG_HYPERS_PORT:-4443}
         protocol: udp
+        # geneve/hypervisor overlay is inter-host infra traffic: bind it to the
+        # infrastructure IP when set (else all interfaces). WG_USERS_PORT above
+        # stays public — end-user VPN clients dial it from anywhere.
+        host_ip: ${INFRASTRUCTURE_HOST_IP:-0.0.0.0}
     privileged: true
     volumes:
       - /sys:/sys:rw
@@ -36,9 +40,14 @@ services:
       - /proc/sys/net/netfilter/nf_conntrack_acct:/host-proc/sys/net/netfilter/nf_conntrack_acct
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - isard-redis
     env_file:
       - .env
     environment:
+      REDIS_HOST: ${REDIS_HOST:-isard-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       # OVS Security Configuration (automatic based on API_DOMAIN)
       API_DOMAIN: ${API_DOMAIN:-}
       DOCKER_NET: ${DOCKER_NET:-172.31.255}

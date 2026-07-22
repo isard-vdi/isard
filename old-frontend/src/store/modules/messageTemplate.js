@@ -26,7 +26,7 @@ export default {
   actions: {
     fetchMessageTemplate (context, messageTemplateId) {
       if (messageTemplateId === 'disclaimer-acknowledgement') {
-        axios.get(`${apiV3Segment}/disclaimer`).then(response => {
+        axios.get(`${apiV3Segment}/item/disclaimer`).then(response => {
           context.commit(
             'setMessageTemplate',
             response.data
@@ -35,7 +35,7 @@ export default {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })
       } else {
-        axios.get(`${apiV3Segment}/message-template/` + messageTemplateId).then(response => {
+        axios.get(`${apiV3Segment}/admin/item/notifications/template/` + messageTemplateId).then(response => {
           context.commit(
             'setMessageTemplate',
             response.data.messageTemplate

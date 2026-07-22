@@ -38,12 +38,38 @@ import traceback
 from datetime import datetime
 from typing import List, MutableMapping, NamedTuple, Optional, Tuple
 
-from api_client import ApiClient
+from isardvdi_apiv4_client.api.role_admin import (
+    vpn_connection_connect,
+    vpn_connection_disconnect,
+    vpn_connection_roam,
+    vpn_connections_disconnect,
+)
+from isardvdi_apiv4_client.models import VpnConnectionRequest, VpnDisconnectListItem
+from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
-try:
-    apic = ApiClient()
-except:
-    raise
+
+def _skip_unresolved_peer(response) -> bool:
+    """Tolerate the benign per-peer 404 without poisoning the poll pass.
+
+    Returns True when the peer was skipped (404 — its ``client_ip`` has no
+    row yet), so the caller leaves ``peer_state`` unchanged and retries the
+    update on a later poll instead of losing the transition; False when the
+    update was applied.
+
+    The per-peer calls in :func:`log_wireguard_peers` share a single ``for
+    peer in peers`` loop, so letting one peer's error abort the pass would
+    stop connected-status updates for every peer after it. A users-interface
+    peer whose ``client_ip`` maps to no ``users``/``remotevpn`` row makes
+    apiv4 return ``404`` — an eventually-consistent per-peer condition that
+    must simply be skipped. Every other status (5xx, 401, ...) is a systemic
+    failure, not a per-peer one, and is re-raised so it reaches the outer
+    retry loop exactly as a transport error would.
+    """
+    if response.status_code == 404:
+        log.warning("vpn_connection update skipped: no active client for this peer")
+        return True
+    raise_for_status(response)
+    return False
 
 
 class RemotePeer(NamedTuple):
@@ -106,105 +132,125 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
     peers_to_delete = []
     while True:
         try:
-            peers = get_peer_states()
-            for peer in peers:
-                now_connected = is_peer_connected(
-                    peer.latest_handshake, handshake_timeout
-                )
-                payload = peer._asdict()
-                ## Sample payload (We can get remote addr & port)
-                ## {'device': 'users', 'name': None, 'public_key': 'k8rLxWlaD/Zq5KH5r296x+RBrI2UfdWOIAXrSxKLmjs=', 'remote_addr': '46.26.75.11:34762', 'allowed_ips': ['10.0.0.2/32'], 'latest_handshake': datetime.datetime(2021, 12, 3, 8, 12, 57), 'transfer_rx': 180, 'transfer_tx': 124}
+            # Re-mint the JWT on each iteration to stay within the 20s TTL.
+            with build_client("isard-vpn", role="hypervisor") as client:
+                peers = get_peer_states()
+                for peer in peers:
+                    now_connected = is_peer_connected(
+                        peer.latest_handshake, handshake_timeout
+                    )
+                    payload = peer._asdict()
 
-                try:
-                    remote_data = payload["remote_addr"].split(":")
-                except:
-                    remote_data = ["", -1]
+                    try:
+                        remote_data = payload["remote_addr"].split(":")
+                    except:
+                        remote_data = ["", -1]
 
-                if peer.public_key not in peer_state:
-                    if not peer.latest_handshake:
-                        peers_to_delete.append(
-                            {
-                                "kind": payload["device"],
-                                "client_ip": payload["allowed_ips"][0].split("/")[0],
-                            }
+                    kind = payload["device"]
+                    client_ip = payload["allowed_ips"][0].split("/")[0]
+
+                    if peer.public_key not in peer_state:
+                        skipped = False
+                        if not peer.latest_handshake:
+                            peers_to_delete.append(
+                                {
+                                    "kind": kind,
+                                    "client_ip": client_ip,
+                                }
+                            )
+                        else:
+                            log.debug(
+                                "POST: 1, NEW PEER FOUND, NOT PREVIOUSLY IN PEER STATE"
+                            )
+                            resp = vpn_connection_connect.sync_detailed(
+                                kind=kind,
+                                client_ip=client_ip,
+                                client=client,
+                                body=VpnConnectionRequest(
+                                    remote_ip=remote_data[0],
+                                    remote_port=int(remote_data[1]),
+                                ),
+                            )
+                            skipped = _skip_unresolved_peer(resp)
+                        # A skipped (404) connect leaves the peer untracked so
+                        # the next poll retries instead of losing the connect.
+                        if not skipped:
+                            peer_state[peer.public_key] = (
+                                now_connected,
+                                peer.latest_handshake,
+                                peer.remote_addr,
+                            )
+                        continue
+                    previously_connected, previous_handshake, remote_addr = peer_state[
+                        peer.public_key
+                    ]
+                    skipped = False
+                    if previously_connected and not now_connected:
+                        log.debug("DELETE: 2, NOT CONNECTED ANYMORE")
+                        resp = vpn_connection_disconnect.sync_detailed(
+                            kind=kind,
+                            client_ip=client_ip,
+                            client=client,
                         )
-                    else:
+                        # A 404 on disconnect means the row is already gone, so
+                        # advancing to disconnected is correct; do not retry.
+                        _skip_unresolved_peer(resp)
+                    elif not previously_connected and now_connected:
+                        log.debug("POST: 2, WAS NOT CONNECTED, NOW CONNECTED")
+                        resp = vpn_connection_connect.sync_detailed(
+                            kind=kind,
+                            client_ip=client_ip,
+                            client=client,
+                            body=VpnConnectionRequest(
+                                remote_ip=remote_data[0],
+                                remote_port=int(remote_data[1]),
+                            ),
+                        )
+                        skipped = _skip_unresolved_peer(resp)
+                    elif previously_connected and remote_addr != peer.remote_addr:
+                        # Peer roamed
                         log.debug(
-                            "POST: 1, NEW PEER FOUND, NOT PREVIOUSLY IN PEER STATE"
+                            "PUT: User migrated IP from "
+                            + str(remote_addr)
+                            + " to "
+                            + str(peer.remote_addr)
+                            + ".\nWARNING! If happens often could be that user is connected to the same vpn from different locations at the same time!"
                         )
-                        apic.post(
-                            "vpn_connection/"
-                            + payload["device"]
-                            + "/"
-                            + payload["allowed_ips"][0].split("/")[0],
-                            {
-                                "remote_ip": remote_data[0],
-                                "remote_port": int(remote_data[1]),
-                            },
+                        resp = vpn_connection_roam.sync_detailed(
+                            kind=kind,
+                            client_ip=client_ip,
+                            client=client,
+                            body=VpnConnectionRequest(
+                                remote_ip=remote_data[0],
+                                remote_port=int(remote_data[1]),
+                            ),
                         )
-                    peer_state[peer.public_key] = (
-                        now_connected,
-                        peer.latest_handshake,
-                        peer.remote_addr,
-                    )
-                    continue
-                previously_connected, previous_handshake, remote_addr = peer_state[
-                    peer.public_key
-                ]
-                if previously_connected and not now_connected:
-                    log.debug("DELETE: 2, NOT CONNECTED ANYMORE")
-                    apic.delete(
-                        "vpn_connection/"
-                        + payload["device"]
-                        + "/"
-                        + payload["allowed_ips"][0].split("/")[0]
-                    )
-                elif not previously_connected and now_connected:
-                    log.debug("POST: 2, WAS NOT CONNECTED, NOW CONNECTED")
-                    apic.post(
-                        "vpn_connection/"
-                        + payload["device"]
-                        + "/"
-                        + payload["allowed_ips"][0].split("/")[0],
-                        {
-                            "remote_ip": remote_data[0],
-                            "remote_port": int(remote_data[1]),
-                        },
-                    )
-                elif previously_connected and remote_addr != peer.remote_addr:
-                    # Peer roamed
-                    log.debug(
-                        "PUT: User migrated IP from "
-                        + str(remote_addr)
-                        + " to "
-                        + str(peer.remote_addr)
-                        + ".\nWARNING! If happens often could be that user is connected to the same vpn from different locations at the same time!"
-                    )
-                    apic.update(
-                        "vpn_connection/"
-                        + payload["device"]
-                        + "/"
-                        + payload["allowed_ips"][0].split("/")[0],
-                        {
-                            "remote_ip": remote_data[0],
-                            "remote_port": int(remote_data[1]),
-                        },
-                    )
-                peer_state[peer.public_key] = (
-                    now_connected,
-                    peer.latest_handshake,
-                    peer.remote_addr,
-                )
+                        skipped = _skip_unresolved_peer(resp)
+                    # Leave peer_state unchanged when a connect/roam was skipped
+                    # (404) so the transition is retried on the next poll.
+                    if not skipped:
+                        peer_state[peer.public_key] = (
+                            now_connected,
+                            peer.latest_handshake,
+                            peer.remote_addr,
+                        )
 
-            if len(peers_to_delete):
-                log.debug(
-                    "DELETE (" + str(len(peers_to_delete)) + "): 1, LOST HANDSHAKE"
-                )
-                apic.delete(
-                    "vpn_connections",
-                    data=peers_to_delete,
-                )
-            peers_to_delete = []
+                if len(peers_to_delete):
+                    log.debug(
+                        "DELETE (" + str(len(peers_to_delete)) + "): 1, LOST HANDSHAKE"
+                    )
+                    resp = vpn_connections_disconnect.sync_detailed(
+                        client=client,
+                        body=[
+                            VpnDisconnectListItem(
+                                kind=peer["kind"],
+                                client_ip=peer["client_ip"],
+                            )
+                            for peer in peers_to_delete
+                        ],
+                    )
+                    _skip_unresolved_peer(resp)
+                peers_to_delete = []
             time.sleep(poll_delay)
         except:
             log.info("Exception in log_wireguard_peers")

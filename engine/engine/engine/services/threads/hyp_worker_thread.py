@@ -12,6 +12,17 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from pprint import pformat
 
+import httpx
+from isardvdi_apiv4_client_auth import build_client
+from libvirt import (
+    VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN,
+    VIR_DOMAIN_START_PAUSED,
+    VIR_DOMAIN_XML_SECURE,
+    VIR_ERR_NO_DOMAIN,
+    libvirtError,
+)
+from requests.exceptions import ReadTimeout as requests_ReadTimeout
+
 from engine.models.domain_xml import DomainXML, remove_memory_backing
 from engine.models.hyp import hyp
 from engine.services.db import (
@@ -30,6 +41,7 @@ from engine.services.db import (
     update_vgpu_uuid_domain_action,
 )
 from engine.services.db.hypervisors import (
+    get_hypervisor,
     update_hyp_degraded_status,
     update_hyp_libvirt_warning,
     update_hyp_thread_status,
@@ -37,7 +49,6 @@ from engine.services.db.hypervisors import (
 from engine.services.lib import live_xml_cache
 from engine.services.lib.functions import (
     SSHTimeoutError,
-    exec_remote_list_of_cmds_dict,
     execute_commands,
     get_tid,
     is_libvirt_connection_error,
@@ -59,22 +70,7 @@ from engine.services.threads.threads import (
     RETRIES_HYP_IS_ALIVE,
     TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE,
     TIMEOUT_QUEUES,
-    launch_action_disk,
-    launch_delete_media,
-    launch_killall_curl,
 )
-from isardvdi_common.api_rest import ApiRest
-from libvirt import (
-    VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN,
-    VIR_DOMAIN_START_PAUSED,
-    VIR_DOMAIN_XML_SECURE,
-    VIR_ERR_NO_DOMAIN,
-    libvirtError,
-)
-from requests.exceptions import ReadTimeout as requests_ReadTimeout
-
-api_client = ApiRest("isard-api")
-
 
 ITEMS_STATUS_MAP = {
     "start_paused_domain": "Checking",
@@ -83,10 +79,7 @@ ITEMS_STATUS_MAP = {
     "stop_domain": "Stopping",
     "reset_domain": "Starting",
     "create_disk": "Creating disk",
-    "delete_disk": "Deleting disk",
     "add_media_hot": "Adding media",
-    "killall_curl": "Canceling download",
-    "delete_media": "Deleting media",
 }
 
 notify_thread_pool = ThreadPoolExecutor(max_workers=1)
@@ -189,13 +182,21 @@ class HypWorkerThread(threading.Thread):
         port = int(port)
         self.hostname = host
 
-        # Connect to hypervisor
+        # Connect to hypervisor (libvirt qemu+ssh handshake also validates SSH)
         if not self._establish_connection(host, port, user, nvidia_enabled):
             return
 
-        # Test SSH connectivity
-        if not self._test_ssh_connection(host, port, user):
-            return
+        # Post-connect setup: reconcile domain state, mark the worker thread
+        # Started, and start receiving libvirt events.
+        self.h.update_domain_coherence_in_db()
+        update_hyp_thread_status("worker", self.hyp_id, "Started")
+        self.q_event_register.put(
+            {
+                "type": "add_hyp_to_receive_events",
+                "hyp_id": self.hyp_id,
+                "worker": self,
+            }
+        )
 
         # Get hypervisor info
         if not self._initialize_hypervisor_info(nvidia_enabled, init_vgpu_profiles):
@@ -251,47 +252,6 @@ class HypWorkerThread(threading.Thread):
         except Exception as e:
             logs.exception_id.debug("0059")
             self._set_error(f"Exception during hypervisor connection: {e}")
-            return False
-
-    def _test_ssh_connection(self, host, port, user):
-        """Test SSH connection to the hypervisor"""
-        logs.workers.info(f"[{self.hyp_id}] Testing SSH connection to {host}:{port}...")
-        cmds = [{"cmd": "uname -a"}]
-        try:
-            array_out_err = exec_remote_list_of_cmds_dict(
-                host, cmds, username=user, port=port, timeout=30
-            )
-            output = array_out_err[0]["out"]
-            logs.main.debug(f"Command: {cmds[0]}, output: {output}")
-
-            if not output:
-                self._set_error("SSH command output is empty, SSH action failed")
-                return False
-
-            logs.workers.info(f"[{self.hyp_id}] SSH test passed")
-
-            # SSH test passed
-            launch_killall_curl(self.hostname, user, port)
-            self.h.update_domain_coherence_in_db()
-            update_hyp_thread_status("worker", self.hyp_id, "Started")
-
-            # Register for events
-            self.q_event_register.put(
-                {
-                    "type": "add_hyp_to_receive_events",
-                    "hyp_id": self.hyp_id,
-                    "worker": self,
-                }
-            )
-            return True
-
-        except SSHTimeoutError as e:
-            logs.workers.error(f"[{self.hyp_id}] SSH connection test timed out: {e}")
-            self._set_error(f"SSH connection test timed out: {e}")
-            return False
-        except Exception as e:
-            logs.exception_id.debug("0058")
-            self._set_error(f"Testing SSH connection failed: {e}")
             return False
 
     def _initialize_hypervisor_info(self, nvidia_enabled, init_vgpu_profiles):
@@ -436,11 +396,7 @@ class HypWorkerThread(threading.Thread):
             "shutdown_domain": self._handle_shutdown_domain,
             "stop_domain": self._handle_stop_domain,
             "reset_domain": self._handle_reset_domain,
-            "create_disk": lambda a, t, i: self._handle_disk_action(a, t, i, "create"),
-            "delete_disk": lambda a, t, i: self._handle_disk_action(a, t, i, "delete"),
             "add_media_hot": lambda a, t, i: None,  # Placeholder as in original
-            "killall_curl": self._handle_killall_curl,
-            "delete_media": self._handle_delete_media,
             "update_status_db_from_running_domains": self._handle_update_status,
             "hyp_info": self._handle_hyp_info,
             "notify": self._handle_notify,
@@ -1730,29 +1686,16 @@ class HypWorkerThread(threading.Thread):
             update_vgpu_info_if_stopped(action["id_domain"])
 
             # Handle post-stop actions
-            check_if_delete = action.get("delete_after_stopped", False)
             if action.get("not_change_status", False) is False:
-                if check_if_delete:
-                    update_domain_status("Stopped", action["id_domain"], hyp_id="")
-                    update_domain_status("Deleting", action["id_domain"], hyp_id="")
-                    log_action(
-                        self.hyp_id,
-                        action["id_domain"],
-                        action["type"],
-                        intervals,
-                        time.time() - action_time,
-                        "Stopped and Deleting",
-                    )
-                else:
-                    update_domain_status("Stopped", action["id_domain"], hyp_id="")
-                    log_action(
-                        self.hyp_id,
-                        action["id_domain"],
-                        action["type"],
-                        intervals,
-                        time.time() - action_time,
-                        "Stopped",
-                    )
+                update_domain_status("Stopped", action["id_domain"], hyp_id="")
+                log_action(
+                    self.hyp_id,
+                    action["id_domain"],
+                    action["type"],
+                    intervals,
+                    time.time() - action_time,
+                    "Stopped",
+                )
         except Exception as e:
             logs.exception_id.debug("0065")
             if action.get("not_change_status", False) is False:
@@ -1840,96 +1783,6 @@ class HypWorkerThread(threading.Thread):
             "Failed",
         )
 
-    def _handle_disk_action(self, action, action_time, intervals, operation_type):
-        """Handle disk actions (create or delete)"""
-        t = time.time()
-        try:
-            # Launch disk action
-            launch_action_disk(
-                action, self.hostname, user=self.h.user, port=self.h.port
-            )
-            intervals.append({f"{operation_type}_disk": round(time.time() - t, 3)})
-
-            # Log result
-            log_action(
-                self.hyp_id,
-                action.get("domain"),
-                action["type"],
-                intervals,
-                time.time() - action_time,
-                "Finished",
-            )
-        except Exception as e:
-            logs.workers.error(f"Error in {action['type']} action: {e}")
-            log_action(
-                self.hyp_id,
-                action.get("domain"),
-                action["type"],
-                intervals,
-                time.time() - action_time,
-                "Failed",
-            )
-
-    def _handle_killall_curl(self, action, action_time, intervals):
-        """Handle killall_curl action"""
-        t = time.time()
-        try:
-            launch_killall_curl(self.hostname, user=self.h.user, port=self.h.port)
-            intervals.append({"killall_curl": round(time.time() - t, 3)})
-
-            log_action(
-                self.hyp_id,
-                None,
-                action["type"],
-                intervals,
-                time.time() - action_time,
-                "Finished",
-            )
-        except Exception as e:
-            logs.workers.error(f"Error in killall_curl action: {e}")
-            log_action(
-                self.hyp_id,
-                None,
-                action["type"],
-                intervals,
-                time.time() - action_time,
-                "Failed",
-            )
-
-    def _handle_delete_media(self, action, action_time, intervals):
-        """Handle delete_media action"""
-        final_status = action.get("final_status", "Deleted")
-        t = time.time()
-
-        try:
-            launch_delete_media(
-                action,
-                self.hostname,
-                user=self.h.user,
-                port=self.h.port,
-                final_status=final_status,
-            )
-            intervals.append({"delete_media": round(time.time() - t, 3)})
-
-            log_action(
-                self.hyp_id,
-                None,
-                action["type"],
-                intervals,
-                time.time() - action_time,
-                final_status,
-            )
-        except Exception as e:
-            logs.workers.error(f"Error in delete_media action: {e}")
-            log_action(
-                self.hyp_id,
-                None,
-                action["type"],
-                intervals,
-                time.time() - action_time,
-                "Failed",
-            )
-
     def _handle_update_status(self, action, action_time, intervals):
         """Handle update_status_db_from_running_domains action"""
         t = time.time()
@@ -1960,7 +1813,12 @@ class HypWorkerThread(threading.Thread):
         """Handle hyp_info action"""
         try:
             t = time.time()
-            self.h.get_kvm_mod()
+            # KVM module type is hypervisor-self-reported at registration; just
+            # refresh from the DB row (no SSH).
+            hyper_record = get_hypervisor(self.hyp_id)
+            self.h.info["kvm_module"] = (
+                hyper_record.get("kvm_module") if hyper_record else False
+            )
             intervals.append({"get_kvm_mod": round(time.time() - t, 3)})
 
             t = time.time()
@@ -2142,13 +2000,28 @@ class HypWorkerThread(threading.Thread):
 
         # Only send if there are items
         if positioned_items:
+            # ---------------------------------------------------------------
+            # Deliberate escape hatch.
+            #
+            # This call uses get_httpx_client().request() directly (not the
+            # generated admin_notify_desktop_queue method) because it is a
+            # fire-and-forget send with timeout=0.0000000001: we post the
+            # queue update and intentionally do not wait for a response. The
+            # generated client raises on timeout and ignores the response
+            # semantics we want.
+            #
+            # Do not migrate this to the typed client without first building
+            # a fire-and-forget helper around the generated method.
+            # ---------------------------------------------------------------
             try:
-                api_client.put(
-                    f"/notify/desktops/queue/{self.hyp_id}",
-                    data=positioned_items,
-                    timeout=0.0000000001,  # Very small timeout as in original code
-                )
-            except requests_ReadTimeout:
+                with build_client("isard-engine") as client:
+                    client.get_httpx_client().request(
+                        "PUT",
+                        f"/api/v4/admin/item/notify/desktops/queue/{self.hyp_id}",
+                        json=positioned_items,
+                        timeout=0.0000000001,  # Very small timeout as in original code
+                    )
+            except (httpx.TimeoutException, httpx.ReadTimeout):
                 # Expected due to very small timeout
                 pass
             except Exception as e:

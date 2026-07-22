@@ -24,7 +24,7 @@ $(document).ready(function() {
             }
         },
         "ajax": {
-            "url": "/admin/users/quotas_limits/users",
+            "url": "/api/v4/admin/items/users/quotas_limits/users",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}
@@ -90,9 +90,10 @@ $(document).ready(function() {
             {
                 "targets": 12,
                 "render": function ( data, type, full, meta ) {
-                    if (full.hasOwnProperty('user_storage')){
+                    if (full.user_storage && full.user_storage.provider_quota) {
                         return full.user_storage.provider_quota.used +' ('+full.user_storage.provider_quota.relative+'%)'
                     }
+                    return 0
                 }
             }
         ],
@@ -194,7 +195,7 @@ $(document).ready(function() {
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/user/" + data['id'],
+                url:"/api/v4/admin/item/user/" + data['id'],
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 error: function(data) {
@@ -217,7 +218,7 @@ $(document).ready(function() {
                         text: 'User updated successfully',
                         hide: true,
                         delay: 2000,
-                        icon: 'fa fa-' + data.icon,
+                        icon: 'fa fa-' + data?.icon,
                         opacity: 1,
                         type: 'success'
                     })
@@ -228,48 +229,21 @@ $(document).ready(function() {
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 });
 
+function userAddUpdateSocketHandle(data) {
+    var data = JSON.parse(data);
+    data = {...users_table.row("#"+data.id).data(),...data}
+    dtUpdateInsert(users_table,data,false);
+    users_table.draw(false)
+}
+
 function socketio_on() {
     socket.on('users_data', function(data) {
-        var data = JSON.parse(data);
-        data = {...users_table.row("#"+data.id).data(),...data}
-        dtUpdateInsert(users_table,data,false);
-        users_table.draw(false)
+        userAddUpdateSocketHandle(data)
     });
 
     socket.on('users_delete', function(data) {
         var data = JSON.parse(data);
         users_table.row('#'+data.id).remove().draw();
-    });
-
-    socket.on('add_form_result', function (data) {
-        var data = JSON.parse(data);
-        $('form').each(function() { this.reset() });
-        $('.modal').modal('hide');
-        $('#modalAddBulkUsers #send').prop('disabled', false);
-        new PNotify({
-            title: data.title,
-            text: data.text,
-            hide: true,
-            delay: 4000,
-            icon: 'fa fa-'+data.icon,
-            opacity: 1,
-            type: data.type
-        });
-        users_table.ajax.reload()
-    });
-
-    socket.on ('result', function (data) {
-        var data = JSON.parse(data);
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-        users_table.ajax.reload()
     });
 }
 
@@ -289,7 +263,7 @@ function actionsUserDetail(){
             multiple: true,
             ajax: {
                 type: "POST",
-                url: '/api/v3/admin/allowed/term/groups/',
+                url: '/api/v4/items/alloweds/term/groups/',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -314,7 +288,7 @@ function actionsUserDetail(){
         setModalUser();
         $.ajax({
             type: "GET",
-            url: '/api/v3/admin/user/' + pk,
+            url: '/api/v4/admin/item/user/' + pk,
             contentType: "application/json",
             accept: "application/json",
             async: false
@@ -360,7 +334,7 @@ function renderUsersDetailPannel ( d ) {
 function setModalUser(){
     $.ajax({
         type: "GET",
-        url:"/api/v3/admin/userschema",
+        url:"/api/v4/admin/item/userschema",
         async: false,
         success: function (d) {
             $.each(d, function (key, value) {
@@ -383,7 +357,7 @@ function setModalUser(){
 function checkUserMigrationCheckQuotas() {
     $.ajax({
         type: "GET",
-        url: "/api/v3/admin/config/user_migration",
+        url: "/api/v4/admin/item/config/user-migration",
         success: function(data) {
             $("#migration-check-quotas-checkbox").iCheck(data.check_quotas ? "check" : "uncheck").iCheck('update');
         },
@@ -406,7 +380,7 @@ function checkUserMigrationCheckQuotas() {
 function toggleUserMigrationCheckQuotas() {
     $.ajax({
         type: "PUT",
-        url: "/api/v3/admin/config/user_migration",
+        url: "/api/v4/admin/item/config/user-migration",
         data: JSON.stringify({check_quotas: $("#migration-check-quotas-checkbox").is(":checked")}),
         contentType: "application/json",
         success: function(data) {

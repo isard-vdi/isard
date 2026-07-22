@@ -81,3 +81,48 @@ def test_enumerate_vf_sub_paths_builds_sysfs_paths():
         "/sys/bus/pci/devices/0000:c5:00.1",
         "/sys/bus/pci/devices/0000:c5:00.2",
     ]
+
+
+# --------------------------------------------------------------------------- #
+# vgpu_framework — per-card runtime detection of the vGPU sysfs framework.
+# --------------------------------------------------------------------------- #
+def test_vgpu_framework_vfio_when_creatable_types_present():
+    # A VF exposing nvidia/creatable_vgpu_types => the kernel >=6.8 vendor VFIO
+    # variant framework (Ubuntu 24.04+). The probe greps for that file.
+    run = lambda cmds, timeout=0: [  # noqa: E731
+        {"out": "/sys/bus/pci/devices/0000:c5:00.4/nvidia/creatable_vgpu_types\n"}
+    ]
+    assert gp.vgpu_framework("0000:c5:00.0", run) == "vfio_variant"
+
+
+def test_vgpu_framework_legacy_when_no_creatable_types():
+    # 22.04/5.15: no creatable_vgpu_types anywhere -> legacy mdev framework.
+    run = lambda cmds, timeout=0: [{"out": ""}]  # noqa: E731
+    assert gp.vgpu_framework("0000:c5:00.0", run) == "legacy_mdev"
+
+
+def test_vgpu_framework_legacy_tolerates_empty_run():
+    empty = lambda cmds, timeout=0: []  # noqa: E731
+    assert gp.vgpu_framework("0000:c5:00.0", empty) == "legacy_mdev"
+
+
+def test_vgpu_framework_force_override(monkeypatch):
+    # The kill-switch forces a framework regardless of host state (debugging /
+    # mixed-fleet escape hatch).
+    run_vfio = lambda cmds, timeout=0: [  # noqa: E731
+        {"out": "/sys/bus/pci/devices/0000:c5:00.4/nvidia/creatable_vgpu_types\n"}
+    ]
+    monkeypatch.setenv("ISARD_VGPU_FORCE_FRAMEWORK", "legacy_mdev")
+    assert gp.vgpu_framework("0000:c5:00.0", run_vfio) == "legacy_mdev"
+    monkeypatch.setenv("ISARD_VGPU_FORCE_FRAMEWORK", "vfio_variant")
+    assert (
+        gp.vgpu_framework("0000:c5:00.0", lambda cmds, timeout=0: [{"out": ""}])
+        == "vfio_variant"
+    )
+
+
+def test_vgpu_framework_force_override_ignores_garbage(monkeypatch):
+    # A bogus override value must NOT be trusted; fall back to live detection.
+    monkeypatch.setenv("ISARD_VGPU_FORCE_FRAMEWORK", "nonsense")
+    run = lambda cmds, timeout=0: [{"out": ""}]  # noqa: E731
+    assert gp.vgpu_framework("0000:c5:00.0", run) == "legacy_mdev"

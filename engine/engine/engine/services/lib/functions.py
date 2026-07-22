@@ -7,7 +7,6 @@ import ctypes
 import json
 import os
 import queue
-import shlex
 import socket
 import sys
 import threading
@@ -18,6 +17,7 @@ from time import sleep
 import libvirt
 import paramiko
 import xmltodict
+
 from engine.services.db import gen_new_mac, update_domain_status
 from engine.services.db.config import table_config_created_and_populated
 from engine.services.db.domains import (
@@ -32,23 +32,6 @@ from engine.services.db.domains import (
 )
 from engine.services.log import log, logs
 
-QCOW2_CLUSTER_SIZE = os.environ.get("QCOW2_CLUSTER_SIZE", "4k")
-QCOW2_EXTENDED_L2 = os.environ.get("QCOW2_EXTENDED_L2", "off")
-QCOW2_LAZY_REFCOUNTS = os.environ.get("QCOW2_LAZY_REFCOUNTS", "off")
-QCOW2_PREALLOCATION = os.environ.get("QCOW2_PREALLOCATION", "off")
-
-if QCOW2_EXTENDED_L2 == "on":
-    _size_str = QCOW2_CLUSTER_SIZE.upper().strip()
-    _multipliers = {"K": 1024, "M": 1024**2}
-    _num = int("".join(c for c in _size_str if c.isdigit()))
-    _unit = "".join(c for c in _size_str if c.isalpha())
-    _cluster_bytes = _num * _multipliers.get(_unit, 1)
-    if _cluster_bytes < 16384:
-        raise ValueError(
-            f"QCOW2_CLUSTER_SIZE={QCOW2_CLUSTER_SIZE} is too small for extended_l2=on "
-            f"(minimum 16k). Either set QCOW2_CLUSTER_SIZE>=16k or QCOW2_EXTENDED_L2=off"
-        )
-
 
 def check_tables_populated():
     while True:
@@ -57,14 +40,6 @@ def check_tables_populated():
         else:
             log.info("waiting config table created")
             sleep(1)
-
-
-def backing_chain_cmd(path_disk, json_format=True):
-    if json_format is True:
-        cmd = 'qemu-img info -U --output json --backing-chain "{}"'.format(path_disk)
-    else:
-        cmd = 'qemu-img info -U --backing-chain "{}"'.format(path_disk)
-    return cmd
 
 
 def get_threads_running():
@@ -83,14 +58,6 @@ def get_pools_threads_running(hypervisors):
     hypervisors_with_thread = []
     for hyp in hypervisors:
         if "worker_" + hyp["id"] in get_threads_names_running():
-            hypervisors_with_thread.append(hyp)
-    return hypervisors_with_thread
-
-
-def get_diskoperations_pools_threads_running(hypervisors):
-    hypervisors_with_thread = []
-    for hyp in hypervisors:
-        if "diskop_" + hyp["id"] in get_threads_names_running():
             hypervisors_with_thread.append(hyp)
     return hypervisors_with_thread
 
@@ -153,27 +120,6 @@ def try_socket(hostname, port, timeout):
         log.error(e)
         log.error("not resolves ip from hostname: {}".format(hostname))
         return False
-
-
-def try_ssh_command(host, user, port):
-    # TRY IF SSH COMMAND RUN:
-    cmds = [{"cmd": "uname -a"}]
-    try:
-        array_out_err = exec_remote_list_of_cmds_dict(
-            host, cmds, username=user, port=port
-        )
-        output = array_out_err[0]["out"]
-        logs.main.debug(f"cmd: {cmds[0]}, output: {output}")
-        if len(output) > 0:
-            # TEST OK
-            return True, "test cmd ssh ok"
-        else:
-            error = "output from command uname -a is empty, ssh action failed"
-            return False, error
-    except Exception as e:
-        logs.exception_id.debug("0048")
-        error = f"testing ssh connection failed. Host: {host}, cmds: {cmds}, username={user}, port: {port}. Exception: {e}"
-        return False, error
 
 
 def test_hypervisor_conn(uri):
@@ -264,37 +210,10 @@ def calcule_cpu_hyp_stats(start, end, round_digits=3):
     return percent, diff_time, total_diff_time
 
 
-DEFAULT_SIZE_TO_DISK = "10G"
-
-
-def create_new_disk_cmd(
-    filename,
-    size=DEFAULT_SIZE_TO_DISK,
-    clustersize=QCOW2_CLUSTER_SIZE,
-    extended_l2=QCOW2_EXTENDED_L2,
-    lazy_refcounts=QCOW2_LAZY_REFCOUNTS,
-    preallocation=QCOW2_PREALLOCATION,
-):
-    filename = shlex.quote(filename)
-    cmd = "qemu-img create -f qcow2 -o cluster_size={clustersize},extended_l2={extended_l2},lazy_refcounts={lazy_refcounts},preallocation={preallocation} {filename} {size}"
-    cmd = cmd.format(
-        filename=filename,
-        size=size,
-        clustersize=clustersize,
-        extended_l2=extended_l2,
-        lazy_refcounts=lazy_refcounts,
-        preallocation=preallocation,
-    )
-    return cmd
-
-
 class SSHTimeoutError(Exception):
     """Exception raised when SSH commands timeout."""
 
     pass
-
-
-TIMEOUT_MOVE_OPERATIONS = 900  # seconds - mv/rsync over NFS can be very slow
 
 
 def exec_remote_cmd(
@@ -342,10 +261,6 @@ def exec_remote_cmd(
         ) from e
     finally:
         client.close()
-
-
-def replace_path_disk(path_original, path_replace):
-    return path_original
 
 
 def exec_remote_updating_progress(
@@ -1125,23 +1040,6 @@ def update_status_db_from_running_domains(hyp_obj):
 
 
 def clean_intermediate_status(reason="engine is restarting", only_domain_id=None):
-    # Here only to remember the status that apply to each action
-    # status_to_delete = [
-    #     "Creating",
-    #     "CreatingAndStarting",
-    #     "CreatingDiskFromScratch",
-    # ]
-    # status_to_failed = [
-    #     "Updating",
-    #     "Deleting",
-    #     "DiskDeleted",
-    #     "CreatingDomain",
-    #     "DeletingDomainDisk",
-    #     "StartingDomainDisposable",
-    # ]
-    # status_to_stopped = ["Starting"]
-    # status_to_started = ["Stopping", "Shutting-down"]
-
     delete_incomplete_creating_domains(only_domain_id=only_domain_id)
 
     fail_incomplete_creating_domains(

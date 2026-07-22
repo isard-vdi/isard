@@ -22,6 +22,14 @@ from pprint import pprint
 
 import xmltodict
 from cachetools import TTLCache, cached
+from isardvdi_common.helpers.xml_compression import (
+    decompress_xml,
+    lazy_compress_in_place,
+)
+from lxml import etree
+from schema import And, Optional, Schema, Use
+from yattag import indent
+
 from engine.services.db import (
     get_and_update_personal_vlan_id_from_domain_id,
     get_cluster_guest_mtu,
@@ -31,18 +39,20 @@ from engine.services.db import (
     get_interface,
     get_qos_disk_iotune,
     remove_fieds_when_stopped,
+    rethink_conn,
     update_domain_status,
     update_domain_viewer_passwd,
     update_table_field,
 )
 from engine.services.db.downloads import get_media
-from engine.services.db.storage_pool import get_category_storage_pool
+from engine.services.db.storage_pool import (
+    get_category_storage_pool,
+    get_path_storage_pool,
+)
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
 from engine.services.lib.storage import _get_filename
 from engine.services.log import *
-from lxml import etree
-from schema import And, Optional, Schema, Use
-from yattag import indent
+from engine.services.log import log, logs
 
 DEFAULT_SPICE_VIDEO_COMPRESSION = "auto_glz"
 
@@ -282,6 +292,27 @@ IOTUNE_SCHEMA = Schema(
 index_to_char_suffix_disks = "a,b,c,d,e,f,g,h,i,j,k,l,m,n".split(",")
 
 
+# Per-interface "lab options". Each flag, when True, relaxes one OVS port
+# protection in the hypervisor (see docker/hypervisor/src/ovs/ovs-worker.py).
+# Maps the lab_opts key (API/DB name) -> the <isard:mapping> attribute name.
+LAB_OPT_ATTRS = {
+    "mac_spoofing": "lab_mac_spoofing",
+    "stp_bpdu": "lab_stp_bpdu",
+    "broadcast_unlimited": "lab_bcast_unlimited",
+    "multicast_unlimited": "lab_mcast_unlimited",
+}
+
+
+def normalize_lab_opts(lab_opts):
+    """Strict bool coercion at the boundary: only an actual Python ``True``
+    enables an option. Defends against stringly-typed DB values ("false" is
+    truthy in Python) and missing keys from non-API writers (populate.py,
+    upgrade.py, direct rdb writes). Returns a dict with every known lab_opts
+    key set to a real bool."""
+    src = lab_opts if isinstance(lab_opts, dict) else {}
+    return {key: src.get(key) is True for key in LAB_OPT_ATTRS}
+
+
 class DomainXML(object):
     def __init__(self, xml, id_domain=None):
         # self.tree = etree.parse(StringIO(xml))
@@ -490,6 +521,10 @@ class DomainXML(object):
 
                 vm_dict["interfaces"].append(list_dict)
 
+        # Absolute XPath — query the full document, not the last interface
+        # from the loop above. Using `tree` here raised UnboundLocalError
+        # whenever the domain had no <interface> elements (also disk/floppy/
+        # cdrom — `tree` is bound only as the loop variable of any of those).
         vm_dict["boot_order"] = [
             x.get("dev") for x in xml_tree.xpath("/domain/os/boot[@dev]")
         ]
@@ -741,6 +776,7 @@ class DomainXML(object):
         model_type="virtio",
         net="default",
         qos=False,
+        lab_opts=None,
     ):
         """
         :param type_interface:' bridge' OR 'network' .
@@ -748,6 +784,12 @@ class DomainXML(object):
                      If network insert xml code for virtual network
         :return:
         """
+
+        # Strict per-key bool coercion at the boundary (see normalize_lab_opts):
+        # only an actual Python True enables a lab option, defending against
+        # stringly-typed DB values from non-API writers such as populate.py,
+        # upgrade.py, or direct rdb writes.
+        lab_opts = normalize_lab_opts(lab_opts)
 
         # OVS/GENEVE tenant-overlay interfaces (ethernet snippet) must carry
         # the derived overlay MTU on the guest virtio NIC; n2m-bridge and the
@@ -769,6 +811,7 @@ class DomainXML(object):
                     "kind": "interface",
                     "interface_id": id_interface,
                     "vlan_id": int(net),
+                    "lab_opts": lab_opts,
                 }
             )
 
@@ -815,6 +858,7 @@ class DomainXML(object):
                                         "kind": "interface",
                                         "interface_id": id_interface,
                                         "vlan_id": vlan_id,
+                                        "lab_opts": lab_opts,
                                     }
                                 )
                             else:
@@ -851,6 +895,7 @@ class DomainXML(object):
                     "interface_id": id_interface,
                     "vlan_id": int(net),
                     "bridge": ovs_br_name,  # Non-default bridge
+                    "lab_opts": lab_opts,
                 }
             )
 
@@ -1093,6 +1138,17 @@ class DomainXML(object):
                 # Optional: non-default bridge (e.g., "ovsbr1" instead of "ovsbr0")
                 if mapping.get("bridge"):
                     mapping_elem.set("bridge", mapping["bridge"])
+                # Per-interface lab options: each flag, when True, relaxes one
+                # OVS port protection in the ovs-worker (mac spoofing, BPDU
+                # tunneling, broadcast/multicast meter ceilings). Each attribute
+                # is emitted explicitly as "true"/"false" (never omitted) so the
+                # hypervisor hook reads the default. Strict identity check
+                # ('is True'): only an actual bool True enables a flag.
+                lab = mapping.get("lab_opts") or {}
+                for opt_key, attr_name in LAB_OPT_ATTRS.items():
+                    mapping_elem.set(
+                        attr_name, "true" if lab.get(opt_key) is True else "false"
+                    )
             elif mapping["kind"] == "user_network":
                 mapping_elem.set("network_id", mapping.get("network_id", ""))
                 mapping_elem.set("metadata_id", str(mapping.get("metadata_id", "")))
@@ -1263,10 +1319,21 @@ class DomainXML(object):
         self.remove_device(xpath, order_num=order)
 
     def remove_gpu_hostdev(self):
-        """Remove all engine-managed GPU hostdev entries (mdev + PCI passthrough)."""
+        """Remove all engine-managed GPU hostdev entries (mdev + PCI passthrough +
+        vfio-variant vGPU VF).
+
+        The vfio-variant vGPU is a ``managed='no'`` pci hostdev (the VF stays
+        nvidia-bound), so it is NOT matched by ``@managed='yes'`` -- it is matched
+        by its engine alias marker ``ua-isard-vgpu-*`` instead, so teardown strips
+        it without depending on @managed and without touching an unrelated
+        managed='no' device the desktop may carry."""
         self.remove_device("/domain/devices/hostdev[@type='mdev']", order_num=-1)
         self.remove_device(
             "/domain/devices/hostdev[@type='pci'][@managed='yes']", order_num=-1
+        )
+        self.remove_device(
+            "/domain/devices/hostdev[starts-with(alias/@name, 'ua-isard-vgpu-')]",
+            order_num=-1,
         )
 
     def remove_device(self, xpath, order_num=-1):
@@ -1711,6 +1778,21 @@ def create_dict_video_from_id(id_video):
     return d
 
 
+def file_spice_shared_folder_enabled(dict_domain):
+    """Whether the Spice viewer requests a shared folder. ``or {}`` at each level
+    so a deselected viewer (persisted as bare ``None``) doesn't raise."""
+    file_spice_options = (
+        ((dict_domain.get("guest_properties") or {}).get("viewers") or {}).get(
+            "file_spice"
+        )
+        or {}
+    ).get("options") or {}
+    return (
+        isinstance(file_spice_options, dict)
+        and file_spice_options.get("shared_folder") is True
+    )
+
+
 def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     remove_fieds_when_stopped(id_domain)
     dict_domain = get_domain(id_domain)
@@ -1743,7 +1825,15 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         )
         return False
 
-    xml = dict_domain["xml"]
+    raw_xml = dict_domain.get("xml")
+    xml = decompress_xml(raw_xml)
+    # One-shot lazy migration: if the row is still legacy plain str,
+    # compress it in place. Atomic via r.branch in the helper, so
+    # concurrent writers (offline script, parallel start, editor merge)
+    # turn this into a no-op.
+    if isinstance(raw_xml, str) and xml:
+        with rethink_conn() as _conn:
+            lazy_compress_in_place(id_domain, xml, conn=_conn)
     x = DomainXML(xml, id_domain=id_domain)
     if x.parser is False:
         # error when parsing xml
@@ -1889,8 +1979,21 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     # qos
     if "qos_disk" not in protected:
-        storage_pool = get_category_storage_pool(category_id)
-        if storage_pool.get("qos_disk_id") is not None:
+        # Bind QoS to the pool the boot disk physically lives in, not the pool
+        # currently mapped to the domain's category. They diverge once a
+        # category is reassigned to another pool: the disk stays on the old
+        # pool's filesystem but the category points elsewhere, so the old code
+        # applied the wrong pool's iotune. Fall back to the category mapping
+        # when the disk path can't be resolved.
+        storage_pool = None
+        disks = dict_domain["create_dict"]["hardware"].get("disks", [])
+        if disks and disks[0].get("storage_id"):
+            boot_storage = get_storage_cached(disks[0]["storage_id"])
+            if boot_storage:
+                storage_pool = get_path_storage_pool(boot_storage.get("directory_path"))
+        if storage_pool is None:
+            storage_pool = get_category_storage_pool(category_id)
+        if storage_pool and storage_pool.get("qos_disk_id") is not None:
             qos_disk_id = storage_pool["qos_disk_id"]
             iotune = get_qos_disk_iotune(qos_disk_id)
             if iotune:
@@ -1959,15 +2062,8 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     # Shared folder
     if "shared_folder" not in protected:
-        file_spice_options = (
-            dict_domain.get("guest_properties", {})
-            .get("viewers", {})
-            .get("file_spice", {})
-            .get("options", {})
-        )
-        if type(file_spice_options) is dict:
-            if file_spice_options.get("shared_folder") is True:
-                x.add_shared_folder()
+        if file_spice_shared_folder_enabled(dict_domain):
+            x.add_shared_folder()
 
     # Stripping all <seclabel> would wipe an admin-locked custom security label.
     if "seclabel" not in protected:
@@ -2157,6 +2253,12 @@ def recreate_xml_interfaces(dict_domain, x):
             net=d_interface["net"],
             qos=dict_bandwidth,
             mac=mac_selected,
+            # Per-interface lab options, read from the stored interfaces-table
+            # row. normalize_lab_opts() in add_interface applies strict per-key
+            # 'is True' coercion, so a missing field on legacy rows, an empty
+            # dict, or any stringly-typed value all resolve to False -> strict.
+            # Only the API path (cerberus-validated) writes real bool True flags.
+            lab_opts=d_interface.get("lab_opts"),
         )
 
         interface_index += 1
@@ -2371,6 +2473,7 @@ def recreate_xml_if_gpu(
     companion_pci_bdfs=None,
     is_mig=False,
     guest_index=0,
+    vgpu_vf_bdf=None,
 ):
     """Inject the appropriate GPU hostdev(s) into a domain XML.
 
@@ -2489,6 +2592,59 @@ def recreate_xml_if_gpu(
                 f"    <address type='pci' slot='{guest_slot}' function='0x0'/>\n"
                 "  </hostdev>"
             )
+        xpath_parent = "/domain/devices"
+    elif vgpu_vf_bdf:
+        # Vendor-specific VFIO framework (Ubuntu 24.04+): the vGPU is an ordinary
+        # vfio-pci passthrough of an SR-IOV VF (no mdev). It is headless on this
+        # path, so display='off' is REQUIRED (the guest drives the vGPU via the
+        # in-VM NVIDIA driver; IsardVDI video rides its own viewer path).
+        #
+        # managed='no' is LOAD-BEARING: the VF stays bound to the NVIDIA driver,
+        # which IS the VFIO provider for the variant framework (the vGPU only
+        # exists while current_vgpu_type is set on the nvidia-bound VF). With
+        # managed='yes' libvirt would unbind the VF from nvidia and bind vfio-pci
+        # to it -- that destroys the vGPU and HANGS in an unkillable D-state
+        # (nvidia cannot release an active vGPU VF), wedging the host. So we must
+        # NOT let libvirt touch the binding; the VF is already VFIO-ready.
+        #
+        # Tag the hostdev with a libvirt USER alias ('ua-' prefix) so the host-side
+        # pool reconcile / teardown can distinguish an engine-managed vGPU VF
+        # from a whole-card passthrough (both are type='pci') and never rebind a
+        # VF that is a live vGPU.
+        if not re.fullmatch(
+            r"[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9a-fA-F]",
+            vgpu_vf_bdf,
+        ):
+            raise ValueError(
+                "recreate_xml_if_gpu: malformed vgpu_vf_bdf {!r}; expected "
+                "'DDDD:BB:SS.F' (hex)".format(vgpu_vf_bdf)
+            )
+        v_dom, v_rest = vgpu_vf_bdf.split(":", 1)
+        v_bus, v_rest = v_rest.split(":", 1)
+        v_slot, _, v_func = v_rest.partition(".")
+        domain = "0x" + v_dom
+        bus = "0x" + v_bus
+        slot = "0x" + v_slot
+        function = "0x" + v_func
+        alias = "ua-isard-vgpu-" + vgpu_vf_bdf.replace(":", "-").replace(".", "-")
+        guest_slot_num = GUEST_GPU_SLOT_BASE + int(guest_index)
+        if guest_slot_num > GUEST_GPU_SLOT_MAX:
+            raise ValueError(
+                "recreate_xml_if_gpu: guest_index {} exceeds available guest PCI "
+                "slots (base 0x{:02x}..0x{:02x})".format(
+                    guest_index, GUEST_GPU_SLOT_BASE, GUEST_GPU_SLOT_MAX
+                )
+            )
+        guest_slot = "0x{:02x}".format(guest_slot_num)
+        xml_hostdev = (
+            "  <hostdev mode='subsystem' type='pci' managed='no' display='off'>\n"
+            "    <source>\n"
+            f"      <address domain='{domain}' bus='{bus}' slot='{slot}' function='{function}'/>\n"
+            "    </source>\n"
+            f"    <alias name='{alias}'/>\n"
+            f"    <address type='pci' slot='{guest_slot}' function='0x0'/>\n"
+            "  </hostdev>"
+        )
         xpath_parent = "/domain/devices"
     else:
         # MIG-backed mdevs are compute slices with no display engine, so the

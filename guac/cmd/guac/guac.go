@@ -60,8 +60,8 @@ func init() {
 	}
 
 	apiAddr = os.Getenv("API_DOMAIN")
-	if apiAddr == "" || apiAddr == "isard-api" {
-		apiAddr = "isard-api:5000"
+	if apiAddr == "" || apiAddr == "isard-apiv4" {
+		apiAddr = "isard-apiv4:5000"
 	} else {
 		apiAddr = "https://" + apiAddr
 	}
@@ -175,9 +175,9 @@ func ownsDesktop(tkn string, hostname string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("error parsing API URL: %v", err)
 	}
-	baseurl.Path = "/api/v3/"
+	baseurl.Path = "/api/v4/"
 
-	path, err := url.Parse("user/owns_desktop")
+	path, err := url.Parse("item/user/owns-desktop")
 	if err != nil {
 		return false, fmt.Errorf("error parsing relative API URL: %v", err)
 	}
@@ -190,7 +190,7 @@ func ownsDesktop(tkn string, hostname string) (bool, error) {
 		return false, fmt.Errorf("error encoding body: %v", err)
 	}
 	buf := bytes.NewBuffer(body)
-	req, err := http.NewRequest(http.MethodGet, url.String(), buf)
+	req, err := http.NewRequest(http.MethodPost, url.String(), buf)
 	if err != nil {
 		return false, fmt.Errorf("error creating request: %v", err)
 	}

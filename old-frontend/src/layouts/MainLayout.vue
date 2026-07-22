@@ -5,6 +5,7 @@
       <component :is="currentStatusBarComponent" />
     </div>
     <router-view />
+    <FrontendToggler />
   </div>
 </template>
 
@@ -14,12 +15,14 @@ import { sectionConfig } from '@/utils/section-config.js'
 import NewNavBar from '@/components/NewNavBar.vue'
 import StatusBar from '@/components/StatusBar.vue'
 import BookingStatusBar from '@/components/booking/BookingStatusBar.vue'
+import FrontendToggler from '@/components/FrontendToggler.vue'
 
 export default {
   components: {
     StatusBar,
     NewNavBar,
-    BookingStatusBar
+    BookingStatusBar,
+    FrontendToggler
   },
   setup (_, context) {
     const $store = context.root.$store

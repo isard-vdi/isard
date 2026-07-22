@@ -21,12 +21,14 @@
 import os
 from urllib.parse import quote
 
-from flask import jsonify, make_response, redirect, render_template
+from flask import abort, jsonify, make_response, redirect, render_template
 from flask_login import current_user, login_required, login_user, logout_user
+from isardvdi_apiv4_client.api.open_ import api_v4_category_custom_url
+from isardvdi_apiv4_client_auth import build_client
+from isardvdi_common.helpers.token_flask import TokenFlask
 
 from webapp import app
 
-from .._common.tokens import get_expired_user_data
 from ..auth.authentication import *
 from ..lib.log import *
 from .decorators import isAdmin, isAdminManager, maintenance
@@ -117,20 +119,26 @@ def logout():
     # Allowlist of provider names; anything else falls back to /login.
     _ALLOWED_PROVIDERS = {"form", "saml", "google", "external", "local", "ldap"}
 
-    custom_url_response = requests.get(
-        f"http://isard-api:5000/api/v3/category/{current_user.category}/custom_url"
-    )
+    with build_client("isard-webapp") as client:
+        api_response = api_v4_category_custom_url.sync_detailed(
+            client=client, category_id=current_user.category
+        )
 
     login_path = "/login"
     if request.cookies.get("isardvdi_session"):
-        user_session = get_expired_user_data(request.cookies.get("isardvdi_session"))
+        user_session = TokenFlask.get_expired_user_data(
+            request.cookies.get("isardvdi_session")
+        )
         if user_session:
             raw_provider = user_session.get("provider")
             provider = "form" if raw_provider in ("local", "ldap") else raw_provider
             if provider in _ALLOWED_PROVIDERS:
-                if custom_url_response.status_code == 200:
+                if api_response.status_code == 200:
                     # custom_url is admin-editable; URL-encode to keep it in the path segment.
-                    custom_url = quote(custom_url_response.text, safe="")
+                    custom_url = quote(
+                        api_response.content.decode("utf-8").strip('"'),
+                        safe="",
+                    )
                     login_path = f"/login/{provider}/{custom_url}"
                 else:
                     login_path = f"/login/{provider}"
@@ -238,10 +246,13 @@ def admin_domains(nav="Domains"):
             icon=icon,
         )
     if nav == "Recyclebin":
-        icon = "trash"
-        return render_webapp(
-            "admin/pages/recyclebin.html", title=nav, nav=nav, icon=icon
-        )
+        # ``recyclebin.html`` is not in the templates tree — only
+        # ``recyclebin_domains.html`` and ``recyclebin_config.html``
+        # exist (rendered by ``admin_recyclebin`` below). Bookmarks
+        # and typos targeting bare ``/Recyclebin`` 500'd via
+        # ``TemplateNotFound``; redirect to the Domains sub-nav,
+        # mirroring the sidebar links.
+        return redirect("/isard-admin/admin/domains/render/Recyclebin/Domains")
 
     return render_webapp(
         "admin/pages/desktops.html",
@@ -266,6 +277,10 @@ def admin_recyclebin(nav="Disks"):
         return render_webapp(
             "admin/pages/recyclebin_config.html", title=nav, nav=nav, icon=icon
         )
+    # Unknown nav values would fall off the end and return None,
+    # which Flask wraps as a 500 ``did not return a valid response``.
+    # Bookmarks / typos / sidebar drift surface as 4xx instead.
+    abort(404)
 
 
 @app.route("/isard-admin/admin/domains/render/status")
@@ -317,6 +332,10 @@ def admin_users(nav):
             nav=nav,
             title="Quotas / Limits",
         )
+    # Unknown nav values would fall off the end and return None,
+    # which Flask wraps as a 500. Surface as a 404 so a typo /
+    # bookmark / sidebar drift gets a clean error page.
+    abort(404)
 
 
 @app.route("/isard-admin/admin/users/UserStorage", methods=["POST", "GET"])

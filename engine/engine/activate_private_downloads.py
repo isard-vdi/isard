@@ -20,18 +20,25 @@
 
 from rethinkdb import r
 
-r.connect("isard-db", 28015).repl()
-
 
 def add_private_code(code):
+    # Open and close the connection inside the function so the
+    # script's import side-effects are limited to module bindings.
+    # Explicit ``.run(conn)`` replaces the legacy ``.repl()`` global
+    # default — no other process relies on the implicit default and
+    # the explicit form is what every other isardvdi service uses.
+    conn = r.connect("isard-db", 28015)
     try:
         r.db("isard").table("config").get(1).update(
             {"resources": {"private_code": code}}
-        ).run()
+        ).run(conn)
         print("Private code updated")
     except Exception as e:
         print("Error updating.\n" + str(e))
+    finally:
+        conn.close(noreply_wait=False)
 
 
-code = input("Enter you private access code to IsardVDI Downloads Service: ")
-add_private_code(code)
+if __name__ == "__main__":
+    code = input("Enter you private access code to IsardVDI Downloads Service: ")
+    add_private_code(code)

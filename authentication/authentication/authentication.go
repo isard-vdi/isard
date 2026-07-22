@@ -10,12 +10,13 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/providermanager"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	"gitlab.com/isard/isardvdi/pkg/db"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 
 	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -43,7 +44,7 @@ type Interface interface {
 
 	SAML(categoryID string, host string) *samlsp.Middleware
 
-	Healthcheck() error
+	Healthcheck(ctx context.Context) error
 }
 
 var _ Interface = &Authentication{}
@@ -55,7 +56,7 @@ type Authentication struct {
 	BaseURL *url.URL
 
 	DB       r.QueryExecutor
-	API      sdk.Interface
+	API      apiv4.Invoker
 	Notifier notifier.Invoker
 	Sessions sessionsv1.SessionsServiceClient
 
@@ -64,7 +65,7 @@ type Authentication struct {
 	prvManager providermanager.Interface
 }
 
-func Init(ctx context.Context, wg *sync.WaitGroup, cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
+func Init(ctx context.Context, wg *sync.WaitGroup, cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli apiv4.Invoker, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
 	prvManager := providermanager.InitProviderManager(cfg.Authentication, log, db)
 	prvManager.Manage(ctx, wg)
 
@@ -121,6 +122,14 @@ func (a *Authentication) SAML(categoryID string, host string) *samlsp.Middleware
 	return a.prvManager.SAML(categoryID, host)
 }
 
-func (a *Authentication) Healthcheck() error {
-	return a.prvManager.Healthcheck()
+func (a *Authentication) Healthcheck(ctx context.Context) error {
+	if err := db.Ping(ctx, a.DB); err != nil {
+		return err
+	}
+
+	if _, err := a.API.APIVersion(ctx); err != nil {
+		return fmt.Errorf("ping the API: %w", err)
+	}
+
+	return a.prvManager.Healthcheck(ctx)
 }

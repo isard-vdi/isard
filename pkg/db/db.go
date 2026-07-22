@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 
 	"gitlab.com/isard/isardvdi/pkg/cfg"
@@ -8,7 +9,6 @@ import (
 )
 
 func New(cfg cfg.DB) (r.QueryExecutor, error) {
-	fmt.Println(cfg.Usr)
 	sess, err := r.Connect(r.ConnectOpts{
 		// TOOD: Cluster connections!
 		Address:  cfg.Addr(),
@@ -21,4 +21,19 @@ func New(cfg cfg.DB) (r.QueryExecutor, error) {
 	}
 
 	return sess, nil
+}
+
+func Ping(ctx context.Context, db r.QueryExecutor) error {
+	cur, err := r.Expr(1).Run(db, r.RunOpts{Context: ctx})
+	if err != nil {
+		return fmt.Errorf("ping the DB: %w", err)
+	}
+	defer cur.Close()
+
+	var v int
+	if err := cur.One(&v); err != nil {
+		return fmt.Errorf("ping the DB: %w", err)
+	}
+
+	return nil
 }

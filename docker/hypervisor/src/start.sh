@@ -9,13 +9,16 @@ export WHITELIST_IPTABLES
 
 BOOT_TOTAL=9
 
-# Report boot progress step to API (fire-and-forget)
+# Report boot progress to the API. Fire-and-forget AND backgrounded: each call
+# cold-starts python and imports the apiv4 client (~1.5 s), so run inline it
+# stalls boot ~1.5 s per step across 10 steps; progress is advisory and its
+# errors were already ignored, so boot must never block on it.
 report_step() {
   python3 -c "
 import sys; sys.path.insert(0, '/src/lib')
 from progress import report_progress
 report_progress($1, $BOOT_TOTAL, '$2', $3)
-" 2>/dev/null || true
+" >/dev/null 2>&1 &
 }
 
 # Graceful hypervisor shutdown. Runs in parallel: API unregister +
@@ -33,8 +36,6 @@ trap shutdown_hyper SIGTERM SIGINT SIGQUIT
 echo "---> Cleaning old libvirt info dirs..."
 rm -rf /run/libvirt/*
 rm -r /var/lib/libvirt/dnsmasq
-
-ln -sf /src/lib/api_client.py /src/vlans/api_client.py
 
 echo "---> Setting ssh password to API_HYPERVISORS_SECRET"
 echo "root:$API_HYPERVISORS_SECRET" |chpasswd
@@ -56,14 +57,18 @@ echo "---> Waiting for the API to be reachable before registering..."
 api_wait=0
 until python3 -c "
 import os, sys, ssl, urllib.request, urllib.error
-# Resolve the API base URL the SAME way api_client.py does: prefer the
-# configured API_DOMAIN (remote API on a standalone hypervisor), and fall
-# back to the local isard-api service (all-in-one). On an all-in-one this
-# gate solves the boot race against the co-located api/engine/db; on a
-# standalone hypervisor it waits for the already-up remote API instead of
-# a non-existent local isard-api (which previously hung forever).
-api_domain = os.environ.get('API_DOMAIN', '')
-base = 'https://%s/api/v3/' % api_domain if (api_domain and api_domain != 'isard-api') else 'http://isard-api:5000/api/v3/'
+# Resolve the API base URL the SAME way the generated isardvdi_apiv4_client
+# does (isardvdi_apiv4_client_auth._url.resolve_base_url): no API_DOMAIN /
+# legacy sentinels mean the in-cluster isard-apiv4 service (all-in-one);
+# anything else is a remote API on a standalone hypervisor. On an
+# all-in-one this gate solves the boot race against the co-located
+# db/engine/apiv4; on a standalone hypervisor it waits for the already-up
+# remote API instead of a non-existent local service.
+api_domain = os.environ.get('API_DOMAIN', '').strip()
+if not api_domain or api_domain == 'isard-api' or api_domain == 'localhost' or api_domain.startswith('isard-'):
+    base = 'http://isard-apiv4:5000/api/v4/'
+else:
+    base = 'https://%s/api/v4/' % api_domain
 ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
 try:
     urllib.request.urlopen(base, timeout=3, context=ctx)
@@ -166,7 +171,7 @@ env > /tmp/env # This is needed by the dnsmasq-hook to get the envvars
 #ip r a $WG_USERS_NET via ${WG_HYPER_NET_WG_PEER}
 
 echo "---> Configuring hugepages support..."
-if mountpoint -q /dev/hugepages 2>/dev/null; then
+if awk '$2 == "/dev/hugepages" && $3 == "hugetlbfs" { found = 1 } END { exit !found }' /proc/mounts 2>/dev/null; then
   if ! grep -q '^hugetlbfs_mount' /etc/libvirt/qemu.conf 2>/dev/null; then
     echo 'hugetlbfs_mount = "/dev/hugepages"' >> /etc/libvirt/qemu.conf
     echo "    hugetlbfs_mount added to qemu.conf"
@@ -174,7 +179,7 @@ if mountpoint -q /dev/hugepages 2>/dev/null; then
     echo "    hugetlbfs_mount already configured"
   fi
 else
-  echo "    /dev/hugepages not mounted, skipping"
+  echo "    /dev/hugepages is not a hugetlbfs mount, skipping"
 fi
 
 echo "---> Starting libvirt daemon..."

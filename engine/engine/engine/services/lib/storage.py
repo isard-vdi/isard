@@ -20,13 +20,13 @@
 import time
 from pathlib import PurePath
 
+from rethinkdb import r
+
 from engine.services.db import (
     get_dict_from_item_in_table,
     insert_table_dict,
     update_table_dict,
-    update_table_field,
 )
-from rethinkdb import r
 
 
 def _get_filename(storage):
@@ -44,75 +44,6 @@ def get_storage_id_filename(storage_id):
     return _get_filename(storage)
 
 
-def create_storage(disk, user, force_parent=False, perms=["r", "w"]):
-    directory_path = disk.pop("path_selected")
-    relative_path = PurePath(disk.pop("file")).relative_to(directory_path)
-    storage_id = str(relative_path).removesuffix(relative_path.suffix)
-    if "size" in disk.keys():
-        disk.pop("size")
-    if force_parent == False:
-        parent = disk.pop("parent")
-    else:
-        parent = force_parent
-
-    # Normalise parent to a UUID. Older callers (api_templates,
-    # api_desktops_*) historically wrote the parent's filesystem path
-    # into disk["parent"]; persisting that into storage.parent breaks
-    # every join on the parent column and produces "path-shaped parent"
-    # rows in the storage table. Fold any path back to its UUID stem
-    # (e.g. "/isard/templates/<uuid>.qcow2" -> "<uuid>") at the boundary
-    # so newly-created rows are always UUID-shaped, regardless of which
-    # caller flavour produced the disk dict.
-    if isinstance(parent, str) and parent.startswith("/"):
-        parent = PurePath(parent).stem
-
-    insert_table_dict(
-        "storage",
-        {
-            "id": storage_id,
-            "type": relative_path.suffix[1:],
-            "directory_path": directory_path,
-            "parent": parent,
-            "user_id": user,
-            "status": "non_existing",
-            "perms": perms,
-            "status_logs": [{"time": int(time.time()), "status": "created"}],
-        },
-    )
-    disk["storage_id"] = storage_id
-    return storage_id
-
-
-def insert_storage(disk, perms=["r", "w"]):
-    storage_id = disk.get("storage_id")
-    if storage_id:
-        storage = get_dict_from_item_in_table("storage", storage_id)
-        if not storage:
-            return False
-        # storage.parent is a UUID after the create_storage normalisation,
-        # but downstream consumers (qcow.create_disk_from_base_cmd via
-        # ui_actions.py) feed disk["parent"] straight into qemu-img -b,
-        # which needs the parent's full filesystem path. Reconstruct it
-        # from the parent's storage row using the same _get_filename
-        # helper that builds the new disk's path, so the in-memory
-        # contract stays "disk['parent'] is a path" regardless of the
-        # DB-side shape.
-        parent_uuid = storage.get("parent")
-        parent_path = None
-        if parent_uuid:
-            parent_storage = get_dict_from_item_in_table("storage", parent_uuid)
-            if parent_storage:
-                parent_path = _get_filename(parent_storage)
-        disk.update(
-            {
-                "file": _get_filename(storage),
-                "parent": parent_path,
-                "path_selected": storage.get("directory_path"),
-                "perms": perms,
-            }
-        )
-
-
 def update_storage_status(storage_id, status):
     if storage_id:
         data = {
@@ -122,8 +53,3 @@ def update_storage_status(storage_id, status):
             ),
         }
         update_table_dict("storage", storage_id, data)
-
-
-def update_storage_deleted_domain(storage_id, domain=None):
-    if storage_id:
-        update_table_field("storage", storage_id, "last_domain_attached", domain)

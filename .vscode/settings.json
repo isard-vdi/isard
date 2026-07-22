@@ -1,9 +1,14 @@
 {
     "eslint.format.enable": true,
     "eslint.workingDirectories": [
+        "old-frontend",
+        "old-vue3-frontend",
         "frontend"
     ],
     "[vue]": {
-        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
-    }
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "python.analysis.extraPaths": [
+        "component/_common/"
+    ]
 }

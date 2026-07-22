@@ -130,7 +130,7 @@ $('#btn-edit-reset-date').on('click', function () {
 
 
   $.ajax({
-    url: `/api/v3/admin/usage/reset_date`,
+    url: `/api/v4/admin/items/usage/reset_date`,
     type: 'GET'
   }).done(function (data) {
     $.each(data, function (key, value) {
@@ -191,7 +191,7 @@ $('#modalEditResetDates #send').on('click', function (e) {
 
   $.ajax({
     type: 'PUT',
-    url: "/api/v3/admin/usage/reset_dates",
+    url: "/api/v4/admin/items/usage/reset_dates",
     dataType: "json",
     async: false,
     contentType: "Application/json",
@@ -228,7 +228,7 @@ $('#btn-view-graph').on('click', function (e) {
   $.each(data.items, function (pos, it) {
     $.ajax({
       type: "PUT",
-      url: '/admin/usage',
+      url: '/api/v4/admin/items/usage',
       dataType: 'json',
       contentType: "application/json",
       data: JSON.stringify({
@@ -241,7 +241,7 @@ $('#btn-view-graph').on('click', function (e) {
       success: function (resp) {
         $.ajax({
           type: "GET",
-          url: `/api/v3/admin/usage/credits/${data.consumer}/${data.itemType}/${it.id}/${data.grouping.id}/${data.startDate}/${data.endDate}`,
+          url: `/api/v4/admin/items/usage/credits/${data.consumer}/${data.itemType}/${it.id}/${data.grouping.id}/${data.startDate}/${data.endDate}`,
           dataType: 'json',
           contentType: "application/json",
           success: function (limits) {
@@ -331,7 +331,7 @@ function createUsageTable(data) {
     // Retrieve the info of the selected parameters in order to show its name on the header
     $.ajax({
       type: "PUT",
-      url: '/admin/usage/list_parameters',
+      url: '/api/v4/admin/items/usage/list_parameters',
       dataType: 'json',
       contentType: "application/json",
       data: JSON.stringify({
@@ -399,7 +399,7 @@ function createUsageTable(data) {
           cache: false,
           columns: cols,
           ajax: {
-            url: "/admin/usage/start_end",
+            url: "/api/v4/admin/items/usage/start_end",
             contentType: "application/json",
             type: "PUT",
             data: function (d) {
@@ -464,7 +464,7 @@ $('tbody').on('click', 'button', function (e) {
       .on("pnotify.confirm", function () {
         $.ajax({
           type: "PUT",
-          url: `/api/v3/admin/usage/unify/${consumer_id}/item_name`,
+          url: `/api/v4/admin/item/usage/unify/${consumer_id}/item_name`,
           dataType: 'json',
           contentType: "application/json",
           success: function (data) {
@@ -755,7 +755,7 @@ function addChartTable(data, itemId, itemName, itemConsumer, limits, kind) {
   ]
   $.ajax({
     type: "PUT",
-    url: '/admin/usage/list_parameters',
+    url: '/api/v4/admin/items/usage/list_parameters',
     dataType: 'json',
     contentType: "application/json",
     data: JSON.stringify({
@@ -817,7 +817,7 @@ function addChartTable(data, itemId, itemName, itemConsumer, limits, kind) {
 function showResetDate() {
   $('.reset_date_value').empty()
   $.ajax({
-    url: `/api/v3/admin/usage/reset_date/${selectedRows.startDate}/${selectedRows.endDate}`,
+    url: `/api/v4/admin/items/usage/reset_date/${selectedRows.startDate}/${selectedRows.endDate}`,
     type: 'GET'
   }).done(function (data) {
     $('.reset_date_value').html(data.join(', '));

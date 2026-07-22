@@ -8,7 +8,7 @@
 $(document).ready(function() {
   orchestrator_hypers_table = $('#orchestrator_hypervisors').DataTable({
     "ajax": {
-      "url": "/api/v3/hypervisors/orchestrator_managed",
+      "url": "/api/v4/admin/items/hypervisors/orchestrator_managed",
       "data": function(d) { return JSON.stringify({ 'order_by': 'id' }) },
       "contentType": "application/json",
       "type": 'POST'

@@ -12,7 +12,11 @@
       </b-row>
 
       <DomainInfo />
-      <DomainViewers />
+      <DomainViewers @rdpViewersSelected="value => rdpViewersEnabled = value" />
+      <DomainCredentials
+        v-if="rdpViewersEnabled"
+        :can-use-bastion="false"
+      />
       <DomainHardware :show-disk-size="true" />
       <DomainBookables />
       <DomainOSHardwareTemplate />
@@ -39,9 +43,10 @@
 </template>
 
 <script>
-import { computed, onUnmounted, onMounted } from '@vue/composition-api'
+import { computed, onUnmounted, onMounted, ref } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import DomainViewers from '@/components/domain/DomainViewers.vue'
+import DomainCredentials from '@/components/domain/DomainCredentials.vue'
 import DomainHardware from '@/components/domain/DomainHardware.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainInfo from '@/components/domain/DomainInfo.vue'
@@ -50,6 +55,7 @@ import DomainOSHardwareTemplate from '@/components/domain/DomainOSHardwareTempla
 export default {
   components: {
     DomainViewers,
+    DomainCredentials,
     DomainHardware,
     DomainBookables,
     DomainInfo,
@@ -57,6 +63,7 @@ export default {
   },
   setup (props, context) {
     const $store = context.root.$store
+    const rdpViewersEnabled = ref(false)
 
     const navigate = (path) => {
       $store.dispatch('navigate', path)
@@ -91,7 +98,7 @@ export default {
       const domainData = {
         media_id: media.value.id,
         kind: media.value.kind,
-        xml_id: selectedOSTemplateId.value,
+        os_template: selectedOSTemplateId.value,
         name: domain.value.name,
         description: domain.value.description,
         guest_properties: {
@@ -125,7 +132,8 @@ export default {
       domain,
       submitForm,
       navigate,
-      v$
+      v$,
+      rdpViewersEnabled
     }
   }
 }

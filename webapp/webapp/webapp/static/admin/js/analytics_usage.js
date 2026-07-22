@@ -4,7 +4,7 @@ $(document).ready(function () {
 
 function getGraphsConfig() {
     $.ajax({
-        url: "/api/v3/analytics/graph",
+        url: "/api/v4/admin/items/analytics/graph",
         type: 'GET',
         dataType: 'json',
         contentType: 'application/json'
@@ -29,7 +29,7 @@ function getGraphsConfig() {
     
 function getUsageGrouping(conf, startDate, endDate) {
     $.ajax({
-        url: '/api/v3/admin/usage/grouping/' + conf.grouping,
+        url: '/api/v4/admin/item/usage/grouping/' + conf.grouping,
         type: 'GET',
         dataType: 'json',
         contentType: 'application/json'
@@ -41,7 +41,7 @@ function getUsageGrouping(conf, startDate, endDate) {
 function getUsageCredits(conf, grouping, startDate, endDate) {
     $.ajax({
         type: "GET",
-        url: `/api/v3/admin/usage/credits/category/${grouping.item_type}/${$('meta[id=user_data]').attr('data-categoryId')}/${conf.grouping}/${moment(startDate).utc().format('YYYY-MM-DD')}/${moment(endDate).utc().format('YYYY-MM-DD')}`,
+        url: `/api/v4/admin/items/usage/credits/category/${grouping.item_type}/${$('meta[id=user_data]').attr('data-categoryId')}/${conf.grouping}/${moment(startDate).utc().format('YYYY-MM-DD')}/${moment(endDate).utc().format('YYYY-MM-DD')}`,
         dataType: 'json',
         contentType: "application/json",
         success: function (limits) {
@@ -53,7 +53,7 @@ function getUsageCredits(conf, grouping, startDate, endDate) {
 
 function getUsageGraphs(conf, grouping, limits, startDate, endDate) {
     $.ajax({
-        url: '/api/v3/admin/usage',
+        url: '/api/v4/admin/items/usage',
         type: 'PUT',
         dataType: 'json',
         contentType: 'application/json',

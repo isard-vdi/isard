@@ -3,5 +3,5 @@ services:
     depends_on:
       isard-engine:
         condition: service_healthy
-      isard-api:
+      isard-apiv4:
         condition: service_healthy

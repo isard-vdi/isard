@@ -140,12 +140,10 @@ export default {
       for (let i = 0; i < domain.value.guestProperties.viewers.length; i++) {
         Object.assign(viewers, domain.value.guestProperties.viewers[i])
       }
-      const isos = domain.value.hardware.isos.map((value) => {
-        return { id: value.id }
-      })
-      // Create the data object that will be send
+      const image = (domain.value.image && domain.value.image.id) ? domain.value.image : null
       const domainData = {
         id: domainId.value,
+        kind: domain.value.kind,
         name: domain.value.name,
         description: domain.value.description,
         guest_properties: {
@@ -162,13 +160,13 @@ export default {
           disks: domain.value.hardware.disks,
           floppies: domain.value.hardware.floppies,
           interfaces: domain.value.hardware.interfaces,
-          isos: isos,
+          isos: domain.value.hardware.isos,
           memory: domain.value.hardware.memory,
           vcpus: domain.value.hardware.vcpus,
-          videos: domain.value.hardware.videos,
-          reservables: domain.value.reservables
+          videos: domain.value.hardware.videos
         },
-        image: domain.value.image
+        reservables: domain.value.reservables,
+        image: image
       }
       $store.dispatch('editDomain', domainData)
     }

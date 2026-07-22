@@ -1,15 +1,14 @@
 package director_test
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
 
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -17,11 +16,12 @@ import (
 )
 
 func TestRataNeedToScaleHypervisors(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	cases := map[string]struct {
 		AvailHypers               []*operationsv1.ListHypervisorsResponseHypervisor
-		Hypers                    []*sdk.OrchestratorHypervisor
+		Hypers                    []*apiv4.OrchestratorHypervisor
 		RataMinCPU                int
 		RataMinRAM                int
 		RataMaxCPU                int
@@ -41,10 +41,10 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 	}{
 		"if there's enough RAM, it should return 0": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
-				Status:     sdk.HypervisorStatusOnline,
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  150,
 					Free:  150,
@@ -66,11 +66,11 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
 				Ram:   300,
 			}},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:         "already",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  200,
 					Free:  100,
@@ -95,49 +95,49 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
 				Ram:   300,
 			}},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:         "already",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  200,
 					Free:  100,
 				},
 			}, {
 				ID:         "offline",
-				Status:     sdk.HypervisorStatusOffline,
+				Status:     apiv4.HypervisorStatusOffline,
 				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 1000,
 					Used:  10,
 					Free:  990,
 				},
 			}, {
-				ID:         "buffering",
-				Status:     sdk.HypervisorStatusOnline,
-				Buffering:  true,
-				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				ID:             "buffering",
+				Status:         apiv4.HypervisorStatusOnline,
+				BufferingHyper: true,
+				OnlyForced:     false,
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 1000,
 					Used:  10,
 					Free:  990,
 				},
 			}, {
 				ID:         "only forced",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 1000,
 					Used:  10,
 					Free:  990,
 				},
 			}, {
 				ID:         "gpu only",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				GPUOnly:    true,
-				RAM: sdk.OrchestratorResourceLoad{
+				GpuOnly:    true,
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 1000,
 					Used:  10,
 					Free:  990,
@@ -150,32 +150,32 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's too much free RAM, it should add the biggest hypervisor that it can to the dead row": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "1",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  100,
 					Free:  400,
 				},
 			}, {
 				ID:                  "2",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
 				},
 			}, {
 				ID:                  "3",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  100,
 					Free:  200,
@@ -192,23 +192,23 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Id:  "HUGE HYPERVISOR",
 				Ram: 99999999,
 			}},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:         "existing-1",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  200,
 					Free:  100,
 				},
 			}, {
 				ID:                  "existing-2",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
 				DesktopsStarted:     20,
 				OrchestratorManaged: true,
-				DestroyTime:         time.Now().Add(time.Hour),
-				RAM: sdk.OrchestratorResourceLoad{
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(time.Hour)),
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 3000,
 					Used:  2000,
 					Free:  1000,
@@ -225,36 +225,36 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Id:  "HUGE HYPERVISOR",
 				Ram: 99999999,
 			}},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "existing-1",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  200,
 					Free:  100,
 				},
 			}, {
 				ID:                  "existing-2",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
 				DesktopsStarted:     20,
-				DestroyTime:         time.Now().Add(time.Hour),
-				RAM: sdk.OrchestratorResourceLoad{
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(time.Hour)),
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 3000,
 					Used:  2000,
 					Free:  1000,
 				},
 			}, {
 				ID:                  "existing-3",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
 				DesktopsStarted:     20,
-				DestroyTime:         time.Now().Add(time.Hour),
-				RAM: sdk.OrchestratorResourceLoad{
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(time.Hour)),
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 1000,
 					Used:  300,
 					Free:  700,
@@ -265,32 +265,32 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's an hypervisor that's been too much time on the dead row, KILL THEM!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:         "1",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  400,
 					Free:  100,
 				},
 			}, {
 				ID:                  "2",
-				Status:              sdk.HypervisorStatusOnline,
-				DestroyTime:         time.Now().Add(-2 * director.DeadRowDuration),
+				Status:              apiv4.HypervisorStatusOnline,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(-2 * director.DeadRowDuration)),
 				DesktopsStarted:     254,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
 				},
 			}, {
 				ID:         "3",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  250,
 					Free:  250,
@@ -303,32 +303,32 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's an hypervisor that's in the dead row and has 0 desktops started, KILL THEM!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:         "1",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  400,
 					Free:  100,
 				},
 			}, {
 				ID:                  "2",
-				Status:              sdk.HypervisorStatusOnline,
-				DestroyTime:         time.Now().Add(2 * director.DeadRowDuration),
+				Status:              apiv4.HypervisorStatusOnline,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(2 * director.DeadRowDuration)),
 				DesktopsStarted:     0,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
 				},
 			}, {
 				ID:         "3",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  250,
 					Free:  250,
@@ -341,24 +341,24 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there aren't enough ram, but there's a small hyper in the dead row and with it the system can work, remove it from the dead row": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "1",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
-				DestroyTime:         time.Now().Add(2 * director.DeadRowDuration),
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(2 * director.DeadRowDuration)),
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 600,
 					Used:  400,
 					Free:  200,
 				},
 			}, {
 				ID:                  "2",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				DesktopsStarted:     0,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
@@ -369,26 +369,26 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"regression test #1": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "bm-e4-01",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
 				DesktopsStarted:     10,
 				MinFreeMemGB:        190,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 2051961,
 					Used:  67556,
 					Free:  1984404,
 				},
 			}, {
 				ID:                  "bm-e2-02",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				DesktopsStarted:     2,
 				OnlyForced:          false,
 				OrchestratorManaged: false,
 				MinFreeMemGB:        47,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 515855,
 					Used:  65620,
 					Free:  450234,
@@ -404,26 +404,26 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"regression test #2": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "bm-e4-04",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
 				DesktopsStarted:     46,
 				MinFreeMemGB:        180,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 2051975,
 					Used:  232253,
 					Free:  1819722,
 				},
 			}, {
 				ID:                  "bm-e2-02",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				DesktopsStarted:     18,
 				OnlyForced:          false,
 				OrchestratorManaged: false,
 				MinFreeMemGB:        47,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 515855,
 					Used:  125714,
 					Free:  390140,
@@ -442,44 +442,44 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"regression test #3": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "bm-e4-01",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
-				Buffering:           false,
-				DestroyTime:         time.Time{},
-				BookingsEndTime:     time.Time{},
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NilDateTime{Null: true},
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
 				OrchestratorManaged: true,
-				GPUOnly:             false,
+				GpuOnly:             false,
 				DesktopsStarted:     57,
 				MinFreeMemGB:        190,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  6,
 					Free:  94,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 2051961,
 					Used:  305801,
 					Free:  1746160,
 				},
 			}, {
 				ID:                  "bm-e2-02",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
-				Buffering:           false,
-				DestroyTime:         time.Time{},
-				BookingsEndTime:     time.Time{},
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NilDateTime{Null: true},
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
 				OrchestratorManaged: false,
-				GPUOnly:             false,
+				GpuOnly:             false,
 				DesktopsStarted:     23,
 				MinFreeMemGB:        47,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  7,
 					Free:  93,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 515855,
 					Used:  160998,
 					Free:  354856,
@@ -498,23 +498,23 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"should remove an hypervisor from only forced if it has enough resources instead of scaling up": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:         "1",
-				Status:     sdk.HypervisorStatusOnline,
+				Status:     apiv4.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  400,
 					Free:  100,
 				},
 			}, {
 				ID:                  "2",
-				Status:              sdk.HypervisorStatusOnline,
-				DestroyTime:         time.Time{},
+				Status:              apiv4.HypervisorStatusOnline,
+				DestroyTime:         apiv4.NilDateTime{Null: true},
 				DesktopsStarted:     0,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
@@ -543,7 +543,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Ram:          1097152,
 				Capabilities: []operationsv1.HypervisorCapabilities{},
 			}},
-			Hypers:     []*sdk.OrchestratorHypervisor{},
+			Hypers:     []*apiv4.OrchestratorHypervisor{},
 			RataMinRAM: 3287400,
 			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorsRequest{
 				Ids: []string{"bm-e4-12"},
@@ -553,6 +553,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			log := zerolog.New(os.Stdout)
 
 			rata := director.NewRata(cfg.DirectorRata{
@@ -568,7 +569,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				HyperMaxRAM:        tc.RataHyperMaxRAM,
 			}, false, &log, nil)
 
-			scale, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
+			scale, err := rata.NeedToScaleHypervisors(t.Context(), tc.AvailHypers, tc.Hypers)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -576,83 +577,84 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				assert.NoError(err)
 			}
 
-			assert.Equal(tc.ExpectedRemoveDeadRow, scale.HypersToRemoveFromDeadRow)
-			assert.Equal(tc.ExpectedRemoveOnlyForced, scale.HypersToRemoveFromOnlyForced)
+			assert.ElementsMatch(tc.ExpectedRemoveDeadRow, scale.HypersToRemoveFromDeadRow)
+			assert.ElementsMatch(tc.ExpectedRemoveOnlyForced, scale.HypersToRemoveFromOnlyForced)
 			assert.Equal(tc.ExpectedCreateHypervisor, scale.Create)
-			assert.Equal(tc.ExpectedAddDeadRow, scale.HypersToAddToDeadRow)
+			assert.ElementsMatch(tc.ExpectedAddDeadRow, scale.HypersToAddToDeadRow)
 			assert.Equal(tc.ExpectedDestroyHypervisor, scale.Destroy)
 		})
 	}
 }
 
 func TestRataExtraOperations(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		PrepareAPI  func(*sdk.MockSdk)
-		Hypers      []*sdk.OrchestratorHypervisor
+		PrepareAPI  func(*apiv4.MockInvoker)
+		Hypers      []*apiv4.OrchestratorHypervisor
 		HyperMinCPU int
 		HyperMinRAM int
 		HyperMaxRAM int
 		ExpectedErr string
 	}{
 		"if there are enough resources, it shouldn't do anything": {
-			PrepareAPI: func(c *sdk.MockSdk) {},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:     "first",
-				Status: sdk.HypervisorStatusOffline,
-				RAM: sdk.OrchestratorResourceLoad{
+				Status: apiv4.HypervisorStatusOffline,
+				RAM: apiv4.OrchestratorResourceLoad{
 					Free: 10,
 				},
 			}, {
 				ID:     "second",
-				Status: sdk.HypervisorStatusOnline,
-				RAM: sdk.OrchestratorResourceLoad{
+				Status: apiv4.HypervisorStatusOnline,
+				RAM: apiv4.OrchestratorResourceLoad{
 					Free: 60,
 				},
 			}},
 			HyperMinRAM: 50,
 		},
 		"if there's not enough RAM, it should set the hypervisor to only forced": {
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "second", true).Return(nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.Mock.On("AdminOrchestratorOnlyForcedSet", mock.AnythingOfType("*context.cancelCtx"), &apiv4.OrchestratorOnlyForcedData{OnlyForced: true}, apiv4.AdminOrchestratorOnlyForcedSetParams{HypervisorID: "second"}).Return(&apiv4.AdminOrchestratorOnlyForcedSetNoContent{}, nil)
 			},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "first",
-				Status:              sdk.HypervisorStatusOffline,
+				Status:              apiv4.HypervisorStatusOffline,
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Free: 10,
 				},
 			}, {
 				ID:                  "second",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OrchestratorManaged: true,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Free: 30,
 				},
 			}},
 			HyperMinRAM: 50,
 		},
 		"if there's too much free RAM, it should remove the hypervisor from only forced": {
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "second", false).Return(nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.Mock.On("AdminOrchestratorOnlyForcedSet", mock.AnythingOfType("*context.cancelCtx"), &apiv4.OrchestratorOnlyForcedData{OnlyForced: false}, apiv4.AdminOrchestratorOnlyForcedSetParams{HypervisorID: "second"}).Return(&apiv4.AdminOrchestratorOnlyForcedSetNoContent{}, nil)
 			},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "first",
-				Status:              sdk.HypervisorStatusOffline,
+				Status:              apiv4.HypervisorStatusOffline,
 				OrchestratorManaged: true,
 				DesktopsStarted:     1312,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Free: 10,
 				},
 			}, {
 				ID:                  "second",
 				OnlyForced:          true,
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OrchestratorManaged: true,
 				DesktopsStarted:     1312,
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Free: 200,
 				},
 			}},
@@ -660,25 +662,25 @@ func TestRataExtraOperations(t *testing.T) {
 			HyperMaxRAM: 150,
 		},
 		"regresssion test #1": {
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "bm-e2-03", true).Return(nil)
-				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "bm-e2-01", true).Return(nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.Mock.On("AdminOrchestratorOnlyForcedSet", mock.AnythingOfType("*context.cancelCtx"), &apiv4.OrchestratorOnlyForcedData{OnlyForced: true}, apiv4.AdminOrchestratorOnlyForcedSetParams{HypervisorID: "bm-e2-03"}).Return(&apiv4.AdminOrchestratorOnlyForcedSetNoContent{}, nil)
+				c.Mock.On("AdminOrchestratorOnlyForcedSet", mock.AnythingOfType("*context.cancelCtx"), &apiv4.OrchestratorOnlyForcedData{OnlyForced: true}, apiv4.AdminOrchestratorOnlyForcedSetParams{HypervisorID: "bm-e2-01"}).Return(&apiv4.AdminOrchestratorOnlyForcedSetNoContent{}, nil)
 			},
-			Hypers: []*sdk.OrchestratorHypervisor{
+			Hypers: []*apiv4.OrchestratorHypervisor{
 				{
 					ID:                  "bm-e4-02",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
+					BufferingHyper:      false,
 					OrchestratorManaged: true,
 					DesktopsStarted:     39,
 					MinFreeMemGB:        190,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  7,
 						Free:  93,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 2051961,
 						Used:  249909,
 						Free:  1802051,
@@ -686,19 +688,19 @@ func TestRataExtraOperations(t *testing.T) {
 				},
 				{
 					ID:                  "bm-e4-01",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
-					DestroyTime:         time.Now(),
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NewNilDateTime(time.Now()),
 					OrchestratorManaged: true,
 					DesktopsStarted:     266,
 					MinFreeMemGB:        190,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  23,
 						Free:  77,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 2051961,
 						Used:  1540080,
 						Free:  511881,
@@ -706,18 +708,18 @@ func TestRataExtraOperations(t *testing.T) {
 				},
 				{
 					ID:                  "bm-e2-03",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
+					BufferingHyper:      false,
 					OrchestratorManaged: true,
 					DesktopsStarted:     70,
 					MinFreeMemGB:        47,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  30,
 						Free:  70,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  407554,
 						Free:  108300,
@@ -725,18 +727,18 @@ func TestRataExtraOperations(t *testing.T) {
 				},
 				{
 					ID:                  "bm-e2-01",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
+					BufferingHyper:      false,
 					OrchestratorManaged: true,
 					DesktopsStarted:     77,
 					MinFreeMemGB:        47,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  27,
 						Free:  73,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  409618,
 						Free:  106237,
@@ -744,18 +746,18 @@ func TestRataExtraOperations(t *testing.T) {
 				},
 				{
 					ID:                  "bm-e2-02",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
+					BufferingHyper:      false,
 					OrchestratorManaged: false,
 					DesktopsStarted:     64,
 					MinFreeMemGB:        47,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  25,
 						Free:  75,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  441597,
 						Free:  74258,
@@ -766,22 +768,22 @@ func TestRataExtraOperations(t *testing.T) {
 			HyperMaxRAM: 153600,
 		},
 		"regression test #2": {
-			PrepareAPI: func(c *sdk.MockSdk) {},
-			Hypers: []*sdk.OrchestratorHypervisor{
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			Hypers: []*apiv4.OrchestratorHypervisor{
 				{
 					ID:                  "bm-e4-02",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
+					BufferingHyper:      false,
 					OrchestratorManaged: true,
 					DesktopsStarted:     39,
 					MinFreeMemGB:        190,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  7,
 						Free:  93,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 2051961,
 						Used:  249909,
 						Free:  1802051,
@@ -789,19 +791,19 @@ func TestRataExtraOperations(t *testing.T) {
 				},
 				{
 					ID:                  "bm-e4-01",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
-					DestroyTime:         time.Now(),
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NewNilDateTime(time.Now()),
 					OrchestratorManaged: true,
 					DesktopsStarted:     266,
 					MinFreeMemGB:        190,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  23,
 						Free:  77,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 2051961,
 						Used:  1540080,
 						Free:  511881,
@@ -809,18 +811,18 @@ func TestRataExtraOperations(t *testing.T) {
 				},
 				{
 					ID:                  "bm-e2-03",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
+					BufferingHyper:      false,
 					OrchestratorManaged: true,
 					DesktopsStarted:     70,
 					MinFreeMemGB:        47,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  30,
 						Free:  70,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  407554,
 						Free:  108300,
@@ -828,18 +830,18 @@ func TestRataExtraOperations(t *testing.T) {
 				},
 				{
 					ID:                  "bm-e2-01",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
+					BufferingHyper:      false,
 					OrchestratorManaged: true,
 					DesktopsStarted:     77,
 					MinFreeMemGB:        47,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  27,
 						Free:  73,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  409618,
 						Free:  106237,
@@ -847,18 +849,18 @@ func TestRataExtraOperations(t *testing.T) {
 				},
 				{
 					ID:                  "bm-e2-02",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
+					BufferingHyper:      false,
 					OrchestratorManaged: false,
 					DesktopsStarted:     64,
 					MinFreeMemGB:        47,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  25,
 						Free:  75,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  441597,
 						Free:  74258,
@@ -869,29 +871,29 @@ func TestRataExtraOperations(t *testing.T) {
 			HyperMaxRAM: 153600,
 		},
 		"should not remove an hypervisor from only forced if it has no desktops (will be removed by NeedsToScaleHypervisors)": {
-			PrepareAPI: func(*sdk.MockSdk) {},
-			Hypers: []*sdk.OrchestratorHypervisor{{
+			PrepareAPI: func(*apiv4.MockInvoker) {},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
 				ID:                  "gpu-a10-01",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
-				Buffering:           false,
-				DestroyTime:         time.Time{},
-				BookingsEndTime:     time.Time{},
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NilDateTime{Null: true},
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
 				OrchestratorManaged: false,
-				GPUOnly:             false,
+				GpuOnly:             false,
 				DesktopsStarted:     60,
 				MinFreeMemGB:        100,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  17,
 					Free:  83,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 1031694,
 					Used:  519912,
 					Free:  511782,
 				},
-				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+				Gpus: []apiv4.OrchestratorHypervisorGPU{{
 					ID:         "gpu-a10-01-pci_0000_ca_00_0",
 					Brand:      "NVIDIA",
 					Model:      "A10",
@@ -926,105 +928,105 @@ func TestRataExtraOperations(t *testing.T) {
 				}},
 			}, {
 				ID:                  "bm-e2-11",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
-				Buffering:           false,
-				DestroyTime:         time.Time{},
-				BookingsEndTime:     time.Time{},
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NilDateTime{Null: true},
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
 				OrchestratorManaged: true,
-				GPUOnly:             false,
+				GpuOnly:             false,
 				DesktopsStarted:     0,
 				MinFreeMemGB:        50,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  2,
 					Free:  98,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 515850,
 					Used:  3538,
 					Free:  512311,
 				},
 			}, {
 				ID:                  "bm-e2-12",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
-				Buffering:           false,
-				DestroyTime:         time.Time{},
-				BookingsEndTime:     time.Time{},
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NilDateTime{Null: true},
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
 				OrchestratorManaged: true,
-				GPUOnly:             false,
+				GpuOnly:             false,
 				DesktopsStarted:     55,
 				MinFreeMemGB:        50,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  18,
 					Free:  81,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 515849,
 					Used:  335477,
 					Free:  180372,
 				},
 			}, {
 				ID:                  "bm-e4-12",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          false,
-				Buffering:           false,
-				DestroyTime:         time.Time{},
-				BookingsEndTime:     time.Time{},
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NilDateTime{Null: true},
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
 				OrchestratorManaged: true,
-				GPUOnly:             false,
+				GpuOnly:             false,
 				DesktopsStarted:     202,
 				MinFreeMemGB:        200,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  14,
 					Free:  86,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 2051891,
 					Used:  1300091,
 					Free:  751799,
 				},
 			}, {
 				ID:                  "bm-e4-16",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
-				Buffering:           false,
-				DestroyTime:         time.Now(),
-				BookingsEndTime:     time.Time{},
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now()),
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
 				OrchestratorManaged: true,
-				GPUOnly:             false,
+				GpuOnly:             false,
 				DesktopsStarted:     156,
 				MinFreeMemGB:        200,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  11,
 					Free:  89,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 2051891,
 					Used:  1118939,
 					Free:  932951,
 				},
 			}, {
 				ID:                  "e4-21",
-				Status:              sdk.HypervisorStatusOnline,
+				Status:              apiv4.HypervisorStatusOnline,
 				OnlyForced:          true,
-				Buffering:           false,
-				DestroyTime:         time.Now(),
-				BookingsEndTime:     time.Time{},
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now()),
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
 				OrchestratorManaged: true,
-				GPUOnly:             false,
+				GpuOnly:             false,
 				DesktopsStarted:     240,
 				MinFreeMemGB:        200,
-				CPU: sdk.OrchestratorResourceLoad{
+				CPU: apiv4.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  17,
 					Free:  83,
 				},
-				RAM: sdk.OrchestratorResourceLoad{
+				RAM: apiv4.OrchestratorResourceLoad{
 					Total: 2051891,
 					Used:  1466408,
 					Free:  585482,
@@ -1037,8 +1039,9 @@ func TestRataExtraOperations(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			log := zerolog.New(os.Stdout)
-			api := sdk.NewMockSdk(t)
+			api := apiv4.NewMockInvoker(t)
 
 			tc.PrepareAPI(api)
 
@@ -1048,7 +1051,7 @@ func TestRataExtraOperations(t *testing.T) {
 				HyperMaxRAM: tc.HyperMaxRAM,
 			}, false, &log, api)
 
-			err := rata.ExtraOperations(context.Background(), tc.Hypers)
+			err := rata.ExtraOperations(t.Context(), tc.Hypers)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

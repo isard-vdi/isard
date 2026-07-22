@@ -7,12 +7,27 @@ import os
 import re
 import sys
 import time
-from distutils.util import strtobool
 from uuid import uuid4
+
+
+def strtobool(val):
+    """Replacement for ``distutils.util.strtobool``, removed in Python 3.12.
+
+    Returns 1 for truthy strings ('y', 'yes', 'true', 't', '1', 'on'),
+    0 for falsy ('n', 'no', 'false', 'f', '0', 'off'). Raises ValueError
+    on anything else, matching the legacy contract.
+    """
+    val = (val or "").strip().lower()
+    if val in {"y", "yes", "t", "true", "on", "1"}:
+        return 1
+    if val in {"n", "no", "f", "false", "off", "0"}:
+        return 0
+    raise ValueError(f"invalid truth value: {val!r}")
+
 
 import humanfriendly as hf
 import rethinkdb as r
-from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from redis import Redis
 
 from .lib import *
@@ -34,16 +49,47 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 189
-# release 189: Seed vgpus.requested_profile (operator intent) and
+release_version = 202
+# release 202: drop dead RethinkDB indexes and reconcile populate on hot tables
+# release 201: normalise path-shaped storage.parent rows to their UUID
+# release 200: cleanup old single domain field for bastion targets
+# release 199: purge decommissioned core_worker RQ state (the core and
+#              core.feedback queues, their stale worker registrations and job
+#              registries) left orphaned by the apiv4 migration. Idempotent.
+# release 198: Seed vgpus.requested_profile (operator intent) and
 #              vgpus.operator_passthrough from current vgpu_profile so the new
 #              reconcile policy (intent vs runtime state) has DB rows to read.
 #              Idempotent — only touches rows missing the new fields.
-# release 188: Add default rule for send_unused_deployment_desktops_to_recycle_bin op
-# release 187: Add allow_insecure_tls field to LDAP and SAML provider configs
+#              (Upstream MR !4496 ships this as v189 on main; the v189_*
+#              helper names in upgrade_helpers.py are kept for cross-branch
+#              diffability. bugfix/1179 renumbers to 199 if it lands after.)
+# release 197: CUTOVER RECONCILIATION — re-assert, idempotently, every
+#              apiv4-integration-only migration that lives at a version number
+#              (184-189) the main lineage reused for DIFFERENT content. The two
+#              lineages share migration history up to v183 and diverge from
+#              v184: a main-lineage DB (config.version 188, or 189 with the GPU
+#              stack) attached to this code would only run forward and silently
+#              skip apiv4's own 184-189 content (deployment_users quota split,
+#              deployments/domains tag_desktop_id backfill, apiv4 pagination +
+#              recycle_bin/media indexes, hypervisors thread_status strip).
+#              Re-running on an apiv4-lineage DB is a guarded no-op.
+#              RULE GOING FORWARD: main mints versions <= 189; this branch
+#              mints >= 190 contiguously IN MERGE ORDER (no reserved holes —
+#              the runner is forward-only, so a DB that passes a hole never
+#              comes back for it). Main's ceiling is therefore always the
+#              immediate predecessor of this lineage's chain at cutover.
+# release 195: Seed provider status (healthy/msg/last_updated) on each auth provider config
+# release 194: Normalize legacy media status "Deleted"/"FailedDeleted" to "deleted"
+# release 193: Add unused_deployment_desktops notification kinds, default rule, and matching notifications/action entries (port of main 7df258e32)
+# release 192: Add config.usage_retention defaults (daily_months=3, weekly_months=6, total_months=None)
+# release 191: Add domains.kind_user_accessed compound index for apiv4 pagination
+# release 190: Add allow_insecure_tls field to LDAP and SAML provider configs
+# release 189: Move hypervisor thread_status from DB to engine RAM; drop the field
+# release 187: Add recycle_bin compound indexes + pre-computed count fields for performance
 # release 186: Split category authentication tri-state boolean into two explicit booleans
 #              Import authentication providers status from AUTHENTICATION_*_ENABLED variables
-# release 185: Repair storage records missing user_id, ensure perms and status_logs
+#              Repair storage records missing user_id, ensure perms and status_logs
+# release 185: Align deployment structure with apiv4 (tag_desktop_id, image, kind, deployment_users quota)
 # release 184: Add recycle_bin indexes and pre-computed count fields for performance
 # release 183: Import Google OAuth2 configuration from AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_* environment variables
 # release 182: Import SAML configuration from AUTHENTICATION_AUTHENTICATION_SAML_* environment variables
@@ -259,6 +305,7 @@ tables = [
     "notifications_action",
     "targets",
     "vgpus",
+    "redis_tasks_cleanup",
 ]
 
 
@@ -371,7 +418,7 @@ class Upgrade(object):
         log.info("Now will upgrade database versions: " + str(apply_upgrades))
         for version in apply_upgrades:
             for table in tables:
-                eval("self." + table + "(" + str(version) + ")")
+                getattr(self, table)(version)
         self._system_upgrades()
         r.table("config").get(1).update({"version": release_version}).run(self.conn)
 
@@ -993,7 +1040,13 @@ password:s:%s"""
                         "host": os.environ.get(
                             "NOTIFY_EMAIL_SMTP_SERVER", "example.com"
                         ),
-                        "port": int(os.environ.get("NOTIFY_EMAIL_SMPT_PORT", 587)),
+                        # SMPT is the pre-rename misspelling, still injected by a
+                        # docker-compose.yml generated before the rename
+                        "port": int(
+                            os.environ.get("NOTIFY_EMAIL_SMTP_PORT")
+                            or os.environ.get("NOTIFY_EMAIL_SMPT_PORT")
+                            or 587
+                        ),
                         "username": os.environ.get(
                             "NOTIFY_EMAIL_USERNAME", "user@example.com"
                         ),
@@ -1172,15 +1225,79 @@ password:s:%s"""
 
             r.table(table).update({"auth": auth_config}).run(self.conn)
 
-        if version == 187:
+        if version == 190:
+            # Write-preserving form: a main-lineage DB already ran this as its
+            # v187 and an operator may have enabled the flag since — default()
+            # keeps the stored value and only fills in False when absent, so
+            # the cutover pass through 190 cannot clobber it.
             r.table(table).update(
-                {
+                lambda cfg: {
                     "auth": {
-                        "ldap": {"ldap_config": {"allow_insecure_tls": False}},
-                        "saml": {"saml_config": {"allow_insecure_tls": False}},
+                        "ldap": {
+                            "ldap_config": {
+                                "allow_insecure_tls": cfg["auth"]["ldap"][
+                                    "ldap_config"
+                                ]["allow_insecure_tls"].default(False)
+                            }
+                        },
+                        "saml": {
+                            "saml_config": {
+                                "allow_insecure_tls": cfg["auth"]["saml"][
+                                    "saml_config"
+                                ]["allow_insecure_tls"].default(False)
+                            }
+                        },
                     }
                 }
             ).run(self.conn)
+
+        if version == 192:
+            # Tiered retention for usage_consumption rows. Older daily
+            # rows are aggregated into weekly / monthly buckets so the
+            # table doesn't grow unbounded (it was already 3.8 GB / 63%
+            # of the database with 8 months of daily granularity on a
+            # ~5k-item install).
+            r.table(table).update(
+                {
+                    "usage_retention": {
+                        "daily_months": 3,
+                        "weekly_months": 6,
+                        "total_months": None,
+                    }
+                }
+            ).run(self.conn)
+
+        if version == 195:
+            provider_status = {
+                "healthy": False,
+                "msg": "",
+                "last_updated": r.epoch_time(0),
+            }
+            r.table(table).update(
+                {
+                    "auth": {
+                        "local": {"status": provider_status},
+                        "ldap": {"status": provider_status},
+                        "saml": {"status": provider_status},
+                        "google": {"status": provider_status},
+                    }
+                }
+            ).run(self.conn)
+
+        if version == 196:
+            # The "none"/"" action_after_migrate sentinels now map to null
+            # (only "disable"/"delete" are real actions). Normalise stored
+            # provider migration config so the DB matches the API contract.
+            auth = r.table(table).get(1)["auth"].run(self.conn) or {}
+            updates = {}
+            for provider, pconf in auth.items():
+                migration = pconf.get("migration") if isinstance(pconf, dict) else None
+                if isinstance(migration, dict) and migration.get(
+                    "action_after_migrate"
+                ) in ("none", ""):
+                    updates[provider] = {"migration": {"action_after_migrate": None}}
+            if updates:
+                r.table(table).get(1).update({"auth": updates}).run(self.conn)
 
         return True
 
@@ -1190,7 +1307,10 @@ password:s:%s"""
 
     def hypervisors(self, version):
         table = "hypervisors"
-        data = list(r.table(table).run(self.conn))
+        # Pre-178 blocks iterate this snapshot; 178+ (incl. the 190->197 cutover)
+        # is server-side and never reads it. Skip the full-table load (100K+ rows
+        # on big installs, otherwise materialised once per version call).
+        data = list(r.table(table).run(self.conn)) if version < 178 else []
         log.info("UPGRADING " + table + " VERSION " + str(version))
         if version == 1:
             for d in data:
@@ -1489,6 +1609,40 @@ password:s:%s"""
                 )
                 log.error("Error detail: " + str(e))
 
+        if version == 189:
+            # thread_status moved from DB to engine-process RAM.
+            # Strip the now-obsolete field from every hypervisor row in a
+            # single server-side replace. Non-atomic is required because
+            # replace() with an r.row expression must be non-atomic.
+            try:
+                r.table(table).replace(
+                    r.row.without("thread_status"), non_atomic=True
+                ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    "Could not strip thread_status from "
+                    + table
+                    + " for db version "
+                    + str(version)
+                    + "!"
+                )
+                log.error("Error detail: " + str(e))
+
+        if version == 197:
+            # Cutover reconciliation: apiv4-only v189 thread_status strip
+            # (moved from DB to engine RAM). without() is a no-op when the
+            # field is already absent.
+            try:
+                r.table(table).replace(
+                    r.row.without("thread_status"), non_atomic=True
+                ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    "Could not strip thread_status from "
+                    + table
+                    + " for db version "
+                    + str(version)
+                )
         return True
 
     """
@@ -1511,7 +1665,10 @@ password:s:%s"""
 
     def hypervisors_pools(self, version):
         table = "hypervisors_pools"
-        data = list(r.table(table).run(self.conn))
+        # Pre-178 blocks iterate this snapshot; 178+ (incl. the 190->197 cutover)
+        # is server-side and never reads it. Skip the full-table load (100K+ rows
+        # on big installs, otherwise materialised once per version call).
+        data = list(r.table(table).run(self.conn)) if version < 178 else []
         log.info("UPGRADING " + table + " VERSION " + str(version))
         if version == 1 or version == 3:
             for d in data:
@@ -1665,7 +1822,10 @@ password:s:%s"""
 
     def domains(self, version):
         table = "domains"
-        data = list(r.table(table).run(self.conn))
+        # Pre-178 blocks iterate this snapshot; 178+ (incl. the 190->197 cutover)
+        # is server-side and never reads it. Skip the full-table load (100K+ rows
+        # on big installs, otherwise materialised once per version call).
+        data = list(r.table(table).run(self.conn)) if version < 178 else []
         log.info("UPGRADING " + table + " VERSION " + str(version))
         if version == 2:
             for d in data:
@@ -3558,6 +3718,235 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 184:
+            # Build tag → tag_desktop_id mapping in Python from the
+            # (small) deployments table.
+            try:
+                deployments = list(
+                    r.table("deployments").pluck("id", "create_dict").run(self.conn)
+                )
+                deployment_tag_desktop_ids = {}
+                for deployment in deployments:
+                    if (
+                        isinstance(deployment.get("create_dict"), list)
+                        and len(deployment["create_dict"]) > 0
+                    ):
+                        deployment_tag_desktop_ids[deployment["id"]] = deployment[
+                            "create_dict"
+                        ][0].get("tag_desktop_id", False)
+
+                # One server-side update over the whole domains table:
+                # for each row, look up tag_desktop_id from the
+                # deployment mapping if the row has a tag, else False.
+                # Replaces a Python loop that issued one round-trip per
+                # tagged row + a separate full-table fallback update —
+                # ~14 minutes on a 77k-row prod-shape dataset.
+                deployment_map = r.expr(deployment_tag_desktop_ids)
+                r.table(table).update(
+                    lambda d: {
+                        "tag_desktop_id": r.branch(
+                            d["tag"].default(False).ne(False),
+                            deployment_map[d["tag"]].default(False),
+                            False,
+                        )
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            # Build both indexes concurrently. RethinkDB builds indexes
+            # in the background; sequencing two ``index_wait`` calls
+            # serialises the wallclock. A single combined ``index_wait``
+            # blocks until both are ready.
+            try:
+                r.table(table).index_create("tag_desktop_id").run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).index_create(
+                    "tag_tag_desktop_id",
+                    [r.row["tag"], r.row["tag_desktop_id"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).index_wait("tag_desktop_id", "tag_tag_desktop_id").run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
+
+        if version == 185:
+            # Compound indexes for apiv4 templates pagination
+            try:
+                r.table(table).index_create(
+                    "kind_accessed",
+                    [r.row["kind"], r.row["accessed"]],
+                ).run(self.conn)
+                r.table(table).index_wait("kind_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).index_create(
+                    "enabled_kind_accessed",
+                    [r.row["enabled"], r.row["kind"], r.row["accessed"]],
+                ).run(self.conn)
+                r.table(table).index_wait("enabled_kind_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 191:
+            # Compound index for apiv4 desktops pagination. Used by
+            # ``DesktopService.get_user_desktops_paginated`` (route
+            # ``GET /api/v4/items/paginated/desktops``); without it the
+            # endpoint 500s with
+            # ``ReqlOpFailedError: Index 'kind_user_accessed' was not
+            # found on table 'isard.domains'``. Mirrors the index
+            # introduced on the apiv4-and-websockets reference branch
+            # in commit ``a474b1278`` that never reached upgrade.py on
+            # apiv4-integration.
+            try:
+                r.table(table).index_create(
+                    "kind_user_accessed",
+                    [r.row["kind"], r.row["user"], r.row["accessed"]],
+                ).run(self.conn)
+                r.table(table).index_wait("kind_user_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 197:
+            # Cutover reconciliation: apiv4-only v184 tag_desktop_id mapping +
+            # the v184/v185 apiv4 pagination indexes + the apiv4-and-websockets
+            # v178 create_dict hardware backfill (disk_bus/isos/floppies/
+            # personal_vlans, added at the end of this block). The mapping update
+            # only touches rows still missing tag_desktop_id; index creation is
+            # guarded on index_list.
+            try:
+                deployments = list(
+                    r.table("deployments").pluck("id", "create_dict").run(self.conn)
+                )
+                deployment_tag_desktop_ids = {}
+                for deployment in deployments:
+                    if (
+                        isinstance(deployment.get("create_dict"), list)
+                        and len(deployment["create_dict"]) > 0
+                    ):
+                        deployment_tag_desktop_ids[deployment["id"]] = deployment[
+                            "create_dict"
+                        ][0].get("tag_desktop_id", False)
+                deployment_map = r.expr(deployment_tag_desktop_ids)
+                r.table(table).filter(
+                    lambda d: d.has_fields("tag_desktop_id").not_()
+                ).update(
+                    lambda d: {
+                        "tag_desktop_id": r.branch(
+                            d["tag"].default(False).ne(False),
+                            deployment_map[d["tag"]].default(False),
+                            False,
+                        )
+                    }
+                ).run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
+            for index_name, index_def in (
+                ("tag_desktop_id", None),
+                ("tag_tag_desktop_id", [r.row["tag"], r.row["tag_desktop_id"]]),
+                ("kind_accessed", [r.row["kind"], r.row["accessed"]]),
+                (
+                    "enabled_kind_accessed",
+                    [r.row["enabled"], r.row["kind"], r.row["accessed"]],
+                ),
+            ):
+                try:
+                    if index_name not in r.table(table).index_list().run(self.conn):
+                        if index_def is None:
+                            r.table(table).index_create(index_name).run(self.conn)
+                        else:
+                            r.table(table).index_create(index_name, index_def).run(
+                                self.conn
+                            )
+                        r.table(table).index_wait(index_name).run(self.conn)
+                except Exception as e:
+                    print(e)
+            # Port of apiv4-and-websockets v178 (SUPERSET): backfill create_dict
+            # hardware fields (+ personal_vlans) on legacy domains migrated here
+            # without ever running AW's private v178 (the fork minted 178-181
+            # after the shared v177; this branch inherits main's numbering, so
+            # AW's backfill ran in NO deployed lineage). _common reads these
+            # unguarded (quotas.py, models/deployment.py, lib/users/.../user.py)
+            # -> KeyError on a 100K-domain cutover. Parents are .default({})-
+            # guarded on BOTH the filter and the update, so a malformed row
+            # missing create_dict/hardware (exactly a row that would KeyError in
+            # _common) is REPAIRED, not skipped -- a deliberate divergence from
+            # strict v178. One scan + one targeted update; .default() per field
+            # preserves already-present values. reservables is excluded -- v164
+            # backfills create_dict.reservables.
+            try:
+                ids = list(
+                    r.table(table)
+                    .filter(
+                        lambda d: d["create_dict"]
+                        .default({})["hardware"]
+                        .default({})
+                        .has_fields("disk_bus")
+                        .not_()
+                        | d["create_dict"]
+                        .default({})["hardware"]
+                        .default({})
+                        .has_fields("isos")
+                        .not_()
+                        | d["create_dict"]
+                        .default({})["hardware"]
+                        .default({})
+                        .has_fields("floppies")
+                        .not_()
+                        | d["create_dict"]
+                        .default({})
+                        .has_fields("personal_vlans")
+                        .not_()
+                    )["id"]
+                    .run(self.conn)
+                )
+                if ids:
+                    r.table(table).get_all(r.args(ids)).update(
+                        lambda d: {
+                            "create_dict": {
+                                "hardware": {
+                                    "disk_bus": d["create_dict"]
+                                    .default({})["hardware"]
+                                    .default({})["disk_bus"]
+                                    .default("default"),
+                                    "isos": d["create_dict"]
+                                    .default({})["hardware"]
+                                    .default({})["isos"]
+                                    .default([]),
+                                    "floppies": d["create_dict"]
+                                    .default({})["hardware"]
+                                    .default({})["floppies"]
+                                    .default([]),
+                                },
+                                "personal_vlans": d["create_dict"]
+                                .default({})["personal_vlans"]
+                                .default(False),
+                            }
+                        }
+                    ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    "v197 cutover: domains create_dict hardware backfill "
+                    f"(disk_bus/isos/floppies/personal_vlans) failed: {e}"
+                )
+        if version == 202:
+            # kind_booking is superseded by the partial kind_valid_booking (the
+            # one actually consumed). videos is KEPT: it has a live reader in the
+            # alloweds-unassign / admin table-delete path (get_all index="videos").
+            try:
+                r.table(table).index_drop("kind_booking").run(self.conn)
+            except Exception:
+                pass
+
         return True
 
     """
@@ -3566,7 +3955,10 @@ password:s:%s"""
 
     def deployments(self, version):
         table = "deployments"
-        data = list(r.table(table).run(self.conn))
+        # Pre-178 blocks iterate this snapshot; 178+ (incl. the 190->197 cutover)
+        # is server-side and never reads it. Skip the full-table load (100K+ rows
+        # on big installs, otherwise materialised once per version call).
+        data = list(r.table(table).run(self.conn)) if version < 178 else []
         log.info("UPGRADING " + table + " VERSION " + str(version))
 
         if version == 18:
@@ -3991,6 +4383,85 @@ password:s:%s"""
 
             except Exception as e:
                 print(e)
+
+        if version == 184:
+            try:
+                deployments = list(r.table(table).run(self.conn))
+                for deployment in deployments:
+                    tag_desktop_id = str(uuid4())
+                    update_data = {}
+                    # Add tag_desktop_id to each create_dict entry
+                    if isinstance(deployment.get("create_dict"), list):
+                        new_create_dict = []
+                        for cd in deployment["create_dict"]:
+                            if "tag_desktop_id" not in cd:
+                                cd["tag_desktop_id"] = tag_desktop_id
+                            new_create_dict.append(cd)
+                        update_data["create_dict"] = new_create_dict
+                    # Add image at deployment root if missing
+                    if "image" not in deployment:
+                        if (
+                            isinstance(deployment.get("create_dict"), list)
+                            and len(deployment["create_dict"]) > 0
+                            and "image" in deployment["create_dict"][0]
+                        ):
+                            update_data["image"] = deployment["create_dict"][0]["image"]
+                        else:
+                            update_data["image"] = {
+                                "id": "1.jpg",
+                                "type": "stock",
+                                "url": "",
+                            }
+                    # Add kind field
+                    if "kind" not in deployment:
+                        update_data["kind"] = "desktops"
+                    if update_data:
+                        r.table(table).get(deployment["id"]).update(update_data).run(
+                            self.conn
+                        )
+            except Exception as e:
+                print(e)
+
+        if version == 197:
+            # Cutover reconciliation: apiv4-only v184 deployments backfill
+            # (tag_desktop_id / image / kind). Per-field guarded, so this is a
+            # no-op on apiv4-lineage DBs.
+            try:
+                deployments = list(r.table(table).run(self.conn))
+                for deployment in deployments:
+                    tag_desktop_id = str(uuid4())
+                    update_data = {}
+                    if isinstance(deployment.get("create_dict"), list):
+                        new_create_dict = []
+                        changed = False
+                        for cd in deployment["create_dict"]:
+                            if "tag_desktop_id" not in cd:
+                                cd["tag_desktop_id"] = tag_desktop_id
+                                changed = True
+                            new_create_dict.append(cd)
+                        if changed:
+                            update_data["create_dict"] = new_create_dict
+                    if "image" not in deployment:
+                        if (
+                            isinstance(deployment.get("create_dict"), list)
+                            and len(deployment["create_dict"]) > 0
+                            and "image" in deployment["create_dict"][0]
+                        ):
+                            update_data["image"] = deployment["create_dict"][0]["image"]
+                        else:
+                            update_data["image"] = {
+                                "id": "1.jpg",
+                                "type": "stock",
+                                "url": "",
+                            }
+                    if "kind" not in deployment:
+                        update_data["kind"] = "desktops"
+                    if update_data:
+                        r.table(table).get(deployment["id"]).update(update_data).run(
+                            self.conn
+                        )
+            except Exception as e:
+                print(e)
         return True
 
     """
@@ -4171,6 +4642,40 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 188:
+            try:
+                r.table(table).index_create(
+                    "status_accessed",
+                    [r.row["status"], r.row["accessed"]],
+                ).run(self.conn)
+                r.table(table).index_wait("status_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 194:
+            r.table(table).get_all(
+                r.args(["Deleted", "FailedDeleted"]), index="status"
+            ).update({"status": "deleted"}).run(self.conn)
+
+        if version == 197:
+            # Cutover reconciliation: apiv4-only v188 media status_accessed
+            # index.
+            try:
+                if "status_accessed" not in r.table(table).index_list().run(self.conn):
+                    r.table(table).index_create(
+                        "status_accessed",
+                        [r.row["status"], r.row["accessed"]],
+                    ).run(self.conn)
+                    r.table(table).index_wait("status_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+        if version == 202:
+            # Media quota accounting keys on status_user, never per-group.
+            try:
+                r.table(table).index_drop("status_group").run(self.conn)
+            except Exception:
+                pass
+
         return True
 
     """
@@ -4333,6 +4838,95 @@ password:s:%s"""
                     group["id"],
                 )
 
+        if version == 184:
+            groups_quota = list(
+                r.table(table)
+                .filter(lambda group: r.not_(group["quota"] == False))
+                .run(self.conn)
+            )
+            for group in groups_quota:
+                quota = group["quota"]
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "deployment_users": quota.get(
+                                    "deployment_desktops", 999
+                                ),
+                            }
+                        },
+                    ],
+                    group["id"],
+                )
+                r.table(table).get(group["id"]).update(
+                    {"quota": {"deployment_desktops": 999}}
+                ).run(self.conn)
+
+            groups_limits = list(
+                r.table(table)
+                .filter(lambda group: r.not_(group["limits"] == False))
+                .run(self.conn)
+            )
+            for group in groups_limits:
+                limits = group["limits"]
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "limits": {
+                                "deployment_users": limits.get(
+                                    "deployment_desktops", 999
+                                ),
+                            }
+                        },
+                    ],
+                    group["id"],
+                )
+
+        if version == 197:
+            # Cutover reconciliation (see release_version header): re-assert
+            # the apiv4-only v184 deployment_users quota/limits split for
+            # main-lineage DBs that never ran it. Guarded on key ABSENCE so an
+            # apiv4-lineage DB (or an admin-tuned value) is never overwritten.
+            # Server-side single pass per field (was a per-row Python loop ->
+            # up to 20K round-trips on users). Select rows where the field is
+            # set (!= False) and lacks deployment_users; fill it from the old
+            # deployment_desktops (default 999). For quota, also reset
+            # deployment_desktops to 999 in the SAME update -- the lambda reads
+            # the original row, so deployment_users still captures the old value.
+            try:
+                for field in ("quota", "limits"):
+                    selected = r.table(table).filter(
+                        lambda row: r.not_(row[field] == False)
+                        & row[field].default({}).has_fields("deployment_users").not_()
+                    )
+                    if field == "quota":
+                        selected.update(
+                            lambda row: {
+                                "quota": {
+                                    "deployment_users": row["quota"]
+                                    .default({})["deployment_desktops"]
+                                    .default(999),
+                                    "deployment_desktops": 999,
+                                }
+                            }
+                        ).run(self.conn)
+                    else:
+                        selected.update(
+                            lambda row: {
+                                field: {
+                                    "deployment_users": row[field]
+                                    .default({})["deployment_desktops"]
+                                    .default(999)
+                                }
+                            }
+                        ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    f"v197 cutover: {table} deployment_users quota/limits "
+                    f"split failed: {e}"
+                )
         return True
 
     """
@@ -4942,6 +5536,75 @@ password:s:%s"""
                 self.add_keys(table, [{"api_key": None}])
             except Exception as e:
                 print(e)
+
+        if version == 184:
+            users_quota = list(
+                r.table(table)
+                .filter(lambda user: r.not_(user["quota"] == False))
+                .run(self.conn)
+            )
+            for user in users_quota:
+                quota = user["quota"]
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "deployment_users": quota.get(
+                                    "deployment_desktops", 999
+                                ),
+                            }
+                        },
+                    ],
+                    user["id"],
+                )
+                r.table(table).get(user["id"]).update(
+                    {"quota": {"deployment_desktops": 999}}
+                ).run(self.conn)
+
+        if version == 197:
+            # Cutover reconciliation (see release_version header): re-assert
+            # the apiv4-only v184 deployment_users quota/limits split for
+            # main-lineage DBs that never ran it. Guarded on key ABSENCE so an
+            # apiv4-lineage DB (or an admin-tuned value) is never overwritten.
+            # Server-side single pass per field (was a per-row Python loop ->
+            # up to 20K round-trips on users). Select rows where the field is
+            # set (!= False) and lacks deployment_users; fill it from the old
+            # deployment_desktops (default 999). For quota, also reset
+            # deployment_desktops to 999 in the SAME update -- the lambda reads
+            # the original row, so deployment_users still captures the old value.
+            try:
+                for field in ("quota", "limits"):
+                    selected = r.table(table).filter(
+                        lambda row: r.not_(row[field] == False)
+                        & row[field].default({}).has_fields("deployment_users").not_()
+                    )
+                    if field == "quota":
+                        selected.update(
+                            lambda row: {
+                                "quota": {
+                                    "deployment_users": row["quota"]
+                                    .default({})["deployment_desktops"]
+                                    .default(999),
+                                    "deployment_desktops": 999,
+                                }
+                            }
+                        ).run(self.conn)
+                    else:
+                        selected.update(
+                            lambda row: {
+                                field: {
+                                    "deployment_users": row[field]
+                                    .default({})["deployment_desktops"]
+                                    .default(999)
+                                }
+                            }
+                        ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    f"v197 cutover: {table} deployment_users quota/limits "
+                    f"split failed: {e}"
+                )
         return True
 
     """
@@ -5485,7 +6148,7 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
-        if version == 185:
+        if version == 186:
             try:
                 # Find storage records missing user_id
                 broken_ids = list(
@@ -5585,6 +6248,145 @@ password:s:%s"""
                     lambda s: s.has_fields("status_logs").not_()
                 ).update({"status_logs": []}).run(self.conn)
 
+            except Exception as e:
+                print(e)
+
+        if version == 187:
+            table = "recycle_bin"
+            try:
+                # Add compound indexes for range queries on status + accessed time
+                try:
+                    r.table(table).index_create(
+                        "status_accessed", [r.row["status"], r.row["accessed"]]
+                    ).run(self.conn)
+                except Exception:
+                    pass
+                try:
+                    r.table(table).index_create(
+                        "owner_category_status_accessed",
+                        [
+                            r.row["owner_category_id"],
+                            r.row["status"],
+                            r.row["accessed"],
+                        ],
+                    ).run(self.conn)
+                except Exception:
+                    pass
+                r.table(table).index_wait().run(self.conn)
+                print("--- Created recycle_bin compound indexes ---")
+
+                # Backfill pre-computed count fields and last_log
+                r.table(table).update(
+                    lambda rb: {
+                        "desktops_count": rb["desktops"].default([]).count(),
+                        "templates_count": rb["templates"].default([]).count(),
+                        "storages_count": rb["storages"].default([]).count(),
+                        "deployments_count": rb["deployments"].default([]).count(),
+                        "categories_count": rb["categories"].default([]).count(),
+                        "groups_count": rb["groups"].default([]).count(),
+                        "users_count": rb["users"].default([]).count(),
+                        "last_log": rb["logs"].default([]).nth(-1).default(None),
+                    }
+                ).run(self.conn)
+                print("--- Backfilled recycle_bin count fields ---")
+            except Exception as e:
+                print(e)
+
+        if version == 197:
+            # Cutover reconciliation: apiv4-only v187 recycle_bin compound
+            # indexes (pentest-surfaced 500s when missing) + the v187
+            # pre-computed count/last_log backfill.
+            table = "recycle_bin"
+            for index_name, index_def in (
+                ("status_accessed", [r.row["status"], r.row["accessed"]]),
+                (
+                    "owner_category_status_accessed",
+                    [
+                        r.row["owner_category_id"],
+                        r.row["status"],
+                        r.row["accessed"],
+                    ],
+                ),
+            ):
+                try:
+                    if index_name not in r.table(table).index_list().run(self.conn):
+                        r.table(table).index_create(index_name, index_def).run(
+                            self.conn
+                        )
+                        r.table(table).index_wait(index_name).run(self.conn)
+                except Exception as e:
+                    print(e)
+            # Backfill pre-computed count fields + last_log on rows predating
+            # apiv4 v187. Guarded on desktops_count absence -> no-op on
+            # apiv4-lineage DBs. Consumers (helpers/recycle_bin.py) already
+            # .default() to a live recompute, so this is perf-only.
+            try:
+                ids = list(
+                    r.table(table)
+                    .filter(lambda rb: rb.has_fields("desktops_count").not_())["id"]
+                    .run(self.conn)
+                )
+                if ids:
+                    r.table(table).get_all(r.args(ids)).update(
+                        lambda rb: {
+                            "desktops_count": rb["desktops"].default([]).count(),
+                            "templates_count": rb["templates"].default([]).count(),
+                            "storages_count": rb["storages"].default([]).count(),
+                            "deployments_count": rb["deployments"].default([]).count(),
+                            "categories_count": rb["categories"].default([]).count(),
+                            "groups_count": rb["groups"].default([]).count(),
+                            "users_count": rb["users"].default([]).count(),
+                            "last_log": rb["logs"].default([]).nth(-1).default(None),
+                        }
+                    ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    f"v197 cutover: recycle_bin count/last_log backfill failed: {e}"
+                )
+
+        if version == 201:
+            table = "storage"
+            try:
+                non_uuid_filter = (  # noqa: E731
+                    lambda s: s["parent"]
+                    .default("")
+                    .type_of()
+                    .eq("STRING")
+                    .and_(s["parent"].default("").match(r"^/|\.qcow2$"))
+                )
+                total = r.table(table).filter(non_uuid_filter).count().run(self.conn)
+                log.info(
+                    f"--- Storage parent normalisation: {total} non-UUID rows to migrate ---"
+                )
+                if total > 0:
+                    batch_size = 10_000
+                    processed = 0
+                    while True:
+                        result = (
+                            r.table(table)
+                            .filter(non_uuid_filter)
+                            .limit(batch_size)
+                            .update(
+                                lambda s: {
+                                    "parent": s["parent"]
+                                    .split("/")
+                                    .nth(-1)
+                                    .split(".")
+                                    .nth(0)
+                                }
+                            )
+                            .run(self.conn)
+                        )
+                        replaced = result.get("replaced", 0)
+                        if replaced == 0:
+                            break
+                        processed += replaced
+                        log.info(
+                            f"--- Storage parent normalisation: {processed}/{total} migrated ---"
+                        )
+                    log.info(
+                        f"--- Storage parent normalisation: complete ({processed} rows) ---"
+                    )
             except Exception as e:
                 print(e)
 
@@ -6034,6 +6836,52 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 184:
+            categories_quota = list(
+                r.table(table)
+                .filter(lambda category: r.not_(category["quota"] == False))
+                .run(self.conn)
+            )
+            for category in categories_quota:
+                quota = category["quota"]
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "deployment_users": quota.get(
+                                    "deployment_desktops", 999
+                                ),
+                            }
+                        },
+                    ],
+                    category["id"],
+                )
+                r.table(table).get(category["id"]).update(
+                    {"quota": {"deployment_desktops": 999}}
+                ).run(self.conn)
+
+            categories_limits = list(
+                r.table(table)
+                .filter(lambda category: r.not_(category["limits"] == False))
+                .run(self.conn)
+            )
+            for category in categories_limits:
+                limits = category["limits"]
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "limits": {
+                                "deployment_users": limits.get(
+                                    "deployment_desktops", 999
+                                ),
+                            }
+                        },
+                    ],
+                    category["id"],
+                )
+
         if version == 186:
             config_map = {
                 None: {
@@ -6065,6 +6913,62 @@ password:s:%s"""
                     provider.pop("enabled", None)
             r.table(table).insert(categories, conflict="replace").run(self.conn)
 
+        if version == 195:
+            provider_status = {
+                "healthy": False,
+                "msg": "",
+                "last_updated": r.epoch_time(0),
+            }
+            categories = list(r.table(table).run(self.conn))
+            for category in categories:
+                for provider in category.get("authentication", {}).values():
+                    if isinstance(provider, dict):
+                        provider["status"] = dict(provider_status)
+            r.table(table).insert(categories, conflict="replace").run(self.conn)
+
+        if version == 197:
+            # Cutover reconciliation (see release_version header): re-assert
+            # the apiv4-only v184 deployment_users quota/limits split for
+            # main-lineage DBs that never ran it. Guarded on key ABSENCE so an
+            # apiv4-lineage DB (or an admin-tuned value) is never overwritten.
+            # Server-side single pass per field (was a per-row Python loop ->
+            # up to 20K round-trips on users). Select rows where the field is
+            # set (!= False) and lacks deployment_users; fill it from the old
+            # deployment_desktops (default 999). For quota, also reset
+            # deployment_desktops to 999 in the SAME update -- the lambda reads
+            # the original row, so deployment_users still captures the old value.
+            try:
+                for field in ("quota", "limits"):
+                    selected = r.table(table).filter(
+                        lambda row: r.not_(row[field] == False)
+                        & row[field].default({}).has_fields("deployment_users").not_()
+                    )
+                    if field == "quota":
+                        selected.update(
+                            lambda row: {
+                                "quota": {
+                                    "deployment_users": row["quota"]
+                                    .default({})["deployment_desktops"]
+                                    .default(999),
+                                    "deployment_desktops": 999,
+                                }
+                            }
+                        ).run(self.conn)
+                    else:
+                        selected.update(
+                            lambda row: {
+                                field: {
+                                    "deployment_users": row[field]
+                                    .default({})["deployment_desktops"]
+                                    .default(999)
+                                }
+                            }
+                        ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    f"v197 cutover: {table} deployment_users quota/limits "
+                    f"split failed: {e}"
+                )
         return True
 
     def qos_net(self, version):
@@ -6207,6 +7111,14 @@ password:s:%s"""
                 r.table(table).index_create("owner_category_id").run(self.conn)
             except Exception as e:
                 pass
+
+        if version == 202:
+            # Written on every login-session row but read by no index query.
+            for _dead in ("stopped_time", "owner_group_id"):
+                try:
+                    r.table(table).index_drop(_dead).run(self.conn)
+                except Exception:
+                    pass
 
         return True
 
@@ -6408,6 +7320,16 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 202:
+            # agent_status has no reader. The reverse-lookup multi indexes over
+            # the delete-entry arrays (storage/desktop/template/user/group/
+            # category) ARE consumed via the generic admin table endpoint's
+            # get_all(id, index=<kind>), so they are KEPT.
+            try:
+                r.table(table).index_drop("agent_status").run(self.conn)
+            except Exception:
+                pass
+
         return True
 
     def logs_desktops(self, version):
@@ -6430,6 +7352,24 @@ password:s:%s"""
                 r.table(table).index_wait("starting_time").run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 202:
+            # Drop dead indexes that cost a B-tree write on every session insert
+            # but are read by no query. Kept (consumed): desktop_id,
+            # owner_user_id, owner_category_id, started_time, starting_time.
+            for _dead in (
+                "desktop_template_hierarchy",
+                "stopped_time",
+                "stopped_status",
+                "started_by",
+                "stopped_by",
+                "owner_group_id",
+                "deployment_id",
+            ):
+                try:
+                    r.table(table).index_drop(_dead).run(self.conn)
+                except Exception:
+                    pass
 
         return True
 
@@ -6466,32 +7406,78 @@ password:s:%s"""
 
         if version == 121:
             try:
-                r.table(table).delete().run(self.conn)
-                r.table(table).insert(
-                    {
-                        "allowed": {
-                            "categories": False,
-                            "groups": False,
-                            "roles": [],
-                            "users": False,
-                        },
-                        "categories": [],
-                        "description": "Default storage pool",
-                        "enabled": True,
-                        "id": "00000000-0000-0000-0000-000000000000",
-                        "mountpoint": "/isard",
-                        "name": "Default",
-                        "paths": {
-                            "desktop": [{"path": "groups", "weight": 100}],
-                            "media": [{"path": "media", "weight": 100}],
-                            "template": [{"path": "templates", "weight": 100}],
-                            "volatile": [{"path": "volatile", "weight": 100}],
-                        },
-                        "read": True,
-                        "startable": True,
-                        "write": True,
-                    }
-                ).run(self.conn)
+                # By this point the v64 migration ("move hypervisor_pools paths to
+                # storage_pool") has already (re)created the default pool with
+                # absolute /isard/* paths and a lowercased name. Normalise it:
+                #  - fresh install: populate.py seeded mountpoint
+                #    /isard/storage_pools/default (preserved through v64's
+                #    conflict="update") -> restore RELATIVE paths so disks land
+                #    under that named mountpoint instead of /isard/groups;
+                #  - existing install (default still at /isard) -> leave the legacy
+                #    layout untouched;
+                #  - no default at all -> (re)create the legacy /isard default.
+                default_pool = (
+                    r.table(table)
+                    .get("00000000-0000-0000-0000-000000000000")
+                    .run(self.conn)
+                )
+                if not default_pool:
+                    r.table(table).delete().run(self.conn)
+                    r.table(table).insert(
+                        {
+                            "allowed": {
+                                "categories": False,
+                                "groups": False,
+                                "roles": [],
+                                "users": False,
+                            },
+                            "categories": [],
+                            "description": "Default storage pool",
+                            "enabled": True,
+                            "id": "00000000-0000-0000-0000-000000000000",
+                            "mountpoint": "/isard",
+                            "name": "Default",
+                            "paths": {
+                                "desktop": [{"path": "groups", "weight": 100}],
+                                "media": [{"path": "media", "weight": 100}],
+                                "template": [{"path": "templates", "weight": 100}],
+                                "volatile": [{"path": "volatile", "weight": 100}],
+                            },
+                            "read": True,
+                            "startable": True,
+                            "write": True,
+                        }
+                    ).run(self.conn)
+                elif default_pool.get("mountpoint") == "/isard/storage_pools/default":
+                    r.table(table).get("00000000-0000-0000-0000-000000000000").update(
+                        {
+                            "name": "Default",
+                            "paths": {
+                                "desktop": [{"path": "desktops", "weight": 100}],
+                                "template": [{"path": "templates", "weight": 100}],
+                                "media": [{"path": "media", "weight": 100}],
+                                "volatile": [{"path": "volatile", "weight": 100}],
+                            },
+                        }
+                    ).run(self.conn)
+                elif not default_pool.get("mountpoint"):
+                    # Direct upgrade from a version <121: v64 (re)created the
+                    # default pool with absolute /isard/* paths and NO mountpoint,
+                    # so "{mountpoint}/{path}" would later resolve to
+                    # "None//isard/groups". Restore the legacy /isard mountpoint
+                    # with relative paths so disks resolve under it.
+                    r.table(table).get("00000000-0000-0000-0000-000000000000").update(
+                        {
+                            "mountpoint": "/isard",
+                            "name": "Default",
+                            "paths": {
+                                "desktop": [{"path": "groups", "weight": 100}],
+                                "template": [{"path": "templates", "weight": 100}],
+                                "media": [{"path": "media", "weight": 100}],
+                                "volatile": [{"path": "volatile", "weight": 100}],
+                            },
+                        }
+                    ).run(self.conn)
             except Exception as e:
                 print(e)
             try:
@@ -6747,7 +7733,17 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
-        if version == 188:
+        if version == 193:
+            # Existence-guarded: a main-lineage DB ran the same id-less inserts as its v188 —
+            # a blind re-run on the cutover path would duplicate them.
+            if (
+                r.table(table)
+                .filter({"kind": "unused_deployment_desktops_owner"})
+                .count()
+                .run(self.conn)
+                > 0
+            ):
+                return True
             try:
                 r.table(table).insert(
                     [
@@ -6791,31 +7787,31 @@ password:s:%s"""
                             "kind": "unused_deployment_desktops_user",
                             "lang": {
                                 "ca": {
-                                    "body": "<p>El vostre escriptori <b>{desktop_name}</b> del desplegament <b>{deployment_name}</b> (propietat de <b>{deployment_owner}</b>), utilitzat per últim cop el <b>{accessed}</b>, ha estat enviat a la paperera del desplegament.</p>",
-                                    "footer": "La paperera pertany al propietari del desplegament. Si necessiteu recuperar l'escriptori, poseu-vos en contacte amb ell.",
-                                    "title": "El vostre escriptori d'un desplegament ha estat eliminat",
+                                    "body": "<p>El vostre escriptori <b>{desktop_name}</b> del desplegament <b>{deployment_name}</b> (propietat de <b>{deployment_owner}</b>) va ser utilitzat per últim cop el <b>{accessed}</b>.</p>",
+                                    "footer": "Contacteu amb el propietari del desplegament si encara necessiteu l'escriptori.",
+                                    "title": "El vostre escriptori de desplegament ha estat eliminat",
                                 },
                                 "en": {
-                                    "body": "<p>Your desktop <b>{desktop_name}</b> from deployment <b>{deployment_name}</b> (owned by <b>{deployment_owner}</b>), last used at <b>{accessed}</b>, has been moved to the deployment recycle bin.</p>",
-                                    "footer": "The recycle bin belongs to the deployment owner. Contact them if you need the desktop restored.",
+                                    "body": "<p>Your desktop <b>{desktop_name}</b> from deployment <b>{deployment_name}</b> (owned by <b>{deployment_owner}</b>) was last used at <b>{accessed}</b>.</p>",
+                                    "footer": "Contact the deployment owner if you still need the desktop.",
                                     "title": "Your deployment desktop has been deleted",
                                 },
                                 "es": {
-                                    "body": "<p>Su escritorio <b>{desktop_name}</b> del despliegue <b>{deployment_name}</b> (propiedad de <b>{deployment_owner}</b>), utilizado por última vez el <b>{accessed}</b>, ha sido enviado a la papelera del despliegue.</p>",
-                                    "footer": "La papelera pertenece al propietario del despliegue. Póngase en contacto con él si necesita recuperar el escritorio.",
-                                    "title": "Su escritorio de un despliegue ha sido eliminado",
+                                    "body": "<p>Su escritorio <b>{desktop_name}</b> del despliegue <b>{deployment_name}</b> (propiedad de <b>{deployment_owner}</b>) fue utilizado por última vez el <b>{accessed}</b>.</p>",
+                                    "footer": "Contacte con el propietario del despliegue si aún necesita el escritorio.",
+                                    "title": "Su escritorio de despliegue ha sido eliminado",
                                 },
                             },
-                            "name": "Send unused deployment desktops to recycle bin (desktop owner)",
+                            "name": "Your deployment desktop has been sent to the recycle bin (desktop owner)",
                             "system": {
-                                "body": "<p>Your desktop <b>{desktop_name}</b> from deployment <b>{deployment_name}</b> (owned by <b>{deployment_owner}</b>), last used at <b>{accessed}</b>, has been moved to the deployment recycle bin.</p>",
-                                "footer": "The recycle bin belongs to the deployment owner. Contact them if you need the desktop restored.",
+                                "body": "<p>Your desktop <b>{desktop_name}</b> from deployment <b>{deployment_name}</b> (owned by <b>{deployment_owner}</b>) was last used at <b>{accessed}</b>.</p>",
+                                "footer": "Contact the deployment owner if you still need the desktop.",
                                 "title": "Your deployment desktop has been deleted",
                             },
                             "vars": {
                                 "desktop_name": "Testing desktop",
                                 "deployment_name": "Testing environment deployment",
-                                "deployment_owner": "Jane Doe",
+                                "deployment_owner": "John Doe",
                                 "accessed": "12 Mar 2024 13:00",
                             },
                         },
@@ -6867,40 +7863,66 @@ password:s:%s"""
         log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
         if version == 162:
             try:
-                r.table(table).insert(
-                    {
-                        "name": "default",
-                        "op": "send_unused_deployments_to_recycle_bin",
-                        "description": "Keep only the deployments that desktops that have been used in the last selected cutoff time. Send the rest of unused deployments to recycle bin automatically.",
-                        "allowed": {
-                            "roles": [],  ## Matches all
-                            "categories": False,
-                            "groups": False,
-                            "users": False,
-                        },
-                        "priority": 0,
-                        "cutoff_time": None,
-                    }
-                ).run(self.conn)
+                op = "send_unused_deployments_to_recycle_bin"
+                exists = (
+                    r.table(table)
+                    .filter({"name": "default", "op": op})
+                    .count()
+                    .run(self.conn)
+                )
+                if not exists:
+                    r.table(table).insert(
+                        {
+                            "name": "default",
+                            "op": op,
+                            "description": "Keep only the deployments that desktops that have been used in the last selected cutoff time. Send the rest of unused deployments to recycle bin automatically.",
+                            "allowed": {
+                                "roles": [],  ## Matches all
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                            "priority": 0,
+                            "cutoff_time": None,
+                        }
+                    ).run(self.conn)
             except Exception as e:
                 print(e)
-        if version == 188:
+        if version == 193:
+            # Existence-guarded: id-less insert, already present on main-lineage DBs via their v188 —
+            # a blind re-run on the cutover path would duplicate them.
+            if (
+                r.table(table)
+                .filter({"op": "send_unused_deployment_desktops_to_recycle_bin"})
+                .count()
+                .run(self.conn)
+                > 0
+            ):
+                return True
             try:
-                r.table(table).insert(
-                    {
-                        "name": "default",
-                        "op": "send_unused_deployment_desktops_to_recycle_bin",
-                        "description": "Trim cold desktops belonging to deployments without removing the parent deployment. Rule is matched against the deployment creator.",
-                        "allowed": {
-                            "roles": [],  ## Matches all
-                            "categories": False,
-                            "groups": False,
-                            "users": False,
-                        },
-                        "priority": 0,
-                        "cutoff_time": None,
-                    }
-                ).run(self.conn)
+                op = "send_unused_deployment_desktops_to_recycle_bin"
+                exists = (
+                    r.table(table)
+                    .filter({"name": "default", "op": op})
+                    .count()
+                    .run(self.conn)
+                )
+                if not exists:
+                    r.table(table).insert(
+                        {
+                            "name": "default",
+                            "op": op,
+                            "description": "Trim cold desktops belonging to deployments without removing the parent deployment. Rule is matched against the deployment creator.",
+                            "allowed": {
+                                "roles": [],  ## Matches all
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                            "priority": 0,
+                            "cutoff_time": None,
+                        }
+                    ).run(self.conn)
             except Exception as e:
                 print(e)
         return True
@@ -7003,7 +8025,17 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
-        if version == 188:
+        if version == 193:
+            # Existence-guarded: id-less insert, already present on main-lineage DBs via their v188 —
+            # a blind re-run on the cutover path would duplicate them.
+            if (
+                r.table(table)
+                .filter({"action_id": "unused_deployment_desktops_owner"})
+                .count()
+                .run(self.conn)
+                > 0
+            ):
+                return True
             try:
                 r.table(table).insert(
                     [
@@ -7086,7 +8118,7 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
-        if version == 188:
+        if version == 193:
             try:
                 r.table(table).insert(
                     [
@@ -7183,6 +8215,30 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 200:
+            # Append the old domain if present
+            r.table(table).update(
+                lambda row: r.branch(
+                    row["domain"].default("").ne(""),
+                    {
+                        "domains": r.branch(
+                            row["domains"].default([]).contains(row["domain"]),
+                            row["domains"].default([]),
+                            row["domains"].default([]).append(row["domain"]),
+                        )
+                    },
+                    {},
+                )
+            ).run(self.conn)
+
+            # Fix rows with missing `domains` field
+            r.table(table).filter(r.row["domains"].default(None).eq(None)).update(
+                {"domains": []}
+            ).run(self.conn)
+
+            # Remove the old domain field
+            self.del_keys(table, ["domain"])
+
         return True
 
     def vgpus(self, version):
@@ -7214,18 +8270,165 @@ password:s:%s"""
         """
         log.info("UPGRADING vgpus TABLE TO VERSION " + str(version))
 
-        if version == 189:
+        # Gated on v197 here: upstream main ships this same migration as
+        # v189 (MR !4496); on this branch v196 is the cross-lineage cutover
+        # reconciliation. Idempotent, so a main-lineage DB that already ran
+        # it as v189 re-runs it harmlessly. The v189_* helper names are
+        # kept for cross-branch diffability.
+        if version == 198:
             try:
                 v189_backfill_and_canon_vgpus(self)
             except Exception as e:
-                log.error(f"vgpus v189 backfill/canon failed: {e}")
+                log.error(f"vgpus v197 backfill/canon failed: {e}")
             try:
                 v189_canonicalize_vgpu_ids(self)
             except Exception as e:
-                log.error(f"v189 vGPU-id canonicalization failed: {e}")
+                log.error(f"v197 vGPU-id canonicalization failed: {e}")
             try:
                 v189_prune_non_full_use_gpu_profiles(self)
             except Exception as e:
-                log.error(f"v189 non-full-use GPU profile prune failed: {e}")
+                log.error(f"v197 non-full-use GPU profile prune failed: {e}")
+
+        return True
+
+    def redis_tasks_cleanup(self, version):
+        """One-time purge of decommissioned ``core_worker`` RQ state (v199).
+
+        The main -> apiv4-integration migration removed the ``isard-core_worker``
+        RQ consumer (the ``core`` and ``core.feedback`` queues). With no live
+        worker, RQ's own registry cleanup never runs on them, so their stale
+        worker registrations, queues and job registries linger indefinitely
+        (failed jobs keep RQ's ~1-year TTL). This idempotently removes that
+        orphaned state. The live ``storage``/``notifier`` workers, their queues
+        and the changefeed streams (db 2) are left untouched; ongoing old-task
+        retention stays governed by the age-based ``Config.old_tasks`` cleanup.
+
+        Deletion is done in bulk: job ids are read from each registry with a
+        single range query and their hashes/results are dropped in batched
+        ``UNLINK`` calls, instead of one round trip per job. On installs that
+        accumulated hundreds of thousands of finished/failed core jobs this
+        keeps the upgrade to seconds rather than blocking engine startup for
+        minutes.
+        """
+        log.info("UPGRADING redis_tasks_cleanup TO VERSION " + str(version))
+
+        if version == 199:
+            try:
+                from rq import Queue
+
+                conn = Redis(
+                    host=os.environ.get("REDIS_HOST") or "isard-redis",
+                    port=int(os.environ.get("REDIS_PORT") or 6379),
+                    password=os.environ.get("REDIS_PASSWORD", ""),
+                    db=0,
+                )
+                dead_queues = ("core.feedback", "core")
+                statuses = (
+                    "failed",
+                    "started",
+                    "finished",
+                    "deferred",
+                    "scheduled",
+                    "canceled",
+                )
+                removed_jobs = 0
+
+                def _drop(keys):
+                    # UNLINK reclaims memory in a background thread; fall back to
+                    # DEL where UNLINK is unavailable.
+                    if not keys:
+                        return
+                    try:
+                        conn.unlink(*keys)
+                    except Exception:
+                        try:
+                            conn.delete(*keys)
+                        except Exception:
+                            pass
+
+                def _flush(batch, job_id):
+                    batch.extend(
+                        (
+                            f"rq:job:{job_id}",
+                            f"rq:results:{job_id}",
+                            f"rq:job:{job_id}:dependencies",
+                        )
+                    )
+                    if len(batch) >= 900:
+                        _drop(batch)
+                        del batch[:]
+
+                for qname in dead_queues:
+                    queue = Queue(qname, connection=conn)
+                    job_ids = set()
+                    registry_keys = []
+                    # Pull job ids from every status registry with one range
+                    # query each (no per-job round trips).
+                    for status in statuses:
+                        try:
+                            registry = getattr(queue, f"{status}_job_registry")
+                            registry_keys.append(registry.key)
+                            job_ids.update(registry.get_job_ids())
+                        except Exception:
+                            pass
+                    # Plus any still-queued jobs sitting in the queue list.
+                    try:
+                        job_ids.update(
+                            j.decode() if isinstance(j, bytes) else j
+                            for j in conn.lrange(queue.key, 0, -1)
+                        )
+                    except Exception:
+                        pass
+
+                    # Drop the job hashes (and their results/dependencies) in
+                    # batched UNLINKs.
+                    batch = []
+                    for job_id in job_ids:
+                        _flush(batch, job_id)
+                    _drop(batch)
+                    removed_jobs += len(job_ids)
+
+                    # Drop the registries, the queue list and the queue's worker
+                    # set, then unregister it from rq:queues.
+                    _drop(registry_keys + [queue.key, f"rq:workers:{qname}"])
+                    try:
+                        conn.srem("rq:queues", f"rq:queue:{qname}")
+                    except Exception:
+                        pass
+
+                # Safety net: sweep any orphaned job hashes still tagged with a
+                # dead origin (registry entry lost), again in batched deletes.
+                dead_origins = {b"core", b"core.feedback"}
+                orphan_batch = []
+                try:
+                    for key in conn.scan_iter(match="rq:job:*", count=1000):
+                        try:
+                            if conn.hget(key, "origin") in dead_origins:
+                                job_id = key.decode().split("rq:job:", 1)[1]
+                                _flush(orphan_batch, job_id)
+                                removed_jobs += 1
+                        except Exception:
+                            pass
+                    _drop(orphan_batch)
+                except Exception:
+                    pass
+
+                # Prune stale (heartbeat-expired) worker registrations.
+                removed_workers = 0
+                try:
+                    for member in conn.smembers("rq:workers"):
+                        if not conn.exists(member):
+                            conn.srem("rq:workers", member)
+                            removed_workers += 1
+                except Exception:
+                    pass
+
+                log.info(
+                    "redis_tasks_cleanup v199: removed "
+                    f"{removed_jobs} core job(s) and "
+                    f"{removed_workers} stale worker registration(s)"
+                )
+            except Exception as e:
+                log.error(f"redis_tasks_cleanup v199 failed (non-fatal): {e}")
 
         return True

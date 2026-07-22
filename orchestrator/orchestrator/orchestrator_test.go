@@ -10,9 +10,9 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -22,13 +22,18 @@ import (
 	gRPC "google.golang.org/grpc"
 )
 
+type silentT struct{}
+
+func (silentT) Errorf(string, ...any) {}
+func (silentT) Logf(string, ...any)   {}
+func (silentT) FailNow()              {}
+
 func TestStart(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
+	t.Parallel()
 
 	cases := map[string]struct {
 		PrepareOperations func(*grpcmock.Server)
-		PrepareAPI        func(context.CancelFunc, *sdk.MockSdk)
+		PrepareAPI        func(context.CancelFunc, *apiv4.MockInvoker)
 		CfgRata           cfg.DirectorRata
 	}{
 		"should remove an hypervisor from the dead row if it's available, instead of scaling up": {
@@ -52,50 +57,50 @@ func TestStart(t *testing.T) {
 					}},
 				})
 			},
-			PrepareAPI: func(cancel context.CancelFunc, m *sdk.MockSdk) {
-				hypers := []*sdk.OrchestratorHypervisor{{
+			PrepareAPI: func(cancel context.CancelFunc, m *apiv4.MockInvoker) {
+				oHypers := []apiv4.OrchestratorHypervisor{{
 					ID:                  "bm-e4-12",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
-					DestroyTime:         time.Time{},
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NilDateTime{Null: true},
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     234,
 					MinFreeMemGB:        200,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  27,
 						Free:  73,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 2051898,
 						Used:  1216615,
 						Free:  835282,
 					},
 				}, {
 					ID:                  "gpu-a10-2",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
-					DestroyTime:         time.Time{},
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NilDateTime{Null: true},
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: false,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     70,
 					MinFreeMemGB:        100,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  30,
 						Free:  70,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 1031700,
 						Used:  461632,
 						Free:  570067,
 					},
-					GPUs: []*sdk.OrchestratorHypervisorGPU{{
+					Gpus: []apiv4.OrchestratorHypervisorGPU{{
 						ID:         "gpu-a10-2-pci_0000_31_00_0",
 						Brand:      "NVIDIA",
 						Model:      "A10",
@@ -130,32 +135,38 @@ func TestStart(t *testing.T) {
 					}},
 				}, {
 					ID:                  "bm-e4-15",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
-					DestroyTime:         time.Now().Add(1 * time.Hour),
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(1 * time.Hour)),
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     30,
 					MinFreeMemGB:        200,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  1,
 						Free:  99,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 2051898,
 						Used:  10727,
 						Free:  2041170,
 					},
 				}}
 
-				m.On("OrchestratorHypervisorList", mock.AnythingOfType("*context.cancelCtx")).Return(hypers, nil)
-				m.On("OrchestratorHypervisorRemoveFromDeadRow", mock.AnythingOfType("*context.timerCtx"), "bm-e4-15").Run(func(args mock.Arguments) {
-					hypers[2].OnlyForced = false
-					hypers[2].DestroyTime = time.Time{}
-				}).Return(nil)
+				m.On("AdminOrchestratorHypervisorsList", mock.AnythingOfType("*context.cancelCtx")).Return(
+					func(ctx context.Context) (apiv4.AdminOrchestratorHypervisorsListRes, error) {
+						res := apiv4.AdminOrchestratorHypervisorsListOKApplicationJSON(oHypers)
+						return &res, nil
+					},
+				)
+
+				m.On("AdminOrchestratorDeadRowReset", mock.AnythingOfType("*context.timerCtx"), apiv4.AdminOrchestratorDeadRowResetParams{HypervisorID: "bm-e4-15"}).Run(func(args mock.Arguments) {
+					oHypers[2].OnlyForced = false
+					oHypers[2].DestroyTime = apiv4.NilDateTime{Null: true}
+				}).Return(&apiv4.AdminOrchestratorDeadRowResetNoContent{}, nil)
 			},
 			CfgRata: cfg.DirectorRata{
 				MinRAMLimitPercent: 150,
@@ -264,197 +275,197 @@ func TestStart(t *testing.T) {
 				})
 				destroy.Once()
 			},
-			PrepareAPI: func(cancel context.CancelFunc, m *sdk.MockSdk) {
-				hypers := []*sdk.OrchestratorHypervisor{{
+			PrepareAPI: func(cancel context.CancelFunc, m *apiv4.MockInvoker) {
+				oHypers := []apiv4.OrchestratorHypervisor{{
 					ID:                  "bm-e2-11",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
-					DestroyTime:         time.Date(2024, 2, 14, 23, 12, 19, 0, time.UTC),
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NewNilDateTime(time.Date(2024, 2, 14, 23, 12, 19, 0, time.UTC)),
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     27,
 					MinFreeMemGB:        50,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  3,
 						Free:  97,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  119794,
 						Free:  396060,
 					},
 				}, {
 					ID:                  "bm-e2-12",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
-					DestroyTime:         time.Date(2024, 2, 14, 23, 12, 30, 0, time.UTC),
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NewNilDateTime(time.Date(2024, 2, 14, 23, 12, 30, 0, time.UTC)),
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     20,
 					MinFreeMemGB:        50,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  2,
 						Free:  98,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  70115,
 						Free:  445739,
 					},
 				}, {
 					ID:                  "bm-e4-12",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
-					DestroyTime:         time.Date(2024, 2, 14, 21, 56, 55, 0, time.UTC),
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NewNilDateTime(time.Date(2024, 2, 14, 21, 56, 55, 0, time.UTC)),
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     6,
 					MinFreeMemGB:        200,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  1,
 						Free:  99,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 2051898,
 						Used:  38185,
 						Free:  2013712,
 					},
 				}, {
 					ID:                  "bm-e4-11",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
-					DestroyTime:         time.Date(2024, 2, 14, 22, 45, 5, 0, time.UTC),
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NewNilDateTime(time.Date(2024, 2, 14, 22, 45, 5, 0, time.UTC)),
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     27,
 					MinFreeMemGB:        200,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  3,
 						Free:  97,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 2051898,
 						Used:  153885,
 						Free:  1898012,
 					},
 				}, {
 					ID:                  "bm-e2-13",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
-					DestroyTime:         time.Date(2024, 2, 15, 1, 2, 11, 0, time.UTC),
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NewNilDateTime(time.Date(2024, 2, 15, 1, 2, 11, 0, time.UTC)),
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     40,
 					MinFreeMemGB:        50,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  10,
 						Free:  90,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  230584,
 						Free:  285271,
 					},
 				}, {
 					ID:                  "bm-e2-14",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
-					DestroyTime:         time.Date(2024, 2, 15, 1, 17, 52, 0, time.UTC),
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NewNilDateTime(time.Date(2024, 2, 15, 1, 17, 52, 0, time.UTC)),
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     20,
 					MinFreeMemGB:        50,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  6,
 						Free:  94,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  127595,
 						Free:  388260,
 					},
 				}, {
 					ID:                  "bm-std3-11",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
-					DestroyTime:         time.Time{},
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NilDateTime{Null: true},
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: false,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     0,
 					MinFreeMemGB:        100,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  1,
 						Free:  99,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 1031700,
 						Used:  7441,
 						Free:  1024258,
 					},
 				}, {
 					ID:                  "bm-std3-12",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
-					DestroyTime:         time.Date(2024, 2, 14, 22, 45, 16, 0, time.UTC),
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NewNilDateTime(time.Date(2024, 2, 14, 22, 45, 16, 0, time.UTC)),
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     49,
 					MinFreeMemGB:        100,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  5,
 						Free:  95,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 1031700,
 						Used:  201767,
 						Free:  829932,
 					},
 				}, {
 					ID:                  "gpu-a10-2",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
-					DestroyTime:         time.Time{},
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NilDateTime{Null: true},
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: false,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     89,
 					MinFreeMemGB:        100,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  20,
 						Free:  80,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 1031700,
 						Used:  498174,
 						Free:  533525,
 					},
-					GPUs: []*sdk.OrchestratorHypervisorGPU{{
+					Gpus: []apiv4.OrchestratorHypervisorGPU{{
 						ID:         "gpu-a10-2-pci_0000_31_00_0",
 						Brand:      "NVIDIA",
 						Model:      "A10",
@@ -489,8 +500,14 @@ func TestStart(t *testing.T) {
 					}},
 				}}
 
-				m.On("OrchestratorHypervisorList", mock.AnythingOfType("*context.cancelCtx")).Return(hypers, nil)
-				m.On("OrchestratorHypervisorStopDesktops", mock.AnythingOfType("*context.timerCtx"), "bm-e2-11").Return(nil)
+				m.On("AdminOrchestratorHypervisorsList", mock.AnythingOfType("*context.cancelCtx")).Return(
+					func(ctx context.Context) (apiv4.AdminOrchestratorHypervisorsListRes, error) {
+						res := apiv4.AdminOrchestratorHypervisorsListOKApplicationJSON(oHypers)
+						return &res, nil
+					},
+				)
+
+				m.On("AdminOrchestratorStopDesktops", mock.AnythingOfType("*context.timerCtx"), apiv4.AdminOrchestratorStopDesktopsParams{HypervisorID: "bm-e2-11"}).Return(&apiv4.AdminOrchestratorStopDesktopsNoContent{}, nil)
 			},
 			CfgRata: cfg.DirectorRata{
 				MinRAMLimitPercent: 150,
@@ -522,50 +539,50 @@ func TestStart(t *testing.T) {
 					}},
 				})
 			},
-			PrepareAPI: func(cancel context.CancelFunc, m *sdk.MockSdk) {
-				hypers := []*sdk.OrchestratorHypervisor{{
+			PrepareAPI: func(cancel context.CancelFunc, m *apiv4.MockInvoker) {
+				oHypers := []apiv4.OrchestratorHypervisor{{
 					ID:                  "bm-e4-12",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
-					DestroyTime:         time.Time{},
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NilDateTime{Null: true},
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     234,
 					MinFreeMemGB:        200,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  27,
 						Free:  73,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 2051898,
 						Used:  1216615,
 						Free:  835282,
 					},
 				}, {
 					ID:                  "gpu-a10-2",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          false,
-					Buffering:           false,
-					DestroyTime:         time.Time{},
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NilDateTime{Null: true},
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: false,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     70,
 					MinFreeMemGB:        100,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  30,
 						Free:  70,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 1031700,
 						Used:  461632,
 						Free:  570067,
 					},
-					GPUs: []*sdk.OrchestratorHypervisorGPU{{
+					Gpus: []apiv4.OrchestratorHypervisorGPU{{
 						ID:         "gpu-a10-2-pci_0000_31_00_0",
 						Brand:      "NVIDIA",
 						Model:      "A10",
@@ -600,31 +617,37 @@ func TestStart(t *testing.T) {
 					}},
 				}, {
 					ID:                  "bm-e4-15",
-					Status:              sdk.HypervisorStatusOnline,
+					Status:              apiv4.HypervisorStatusOnline,
 					OnlyForced:          true,
-					Buffering:           false,
-					DestroyTime:         time.Time{},
-					BookingsEndTime:     time.Time{},
+					BufferingHyper:      false,
+					DestroyTime:         apiv4.NilDateTime{Null: true},
+					BookingsEndTime:     apiv4.NilDateTime{Null: true},
 					OrchestratorManaged: true,
-					GPUOnly:             false,
+					GpuOnly:             false,
 					DesktopsStarted:     0,
 					MinFreeMemGB:        200,
-					CPU: sdk.OrchestratorResourceLoad{
+					CPU: apiv4.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  1,
 						Free:  99,
 					},
-					RAM: sdk.OrchestratorResourceLoad{
+					RAM: apiv4.OrchestratorResourceLoad{
 						Total: 2051898,
 						Used:  10727,
 						Free:  2041170,
 					},
 				}}
 
-				m.On("OrchestratorHypervisorList", mock.AnythingOfType("*context.cancelCtx")).Return(hypers, nil)
-				m.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.timerCtx"), "bm-e4-15", false).Run(func(args mock.Arguments) {
-					hypers[2].OnlyForced = false
-				}).Return(nil)
+				m.On("AdminOrchestratorHypervisorsList", mock.AnythingOfType("*context.cancelCtx")).Return(
+					func(ctx context.Context) (apiv4.AdminOrchestratorHypervisorsListRes, error) {
+						res := apiv4.AdminOrchestratorHypervisorsListOKApplicationJSON(oHypers)
+						return &res, nil
+					},
+				)
+
+				m.On("AdminOrchestratorOnlyForcedSet", mock.AnythingOfType("*context.timerCtx"), &apiv4.OrchestratorOnlyForcedData{OnlyForced: false}, apiv4.AdminOrchestratorOnlyForcedSetParams{HypervisorID: "bm-e4-15"}).Run(func(args mock.Arguments) {
+					oHypers[2].OnlyForced = false
+				}).Return(&apiv4.AdminOrchestratorOnlyForcedSetNoContent{}, nil)
 			},
 			CfgRata: cfg.DirectorRata{
 				MinRAMLimitPercent: 150,
@@ -639,7 +662,10 @@ func TestStart(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			t.Parallel()
+			assert := assert.New(t)
+			require := require.New(t)
+			ctx, cancel := context.WithCancel(t.Context())
 
 			logBuf := &bytes.Buffer{}
 			log := zerolog.New(logBuf).Level(zerolog.ErrorLevel)
@@ -659,7 +685,7 @@ func TestStart(t *testing.T) {
 			require.NoError(err)
 			defer operationsConn.Close()
 
-			apiCli := sdk.NewMockSdk(t)
+			apiCli := apiv4.NewMockInvoker(t)
 			tc.PrepareAPI(cancel, apiCli)
 
 			rata := director.NewRata(
@@ -692,7 +718,9 @@ func TestStart(t *testing.T) {
 
 			go o.Start(ctx)
 
-			time.Sleep(pollingInterval + 500*time.Millisecond)
+			assert.Eventually(func() bool {
+				return s.ExpectationsWereMet() == nil && apiCli.AssertExpectations(silentT{})
+			}, 5*pollingInterval, 50*time.Millisecond, "mock expectations were not met within budget")
 
 			apiCli.AssertExpectations(t)
 			assert.NoError(s.ExpectationsWereMet())

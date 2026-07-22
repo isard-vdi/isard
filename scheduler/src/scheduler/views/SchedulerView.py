@@ -119,21 +119,16 @@ def add(payload, type, kind, action, hour, minute, id=None):
         custom_parameters = request.get_json()
     except:
         custom_parameters = None
-    return (
-        json.dumps(
-            app.scheduler.add_job(
-                type,
-                kind,
-                action,
-                hour,
-                minute,
-                id,
-                kwargs=custom_parameters.pop("kwargs", None),
-            )
-        ),
-        200,
-        {"Content-Type": "application/json"},
+    app.scheduler.add_job(
+        type,
+        kind,
+        action,
+        hour,
+        minute,
+        id,
+        kwargs=custom_parameters.pop("kwargs", None),
     )
+    return (json.dumps(None), 200, {"Content-Type": "application/json"})
 
 
 @app.route("/scheduler/advanced/interval/<type>/<action>", methods=["POST"])
@@ -141,22 +136,22 @@ def add(payload, type, kind, action, hour, minute, id=None):
 def add_advanced_interval(payload, type, action):
     data = request.get_json()
     # id=None, weeks=0, days=0, hours=0, minutes=0, seconds=0, start_date=None, end_date=None, timezone=None, jitter=None, kwargs=None
-    return json.dumps(
-        app.scheduler.add_advanced_interval_job(
-            type, action, data, data.pop("id", None), data.pop("kwargs", None)
-        )
+    app.scheduler.add_advanced_interval_job(
+        type, action, data, data.pop("id", None), data.pop("kwargs", None)
     )
+    return (json.dumps(None), 200, {"Content-Type": "application/json"})
 
 
 @app.route("/scheduler/advanced/date/<type>/<action>", methods=["POST"])
 @is_admin
 def add_advanced_date(payload, type, action):
     data = request.get_json()
-    return json.dumps(
-        app.scheduler.add_advanced_date_job(
-            type, action, data["date"], data.pop("id", None), data.pop("kwargs", None)
-        )
+
+    app.scheduler.add_advanced_date_job(
+        type, action, data["date"], data.pop("id", None), data.pop("kwargs", None)
     )
+
+    return (json.dumps(None), 200, {"Content-Type": "application/json"})
 
 
 @app.route("/scheduler/<job_id>", methods=["DELETE"])
@@ -209,21 +204,16 @@ def add_recyclebin_old_entries(payload, action):
     if action == "none":
         return (json.dumps({}), 200, {"Content-Type": "application/json"})
     else:
-        return (
-            json.dumps(
-                app.scheduler.add_job(
-                    "system",
-                    "interval",
-                    f"recycle_bin_old_entries_action_{action}",
-                    "00",
-                    "05",
-                    f"recycle_bin_old_entries_action_{action}",
-                    kwargs={},
-                )
-            ),
-            200,
-            {"Content-Type": "application/json"},
+        app.scheduler.add_job(
+            "system",
+            "interval",
+            f"recycle_bin_old_entries_action_{action}",
+            "00",
+            "05",
+            f"recycle_bin_old_entries_action_{action}",
+            kwargs={},
         )
+        return (json.dumps(None), 200, {"Content-Type": "application/json"})
 
 
 @app.route("/scheduler/logs_desktops/old_entries/<action>", methods=["PUT"])
@@ -238,21 +228,16 @@ def add_logs_desktops_entries(payload, action):
     if action == "none":
         return (json.dumps({}), 200, {"Content-Type": "application/json"})
     else:
-        return (
-            json.dumps(
-                app.scheduler.add_job(
-                    "system",
-                    "cron",
-                    f"logs_desktops_old_entries_action_{action}",
-                    "22",
-                    "30",
-                    f"logs_desktops_old_entries_action_{action}",
-                    kwargs={},
-                )
-            ),
-            200,
-            {"Content-Type": "application/json"},
+        app.scheduler.add_job(
+            "system",
+            "cron",
+            f"logs_desktops_old_entries_action_{action}",
+            "22",
+            "30",
+            f"logs_desktops_old_entries_action_{action}",
+            kwargs={},
         )
+        return (json.dumps(None), 200, {"Content-Type": "application/json"})
 
 
 @app.route("/scheduler/logs_users/old_entries/<action>", methods=["PUT"])
@@ -267,21 +252,16 @@ def add_logs_users_entries(payload, action):
     if action == "none":
         return (json.dumps({}), 200, {"Content-Type": "application/json"})
     else:
-        return (
-            json.dumps(
-                app.scheduler.add_job(
-                    "system",
-                    "cron",
-                    f"logs_users_old_entries_action_{action}",
-                    "00",
-                    "30",
-                    f"logs_users_old_entries_action_{action}",
-                    kwargs={},
-                )
-            ),
-            200,
-            {"Content-Type": "application/json"},
+        app.scheduler.add_job(
+            "system",
+            "cron",
+            f"logs_users_old_entries_action_{action}",
+            "00",
+            "30",
+            f"logs_users_old_entries_action_{action}",
+            kwargs={},
         )
+        return (json.dumps(None), 200, {"Content-Type": "application/json"})
 
 
 @app.route("/scheduler/queues/old_tasks/<action>", methods=["PUT"])
@@ -296,18 +276,13 @@ def add_queues_old_tasks(payload, action):
     if action == "none":
         return (json.dumps({}), 200, {"Content-Type": "application/json"})
     else:
-        return (
-            json.dumps(
-                app.scheduler.add_job(
-                    "system",
-                    "cron",
-                    f"queues_old_tasks_action_{action}",
-                    "22",
-                    "30",
-                    f"queues_old_tasks_action_{action}",
-                    kwargs={},
-                )
-            ),
-            200,
-            {"Content-Type": "application/json"},
+        app.scheduler.add_job(
+            "system",
+            "cron",
+            f"queues_old_tasks_action_{action}",
+            "22",
+            "30",
+            f"queues_old_tasks_action_{action}",
+            kwargs={},
         )
+        return (json.dumps(None), 200, {"Content-Type": "application/json"})

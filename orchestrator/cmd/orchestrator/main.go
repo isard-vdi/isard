@@ -10,12 +10,12 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
-	"gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 )
 
 func main() {
@@ -26,23 +26,15 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	api, err := sdk.NewClient(&sdk.Cfg{
-		Host: cfg.Orchestrator.APIAddress,
-	})
+	httpClient := ogenclient.NewHTTPClient(ogenclient.WithIgnoreCerts())
+	api, err := apiv4.NewClient(
+		cfg.Orchestrator.APIAddress,
+		ogenclient.APIv4Source{Secret: cfg.Orchestrator.APISecret},
+		apiv4.WithClient(httpClient),
+	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("create API client")
 	}
-
-	api.SetBeforeRequestHook(func(c *sdk.Client) error {
-		tkn, err := jwt.SignAPIJWT(cfg.Orchestrator.APISecret)
-		if err != nil {
-			return fmt.Errorf("sign JWT token for calling the API: %w", err)
-		}
-
-		c.SetToken(tkn)
-
-		return nil
-	})
 
 	var dir director.Director
 	switch cfg.Orchestrator.Director {
@@ -78,6 +70,8 @@ func main() {
 		OperationsCli:     operationsCli,
 		CheckCfg:          cfg.Orchestrator.Check,
 		CheckCli:          checkCli,
+		APIAddress:        cfg.Orchestrator.APIAddress,
+		APISecret:         cfg.Orchestrator.APISecret,
 		APICli:            api,
 	})
 	go orchestrator.Start(ctx)

@@ -1,0 +1,112 @@
+[
+    {
+        "action_id": "start_desktop",
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": [],
+            "users": false
+        },
+        "compute": "start_desktop_bastion",
+        "display": [
+            "modal"
+        ],
+        "enabled": false,
+        "force_accept": false,
+        "id": "88aac63c-6a96-4317-827a-9d5270f0b13f",
+        "ignore_after": {
+            "$reql_type$": "TIME",
+            "epoch_time": 0,
+            "timezone": "+00:00"
+        },
+        "item_type": "desktop",
+        "keep_time": 0,
+        "name": "Starting desktop bastion notification",
+        "order": 0,
+        "template_id": "",
+        "trigger": "start_desktop"
+    },
+    {
+        "action_id": "unused_deployments",
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "compute": null,
+        "display": [
+            "fullpage"
+        ],
+        "enabled": false,
+        "force_accept": false,
+        "id": "5e4cd428-3855-4cc2-a6d2-1369cc671fbb",
+        "ignore_after": {
+            "$reql_type$": "TIME",
+            "epoch_time": 0,
+            "timezone": "+00:00"
+        },
+        "item_type": "deployment",
+        "keep_time": 0,
+        "name": "User unused deployments have been sent to the recycle bin",
+        "order": 0,
+        "template_id": "",
+        "trigger": "login"
+    },
+    {
+        "action_id": "custom",
+        "allowed": {
+            "categories": [
+                "0efd17b5-2cc6-4f72-bbe1-18958d5b6c73"
+            ],
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "compute": null,
+        "display": [
+            "fullpage"
+        ],
+        "enabled": true,
+        "force_accept": false,
+        "id": "f2048a47-5446-41ba-b6bb-23ac9160211f",
+        "ignore_after": {
+            "$reql_type$": "TIME",
+            "epoch_time": 0,
+            "timezone": "+00:00"
+        },
+        "item_type": "user",
+        "keep_time": 168,
+        "name": "Fullpage testing notification",
+        "order": 0,
+        "template_id": "42c61f8c-4a07-4297-9a1c-e5f63287ebba",
+        "trigger": "login"
+    },
+    {
+        "action_id": "unused_desktops",
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "compute": null,
+        "display": [
+            "fullpage"
+        ],
+        "enabled": false,
+        "force_accept": false,
+        "id": "74e95297-127a-42d5-82c9-1d990285c505",
+        "ignore_after": {
+            "$reql_type$": "TIME",
+            "epoch_time": 0,
+            "timezone": "+00:00"
+        },
+        "item_type": "desktop",
+        "keep_time": 0,
+        "name": "User unused desktops have been sent to the recycle bin",
+        "order": 0,
+        "template_id": "",
+        "trigger": "login"
+    }
+]

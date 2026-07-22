@@ -14,6 +14,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/db"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 )
 
@@ -186,7 +187,6 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 	if !a.Provider(u.Provider, u.Category).SaveEmail() {
 		u.Email = ""
 	}
-	providerName := u.Name
 	dbUser, uExists, err := u.FindExisting(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)
@@ -198,15 +198,60 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 	// Flag to track if we need to update existing user.
 	var needsUpdate bool
 	if uExists {
-		// Check if provider name differs from database name.
-		if dbUser.Name != providerName {
+		provided := *u
+		*u = *dbUser
+
+		if provided.Name != "" && u.Name != provided.Name {
 			needsUpdate = true
-			*u = *dbUser
-			// Keep the provider name.
-			u.Name = providerName
-		} else {
-			// Use the existing database user data.
-			*u = *dbUser
+			u.Name = provided.Name
+		}
+
+		if provided.Username != "" && u.Username != provided.Username {
+			needsUpdate = true
+			u.Username = provided.Username
+		}
+
+		if provided.Photo != "" && u.Photo != provided.Photo {
+			needsUpdate = true
+			u.Photo = provided.Photo
+		}
+
+		if provided.Email != "" && u.Email != provided.Email {
+			needsUpdate = true
+			u.Email = provided.Email
+			u.EmailVerified = nil
+			u.EmailVerificationToken = ""
+		}
+
+		if provided.Role != "" && u.Role != provided.Role {
+			needsUpdate = true
+			u.Role = provided.Role
+		}
+
+		if g != nil {
+			for _, group := range append(secondary, g) {
+				gExists, err := group.Exists(ctx, a.DB)
+				if err != nil {
+					return "", "", fmt.Errorf("check if group exists: %w", err)
+				}
+
+				if !gExists {
+					if err := a.registerGroup(ctx, group); err != nil {
+						return "", "", fmt.Errorf("auto register group: %w", err)
+					}
+				}
+			}
+
+			secondaryGroups := make([]string, 0, len(secondary))
+			for _, group := range secondary {
+				secondaryGroups = append(secondaryGroups, group.ID)
+			}
+
+			if u.Group != g.ID || !slices.Equal(u.SecondaryGroups, secondaryGroups) {
+				needsUpdate = true
+				u.Group = g.ID
+				u.SecondaryGroups = secondaryGroups
+			}
 		}
 	}
 
@@ -230,7 +275,7 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 				}
 
 				if !gExists {
-					if err := a.registerGroup(group); err != nil {
+					if err := a.registerGroup(ctx, group); err != nil {
 						return "", "", fmt.Errorf("auto register group: %w", err)
 					}
 				}
@@ -244,7 +289,7 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		}
 
 		// Automatic registration!
-		if err := a.registerUser(u); err != nil {
+		if err := a.registerUser(ctx, u); err != nil {
 			return "", "", fmt.Errorf("auto register user: %w", err)
 		}
 	} else if needsUpdate {
@@ -264,11 +309,15 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 	}
 
 	// Check if the user needs to acknowledge the disclaimer.
-	dscl, err := a.API.AdminUserRequiredDisclaimerAcknowledgement(ctx, u.ID)
+	dsclRsp, err := a.API.AdminCheckDisclaimer(ctx, apiv4.AdminCheckDisclaimerParams{UserID: u.ID})
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to accept the disclaimer: %w", err)
 	}
-	if dscl {
+	dsclCheck, ok := dsclRsp.(*apiv4.RequiredCheckResponse)
+	if !ok {
+		return "", "", fmt.Errorf("check if the user needs to accept the disclaimer: unexpected response type %T", dsclRsp)
+	}
+	if dsclCheck.Required {
 		ss, err := token.SignDisclaimerAcknowledgementRequiredToken(a.Secret, u.ID)
 		if err != nil {
 			return "", "", err
@@ -277,8 +326,16 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		return ss, redirect, nil
 	}
 
-	// TODO: Check if the user needs to migrate themselves.
-	if false {
+	// Check if the user needs to migrate themselves.
+	mgrtRsp, err := a.API.AdminCheckMigrationRequired(ctx, apiv4.AdminCheckMigrationRequiredParams{UserID: u.ID})
+	if err != nil {
+		return "", "", fmt.Errorf("check if the user needs to migrate: %w", err)
+	}
+	mgrtCheck, ok := mgrtRsp.(*apiv4.RequiredCheckResponse)
+	if !ok {
+		return "", "", fmt.Errorf("check if the user needs to migrate: unexpected response type %T", mgrtRsp)
+	}
+	if mgrtCheck.Required {
 		ss, err := token.SignUserMigrationRequiredToken(a.Secret, u.ID)
 		if err != nil {
 			return "", "", err
@@ -288,11 +345,15 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 	}
 
 	// Check if the user has the email verified.
-	vfEmail, err := a.API.AdminUserRequiredEmailVerification(ctx, u.ID)
+	vfEmailRsp, err := a.API.AdminCheckEmailVerification(ctx, apiv4.AdminCheckEmailVerificationParams{UserID: u.ID})
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to verify the email: %w", err)
 	}
-	if vfEmail {
+	vfEmailCheck, ok := vfEmailRsp.(*apiv4.RequiredCheckResponse)
+	if !ok {
+		return "", "", fmt.Errorf("check if the user needs to verify the email: unexpected response type %T", vfEmailRsp)
+	}
+	if vfEmailCheck.Required {
 		ss, err := token.SignEmailVerificationRequiredToken(a.Secret, u)
 		if err != nil {
 			return "", "", err
@@ -301,11 +362,15 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		return ss, redirect, nil
 	}
 
-	pwdRst, err := a.API.AdminUserRequiredPasswordReset(ctx, u.ID)
+	pwdRstRsp, err := a.API.AdminCheckPasswordResetRequired(ctx, apiv4.AdminCheckPasswordResetRequiredParams{UserID: u.ID})
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to reset the password: %w", err)
 	}
-	if pwdRst {
+	pwdRstCheck, ok := pwdRstRsp.(*apiv4.RequiredCheckResponse)
+	if !ok {
+		return "", "", fmt.Errorf("check if the user needs to reset the password: unexpected response type %T", pwdRstRsp)
+	}
+	if pwdRstCheck.Required {
 		ss, err := token.SignPasswordResetRequiredToken(a.Secret, u.ID)
 		if err != nil {
 			return "", "", err
@@ -347,14 +412,18 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 	}
 
 	// Call API to check if the user has fullpage notifications pending, if so redirect to /notifications/login.
-	rsp, err := a.API.AdminUserNotificationsDisplays(ctx, u.ID)
+	rsp, err := a.API.AdminGetUserNotificationDisplays(ctx, apiv4.AdminGetUserNotificationDisplaysParams{UserID: u.ID, Trigger: apiv4.NotificationTriggerEnumLogin})
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user has notifications pending: %w", err)
 	}
+	notifDisplays, ok := rsp.(*apiv4.AdminUserDisplaysResponse)
+	if !ok {
+		return "", "", fmt.Errorf("check if the user has notifications pending: unexpected response type %T", rsp)
+	}
 
-	a.Log.Info().Str("rsp", fmt.Sprintf("%v", rsp)).Msg("notifications displays")
-	for _, display := range rsp {
-		if display == "fullpage" {
+	a.Log.Info().Str("rsp", fmt.Sprintf("%v", notifDisplays.Displays)).Msg("notifications displays")
+	for _, display := range notifDisplays.Displays {
+		if display == apiv4.NotificationDisplayEnumFullpage {
 			redirect = "/notifications/login"
 			break
 		}

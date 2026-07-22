@@ -4,7 +4,8 @@ BackupNinja Report Sender
 
 Parses the backupninja log of the most recent completed backup session,
 shapes it into a JSON report and POSTs it to the IsardVDI API at
-POST /api/v3/backups with a service-signed JWT.
+POST /api/v4/admin/item/backups via the generated apiv4 Python client (with a
+service-signed JWT).
 
 Design notes:
   * Each schedule (DB, Redis, …) writes its own SESSION_START / SESSION_END
@@ -31,7 +32,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from isardvdi_common.api_rest import ApiRest
+from isardvdi_apiv4_client.api.role_admin import admin_backup_report
+from isardvdi_apiv4_client.models import BackupReportRequest
+from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -1029,32 +1032,34 @@ def send_with_queue(
 
     Returns True if the current report was delivered successfully.
     """
+    # ``api_domain`` was the legacy ApiRest base-url override. The generated
+    # apiv4 client picks its target from the bundled service-token registry
+    # via ``build_client(...)``, so the parameter is accepted-but-ignored
+    # for backwards compatibility with the run.sh CLI surface.
+    if api_domain:
+        logger.debug("api_domain=%s ignored — generated client", api_domain)
+
     os.makedirs(queue_dir, exist_ok=True)
 
-    api = _build_api(api_domain)
-    delivered = _post_with_retries(api, report_dict, max_attempts)
+    delivered = _post_with_retries(report_dict, max_attempts)
     if not delivered:
         _enqueue(queue_dir, report_dict)
 
     # Try to flush anything queued from previous runs (best-effort).
-    flush_queue(queue_dir, api, max_attempts=1)
+    flush_queue(queue_dir, max_attempts=1)
 
     return delivered
 
 
-def _build_api(api_domain: Optional[str]) -> ApiRest:
-    if api_domain and api_domain.startswith("http"):
-        return ApiRest(service="isard-api", base_url=api_domain)
-    return ApiRest(service="isard-api")
-
-
-def _post_with_retries(
-    api: ApiRest, payload: Dict[str, Any], max_attempts: int
-) -> bool:
+def _post_with_retries(payload: Dict[str, Any], max_attempts: int) -> bool:
+    """POST a single report via the generated apiv4 client with retries."""
     delay = 2.0
     for attempt in range(1, max_attempts + 1):
         try:
-            api.post("/backups", data=payload)
+            body = _build_request_body(payload)
+            with build_client("isard-backupninja") as client:
+                resp = admin_backup_report.sync_detailed(client=client, body=body)
+                raise_for_status(resp)
             logger.info("Backup report delivered (attempt %d)", attempt)
             return True
         except Exception as e:
@@ -1070,6 +1075,47 @@ def _post_with_retries(
     return False
 
 
+def _build_request_body(payload: Dict[str, Any]) -> BackupReportRequest:
+    """Map the dict produced by the parser to the generated BackupReportRequest.
+
+    Required fields go through the constructor. Everything else is copied over
+    field-by-field. The dict is consumed non-destructively so the queue retry
+    flow can re-marshal an identical body on the next attempt.
+
+    Every non-constructor field is copied into the model's
+    ``additional_properties`` mapping via item assignment (``body[key] =
+    value``), NOT ``setattr``. Two reasons:
+
+    * The generated attrs model uses ``__slots__`` and only declares the
+      OpenAPI schema fields (``timestamp``/``status``/``type_``/``scope``/
+      ``details``/``created_at``). The parser also emits fields that are not
+      in the schema (``disk_types``, ``actions``, the ``*_actions`` counts,
+      ``duration``, ``summary``, ``backup_types_status``, ...). ``setattr`` of
+      those raises ``AttributeError: ... no __dict__`` and — before this fix —
+      aborted the whole report build, so no report was ever POSTed and every
+      run silently queued for retry.
+    * Even the declared object-typed fields (``details``) are typed as nested
+      generated models whose ``to_dict()`` is called during serialisation, so
+      assigning a plain ``dict`` to ``body.details`` would crash ``to_dict()``.
+
+    ``additional_properties`` is serialised verbatim into the JSON body by
+    ``to_dict()`` (same wire shape as a top-level field), and the apiv4
+    ``BackupReportRequest`` schema accepts it (``extra="allow"``), so the
+    webapp backups view receives the rich fields it renders.
+    """
+    body = BackupReportRequest(
+        timestamp=payload["timestamp"],
+        status=payload["status"],
+        type_=payload["type"],
+        scope=payload["scope"],
+    )
+    for key, value in payload.items():
+        if key in ("timestamp", "status", "type", "scope"):
+            continue
+        body[key] = value
+    return body
+
+
 def _enqueue(queue_dir: str, payload: Dict[str, Any]) -> None:
     name = f"report-{int(time.time())}-{os.getpid()}.json"
     path = os.path.join(queue_dir, name)
@@ -1081,7 +1127,7 @@ def _enqueue(queue_dir: str, payload: Dict[str, Any]) -> None:
         logger.error("Failed to enqueue report %s: %s", path, e)
 
 
-def flush_queue(queue_dir: str, api: ApiRest, max_attempts: int = 1) -> int:
+def flush_queue(queue_dir: str, max_attempts: int = 1) -> int:
     """Try to deliver every queued report. Returns the number sent."""
     if not os.path.isdir(queue_dir):
         return 0
@@ -1097,7 +1143,7 @@ def flush_queue(queue_dir: str, api: ApiRest, max_attempts: int = 1) -> int:
             logger.warning("Dropping unreadable queued report %s: %s", path, e)
             _safe_unlink(path)
             continue
-        if _post_with_retries(api, payload, max_attempts):
+        if _post_with_retries(payload, max_attempts):
             _safe_unlink(path)
             sent += 1
         else:

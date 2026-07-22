@@ -1,0 +1,1235 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Scheduler API. Used only through internal microservices.",
+    "version": "v1.0"
+  },
+  "paths": {
+    "/scheduler/healthcheck": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Scheduler healthcheck.",
+        "description": "Liveness probe. Returns an empty body on success.",
+        "operationId": "get_scheduler_healthcheck",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/scheduler/actions": {
+      "get": {
+        "tags": [
+          "Actions"
+        ],
+        "summary": "List available scheduler actions.",
+        "description": "List all actions the scheduler can run, grouped by kind.",
+        "operationId": "get_scheduler_actions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerActionList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/action/{action_id}": {
+      "get": {
+        "tags": [
+          "Actions"
+        ],
+        "summary": "Get kwargs for a scheduler action.",
+        "description": "Return the kwargs schema associated with a specific action.",
+        "operationId": "get_scheduler_action",
+        "parameters": [
+          {
+            "name": "action_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerActionKwargs"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/recycle_bin_delete/max_time": {
+      "get": {
+        "tags": [
+          "RecycleBin"
+        ],
+        "summary": "Get recycle-bin retention limits.",
+        "description": "Return the current recycle-bin retention (scoped to caller category unless admin) and the admin-configured max.",
+        "operationId": "get_scheduler_recycle_bin_delete_max_time",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerMaxTimeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List scheduled jobs.",
+        "description": "List every scheduled job.",
+        "operationId": "get_scheduler_jobs",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerJobList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/{job_id}": {
+      "delete": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Delete a single scheduled job.",
+        "description": "Remove a scheduled job by id.",
+        "operationId": "delete_scheduler_job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerEmptyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get a scheduled job by id.",
+        "description": "Fetch a single scheduled job by id. Returns a list with one item to match the listing shape.",
+        "operationId": "get_scheduler_job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerJobList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/kind/{kind}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List jobs by kind.",
+        "description": "List scheduled jobs filtered by kind (e.g. `date`, `interval`, `cron`).",
+        "operationId": "get_scheduler_jobs_by_kind",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerJobList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/not_date": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List recurring jobs.",
+        "description": "List every scheduled job whose kind is not `date` (i.e. recurring jobs only).",
+        "operationId": "get_scheduler_jobs_not_date",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerJobList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/{type}/{kind}/{action}/{hour}/{minute}": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Schedule a job (auto-generated id).",
+        "description": "Schedule a job using the APScheduler `kind` trigger (e.g. `cron`). Use the `/scheduler/{type}/{kind}/{action}/{hour}/{minute}/{id}` variant to supply a custom job id.",
+        "operationId": "post_scheduler_add_job",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hour",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minute",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulerAddJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerAddJobResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/{type}/{kind}/{action}/{hour}/{minute}/{id}": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Schedule a job (explicit id).",
+        "description": "Same as `/scheduler/{type}/{kind}/{action}/{hour}/{minute}` but with an explicit job id.",
+        "operationId": "post_scheduler_add_job_with_id",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hour",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minute",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulerAddJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerAddJobResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/advanced/interval/{type}/{action}": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Schedule an interval-triggered job.",
+        "description": "Schedule a job using APScheduler IntervalTrigger parameters (weeks/days/hours/...).",
+        "operationId": "post_scheduler_advanced_interval",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulerAddAdvancedIntervalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerAddJobResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/advanced/date/{type}/{action}": {
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Schedule a date-triggered (one-shot) job.",
+        "description": "Schedule a one-shot job at an absolute timestamp.",
+        "operationId": "post_scheduler_advanced_date",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulerAddAdvancedDateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerAddJobResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/delete_jobs": {
+      "delete": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Delete multiple scheduled jobs.",
+        "description": "Delete multiple scheduled jobs by id.",
+        "operationId": "delete_scheduler_jobs_bulk",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulerDeleteJobsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerEmptyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/startswith/{job_id}": {
+      "delete": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Delete jobs by id prefix.",
+        "description": "Delete every scheduled job whose id starts with the given prefix. Returns the list of removed ids.",
+        "operationId": "delete_scheduler_jobs_startswith",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerRemoveJobStartswithResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/delete/recycle_bin/{category}": {
+      "delete": {
+        "tags": [
+          "RecycleBin"
+        ],
+        "summary": "Delete a category recycle-bin job.",
+        "description": "Delete the recycle-bin cleanup job for the given category (removes `${category}.recycle_bin_delete`).",
+        "operationId": "delete_scheduler_recycle_bin_category",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerEmptyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/recycle_bin/old_entries/{action}": {
+      "put": {
+        "tags": [
+          "RecycleBin"
+        ],
+        "summary": "Configure recycle-bin old-entries cleanup.",
+        "description": "Configure the recycle-bin old-entries cleanup job. `action` must be `delete` (to schedule) or `none` (to remove the scheduled job).",
+        "operationId": "put_scheduler_recycle_bin_old_entries",
+        "parameters": [
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "delete",
+                "none"
+              ],
+              "type": "string"
+            },
+            "description": "Action to apply: `delete` schedules a daily cleanup, `none` unschedules it."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SchedulerAddJobResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SchedulerEmptyResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/logs_desktops/old_entries/{action}": {
+      "put": {
+        "tags": [
+          "Logs"
+        ],
+        "summary": "Configure desktop-logs old-entries cleanup.",
+        "description": "Configure the desktop-logs old-entries cleanup job. `action` must be `delete` or `none`.",
+        "operationId": "put_scheduler_logs_desktops_old_entries",
+        "parameters": [
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "delete",
+                "none"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SchedulerAddJobResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SchedulerEmptyResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/logs_users/old_entries/{action}": {
+      "put": {
+        "tags": [
+          "Logs"
+        ],
+        "summary": "Configure user-logs old-entries cleanup.",
+        "description": "Configure the user-logs old-entries cleanup job. `action` must be `delete` or `none`.",
+        "operationId": "put_scheduler_logs_users_old_entries",
+        "parameters": [
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "delete",
+                "none"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SchedulerAddJobResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SchedulerEmptyResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scheduler/queues/old_tasks/{action}": {
+      "put": {
+        "tags": [
+          "Queues"
+        ],
+        "summary": "Configure queues old-tasks cleanup.",
+        "description": "Configure the queues old-tasks cleanup job. `action` must be `delete` or `none`.",
+        "operationId": "put_scheduler_queues_old_tasks",
+        "parameters": [
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "delete",
+                "none"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SchedulerAddJobResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SchedulerEmptyResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SchedulerJobKwargs": {
+        "properties": {},
+        "type": "object",
+        "additionalProperties": true,
+        "title": "SchedulerJobKwargs",
+        "description": "Arbitrary keyword arguments forwarded to a scheduled action. The scheduler does not introspect these; the target action defines its own expected keys."
+      },
+      "SchedulerAddJobRequest": {
+        "properties": {
+          "kwargs": {
+            "$ref": "#/components/schemas/SchedulerJobKwargs"
+          }
+        },
+        "type": "object",
+        "title": "SchedulerAddJobRequest",
+        "description": "Request body for POST /scheduler/{type}/{kind}/{action}/{hour}/{minute}[/{id}]. The scheduler only reads the `kwargs` field; any other top-level keys are accepted but ignored."
+      },
+      "SchedulerAddAdvancedIntervalRequest": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kwargs": {
+            "$ref": "#/components/schemas/SchedulerJobKwargs"
+          },
+          "weeks": {
+            "type": "integer",
+            "default": 0,
+            "title": "Weeks"
+          },
+          "days": {
+            "type": "integer",
+            "default": 0,
+            "title": "Days"
+          },
+          "hours": {
+            "type": "integer",
+            "default": 0,
+            "title": "Hours"
+          },
+          "minutes": {
+            "type": "integer",
+            "default": 0,
+            "title": "Minutes"
+          },
+          "seconds": {
+            "type": "integer",
+            "default": 0,
+            "title": "Seconds"
+          },
+          "start_date": {
+            "type": "string",
+            "title": "Start Date",
+            "description": "ISO-8601 datetime string (UTC or offset)."
+          },
+          "end_date": {
+            "type": "string",
+            "title": "End Date",
+            "description": "ISO-8601 datetime string (UTC or offset)."
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "jitter": {
+            "type": "integer",
+            "title": "Jitter"
+          }
+        },
+        "type": "object",
+        "title": "SchedulerAddAdvancedIntervalRequest",
+        "description": "Request body for POST /scheduler/advanced/interval/{type}/{action}. Mirrors APScheduler IntervalTrigger parameters. `id` and `kwargs` are popped out before forwarding to the trigger."
+      },
+      "SchedulerAddAdvancedDateRequest": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date",
+            "description": "ISO-8601 datetime string (UTC or offset)."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kwargs": {
+            "$ref": "#/components/schemas/SchedulerJobKwargs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date"
+        ],
+        "title": "SchedulerAddAdvancedDateRequest",
+        "description": "Request body for POST /scheduler/advanced/date/{type}/{action}. `date` is the absolute timestamp to run the action at."
+      },
+      "SchedulerDeleteJobsRequest": {
+        "properties": {
+          "jobs_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "Jobs Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "jobs_ids"
+        ],
+        "title": "SchedulerDeleteJobsRequest",
+        "description": "Request body for DELETE /scheduler/delete_jobs."
+      },
+      "SchedulerJob": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date",
+            "description": "ISO-8601 string with timezone (scheduler formats as `%Y-%m-%dT%H:%M%z`)."
+          },
+          "hour": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hour"
+          },
+          "minute": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minute"
+          },
+          "kwargs": {
+            "$ref": "#/components/schemas/SchedulerJobKwargs"
+          }
+        },
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "kind"
+        ],
+        "title": "SchedulerJob",
+        "description": "APScheduler job as exposed by isard-scheduler. Extra backend-specific fields may be present."
+      },
+      "SchedulerJobList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SchedulerJob"
+        },
+        "title": "SchedulerJobList"
+      },
+      "SchedulerAddJobResponse": {
+        "type": "null",
+        "title": "SchedulerAddJobResponse",
+        "description": "Job-creation endpoints return no body (always JSON null)."
+      },
+      "SchedulerRemoveJobStartswithResponse": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "title": "SchedulerRemoveJobStartswithResponse",
+        "description": "List of job IDs that were removed."
+      },
+      "SchedulerEmptyResponse": {
+        "properties": {},
+        "type": "object",
+        "additionalProperties": true,
+        "title": "SchedulerEmptyResponse",
+        "description": "Empty object returned when the scheduler has nothing meaningful to return."
+      },
+      "SchedulerActionList": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "title": "SchedulerActionList",
+        "description": "Map of action_kind \u2192 list of action names exposed by the scheduler."
+      },
+      "SchedulerActionKwargs": {
+        "properties": {},
+        "type": "object",
+        "additionalProperties": true,
+        "title": "SchedulerActionKwargs",
+        "description": "Kwargs schema for a specific scheduler action. Shape depends on the action."
+      },
+      "SchedulerMaxTimeResponse": {
+        "properties": {
+          "time": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "max_time": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "time",
+          "max_time"
+        ],
+        "title": "SchedulerMaxTimeResponse",
+        "description": "Current and admin-configured recycle-bin delete retention time (in days)."
+      },
+      "SchedulerError": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "debug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debug"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "SchedulerError",
+        "description": "Error envelope raised by the scheduler (lib/exceptions.py)."
+      },
+      "ValidationError": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ValidationErrorElement"
+        },
+        "title": "ValidationError",
+        "description": "Model of a validation error response."
+      },
+      "ValidationErrorElement": {
+        "properties": {
+          "ctx": {
+            "type": "object",
+            "title": "Error context"
+          },
+          "loc": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing field name"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Error message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationErrorElement",
+        "description": "Model of a validation error response element."
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health"
+    },
+    {
+      "name": "Jobs"
+    },
+    {
+      "name": "Actions"
+    },
+    {
+      "name": "RecycleBin"
+    },
+    {
+      "name": "Logs"
+    },
+    {
+      "name": "Queues"
+    }
+  ]
+}

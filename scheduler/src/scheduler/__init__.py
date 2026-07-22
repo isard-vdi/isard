@@ -38,10 +38,10 @@ if not cfg.init_app(app):
 
 from flask_socketio import SocketIO
 
-debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
+debug = os.environ.get("LOG_LEVEL", "INFO") == "DEBUG"
 socketio = SocketIO(
     app,
-    path="/api/v3/socket.io/",
+    path="/socket.io",
     cors_allowed_origins="*",
     logger=debug,
     engineio_logger=debug,
@@ -52,8 +52,11 @@ Scheduler
 """
 from .lib.scheduler import Scheduler
 
-log.info("Starting scheduler")
-app.scheduler = Scheduler()
+# Skip in the Werkzeug reloader parent (devel) so the cron jobstore isn't attached twice.
+_reloader_enabled = os.environ.get("USAGE", "production") == "devel"
+if not _reloader_enabled or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    log.info("Starting scheduler")
+    app.scheduler = Scheduler()
 
 """
 Request logging middleware

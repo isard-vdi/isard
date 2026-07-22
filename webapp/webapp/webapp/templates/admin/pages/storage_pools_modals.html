@@ -79,7 +79,7 @@
                     <tr>
                       <th style="width:90px;">Use default</th>
                       <th>Type</th>
-                      <th>Path</th>
+                      <th>Path <i class="fa fa-info-circle" aria-hidden="true" title="Path under the pool for this disk type. Subpaths are allowed (e.g. fast/templates). Optionally add the {category} placeholder to put the tier before the category: fast/{category}/templates is stored at MOUNTPOINT/fast/CATEGORY/templates, so a single disk mounted once at MOUNTPOINT/fast serves every category. Without {category} the path is MOUNTPOINT/CATEGORY/path. Use a relative path - no leading slash and no '..'."></i></th>
                       <th>Weight</th>
                       <th></th>
                     </tr>
@@ -101,7 +101,7 @@
                       <td id="type"><i class="fa fa-desktop fa-1x"></i><b> Desktops</b></td>
                       <td>
                         <span class="path_base"></span><input id="path" name="desktop-path" value="desktops"
-                          class="roundbox" required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$"
+                          class="roundbox" required pattern="^(\{category\}|[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+)(/(\{category\}|[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+))*$"
                           data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="desktop-weight" type="number" value="100"></td>
@@ -131,7 +131,7 @@
                       <td id="type"><i class="fa fa-circle-o fa-1x"></i><b> Media</b></td>
                       <td>
                         <span class="path_base"></span><input id="path" name="media-path" value="media" class="roundbox"
-                          required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-trigger="change"
+                          required pattern="^(\{category\}|[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+)(/(\{category\}|[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+))*$" data-parsley-trigger="change"
                           type="text">
                       </td>
                       <td><input id="weight" name="media-weight" type="number" value="100"></td>
@@ -161,7 +161,7 @@
                       <td id="type"><i class="fa fa-cubes fa-1x"></i><b> Templates</b></td>
                       <td>
                         <span class="path_base"></span><input id="path" name="template-path" value="templates"
-                          class="roundbox" required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$"
+                          class="roundbox" required pattern="^(\{category\}|[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+)(/(\{category\}|[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+))*$"
                           data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="template-weight" type="number" value="100"></td>
@@ -191,7 +191,7 @@
                       <td id="type"><i class="fa fa-clock-o fa-1x"></i><b> Volatile</b></td>
                       <td>
                         <span class="path_base"></span><input id="path" name="volatile-path" value="volatile"
-                          class="roundbox" required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$"
+                          class="roundbox" required pattern="^(\{category\}|[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+)(/(\{category\}|[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+))*$"
                           data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="volatile-weight" type="number" value="100"></td>
@@ -246,9 +246,10 @@
                 </div>
               </div> -->
               <div class="col-md-12 col-sm-12 col-xs-12 text-info">
-                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Note: The storage pool creation will only be
-                  completed after
-                  <strong>restarting the engine</strong>.
+                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Note: A newly created pool only becomes
+                  operational once a hypervisor/storage node that serves it is <strong>restarted</strong> (each node
+                  reads the pools it serves at startup). Editing an existing pool's paths or mountpoints takes effect
+                  automatically, with no restart.
                 </h4>
               </div>
             </div>
@@ -333,7 +334,7 @@
                     <tr>
                       <th style="width:90px;">Use default</th>
                       <th>Type</th>
-                      <th>Path</th>
+                      <th>Path <i class="fa fa-info-circle" aria-hidden="true" title="Path under the pool for this disk type. Subpaths are allowed (e.g. fast/templates). Optionally add the {category} placeholder to put the tier before the category: fast/{category}/templates is stored at MOUNTPOINT/fast/CATEGORY/templates, so a single disk mounted once at MOUNTPOINT/fast serves every category. Without {category} the path is MOUNTPOINT/CATEGORY/path. Use a relative path - no leading slash and no '..'."></i></th>
                       <th>Weight</th>
                       <th></th>
                     </tr>

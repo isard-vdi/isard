@@ -231,6 +231,30 @@
                   />
                 </b-button>
                 <b-button
+                  v-if="config.canUseBastion"
+                  class="rounded-circle px-2 mr-2 btn-dark-blue"
+                  :title="$t('components.statusbar.deployment.buttons.bastion.title')"
+                  :disabled="blockDeploymentActions"
+                  @click="showBastionModal()"
+                >
+                  <b-icon
+                    icon="shield-lock"
+                    scale="0.75"
+                  />
+                </b-button>
+                <b-button
+                  v-if="config.canUseBastion"
+                  class="rounded-circle btn-purple px-2 mr-2"
+                  :title="$t('components.statusbar.deployment.buttons.download-bastion-csv.title')"
+                  :disabled="blockDeploymentActions"
+                  @click="downloadBastionCSV()"
+                >
+                  <b-icon
+                    icon="file-earmark-arrow-down"
+                    scale="0.75"
+                  />
+                </b-button>
+                <b-button
                   class="rounded-circle px-2 mr-2 btn-orange"
                   :title="$t('components.statusbar.deployment.buttons.recreate.title')"
                   :disabled="isRecreateButtonDisabled || blockDeploymentActions"
@@ -483,7 +507,7 @@ export default {
     const started = ref(false)
 
     const createDesktop = () => {
-      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'desktops', routeName: 'desktopsnew' })
+      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'desktop', routeName: 'desktopsnew' })
     }
 
     const createMedia = () => {
@@ -491,12 +515,13 @@ export default {
     }
 
     const createDeployment = () => {
-      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'deployments', routeName: 'deploymentsnew' })
+      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'deployment', routeName: 'deploymentsnew' })
     }
 
     $store.dispatch('fetchItemsInRecycleBin')
 
     const deployment = computed(() => $store.getters.getDeployment)
+    const config = computed(() => $store.getters.getConfig)
     const desktops = computed(() => $store.getters.getDesktops)
     const viewType = computed(() => $store.getters.getViewType)
     const recycleBin = computed(() => $store.getters.getRecycleBin)
@@ -615,6 +640,19 @@ export default {
       })
     }
 
+    const showBastionModal = () => {
+      $store.dispatch('updateDeploymentModal', {
+        show: true,
+        type: 'bastion',
+        color: 'blue',
+        item: { id: deployment.value.id, name: deployment.value.name }
+      })
+    }
+
+    const downloadBastionCSV = () => {
+      $store.dispatch('downloadDeploymentBastionCSV', { id: deployment.value.id })
+    }
+
     const showAllowedModal = () => {
       $store.dispatch('fetchAllowed', { table: 'deployments', id: deployment.value.id })
     }
@@ -671,7 +709,10 @@ export default {
             setDisableRecreateButton(false)
           }
 
-          context.root.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-deployment', { name: deployment.value.name })}`, {
+          const existing = (deployment.value.desktops || []).length
+          const target = deployment.value.totalDesktops || 0
+          const toCreate = Math.max(0, target - existing)
+          context.root.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-deployment', { name: deployment.value.name, count: toCreate })}`, {
             position: 'centerTop',
             buttons: [
               { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
@@ -758,6 +799,9 @@ export default {
       goToVideowall,
       toggleVisible,
       downloadDirectViewerCSV,
+      showBastionModal,
+      downloadBastionCSV,
+      config,
       showAllowedModal,
       showOwnersModal,
       updateUsers,

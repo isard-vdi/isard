@@ -41,6 +41,36 @@
         </b-col>
       </b-row>
 
+      <!-- Description -->
+      <b-row>
+        <b-col
+          cols="4"
+          xl="2"
+        >
+          <label for="deploymentDescription">{{ $t('forms.new-deployment.description') }}</label>
+        </b-col>
+        <b-col
+          cols="6"
+          xl="4"
+          class="mb-4"
+        >
+          <b-form-input
+            id="deploymentDescription"
+            v-model="deploymentDescription"
+            type="text"
+            size="sm"
+            :state="v$.deploymentDescription.$error ? false : null"
+            @blur="v$.deploymentDescription.$touch"
+          />
+          <b-form-invalid-feedback
+            v-if="v$.deploymentDescription.$error"
+            id="deploymentDescriptionError"
+          >
+            {{ $t(`validations.${v$.deploymentDescription.$errors[0].$validator}`, { property: $t('forms.new-deployment.description'), model: deploymentDescription.length, max: 255 }) }}
+          </b-form-invalid-feedback>
+        </b-col>
+      </b-row>
+
       <b-row>
         <b-col cols="12">
           <div class="d-flex">
@@ -205,6 +235,7 @@
               class="danger-icon position-absolute cursor-pointer"
             />
             <img
+              v-if="data.item.image"
               :src="`..${data.item.image.url}`"
               alt=""
               style="height: 2rem; border: 1px solid #555;"
@@ -343,6 +374,7 @@ export default {
     }
 
     const deploymentName = ref('')
+    const deploymentDescription = ref('')
     const visible = ref(false)
     const collapseVisible = ref(false)
 
@@ -386,11 +418,11 @@ export default {
         minLengthValue: minLength(4),
         inputFormat
       },
-      description: {
+      deploymentDescription: {
         maxLengthValue: maxLength(255)
       },
       selectedTemplateId: { required }
-    }, { selectedTemplateId, deploymentName })
+    }, { selectedTemplateId, deploymentName, deploymentDescription })
 
     watch(items, (newVal, prevVal) => {
       totalRows.value = newVal.length
@@ -482,43 +514,43 @@ export default {
           for (let i = 0; i < domain.value.guestProperties.viewers.length; i++) {
             Object.assign(viewers, domain.value.guestProperties.viewers[i])
           }
-          // Parse isos data
-          const isos = domain.value.hardware.isos.map((value) => {
-            return { id: value.id }
-          })
+          const image = (domain.value.image && domain.value.image.id) ? domain.value.image : null
           $store.dispatch('createNewDeployment',
             {
               visible: visible.value,
-              template_id: selected.value[0].id,
               name: deploymentName.value,
-              desktop_name: domain.value.name,
-              description: domain.value.description,
-              guest_properties: {
-                credentials: {
-                  username: domain.value.guestProperties.credentials.username,
-                  password: domain.value.guestProperties.credentials.password
-                },
-                fullscreen: domain.value.guestProperties.fullscreen,
-                viewers: viewers
-              },
-              hardware: {
-                boot_order: domain.value.hardware.bootOrder,
-                disk_bus: domain.value.hardware.diskBus,
-                disks: domain.value.hardware.disks,
-                floppies: domain.value.hardware.floppies,
-                interfaces: domain.value.hardware.interfaces,
-                isos: isos,
-                memory: domain.value.hardware.memory,
-                vcpus: domain.value.hardware.vcpus,
-                videos: domain.value.hardware.videos,
-                reservables: domain.value.reservables
-              },
-              image: domain.value.image,
+              description: deploymentDescription.value || null,
               allowed: {
                 users,
                 groups
               },
-              user_permissions: userPermissions.value
+              user_permissions: userPermissions.value,
+              desktops: [{
+                template_id: selected.value[0].id,
+                name: domain.value.name,
+                description: domain.value.description,
+                guest_properties: {
+                  credentials: {
+                    username: domain.value.guestProperties.credentials.username,
+                    password: domain.value.guestProperties.credentials.password
+                  },
+                  fullscreen: domain.value.guestProperties.fullscreen,
+                  viewers: viewers
+                },
+                hardware: {
+                  boot_order: domain.value.hardware.bootOrder,
+                  disk_bus: domain.value.hardware.diskBus,
+                  disks: domain.value.hardware.disks,
+                  floppies: domain.value.hardware.floppies,
+                  interfaces: domain.value.hardware.interfaces,
+                  isos: domain.value.hardware.isos,
+                  memory: domain.value.hardware.memory,
+                  vcpus: domain.value.hardware.vcpus,
+                  videos: domain.value.hardware.videos
+                },
+                reservables: domain.value.reservables,
+                image: image
+              }]
             }
           )
         }
@@ -549,6 +581,9 @@ export default {
           showConfirmation()
         })
       } else {
+        if (!users.includes($store.getters.getUser.user_id)) {
+          quantity = quantity + 1
+        }
         showConfirmation()
       }
     }
@@ -561,6 +596,7 @@ export default {
 
     return {
       deploymentName,
+      deploymentDescription,
       visible,
       getTemplatesLoaded,
       groupsChecked,

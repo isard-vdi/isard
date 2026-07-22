@@ -21,7 +21,7 @@ services:
       DOMAIN:
       WEBAPP_ADMIN_PWD:
       API_ISARDVDI_SECRET: "${API_ISARDVDI_SECRET}"
-      PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}"
+      VICTORIAMETRICS_ADDRESS: "${VICTORIAMETRICS_ADDRESS:-${PROMETHEUS_ADDRESS:-http://isard-victoriametrics:8428}}"
       LOKI_ADDRESS: "${LOKI_ADDRESS:-http://isard-loki:3100}"
       # This plugin is bundled with grafana, but needs to be activated separately
       GF_INSTALL_PLUGINS: "grafana-pyroscope-app"
@@ -30,13 +30,12 @@ services:
       GRAFANA_TELEGRAM_CHAT_ID: "${GRAFANA_TELEGRAM_CHAT_ID}"
       GRAFANA_TELEGRAM_TOKEN: "${GRAFANA_TELEGRAM_TOKEN}"
 
-  isard-prometheus:
-    container_name: isard-prometheus
-    image: prom/prometheus:v3.5.2
+  isard-victoriametrics:
+    container_name: isard-victoriametrics
+    image: victoriametrics/victoria-metrics:v1.147.0@sha256:40ea45a6d14b6ad9f2f1fff597309d456ff9885d77d8d1da5fd559b251db9987
     user: root
     volumes:
-      - /opt/isard/stats/prometheus:/prometheus
-      - ${BUILD_ROOT_PATH}/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - /opt/isard/stats/victoriametrics:/victoria-metrics-data
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     logging:
@@ -50,17 +49,41 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.68
     restart: unless-stopped
     command: >-
-      --config.file=/etc/prometheus/prometheus.yml
-      --storage.tsdb.path=/prometheus
-      --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-40d}
-      --web.console.libraries=/usr/share/prometheus/console_libraries
-      --web.console.templates=/usr/share/prometheus/consoles
-      --web.enable-remote-write-receiver
-      --web.enable-admin-api
+      -storageDataPath=/victoria-metrics-data
+      -retentionPeriod=${VICTORIAMETRICS_RETENTION_TIME:-${PROMETHEUS_RETENTION_TIME:-40d}}
+      -selfScrapeInterval=30s
+
+  isard-vmalert:
+    container_name: isard-vmalert
+    image: victoriametrics/vmalert:v1.147.0
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.69
+    volumes:
+      - ${BUILD_ROOT_PATH}/docker/vmalert/rules:/etc/vmalert/rules:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    depends_on:
+      - isard-victoriametrics
+    command: >-
+      -datasource.url=http://isard-victoriametrics:8428
+      -remoteWrite.url=http://isard-victoriametrics:8428
+      -remoteRead.url=http://isard-victoriametrics:8428
+      -notifier.blackhole
+      -rule=/etc/vmalert/rules/*.rules.yml
+      -evaluationInterval=30s
+      -external.label=source=vmalert
 
   isard-loki:
     container_name: isard-loki
-    image: grafana/loki:3.1.0
+    image: grafana/loki:3.7.3@sha256:70b9f699fc9bb868b62f1cfd4f787dfa50242f1fd92e6089787d5d7daea75fe8
     user: root
     volumes:
       - /opt/isard/stats/loki:/data

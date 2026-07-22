@@ -1,0 +1,66 @@
+[
+    {
+        "end": {
+            "$reql_type$": "TIME",
+            "epoch_time": 4915675000,
+            "timezone": "+00:00"
+        },
+        "id": "0a1b2c3d-4e5f-6789-abcd-ef0123456789",
+        "item_id": "7a9d3c12-1b23-4a56-8c9d-0e1f2a3b4c5d",
+        "item_type": "desktop",
+        "plans": [
+            {
+                "item_id": "e2e8b73f-b989-47b4-9864-9e0da97f7b21",
+                "plan_id": "24ee2910-c0e5-44bd-9a2b-5603ddc65d57",
+                "priority": 999,
+                "subitem_id": "NVIDIA-A16-2Q",
+                "units_booked": 1
+            }
+        ],
+        "reservables": {
+            "vgpus": [
+                "NVIDIA-A16-2Q"
+            ]
+        },
+        "start": {
+            "$reql_type$": "TIME",
+            "epoch_time": 1760000000,
+            "timezone": "+00:00"
+        },
+        "title": "Test booking",
+        "units": 1,
+        "user_id": "local-default-admin-admin"
+    },
+    {
+        "end": {
+            "$reql_type$": "TIME",
+            "epoch_time": 4916275000,
+            "timezone": "+00:00"
+        },
+        "id": "1b2c3d4e-5f67-89ab-cdef-0123456789ab",
+        "item_id": "7a9d3c12-1b23-4a56-8c9d-0e1f2a3b4c5d",
+        "item_type": "desktop",
+        "plans": [
+            {
+                "item_id": "e2e8b73f-b989-47b4-9864-9e0da97f7b21",
+                "plan_id": "24ee2910-c0e5-44bd-9a2b-5603ddc65d57",
+                "priority": 999,
+                "subitem_id": "NVIDIA-A16-2Q",
+                "units_booked": 1
+            }
+        ],
+        "reservables": {
+            "vgpus": [
+                "NVIDIA-A16-2Q"
+            ]
+        },
+        "start": {
+            "$reql_type$": "TIME",
+            "epoch_time": 4915680000,
+            "timezone": "+00:00"
+        },
+        "title": "Second test booking",
+        "units": 1,
+        "user_id": "local-default-admin-admin"
+    }
+]

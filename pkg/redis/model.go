@@ -10,7 +10,29 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var ErrNotFound = errors.New("not found")
+var (
+	// ErrNotFound is returned by Load and Delete when the key does not exist.
+	ErrNotFound = errors.New("not found")
+	// ErrLockBusy is returned by Lock when MaxWait is exceeded.
+	ErrLockBusy = errors.New("lock busy")
+)
+
+// LockOptions parameterises the wait/retry behaviour of Model.Lock.
+type LockOptions struct {
+	// TTL is the self-recovery TTL applied when release fails or the holder crashes.
+	TTL time.Duration
+	// MaxWait is the total time the caller is willing to wait for the lock.
+	MaxWait time.Duration
+	// RetryDelay is the delay between SETNX attempts.
+	RetryDelay time.Duration
+}
+
+// DefaultLockOptions are the recommended defaults for sub-second critical sections.
+var DefaultLockOptions = LockOptions{
+	TTL:        5 * time.Second,
+	MaxWait:    2 * time.Second,
+	RetryDelay: 25 * time.Millisecond,
+}
 
 type Modelable interface {
 	Key() string
@@ -65,4 +87,39 @@ func (m *Model[T]) Delete(ctx context.Context, db redis.UniversalClient) error {
 	}
 
 	return nil
+}
+
+// Lock acquires a distributed lock keyed off this model's identity.
+// The returned release func MUST be invoked (typically via defer); the TTL
+// in opts provides eventual recovery if it is not. Returns ErrLockBusy when
+// MaxWait is exceeded, or the context error if the context is cancelled
+// while waiting.
+func (m *Model[T]) Lock(ctx context.Context, db redis.UniversalClient, opts LockOptions) (func(), error) {
+	key := "lock:" + m.t.Key()
+	deadline := time.Now().Add(opts.MaxWait)
+
+	for {
+		ok, err := db.SetNX(ctx, key, "", opts.TTL).Result()
+		if err != nil {
+			return nil, fmt.Errorf("acquire lock: %w", err)
+		}
+
+		if ok {
+			break
+		}
+
+		if time.Now().After(deadline) {
+			return nil, ErrLockBusy
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(opts.RetryDelay):
+		}
+	}
+
+	return func() {
+		_ = db.Del(context.Background(), key).Err()
+	}, nil
 }

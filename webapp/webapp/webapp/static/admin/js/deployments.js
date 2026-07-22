@@ -9,7 +9,7 @@ $(document).ready(function() {
   $deployments_detail = $(".template-deployments-detail");
   deployments=$('#deployments').DataTable({
     "ajax": {
-      "url": "/api/v3/admin/table/deployments",
+      "url": "/api/v4/admin/items/table/deployments",
       "contentType": "application/json",
       "type": 'GET',
       data: function (d) {
@@ -98,14 +98,14 @@ $(document).ready(function() {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "DELETE",
-            url: "/api/v3/deployments/" + data["id"],
+            url: "/api/v4/item/deployment/" + data["id"],
             success: function(data){
               new PNotify({
                 title: 'Deleted',
                 text: 'Deployment deleted successfully',
                 hide: true,
                 delay: 2000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: 'success'
               });
@@ -151,19 +151,20 @@ $(document).ready(function() {
     var notify = new PNotify();
     $.ajax({
       type: "DELETE",
-      url: "/api/v3/deployments/",
+      url: "/api/v4/items/deployments",
       data: JSON.stringify({ ids: deploymentsToDelete, permanent: permanent }),
       contentType: "application/json",
       success: function (data) {
         notify.update({
-          title: 'Processing',
-          text: `Processing action: deleting ${deploymentsToDelete.length} deployment(s)`,
-          hide: false,
-          type: 'info',
-          icon: 'fa fa-spinner fa-pulse',
+          title: 'Deletion queued',
+          text: `Queued deletion of ${deploymentsToDelete.length} deployment(s). Rows will disappear as the operation progresses.`,
+          hide: true,
+          delay: 4000,
+          type: 'success',
+          icon: 'fa fa-success',
           opacity: 1
         });
-        deployments.ajax.reload();
+        deployments.ajax.reload(null, false);
       },
       error: function (xhr) {
         if (xhr.responseJSON && xhr.responseJSON.exceptions) {
@@ -285,7 +286,7 @@ function actionsDomainDetail() {
       dropdownParent: $('#modalChangeOwnerDomain'),
       ajax: {
         type: "POST",
-        url: '/admin/users/search',
+        url: '/api/v4/admin/items/users/search',
         dataType: 'json',
         contentType: "application/json",
         delay: 250,
@@ -327,7 +328,7 @@ function actionsDomainDetail() {
       dropdownParent: $('#modalChangeCoOwnersDeployment'),
       ajax: {
         type: "POST",
-        url: '/admin/users/search',
+        url: '/api/v4/admin/items/users/search',
         dataType: 'json',
         contentType: "application/json",
         delay: 250,
@@ -351,7 +352,7 @@ function actionsDomainDetail() {
     });
     $.ajax({
       type: "GET",
-      url: `/api/v3/deployment/co-owners/${pk}`,
+      url: `/api/v4/item/deployment/${pk}/co-owners`,
       contentType: 'application/json',
       success: function (data) {
         $("#co_owners").empty().trigger('change');
@@ -384,7 +385,7 @@ function actionsDomainDetail() {
       let pk = $('#modalChangeOwnerDomainForm #id').val()
       $.ajax({
         type: "PUT",
-        url: `/api/v3/deployment/owner/${pk}/${data['new_owner']}`,
+        url: `/api/v4/item/deployment/${pk}/change-owner/${data['new_owner']}`,
         contentType: 'application/json',
         success: function () {
           $('form').each(function () { this.reset() });
@@ -425,7 +426,7 @@ function actionsDomainDetail() {
       coOwnersArray = $("#co_owners").val();
       $.ajax({
         type: "PUT",
-        url: `/api/v3/deployment/co-owners/${pk}`,
+        url: `/api/v4/item/deployment/${pk}/co-owners`,
         data: JSON.stringify({ co_owners: coOwnersArray }),
         contentType: 'application/json',
         success: function () {
@@ -461,29 +462,33 @@ function actionsDomainDetail() {
 
 
 function socketio_on() {
-  socket.on('deployment_action', function (data) {
-    PNotify.removeAll();
+  // Refetch instead of merging the raw row: the table renders joined fields
+  // (desktop_name, category_name, user_name, co_owners_user_names,
+  // user_permissions, how_many_desktops*) that the changefeed payload omits.
+  let deploymentsReloadTimer = null;
+  function scheduleDeploymentsReload() {
+    if (deploymentsReloadTimer) return;
+    deploymentsReloadTimer = setTimeout(function () {
+      deploymentsReloadTimer = null;
+      deployments.ajax.reload(null, false);
+    }, 500);
+  }
+
+  socket.on('deployments_add', function () {
+    scheduleDeploymentsReload();
+  });
+
+  socket.on('deployments_update', function () {
+    scheduleDeploymentsReload();
+  });
+
+  socket.on('deployments_delete', function (data) {
     var data = JSON.parse(data);
-    if (data.status === 'failed') {
-      new PNotify({
-        title: `ERROR: ${data.action} on ${data.count} deployment(s)`,
-        text: data.msg,
-        hide: false,
-        icon: 'fa fa-warning',
-        opacity: 1,
-        type: 'error'
-      });
-    } else if (data.status === 'completed') {
-      deployments.ajax.reload();
-      new PNotify({
-        title: `Action Succeeded: ${data.action}`,
-        text: `The action "${data.action}" completed on ${data.count} deployment(s).`,
-        hide: true,
-        delay: 4000,
-        icon: 'fa fa-success',
-        opacity: 1,
-        type: 'success'
-      });
+    if (typeof(deployments.row('#'+data.id).id()) !== 'undefined') {
+      deployments.row('#'+data.id).remove().draw();
+    } else {
+      scheduleDeploymentsReload();
     }
   });
+
 }

@@ -1,0 +1,165 @@
+#
+#   IsardVDI - Open Source KVM Virtual Desktops based on KVM Linux and dockers
+#   Copyright (C) 2025 Miriam Melina Gamboa Valdez
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU Affero General Public License for more details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+
+import asyncio
+from datetime import datetime, timezone
+
+from isardvdi_common.lib.deployments.deployments import DeploymentsProcessed
+from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
+from isardvdi_common.models.deployment import Deployment
+from isardvdi_common.models.domain import Domain
+
+from .base import BaseHandler, json_dumps
+
+
+class BookingsHandler(BaseHandler):
+
+    def _prepare_booking(self, booking):
+        """
+        Prepare booking data for emission: format dates, add editable and
+        event_type flags. ``editable`` mirrors apiv4's
+        ``BookingsHelper.is_future`` semantic — the booking is editable
+        only while its start is still in the future.
+        """
+        raw_start = booking.start
+        raw_end = booking.end
+        formatted_start = (
+            raw_start.strftime("%Y-%m-%dT%H:%M%z")
+            if isinstance(raw_start, datetime)
+            else raw_start
+        )
+        formatted_end = (
+            raw_end.strftime("%Y-%m-%dT%H:%M%z")
+            if isinstance(raw_end, datetime)
+            else raw_end
+        )
+
+        editable = isinstance(raw_start, datetime) and raw_start > datetime.now(
+            timezone.utc
+        )
+
+        prepared = booking.model_copy(
+            update={"start": formatted_start, "end": formatted_end}
+        )
+        prepared.additional_properties = {
+            **(booking.additional_properties or {}),
+            "event_type": "event",
+            "editable": editable,
+        }
+        return prepared
+
+    async def on_insert(self, new_val):
+        booking = self._prepare_booking(new_val)
+        await self.emit(
+            "booking_add",
+            json_dumps(booking),
+            namespace="/userspace",
+            room=new_val.user_id,
+        )
+        await self.emit(
+            "bookingitem_add",
+            json_dumps(booking),
+            namespace="/userspace",
+            room=new_val.user_id,
+        )
+        await self.send_booking_item_event(booking)
+
+    async def on_update(self, old_val, new_val):
+        booking = self._prepare_booking(new_val)
+        await self.emit(
+            "booking_update",
+            json_dumps(booking),
+            namespace="/userspace",
+            room=new_val.user_id,
+        )
+        await self.emit(
+            "bookingitem_update",
+            json_dumps(booking),
+            namespace="/userspace",
+            room=new_val.user_id,
+        )
+        await self.send_booking_item_event(booking)
+
+    async def on_delete(self, old_val):
+        booking = self._prepare_booking(old_val)
+        await self.emit(
+            "booking_delete",
+            json_dumps({"id": old_val.id}),
+            namespace="/userspace",
+            room=old_val.user_id,
+        )
+        await self.emit(
+            "bookingitem_delete",
+            json_dumps(booking),
+            namespace="/userspace",
+            room=old_val.user_id,
+        )
+        await self.send_booking_item_event(booking)
+
+    async def send_booking_item_event(self, booking):
+        """
+        Emit an event for booking item changes to the related item.
+        :param booking: The booking data.
+        """
+
+        if booking.item_type == "deployment":
+            # On a booking delete (incl. expiry) the parent item may already be
+            # gone via cascade; refreshing it is moot, so skip rather than raise.
+            deployment = await asyncio.to_thread(
+                DeploymentsProcessed.get_deployment_or_none, booking.item_id
+            )
+            if deployment is None:
+                return
+            await self.emit(
+                "deployment_update",
+                json_dumps(deployment),
+                namespace="/userspace",
+                room=booking.user_id,
+            )
+            for desktop in deployment.get("desktops", []):
+                await self.emit(
+                    "desktop_update",
+                    json_dumps(desktop),
+                    namespace="/userspace",
+                    room=desktop["user"],
+                )
+        elif booking.item_type == "desktop":
+            # ``Domain.get`` reads the row and ``_parse_desktop`` enriches via
+            # ``Caches.get_document`` (DB on cache miss). Bundle both in a
+            # single ``to_thread`` so the loop only pays one thread hop.
+            # ``Domain.get`` returns None for a row deleted alongside the
+            # booking; skip rather than subscripting None in ``_parse_desktop``.
+            def _parsed_desktop_or_none():
+                domain = Domain.get(booking.item_id)
+                return (
+                    DesktopsProcessed._parse_desktop(domain)
+                    if domain is not None
+                    else None
+                )
+
+            desktop = await asyncio.to_thread(_parsed_desktop_or_none)
+            if desktop is None:
+                return
+            await self.emit(
+                "desktop_update",
+                json_dumps(desktop),
+                namespace="/userspace",
+                room=booking.user_id,
+            )

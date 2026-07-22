@@ -21,7 +21,7 @@ services:
       interval: 5s
     volumes:
       - /opt/isard/database:/data:rw
-      - /opt/isard-local/stats/prometheus:/var/lib/prometheus:rw
+      - /opt/isard-local/stats/node-exporter:/var/lib/node-exporter:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:

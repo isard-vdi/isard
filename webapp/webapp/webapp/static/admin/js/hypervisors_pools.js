@@ -11,7 +11,7 @@ $(document).ready(function() {
 
     tablepools = $('#hypervisors_pools').DataTable( {
         "ajax": {
-            "url": "/admin/table/hypervisors_pools",
+            "url": "/api/v4/admin/items/table/hypervisors_pools",
             "method": "POST",
             "data": function(d){return JSON.stringify({'order_by':'name'})},
             "dataSrc": ""

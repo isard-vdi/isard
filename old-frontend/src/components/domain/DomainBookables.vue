@@ -13,6 +13,7 @@
       :selectable="option => !option.header"
       label="name"
       :reduce="element => element.id"
+      :get-option-label="getOptionLabel"
     >
       <template #option="option">
         <span
@@ -67,21 +68,26 @@ export default {
     const gpuVideos = computed(() => domain.value.hardware.videos.includes('none'))
     const vgpus = computed({
       get: () => $store.getters.getDomain.reservables.vgpus || [],
-      // Multi-select: a desktop may carry several vGPU profiles, each on a
-      // distinct physical card. Store the full array of selected profile ids.
       set: (value) => {
-        domain.value.reservables.vgpus = (value && value.length) ? value : []
+        let next = (value || []).filter(id => id && id !== 'None')
+        if (!next.length) {
+          next = ['None']
+        }
+        domain.value.reservables.vgpus = next
         $store.commit('setDomain', domain.value)
       }
     })
 
-    // All of a desktop's vGPUs must live on ONE hypervisor (a guest runs on a
-    // single host). The API tags each profile with the anonymized hypervisor
-    // groups that can host it (hypervisor_groups); two profiles are
-    // co-selectable iff their groups intersect. Hard-restrict the choices to
-    // those compatible with the current selection.
+    const noGpuLabel = computed(() => {
+      const n = ((availableBookables.value && availableBookables.value.vgpus) || []).find(o => o.id === 'None')
+      return (n && n.name) || 'No GPU'
+    })
+    const getOptionLabel = (option) => {
+      if (option === 'None') return noGpuLabel.value
+      return (option && typeof option === 'object') ? option.name : option
+    }
     const compatibleOptions = computed(() => {
-      const all = (availableBookables.value && availableBookables.value.vgpus) || []
+      const all = ((availableBookables.value && availableBookables.value.vgpus) || []).filter(o => o.id !== 'None')
       const selected = vgpus.value || []
       if (!selected.length) return all
       let common = null
@@ -203,6 +209,7 @@ export default {
     return {
       availableBookables,
       groupedOptions,
+      getOptionLabel,
       numaHint,
       vgpus,
       v$: useVuelidate({

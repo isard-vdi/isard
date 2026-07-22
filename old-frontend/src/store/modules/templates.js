@@ -82,6 +82,16 @@ export default {
         Object.assign(item, template)
       }
     },
+    add_template: (state, template) => {
+      // Insert the new template at the front of the list so the user
+      // sees it immediately while the apiv4 task chain creates it.
+      // ``setTemplates`` re-fetches will canonicalise the order on the
+      // next page load.
+      const exists = state.templates.some(t => t.id === template.id)
+      if (!exists) {
+        state.templates = [template, ...state.templates]
+      }
+    },
     setTemplatesLoaded: (state, templatesLoaded) => {
       state.templates_loaded = templatesLoaded
     },
@@ -115,14 +125,14 @@ export default {
       context.commit('resetTemplatesState')
     },
     fetchTemplates ({ commit }) {
-      axios.get(`${apiV3Segment}/user/templates`).then(response => {
-        commit('setTemplates', DesktopUtils.parseTemplates(orderBy(response.data, ['editable'], ['desc'])))
+      axios.get(`${apiV3Segment}/items/templates`).then(response => {
+        commit('setTemplates', DesktopUtils.parseTemplates(orderBy(response.data.templates, ['editable'], ['desc'])))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchAllowedTemplates ({ commit }, kind) {
-      axios.get(`${apiV3Segment}/user/templates/allowed/${kind}`).then(response => {
+      axios.get(`${apiV3Segment}/items/templates/allowed/${kind}`).then(response => {
         const mutation = kind === 'all' ? 'setTemplates' : 'setSharedTemplates'
         commit(mutation, DesktopUtils.parseTemplates(orderBy(response.data, ['editable'], ['desc'])))
       }).catch(e => {
@@ -131,9 +141,9 @@ export default {
     },
     toggleEnabled (context, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t(payload.enabled ? 'messages.info.disable-template' : 'messages.info.enable-template'), '', true, 1000)
-      axios.put(`${apiV3Segment}/template/update`, payload).then(response => {
+      axios.put(`${apiV3Segment}/item/template/${payload.id}/set-enabled`, { enabled: payload.enabled }).then(response => {
         this._vm.$snotify.clear()
-        context.commit('update_templates', DesktopUtils.parseTemplate(response.data))
+        context.commit('update_templates', DesktopUtils.parseTemplate({ ...payload }))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
@@ -143,12 +153,12 @@ export default {
     },
     deleteTemplate (_, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-template'))
-      axios.delete(`${apiV3Segment}/template/${state.templateId}`).catch(e => {
+      axios.delete(`${apiV3Segment}/item/template/${state.templateId}`).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchTemplateDerivatives (context, data) {
-      axios.get(`${apiV3Segment}/template/tree/${data.id}`).then(response => {
+      axios.get(`${apiV3Segment}/item/template/${data.id}/get-tree`).then(response => {
         context.commit('setTemplateDerivatives', response.data)
         context.commit('setTemplateId', data.id)
         context.dispatch('showDeleteTemplateModal', true)
@@ -164,8 +174,26 @@ export default {
       const template = JSON.parse(data)
       context.commit('remove_template', template)
     },
+    socket_templateAdd (context, data) {
+      // change-handler emits ``template_add`` (full row payload) when
+      // apiv4 inserts a new template row. Without this handler the
+      // user would only see the template after a manual refresh.
+      const template = DesktopUtils.parseTemplate(JSON.parse(data))
+      context.commit('add_template', template)
+    },
+    socket_templateUpdate (context, data) {
+      // change-handler emits ``template_update`` on every row change,
+      // including the periodic ``progress`` writes the move() task
+      // makes during the rsync branch of the template-creation chain.
+      // Use ``partial: true`` so a payload that omits ``name`` /
+      // ``description`` / etc. doesn't clobber the cached row with the
+      // default-filled placeholders parseTemplate would otherwise emit
+      // ("data disappears when toggling template visibility").
+      const template = DesktopUtils.parseTemplate(JSON.parse(data), { partial: true })
+      context.commit('update_templates', template)
+    },
     fetchConvertToDesktop (context, data) {
-      axios.get(`${apiV3Segment}/template/tree/${data.template.id}`).then(response => {
+      axios.get(`${apiV3Segment}/item/template/${data.template.id}/get-tree`).then(response => {
         context.commit('setTemplateDerivatives', response.data)
         context.commit('setTemplateId', data.template.id)
         context.commit('setTemplateName', data.template.name)
@@ -177,7 +205,7 @@ export default {
     },
     convertToDesktop (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.converting-template'))
-      axios.post(`${apiV3Segment}/template/to/desktop`, { template_id: data.templateId, name: data.name }).catch(e => {
+      axios.post(`${apiV3Segment}/item/template/${data.templateId}/convert-to-desktop`, { name: data.name }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       }).then(() => {
         context.dispatch('fetchTemplates')

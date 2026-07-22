@@ -1,24 +1,35 @@
-# Use debian ovmf
-FROM debian:12-slim as ovmf
+FROM debian:12-slim@sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716 AS ovmf
+RUN apt-get update && apt-get install -y ovmf && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y \
-    ovmf && \
-    rm -rf /var/lib/apt/lists/*
-
-# Build mdevctl
-FROM alpine:3.22 as build
-
-RUN apk add --no-cache cargo uuidgen py3-docutils make git
-
-RUN cd /opt && git clone https://github.com/mdevctl/mdevctl -b v1.2.0
-
+FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS mdevctl-build
+RUN apk add --no-cache cargo git make py3-docutils uuidgen
+# mdevctl v1.2.0
+RUN cd /opt && git clone https://github.com/mdevctl/mdevctl && \
+    git -C mdevctl checkout ec4b9a04ce15ad7dccef2dc99b20a53987eb16bc
 WORKDIR /opt/mdevctl
 RUN CARGO_INCREMENTAL=0 cargo build --release
 RUN make install || true
 
-# Image isard-hypervisor
-FROM alpine:3.22 as production
-MAINTAINER isard <info@isardvdi.com>
+FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
+# UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
+# venv's hard-coded shebangs keep resolving after the cross-stage COPY.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/.venv
+
+RUN apk add --no-cache build-base cargo git libffi-dev make musl-dev openssl-dev py3-docutils python3-dev uuidgen
+
+WORKDIR /workspace
+COPY . .
+RUN uv sync --frozen --no-dev --package isardvdi-hypervisor --no-editable
+
+# Pin runtime to alpine 3.22 — alpine 3.23 ships qemu 10.1.3 which is
+# linked against libspice-server.so.1.15.0 (exports
+# spice_qxl_gl_scanout2). The custom spice-dev override below ships
+# 1.14.3 (no spice_qxl_gl_scanout2) → qemu fails to load the spice
+# module → "domain configuration does not support video model 'qxl'".
+# 3.22's qemu (9.2.x) is built against the older spice that the
+# custom override matches.
+FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS runtime
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
@@ -26,98 +37,31 @@ RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /et
 
 RUN apk -U upgrade --no-cache
 
-# glibc compatibility layer so host nvidia-smi (glibc-linked) runs on musl Alpine
-RUN apk add --no-cache gcompat && \
-    mkdir -p /lib64 && \
+RUN mkdir -p /lib64 && \
     ln -sf /lib/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
 
+# eudev provides the `udevadm` CLI (eudev-libs alone does not). GPU discovery's
+# SR-IOV VF cycle settles the kernel with `udevadm settle` after
+# `sriov-manage -e` so the new VFs rebind to nvidia before mdev enumeration.
+# Without it the settle is skipped and slower cards (e.g. A16 with many VFs)
+# time out the VF-bound poll and fall back to a disruptive per-card
+# `nvidia-smi -r` bus reset.
 RUN apk add --no-cache \
-    libvirt \
-    libvirt-daemon \
-    dbus \
-    polkit \
-    openssh \
-    curl \
-    rsync \
-    ovmf \
-    iproute2 \
-    bridge-utils \
-    shadow \
-    tshark \
-    openssl \
-    qemu \
-    qemu-img \
-    qemu-modules \
-    qemu-system-x86_64 \
-    libcrypto3@edge \
-    swtpm \
-    virtiofsd
+    alsa-lib augeas-libs bash bridge-utils cairo cdparanoia-libs coreutils curl \
+    dbus eudev eudev-libs fontconfig freetype fribidi gcompat graphite2 gst-plugins-base \
+    gstreamer harfbuzz iproute2 libcap libcrypto3 libdrm libepoxy libffi libgcrypt \
+    libgpg-error libjpeg-turbo libogg libpcap libpciaccess libpng libseccomp \
+    libtheora libusb libvirt libvirt-common-drivers libvirt-daemon libvirt-qemu \
+    libvorbis libx11 libxau libxcb libxdamage libxdmcp libxext libxfixes libxft \
+    libxkbcommon libxml2-utils libxrender libxshmfence libxslt libxv libxxf86vm \
+    lz4-libs lzo mesa mesa-egl mesa-gbm mesa-gl netcf-libs openssh openssl \
+    openvswitch@community opus orc ovmf pango pciutils pixman polkit qemu \
+    qemu-img qemu-modules qemu-system-x86_64 rsync shadow snappy speedtest-cli \
+    spice-server swtpm tshark usbredir virglrenderer virtiofsd \
+    wayland-libs-client wayland-libs-egl wayland-libs-server wireguard-tools
 
-RUN apk add --no-cache \
-    libcap \
-    mesa \
-    libpciaccess \
-    libdrm \
-    wayland-libs-server \
-    mesa-gbm \
-    pixman \
-    libxau \
-    libxdmcp \
-    libxcb \
-    libx11 \
-    libepoxy \
-    virglrenderer \
-    libxkbcommon \
-    augeas-libs \
-    libgpg-error \
-    libgcrypt \
-    libxslt \
-    netcf-libs \
-    libpcap \
-    eudev-libs \
-    libvirt-common-drivers \
-    libvirt-qemu \
-    libjpeg-turbo \
-    lzo \
-    libpng \
-    libseccomp \
-    snappy \
-    wayland-libs-client \
-    libxshmfence \
-    mesa-egl \
-    libxdamage \
-    libxext \
-    libxfixes \
-    libxxf86vm \
-    mesa-gl \
-    libxv \
-    alsa-lib \
-    libxrender \
-    libbz2 \
-    freetype \
-    fontconfig \
-    cairo \
-    cdparanoia-libs \
-    gstreamer \
-    libogg \
-    opus \
-    orc \
-    libxft \
-    fribidi \
-    graphite2 \
-    harfbuzz \
-    pango \
-    libtheora \
-    libvorbis \
-    wayland-libs-egl \
-    gst-plugins-base \
-    lz4-libs \
-    spice-server \
-    libusb \
-    usbredir \
-    coreutils
-#vde2-libs 
-#libpulse
+RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
+RUN mkdir -pv /var/run/openvswitch/
 
 COPY docker/hypervisor/kvm/qemu-kvm /usr/libexec/qemu-kvm
 COPY docker/hypervisor/kvm/qemu-kvm /usr/bin/qemu-kvm
@@ -129,7 +73,6 @@ RUN rm -rf /usr/share/OVMF
 COPY --from=ovmf /usr/share/OVMF /usr/share/OVMF
 COPY --from=ovmf /usr/share/ovmf/OVMF.fd /usr/share/OVMF
 
-# SSH configuration
 RUN echo "root:isard" |chpasswd
 RUN sed -i \
     -e 's|[#]*PermitRootLogin prohibit-password|PermitRootLogin yes|g' \
@@ -140,7 +83,6 @@ RUN sed -i \
     -e 's|[#]*Port 22|Port 2022|g' \
     /etc/ssh/sshd_config
 
-# Libvirt configuration and certs
 COPY docker/hypervisor/kvm/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
 RUN sed -i "/^wheel:x:10:root/c\wheel:x:10:root,qemu" /etc/group
 RUN sed -i "/^kvm:x:34:kvm/c\kvm:x:34:kvm,qemu" /etc/group
@@ -154,62 +96,27 @@ RUN echo -e 'spice_listen = "0.0.0.0"\n \
     remember_owner = 0\n \
     dynamic_ownership = 0' >> /etc/libvirt/qemu.conf
 
-# Create the required directories
 RUN mkdir -p /etc/pki/libvirt-spice
 RUN mkdir /root/.ssh
 
-# Add needed sources
 COPY docker/hypervisor/networks/ /opt/default_networks
 
-# Api
-COPY docker/hypervisor/requirements.txt requirements.txt
-# eudev provides the `udevadm` CLI. GPU discovery's SR-IOV VF cycle settles the
-# kernel with `udevadm settle` after `sriov-manage -e` so the new VFs rebind to
-# nvidia before mdev enumeration. Without it the settle is skipped and slower
-# cards (e.g. A16 with many VFs) time out the VF-bound poll and fall back to a
-# disruptive per-card `nvidia-smi -r` bus reset.
-RUN apk add  --no-cache bash python3 py3-pip py3-requests eudev
-RUN pip3 install --break-system-packages --upgrade pip
-RUN apk add --no-cache --virtual .build_deps \
-    build-base \
-    python3-dev \
-    libffi-dev 
-RUN pip3 install --break-system-packages --no-cache-dir -r requirements.txt && \
-    rm requirements.txt
-# RUN apk del .build_deps
-
-# Openvswitch binary tools (Python bindings replaced by ovs-vsctl subprocess calls)
-RUN apk add openvswitch@community libxml2-utils
-RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
-RUN mkdir -pv /var/run/openvswitch/
-
-RUN apk add wireguard-tools
-
-# Traffic control
-RUN apk add speedtest-cli
-
-## MDEVCTL
 RUN mkdir -p \
     /etc/mdevctl.d \
     /usr/sbin \
     /etc/mdevctl.d/scripts.d/callouts \
     /etc/mdevctl.d/scripts.d/notifiers
+COPY --from=mdevctl-build /usr/sbin/mdevctl /usr/sbin/mdevctl
 
-COPY --from=build /usr/sbin/mdevctl /usr/sbin/mdevctl
-
-# RUNTIME
+COPY --from=builder /.venv /.venv
 COPY docker/hypervisor/src /src
-COPY component/_common/src /src/_common
+COPY component/_common/src/isardvdi_common /src/isardvdi_common
 COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
-WORKDIR /src
 
-# Compiled spice libs avoid initial one minute red channel connection close bug
 RUN rm /usr/lib/libspice*
 COPY docker/hypervisor/spice-dev/* /usr/lib/
 
-# lspci/setpci needed for SR-IOV VF management during GPU passthrough switching
-RUN apk add --no-cache --force-broken-world pciutils
-
+ENV PATH="/.venv/bin:$PATH"
 ENV G_MESSAGES_DEBUG=all
-CMD [ "/src/start.sh"]
-
+WORKDIR /src
+CMD ["/src/start.sh"]

@@ -18,8 +18,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-socket = io.connect(`//${location.host}/administrators`, {
-    'path': '/api/v3/socket.io/',
+socket = io(`/administrators`, {
+    'path': '/socket.io',
     'transports': ['websocket'],
     auth: (cb) => {
         cb({ jwt: getCookie('isardvdi_session') })

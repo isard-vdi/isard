@@ -320,7 +320,7 @@ export default {
         context.commit('setUser', tokenPayload.data)
 
         // Update user info with additional data from API
-        axios.get(`${apiV3Segment}/user`).then((response) => {
+        axios.get(`${apiV3Segment}/item/user/get-details`).then((response) => {
           const data = { ...tokenPayload.data }
 
           data.role_name = response.data.role_name
@@ -389,7 +389,7 @@ export default {
         return config
       })
       return expiredPasswordAxios
-        .get(`${apiV3Segment}/user/expired/password-policy`)
+        .get(`${apiV3Segment}/item/user/get-password-policy`)
         .then((response) => {
           context.commit('setPasswordPolicy', response.data)
         })

@@ -1,6 +1,7 @@
 package haproxy
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -12,6 +13,8 @@ import (
 )
 
 const timeout = 5 * time.Second
+
+const retryInterval = 1 * time.Second
 
 type Interface interface {
 	ShowVersion() (string, error)
@@ -36,21 +39,36 @@ type HAProxy struct {
 	addr string
 }
 
-func NewHAProxy(log *zerolog.Logger, addr string) (*HAProxy, error) {
-	h := &HAProxy{
+func NewHAProxy(log *zerolog.Logger, addr string) *HAProxy {
+	return &HAProxy{
 		log:  log,
 		addr: addr,
 	}
+}
 
-	version, err := h.ShowVersion()
-	if err != nil {
-		return nil, fmt.Errorf("check the HAProxy version: %w", err)
+func (h *HAProxy) WaitReady(ctx context.Context, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for attempt := 1; ; attempt++ {
+		version, err := h.ShowVersion()
+		if err == nil {
+			*h.log = h.log.With().Str("haproxy_version", version).Logger()
+			h.log.Info().Str("addr", h.addr).Int("attempts", attempt).Msg("connected to the HAProxy admin socket")
+
+			return nil
+		}
+
+		if time.Now().After(deadline) {
+			return fmt.Errorf("HAProxy admin socket %q not ready after %s (%d attempts): %w", h.addr, timeout, attempt, err)
+		}
+
+		h.log.Warn().Err(err).Str("addr", h.addr).Int("attempt", attempt).Msg("HAProxy admin socket not ready yet, retrying")
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(retryInterval):
+		}
 	}
-
-	*h.log = log.With().Str("haproxy_version", version).Logger()
-	h.log.Info().Str("addr", addr).Msg("connected to the HAProxy admin socket")
-
-	return h, nil
 }
 
 // checkResponse validates that an HAProxy admin socket response indicates success.

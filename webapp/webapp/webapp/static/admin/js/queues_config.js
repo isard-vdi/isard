@@ -44,7 +44,7 @@ $(document).ready(function () {
 function getConfig() {
     $.ajax({
         type: "GET",
-        url: `/api/v3/queues/old_tasks/config`,
+        url: `/api/v4/admin/item/queues/old_tasks/config`,
         contentType: 'application/json',
         success: function (data) {
             $('#registries').val(data.queue_registries).trigger('change');
@@ -84,13 +84,13 @@ $("#btn-update-config").on("click", function () {
     }
     $.ajax({
         type: "PUT",
-        url: `/api/v3/queues/old_tasks/config/max_time/${selected_max_time}`,
+        url: `/api/v4/admin/item/queues/old_tasks/config/max_time/${selected_max_time}`,
     })
 
     const selected_queue_registries = $('#registries').val();
     $.ajax({
         type: "PUT",
-        url: `/api/v3/queues/old_tasks/config/queue_registries`,
+        url: `/api/v4/admin/item/queues/old_tasks/config/queue_registries`,
         contentType: 'application/json',
         data: JSON.stringify({ queue_registries: selected_queue_registries }),
     })
@@ -99,7 +99,7 @@ $("#btn-update-config").on("click", function () {
 $('#enabled-check').on("ifChecked", function () {
     $.ajax({
         type: "PUT",
-        url: `/api/v3/queues/old_tasks/config/enabled`,
+        url: `/api/v4/admin/item/queues/old_tasks/config/enabled`,
         contentType: 'application/json',
         data: JSON.stringify({ enabled: true }),
     })
@@ -108,7 +108,7 @@ $('#enabled-check').on("ifChecked", function () {
 $('#enabled-check').on("ifUnchecked", function () {
     $.ajax({
         type: "PUT",
-        url: `/api/v3/queues/old_tasks/config/enabled`,
+        url: `/api/v4/admin/item/queues/old_tasks/config/enabled`,
         contentType: 'application/json',
         data: JSON.stringify({ enabled: false }),
     })
@@ -152,35 +152,5 @@ function updateSchedulerJob(action) {
             opacity: 1,
             type: 'error'
         });
-    });
-}
-
-
-// SOCKETIO
-
-function socketio_on() {
-    socket.on('logs_desktops_action', function (data) {
-        PNotify.removeAll();
-        var data = JSON.parse(data);
-        if (data.status === 'failed') {
-            new PNotify({
-                title: `ERROR: ${data.action} on logs desktops.`,
-                text: data.msg,
-                hide: false,
-                icon: 'fa fa-warning',
-                opacity: 1,
-                type: 'error'
-            });
-        } else if (data.status === 'completed') {
-            new PNotify({
-                title: `Action Succeeded: ${data.action}`,
-                text: `The action "${data.action}" completed on logs desktops.`,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
-            });
-        }
     });
 }

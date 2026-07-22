@@ -12,7 +12,7 @@ function modal_add_desktop_datatables(){
 
     modal_add_desktops = $('#modal_add_desktops').DataTable({
             "ajax": {
-                "url": "/api/v3/user/templates/allowed/all",
+                "url": "/api/v4/items/templates/allowed/all",
                 "dataSrc": ""
             },
 
@@ -149,7 +149,7 @@ function initalize_modal_all_desktops_events(){
 function modal_edit_desktop_datatables(id){
     $.ajax({
         type: "GET",
-        url:"/api/v3/domain/info/" + id,
+        url:"/api/v4/item/desktop/" + id + "/get-info",
         success: function(data)
         {
             $('#modalEditDesktop #forced_hyp').closest("div").remove();

@@ -4,7 +4,7 @@
     rounded="lg"
   >
     <b-card
-      :img-src="`..${desktop.image.url}`"
+      :img-src="desktop.image ? `..${desktop.image.url}` : ''"
       class="border-0 mx-3"
       :aria-hidden="show ? 'true' : null"
       img-alt=""
@@ -12,7 +12,7 @@
       no-body
     >
       <vue-fab
-        v-if="(desktop.type === 'persistent' && !(!desktop.editable && desktop.permissions.length < 1)) || (getConfig.bastion_enabled && bastion && (bastion.http.enabled || bastion.ssh.enabled))"
+        v-if="(desktop.type === 'persistent' && !(!desktop.editable && desktop.permissions.length < 1)) || (getConfig.canUseBastion && bastion && (bastion.http.enabled || bastion.ssh.enabled))"
         icon="more_vert"
         main-btn-color="#bcc6cc"
         class="info-icon position-absolute"
@@ -103,6 +103,17 @@
           icon="edit"
           color="#318bb5"
           @clickItem="onClickGoToEditDesktop({itemId: desktop.id, returnPage: currentRouteName})"
+        />
+        <fab-item
+          v-if="desktop.editable && getUser.role_id != 'user' && desktop.type === 'persistent' && desktop.storage && desktop.storage.length"
+          v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.increase-storage')}`,
+                         placement: 'right',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+          :idx="increaseStorageIdx"
+          icon="storage"
+          color="#13bf9d"
+          @clickItem="onClickIncreaseStorage"
         />
       </vue-fab>
 
@@ -229,7 +240,7 @@
             />
             <!-- Main action button persistent-->
             <DesktopButton
-              v-else-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState === desktopStates.stopped )"
+              v-else-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state)"
               class="card-button"
               :active="!isPendingOperation(desktop.id)"
               :button-class="buttCssColor"
@@ -240,7 +251,7 @@
             />
             <!-- Delete action button-->
             <DesktopButton
-              v-if="desktop.state && desktop.type === 'nonpersistent'"
+              v-if="desktop.state && desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped"
               class="card-button"
               :active="true"
               button-class="btn-red"
@@ -387,7 +398,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getViewers', 'getCurrentTab', 'getUser', 'getConfig', 'isPendingOperation']),
+    ...mapGetters(['getViewers', 'getCurrentTab', 'getUser', 'getConfig', 'isPendingOperation', 'getStorage']),
     filterViewerFromList () {
       return DesktopUtils.filterViewerFromList(this.desktop.viewers, this.getDefaultViewer)
     },
@@ -475,6 +486,16 @@ export default {
       const bastion = this.$store.getters.getBastionTargets.filter(b => b.desktop_id === this.desktop.id)[0]
       return bastion || null
     },
+    bastionVisible () {
+      return this.getConfig.canUseBastion && this.bastion && (this.bastion.http.enabled || this.bastion.ssh.enabled)
+    },
+    increaseStorageIdx () {
+      // Sits above edit(0)/delete(1)/template(2)/direct-link(3); the next slot is shared by booking/recreate, then bastion.
+      let idx = 4
+      if ((this.desktop.needsBooking && !this.desktop.tag) || this.desktop.permissions.includes('recreate')) idx += 1
+      if (this.bastionVisible) idx += 1
+      return idx
+    },
     getCardTitle () {
       return this.desktop.type === 'persistent' || (!this.desktop.state && this.desktop.type === 'nonpersistent' && this.desktopState === desktopStates.stopped) ? this.desktop.name : this.template && this.template.name
     },
@@ -519,7 +540,8 @@ export default {
       'goToNewTemplate',
       'updateDesktopModal',
       'recreateDesktop',
-      'bastionModalShow'
+      'bastionModalShow',
+      'showIncreaseModal'
     ]),
     getBookingNotificationBar (dateStart, dateEnd) {
       if (DateUtils.dateIsAfter(dateEnd, new Date()) && DateUtils.dateIsBefore(dateStart, new Date())) {
@@ -621,6 +643,16 @@ export default {
     },
     onClickShowBastionModal (bastionItem) {
       this.bastionModalShow({ show: true, bastion: bastionItem, desktop: this.desktop })
+    },
+    onClickIncreaseStorage () {
+      if (this.desktopState !== desktopStates.stopped) {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('errors.increase_desktops_not_stopped'), '', true, 2000)
+        return
+      }
+      const storageItem = this.getStorage.find(stg => stg.id === this.desktop.storage[0])
+      if (storageItem) {
+        this.showIncreaseModal({ item: storageItem, show: true })
+      }
     }
   }
 }

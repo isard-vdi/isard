@@ -1,0 +1,306 @@
+[
+    {
+        "id": "storage-template-s9-seed",
+        "type": "qcow2",
+        "directory_path": "/isard/templates",
+        "parent": null,
+        "perms": ["r"],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "local-default-admin-admin"
+    },
+    {
+        "id": "storage-desktop-s9-cross-cat-01",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": "storage-template-s9-seed",
+        "perms": ["r", "w"],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "f62e3d74-aadd-4ce3-9b43-38f34f368323"
+    },
+    {
+        "id": "storage-template-test-001",
+        "type": "qcow2",
+        "directory_path": "/isard/templates",
+        "parent": null,
+        "perms": [
+            "r"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "local-default-admin-admin"
+    },
+    {
+        "id": "37925f51-6620-4262-91a6-72d468545ce6",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "c7e77d70-e443-53d2-9933-d9b83e4a19a1",
+        "virtual_size": 10737418240
+    },
+    {
+        "id": "6029bc91-f82d-4a42-8bf1-aed6fcaa3c30",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "67d9d771-8e2d-5a43-9f1b-b75130af513a"
+    },
+    {
+        "id": "160cb6af-d15a-428a-a442-8b6258dfab61",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "9b612af1-2e83-5a73-acab-9e1f8cc6d960"
+    },
+    {
+        "id": "1d4f9c36-a477-42e5-9909-b7f2e2882e9d",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "0232270e-27c5-5554-b548-85a1d35feb4d"
+    },
+    {
+        "id": "6e274355-add7-47b6-8d32-14c2faebfcdb",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "96f984bc-fa8f-5e83-ae34-af5d24fef029"
+    },
+    {
+        "id": "a2db3b58-cccf-456e-ac3c-f9963ff71d78",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "bd703f20-a54d-5be0-a2d3-a0eb34c01ede"
+    },
+    {
+        "id": "9f63355e-0c32-45db-97b5-139d081bce51",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "979fa7ca-537a-56c6-b40f-f7c798419f3f"
+    },
+    {
+        "id": "c94fd06b-b819-40a8-8c3a-993f8e28e3eb",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "6f5c0b03-53cf-5047-b56e-5e83b5530be4"
+    },
+    {
+        "id": "f1a2b3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "8ddebf86-faf4-52d0-b2d6-586806dc2bf2"
+    },
+    {
+        "id": "a9b8c7d6-e5f4-3a2b-1c0d-9e8f7a6b5c4d",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "29b9841e-325d-5911-b2ff-4480b4465602"
+    },
+    {
+        "id": "test-storage-not-enough-time",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "4e2aec3a-b3ac-5829-a692-51c10e493da8"
+    },
+    {
+        "id": "test-storage-gpu-unavailable",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "ca96982b-326b-52ff-a0ee-2e588aae3607"
+    },
+    {
+        "id": "d3b07384-d9a8-4f9a-9a12-3e5d6c7b8a9f",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "11a3abb2-3888-5af2-8a14-91340405a89f"
+    },
+    {
+        "id": "e1390601-7aee-485b-877c-12180cccf73c",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "local-default-admin-admin"
+    },
+    {
+        "id": "storage-ws-ip-arrival-fixture",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "user_id": "local-default-admin-admin",
+        "task": null
+    },
+    {
+        "id": "e2e00000-0000-0000-0000-000000000001",
+        "type": "qcow2",
+        "directory_path": "/isard/templates",
+        "parent": null,
+        "perms": ["r", "w"],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "user_id": "local-default-admin-admin",
+        "task": null
+    },
+    {
+        "id": "e2e00000-0000-0000-0000-000000000002",
+        "type": "qcow2",
+        "directory_path": "/isard/templates",
+        "parent": null,
+        "perms": ["r", "w"],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "user_id": "local-default-admin-admin",
+        "task": null
+    },
+    {
+        "id": "e121c990-de63-42fe-b838-20aa4cbaf756",
+        "type": "qcow2",
+        "directory_path": "/isard/groups",
+        "parent": null,
+        "perms": [
+            "r",
+            "w"
+        ],
+        "status": "ready",
+        "status_logs": [],
+        "storages_with_uuid": [],
+        "task": null,
+        "user_id": "c7e77d70-e443-53d2-9933-d9b83e4a19a1",
+        "virtual_size": 10737418240
+    }
+]

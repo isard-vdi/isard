@@ -21,6 +21,12 @@
 $(document).ready(function () {
 
     // Maintenance
+    maintenance_status_enabled = (data) => {
+        if (typeof data === "boolean") {
+            return data;
+        }
+        return Boolean(data && data.enabled);
+    }
     maintenance_update_checkbox = (enabled) => {
         let status;
         if (enabled) {
@@ -45,12 +51,34 @@ $(document).ready(function () {
         $("#maintenance_checkbox").unbind("ifUnchecked");
         $.ajax({
             type: "PUT",
-            url: "/api/v3/maintenance",
-            data: JSON.stringify(enabled),
+            url: "/api/v4/maintenance",
+            data: JSON.stringify({ enabled }),
             contentType: "application/json",
             accept: "application/json",
         }).done((data) => {
-            maintenance_update_checkbox(data);
+            maintenance_update_checkbox(maintenance_status_enabled(data));
+            maintenance_bind_checkbox();
+            new PNotify({
+                title: 'Updated',
+                text: enabled ? 'Maintenance enabled successfully' : 'Maintenance disabled successfully',
+                type: 'success',
+                hide: true,
+                delay: 2000,
+                opacity: 1
+            });
+            $("#maintenance_spinner").hide();
+            $("#maintenance_wrapper").show();
+        }).fail((data) => {
+            new PNotify({
+                title: 'ERROR updating maintenance status',
+                text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                type: 'error',
+                hide: true,
+                icon: 'fa fa-warning',
+                delay: 5000,
+                opacity: 1
+            });
+            maintenance_update_checkbox(!enabled);
             maintenance_bind_checkbox();
             $("#maintenance_spinner").hide();
             $("#maintenance_wrapper").show();
@@ -58,10 +86,10 @@ $(document).ready(function () {
     }
     $.ajax({
         type: "GET",
-        url: "/api/v3/maintenance/status",
+        url: "/api/v4/maintenance/status",
         accept: "application/json",
     }).done((data) => {
-        maintenance_update_checkbox(data);
+        maintenance_update_checkbox(maintenance_status_enabled(data));
         maintenance_bind_checkbox();
         $("#maintenance_spinner").hide();
         $("#maintenance_wrapper").show();
@@ -72,10 +100,11 @@ $(document).ready(function () {
     $("#btn-edit-maintenance-text").on("click", function () {
         var modal = "#modalEditMaintenanceText";
         $.ajax({
-            url: "/api/v3/maintenance/text",
+            url: "/api/v4/maintenance/text",
         }).done(function (data) {
-            $(modal + " #title").val(data.title);
-            $(modal + " #text").val(data.body);
+            const maintenanceText = data.text || {};
+            $(modal + " #title").val(maintenanceText.title || "");
+            $(modal + " #text").val(maintenanceText.body || "");
         });
         $(modal).modal({
             backdrop: 'static',
@@ -89,7 +118,7 @@ $(document).ready(function () {
         form.parsley().validate();
         $.ajax({
             type: "PUT",
-            url: "/api/v3/maintenance/text",
+            url: "/api/v4/maintenance/text",
             contentType: 'application/json',
             data: JSON.stringify(data)
         }).done(function (data) {
@@ -124,9 +153,10 @@ function socketio_on() { }
 
 function showMaintenanceText(div) {
     $.ajax({
-        url: "/api/v3/maintenance/text",
+        url: "/api/v4/maintenance/text",
     }).done(function (data) {
-        $("#preview").text(`${data.title}\n\n${data.body}`)
+        const maintenanceText = data.text || {};
+        $("#preview").text(`${maintenanceText.title || ""}\n\n${maintenanceText.body || ""}`)
     });
 }
 

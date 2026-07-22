@@ -17,6 +17,42 @@ const test = base.extend({
 
 test.describe.configure({ mode: 'serial' })
 
+// Probe TetrOS availability — without it the chain depth tests
+// can't seed.
+let tetrOSChecked = null
+const hasTetrOSTemplate = async () => {
+  if (tetrOSChecked !== null) return tetrOSChecked
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+  const baseURL =
+    process.env.E2E_BASE_URL ?? (process.env.DOCKER ? 'https://host.docker.internal' : 'https://localhost')
+  try {
+    const fd = new FormData()
+    fd.append('username', process.env.E2E_ADMIN_USERNAME ?? 'admin')
+    fd.append('password', process.env.E2E_ADMIN_PASSWORD ?? 'IsardVDI')
+    const tokRes = await fetch(`${baseURL}/authentication/login?provider=form&category_id=default`, {
+      method: 'POST', body: fd
+    })
+    const tok = (await tokRes.text()).trim()
+    const list = await fetch(`${baseURL}/api/v4/items/templates/allowed/all`, {
+      headers: { Authorization: `Bearer ${tok}` }
+    }).then((r) => r.json()).catch(() => [])
+    tetrOSChecked = (Array.isArray(list) ? list : []).some(
+      (t) => t.name && t.name.toLowerCase().includes('tetros')
+    )
+  } catch (e) {
+    tetrOSChecked = false
+  }
+  return tetrOSChecked
+}
+
+test.beforeAll(async () => {
+  const ok = await hasTetrOSTemplate()
+  test.skip(
+    !ok,
+    'TetrOS template not seeded — bring up with USAGE=test or run admin/downloads.spec.js first to fetch it'
+  )
+})
+
 test.describe('Template tree deletion', () => {
   /** @type {string} */
   let tetrosTemplateId

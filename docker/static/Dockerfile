@@ -1,7 +1,12 @@
 #
 # old frontend
 #
-FROM node:18.20-alpine AS old-frontend
+# NOTE: bun is pinned to 1.3.13-alpine (NOT :1.3-alpine, which currently
+# resolves to 1.3.14). bun 1.3.14 has an intermittent tarball-extraction
+# regression that fails on large packages (e.g. storybook) as
+# `error: Fail extracting tarball` — see bun#34821 (fixed by bun#34827,
+# unreleased). Bump this pin once a fixed bun release ships.
+FROM oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349 AS old-frontend
 
 ARG SRC_VERSION_ID
 ARG SRC_VERSION_LINK
@@ -14,9 +19,10 @@ RUN apk add --no-cache \
 WORKDIR /build
 
 COPY old-frontend/package.json /build
-COPY old-frontend/yarn.lock /build
+COPY old-frontend/bun.lock /build
+COPY old-frontend/.npmrc /build
 
-RUN yarn install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 WORKDIR /
 
@@ -24,25 +30,37 @@ COPY old-frontend /build
 
 WORKDIR /build
 
-RUN yarn build
+RUN bun run build
 
 #
 # frontend
 #
-FROM oven/bun:1.1.24-alpine AS frontend
+# NOTE: bun is pinned to 1.3.13-alpine (NOT :1.3-alpine, which currently
+# resolves to 1.3.14). bun 1.3.14 has an intermittent tarball-extraction
+# regression that fails on large packages (e.g. storybook) as
+# `error: Fail extracting tarball` — see bun#34821 (fixed by bun#34827,
+# unreleased). Bump this pin once a fixed bun release ships.
+FROM oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349 AS frontend
+
+ARG SRC_VERSION_ID
+ENV SRC_VERSION_ID=$SRC_VERSION_ID
 
 WORKDIR /build
 
-COPY frontend/package.json /build
-COPY frontend/bun.lockb /build
+COPY component/frontend/package.json /build
+COPY component/frontend/bun.lock* /build
 
 RUN bun install --frozen-lockfile
 
 WORKDIR /
 
-COPY frontend /build
+COPY component/frontend /build
 
 WORKDIR /build
+
+# Generated API clients (src/gen/oas/) are tracked in git and copied
+# via COPY above. If codegen runs in CI, the gen-protobuf stage
+# produces fresh files that override these committed versions.
 
 # TODO: Run the typecheck here too!
 RUN bun run build-only
@@ -50,7 +68,12 @@ RUN bun run build-only
 #
 # spice-ts
 #
-FROM oven/bun:1.1.24-alpine AS spice-ts
+# NOTE: bun is pinned to 1.3.13-alpine (NOT :1.3-alpine, which currently
+# resolves to 1.3.14). bun 1.3.14 has an intermittent tarball-extraction
+# regression that fails on large packages (e.g. storybook) as
+# `error: Fail extracting tarball` — see bun#34821 (fixed by bun#34827,
+# unreleased). Bump this pin once a fixed bun release ships.
+FROM oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349 AS spice-ts
 
 WORKDIR /build
 
@@ -70,7 +93,7 @@ RUN bun run build
 #
 # nginx
 #
-FROM nginxinc/nginx-unprivileged:1.27.4-alpine-slim as production
+FROM nginxinc/nginx-unprivileged:1.27.4-alpine-slim@sha256:e9796392bfbd5d97721c1d67fa1433cb2f5658a72b9b3ef6af3f63b00a4c273e as production
 
 USER root
 RUN apk -U upgrade --no-cache

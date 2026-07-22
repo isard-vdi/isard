@@ -1,0 +1,21 @@
+[project]
+name = "isardvdi-protobuf"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "grpcio==1.66.2",
+  "grpcio-tools==1.66.2",
+  "grpcio-health-checking==1.66.2",
+  "protobuf==5.29.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/isardvdi_protobuf"]
+
+[tool.isardvdi.system-deps]
+apk-build = ["build-base", "libffi-dev", "musl-dev", "openssl-dev"]
+apk-runtime = ["libffi", "openssl"]
