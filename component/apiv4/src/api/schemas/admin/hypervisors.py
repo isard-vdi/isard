@@ -257,7 +257,7 @@ class AdminHypervisor(BaseModel):
     min_free_mem_gb: int
     min_free_gpu_mem_gb: int
     nvidia_enabled: bool
-    force_get_hyp_info: bool
+    force_get_hyp_info: bool = False
     buffering_hyper: bool
     gpu_only: bool
     isard_hyper_vpn_host: str
