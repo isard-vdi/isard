@@ -146,9 +146,6 @@ export default function axiosSetUp () {
         })
       } else if (error.response.status === 401) {
         store.dispatch('logout')
-      } else if (error.response.status === 429) {
-        console.log('Too many requests')
-        return Promise.resolve(null)
       }
       return Promise.reject(error)
     }
