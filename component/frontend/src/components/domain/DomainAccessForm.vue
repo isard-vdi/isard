@@ -142,18 +142,16 @@ const {
 // Computed access values from template or desktop data or props
 
 const credentials = computed<Credentials>(() => {
-  if (templateData.value?.guest_properties) {
-    return {
-      username: templateData.value.guest_properties.credentials.username,
-      password: templateData.value.guest_properties.credentials.password
-    }
-  } else if (desktopData.value?.guest_properties) {
-    return {
-      username: desktopData.value.guest_properties.credentials.username,
-      password: desktopData.value.guest_properties.credentials.password
-    }
-  } else {
+  // Null for domains whose row has no guest_properties.credentials.
+  const stored =
+    templateData.value?.guest_properties?.credentials ??
+    desktopData.value?.guest_properties?.credentials
+  if (!stored) {
     return props.credentials!
+  }
+  return {
+    username: stored.username ?? props.credentials!.username,
+    password: stored.password ?? props.credentials!.password
   }
 })
 
