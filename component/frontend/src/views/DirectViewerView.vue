@@ -474,6 +474,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                         :name="desktopViewer.name"
                         :description="desktopViewer.description || ''"
                         :hide-description="activeOverlay !== null"
+                        :hide-notification="activeOverlay !== null"
                       />
                     </template>
                     <template #footer>

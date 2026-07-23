@@ -221,6 +221,7 @@ const desktopKind = computed(() => {
         :name="desktop.name"
         :description="desktop.description || ''"
         :hide-description="activeOverlay !== null"
+        :hide-notification="activeOverlay !== null"
         :download-progress="
           desktop.progress && desktop.progress.percentage !== undefined
             ? desktop.progress
