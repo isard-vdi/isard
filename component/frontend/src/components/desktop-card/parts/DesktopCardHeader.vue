@@ -24,6 +24,9 @@ interface Props {
   notificationText?: string | null
   name: string
   description: string
+  // When an overlay is open, keep only the name so the panel above it
+  // isn't pushed around and broken.
+  hideDescription?: boolean
   downloadProgress?: {
     size: string
     percentage: number
@@ -32,6 +35,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   notificationText: null,
+  hideDescription: false,
   downloadProgress: undefined
 })
 
@@ -65,7 +69,7 @@ const { isTruncated: isDescriptionTruncated } = useIsTextTruncated(
     <TooltipContent v-if="isNameTruncated" :title="props.name" />
   </Tooltip>
 
-  <Tooltip v-if="size !== '2xs'">
+  <Tooltip v-if="size !== '2xs' && !props.hideDescription">
     <TooltipTrigger as-child>
       <p ref="descriptionRef" :class="cardHeaderDescriptionVariants({ size })">
         {{ props.description }}

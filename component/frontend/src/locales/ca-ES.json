@@ -1459,7 +1459,12 @@
         },
         "overlay": {
           "expand": "Detalls",
-          "expand-tooltip": "Obre la finestra de detalls complets"
+          "expand-tooltip": "Obre la finestra de detalls complets",
+          "bastion": {
+            "open-in-browser": "Obre al navegador: {url}",
+            "copy-url": "Copia l'URL: {url}",
+            "copy-ssh": "Copia la connexió SSH: {command}"
+          }
         }
       },
       "desktop-storage-modal": {
@@ -1766,6 +1771,7 @@
     },
     "bastion-info-modal": {
       "description": "Utilitzeu la informació següent per connectar-vos a l'escriptori mitjançant el bastió.",
+      "description-read-only": "Utilitzeu la informació següent per connectar-vos a l'escriptori mitjançant el bastió. Copieu l'URL o l'ordre SSH.",
       "title": "Informació del bastió per a l'escriptori '{name}'",
       "fields": {
         "http": {
@@ -1917,6 +1923,9 @@
         "bastion": {
           "label": "Bastió activat",
           "description": "Permet l'accés a l'escriptori a través d'un host bastió.",
+          "custom-domains": {
+            "label": "Dominis personalitzats"
+          },
           "http-https": {
             "label": "HTTP / HTTPS",
             "description": "Accedeix a l'escriptori amb un navegador web o un visor RDP compatible amb connexions HTTP/HTTPS.",

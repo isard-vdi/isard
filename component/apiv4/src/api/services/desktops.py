@@ -692,7 +692,21 @@ class DesktopService:
     @staticmethod
     def get_desktop_details_from_token(token: str) -> dict:
         desktop_id = DesktopDirectViewer.get_desktop_from_token(token)["id"]
-        return DesktopService.get_desktop_details(desktop_id)
+        details = DesktopService.get_desktop_details(desktop_id)
+        try:
+            details["bastion"] = BastionService.get_desktop_bastion_direct_viewer(
+                desktop_id
+            )
+        except Exception:
+            # Bastion is a read-only extra on this response; never let it
+            # break the desktop details the direct viewer actually needs.
+            logging.warning(
+                "Failed to get bastion access for direct viewer of desktop %s",
+                desktop_id,
+                exc_info=True,
+            )
+            details["bastion"] = {"enabled": False}
+        return details
 
     @staticmethod
     def start_desktop_from_token(token, request):

@@ -9,6 +9,7 @@ export { default as DesktopCardBaseStacked } from './DesktopCardBaseStacked.vue'
 export { default as DesktopCardSkeleton } from './DesktopCardSkeleton.vue'
 
 export { default as DesktopCardHeaderActions } from './parts/DesktopCardHeaderActions.vue'
+export { default as DesktopCardOverlayButton } from './parts/DesktopCardOverlayButton.vue'
 export { default as DesktopCardHeaderActionsDropdownContent } from './parts/DesktopCardHeaderActionsDropdownContent.vue'
 export { default as DesktopCardHeader } from './parts/DesktopCardHeader.vue'
 export { default as DesktopCardFooter } from './parts/DesktopCardFooter.vue'
@@ -25,6 +26,18 @@ export const cardSizes = ['2xs', 'xs', 'sm', 'md', 'lg', 'xl'] as const
 export type CardSize = (typeof cardSizes)[number]
 
 export const CARD_SIZE_INJECTION_KEY = Symbol('cardSize') as InjectionKey<CardSize>
+
+// --- Header icon buttons ---
+
+// Icon-only when idle; when its overlay is active the button highlights and
+// widens to reveal the overlay's title label beside the icon.
+export const overlayIconButtonClass = (active: boolean) =>
+  [
+    'h-9! flex items-center justify-center backdrop-blur-[4px]',
+    active
+      ? 'w-auto! px-2.5! gap-1.5 bg-base-white/30 hover:bg-base-white/40 text-[10px] font-bold uppercase tracking-wide text-base-white'
+      : 'w-9! p-0! bg-base-black/30 hover:bg-base-black/50'
+  ].join(' ')
 
 export const cardBaseVariants = cva('overflow-hidden p-0', {
   variants: {
@@ -192,18 +205,18 @@ export const cardNetworkVariants = cva('z-10', {
   }
 })
 
-// Left padding to clear the colored type-identifier sidebar SVG that
-// extends from the top-left corner over the image area. Matches the offset
-// in `cardIpAreaVariants` so the overlay header doesn't collide with it.
+// Overlay sits at the bottom of the image, below the type-identifier SVG, so
+// it can align its left edge with the desktop name (`cardHeaderSlotVariants`)
+// instead of clearing the SVG offset.
 export const cardOverlayPaddingVariants = cva('z-10', {
   variants: {
     size: {
-      '2xs': 'pl-[20px] pr-1.5 pb-1',
-      xs: 'pl-[28px] pr-2 pb-1',
-      sm: 'pl-[34px] pr-2.5 pb-1.5',
-      md: 'pl-[40px] pr-3 pb-2',
-      lg: 'pl-[44px] pr-3 pb-2',
-      xl: 'pl-[52px] pr-4 pb-2'
+      '2xs': 'pl-1.5 pr-1.5 pb-1',
+      xs: 'pl-2 pr-2 pb-1',
+      sm: 'pl-2.5 pr-2.5 pb-1.5',
+      md: 'pl-3 pr-3 pb-2',
+      lg: 'pl-3 pr-3 pb-2',
+      xl: 'pl-4 pr-4 pb-2'
     }
   },
   defaultVariants: {

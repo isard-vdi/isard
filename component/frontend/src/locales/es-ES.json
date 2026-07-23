@@ -1459,7 +1459,12 @@
         },
         "overlay": {
           "expand": "Detalles",
-          "expand-tooltip": "Abre la ventana de detalles completos"
+          "expand-tooltip": "Abre la ventana de detalles completos",
+          "bastion": {
+            "open-in-browser": "Abrir en el navegador: {url}",
+            "copy-url": "Copiar URL: {url}",
+            "copy-ssh": "Copiar conexión SSH: {command}"
+          }
         }
       },
       "desktop-storage-modal": {
@@ -1785,6 +1790,7 @@
     },
     "bastion-info-modal": {
       "description": "Utilice la siguiente información para conectarse al escritorio a través del bastión.",
+      "description-read-only": "Utilice la siguiente información para conectarse al escritorio a través del bastión. Copie la URL o el comando SSH.",
       "title": "Información de bastión para el escritorio '{name}'",
       "fields": {
         "http": {
@@ -1936,6 +1942,9 @@
         "bastion": {
           "label": "Bastión activado",
           "description": "Permite el acceso al escritorio a través de un host bastión.",
+          "custom-domains": {
+            "label": "Dominios personalizados"
+          },
           "http-https": {
             "label": "HTTP / HTTPS",
             "description": "Accede al escritorio usando un navegador web o un visor RDP compatible con conexiones HTTP/HTTPS.",

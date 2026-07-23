@@ -13,7 +13,7 @@ import {
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   resetDesktop as resetDesktopRequest,
-  type DesktopDetailsResponse,
+  type DesktopDirectViewerDetailsResponse,
   type ViewersModel,
   type BrowserVncValues
 } from '@/gen/oas/apiv4'
@@ -33,7 +33,9 @@ import {
   DesktopCardHeader,
   DesktopCardFooter,
   DesktopCardIp,
-  DesktopCardNetworksOverlay
+  DesktopCardNetworksOverlay,
+  DesktopCardBastionOverlay,
+  DesktopCardOverlayButton
 } from '@/components/desktop-card'
 import DirectViewerCardPreview from '@/components/desktop-card/parts/DirectViewerCardPreview.vue'
 import { Button } from '@/components/ui/button'
@@ -41,6 +43,7 @@ import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import { Icon } from '@/components/icon'
 import { LoginNotification } from '@/components/login'
 import { ChangeViewerModal } from '@/components/modal'
+import { DesktopBastionInfoModal, DesktopNetworksModal } from '@/components/desktops'
 import { DesktopCardSkeleton } from '@/components/desktop-card'
 import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
 import LogoSvg from '@/assets/logo.svg?url'
@@ -91,17 +94,20 @@ const { isConnected, connect: connectSocket } = useDirectViewerSocket(token, que
 // viewer JWT, so the query stays disabled until `directViewerClient`
 // has its Authorization header set in the watch below.
 const viewerJwt = ref<string | undefined>(undefined)
-const { data: desktopDetails, isPending: isDetailsPending } = useQuery<DesktopDetailsResponse>({
-  queryKey: ['direct-viewer-details', token],
-  enabled: computed(() => !!viewerJwt.value),
-  queryFn: async () => {
-    const { data, error } = await directViewerClient.get<DesktopDetailsResponse>({
-      url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/get-details`
-    })
-    if (error) throw error
-    return data as DesktopDetailsResponse
-  }
-})
+const { data: desktopDetails, isPending: isDetailsPending } =
+  useQuery<DesktopDirectViewerDetailsResponse>({
+    queryKey: ['direct-viewer-details', token],
+    enabled: computed(() => !!viewerJwt.value),
+    queryFn: async () => {
+      const { data, error } = await directViewerClient.get<DesktopDirectViewerDetailsResponse>({
+        url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/get-details`
+      })
+      if (error) throw error
+      return data as DesktopDirectViewerDetailsResponse
+    }
+  })
+
+const bastion = computed(() => desktopDetails.value?.bastion)
 
 const hardwareBootOrder = computed(() => desktopDetails.value?.boot_order?.map((b) => b.name))
 const hardwareVideos = computed(() => desktopDetails.value?.videos?.map((v) => v.name))
@@ -221,8 +227,18 @@ const notificationText = computed<string | null>(() => {
   return null
 })
 
-const showNetworkOverlay = ref(false)
+// One overlay at a time, same as the desktop cards: clicking the same icon
+// toggles it off, clicking another swaps.
+type OverlayKind = 'networks' | 'bastion'
+const activeOverlay = ref<OverlayKind | null>(null)
+
+const toggleOverlay = (kind: OverlayKind) => {
+  activeOverlay.value = activeOverlay.value === kind ? null : kind
+}
+
 const isViewerChangeModalOpen = ref(false)
+const showBastionModal = ref(false)
+const showNetworksModal = ref(false)
 
 const logoSrc = ref('/custom/logo.svg')
 const handleLogoError = () => {
@@ -402,7 +418,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                   <DesktopCardBase
                     desktop-kind="nonpersistent"
                     :image-url="desktopViewer.image?.url ?? ''"
-                    :show-overlay="showNetworkOverlay"
+                    :show-overlay="activeOverlay !== null"
                     class="shadow-md"
                   >
                     <template #image>
@@ -413,20 +429,27 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       />
                     </template>
                     <template #header-actions>
-                      <Button
-                        hierarchy="link-gray"
-                        size="sm"
-                        class="w-9! h-9! flex align-center justify-center bg-base-black/30 hover:bg-base-black/50 p-0! backdrop-blur-[4px]"
+                      <DesktopCardOverlayButton
                         icon="modem-02"
-                        icon-stroke-color="base-white"
-                        @click="showNetworkOverlay = !showNetworkOverlay"
+                        title="components.desktops.desktop-card.actions.networks"
+                        :active="activeOverlay === 'networks'"
+                        @click="toggleOverlay('networks')"
+                      />
+                      <DesktopCardOverlayButton
+                        v-if="bastion?.enabled"
+                        icon="globe-04"
+                        title="components.desktops.desktop-card.actions.bastion-access"
+                        active-label="components.desktops.desktop-card.actions.bastion"
+                        aria-label="components.desktops.desktop-card.actions.bastion-access"
+                        :active="activeOverlay === 'bastion'"
+                        @click="toggleOverlay('bastion')"
                       />
                     </template>
                     <template #ip>
                       <DesktopCardIp :desktop-status="desktopViewer.status" :desktop-ip="null" />
                     </template>
                     <template #overlay>
-                      <div class="z-10 pl-[40px] pr-3 pb-2">
+                      <div v-if="activeOverlay === 'networks'" class="z-10 pl-3 pr-3 pb-2">
                         <DesktopCardNetworksOverlay
                           :desktop-id="desktopViewer.id"
                           :direct-viewer-token="token"
@@ -434,14 +457,21 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                           :full-height="
                             !(notificationText && desktopViewer.description?.trim().length !== 0)
                           "
+                          @show-networks-modal="showNetworksModal = true"
                         />
                       </div>
+                      <DesktopCardBastionOverlay
+                        v-else-if="activeOverlay === 'bastion'"
+                        :bastion="bastion"
+                        @show-bastion-modal="showBastionModal = true"
+                      />
                     </template>
                     <template #header>
                       <DesktopCardHeader
                         :notification-text="notificationText"
                         :name="desktopViewer.name"
                         :description="desktopViewer.description || ''"
+                        :hide-description="activeOverlay !== null"
                       />
                     </template>
                     <template #footer>
@@ -530,6 +560,25 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
         </template>
       </div>
     </main>
+    <!-- `bastion` puts the card's modal in read-only mode: no queries, no editors. -->
+    <DesktopBastionInfoModal
+      v-if="showBastionModal && bastion && desktopViewer"
+      :open="showBastionModal"
+      :desktop-id="desktopViewer.id"
+      :desktop-name="desktopViewer.name"
+      :bastion="bastion"
+      @close="showBastionModal = false"
+    />
+    <DesktopNetworksModal
+      v-if="showNetworksModal && desktopViewer"
+      :open="showNetworksModal"
+      :desktop-id="desktopViewer.id"
+      :desktop-name="desktopViewer.name"
+      :desktop-status="desktopViewer.status"
+      :direct-viewer-token="token"
+      :direct-viewer-client="directViewerClient"
+      @close="showNetworksModal = false"
+    />
     <ChangeViewerModal
       :open="isViewerChangeModalOpen"
       :available-viewer-ids="viewerIds"

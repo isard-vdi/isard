@@ -21,7 +21,6 @@
 import csv
 import io
 import logging
-import os
 import traceback
 from uuid import uuid4
 
@@ -696,46 +695,20 @@ class DeploymentService:
                 target = Targets.get_domain_target(desktop_id)
             except Error:
                 target = None
-            ssh = (target or {}).get("ssh") or {}
-            http = (target or {}).get("http") or {}
-            target_id = (target or {}).get("id", "")
-            custom_domain = ((target or {}).get("domains") or [None])[0] or ""
-            host = custom_domain or bastion_domain or ""
-            # Without a custom domain, HTTP(S) is served on a per-target
-            # subdomain of the bastion domain (target id with its last "-"
-            # turned into "."), reachable on the platform's public web ports.
-            target_host = (
-                f"{'.'.join(target_id.rsplit('-', 1))}.{bastion_domain}"
-                if target_id and not custom_domain
-                else host
-            )
-            ssh_command = ""
-            if ssh.get("enabled") and target_id:
-                port = "" if str(ssh_port) == "22" else f" -p {ssh_port}"
-                ssh_command = f"ssh {target_id}@{host}{port}"
-            http_url = https_url = ""
-            if http.get("enabled"):
-                http_p = os.environ.get("HTTP_PORT", "80")
-                https_p = os.environ.get("HTTPS_PORT", "443")
-                http_url = f"http://{target_host}" + (
-                    "" if str(http_p) == "80" else f":{http_p}"
-                )
-                https_url = f"https://{target_host}" + (
-                    "" if str(https_p) == "443" else f":{https_p}"
-                )
+            urls = BastionService.build_target_urls(target, bastion_domain, ssh_port)
             writer.writerow(
                 {
                     "username": user.get("username", ""),
                     "email": user.get("email", ""),
                     "desktop_name": domain.get("name", ""),
                     "status": domain.get("status", ""),
-                    "target_id": target_id,
-                    "ssh_enabled": bool(ssh.get("enabled")),
-                    "ssh_command": ssh_command,
-                    "http_enabled": bool(http.get("enabled")),
-                    "http_url": http_url,
-                    "https_url": https_url,
-                    "custom_domain": custom_domain,
+                    "target_id": urls["target_id"],
+                    "ssh_enabled": urls["ssh_enabled"],
+                    "ssh_command": urls["ssh_command"],
+                    "http_enabled": urls["http_enabled"],
+                    "http_url": urls["http_url"],
+                    "https_url": urls["https_url"],
+                    "custom_domain": urls["custom_domain"],
                 }
             )
         return buffer.getvalue()

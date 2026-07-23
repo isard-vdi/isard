@@ -48,12 +48,13 @@ async def _timed_not_found(start_time):
 
 
 from api.schemas.domains.desktop_direct_viewer import (
+    DesktopDirectViewerDetailsResponse,
     DesktopShareLinkResponse,
     DesktopUpdateShareLinkRequest,
     DesktopViewerResponse,
     ViewersDocsResponse,
 )
-from api.schemas.domains.desktops import DesktopDetailsResponse, DesktopNetworksResponse
+from api.schemas.domains.desktops import DesktopNetworksResponse
 from api.services.desktops import DesktopService
 from api.services.error import Error
 from cachetools import cached
@@ -323,13 +324,14 @@ async def get_desktop_networks_from_token(
 @direct_viewer_router.get(
     "/item/desktop/token/{token}/get-details",
     tags=[tag],
-    response_model=DesktopDetailsResponse,
+    response_model=DesktopDirectViewerDetailsResponse,
     operation_id="get_desktop_details_from_token",
     summary="Get the details of a desktop from a direct viewer token",
     description=(
         "Returns the details of an IsardVDI desktop identified by a "
-        "direct viewer share token. Requires a direct viewer JWT as "
-        "Authorization bearer."
+        "direct viewer share token, including its read-only bastion access "
+        "info if enabled. Requires a direct viewer JWT as Authorization "
+        "bearer."
     ),
     responses={
         403: {"model": ErrorResponse},
@@ -353,7 +355,9 @@ async def get_desktop_details_from_token(
             DesktopService.get_desktop_details_from_token, token
         )
         return JSONResponse(
-            content=DesktopDetailsResponse(**details).model_dump(mode="json"),
+            content=DesktopDirectViewerDetailsResponse(**details).model_dump(
+                mode="json"
+            ),
             status_code=200,
         )
     except Error:
