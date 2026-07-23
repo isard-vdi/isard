@@ -13,8 +13,11 @@ import {
   editDesktopMutation,
   getUserDesktopsLegacyQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import type { DomainImageFile, DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
 import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
+import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
+import { DesktopCardBase, DesktopCardHeader } from '@/components/desktop-card'
 import { Button } from '@/components/ui/button'
 import { InputField } from '@/components/input-field'
 import { Textarea } from '@/components/ui/textarea'
@@ -61,14 +64,32 @@ const desktopInfoForm = useForm({
 
 const infoValid = desktopInfoForm.useStore((state) => state.isValid)
 
+// Held here so the card is only written on submit, like every other field.
+const selectedImage = ref<DomainImageOutput | undefined>(undefined)
+const pendingImageFile = ref<DomainImageFile | undefined>(undefined)
+const showChangeImageModal = ref(false)
+
+function handleImageSelected(image: DomainImageOutput & { file?: DomainImageFile }) {
+  selectedImage.value = image
+  pendingImageFile.value = image.file
+}
+
 watch(
   desktopData,
   (data) => {
     if (!data) return
     desktopInfoForm.setFieldValue('name', data.name)
     desktopInfoForm.setFieldValue('description', data.description || '')
+    selectedImage.value = data.image
+    pendingImageFile.value = undefined
   },
   { immediate: true }
+)
+
+// Card colour only. `DomainInfoResponse` has no persistent flag; only
+// deployment desktops report a `deployment_name`.
+const desktopKind = computed<'persistent' | 'nonpersistent' | 'deployment'>(() =>
+  desktopData.value?.deployment_name ? 'deployment' : 'persistent'
 )
 
 const accessFormRef = ref<{
@@ -167,6 +188,13 @@ const handleSubmit = () => {
     body: {
       name: desktopInfoForm.getFieldValue('name'),
       description: desktopInfoForm.getFieldValue('description'),
+      image: selectedImage.value
+        ? {
+            id: selectedImage.value.id,
+            type: selectedImage.value.type,
+            ...(pendingImageFile.value ? { file: pendingImageFile.value } : {})
+          }
+        : undefined,
       guest_properties: {
         credentials: accessSettings?.credentials,
         fullscreen: accessSettings?.fullscreen,
@@ -192,6 +220,15 @@ const handleSubmit = () => {
 </script>
 
 <template>
+  <ChangeImageModal
+    :open="showChangeImageModal"
+    :domain-id="desktopId"
+    :current-image="selectedImage"
+    :persist-on-save="false"
+    @select="handleImageSelected"
+    @close="showChangeImageModal = false"
+  />
+
   <header class="flex flex-col md:flex-row items-center max-w-480 w-full mx-auto mb-8 gap-4">
     <div class="flex flex-row items-center gap-4 w-full">
       <Button
@@ -232,26 +269,48 @@ const handleSubmit = () => {
         <p class="text-sm font-regular mb-6">
           {{ t('views.edit-desktop.sections.info.description') }}
         </p>
-        <div class="flex flex-col gap-3">
-          <desktopInfoForm.Field v-slot="{ field }" name="name">
-            <InputField
-              :id="field.name"
-              :name="field.name"
-              :model-value="field.state.value"
-              maxlength="50"
-              @update:model-value="(value) => field.handleChange(String(value))"
-              @input="field.handleChange(String(($event.target as HTMLInputElement).value))"
-              @blur="field.handleBlur"
-            />
-          </desktopInfoForm.Field>
-          <desktopInfoForm.Field v-slot="{ field }" name="description">
-            <Textarea
-              :model-value="field.state.value"
-              maxlength="255"
-              class="bg-base-white resize-none"
-              @update:model-value="(value) => field.handleChange(String(value))"
-            />
-          </desktopInfoForm.Field>
+        <div class="flex flex-col md:flex-row gap-6">
+          <desktopInfoForm.Subscribe v-slot="{ values }">
+            <DesktopCardBase
+              :image-url="selectedImage?.url || ''"
+              :desktop-kind="desktopKind"
+              class="shrink-0"
+            >
+              <template #header-actions>
+                <Button
+                  icon="image-plus"
+                  hierarchy="secondary-gray"
+                  size="sm"
+                  @click="showChangeImageModal = true"
+                />
+              </template>
+              <template #header>
+                <DesktopCardHeader :name="values.name" :description="values.description" />
+              </template>
+            </DesktopCardBase>
+          </desktopInfoForm.Subscribe>
+
+          <div class="flex flex-col gap-3 grow">
+            <desktopInfoForm.Field v-slot="{ field }" name="name">
+              <InputField
+                :id="field.name"
+                :name="field.name"
+                :model-value="field.state.value"
+                maxlength="50"
+                @update:model-value="(value) => field.handleChange(String(value))"
+                @input="field.handleChange(String(($event.target as HTMLInputElement).value))"
+                @blur="field.handleBlur"
+              />
+            </desktopInfoForm.Field>
+            <desktopInfoForm.Field v-slot="{ field }" name="description">
+              <Textarea
+                :model-value="field.state.value"
+                maxlength="255"
+                class="bg-base-white resize-none"
+                @update:model-value="(value) => field.handleChange(String(value))"
+              />
+            </desktopInfoForm.Field>
+          </div>
         </div>
       </section>
 

@@ -51,6 +51,22 @@ class CardService:
             )
 
     @staticmethod
+    def get_card(card_id: str, card_type: str) -> dict:
+        """Build a card from its id and type.
+
+        The url is derived data: clients send `{id, type}` and the request
+        models fill `url` with None, so recompute it before storing.
+        """
+        try:
+            return CommonCards.get_card(card_id, card_type)
+        except Exception:
+            raise Error(
+                "internal_server",
+                "Failed to build card",
+                traceback.format_exc(),
+            )
+
+    @staticmethod
     def get_domain_stock_card(domain_id: str) -> dict:
         """Get the default stock card for a domain"""
         try:

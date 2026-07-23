@@ -8,6 +8,7 @@ import {
   checkQuotaNewDesktopOptions,
   checkStoragePoolCreationAvailabilityOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertModal, QuotaExceededModal } from '@/components/modal'
@@ -58,10 +59,10 @@ const goToPreviousStep = () => {
 }
 
 // Step 1: Select Template
-const selectedTemplate = ref<{ id: string; image?: { url: string } } | null>(null)
+const selectedTemplate = ref<{ id: string; image?: DomainImageOutput } | null>(null)
 const creationError = ref<string | null>(null)
 
-const selectTemplate = (template: { id: string; image?: { url: string } }) => {
+const selectTemplate = (template: { id: string; image?: DomainImageOutput }) => {
   selectedTemplate.value = selectedTemplate.value?.id === template.id ? null : template
 }
 
@@ -123,6 +124,7 @@ const handleStep2Submit = (data: {
   desktopKind: string
   accessSettings: Record<string, unknown> | undefined
   hardwareSettings: Record<string, unknown> | undefined
+  image: DomainImageOutput | undefined
 }) => {
   creationError.value = null
   currentStep.value = 3
@@ -149,6 +151,7 @@ const handleStep2Submit = (data: {
         floppies: data.hardwareSettings?.floppies
       },
       reservables: data.hardwareSettings?.reservables,
+      image: data.image ? { id: data.image.id, type: data.image.type } : undefined,
       bastion_target: data.accessSettings?.bastion
     }
   })
@@ -243,8 +246,8 @@ const steps = computed<StepperFormStep[]>(() => {
         <!-- Step 1 -->
         <div v-if="currentStep === 1">
           <Step1SelectTemplate
-            @select-template="selectTemplate"
             :selected-id="selectedTemplate?.id ?? ''"
+            @select-template="selectTemplate"
           />
         </div>
         <!-- Step 2 -->

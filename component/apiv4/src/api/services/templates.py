@@ -267,6 +267,7 @@ class TemplateService:
             allowed=data["allowed"],
             description=data["description"],
             enabled=data["enabled"],
+            image=data.get("image"),
         )
         clear_templates_cache()
         return result
@@ -332,6 +333,7 @@ class TemplateService:
             data["allowed"],
             description=data["description"],
             enabled=data["enabled"],
+            image=data.get("image"),
         )
         clear_templates_cache()
         return result
