@@ -52,6 +52,7 @@ import {
 } from '@/gen/oas/apiv4/'
 
 import { cn } from '@/lib/utils'
+import { getEndTimeIntervals } from '@/lib/booking/end-time-intervals'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { sessionTokenName } from '@/lib/auth'
 import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
@@ -98,13 +99,13 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSeparator,
-  FieldSet,
-  FieldError
+  FieldSet
 } from '@/components/ui/field'
 import { Icon, CopyIcon } from '@/components/icon'
 import { InputField } from '@/components/input-field'
 import { Label } from '@/components/ui/label'
 import { AlertModal, Modal, QuotaExceededModal } from '@/components/modal'
+import BookingChangeAndStartModal from '@/components/booking/BookingChangeAndStartModal.vue'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
@@ -643,7 +644,8 @@ const {
         unavailableStartNowModalDesktopData.value = {
           id: desktop.id,
           name: desktop.name,
-          currentGpu: desktop.reservables?.vgpus?.[0] || 'N/A'
+          currentGpu: desktop.reservables?.vgpus?.[0] || 'N/A',
+          currentGpus: desktop.reservables?.vgpus ?? []
         }
         break
       // TODO: handle other error cases
@@ -682,12 +684,14 @@ const unavailableStartNowModalDesktopData = ref<{
   id: string
   name: string
   currentGpu: string
+  currentGpus: string[]
 } | null>(null)
 
 const changeAndStartModalData = ref<{
   id: string
   name: string
   currentGpu: string
+  currentGpus: string[]
 } | null>(null)
 
 const {
@@ -706,52 +710,44 @@ const {
   error: createBookingEventError
 } = useMutation(createBookingEventMutation())
 
-const changeAndStartForm = useForm({
-  defaultValues: {
-    profile: '',
-    end_time: ''
-  },
-  onSubmit: async ({ value }) => {
-    try {
-      await editDesktopAsync({
-        path: { desktop_id: changeAndStartModalData.value!.id },
-        body: {
-          reservables: {
-            vgpus: [value.profile]
-          }
-        }
-      })
+const changeAndStartError = ref<string | null>(null)
 
-      try {
-        await createBookingEventAsync({
-          body: {
-            end: new Date(value.end_time).toISOString(),
-            item_id: changeAndStartModalData.value!.id,
-            start: new Date().toISOString(),
-            now: true,
-            item_type: 'desktop'
-          }
-        })
+const onChangeAndStartSubmit = async ({
+  desktopId,
+  profileIds,
+  endTime
+}: {
+  desktopId: string
+  profileIds: string[]
+  endTime: string
+}) => {
+  changeAndStartError.value = null
+  try {
+    await editDesktopAsync({
+      path: { desktop_id: desktopId },
+      body: { reservables: { vgpus: profileIds } }
+    })
 
-        desktopStart({ path: { desktop_id: changeAndStartModalData.value!.id } })
-        closeChangeAndStartModal()
-      } catch (bookingError) {
-        console.error('Error creating booking event:', bookingError)
+    await createBookingEventAsync({
+      body: {
+        end: new Date(endTime).toISOString(),
+        item_id: desktopId,
+        start: new Date().toISOString(),
+        now: true,
+        item_type: 'desktop'
       }
-    } catch (error) {
-      console.error('Error editing desktop:', error)
-      return
-    }
+    })
+
+    desktopStart({ path: { desktop_id: desktopId } })
+    closeChangeAndStartModal()
+  } catch (error) {
+    changeAndStartError.value = (error as ErrorResponse | undefined)?.description_code ?? 'generic'
   }
-})
-const changeAndStartModalSelectedProfile = changeAndStartForm.useStore(
-  (state) => state.values.profile
-)
-const changeAndStartModalSelectedProfile2 = ref<string>('')
+}
 
 const closeChangeAndStartModal = () => {
   changeAndStartModalData.value = null
-  changeAndStartForm.reset()
+  changeAndStartError.value = null
 }
 
 const startNowForm = useForm({
@@ -783,45 +779,12 @@ const closeStartNowModal = () => {
   startNowForm.reset()
 }
 
-const getEndTimeIntervals = (endTime: Date): Date[] => {
-  const currentTime = new Date()
-  if (endTime <= currentTime) {
-    return []
-  }
-
-  currentTime.setMinutes(currentTime.getMinutes() + 30)
-  if (endTime <= currentTime) {
-    return [endTime]
-  }
-
-  const intervals: Date[] = []
-  while (currentTime < endTime) {
-    intervals.push(new Date(currentTime))
-    currentTime.setMinutes(currentTime.getMinutes() + 30)
-  }
-
-  return intervals
-}
-
 const maxBookingDateEndTimeIntervals = computed<Date[]>(() => {
   if (!maxBookingDate.value) {
     return []
   }
 
   const maxDate = new Date(maxBookingDate.value.max_booking_date)
-  return getEndTimeIntervals(maxDate)
-})
-
-const changeAndStartModalSelectedProfileEndTimeIntervals = computed<Date[]>(() => {
-  if (!changeAndStartModalSelectedProfile2.value) {
-    return []
-  }
-
-  const maxDate = new Date(
-    availableReservables.value?.reservables_available?.find(
-      (r) => r.id === changeAndStartModalSelectedProfile2.value
-    )?.max_booking_date || ''
-  )
   return getEndTimeIntervals(maxDate)
 })
 
@@ -1350,199 +1313,17 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     </template>
   </Modal>
 
-  <!-- TODO: custom modal component instead of AlertModal -->
-  <!-- Change and Start modal -->
-  <Modal
-    v-if="changeAndStartModalData !== null"
+  <BookingChangeAndStartModal
     :open="changeAndStartModalData !== null"
-    class="pt-4 min-w-120"
-    :title="t('components.desktop-gpu-change-and-start-modal.title')"
+    :desktop-id="changeAndStartModalData?.id ?? ''"
+    :current-profile-ids="changeAndStartModalData?.currentGpus ?? []"
+    :available-reservables="availableReservables"
+    :is-loading-reservables="getAvailableReservablesIsPending"
+    :submitting="editDesktopIsPending || createBookingEventIsPending"
+    :submit-error="changeAndStartError"
     @close="closeChangeAndStartModal()"
-  >
-    <div v-if="true" class="mt-4 flex flex-col gap-4">
-      {{ t('components.desktop-gpu-change-and-start-modal.description') }}
-
-      <!-- TODO: If availableReservables <= 5, show buttons for each gpu, else show a dropdown. -->
-      <!-- TODO: use tanstack form -->
-
-      {{ changeAndStartModalSelectedProfile }}
-
-      <!-- <Button @click="changeAndStartForm.reset()">Reset form</Button> -->
-
-      <div
-        v-if="getAvailableReservablesIsPending"
-        class="w-full flex flex-col items-start justify-start gap-2"
-      >
-        <Skeleton class="h-4 w-1/4" />
-        <Skeleton class="h-8 w-full" />
-      </div>
-
-      <Empty v-else-if="!availableReservables" class="gap-2">
-        <EmptyHeader>
-          <EmptyMedia variant="default" class="select-none pointer-events-none">
-            <Icon name="alert-triangle" class="size-12" stroke-color="warning-600" />
-          </EmptyMedia>
-        </EmptyHeader>
-        <EmptyTitle class="font-semibold">{{
-          t('components.desktop-gpu-change-and-start-modal.empty.title')
-        }}</EmptyTitle>
-        <EmptyDescription class="">{{
-          t('components.desktop-gpu-change-and-start-modal.empty.description', {
-            kind: t('domains.desktops', 0)
-          })
-        }}</EmptyDescription>
-      </Empty>
-
-      <form
-        v-else
-        id="change-and-start-form"
-        class="flex flex-row items-center gap-2 w-full"
-        @submit.prevent.stop="changeAndStartForm.handleSubmit"
-      >
-        <FieldGroup class="gap-4">
-          <changeAndStartForm.Field
-            name="profile"
-            :listeners="{
-              onChange: ({ value }) => {
-                if (value !== changeAndStartModalSelectedProfile2) {
-                  changeAndStartModalSelectedProfile2 = value
-                }
-              }
-            }"
-          >
-            <template #default="{ field }">
-              <Field :data-invalid="isInvalid(field)">
-                <FieldLabel :for="field.name">{{
-                  t('components.desktop-gpu-change-and-start-modal.gpu-select.label')
-                }}</FieldLabel>
-                <!--  -->
-                <Select
-                  :id="field.name"
-                  :name="field.name"
-                  :aria-invalid="isInvalid(field)"
-                  class="w-full"
-                  :model-value="field.state.value"
-                  @update:model-value="field.handleChange($event?.toString() || '')"
-                >
-                  <!-- TODO: better select component -->
-                  <SelectTrigger size="default" class="bg-base-white">
-                    <SelectValue
-                      :placeholder="
-                        t('components.desktop-gpu-change-and-start-modal.gpu-select.placeholder')
-                      "
-                    />
-                  </SelectTrigger>
-                  <SelectContent class="left-0 right-0">
-                    <SelectGroup>
-                      <SelectItem
-                        v-for="profile in availableReservables?.reservables_available"
-                        :key="profile.id"
-                        :value="profile.id"
-                      >
-                        {{
-                          t('components.desktop-gpu-change-and-start-modal.gpu-select.value', {
-                            profile: profile.name
-                          })
-                        }}
-                      </SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-
-                <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              </Field>
-            </template>
-          </changeAndStartForm.Field>
-
-          <template v-if="changeAndStartModalSelectedProfile">
-            <changeAndStartForm.Field name="end_time">
-              <template #default="{ field }">
-                <Field :data-invalid="isInvalid(field)">
-                  <!-- TODO: maybe centralise this select -->
-                  <FieldLabel :for="field.name">{{
-                    t('components.desktop-start-now-modal.select.label')
-                  }}</FieldLabel>
-
-                  <Select
-                    :id="field.name"
-                    :name="field.name"
-                    :aria-invalid="isInvalid(field)"
-                    class="w-full"
-                    :model-value="field.state.value"
-                    @update:model-value="field.handleChange($event?.toString() || '')"
-                  >
-                    <!-- TODO: better select component -->
-                    <SelectTrigger size="default" class="bg-base-white">
-                      <SelectValue
-                        :placeholder="t('components.desktop-start-now-modal.select.placeholder')"
-                      />
-                    </SelectTrigger>
-                    <SelectContent class="left-0 right-0">
-                      <SelectGroup>
-                        <SelectItem
-                          v-for="endTime in changeAndStartModalSelectedProfileEndTimeIntervals"
-                          :key="endTime.toISOString()"
-                          _v-for="endTime in getEndTimeIntervals(
-                            new Date(
-                              // changeAndStartModalSelectedProfile.max_booking_date
-                              availableReservables?.reservables_available?.find(
-                                (r) => r.id === changeAndStartModalSelectedProfile2
-                              )?.max_booking_date || new Date().toISOString()
-                            )
-                          )"
-                          :value="endTime.toISOString()"
-                        >
-                          {{ d(endTime, { timeStyle: 'short' }) }}
-                        </SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </template>
-            </changeAndStartForm.Field>
-          </template>
-        </FieldGroup>
-      </form>
-    </div>
-    <template #footer>
-      <Button hierarchy="link-gray" @click="closeChangeAndStartModal()">{{
-        t('components.desktop-gpu-change-and-start-modal.cancel')
-      }}</Button>
-
-      <Button
-        v-if="true"
-        hierarchy="primary"
-        :disabled="editDesktopIsPending || createBookingEventIsPending"
-        type="submit"
-        form="change-and-start-form"
-      >
-        <Icon
-          v-if="editDesktopIsPending || createBookingEventIsPending"
-          class="motion-safe:animate-[spin_2s_linear_infinite]"
-          name="loading-02"
-          stroke-color="currentColor"
-        />
-        <Icon v-else name="play" stroke-color="currentColor" />
-        {{ t('components.desktop-gpu-change-and-start-modal.confirm') }}
-      </Button>
-      <Button
-        v-else
-        hierarchy="primary"
-        :disabled="recreateDesktopIsPending"
-        @click="recreateDesktop({ path: { desktop_id: recreateDesktopModalDesktopData!.id } })"
-      >
-        <!-- TODO: book button if no available profiles: get-available 428 no_available_profile -->
-        <Icon
-          v-if="recreateDesktopIsPending"
-          class="motion-safe:animate-[spin_2s_linear_infinite]"
-          name="loading-02"
-          stroke-color="currentColor"
-        />
-        <Icon v-else name="calendar-plus-02" stroke-color="currentColor" />
-        {{ t('components.desktop-gpu-change-and-start-modal.book') }}
-      </Button>
-    </template>
-  </Modal>
+    @submit="onChangeAndStartSubmit"
+  />
 
   <main v-if="route.params.desktopId" class="w-full h-full flex justify-center items-center">
     <Empty>

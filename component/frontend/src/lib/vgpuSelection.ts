@@ -9,6 +9,8 @@
 
 export const MAX_VGPU_PROFILES = 4
 
+export const NO_VGPU_ID = 'None'
+
 export interface VgpuLike {
   id: string
   hypervisor_groups?: number[]

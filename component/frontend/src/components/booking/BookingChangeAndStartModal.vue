@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useForm } from '@tanstack/vue-form'
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -19,61 +20,95 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 
 import type { AvailableReservablesResponse } from '@/gen/oas/apiv4'
-import { getEndTimeIntervals } from '@/lib/booking/end-time-intervals'
+import { earliestBookingDate, getEndTimeIntervals } from '@/lib/booking/end-time-intervals'
+import { MAX_VGPU_PROFILES } from '@/lib/vgpuSelection'
 
 interface Props {
   open: boolean
   desktopId: string
+  currentProfileIds?: string[]
   availableReservables?: AvailableReservablesResponse | null
   isLoadingReservables?: boolean
   submitting?: boolean
+  submitError?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  currentProfileIds: () => [],
   availableReservables: null,
   isLoadingReservables: false,
-  submitting: false
+  submitting: false,
+  submitError: null
 })
 
 const emit = defineEmits<{
   close: []
-  submit: [payload: { desktopId: string; profileId: string; endTime: string }]
+  submit: [payload: { desktopId: string; profileIds: string[]; endTime: string }]
 }>()
 
 const { t, d } = useI18n()
 
 const form = useForm({
-  defaultValues: { profile: '', end_time: '' },
+  defaultValues: { profiles: [] as string[], end_time: '' },
   onSubmit: ({ value }) => {
-    if (!value.profile || !value.end_time) return
+    if (!value.profiles.length || !value.end_time) return
     emit('submit', {
       desktopId: props.desktopId,
-      profileId: value.profile,
+      profileIds: value.profiles,
       endTime: value.end_time
     })
   }
 })
 
-const selectedProfile = form.useStore((state) => state.values.profile)
-const selectedProfileId = ref<string>('')
+const selectedProfiles = form.useStore((state) => state.values.profiles)
+const availableProfiles = computed(() => props.availableReservables?.reservables_available ?? [])
+
+const seeded = ref(false)
 
 watch(
   () => props.open,
   (open) => {
     if (open) {
       form.reset()
-      selectedProfileId.value = ''
+      seeded.value = false
     }
   }
 )
 
-const endTimeIntervals = computed<Date[]>(() => {
-  if (!selectedProfileId.value) return []
-  const profile = props.availableReservables?.reservables_available?.find(
-    (r) => r.id === selectedProfileId.value
+watch(availableProfiles, (profiles) => {
+  if (!props.open || seeded.value || !profiles.length) return
+  seeded.value = true
+  const availableIds = new Set(profiles.map((p) => p.id))
+  form.setFieldValue(
+    'profiles',
+    props.currentProfileIds.filter((id) => availableIds.has(id))
   )
-  if (!profile?.max_booking_date) return []
-  return getEndTimeIntervals(new Date(profile.max_booking_date))
+})
+
+const isProfileDisabled = (id: string): boolean =>
+  !selectedProfiles.value.includes(id) && selectedProfiles.value.length >= MAX_VGPU_PROFILES
+
+const endLimit = computed(() =>
+  earliestBookingDate(availableProfiles.value, selectedProfiles.value)
+)
+const endTimeIntervals = computed<Date[]>(() =>
+  endLimit.value ? getEndTimeIntervals(endLimit.value) : []
+)
+
+watch(endLimit, (limit) => {
+  const current = form.state.values.end_time
+  if (!current) return
+  if (!limit || new Date(current).getTime() > limit.getTime()) {
+    form.setFieldValue('end_time', '')
+  }
+})
+
+const submitErrorMessage = computed(() => {
+  if (!props.submitError) return null
+  return t(
+    `components.desktop-gpu-change-and-start-modal.errors.${props.submitError}`,
+    `components.desktop-gpu-change-and-start-modal.errors.generic`
+  )
 })
 
 function isInvalid(field: { state: { meta: { isTouched: boolean; isValid: boolean } } }) {
@@ -91,6 +126,13 @@ function isInvalid(field: { state: { meta: { isTouched: boolean; isValid: boolea
   >
     <div class="mt-4 flex flex-col gap-4">
       {{ t('components.desktop-gpu-change-and-start-modal.description') }}
+
+      <Alert v-if="submitErrorMessage" variant="destructive">
+        <AlertTitle>{{
+          t('components.desktop-gpu-change-and-start-modal.errors.title')
+        }}</AlertTitle>
+        <AlertDescription>{{ submitErrorMessage }}</AlertDescription>
+      </Alert>
 
       <div
         v-if="props.isLoadingReservables"
@@ -123,14 +165,7 @@ function isInvalid(field: { state: { meta: { isTouched: boolean; isValid: boolea
         @submit.prevent.stop="form.handleSubmit"
       >
         <FieldGroup class="gap-4">
-          <form.Field
-            name="profile"
-            :listeners="{
-              onChange: ({ value }) => {
-                if (value !== selectedProfileId) selectedProfileId = value
-              }
-            }"
-          >
+          <form.Field name="profiles">
             <template #default="{ field }">
               <Field :data-invalid="isInvalid(field)">
                 <FieldLabel :for="field.name">{{
@@ -141,8 +176,9 @@ function isInvalid(field: { state: { meta: { isTouched: boolean; isValid: boolea
                   :name="field.name"
                   :aria-invalid="isInvalid(field)"
                   class="w-full"
-                  :model-value="field.state.value"
-                  @update:model-value="field.handleChange($event?.toString() || '')"
+                  multiple
+                  :model-value="field.state.value ?? []"
+                  @update:model-value="(value) => field.handleChange((value as string[]) ?? [])"
                 >
                   <SelectTrigger size="default" class="bg-base-white">
                     <SelectValue
@@ -154,15 +190,12 @@ function isInvalid(field: { state: { meta: { isTouched: boolean; isValid: boolea
                   <SelectContent class="left-0 right-0">
                     <SelectGroup>
                       <SelectItem
-                        v-for="profile in props.availableReservables?.reservables_available"
+                        v-for="profile in availableProfiles"
                         :key="profile.id"
                         :value="profile.id"
+                        :disabled="isProfileDisabled(profile.id)"
                       >
-                        {{
-                          t('components.desktop-gpu-change-and-start-modal.gpu-select.value', {
-                            profile: profile.name
-                          })
-                        }}
+                        {{ profile.name }}
                       </SelectItem>
                     </SelectGroup>
                   </SelectContent>
@@ -173,7 +206,7 @@ function isInvalid(field: { state: { meta: { isTouched: boolean; isValid: boolea
             </template>
           </form.Field>
 
-          <template v-if="selectedProfile">
+          <template v-if="selectedProfiles.length">
             <form.Field name="end_time">
               <template #default="{ field }">
                 <Field :data-invalid="isInvalid(field)">
