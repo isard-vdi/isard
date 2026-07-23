@@ -452,6 +452,8 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       <div v-if="activeOverlay === 'networks'" class="z-10 pl-3 pr-3 pb-2">
                         <DesktopCardNetworksOverlay
                           :desktop-id="desktopViewer.id"
+                          :desktop-status="desktopViewer.status"
+                          :desktop-ip="desktopDetails?.ip"
                           :direct-viewer-token="token"
                           :direct-viewer-client="directViewerClient"
                           :full-height="
@@ -575,6 +577,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       :desktop-id="desktopViewer.id"
       :desktop-name="desktopViewer.name"
       :desktop-status="desktopViewer.status"
+      :desktop-ip="desktopDetails?.ip"
       :direct-viewer-token="token"
       :direct-viewer-client="directViewerClient"
       @close="showNetworksModal = false"
