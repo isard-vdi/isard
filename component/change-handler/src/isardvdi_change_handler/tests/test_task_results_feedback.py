@@ -16,6 +16,7 @@ def _fake_task(
     queue="storage.poolA.high",
     result={"status": "ready"},
     to_dict_payload=None,
+    storage_id=None,
 ):
     """Build a Task-like double with the attributes ``emit_task_feedback`` reads."""
     if to_dict_payload is None:
@@ -25,6 +26,7 @@ def _fake_task(
         user_id=user_id,
         queue=queue,
         result=result,
+        storage_id=storage_id,
         to_dict=lambda: to_dict_payload,
     )
 
@@ -70,6 +72,32 @@ async def test_emits_full_fan_out_when_user_has_category():
     }
     assert task_payloads == {json.dumps(task.to_dict())}
     assert storage_payloads == {json.dumps(task.result)}
+
+
+@pytest.mark.asyncio
+async def test_storage_id_serialized_as_id_not_object():
+    """``Task.storage_id`` resolves to a ``Storage`` object; the feedback payload
+    must carry its id string, never the object (which breaks ``json.dumps`` and
+    silently drops the whole SocketIO task event)."""
+    from isardvdi_change_handler.task_results.feedback import emit_task_feedback
+
+    task = _fake_task(storage_id=SimpleNamespace(id="s-123"))
+    redis_manager = AsyncMock()
+    redis_manager.emit = AsyncMock()
+
+    with (
+        patch("isardvdi_change_handler.task_results.feedback.Task", return_value=task),
+        patch(
+            "isardvdi_change_handler.task_results.feedback.User",
+            return_value=SimpleNamespace(category="cat-eng"),
+        ),
+    ):
+        await emit_task_feedback(redis_manager, task.id)
+
+    task_payload = next(
+        c.args[1] for c in redis_manager.emit.await_args_list if c.args[0] == "task"
+    )
+    assert json.loads(task_payload)["storage_id"] == "s-123"
 
 
 @pytest.mark.asyncio
