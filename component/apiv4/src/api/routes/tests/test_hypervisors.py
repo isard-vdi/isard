@@ -63,6 +63,44 @@ def test_admin_hypervisors_list(monkeypatch, test_client):
     assert captured["status"] is None
 
 
+def test_admin_hypervisors_list_tolerates_doc_without_force_get_hyp_info(
+    monkeypatch, test_client
+):
+    """A stored document predating the ``force_get_hyp_info`` field must not
+    make the whole list endpoint 500. The field defaults to ``False``."""
+    jwt = MockJWT()
+
+    doc = {
+        "id": "hyper-old",
+        "hostname": "hyper-old.local",
+        "port": "22",
+        "description": "",
+        "capabilities": {"disk_operations": True, "hypervisor": True},
+        "only_forced": False,
+        "min_free_mem_gb": 0,
+        "min_free_gpu_mem_gb": 0,
+        "nvidia_enabled": False,
+        # force_get_hyp_info intentionally absent (legacy document)
+        "buffering_hyper": False,
+        "gpu_only": False,
+        "isard_hyper_vpn_host": "",
+        "status": "Online",
+        "enabled": True,
+    }
+
+    monkeypatch.setattr(
+        "api.services.admin.hypervisors.AdminHypervisorsService.get_hypervisors",
+        staticmethod(lambda status=None: [doc]),
+    )
+
+    response = test_client(url="/admin/items/hypervisors", jwt=jwt)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body[0]["id"] == "hyper-old"
+    assert body[0]["force_get_hyp_info"] is False
+
+
 def test_admin_hypervisors_list_by_status(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}
