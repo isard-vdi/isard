@@ -145,10 +145,18 @@ vi.mock('@/components/desktop-card', () => ({
     template: '<button data-test="footer-main" @click="$emit(\'mainButtonClick\')">main</button>'
   },
   DesktopCardIp: { template: '<div data-test="card-ip" />' },
-  DesktopCardNetworksOverlay: { template: '<div data-test="card-networks" />' },
+  DesktopCardNetworksOverlay: {
+    emits: ['showNetworksModal'],
+    template: '<div data-test="card-networks" @click="$emit(\'showNetworksModal\')" />'
+  },
   DesktopCardBastionOverlay: { template: '<div data-test="card-bastion" />' },
   DesktopCardSkeleton: { template: '<div data-test="desktop-card-skeleton" />' },
-  overlayIconButtonClass: (active: boolean) => (active ? 'active' : '')
+  DesktopCardOverlayButton: {
+    props: ['icon', 'title', 'active', 'activeLabel', 'ariaLabel'],
+    emits: ['click'],
+    template:
+      '<button data-test="overlay-btn" :data-icon="icon" :aria-label="ariaLabel" @click="$emit(\'click\')" />'
+  }
 }))
 
 vi.mock('@/components/desktops', () => ({
@@ -156,13 +164,19 @@ vi.mock('@/components/desktops', () => ({
     props: ['open', 'desktopId', 'desktopName', 'bastion'],
     emits: ['close'],
     template: '<div data-test="bastion-modal" :data-open="String(open)" />'
+  },
+  DesktopNetworksModal: {
+    props: [
+      'open',
+      'desktopId',
+      'desktopName',
+      'desktopStatus',
+      'directViewerToken',
+      'directViewerClient'
+    ],
+    emits: ['close'],
+    template: '<div data-test="networks-modal" :data-open="String(open)" />'
   }
-}))
-
-vi.mock('@/components/ui/tooltip', () => ({
-  Tooltip: { template: '<div><slot /></div>' },
-  TooltipTrigger: { props: ['asChild'], template: '<div><slot /></div>' },
-  TooltipContent: { props: ['title'], template: '<div :data-title="title"></div>' }
 }))
 
 vi.mock('@/components/desktop-card/parts/DirectViewerCardPreview.vue', () => ({
@@ -384,5 +398,26 @@ describe('DirectViewerView', () => {
     expect(openSpy).toHaveBeenCalledTimes(1)
     expect(openSpy.mock.calls[0][0]).toContain('direct=1')
     vi.unstubAllGlobals()
+  })
+
+  it('opens the networks modal from the networks overlay overflow', async () => {
+    viewerData.value = startedDesktop()
+    const wrapper = mountView()
+    await flushPromises()
+
+    // Modal is closed (not rendered) until requested.
+    expect(wrapper.find('[data-test="networks-modal"]').exists()).toBe(false)
+
+    // Toggle the networks overlay via its header button (modem-02 icon).
+    const networksBtn = wrapper.find('[data-test="overlay-btn"][data-icon="modem-02"]')
+    expect(networksBtn.exists()).toBe(true)
+    await networksBtn.trigger('click')
+
+    // The overlay's +N overflow emits show-networks-modal, opening the modal.
+    const overlay = wrapper.find('[data-test="card-networks"]')
+    expect(overlay.exists()).toBe(true)
+    await overlay.trigger('click')
+
+    expect(wrapper.find('[data-test="networks-modal"]').attributes('data-open')).toBe('true')
   })
 })
