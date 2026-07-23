@@ -436,3 +436,40 @@ def test_get_usage_by_path_token_wrong_tier_is_none():
         pool.get_usage_by_path("/isard/storage_pools/pool-a/other/cat-a/templates")
         is None
     )
+
+
+# --------------------------------------------------------------------------- #
+# get_best_for_action — must never route a task to a DISABLED pool (its queue
+# lane has no worker, so the job would sit queued forever).
+# --------------------------------------------------------------------------- #
+def test_get_best_for_action_never_routes_to_a_disabled_pool(monkeypatch):
+    enabled = make_pool(id="fast", enabled=True)
+    disabled = make_pool(id="fast2", enabled=False)
+    monkeypatch.setattr(
+        StoragePool, "get_all", classmethod(lambda cls: [enabled, disabled])
+    )
+    # choice() is random; run enough times to catch a bad pick.
+    for _ in range(50):
+        assert StoragePool.get_best_for_action("resize").id == "fast"
+
+
+def test_get_best_for_action_path_falls_back_when_path_pool_disabled(monkeypatch):
+    """A path resolving only to a disabled pool (e.g. one being drained) must
+    fall back to any enabled pool so the op still gets a worker."""
+    disabled = make_pool(id="fast2", enabled=False)
+    enabled = make_pool(id="fast", enabled=True)
+    monkeypatch.setattr(
+        StoragePool, "get_by_path", classmethod(lambda cls, p: [disabled])
+    )
+    monkeypatch.setattr(
+        StoragePool, "get_all", classmethod(lambda cls: [disabled, enabled])
+    )
+    assert StoragePool.get_best_for_action("resize", path="/isard/x").id == "fast"
+
+
+def test_get_best_for_action_raises_when_only_disabled_pools(monkeypatch):
+    disabled = make_pool(id="fast2", enabled=False)
+    monkeypatch.setattr(StoragePool, "get_all", classmethod(lambda cls: [disabled]))
+    with pytest.raises(Exception) as exc:
+        StoragePool.get_best_for_action("resize")
+    assert exc.value.args[0] == "precondition_required"
