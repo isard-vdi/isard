@@ -248,6 +248,18 @@ def _storage(
     return s
 
 
+def _domain(did="d1", *, status="Maintenance", storages=None, disks=None):
+    """A Domain double: a status + its existing ``storages`` + the disks its
+    ``create_dict`` declares (used to tell 'storage gone' from 'no disks')."""
+    d = MagicMock(name=f"domain-{did}")
+    d.id = did
+    d.status = status
+    d.current_action = "resize"
+    d.storages = storages if storages is not None else []
+    d.create_dict = {"hardware": {"disks": disks if disks is not None else []}}
+    return d
+
+
 @pytest.mark.asyncio
 async def test_pass2_valid_disk_promoted_to_ready():
     from isardvdi_change_handler.streams import reconcile
@@ -325,6 +337,88 @@ def test_task_alive_false_when_task_not_pending():
 
 
 # ---------------------------------------------------------------------------
+# Pass 3 — domains stuck in a storage-lock status their storage already left
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_pass3_promotes_stuck_domain_when_storage_ready():
+    """A domain parked in a storage-lock status whose backing storage is
+    already ``ready`` and settled (no live task) was missed by the promote and
+    must be returned to Stopped."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="ready")
+    dom = _domain(
+        status="CreatingTemplate", storages=[storage], disks=[{"storage_id": "s1"}]
+    )
+    with (
+        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        patch.object(reconcile, "_task_alive", return_value=False),
+    ):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 1
+    assert dom.status == "Stopped"
+    assert dom.current_action is None
+
+
+@pytest.mark.asyncio
+async def test_pass3_fails_domain_whose_storage_row_is_gone():
+    """A domain locked in Maintenance whose declared disk's storage row no
+    longer exists is orphaned -> Failed."""
+    from isardvdi_change_handler.streams import reconcile
+
+    dom = _domain(status="Maintenance", storages=[], disks=[{"storage_id": "gone"}])
+    with patch.object(reconcile.Domain, "get_index", return_value=[dom]):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 1
+    assert dom.status == "Failed"
+    assert dom.current_action is None
+
+
+@pytest.mark.asyncio
+async def test_pass3_leaves_domain_whose_storage_task_is_alive():
+    """Storage is ready but a live task is running on it: the op is in flight,
+    do not touch the domain (no race with the primary path)."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="ready")
+    dom = _domain(
+        status="Maintenance", storages=[storage], disks=[{"storage_id": "s1"}]
+    )
+    with (
+        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        patch.object(reconcile, "_task_alive", return_value=True),
+    ):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 0
+    assert dom.status == "Maintenance"
+
+
+@pytest.mark.asyncio
+async def test_pass3_leaves_domain_whose_storage_still_in_maintenance():
+    """Storage is still in maintenance (Pass 2 / the consumer owns it): leave
+    the domain alone."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="maintenance")
+    dom = _domain(
+        status="Maintenance", storages=[storage], disks=[{"storage_id": "s1"}]
+    )
+    with (
+        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        patch.object(reconcile, "_task_alive", return_value=False),
+    ):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 0
+    assert dom.status == "Maintenance"
+
+
+# ---------------------------------------------------------------------------
 # run() — eager pass + periodic loop
 # ---------------------------------------------------------------------------
 
@@ -333,7 +427,7 @@ def test_task_alive_false_when_task_not_pending():
 async def test_run_invokes_both_passes_then_sleeps():
     from isardvdi_change_handler.streams import reconcile
 
-    calls = {"orphan": 0, "stuck": 0}
+    calls = {"orphan": 0, "stuck": 0, "domains": 0}
 
     async def _fake_orphan(rm, *a, **k):
         calls["orphan"] += 1
@@ -341,6 +435,10 @@ async def test_run_invokes_both_passes_then_sleeps():
 
     async def _fake_stuck(rm, *a, **k):
         calls["stuck"] += 1
+        return 0
+
+    async def _fake_domains(rm, *a, **k):
+        calls["domains"] += 1
         return 0
 
     class _Stop(Exception):
@@ -352,6 +450,7 @@ async def test_run_invokes_both_passes_then_sleeps():
     with (
         patch.object(reconcile, "_reconcile_orphan_deferred", new=_fake_orphan),
         patch.object(reconcile, "_reconcile_stuck_storage", new=_fake_stuck),
+        patch.object(reconcile, "_reconcile_stuck_domains", new=_fake_domains),
         patch.object(reconcile.asyncio, "sleep", new=_sleep_then_stop),
     ):
         with pytest.raises(_Stop):
@@ -359,6 +458,7 @@ async def test_run_invokes_both_passes_then_sleeps():
 
     assert calls["orphan"] == 1
     assert calls["stuck"] == 1
+    assert calls["domains"] == 1
 
 
 def test_orphan_gate_treats_vanished_dep_job_as_terminal():

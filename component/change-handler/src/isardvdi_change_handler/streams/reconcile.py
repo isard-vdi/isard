@@ -55,6 +55,7 @@ import asyncio
 import logging as log
 from datetime import datetime, timezone
 
+from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.task import Task
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
@@ -106,6 +107,15 @@ def _dep_job_status(dep):
         return dep.job_status
     except _JOB_GONE:
         return None
+
+
+# Domain statuses that are pure STORAGE locks (set by ``set_maintenance`` / the
+# template chain), never engine-driven runtime states — so they are safe to
+# finalise from the storage's own reality without racing the VM lifecycle. The
+# storage-keyed passes below cannot see a domain whose storage is already
+# ``ready`` (the ready-transition's promote missed it) or whose storage row is
+# gone; Pass 3 reconciles from the domain side to close that gap.
+_DOMAIN_LOCK_STATUSES = ("Maintenance", "CreatingTemplate")
 
 
 def _as_aware_utc(dt):
@@ -439,8 +449,71 @@ async def _reconcile_stuck_storage(redis_manager):
     return healed
 
 
+def _finalize_stuck_domain(domain):
+    """Finalise one domain parked in a storage-lock status from its storage
+    reality. Returns 1 if finalised, else 0.
+
+    - it declares disks but none of their storage rows still exist -> ``Failed``
+      (the disk is gone).
+    - every backing storage is ``ready`` and settled (no live task) ->
+      ``Stopped`` (the ready-transition's promote missed this domain).
+    A domain whose storage is still in flight (``maintenance`` / a live task) is
+    left to Pass 2 / the consumer.
+    """
+    declares_disks = any(
+        disk.get("storage_id")
+        for disk in domain.create_dict.get("hardware", {}).get("disks", [])
+    )
+    storages = domain.storages
+    if declares_disks and not storages:
+        domain.status = "Failed"
+        domain.current_action = None
+        log.warning(
+            "reconcile: finalized orphaned domain %s (backing storage gone -> Failed)",
+            domain.id,
+        )
+        return 1
+    if storages and all(
+        storage.status == "ready" and not _task_alive(storage) for storage in storages
+    ):
+        domain.status = "Stopped"
+        domain.current_action = None
+        log.warning(
+            "reconcile: promoted stuck domain %s (storage ready -> Stopped)", domain.id
+        )
+        return 1
+    return 0
+
+
+async def _reconcile_stuck_domains(redis_manager):
+    """Pass 3: finalise domains parked in a storage-lock status
+    (``Maintenance`` / ``CreatingTemplate``) whose storage has already settled
+    but never promoted them. The storage-keyed passes above are blind to a
+    domain whose storage is already ``ready`` or whose storage row is gone.
+    Returns the count finalised."""
+    try:
+        stuck = await asyncio.to_thread(
+            Domain.get_index,
+            [["desktop", status] for status in _DOMAIN_LOCK_STATUSES]
+            + [["template", status] for status in _DOMAIN_LOCK_STATUSES],
+            "kind_status",
+        )
+    except Exception:
+        log.exception("reconcile: could not list storage-lock domains")
+        return 0
+    healed = 0
+    for domain in stuck:
+        try:
+            healed += await asyncio.to_thread(_finalize_stuck_domain, domain)
+        except Exception:
+            log.exception(
+                "reconcile: finalize failed for domain %s", getattr(domain, "id", "?")
+            )
+    return healed
+
+
 async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
-    """Long-running reconcile loop: an eager pass on startup, then both passes
+    """Long-running reconcile loop: an eager pass on startup, then all passes
     every ``interval_s`` seconds. Started alongside the changefeed listener and
     the task-results consumer in :func:`__main__.main`.
 
@@ -455,6 +528,7 @@ async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
             await _reconcile_orphan_deferred(redis_manager, grace_s=grace_s)
             await _reap_core_tombstones(redis_manager)
             await _reconcile_stuck_storage(redis_manager)
+            await _reconcile_stuck_domains(redis_manager)
         except Exception:
             log.exception("reconcile: pass raised")
         await asyncio.sleep(interval_s)
