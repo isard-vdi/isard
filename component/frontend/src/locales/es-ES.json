@@ -2439,6 +2439,14 @@
         "go-back": "Atrás",
         "next": "Siguiente"
       }
+    },
+    "new-desktop": {
+      "os-template-select": {
+        "placeholder": "Selecciona una plantilla de sistema operativo",
+        "search-placeholder": "Buscar plantillas de sistema operativo",
+        "not-found": "No se ha encontrado ninguna plantilla",
+        "more-results": "{count} resultados más, afina tu búsqueda"
+      }
     }
   },
   "authentication": {
