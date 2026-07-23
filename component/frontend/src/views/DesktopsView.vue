@@ -1337,6 +1337,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
       <DesktopCard
         v-if="routeDesktop"
         class="mt-6 text-start"
+        size="lg"
         :desktop="routeDesktop"
         :preferred-viewer="preferedViewers[routeDesktop.id]"
         @desktop-start="desktopStart({ path: { desktop_id: routeDesktop.id } })"

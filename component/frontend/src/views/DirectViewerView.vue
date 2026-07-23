@@ -94,18 +94,21 @@ const { isConnected, connect: connectSocket } = useDirectViewerSocket(token, que
 // viewer JWT, so the query stays disabled until `directViewerClient`
 // has its Authorization header set in the watch below.
 const viewerJwt = ref<string | undefined>(undefined)
-const { data: desktopDetails, isPending: isDetailsPending } =
-  useQuery<DesktopDirectViewerDetailsResponse>({
-    queryKey: ['direct-viewer-details', token],
-    enabled: computed(() => !!viewerJwt.value),
-    queryFn: async () => {
-      const { data, error } = await directViewerClient.get<DesktopDirectViewerDetailsResponse>({
-        url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/get-details`
-      })
-      if (error) throw error
-      return data as DesktopDirectViewerDetailsResponse
-    }
-  })
+const {
+  data: desktopDetails,
+  isPending: isDetailsPending,
+  refetch: refetchDesktopDetails
+} = useQuery<DesktopDirectViewerDetailsResponse>({
+  queryKey: ['direct-viewer-details', token],
+  enabled: computed(() => !!viewerJwt.value),
+  queryFn: async () => {
+    const { data, error } = await directViewerClient.get<DesktopDirectViewerDetailsResponse>({
+      url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/get-details`
+    })
+    if (error) throw error
+    return data as DesktopDirectViewerDetailsResponse
+  }
+})
 
 const bastion = computed(() => desktopDetails.value?.bastion)
 
@@ -139,6 +142,19 @@ watch(
     }
   },
   { immediate: true }
+)
+
+// The IP (and other live details) come from the separately-fetched get-details
+// query, which the socket doesn't touch — only desktopViewer updates live. So
+// refetch details on every status change so a boot (WaitingIP → Started)
+// surfaces the IP without a manual reload.
+watch(
+  () => desktopViewer.value?.status,
+  (status, prevStatus) => {
+    if (status && status !== prevStatus && viewerJwt.value) {
+      refetchDesktopDetails()
+    }
+  }
 )
 
 const mainButtonData = computed(() => {
@@ -452,6 +468,8 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       <div v-if="activeOverlay === 'networks'" class="z-10 pl-3 pr-3 pb-2">
                         <DesktopCardNetworksOverlay
                           :desktop-id="desktopViewer.id"
+                          :desktop-status="desktopViewer.status"
+                          :desktop-ip="desktopDetails?.ip"
                           :direct-viewer-token="token"
                           :direct-viewer-client="directViewerClient"
                           :full-height="
@@ -472,6 +490,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                         :name="desktopViewer.name"
                         :description="desktopViewer.description || ''"
                         :hide-description="activeOverlay !== null"
+                        :hide-notification="activeOverlay !== null"
                       />
                     </template>
                     <template #footer>
@@ -575,6 +594,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       :desktop-id="desktopViewer.id"
       :desktop-name="desktopViewer.name"
       :desktop-status="desktopViewer.status"
+      :desktop-ip="desktopDetails?.ip"
       :direct-viewer-token="token"
       :direct-viewer-client="directViewerClient"
       @close="showNetworksModal = false"

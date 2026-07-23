@@ -112,47 +112,52 @@ defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
     <span class="text-xs">{{ t('components.desktop-networks-modal.empty') }}</span>
   </div>
 
-  <div v-else class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-start text-base-white">
-    <div v-for="network in visibleNetworks" :key="network.id" class="flex flex-col min-w-0">
-      <div class="text-xs font-semibold truncate">{{ network.name }}</div>
-      <div class="text-[11px] text-base-white/80 truncate flex items-center gap-1.5 font-mono">
-        {{ network.mac
-        }}<CopyIcon :value="network.mac" class="opacity-80" size="xs" stroke-color="base-white" />
-      </div>
-      <!-- Wireguard-only: IP attached as a sub-row so it's clearly the IP
-           you reach this interface on — not a free-floating top-of-card
-           field that's easy to miss. -->
-      <div
-        v-if="network.id === 'wireguard'"
-        class="text-[11px] text-base-white/80 truncate flex items-center gap-1.5 font-mono"
-      >
-        <template v-if="props.desktopStatus === DesktopStatusEnum.WAITING_IP">
-          <Icon name="loading-02" size="xs" class="animate-spin" stroke-color="base-white" />
-          <span class="italic">
-            {{ t('components.desktops.desktop-card.status.waitingip.text') }}
-          </span>
-        </template>
-        <template v-else-if="props.desktopIp">
-          {{ props.desktopIp }}
-          <CopyIcon
-            :value="props.desktopIp"
-            class="opacity-80"
-            size="xs"
-            stroke-color="base-white"
-          />
-        </template>
-        <span v-else class="italic text-base-white/50">—</span>
+  <div v-else class="flex gap-3 text-start text-base-white">
+    <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 flex-1 min-w-0">
+      <div v-for="network in visibleNetworks" :key="network.id" class="flex flex-col min-w-0">
+        <div class="text-xs font-semibold truncate">{{ network.name }}</div>
+        <div class="text-[11px] text-base-white/80 truncate flex items-center gap-1.5 font-mono">
+          {{ network.mac
+          }}<CopyIcon :value="network.mac" class="opacity-80" size="xs" stroke-color="base-white" />
+        </div>
+        <!-- Wireguard-only: IP attached as a sub-row so it's clearly the IP
+             you reach this interface on — not a free-floating top-of-card
+             field that's easy to miss. -->
+        <div
+          v-if="network.id === 'wireguard'"
+          class="text-[11px] text-base-white/80 truncate flex items-center gap-1.5 font-mono"
+        >
+          <template v-if="props.desktopStatus === DesktopStatusEnum.WAITING_IP">
+            <Icon name="loading-02" size="xs" class="animate-spin" stroke-color="base-white" />
+            <span class="italic">
+              {{ t('components.desktops.desktop-card.status.waitingip.text') }}
+            </span>
+          </template>
+          <template v-else-if="props.desktopIp">
+            {{ props.desktopIp }}
+            <CopyIcon
+              :value="props.desktopIp"
+              class="opacity-80"
+              size="xs"
+              stroke-color="base-white"
+            />
+          </template>
+          <span v-else class="italic text-base-white/50">—</span>
+        </div>
       </div>
     </div>
 
-    <!-- Overflow → opens the full modal which lists every interface in detail -->
-    <div v-if="overflowCount > 0" class="flex items-center justify-end col-span-2">
+    <!-- Overflow → occupies a narrow column beside the networks; the button
+         itself stays compact (bottom-aligned, background only around its
+         content) and opens the modal. -->
+    <div v-if="overflowCount > 0" class="self-stretch shrink-0 flex items-end">
       <Button
         variant="ghost"
-        class="h-6 px-2 bg-base-white/15 hover:bg-base-white/30 text-[11px] font-semibold text-base-white"
+        class="h-auto flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-base-white/15 hover:bg-base-white/30 text-[11px] font-semibold whitespace-nowrap text-base-white"
         @click="emit('showNetworksModal')"
       >
-        +{{ overflowCount }} {{ t('components.desktops.desktop-card.networks.more') }}
+        +{{ overflowCount }} {{ t('components.desktops.desktop-card.networks.more')
+        }}<Icon name="chevron-right" size="xs" stroke-color="base-white" />
       </Button>
     </div>
   </div>
