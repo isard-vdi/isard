@@ -9,6 +9,7 @@ export { default as DesktopCardBaseStacked } from './DesktopCardBaseStacked.vue'
 export { default as DesktopCardSkeleton } from './DesktopCardSkeleton.vue'
 
 export { default as DesktopCardHeaderActions } from './parts/DesktopCardHeaderActions.vue'
+export { default as DesktopCardOverlayButton } from './parts/DesktopCardOverlayButton.vue'
 export { default as DesktopCardHeaderActionsDropdownContent } from './parts/DesktopCardHeaderActionsDropdownContent.vue'
 export { default as DesktopCardHeader } from './parts/DesktopCardHeader.vue'
 export { default as DesktopCardFooter } from './parts/DesktopCardFooter.vue'

@@ -35,13 +35,12 @@ import {
   DesktopCardIp,
   DesktopCardNetworksOverlay,
   DesktopCardBastionOverlay,
-  overlayIconButtonClass
+  DesktopCardOverlayButton
 } from '@/components/desktop-card'
 import DirectViewerCardPreview from '@/components/desktop-card/parts/DirectViewerCardPreview.vue'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import { Icon } from '@/components/icon'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { LoginNotification } from '@/components/login'
 import { ChangeViewerModal } from '@/components/modal'
 import { DesktopBastionInfoModal, DesktopNetworksModal } from '@/components/desktops'
@@ -430,47 +429,21 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       />
                     </template>
                     <template #header-actions>
-                      <Tooltip>
-                        <TooltipTrigger as-child>
-                          <Button
-                            hierarchy="link-gray"
-                            size="sm"
-                            :class="overlayIconButtonClass(activeOverlay === 'networks')"
-                            icon="modem-02"
-                            icon-stroke-color="base-white"
-                            @click="toggleOverlay('networks')"
-                          >
-                            <span v-if="activeOverlay === 'networks'">
-                              {{ t('components.desktops.desktop-card.actions.networks') }}
-                            </span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent
-                          :title="t('components.desktops.desktop-card.actions.networks')"
-                        />
-                      </Tooltip>
-                      <Tooltip v-if="bastion?.enabled">
-                        <TooltipTrigger as-child>
-                          <Button
-                            hierarchy="link-gray"
-                            size="sm"
-                            :class="overlayIconButtonClass(activeOverlay === 'bastion')"
-                            icon="globe-04"
-                            icon-stroke-color="base-white"
-                            :aria-label="
-                              t('components.desktops.desktop-card.actions.bastion-access')
-                            "
-                            @click="toggleOverlay('bastion')"
-                          >
-                            <span v-if="activeOverlay === 'bastion'">
-                              {{ t('components.desktops.desktop-card.actions.bastion') }}
-                            </span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent
-                          :title="t('components.desktops.desktop-card.actions.bastion-access')"
-                        />
-                      </Tooltip>
+                      <DesktopCardOverlayButton
+                        icon="modem-02"
+                        title="components.desktops.desktop-card.actions.networks"
+                        :active="activeOverlay === 'networks'"
+                        @click="toggleOverlay('networks')"
+                      />
+                      <DesktopCardOverlayButton
+                        v-if="bastion?.enabled"
+                        icon="globe-04"
+                        title="components.desktops.desktop-card.actions.bastion-access"
+                        active-label="components.desktops.desktop-card.actions.bastion"
+                        aria-label="components.desktops.desktop-card.actions.bastion-access"
+                        :active="activeOverlay === 'bastion'"
+                        @click="toggleOverlay('bastion')"
+                      />
                     </template>
                     <template #ip>
                       <DesktopCardIp :desktop-status="desktopViewer.status" :desktop-ip="null" />
