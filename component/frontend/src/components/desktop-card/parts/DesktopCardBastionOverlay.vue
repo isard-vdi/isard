@@ -91,13 +91,6 @@ const sshUrl = computed(() => {
 
 <template>
   <div :class="cardOverlayPaddingVariants({ size })" class="text-base-white text-start">
-    <div class="flex items-center gap-2 mb-1.5">
-      <Icon name="globe-04" size="sm" stroke-color="base-white" />
-      <span class="text-[10px] font-bold uppercase tracking-wide truncate">
-        {{ t('components.desktops.desktop-card.actions.bastion') }}
-      </span>
-    </div>
-
     <div v-if="isLoading" class="flex flex-col gap-1.5">
       <Skeleton class="bg-base-white/20 h-4 w-full" />
       <Skeleton class="bg-base-white/20 h-4 w-3/4" />
@@ -105,34 +98,91 @@ const sshUrl = computed(() => {
     <div v-else-if="!hasAccess" class="text-[11px] text-base-white/80">
       {{ t('components.bastion-info-modal.no-bastion-configured') }}
     </div>
-    <div v-else class="flex flex-col gap-1 text-xs">
-      <div v-if="httpEnabled" class="flex items-center gap-1.5 min-w-0">
+    <div v-else class="flex flex-wrap gap-1.5 text-xs">
+      <div v-if="httpEnabled" class="flex items-center gap-1.5 rounded bg-base-white/15 px-2 py-1">
         <Icon name="globe-04" size="xs" stroke-color="base-white" class="shrink-0" />
-        <code class="font-mono truncate flex-1 min-w-0">{{ httpsUrl }}</code>
-        <a :href="httpsUrl" target="_blank" :title="httpsUrl" class="shrink-0">
-          <Icon
-            name="link-external-01"
-            size="xs"
-            stroke-color="base-white"
-            class="cursor-pointer"
+        <span class="font-semibold">HTTPS</span>
+        <Tooltip disable-hoverable-content>
+          <TooltipTrigger as-child>
+            <a :href="httpsUrl" target="_blank" class="shrink-0">
+              <Icon
+                name="link-external-01"
+                size="xs"
+                stroke-color="base-white"
+                class="cursor-pointer"
+              />
+            </a>
+          </TooltipTrigger>
+          <TooltipContent
+            :title="
+              t('components.desktops.desktop-card.overlay.bastion.open-in-browser', {
+                url: httpsUrl
+              })
+            "
           />
-        </a>
-        <CopyIcon :value="httpsUrl" size="xs" stroke-color="base-white" class="shrink-0" />
+        </Tooltip>
+        <Tooltip disable-hoverable-content>
+          <TooltipTrigger as-child>
+            <CopyIcon :value="httpsUrl" size="xs" stroke-color="base-white" class="shrink-0" />
+          </TooltipTrigger>
+          <TooltipContent
+            :title="
+              t('components.desktops.desktop-card.overlay.bastion.copy-url', { url: httpsUrl })
+            "
+          />
+        </Tooltip>
       </div>
-      <div v-if="httpEnabled" class="flex items-center gap-1.5 min-w-0">
-        <span class="w-3 shrink-0" />
-        <code class="font-mono truncate flex-1 min-w-0 text-base-white/70">{{ httpUrl }}</code>
-        <CopyIcon :value="httpUrl" size="xs" stroke-color="base-white" class="shrink-0" />
+      <div v-if="httpEnabled" class="flex items-center gap-1.5 rounded bg-base-white/15 px-2 py-1">
+        <Icon name="globe-04" size="xs" stroke-color="base-white" class="shrink-0" />
+        <span class="font-semibold">HTTP</span>
+        <Tooltip disable-hoverable-content>
+          <TooltipTrigger as-child>
+            <a :href="httpUrl" target="_blank" class="shrink-0">
+              <Icon
+                name="link-external-01"
+                size="xs"
+                stroke-color="base-white"
+                class="cursor-pointer"
+              />
+            </a>
+          </TooltipTrigger>
+          <TooltipContent
+            :title="
+              t('components.desktops.desktop-card.overlay.bastion.open-in-browser', {
+                url: httpUrl
+              })
+            "
+          />
+        </Tooltip>
+        <Tooltip disable-hoverable-content>
+          <TooltipTrigger as-child>
+            <CopyIcon :value="httpUrl" size="xs" stroke-color="base-white" class="shrink-0" />
+          </TooltipTrigger>
+          <TooltipContent
+            :title="
+              t('components.desktops.desktop-card.overlay.bastion.copy-url', { url: httpUrl })
+            "
+          />
+        </Tooltip>
       </div>
-      <div v-if="sshEnabled" class="flex items-center gap-1.5 min-w-0">
+      <div v-if="sshEnabled" class="flex items-center gap-1.5 rounded bg-base-white/15 px-2 py-1">
         <Icon name="terminal-square" size="xs" stroke-color="base-white" class="shrink-0" />
-        <code class="font-mono truncate flex-1 min-w-0">{{ sshUrl }}</code>
-        <CopyIcon :value="sshUrl" size="xs" stroke-color="base-white" class="shrink-0" />
+        <span class="font-semibold">SSH</span>
+        <Tooltip disable-hoverable-content>
+          <TooltipTrigger as-child>
+            <CopyIcon :value="sshUrl" size="xs" stroke-color="base-white" class="shrink-0" />
+          </TooltipTrigger>
+          <TooltipContent
+            :title="
+              t('components.desktops.desktop-card.overlay.bastion.copy-ssh', { command: sshUrl })
+            "
+          />
+        </Tooltip>
       </div>
     </div>
 
     <div class="flex justify-end mt-1.5">
-      <Tooltip>
+      <Tooltip disable-hoverable-content>
         <TooltipTrigger as-child>
           <Button
             hierarchy="link-gray"

@@ -87,6 +87,10 @@ const sortedNetworks = computed(() => {
 const visibleLimit = computed(() => (props.fullHeight ? 4 : 2))
 const visibleNetworks = computed(() => sortedNetworks.value.slice(0, visibleLimit.value))
 const overflowCount = computed(() => Math.max(0, sortedNetworks.value.length - visibleLimit.value))
+
+// Exposed so the parent card can drop its own expand button when the +N
+// overflow button already opens the modal — otherwise both show at once.
+defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
 </script>
 
 <template>

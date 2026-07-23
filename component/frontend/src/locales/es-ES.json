@@ -1459,7 +1459,12 @@
         },
         "overlay": {
           "expand": "Detalles",
-          "expand-tooltip": "Abre la ventana de detalles completos"
+          "expand-tooltip": "Abre la ventana de detalles completos",
+          "bastion": {
+            "open-in-browser": "Abrir en el navegador: {url}",
+            "copy-url": "Copiar URL: {url}",
+            "copy-ssh": "Copiar conexión SSH: {command}"
+          }
         }
       },
       "desktop-storage-modal": {

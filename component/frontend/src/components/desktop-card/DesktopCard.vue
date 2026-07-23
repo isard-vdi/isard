@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { ApiSchemasDomainsDesktopsUserDesktop } from '@/gen/oas/apiv4/'
 import type { CardSize } from '.'
 
-import { cn, copyToClipboard } from '@/lib/utils'
+import { copyToClipboard } from '@/lib/utils'
 import {
   desktopActionsData,
   DesktopActionsEnum,
@@ -30,6 +30,8 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { ContextMenuContent, ContextMenuItem } from '@/components/ui/context-menu'
 
 const { t, d } = useI18n()
+
+const networksOverlayRef = ref<InstanceType<typeof DesktopCardNetworksOverlay> | null>(null)
 
 interface Props {
   desktop: ApiSchemasDomainsDesktopsUserDesktop
@@ -180,20 +182,15 @@ const desktopKind = computed(() => {
         :class="cardOverlayPaddingVariants({ size: props.size })"
         class="text-base-white text-start"
       >
-        <div class="flex items-center gap-2 mb-1.5">
-          <Icon name="modem-02" size="sm" stroke-color="base-white" />
-          <span class="text-[10px] font-bold uppercase tracking-wide truncate">
-            {{ t('components.desktops.desktop-card.actions.networks') }}
-          </span>
-        </div>
         <DesktopCardNetworksOverlay
+          ref="networksOverlayRef"
           :desktop-id="desktop.id"
           :desktop-status="desktop.status"
           :desktop-ip="desktop.ip"
           :full-height="!(notificationText && desktop.description?.trim().length !== 0)"
           @show-networks-modal="emit('showNetworksModal')"
         />
-        <div class="flex justify-end mt-1.5">
+        <div v-if="!networksOverlayRef?.hasOverflow" class="flex justify-end mt-1.5">
           <Tooltip>
             <TooltipTrigger as-child>
               <Button
@@ -223,6 +220,7 @@ const desktopKind = computed(() => {
         :notification-text="notificationText"
         :name="desktop.name"
         :description="desktop.description || ''"
+        :hide-description="activeOverlay !== null"
         :download-progress="
           desktop.progress && desktop.progress.percentage !== undefined
             ? desktop.progress

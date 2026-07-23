@@ -1858,7 +1858,12 @@
         },
         "overlay": {
           "expand": "Details",
-          "expand-tooltip": "Open the full details modal"
+          "expand-tooltip": "Open the full details modal",
+          "bastion": {
+            "open-in-browser": "Open in browser: {url}",
+            "copy-url": "Copy URL: {url}",
+            "copy-ssh": "Copy SSH connection: {command}"
+          }
         },
         "info": {
           "boot": "Boot"

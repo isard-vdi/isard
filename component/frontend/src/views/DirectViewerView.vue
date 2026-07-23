@@ -438,7 +438,11 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                             icon="modem-02"
                             icon-stroke-color="base-white"
                             @click="toggleOverlay('networks')"
-                          />
+                          >
+                            <span v-if="activeOverlay === 'networks'">
+                              {{ t('components.desktops.desktop-card.actions.networks') }}
+                            </span>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent
                           :title="t('components.desktops.desktop-card.actions.networks')"
@@ -456,7 +460,11 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                               t('components.desktops.desktop-card.actions.bastion-access')
                             "
                             @click="toggleOverlay('bastion')"
-                          />
+                          >
+                            <span v-if="activeOverlay === 'bastion'">
+                              {{ t('components.desktops.desktop-card.actions.bastion') }}
+                            </span>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent
                           :title="t('components.desktops.desktop-card.actions.bastion-access')"
@@ -467,7 +475,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       <DesktopCardIp :desktop-status="desktopViewer.status" :desktop-ip="null" />
                     </template>
                     <template #overlay>
-                      <div v-if="activeOverlay === 'networks'" class="z-10 pl-[40px] pr-3 pb-2">
+                      <div v-if="activeOverlay === 'networks'" class="z-10 pl-3 pr-3 pb-2">
                         <DesktopCardNetworksOverlay
                           :desktop-id="desktopViewer.id"
                           :direct-viewer-token="token"
@@ -488,6 +496,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                         :notification-text="notificationText"
                         :name="desktopViewer.name"
                         :description="desktopViewer.description || ''"
+                        :hide-description="activeOverlay !== null"
                       />
                     </template>
                     <template #footer>

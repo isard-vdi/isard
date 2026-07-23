@@ -52,7 +52,11 @@ const bastionEnabled =
         icon="info-circle"
         icon-stroke-color="base-white"
         @click="emit('infoClick')"
-      />
+      >
+        <span v-if="props.activeOverlay === 'info'">
+          {{ t('components.desktops.desktop-card.actions.info') }}
+        </span>
+      </Button>
     </TooltipTrigger>
     <TooltipContent :title="t('components.desktops.desktop-card.actions.info')" />
   </Tooltip>
@@ -66,7 +70,11 @@ const bastionEnabled =
         icon="modem-02"
         icon-stroke-color="base-white"
         @click="emit('networkClick')"
-      />
+      >
+        <span v-if="props.activeOverlay === 'networks'">
+          {{ t('components.desktops.desktop-card.actions.networks') }}
+        </span>
+      </Button>
     </TooltipTrigger>
     <TooltipContent :title="t('components.desktops.desktop-card.actions.networks')" />
   </Tooltip>
@@ -81,7 +89,11 @@ const bastionEnabled =
         icon-stroke-color="base-white"
         :aria-label="t('components.desktops.desktop-card.actions.bastion-access')"
         @click="emit('bastionClick')"
-      />
+      >
+        <span v-if="props.activeOverlay === 'bastion'">
+          {{ t('components.desktops.desktop-card.actions.bastion') }}
+        </span>
+      </Button>
     </TooltipTrigger>
     <TooltipContent :title="t('components.desktops.desktop-card.actions.bastion-access')" />
   </Tooltip>
