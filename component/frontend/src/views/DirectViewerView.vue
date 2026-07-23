@@ -44,7 +44,7 @@ import { Icon } from '@/components/icon'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { LoginNotification } from '@/components/login'
 import { ChangeViewerModal } from '@/components/modal'
-import { DesktopBastionInfoModal } from '@/components/desktops'
+import { DesktopBastionInfoModal, DesktopNetworksModal } from '@/components/desktops'
 import { DesktopCardSkeleton } from '@/components/desktop-card'
 import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
 import LogoSvg from '@/assets/logo.svg?url'
@@ -239,6 +239,7 @@ const toggleOverlay = (kind: OverlayKind) => {
 
 const isViewerChangeModalOpen = ref(false)
 const showBastionModal = ref(false)
+const showNetworksModal = ref(false)
 
 const logoSrc = ref('/custom/logo.svg')
 const handleLogoError = () => {
@@ -483,6 +484,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                           :full-height="
                             !(notificationText && desktopViewer.description?.trim().length !== 0)
                           "
+                          @show-networks-modal="showNetworksModal = true"
                         />
                       </div>
                       <DesktopCardBastionOverlay
@@ -593,6 +595,16 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       :desktop-name="desktopViewer.name"
       :bastion="bastion"
       @close="showBastionModal = false"
+    />
+    <DesktopNetworksModal
+      v-if="showNetworksModal && desktopViewer"
+      :open="showNetworksModal"
+      :desktop-id="desktopViewer.id"
+      :desktop-name="desktopViewer.name"
+      :desktop-status="desktopViewer.status"
+      :direct-viewer-token="token"
+      :direct-viewer-client="directViewerClient"
+      @close="showNetworksModal = false"
     />
     <ChangeViewerModal
       :open="isViewerChangeModalOpen"
