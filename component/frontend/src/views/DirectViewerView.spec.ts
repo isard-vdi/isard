@@ -16,6 +16,7 @@ const mainButtonAction = ref<string>('none')
 const cookieSetMock = vi.fn()
 const connectMock = vi.fn()
 const clientSetConfigMock = vi.fn()
+const refetchMock = vi.fn()
 // useMutation is called twice in the view (resetDesktop, then startDesktop);
 // capture each returned mutate in order.
 const mutations: { mutate: ReturnType<typeof vi.fn> }[] = []
@@ -36,7 +37,7 @@ vi.mock('@tanstack/vue-query', () => {
         isPending: viewerPending
       }
     if (idx === 1) return { data: loginConfig, error: ref(null), isPending: ref(false) }
-    return { data: desktopDetails, error: ref(null), isPending: ref(false) }
+    return { data: desktopDetails, error: ref(null), isPending: ref(false), refetch: refetchMock }
   }
   const useQueryClient = () => ({ setQueryData: vi.fn(), invalidateQueries: vi.fn() })
   const useMutation = () => {
@@ -257,6 +258,7 @@ describe('DirectViewerView', () => {
     cookieSetMock.mockReset()
     connectMock.mockReset()
     clientSetConfigMock.mockReset()
+    refetchMock.mockReset()
     mutations.length = 0
     useQueryCallIndex = 0
   })
@@ -419,5 +421,18 @@ describe('DirectViewerView', () => {
     await overlay.trigger('click')
 
     expect(wrapper.find('[data-test="networks-modal"]').attributes('data-open')).toBe('true')
+  })
+
+  it('refetches the desktop details when the viewer status changes', async () => {
+    viewerData.value = startedDesktop({ status: 'WaitingIP' })
+    mountView()
+    await flushPromises()
+    refetchMock.mockClear()
+
+    // Socket flips the desktop to Started → details (holding the IP) refetch.
+    viewerData.value = { ...viewerData.value, status: 'Started' }
+    await flushPromises()
+
+    expect(refetchMock).toHaveBeenCalled()
   })
 })
