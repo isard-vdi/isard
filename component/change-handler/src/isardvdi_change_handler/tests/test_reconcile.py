@@ -379,6 +379,28 @@ async def test_pass3_fails_domain_whose_storage_row_is_gone():
 
 
 @pytest.mark.asyncio
+async def test_pass3_fails_domain_with_only_some_storage_rows_left():
+    """A domain that declares two disks and resolves one is PARTIALLY gone.
+
+    ``Domain.storages`` drops ids whose row no longer exists, so the surviving
+    disk being ``ready`` used to promote the domain to Stopped — a desktop that
+    looks bootable and then fails at the next start, with the real cause (a
+    deleted disk) lost.
+    """
+    from isardvdi_change_handler.streams import reconcile
+
+    survivor = _storage("s1", status="ready", task=None)
+    domain = _domain(
+        "d1",
+        storages=[survivor],
+        disks=[{"storage_id": "s1"}, {"storage_id": "s2-gone"}],
+    )
+
+    assert reconcile._finalize_stuck_domain(domain) == 1
+    assert domain.status == "Failed"
+
+
+@pytest.mark.asyncio
 async def test_pass3_leaves_domain_whose_storage_task_is_alive():
     """Storage is ready but a live task is running on it: the op is in flight,
     do not touch the domain (no race with the primary path)."""

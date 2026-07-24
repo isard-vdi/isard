@@ -460,12 +460,18 @@ def _finalize_stuck_domain(domain):
     A domain whose storage is still in flight (``maintenance`` / a live task) is
     left to Pass 2 / the consumer.
     """
-    declares_disks = any(
-        disk.get("storage_id")
+    declared_ids = [
+        disk["storage_id"]
         for disk in domain.create_dict.get("hardware", {}).get("disks", [])
-    )
+        if disk.get("storage_id")
+    ]
     storages = domain.storages
-    if declares_disks and not storages:
+    # ``Domain.storages`` drops ids whose row no longer exists, so a domain that
+    # declares two disks and resolves one is PARTIALLY gone. Comparing counts
+    # (rather than "resolved nothing") keeps that case on the Failed branch: a
+    # desktop promoted to Stopped with a missing disk looks bootable and fails
+    # at the next start instead.
+    if declared_ids and len(storages) < len(declared_ids):
         domain.status = "Failed"
         domain.current_action = None
         log.warning(
