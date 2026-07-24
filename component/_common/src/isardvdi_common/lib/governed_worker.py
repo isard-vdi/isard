@@ -61,6 +61,7 @@ from isardvdi_common.lib.queue_tiers import (
     DEFERRABLE_TIERS,
     HEAVY_TIERS,
     NULL_CATEGORY,
+    effective_tier,
     parse_storage_queue,
 )
 from rq import Worker
@@ -293,11 +294,13 @@ def is_heavy_queue(name):
     deferred under pressure but NOT capped (trivial deletes), so it is not heavy.
 
     Parses the tier segment (handles both the flat ``storage.<pool>.<tier>`` and
-    per-category ``storage.<pool>.<cat>.<tier>`` shapes), so a non-storage name or
-    a non-heavy tier (interactive/standard/bulk/reclaim/legacy) returns False.
+    per-category ``storage.<pool>.<cat>.<tier>`` shapes) through
+    :func:`effective_tier`, so a legacy ``low`` lane counts as the maintenance
+    lane it maps to. A non-storage name or a non-heavy tier
+    (interactive/standard/bulk/reclaim) returns False.
     """
     parsed = parse_storage_queue(name)
-    return parsed is not None and parsed[2] in HEAVY_TIERS
+    return parsed is not None and effective_tier(parsed[2]) in HEAVY_TIERS
 
 
 def is_deferrable_queue(name):
@@ -305,11 +308,12 @@ def is_deferrable_queue(name):
     maintenance / reclaim) — hidden from the dequeue order under node pressure. A
     superset of :func:`is_heavy_queue`: ``reclaim`` defers (a mass-delete / broom
     storm can add IO on discard-heavy backends) but is not counted against the
-    max-heavy cap. Non-storage or non-deferrable tiers (interactive / standard /
-    bulk / legacy) return False.
+    max-heavy cap. The tier segment goes through :func:`effective_tier`, so a
+    legacy ``low`` lane defers as the maintenance lane it maps to. Non-storage or
+    non-deferrable tiers (interactive / standard / bulk) return False.
     """
     parsed = parse_storage_queue(name)
-    return parsed is not None and parsed[2] in DEFERRABLE_TIERS
+    return parsed is not None and effective_tier(parsed[2]) in DEFERRABLE_TIERS
 
 
 class GovernedWorker(Worker):

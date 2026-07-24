@@ -39,6 +39,12 @@ from rq.exceptions import DequeueTimeout
         # foreground lanes are never heavy
         ("storage.pool-a.interactive", False),
         ("storage.pool-a.standard", False),
+        # legacy lanes classify as the tier they map to: low -> maintenance
+        # (heavy), high -> interactive (not), default -> the foreground default
+        ("storage.pool-a.low", True),
+        ("storage.pool-a.catA.low", True),
+        ("storage.pool-a.high", False),
+        ("storage.pool-a.default", False),
         # non-storage / malformed
         ("maintenance", False),  # no storage. prefix -> not a real lane
         ("storage.pool-a.maintenanceish", False),  # tier must match exactly
@@ -71,6 +77,11 @@ def test_is_heavy_queue(name, expected):
         # foreground lanes never defer
         ("storage.pool-a.interactive", False),
         ("storage.pool-a.standard", False),
+        # legacy lanes defer as the tier they map to
+        ("storage.pool-a.low", True),
+        ("storage.pool-a.catA.low", True),
+        ("storage.pool-a.high", False),
+        ("storage.pool-a.default", False),
         # non-storage / malformed
         ("reclaim", False),
         (None, False),
@@ -801,6 +812,40 @@ def test_dequeue_reserves_slot_for_maintenance_job(tmp_path):
     job, queue = w.dequeue_job_and_maintain_ttl(10)
     assert (job.id, queue.name) == ("j1", "storage.p.maintenance")
     assert r.scard(gw.HEAVY_RUNNING_KEY) == 1
+
+
+def test_dequeue_reserves_slot_for_legacy_low_lane_job(tmp_path):
+    # A pre-upgrade / direct-enqueue job left on the legacy ``low`` lane is the
+    # same heavy work a ``maintenance`` job is, so it must take a heavy slot
+    # instead of running ungoverned beside the capped ones.
+    r = _FakeRedis()
+    qc = _FakeQueueClass([(_Job("j1"), _Q("storage.p.low"))])
+    w = _worker(
+        r,
+        _psi_file(tmp_path, "cpu", 1.0),
+        _psi_file(tmp_path, "io", 1.0),
+        max_heavy=2,
+        queue_class=qc,
+    )
+    w._ordered_queues = [_Q("storage.p.low")]
+    job, queue = w.dequeue_job_and_maintain_ttl(10)
+    assert (job.id, queue.name) == ("j1", "storage.p.low")
+    assert r.scard(gw.HEAVY_RUNNING_KEY) == 1
+
+
+def test_dequeue_defers_legacy_low_lane_under_pressure(tmp_path):
+    low, inter = _Q("storage.p.low"), _Q("storage.p.interactive")
+    qc = _FakeQueueClass([(_Job("i1"), inter)])
+    w = _worker(
+        _FakeRedis(),
+        _psi_file(tmp_path, "cpu", 99.0),
+        _psi_file(tmp_path, "io", 1.0),
+        queue_class=qc,
+    )
+    w._ordered_queues = [low, inter]
+    job, queue = w.dequeue_job_and_maintain_ttl(10)
+    assert queue is inter
+    assert "storage.p.low" not in qc.calls[0]
 
 
 def test_dequeue_pushes_back_at_front_when_reserve_denied(tmp_path):
