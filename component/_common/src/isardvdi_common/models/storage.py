@@ -1005,6 +1005,17 @@ class Storage(RethinkCustomBase):
             },
             dependents=[
                 {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": Storage._maintenance_release_statuses(
+                                self.id, [domain.id for domain in self.domains]
+                            ),
+                        },
+                    },
+                },
+                {
                     "queue": f"storage.{StoragePool.get_best_for_action('resize', path=self.directory_path).id}.{priority}",
                     "task": "qemu_img_info_backing_chain",
                     "job_kwargs": {
@@ -1019,11 +1030,33 @@ class Storage(RethinkCustomBase):
                             "task": "storage_update",
                         }
                     ],
-                }
+                },
             ],
         )
 
         return self.task
+
+    @staticmethod
+    def _maintenance_release_statuses(storage_id, domain_ids):
+        """Terminal branches that release a storage from ``maintenance``.
+
+        An in-place operation puts the storage (and its domains) into
+        maintenance before enqueuing. Without a terminal step that names the
+        failure outcomes, a chain that failed or was cancelled simply stops and
+        the row stays in maintenance for ever - the disk is untouched but the
+        user can no longer do anything with it. The success side is owned by the
+        chain's own update, so only the release branches live here.
+        """
+        return {
+            "failed": {
+                "ready": {"storage": [storage_id]},
+                "Stopped": {"domain": domain_ids},
+            },
+            "canceled": {
+                "ready": {"storage": [storage_id]},
+                "Stopped": {"domain": domain_ids},
+            },
+        }
 
     def virt_win_reg(
         self,
