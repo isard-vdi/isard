@@ -833,7 +833,15 @@ function socketio_on(){
                 }
             },
             { "data": "name" },
-            { "data": "provider", "width": "10px", },
+            {
+                "data": "provider", "width": "10px",
+                "render": function (data, type, full, meta) {
+                    if (type !== "display" || !data) return data;
+                    return escapeHtmlText(
+                        authProviderLabel(data, getCategoriesAuthentication()[full.category], getAuthProvidersGlobal())
+                    );
+                }
+            },
             {
                 "data": "category_name", "render": function (data, type, full, meta) {
                     return full.category_name ? full.category_name : ''

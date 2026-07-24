@@ -27,6 +27,8 @@ const ldapDialTimeout = 5 * time.Second
 var _ ConfigurableProvider[model.LDAPConfig] = &LDAP{}
 
 type LDAPConfig struct {
+	Name string
+
 	Protocol   string
 	Host       string
 	Port       int
@@ -167,6 +169,8 @@ func (l *LDAP) LoadConfig(_ context.Context, cfg model.LDAPConfig) error {
 	} else {
 		prvCfg.ReCategory = nil
 	}
+
+	prvCfg.Name = cfg.Name
 
 	prvCfg.FieldGroup = cfg.FieldGroup
 	prvCfg.GroupDefault = cfg.GroupDefault
@@ -473,6 +477,7 @@ func (l *LDAP) GuessGroups(ctx context.Context, u *types.ProviderUserData, rawGr
 
 	return guessGroup(ctx, l.db, guessGroupOpts{
 		Provider:     l,
+		ProviderName: cfg.Name,
 		ReGroup:      cfg.ReGroup,
 		DefaultGroup: cfg.GroupDefault,
 	}, u, rawGroups)

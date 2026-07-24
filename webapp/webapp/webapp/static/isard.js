@@ -663,6 +663,58 @@ function ldapFieldConfig () {
   };
 }
 
+var _authProvidersGlobal = null;
+function getAuthProvidersGlobal () {
+  if (_authProvidersGlobal === null) {
+    _authProvidersGlobal = {};
+    $.ajax({
+      type: "GET",
+      url: "/api/v4/admin/items/authentication/providers",
+      async: false,
+      cache: false,
+      success: function (providers) { _authProvidersGlobal = providers || {}; }
+    });
+  }
+  return _authProvidersGlobal;
+}
+
+var _categoriesAuthentication = null;
+function getCategoriesAuthentication () {
+  if (_categoriesAuthentication === null) {
+    _categoriesAuthentication = {};
+    $.ajax({
+      type: "GET",
+      url: "/api/v4/admin/items/users/management/categories",
+      async: false,
+      cache: false,
+      success: function (categories) {
+        (categories || []).forEach(function (category) {
+          _categoriesAuthentication[category.id] = category.authentication || {};
+        });
+      }
+    });
+  }
+  return _categoriesAuthentication;
+}
+
+// Builds the display label of an authentication provider: the category's
+// custom config name wins, then the global provider name when the category
+// follows the global config, then the plain provider label. Returns plain
+// text — callers inserting it into HTML must escape it (escapeHtmlText).
+function authProviderLabel (provider, categoryAuthentication, globalProviders) {
+  const base = { local: "Local", google: "Google", saml: "SAML", ldap: "LDAP" }[provider] || provider;
+  const cfg = categoryAuthentication ? categoryAuthentication[provider] : null;
+  let name = cfg && cfg[provider + "_config"] ? cfg[provider + "_config"].name : null;
+  if (!name && (!cfg || cfg.config_source !== "custom")) {
+    name = globalProviders && globalProviders[provider] ? globalProviders[provider].name : null;
+  }
+  return name ? base + " - " + name : base;
+}
+
+function escapeHtmlText (text) {
+  return $("<div>").text(text == null ? "" : String(text)).html();
+}
+
 /**
  * Populates form fields inside a container with values from a data object.
  * Supports nested objects (via recursion), checkboxes (via iCheck), multi-value

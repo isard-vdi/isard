@@ -34,6 +34,8 @@ type LDAP struct {
 }
 
 type LDAPConfig struct {
+	Name string `rethinkdb:"name"`
+
 	Protocol   string `rethinkdb:"protocol"`
 	Host       string `rethinkdb:"host"`
 	Port       int    `rethinkdb:"port"`
@@ -88,6 +90,8 @@ type SAML struct {
 }
 
 type SAMLConfig struct {
+	Name string `rethinkdb:"name"`
+
 	MetadataURL     string      `rethinkdb:"metadata_url"`
 	MetadataFile    string      `rethinkdb:"metadata_file"`
 	EntityID        string      `rethinkdb:"entity_id"`
@@ -140,6 +144,8 @@ type Google struct {
 }
 
 type GoogleConfig struct {
+	Name string `rethinkdb:"name"`
+
 	ClientID     string `rethinkdb:"client_id"`
 	ClientSecret string `rethinkdb:"client_secret"`
 }

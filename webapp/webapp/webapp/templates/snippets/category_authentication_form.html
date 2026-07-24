@@ -27,7 +27,7 @@
 %}
   <div id="{{ provider }}-panel" class="x_panel">
     <div class="x_title">
-      <h4><i class="fa fa-{{ icon }}"></i> {{ title }}</h4>
+      <h4><i class="fa fa-{{ icon }}"></i> <span class="provider-title">{{ title }}</span></h4>
       <div class="clearfix"></div>
     </div>
     <div class="x_content">
@@ -76,6 +76,14 @@
           <div class="provider-config-form">
             <h5>Provider Configuration</h5>
             {% with name_prefix=name_prefix ~ "[" ~ provider ~ "_config]" %}
+              {% with
+                name="name",
+                label="Provider Name",
+                placeholder="",
+                required=false
+              %}
+                {% include '/snippets/form_field.html' %}
+              {% endwith %}
               {% include '/snippets/' ~ provider ~ '_config_form.html' %}
             {% endwith %}
           </div>
