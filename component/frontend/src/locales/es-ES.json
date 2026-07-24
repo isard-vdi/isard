@@ -1559,6 +1559,21 @@
         "description": "Se ha alcanzado el número máximo de escritorios en ejecución. Se debe detener un escritorio para iniciar uno nuevo.",
         "cancel": "Volver a escritorios"
       },
+      "start-memory-quota-exceeded-modal": {
+        "title": "Cuota de memoria superada",
+        "description": "Se ha superado tu cuota de memoria. Debes detener un escritorio para iniciar otro, o editar este escritorio para reducir su memoria.",
+        "cancel": "Volver a escritorios"
+      },
+      "start-vcpu-quota-exceeded-modal": {
+        "title": "Cuota de vCPU superada",
+        "description": "Se ha superado tu cuota de vCPU. Debes detener un escritorio para iniciar otro, o editar este escritorio para reducir sus vCPU.",
+        "cancel": "Volver a escritorios"
+      },
+      "start-disk-quota-exceeded-modal": {
+        "title": "Cuota de almacenamiento superada",
+        "description": "Se ha superado tu cuota de almacenamiento. Libera espacio en disco para poder iniciar este escritorio.",
+        "cancel": "Volver a escritorios"
+      },
       "storage-unavailable-modal": {
         "title": "Almacenamiento no disponible",
         "description": "El almacenamiento de creación no está disponible actualmente y no se pueden crear escritorios. Por favor, inténtelo más tarde.",

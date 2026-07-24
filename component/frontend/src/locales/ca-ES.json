@@ -1559,6 +1559,21 @@
         "description": "S'ha arribat al nombre màxim d'escriptoris en execució. Cal aturar un escriptori per iniciar-ne un de nou.",
         "cancel": "Tornar als escriptoris"
       },
+      "start-memory-quota-exceeded-modal": {
+        "title": "Quota de memòria superada",
+        "description": "Heu superat la vostra quota de memòria. Atureu un escriptori per iniciar-ne un altre, o editeu aquest escriptori per reduir-ne la memòria.",
+        "cancel": "Torneu als escriptoris"
+      },
+      "start-vcpu-quota-exceeded-modal": {
+        "title": "Quota de vCPU superada",
+        "description": "Heu superat la vostra quota de vCPU. Atureu un escriptori per iniciar-ne un altre, o editeu aquest escriptori per reduir-ne les vCPU.",
+        "cancel": "Torneu als escriptoris"
+      },
+      "start-disk-quota-exceeded-modal": {
+        "title": "Quota d'emmagatzematge superada",
+        "description": "Heu superat la vostra quota d'emmagatzematge. Allibereu espai en disc per poder iniciar aquest escriptori.",
+        "cancel": "Torneu als escriptoris"
+      },
       "storage-unavailable-modal": {
         "title": "Emmagatzematge no disponible",
         "description": "L'emmagatzematge de creació no està disponible actualment i no es poden crear escriptoris. Si us plau, torni-ho a provar més tard.",

@@ -2032,6 +2032,21 @@
         "description": "You have reached the maximum number of running desktops. A desktop must be stopped in order to start a new one.",
         "cancel": "Go back to desktops"
       },
+      "start-memory-quota-exceeded-modal": {
+        "title": "Memory quota exceeded",
+        "description": "You've exceeded your memory quota. Stop a desktop to start another one, or edit this desktop to reduce its memory.",
+        "cancel": "Go back to desktops"
+      },
+      "start-vcpu-quota-exceeded-modal": {
+        "title": "vCPU quota exceeded",
+        "description": "You've exceeded your vCPU quota. Stop a desktop to start another one, or edit this desktop to reduce its vCPUs.",
+        "cancel": "Go back to desktops"
+      },
+      "start-disk-quota-exceeded-modal": {
+        "title": "Storage quota exceeded",
+        "description": "You've exceeded your storage quota. Free up disk space to start this desktop.",
+        "cancel": "Go back to desktops"
+      },
       "storage-unavailable-modal": {
         "title": "Storage unavailable",
         "description": "The creation storage is currently unavailable and desktops cannot be created. Please try again later.",
