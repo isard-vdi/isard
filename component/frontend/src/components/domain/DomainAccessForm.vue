@@ -388,7 +388,8 @@ const isValid = computed(() => {
 
 defineExpose({
   getFormData,
-  isValid
+  isValid,
+  removedViewerLabels
 })
 
 const showPassword = ref(false)
