@@ -39,6 +39,15 @@ PROGRESS_STREAM_MAXLEN = 10000
 RESULT_STREAM_HIGH_WATER = 90000
 
 
+# A cancelled chain publishes its own event kind. It is deliberately NOT
+# ``kind=result``: the consumer maps any ``job_status`` other than ``failed`` to
+# FINISHED, so a cancelled delete chain arriving as a result would run the
+# SUCCESS finalize branch and mark the storage deleted while the file is still
+# there. An older consumer that does not know this kind warns and ACKs it, which
+# degrades to "the reconcile pass finalizes the chain" instead of a wrong write.
+CANCELED_KIND = "canceled"
+
+
 def stream_for_kind(kind):
     """Route a task event to its stream by ``kind`` (the progress split, #2084 ①)."""
     return PROGRESS_STREAM if kind == "progress" else RESULT_STREAM
@@ -51,6 +60,35 @@ def maxlen_for_stream(stream):
         if stream == PROGRESS_STREAM
         else RESULT_STREAM_MAXLEN_FLOOR
     )
+
+
+def publish_canceled_event(connection, *, task_id, task_name=None, queue=None):
+    """Announce a cancelled chain on the result stream.
+
+    The change-handler is the sole executor of the ``core`` finalize handlers,
+    and a cancelled job never publishes a result of its own — without this
+    event the chain's finalizers only run on the next reconcile pass, leaving
+    the storage row in ``maintenance`` in the meantime.
+
+    Best-effort by contract: takes the connection as an argument (this module
+    stays redis-free) and never raises — a stream blip must not fail a cancel.
+    """
+    try:
+        connection.xadd(
+            RESULT_STREAM,
+            {
+                "kind": CANCELED_KIND,
+                "task_id": task_id,
+                "task_name": task_name or "",
+                "queue": queue or "",
+                "job_status": "canceled",
+            },
+            maxlen=maxlen_for_stream(RESULT_STREAM),
+            approximate=True,
+        )
+    except Exception:
+        return False
+    return True
 
 
 def result_stream_backpressured(connection, high_water=RESULT_STREAM_HIGH_WATER):
