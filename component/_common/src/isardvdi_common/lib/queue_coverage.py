@@ -35,7 +35,7 @@ import os
 import time
 from collections import Counter
 
-from isardvdi_common.lib import queue_tiers
+from isardvdi_common.lib import governor_counters, queue_tiers
 
 try:  # rq is always present where a producer runs; guard so import never fails.
     from rq.defaults import DEFAULT_WORKER_TTL as _RQ_WORKER_TTL
@@ -245,13 +245,24 @@ def lane_shed_decision(conn, queue):
     return "ok", ctx
 
 
-def _raise_lane_429(ctx):
+def _raise_lane_429(conn, ctx):
     """Raise the typed 429 ``Error`` for a rejected lane, carrying its
     (pool, category, tier) so the caller can surface a category-scoped notice.
+
+    Counts the rejection first: the 429 is the ONLY trace a shed otherwise
+    leaves, and it is only ever seen by the rejected caller, so without this a
+    shed storm is indistinguishable from a quiet install.
 
     Imported lazily: resolves to apiv4's rich Error (→ 429) in-process, or to
     ErrorBase elsewhere; both carry the status code + description_code."""
     from isardvdi_common.helpers.error_factory import Error
+
+    governor_counters.record_shed(
+        conn,
+        ctx.get("reason"),
+        pool=ctx.get("pool"),
+        tier=ctx.get("tier"),
+    )
 
     code = (
         "storage_no_consumer_retry_later"
@@ -279,7 +290,7 @@ def check_no_consumer(conn, queue):
     Distinct from :func:`check_shed`, the opt-in backlog-overload gate."""
     decision, ctx = lane_shed_decision(conn, queue)
     if decision == "reject" and ctx.get("reason") == "no_consumer":
-        _raise_lane_429(ctx)
+        _raise_lane_429(conn, ctx)
 
 
 def check_shed(conn, queue):
@@ -289,7 +300,7 @@ def check_shed(conn, queue):
     Fail-open on any coverage uncertainty."""
     decision, ctx = lane_shed_decision(conn, queue)
     if decision == "reject":
-        _raise_lane_429(ctx)
+        _raise_lane_429(conn, ctx)
 
 
 def enforce_shed(conn, kwargs):

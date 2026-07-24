@@ -15,6 +15,7 @@ from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.connections.redis_urls import RQ_DB
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.lib import governor_counters
 from isardvdi_common.lib.governed_worker import (
     _LIVE_STATUSES,
     CATEGORY_RUNNING_PREFIX,
@@ -752,6 +753,8 @@ class AdminQueuesService:
             "psi_limit": STORAGE_SCHEDULER_DEFAULTS["psi_limit"],
             "redis": {"up": False},
             "heavy": {"running": 0, "cap": 0, "at_cap": False, "leaked": 0},
+            "shed": governor_counters.empty_counters(),
+            "defer": governor_counters.empty_counters(),
             "pools": [],
             "workers": [],
             "warnings": [],
@@ -870,6 +873,13 @@ class AdminQueuesService:
             worker_rows, multitenancy_active = AdminQueuesService._worker_health_rows(
                 conn
             )
+
+            # --- shed / defer event counters ------------------------------
+            # The only durable trace of a producer-side 429 or a worker
+            # background-deferral edge; both are otherwise invisible here
+            # (a shed leaves nothing, and ``deferring`` is a gauge).
+            shed_counters = governor_counters.read_shed(conn)
+            defer_counters = governor_counters.read_defer(conn)
 
         # ----- assemble pools / categories (out of the Redis context) -----
         heavy_scard = leaks.get(HEAVY_RUNNING_KEY, {}).get("count", len(heavy_members))
@@ -1098,6 +1108,8 @@ class AdminQueuesService:
             "psi_limit": effective["psi_limit"],
             "redis": redis_health,
             "heavy": heavy,
+            "shed": shed_counters,
+            "defer": defer_counters,
             "pools": pool_list,
             "workers": worker_rows,
             "warnings": warnings,

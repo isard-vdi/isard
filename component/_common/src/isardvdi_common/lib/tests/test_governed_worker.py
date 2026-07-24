@@ -15,6 +15,7 @@ import json
 
 import pytest
 from isardvdi_common.lib import governed_worker as gw
+from isardvdi_common.lib import governor_counters as gcnt
 from rq.exceptions import DequeueTimeout
 
 # --- is_heavy_queue: pure name predicate (heavy tiers only) ------------------
@@ -198,6 +199,18 @@ class _FakeRedis:
             h.update({k: str(v) for k, v in mapping.items()})
         return len(mapping or {})
 
+    def hincrby(self, key, field, amount=1):
+        h = self._hashes.setdefault(key, {})
+        h[field] = str(int(h.get(field, 0)) + amount)
+        return int(h[field])
+
+    def incr(self, key):
+        self._kv[key] = str(int(self._kv.get(key, 0)) + 1)
+        return int(self._kv[key])
+
+    def mget(self, keys):
+        return [self._kv.get(k) for k in keys]
+
     def hgetall(self, key):
         return dict(self._hashes.get(key, {}))
 
@@ -261,28 +274,31 @@ class _FakeRedis:
 
 
 class _FakePipeline:
-    """Minimal pipeline supporting the exact ops ``_publish_status`` issues
-    (``hset(mapping=)`` + ``expire``), applied on ``execute``."""
+    """Records queued commands and replays them against the parent _FakeRedis on
+    ``execute`` — matches redis-py's ``with conn.pipeline() as pipe:`` usage."""
 
     def __init__(self, redis):
         self._redis = redis
         self._ops = []
 
-    def hset(self, key, mapping=None):
-        self._ops.append(("hset", key, mapping))
+    def __enter__(self):
         return self
 
-    def expire(self, key, ttl):
-        self._ops.append(("expire", key, ttl))
-        return self
+    def __exit__(self, *exc):
+        return False
+
+    def __getattr__(self, name):
+        def _queue(*args, **kwargs):
+            self._ops.append((name, args, kwargs))
+            return self
+
+        return _queue
 
     def execute(self):
-        out = []
-        for op in self._ops:
-            if op[0] == "hset":
-                out.append(self._redis.hset(op[1], mapping=op[2]))
-            else:
-                out.append(self._redis.expire(op[1], op[2]))
+        out = [
+            getattr(self._redis, name)(*args, **kwargs)
+            for (name, args, kwargs) in self._ops
+        ]
         self._ops = []
         return out
 
@@ -402,6 +418,7 @@ def _worker(
     w.name = "test-worker"
     w._last_job_id = None
     w._last_job_action = None
+    w._deferring = False
     # Phase-2 multitenancy is a structural env switch; default OFF (P1 flat path)
     # in tests unless a test flips it. _floor = ungoverned bg-floor mode.
     w.multitenancy = False
@@ -2062,3 +2079,63 @@ def test_execute_job_stamps_last_job_id_and_action(monkeypatch):
     # even if the work-horse is then SIGKILLed by a poison job.
     assert w._last_job_id == "task-xyz"
     assert w._last_job_action == "convert"
+
+
+# --- defer-event counter -----------------------------------------------------
+#
+# ``deferring`` in the status hash is a point-in-time gauge: a worker that
+# defers and resumes between polls reads as "not deferring" in every sample an
+# operator (or a 15m-sustained alert rule) ever sees. These pin the durable
+# EDGE counter that makes such a storm visible.
+
+
+def _psi_write(path, value):
+    path.write_text(f"some avg10={value} avg60=0 avg300=0 total=0\n")
+
+
+def test_defer_edge_counted_once_per_storm(tmp_path):
+    r = _FakeRedis()
+    w = _worker(r, _psi_file(tmp_path, "cpu", 99.0), _psi_file(tmp_path, "io", 1.0))
+    assert w._defer_background() is True
+    assert w._defer_background() is True  # same uninterrupted storm
+    doc = gcnt.read_defer(r)
+    assert doc["total"] == 1
+    assert doc["by_reason"] == {"psi": 1}
+    assert doc["last_worker"] == "test-worker"
+    assert doc["recent"] == 1
+
+
+def test_defer_oscillation_counts_every_edge(tmp_path):
+    r = _FakeRedis()
+    cpu = tmp_path / "cpu"
+    io = _psi_file(tmp_path, "io", 1.0)
+    _psi_write(cpu, 1.0)
+    w = _worker(r, str(cpu), io)
+    for value in (99.0, 1.0, 99.0, 1.0, 99.0):
+        _psi_write(cpu, value)
+        w._defer_background()
+    # three separate storms an oscillation-blind gauge would never show
+    assert gcnt.read_defer(r)["total"] == 3
+
+
+def test_no_pressure_records_no_defer():
+    r = _FakeRedis()
+    w = _worker(r)
+    assert w._defer_background() is False
+    assert gcnt.read_defer(r) == gcnt.empty_counters()
+
+
+def test_heavy_cap_defer_is_counted_as_at_cap():
+    r = _FakeRedis({"x"})
+    _JobClass.table = {"x": "started"}  # genuine at-cap: the slot's job is live
+    w = _worker(r, max_heavy=1)
+    assert w._defer_background() is True
+    assert gcnt.read_defer(r)["by_reason"] == {"at_cap": 1}
+
+
+def test_floor_worker_never_counts_a_defer(tmp_path):
+    r = _FakeRedis()
+    w = _worker(r, _psi_file(tmp_path, "cpu", 99.0), _psi_file(tmp_path, "io", 1.0))
+    w._floor = True  # the ungoverned bg-floor never defers, so nothing to count
+    assert w._defer_background() is False
+    assert gcnt.read_defer(r)["total"] == 0

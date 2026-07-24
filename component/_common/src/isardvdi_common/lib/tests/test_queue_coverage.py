@@ -13,6 +13,8 @@ per-pool opacity that suppresses false stranding, and the fail-open paths.
 import json
 from datetime import datetime, timezone
 
+import pytest
+from isardvdi_common.lib import governor_counters as gcnt
 from isardvdi_common.lib import queue_coverage as qc
 
 DEF = "00000000-0000-0000-0000-000000000000"
@@ -47,12 +49,18 @@ class _Pipe:
     def __exit__(self, *exc):
         return False
 
-    def hgetall(self, key):
-        self._ops.append(key)
-        return self
+    def __getattr__(self, name):
+        def _queue(*args, **kwargs):
+            self._ops.append((name, args, kwargs))
+            return self
+
+        return _queue
 
     def execute(self):
-        return [self._redis.hgetall(key) for key in self._ops]
+        return [
+            getattr(self._redis, name)(*args, **kwargs)
+            for (name, args, kwargs) in self._ops
+        ]
 
 
 class _FakeRedis:
@@ -60,20 +68,50 @@ class _FakeRedis:
         self.sets = {}
         self.hashes = {}
         self.lists = {}  # lane -> queued count
+        self.strings = {}
         self.fail = False
 
-    def smembers(self, key):
+    def _boom(self):
         if self.fail:
             raise RuntimeError("redis down")
+
+    def smembers(self, key):
+        self._boom()
         return set(self.sets.get(key, ()))
 
     def hgetall(self, key):
+        self._boom()
         return dict(self.hashes.get(key, {}))
 
     def llen(self, key):
-        if self.fail:
-            raise RuntimeError("redis down")
+        self._boom()
         return self.lists.get(key, 0)
+
+    def hincrby(self, key, field, amount=1):
+        self._boom()
+        h = self.hashes.setdefault(key, {})
+        h[field] = str(int(h.get(field, 0)) + amount)
+        return int(h[field])
+
+    def hset(self, key, mapping=None):
+        self._boom()
+        self.hashes.setdefault(key, {}).update(
+            {k: str(v) for k, v in (mapping or {}).items()}
+        )
+        return len(mapping or {})
+
+    def incr(self, key):
+        self._boom()
+        self.strings[key] = str(int(self.strings.get(key, 0)) + 1)
+        return int(self.strings[key])
+
+    def expire(self, key, ttl):
+        self._boom()
+        return True
+
+    def mget(self, keys):
+        self._boom()
+        return [self.strings.get(k) for k in keys]
 
     def pipeline(self):
         return _Pipe(self)
@@ -320,3 +358,67 @@ def test_check_shed_raises_on_stranded_and_noop_on_healthy():
     except Exception as exc:
         raised = exc
     assert getattr(raised, "status_code", None) == 429
+
+
+# --- shed observability -----------------------------------------------------
+#
+# A shed is a decision nobody but the rejected user sees. These pin that every
+# 429 leaves a durable, dimensioned trace, and that the trace can never become
+# a second failure mode of the gate itself.
+
+
+def test_no_consumer_rejection_records_a_durable_counter():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    with pytest.raises(Exception):
+        qc.check_no_consumer(r, "storage.ghost.standard")
+    doc = gcnt.read_shed(r)
+    assert doc["total"] == 1
+    assert doc["recent"] == 1
+    assert doc["by_reason"] == {"no_consumer": 1}
+    assert doc["by_tier"] == {"standard": 1}
+    assert doc["last_pool"] == "ghost"
+    assert doc["last_tier"] == "standard"
+
+
+def test_overload_rejection_is_counted_under_its_own_reason():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    r.lists[f"rq:queue:storage.{DEF}.interactive"] = 10_000
+    with pytest.raises(Exception):
+        qc.check_shed(r, f"storage.{DEF}.interactive")
+    doc = gcnt.read_shed(r)
+    assert doc["by_reason"] == {"overloaded": 1}
+    assert doc["by_tier"] == {"interactive": 1}
+
+
+def test_accepted_enqueue_records_no_shed():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    qc.enforce_shed(r, {"queue": f"storage.{DEF}.standard", "shed": True})
+    assert gcnt.read_shed(r) == gcnt.empty_counters()
+
+
+def test_shed_storm_accumulates_across_pools_and_tiers():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    for tier in ("interactive", "standard", "bulk"):
+        for pool in ("ghost-a", "ghost-b"):
+            with pytest.raises(Exception):
+                qc.check_no_consumer(r, f"storage.{pool}.{tier}")
+    doc = gcnt.read_shed(r)
+    assert doc["total"] == 6
+    assert doc["recent"] == 6
+    assert doc["by_tier"] == {"interactive": 2, "standard": 2, "bulk": 2}
+
+
+def test_counter_failure_never_swallows_the_429():
+    """The counter is observability, not a gate: a redis blip between the shed
+    decision and the INCR must still leave the caller with the typed 429."""
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    _, ctx = qc.lane_shed_decision(r, "storage.ghost.standard")
+    r.fail = True
+    with pytest.raises(Exception) as excinfo:
+        qc._raise_lane_429(r, ctx)
+    assert getattr(excinfo.value, "status_code", None) == 429

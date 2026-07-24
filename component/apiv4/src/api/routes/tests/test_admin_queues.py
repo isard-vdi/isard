@@ -11,6 +11,7 @@ import time
 
 import pytest
 from api.routes.tests.helpers import MockJWT
+from api.schemas.admin.queues import GovernorGaugesResponse
 from api.services.admin.queues import STORAGE_SCHEDULER_DEFAULTS
 from api.services.error import Error
 
@@ -771,6 +772,9 @@ class FakeRedis:
     def get(self, key):
         return self._strings.get(key)
 
+    def mget(self, keys):
+        return [self._strings.get(k) for k in keys]
+
     # --- WRITES: must never be called by a read path ---
     def set(self, key, value, *a, **k):
         self.set_calls.append((key, value))
@@ -1218,6 +1222,75 @@ class TestConfiguredCategorySeed:
         # flat/P1 install: no per-category scheduling -> panels stay empty.
         assert data["multitenancy_active"] is False
         assert data["pools"] == []
+
+
+# ── (h2) shed / defer counters surfaced in the governor payload ────────────
+#
+# A shed 429 is seen only by the rejected caller and ``deferring`` is a
+# point-in-time gauge, so without these fields a shed storm or an oscillating
+# defer storm is invisible to every operator view.
+class TestShedDeferCounters:
+    def _conn(self, **strings):
+        from isardvdi_common.lib import governor_counters as gcnt
+
+        minute = int(time.time() // 60)
+        return FakeRedis(
+            rq_queues=["storage.default.maintenance"],
+            hashes={
+                gcnt.totals_key(gcnt.SHED): {
+                    b"total": b"7",
+                    b"reason:no_consumer": b"5",
+                    b"reason:overloaded": b"2",
+                    b"tier:interactive": b"7",
+                    b"last_reason": b"no_consumer",
+                    b"last_pool": b"default",
+                    b"last_tier": b"interactive",
+                },
+                gcnt.totals_key(gcnt.DEFER): {
+                    b"total": b"3",
+                    b"reason:psi": b"3",
+                    b"last_worker": b"storage-1",
+                },
+            },
+            strings={
+                f"{gcnt.COUNTERS_PREFIX}:{gcnt.SHED}:m:{minute}": b"4",
+                f"{gcnt.COUNTERS_PREFIX}:{gcnt.DEFER}:m:{minute}": b"3",
+            },
+        )
+
+    def test_counters_in_payload(self, monkeypatch, clean_gov_caches):
+        conn = self._conn()
+        monkeypatch.setattr(gov, "_connect_redis", lambda: conn)
+        monkeypatch.setattr(
+            gov.CommonCategories, "get_id_name_map", staticmethod(lambda: {})
+        )
+        monkeypatch.setattr(
+            gov.Config, "get_storage_scheduler_config", staticmethod(lambda: {})
+        )
+        data = gov.AdminQueuesService.get_governor()
+        assert data["shed"]["total"] == 7
+        assert data["shed"]["recent"] == 4
+        assert data["shed"]["by_reason"] == {"no_consumer": 5, "overloaded": 2}
+        assert data["shed"]["by_tier"] == {"interactive": 7}
+        assert data["shed"]["last_pool"] == "default"
+        assert data["defer"]["total"] == 3
+        assert data["defer"]["recent"] == 3
+        assert data["defer"]["last_worker"] == "storage-1"
+        # still read-only: reading a counter must never write one.
+        assert conn.set_calls == []
+        assert conn.forbidden_calls == []
+
+    def test_counters_zeroed_when_degraded(self):
+        data = gov.AdminQueuesService._degraded_governor(1751884800.0)
+        assert data["shed"]["total"] == 0
+        assert data["defer"]["total"] == 0
+        assert data["shed"]["last_reason"] is None
+
+    def test_counters_validate_against_the_response_model(self):
+        data = gov.AdminQueuesService._degraded_governor(1751884800.0)
+        model = GovernorGaugesResponse(**data)
+        assert model.shed.total == 0
+        assert model.defer.window_minutes == data["defer"]["window_minutes"]
 
 
 # ── (i) 200 + redis.up=false when Redis is down (never raise) ──────────────

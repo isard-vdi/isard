@@ -55,6 +55,7 @@ import json
 import os
 import time
 
+from isardvdi_common.lib import governor_counters
 from isardvdi_common.lib import resource_governor as rg
 from isardvdi_common.lib.queue_tiers import (
     _FAIR_TIERS,
@@ -355,6 +356,8 @@ class GovernedWorker(Worker):
         # same job leaves that job's id/action visible before the hash expires.
         self._last_job_id = None
         self._last_job_action = None
+        # Last poll's background-deferral state, so only the rising edge is counted.
+        self._deferring = False
         # Fair-scheduling scaffolding derived once from the static base queue set:
         # the (pool, tier) pairs whose per-category sub-queues we discover, and a
         # name->Queue cache so we don't rebuild Queue objects every poll.
@@ -962,13 +965,26 @@ class GovernedWorker(Worker):
         under PSI pressure, or at the heavy cap after a leak-reconcile. Nothing is
         ever deferred by the kill-switch or the ungoverned bg-floor worker."""
         if not self._is_governing():
-            return False
+            return self._note_defer(None)
         if self._pressure_high():
-            return True
+            return self._note_defer("psi")
         if self._heavy_at_cap():
             self._reconcile_heavy()
-            return self._heavy_at_cap()
-        return False
+            return self._note_defer("at_cap" if self._heavy_at_cap() else None)
+        return self._note_defer(None)
+
+    def _note_defer(self, reason):
+        """Count the RISING EDGE of a background deferral and return the state.
+
+        The published ``deferring`` flag is a point-in-time gauge, so a worker
+        that defers and resumes between polls reads as "not deferring" in every
+        sample anyone ever sees; only an edge counter makes such a storm visible.
+        """
+        was_deferring = self._deferring
+        self._deferring = reason is not None
+        if self._deferring and not was_deferring:
+            governor_counters.record_defer(self.connection, reason, worker=self.name)
+        return self._deferring
 
     # --- observability: publish live state for the apiv4 read layer ---------
     def _served_pools(self):
