@@ -673,6 +673,30 @@ class Task(RedisBase):
         return Job.exists(task_id, connection=cls._redis)
 
     @classmethod
+    def _purge_dangling_ids(cls, job_ids, source):
+        """Drop ids whose RQ job hash is gone, without materialising the rest.
+
+        Same self-clearing purpose as :meth:`_tasks_from_source_ids`, for the
+        case where the caller does not want these tasks back: an existence
+        check per id instead of fetching, deserialising and wrapping every live
+        job just to throw it away.
+        """
+        for job_id in job_ids:
+            if cls.exists(job_id):
+                continue
+            log.warning(
+                "task: purging dangling job id %s from %s (no RQ job)",
+                job_id,
+                type(source).__name__,
+            )
+            try:
+                source.remove(job_id)
+            except NotImplementedError:
+                continue
+            except Exception:
+                log.exception("task: could not purge dangling job id %s", job_id)
+
+    @classmethod
     def _tasks_from_source_ids(cls, job_ids, source):
         """Materialize ``Task`` objects from job ids belonging to one source (an
         RQ ``Queue`` list or a ``*_job_registry``), tolerating dangling refs.
@@ -759,10 +783,25 @@ class Task(RedisBase):
             if status not in JobStatus:
                 raise ValueError(f"Invalid status: {status}")
 
+        # QUEUED jobs live on the queue list itself, not in a registry, so they
+        # are only read when they were actually asked for. Reading them
+        # unconditionally returned the ENTIRE queued backlog of every queue on
+        # every call - one hydration per id - which on a busy install turned a
+        # periodic scan for a handful of orphans into tens of thousands of
+        # fetches, and pushed the work that scan drives minutes late.
+        wants_queued = JobStatus.QUEUED.value in [str(s) for s in statuses]
         tasks = []
         for queue in Queue.all(connection=cls._redis):
-            tasks.extend(cls._tasks_from_source_ids(queue.job_ids, queue))
+            if wants_queued:
+                tasks.extend(cls._tasks_from_source_ids(queue.job_ids, queue))
+            else:
+                # Still clear dangling ids off the list — that is what stops an
+                # evicted job from breaking every later pass — but without
+                # materialising the live ones nobody asked for.
+                cls._purge_dangling_ids(queue.job_ids, queue)
             for status in statuses:
+                if status == JobStatus.QUEUED.value:
+                    continue
                 registry = getattr(queue, f"{status}_job_registry")
                 tasks.extend(
                     cls._tasks_from_source_ids(registry.get_job_ids(), registry)
