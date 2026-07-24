@@ -866,14 +866,15 @@
         "save": "Desa els canvis"
       },
       "errors": {
-        "title": "Error en desar l’escriptori"
+        "title": "Error en desar l’escriptori",
+        "load": "Error en carregar l’escriptori"
       },
       "info": {
-        "title": "Nom i descripció",
-        "description": "Defineix el nom i la descripció de l’escriptori."
+        "title": "Informació de l'escriptori",
+        "description": "Proporciona un nom i una descripció per identificar el teu escriptori"
       },
       "access": {
-        "title": "Accés",
+        "title": "Configuració d'accés",
         "description": "Visualitzadors, credencials i configuració del bastion."
       },
       "hardware": {
@@ -2606,7 +2607,12 @@
       "errors": {
         "generic": "Hi ha hagut un error en desar l’escriptori. Torna-ho a provar.",
         "internal_server": "Error intern del servidor en desar l’escriptori.",
-        "desktop_not_stopped": "L’escriptori ha d’estar aturat abans d’editar-lo."
+        "precondition_required": "L’escriptori ha d’estar aturat abans d’editar-lo.",
+        "not_found": "No s’ha trobat l’escriptori.",
+        "bad_request": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquest escriptori o elimina els visors RDP.",
+        "new_desktop_name_exists": "Ja existeix un escriptori amb el mateix nom. Si us plau, tria un nom diferent.",
+        "one_viewer_minimum": "Cal seleccionar almenys un visor.",
+        "only_works_rdp": "El mode «Només GPU» només funciona amb visors RDP. Si us plau, elimina els visors que no siguin RDP o tria una altra opció de vídeo."
       }
     }
   },

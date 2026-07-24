@@ -129,7 +129,7 @@ const { mutate: submitEdit, isPending: submitPending } = useMutation({
     router.push({ name: 'desktops' })
   },
   onError: (error) => {
-    submitError.value = 'description_code' in error ? error.description_code : 'submit'
+    submitError.value = 'description_code' in error ? error.description_code : 'generic'
   }
 })
 
@@ -253,8 +253,8 @@ const handleSubmit = () => {
       <AlertTitle>{{ t('views.edit-desktop.errors.load') }}</AlertTitle>
     </Alert>
     <Alert v-if="submitError" variant="destructive">
-      <AlertTitle>{{ t('views.edit-desktop.errors.submit') }}</AlertTitle>
-      <AlertDescription>{{ submitError }}</AlertDescription>
+      <AlertTitle>{{ t('views.edit-desktop.errors.title') }}</AlertTitle>
+      <AlertDescription>{{ t(`api.edit-desktop.errors.${submitError}`) }}</AlertDescription>
     </Alert>
 
     <template v-if="desktopLoading">
@@ -264,10 +264,10 @@ const handleSubmit = () => {
     <template v-else-if="desktopData">
       <section>
         <h3 class="text-lg font-semibold text-gray-warm-900">
-          {{ t('views.edit-desktop.sections.info.title') }}
+          {{ t('views.edit-desktop.info.title') }}
         </h3>
         <p class="text-sm font-regular mb-6">
-          {{ t('views.edit-desktop.sections.info.description') }}
+          {{ t('views.edit-desktop.info.description') }}
         </p>
         <div class="flex flex-col md:flex-row gap-6">
           <desktopInfoForm.Subscribe v-slot="{ values }">
@@ -287,6 +287,18 @@ const handleSubmit = () => {
               <template #header>
                 <DesktopCardHeader :name="values.name" :description="values.description" />
               </template>
+              <template #footer>
+                <Button
+                  icon="play"
+                  icon-class="fill-current"
+                  hierarchy="secondary-color"
+                  size="sm"
+                  class="shrink-0"
+                  disabled
+                >
+                  {{ t('components.desktops.desktop-card.status.stopped.action') }}
+                </Button>
+              </template>
             </DesktopCardBase>
           </desktopInfoForm.Subscribe>
 
@@ -296,6 +308,7 @@ const handleSubmit = () => {
                 :id="field.name"
                 :name="field.name"
                 :model-value="field.state.value"
+                :placeholder="t('components.domain.info.name.placeholder')"
                 maxlength="50"
                 @update:model-value="(value) => field.handleChange(String(value))"
                 @input="field.handleChange(String(($event.target as HTMLInputElement).value))"
@@ -305,6 +318,7 @@ const handleSubmit = () => {
             <desktopInfoForm.Field v-slot="{ field }" name="description">
               <Textarea
                 :model-value="field.state.value"
+                :placeholder="t('components.domain.info.description.placeholder')"
                 maxlength="255"
                 class="bg-base-white resize-none"
                 @update:model-value="(value) => field.handleChange(String(value))"
@@ -316,10 +330,10 @@ const handleSubmit = () => {
 
       <section>
         <h3 class="text-lg font-semibold text-gray-warm-900">
-          {{ t('views.edit-desktop.sections.access.title') }}
+          {{ t('views.edit-desktop.access.title') }}
         </h3>
         <p class="text-sm font-regular mb-6">
-          {{ t('views.edit-desktop.sections.access.description') }}
+          {{ t('views.edit-desktop.access.description') }}
         </p>
         <DomainAccessForm
           ref="accessFormRef"
@@ -332,10 +346,10 @@ const handleSubmit = () => {
 
       <section>
         <h3 class="text-lg font-semibold text-gray-warm-900">
-          {{ t('views.edit-desktop.sections.hardware.title') }}
+          {{ t('views.edit-desktop.hardware.title') }}
         </h3>
         <p class="text-sm font-regular mb-6">
-          {{ t('views.edit-desktop.sections.hardware.description') }}
+          {{ t('views.edit-desktop.hardware.description') }}
         </p>
         <DomainHardwareForm ref="hardwareFormRef" :desktop-id="desktopId" />
       </section>

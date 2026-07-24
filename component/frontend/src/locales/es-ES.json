@@ -873,14 +873,15 @@
         "save": "Guardar cambios"
       },
       "errors": {
-        "title": "Error al guardar el escritorio"
+        "title": "Error al guardar el escritorio",
+        "load": "Error al cargar el escritorio"
       },
       "info": {
-        "title": "Nombre y descripción",
-        "description": "Define el nombre y la descripción del escritorio."
+        "title": "Información del escritorio",
+        "description": "Proporciona un nombre y una descripción para identificar tu escritorio"
       },
       "access": {
-        "title": "Acceso",
+        "title": "Configuración de acceso",
         "description": "Visores, credenciales y configuración del bastion."
       },
       "hardware": {
@@ -2586,7 +2587,12 @@
       "errors": {
         "generic": "Se ha producido un error al guardar el escritorio. Inténtalo de nuevo.",
         "internal_server": "Error interno del servidor al guardar el escritorio.",
-        "desktop_not_stopped": "El escritorio debe estar detenido antes de editarlo."
+        "precondition_required": "El escritorio debe estar detenido antes de editarlo.",
+        "not_found": "No se encontró el escritorio.",
+        "bad_request": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a este escritorio o elimina los visores RDP.",
+        "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre. Por favor, elige un nombre diferente.",
+        "one_viewer_minimum": "Debes seleccionar al menos un visor.",
+        "only_works_rdp": "El modo 'Solo GPU' solo funciona con visores RDP. Por favor, elimina los visores que no sean RDP o elige otra opción de vídeo."
       }
     },
     "booking": {

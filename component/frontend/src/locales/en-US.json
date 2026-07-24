@@ -897,14 +897,15 @@
         "save": "Save changes"
       },
       "errors": {
-        "title": "Error saving desktop"
+        "title": "Error saving desktop",
+        "load": "Error loading desktop"
       },
       "info": {
-        "title": "Name & description",
-        "description": "Set the desktop name and description."
+        "title": "@:domains.capitalized.desktops Information",
+        "description": "Provide a name and description for your desktop to help identify it"
       },
       "access": {
-        "title": "Access",
+        "title": "Access configuration",
         "description": "Viewers, credentials, and bastion configuration."
       },
       "hardware": {
@@ -2578,7 +2579,12 @@
       "errors": {
         "generic": "There was an error saving the desktop. Please try again.",
         "internal_server": "Internal server error while saving the desktop.",
-        "desktop_not_stopped": "The desktop must be stopped before editing."
+        "precondition_required": "The desktop must be stopped before editing.",
+        "not_found": "The desktop was not found.",
+        "bad_request": "RDP viewers need the wireguard network. Please add the wireguard network to this desktop or remove RDP viewers.",
+        "new_desktop_name_exists": "A desktop with the same name already exists. Please choose a different name.",
+        "one_viewer_minimum": "At least one viewer must be selected.",
+        "only_works_rdp": "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option."
       }
     },
     "edit-template": {
