@@ -201,7 +201,11 @@ async def test_pass1_storage_orphan_with_failed_parent_is_cancelled():
         healed = await reconcile._reconcile_orphan_deferred(AsyncMock())
 
     assert healed == 1
-    orphan.job.cancel.assert_called_once()
+    # Through ``Task.cancel`` — which settles the whole chain — and never
+    # through rq's raw ``job.cancel(enqueue_dependents=True)``, which promoted
+    # the chain's finalize dependents onto the consumerless ``core`` queue.
+    orphan.cancel.assert_called_once_with()
+    orphan.job.cancel.assert_not_called()
     rel.assert_not_awaited()
 
 
