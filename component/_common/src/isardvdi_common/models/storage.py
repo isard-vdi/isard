@@ -1005,7 +1005,7 @@ class Storage(RethinkCustomBase):
             },
             dependents=[
                 {
-                    "queue": f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}",
+                    "queue": f"storage.{StoragePool.get_best_for_action('resize', path=self.directory_path).id}.{priority}",
                     "task": "qemu_img_info_backing_chain",
                     "job_kwargs": {
                         "kwargs": {

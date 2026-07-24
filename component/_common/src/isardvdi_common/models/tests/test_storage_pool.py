@@ -483,6 +483,34 @@ def test_get_best_for_action_path_falls_back_when_path_pool_disabled(monkeypatch
     assert StoragePool.get_best_for_action("resize", path="/isard/x").id == "fast"
 
 
+def test_resize_dependent_resolves_the_pool_from_the_disk_path(monkeypatch):
+    """The resize chain's backing-chain dependent must target the pool that
+    actually holds the disk.
+
+    Resolving it without a path picks a pool at random from the whole table, so
+    the dependent could land on a lane whose workers are elsewhere - and, before
+    the disabled-pool filter, on a lane with no workers at all, where it sat
+    queued for ever.
+    """
+    import inspect
+
+    from isardvdi_common.models.storage import Storage
+
+    source = inspect.getsource(Storage.increase_size)
+    dependent_line = [
+        line for line in source.splitlines() if "qemu_img_info_backing_chain" in line
+    ]
+    queue_lines = [
+        line for line in source.splitlines() if "get_best_for_action" in line
+    ]
+
+    assert dependent_line, "the resize chain must still declare its backing-chain step"
+    assert all("path=" in line for line in queue_lines), (
+        "every pool resolution in the resize chain must pass the disk path; "
+        f"got: {queue_lines}"
+    )
+
+
 def test_get_best_for_action_raises_when_only_disabled_pools(monkeypatch):
     disabled = make_pool(id="fast2", enabled=False)
     monkeypatch.setattr(StoragePool, "get_all", classmethod(lambda cls: [disabled]))
