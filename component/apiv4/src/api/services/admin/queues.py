@@ -581,14 +581,16 @@ class AdminQueuesService:
         """Get job counts for a specific queue."""
         with _connect_redis() as redis_conn:
             queue = Queue(queue_name, connection=redis_conn)
+        # queue.count is a plain LLEN, but registry.count runs cleanup() — for
+        # StartedJobRegistry that MOVES timed-out jobs to FailedJobRegistry.
         return {
             "queued": queue.count,
-            "started": queue.started_job_registry.count,
-            "finished": queue.finished_job_registry.count,
-            "failed": queue.failed_job_registry.count,
-            "deferred": queue.deferred_job_registry.count,
-            "scheduled": queue.scheduled_job_registry.count,
-            "canceled": queue.canceled_job_registry.count,
+            "started": queue.started_job_registry.get_job_count(cleanup=False),
+            "finished": queue.finished_job_registry.get_job_count(cleanup=False),
+            "failed": queue.failed_job_registry.get_job_count(cleanup=False),
+            "deferred": queue.deferred_job_registry.get_job_count(cleanup=False),
+            "scheduled": queue.scheduled_job_registry.get_job_count(cleanup=False),
+            "canceled": queue.canceled_job_registry.get_job_count(cleanup=False),
         }
 
     # -------------------------------------------------------------------------

@@ -994,6 +994,81 @@ class TestLaneStats:
         assert counts["started_cleanup"] == [False]
 
 
+# ── the /admin/queues counters are a GET: they must not mutate RQ state ────
+class TestQueueJobCountsAreReadOnly:
+    QUEUE = "storage.default.maintenance"
+
+    @pytest.fixture(autouse=True)
+    def _clean(self):
+        gov.clear_queue_data_caches()
+        yield
+        gov.clear_queue_data_caches()
+
+    def _fake_redis(self):
+        return FakeRedis(
+            lists={f"rq:queue:{self.QUEUE}": ["a", "b", "c"]},
+            zsets={
+                f"rq:wip:{self.QUEUE}": ["s1", "s2"],
+                f"rq:finished:{self.QUEUE}": ["f1"],
+                f"rq:failed:{self.QUEUE}": ["e1", "e2", "e3"],
+                f"rq:deferred:{self.QUEUE}": ["d1"],
+                f"rq:scheduled:{self.QUEUE}": [],
+                f"rq:canceled:{self.QUEUE}": ["c1", "c2", "c3", "c4"],
+            },
+        )
+
+    def test_no_registry_cleanup_on_dashboard_read(self, monkeypatch):
+        # StartedJobRegistry.cleanup() moves timed-out started jobs into
+        # FailedJobRegistry, firing failure callbacks / retries / dependent
+        # enqueues. A dashboard poll must never trigger it.
+        import rq.registry as rqreg
+
+        def boom(self, *a, **k):
+            raise AssertionError(
+                f"{type(self).__name__}.cleanup() called from a read path"
+            )
+
+        for cls in (
+            rqreg.BaseRegistry,
+            rqreg.StartedJobRegistry,
+            rqreg.FinishedJobRegistry,
+            rqreg.FailedJobRegistry,
+            rqreg.DeferredJobRegistry,
+        ):
+            monkeypatch.setattr(cls, "cleanup", boom)
+        monkeypatch.setattr(gov, "_connect_redis", self._fake_redis)
+
+        gov.AdminQueuesService._get_queue_jobs(self.QUEUE)
+
+    def test_registry_reads_pass_cleanup_false_and_counts_are_correct(
+        self, monkeypatch
+    ):
+        import rq.registry as rqreg
+
+        seen = []
+        real = rqreg.BaseRegistry.get_job_count
+
+        def spy(self, cleanup=True):
+            seen.append(cleanup)
+            return real(self, cleanup=cleanup)
+
+        monkeypatch.setattr(rqreg.BaseRegistry, "get_job_count", spy)
+        monkeypatch.setattr(gov, "_connect_redis", self._fake_redis)
+
+        counts = gov.AdminQueuesService._get_queue_jobs(self.QUEUE)
+
+        assert seen and all(c is False for c in seen)
+        assert counts == {
+            "queued": 3,
+            "started": 2,
+            "finished": 1,
+            "failed": 3,
+            "deferred": 1,
+            "scheduled": 0,
+            "canceled": 4,
+        }
+
+
 # ── (g) category name map: friendly labels, one read, no N+1 ───────────────
 class TestCategoryNameMap:
     def test_resolves_and_reads_once(self, monkeypatch, clean_gov_caches):
