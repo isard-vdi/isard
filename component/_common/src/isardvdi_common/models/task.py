@@ -821,13 +821,35 @@ class Task(RedisBase):
         return [task for task in cls.get_all() if task.user_id == user_id]
 
     def retry(self) -> None:
-        """
-        Retry task.
+        """Re-enqueue this task's own job on the lane it came from.
 
-        :return: Task object
-        :rtype: Task
+        Retrying is a producer action, so it takes the same mandatory consumer
+        gate as ``create_task``: rq re-enqueues on ``job.origin`` unconditionally,
+        so a job whose pool lost its workers would move from ``failed`` (listed,
+        retryable) to ``queued`` on a lane nothing serves and disappear. The lane
+        is NOT re-resolved — the job's arguments are paths on its own pool, so
+        another pool's worker could not run it.
+
+        ``Job.requeue`` is ``FailedJobRegistry``-driven and raises
+        ``InvalidJobOperation`` when its ``ZREM`` removes nothing. A chain step
+        marked FAILED with ``Job.set_status`` (the change-handler's in-process
+        finalize path) only ever got the status hash field, never registry
+        membership, so requeueing it always raised. Fall back to enqueuing the
+        job directly, clearing the previous run's outcome exactly as rq's own
+        registry does after its ZREM.
         """
-        self.job.requeue()
+        from isardvdi_common.lib import queue_coverage
+
+        queue = self.job.origin
+        queue_coverage.check_no_consumer(self._redis, queue)
+        try:
+            self.job.requeue()
+        except InvalidJobOperation:
+            job = self.job
+            job.started_at = None
+            job.ended_at = None
+            job.save()
+            Queue(queue, connection=self._redis)._enqueue_job(job)
 
     @property
     def storage_id(self):
