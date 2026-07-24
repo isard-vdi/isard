@@ -109,6 +109,11 @@ class TemplateStatusEnum(str, Enum):
     unknown = DomainStatusEnum.unknown.value
 
 
+class DesktopTypeEnum(str, Enum):
+    persistent = "persistent"
+    nonpersistent = "nonpersistent"
+
+
 class DomainViewerEnum(str, Enum):
     file_rdpgw = "file_rdpgw"
     browser_rdp = "browser_rdp"
