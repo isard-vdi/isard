@@ -121,6 +121,12 @@ class _FakeRedis:
         self._lists.setdefault(key, []).extend(vals)
         return len(self._lists[key])
 
+    def lpush(self, key, *vals):
+        lst = self._lists.setdefault(key, [])
+        for v in vals:
+            lst.insert(0, v)
+        return len(lst)
+
     def zadd(self, key, mapping):
         self._zsets.setdefault(key, {}).update(mapping)
         return len(mapping)
@@ -273,10 +279,25 @@ class _FakePipeline:
 class _Q:
     def __init__(self, name):
         self.name = name
+        self.key = f"rq:queue:{name}"
         self.pushed = None
 
     def push_job_id(self, job_id, at_front=False):
         self.pushed = (job_id, at_front)
+
+
+class _RedisQ(_Q):
+    """``_Q`` whose ``push_job_id`` really LPUSHes onto the fake Redis list, so
+    the lane-GC's LLEN check sees the pushed-back job (RQ's push_job_id is a
+    bare LPUSH — it never re-registers the lane in ``rq:queues``)."""
+
+    def __init__(self, connection, name):
+        super().__init__(name)
+        self._conn = connection
+
+    def push_job_id(self, job_id, at_front=False):
+        super().push_job_id(job_id, at_front=at_front)
+        self._conn.lpush(self.key, job_id)
 
 
 class _Job:
@@ -1694,6 +1715,72 @@ def test_admit_maintenance_deferred_pushes_back():
     assert w._admit(job, q, defer_bg=True) is False
     assert q.pushed == ("j1", True)
     assert r.scard(gw.HEAVY_RUNNING_KEY) == 0
+
+
+# --- push-back must keep the lane discoverable (lane-GC race) ---------------
+#
+# A job popped but not yet admitted is in NO list and NO registry, so a peer
+# worker's boot reconcile sees the lane as drained and SREMs it from rq:queues.
+# RQ's push_job_id is a bare LPUSH, so without re-registering the lane the
+# denied job would sit on a queue no worker ever discovers again.
+
+
+def test_admit_fair_cap_denial_reregisters_lane():
+    r = _FakeRedis()
+    r.sadd(gw.category_running_key("P", "catA"), "x")  # at cap 1
+    w = _mt_worker(r)
+    w.gov_category_max_inflight = {"catA": 1}
+    q = _Q("storage.P.catA.bulk")  # lane already SREM'd by a peer's lane GC
+    assert w._admit(_Job("j1"), q, defer_bg=False) is False
+    assert q.pushed == ("j1", True)
+    assert "rq:queue:storage.P.catA.bulk" in r.smembers("rq:queues")
+
+
+def test_admit_fair_defer_denial_reregisters_lane():
+    r = _FakeRedis()
+    w = _mt_worker(r)
+    q = _Q("storage.P.catA.maintenance")
+    assert w._admit(_Job("j1"), q, defer_bg=True) is False
+    assert "rq:queue:storage.P.catA.maintenance" in r.smembers("rq:queues")
+
+
+def test_admit_flat_defer_denial_reregisters_lane():
+    r = _FakeRedis()
+    w = _worker(r)  # non-multitenancy: flat deferrable path
+    q = _Q("storage.P.maintenance")
+    assert w._admit(_Job("j1"), q, defer_bg=True) is False
+    assert "rq:queue:storage.P.maintenance" in r.smembers("rq:queues")
+
+
+def test_admit_flat_heavy_denial_reregisters_lane(tmp_path):
+    r = _FakeRedis({"other"})  # heavy set full at max_heavy=1
+    w = _worker(
+        r,
+        cpu_path=_psi_file(tmp_path, "cpu", 1.0),
+        io_path=_psi_file(tmp_path, "io", 1.0),
+        max_heavy=1,
+    )
+    q = _Q("storage.P.maintenance")
+    assert w._admit(_Job("j1"), q, defer_bg=False) is False
+    assert "rq:queue:storage.P.maintenance" in r.smembers("rq:queues")
+
+
+def test_pushed_back_job_survives_a_concurrent_lane_gc():
+    r = _FakeRedis()
+    r.sadd("rq:queues", "rq:queue:storage.P.catA.bulk")
+    r.sadd(gw.category_running_key("P", "catA"), "x")  # at cap 1
+    w = _mt_worker(r)
+    w._fair_targets = {("P", "bulk")}
+    w.gov_category_max_inflight = {"catA": 1}
+    # peer worker's boot reconcile: the in-flight job is in no list/registry, so
+    # the lane looks drained and is dropped from rq:queues
+    w._gc_drained_category_lanes()
+    assert "rq:queue:storage.P.catA.bulk" not in r.smembers("rq:queues")
+    q = _RedisQ(r, "storage.P.catA.bulk")
+    assert w._admit(_Job("j1"), q, defer_bg=False) is False
+    assert w._discover_fair_queues() == {("P", "bulk"): ["catA"]}
+    w._gc_drained_category_lanes()  # job is back on the list -> lane kept
+    assert "rq:queue:storage.P.catA.bulk" in r.smembers("rq:queues")
 
 
 def test_admit_kill_switch_runs_fair_tier_ungoverned():

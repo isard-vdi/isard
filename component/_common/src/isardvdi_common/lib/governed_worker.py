@@ -898,6 +898,21 @@ class GovernedWorker(Worker):
                 strays.append(self._make_fair_queue(f"storage.{pool}.{c}.{tier}"))
         return base + strays
 
+    def _push_back(self, queue, job_id):
+        """Return a denied job to the FRONT of its lane and keep that lane
+        discoverable. RQ's ``push_job_id`` is a bare ``LPUSH`` — only the enqueue
+        paths ``SADD`` ``rq:queues`` — while a job in the pop->denial window is in
+        no list and no registry, so a peer's ``_gc_drained_category_lanes`` reads
+        the lane as drained and SREMs it; the pushed-back job would then sit on a
+        lane discovery never returns again. Re-registering AFTER the push needs no
+        atomicity: once the id is back on the list the GC's ``LLEN`` check can no
+        longer drop the lane, whatever the interleaving."""
+        queue.push_job_id(job_id, at_front=True)
+        try:
+            self.connection.sadd("rq:queues", queue.key)
+        except Exception:
+            pass
+
     def _admit(self, job, queue, defer_bg):
         """Decide whether to run ``job`` from ``queue`` now. On admission record
         the reserved slots on the job (for execute_job to release) and return
@@ -918,7 +933,7 @@ class GovernedWorker(Worker):
             if (
                 deferrable and (defer_bg or self._pressure_high())
             ) or not self._reserve_fair(job.id, pool, category, capped):
-                queue.push_job_id(job.id, at_front=True)
+                self._push_back(queue, job.id)
                 return False
             job._gov_reserved = ("fair", pool, category, capped)
             return True
@@ -926,11 +941,11 @@ class GovernedWorker(Worker):
             # Flat (non-multitenancy) path: reclaim defers under pressure but is
             # not heavy-capped; template/maintenance defer AND reserve the slot.
             if defer_bg or self._pressure_high():
-                queue.push_job_id(job.id, at_front=True)
+                self._push_back(queue, job.id)
                 return False
             if is_heavy_queue(queue.name):
                 if not self._reserve_heavy(job.id):
-                    queue.push_job_id(job.id, at_front=True)
+                    self._push_back(queue, job.id)
                     return False
                 job._gov_reserved = ("heavy",)
             return True
