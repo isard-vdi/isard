@@ -53,6 +53,7 @@ import uuid
 import redis
 import redis.asyncio as aioredis
 from isardvdi_common.connections.redis_urls import rq_url
+from isardvdi_common.helpers.task_streams import CANCELED_KIND
 from isardvdi_common.models.task import Task
 from redis.exceptions import ResponseError
 from rq import Queue
@@ -108,20 +109,46 @@ async def _ensure_consumer_group(redis, stream=STREAM_KEY):
             raise
 
 
-def _walk_core_dependents(task):
+def _is_canceled(task):
+    """True when this chain member is cancelled."""
+    try:
+        return task.job_status == JobStatus.CANCELED
+    except Exception:
+        return False
+
+
+def _walk_core_dependents(task, include_canceled_storage=False, _visited=None):
     """Yield every dependent (recursively) whose RQ queue starts with
     ``core``. Dependents on storage queues are skipped — the storage
     worker will publish its own stream event when each finishes, which
     drives a separate dispatch.
+
+    ``include_canceled_storage`` lifts that boundary for CANCELLED storage
+    members only: a cancelled job never publishes a result, so the core
+    finalizers sitting behind it are reachable only by recursing through it.
+    The member itself is still not yielded — there is no handler for a
+    storage task.
+
+    ``_visited`` guards against a malformed/cyclic ``meta`` graph, which would
+    otherwise recurse until the stack blows.
     """
+    if _visited is None:
+        _visited = set()
     for dep in task.dependents:
         try:
             queue = dep.queue
         except Exception:
             continue
+        dep_id = getattr(dep, "id", None)
+        if dep_id is not None:
+            if dep_id in _visited:
+                continue
+            _visited.add(dep_id)
         if queue and queue.startswith("core"):
             yield dep
-            yield from _walk_core_dependents(dep)
+            yield from _walk_core_dependents(dep, include_canceled_storage, _visited)
+        elif include_canceled_storage and _is_canceled(dep):
+            yield from _walk_core_dependents(dep, include_canceled_storage, _visited)
 
 
 async def _run_handler(redis_manager, dep_task):
@@ -230,7 +257,26 @@ async def _set_job_status(dep_task, status):
     ``deferred``/``queued`` and the gate
     ``if task.depending_status == "finished"`` always fails, silently
     breaking 17 of 18 chains in the registry.
+
+    Cancellation is terminal and wins over everything: a late worker event, a
+    redelivery or a reconcile heal must never flip a CANCELED job to
+    FINISHED, or the handlers deeper in the chain would read
+    ``depending_status == "finished"`` and run their success bodies for an
+    operation the user cancelled.
     """
+    try:
+        if await asyncio.to_thread(dep_task.job.get_status, refresh=True) == (
+            JobStatus.CANCELED
+        ):
+            log.debug(
+                "task_results: %s is canceled, not marking it %s",
+                getattr(dep_task, "id", "?"),
+                status,
+            )
+            return
+    except Exception:
+        # Unreadable status: fall through to the write, as before.
+        pass
     try:
         await asyncio.to_thread(dep_task.job.set_status, status)
     except Exception:
@@ -283,14 +329,15 @@ async def _process_entry(redis_manager, fields):
     if not task_id:
         log.warning("task_results: entry missing task_id: %r", fields)
         return True
-    if kind not in ("result", "progress"):
+    if kind not in ("result", "progress", CANCELED_KIND):
         log.warning("task_results: unknown kind=%r for task=%s", kind, task_id)
         return True
 
-    # Both kinds emit the task SocketIO event (chain dict). Only
-    # ``result`` advances the chain by running core dependents.
+    # Every kind emits the task SocketIO event (chain dict) — including a
+    # cancel, so the frontend stops showing the operation as running. Only
+    # ``result`` and ``canceled`` advance the chain by running core dependents.
     await emit_task_feedback(redis_manager, task_id)
-    if kind != "result":
+    if kind == "progress":
         return True
 
     try:
@@ -317,16 +364,25 @@ async def _process_entry(redis_manager, fields):
     # ready or drop a storage row whose delete never completed). A missing
     # field defaults to FINISHED, preserving the legacy race-closing
     # behaviour for finished chains.
-    root_status = JobStatus.FAILED if job_status == "failed" else JobStatus.FINISHED
-    await _set_job_status(task, root_status)
+    # A cancelled chain is announced by ``Task.cancel`` itself, not by a
+    # worker: every member is already CANCELED (or legitimately terminal for a
+    # mid-chain cancel), so the root's status must be left exactly as it is.
+    canceled = kind == CANCELED_KIND or job_status == "canceled"
 
-    # Feed a finished op's wall-clock into the per-(tier, action) service-time
-    # EWMA that turns a queue position into an ETA. Only finished tasks are a
-    # useful sample; a failed/cancelled one's duration is noise.
-    if root_status == JobStatus.FINISHED:
-        await asyncio.to_thread(_record_service_time, task)
+    if not canceled:
+        root_status = JobStatus.FAILED if job_status == "failed" else JobStatus.FINISHED
+        await _set_job_status(task, root_status)
 
-    dependents = await asyncio.to_thread(lambda: list(_walk_core_dependents(task)))
+        # Feed a finished op's wall-clock into the per-(tier, action)
+        # service-time EWMA that turns a queue position into an ETA. Only
+        # finished tasks are a useful sample; a failed/cancelled one's
+        # duration is noise.
+        if root_status == JobStatus.FINISHED:
+            await asyncio.to_thread(_record_service_time, task)
+
+    dependents = await asyncio.to_thread(
+        lambda: list(_walk_core_dependents(task, include_canceled_storage=canceled))
+    )
     all_ok = True
     # ``dedup_status_emits`` collapses repeated identical ``(storage_id,
     # status)`` socket fan-outs within this one dispatch pass (a chain often
@@ -348,8 +404,10 @@ async def _process_entry(redis_manager, fields):
             # Release any deferred storage-queue dependent of this core dep so
             # the storage worker actually picks it up. See helper docstring
             # for why ``set_status(FINISHED)`` alone is not enough. Skipped
-            # when the handler failed — failure must NOT advance the chain.
-            if ok:
+            # when the handler failed — failure must NOT advance the chain —
+            # and when the member is cancelled, since releasing its children
+            # would run work for an operation the user cancelled.
+            if ok and not _is_canceled(dep_task):
                 await _release_storage_dependents(dep_task)
 
     # MR-3 of the core_worker retirement: core_worker is gone, so the
@@ -367,8 +425,14 @@ async def _process_entry(redis_manager, fields):
     # idempotent upsert, so re-running the ones that already succeeded is
     # safe). Deleting them here would make the redelivery a no-op and
     # leave the chain wedged.
+    #
+    # On the cancelled path only the CANCELLED members are dropped: a member
+    # that is FINISHED belongs to an earlier entry's lifecycle and may still
+    # be the replay state that entry needs if it is redelivered.
     if all_ok:
         for dep_task in dependents:
+            if canceled and not _is_canceled(dep_task):
+                continue
             try:
                 await asyncio.to_thread(dep_task.job.delete)
             except Exception:

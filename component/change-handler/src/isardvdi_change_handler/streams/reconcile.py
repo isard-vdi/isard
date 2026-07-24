@@ -70,6 +70,16 @@ from .task_results_consumer import (
 GRACE_S = 120
 RECONCILE_EVERY_S = 90
 
+# Nothing consumes the ``core`` queue since the core_worker retirement, so a
+# job that lands QUEUED on it never leaves by itself.
+_CORE_QUEUE_KEY = "rq:queue:core"
+# Only sweep jobs old enough that they cannot be a live entry's replay state:
+# the consumer's redelivery envelope is 5 reclaims of 60s, so 15 min is well
+# past it.
+REAP_MIN_AGE_S = 900
+# Bound the per-tick work — the rest waits for the next pass.
+_REAP_SCAN = 100
+
 _TERMINAL = (
     JobStatus.FINISHED,
     JobStatus.FAILED,
@@ -87,12 +97,33 @@ def _as_aware_utc(dt):
     return dt
 
 
+def _settled_at(dep):
+    """When a terminal dependency settled, or ``None`` if we cannot tell.
+
+    RQ writes no ``ended_at`` when a job is cancelled, so a cancelled
+    dependency is aged from its creation instead — otherwise a chain settled
+    by a cancel could never age out and its orphans stayed invisible to this
+    pass for ever.
+
+    A FINISHED/FAILED dependency without ``ended_at`` deliberately stays
+    unreadable: that is a job the consumer marked mid-flight, and it may still
+    be the replay state of an entry being redelivered. Ageing it here would
+    let the heal delete that state before the redelivery arrives.
+    """
+    ended = _as_aware_utc(getattr(dep.job, "ended_at", None))
+    if ended is not None:
+        return ended
+    if dep.job_status == JobStatus.CANCELED:
+        return _as_aware_utc(getattr(dep.job, "created_at", None))
+    return None
+
+
 def _deps_terminal_and_aged(task, now, grace_s):
-    """True if every dependency is terminal AND the most recent one ended
+    """True if every dependency is terminal AND the most recent one settled
     longer than ``grace_s`` ago.
 
     A DEFERRED job with no dependencies, a non-terminal dependency, or a
-    dependency whose ``ended_at`` we cannot read is treated as NOT an orphan —
+    dependency whose settle time we cannot read is treated as NOT an orphan —
     we only ever act on chains we can prove are dead and settled, never on one
     the consumer might still be about to release.
     """
@@ -103,11 +134,11 @@ def _deps_terminal_and_aged(task, now, grace_s):
     for dep in deps:
         if dep.job_status not in _TERMINAL:
             return False
-        ended = _as_aware_utc(getattr(dep.job, "ended_at", None))
-        if ended is None:
+        settled = _settled_at(dep)
+        if settled is None:
             return False
-        if newest is None or ended > newest:
-            newest = ended
+        if newest is None or settled > newest:
+            newest = settled
     return (now - newest).total_seconds() >= grace_s
 
 
@@ -137,20 +168,33 @@ async def _heal_core_orphan(redis_manager, task):
     """Re-run the missed core dispatch for ``task`` and its nested core
     dependents, mirroring :func:`_process_entry` in the consumer.
     """
+    # A chain whose parent failed or was cancelled is dead: run its finalize
+    # handlers (they take their failure branch) but never release its deferred
+    # storage children, which would run work for an operation that is over.
+    doomed = any(
+        getattr(dep, "job_status", None) in (JobStatus.FAILED, JobStatus.CANCELED)
+        for dep in task.dependencies
+    )
     chain = [task] + list(_walk_core_dependents(task))
+    all_ok = True
     for dep_task in chain:
         ok = await _run_handler(redis_manager, dep_task)
+        all_ok = all_ok and ok
         await _set_job_status(dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED)
-        if ok:
+        if ok and not doomed:
             await _release_storage_dependents(dep_task)
-    for dep_task in chain:
-        try:
-            await asyncio.to_thread(dep_task.job.delete)
-        except Exception:
-            log.exception(
-                "reconcile: could not delete healed core orphan %s",
-                getattr(dep_task, "id", "?"),
-            )
+    # Same rule as the consumer: the Jobs ARE the replay state, so they are
+    # only dropped once the whole heal succeeded. Deleting them after a failed
+    # handler would make a later redelivery a no-op and wedge the chain.
+    if all_ok:
+        for dep_task in chain:
+            try:
+                await asyncio.to_thread(dep_task.job.delete)
+            except Exception:
+                log.exception(
+                    "reconcile: could not delete healed core orphan %s",
+                    getattr(dep_task, "id", "?"),
+                )
     return 1
 
 
@@ -158,13 +202,29 @@ async def _heal_storage_orphan(task):
     """Heal a storage-queue orphan: release it if every parent finished, else
     cancel it (a failed parent means the op failed; cancelling releases its
     dependents so their failure handling runs)."""
-    any_failed = any(
-        dep.job_status in (JobStatus.FAILED, JobStatus.CANCELED)
-        for dep in task.dependencies
-    )
-    if any_failed:
+    # Release ONLY when every parent is provably FINISHED. A parent that
+    # failed, was cancelled, or whose job data is gone cannot be shown to have
+    # succeeded, and advancing on it runs the next stage of an operation that
+    # may well have failed — a backing-chain read over a disk whose create
+    # never completed, say. Unknown is not success.
+    all_finished = True
+    for dep in task.dependencies:
         try:
-            await asyncio.to_thread(lambda: task.job.cancel(enqueue_dependents=True))
+            status = dep.job_status
+        except Exception:
+            status = None
+        if status != JobStatus.FINISHED:
+            all_finished = False
+            break
+    if not all_finished:
+        try:
+            # ``Task.cancel`` settles the whole chain and promotes nothing.
+            # Cancelling the raw RQ job with ``enqueue_dependents=True`` is
+            # what used to push this chain's finalize dependents onto the
+            # ``core`` queue, where nothing consumes them: they stayed QUEUED
+            # for ever, ``Task.pending`` read them as active work and the
+            # storage was rejected with ``storage_pending_task`` from then on.
+            await asyncio.to_thread(task.cancel)
         except Exception:
             log.exception(
                 "reconcile: could not cancel storage orphan %s",
@@ -200,6 +260,72 @@ async def _reconcile_orphan_deferred(redis_manager, now=None, grace_s=GRACE_S):
     if healed:
         log.warning("reconcile: healed %s orphaned DEFERRED task(s)", healed)
     return healed
+
+
+def _reap_connection():
+    """Plain redis connection for the tombstone sweep (raw list surgery)."""
+    import redis
+    from isardvdi_common.connections.redis_urls import rq_url
+
+    return redis.from_url(rq_url())
+
+
+async def _reap_core_tombstones(redis_manager, now=None, min_age_s=REAP_MIN_AGE_S):
+    """Pass 1c: clear the ``core`` queue of jobs nothing will ever consume.
+
+    Since the core_worker retirement no worker pops ``core``, so anything that
+    lands QUEUED there stays there — and ``Task.pending`` counts it as active
+    work, which makes ``Storage.create_task`` reject every later operation on
+    that storage. Cancelling used to put them there; a dead-lettered entry
+    still can. This sweep is what clears the debt already on disk, on the
+    eager pass at startup as well as on every tick.
+
+    Only jobs that cannot be anybody's live work are touched: the id must be
+    older than ``min_age_s`` (comfortably past the consumer's redelivery
+    envelope) and every dependency of its chain must be terminal or gone.
+    """
+    now = now or datetime.now(timezone.utc)
+    try:
+        conn = _reap_connection()
+        ids = await asyncio.to_thread(conn.lrange, _CORE_QUEUE_KEY, 0, _REAP_SCAN - 1)
+    except Exception:
+        log.exception("reconcile: could not scan the core queue")
+        return 0
+    reaped = 0
+    for raw_id in ids:
+        job_id = raw_id.decode() if isinstance(raw_id, bytes) else raw_id
+        try:
+            if not Task.exists(job_id):
+                # Nothing left to heal — just stop it keeping the queue alive
+                # (and poisoning every chain walk that meets it).
+                await asyncio.to_thread(conn.lrem, _CORE_QUEUE_KEY, 0, raw_id)
+                log.warning("reconcile: dropped dangling core queue id %s", job_id)
+                reaped += 1
+                continue
+            task = await asyncio.to_thread(Task, job_id)
+            if task.job.get_status() != JobStatus.QUEUED:
+                continue
+            enqueued = _as_aware_utc(
+                getattr(task.job, "enqueued_at", None)
+                or getattr(task.job, "created_at", None)
+            )
+            if enqueued is None or (now - enqueued).total_seconds() < min_age_s:
+                continue
+            if not all(
+                getattr(dep, "job_status", None) in _TERMINAL
+                for dep in task.dependencies
+            ):
+                continue
+            log.warning(
+                "reconcile: healing core tombstone %s (%s, user=%s)",
+                job_id,
+                getattr(task, "task", "?"),
+                getattr(task, "user_id", "?"),
+            )
+            reaped += await _heal_core_orphan(redis_manager, task)
+        except Exception:
+            log.exception("reconcile: core tombstone sweep failed for %s", job_id)
+    return reaped
 
 
 def _task_alive(storage):
@@ -294,6 +420,7 @@ async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
     while True:
         try:
             await _reconcile_orphan_deferred(redis_manager, grace_s=grace_s)
+            await _reap_core_tombstones(redis_manager)
             await _reconcile_stuck_storage(redis_manager)
         except Exception:
             log.exception("reconcile: pass raised")

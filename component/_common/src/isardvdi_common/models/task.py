@@ -24,11 +24,16 @@ from time import sleep
 from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
-from isardvdi_common.helpers.task_streams import result_stream_backpressured
+from isardvdi_common.helpers.task_streams import (
+    publish_canceled_event,
+    result_stream_backpressured,
+)
 from isardvdi_common.helpers.task_timeouts import job_timeout_for
 from rq import Queue, Retry
-from rq.exceptions import NoSuchJobError
+from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import Job, JobStatus
+from rq.utils import now as rq_now
+from rq.utils import utcformat
 
 
 def tasks_from_ids(task_ids):
@@ -43,8 +48,17 @@ def tasks_from_ids(task_ids):
 
     tasks = []
     for task_id in task_ids:
-        if Task.exists(task_id):
+        if not Task.exists(task_id):
+            continue
+        try:
             tasks.append(Task(task_id))
+        except NoSuchJobError:
+            # ``exists`` only checks the hash is there. A hash left with just
+            # a status field (a job deleted while something was still writing
+            # its status) passes that check but cannot be loaded, and letting
+            # it raise here would break every chain walk that happens to meet
+            # it. Reconcile owns removing those.
+            log.warning("task listing: skipping unreadable job %s", task_id)
     return tasks
 
 
@@ -72,6 +86,125 @@ def global_status(tasks):
             if task.job_status == status:
                 return status
     return "unknown"
+
+
+_TERMINAL_STATUSES = (
+    JobStatus.FINISHED,
+    JobStatus.FAILED,
+    JobStatus.STOPPED,
+    JobStatus.CANCELED,
+)
+
+# Stamp ``ended_at`` only on a job hash that is still there (never resurrect a
+# concurrently-deleted job as a status-only ghost) and never overwrite a
+# timestamp RQ itself wrote.
+#
+# ``HSETNX`` is NOT enough: RQ serialises an unset ``ended_at`` as an EMPTY
+# field rather than omitting it, so the field always exists and ``HSETNX``
+# silently writes nothing. Verified on a live redis — an empty value has to be
+# treated as absent.
+_ENDED_AT_STAMP = """
+if redis.call('EXISTS', KEYS[1]) == 1 then
+  local current = redis.call('HGET', KEYS[1], 'ended_at')
+  if not current or current == '' then
+    return redis.call('HSET', KEYS[1], 'ended_at', ARGV[1])
+  end
+end
+return 0
+"""
+
+
+def _stamp_ended_at(connection, job_id):
+    """Give a cancelled job an ``ended_at``.
+
+    RQ's ``Job.cancel`` never writes one, and the change-handler's reconcile
+    ages a settled chain from exactly that field — without it a cancelled
+    dependency reads as "not yet settled" forever and its orphaned dependents
+    are never healed.
+    """
+    try:
+        connection.eval(_ENDED_AT_STAMP, 1, Job.key_for(job_id), utcformat(rq_now()))
+    except Exception:
+        log.debug("task cancel: could not stamp ended_at on %s", job_id)
+
+
+def _chain_closure(job, connection):
+    """Every job reachable from ``job`` through dependency/dependent links.
+
+    Walks the raw ``meta`` id lists instead of the ``Task.dependencies`` /
+    ``Task.dependents`` properties: those hydrate a full Task per id and skip
+    ids whose hash has gone, which would silently drop chain members from the
+    sweep. Dangling and malformed ids are skipped; the visited set makes a
+    cyclic ``meta`` impossible to loop on.
+    """
+    closure = {job.id: job}
+    frontier = [job]
+    while frontier:
+        current = frontier.pop()
+        meta = getattr(current, "meta", None) or {}
+        for key in ("dependency_ids", "dependent_ids"):
+            for job_id in meta.get(key) or []:
+                if job_id in closure:
+                    continue
+                try:
+                    member = Job.fetch(job_id, connection=connection)
+                except Exception:
+                    # Gone or unreadable (a status-only ghost hash raises too):
+                    # nothing to cancel, and the rest of the chain still must be.
+                    continue
+                closure[job_id] = member
+                frontier.append(member)
+    return closure
+
+
+def _closure_leaves_first(closure):
+    """Order closure members so a job comes after every dependent of its own.
+
+    Cancelling leaves-first means a dependency is never settled while one of
+    its dependents is still cancellable, so RQ can never observe a releasable
+    parent mid-sweep.
+    """
+    pending = {
+        job_id: {
+            dependent_id
+            for dependent_id in (
+                (getattr(job, "meta", None) or {}).get("dependent_ids") or []
+            )
+            if dependent_id in closure
+        }
+        for job_id, job in closure.items()
+    }
+    remaining = dict(closure)
+    ordered = []
+    while remaining:
+        ready = sorted(job_id for job_id in remaining if not pending[job_id])
+        if not ready:
+            # Cyclic meta: order stops being meaningful, but every member must
+            # still be cancelled.
+            log.warning("task cancel: cyclic chain meta, cancelling in scan order")
+            ordered.extend(remaining.values())
+            break
+        for job_id in ready:
+            ordered.append(remaining.pop(job_id))
+            for dependents in pending.values():
+                dependents.discard(job_id)
+    return ordered
+
+
+def _closure_roots(closure):
+    """Members with no dependency inside the closure — the chain's entry
+    points, and what a result-stream event is keyed on."""
+    return [
+        job
+        for job_id, job in closure.items()
+        if not [
+            dependency_id
+            for dependency_id in (
+                (getattr(job, "meta", None) or {}).get("dependency_ids") or []
+            )
+            if dependency_id in closure
+        ]
+    ]
 
 
 def register_dependencies(job_kwargs, dependencies):
@@ -407,29 +540,76 @@ class Task(RedisBase):
         return done / todo
 
     def cancel(self):
-        """Cancel this Task and the dependencies of this Task.
+        """Settle this Task's whole chain as cancelled.
 
-        This both:
+        Cancelling any member cancels the entire chain — every job linked to
+        it through dependencies or dependents, leaves first — and promotes
+        nothing. For each member still running this:
 
-        * tells RQ to drop the queued jobs (no effect on already-running
-          ones — that's the engine's limitation), and
-        * publishes a ``task:cancel:<id>`` pub/sub signal so any
-          long-running task body using
+        * publishes a ``task:cancel:<id>`` pub/sub signal so a long-running
+          body using
           :class:`isardvdi_common.helpers.task_cancel.TaskCancelWatcher`
-          can shut itself down cooperatively.
+          shuts itself down cooperatively (RQ can only drop *queued* jobs),
+        * cancels the RQ job **without enqueuing dependents**, and
+        * stamps ``ended_at`` so the chain can later be aged out.
+
+        ``enqueue_dependents=True`` is what this method used to pass, and it
+        is the defect this shape exists to prevent: RQ moved every finalize
+        dependent DEFERRED → QUEUED onto the ``core`` queue, which no worker
+        consumes since the core_worker retirement. Those jobs stay QUEUED
+        forever, ``Task.pending`` counts them as active work, and
+        ``Storage.create_task`` then rejects every later operation on that
+        storage with ``storage_pending_task`` — permanently. It also
+        contradicted the chain contract in :func:`register_dependencies`: a
+        dependent must not run when its dependency did not succeed.
+
+        Members already in a terminal state keep their history (a finished
+        step is not rewritten to cancelled), and a chain cancelled twice is a
+        no-op rather than an error.
         """
         from isardvdi_common.helpers.task_cancel import request_task_cancel
 
-        for dependency in self.dependencies:
-            dependency.cancel()
-        try:
-            request_task_cancel(self.id)
-        except Exception:
-            # Pub/sub is best-effort — RQ-level cancel below still
-            # handles queued jobs; persistent row flags remain the
-            # back-up signal.
-            pass
-        self.job.cancel(enqueue_dependents=True)
+        closure = _chain_closure(self.job, self._redis)
+        for job in _closure_leaves_first(closure):
+            try:
+                if job.get_status(refresh=True) in _TERMINAL_STATUSES:
+                    continue
+            except Exception:
+                # Unreadable status: fall through and try to cancel anyway.
+                pass
+            try:
+                request_task_cancel(job.id)
+            except Exception:
+                # Pub/sub is best-effort — the RQ-level cancel below still
+                # handles queued jobs; persistent row flags remain the
+                # back-up signal.
+                pass
+            try:
+                job.cancel(enqueue_dependents=False)
+            except InvalidJobOperation:
+                # Already cancelled, or cancelled concurrently between our
+                # status read and here. Nothing to do.
+                continue
+            except NoSuchJobError:
+                continue
+            except Exception:
+                log.exception("task cancel: could not cancel %s", job.id)
+                continue
+            _stamp_ended_at(self._redis, job.id)
+
+        # The change-handler runs the finalize handlers, and a cancelled job
+        # publishes no result of its own — announce the chain so its cancelled
+        # finalize runs now instead of waiting for a reconcile pass.
+        for root in _closure_roots(closure):
+            try:
+                publish_canceled_event(
+                    self._redis,
+                    task_id=root.id,
+                    task_name=(root.func_name or "").rsplit(".", 1)[-1],
+                    queue=root.origin,
+                )
+            except Exception:
+                log.debug("task cancel: could not announce cancel of %s", root.id)
 
     def to_dict(self, filter=None):
         """
