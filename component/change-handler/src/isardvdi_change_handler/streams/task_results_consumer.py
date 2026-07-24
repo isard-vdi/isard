@@ -76,6 +76,9 @@ RECONNECT_DELAY_S = 5
 # e.g. a malformed payload) is dead-lettered after ``MAX_DELIVERIES`` so it
 # can never loop forever.
 DEAD_STREAM = "stream:task-results:dead"
+# Nothing consumes the dead-letter stream, so an uncapped XADD grows for ever.
+# It is a forensic record, not a queue: keep a bounded, recent window.
+DEAD_STREAM_MAXLEN = 10000
 RECLAIM_IDLE_MS = 60000
 RECLAIM_EVERY_S = 30
 MAX_DELIVERIES = 5
@@ -526,7 +529,12 @@ async def _reclaim_pending(redis, redis_manager, consumer_name):
         delivered = await _delivery_count(redis, entry_id)
         if delivered > MAX_DELIVERIES:
             try:
-                await redis.xadd(DEAD_STREAM, fields)
+                await redis.xadd(
+                    DEAD_STREAM,
+                    fields,
+                    maxlen=DEAD_STREAM_MAXLEN,
+                    approximate=True,
+                )
                 await _ack(redis, entry_id)
                 log.warning(
                     "task_results: dead-lettered %s after %s deliveries",
