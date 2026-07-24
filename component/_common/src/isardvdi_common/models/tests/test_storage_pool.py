@@ -453,6 +453,22 @@ def test_get_best_for_action_never_routes_to_a_disabled_pool(monkeypatch):
         assert StoragePool.get_best_for_action("resize").id == "fast"
 
 
+def test_get_best_for_action_treats_a_pool_without_the_field_as_enabled(monkeypatch):
+    """A pool document predating the ``enabled`` field must still be routable.
+
+    ``RethinkBase.__getattr__`` plucks the field and returns ``.get(name)``, so a
+    missing field yields ``None`` — it never raises ``AttributeError``. A
+    ``getattr(sp, "enabled", True)`` default is therefore unreachable and the
+    pool reads as falsy, i.e. disabled: on an install whose pools predate the
+    field, EVERY storage operation would fail with "No storage pool available".
+    Only an explicit ``False`` means disabled.
+    """
+    legacy = make_pool(id="legacy", enabled=None)
+    monkeypatch.setattr(StoragePool, "get_all", classmethod(lambda cls: [legacy]))
+
+    assert StoragePool.get_best_for_action("resize").id == "legacy"
+
+
 def test_get_best_for_action_path_falls_back_when_path_pool_disabled(monkeypatch):
     """A path resolving only to a disabled pool (e.g. one being drained) must
     fall back to any enabled pool so the op still gets a worker."""
