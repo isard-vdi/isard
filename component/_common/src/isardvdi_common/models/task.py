@@ -95,12 +95,20 @@ _TERMINAL_STATUSES = (
     JobStatus.CANCELED,
 )
 
-# ``EXISTS``-fenced ``HSETNX``: stamp ``ended_at`` only on a job hash that is
-# still there (never resurrect a concurrently-deleted job as a status-only
-# ghost) and never overwrite a timestamp RQ itself wrote.
+# Stamp ``ended_at`` only on a job hash that is still there (never resurrect a
+# concurrently-deleted job as a status-only ghost) and never overwrite a
+# timestamp RQ itself wrote.
+#
+# ``HSETNX`` is NOT enough: RQ serialises an unset ``ended_at`` as an EMPTY
+# field rather than omitting it, so the field always exists and ``HSETNX``
+# silently writes nothing. Verified on a live redis — an empty value has to be
+# treated as absent.
 _ENDED_AT_STAMP = """
 if redis.call('EXISTS', KEYS[1]) == 1 then
-  return redis.call('HSETNX', KEYS[1], 'ended_at', ARGV[1])
+  local current = redis.call('HGET', KEYS[1], 'ended_at')
+  if not current or current == '' then
+    return redis.call('HSET', KEYS[1], 'ended_at', ARGV[1])
+  end
 end
 return 0
 """

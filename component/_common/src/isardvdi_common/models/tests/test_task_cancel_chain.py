@@ -253,3 +253,65 @@ class TestCancelSettlesAndAnnounces:
             task.cancel()  # must not raise
 
         root.cancel.assert_called_once_with(enqueue_dependents=False)
+
+
+class TestEndedAtStampSemantics:
+    """The stamp runs as a Lua script, so a mocked connection cannot tell us
+    whether it actually writes. These pin the semantics that matter against a
+    real redis when one is available (``ISARD_TEST_REDIS``), which is how the
+    empty-field trap below was found in the first place.
+    """
+
+    @staticmethod
+    def _redis_or_skip():
+        import os
+
+        import pytest
+
+        url = os.environ.get("ISARD_TEST_REDIS")
+        if not url:
+            pytest.skip("set ISARD_TEST_REDIS to run the real-redis stamp tests")
+        import redis as redis_lib
+
+        return redis_lib.from_url(url)
+
+    def test_stamps_when_the_field_is_empty(self):
+        """RQ serialises an unset ``ended_at`` as an EMPTY field, not a missing
+        one — a plain ``HSETNX`` writes nothing and the chain can never age."""
+        from isardvdi_common.models.task import _stamp_ended_at
+
+        conn = self._redis_or_skip()
+        key = "rq:job:test-stamp-empty"
+        conn.delete(key)
+        conn.hset(key, mapping={"status": "canceled", "ended_at": ""})
+
+        _stamp_ended_at(conn, "test-stamp-empty")
+
+        assert conn.hget(key, "ended_at") not in (b"", None)
+        conn.delete(key)
+
+    def test_does_not_overwrite_a_real_timestamp(self):
+        from isardvdi_common.models.task import _stamp_ended_at
+
+        conn = self._redis_or_skip()
+        key = "rq:job:test-stamp-keep"
+        conn.delete(key)
+        conn.hset(key, mapping={"status": "finished", "ended_at": "2020-01-01T00:00:00Z"})
+
+        _stamp_ended_at(conn, "test-stamp-keep")
+
+        assert conn.hget(key, "ended_at") == b"2020-01-01T00:00:00Z"
+        conn.delete(key)
+
+    def test_does_not_resurrect_a_deleted_job(self):
+        """A concurrently-deleted job must not come back as a status-only ghost
+        hash — those poison every chain walk that meets them."""
+        from isardvdi_common.models.task import _stamp_ended_at
+
+        conn = self._redis_or_skip()
+        key = "rq:job:test-stamp-gone"
+        conn.delete(key)
+
+        _stamp_ended_at(conn, "test-stamp-gone")
+
+        assert conn.exists(key) == 0
