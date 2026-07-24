@@ -735,7 +735,8 @@ defineExpose({
         </div>
         <div class="grid grid-cols-1 gap-2.5 md:gap-5 md:grid-cols-2">
           <form.Field v-slot="{ field }" name="isos">
-            <Field>
+            <!-- Borrows part of the column floppies would use, for the chips. -->
+            <Field class="md:col-span-2 md:max-w-[70%]">
               <FieldLabel :for="field.name">
                 {{ $t('components.domain.hardware.isos.label') }}
               </FieldLabel>
@@ -743,6 +744,8 @@ defineExpose({
                 :tags="isosOptions.map((iso) => ({ label: iso.name, value: iso.id }))"
                 :placeholder="t('components.domain.hardware.isos.placeholder')"
                 :model-value="field.state.value"
+                tagsDisplay="wrap"
+                :invalid="isInvalid(field)"
                 @update:model-value="field.handleChange($event)"
               />
               <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
@@ -820,7 +823,8 @@ defineExpose({
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2">
           <form.Field v-slot="{ field }" name="reservables.vgpus">
-            <Field>
+            <!-- Only field in the section: borrows part of the empty column. -->
+            <Field class="md:col-span-2 md:max-w-[70%]">
               <FieldLabel :for="field.name">
                 {{ $t('components.domain.hardware.vgpus.label') }}
               </FieldLabel>
