@@ -108,7 +108,19 @@ start_worker() {
     worker_spec[$!]="${_role} ${_wclass} $*"
 }
 
-if [ "${REDIS_WORKERS:-1}" -ne 0 ] && ${CAPABILITIES_DISK:-true}
+# ``CAPABILITIES_DISK`` used to be EXECUTED here instead of compared: the value
+# itself ran as a command, so anything other than lowercase ``true`` was
+# "command not found" -> false -> the whole storage worker fleet silently never
+# started and every storage lane sat unconsumed. The same variable is read on
+# the hypervisor side through Python's ``strtobool`` (setup.py), which accepts
+# True/TRUE/yes/1/on — so a perfectly valid value there disabled the fleet here.
+_cap_disk=$(printf '%s' "${CAPABILITIES_DISK:-true}" | tr '[:upper:]' '[:lower:]')
+case "${_cap_disk}" in
+    false|f|0|no|n|off) _cap_disk_enabled=0 ;;
+    *) _cap_disk_enabled=1 ;;
+esac
+
+if [ "${REDIS_WORKERS:-1}" -ne 0 ] && [ "${_cap_disk_enabled}" -eq 1 ]
 then
     # Wait for Redis to be ready before starting workers
     /utils/wait_for_redis
