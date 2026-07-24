@@ -67,10 +67,13 @@ async def test_canceled_kind_runs_core_finalizers():
     from isardvdi_change_handler.streams import task_results_consumer
 
     dep = _stub_task("dep", task_name="update_status", kwargs={"id": "s1"})
-    root = _stub_task("root", task_name="delete", queue="storage.pool.reclaim",
-                      dependents=[dep])
+    root = _stub_task(
+        "root", task_name="delete", queue="storage.pool.reclaim", dependents=[dep]
+    )
     handler = AsyncMock()
-    emit_p, task_p, handlers_p = _patch_dispatch(root, {"update_status": (handler, True)})
+    emit_p, task_p, handlers_p = _patch_dispatch(
+        root, {"update_status": (handler, True)}
+    )
 
     with emit_p, task_p, handlers_p:
         ok = await task_results_consumer._process_entry(
@@ -133,14 +136,21 @@ async def test_canceled_chain_deletes_only_canceled_core_jobs():
     alone — it may still be the replay state of an earlier pending entry."""
     from isardvdi_change_handler.streams import task_results_consumer
 
-    canceled_dep = _stub_task("dep-canceled", task_name="update_status",
-                              job_status=JobStatus.CANCELED)
-    finished_dep = _stub_task("dep-finished", task_name="storage_update",
-                              job_status=JobStatus.FINISHED)
-    root = _stub_task("root", task_name="delete", queue="storage.pool.reclaim",
-                      dependents=[canceled_dep, finished_dep])
+    canceled_dep = _stub_task(
+        "dep-canceled", task_name="update_status", job_status=JobStatus.CANCELED
+    )
+    finished_dep = _stub_task(
+        "dep-finished", task_name="storage_update", job_status=JobStatus.FINISHED
+    )
+    root = _stub_task(
+        "root",
+        task_name="delete",
+        queue="storage.pool.reclaim",
+        dependents=[canceled_dep, finished_dep],
+    )
     emit_p, task_p, handlers_p = _patch_dispatch(
-        root, {"update_status": (AsyncMock(), True), "storage_update": (AsyncMock(), True)}
+        root,
+        {"update_status": (AsyncMock(), True), "storage_update": (AsyncMock(), True)},
     )
 
     with emit_p, task_p, handlers_p:
@@ -160,9 +170,12 @@ async def test_canceled_chain_does_not_release_storage_dependents():
     from isardvdi_change_handler.streams import task_results_consumer
 
     dep = _stub_task("dep", task_name="update_status", job_status=JobStatus.CANCELED)
-    root = _stub_task("root", task_name="delete", queue="storage.pool.reclaim",
-                      dependents=[dep])
-    emit_p, task_p, handlers_p = _patch_dispatch(root, {"update_status": (AsyncMock(), True)})
+    root = _stub_task(
+        "root", task_name="delete", queue="storage.pool.reclaim", dependents=[dep]
+    )
+    emit_p, task_p, handlers_p = _patch_dispatch(
+        root, {"update_status": (AsyncMock(), True)}
+    )
 
     with emit_p, task_p, handlers_p, patch(
         "isardvdi_change_handler.streams.task_results_consumer._release_storage_dependents",
@@ -205,8 +218,9 @@ def test_walk_reaches_core_finalizers_behind_a_canceled_storage_member():
         job_status=JobStatus.CANCELED,
         dependents=[nested_core],
     )
-    root = _stub_task("root", queue="storage.pool.maintenance",
-                      dependents=[canceled_storage])
+    root = _stub_task(
+        "root", queue="storage.pool.maintenance", dependents=[canceled_storage]
+    )
 
     found = list(
         task_results_consumer._walk_core_dependents(root, include_canceled_storage=True)
@@ -227,8 +241,9 @@ def test_walk_default_still_stops_at_storage_boundary():
         job_status=JobStatus.DEFERRED,
         dependents=[nested_core],
     )
-    root = _stub_task("root", queue="storage.pool.maintenance",
-                      dependents=[storage_stage])
+    root = _stub_task(
+        "root", queue="storage.pool.maintenance", dependents=[storage_stage]
+    )
 
     assert list(task_results_consumer._walk_core_dependents(root)) == []
 

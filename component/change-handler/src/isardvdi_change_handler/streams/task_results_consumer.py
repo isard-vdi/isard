@@ -370,9 +370,7 @@ async def _process_entry(redis_manager, fields):
     canceled = kind == CANCELED_KIND or job_status == "canceled"
 
     if not canceled:
-        root_status = (
-            JobStatus.FAILED if job_status == "failed" else JobStatus.FINISHED
-        )
+        root_status = JobStatus.FAILED if job_status == "failed" else JobStatus.FINISHED
         await _set_job_status(task, root_status)
 
         # Feed a finished op's wall-clock into the per-(tier, action)
@@ -383,9 +381,7 @@ async def _process_entry(redis_manager, fields):
             await asyncio.to_thread(_record_service_time, task)
 
     dependents = await asyncio.to_thread(
-        lambda: list(
-            _walk_core_dependents(task, include_canceled_storage=canceled)
-        )
+        lambda: list(_walk_core_dependents(task, include_canceled_storage=canceled))
     )
     all_ok = True
     # ``dedup_status_emits`` collapses repeated identical ``(storage_id,

@@ -167,7 +167,9 @@ def _closure_leaves_first(closure):
     pending = {
         job_id: {
             dependent_id
-            for dependent_id in ((getattr(job, "meta", None) or {}).get("dependent_ids") or [])
+            for dependent_id in (
+                (getattr(job, "meta", None) or {}).get("dependent_ids") or []
+            )
             if dependent_id in closure
         }
         for job_id, job in closure.items()
@@ -197,7 +199,9 @@ def _closure_roots(closure):
         for job_id, job in closure.items()
         if not [
             dependency_id
-            for dependency_id in ((getattr(job, "meta", None) or {}).get("dependency_ids") or [])
+            for dependency_id in (
+                (getattr(job, "meta", None) or {}).get("dependency_ids") or []
+            )
             if dependency_id in closure
         ]
     ]

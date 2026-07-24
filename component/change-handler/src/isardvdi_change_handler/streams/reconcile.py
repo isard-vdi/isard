@@ -202,11 +202,21 @@ async def _heal_storage_orphan(task):
     """Heal a storage-queue orphan: release it if every parent finished, else
     cancel it (a failed parent means the op failed; cancelling releases its
     dependents so their failure handling runs)."""
-    any_failed = any(
-        dep.job_status in (JobStatus.FAILED, JobStatus.CANCELED)
-        for dep in task.dependencies
-    )
-    if any_failed:
+    # Release ONLY when every parent is provably FINISHED. A parent that
+    # failed, was cancelled, or whose job data is gone cannot be shown to have
+    # succeeded, and advancing on it runs the next stage of an operation that
+    # may well have failed — a backing-chain read over a disk whose create
+    # never completed, say. Unknown is not success.
+    all_finished = True
+    for dep in task.dependencies:
+        try:
+            status = dep.job_status
+        except Exception:
+            status = None
+        if status != JobStatus.FINISHED:
+            all_finished = False
+            break
+    if not all_finished:
         try:
             # ``Task.cancel`` settles the whole chain and promotes nothing.
             # Cancelling the raw RQ job with ``enqueue_dependents=True`` is

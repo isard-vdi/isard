@@ -71,7 +71,7 @@ class TestCancelNeverPromotes:
     def test_core_dependent_is_canceled_not_promoted(self):
         """A ``core`` finalize dependent must be CANCELED, never queued.
 
-        This is the exact gencat-fp shape: a storage root with a ``core``
+        The shape seen in production: a storage root with a ``core``
         ``storage_update`` dependent. Under the old behaviour rq moved the
         dependent DEFERRED -> QUEUED onto the consumerless ``core`` queue.
         """
@@ -229,9 +229,7 @@ class TestCancelSettlesAndAnnounces:
 
         with _patch_graph(graph), patch.object(Task, "_redis", MagicMock()), patch(
             "isardvdi_common.helpers.task_cancel.request_task_cancel"
-        ), patch(
-            "isardvdi_common.models.task.publish_canceled_event"
-        ) as publish:
+        ), patch("isardvdi_common.models.task.publish_canceled_event") as publish:
             task.cancel()
 
         assert publish.call_count == 1
@@ -296,7 +294,9 @@ class TestEndedAtStampSemantics:
         conn = self._redis_or_skip()
         key = "rq:job:test-stamp-keep"
         conn.delete(key)
-        conn.hset(key, mapping={"status": "finished", "ended_at": "2020-01-01T00:00:00Z"})
+        conn.hset(
+            key, mapping={"status": "finished", "ended_at": "2020-01-01T00:00:00Z"}
+        )
 
         _stamp_ended_at(conn, "test-stamp-keep")
 

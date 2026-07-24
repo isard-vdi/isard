@@ -44,9 +44,11 @@ def _cancel(task, job):
     def _fetch(job_id, connection=None):
         return graph[job_id]
 
-    with patch("isardvdi_common.models.task.Job.fetch", side_effect=_fetch), patch.object(
-        Task, "_redis", MagicMock()
-    ), patch("isardvdi_common.models.task.publish_canceled_event"):
+    with patch(
+        "isardvdi_common.models.task.Job.fetch", side_effect=_fetch
+    ), patch.object(Task, "_redis", MagicMock()), patch(
+        "isardvdi_common.models.task.publish_canceled_event"
+    ):
         task.cancel()
 
 

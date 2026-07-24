@@ -19,6 +19,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from rq.exceptions import InvalidJobOperation
 from rq.job import JobStatus
 
 
@@ -273,3 +274,50 @@ class TestCoreTombstoneReap:
         conn.lrem.assert_called_once()
         heal.assert_not_awaited()
         assert reaped == 1
+
+
+class TestReleaseNeedsProvenSuccess:
+    """Unknown is not success: only a provably FINISHED parent may release."""
+
+    @pytest.mark.asyncio
+    async def test_vanished_parent_is_settled_not_released(self):
+        """A parent whose job data is gone may well have FAILED — releasing on
+        it runs the next stage of a dead operation. Settling the chain instead
+        finalises the row through the cancelled branch."""
+        from isardvdi_change_handler.streams import reconcile
+
+        class _GoneDep:
+            """A dependency whose RQ job data was evicted: reading its status
+            raises, exactly as rq does for a job whose hash is gone."""
+
+            job = SimpleNamespace(ended_at=None, created_at=None)
+
+            @property
+            def job_status(self):
+                raise InvalidJobOperation("Failed to retrieve status for job")
+
+        orphan = _task(
+            "stg1", queue="storage.default.maintenance", dependencies=[_GoneDep()]
+        )
+
+        with patch.object(reconcile, "_release_via_parents", new=AsyncMock()) as rel:
+            await reconcile._heal_storage_orphan(orphan)
+
+        orphan.cancel.assert_called_once_with()
+        rel.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_all_finished_parents_still_release(self):
+        from isardvdi_change_handler.streams import reconcile
+
+        orphan = _task(
+            "stg1",
+            queue="storage.default.maintenance",
+            dependencies=[_dep(JobStatus.FINISHED, 600)],
+        )
+
+        with patch.object(reconcile, "_release_via_parents", new=AsyncMock()) as rel:
+            await reconcile._heal_storage_orphan(orphan)
+
+        rel.assert_awaited_once_with(orphan)
+        orphan.cancel.assert_not_called()
