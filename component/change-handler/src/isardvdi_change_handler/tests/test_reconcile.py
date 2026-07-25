@@ -12,9 +12,10 @@ never finalize a storage whose task is still alive).
 
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
+from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
 
@@ -51,6 +52,20 @@ def _task(
 # ---------------------------------------------------------------------------
 # _deps_terminal_and_aged — the orphan gate
 # ---------------------------------------------------------------------------
+
+
+def _gone_dep(exc=None):
+    """A dependency whose RQ job data has been evicted: reading ``job_status``
+    raises, exactly as observed in production ("reconcile: orphan heal failed
+    ... rq.exceptions.InvalidJobOperation: Failed to retrieve status for job").
+    RQ evicts a finished/failed job's hash after its result TTL, so a
+    dependency we can no longer read is necessarily terminal and long settled.
+    """
+    if exc is None:
+        exc = InvalidJobOperation("Failed to retrieve status for job: gone")
+    dep = MagicMock(name="gone-dep")
+    type(dep).job_status = PropertyMock(side_effect=exc)
+    return dep
 
 
 def test_orphan_gate_true_when_all_deps_terminal_and_aged():
@@ -344,3 +359,43 @@ async def test_run_invokes_both_passes_then_sleeps():
 
     assert calls["orphan"] == 1
     assert calls["stuck"] == 1
+
+
+def test_orphan_gate_treats_vanished_dep_job_as_terminal():
+    """A DEFERRED orphan whose only parent's RQ job data was evicted is a
+    healable orphan (the vanished job is necessarily terminal and long
+    settled). The gate must classify it True, never raise — regression for the
+    production abandonment "reconcile: orphan heal failed ... Failed to retrieve
+    status for job"."""
+    from isardvdi_change_handler.streams import reconcile
+
+    now = datetime.now(timezone.utc)
+    task = _task(dependencies=[_gone_dep()])
+    assert reconcile._deps_terminal_and_aged(task, now, grace_s=120) is True
+
+
+def test_orphan_gate_live_dep_beats_vanished_dep():
+    """A vanished dependency must not mask a still-live sibling: while any
+    dependency is running the task is NOT a healable orphan."""
+    from isardvdi_change_handler.streams import reconcile
+
+    now = datetime.now(timezone.utc)
+    task = _task(dependencies=[_gone_dep(), _dep(JobStatus.STARTED, 600)])
+    assert reconcile._deps_terminal_and_aged(task, now, grace_s=120) is False
+
+
+def test_orphan_gate_vanished_dep_with_finished_aged_sibling():
+    """A vanished dep alongside a finished, aged sibling still heals (the
+    readable sibling provides the age proof)."""
+    from isardvdi_change_handler.streams import reconcile
+
+    now = datetime.now(timezone.utc)
+    task = _task(
+        dependencies=[_gone_dep(NoSuchJobError()), _dep(JobStatus.FINISHED, 600)]
+    )
+    assert reconcile._deps_terminal_and_aged(task, now, grace_s=120) is True
+
+
+# ---------------------------------------------------------------------------
+# Pass 1 — orphaned DEFERRED jobs
+# ---------------------------------------------------------------------------

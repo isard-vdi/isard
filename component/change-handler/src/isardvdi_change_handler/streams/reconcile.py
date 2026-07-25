@@ -57,6 +57,7 @@ from datetime import datetime, timezone
 
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.task import Task
+from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
 from ..task_results.storage import _apply_storage_update, send_status_socket
@@ -86,6 +87,25 @@ _TERMINAL = (
     JobStatus.CANCELED,
     JobStatus.STOPPED,
 )
+
+
+# A DEFERRED chain can outlive its parents' RQ job data: RQ evicts a
+# finished/failed job's hash after its result TTL, after which reading the
+# dependency's status raises ``InvalidJobOperation`` (the hash is there but its
+# status field is gone) or ``NoSuchJobError`` (the hash itself is gone). Either
+# way the job is necessarily terminal and long settled. Left unguarded these
+# crash a whole reconcile pass and, via the per-task ``except`` in
+# ``_reconcile_orphan_deferred``, ABANDON the very orphan the pass exists to heal.
+_JOB_GONE = (InvalidJobOperation, NoSuchJobError)
+
+
+def _dep_job_status(dep):
+    """RQ status of a dependency, or ``None`` when its job data is gone
+    (evicted after result TTL) — a gone job counts as terminal-and-settled."""
+    try:
+        return dep.job_status
+    except _JOB_GONE:
+        return None
 
 
 def _as_aware_utc(dt):
@@ -132,13 +152,26 @@ def _deps_terminal_and_aged(task, now, grace_s):
         return False
     newest = None
     for dep in deps:
-        if dep.job_status not in _TERMINAL:
+        status = _dep_job_status(dep)
+        if status is None:
+            # Vanished dependency job: terminal and long settled. It can neither
+            # block healing nor contribute a settle time to the age check.
+            continue
+        if status not in _TERMINAL:
             return False
-        settled = _settled_at(dep)
+        try:
+            settled = _settled_at(dep)
+        except _JOB_GONE:
+            # Job evicted between the status read and here — treat as gone.
+            continue
         if settled is None:
             return False
         if newest is None or settled > newest:
             newest = settled
+    if newest is None:
+        # Every dependency's job is gone: the chain is definitively dead and
+        # long settled, so heal it rather than leave the orphan stranded.
+        return True
     return (now - newest).total_seconds() >= grace_s
 
 
