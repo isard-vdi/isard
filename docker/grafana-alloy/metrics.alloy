@@ -33,6 +33,14 @@ prometheus.exporter.unix "exporter_node_exporter" {
 	textfile {
 		directory = "/var/lib/node-exporter"
 	}
+
+	// netclass reads the host /sys/class/net, so it emits 19 series for every
+	// veth/bridge/tap the docker daemon and libvirt create — churn, not signal.
+	// Per-desktop traffic already comes labelled from stats
+	// (isardvdi_domain_net_*).
+	netclass {
+		ignored_devices = "^(veth|tap|vnet|docker|br-|virbr|ovs-system).*$"
+	}
 }
 
 // These collectors read /proc/net, which the kernel resolves per network
@@ -72,7 +80,13 @@ prometheus.scrape "metrics_node_exporter" {
 prometheus.exporter.cadvisor "exporter_cadvisor" {
 	docker_host = "unix:///var/run/docker.sock"
 
-	docker_only      = true
+	docker_only = true
+
+	// Compose stamps a dozen labels on every container (project, config file
+	// paths, working dir); as metric labels they multiply the label-value pairs
+	// of every container series and nothing queries them.
+	store_container_labels = false
+
 	disabled_metrics = [
 		"cpu_topology",
 		"percpu",
@@ -84,6 +98,13 @@ prometheus.exporter.cadvisor "exporter_cadvisor" {
 		"cpuset",
 		"advtcp",
 		"memory_numa",
+		// tcp/udp parse every socket in /proc/<pid>/net/tcp{,6} of every
+		// container on each housekeeping tick, and disk walks each container's
+		// whole filesystem tree to size it. Nothing reads them: container I/O
+		// comes from diskIO and real disk usage from node_filesystem_*.
+		"tcp",
+		"udp",
+		"disk",
 	]
 	storage_duration = "5m"
 }
