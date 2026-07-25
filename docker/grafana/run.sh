@@ -19,6 +19,7 @@ fi
 # so an install with no /custom overlay must still have it removed.
 if [ -z "$GRAFANA_TELEGRAM_TOKEN" ] || [ -z "$GRAFANA_TELEGRAM_CHAT_ID" ]; then
     rm -f /etc/grafana/provisioning/alerting/storage_governor.yaml
+    rm -f /etc/grafana/provisioning/alerting/waf_realuser_block.yaml
 else
     # Grafana's ${VAR} provisioning interpolation re-types an all-digit value as a
     # NUMBER, but the Telegram chatid field is a string, so a numeric group/channel
