@@ -23,6 +23,7 @@ import os
 
 from cachetools import cached
 from cachetools.keys import hashkey
+from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
@@ -41,7 +42,12 @@ def user_key(_, user_id):
 
 
 class LogsUsers:
-    def __init__(self, payload):
+    def __init__(self, payload, request_ip=None, request_user_agent=None):
+        agent = Logging._parse_user_agent(request_user_agent)
+        self.request_ip = request_ip
+        self.request_browser = agent.get("browser")
+        self.request_platform = agent.get("platform")
+        self.request_version = agent.get("version")
         if not payload.get("data", {}).get("group_id"):
             return
         # log.info(f"Last 60 seconds users online: {users_cache.currsize}")
@@ -100,6 +106,10 @@ class LogsUsers:
             "owner_group_name": user["group_name"],
             "started_time": r.now(),
             "stopped_time": False,
+            "request_ip": self.request_ip,
+            "request_agent_browser": self.request_browser,
+            "request_agent_platform": self.request_platform,
+            "request_agent_version": self.request_version,
         }
         r.table("logs_users").insert(logs).run(self.conn)
         r.table("users").get(payload["data"]["user_id"]).update(

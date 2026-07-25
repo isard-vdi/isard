@@ -19,6 +19,7 @@
 
 import asyncio
 import logging
+import re
 import threading
 import traceback
 from time import time
@@ -40,6 +41,28 @@ log = logging.getLogger(__name__)
 _directviewer_event_cache: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=1000, ttl=60
 )
+
+# Apiv3 parity: ``main-bkp-22-07-26T00-20:component/_common/src/api_logs_users.py``.
+# Used when ``user-agents`` isn't installed (it is an apiv4-only dependency) or
+# when it reports the generic ``Other`` family.
+_BROWSER_PATTERNS = [
+    (r"Firefox/([\d.]+)", "firefox"),
+    (r"Edg(?:e)?/([\d.]+)", "edge"),
+    (r"OPR/([\d.]+)", "opera"),
+    (r"Chrome/([\d.]+)", "chrome"),
+    (r"Safari/([\d.]+)", "safari"),
+    (r"MSIE ([\d.]+)", "msie"),
+    (r"Trident/.*rv:([\d.]+)", "msie"),
+]
+
+_PLATFORM_PATTERNS = [
+    (r"iPhone", "iphone"),
+    (r"iPad", "ipad"),
+    (r"Android", "android"),
+    (r"Windows", "windows"),
+    (r"Macintosh|Mac OS", "macos"),
+    (r"Linux", "linux"),
+]
 
 
 class Logging(RethinkSharedConnection):
@@ -82,40 +105,48 @@ class Logging(RethinkSharedConnection):
                 return "deployment-co-owner", deploy["name"]
         return "system-admins", action_owner
 
+    @staticmethod
+    def request_header(user_request, name):
+        """Case-tolerant header read for Starlette / Flask requests."""
+        headers = getattr(user_request, "headers", None)
+        if headers is None:
+            return None
+        # Starlette's `Headers` and Werkzeug's `EnvironHeaders` are already
+        # case-insensitive; the lowercase retry is for plain-dict stubs.
+        return headers.get(name) or headers.get(name.lower())
+
     @classmethod
-    def parse_user_request(cls, user_request=None):
-        if user_request:
-            # Check if it's a Starlette request
-            if hasattr(user_request, "headers") and hasattr(user_request, "client"):
-                # Starlette/FastAPI request
-                return {
-                    "request_ip": user_request.headers.get("x-forwarded-for")
-                    or (user_request.client.host if user_request.client else None),
-                    "request_agent_browser": cls._parse_user_agent(
-                        user_request.headers.get("user-agent", "")
-                    ).get("browser"),
-                    "request_agent_platform": cls._parse_user_agent(
-                        user_request.headers.get("user-agent", "")
-                    ).get("platform"),
-                    "request_agent_version": cls._parse_user_agent(
-                        user_request.headers.get("user-agent", "")
-                    ).get("version"),
-                }
-            # Flask request
-            elif hasattr(user_request, "headers") and hasattr(
-                user_request, "user_agent"
-            ):
-                return {
-                    "request_ip": user_request.headers.environ.get(
-                        "HTTP_X_FORWARDED_FOR"
-                    ),
-                    "request_agent_browser": user_request.user_agent.browser,
-                    "request_agent_platform": user_request.user_agent.platform,
-                    "request_agent_version": user_request.user_agent.version,
-                }
+    def request_client_ip(cls, user_request):
+        """Real client IP of a Starlette or Flask request, or None."""
+        if not user_request or not hasattr(user_request, "headers"):
+            return None
+        forwarded = cls.request_header(user_request, "X-Forwarded-For")
+        if forwarded:
+            # haproxy appends, so the original client is the first hop.
+            return forwarded.split(",")[0].strip() or None
+        client = getattr(user_request, "client", None)
+        if client is not None:
+            return client.host
+        return getattr(user_request, "remote_addr", None)
+
+    @classmethod
+    def parse_user_request(cls, user_request=None, source=None):
+        if user_request and hasattr(user_request, "headers"):
+            agent = cls._parse_user_agent(
+                cls.request_header(user_request, "User-Agent")
+            )
+            return {
+                "request_ip": cls.request_client_ip(user_request),
+                "request_agent_browser": agent.get("browser"),
+                "request_agent_platform": agent.get("platform"),
+                "request_agent_version": agent.get("version"),
+            }
 
         return {
-            "request_ip": None,
+            # Engine/scheduler-initiated actions have no HTTP request. Label
+            # them so the audit row shows the originating service instead of
+            # a silent null.
+            "request_ip": source,
             "request_agent_browser": None,
             "request_agent_platform": None,
             "request_agent_version": None,
@@ -123,20 +154,47 @@ class Logging(RethinkSharedConnection):
 
     @classmethod
     def _parse_user_agent(cls, user_agent_string):
-        """Parse user agent string for Starlette requests"""
-        # Use user-agents library only if available. This way it's not a hard dependency.
+        """Parse a User-Agent header into browser / platform / version.
+
+        ``user-agents`` is an apiv4-only dependency, and it reports
+        ``"Other"`` for anything that isn't a browser. Both cases fall
+        through to the regex patterns below and, failing those, to the raw
+        UA's first token — so non-browser clients (isardvdi-cli,
+        isardvdi-sdk-go, isardvdi-guac, curl, python-requests…) surface
+        instead of a null.
+        """
+        if not user_agent_string:
+            return {"browser": None, "platform": None, "version": None}
+
+        browser = platform = version = None
         try:
             from user_agents import parse
 
             user_agent = parse(user_agent_string)
-            return {
-                "browser": user_agent.browser.family,
-                "platform": user_agent.os.family,
-                "version": user_agent.browser.version_string,
-            }
+            browser = user_agent.browser.family
+            platform = user_agent.os.family
+            version = user_agent.browser.version_string
         except ImportError:
-            # Fallback if user-agents library is not available
-            return {"browser": None, "platform": None, "version": None}
+            pass
+
+        if not browser or browser == "Other":
+            browser = version = None
+            for pattern, name in _BROWSER_PATTERNS:
+                match = re.search(pattern, user_agent_string)
+                if match:
+                    browser = name
+                    version = match.group(1)
+                    break
+        if not platform or platform == "Other":
+            platform = None
+            for pattern, name in _PLATFORM_PATTERNS:
+                if re.search(pattern, user_agent_string):
+                    platform = name
+                    break
+        if not browser:
+            browser = user_agent_string.split(" ", 1)[0][:100] or None
+
+        return {"browser": browser, "platform": platform, "version": version or None}
 
     # START DESKTOP
     @classmethod
@@ -278,7 +336,9 @@ class Logging(RethinkSharedConnection):
             if not start_logs_id:
                 # It could be a server desktop started by engine
                 cls._logs_domain_start(
-                    dom_id, cls.parse_user_request(), server_hyp_started=hyp_started
+                    dom_id,
+                    cls.parse_user_request(source="isard-engine"),
+                    server_hyp_started=hyp_started,
                 )
                 return
             # It has a logs_desktops id, try to update it
@@ -306,7 +366,9 @@ class Logging(RethinkSharedConnection):
                 log.debug(traceback.format_exc())
             if result.get("skipped"):
                 cls._logs_domain_start(
-                    dom_id, cls.parse_user_request(), server_hyp_started=hyp_started
+                    dom_id,
+                    cls.parse_user_request(source="isard-engine"),
+                    server_hyp_started=hyp_started,
                 )
 
         await asyncio.to_thread(_sync_body)

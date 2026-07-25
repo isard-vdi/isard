@@ -23,6 +23,7 @@ import os
 
 import jwt
 from isardvdi_common.helpers.api_logs_users import LogsUsers
+from isardvdi_common.helpers.logging import Logging
 from rethinkdb import r
 
 
@@ -76,18 +77,36 @@ class Token:
             log.debug(e)
             return None
 
-    @classmethod
-    def log_user(cls, payload):
+    @staticmethod
+    def request_identity(user_request=None):
+        """``(request_ip, user_agent)`` of a Starlette or Flask request.
+
+        Never raises: a broken request object must not cost the caller its
+        token payload, only the audit row's provenance columns.
+        """
+        if user_request is None:
+            return None, None
         try:
-            LogsUsers(payload)
+            return (
+                Logging.request_client_ip(user_request),
+                Logging.request_header(user_request, "User-Agent"),
+            )
+        except Exception:
+            log.debug("Unable to read client identity from request", exc_info=True)
+            return None, None
+
+    @classmethod
+    def log_user(cls, payload, user_request=None):
+        try:
+            LogsUsers(payload, *cls.request_identity(user_request))
         except Exception as e:
             log.warning("Unable to update user logs")
 
     @classmethod
-    def get_token_payload(cls, token):
+    def get_token_payload(cls, token, user_request=None):
         payload = cls.get_jwt_payload(token)
         if payload.get("data", False):
-            cls.log_user(payload)
+            cls.log_user(payload, user_request=user_request)
             return payload["data"]
         return payload
 
