@@ -20,6 +20,7 @@
 import logging as log
 import os
 from time import sleep
+from types import SimpleNamespace
 
 from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
@@ -250,6 +251,205 @@ def _await_result_stream_admission(connection, queue):
         waited += 1.0
 
 
+def finalize_as_metadata():
+    """True when new chains carry ``core`` finalize as ``meta["core_finalize"]``
+    instead of rq jobs on the consumerless ``core`` queue — so rq never promotes
+    a tombstone there. Read at call time (flippable per process); off by default
+    keeps the legacy rq-dependent behaviour, the consumer reads both."""
+    return os.environ.get("CORE_FINALIZE_MODE", "legacy") == "metadata"
+
+
+def _serialize_finalize(dep, parent_id, index, user_id, category_id):
+    """One ``core`` dependent (and its subtree) as a finalize metadata node.
+
+    A ``core`` child becomes a nested finalize node; a storage child becomes a
+    ``storage_dependents`` entry the consumer enqueues fresh when this step runs
+    (the storage-under-core knot). Ids are deterministic, never uuid4, so a
+    redelivery addresses the same step.
+    """
+    step_user_id = dep.get("user_id", user_id)
+    step_category_id = dep.get("category_id", category_id)
+    node = {
+        "id": f"{parent_id}:cf:{index}",
+        "task": dep.get("task"),
+        "queue": dep.get("queue", "core"),
+        "user_id": step_user_id,
+        "category_id": step_category_id,
+        "kwargs": (dep.get("job_kwargs") or {}).get("kwargs", {}) or {},
+        "args": (dep.get("job_kwargs") or {}).get("args", []) or [],
+        "core_finalize": [],
+        "storage_dependents": [],
+        "status": None,
+    }
+    for child_index, child in enumerate(dep.get("dependents", []) or []):
+        if str(child.get("queue", "")).startswith("core"):
+            node["core_finalize"].append(
+                _serialize_finalize(
+                    child, node["id"], child_index, step_user_id, step_category_id
+                )
+            )
+        else:
+            child.setdefault("user_id", step_user_id)
+            child.setdefault("category_id", step_category_id)
+            node["storage_dependents"].append(child)
+    return node
+
+
+class CoreStep:
+    """A ``meta["core_finalize"]`` node that quacks like a :class:`Task` for the
+    finalize consumer and the ``to_dict`` / ``pending`` contract.
+
+    No rq job. ``job_status`` is derived: ``FINISHED``/``FAILED`` once the
+    consumer stamps ``node["status"]``, else ``QUEUED`` when what it waits on has
+    settled (mirrors rq's DEFERRED->QUEUED promotion) and ``DEFERRED`` otherwise
+    — which gates ``Task.pending`` exactly as a real ``core`` dependent did,
+    without a leakable job. ``_parent`` is the member it waits on, read by
+    ``depending_status`` (the gate the handlers check).
+    """
+
+    # Only weights ``Task.progress``'s time-average; a finalize step has no
+    # partial progress, so any positive constant is fine.
+    _STEP_TIMEOUT = 30
+
+    def __init__(self, node, parent, redis):
+        self._node = node
+        self._parent = parent
+        self._redis = redis
+
+    @property
+    def job(self):
+        """Stand-in for the rq ``Job`` that ``Task.progress`` reads (``timeout``
+        + ``meta["progress"]``). No ``set_status`` / ``delete`` on purpose — the
+        metadata path uses :meth:`mark`; a stray legacy call must fail loudly."""
+        return SimpleNamespace(
+            timeout=self._STEP_TIMEOUT,
+            meta={"progress": 1.0 if self.job_status == JobStatus.FINISHED else 0},
+        )
+
+    @property
+    def id(self):
+        return self._node.get("id")
+
+    @property
+    def task(self):
+        return self._node.get("task")
+
+    @property
+    def queue(self):
+        return self._node.get("queue", "core")
+
+    @property
+    def user_id(self):
+        return self._node.get("user_id")
+
+    @property
+    def category_id(self):
+        return self._node.get("category_id")
+
+    @property
+    def kwargs(self):
+        return self._node.get("kwargs", {}) or {}
+
+    @property
+    def args(self):
+        return self._node.get("args", []) or []
+
+    @property
+    def result(self):
+        return None
+
+    @property
+    def exc_info(self):
+        return None
+
+    @property
+    def position(self):
+        return None
+
+    @property
+    def storage_dependents(self):
+        """Raw dependent dicts to enqueue as rq Tasks when this step runs."""
+        return self._node.get("storage_dependents", []) or []
+
+    def mark(self, ok):
+        """Record this step's outcome so a later sibling/child reads the right
+        ``depending_status`` and ``Task.pending`` stops counting it as active."""
+        self._node["status"] = "finished" if ok else "failed"
+
+    @property
+    def dependencies(self):
+        return [self._parent] if self._parent is not None else []
+
+    @property
+    def dependents(self):
+        return [
+            CoreStep(child, self, self._redis)
+            for child in self._node.get("core_finalize", []) or []
+        ]
+
+    @property
+    def job_status(self):
+        status = self._node.get("status")
+        if status == "finished":
+            return JobStatus.FINISHED
+        if status == "failed":
+            return JobStatus.FAILED
+        if self._parent is not None and self._parent.job_status in _TERMINAL_STATUSES:
+            return JobStatus.QUEUED
+        return JobStatus.DEFERRED
+
+    @property
+    def depending_status(self):
+        return global_status(self.dependencies)
+
+    @property
+    def status(self):
+        return global_status([self._parent, self] if self._parent else [self])
+
+    @property
+    def pending(self):
+        return self.job_status in (
+            JobStatus.STARTED,
+            JobStatus.SCHEDULED,
+            JobStatus.QUEUED,
+            JobStatus.DEFERRED,
+        )
+
+    @property
+    def progress(self):
+        return 1.0 if self.job_status == JobStatus.FINISHED else 0.0
+
+    def to_dict(self, filter=None):
+        """Mirror :meth:`Task.to_dict` for a finalize step so the admin Tasks
+        view renders a metadata chain identically to a legacy rq one."""
+        if not filter:
+            filter = []
+        filter.append(self.id)
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "category_id": self.category_id,
+            "queue": self.queue,
+            "position": self.position,
+            "task": self.task,
+            "kwargs": self.kwargs,
+            "result": self.result,
+            "exc_info": self.exc_info,
+            "depending_status": self.depending_status,
+            "status": self.status,
+            "pending": self.pending,
+            "job_status": self.job_status,
+            "progress": self.progress,
+            "args": list(self.args),
+            "dependencies": [],
+            "dependents": [
+                dependent.to_dict(filter=filter)
+                for dependent in self.dependents
+                if dependent.id not in filter
+            ],
+        }
+
+
 class Task(RedisBase):
     """
     Manage tasks with RQ backend.
@@ -317,9 +517,27 @@ class Task(RedisBase):
                 self.job.retry_intervals = retry.intervals
 
             self.job.save()
+            metadata_finalize = finalize_as_metadata()
             for dependent in kwargs.get("dependents", []):
                 dependent.setdefault("user_id", kwargs.get("user_id"))
                 dependent.setdefault("category_id", kwargs.get("category_id"))
+                # A ``core`` finalize dependent becomes metadata, not a rq job on
+                # the consumerless ``core`` queue; storage dependents keep the rq
+                # path. The change-handler runs it off ``meta["core_finalize"]``.
+                if metadata_finalize and str(dependent.get("queue", "")).startswith(
+                    "core"
+                ):
+                    finalize = self.job.meta.setdefault("core_finalize", [])
+                    finalize.append(
+                        _serialize_finalize(
+                            dependent,
+                            self.job.id,
+                            len(finalize),
+                            kwargs.get("user_id"),
+                            kwargs.get("category_id"),
+                        )
+                    )
+                    continue
                 dependent.setdefault("retry", kwargs.get("retry", 0))
                 dependent.setdefault(
                     "retry_intervals", kwargs.get("retry_intervals", 0)
@@ -436,10 +654,20 @@ class Task(RedisBase):
         """
         List of tasks that should be done after this Task.
 
+        Storage dependents are real rq jobs (``meta["dependent_ids"]``); ``core``
+        finalize steps built in metadata mode are :class:`CoreStep` views over
+        ``meta["core_finalize"]``. A chain is built in one mode, so the lists
+        never overlap; returning both keeps the callers bimodal unchanged.
+
         :return: Tasks that depends of this Task
         :rtype: list
         """
-        return tasks_from_ids(self.job.meta.get("dependent_ids", []))
+        storage_dependents = tasks_from_ids(self.job.meta.get("dependent_ids", []))
+        core_finalize = [
+            CoreStep(node, self, self._redis)
+            for node in (self.job.meta.get("core_finalize") or [])
+        ]
+        return storage_dependents + core_finalize
 
     @property
     def _chain(self):

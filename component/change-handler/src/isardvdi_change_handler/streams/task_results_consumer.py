@@ -54,7 +54,7 @@ import redis
 import redis.asyncio as aioredis
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.task_streams import CANCELED_KIND
-from isardvdi_common.models.task import Task, _stamp_ended_at
+from isardvdi_common.models.task import CoreStep, Task, _stamp_ended_at
 from redis.exceptions import ResponseError
 from rq import Queue
 from rq.job import JobStatus
@@ -249,6 +249,32 @@ async def _release_storage_dependents(dep_task):
         )
 
 
+async def _enqueue_metadata_storage_dependents(step):
+    """Metadata-mode :func:`_release_storage_dependents`: a storage-under-core
+    knot has no DEFERRED rq job to promote, so enqueue each storage child carried
+    on the finalize step as a fresh ``Task``. The job id is deterministic and
+    guarded by an existence check, so a redelivery does not duplicate the disk op
+    (the one non-idempotent effect here).
+    """
+    children = getattr(step, "storage_dependents", []) or []
+    for index, child in enumerate(children):
+        child = dict(child)
+        child_id = f"{step.id}:sd:{index}"
+        job_kwargs = dict(child.get("job_kwargs") or {})
+        job_kwargs["id"] = child_id
+        child["job_kwargs"] = job_kwargs
+        try:
+            if await asyncio.to_thread(Task.exists, child_id):
+                continue
+            await asyncio.to_thread(lambda c=child: Task(**c))
+        except Exception:
+            log.exception(
+                "task_results: failed to enqueue metadata storage dependent %s of %s",
+                child_id,
+                getattr(step, "id", "?"),
+            )
+
+
 async def _set_job_status(dep_task, status):
     """Best-effort RQ ``Job.set_status`` wrapper.
 
@@ -396,6 +422,12 @@ async def _process_entry(redis_manager, fields):
     dependents = await asyncio.to_thread(
         lambda: list(_walk_core_dependents(task, include_canceled_storage=canceled))
     )
+    # A metadata-mode chain carries finalize as meta; ``_walk_core_dependents``
+    # yields those as CoreStep views, so the walk and dispatch are identical and
+    # only the side effects differ: a CoreStep is stamped via ``mark`` (not
+    # ``Job.set_status``), its knot children are enqueued fresh, and it has no rq
+    # job to drop. A chain is all-metadata or all-legacy.
+    metadata_mode = bool(task.job.meta.get("core_finalize"))
     all_ok = True
     # ``dedup_status_emits`` collapses repeated identical ``(storage_id,
     # status)`` socket fan-outs within this one dispatch pass (a chain often
@@ -407,28 +439,47 @@ async def _process_entry(redis_manager, fields):
         for dep_task in dependents:
             ok = await _run_handler(redis_manager, dep_task)
             all_ok = all_ok and ok
-            # Propagate the outcome onto this dep's RQ Job before the next
-            # sibling/child runs, so handlers that gate on
-            # ``task.depending_status`` see the right value (was "deferred"
-            # otherwise — no worker on the core queue ever marks it).
-            # A handler gated on ``depending_status`` no-ops when the chain
-            # failed and reports success for having done nothing. Marking that
-            # FINISHED tells the NEXT step in the chain its dependency
-            # succeeded, so a nested step runs its success body for an
-            # operation that never happened.
+            # Propagate the outcome onto this dep before the next sibling/child
+            # runs, so handlers that gate on ``task.depending_status`` see the
+            # right value (was "deferred" otherwise — no worker on the core
+            # queue ever marks it). A handler gated on ``depending_status``
+            # no-ops when the chain failed and reports success for having done
+            # nothing. Marking that FINISHED tells the NEXT step its dependency
+            # succeeded, so a nested step runs its success body for an operation
+            # that never happened.
             if chain_failed:
                 step_status = JobStatus.FAILED
             else:
                 step_status = JobStatus.FINISHED if ok else JobStatus.FAILED
-            await _set_job_status(dep_task, step_status)
-            # Release any deferred storage-queue dependent of this core dep so
-            # the storage worker actually picks it up. See helper docstring
-            # for why ``set_status(FINISHED)`` alone is not enough. Skipped
-            # when the handler failed — failure must NOT advance the chain —
-            # and when the member is cancelled, since releasing its children
-            # would run work for an operation the user cancelled.
+            if isinstance(dep_task, CoreStep):
+                # Metadata step: stamp the shared meta node in place. A nested
+                # child's ``depending_status`` reads this parent, so the mark
+                # must land before the child runs (the walk yields parent first).
+                dep_task.mark(step_status == JobStatus.FINISHED)
+            else:
+                await _set_job_status(dep_task, step_status)
+            # Advance this dep's storage children so the worker picks them up.
+            # Skipped when the handler failed — failure must NOT advance the
+            # chain — and when the member is cancelled, since running its
+            # children would do work for an operation the user cancelled.
             if ok and not chain_failed and not _is_canceled(dep_task):
-                await _release_storage_dependents(dep_task)
+                if isinstance(dep_task, CoreStep):
+                    await _enqueue_metadata_storage_dependents(dep_task)
+                else:
+                    await _release_storage_dependents(dep_task)
+
+    # Persist the finalize status marks so ``Task.pending`` stops gating the
+    # storage and the reconcile self-heal can tell a done chain from a stuck
+    # one. Best-effort: a redelivery re-runs the idempotent handlers and
+    # re-stamps. Only meaningful in metadata mode (no rq statuses to persist).
+    if metadata_mode:
+        try:
+            await asyncio.to_thread(task.job.save_meta)
+        except Exception:
+            log.exception(
+                "task_results: failed to persist core_finalize marks for %s",
+                task_id,
+            )
 
     # MR-3 of the core_worker retirement: core_worker is gone, so the
     # ``core`` queue has no consumer. RQ would otherwise move each
@@ -451,6 +502,11 @@ async def _process_entry(redis_manager, fields):
     # be the replay state that entry needs if it is redelivered.
     if all_ok:
         for dep_task in dependents:
+            # A metadata finalize step is not an rq job — nothing to drop. Its
+            # ``status`` mark (persisted above) is what retires it; leaving the
+            # node in meta is the forensic record of what ran.
+            if isinstance(dep_task, CoreStep):
+                continue
             if canceled and not _is_canceled(dep_task):
                 continue
             try:

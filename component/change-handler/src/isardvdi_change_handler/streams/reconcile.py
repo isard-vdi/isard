@@ -57,7 +57,7 @@ from datetime import datetime, timezone
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
-from isardvdi_common.models.task import Task
+from isardvdi_common.models.task import CoreStep, Task
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
@@ -371,15 +371,46 @@ async def _reap_core_tombstones(redis_manager, now=None, min_age_s=REAP_MIN_AGE_
     return reaped
 
 
-def _task_alive(storage):
-    """True if the storage's backing task still exists and is pending — in
-    which case Pass 1 / the consumer will finalize it and Pass 2 must not
-    interfere."""
+def _finalize_has_unstamped(nodes):
+    """True if any metadata finalize step (at any depth) never ran."""
+    for node in nodes or []:
+        if node.get("status") is None:
+            return True
+        if _finalize_has_unstamped(node.get("core_finalize")):
+            return True
+    return False
+
+
+def _metadata_finalize_orphaned(task, now, min_age_s):
+    """A metadata chain whose real (storage) work all settled but whose finalize
+    never applied and is older than the redelivery envelope: the result event
+    was lost (worker died before publishing). Not live work — Pass 2 heals it
+    from the storage's own reality, exactly like a legacy tombstone via the reap.
+    """
+    finalize = task.job.meta.get("core_finalize")
+    if not finalize or not _finalize_has_unstamped(finalize):
+        return False
+    members = [task] + [d for d in task.dependents if not isinstance(d, CoreStep)]
+    if any(getattr(m, "job_status", None) not in _TERMINAL for m in members):
+        return False
+    settled = _settled_at(task)
+    return settled is not None and (now - settled).total_seconds() >= min_age_s
+
+
+def _task_alive(storage, now=None, min_age_s=REAP_MIN_AGE_S):
+    """True if the storage's backing task is still live work — Pass 1 / the
+    consumer will finalize it and Pass 2 must not interfere. A metadata chain
+    with an orphaned finalize is pending but NOT live, so Pass 2 may heal it."""
     task_id = storage.task
     if not task_id or not Task.exists(task_id):
         return False
     try:
-        return Task(task_id).pending
+        task = Task(task_id)
+        if not task.pending:
+            return False
+        return not _metadata_finalize_orphaned(
+            task, now or datetime.now(timezone.utc), min_age_s
+        )
     except Exception:
         return False
 
