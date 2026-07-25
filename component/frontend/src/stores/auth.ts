@@ -8,6 +8,7 @@ import {
   setToken,
   parseToken,
   isLoginClaims,
+  TokenType,
   type TypeClaims
 } from '@/lib/auth'
 import { renew } from '@/gen/oas/authentication'
@@ -135,6 +136,8 @@ export const useAuthStore = defineStore('auth', () => {
 
     const currentToken = token.value
     const currentUser = user.value
+    const currentTokenType = claims.value?.type
+    const currentExp = claims.value?.exp
 
     // Clear auth state and cookie immediately
     if (clearCookie) {
@@ -144,14 +147,14 @@ export const useAuthStore = defineStore('auth', () => {
     claims.value = null
     previousCookieValue = undefined
 
-    // Fire logout requests in background (fire and forget)
-    if (currentToken) {
+    // Intermediate tokens (disclaimer-acknowledgement-required, register,
+    // email-verification-required, etc.) have no backend session to revoke
+    // and /authentication/logout only accepts login tokens.
+    if (currentToken && currentTokenType === TokenType.Login) {
       if (['manager', 'admin'].includes(currentUser?.role_id || '')) {
         logoutWebapp(currentToken)
       }
-      // Check if the currentToken is still valid before calling logoutAuthentication
-      const parsedToken = parseToken(currentToken)
-      if (parsedToken?.exp && parsedToken.exp * 1000 > Date.now()) {
+      if (currentExp && currentExp * 1000 > Date.now()) {
         logoutAuthentication(currentToken)
       }
     }

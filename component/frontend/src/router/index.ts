@@ -447,6 +447,15 @@ const router = createRouter({
         // full-page load to /export-user with the user's normal login token.
         allowedTokenTypes: ['user-migration-required', 'login']
       }
+    },
+    {
+      path: '/disclaimer',
+      name: 'disclaimer',
+      component: () => import('../views/DisclaimerView.vue'),
+      meta: {
+        title: 'router.disclaimer.title',
+        allowedTokenTypes: ['disclaimer-acknowledgement-required']
+      }
     }
   ]
 })
@@ -499,6 +508,22 @@ router.beforeEach(async (to, from, next) => {
     return next(await sessionStore.loginRoute())
   }
 
+  const now = Date.now()
+  const adjustedNow =
+    now + (Math.abs(sessionStore.timeDrift) < 24 * 60 * 60 * 1000 ? sessionStore.timeDrift : 0) // 24h in ms
+
+  // Expired non-login tokens (disclaimer, register, email-verify, etc.) are
+  // not renewable — redirecting to their dedicated view would just 401 on
+  // the next API call and leave the user stuck. Force a clean login instead.
+  if (
+    tokenType !== TokenType.Login &&
+    authStore.claims?.exp &&
+    adjustedNow > authStore.claims.exp * 1000
+  ) {
+    authStore.logout()
+    return next({ name: 'login' })
+  }
+
   if (allowedTokenTypes && !allowedTokenTypes.includes(tokenType)) {
     return next(getRedirectForTokenType(tokenType))
   }
@@ -521,10 +546,6 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // Renew the session 1 minute before it expires
-  const now = Date.now()
-  const adjustedNow =
-    now + (Math.abs(sessionStore.timeDrift) < 24 * 60 * 60 * 1000 ? sessionStore.timeDrift : 0) // 24h in ms
-
   if (
     authStore.sessionId !== 'isardvdi-service' &&
     authStore.claims &&
@@ -568,8 +589,7 @@ function getRedirectForTokenType(type: TokenType) {
     case TokenType.Register:
       return { name: 'register' }
     case TokenType.DisclaimerAcknowledgeRequired:
-      // TODO: Use a new disclaimer page
-      return (window.location.pathname = '/disclaimer')
+      return { name: 'disclaimer' }
     case TokenType.PasswordResetRequired:
     case TokenType.PasswordReset:
       // TODO: Use a new password reset page

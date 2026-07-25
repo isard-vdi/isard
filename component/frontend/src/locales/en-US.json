@@ -117,9 +117,17 @@
     },
     "error": {
       "title": "Error"
+    },
+    "disclaimer": {
+      "title": "Disclaimer"
     }
   },
   "views": {
+    "disclaimer": {
+      "accept": "Accept",
+      "reject": "Reject",
+      "error": "Could not process the acknowledgement. Please try again."
+    },
     "export-user": {
       "title": "Export user's items",
       "description": "Migrate user's items via migration token",

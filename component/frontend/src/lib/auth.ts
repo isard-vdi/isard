@@ -33,7 +33,7 @@ export enum TokenType {
   Login = 'login',
   CategorySelect = 'category-select',
   Register = 'register',
-  DisclaimerAcknowledgeRequired = 'disclaimer-acknowledge-required',
+  DisclaimerAcknowledgeRequired = 'disclaimer-acknowledgement-required',
   EmailVerificationRequired = 'email-verification-required',
   EmailVerification = 'email-verification',
   PasswordResetRequired = 'password-reset-required',
@@ -87,12 +87,24 @@ export const isRegisterClaims = (claims: TypeClaims): claims is RegisterClaims =
   return claims.type === TokenType.Register
 }
 
+export interface DisclaimerAcknowledgementRequiredClaims extends TypeClaims {
+  user_id: string
+}
+
+export const isDisclaimerAcknowledgementRequiredClaims = (
+  claims: TypeClaims
+): claims is DisclaimerAcknowledgementRequiredClaims => {
+  return claims.type === TokenType.DisclaimerAcknowledgeRequired
+}
+
 const authorizationTokenName = 'authorization'
 export const sessionTokenName = 'isardvdi_session'
 
 export const useCookies = () => vueuseCookies([authorizationTokenName, sessionTokenName])
 
-export const parseToken = (bearer: string): RegisterClaims | CategorySelectClaims | TypeClaims => {
+export const parseToken = (
+  bearer: string
+): RegisterClaims | CategorySelectClaims | DisclaimerAcknowledgementRequiredClaims | TypeClaims => {
   const jwt = jwtDecode(bearer) as TypeClaims
   switch (jwt.type) {
     case undefined:
@@ -107,6 +119,9 @@ export const parseToken = (bearer: string): RegisterClaims | CategorySelectClaim
 
     case TokenType.Register:
       return jwt as RegisterClaims
+
+    case TokenType.DisclaimerAcknowledgeRequired:
+      return jwt as DisclaimerAcknowledgementRequiredClaims
 
     default:
       return jwt
@@ -141,7 +156,10 @@ export const setToken = (cookies: ReturnType<typeof useCookies>, bearer: string)
 }
 
 export const removeToken = (cookies: ReturnType<typeof useCookies>) => {
-  cookies.remove(authorizationTokenName, cookieOpts)
+  // The `authorization` cookie is set server-side with Secure=true
+  // (authentication/transport/http/http.go). Removal must match that attribute
+  // set or the browser won't delete it.
+  cookies.remove(authorizationTokenName, { path: '/', sameSite: 'strict', secure: true })
   cookies.remove(sessionTokenName, cookieOpts)
 }
 
@@ -157,6 +175,7 @@ interface LoginRegisterReturn {
   error?: LoginError | RegisterError
   errorParams?: Date
 }
+
 export const checkLoginRegister = (
   error: { error?: string | null }, // TODO: check this type
   response: Response,

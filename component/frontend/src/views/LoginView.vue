@@ -488,6 +488,11 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
       router.push({ name: 'verify-email' })
       return
     }
+    if (jwt.type === TokenType.DisclaimerAcknowledgeRequired) {
+      router.push({ name: 'disclaimer' })
+      return
+    }
+
     // Fall through to window.location for other types (disclaimer, password reset, etc.)
   }
 
