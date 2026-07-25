@@ -1052,6 +1052,7 @@
           "title": "Generar una nueva llave API",
           "description": "Puedes generar una nueva llave API para usar con aplicaciones externas que integren la API de IsardVDI.",
           "warning": "Solo podrás ver la llave API una vez, así que asegúrate de guardarla en un lugar seguro.",
+          "max-expiration-hint": "La caducidad máxima es de un año desde hoy",
           "buttons": {
             "generate": "Generar",
             "expiration-label": "Fecha de caducidad",
@@ -2360,7 +2361,9 @@
     "date-picker": {
       "apply": "Aplicar",
       "cancel": "Cancelar",
-      "today": "Hoy"
+      "today": "Hoy",
+      "month": "Mes",
+      "year": "Año"
     },
     "form": {
       "validation": {
