@@ -129,6 +129,42 @@ class _FakeRedis:
         self._boom()
         return 1 if self.zsets.get(key, {}).pop(member, None) is not None else 0
 
+    @staticmethod
+    def _score_bound(raw):
+        """Parse a redis score-bound token: a number, "-inf"/"+inf", or a
+        "(<score>" exclusive form. Returns (value, inclusive)."""
+        if isinstance(raw, (int, float)):
+            return float(raw), True
+        s = str(raw)
+        if s in ("-inf", "+inf"):
+            return float(s.replace("inf", "inf")), True
+        if s.startswith("("):
+            return float(s[1:]), False
+        return float(s), True
+
+    def _in_range(self, score, min_score, max_score):
+        lo, lo_incl = self._score_bound(min_score)
+        hi, hi_incl = self._score_bound(max_score)
+        above_lo = score > lo or (lo_incl and score == lo)
+        below_hi = score < hi or (hi_incl and score == hi)
+        return above_lo and below_hi
+
+    def zcount(self, key, min_score, max_score):
+        self._boom()
+        return sum(
+            1
+            for score in self.zsets.get(key, {}).values()
+            if self._in_range(score, min_score, max_score)
+        )
+
+    def zremrangebyscore(self, key, min_score, max_score):
+        self._boom()
+        zset = self.zsets.get(key, {})
+        stale = [m for m, s in zset.items() if self._in_range(s, min_score, max_score)]
+        for member in stale:
+            del zset[member]
+        return len(stale)
+
     def mget(self, keys):
         self._boom()
         return [self.strings.get(k) for k in keys]
@@ -447,6 +483,25 @@ def test_unpublish_worker_removes_member():
     qc.publish_lane(r, "p1", "interactive", "w1", 100.0, 15)
     qc.unpublish_worker(r, "p1", "interactive", "w1")
     assert r.zscore(qc.cov_key("p1", "interactive"), "w1") is None
+
+
+def test_pool_live_workers_counts_fresh():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", 1000.0, 15)
+    qc.publish_lane(r, "p1", "interactive", "w2", 1000.0, 15)
+    assert qc.pool_live_workers(r, "p1", "interactive", now=1000.0, ttl=15) == 2
+
+
+def test_pool_live_workers_excludes_stale():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w_old", 900.0, 15)
+    qc.publish_lane(r, "p1", "interactive", "w_new", 1000.0, 15)
+    assert qc.pool_live_workers(r, "p1", "interactive", now=1000.0, ttl=15) == 1
+
+
+def test_pool_live_workers_zero_when_empty():
+    r = _FakeRedis()
+    assert qc.pool_live_workers(r, "p1", "interactive", now=1000.0) == 0
 
 
 def test_counter_failure_never_swallows_the_429():

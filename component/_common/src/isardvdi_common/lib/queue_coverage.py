@@ -345,3 +345,15 @@ def publish_lane(conn, pool, tier, worker, now, ttl):
 def unpublish_worker(conn, pool, tier, worker):
     """Drop this worker from the lane's coverage zset on shutdown."""
     conn.zrem(cov_key(pool, tier), worker)
+
+
+def pool_live_workers(conn, pool, tier, now=None, ttl=None):
+    """Live worker count for (pool, tier), pruning stale members first so a
+    dead worker's absence is immediate rather than waiting on the key TTL.
+    Raises on redis error — callers already treat that as fail-open."""
+    now = time.time() if now is None else now
+    ttl = COV_TTL_S if ttl is None else ttl
+    key = cov_key(pool, tier)
+    edge = "(" + repr(now - ttl)
+    conn.zremrangebyscore(key, "-inf", edge)
+    return conn.zcount(key, edge, "+inf")
