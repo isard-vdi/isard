@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""The consumer's metadata (``CORE_FINALIZE_MODE=metadata``) finalize path.
+"""The consumer's metadata finalize path.
 
 A chain built in metadata mode carries its ``core`` finalize steps as
 ``meta["core_finalize"]`` on the root job, NOT as rq jobs. ``_process_entry``
@@ -64,7 +64,7 @@ def _build_metadata_root(dependents):
 
     with patch("isardvdi_common.models.task.Job") as Job, patch(
         "isardvdi_common.models.task.Queue"
-    ) as Queue, patch.dict("os.environ", {"CORE_FINALIZE_MODE": "metadata"}):
+    ) as Queue:
         Job.create.side_effect = make_job
         q = MagicMock()
         q.enqueue_job.side_effect = lambda job: job

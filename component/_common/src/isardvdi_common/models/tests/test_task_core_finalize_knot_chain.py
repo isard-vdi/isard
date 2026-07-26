@@ -97,7 +97,7 @@ def test_knot_second_level_serializes_when_built_as_task():
 
     with patch("isardvdi_common.models.task.Job") as Job, patch(
         "isardvdi_common.models.task.Queue"
-    ) as Queue, patch.dict("os.environ", {"CORE_FINALIZE_MODE": "metadata"}):
+    ) as Queue:
         Job.create.side_effect = make_job
         q = MagicMock()
         q.enqueue_job.side_effect = lambda job: job

@@ -609,12 +609,8 @@ async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
     log.warning(
         "reconcile: self-heal starting (every %ss, grace %ss)", interval_s, grace_s
     )
-    # Clear any residual legacy ``core`` tombstones left by a system upgraded FROM
-    # rq-dependent finalize. Runs ONCE, but only once it actually succeeds: gated
-    # by ``drained`` so a redis-connectivity failure (change-handler outran redis)
-    # re-tries on the next tick. ``depends_on: isard-redis (service_healthy)``
-    # normally makes it succeed on the first pass. Post-migration the queue stays
-    # empty, so it is a no-op on every later boot.
+    # One-shot legacy-tombstone drain, gated by ``drained`` so a redis hiccup
+    # retries next tick instead of silently skipping. No-op post-migration.
     drained = False
     while True:
         try:

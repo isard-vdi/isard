@@ -6,17 +6,15 @@
 
 """Retire ``core`` as an execution surface: ``core`` finalize as metadata.
 
-With ``CORE_FINALIZE_MODE=metadata`` a chain's ``core`` finalize steps are stored
-as ``meta["core_finalize"]`` and never become rq jobs, so rq cannot promote a
-tombstone onto the consumerless ``core`` queue. Default (``legacy``) behaviour is
-unchanged: finalize steps are still real rq dependents. These tests exercise the
-producer + the :class:`CoreStep` shim with Job/Queue mocked (no redis).
+A chain's ``core`` finalize steps are stored as ``meta["core_finalize"]`` and
+never become rq jobs, so rq cannot promote a tombstone onto the consumerless
+``core`` queue. These tests exercise the producer + the :class:`CoreStep` shim
+with Job/Queue mocked (no redis).
 """
 
 import itertools
 from unittest.mock import MagicMock, patch
 
-import pytest
 from isardvdi_common.models.task import CoreStep, Task
 from rq.job import JobStatus
 
@@ -61,10 +59,10 @@ KNOT_DEPENDENTS = [
 ]
 
 
-def _build(dependents, mode, **extra):
+def _build(dependents, **extra):
     """Real ``Task.__init__`` (new-task path) with Job/Queue mocked. Each
-    ``Job.create`` returns a fresh mock with its own id/meta so a legacy chain's
-    nested tasks get distinct ids. Returns (root_task, jobs_created)."""
+    ``Job.create`` returns a fresh mock with its own id/meta so nested tasks get
+    distinct ids. Returns (root_task, jobs_created)."""
     jobs = []
     ids = itertools.count(1)
 
@@ -79,7 +77,7 @@ def _build(dependents, mode, **extra):
 
     with patch("isardvdi_common.models.task.Job") as Job, patch(
         "isardvdi_common.models.task.Queue"
-    ) as Queue, patch.dict("os.environ", {"CORE_FINALIZE_MODE": mode}):
+    ) as Queue:
         Job.create.side_effect = make_job
         queue_obj = MagicMock(name="queue")
         # enqueue_job returns the job it was given (identity), like rq does.
@@ -103,7 +101,7 @@ def _build(dependents, mode, **extra):
 def test_metadata_mode_stores_core_finalize_and_creates_no_core_jobs():
     """Only the root job is created; the core finalize tree lives in
     ``meta["core_finalize"]`` and nothing is enqueued on ``core``."""
-    task, jobs = _build(FIND_DEPENDENTS, mode="metadata")
+    task, jobs = _build(FIND_DEPENDENTS)
     assert len(jobs) == 1  # ONLY the root storage job
     assert not task.job.meta.get("dependent_ids")
     finalize = task.job.meta["core_finalize"]
@@ -125,7 +123,7 @@ def test_metadata_mode_stores_core_finalize_and_creates_no_core_jobs():
 def test_metadata_knot_carries_storage_child_as_storage_dependent():
     """A storage task nested under a core step is a ``storage_dependents`` entry
     (enqueued later by the consumer), not built at chain time."""
-    task, jobs = _build(KNOT_DEPENDENTS, mode="metadata")
+    task, jobs = _build(KNOT_DEPENDENTS)
     assert len(jobs) == 1  # no storage child built yet
     step = task.job.meta["core_finalize"][0]
     assert step["task"] == "storage_update"
@@ -144,7 +142,7 @@ def test_metadata_knot_carries_storage_child_as_storage_dependent():
 
 
 def test_dependents_yields_core_step_shims_in_metadata_mode():
-    task, _ = _build(FIND_DEPENDENTS, mode="metadata")
+    task, _ = _build(FIND_DEPENDENTS)
     deps = task.dependents
     assert len(deps) == 1
     step = deps[0]
@@ -160,7 +158,7 @@ def test_dependents_yields_core_step_shims_in_metadata_mode():
 
 
 def test_core_step_to_dict_shape_matches_task_dependent():
-    task, _ = _build(FIND_DEPENDENTS, mode="metadata")
+    task, _ = _build(FIND_DEPENDENTS)
     data = task.to_dict()
     assert len(data["dependents"]) == 1
     step = data["dependents"][0]
@@ -224,7 +222,7 @@ def test_core_step_finished_after_mark_stops_pending():
 def test_metadata_pending_releases_when_finalize_marked():
     """End-to-end on the real Task: a finished storage root with an unstamped
     finalize is still pending; marking the finalize done releases it."""
-    task, _ = _build(FIND_DEPENDENTS, mode="metadata")
+    task, _ = _build(FIND_DEPENDENTS)
     # make the root read FINISHED
     task.job.get_status.return_value = JobStatus.FINISHED
     assert task.pending is True  # finalize not applied yet -> gated
@@ -233,9 +231,8 @@ def test_metadata_pending_releases_when_finalize_marked():
     assert task.pending is False
 
 
-@pytest.mark.parametrize("mode", ["legacy", "metadata"])
-def test_root_only_chain_has_no_finalize(mode):
-    """A chain with no dependents behaves identically in both modes."""
-    task, jobs = _build([], mode=mode)
+def test_root_only_chain_has_no_finalize():
+    """A chain with no dependents has no finalize steps."""
+    task, jobs = _build([])
     assert len(jobs) == 1
     assert task.dependents == []
