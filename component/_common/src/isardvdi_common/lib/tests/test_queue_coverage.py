@@ -11,6 +11,7 @@ per-pool opacity that suppresses false stranding, and the fail-open paths.
 """
 
 import json
+import time
 from datetime import datetime, timezone
 
 import pytest
@@ -502,6 +503,70 @@ def test_pool_live_workers_excludes_stale():
 def test_pool_live_workers_zero_when_empty():
     r = _FakeRedis()
     assert qc.pool_live_workers(r, "p1", "interactive", now=1000.0) == 0
+
+
+# --- lane_shed_decision: LIVE index is the primary has-consumer signal ------
+
+
+class _IndexBoomRedis(_FakeRedis):
+    """Fails only on the live-index read, proving the try/except around
+    lane_shed_decision covers pool_live_workers too, not just served_coverage."""
+
+    def zremrangebyscore(self, key, min_score, max_score):
+        raise RuntimeError("index down")
+
+
+def test_decision_ok_when_index_live():
+    r = _FakeRedis()
+    # lane_shed_decision reads the index with no explicit now/ttl, so publish
+    # against the real wall clock it will use.
+    qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
+    assert decision == "ok"
+    assert ctx["has_consumer"] is True
+
+
+def test_decision_reject_no_consumer_index_empty_fleet_up():
+    r = _FakeRedis()
+    # index empty for p1, but p2 is served (legacy fallback) -> fleet is up
+    _governed_worker(r, "w1", "p2")
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.standard")
+    assert decision == "reject"
+    assert ctx["reason"] == "no_consumer"
+
+
+def test_decision_fail_open_no_coverage_data_when_fleet_invisible():
+    r = _FakeRedis()  # index empty AND no rq:workers at all
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
+    assert decision == "ok"
+    assert ctx["reason"] == "no_coverage_data"
+
+
+def test_decision_fail_open_on_redis_error():
+    r = _IndexBoomRedis()
+    _governed_worker(r, "w1", "p1")
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
+    assert decision == "ok"
+    assert ctx["reason"] == "coverage_error"
+
+
+def test_decision_reject_overloaded_foreground_over_cap():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
+    r.lists["rq:queue:storage.p1.interactive"] = qc.hard_cap("interactive") + 5
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
+    assert decision == "reject"
+    assert ctx["reason"] == "overloaded"
+    assert ctx["hard_cap"] == qc.hard_cap("interactive")
+
+
+def test_decision_ok_governed_over_backlog():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "bulk", "w1", time.time(), qc.COV_TTL_S)
+    r.lists["rq:queue:storage.p1.bulk"] = 10_000
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.bulk")
+    assert decision != "reject"
+    assert ctx.get("reason") != "overloaded"
 
 
 def test_counter_failure_never_swallows_the_429():

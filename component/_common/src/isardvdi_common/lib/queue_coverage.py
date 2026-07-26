@@ -192,22 +192,34 @@ def lane_shed_decision(conn, queue):
     ``"warn"`` (backed up but will run) or ``"ok"``. ``ctx`` carries ``pool``/
     ``category``/``tier``/``backlog``/``has_consumer``/``stranded``/``reason``
     for the caller's error or notify. Never raises — any failure degrades to
-    ``("ok", ...)``."""
+    ``("ok", ...)``.
+
+    The LIVE coverage index (:func:`pool_live_workers`) is the primary signal:
+    a fresh heartbeat there means a governed worker serves the lane right now.
+    Only when the index is empty do we fall back to :func:`served_coverage` —
+    the slower governor-hash scan — so a mixed-version / not-yet-upgraded
+    worker still counts."""
     parsed = queue_tiers.parse_storage_queue(queue)
     if not parsed:
         return "ok", {"reason": "non_storage_queue"}
     pool, category, tier = parsed
     try:
-        covered, opaque_pools = served_coverage(conn)
-        if not covered and not opaque_pools:
-            # No worker visible at all — a full-fleet restart blip is far more
-            # likely than a deliberate zero-consumer state; fail open.
-            return "ok", {
-                "reason": "no_coverage_data",
-                "pool": pool,
-                "category": category,
-                "tier": tier,
-            }
+        live = pool_live_workers(conn, pool, tier)
+        if live > 0:
+            has_consumer, opaque = True, False
+        else:
+            covered, opaque_pools = served_coverage(conn)
+            if not covered and not opaque_pools:
+                # No worker visible anywhere — a full-fleet restart blip is far
+                # more likely than a deliberate zero-consumer state; fail open.
+                return "ok", {
+                    "reason": "no_coverage_data",
+                    "pool": pool,
+                    "category": category,
+                    "tier": tier,
+                }
+            has_consumer = (pool, tier) in covered
+            opaque = pool in opaque_pools
         backlog = conn.llen(_RQ_QUEUE_PREFIX + queue)
     except Exception:
         return "ok", {
@@ -217,8 +229,7 @@ def lane_shed_decision(conn, queue):
             "tier": tier,
         }
 
-    has_consumer = (pool, tier) in covered
-    stranded = (not has_consumer) and (pool not in opaque_pools)
+    stranded = (not has_consumer) and (not opaque)
     ctx = {
         "pool": pool,
         "category": category,
