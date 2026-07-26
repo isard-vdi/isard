@@ -197,7 +197,9 @@ async def _run_handler(redis_manager, dep_task):
 async def _release_storage_dependents(dep_task):
     """Push every non-``core`` dependent of ``dep_task`` from DEFERRED to
     QUEUED, mirroring what RQ's ``Worker._handle_job_success`` would do
-    after a real worker finished a job.
+    after a real worker finished a job. Metadata dispatch enqueues its knot
+    children fresh instead; this now serves only the reconcile heal of a
+    residual legacy ``core`` orphan (:func:`reconcile._heal_core_orphan`).
 
     Background: ``_walk_core_dependents`` deliberately stops at the
     storage-queue boundary because the storage worker publishes its own
@@ -454,7 +456,7 @@ async def _process_entry(redis_manager, fields):
                 step_status = JobStatus.FAILED
             else:
                 step_status = JobStatus.FINISHED if ok else JobStatus.FAILED
-            # Metadata step: stamp the shared meta node in place. A nested
+            # Stamp the shared meta node in place. A nested
             # child's ``depending_status`` reads this parent, so the mark
             # must land before the child runs (the walk yields parent first).
             dep_task.mark(step_status == JobStatus.FINISHED)

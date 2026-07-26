@@ -147,32 +147,6 @@ async def test_non_canceled_member_status_is_still_written():
 
 
 @pytest.mark.asyncio
-async def test_canceled_chain_does_not_release_storage_dependents():
-    """Releasing a cancelled member's deferred storage children would run work
-    for an operation the user cancelled."""
-    from isardvdi_change_handler.streams import task_results_consumer
-
-    dep = _stub_task("dep", task_name="update_status", job_status=JobStatus.CANCELED)
-    root = _stub_task(
-        "root", task_name="delete", queue="storage.pool.reclaim", dependents=[dep]
-    )
-    emit_p, task_p, handlers_p = _patch_dispatch(
-        root, {"update_status": (AsyncMock(), True)}
-    )
-
-    with emit_p, task_p, handlers_p, patch(
-        "isardvdi_change_handler.streams.task_results_consumer._release_storage_dependents",
-        new=AsyncMock(),
-    ) as release:
-        await task_results_consumer._process_entry(
-            AsyncMock(),
-            {"kind": "canceled", "task_id": "root", "job_status": "canceled"},
-        )
-
-    release.assert_not_awaited()
-
-
-@pytest.mark.asyncio
 async def test_canceled_kind_emits_feedback():
     """The frontend must learn the chain settled, not keep spinning."""
     from isardvdi_change_handler.streams import task_results_consumer

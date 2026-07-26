@@ -10,8 +10,8 @@ Two things are pinned here:
   onto the consumerless ``core`` queue where they stayed QUEUED forever and
   wedged the storage behind a permanent ``storage_pending_task``;
 * the debt already sitting on that queue (from before the fix, or from a
-  dead-lettered entry) is swept, safely: only members whose chain is settled
-  and that are old enough not to be somebody's live replay state.
+  legacy→metadata upgrade) is swept once on startup by the drain, safely: only
+  members whose chain is settled, healing each before dropping its queue entry.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -178,8 +178,9 @@ class TestCoreOrphanHealIsGated:
         orphan.job.delete.assert_called_once()
 
 
-class TestCoreTombstoneReap:
-    """Pass 1c: sweep the debt left on ``rq:queue:core``."""
+class TestCoreTombstoneDrain:
+    """The one-shot startup drain sweeps residual legacy debt off
+    ``rq:queue:core`` (metadata finalize never enqueues there)."""
 
     def _redis(self, ids):
         conn = MagicMock()
@@ -197,7 +198,7 @@ class TestCoreTombstoneReap:
         ghost.job.get_status.return_value = JobStatus.QUEUED
 
         with (
-            patch.object(reconcile, "_reap_connection", return_value=conn),
+            patch.object(reconcile, "_drain_connection", return_value=conn),
             patch.object(reconcile.Task, "exists", return_value=True),
             patch.object(reconcile, "Task", side_effect=lambda _id: ghost),
             patch.object(
@@ -221,7 +222,7 @@ class TestCoreTombstoneReap:
         busy.job.get_status.return_value = JobStatus.QUEUED
 
         with (
-            patch.object(reconcile, "_reap_connection", return_value=conn),
+            patch.object(reconcile, "_drain_connection", return_value=conn),
             patch.object(reconcile.Task, "exists", return_value=True),
             patch.object(reconcile, "Task", side_effect=lambda _id: busy),
             patch.object(
@@ -242,7 +243,7 @@ class TestCoreTombstoneReap:
         conn = self._redis([b"dangling"])
 
         with (
-            patch.object(reconcile, "_reap_connection", return_value=conn),
+            patch.object(reconcile, "_drain_connection", return_value=conn),
             patch.object(reconcile.Task, "exists", return_value=False),
             patch.object(
                 reconcile, "_heal_core_orphan", new=AsyncMock(return_value=1)

@@ -281,3 +281,45 @@ async def test_metadata_failed_chain_marks_failed_and_does_not_enqueue_knot():
     assert root.job.meta["core_finalize"][0]["status"] == "failed"
     # ...and the knot storage child is NOT enqueued (failure must not advance).
     assert created == []
+
+
+@pytest.mark.asyncio
+async def test_metadata_handler_raise_on_finished_chain_marks_failed_and_nacks():
+    """A finalize handler that RAISES on an otherwise-successful chain
+    (job_status='finished') must mark its step failed (NOT finished), NOT advance
+    the knot, and make _process_entry return False so the entry is not ACKed and
+    is redelivered — the load-bearing at-least-once contract."""
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    root = _build_metadata_root(KNOT_DEPENDENTS)
+    handler = AsyncMock(side_effect=RuntimeError("boom"))
+    registry = {"storage_update": (handler, True)}
+    created = []
+
+    def task_factory(*args, **kwargs):
+        if args and not kwargs:
+            return root
+        created.append(kwargs)
+        return MagicMock()
+
+    task_mock = MagicMock(side_effect=task_factory)
+    task_mock.exists.return_value = False
+
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch("isardvdi_change_handler.streams.task_results_consumer.Task", task_mock),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS", registry
+        ),
+    ):
+        ok = await task_results_consumer._process_entry(
+            redis_manager=AsyncMock(),
+            fields={"kind": "result", "task_id": "job-1", "job_status": "finished"},
+        )
+
+    assert ok is False  # not ACKed -> redelivered
+    assert root.job.meta["core_finalize"][0]["status"] == "failed"
+    assert created == []  # knot not advanced on a raised handler

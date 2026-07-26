@@ -236,12 +236,17 @@ def _storage(
     task="oldtask",
     virtual_size=171798691840,
     user_id="u1",
+    converted_from=None,
 ):
     s = MagicMock(name=f"storage-{sid}")
     s.id = sid
     s.status = status
     s.task = task
     s.user_id = user_id
+    # A convert destination carries no task of its own; the convert task lives on
+    # the origin it points at via ``converted_from``. Default None mirrors a
+    # non-convert row (MagicMock would otherwise auto-create a truthy attr).
+    s.converted_from = converted_from
     qi = {"virtual-size": virtual_size} if virtual_size is not None else None
     # ``qemu-img-info`` is not a valid attr name; the model exposes it via getattr
     setattr(s, "qemu-img-info", qi)
@@ -334,6 +339,72 @@ def test_task_alive_false_when_task_not_pending():
         inst.pending = False
         TaskCls.return_value = inst
         assert reconcile._task_alive(storage) is False
+
+
+def test_task_alive_creating_without_task_or_origin_is_treated_live():
+    """A ``creating`` row with no task and no resolvable origin cannot be proven
+    dead — never finalize a disk that may still be mid-build."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="creating", task=None, converted_from=None)
+    assert reconcile._task_alive(storage) is True
+
+
+def test_task_alive_convert_target_live_while_origin_task_runs():
+    """The blocker: a convert destination (task=None) must be seen as LIVE while
+    the origin's convert task is still running, so Pass 2 never finalizes the
+    half-written destination as ready."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="creating", task=None, converted_from="origin-1")
+    origin = MagicMock()
+    origin.task = "convert-task"
+    running = MagicMock()
+    running.pending = True
+    with (
+        patch.object(reconcile, "Storage", return_value=origin),
+        patch.object(reconcile.Task, "exists", return_value=True),
+        patch.object(reconcile, "Task", return_value=running),
+        patch.object(reconcile, "_metadata_finalize_orphaned", return_value=False),
+    ):
+        assert reconcile._task_alive(storage) is True
+
+
+def test_task_alive_convert_target_recoverable_once_origin_settled():
+    """Once the origin's convert task settles, the destination is no longer live
+    and Pass 2 may recover it (e.g. a finalize lost to a crash)."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="creating", task=None, converted_from="origin-1")
+    origin = MagicMock()
+    origin.task = "convert-task"
+    settled = MagicMock()
+    settled.pending = False
+    with (
+        patch.object(reconcile, "Storage", return_value=origin),
+        patch.object(reconcile.Task, "exists", return_value=True),
+        patch.object(reconcile, "Task", return_value=settled),
+    ):
+        assert reconcile._task_alive(storage) is False
+
+
+@pytest.mark.asyncio
+async def test_pass2_recovers_stuck_creating_storage_with_valid_disk():
+    """A ``creating`` convert target whose finalize was lost (task dead) but whose
+    disk is valid is adopted -> ready (finalize-forward)."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="creating", virtual_size=171798691840)
+    with (
+        patch.object(reconcile.Storage, "get_index", return_value=[storage]),
+        patch.object(reconcile, "_task_alive", return_value=False),
+        patch.object(reconcile, "_apply_storage_update") as apply_u,
+        patch.object(reconcile, "send_status_socket", new=AsyncMock()),
+    ):
+        healed = await reconcile._reconcile_stuck_storage(AsyncMock())
+
+    assert healed == 1
+    apply_u.assert_called_once_with({"id": "s1", "status": "ready"})
 
 
 # ---------------------------------------------------------------------------
@@ -488,6 +559,89 @@ async def test_run_drains_once_then_invokes_passes_then_sleeps():
     assert calls["orphan"] == 1
     assert calls["stuck"] == 1
     assert calls["domains"] == 1
+
+
+@pytest.mark.asyncio
+async def test_run_retries_drain_until_it_succeeds():
+    """A drain that fails (redis not ready yet) leaves the gate open and retries
+    on the next tick; once it succeeds it never runs again."""
+    from isardvdi_change_handler.streams import reconcile
+
+    drain_calls = []
+
+    async def _flaky_drain(rm, *a, **k):
+        drain_calls.append(1)
+        if len(drain_calls) == 1:
+            raise RuntimeError("redis not ready")
+        return 0
+
+    ticks = {"n": 0}
+
+    class _Stop(Exception):
+        pass
+
+    async def _sleep(_s):
+        ticks["n"] += 1
+        if ticks["n"] >= 3:
+            raise _Stop()
+
+    with (
+        patch.object(reconcile, "_drain_core_once", new=_flaky_drain),
+        patch.object(
+            reconcile, "_reconcile_orphan_deferred", new=AsyncMock(return_value=0)
+        ),
+        patch.object(
+            reconcile, "_reconcile_stuck_storage", new=AsyncMock(return_value=0)
+        ),
+        patch.object(
+            reconcile, "_reconcile_stuck_domains", new=AsyncMock(return_value=0)
+        ),
+        patch.object(reconcile, "_assert_core_empty", new=AsyncMock()),
+        patch.object(reconcile.asyncio, "sleep", new=_sleep),
+    ):
+        with pytest.raises(_Stop):
+            await reconcile.run(AsyncMock(), interval_s=1)
+
+    # tick1 drain raises (gate open), tick2 drain succeeds (gate closes),
+    # tick3 skips it -> exactly two drain attempts.
+    assert len(drain_calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_drain_lrange_error_propagates_for_retry():
+    """A redis-connectivity failure in the drain must propagate so run() retries;
+    it is not swallowed like a per-job error."""
+    from isardvdi_change_handler.streams import reconcile
+
+    conn = MagicMock()
+    conn.lrange.side_effect = RuntimeError("redis down")
+    with patch.object(reconcile, "_drain_connection", return_value=conn):
+        with pytest.raises(RuntimeError):
+            await reconcile._drain_core_once(AsyncMock())
+
+
+@pytest.mark.asyncio
+async def test_assert_core_empty_warns_when_backlog(caplog):
+    from isardvdi_change_handler.streams import reconcile
+
+    conn = MagicMock()
+    conn.llen.return_value = 3
+    with patch.object(reconcile, "_drain_connection", return_value=conn):
+        with caplog.at_level("WARNING"):
+            await reconcile._assert_core_empty()
+    assert "ConsumerlessQueueBacklog" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_assert_core_empty_silent_when_zero(caplog):
+    from isardvdi_change_handler.streams import reconcile
+
+    conn = MagicMock()
+    conn.llen.return_value = 0
+    with patch.object(reconcile, "_drain_connection", return_value=conn):
+        with caplog.at_level("WARNING"):
+            await reconcile._assert_core_empty()
+    assert "ConsumerlessQueueBacklog" not in caplog.text
 
 
 def test_orphan_gate_treats_vanished_dep_job_as_terminal():

@@ -40,10 +40,12 @@ lost because the reconcile only reads disks and sets statuses.
 ``core`` tombstones left by a system upgraded FROM rq-dependent finalize. Post
 upgrade the ``core`` queue stays empty, so it is a no-op on every later boot.
 
-**Pass 1 — orphaned DEFERRED jobs.** A DEFERRED storage-queue job whose
-dependencies are all terminal (and have been longer than a grace window, so the
-pass never races the consumer's own release) is an orphan no worker will run:
-release it if its parents finished, cancel it if a parent failed/canceled.
+**Pass 1 — orphaned DEFERRED jobs.** A DEFERRED job whose dependencies are all
+terminal (and have been longer than a grace window, so the pass never races the
+consumer's own release) is an orphan no worker will run: a storage-queue orphan
+is released if its parents finished, cancelled if a parent failed/canceled; a
+residual legacy ``core``-queue orphan (the DEFERRED counterpart to the QUEUED
+tombstones ``_drain_core_once`` sweeps) is healed via :func:`_heal_core_orphan`.
 
 **Pass 2 — storages stuck in a transitional status** (``maintenance``/``creating``)
 whose backing task is dead. Finalize from the row's own ``qemu-img-info`` per the
@@ -314,7 +316,7 @@ async def _reconcile_orphan_deferred(redis_manager, now=None, grace_s=GRACE_S):
     return healed
 
 
-def _reap_connection():
+def _drain_connection():
     """Plain redis connection for the tombstone sweep (raw list surgery)."""
     import redis
     from isardvdi_common.connections.redis_urls import rq_url
@@ -343,7 +345,7 @@ async def _drain_core_once(redis_manager):
     succeeds, so a change-handler that outraced redis still drains. Only per-job
     errors are swallowed, so one bad job never aborts the whole sweep.
     """
-    conn = _reap_connection()
+    conn = _drain_connection()
     drained = 0
     for _ in range(_DRAIN_MAX_BATCHES):
         ids = await asyncio.to_thread(conn.lrange, _CORE_QUEUE_KEY, 0, _DRAIN_SCAN - 1)
@@ -407,7 +409,7 @@ def _metadata_finalize_orphaned(task, now, min_age_s):
     """A metadata chain whose real (storage) work all settled but whose finalize
     never applied and is older than the redelivery envelope: the result event
     was lost (worker died before publishing). Not live work — Pass 2 heals it
-    from the storage's own reality, exactly like a legacy tombstone via the reap.
+    from the storage's own reality.
     """
     finalize = task.job.meta.get("core_finalize")
     if not finalize or not _finalize_has_unstamped(finalize):
@@ -424,7 +426,22 @@ def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
     consumer will finalize it and Pass 2 must not interfere. A metadata chain
     with an orphaned finalize is pending but NOT live, so Pass 2 may heal it."""
     task_id = storage.task
-    if not task_id or not Task.exists(task_id):
+    if not task_id:
+        # A ``creating`` target (a convert destination) carries no task of its
+        # own — the producing task lives on the origin (``converted_from``). It is
+        # live until that origin task settles, so a still-running convert's
+        # half-written disk is never finalized ``ready``. With no task and no
+        # resolvable origin a ``creating`` row cannot be proven dead, so leave it
+        # to its parent op; a ``maintenance`` row with no task IS a stuck orphan.
+        origin_id = getattr(storage, "converted_from", None)
+        if origin_id:
+            try:
+                task_id = Storage(origin_id).task
+            except Exception:
+                task_id = None
+        if not task_id:
+            return getattr(storage, "status", None) == "creating"
+    if not Task.exists(task_id):
         return False
     try:
         task = Task(task_id)
@@ -632,7 +649,7 @@ async def _assert_core_empty():
     regression — surface it loudly so alerting (``ConsumerlessQueueBacklog``)
     fires off the change-handler logs. Best-effort; a transient redis hiccup is
     swallowed by the caller's except."""
-    depth = await asyncio.to_thread(_reap_connection().llen, _CORE_QUEUE_KEY)
+    depth = await asyncio.to_thread(_drain_connection().llen, _CORE_QUEUE_KEY)
     if depth:
         log.warning(
             "ConsumerlessQueueBacklog: rq:queue:core depth=%s — metadata finalize "

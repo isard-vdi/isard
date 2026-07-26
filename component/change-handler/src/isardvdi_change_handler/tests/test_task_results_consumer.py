@@ -6,6 +6,23 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from isardvdi_common.models.task import CoreStep
+from rq.job import JobStatus
+
+
+def _core_step(node_id, task_name, kwargs=None):
+    """A real metadata finalize step (the only kind the consumer dispatches)."""
+    node = {
+        "id": node_id,
+        "task": task_name,
+        "queue": "core",
+        "kwargs": kwargs or {},
+        "args": [],
+        "core_finalize": [],
+        "storage_dependents": [],
+        "status": None,
+    }
+    return CoreStep(node, SimpleNamespace(job_status=JobStatus.FINISHED), MagicMock())
 
 
 def _stub_task(
@@ -63,11 +80,7 @@ async def test_unknown_task_name_is_skipped_without_raising():
     """A core-queue dependent with no registered handler is logged-and-skipped."""
     from isardvdi_change_handler.streams import task_results_consumer
 
-    unknown_dep = _stub_task(
-        "dep-unknown",
-        task_name="storage_domains_force_update",
-        queue="core",
-    )
+    unknown_dep = _core_step("dep-unknown", "storage_domains_force_update")
     root = _stub_task("root", dependents=[unknown_dep])
     redis_manager = AsyncMock()
 
@@ -85,11 +98,14 @@ async def test_unknown_task_name_is_skipped_without_raising():
             {},
         ),
     ):
-        await task_results_consumer._process_entry(
+        ok = await task_results_consumer._process_entry(
             redis_manager,
             {"kind": "result", "task_id": "root", "task_name": "find"},
         )
-    # No assert needed — getting here without raising is the contract.
+    # No handler for the step -> treated as a clean no-op: no raise, entry ACKs,
+    # and the step is stamped so ``Task.pending`` stops counting it.
+    assert ok is True
+    assert unknown_dep._node["status"] == "finished"
 
 
 @pytest.mark.asyncio
@@ -136,134 +152,6 @@ def test_walk_core_dependents_is_depth_first():
 
     yielded = [t.id for t in _walk_core_dependents(root)]
     assert yielded == ["m", "a", "b"]
-
-
-@pytest.mark.asyncio
-async def test_failed_core_handler_does_not_release_dependents():
-    """When a core handler raises, the chain has failed — its deferred
-    storage child MUST stay deferred so the chain doesn't advance past a
-    bad state.
-    """
-    from isardvdi_change_handler.streams import task_results_consumer
-
-    storage_grandchild = _stub_task(
-        "storage-child",
-        task_name="qemu_img_info_backing_chain",
-        queue="storage.poolA.default",
-    )
-    core_dep = _stub_task(
-        "core-dep",
-        task_name="storage_update",
-        queue="core",
-        dependents=[storage_grandchild],
-    )
-    root = _stub_task("root", dependents=[core_dep])
-
-    redis_manager = AsyncMock()
-    raising = AsyncMock(side_effect=RuntimeError("boom"))
-    fake_registry = {"storage_update": (raising, True)}
-    fake_queue = MagicMock()
-    with (
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
-            new=AsyncMock(),
-        ),
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.Task",
-            return_value=root,
-        ),
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS",
-            fake_registry,
-        ),
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.Queue",
-            return_value=fake_queue,
-        ),
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.redis.from_url",
-            return_value=MagicMock(),
-        ),
-    ):
-        await task_results_consumer._process_entry(
-            redis_manager,
-            {"kind": "result", "task_id": "root", "task_name": "find"},
-        )
-
-    fake_queue.enqueue_dependents.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_core_dep_with_only_core_children_does_not_call_queue():
-    """When a core dep has only core-queue children, the consumer must not
-    spin up an RQ Queue or call enqueue_dependents. Avoids touching Redis
-    for the common case of a tail of core handlers.
-    """
-    from isardvdi_change_handler.streams import task_results_consumer
-
-    grand_core = _stub_task("grand", task_name="update_status", queue="core")
-    core_dep = _stub_task(
-        "core-dep",
-        task_name="storage_update",
-        queue="core",
-        kwargs={"id": "s1"},
-        dependents=[grand_core],
-    )
-    root = _stub_task("root", dependents=[core_dep])
-
-    redis_manager = AsyncMock()
-    fake_registry = {
-        "storage_update": (AsyncMock(), True),
-        "update_status": (AsyncMock(), True),
-    }
-    fake_queue = MagicMock()
-    with (
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
-            new=AsyncMock(),
-        ),
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.Task",
-            return_value=root,
-        ),
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS",
-            fake_registry,
-        ),
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.Queue",
-            return_value=fake_queue,
-        ),
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.redis.from_url",
-            return_value=MagicMock(),
-        ),
-    ):
-        await task_results_consumer._process_entry(
-            redis_manager,
-            {"kind": "result", "task_id": "root", "task_name": "find"},
-        )
-
-    fake_queue.enqueue_dependents.assert_not_called()
-
-
-# ---------------------------------------------------------------------------
-# At-least-once: success-only ACK + delete, PEL retry, dead-letter
-# ---------------------------------------------------------------------------
-
-
-def _patch_dispatch(root):
-    """Common patches for a _process_entry call rooted at ``root``."""
-    return (
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
-            new=AsyncMock(),
-        ),
-        patch(
-            "isardvdi_change_handler.streams.task_results_consumer.Task",
-            return_value=root,
-        ),
-    )
 
 
 @pytest.mark.asyncio
