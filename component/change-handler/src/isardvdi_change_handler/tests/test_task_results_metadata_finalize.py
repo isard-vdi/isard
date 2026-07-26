@@ -201,7 +201,9 @@ async def test_metadata_knot_enqueues_storage_child_as_fresh_task():
     assert knot["task"] == "qemu_img_info_backing_chain"
     assert knot["queue"] == "storage.pool.default"
     # deterministic id so a redelivery is a no-op (guarded by Task.exists)
-    assert knot["job_kwargs"]["id"].endswith(":sd:0")
+    assert knot["job_kwargs"]["id"].endswith("-sd-0")
+    # rq Job ids forbid ":", so the enqueued child id must be colon-free
+    assert ":" not in knot["job_kwargs"]["id"]
 
 
 @pytest.mark.asyncio
@@ -323,3 +325,44 @@ async def test_metadata_handler_raise_on_finished_chain_marks_failed_and_nacks()
     assert ok is False  # not ACKed -> redelivered
     assert root.job.meta["core_finalize"][0]["status"] == "failed"
     assert created == []  # knot not advanced on a raised handler
+
+
+@pytest.mark.asyncio
+async def test_metadata_knot_enqueue_failure_nacks_for_redelivery():
+    """A knot child that FAILS to enqueue (not a handler raise) must make
+    _process_entry return False so the entry is not ACKed and is redelivered.
+    Otherwise the storage-under-core knot strands at ``non_existing`` — which
+    the transitional reconcile does not scan — with no retry. The exists-guard
+    makes the redelivery idempotent."""
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    root = _build_metadata_root(KNOT_DEPENDENTS)
+    registry = {"storage_update": (AsyncMock(), True)}
+
+    def task_factory(*args, **kwargs):
+        if args and not kwargs:
+            return root
+        raise RuntimeError("enqueue boom")  # the knot child enqueue fails
+
+    task_mock = MagicMock(side_effect=task_factory)
+    task_mock.exists.return_value = False
+
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch("isardvdi_change_handler.streams.task_results_consumer.Task", task_mock),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS", registry
+        ),
+    ):
+        ok = await task_results_consumer._process_entry(
+            redis_manager=AsyncMock(),
+            fields={"kind": "result", "task_id": "job-1", "job_status": "finished"},
+        )
+
+    assert ok is False  # not ACKed -> redelivered so the knot retries
+    # the finalize handler ran + the step was marked before the failed enqueue,
+    # so an idempotent redelivery re-runs the handler and retries the enqueue
+    assert root.job.meta["core_finalize"][0]["status"] == "finished"

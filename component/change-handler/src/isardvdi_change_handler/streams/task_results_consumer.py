@@ -257,11 +257,18 @@ async def _enqueue_metadata_storage_dependents(step):
     on the finalize step as a fresh ``Task``. The job id is deterministic and
     guarded by an existence check, so a redelivery does not duplicate the disk op
     (the one non-idempotent effect here).
+
+    Returns ``False`` if any child failed to enqueue, so the caller leaves the
+    entry unACKed for an idempotent redelivery (the exists-guard dedups) instead
+    of silently stranding the knot — a stranded storage sits at ``non_existing``,
+    which the transitional reconcile does not scan.
     """
     children = getattr(step, "storage_dependents", []) or []
+    ok = True
     for index, child in enumerate(children):
         child = dict(child)
-        child_id = f"{step.id}:sd:{index}"
+        # rq Job ids forbid ":"; the metadata step ids carry it, so flatten to a colon-free deterministic id.
+        child_id = f"{step.id}:sd:{index}".replace(":", "-")
         job_kwargs = dict(child.get("job_kwargs") or {})
         job_kwargs["id"] = child_id
         child["job_kwargs"] = job_kwargs
@@ -270,11 +277,13 @@ async def _enqueue_metadata_storage_dependents(step):
                 continue
             await asyncio.to_thread(lambda c=child: Task(**c))
         except Exception:
+            ok = False
             log.exception(
                 "task_results: failed to enqueue metadata storage dependent %s of %s",
                 child_id,
                 getattr(step, "id", "?"),
             )
+    return ok
 
 
 async def _set_job_status(dep_task, status):
@@ -465,7 +474,8 @@ async def _process_entry(redis_manager, fields):
             # chain — and when the member is cancelled, since running its
             # children would do work for an operation the user cancelled.
             if ok and not chain_failed and not _is_canceled(dep_task):
-                await _enqueue_metadata_storage_dependents(dep_task)
+                enqueued = await _enqueue_metadata_storage_dependents(dep_task)
+                all_ok = all_ok and enqueued
 
     # Persist the finalize status marks so ``Task.pending`` stops gating the
     # storage and the reconcile self-heal can tell a done chain from a stuck
