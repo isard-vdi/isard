@@ -506,9 +506,8 @@ class Storage(RethinkCustomBase):
         queue_tiers.retier_dependents(kwargs.get("dependents"), category)
         # Fail-fast: refuse to enqueue on a lane with no live consumer (any
         # tier, scoped to the owner's category — a task nothing can drain would
-        # strand forever), so the caller can tell the user the pool is
-        # unavailable instead of the task hanging. The foreground backlog
-        # overload gate stays opt-in (shed=True).
+        # strand forever) OR an overloaded foreground lane, so the caller can
+        # tell the user the pool is unavailable/busy instead of the task hanging.
         queue_coverage.enforce_shed(Task._redis, kwargs)
         if "blocking" in kwargs:
             blocking = kwargs.pop("blocking")

@@ -346,7 +346,9 @@ def test_non_storage_queue_is_ok():
 # --- enforce_shed (the create_task gate) -----------------------------------
 
 
-def test_enforce_shed_pops_flag_and_is_noop_when_not_opted_in():
+def test_enforce_shed_pops_legacy_shed_key_on_empty_fleet():
+    # ``shed`` is a deprecated/legacy kwarg now (overload is mandatory, not
+    # opt-in); an empty fleet still fails open regardless of its value.
     r = _FakeRedis()  # no workers -> would be no_coverage_data anyway
     kwargs = {"queue": "storage.ghost.standard", "shed": False, "task": "resize"}
     qc.enforce_shed(r, kwargs)  # must not raise
@@ -377,10 +379,10 @@ def test_enforce_shed_rejects_stranded_foreground_with_429():
     )
 
 
-def test_enforce_shed_rejects_stranded_even_without_opt_in():
+def test_enforce_shed_rejects_stranded_governed_tier():
     r = _FakeRedis()
     _governed_worker(r, "w1", DEF)  # serves DEF, not ghost
-    # No shed=True: the no-consumer refusal is MANDATORY (fail-fast), so a
+    # No shed key at all: the no-consumer refusal is MANDATORY (fail-fast), so a
     # produce to a dead pool is rejected even for a governed tier.
     kwargs = {"queue": "storage.ghost.maintenance"}
     try:
@@ -402,6 +404,56 @@ def test_enforce_shed_noop_when_consumer_present_but_backed_up():
     # only the truly-stranded (no-consumer) case is refused.
     kwargs = {"queue": f"storage.{DEF}.background", "shed": True}
     qc.enforce_shed(r, kwargs)
+    assert "shed" not in kwargs
+
+
+# --- enforce_shed: the foreground overload gate is now mandatory (Task 7) --
+
+
+def test_enforce_shed_blocks_overloaded_foreground_without_flag():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
+    r.lists["rq:queue:storage.p1.interactive"] = qc.hard_cap("interactive") + 5
+    kwargs = {"queue": "storage.p1.interactive"}  # NO "shed" key
+    try:
+        qc.enforce_shed(r, kwargs)
+        raised = None
+    except Exception as exc:
+        raised = exc
+    assert raised is not None
+    assert getattr(raised, "status_code", None) == 429
+    assert getattr(raised, "error", {}).get("description_code") == (
+        "storage_overloaded_retry_later"
+    )
+
+
+def test_enforce_shed_ignores_overload_on_governed():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "bulk", "w1", time.time(), qc.COV_TTL_S)
+    r.lists["rq:queue:storage.p1.bulk"] = 10_000
+    qc.enforce_shed(r, {"queue": "storage.p1.bulk"})  # must not raise
+
+
+def test_enforce_shed_still_blocks_no_consumer():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", "p2")  # keeps the fleet visible; p1 stays stranded
+    try:
+        qc.enforce_shed(r, {"queue": "storage.p1.interactive"})
+        raised = None
+    except Exception as exc:
+        raised = exc
+    assert raised is not None
+    assert getattr(raised, "status_code", None) == 429
+    assert getattr(raised, "error", {}).get("description_code") == (
+        "storage_no_consumer_retry_later"
+    )
+
+
+def test_enforce_shed_pops_shed_kwarg():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    kwargs = {"queue": f"storage.{DEF}.interactive", "shed": True}
+    qc.enforce_shed(r, kwargs)  # healthy lane -> no raise, same as without shed
     assert "shed" not in kwargs
 
 

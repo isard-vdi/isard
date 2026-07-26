@@ -316,23 +316,14 @@ def check_shed(conn, queue):
 
 
 def enforce_shed(conn, kwargs):
-    """create_task gate with two independent rules:
-
-    * **Mandatory** — refuse to enqueue on a lane with no live consumer
-      (:func:`check_no_consumer`), for every producer and every tier, scoped to
-      the lane's own (pool, category). A task nothing can drain must not be
-      enqueued.
-    * **Opt-in** — when the caller passes ``shed=True``, additionally apply the
-      backlog-overload gate (:func:`check_shed`) for foreground lanes.
-
-    Pops the ``shed`` kwarg so it never reaches ``Task``."""
-    shed = kwargs.pop("shed", False)
+    """create_task gate: refuse to enqueue on a lane with no live consumer (any tier)
+    OR an overloaded foreground lane (per-lane, automatic). Governed lanes over backlog
+    accumulate and are never refused. Call BEFORE any state mutation."""
+    kwargs.pop("shed", None)  # deprecated: overload shed is now mandatory, not opt-in
     queue = kwargs.get("queue")
     if not queue:
         return
-    check_no_consumer(conn, queue)
-    if shed:
-        check_shed(conn, queue)
+    check_shed(conn, queue)
 
 
 # Live per-(pool, tier) coverage index a governed worker heartbeats into;
