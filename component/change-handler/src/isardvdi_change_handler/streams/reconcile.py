@@ -337,21 +337,16 @@ async def _drain_core_once(redis_manager):
     Upgrades run on a stable, no-in-flight system, so nothing races this drain —
     hence no age gate. A non-empty ``core`` here is a migration remnant (or, once
     migrated, a regression) and is logged loudly.
+
+    Redis connectivity failures PROPAGATE (the ``lrange`` is unguarded): the
+    caller runs this once behind a flag and retries on the next tick until it
+    succeeds, so a change-handler that outraced redis still drains. Only per-job
+    errors are swallowed, so one bad job never aborts the whole sweep.
     """
-    try:
-        conn = _reap_connection()
-    except Exception:
-        log.exception("reconcile: core drain could not connect")
-        return 0
+    conn = _reap_connection()
     drained = 0
     for _ in range(_DRAIN_MAX_BATCHES):
-        try:
-            ids = await asyncio.to_thread(
-                conn.lrange, _CORE_QUEUE_KEY, 0, _DRAIN_SCAN - 1
-            )
-        except Exception:
-            log.exception("reconcile: could not scan the core queue")
-            break
+        ids = await asyncio.to_thread(conn.lrange, _CORE_QUEUE_KEY, 0, _DRAIN_SCAN - 1)
         if not ids:
             break
         progressed = 0
@@ -614,19 +609,37 @@ async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
     log.warning(
         "reconcile: self-heal starting (every %ss, grace %ss)", interval_s, grace_s
     )
-    # One-shot on startup: clear any residual legacy ``core`` tombstones left by
-    # a system upgraded FROM rq-dependent finalize. Post-migration the queue
-    # stays empty (metadata finalize never enqueues on ``core``), so this is a
-    # no-op on every later boot.
-    try:
-        await _drain_core_once(redis_manager)
-    except Exception:
-        log.exception("reconcile: core drain raised")
+    # Clear any residual legacy ``core`` tombstones left by a system upgraded FROM
+    # rq-dependent finalize. Runs ONCE, but only once it actually succeeds: gated
+    # by ``drained`` so a redis-connectivity failure (change-handler outran redis)
+    # re-tries on the next tick. ``depends_on: isard-redis (service_healthy)``
+    # normally makes it succeed on the first pass. Post-migration the queue stays
+    # empty, so it is a no-op on every later boot.
+    drained = False
     while True:
         try:
+            if not drained:
+                await _drain_core_once(redis_manager)
+                drained = True
             await _reconcile_orphan_deferred(redis_manager, grace_s=grace_s)
             await _reconcile_stuck_storage(redis_manager)
             await _reconcile_stuck_domains(redis_manager)
+            await _assert_core_empty()
         except Exception:
             log.exception("reconcile: pass raised")
         await asyncio.sleep(interval_s)
+
+
+async def _assert_core_empty():
+    """Tripwire: metadata finalize never enqueues on ``core``, so post-migration
+    the queue must stay empty. If the "impossible" ever happens it is a real
+    regression — surface it loudly so alerting (``ConsumerlessQueueBacklog``)
+    fires off the change-handler logs. Best-effort; a transient redis hiccup is
+    swallowed by the caller's except."""
+    depth = await asyncio.to_thread(_reap_connection().llen, _CORE_QUEUE_KEY)
+    if depth:
+        log.warning(
+            "ConsumerlessQueueBacklog: rq:queue:core depth=%s — metadata finalize "
+            "must never enqueue on core; this is a regression",
+            depth,
+        )

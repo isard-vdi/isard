@@ -8,7 +8,10 @@ services:
         max-size: "100m"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     depends_on:
-      - isard-changefeed
+      isard-changefeed:
+        condition: service_started
+      isard-redis:
+        condition: service_healthy
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.34
