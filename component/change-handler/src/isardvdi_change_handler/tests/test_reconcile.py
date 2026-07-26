@@ -446,10 +446,14 @@ async def test_pass3_leaves_domain_whose_storage_still_in_maintenance():
 
 
 @pytest.mark.asyncio
-async def test_run_invokes_both_passes_then_sleeps():
+async def test_run_drains_once_then_invokes_passes_then_sleeps():
     from isardvdi_change_handler.streams import reconcile
 
-    calls = {"orphan": 0, "stuck": 0, "domains": 0}
+    calls = {"drain": 0, "orphan": 0, "stuck": 0, "domains": 0}
+
+    async def _fake_drain(rm, *a, **k):
+        calls["drain"] += 1
+        return 0
 
     async def _fake_orphan(rm, *a, **k):
         calls["orphan"] += 1
@@ -470,14 +474,17 @@ async def test_run_invokes_both_passes_then_sleeps():
         raise _Stop()
 
     with (
+        patch.object(reconcile, "_drain_core_once", new=_fake_drain),
         patch.object(reconcile, "_reconcile_orphan_deferred", new=_fake_orphan),
         patch.object(reconcile, "_reconcile_stuck_storage", new=_fake_stuck),
         patch.object(reconcile, "_reconcile_stuck_domains", new=_fake_domains),
+        patch.object(reconcile, "_assert_core_empty", new=AsyncMock()),
         patch.object(reconcile.asyncio, "sleep", new=_sleep_then_stop),
     ):
         with pytest.raises(_Stop):
             await reconcile.run(AsyncMock(), interval_s=1)
 
+    assert calls["drain"] == 1
     assert calls["orphan"] == 1
     assert calls["stuck"] == 1
     assert calls["domains"] == 1
