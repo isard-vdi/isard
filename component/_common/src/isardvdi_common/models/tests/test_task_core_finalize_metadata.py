@@ -96,21 +96,12 @@ def _build(dependents, mode, **extra):
 
 
 # --------------------------------------------------------------------------- #
-# Producer: legacy vs metadata
+# Producer: core finalize is always metadata
 # --------------------------------------------------------------------------- #
 
 
-def test_legacy_mode_materialises_core_dependents_as_rq_jobs():
-    """Flag off: the two core steps are still real rq jobs (3 jobs total), and
-    nothing lands in ``core_finalize``. Unchanged behaviour."""
-    task, jobs = _build(FIND_DEPENDENTS, mode="legacy")
-    assert len(jobs) == 3  # root + storage_update_pool + storage_update_parent
-    assert task.job.meta.get("core_finalize") in (None, [])
-    assert task.job.meta.get("dependent_ids")  # the core dep is an rq job id
-
-
 def test_metadata_mode_stores_core_finalize_and_creates_no_core_jobs():
-    """Flag on: only the root job is created; the core finalize tree lives in
+    """Only the root job is created; the core finalize tree lives in
     ``meta["core_finalize"]`` and nothing is enqueued on ``core``."""
     task, jobs = _build(FIND_DEPENDENTS, mode="metadata")
     assert len(jobs) == 1  # ONLY the root storage job

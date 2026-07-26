@@ -422,12 +422,10 @@ async def _process_entry(redis_manager, fields):
     dependents = await asyncio.to_thread(
         lambda: list(_walk_core_dependents(task, include_canceled_storage=canceled))
     )
-    # A metadata-mode chain carries finalize as meta; ``_walk_core_dependents``
-    # yields those as CoreStep views, so the walk and dispatch are identical and
-    # only the side effects differ: a CoreStep is stamped via ``mark`` (not
+    # Finalize is always carried as ``meta["core_finalize"]``; ``_walk_core_dependents``
+    # yields those as CoreStep views. A CoreStep is stamped via ``mark`` (not
     # ``Job.set_status``), its knot children are enqueued fresh, and it has no rq
-    # job to drop. A chain is all-metadata or all-legacy.
-    metadata_mode = bool(task.job.meta.get("core_finalize"))
+    # job to drop.
     all_ok = True
     # ``dedup_status_emits`` collapses repeated identical ``(storage_id,
     # status)`` socket fan-outs within this one dispatch pass (a chain often
@@ -437,6 +435,11 @@ async def _process_entry(redis_manager, fields):
     # socket is non-idempotent, and this scope removes the intra-pass repeats.
     with dedup_status_emits():
         for dep_task in dependents:
+            # Finalize is always metadata. A non-CoreStep here can only be a
+            # pre-upgrade legacy rq ``core`` job replayed during migration — the
+            # startup drain heals those, so skip rather than mishandle it.
+            if not isinstance(dep_task, CoreStep):
+                continue
             ok = await _run_handler(redis_manager, dep_task)
             all_ok = all_ok and ok
             # Propagate the outcome onto this dep before the next sibling/child
@@ -451,71 +454,30 @@ async def _process_entry(redis_manager, fields):
                 step_status = JobStatus.FAILED
             else:
                 step_status = JobStatus.FINISHED if ok else JobStatus.FAILED
-            if isinstance(dep_task, CoreStep):
-                # Metadata step: stamp the shared meta node in place. A nested
-                # child's ``depending_status`` reads this parent, so the mark
-                # must land before the child runs (the walk yields parent first).
-                dep_task.mark(step_status == JobStatus.FINISHED)
-            else:
-                await _set_job_status(dep_task, step_status)
+            # Metadata step: stamp the shared meta node in place. A nested
+            # child's ``depending_status`` reads this parent, so the mark
+            # must land before the child runs (the walk yields parent first).
+            dep_task.mark(step_status == JobStatus.FINISHED)
             # Advance this dep's storage children so the worker picks them up.
             # Skipped when the handler failed — failure must NOT advance the
             # chain — and when the member is cancelled, since running its
             # children would do work for an operation the user cancelled.
             if ok and not chain_failed and not _is_canceled(dep_task):
-                if isinstance(dep_task, CoreStep):
-                    await _enqueue_metadata_storage_dependents(dep_task)
-                else:
-                    await _release_storage_dependents(dep_task)
+                await _enqueue_metadata_storage_dependents(dep_task)
 
     # Persist the finalize status marks so ``Task.pending`` stops gating the
     # storage and the reconcile self-heal can tell a done chain from a stuck
     # one. Best-effort: a redelivery re-runs the idempotent handlers and
-    # re-stamps. Only meaningful in metadata mode (no rq statuses to persist).
-    if metadata_mode:
-        try:
-            await asyncio.to_thread(task.job.save_meta)
-        except Exception:
-            log.exception(
-                "task_results: failed to persist core_finalize marks for %s",
-                task_id,
-            )
-
-    # MR-3 of the core_worker retirement: core_worker is gone, so the
-    # ``core`` queue has no consumer. RQ would otherwise move each
-    # dependent Job from DEFERRED to QUEUED when its storage parent
-    # completes, and the Job would sit on the queue forever. Now that
-    # change-handler is the sole executor, drop the Job objects after
-    # the in-process handlers have run. Done after the dispatch loop
-    # (not inline) so the recursive ``Task.dependents`` walk still
-    # finds nested dependents via each parent's ``meta["dependent_ids"]``.
-    #
-    # ONLY drop them when the whole entry succeeded. On a partial failure
-    # the Jobs are kept so a later ``XAUTOCLAIM`` redelivery can re-walk
-    # the chain and re-run the failed handler (every handler is an
-    # idempotent upsert, so re-running the ones that already succeeded is
-    # safe). Deleting them here would make the redelivery a no-op and
-    # leave the chain wedged.
-    #
-    # On the cancelled path only the CANCELLED members are dropped: a member
-    # that is FINISHED belongs to an earlier entry's lifecycle and may still
-    # be the replay state that entry needs if it is redelivered.
-    if all_ok:
-        for dep_task in dependents:
-            # A metadata finalize step is not an rq job — nothing to drop. Its
-            # ``status`` mark (persisted above) is what retires it; leaving the
-            # node in meta is the forensic record of what ran.
-            if isinstance(dep_task, CoreStep):
-                continue
-            if canceled and not _is_canceled(dep_task):
-                continue
-            try:
-                await asyncio.to_thread(dep_task.job.delete)
-            except Exception:
-                log.exception(
-                    "task_results: failed to drop RQ Job %s after dispatch",
-                    dep_task.id,
-                )
+    # re-stamps. Metadata finalize steps are not rq jobs, so there is nothing to
+    # drop from a queue — the persisted ``status`` mark is what retires each step
+    # and leaving the node in meta is the forensic record of what ran.
+    try:
+        await asyncio.to_thread(task.job.save_meta)
+    except Exception:
+        log.exception(
+            "task_results: failed to persist core_finalize marks for %s",
+            task_id,
+        )
     return all_ok
 
 

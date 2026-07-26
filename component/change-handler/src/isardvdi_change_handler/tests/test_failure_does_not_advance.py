@@ -14,7 +14,26 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from isardvdi_common.models.task import CoreStep
 from rq.job import JobStatus
+
+
+def _core_step(
+    node_id, task_name="storage_update", kwargs=None, storage_dependents=None
+):
+    """A real metadata finalize step (the only kind the consumer dispatches).
+    Its parent is terminal so the step is QUEUED (dispatchable)."""
+    node = {
+        "id": node_id,
+        "task": task_name,
+        "queue": "core",
+        "kwargs": kwargs or {},
+        "args": [],
+        "core_finalize": [],
+        "storage_dependents": storage_dependents or [],
+        "status": None,
+    }
+    return CoreStep(node, SimpleNamespace(job_status=JobStatus.FINISHED), MagicMock())
 
 
 def _stub(
@@ -67,7 +86,7 @@ class TestFailedChainDoesNotAdvance:
         parent never wrote."""
         from isardvdi_change_handler.streams import task_results_consumer
 
-        dep = _stub("dep")
+        dep = _core_step("dep")
         root = _stub(
             "root",
             task_name="create",
@@ -77,15 +96,15 @@ class TestFailedChainDoesNotAdvance:
         e, t, h, st = _patches(root, {"storage_update": (AsyncMock(), True)})
 
         with e, t, h, st, patch(
-            "isardvdi_change_handler.streams.task_results_consumer._release_storage_dependents",
+            "isardvdi_change_handler.streams.task_results_consumer._enqueue_metadata_storage_dependents",
             new=AsyncMock(),
-        ) as release:
+        ) as enqueue:
             await task_results_consumer._process_entry(
                 AsyncMock(),
                 {"kind": "result", "task_id": "root", "job_status": "failed"},
             )
 
-        release.assert_not_awaited()
+        enqueue.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_a_no_op_step_is_not_marked_finished(self):
@@ -93,24 +112,17 @@ class TestFailedChainDoesNotAdvance:
         ``depending_status == "finished"`` and run its success body."""
         from isardvdi_change_handler.streams import task_results_consumer
 
-        dep = _stub("dep")
+        dep = _core_step("dep")
         root = _stub(
             "root",
             task_name="create",
             queue="storage.pool.interactive",
             dependents=[dep],
         )
-        written = []
         e, t, h, st = _patches(root, {"storage_update": (AsyncMock(), True)})
 
-        async def _record(task, status):
-            written.append((task.id, status))
-
         with e, t, h, st, patch(
-            "isardvdi_change_handler.streams.task_results_consumer._set_job_status",
-            new=_record,
-        ), patch(
-            "isardvdi_change_handler.streams.task_results_consumer._release_storage_dependents",
+            "isardvdi_change_handler.streams.task_results_consumer._enqueue_metadata_storage_dependents",
             new=AsyncMock(),
         ):
             await task_results_consumer._process_entry(
@@ -118,8 +130,7 @@ class TestFailedChainDoesNotAdvance:
                 {"kind": "result", "task_id": "root", "job_status": "failed"},
             )
 
-        assert ("dep", JobStatus.FAILED) in written
-        assert ("dep", JobStatus.FINISHED) not in written
+        assert dep._node["status"] == "failed"
 
 
 class TestSuccessfulChainStillAdvances:
@@ -127,34 +138,26 @@ class TestSuccessfulChainStillAdvances:
     async def test_release_and_finished_still_happen(self):
         from isardvdi_change_handler.streams import task_results_consumer
 
-        dep = _stub("dep")
-        dep.depending_status = "finished"
+        dep = _core_step("dep")
         root = _stub(
             "root",
             task_name="create",
             queue="storage.pool.interactive",
             dependents=[dep],
         )
-        written = []
         e, t, h, st = _patches(root, {"storage_update": (AsyncMock(), True)})
 
-        async def _record(task, status):
-            written.append((task.id, status))
-
         with e, t, h, st, patch(
-            "isardvdi_change_handler.streams.task_results_consumer._set_job_status",
-            new=_record,
-        ), patch(
-            "isardvdi_change_handler.streams.task_results_consumer._release_storage_dependents",
+            "isardvdi_change_handler.streams.task_results_consumer._enqueue_metadata_storage_dependents",
             new=AsyncMock(),
-        ) as release:
+        ) as enqueue:
             await task_results_consumer._process_entry(
                 AsyncMock(),
                 {"kind": "result", "task_id": "root", "job_status": "finished"},
             )
 
-        assert ("dep", JobStatus.FINISHED) in written
-        release.assert_awaited_once()
+        assert dep._node["status"] == "finished"
+        enqueue.assert_awaited_once()
 
 
 class TestSettledStepsAreAgeable:

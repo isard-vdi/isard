@@ -251,14 +251,6 @@ def _await_result_stream_admission(connection, queue):
         waited += 1.0
 
 
-def finalize_as_metadata():
-    """True when new chains carry ``core`` finalize as ``meta["core_finalize"]``
-    instead of rq jobs on the consumerless ``core`` queue — so rq never promotes
-    a tombstone there. Read at call time (flippable per process); off by default
-    keeps the legacy rq-dependent behaviour, the consumer reads both."""
-    return os.environ.get("CORE_FINALIZE_MODE", "legacy") == "metadata"
-
-
 def _serialize_finalize(dep, parent_id, index, user_id, category_id):
     """One ``core`` dependent (and its subtree) as a finalize metadata node.
 
@@ -517,16 +509,13 @@ class Task(RedisBase):
                 self.job.retry_intervals = retry.intervals
 
             self.job.save()
-            metadata_finalize = finalize_as_metadata()
             for dependent in kwargs.get("dependents", []):
                 dependent.setdefault("user_id", kwargs.get("user_id"))
                 dependent.setdefault("category_id", kwargs.get("category_id"))
-                # A ``core`` finalize dependent becomes metadata, not a rq job on
-                # the consumerless ``core`` queue; storage dependents keep the rq
+                # A ``core`` finalize dependent is ALWAYS metadata, never a rq job
+                # on the consumerless ``core`` queue; storage dependents keep the rq
                 # path. The change-handler runs it off ``meta["core_finalize"]``.
-                if metadata_finalize and str(dependent.get("queue", "")).startswith(
-                    "core"
-                ):
+                if str(dependent.get("queue", "")).startswith("core"):
                     finalize = self.job.meta.setdefault("core_finalize", [])
                     finalize.append(
                         _serialize_finalize(
@@ -654,10 +643,11 @@ class Task(RedisBase):
         """
         List of tasks that should be done after this Task.
 
-        Storage dependents are real rq jobs (``meta["dependent_ids"]``); ``core``
-        finalize steps built in metadata mode are :class:`CoreStep` views over
-        ``meta["core_finalize"]``. A chain is built in one mode, so the lists
-        never overlap; returning both keeps the callers bimodal unchanged.
+        Storage dependents are real rq jobs (``meta["dependent_ids"]``, e.g.
+        ``qemu_img_info_backing_chain``); ``core`` finalize steps are
+        :class:`CoreStep` views over ``meta["core_finalize"]`` — never rq jobs on
+        the consumerless ``core`` queue. The two coexist in a chain and never
+        overlap; returning both is the full dependent set.
 
         :return: Tasks that depends of this Task
         :rtype: list

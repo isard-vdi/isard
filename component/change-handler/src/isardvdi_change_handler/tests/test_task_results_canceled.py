@@ -16,7 +16,23 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from isardvdi_common.models.task import CoreStep
 from rq.job import JobStatus
+
+
+def _core_step(node_id, task_name="storage_update", kwargs=None):
+    """A real metadata finalize step (the only kind the consumer dispatches)."""
+    node = {
+        "id": node_id,
+        "task": task_name,
+        "queue": "core",
+        "kwargs": kwargs or {},
+        "args": [],
+        "core_finalize": [],
+        "storage_dependents": [],
+        "status": None,
+    }
+    return CoreStep(node, SimpleNamespace(job_status=JobStatus.CANCELED), MagicMock())
 
 
 def _stub_task(
@@ -66,7 +82,7 @@ async def test_canceled_kind_runs_core_finalizers():
     ``maintenance`` without waiting for a reconcile tick."""
     from isardvdi_change_handler.streams import task_results_consumer
 
-    dep = _stub_task("dep", task_name="update_status", kwargs={"id": "s1"})
+    dep = _core_step("dep", task_name="update_status", kwargs={"id": "s1"})
     root = _stub_task(
         "root", task_name="delete", queue="storage.pool.reclaim", dependents=[dep]
     )
@@ -128,39 +144,6 @@ async def test_non_canceled_member_status_is_still_written():
     await task_results_consumer._set_job_status(dep, JobStatus.FINISHED)
 
     dep.job.set_status.assert_called_once_with(JobStatus.FINISHED)
-
-
-@pytest.mark.asyncio
-async def test_canceled_chain_deletes_only_canceled_core_jobs():
-    """Cancelled core members are dropped, but a FINISHED core member is left
-    alone — it may still be the replay state of an earlier pending entry."""
-    from isardvdi_change_handler.streams import task_results_consumer
-
-    canceled_dep = _stub_task(
-        "dep-canceled", task_name="update_status", job_status=JobStatus.CANCELED
-    )
-    finished_dep = _stub_task(
-        "dep-finished", task_name="storage_update", job_status=JobStatus.FINISHED
-    )
-    root = _stub_task(
-        "root",
-        task_name="delete",
-        queue="storage.pool.reclaim",
-        dependents=[canceled_dep, finished_dep],
-    )
-    emit_p, task_p, handlers_p = _patch_dispatch(
-        root,
-        {"update_status": (AsyncMock(), True), "storage_update": (AsyncMock(), True)},
-    )
-
-    with emit_p, task_p, handlers_p:
-        await task_results_consumer._process_entry(
-            AsyncMock(),
-            {"kind": "canceled", "task_id": "root", "job_status": "canceled"},
-        )
-
-    canceled_dep.job.delete.assert_called_once()
-    finished_dep.job.delete.assert_not_called()
 
 
 @pytest.mark.asyncio

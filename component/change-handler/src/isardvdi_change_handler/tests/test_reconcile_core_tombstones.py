@@ -183,17 +183,18 @@ class TestCoreTombstoneReap:
 
     def _redis(self, ids):
         conn = MagicMock()
-        conn.lrange.return_value = list(ids)
+        # The startup drain scans until the queue is empty; yield the ids once,
+        # then an empty queue (mirrors the drain removing them via ``lrem``).
+        conn.lrange.side_effect = [list(ids), []]
         return conn
 
     @pytest.mark.asyncio
-    async def test_settled_and_aged_tombstone_is_healed(self):
+    async def test_tombstone_is_healed_and_removed_by_drain(self):
         from isardvdi_change_handler.streams import reconcile
 
         conn = self._redis([b"ghost"])
         ghost = _task("ghost", dependencies=[_dep(JobStatus.CANCELED, 6000)])
         ghost.job.get_status.return_value = JobStatus.QUEUED
-        ghost.job.enqueued_at = datetime.now(timezone.utc) - timedelta(seconds=6000)
 
         with (
             patch.object(reconcile, "_reap_connection", return_value=conn),
@@ -203,43 +204,21 @@ class TestCoreTombstoneReap:
                 reconcile, "_heal_core_orphan", new=AsyncMock(return_value=1)
             ) as heal,
         ):
-            reaped = await reconcile._reap_core_tombstones(AsyncMock())
+            drained = await reconcile._drain_core_once(AsyncMock())
 
-        assert reaped == 1
+        assert drained == 1
         heal.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_young_tombstone_is_left_alone(self):
-        """Inside the redelivery envelope a QUEUED core job may still be the
-        replay state of an entry the consumer is retrying."""
-        from isardvdi_change_handler.streams import reconcile
-
-        conn = self._redis([b"fresh"])
-        fresh = _task("fresh", dependencies=[_dep(JobStatus.CANCELED, 30)])
-        fresh.job.get_status.return_value = JobStatus.QUEUED
-        fresh.job.enqueued_at = datetime.now(timezone.utc) - timedelta(seconds=30)
-
-        with (
-            patch.object(reconcile, "_reap_connection", return_value=conn),
-            patch.object(reconcile.Task, "exists", return_value=True),
-            patch.object(reconcile, "Task", side_effect=lambda _id: fresh),
-            patch.object(
-                reconcile, "_heal_core_orphan", new=AsyncMock(return_value=1)
-            ) as heal,
-        ):
-            reaped = await reconcile._reap_core_tombstones(AsyncMock())
-
-        assert reaped == 0
-        heal.assert_not_awaited()
+        conn.lrem.assert_called()
 
     @pytest.mark.asyncio
     async def test_tombstone_with_a_live_dependency_is_left_alone(self):
+        """The drain never heals a chain whose upstream is not yet settled — a
+        quiesced upgrade never hits this, but the gate keeps it safe if it does."""
         from isardvdi_change_handler.streams import reconcile
 
         conn = self._redis([b"busy"])
         busy = _task("busy", dependencies=[_dep(JobStatus.STARTED, None)])
         busy.job.get_status.return_value = JobStatus.QUEUED
-        busy.job.enqueued_at = datetime.now(timezone.utc) - timedelta(seconds=6000)
 
         with (
             patch.object(reconcile, "_reap_connection", return_value=conn),
@@ -249,9 +228,9 @@ class TestCoreTombstoneReap:
                 reconcile, "_heal_core_orphan", new=AsyncMock(return_value=1)
             ) as heal,
         ):
-            reaped = await reconcile._reap_core_tombstones(AsyncMock())
+            drained = await reconcile._drain_core_once(AsyncMock())
 
-        assert reaped == 0
+        assert drained == 0
         heal.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -269,11 +248,11 @@ class TestCoreTombstoneReap:
                 reconcile, "_heal_core_orphan", new=AsyncMock(return_value=1)
             ) as heal,
         ):
-            reaped = await reconcile._reap_core_tombstones(AsyncMock())
+            drained = await reconcile._drain_core_once(AsyncMock())
 
         conn.lrem.assert_called_once()
         heal.assert_not_awaited()
-        assert reaped == 1
+        assert drained == 1
 
 
 class TestReleaseNeedsProvenSuccess:
