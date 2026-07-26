@@ -69,6 +69,8 @@ class _FakeRedis:
         self.hashes = {}
         self.lists = {}  # lane -> queued count
         self.strings = {}
+        self.zsets = {}
+        self.ttls = {}
         self.fail = False
 
     def _boom(self):
@@ -107,7 +109,25 @@ class _FakeRedis:
 
     def expire(self, key, ttl):
         self._boom()
+        self.ttls[key] = ttl
         return True
+
+    def ttl(self, key):
+        self._boom()
+        return self.ttls.get(key, -2)
+
+    def zadd(self, key, mapping):
+        self._boom()
+        self.zsets.setdefault(key, {}).update(mapping)
+        return len(mapping)
+
+    def zscore(self, key, member):
+        self._boom()
+        return self.zsets.get(key, {}).get(member)
+
+    def zrem(self, key, member):
+        self._boom()
+        return 1 if self.zsets.get(key, {}).pop(member, None) is not None else 0
 
     def mget(self, keys):
         self._boom()
@@ -410,6 +430,23 @@ def test_shed_storm_accumulates_across_pools_and_tiers():
     assert doc["total"] == 6
     assert doc["recent"] == 6
     assert doc["by_tier"] == {"interactive": 2, "standard": 2, "bulk": 2}
+
+
+# --- coverage-index publish primitive ---------------------------------------
+
+
+def test_publish_lane_adds_member_and_ttl():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", 100.0, 15)
+    assert r.zscore(qc.cov_key("p1", "interactive"), "w1") == 100.0
+    assert 0 < r.ttl(qc.cov_key("p1", "interactive")) <= 15
+
+
+def test_unpublish_worker_removes_member():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", 100.0, 15)
+    qc.unpublish_worker(r, "p1", "interactive", "w1")
+    assert r.zscore(qc.cov_key("p1", "interactive"), "w1") is None
 
 
 def test_counter_failure_never_swallows_the_429():

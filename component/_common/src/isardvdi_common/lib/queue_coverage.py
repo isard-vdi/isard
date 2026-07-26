@@ -51,6 +51,7 @@ _RQ_WORKER_PREFIX = "rq:worker:"
 # fire. Prefix it, matching ``Queue(name).count``.
 _RQ_QUEUE_PREFIX = "rq:queue:"
 _GOVERNOR_WORKER_PREFIX = "governor:worker:"
+_COV_PREFIX = "governor:cov:"
 
 # Interactive tiers: a user (or a system action on their behalf) is actively
 # waiting, so these — and only these — may be rejected with a "retry later".
@@ -321,3 +322,26 @@ def enforce_shed(conn, kwargs):
     check_no_consumer(conn, queue)
     if shed:
         check_shed(conn, queue)
+
+
+# Live per-(pool, tier) coverage index a governed worker heartbeats into;
+# TTL-bounded so a dead worker drops out on its own, without an unpublish.
+COV_TTL_S = _env_int("STORAGE_COV_TTL_S", 15)
+COV_HEARTBEAT_S = _env_int("STORAGE_COV_HEARTBEAT_S", 5)
+
+
+def cov_key(pool, tier):
+    """Redis key for the live (pool, tier) coverage zset."""
+    return f"{_COV_PREFIX}{pool}:{tier}"
+
+
+def publish_lane(conn, pool, tier, worker, now, ttl):
+    """Heartbeat this worker's membership in the lane's coverage zset."""
+    key = cov_key(pool, tier)
+    conn.zadd(key, {worker: now})
+    conn.expire(key, ttl)
+
+
+def unpublish_worker(conn, pool, tier, worker):
+    """Drop this worker from the lane's coverage zset on shutdown."""
+    conn.zrem(cov_key(pool, tier), worker)
