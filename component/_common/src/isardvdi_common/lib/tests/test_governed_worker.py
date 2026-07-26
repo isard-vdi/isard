@@ -12,10 +12,12 @@ never resumed when it cleared.
 
 import fnmatch
 import json
+import time
 
 import pytest
 from isardvdi_common.lib import governed_worker as gw
 from isardvdi_common.lib import governor_counters as gcnt
+from isardvdi_common.lib import queue_coverage as qc
 from rq.exceptions import DequeueTimeout
 
 # --- is_heavy_queue: pure name predicate (heavy tiers only) ------------------
@@ -142,6 +144,12 @@ class _FakeRedis:
     def zadd(self, key, mapping):
         self._zsets.setdefault(key, {}).update(mapping)
         return len(mapping)
+
+    def zscore(self, key, member):
+        return self._zsets.get(key, {}).get(member)
+
+    def zrem(self, key, member):
+        return 1 if self._zsets.get(key, {}).pop(member, None) is not None else 0
 
     def zrange(self, key, start, end):
         members = [
@@ -2139,3 +2147,49 @@ def test_floor_worker_never_counts_a_defer(tmp_path):
     w._floor = True  # the ungoverned bg-floor never defers, so nothing to count
     assert w._defer_background() is False
     assert gcnt.read_defer(r)["total"] == 0
+
+
+# --- live coverage heartbeat (Task 4): _served_lanes / _coverage_beat / stop --
+#
+# Decoupled from the dequeue poll -- these hit _coverage_beat/_served_lanes/
+# _stop_coverage_heartbeat directly, never the live thread's timing (flaky).
+
+
+def test_served_lanes_dedupes_and_drops_non_storage():
+    r = _FakeRedis()
+    w = _worker(r)
+    w._ordered_queues = _ordered(
+        [
+            "storage.p1.interactive",
+            "storage.p1.standard",
+            "storage.p1.interactive",  # duplicate -> deduped
+            "notifier.default",  # non-storage -> dropped
+        ]
+    )
+    assert w._served_lanes() == [("p1", "interactive"), ("p1", "standard")]
+
+
+def test_coverage_beat_publishes_all_served_lanes():
+    r = _FakeRedis()
+    w = _worker(r)
+    w.name = "w-cov"
+    w._ordered_queues = _ordered(["storage.p1.interactive", "storage.p1.standard"])
+    before = time.time()
+    w._coverage_beat()
+    for tier in ("interactive", "standard"):
+        key = qc.cov_key("p1", tier)
+        score = r.zscore(key, "w-cov")
+        assert score is not None
+        assert score >= before
+        assert r._expires[key] <= qc.COV_TTL_S
+
+
+def test_stop_unpublishes_all_lanes():
+    r = _FakeRedis()
+    w = _worker(r)
+    w.name = "w-cov"
+    w._ordered_queues = _ordered(["storage.p1.interactive", "storage.p1.standard"])
+    w._coverage_beat()
+    w._stop_coverage_heartbeat()
+    for tier in ("interactive", "standard"):
+        assert r.zscore(qc.cov_key("p1", tier), "w-cov") is None

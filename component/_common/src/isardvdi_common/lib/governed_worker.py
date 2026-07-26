@@ -53,9 +53,11 @@ it needs no fork handling because the Redis client is already RQ-fork-safe.
 
 import json
 import os
+import threading
 import time
 
 from isardvdi_common.lib import governor_counters
+from isardvdi_common.lib import queue_coverage as qcov
 from isardvdi_common.lib import resource_governor as rg
 from isardvdi_common.lib.queue_tiers import (
     _FAIR_TIERS,
@@ -358,6 +360,10 @@ class GovernedWorker(Worker):
         self._last_job_action = None
         # Last poll's background-deferral state, so only the rising edge is counted.
         self._deferring = False
+        # Dedicated live coverage heartbeat (Task 4): started/stopped around the
+        # work lifecycle, see _start_coverage_heartbeat/_stop_coverage_heartbeat.
+        self._cov_thread = None
+        self._cov_stop = None
         # Fair-scheduling scaffolding derived once from the static base queue set:
         # the (pool, tier) pairs whose per-category sub-queues we discover, and a
         # name->Queue cache so we don't rebuild Queue objects every poll.
@@ -1188,3 +1194,87 @@ class GovernedWorker(Worker):
                     self._release_fair(job.id, pool, category, is_heavy)
                 elif reserved[0] == "heavy":
                     self._release_heavy(job.id)
+
+    # --- live coverage heartbeat (Task 4) -----------------------------------
+    # Dedicated thread, deliberately decoupled from the dequeue poll: a worker
+    # blocked on an empty queue never reaches _publish_status, so on its own it
+    # would age out of the live coverage index (TTL) while still perfectly
+    # alive. This thread refreshes coverage on its own clock regardless of what
+    # the dequeue loop is doing.
+    def _served_lanes(self):
+        """Distinct ``(pool, tier)`` pairs from this worker's subscribed
+        queues, in first-seen order (category dropped: coverage is tracked per
+        (pool, tier), not per-category)."""
+        seen = set()
+        lanes = []
+        for q in self._ordered_queues or []:
+            parsed = parse_storage_queue(q.name)
+            if not parsed:
+                continue
+            pair = (parsed[0], parsed[2])
+            if pair not in seen:
+                seen.add(pair)
+                lanes.append(pair)
+        return lanes
+
+    def _coverage_beat(self):
+        """One heartbeat pass over every served lane. Per-lane best-effort: a
+        Redis error on one lane must not skip the rest, or crash the worker."""
+        now = time.time()
+        for pool, tier in self._served_lanes():
+            try:
+                qcov.publish_lane(
+                    self.connection, pool, tier, self.name, now, qcov.COV_TTL_S
+                )
+            except Exception:
+                continue
+
+    def _start_coverage_heartbeat(self):
+        """Start the heartbeat thread, no-op if one is already running."""
+        if (
+            getattr(self, "_cov_thread", None) is not None
+            and self._cov_thread.is_alive()
+        ):
+            return
+        self._cov_stop = threading.Event()
+
+        def _loop():
+            while not self._cov_stop.is_set():
+                try:
+                    self._coverage_beat()
+                except Exception:
+                    pass  # a beat error must never kill this thread
+                self._cov_stop.wait(qcov.COV_HEARTBEAT_S)
+
+        self._cov_thread = threading.Thread(
+            target=_loop, name="coverage-heartbeat", daemon=True
+        )
+        self._cov_thread.start()
+
+    def _stop_coverage_heartbeat(self):
+        """Stop the heartbeat thread and unpublish right away, so a clean
+        shutdown drops this worker's coverage immediately instead of waiting
+        on the TTL."""
+        stop_event = getattr(self, "_cov_stop", None)
+        if stop_event is not None:
+            stop_event.set()
+        thread = getattr(self, "_cov_thread", None)
+        if thread is not None:
+            thread.join(timeout=1)
+        for pool, tier in self._served_lanes():
+            try:
+                qcov.unpublish_worker(self.connection, pool, tier, self.name)
+            except Exception:
+                continue
+
+    # --- lifecycle wiring: start at birth, stop at death --------------------
+    def bootstrap(self, *args, **kwargs):
+        super().bootstrap(*args, **kwargs)
+        self._start_coverage_heartbeat()
+
+    def register_death(self):
+        # teardown()'s finally calls this on every shutdown path (clean stop
+        # or signal), so it is the one place guaranteed to run before the
+        # worker actually goes away.
+        self._stop_coverage_heartbeat()
+        super().register_death()
