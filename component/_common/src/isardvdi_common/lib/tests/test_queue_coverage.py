@@ -569,6 +569,53 @@ def test_decision_ok_governed_over_backlog():
     assert ctx.get("reason") != "overloaded"
 
 
+def test_health_available_when_pool_live(monkeypatch):
+    monkeypatch.setattr(qc.category_pools, "category_pool_ids", lambda cid: ["p1"])
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
+    health = qc.category_storage_health(r, "cat-a")
+    assert health["available"] is True
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["pool"] == "p1"
+    assert interactive["no_consumer"] is False
+    assert interactive["overloaded"] is False
+    assert interactive["degraded"] is False
+
+
+def test_health_no_consumer_when_pool_empty(monkeypatch):
+    monkeypatch.setattr(qc.category_pools, "category_pool_ids", lambda cid: ["p1"])
+    r = _FakeRedis()
+    # index empty for p1, but p2 served (legacy fallback) -> fleet is up, so
+    # p1's absence is a genuine no-consumer, not a fail-open blip.
+    _governed_worker(r, "w1", "p2")
+    health = qc.category_storage_health(r, "cat-a")
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["no_consumer"] is True
+    assert health["available"] is False
+
+
+def test_health_overloaded_when_foreground_over_cap(monkeypatch):
+    monkeypatch.setattr(qc.category_pools, "category_pool_ids", lambda cid: ["p1"])
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
+    r.lists["rq:queue:storage.p1.interactive"] = qc.hard_cap("interactive") + 5
+    health = qc.category_storage_health(r, "cat-a")
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["overloaded"] is True
+    assert health["available"] is False
+
+
+def test_health_degraded_on_redis_error(monkeypatch):
+    monkeypatch.setattr(qc.category_pools, "category_pool_ids", lambda cid: ["p1"])
+    r = _FakeRedis()
+    _governed_worker(r, "w1", "p1")
+    r.fail = True
+    health = qc.category_storage_health(r, "cat-a")  # must not raise
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["degraded"] is True
+    assert health["available"] is False
+
+
 def test_counter_failure_never_swallows_the_429():
     """The counter is observability, not a gate: a redis blip between the shed
     decision and the INCR must still leave the caller with the typed 429."""

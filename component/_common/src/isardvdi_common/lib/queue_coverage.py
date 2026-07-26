@@ -35,7 +35,7 @@ import os
 import time
 from collections import Counter
 
-from isardvdi_common.lib import governor_counters, queue_tiers
+from isardvdi_common.lib import category_pools, governor_counters, queue_tiers
 
 try:  # rq is always present where a producer runs; guard so import never fails.
     from rq.defaults import DEFAULT_WORKER_TTL as _RQ_WORKER_TTL
@@ -368,3 +368,58 @@ def pool_live_workers(conn, pool, tier, now=None, ttl=None):
     edge = "(" + repr(now - ttl)
     conn.zremrangebyscore(key, "-inf", edge)
     return conn.zcount(key, edge, "+inf")
+
+
+def _lane_health(conn, pool, tier):
+    """Health entry for one (pool, tier), replaying :func:`lane_shed_decision`
+    on its canonical foreground lane. Never raises: any failure degrades this
+    entry alone."""
+    try:
+        decision, ctx = lane_shed_decision(conn, f"storage.{pool}.{tier}")
+        return {
+            "pool": pool,
+            "tier": tier,
+            "live": pool_live_workers(conn, pool, tier),
+            "backlog": ctx.get("backlog", 0),
+            "no_consumer": decision == "reject" and ctx.get("reason") == "no_consumer",
+            "overloaded": decision == "reject" and ctx.get("reason") == "overloaded",
+            "degraded": ctx.get("reason") in ("coverage_error", "no_coverage_data"),
+        }
+    except Exception:
+        return {
+            "pool": pool,
+            "tier": tier,
+            "live": 0,
+            "backlog": 0,
+            "no_consumer": False,
+            "overloaded": False,
+            "degraded": True,
+        }
+
+
+def category_storage_health(conn, category_id):
+    """User-facing storage health for ``category_id``'s resolved pool(s).
+
+    One entry per resolved pool x :data:`FOREGROUND_TIERS`, each built from
+    :func:`lane_shed_decision` on that lane's canonical foreground queue name
+    (the flat ``storage.<pool>.<tier>`` form ``create_task`` enqueues on for
+    interactive/standard — see ``queue_tiers.retier_queue``), so the reported
+    health always matches the create-time gate. Never raises."""
+    try:
+        pool_ids = category_pools.category_pool_ids(category_id)
+    except Exception:
+        pool_ids = []
+
+    pools = [
+        _lane_health(conn, pool, tier)
+        for pool in pool_ids
+        for tier in sorted(FOREGROUND_TIERS)
+    ]
+    available = any(
+        entry["tier"] == "interactive"
+        and not entry["no_consumer"]
+        and not entry["overloaded"]
+        and not entry["degraded"]
+        for entry in pools
+    )
+    return {"available": available, "pools": pools}
