@@ -200,6 +200,13 @@ class TemplateService:
             index_value=["template", True],
             order="name",
             only_in_allowed=True,
+            # A "shared with me" list is not the place for the caller's own
+            # templates. ``only_in_allowed`` forwards ``ignore_role``, which
+            # skips the ownership short-circuit, so an own template still
+            # surfaces whenever its own ACL happens to match the caller -
+            # shared broadly, or shared with a group they belong to. The
+            # media sibling already excludes the owner; templates never did.
+            exclude_owner_user_id=payload["user_id"],
         )
 
     @classmethod
@@ -228,8 +235,16 @@ class TemplateService:
         # Admins reach disabled templates through the admin tables, which
         # is where managing them belongs; this endpoint answers "what can
         # I launch", and a disabled template is not an answer to it.
-        if sort_field == "accessed":
-            index = "enabled_kind_accessed"
+        # ``index`` must be bound on every path: the route pins sort_field to
+        # "accessed", but a direct service call with anything else used to
+        # raise UnboundLocalError instead of a typed error.
+        if sort_field != "accessed":
+            raise Error(
+                "bad_request",
+                f"Unsupported sort field: {sort_field}",
+                description_code="bad_request",
+            )
+        index = "enabled_kind_accessed"
         index_value = [True, "template"]
 
         # Delegate complex filtering logic to the domain model
