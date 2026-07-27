@@ -10,9 +10,9 @@ pyroscope.ebpf "profiling" {
 
 pyroscope.write "monitor" {
 	endpoint {
-		url = env("PYROSCOPE_ADDRESS")
+		url = sys.env("PYROSCOPE_ADDRESS")
 	}
 	external_labels = {
-		"domain" = env("DOMAIN"),
+		"domain" = sys.env("DOMAIN"),
 	}
 }

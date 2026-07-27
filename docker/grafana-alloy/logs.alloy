@@ -58,13 +58,13 @@ loki.process "containers" {
 
 	stage.static_labels {
 		values = {
-			domain = env("DOMAIN"),
+			domain = sys.env("DOMAIN"),
 		}
 	}
 }
 
 loki.write "monitor" {
 	endpoint {
-		url = env("LOKI_ADDRESS") + "/loki/api/v1/push"
+		url = sys.env("LOKI_ADDRESS") + "/loki/api/v1/push"
 	}
 }

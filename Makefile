@@ -97,6 +97,7 @@ lint-protobuf:
 .PHONY: lint-alloy
 lint-alloy:
 	find . -iname "*.alloy" | xargs -n1 alloy fmt -t
+	alloy validate docker/grafana-alloy
 
 .PHONY: test
 test: test-go test-python test-e2e
