@@ -64,6 +64,35 @@ def _repack(src_root: Path, output: Path) -> None:
         tf.add(src_root, arcname=src_root.name)
 
 
+# A rethinkdb dump expands to roughly 6x its compressed size, and a run holds
+# the copied archive, the expanded tree, a per-table temp file and the output
+# at once. 10x leaves headroom for the largest table being rewritten.
+_WORKDIR_SIZE_FACTOR = 10
+
+
+def _check_workdir_space(workdir: Path, input_path: str | None) -> None:
+    """Fail before doing any work if the workdir filesystem is too small.
+
+    The workdir comes from `TMPDIR`, which on many hosts is a small tmpfs; a
+    large dump then dies with `OSError: [Errno 28]` minutes into the scrub,
+    after the archive has already been copied and expanded.
+    """
+    free = shutil.disk_usage(workdir).free
+    log.info("workdir free space: %s", human_bytes(free))
+    if not input_path:
+        return
+    try:
+        needed = Path(input_path).stat().st_size * _WORKDIR_SIZE_FACTOR
+    except OSError:
+        return
+    if free < needed:
+        raise SystemExit(
+            f"workdir {workdir} has {human_bytes(free)} free but this dump "
+            f"needs about {human_bytes(needed)}. Set TMPDIR to a filesystem "
+            f"with room — it is a small tmpfs on many hosts."
+        )
+
+
 def _scrub_dir_progress(
     db_dir: Path, scrubber: Scrubber, pruner: Pruner | None = None
 ) -> None:
@@ -660,6 +689,7 @@ def main(argv: list[str] | None = None) -> int:
 
     workdir = Path(tempfile.mkdtemp(prefix="anonymize-db-"))
     log.info("workdir: %s", workdir)
+    _check_workdir_space(workdir, args.input)
     if not fake_only:
         log.info("output:  %s", args.output)
     will_restore = bool(args.restore_local or args.restore_host or args.restore_ssh)
