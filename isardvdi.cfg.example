@@ -102,6 +102,7 @@ FRONTEND_VIEWERS_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/user/viewers/vie
 ## - url
 DIRECTVIEWER_MODE=browser
 
+
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
 ## openssl rand -base64 32
@@ -291,6 +292,7 @@ HAPROXY_LOGGING=.
 ## Options: off / metadata / falloc / full
 #QCOW2_PREALLOCATION=off
 
+# ------ GPUS --------------------------------------------------------------
 ## ----- NVIDIA
 ## GPU discovery is automatic via nvidia-smi at hypervisor startup.
 ## The host nvidia-smi binary and driver library are bind-mounted into the
@@ -309,6 +311,7 @@ HAPROXY_LOGGING=.
 ##       behaviour is somewhat dynamic, based on memory available.
 #GPU_ONLY_MEM=0
 
+# ------ ENGINE BALANCERS ---------------------------------------------------
 ## Available balancers: round_robin, available_ram, available_ram_percent,
 ##                      less_cpu, less_cpu_till_low_ram,
 ##                      less_cpu_till_low_ram_percent
@@ -385,6 +388,7 @@ HAPROXY_LOGGING=.
 #DISABLE_TRAFFIC_PRIORITIZATION=false
 #NETWORK_MAX_DOWNLOAD_BANDWIDTH=800   # Example: Set max download speed to 800 Mbps
 #NETWORK_MAX_UPLOAD_BANDWIDTH=200     # Example: Set max upload speed to 200 Mbps
+
 
 # ------ Database host -------------------------------------------------------
 ## Where is the database reacheable?
@@ -472,6 +476,7 @@ HAPROXY_LOGGING=.
 ##   - hypervisor-standalone
 #STORAGE_DOMAIN=isard-storage
 
+# ------ WEB PORTS -----------------------------------------------------------
 ## Docs: https://isard.gitlab.io/isardvdi-docs/install/insights/ports_and_nat/
 ##
 ## Every IsardVDI haproxy container (portal, video, monitor: all the same
@@ -522,6 +527,7 @@ HAPROXY_LOGGING=.
 ##   - hypervisor-standalone ( to set up hyper in db)
 #VIDEO_DOMAIN=$DOMAIN
 
+# ------ Video external NAT ports --------------------------------------------
 ## Docs: https://isard.gitlab.io/isardvdi-docs/install/insights/ports_and_nat/
 ##
 ## The ports viewer clients will use to reach the desktops running on THIS
@@ -567,6 +573,7 @@ HAPROXY_LOGGING=.
 ## seen from this host with comma (,) delimiters:
 #VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
 #VIDEO_HYPERVISOR_PORTS=5900-7899
+
 
 # ------ Docker networking ---------------------------------------------------
 ## Assign a docker /24 network. The host part will be set by system
@@ -710,19 +717,23 @@ WG_GUESTS_RESERVED_HOSTS=20
 #VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428
 #VICTORIAMETRICS_RETENTION_TIME=40d
 
+
 # ------ Loki -----------------------------------------------------
 #LOKI_ADDRESS=http://isard-loki:3100
 #LOKI_RETENTION_TIME=40d
 
+# ------ Pyroscope -----------------------------------------------------
 #
 # Extract profiling info using EBPF
 #PYROSCOPE_EBPF=false
 #PYROSCOPE_ADDRESS=http://isard-pyroscope:4040
 
+# ------ Tempo -----------------------------------------------------
 #
 #TEMPO=false
 #TEMPO_ADDRESS=http://isard-tempo:3200
 
+# ------ Faro (Frontend errors) ------------------------------------------
 #
 # Captures Vue 3 frontend errors (uncaught exceptions, unhandled promise
 # rejections, console.error and console.warn) and ships them to Loki via
@@ -748,6 +759,7 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## CHECK PARAMETERS                                             ##
 ##################################################################
 #CHECK_CHECK_IMAGE=registry.gitlab.com/isard/isardvdi/check-client:main
+
 
 ##################################################################
 ## INFRASTRUCTURE                                               ##
