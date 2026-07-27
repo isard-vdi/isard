@@ -170,14 +170,14 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER=1m
 # before being able to log in again
 AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR=2
 
+# The maximum time an user will be rate limited: the exponential backoff above is
+# capped at this value, and it is also the lifetime of the rate limit entry
+AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
+
 # Maximum time a impersonate token will be valid. If this duration is exceeded, token won't be able to be used
 # for any action. The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 
-## SAML
-## Gates the SAML provider bootstrap in the authentication service. The rest of
-## the SAML configuration is managed from the administration web interface.
-#AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=false
 
 # ------ Backups -------------------------------------------------------------
 
