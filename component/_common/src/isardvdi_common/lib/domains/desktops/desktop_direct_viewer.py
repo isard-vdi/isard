@@ -45,6 +45,7 @@ from isardvdi_common.helpers.isard_viewer import IsardViewer
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.scheduler import Scheduler
+from isardvdi_common.helpers.viewers import available_viewers
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
 from isardvdi_common.schemas.domains import DesktopStatusEnum
@@ -315,7 +316,7 @@ class DesktopDirectViewer(RethinkSharedConnection):
             "viewers": {},
             "image": domain.get("image"),
         }
-        desktop_viewers = list(domain["guest_properties"]["viewers"].keys())
+        desktop_viewers = available_viewers(domain["guest_properties"])
         if "file_spice" in desktop_viewers:
             desktop["viewers"]["file-spice"] = cls.desktop_viewer(
                 domain["id"], protocol="file-spice", get_cookie=True
@@ -365,7 +366,7 @@ class DesktopDirectViewer(RethinkSharedConnection):
         Mirrors ``DesktopService.get_desktop_viewer``
         """
         domain = cls.desktop_from_token(token)
-        configured = list(domain["guest_properties"]["viewers"].keys())
+        configured = available_viewers(domain["guest_properties"])
         protocol_key = viewer_type.replace("-", "_")
         if protocol_key not in configured:
             raise Error(

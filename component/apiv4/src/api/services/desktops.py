@@ -45,6 +45,7 @@ from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.helpers.viewers import available_viewers
 from isardvdi_common.lib.deployments.deployment_desktops import (
     DeploymentDesktopsProcessed as CommonDeploymentDesktops,
 )
@@ -468,9 +469,7 @@ class DesktopService:
                 {"id": v, "name": videos_names[v]}
                 for v in details["create_dict"]["hardware"].get("videos", [])
             ],
-            "viewers": list(
-                details.get("guest_properties", {}).get("viewers", {}).keys()
-            ),
+            "viewers": available_viewers(details.get("guest_properties")),
             "fullscreen": details.get("guest_properties", {}).get("fullscreen", False),
             "reservables": details["create_dict"].get("reservables", {"vgpus": None}),
             "status": desktop_status,

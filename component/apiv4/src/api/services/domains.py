@@ -148,7 +148,8 @@ class DomainService:
             removed = [viewer for viewer in rdp_viewers if viewers.get(viewer)]
             if removed:
                 for viewer in removed:
-                    viewers[viewer] = None
+                    # Drop the key, don't null it: unavailable means absent.
+                    del viewers[viewer]
                 limited = result.get("limited_hardware") or {}
                 limited["viewers"] = {
                     "old_value": removed,
