@@ -102,16 +102,6 @@ FRONTEND_VIEWERS_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/user/viewers/vie
 ## - url
 DIRECTVIEWER_MODE=browser
 
-# ------ Notifier ------------------------------------------------------------
-## Email credentials that will be used to send email notifications.
-## DEPRECATED variables after migration 175. Please configure it via
-## administration web interface.
-# NOTIFY_EMAIL=True
-# NOTIFY_EMAIL_SMTP_SERVER=smtp.gmail.com
-# NOTIFY_EMAIL_SMTP_PORT=587
-# NOTIFY_EMAIL_USERNAME=example@isardvdi.com
-# NOTIFY_EMAIL_PASSWORD=IsardVDI
-
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
 ## openssl rand -base64 32
@@ -171,11 +161,6 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_ATTEMPTS=10
 # The time duration that the user will be unable to login if gets rate limited
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER=1m
-# This factor will be powered against the RETRY_AFTER and the number of failed attempts after being rate limited.
-# So, for example, given
-# MAX_ATTEMPTS=10
-# RETRY_AFTER=1m
-# INCREMENT_FACTOR=2
 # And the user fails the authentication for 13th time in a row, the user will have to wait (13 - 10) ^ 2 * 1m -> 9 minutes
 # before being able to log in again
 AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR=2
@@ -185,55 +170,6 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 # Maximum time a impersonate token will be valid. If this duration is exceeded, token won't be able to be used
 # for any action. The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
-
-## Local
-### Local authentication against isard database
-
-
-## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_LDAP_* after migration
-## 180. Please configure it via administration web interface.
-
-
-### Credentials used for querying the LDAP
-
-### Base Search is the DN that all the users share, e.g. ou=people,dc=example,dc=com
-### Filter is the actual filter used to search users. The '%s' represents the user that is sent through the form
-### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
-
-### These are the fields that the LDAP search responds. For example, in some installations, the field for the email is called 'mail'
-### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field. The 
-### regex match tries to extract the first group, but if there's no group it will extract the whole match
-
-### Auto Register the existing ldap users into IsardVDI
-### Only the users that belong to one of these groups will be autoregistered (comma separated)
-
-### Try guessing the category based in the LDAP search results (must have AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY configured)
-### These are the fields that the LDAP search responds. For example, in some installations, the field for the group is called 'group'
-### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field. The 
-### regex match tries to extract the first group, but if there's no group it will extract the whole match
-### If this is configured, this will set a default group when autoregistering a user
-### This is only advised to be configured if you have users without a group, otherwise don't configure it
-### It's the equivalent of AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP with AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP applied to it
-### The base search for listing all the roles of a user
-### Filter is the actual filter used to search all the roles of a user. The '%s' represents the user that is sent through the form
-### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
-### The field that contains the roles in the AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FILTER search
-### All the users that are in at least one of the roles specified here, will be created in the admin role (comma separated)
-
-
-## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_SAML_* after migration
-## 182. Please configure it via administration web interface.
-
-
-### These are the fields that the SAML search responds. For example, in some installations, the field for the email is called 'mail'
-### Then, a regex is applied to this field, in case we needed to filter inside a SAML field. By default it collects the whole field. The 
-### regex match tries to extract the first group, but if there's no group it will extract the whole match
-### Only the users that belong to one of these groups will be autoregistered (comma separated)
-### All the users that match with the FIELD_ROLE in at least one of the IDs specified here, will be created in the admin role (comma separated)
-
-## Google
-### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
-### Authorized redirect URIs: https://domain.tld/authentication/callback
 
 # ------ Backups -------------------------------------------------------------
 
@@ -355,7 +291,6 @@ HAPROXY_LOGGING=.
 ## Options: off / metadata / falloc / full
 #QCOW2_PREALLOCATION=off
 
-# ------ GPUS --------------------------------------------------------------
 ## ----- NVIDIA
 ## GPU discovery is automatic via nvidia-smi at hypervisor startup.
 ## The host nvidia-smi binary and driver library are bind-mounted into the
@@ -374,7 +309,6 @@ HAPROXY_LOGGING=.
 ##       behaviour is somewhat dynamic, based on memory available.
 #GPU_ONLY_MEM=0
 
-# ------ ENGINE BALANCERS ---------------------------------------------------
 ## Available balancers: round_robin, available_ram, available_ram_percent,
 ##                      less_cpu, less_cpu_till_low_ram,
 ##                      less_cpu_till_low_ram_percent
@@ -451,7 +385,6 @@ HAPROXY_LOGGING=.
 #DISABLE_TRAFFIC_PRIORITIZATION=false
 #NETWORK_MAX_DOWNLOAD_BANDWIDTH=800   # Example: Set max download speed to 800 Mbps
 #NETWORK_MAX_UPLOAD_BANDWIDTH=200     # Example: Set max upload speed to 200 Mbps
-
 
 # ------ Database host -------------------------------------------------------
 ## Where is the database reacheable?
@@ -539,7 +472,6 @@ HAPROXY_LOGGING=.
 ##   - hypervisor-standalone
 #STORAGE_DOMAIN=isard-storage
 
-# ------ WEB PORTS -----------------------------------------------------------
 ## Docs: https://isard.gitlab.io/isardvdi-docs/install/insights/ports_and_nat/
 ##
 ## Every IsardVDI haproxy container (portal, video, monitor: all the same
@@ -590,7 +522,6 @@ HAPROXY_LOGGING=.
 ##   - hypervisor-standalone ( to set up hyper in db)
 #VIDEO_DOMAIN=$DOMAIN
 
-# ------ Video external NAT ports --------------------------------------------
 ## Docs: https://isard.gitlab.io/isardvdi-docs/install/insights/ports_and_nat/
 ##
 ## The ports viewer clients will use to reach the desktops running on THIS
@@ -636,8 +567,6 @@ HAPROXY_LOGGING=.
 ## seen from this host with comma (,) delimiters:
 #VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
 #VIDEO_HYPERVISOR_PORTS=5900-7899
-
-# ------ Vide proxy settings -------------------------------------------------
 
 # ------ Docker networking ---------------------------------------------------
 ## Assign a docker /24 network. The host part will be set by system
@@ -781,24 +710,19 @@ WG_GUESTS_RESERVED_HOSTS=20
 #VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428
 #VICTORIAMETRICS_RETENTION_TIME=40d
 
-# ------ Stats -----------------------------------------------------
-
 # ------ Loki -----------------------------------------------------
 #LOKI_ADDRESS=http://isard-loki:3100
 #LOKI_RETENTION_TIME=40d
 
-# ------ Pyroscope -----------------------------------------------------
 #
 # Extract profiling info using EBPF
 #PYROSCOPE_EBPF=false
 #PYROSCOPE_ADDRESS=http://isard-pyroscope:4040
 
-# ------ Tempo -----------------------------------------------------
 #
 #TEMPO=false
 #TEMPO_ADDRESS=http://isard-tempo:3200
 
-# ------ Faro (Frontend errors) ------------------------------------------
 #
 # Captures Vue 3 frontend errors (uncaught exceptions, unhandled promise
 # rejections, console.error and console.warn) and ships them to Loki via
@@ -824,7 +748,6 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## CHECK PARAMETERS                                             ##
 ##################################################################
 #CHECK_CHECK_IMAGE=registry.gitlab.com/isard/isardvdi/check-client:main
-
 
 ##################################################################
 ## INFRASTRUCTURE                                               ##
