@@ -102,6 +102,10 @@ const users = {
   ldap_hermes: { username: 'hermes', password: 'hermes', category: 'default' },
   ldap_zoidberg: { username: 'zoidberg', password: 'zoidberg', category: 'default' },
   ldap_amy: { username: 'amy', password: 'amy', category: 'default' },
+  // Owns template-parity-own / template-parity-shared. Dedicated (not a
+  // pool account) so the listing-parity spec never contends on a session
+  // another worker is using.
+  advanced_parity: { username: 'advanced_parity', password: 'IsardTest1!', category: 'default' },
 }
 
 // SAML test user data for logging in via SAML

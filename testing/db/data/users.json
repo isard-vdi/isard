@@ -2847,4 +2847,34 @@
             }
         }
     }
+    ,
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": false,
+        "category": "default",
+        "disclaimer_acknowledged": true,
+        "email": "advanced_parity@isardvdi.com",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "a3f7c1d9-4b62-4e08-9a15-7c3e8d2b6f40",
+        "lang": "ca",
+        "name": "Advanced Parity",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "advanced",
+        "secondary_groups": [],
+        "start_logs_id": "5e3bce4a-c3ac-5829-a692-51c10e493da9_1754484618",
+        "uid": "advanced_parity",
+        "username": "advanced_parity",
+        "vpn": false
+    }
 ]
