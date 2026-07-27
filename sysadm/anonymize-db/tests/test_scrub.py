@@ -280,6 +280,110 @@ def test_ssh_authorized_keys_blanked():
     assert out["recycle_bin"][0]["item"]["ssh"]["authorized_keys"] == []
 
 
+def _integrity_fixture() -> dict[str, list[dict]]:
+    """A dump shaped so every documented relation has at least one live edge."""
+    user_id = "u1234567-aaaa-bbbb-cccc-000000000001"
+    dep_id = "p1234567-aaaa-bbbb-cccc-000000000002"
+    dom_a = "d1234567-aaaa-bbbb-cccc-000000000003"
+    dom_b = "d7654321-aaaa-bbbb-cccc-000000000004"
+    return {
+        "users": [
+            {
+                "id": user_id,
+                "name": "Real Person",
+                "username": "real.person@realcorp.example",
+                "email": "real.person@realcorp.example",
+                "password": "$2b$realhash",
+            }
+        ],
+        "deployments": [
+            {"id": dep_id, "name": "Real Lab", "tag": dep_id, "tag_name": "Real Lab"}
+        ],
+        "domains": [
+            {
+                "id": dom_a,
+                "user": user_id,
+                "username": "real.person@realcorp.example",
+                "name": "Real Desktop A",
+                "tag": dep_id,
+                "tag_name": "Real Lab",
+            },
+            {
+                "id": dom_b,
+                "user": user_id,
+                "username": "real.person@realcorp.example",
+                "name": "Real Desktop B",
+                "tag": dep_id,
+                "tag_name": "Real Lab",
+            },
+        ],
+        "logs_desktops": [
+            {
+                "id": "ld1",
+                "desktop_id": dom_a,
+                "desktop_name": "Real Desktop A",
+                "deployment_id": dep_id,
+                "deployment_name": "Real Lab",
+                "owner_user_id": user_id,
+                "owner_user_name": "real.person@realcorp.example",
+                "hyp_started": "isard-hypervisor-real-hyp01",
+            },
+            {
+                "id": "ld2",
+                "desktop_id": dom_b,
+                "desktop_name": "Real Desktop B",
+                "deployment_id": dep_id,
+                "deployment_name": "Real Lab",
+                "owner_user_id": user_id,
+                "owner_user_name": "real.person@realcorp.example",
+                "hyp_started": "isard-hypervisor-real-hyp02",
+            },
+        ],
+    }
+
+
+def test_referential_integrity_preserved():
+    before = _integrity_fixture()
+    hyp_cardinality_before = len(
+        {r["hyp_started"] for r in before["logs_desktops"] if r["hyp_started"]}
+    )
+    out = _run(_integrity_fixture())
+
+    user_ids = {u["id"] for u in out["users"]}
+    deployment_ids = {d["id"] for d in out["deployments"]}
+    domain_ids = {d["id"] for d in out["domains"]}
+
+    assert len(out["domains"]) == 2
+    for d in out["domains"]:
+        assert d["user"] in user_ids, "domains.user no longer resolves"
+        assert d["tag"] in deployment_ids, "domains.tag no longer resolves"
+
+    for row in out["logs_desktops"]:
+        assert row["desktop_id"] in domain_ids
+        assert row["deployment_id"] in deployment_ids
+        assert row["owner_user_id"] in user_ids
+
+    hyp_cardinality_after = len(
+        {r["hyp_started"] for r in out["logs_desktops"] if r["hyp_started"]}
+    )
+    assert hyp_cardinality_after == hyp_cardinality_before
+
+
+def test_integrity_fixture_has_no_surviving_pii():
+    out = _run(_integrity_fixture())
+    blob = json.dumps(out)
+    for needle in (
+        "Real Person",
+        "real.person@realcorp.example",
+        "Real Lab",
+        "Real Desktop A",
+        "Real Desktop B",
+        "isard-hypervisor-real-hyp01",
+        "isard-hypervisor-real-hyp02",
+    ):
+        assert needle not in blob, f"PII leaked: {needle!r}"
+
+
 def test_recycle_bin_matcher_is_anchored():
     tables = {
         "recycle_bin": [
