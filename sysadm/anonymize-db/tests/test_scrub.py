@@ -280,6 +280,63 @@ def test_ssh_authorized_keys_blanked():
     assert out["recycle_bin"][0]["item"]["ssh"]["authorized_keys"] == []
 
 
+def test_targets_bastion_domains_scrubbed():
+    tables = {
+        "targets": [
+            {
+                "id": "t1234567-aaaa",
+                "desktop_id": "d1234567-bbbb",
+                "user_id": "u1234567-cccc",
+                "domains": [
+                    "maria-desktop.bastion.realcorp.example",
+                    "finance-lab.bastion.realcorp.example",
+                ],
+                "http": {"enabled": True, "http_port": 80, "https_port": 443},
+                "ssh": {"authorized_keys": ["ssh-ed25519 AAAA t@realcorp.example"]},
+            }
+        ]
+    }
+    out = _run(tables)
+    t = out["targets"][0]
+
+    assert "realcorp.example" not in json.dumps(out)
+    assert len(t["domains"]) == 2
+    for d in t["domains"]:
+        assert d.endswith(".example.test")
+    # FKs and non-identity config untouched
+    assert t["desktop_id"] == "d1234567-bbbb"
+    assert t["user_id"] == "u1234567-cccc"
+    assert t["http"] == {"enabled": True, "http_port": 80, "https_port": 443}
+    assert t["ssh"]["authorized_keys"] == []
+
+
+def test_user_storage_provider_table_scrubbed():
+    tables = {
+        "user_storage": [
+            {
+                "id": "prov1234-aaaa",
+                "provider": "nextcloud",
+                "urlprefix": "https://nextcloud.realcorp.example",
+                "user": "isard-admin",
+                "password": "real-provider-secret",
+                "verify_cert": True,
+            }
+        ]
+    }
+    out = _run(tables)
+    p = out["user_storage"][0]
+
+    blob = json.dumps(out)
+    assert "nextcloud.realcorp.example" not in blob
+    assert "real-provider-secret" not in blob
+    assert "isard-admin" not in blob
+
+    assert p["urlprefix"] == "https://storage-prov1234.example.test"
+    assert p["user"] == "storage-admin"
+    assert p["provider"] == "nextcloud"  # product name, not identity
+    assert p["verify_cert"] is True
+
+
 def _integrity_fixture() -> dict[str, list[dict]]:
     """A dump shaped so every documented relation has at least one live edge."""
     user_id = "u1234567-aaaa-bbbb-cccc-000000000001"

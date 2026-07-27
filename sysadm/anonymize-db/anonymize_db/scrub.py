@@ -406,11 +406,33 @@ class Scrubber:
         return rows
 
     def targets(self, rows: list[dict]) -> list[dict]:
-        for r in rows:
+        for i, r in enumerate(rows):
+            tid = r.get("id", "") or f"{i}"
             ssh = r.get("ssh")
             if isinstance(ssh, dict) and "authorized_keys" in ssh:
                 ssh["authorized_keys"] = []
+            # Public bastion hostnames: a user-chosen label on the install's
+            # own domain. `desktop_id` / `user_id` are FKs and stay.
+            doms = r.get("domains")
+            if isinstance(doms, list):
+                r["domains"] = [
+                    f"target-{tid[:8]}-{j}.example.test" for j in range(len(doms))
+                ]
             self._bump("targets")
+        return rows
+
+    def user_storage(self, rows: list[dict]) -> list[dict]:
+        # Storage-provider rows (Nextcloud/WebDAV), not per-user data — the
+        # users.user_storage sub-doc is handled in users(). `password` is
+        # already covered by the defensive sweep; the URL names the customer's
+        # server and `user` is an admin account.
+        for i, r in enumerate(rows):
+            pid = r.get("id", "") or f"{i}"
+            if isinstance(r.get("urlprefix"), str):
+                r["urlprefix"] = f"https://storage-{pid[:8]}.example.test"
+            if isinstance(r.get("user"), str):
+                r["user"] = "storage-admin"
+            self._bump("user_storage")
         return rows
 
     def secrets(self, rows: list[dict]) -> list[dict]:
@@ -877,6 +899,7 @@ def get_scrubbers(s: Scrubber) -> dict[str, Callable[[list[dict]], list[dict]]]:
         "hypervisors": s.hypervisors,
         "hypervisors_pools": s.hypervisors_pools,
         "targets": s.targets,
+        "user_storage": s.user_storage,
         "secrets": s.secrets,
         "remotevpn": s.remotevpn,
         "media": s.media,
