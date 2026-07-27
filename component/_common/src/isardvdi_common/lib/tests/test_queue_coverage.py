@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timezone
 
 import pytest
+from isardvdi_common.lib import category_pools
 from isardvdi_common.lib import governor_counters as gcnt
 from isardvdi_common.lib import queue_coverage as qc
 
@@ -622,7 +623,7 @@ def test_decision_ok_governed_over_backlog():
 
 
 def test_health_available_when_pool_live(monkeypatch):
-    monkeypatch.setattr(qc.category_pools, "category_pool_ids", lambda cid: ["p1"])
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
     r = _FakeRedis()
     qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
     health = qc.category_storage_health(r, "cat-a")
@@ -635,7 +636,7 @@ def test_health_available_when_pool_live(monkeypatch):
 
 
 def test_health_no_consumer_when_pool_empty(monkeypatch):
-    monkeypatch.setattr(qc.category_pools, "category_pool_ids", lambda cid: ["p1"])
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
     r = _FakeRedis()
     # index empty for p1, but p2 served (legacy fallback) -> fleet is up, so
     # p1's absence is a genuine no-consumer, not a fail-open blip.
@@ -647,7 +648,7 @@ def test_health_no_consumer_when_pool_empty(monkeypatch):
 
 
 def test_health_overloaded_when_foreground_over_cap(monkeypatch):
-    monkeypatch.setattr(qc.category_pools, "category_pool_ids", lambda cid: ["p1"])
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
     r = _FakeRedis()
     qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
     r.lists["rq:queue:storage.p1.interactive"] = qc.hard_cap("interactive") + 5
@@ -658,7 +659,7 @@ def test_health_overloaded_when_foreground_over_cap(monkeypatch):
 
 
 def test_health_degraded_on_redis_error(monkeypatch):
-    monkeypatch.setattr(qc.category_pools, "category_pool_ids", lambda cid: ["p1"])
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
     r = _FakeRedis()
     _governed_worker(r, "w1", "p1")
     r.fail = True

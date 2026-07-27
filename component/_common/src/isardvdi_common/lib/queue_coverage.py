@@ -35,7 +35,7 @@ import os
 import time
 from collections import Counter
 
-from isardvdi_common.lib import category_pools, governor_counters, queue_tiers
+from isardvdi_common.lib import governor_counters, queue_tiers
 
 try:  # rq is always present where a producer runs; guard so import never fails.
     from rq.defaults import DEFAULT_WORKER_TTL as _RQ_WORKER_TTL
@@ -198,7 +198,10 @@ def lane_shed_decision(conn, queue):
     a fresh heartbeat there means a governed worker serves the lane right now.
     Only when the index is empty do we fall back to :func:`served_coverage` —
     the slower governor-hash scan — so a mixed-version / not-yet-upgraded
-    worker still counts."""
+    worker still counts. The index's 15s TTL is authoritative once it shows a
+    worker, but an unclean full-pool death during the mixed-version window
+    still falls back to the legacy ~90s governor-hash / rq-heartbeat signal —
+    the safe bias."""
     parsed = queue_tiers.parse_storage_queue(queue)
     if not parsed:
         return "ok", {"reason": "non_storage_queue"}
@@ -299,7 +302,8 @@ def check_no_consumer(conn, queue):
     (pool, category) — a task nothing can drain must never be enqueued, for any
     tier. Mandatory on every producer and category-scoped (a dead pool only
     refuses the categories it serves); fail-open on any coverage uncertainty.
-    Distinct from :func:`check_shed`, the opt-in backlog-overload gate."""
+    Distinct from :func:`check_shed`, the additional foreground backlog-overload
+    gate."""
     decision, ctx = lane_shed_decision(conn, queue)
     if decision == "reject" and ctx.get("reason") == "no_consumer":
         _raise_lane_429(conn, ctx)
@@ -396,6 +400,8 @@ def category_storage_health(conn, category_id):
     (the flat ``storage.<pool>.<tier>`` form ``create_task`` enqueues on for
     interactive/standard — see ``queue_tiers.retier_queue``), so the reported
     health always matches the create-time gate. Never raises."""
+    from isardvdi_common.lib import category_pools
+
     try:
         pool_ids = category_pools.category_pool_ids(category_id)
     except Exception:
