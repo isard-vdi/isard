@@ -163,12 +163,18 @@ Always runs against the extracted dump. Highlights:
 - Every other `password` / `secret` / `*_token` / `private_key` / `access_key` / `secret_key` / `bearer` / `client_secret` / `api_key` field, anywhere in any table, → `anon-<random>`.
 - WireGuard keypairs (users, hypervisors, remotevpn, vpn_hypers, vpn_users) → freshly generated X25519.
 - libvirt XML: `<graphics passwd>`, `<channel><source path>`, `<log file>` stripped.
-- `secrets`, `logs_users`, `logs_desktops` tables → emptied.
+- `secrets` table → emptied. `logs_users` / `logs_desktops` keep their rows; only the
+  identifying fields are replaced.
 - `recycle_bin` free-text fields → blanked.
-- `targets.ssh.authorized_keys` → emptied.
+- `targets.ssh.authorized_keys` → emptied; `targets.domains` → placeholder hostnames.
 - MAC addresses → randomised in `02:xx:xx:xx:xx:xx` range.
 
 Primary keys and FK relationships are preserved (so the resulting DB is referentially consistent).
+
+Denormalized display names are rebuilt from their foreign key instead of being
+emptied, and hypervisor ids in `logs_desktops` become stable `hyp-NN` aliases,
+so grouping and joins still work on the anonymized dump. See the bucket table
+in `README.md` for the rule that decides how a given field is treated.
 
 ---
 
