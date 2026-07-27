@@ -2,29 +2,61 @@
 // Metrics
 //
 prometheus.exporter.unix "exporter_node_exporter" {
-	rootfs_path    = "/rootfs"
+	rootfs_path = "/rootfs"
+	// Every collector must have a consumer in docker/grafana/dashboards or
+	// docker/vmalert/rules, and be cheap enough for every host of every
+	// installation. Left out on purpose, panels dropped with them: arp,
+	// interrupts, powersupplyclass, processes, sockstat, softnet, systemd. The
+	// per-namespace ones live in the exporter below, not here.
 	set_collectors = [
-		"cgroups",
 		"cpu",
 		"diskstats",
+		"entropy",
+		"filefd",
 		"filesystem",
+		"hwmon",
 		"loadavg",
 		"meminfo",
 		"mountstats",
 		"netclass",
-		"netdev",
-		"netstat",
-		"nfs",
-		"nfsd",
-		"os",
 		"schedstat",
 		"stat",
 		"textfile",
+		"thermal_zone",
+		"time",
+		"timex",
+		"vmstat",
 	]
 
 	textfile {
 		directory = "/var/lib/node-exporter"
 	}
+}
+
+// These collectors read /proc/net, which the kernel resolves per network
+// namespace: from this container they describe the container itself, so the
+// traffic and sockets of the host went unmonitored. The compose runs us with
+// pid: host, so PID 1 is the host init and /proc/1/net is its namespace.
+// The trick only reaches /proc/net, not /proc/sys, so conntrack cannot be read
+// for the host from here and stays out.
+prometheus.exporter.unix "exporter_host_netns" {
+	procfs_path    = "/proc/1"
+	set_collectors = [
+		"netdev",
+		"netstat",
+	]
+
+	netdev {
+		device_exclude = "^(veth|tap|vnet|docker|br-|virbr|ovs-system).*$"
+	}
+}
+
+prometheus.scrape "metrics_host_netns" {
+	targets = prometheus.exporter.unix.exporter_host_netns.targets
+
+	forward_to      = [prometheus.relabel.process_metrics_containers.receiver]
+	job_name        = "node_exporter_host_netns"
+	scrape_interval = "30s"
 }
 
 prometheus.scrape "metrics_node_exporter" {
@@ -131,7 +163,7 @@ prometheus.relabel "process_metrics_containers" {
 		action        = "replace"
 		source_labels = ["__address__"]
 		target_label  = "domain"
-		replacement   = env("DOMAIN")
+		replacement   = sys.env("DOMAIN")
 	}
 
 	rule {
@@ -155,7 +187,7 @@ prometheus.relabel "process_metrics_containers" {
 prometheus.remote_write "monitor" {
 	endpoint {
 		name = "monitor"
-		url  = env("VICTORIAMETRICS_ADDRESS") + "/api/v1/write"
+		url  = sys.env("VICTORIAMETRICS_ADDRESS") + "/api/v1/write"
 
 		queue_config { }
 
