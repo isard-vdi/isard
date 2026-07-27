@@ -628,15 +628,34 @@ class Scrubber:
             self._bump("recycle_bin")
         return rows
 
+    # The logs_* tables denormalize a display name next to its FK. Rebuilding
+    # each name from the FK keeps the grouping dimension usable after
+    # anonymization, the same way usage_consumption.item_name is rebuilt.
+    # (field to rebuild) -> (FK field, prefix, id truncation)
+    _LOG_NAME_FROM_FK: dict[str, tuple[str, str, int | None]] = {
+        "owner_user_name": ("owner_user_id", "user-", 8),
+        "owner_category_name": ("owner_category_id", "category-", None),
+        "owner_group_name": ("owner_group_id", "group-", 12),
+        "desktop_name": ("desktop_id", "desktop-", 8),
+        "deployment_name": ("deployment_id", "deployment-", 8),
+    }
+
+    def _rebuild_log_names(self, r: dict) -> None:
+        for name_key, (fk_key, prefix, cut) in self._LOG_NAME_FROM_FK.items():
+            if not isinstance(r.get(name_key), str):
+                continue
+            fk = r.get(fk_key)
+            if isinstance(fk, str) and fk:
+                r[name_key] = f"{prefix}{fk[:cut] if cut else fk}"
+            else:
+                r[name_key] = ""
+
     def logs_users(self, rows: list[dict]) -> list[dict]:
-        # Keep rows for realistic dev/analytics volume; blank PII fields.
-        # FK-like *_id fields stay so joins still work; the cross-table
-        # rewrite pass picks them up if any get remapped.
+        # Keep rows for realistic dev/analytics volume. Owner names are
+        # rebuilt from their FKs; the request fingerprint is dropped.
         for r in rows:
+            self._rebuild_log_names(r)
             for k in (
-                "owner_category_name",
-                "owner_group_name",
-                "owner_user_name",
                 "request_ip",
                 "request_agent_browser",
                 "request_agent_platform",
@@ -649,12 +668,8 @@ class Scrubber:
 
     def logs_desktops(self, rows: list[dict]) -> list[dict]:
         for r in rows:
+            self._rebuild_log_names(r)
             for k in (
-                "owner_category_name",
-                "owner_group_name",
-                "owner_user_name",
-                "desktop_name",
-                "deployment_name",
                 "request_ip",
                 "stopping_ip",
                 "request_agent_browser",

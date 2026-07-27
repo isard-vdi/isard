@@ -280,6 +280,68 @@ def test_ssh_authorized_keys_blanked():
     assert out["recycle_bin"][0]["item"]["ssh"]["authorized_keys"] == []
 
 
+def test_log_names_rebuilt_from_fks():
+    tables = {
+        "logs_users": [
+            {
+                "id": "lu1",
+                "owner_user_id": "u1234567-aaaa-bbbb",
+                "owner_user_name": "mgonzalez@realcorp.example",
+                "owner_category_id": "acme",
+                "owner_category_name": "Acme Corporation",
+                "owner_group_id": "g1234567890abcdef",
+                "owner_group_name": "Finance Department",
+                "request_ip": "10.1.2.3",
+            }
+        ],
+        "logs_desktops": [
+            {
+                "id": "ld1",
+                "desktop_id": "d1234567-cccc-dddd",
+                "desktop_name": "Maria's Finance Desktop",
+                "deployment_id": "p1234567-eeee-ffff",
+                "deployment_name": "Finance Lab 2026",
+                "owner_user_id": "u1234567-aaaa-bbbb",
+                "owner_user_name": "mgonzalez@realcorp.example",
+            }
+        ],
+    }
+    out = _run(tables)
+
+    blob = json.dumps(out)
+    for needle in (
+        "mgonzalez@realcorp.example",
+        "Acme Corporation",
+        "Finance Department",
+        "Maria's Finance Desktop",
+        "Finance Lab 2026",
+        "10.1.2.3",
+    ):
+        assert needle not in blob, f"leaked: {needle!r}"
+
+    lu = out["logs_users"][0]
+    assert lu["owner_user_name"] == "user-u1234567"
+    assert lu["owner_category_name"] == "category-acme"
+    assert lu["owner_group_name"] == "group-g1234567890a"
+    assert lu["owner_user_id"] == "u1234567-aaaa-bbbb"
+    assert lu["request_ip"] == ""
+
+    ld = out["logs_desktops"][0]
+    assert ld["desktop_name"] == "desktop-d1234567"
+    assert ld["deployment_name"] == "deployment-p1234567"
+    assert ld["owner_user_name"] == "user-u1234567"
+
+
+def test_log_names_blank_when_fk_missing():
+    tables = {
+        "logs_desktops": [
+            {"id": "ld1", "desktop_name": "Orphan Desktop", "desktop_id": None}
+        ]
+    }
+    out = _run(tables)
+    assert out["logs_desktops"][0]["desktop_name"] == ""
+
+
 DEPLOYMENT_ID = "eeeeeeee-1111-2222-3333-555555555555"
 
 
