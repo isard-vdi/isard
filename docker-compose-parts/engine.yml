@@ -66,14 +66,3 @@ services:
       WEBAPP_ADMIN_PWD:
       LOG_EXCEPT_ID_LEVEL:
       ENGINE_GUESTS_DISK_DRIVER_CACHE:
-      # Transitional NOTIFY_EMAIL* variables to import SMTP setting to db via migration 175
-      # NOTIFY_EMAIL_SMPT_PORT is the pre-rename misspelling, still honoured for cfgs that set it
-      NOTIFY_EMAIL_SMTP_PORT: ${NOTIFY_EMAIL_SMTP_PORT:-${NOTIFY_EMAIL_SMPT_PORT:-587}}
-      # Transitional AUTHENTICATION_AUTHENTICATION_LDAP_* variables to import LDAP configuration
-      # to rethinkdb via migration 180
-      # Transitional AUTHENTICATION_AUTHENTICATION_SAML_* variables to import SAML configuration
-      # Used in migration 182
-      # Transitional AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_* variables to import Google Oauth2
-      # configuration to rethinkdb via migration 183
-      # Transitional AUTHENTICATION_*_ENABLED variables to import authentication providers status
-      # configuration to rethinkdb bia migration 184

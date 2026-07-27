@@ -102,6 +102,16 @@ FRONTEND_VIEWERS_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/user/viewers/vie
 ## - url
 DIRECTVIEWER_MODE=browser
 
+# ------ Notifier ------------------------------------------------------------
+## Email credentials that will be used to send email notifications.
+## DEPRECATED variables after migration 175. Please configure it via
+## administration web interface.
+# NOTIFY_EMAIL=True
+# NOTIFY_EMAIL_SMTP_SERVER=smtp.gmail.com
+# NOTIFY_EMAIL_SMTP_PORT=587
+# NOTIFY_EMAIL_USERNAME=example@isardvdi.com
+# NOTIFY_EMAIL_PASSWORD=IsardVDI
+
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
 ## openssl rand -base64 32
@@ -169,15 +179,61 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER=1m
 # And the user fails the authentication for 13th time in a row, the user will have to wait (13 - 10) ^ 2 * 1m -> 9 minutes
 # before being able to log in again
 AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR=2
-
-# The maximum time an user will be rate limited: the exponential backoff above is
-# capped at this value, and it is also the lifetime of the rate limit entry
+# The maximum time an user will be rate limited
 AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 
 # Maximum time a impersonate token will be valid. If this duration is exceeded, token won't be able to be used
 # for any action. The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 
+## Local
+### Local authentication against isard database
+
+
+## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_LDAP_* after migration
+## 180. Please configure it via administration web interface.
+
+
+### Credentials used for querying the LDAP
+
+### Base Search is the DN that all the users share, e.g. ou=people,dc=example,dc=com
+### Filter is the actual filter used to search users. The '%s' represents the user that is sent through the form
+### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
+
+### These are the fields that the LDAP search responds. For example, in some installations, the field for the email is called 'mail'
+### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field. The 
+### regex match tries to extract the first group, but if there's no group it will extract the whole match
+
+### Auto Register the existing ldap users into IsardVDI
+### Only the users that belong to one of these groups will be autoregistered (comma separated)
+
+### Try guessing the category based in the LDAP search results (must have AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY configured)
+### These are the fields that the LDAP search responds. For example, in some installations, the field for the group is called 'group'
+### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field. The 
+### regex match tries to extract the first group, but if there's no group it will extract the whole match
+### If this is configured, this will set a default group when autoregistering a user
+### This is only advised to be configured if you have users without a group, otherwise don't configure it
+### It's the equivalent of AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP with AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP applied to it
+### The base search for listing all the roles of a user
+### Filter is the actual filter used to search all the roles of a user. The '%s' represents the user that is sent through the form
+### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
+### The field that contains the roles in the AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FILTER search
+### All the users that are in at least one of the roles specified here, will be created in the admin role (comma separated)
+
+
+## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_SAML_* after migration
+## 182. Please configure it via administration web interface.
+
+
+### These are the fields that the SAML search responds. For example, in some installations, the field for the email is called 'mail'
+### Then, a regex is applied to this field, in case we needed to filter inside a SAML field. By default it collects the whole field. The 
+### regex match tries to extract the first group, but if there's no group it will extract the whole match
+### Only the users that belong to one of these groups will be autoregistered (comma separated)
+### All the users that match with the FIELD_ROLE in at least one of the IDs specified here, will be created in the admin role (comma separated)
+
+## Google
+### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
+### Authorized redirect URIs: https://domain.tld/authentication/callback
 
 # ------ Backups -------------------------------------------------------------
 
@@ -227,6 +283,12 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 ## backups entirely; the cron will then delete with no recovery
 ## path.
 #LOGS_DELETE_BACKUP_DIR=/opt/isard/backups
+
+##################################################################
+##################################################################
+## DO NOT EDIT FROM HERE UNLESS YOU KNOW WHAT YOU ARE DOING !!! ##
+##################################################################
+##################################################################
 
 # ------ Docker images prefix ------------------------------------------------
 ## Image prefix that could include registry and repository
@@ -326,6 +388,14 @@ HAPROXY_LOGGING=.
 #TELEGRAM_ENGINE_TOKEN=
 #TELEGRAM_ENGINE_CHAT_ID=
 
+##################################################################
+## INFRASTRUCTURE PARAMETERS. Used on remote hypervisors        ##
+##################################################################
+## Remote hypervisors can be:
+## docker-compose.hypervisor.yml: Will have an isard-video
+## docker-compose.hypervisor-standalone.yml: Will get video on 
+## the VIDEO_HYPERVISOR_PORTS from the VIDEO_DOMAIN isard-video host.
+
 # ------ Hypervisor Identifier -----------------------------------------------
 ## Set it to a unique name for hypervisor
 #HYPER_ID=isard-hypervisor
@@ -381,6 +451,7 @@ HAPROXY_LOGGING=.
 #DISABLE_TRAFFIC_PRIORITIZATION=false
 #NETWORK_MAX_DOWNLOAD_BANDWIDTH=800   # Example: Set max download speed to 800 Mbps
 #NETWORK_MAX_UPLOAD_BANDWIDTH=200     # Example: Set max upload speed to 200 Mbps
+
 
 # ------ Database host -------------------------------------------------------
 ## Where is the database reacheable?
@@ -500,6 +571,10 @@ HAPROXY_LOGGING=.
 #HTTPS_PORT=8443
 
 # ------ Bastion -------------------------------------------------------------
+## Docs: https://isard.gitlab.io/isardvdi-docs/admin/bastion/
+##  The Bastion feature allows access to virtual desktops through the
+##  same server running the IsardVDI web interface, instead of 
+##  relying exclusively on a wireguard network added to guest.
 
 ## Wether the bastion service will be enabled
 #BASTION_ENABLED=false
@@ -562,6 +637,8 @@ HAPROXY_LOGGING=.
 #VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
 #VIDEO_HYPERVISOR_PORTS=5900-7899
 
+# ------ Vide proxy settings -------------------------------------------------
+
 # ------ Docker networking ---------------------------------------------------
 ## Assign a docker /24 network. The host part will be set by system
 ## You should avoid setting a network that exists in your infrastructure
@@ -616,10 +693,26 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## fix this as forced vlans inside hypervisor.
 #HYPERVISOR_STATIC_VLANS=
 
+## NOTE: The interface name should not be changed from defaults.
+##       Newer kernels use cgroups2 that doens't work. To get the
+##       old cgroups add to /etc/default/grub:
+##        GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=0"
+##       and update-grub, and reboot.
+
 # ------ Override hosts in isard-portal haproxy ------------------------------
 #WEBAPP_HOST=isard-webapp
 
 # ------ Redis ---------------------------------------------------------------
+
+## IsardVDI uses four logical Redis databases on a single shared instance.
+## DB numbers are hardcoded per service and cannot be changed from here:
+##   DB 0: RQ task queues (apiv4, storage, notifier) and the
+##         stream:task-results bridge between isard-storage and
+##         isard-change-handler.
+##   DB 1: Sessions (Go sessions service)
+##   DB 2: Changefeed bus (changefeed, change-handler, engine, vpn)
+##   DB 3: Socket.io fan-out (socketio, apiv4, change-handler)
+## Operators only configure the shared connection below.
 
 # Redis password
 ## The password used with AUTH inside redis connections.
@@ -666,6 +759,10 @@ WG_GUESTS_RESERVED_HOSTS=20
 #URL_DOWNLOAD_MIN_SPEED_BPS=1024
 #URL_DOWNLOAD_MIN_SPEED_TIME=60
 
+##################################################################
+## STATS PARAMETERS                                             ##
+##################################################################
+
 # ------ Grafana ------------------------------------------------------
 ## Use GRAFANA_HOST to connect to an internal infrastructure grafana
 ## server at port :3000 through portal proxy https://[DOMAIN]/monitor
@@ -683,6 +780,8 @@ WG_GUESTS_RESERVED_HOSTS=20
 # ------ VictoriaMetrics -----------------------------------------------------
 #VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428
 #VICTORIAMETRICS_RETENTION_TIME=40d
+
+# ------ Stats -----------------------------------------------------
 
 # ------ Loki -----------------------------------------------------
 #LOKI_ADDRESS=http://isard-loki:3100
@@ -725,6 +824,11 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## CHECK PARAMETERS                                             ##
 ##################################################################
 #CHECK_CHECK_IMAGE=registry.gitlab.com/isard/isardvdi/check-client:main
+
+
+##################################################################
+## INFRASTRUCTURE                                               ##
+##################################################################
 
 # Set this to true to enable IsardVDI infrastructure management (with isard-operations and isard-orchestrator)
 #INFRASTRUCTURE_MANAGEMENT=false
@@ -831,6 +935,10 @@ WG_GUESTS_RESERVED_HOSTS=20
 # ------ Operations -----------------------------------------------------
 # Control whether the operations menu should be shown in the webapp and the endpoints should be enabled. 
 #OPERATIONS_API_ENABLED=false
+
+##################################################################
+## DEVEL                                                        ##
+##################################################################
 
 ## OpenApi specs container with swagger and specs at /openapi
 #ENABLE_OPENAPI=false
