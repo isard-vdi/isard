@@ -255,10 +255,14 @@ class Scrubber:
             owner = r.get("user")
             owner8 = owner[:8] if isinstance(owner, str) and owner else short
             r["username"] = f"user-{owner8}"
+        # `tag` is deployments.id, read through the domains `tag` secondary
+        # index — a uuid, not identity. Preserve it; rebuild the denormalized
+        # `tag_name` from it so it matches the scrubbed deployments.name.
         if isinstance(r.get("tag_name"), str):
-            r["tag_name"] = ""
-        if isinstance(r.get("tag"), str):
-            r["tag"] = ""
+            tag = r.get("tag")
+            r["tag_name"] = (
+                f"deployment-{tag[:8]}" if isinstance(tag, str) and tag else ""
+            )
         if isinstance(r.get("jumperurl"), str):
             r["jumperurl"] = secrets.token_urlsafe(16)
         cd = r.get("create_dict")
@@ -516,9 +520,7 @@ class Scrubber:
             if isinstance(r.get("description"), str):
                 r["description"] = ""
             if isinstance(r.get("tag_name"), str):
-                r["tag_name"] = ""
-            if isinstance(r.get("tag"), str):
-                r["tag"] = ""
+                r["tag_name"] = f"deployment-{short}"
             cd = r.get("create_dict")
             for sub in cd if isinstance(cd, list) else [cd]:
                 if not isinstance(sub, dict):
@@ -527,8 +529,6 @@ class Scrubber:
                     sub["name"] = f"deployment-{short}"
                 if isinstance(sub.get("description"), str):
                     sub["description"] = ""
-                if isinstance(sub.get("tag"), str):
-                    sub["tag"] = ""
                 gp = sub.get("guest_properties")
                 if isinstance(gp, dict) and isinstance(gp.get("credentials"), dict):
                     gp["credentials"] = {

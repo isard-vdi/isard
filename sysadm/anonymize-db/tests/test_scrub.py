@@ -280,6 +280,59 @@ def test_ssh_authorized_keys_blanked():
     assert out["recycle_bin"][0]["item"]["ssh"]["authorized_keys"] == []
 
 
+DEPLOYMENT_ID = "eeeeeeee-1111-2222-3333-555555555555"
+
+
+def test_deployment_tag_fk_preserved():
+    tables = {
+        "deployments": [
+            {
+                "id": DEPLOYMENT_ID,
+                "name": "Finance Lab 2026",
+                "description": "for the finance dept",
+                "tag": DEPLOYMENT_ID,
+                "tag_name": "Finance Lab 2026",
+                "create_dict": {
+                    "name": "Finance Lab 2026",
+                    "description": "for the finance dept",
+                    "tag": DEPLOYMENT_ID,
+                },
+            }
+        ],
+        "domains": [
+            {
+                "id": "d1aaaaaa-0000",
+                "user": "u1aaaaaa-0000",
+                "tag": DEPLOYMENT_ID,
+                "tag_name": "Finance Lab 2026",
+            },
+            {
+                "id": "d2bbbbbb-0000",
+                "user": "u1aaaaaa-0000",
+                "tag": DEPLOYMENT_ID,
+                "tag_name": "Finance Lab 2026",
+            },
+            {"id": "d3cccccc-0000", "user": "u1aaaaaa-0000", "tag": False},
+        ],
+    }
+    out = _run(tables)
+
+    assert "Finance Lab 2026" not in json.dumps(out)
+
+    dep = out["deployments"][0]
+    assert dep["tag"] == DEPLOYMENT_ID
+    assert dep["create_dict"]["tag"] == DEPLOYMENT_ID
+    assert dep["name"] == f"deployment-{DEPLOYMENT_ID[:8]}"
+    assert dep["tag_name"] == dep["name"]
+
+    grouped = [d for d in out["domains"] if d["tag"]]
+    assert len(grouped) == 2
+    for d in grouped:
+        assert d["tag"] == DEPLOYMENT_ID
+        assert d["tag_name"] == f"deployment-{DEPLOYMENT_ID[:8]}"
+    assert out["domains"][2]["tag"] is False
+
+
 def test_category_email_domain_restriction_scrubbed():
     # real shape: nested under authentication.{ldap,saml}.email_domain_restriction
     tables = {
