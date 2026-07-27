@@ -2,6 +2,11 @@ auth_enabled: false
 
 server:
   http_listen_port: 3100
+  # Loki caps a gRPC message at 4 MiB, and a query response that crosses it is
+  # dropped on the query path: the panel renders empty rather than failing, so
+  # the gap reads as "there are no logs".
+  grpc_server_max_recv_msg_size: 104857600
+  grpc_server_max_send_msg_size: 104857600
 
 query_scheduler:
   max_outstanding_requests_per_tenant: 4096
@@ -57,3 +62,8 @@ storage_config:
     cache_location: /data/index_cache
   filesystem:
     directory: /data/saved
+
+limits_config:
+  # The log panels page through far more than the 5000-entry default, and going
+  # over truncates the result with no visible sign that it did.
+  max_entries_limit_per_query: 50000000000
