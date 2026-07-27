@@ -1048,25 +1048,11 @@ password:s:%s"""
             r.table(table).update(
                 {
                     "smtp": {
-                        "enabled": bool(
-                            strtobool(os.environ.get("NOTIFY_EMAIL", "False"))
-                        ),
-                        "host": os.environ.get(
-                            "NOTIFY_EMAIL_SMTP_SERVER", "example.com"
-                        ),
-                        # SMPT is the pre-rename misspelling, still injected by a
-                        # docker-compose.yml generated before the rename
-                        "port": int(
-                            os.environ.get("NOTIFY_EMAIL_SMTP_PORT")
-                            or os.environ.get("NOTIFY_EMAIL_SMPT_PORT")
-                            or 587
-                        ),
-                        "username": os.environ.get(
-                            "NOTIFY_EMAIL_USERNAME", "user@example.com"
-                        ),
-                        "password": os.environ.get(
-                            "NOTIFY_EMAIL_PASSWORD", "SomePlainStoredPassphrase"
-                        ),
+                        "enabled": False,
+                        "host": "example.com",
+                        "port": 587,
+                        "username": "user@example.com",
+                        "password": "SomePlainStoredPassphrase",
                     }
                 }
             ).run(self.conn)
@@ -1111,10 +1097,7 @@ password:s:%s"""
                 "role_default": "user",
             }
             for config_key, config_value in default_config.items():
-                ldap_config[config_key] = os.environ.get(
-                    f"AUTHENTICATION_AUTHENTICATION_LDAP_{config_key.upper()}",
-                    config_value,
-                )
+                ldap_config[config_key] = config_value
             default_config = {
                 "auto_register": "false",
                 "guess_category": "false",
@@ -1122,20 +1105,9 @@ password:s:%s"""
                 "save_email": "true",
             }
             for config_key, config_value in default_config.items():
-                ldap_config[config_key] = bool(
-                    strtobool(
-                        os.environ.get(
-                            f"AUTHENTICATION_AUTHENTICATION_LDAP_{config_key.upper()}",
-                            config_value,
-                        )
-                    )
-                )
-            ldap_config["port"] = int(
-                os.environ.get(f"AUTHENTICATION_AUTHENTICATION_LDAP_PORT", 389)
-            )
-            ldap_config["auto_register_roles"] = os.environ.get(
-                "AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER_GROUPS", ""
-            )
+                ldap_config[config_key] = bool(strtobool(config_value))
+            ldap_config["port"] = 389
+            ldap_config["auto_register_roles"] = ""
 
             r.table(table).update({"auth": {"ldap": {"ldap_config": ldap_config}}}).run(
                 self.conn
@@ -1177,10 +1149,7 @@ password:s:%s"""
                 "logout_redirect_url": "",
             }
             for config_key, config_value in default_config.items():
-                saml_config[config_key] = os.environ.get(
-                    f"AUTHENTICATION_AUTHENTICATION_SAML_{config_key.upper()}",
-                    config_value,
-                )
+                saml_config[config_key] = config_value
             default_config = {
                 "auto_register": "false",
                 "guess_category": "false",
@@ -1226,16 +1195,7 @@ password:s:%s"""
             }
             auth_config = {}
             for config_key, config_value in default_config.items():
-                auth_config[config_key] = {
-                    "enabled": bool(
-                        strtobool(
-                            os.environ.get(
-                                f"AUTHENTICATION_AUTHENTICATION_{config_key.upper()}_ENABLED",
-                                config_value,
-                            )
-                        )
-                    )
-                }
+                auth_config[config_key] = {"enabled": bool(strtobool(config_value))}
 
             r.table(table).update({"auth": auth_config}).run(self.conn)
 
