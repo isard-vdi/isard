@@ -585,14 +585,34 @@ class Scrubber:
         return rows
 
     # Keys whose string values get blanked anywhere in recycle_bin nested trees.
-    # `(?:^|_)uid$` catches the SSO `uid` (== email for many installs) in deleted
-    # user/domain snapshots without matching `uuid`.
-    _RB_BLANK_RE = re.compile(
-        r"name|description|email|username|ip|hostname|jumperurl|"
-        r"title|comment|certificate|server-cert|host-subject|password_history|"
-        r"authorized_keys|(?:^|_)uid$",
+    # Exact names first, then anchored suffixes for the `owner_user_name` /
+    # `guest_ip` family. Anchoring matters: an unanchored `ip` alternative also
+    # matches `chipset` and `clipboard`, which carry no identity.
+    _RB_BLANK_KEYS = frozenset(
+        {
+            "authorized_keys",
+            "certificate",
+            "description",
+            "host-subject",
+            "jumperurl",
+            "password_history",
+            "server-cert",
+        }
+    )
+    # `(?:^|_)uid$` catches the SSO `uid` (== email for many installs) without
+    # matching `uuid`.
+    _RB_BLANK_SUFFIX_RE = re.compile(
+        r"(?:^|_)(?:name|email|username|ip|hostname|title|comment|uid)$",
         re.I,
     )
+    # Only these two are list-valued; every other match blanks a string.
+    _RB_BLANK_LISTS = frozenset({"authorized_keys", "password_history"})
+
+    @classmethod
+    def _rb_should_blank(cls, key: str) -> bool:
+        return key.lower() in cls._RB_BLANK_KEYS or bool(
+            cls._RB_BLANK_SUFFIX_RE.search(key)
+        )
 
     def _recycle_walk(self, obj: Any, path: tuple[str, ...] = ()) -> Any:
         if isinstance(obj, dict):
@@ -610,14 +630,14 @@ class Scrubber:
                 obj["password"] = GUEST_DEFAULT_PASSWORD
                 return obj
             for k, v in list(obj.items()):
-                if (
-                    isinstance(k, str)
-                    and self._RB_BLANK_RE.search(k)
-                    and isinstance(v, (str, list))
-                ):
-                    obj[k] = "" if isinstance(v, str) else []
-                else:
-                    obj[k] = self._recycle_walk(v, path + (k,))
+                if isinstance(k, str) and self._rb_should_blank(k):
+                    if isinstance(v, str):
+                        obj[k] = ""
+                        continue
+                    if isinstance(v, list) and k.lower() in self._RB_BLANK_LISTS:
+                        obj[k] = []
+                        continue
+                obj[k] = self._recycle_walk(v, path + (k,))
         elif isinstance(obj, list):
             for i, v in enumerate(obj):
                 obj[i] = self._recycle_walk(v, path)

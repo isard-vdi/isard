@@ -280,6 +280,51 @@ def test_ssh_authorized_keys_blanked():
     assert out["recycle_bin"][0]["item"]["ssh"]["authorized_keys"] == []
 
 
+def test_recycle_bin_matcher_is_anchored():
+    tables = {
+        "recycle_bin": [
+            {
+                "id": "rb1",
+                "item": {
+                    "name": "Real Desktop",
+                    "owner_user_name": "mgonzalez@realcorp.example",
+                    "guest_ip": "10.9.8.7",
+                    "uid": "jdoe@school.example",
+                    # non-identity keys that the substring matcher destroyed
+                    "chipset": "q35",
+                    "clipboard": "enabled",
+                    "description": "a note",
+                    "interface_names": ["default", "wireguard"],
+                    "authorized_keys": ["ssh-ed25519 AAAA teacher@school.example"],
+                },
+            }
+        ]
+    }
+    out = _run(tables)
+    item = out["recycle_bin"][0]["item"]
+
+    blob = json.dumps(out)
+    for needle in (
+        "Real Desktop",
+        "mgonzalez@realcorp.example",
+        "10.9.8.7",
+        "jdoe@school.example",
+        "teacher@school.example",
+    ):
+        assert needle not in blob, f"leaked: {needle!r}"
+
+    assert item["name"] == ""
+    assert item["owner_user_name"] == ""
+    assert item["guest_ip"] == ""
+    assert item["uid"] == ""
+    assert item["description"] == ""
+    assert item["authorized_keys"] == []
+    # structure that carries no identity survives
+    assert item["chipset"] == "q35"
+    assert item["clipboard"] == "enabled"
+    assert item["interface_names"] == ["default", "wireguard"]
+
+
 def test_hypervisor_ids_aliased_not_blanked():
     tables = {
         "logs_desktops": [
