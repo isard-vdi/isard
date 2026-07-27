@@ -8,6 +8,7 @@ fields touched (for `--dry-run` reporting).
 from __future__ import annotations
 
 import base64
+import hashlib
 import logging
 import re
 import secrets
@@ -90,6 +91,9 @@ class Scrubber:
         self.counts: dict[str, int] = {}
         self.remap = IdRemap()
         self._hyp_aliases: dict[str, str] = {}
+        self._mac_aliases: dict[str, str] = {}
+        # Per-run key so the mapping cannot be reversed from the output alone.
+        self._mac_key = secrets.token_bytes(16)
 
     # ---- helpers ----
     def _bump(self, table: str, n: int = 1) -> None:
@@ -112,15 +116,30 @@ class Scrubber:
             base64.b64encode(pub_raw).decode(),
         )
 
-    @staticmethod
-    def _fake_mac(idx: int) -> str:
-        # locally-administered, unicast (02:..); deterministic per idx
-        rng = secrets.token_bytes(5) if idx < 0 else None
-        if rng is None:
-            b = idx.to_bytes(5, "big", signed=False)
-        else:
-            b = rng
-        return "02:" + ":".join(f"{x:02x}" for x in b)
+    def _mac_alias(self, mac: str) -> str:
+        """Replacement for one real MAC, in the locally-administered `02:` range.
+
+        Keyed on the address itself rather than on the row's position: the cli
+        streams each table one document at a time, so a position-derived value
+        collides across every row. One interface is described in the hardware
+        block, in create_dict and in the libvirt xml, and all three must land on
+        the same replacement or a restored database contradicts itself.
+        """
+        alias = self._mac_aliases.get(mac)
+        if alias is None:
+            digest = hashlib.blake2b(
+                mac.encode(), digest_size=5, key=self._mac_key
+            ).digest()
+            alias = "02:" + ":".join(f"{b:02x}" for b in digest)
+            self._mac_aliases[mac] = alias
+        return alias
+
+    def _scrub_interface_macs(self, hardware: Any) -> None:
+        if not isinstance(hardware, dict):
+            return
+        for ifc in hardware.get("interfaces") or []:
+            if isinstance(ifc, dict) and isinstance(ifc.get("mac"), str):
+                ifc["mac"] = self._mac_alias(ifc["mac"])
 
     # ---- defensive sweep ----
     def defensive_sweep(self, table: str, obj: Any, _path: tuple[str, ...] = ()) -> Any:
@@ -327,16 +346,17 @@ class Scrubber:
         ssh = r.get("ssh")
         if isinstance(ssh, dict) and isinstance(ssh.get("authorized_keys"), list):
             ssh["authorized_keys"] = []
-        cd = r.get("create_dict") or {}
-        hw = cd.get("hardware") or {}
-        ifs = hw.get("interfaces")
-        if isinstance(ifs, list):
-            for j, ifc in enumerate(ifs):
-                if isinstance(ifc, dict) and "mac" in ifc:
-                    ifc["mac"] = self._fake_mac(i * 100 + j)
+        # The same interface is described in the top-level hardware block, in
+        # create_dict and in the libvirt xml; `_mac_alias` keeps all three in
+        # agreement.
+        self._scrub_interface_macs(r.get("hardware"))
+        cd = r.get("create_dict")
+        for sub in cd if isinstance(cd, list) else [cd]:
+            if isinstance(sub, dict):
+                self._scrub_interface_macs(sub.get("hardware"))
         xml = r.get("xml")
         if isinstance(xml, str) and xml:
-            r["xml"] = scrub_libvirt_xml(xml)
+            r["xml"] = scrub_libvirt_xml(xml, self._mac_alias)
 
     def domains(self, rows: list[dict]) -> list[dict]:
         for i, r in enumerate(rows):

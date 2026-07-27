@@ -10,6 +10,7 @@ IsardVDI rethinkdb dump, and asserts that:
 from __future__ import annotations
 
 import json
+import re
 
 from anonymize_db.scrub import Scrubber, get_scrubbers
 from anonymize_db.xml_scrub import scrub_libvirt_xml
@@ -278,6 +279,72 @@ def test_ssh_authorized_keys_blanked():
     assert out["domains"][0]["ssh"]["authorized_keys"] == []
     assert out["domains"][0]["ssh"]["enabled"] is True  # non-PII flag kept
     assert out["recycle_bin"][0]["item"]["ssh"]["authorized_keys"] == []
+
+
+REAL_MAC = "52:54:00:aa:bb:cc"
+OTHER_MAC = "52:54:00:dd:ee:ff"
+
+
+def test_macs_replaced_consistently_in_every_place_they_appear():
+    tables = {
+        "domains": [
+            {
+                "id": "d1234567-aaaa",
+                "user": "u1234567-bbbb",
+                "hardware": {"interfaces": [{"id": "default", "mac": REAL_MAC}]},
+                "create_dict": {
+                    "hardware": {"interfaces": [{"id": "default", "mac": REAL_MAC}]}
+                },
+                "xml": (
+                    "<domain><devices><interface type='bridge'>"
+                    f"<mac address='{REAL_MAC}'/></interface></devices></domain>"
+                ),
+            },
+            {
+                "id": "d7654321-cccc",
+                "user": "u1234567-bbbb",
+                "hardware": {"interfaces": [{"mac": OTHER_MAC}]},
+            },
+        ]
+    }
+    out = _run(tables)
+
+    blob = json.dumps(out)
+    assert REAL_MAC not in blob, "real MAC survived"
+    assert OTHER_MAC not in blob, "real MAC survived"
+
+    d1 = out["domains"][0]
+    hw_mac = d1["hardware"]["interfaces"][0]["mac"]
+    cd_mac = d1["create_dict"]["hardware"]["interfaces"][0]["mac"]
+    xml_mac = re.search(r"<mac address='([^']+)'", d1["xml"]).group(1)
+
+    assert hw_mac.startswith("02:")
+    # one interface described in three places must get ONE replacement, or a
+    # restored dev database contradicts itself
+    assert hw_mac == cd_mac == xml_mac
+
+    assert out["domains"][1]["hardware"]["interfaces"][0]["mac"] != hw_mac
+
+
+def test_macs_stay_unique_when_scrubbed_one_document_at_a_time():
+    """The cli streams each table document by document (`fn([doc])`), so a
+    scrubber must never derive a value from the row's index within its batch —
+    that index is always 0 there."""
+    s = Scrubber(seed=0)
+    fn = get_scrubbers(s)["domains"]
+    docs = [
+        {
+            "id": f"d{i}aaaaaa-0000",
+            "user": "u1234567-bbbb",
+            "create_dict": {
+                "hardware": {"interfaces": [{"mac": f"52:54:00:00:00:{i:02x}"}]}
+            },
+        }
+        for i in range(5)
+    ]
+    scrubbed = [fn([d])[0] for d in docs]
+    macs = {d["create_dict"]["hardware"]["interfaces"][0]["mac"] for d in scrubbed}
+    assert len(macs) == 5, f"domains collided onto the same MAC: {sorted(macs)}"
 
 
 def test_targets_bastion_domains_scrubbed():
