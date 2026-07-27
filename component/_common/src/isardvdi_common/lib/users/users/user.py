@@ -1149,76 +1149,81 @@ class UsersProcessed(RethinkSharedConnection):
 
             # TODO: Test when changing to apiv4 since deployments in apiv4 are different
             for deployment in deployments:
+                # Desktops migrated from before release 184 carry
+                # tag_desktop_id=False, so they can only be matched by tag.
+                with cls._rdb_context():
+                    deployment_desktops = list(
+                        r.table("domains")
+                        .get_all(deployment["id"], index="tag")
+                        .pluck("id", "tag_desktop_id")
+                        .run(cls._rdb_connection)
+                    )
+
+                desktop_ids_by_recipe = {}
+                legacy_desktop_ids = []
+                for desktop in deployment_desktops:
+                    recipe_id = desktop.get("tag_desktop_id")
+                    if recipe_id:
+                        desktop_ids_by_recipe.setdefault(recipe_id, []).append(
+                            desktop["id"]
+                        )
+                    else:
+                        legacy_desktop_ids.append(desktop["id"])
+
                 new_create_dict = []
-                for create_dict in deployment["create_dict"]:
+                for position, create_dict in enumerate(deployment["create_dict"]):
                     Helpers.revoke_hardware_permissions(
                         {"create_dict": create_dict}, user_gen_payload
                     )
                     new_create_dict.append(create_dict)
+
+                    desktop_ids = list(
+                        desktop_ids_by_recipe.get(create_dict.get("tag_desktop_id"), [])
+                    )
+                    if position == 0:
+                        desktop_ids.extend(legacy_desktop_ids)
+                    if not desktop_ids:
+                        continue
+
+                    create_dict_update = {
+                        "hardware": {
+                            "boot_order": create_dict["hardware"]["boot_order"],
+                            "disk_bus": create_dict["hardware"]["disk_bus"],
+                            "floppies": create_dict["hardware"]["floppies"],
+                            "isos": create_dict["hardware"]["isos"],
+                            "memory": create_dict["hardware"]["memory"],
+                            "vcpus": create_dict["hardware"]["vcpus"],
+                            "videos": create_dict["hardware"]["videos"],
+                        }
+                    }
+                    if "reservables" in create_dict:
+                        create_dict_update["reservables"] = create_dict["reservables"]
+
                     allowed_interfaces = create_dict["hardware"]["interfaces"]
+                    # One parameter only: ReQL takes the lambda's arity from its
+                    # signature, so extra default args make the write a no-op.
                     with cls._rdb_context():
-                        r.table("domains").get_all(
-                            create_dict["tag_desktop_id"], index="tag_desktop_id"
-                        ).update(
+                        r.table("domains").get_all(r.args(desktop_ids)).update(
                             lambda desktop: {
-                                "create_dict": {
-                                    "hardware": {
-                                        "interfaces": desktop["create_dict"][
-                                            "hardware"
-                                        ]["interfaces"].filter(
-                                            lambda interface: r.expr(
-                                                allowed_interfaces
-                                            ).contains(interface["id"])
-                                        ),
-                                        "boot_order": create_dict["hardware"][
-                                            "boot_order"
-                                        ],
-                                        "disk_bus": create_dict["hardware"]["disk_bus"],
-                                        "floppies": create_dict["hardware"]["floppies"],
-                                        "isos": create_dict["hardware"]["isos"],
-                                        "memory": create_dict["hardware"]["memory"],
-                                        "vcpus": create_dict["hardware"]["vcpus"],
-                                        "videos": create_dict["hardware"]["videos"],
-                                    },
-                                    "reservables": create_dict["reservables"],
-                                }
+                                "create_dict": r.expr(create_dict_update).merge(
+                                    {
+                                        "hardware": {
+                                            "interfaces": desktop["create_dict"][
+                                                "hardware"
+                                            ]["interfaces"].filter(
+                                                lambda interface: r.expr(
+                                                    allowed_interfaces
+                                                ).contains(interface["id"])
+                                            )
+                                        }
+                                    }
+                                )
                             }
-                        ).run(
-                            cls._rdb_connection
-                        )
+                        ).run(cls._rdb_connection)
 
                 with cls._rdb_context():
                     r.table("deployments").get(deployment["id"]).update(
                         {"create_dict": new_create_dict}
-                    ).run(cls._rdb_connection)
-
-                # Limit deployment desktops hardware
-                allowed_interfaces = new_create_dict["hardware"]["interfaces"]
-                with cls._rdb_context():
-                    r.table("domains").get_all(deployment["id"], index="tag").update(
-                        lambda desktop: {
-                            "create_dict": {
-                                "hardware": {
-                                    "interfaces": desktop["create_dict"]["hardware"][
-                                        "interfaces"
-                                    ].filter(
-                                        lambda interface: r.expr(
-                                            allowed_interfaces
-                                        ).contains(interface["id"])
-                                    ),
-                                    "boot_order": new_create_dict["hardware"][
-                                        "boot_order"
-                                    ],
-                                    "disk_bus": new_create_dict["hardware"]["disk_bus"],
-                                    "floppies": new_create_dict["hardware"]["floppies"],
-                                    "isos": new_create_dict["hardware"]["isos"],
-                                    "memory": new_create_dict["hardware"]["memory"],
-                                    "vcpus": new_create_dict["hardware"]["vcpus"],
-                                    "videos": new_create_dict["hardware"]["videos"],
-                                },
-                                "reservables": new_create_dict["reservables"],
-                            }
-                        }
                     ).run(cls._rdb_connection)
 
     # ``update_multiple_users_th`` was a fire-and-forget gevent.spawn
@@ -1257,12 +1262,13 @@ class UsersProcessed(RethinkSharedConnection):
             data.pop("ids")
 
         with cls._rdb_context():
-            users = (
+            users = list(
                 r.table("users")
                 .get_all(r.args(user_ids))
-                .pluck("id", "category", "group", "uid", "provider")
+                .pluck("id", "category", "group", "uid", "provider", "email", "role")
                 .run(cls._rdb_connection)
             )
+        users_by_id = {user["id"]: user for user in users}
 
         for user in users:
             if (
@@ -1375,7 +1381,7 @@ class UsersProcessed(RethinkSharedConnection):
                 enabled=data.get("active"),
             )
 
-            if data.get("group") and user["group"] != data["group"]:
+            if data.get("group") and users_by_id[user_id]["group"] != data["group"]:
                 cls.change_user_group(
                     user_id,
                     data["group"],
@@ -1499,11 +1505,6 @@ class UsersProcessed(RethinkSharedConnection):
                     traceback.format_exc(),
                 )
             data["quota"] = False
-
-            cls.change_user_group(
-                user["id"],
-                data["group"],
-            )
 
         with cls._rdb_context():
             # TODO(move-users-to-common): pydantic validation
