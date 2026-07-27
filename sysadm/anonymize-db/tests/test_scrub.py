@@ -280,6 +280,34 @@ def test_ssh_authorized_keys_blanked():
     assert out["recycle_bin"][0]["item"]["ssh"]["authorized_keys"] == []
 
 
+def test_hypervisor_ids_aliased_not_blanked():
+    tables = {
+        "logs_desktops": [
+            {"id": "l1", "hyp_started": "isard-hypervisor-gencat-hyp03"},
+            {"id": "l2", "hyp_started": "isard-hypervisor-gencat-hyp03"},
+            {"id": "l3", "hyp_started": "isard-hypervisor-gencat-hyp07"},
+            {"id": "l4", "hyp_started": False, "hyp_forced": "bastion-hyp01"},
+        ]
+    }
+    out = _run(tables)
+
+    blob = json.dumps(out)
+    assert "isard-hypervisor-gencat-hyp03" not in blob
+    assert "isard-hypervisor-gencat-hyp07" not in blob
+    assert "bastion-hyp01" not in blob
+
+    rows = out["logs_desktops"]
+    # same source hypervisor -> same alias; grouping survives
+    assert rows[0]["hyp_started"] == rows[1]["hyp_started"]
+    assert rows[0]["hyp_started"] != rows[2]["hyp_started"]
+    assert rows[0]["hyp_started"].startswith("hyp-")
+    # cardinality of the dimension is unchanged
+    assert len({r["hyp_started"] for r in rows if r["hyp_started"]}) == 2
+    # non-string values pass through untouched
+    assert rows[3]["hyp_started"] is False
+    assert rows[3]["hyp_forced"].startswith("hyp-")
+
+
 def test_log_names_rebuilt_from_fks():
     tables = {
         "logs_users": [

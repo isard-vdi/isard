@@ -89,6 +89,7 @@ class Scrubber:
         self._bcrypt_cache: dict[str, str] = {}
         self.counts: dict[str, int] = {}
         self.remap = IdRemap()
+        self._hyp_aliases: dict[str, str] = {}
 
     # ---- helpers ----
     def _bump(self, table: str, n: int = 1) -> None:
@@ -640,6 +641,18 @@ class Scrubber:
         "deployment_name": ("deployment_id", "deployment-", 8),
     }
 
+    def _hyp_alias(self, value: Any) -> Any:
+        """Stable per-dump alias for a hypervisor id. The literal id names a
+        real host, but the field is the placement dimension — an alias keeps
+        rows groupable without leaking the topology."""
+        if not isinstance(value, str) or not value:
+            return value
+        alias = self._hyp_aliases.get(value)
+        if alias is None:
+            alias = f"hyp-{len(self._hyp_aliases) + 1:02d}"
+            self._hyp_aliases[value] = alias
+        return alias
+
     def _rebuild_log_names(self, r: dict) -> None:
         for name_key, (fk_key, prefix, cut) in self._LOG_NAME_FROM_FK.items():
             if not isinstance(r.get(name_key), str):
@@ -669,6 +682,9 @@ class Scrubber:
     def logs_desktops(self, rows: list[dict]) -> list[dict]:
         for r in rows:
             self._rebuild_log_names(r)
+            for k in ("hyp_started", "hyp_forced"):
+                if isinstance(r.get(k), str):
+                    r[k] = self._hyp_alias(r[k])
             for k in (
                 "request_ip",
                 "stopping_ip",
@@ -677,8 +693,6 @@ class Scrubber:
                 "request_agent_version",
                 "stopping_agent_browser",
                 "stopping_agent_platform",
-                "hyp_started",
-                "hyp_forced",
             ):
                 if isinstance(r.get(k), str):
                     r[k] = ""
