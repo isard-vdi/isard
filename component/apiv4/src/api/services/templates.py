@@ -223,17 +223,14 @@ class TemplateService:
                 description_code="not_found",
             )
 
-        # Determine index strategy based on user role
-        if user_role == "admin":
-            if sort_field == "accessed":
-                # Admin users can access all templates, ignoring if enabled or not
-                index = "kind_accessed"
-            index_value = ["template"]
-        else:
-            if sort_field == "accessed":
-                # Non-admin users can only access enabled templates
-                index = "enabled_kind_accessed"
-            index_value = [True, "template"]
+        # v3 listed enabled templates only, for every role alike: the
+        # filter was a plain ``{"enabled": True}`` with no role branch.
+        # Admins reach disabled templates through the admin tables, which
+        # is where managing them belongs; this endpoint answers "what can
+        # I launch", and a disabled template is not an answer to it.
+        if sort_field == "accessed":
+            index = "enabled_kind_accessed"
+        index_value = [True, "template"]
 
         # Delegate complex filtering logic to the domain model
         templates = RethinkDomain.get_user_allowed_templates(
