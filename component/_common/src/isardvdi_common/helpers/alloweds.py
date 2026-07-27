@@ -429,19 +429,34 @@ class Alloweds(RethinkCustomBase):
 
             allowed = []
             for item in items:
+                # ``query_merge`` replaces ``user`` with a {id, name, photo}
+                # object for the client, but ownership is a comparison
+                # against a user id — against the merged object it is
+                # always false, which silently drops the caller's OWN rows
+                # from every merged listing.
+                owner_id = item.get("user")
+                if isinstance(owner_id, dict):
+                    owner_id = owner_id.get("id")
                 if (
                     payload["role_id"] == "admin"
                     or (
                         payload["role_id"] == "manager"
                         and payload["category_id"] == item.get("category")
                     )
-                    or item.get("user") == payload["user_id"]
+                    or owner_id == payload["user_id"]
                 ):
                     item["editable"] = True
                 else:
                     item["editable"] = False
                 if item["id"] in extra_ids_allowed or cls.is_allowed(
-                    payload, item, table, ignore_role=only_in_allowed
+                    payload,
+                    (
+                        item
+                        if owner_id is item.get("user")
+                        else {**item, "user": owner_id}
+                    ),
+                    table,
+                    ignore_role=only_in_allowed,
                 ):
                     allowed.append(item)
 
