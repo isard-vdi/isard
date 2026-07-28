@@ -3,6 +3,7 @@ package authentication_test
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -43,6 +44,7 @@ func TestLogin(t *testing.T) {
 		PrepareArgs func() provider.LoginArgs
 
 		CheckToken       func(string)
+		CheckRedirect    func(string)
 		ExpectedRedirect string
 		ExpectedErr      string
 	}{
@@ -1387,6 +1389,170 @@ func TestLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "/",
 		},
+		"should redirect to the identity provider when the provider requires it": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					Local: model.Local{Enabled: true},
+					Google: model.Google{
+						Enabled: true,
+						GoogleConfig: model.GoogleConfig{
+							ClientID:     "client-id",
+							ClientSecret: "client-secret",
+						},
+					},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "google",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				return provider.LoginArgs{
+					Host: "localhost",
+				}
+			},
+			CheckRedirect: func(redirect string) {
+				u, err := url.Parse(redirect)
+				require.NoError(err)
+				assert.Equal("accounts.google.com", u.Host)
+
+				claims, err := token.ParseCallbackToken("", u.Query().Get("state"))
+				require.NoError(err)
+				assert.Equal("google", claims.Provider)
+				assert.Equal("default", claims.CategoryID)
+			},
+		},
+		"should finish the register flow if the user provides a register token": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"default",
+					"ldap",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				ss, err := token.SignRegisterToken("", &model.User{
+					Provider: "ldap",
+					Category: "default",
+					UID:      "nefix-uid",
+				})
+				require.NoError(err)
+
+				return provider.LoginArgs{
+					Token: &ss,
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				assert.NoError(err)
+				assert.Equal("user-1", claims.UserID)
+			},
+			ExpectedRedirect: "",
+		},
+		"should return an error if the token type cannot be parsed": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				ss := "invalid-token"
+
+				return provider.LoginArgs{
+					Token: &ss,
+				}
+			},
+			ExpectedErr: "get the JWT token type: parse the JWT token: token is malformed: token contains an invalid number of segments",
+		},
+		"should return an error if the disclaimer-acknowledgement-required token cannot be parsed": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				ss, err := token.SignDisclaimerAcknowledgementRequiredToken("wrong-secret", "user-1")
+				require.NoError(err)
+
+				return provider.LoginArgs{
+					Token: &ss,
+				}
+			},
+			ExpectedErr: "error parsing the JWT token: token signature is invalid: signature is invalid",
+		},
+		"should return an error if loading the user fails when finishing the disclaimer acknowledgement": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+				m.On(r.Table("users").Get("user-1")).Return(nil, fmt.Errorf("load error"))
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				ss, err := token.SignDisclaimerAcknowledgementRequiredToken("", "user-1")
+				require.NoError(err)
+
+				return provider.LoginArgs{
+					Token: &ss,
+				}
+			},
+			ExpectedErr: "load user from db: load error",
+		},
+		"should return an error if the password-reset-required token cannot be parsed": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				ss, err := token.SignPasswordResetRequiredToken("wrong-secret", "user-1")
+				require.NoError(err)
+
+				return provider.LoginArgs{
+					Token: &ss,
+				}
+			},
+			ExpectedErr: "error parsing the JWT token: token signature is invalid: signature is invalid",
+		},
+		"should return an error if loading the user fails when finishing the password reset": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+				m.On(r.Table("users").Get("user-1")).Return(nil, fmt.Errorf("load error"))
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				ss, err := token.SignPasswordResetRequiredToken("", "user-1")
+				require.NoError(err)
+
+				return provider.LoginArgs{
+					Token: &ss,
+				}
+			},
+			ExpectedErr: "load user from db: load error",
+		},
 	}
 
 	for name, tc := range cases {
@@ -1441,7 +1607,11 @@ func TestLogin(t *testing.T) {
 			} else {
 				tc.CheckToken(tkn)
 			}
-			assert.Equal(tc.ExpectedRedirect, redirect)
+			if tc.CheckRedirect == nil {
+				assert.Equal(tc.ExpectedRedirect, redirect)
+			} else {
+				tc.CheckRedirect(redirect)
+			}
 
 			dbMock.AssertExpectations(t)
 			apiMock.AssertExpectations(t)

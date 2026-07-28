@@ -187,6 +187,13 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 	if !a.Provider(u.Provider, u.Category).SaveEmail() {
 		u.Email = ""
 	}
+
+	// p is the form wrapper when the login comes from the form; ask the provider
+	// that has authenticated the user instead.
+	if p.String() == types.ProviderForm {
+		p = a.Provider(u.Provider, u.Category)
+	}
+
 	dbUser, uExists, err := u.FindExisting(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)
@@ -200,6 +207,21 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 	if uExists {
 		provided := *u
 		*u = *dbUser
+
+		// Sync the role and groups only if the provider can manage the guessed
+		// role. If it can only manage the stored one, the new role and groups
+		// have to come through the registration code flow.
+		var syncRoleAndGroups bool
+		if provided.Role != "" || g != nil {
+			syncRoleAndGroups = p.AutoRegister(&provided)
+			if !syncRoleAndGroups && p.AutoRegister(dbUser) {
+				ss, err := token.SignRegisterToken(a.Secret, &provided)
+
+				a.Log.Info().Err(err).Str("usr", provided.UID).Msg("register token signed for existing user")
+
+				return ss, redirect, err
+			}
+		}
 
 		if provided.Name != "" && u.Name != provided.Name {
 			needsUpdate = true
@@ -223,34 +245,27 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 			u.EmailVerificationToken = ""
 		}
 
-		if provided.Role != "" && u.Role != provided.Role {
-			needsUpdate = true
-			u.Role = provided.Role
-		}
-
-		if g != nil {
-			for _, group := range append(secondary, g) {
-				gExists, err := group.Exists(ctx, a.DB)
-				if err != nil {
-					return "", "", fmt.Errorf("check if group exists: %w", err)
-				}
-
-				if !gExists {
-					if err := a.registerGroup(ctx, group); err != nil {
-						return "", "", fmt.Errorf("auto register group: %w", err)
-					}
-				}
-			}
-
-			secondaryGroups := make([]string, 0, len(secondary))
-			for _, group := range secondary {
-				secondaryGroups = append(secondaryGroups, group.ID)
-			}
-
-			if u.Group != g.ID || !slices.Equal(u.SecondaryGroups, secondaryGroups) {
+		if syncRoleAndGroups {
+			if provided.Role != "" && u.Role != provided.Role {
 				needsUpdate = true
-				u.Group = g.ID
-				u.SecondaryGroups = secondaryGroups
+				u.Role = provided.Role
+			}
+
+			if g != nil {
+				if err := a.registerGroups(ctx, g, secondary); err != nil {
+					return "", "", err
+				}
+
+				secondaryGroups := make([]string, 0, len(secondary))
+				for _, group := range secondary {
+					secondaryGroups = append(secondaryGroups, group.ID)
+				}
+
+				if u.Group != g.ID || !slices.Equal(u.SecondaryGroups, secondaryGroups) {
+					needsUpdate = true
+					u.Group = g.ID
+					u.SecondaryGroups = secondaryGroups
+				}
 			}
 		}
 	}
@@ -268,17 +283,8 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 
 		// Automatic group registration!
 		if g != nil {
-			for _, group := range append(secondary, g) {
-				gExists, err := group.Exists(ctx, a.DB)
-				if err != nil {
-					return "", "", fmt.Errorf("check if group exists: %w", err)
-				}
-
-				if !gExists {
-					if err := a.registerGroup(ctx, group); err != nil {
-						return "", "", fmt.Errorf("auto register group: %w", err)
-					}
-				}
+			if err := a.registerGroups(ctx, g, secondary); err != nil {
+				return "", "", err
 			}
 
 			// Set the user group to the new group created.

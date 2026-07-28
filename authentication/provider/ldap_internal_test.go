@@ -3,14 +3,22 @@ package provider
 import (
 	"context"
 	"io"
+	"net"
 	"regexp"
+	"strconv"
 	"testing"
+	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
+	"gitlab.com/isard/isardvdi/authentication/token"
+	"gitlab.com/isard/isardvdi/pkg/log"
 
+	"github.com/jimlambrt/gldap"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 func TestLDAPLoadConfig(t *testing.T) {
@@ -427,6 +435,7 @@ func TestLDAPAutoRegister(t *testing.T) {
 
 			l := &LDAP{
 				cfg: &cfgManager[LDAPConfig]{cfg: &tc.Cfg},
+				log: log.New("test", "debug"),
 			}
 
 			assert.Equal(tc.Expected, l.AutoRegister(tc.User))
@@ -564,6 +573,342 @@ func TestLDAPGuessRole(t *testing.T) {
 				assert.Nil(err)
 				assert.Equal(tc.ExpectedRole, *role)
 			}
+		})
+	}
+}
+
+func TestLDAPLogin(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		PrepareMux func(*gldap.Mux)
+		PrepareDB  func(*r.Mock)
+		Cfg        func(port int) LDAPConfig
+
+		Username string
+		Password string
+
+		ExpectedGroup     *model.Group
+		ExpectedSecondary []*model.Group
+		ExpectedUserData  func() *types.ProviderUserData
+		CheckToken        func(*testing.T, string)
+	}{
+		"should work as expected": {
+			PrepareMux: func(mux *gldap.Mux) {
+				_ = mux.Bind(func(w *gldap.ResponseWriter, req *gldap.Request) {
+					resp := req.NewBindResponse(gldap.WithResponseCode(gldap.ResultSuccess))
+					_ = w.Write(resp)
+				})
+				_ = mux.Search(func(w *gldap.ResponseWriter, req *gldap.Request) {
+					resp := req.NewSearchDoneResponse(gldap.WithResponseCode(gldap.ResultSuccess))
+					defer func() {
+						_ = w.Write(resp)
+					}()
+
+					m, err := req.GetSearchMessage()
+					if err != nil {
+						return
+					}
+
+					switch m.BaseDN {
+					case "ou=people,dc=example,dc=org":
+						entry := req.NewSearchResponseEntry(
+							"uid=nefix,ou=people,dc=example,dc=org",
+							gldap.WithAttributes(map[string][]string{
+								"uid":      {"nefix"},
+								"cn":       {"Néfix Estrada"},
+								"mail":     {"nefix@example.org"},
+								"photo":    {"photo.png"},
+								"memberOf": {"group1"},
+							}),
+						)
+						_ = w.Write(entry)
+
+					case "ou=roles,dc=example,dc=org":
+						managers := req.NewSearchResponseEntry(
+							"cn=managers,ou=roles,dc=example,dc=org",
+							gldap.WithAttributes(map[string][]string{
+								"cn": {"managers"},
+							}),
+						)
+						_ = w.Write(managers)
+					}
+				})
+			},
+			PrepareDB: func(m *r.Mock) {
+				groups := []*model.Group{
+					genExternalGroup(&LDAP{}, "", "default", "group1"),
+				}
+				m.On(r.Table("groups").Filter(func(row r.Term) r.Term {
+					return r.Expr(groups).Contains(func(group r.Term) r.Term {
+						return r.And(
+							r.Eq(row.Field("parent_category"), group.Field("parent_category")),
+							r.Eq(row.Field("external_app_id"), group.Field("external_app_id")),
+							r.Eq(row.Field("external_gid"), group.Field("external_gid")),
+						)
+					})
+				})).Return([]any{}, nil)
+			},
+			Cfg: func(port int) LDAPConfig {
+				re := regexp.MustCompile(".*")
+
+				return LDAPConfig{
+					Protocol:   "ldap",
+					Host:       "127.0.0.1",
+					Port:       port,
+					BindDN:     "cn=admin,dc=example,dc=org",
+					Password:   "admin-password",
+					BaseSearch: "ou=people,dc=example,dc=org",
+
+					Filter:        "(uid=%s)",
+					FieldUID:      "uid",
+					ReUID:         re,
+					FieldUsername: "uid",
+					ReUsername:    re,
+					FieldName:     "cn",
+					ReName:        re,
+					FieldEmail:    "mail",
+					ReEmail:       re,
+					FieldPhoto:    "photo",
+					RePhoto:       re,
+
+					AutoRegister: true,
+
+					FieldGroup: "memberOf",
+					ReGroup:    re,
+
+					RoleListSearchBase: "ou=roles,dc=example,dc=org",
+					RoleListFilter:     "(member=%s)",
+					RoleListField:      "cn",
+					ReRole:             re,
+
+					RoleManagerIDs: []string{"managers"},
+					RoleDefault:    model.RoleUser,
+				}
+			},
+
+			Username: "nefix",
+			Password: "user-password",
+
+			ExpectedGroup:     genExternalGroup(&LDAP{}, "", "default", "group1"),
+			ExpectedSecondary: []*model.Group{},
+			ExpectedUserData: func() *types.ProviderUserData {
+				role := model.RoleManager
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "nefix@example.org"
+				photo := "photo.png"
+
+				return &types.ProviderUserData{
+					Provider: types.ProviderLDAP,
+					Category: "default",
+					UID:      "nefix",
+
+					Role:     &role,
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+		},
+		"should include the user roles in the category select token when guessing among multiple categories": {
+			PrepareMux: func(mux *gldap.Mux) {
+				_ = mux.Bind(func(w *gldap.ResponseWriter, req *gldap.Request) {
+					resp := req.NewBindResponse(gldap.WithResponseCode(gldap.ResultSuccess))
+					_ = w.Write(resp)
+				})
+				_ = mux.Search(func(w *gldap.ResponseWriter, req *gldap.Request) {
+					resp := req.NewSearchDoneResponse(gldap.WithResponseCode(gldap.ResultSuccess))
+					defer func() {
+						_ = w.Write(resp)
+					}()
+
+					m, err := req.GetSearchMessage()
+					if err != nil {
+						return
+					}
+
+					switch m.BaseDN {
+					case "ou=people,dc=example,dc=org":
+						entry := req.NewSearchResponseEntry(
+							"uid=nefix,ou=people,dc=example,dc=org",
+							gldap.WithAttributes(map[string][]string{
+								"uid":      {"nefix"},
+								"cn":       {"Néfix Estrada"},
+								"mail":     {"nefix@example.org"},
+								"photo":    {"photo.png"},
+								"ou":       {"categoria1", "categoria2"},
+								"memberOf": {"group1"},
+							}),
+						)
+						_ = w.Write(entry)
+
+					case "ou=roles,dc=example,dc=org":
+						managers := req.NewSearchResponseEntry(
+							"cn=managers,ou=roles,dc=example,dc=org",
+							gldap.WithAttributes(map[string][]string{
+								"cn": {"managers"},
+							}),
+						)
+						_ = w.Write(managers)
+
+						users := req.NewSearchResponseEntry(
+							"cn=users,ou=roles,dc=example,dc=org",
+							gldap.WithAttributes(map[string][]string{
+								"cn": {"users"},
+							}),
+						)
+						_ = w.Write(users)
+					}
+				})
+			},
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria1")).Return([]any{
+					map[string]any{
+						"id":   "categoria1",
+						"uid":  "categoria1",
+						"name": "Categoria 1",
+					},
+				}, nil)
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria2")).Return([]any{
+					map[string]any{
+						"id":   "categoria2",
+						"uid":  "categoria2",
+						"name": "Categoria 2",
+					},
+				}, nil)
+			},
+			Cfg: func(port int) LDAPConfig {
+				re := regexp.MustCompile(".*")
+
+				return LDAPConfig{
+					Protocol:   "ldap",
+					Host:       "127.0.0.1",
+					Port:       port,
+					BindDN:     "cn=admin,dc=example,dc=org",
+					Password:   "admin-password",
+					BaseSearch: "ou=people,dc=example,dc=org",
+
+					Filter:        "(uid=%s)",
+					FieldUID:      "uid",
+					ReUID:         re,
+					FieldUsername: "uid",
+					ReUsername:    re,
+					FieldName:     "cn",
+					ReName:        re,
+					FieldEmail:    "mail",
+					ReEmail:       re,
+					FieldPhoto:    "photo",
+					RePhoto:       re,
+
+					AutoRegister: true,
+
+					GuessCategory: true,
+					FieldCategory: "ou",
+					ReCategory:    re,
+
+					FieldGroup: "memberOf",
+					ReGroup:    re,
+
+					RoleListSearchBase: "ou=roles,dc=example,dc=org",
+					RoleListFilter:     "(member=%s)",
+					RoleListField:      "cn",
+					ReRole:             re,
+
+					RoleDefault: model.RoleUser,
+				}
+			},
+
+			Username: "nefix",
+			Password: "user-password",
+
+			CheckToken: func(t *testing.T, ss string) {
+				claims, err := token.ParseCategorySelectToken("", ss)
+				require.NoError(t, err)
+
+				require.NotNil(t, claims.RawGroups)
+				assert.Equal(t, []string{"group1"}, *claims.RawGroups)
+
+				require.NotNil(t, claims.RawRoles)
+				assert.Equal(t, []string{"managers", "users"}, *claims.RawRoles)
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			assert := assert.New(t)
+			require := require.New(t)
+
+			lis, err := net.Listen("tcp", "127.0.0.1:0")
+			require.NoError(err)
+			port := lis.Addr().(*net.TCPAddr).Port
+			require.NoError(lis.Close())
+
+			srv, err := gldap.NewServer()
+			require.NoError(err)
+
+			mux, err := gldap.NewMux()
+			require.NoError(err)
+			tc.PrepareMux(mux)
+			require.NoError(srv.Router(mux))
+
+			go func() {
+				_ = srv.Run(net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+			}()
+			t.Cleanup(func() {
+				assert.NoError(srv.Stop())
+			})
+
+			for range 100 {
+				if srv.Ready() {
+					break
+				}
+
+				time.Sleep(10 * time.Millisecond)
+			}
+			require.True(srv.Ready())
+
+			dbMock := r.NewMock()
+			tc.PrepareDB(dbMock)
+
+			cfg := tc.Cfg(port)
+			l := &LDAP{
+				cfg:    &cfgManager[LDAPConfig]{cfg: &cfg},
+				secret: "",
+				log:    log.New("test", "debug"),
+				db:     dbMock,
+			}
+
+			username := tc.Username
+			password := tc.Password
+			g, secondary, u, redirect, tkn, err := l.Login(t.Context(), "default", LoginArgs{
+				FormUsername: &username,
+				FormPassword: &password,
+			})
+
+			assert.Nil(err)
+			assert.Equal(tc.ExpectedGroup, g)
+			assert.Equal(tc.ExpectedSecondary, secondary)
+
+			if tc.ExpectedUserData == nil {
+				assert.Nil(u)
+			} else {
+				assert.Equal(tc.ExpectedUserData(), u)
+			}
+
+			assert.Empty(redirect)
+
+			if tc.CheckToken == nil {
+				assert.Empty(tkn)
+			} else {
+				tc.CheckToken(t, tkn)
+			}
+
+			dbMock.AssertExpectations(t)
 		})
 	}
 }

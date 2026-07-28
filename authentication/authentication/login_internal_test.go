@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"reflect"
 	"testing"
+	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider"
@@ -14,12 +15,17 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/providermanager"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
+	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.nhat.io/grpcmock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -28,9 +34,11 @@ func TestStartLogin(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		PrepareDB       func(*r.Mock)
-		PrepareAPI      func(*apiv4.MockInvoker)
-		PrepareProvider func(*provider.MockProvider)
+		PrepareDB              func(*r.Mock)
+		PrepareAPI             func(*apiv4.MockInvoker)
+		PrepareSessions        func(*grpcmock.Server)
+		PrepareProvider        func(*provider.MockProvider)
+		PrepareProviderManager func(*testing.T, *providermanager.MockProvidermanager)
 
 		RemoteAddr       string
 		Provider         string
@@ -66,6 +74,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("local")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
 			},
 
@@ -163,6 +172,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("mock")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 			Provider:   "mock",
@@ -263,6 +273,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(s *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("local")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
 			},
 
@@ -426,6 +437,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("local")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
 			},
 
@@ -481,6 +493,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("local")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
 			},
 
@@ -531,6 +544,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("local")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
 			},
 
@@ -586,6 +600,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("ldap")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
 			},
 
@@ -639,6 +654,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("local")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
 			},
 
@@ -890,6 +906,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
 			},
 
 			Provider:   "saml",
@@ -969,6 +986,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
 			},
 
 			Provider:   "saml",
@@ -1070,6 +1088,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
 			},
 
 			Provider:   "saml",
@@ -1171,6 +1190,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
 			},
 
 			Provider:   "saml",
@@ -1272,6 +1292,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
 			},
 
 			Provider:   "saml",
@@ -1373,6 +1394,8 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 
 			Provider:   "saml",
@@ -1403,6 +1426,846 @@ func TestStartLogin(t *testing.T) {
 				require.NoError(err)
 
 				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should update the role and group when the guessed role is in the autoregister roles even if the stored role is not": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"email_domain_restriction": map[string]any{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "manager",
+						"group":                    "manual-group-id",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "new group"),
+				))).Return([]any{
+					map[string]any{
+						"id": "new-group-id",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]any{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "user",
+					"group":                    "new-group-id",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "old-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleUser
+				})).Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleUser
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role:     &role,
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should sign a register token when the guessed role is outside the autoregister roles but the stored one is not": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":   "user-resync-1",
+						"role": "user",
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleManager
+				})).Return(false)
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleUser
+				})).Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleManager
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role:     &role,
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseRegisterToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("saml", tkn.Provider)
+				assert.Equal("nefix-uid", tkn.UserID)
+				assert.Equal("nefix", tkn.Username)
+				assert.Equal("default", tkn.CategoryID)
+				assert.Equal("Néfix Estrada", tkn.Name)
+				assert.Equal("old@example.com", tkn.Email)
+				assert.Equal("old-photo.png", tkn.Photo)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should ask the authenticating provider and not the form wrapper when syncing the role and group on a form re-login": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"ldap",
+				})).Return([]any{
+					map[string]any{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "ldap",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "advanced",
+						"group":                    "old-group-id",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-ldap"),
+					r.Eq(r.Row.Field("external_gid"), "new group"),
+				))).Return([]any{
+					map[string]any{
+						"id": "new-group-id",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]any{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "ldap",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "manager",
+					"group":                    "new-group-id",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "old-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("String").Return("form")
+			},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				ldapMock := provider.NewMockProvider(t)
+				ldapMock.On("SaveEmail").Return(true)
+				ldapMock.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
+
+				m.On("Provider", "ldap", "default").Return(ldapMock)
+			},
+
+			Provider:   "form",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-ldap",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleManager
+
+				return &types.ProviderUserData{
+					Provider: "ldap",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role: &role,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should sign a register token with the authenticating provider when the guessed role is denied on a form re-login": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"ldap",
+				})).Return([]any{
+					map[string]any{
+						"id":   "user-resync-1",
+						"role": "user",
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("String").Return("form")
+			},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				ldapMock := provider.NewMockProvider(t)
+				ldapMock.On("SaveEmail").Return(true)
+				ldapMock.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleManager
+				})).Return(false)
+				ldapMock.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleUser
+				})).Return(true)
+
+				m.On("Provider", "ldap", "default").Return(ldapMock)
+			},
+
+			Provider:   "form",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleManager
+				username := "nefix"
+
+				return &types.ProviderUserData{
+					Provider: "ldap",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role:     &role,
+					Username: &username,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseRegisterToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("ldap", tkn.Provider)
+				assert.Equal("nefix-uid", tkn.UserID)
+				assert.Equal("nefix", tkn.Username)
+				assert.Equal("default", tkn.CategoryID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should ask the local provider and not the form wrapper on a local form re-login": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"local",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-resync-1",
+						"active": true,
+						"role":   "user",
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("String").Return("form")
+			},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				localMock := provider.NewMockProvider(t)
+				localMock.On("SaveEmail").Return(true)
+				localMock.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleUser
+				})).Return(false)
+
+				m.On("Provider", "local", "default").Return(localMock)
+			},
+
+			Provider:   "form",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleUser
+
+				return &types.ProviderUserData{
+					Provider: "local",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role: &role,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should sign a register token if the user is missing and the authenticating provider denies the autoregister on a form login": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"ldap",
+				})).Return([]any{}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("String").Return("form")
+			},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				ldapMock := provider.NewMockProvider(t)
+				ldapMock.On("SaveEmail").Return(true)
+				ldapMock.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
+
+				m.On("Provider", "ldap", "default").Return(ldapMock)
+			},
+
+			Provider:   "form",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "nefix@example.org"
+
+				return &types.ProviderUserData{
+					Provider: "ldap",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseRegisterToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("ldap", tkn.Provider)
+				assert.Equal("nefix-uid", tkn.UserID)
+				assert.Equal("nefix", tkn.Username)
+				assert.Equal("default", tkn.CategoryID)
+				assert.Equal("Néfix Estrada", tkn.Name)
+				assert.Equal("nefix@example.org", tkn.Email)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should autoregister a missing user with the authenticating provider on a form login": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"ldap",
+				})).Return([]any{}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-ldap"),
+					r.Eq(r.Row.Field("external_gid"), "new group"),
+				))).Return([]any{}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCreateGroup", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AdminGroupCreateData) bool {
+					return req.Name == "category" && req.ParentCategory.Value == "default" && req.ExternalGid.Value == "new group"
+				})).Return(&apiv4.AdminGroup{
+					ID:  "new-group-id",
+					UID: "new-group-id",
+				}, nil)
+				c.On("AdminAutoRegister", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AutoRegisterRequest) bool {
+					return req.RoleID == "advanced" && req.GroupID == "new-group-id" && !req.SecondaryGroups.Set
+				}), mock.AnythingOfType("apiv4.AdminAutoRegisterParams")).Return(&apiv4.AutoRegisterResponse{ID: "registered-id"}, nil)
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "registered-id"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("String").Return("form")
+			},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				ldapMock := provider.NewMockProvider(t)
+				ldapMock.On("SaveEmail").Return(true)
+				ldapMock.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
+
+				m.On("Provider", "ldap", "default").Return(ldapMock)
+			},
+
+			Provider:   "form",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-ldap",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleAdvanced
+
+				return &types.ProviderUserData{
+					Provider: "ldap",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role: &role,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("registered-id", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should keep the stored role and group in the update when the photo changes and both roles are outside the autoregister roles": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"email_domain_restriction": map[string]any{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "manager",
+						"group":                    "manual-group-id",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]any{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "manager",
+					"group":                    "manual-group-id",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "new-photo.png",
+					"accessed":                 float64(0),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleAdvanced
+				})).Return(false)
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleManager
+				})).Return(false)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleAdvanced
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "new-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role:     &role,
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should keep the stored role and group when finishing the login and both roles are outside the autoregister roles": {
+			PrepareDB: func(m *r.Mock) {
+				verified := float64(1700000000)
+
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"email_domain_restriction": map[string]any{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "manager",
+						"group":                    "manual-group-id",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1")).Return([]any{
+					map[string]any{
+						"id":                       "user-resync-1",
+						"uid":                      "nefix-uid",
+						"username":                 "nefix",
+						"password":                 "",
+						"password_reset_token":     "",
+						"provider":                 "saml",
+						"active":                   true,
+						"category":                 "default",
+						"role":                     "manager",
+						"group":                    "manual-group-id",
+						"secondary_groups":         []string{},
+						"name":                     "Néfix Estrada",
+						"email":                    "old@example.com",
+						"email_verified":           verified,
+						"email_verification_token": "verify-token",
+						"photo":                    "old-photo.png",
+						"accessed":                 float64(0),
+						"disclaimer_acknowledged":  true,
+						"api_key":                  "",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-resync-1").Update(map[string]any{
+					"id":                       "user-resync-1",
+					"uid":                      "nefix-uid",
+					"username":                 "nefix",
+					"password":                 "",
+					"password_reset_token":     "",
+					"provider":                 "saml",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "manager",
+					"group":                    "manual-group-id",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "old@example.com",
+					"email_verified":           verified,
+					"email_verification_token": "verify-token",
+					"photo":                    "old-photo.png",
+					"accessed":                 r.MockAnything(),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "user-resync-1", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					UserId:     "user-resync-1",
+					RemoteAddr: "127.0.0.1",
+				}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
+				})
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleAdvanced
+				})).Return(false)
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleManager
+				})).Return(false)
+			},
+
+			RemoteAddr: "127.0.0.1",
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleAdvanced
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "old@example.com"
+				photo := "old-photo.png"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role:     &role,
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseLoginToken("", ss)
+				require.NoError(err)
+
+				assert.Equal(token.LoginClaimsData{
+					Provider:   "saml",
+					ID:         "user-resync-1",
+					RoleID:     "manager",
+					CategoryID: "default",
+					GroupID:    "manual-group-id",
+					Name:       "Néfix Estrada",
+				}, tkn.Data)
 			},
 			ExpectedRedirect: "/",
 		},
@@ -1485,6 +2348,8 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 
 			Provider:   "saml",
@@ -1604,6 +2469,8 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 
 			Provider:   "saml",
@@ -1730,6 +2597,8 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 
 			Provider:   "saml",
@@ -1797,6 +2666,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(false)
+				p.On("String").Return("saml")
 			},
 
 			Provider:   "saml",
@@ -1868,6 +2738,8 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 
 			Provider:   "saml",
@@ -1952,6 +2824,8 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 
 			Provider:   "saml",
@@ -2011,6 +2885,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 
@@ -2073,6 +2948,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 
@@ -2130,6 +3006,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 
@@ -2224,6 +3101,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
 			},
 
 			Provider:   "saml",
@@ -2345,6 +3223,8 @@ func TestStartLogin(t *testing.T) {
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 
 			Provider:   "saml",
@@ -2392,6 +3272,701 @@ func TestStartLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "/",
 		},
+		"should redirect to the login notifications page if the user has fullpage notifications pending": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1")).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1").Update(r.MockAnything())).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "user-1", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{apiv4.NotificationDisplayEnumFullpage}}, nil)
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					UserId:     "user-1",
+					RemoteAddr: "127.0.0.1",
+				}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
+				})
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			RemoteAddr: "127.0.0.1",
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseLoginToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-1", tkn.Data.ID)
+			},
+			ExpectedRedirect: "/notifications/login",
+		},
+		"should return an error if checking the disclaimer fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(nil, fmt.Errorf("disclaimer error"))
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if the user needs to accept the disclaimer: disclaimer error",
+		},
+		"should return an error if the disclaimer check returns an unexpected response": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.AdminCheckDisclaimerUnauthorized{}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if the user needs to accept the disclaimer: unexpected response type *apiv4.AdminCheckDisclaimerUnauthorized",
+		},
+		"should return an error if checking the migration fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(nil, fmt.Errorf("migration error"))
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if the user needs to migrate: migration error",
+		},
+		"should return an error if the migration check returns an unexpected response": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.AdminCheckMigrationRequiredUnauthorized{}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if the user needs to migrate: unexpected response type *apiv4.AdminCheckMigrationRequiredUnauthorized",
+		},
+		"should return an error if checking the email verification fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-1"}).Return(nil, fmt.Errorf("email error"))
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if the user needs to verify the email: email error",
+		},
+		"should return an error if the email verification check returns an unexpected response": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-1"}).Return(&apiv4.AdminCheckEmailVerificationUnauthorized{}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if the user needs to verify the email: unexpected response type *apiv4.AdminCheckEmailVerificationUnauthorized",
+		},
+		"should return an error if checking the password reset fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user-1"}).Return(nil, fmt.Errorf("password error"))
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if the user needs to reset the password: password error",
+		},
+		"should return an error if the password reset check returns an unexpected response": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user-1"}).Return(&apiv4.AdminCheckPasswordResetRequiredUnauthorized{}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if the user needs to reset the password: unexpected response type *apiv4.AdminCheckPasswordResetRequiredUnauthorized",
+		},
+		"should return an error if loading the rest of the user data fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1")).Return(nil, fmt.Errorf("load error"))
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "load user from DB: load error",
+		},
+		"should return an error if updating the user with the latest data fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1")).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1").Update(r.MockAnything())).Return(nil, fmt.Errorf("update error"))
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "update user in the DB: update error",
+		},
+		"should return an error if creating the session fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1")).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1").Update(r.MockAnything())).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					UserId:     "user-1",
+					RemoteAddr: "127.0.0.1",
+				}).ReturnError(codes.Unavailable, "session error")
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			RemoteAddr: "127.0.0.1",
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "create the session: rpc error: code = Unavailable desc = session error",
+		},
+		"should return an error if checking the pending notifications fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1")).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1").Update(r.MockAnything())).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "user-1", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(nil, fmt.Errorf("notifications error"))
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					UserId:     "user-1",
+					RemoteAddr: "127.0.0.1",
+				}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
+				})
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			RemoteAddr: "127.0.0.1",
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if the user has notifications pending: notifications error",
+		},
+		"should return an error if the pending notifications check returns an unexpected response": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1")).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("user-1").Update(r.MockAnything())).Return(r.WriteResponse{Updated: 1}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "user-1", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminGetUserNotificationDisplaysUnauthorized{}, nil)
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					UserId:     "user-1",
+					RemoteAddr: "127.0.0.1",
+				}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
+				})
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+			},
+
+			RemoteAddr: "127.0.0.1",
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if the user has notifications pending: unexpected response type *apiv4.AdminGetUserNotificationDisplaysUnauthorized",
+		},
 	}
 
 	for name, tc := range cases {
@@ -2416,6 +3991,10 @@ func TestStartLogin(t *testing.T) {
 			prvManagerMock := providermanager.NewMockProvidermanager(t)
 			prvManagerMock.On("Provider", tc.Provider, tc.CategoryID).Return(providerMock)
 
+			if tc.PrepareProviderManager != nil {
+				tc.PrepareProviderManager(t, prvManagerMock)
+			}
+
 			a := &Authentication{
 				Log:        log,
 				Secret:     "",
@@ -2423,6 +4002,22 @@ func TestStartLogin(t *testing.T) {
 				DB:         dbMock,
 				API:        apiMock,
 				prvManager: prvManagerMock,
+			}
+
+			if tc.PrepareSessions != nil {
+				sessionsMockServer := grpcmock.NewServer(
+					grpcmock.RegisterService(sessionsv1.RegisterSessionsServiceServer),
+					tc.PrepareSessions,
+				)
+				t.Cleanup(func() {
+					sessionsMockServer.Close()
+				})
+
+				sessionsCli, sessionsConn, err := grpc.NewClient(ctx, sessionsv1.NewSessionsServiceClient, sessionsMockServer.Address())
+				require.NoError(err)
+				defer sessionsConn.Close()
+
+				a.Sessions = sessionsCli
 			}
 
 			p := a.Provider(tc.Provider, tc.CategoryID)
@@ -2441,6 +4036,354 @@ func TestStartLogin(t *testing.T) {
 				tc.CheckToken(tkn)
 			}
 			assert.Equal(tc.ExpectedRedirect, redirect)
+
+			dbMock.AssertExpectations(t)
+			apiMock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestCallback(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		PrepareDB              func(*r.Mock)
+		PrepareAPI             func(*apiv4.MockInvoker)
+		PrepareProviderManager func(*testing.T, *providermanager.MockProvidermanager)
+
+		RemoteAddr   string
+		PrepareToken func() string
+
+		CheckToken       func(string)
+		ExpectedRedirect string
+		ExpectedErr      string
+	}{
+		"should work as expected": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				samlMock := provider.NewMockProvider(t)
+				samlMock.On("Callback", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(claims *token.CallbackClaims) bool {
+					return claims.Provider == "saml" && claims.CategoryID == "default" && claims.Redirect == "/from-callback"
+				}), provider.CallbackArgs{}).Return((*model.Group)(nil), []*model.Group{}, &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				}, "", "", (*provider.ProviderError)(nil))
+				samlMock.On("SaveEmail").Return(true)
+				samlMock.On("String").Return("saml")
+
+				m.On("Provider", "saml", "default").Return(samlMock)
+			},
+			RemoteAddr: "127.0.0.1",
+			PrepareToken: func() string {
+				ss, err := token.SignCallbackToken("", "saml", "default", "/from-callback")
+				require.NoError(err)
+
+				return ss
+			},
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/from-callback",
+		},
+		"should return the token signed by the provider": {
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				samlMock := provider.NewMockProvider(t)
+				samlMock.On("Callback", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(claims *token.CallbackClaims) bool {
+					return claims.Provider == "saml" && claims.CategoryID == "default" && claims.Redirect == "/from-callback"
+				}), provider.CallbackArgs{}).Return((*model.Group)(nil), []*model.Group{}, (*types.ProviderUserData)(nil), "", "provider-token", (*provider.ProviderError)(nil))
+
+				m.On("Provider", "saml", "default").Return(samlMock)
+			},
+			RemoteAddr: "127.0.0.1",
+			PrepareToken: func() string {
+				ss, err := token.SignCallbackToken("", "saml", "default", "/from-callback")
+				require.NoError(err)
+
+				return ss
+			},
+
+			CheckToken: func(ss string) {
+				assert.Equal("provider-token", ss)
+			},
+			ExpectedRedirect: "/from-callback",
+		},
+		"should return an error if the callback token cannot be parsed": {
+			RemoteAddr: "127.0.0.1",
+			PrepareToken: func() string {
+				return "invalid-token"
+			},
+
+			ExpectedErr: "parse callback state: error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+		},
+		"should return an error if the provider callback fails": {
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				samlMock := provider.NewMockProvider(t)
+				samlMock.On("Callback", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(claims *token.CallbackClaims) bool {
+					return claims.Provider == "saml" && claims.CategoryID == "default"
+				}), provider.CallbackArgs{}).Return((*model.Group)(nil), []*model.Group{}, (*types.ProviderUserData)(nil), "", "", &provider.ProviderError{
+					User:   provider.ErrInvalidCredentials,
+					Detail: errors.New("callback failed"),
+				})
+				samlMock.On("String").Return("saml")
+
+				m.On("Provider", "saml", "default").Return(samlMock)
+			},
+			RemoteAddr: "127.0.0.1",
+			PrepareToken: func() string {
+				ss, err := token.SignCallbackToken("", "saml", "default", "/from-callback")
+				require.NoError(err)
+
+				return ss
+			},
+
+			ExpectedErr: "callback: invalid credentials: callback failed",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+
+			log := log.New("authentication-test", "debug")
+
+			dbMock := r.NewMock()
+			if tc.PrepareDB != nil {
+				tc.PrepareDB(dbMock)
+			}
+
+			apiMock := apiv4.NewMockInvoker(t)
+			if tc.PrepareAPI != nil {
+				tc.PrepareAPI(apiMock)
+			}
+
+			prvManagerMock := providermanager.NewMockProvidermanager(t)
+			if tc.PrepareProviderManager != nil {
+				tc.PrepareProviderManager(t, prvManagerMock)
+			}
+
+			a := &Authentication{
+				Log:        log,
+				Secret:     "",
+				BaseURL:    &url.URL{Scheme: "https", Host: "localhost"},
+				DB:         dbMock,
+				API:        apiMock,
+				prvManager: prvManagerMock,
+			}
+
+			tkn, redirect, err := a.Callback(ctx, tc.PrepareToken(), provider.CallbackArgs{}, tc.RemoteAddr)
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			if tc.CheckToken == nil {
+				assert.Empty(tkn)
+			} else {
+				tc.CheckToken(tkn)
+			}
+			assert.Equal(tc.ExpectedRedirect, redirect)
+
+			dbMock.AssertExpectations(t)
+			apiMock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestFinishRegister(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		PrepareDB  func(*r.Mock)
+		PrepareAPI func(*apiv4.MockInvoker)
+
+		PrepareToken func() string
+
+		CheckToken       func(string)
+		ExpectedRedirect string
+		ExpectedErr      string
+	}{
+		"should work as expected": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"ldap",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignRegisterToken("", &model.User{
+					Provider: "ldap",
+					Category: "default",
+					UID:      "nefix-uid",
+				})
+				require.NoError(err)
+
+				return ss
+			},
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should return an error if the register token cannot be parsed": {
+			PrepareToken: func() string {
+				return "invalid-token"
+			},
+
+			ExpectedErr: "error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+		},
+		"should return an error if the user is not registered": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"ldap",
+				})).Return([]any{}, nil)
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignRegisterToken("", &model.User{
+					Provider: "ldap",
+					Category: "default",
+					UID:      "nefix-uid",
+				})
+				require.NoError(err)
+
+				return ss
+			},
+
+			ExpectedErr: "user not registered",
+		},
+		"should return an error if loading the user fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"ldap",
+				})).Return(nil, fmt.Errorf("db error"))
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignRegisterToken("", &model.User{
+					Provider: "ldap",
+					Category: "default",
+					UID:      "nefix-uid",
+				})
+				require.NoError(err)
+
+				return ss
+			},
+
+			ExpectedErr: "load user from db: db error",
+		},
+		"should return an error if the login cannot be finished": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"ldap",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": false,
+					},
+				}, nil)
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignRegisterToken("", &model.User{
+					Provider: "ldap",
+					Category: "default",
+					UID:      "nefix-uid",
+				})
+				require.NoError(err)
+
+				return ss
+			},
+
+			ExpectedErr: provider.ErrUserDisabled.Error(),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+
+			log := log.New("authentication-test", "debug")
+
+			dbMock := r.NewMock()
+			if tc.PrepareDB != nil {
+				tc.PrepareDB(dbMock)
+			}
+
+			apiMock := apiv4.NewMockInvoker(t)
+			if tc.PrepareAPI != nil {
+				tc.PrepareAPI(apiMock)
+			}
+
+			a := &Authentication{
+				Log:    log,
+				Secret: "",
+				DB:     dbMock,
+				API:    apiMock,
+			}
+
+			tkn, redirect, err := a.finishRegister(ctx, "127.0.0.1", tc.PrepareToken(), "/")
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			if tc.CheckToken == nil {
+				assert.Empty(tkn)
+			} else {
+				tc.CheckToken(tkn)
+			}
+			if tc.ExpectedErr != "" {
+				assert.Empty(redirect)
+			} else {
+				assert.Equal(tc.ExpectedRedirect, redirect)
+			}
 
 			dbMock.AssertExpectations(t)
 			apiMock.AssertExpectations(t)
@@ -2571,6 +4514,7 @@ func TestFinishCategorySelect(t *testing.T) {
 				}, []string{}).Return(&role, (*provider.ProviderError)(nil))
 				localMock.On("SaveEmail").Return(true)
 				localMock.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
+				localMock.On("String").Return("local")
 
 				m.On("Provider", "local", "test-category").Return(localMock)
 			},
@@ -2657,6 +4601,7 @@ func TestFinishCategorySelect(t *testing.T) {
 				}, []string{}).Return(&role, (*provider.ProviderError)(nil))
 				samlMock.On("SaveEmail").Return(true)
 				samlMock.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
+				samlMock.On("String").Return("saml")
 
 				m.On("Provider", "saml", "test-category").Return(samlMock)
 			},
@@ -2730,6 +4675,7 @@ func TestFinishCategorySelect(t *testing.T) {
 				})
 				localMock.On("SaveEmail").Return(true)
 				localMock.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
+				localMock.On("String").Return("local")
 
 				m.On("Provider", "local", "test-category").Return(localMock)
 			},
@@ -2766,6 +4712,51 @@ func TestFinishCategorySelect(t *testing.T) {
 				assert.Equal(t, "test-category", tkn.CategoryID)
 			},
 			ExpectedRedirect: "/",
+		},
+		"should return an error if guessing the groups fails": {
+			PrepareDB:  func(m *r.Mock) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				username := "saml-uid"
+				name := "SAML User"
+
+				samlMock := provider.NewMockProvider(t)
+				samlMock.On("GuessGroups", mock.AnythingOfType("*context.cancelCtx"), &types.ProviderUserData{
+					Provider: "saml",
+					Category: "test-category",
+					UID:      "saml-uid",
+					Username: &username,
+					Name:     &name,
+				}, []string{"group1"}).Return((*model.Group)(nil), []*model.Group{}, &provider.ProviderError{
+					User:   provider.ErrInternal,
+					Detail: errors.New("guess error"),
+				})
+
+				m.On("Provider", "saml", "test-category").Return(samlMock)
+			},
+			RemoteAddr: "127.0.0.1",
+			CategoryID: "test-category",
+			PrepareToken: func() string {
+				username := "saml-uid"
+				name := "SAML User"
+
+				tkn, err := token.SignCategorySelectToken("", []*model.Category{{
+					ID:   "test-category",
+					Name: "Test Category",
+				}}, &[]string{"group1"}, nil, &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "saml-uid",
+
+					Username: &username,
+					Name:     &name,
+				})
+				require.NoError(err)
+				return tkn
+			},
+			Redirect: "/",
+
+			ExpectedErr: "guess groups from token: internal server error: guess error",
 		},
 		"should return error on invalid token": {
 			PrepareDB:              func(m *r.Mock) {},
