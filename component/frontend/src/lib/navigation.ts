@@ -2,6 +2,7 @@ import type { Role } from '@/lib/auth'
 import { computed, type ComputedRef } from 'vue'
 import { i18n } from '@/lib/i18n'
 import { useI18n } from 'vue-i18n'
+import { vue2PathForRouteName } from '@/lib/frontendModeMap'
 
 // SIDEBAR ITEMS
 export interface Badge {
@@ -142,6 +143,26 @@ const sidebarItems: ComputedRef<Record<string, Record<string, SidebarItem>>> = c
 
 // TODO: Remove bookings consider the user config
 
+/**
+ * Rewrite a sidebar item (and its sub-items) so any Vue 3 in-app `route`
+ * becomes an old-frontend `href`.
+ */
+function toOldFrontendItem(item: SidebarItem): SidebarItem {
+  const mapped: SidebarItem = { ...item }
+  if (mapped.route) {
+    const href = vue2PathForRouteName(mapped.route)
+    if (href) {
+      mapped.href = href
+      mapped.route = undefined
+      mapped.selected = false
+    }
+  }
+  if (mapped.subItems) {
+    mapped.subItems = mapped.subItems.map(toOldFrontendItem)
+  }
+  return mapped
+}
+
 const sidebarItemsByRole: {
   [K in Role]: (keyof typeof sidebarItems.value.menu)[]
 } = {
@@ -157,6 +178,9 @@ const sidebarItemsByRole: {
  * @param route - The current route name.
  * @param itemsInBin - The number of items in the recycle bin.
  * @param showBookingsButton - Whether to show the bookings button (from config).
+ * @param redirectToOldFrontend - When true, every item that would navigate
+ *   within the new frontend is rewritten to link to its old-frontend path
+ *   instead (used on the login notifications page in `hidden` mode).
  * @returns An object containing the mainItems and footerItems arrays for the sidebar.
  */
 export const sidebarItemsToShow = (
@@ -164,7 +188,8 @@ export const sidebarItemsToShow = (
   route: string,
   itemsInBin: number,
   showBookingsButton = true,
-  showGpuPlannings = false
+  showGpuPlannings = false,
+  redirectToOldFrontend = false
 ) => {
   let mainItems = (sidebarItemsByRole[role] || []).map((item) => {
     const menuItem = sidebarItems.value.menu[item]
@@ -203,7 +228,7 @@ export const sidebarItemsToShow = (
     return item
   })
 
-  const footerItems = Object.values(sidebarItems.value.footer)
+  let footerItems = Object.values(sidebarItems.value.footer)
     .filter((item) => {
       if (item.key === 'administration') {
         return role === 'admin' || role === 'manager'
@@ -223,6 +248,14 @@ export const sidebarItemsToShow = (
       }
       return item
     })
+
+  // In `hidden` mode the login notifications page is a transitional landing:
+  // its sidebar must send the user to the old frontend, not deeper into the
+  // (hidden) new one.
+  if (redirectToOldFrontend) {
+    mainItems = mainItems.map(toOldFrontendItem)
+    footerItems = footerItems.map(toOldFrontendItem)
+  }
 
   return { mainItems, footerItems }
 }
