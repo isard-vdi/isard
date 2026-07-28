@@ -32,7 +32,7 @@ from time import time
 from zoneinfo import ZoneInfo
 
 from api.services.error import Error
-from cachetools import TTLCache
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.models.storage_migration import (
     MigrationStatus,
@@ -47,7 +47,7 @@ from isardvdi_common.models.storage_pool import StoragePool
 #: fresh; ``create`` clears it because the "already-in-destination" set shifts
 #: as disks actually move. Keyed by the canonical selection only (parallelism /
 #: bwlimit do not affect what would move — the UI derives the ETA client-side).
-_PLAN_CACHE = TTLCache(maxsize=256, ttl=30)
+_PLAN_CACHE = SynchronizedTTLCache(maxsize=256, ttl=30)
 
 
 def _plan_cache_key(selection: dict) -> str:

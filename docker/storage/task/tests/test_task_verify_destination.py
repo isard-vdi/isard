@@ -9,13 +9,22 @@ after this task proves the destination exists, passes ``qemu-img check`` and
 body over REAL files and asserts raise-vs-0 directly.
 """
 
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
+# ``storage_lib`` lives beside the worker in the image (/utils) and under
+# docker/storage/utils in the repo; support both so the suite collects
+# either way. ``task`` itself comes from conftest's path insert.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "utils"))
 sys.path.insert(0, "/opt/isardvdi/isardvdi_task")
 sys.path.insert(0, "/utils")
+
+if shutil.which("qemu-img") is None:
+    pytest.skip("qemu-img not available", allow_module_level=True)
 
 import task  # noqa: E402  the storage worker task module
 from storage_lib import qcow  # noqa: E402
