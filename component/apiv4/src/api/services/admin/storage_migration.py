@@ -28,18 +28,23 @@ selection / aggregation logic) and the ``StorageMigration`` /
 import hashlib
 import json
 from datetime import datetime, timezone
+from os.path import dirname
 from time import time
 from zoneinfo import ZoneInfo
 
 from api.services.error import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.lib import queue_coverage
 from isardvdi_common.lib.storage import migration as mig
+from isardvdi_common.lib.storage.migration_run import DEFAULT_PRIORITY
+from isardvdi_common.models.storage import get_queue_from_storage_pools
 from isardvdi_common.models.storage_migration import (
     MigrationStatus,
     StorageMigration,
     StorageMigrationItem,
 )
 from isardvdi_common.models.storage_pool import StoragePool
+from isardvdi_common.models.task import Task
 
 #: Dry-run plan cache. The plan walks the storage tree, so identical selections
 #: — e.g. the admin panel re-estimating as options are toggled back and forth —
@@ -223,6 +228,39 @@ class AdminStorageMigrationService:
         _PLAN_CACHE[key] = result
         return result
 
+    @staticmethod
+    def _assert_move_lanes_served(preview, dst_pool):
+        """Refuse a plan whose cross-pool move lane has no live consumer.
+
+        Every move is enqueued on ``storage.<pool-key>.<tier>``, where the key is
+        the SAME sorted ``src:dst`` join the runner uses. rq keeps a job queued
+        on a lane nobody drains: no worker picks it up, nothing raises and no
+        timeout fires, so the migration reports ``running`` indefinitely with a
+        disk that never moves. Fail-open on a redis error, matching the shed
+        gate's posture -- a broker blip must not block an otherwise valid job.
+        """
+        try:
+            covered, opaque_pools = queue_coverage.served_coverage(Task._redis)
+        except Exception:
+            return
+        unserved = set()
+        for item in preview:
+            pools = StoragePool.get_by_path(dirname(item.get("src_path") or ""))
+            src_pool = pools[0] if pools else dst_pool
+            key = get_queue_from_storage_pools(src_pool, dst_pool)
+            if key in opaque_pools:
+                continue
+            if not covered[(key, DEFAULT_PRIORITY)]:
+                unserved.add(key)
+        if unserved:
+            raise Error(
+                "bad_request",
+                "No storage node serves the move queue(s) "
+                + ", ".join(sorted(unserved))
+                + "; add the destination pool to a node's "
+                "CAPABILITIES_STORAGE_POOLS before migrating into it",
+            )
+
     @classmethod
     def create(cls, payload: dict, selection: dict, config: dict) -> dict:
         """Resolve + build + persist a migration job (status ``planned``) and
@@ -251,6 +289,7 @@ class AdminStorageMigrationService:
                 "Selection resolves entirely in-place (source pool equals "
                 "destination); nothing would move",
             )
+        cls._assert_move_lanes_served(preview, dst_pool)
         now = time()
         migration = StorageMigration.init_document(
             status=MigrationStatus.PLANNED.value,

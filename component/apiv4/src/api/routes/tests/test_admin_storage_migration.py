@@ -9,6 +9,8 @@ create, pool aggregation) mock at the ``isardvdi_common.lib.storage.migration``
 boundary — that compute/DB layer is unit- and live-tested separately.
 """
 
+from collections import Counter
+
 from api.routes.tests.helpers import MockJWT
 
 ADMIN = MockJWT(role_id="admin")
@@ -373,6 +375,54 @@ class TestCreate:
             },
             db_tables_data={
                 "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_create_rejects_destination_no_worker_serves_the_move_lane(
+        self, monkeypatch, test_client
+    ):
+        """A pool->pool migration whose cross-pool move lane has no live consumer
+        enqueues every move onto a queue nobody drains: the disks never move, the
+        migration reports ``running`` forever and nothing ever errors. Refuse it
+        at create instead of stranding it."""
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [
+                    _item(
+                        "r",
+                        src_path="/isard/src/r.qcow2",
+                        dst_path="/isard/dst/r.qcow2",
+                    )
+                ],
+                {"items_total": 1},
+            ),
+        )
+        # nothing in the fleet serves any lane
+        monkeypatch.setattr(
+            "isardvdi_common.lib.queue_coverage.served_coverage",
+            lambda conn: (Counter(), set()),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {
+                    "kind": "pool",
+                    "src_pool_id": "src",
+                    "dst_pool_id": "dst",
+                }
+            },
+            db_tables_data={
+                "storage_pool": [_pool("src"), _pool()],
                 "storage_migration": [],
                 "storage_migration_item": [],
             },
