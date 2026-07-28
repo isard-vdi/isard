@@ -1410,7 +1410,11 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
             "size_bytes": size_bytes or 0,
         }
         parent_id = s.parent
-        if parent_id:
+        # Storage.delete leaves the parent uuid on its children, so a live estate
+        # holds rows whose parent row is gone. Such a disk has no reachable
+        # backing parent: plan it as a root rather than raising not_found and
+        # taking every other tree in the migration down with it.
+        if parent_id and Storage.exists(parent_id):
             p = st(parent_id)
             info["parent_storage_id"] = parent_id
             # Reuse the parent's single resolved directory (cached by id) so the

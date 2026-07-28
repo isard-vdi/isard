@@ -203,6 +203,10 @@ class _FakeStorage:
 
     registry: dict = {}
 
+    @classmethod
+    def exists(cls, sid):
+        return sid in cls.registry
+
     def __init__(self, sid):
         self._sid = sid
         data = _FakeStorage.registry[sid]
@@ -285,3 +289,29 @@ def test_probe_actual_size_missing_field_none(monkeypatch):
 
     monkeypatch.setattr(mig.subprocess, "run", lambda *a, **k: _R())
     assert mig.probe_actual_size("/x.qcow2") is None
+
+
+def test_build_plan_survives_a_dangling_parent(monkeypatch):
+    """``Storage.delete`` leaves the parent uuid behind on its children, so a
+    live estate holds rows whose parent row is gone. Reaching one must not abort
+    the whole plan: with no reachable backing parent the disk plans as a root,
+    instead of raising not_found and taking every other tree down with it."""
+    _FakeStorage.registry = {
+        "orphan": {
+            "type": "qcow2",
+            "parent": "vanished",  # no such row
+            "perms": ["r", "w"],
+            "children": [],
+        },
+    }
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+
+    items, totals = mig.build_plan_for_roots("m", ["orphan"], _MultiPathPool())
+
+    assert len(items) == 1
+    assert items[0]["storage_id"] == "orphan"
+    assert not items[0].get("parent_storage_id")
+    assert not items[0].get("parent_dst_path")
