@@ -10,19 +10,61 @@ aggregations over ``users``, ``domains`` (kind=desktop/template),
 ``categories`` and ``deployments``. Cached entry points keep the admin
 dashboard cheap to refresh; every cache is module-level + carries a
 ``clear_*`` invalidator (B8 contract).
+
+These endpoints are polled continuously (an admin dashboard plus the stats
+collector), and every one of them aggregates over tables that reach six figures
+on large installs, so a plain TTL cache is the wrong shape: the poll period is
+longer than any TTL worth serving, which makes every request a blocking miss,
+and concurrent misses all run the same scan. They are read through
+stale-while-revalidate caches instead — a caller is served the last value
+immediately and the recomputation happens on a background worker.
+
+Set ``STATS_CACHE_TTL_S`` to override every TTL below (``0`` disables caching
+entirely) when developing or debugging against live data.
 """
 
-from cachetools import cached
+from os import environ
+
 from isardvdi_common.connections.rethink_shared_connection import (
     RethinkSharedConnection,
 )
-from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.helpers.stale_while_revalidate import (
+    KeyedStaleWhileRevalidate,
+    StaleWhileRevalidate,
+    swr_cached,
+    swr_cached_keyed,
+)
 from rethinkdb import r
 
-_users_stats_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=10)
-_desktops_stats_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=5)
-_templates_stats_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=10)
-_domains_status_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=5)
+
+def _ttl(default: float) -> float:
+    override = environ.get("STATS_CACHE_TTL_S")
+    return default if override is None else float(override)
+
+
+# TTL rule: it must exceed the poll period of whatever drives the endpoint, so
+# at least every other poll is served without recomputing. The stats collector
+# polls each route roughly every 16 s and samples at 30 s, so anything fresher
+# than 30 s is discarded by the consumer anyway; the admin desktop-status panel
+# is read live and polls every 5 s, so it keeps a short one. Name the caller and
+# its period with any change here.
+_users_stats_cache = StaleWhileRevalidate(ttl=_ttl(30), name="users_stats")
+_desktops_stats_cache = StaleWhileRevalidate(ttl=_ttl(10), name="desktops_stats")
+_templates_stats_cache = StaleWhileRevalidate(ttl=_ttl(30), name="templates_stats")
+_domains_status_cache = StaleWhileRevalidate(ttl=_ttl(30), name="domains_status")
+# Full inventories, one entry per kind (desktops, templates, users, hypervisors,
+# categories, groups).
+_kind_cache = KeyedStaleWhileRevalidate(ttl=_ttl(30), maxsize=8, name="kind")
+# Per-category aggregates: the expensive ones, and the slowest-changing.
+_group_by_categories_cache = StaleWhileRevalidate(
+    ttl=_ttl(60), name="group_by_categories"
+)
+_categories_deployments_cache = StaleWhileRevalidate(
+    ttl=_ttl(30), name="categories_deployments"
+)
+_domains_by_category_cache = StaleWhileRevalidate(
+    ttl=_ttl(30), name="domains_by_category_count"
+)
 
 # Steady-state desktop statuses surfaced by category aggregates; anything
 # else is "Other" and must be surfaced for admin triage.
@@ -33,7 +75,7 @@ class StatsProcessed(RethinkSharedConnection):
     """System-wide statistics aggregations."""
 
     @classmethod
-    @cached(cache=_users_stats_cache)
+    @swr_cached(_users_stats_cache)
     def get_users_stats(cls) -> dict:
         """Return total users, enabled/disabled split, and per-role counts."""
         with cls._rdb_context():
@@ -62,7 +104,7 @@ class StatsProcessed(RethinkSharedConnection):
         _users_stats_cache.clear()
 
     @classmethod
-    @cached(cache=_desktops_stats_cache)
+    @swr_cached(_desktops_stats_cache)
     def get_desktops_stats(cls) -> dict:
         """Return total desktops and per-status counts.
 
@@ -103,7 +145,7 @@ class StatsProcessed(RethinkSharedConnection):
         _desktops_stats_cache.clear()
 
     @classmethod
-    @cached(cache=_templates_stats_cache)
+    @swr_cached(_templates_stats_cache)
     def get_templates_stats(cls) -> dict:
         """Return total templates and enabled/disabled split.
 
@@ -130,7 +172,7 @@ class StatsProcessed(RethinkSharedConnection):
         _templates_stats_cache.clear()
 
     @classmethod
-    @cached(cache=_domains_status_cache)
+    @swr_cached(_domains_status_cache)
     def get_domains_status(cls) -> dict:
         """Return per-kind, per-status domain counts."""
         return cls._domains_status_by_kind()
@@ -160,6 +202,7 @@ class StatsProcessed(RethinkSharedConnection):
         _domains_status_cache.clear()
 
     @classmethod
+    @swr_cached_keyed(_kind_cache, key=lambda cls, kind: kind)
     def get_kind(cls, kind: str) -> list[dict]:
         """Return an inventory of rows for ``kind``.
 
@@ -191,6 +234,12 @@ class StatsProcessed(RethinkSharedConnection):
             return list(query.run(cls._rdb_connection))
 
     @classmethod
+    def clear_get_kind_cache(cls) -> None:
+        """Invalidate every kind inventory."""
+        _kind_cache.clear()
+
+    @classmethod
+    @swr_cached(_categories_deployments_cache)
     def get_categories_deployments(cls) -> dict:
         """Return deployment counts grouped by user category."""
         with cls._rdb_context():
@@ -209,6 +258,12 @@ class StatsProcessed(RethinkSharedConnection):
             )
 
     @classmethod
+    def clear_get_categories_deployments_cache(cls) -> None:
+        """Invalidate the categories-deployments cache."""
+        _categories_deployments_cache.clear()
+
+    @classmethod
+    @swr_cached(_domains_by_category_cache)
     def get_domains_by_category_count(cls) -> list[dict]:
         """Return per-category desktop counts grouped by status.
 
@@ -245,6 +300,12 @@ class StatsProcessed(RethinkSharedConnection):
             )
 
     @classmethod
+    def clear_get_domains_by_category_count_cache(cls) -> None:
+        """Invalidate the domains-by-category cache."""
+        _domains_by_category_cache.clear()
+
+    @classmethod
+    @swr_cached(_group_by_categories_cache)
     def get_group_by_categories(cls) -> dict:
         """Return per-category users + desktops + templates summary.
 
@@ -379,3 +440,8 @@ class StatsProcessed(RethinkSharedConnection):
                 )
 
         return result
+
+    @classmethod
+    def clear_get_group_by_categories_cache(cls) -> None:
+        """Invalidate the group-by-categories cache."""
+        _group_by_categories_cache.clear()
