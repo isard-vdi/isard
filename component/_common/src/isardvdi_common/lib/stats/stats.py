@@ -52,9 +52,12 @@ def _ttl(default: float) -> float:
 #
 # The two drivers, both read from this repository:
 #   * the metrics collector, one call per scrape — 30 s (docker/grafana-alloy/metrics.alloy)
-#   * the admin desktop-status page, read live — 5 s (webapp desktops_status.js)
+#   * the admin desktop-status page, read live — the operator picks the interval
+#     from a selector offering 1 s to 1 minute, defaulting to 5 s
+#     (webapp templates/admin/pages/desktops_status.html, desktops_status.js)
 _COLLECTOR_SCRAPE_S = 30
 _ADMIN_PANEL_POLL_S = 5
+_ADMIN_PANEL_MIN_POLL_S = 1
 
 # Ceiling on how old a served value may get. Below it, staleness is a nuisance;
 # beyond it an operator could decide something on numbers old enough to be
@@ -63,10 +66,20 @@ _ADMIN_PANEL_POLL_S = 5
 _COLLECTOR_MAX_STALE_S = 300
 _PANEL_MAX_STALE_S = 120
 
-# Live admin panel: both of these render on the same screen off the same 5 s
-# poll, so they must not be allowed to disagree with each other.
+# Live admin panel. Both sit on the same screen and share one operator-chosen
+# interval, but they are not driven alike: the status summary starts polling when
+# the page opens, while the per-category table only polls once its checkbox is
+# ticked — off by default, and its timer is cleared when it is unticked. They do
+# not get the same TTL, on purpose. The summary is the graph the operator watches
+# and is the cheapest of the two queries, so it follows the fastest interval the
+# selector offers. The table costs a good deal more (a pluck, two group/ungroup
+# rounds and a category lookup per group), is not graphed, and is opt-in, so it
+# stays at the default interval rather than being recomputed every second for as
+# long as somebody leaves the page open with the box ticked.
 _desktops_stats_cache = StaleWhileRevalidate(
-    ttl=_ttl(_ADMIN_PANEL_POLL_S), name="desktops_stats", max_stale=_PANEL_MAX_STALE_S
+    ttl=_ttl(_ADMIN_PANEL_MIN_POLL_S),
+    name="desktops_stats",
+    max_stale=_PANEL_MAX_STALE_S,
 )
 _domains_by_category_cache = StaleWhileRevalidate(
     ttl=_ttl(_ADMIN_PANEL_POLL_S),

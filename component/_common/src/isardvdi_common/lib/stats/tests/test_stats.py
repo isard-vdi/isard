@@ -239,7 +239,16 @@ class TestCacheWiring:
     @pytest.mark.parametrize(
         "cache_name, driver_attr",
         [(name, "_COLLECTOR_SCRAPE_S") for name in COLLECTOR_DRIVEN]
-        + [(name, "_ADMIN_PANEL_POLL_S") for name in PANEL_DRIVEN],
+        + [
+            # The status summary is the graph, and the operator can ask for it
+            # every second, so it must keep up with the fastest interval the
+            # selector offers.
+            ("_desktops_stats_cache", "_ADMIN_PANEL_MIN_POLL_S"),
+            # The per-category table deliberately does not follow a 1 s
+            # selection — see the comment beside its cache — so it is held to
+            # the default interval instead.
+            ("_domains_by_category_cache", "_ADMIN_PANEL_POLL_S"),
+        ],
     )
     def test_ttl_is_no_longer_than_its_caller_s_interval(
         self, stub_rdb, cache_name, driver_attr
@@ -259,11 +268,15 @@ class TestCacheWiring:
             "interval, so it serves data older than it needs to"
         )
 
-    def test_the_two_panel_caches_cannot_disagree(self, stub_rdb):
-        """Both render on the same screen; different TTLs means visible drift."""
+    def test_the_graph_is_the_freshest_thing_on_the_panel(self, stub_rdb):
+        """The two panel caches diverge on purpose, in one direction only.
+
+        The status summary is what the operator watches move, so it must never
+        be staler than the table beside it. The reverse would be a bug: a graph
+        lagging behind its own category breakdown.
+        """
         mod = stub_rdb["mod"]
-        ttls = {getattr(mod, name).ttl for name in self.PANEL_DRIVEN}
-        assert len(ttls) == 1, f"panel caches would drift apart: {ttls}"
+        assert mod._desktops_stats_cache.ttl <= mod._domains_by_category_cache.ttl
 
 
 class TestGetKind:
