@@ -574,6 +574,7 @@ from .routes.admin import socketio_emit as admin_socketio_emit
 from .routes.admin import stats as admin_stats
 from .routes.admin import storage as admin_storage
 from .routes.admin import storage_migration as admin_storage_migration
+from .routes.admin import system_logo as admin_system_logo
 from .routes.admin import tables as admin_tables
 from .routes.admin import usage as admin_usage
 from .routes.admin import user_storage as admin_user_storage
