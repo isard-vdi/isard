@@ -42,8 +42,10 @@ Usage::
 
 import functools
 import logging
+import os
 import threading
 import time
+import weakref
 from collections import OrderedDict
 from queue import Queue
 from typing import Any, Callable, Optional
@@ -58,6 +60,9 @@ MIN_RETRY_INTERVAL_S = 2.0
 _refresh_queue: "Queue[Callable[[], None]]" = Queue()
 _refresh_worker: Optional[threading.Thread] = None
 _refresh_worker_lock = threading.Lock()
+
+# Every live cache, so the post-fork handler below can reach them all.
+_instances: "weakref.WeakSet" = weakref.WeakSet()
 
 
 def _refresh_loop() -> None:
@@ -88,6 +93,29 @@ def _submit_refresh(job: Callable[[], None]) -> None:
     _refresh_queue.put(job)
 
 
+def _reset_after_fork() -> None:
+    """Start the child process with cold caches and unheld locks.
+
+    A fork copies only the calling thread, so the child inherits a refresh
+    worker that does not exist there, entries flagged as being refreshed by
+    that ghost thread (whose waiters would block forever), and locks that may
+    have been held by another thread at the instant of the fork. RQ forks a
+    work horse per job, so this is reachable from any worker that imports a
+    module using these caches. Dropping the state is also semantically right:
+    a job should not inherit the parent's aggregates.
+    """
+    global _refresh_queue, _refresh_worker, _refresh_worker_lock
+    _refresh_queue = Queue()
+    _refresh_worker_lock = threading.Lock()
+    _refresh_worker = None
+    for cache in list(_instances):
+        cache._reinit_after_fork()
+
+
+if hasattr(os, "register_at_fork"):  # not available on every platform
+    os.register_at_fork(after_in_child=_reset_after_fork)
+
+
 class _Entry:
     """One cached value plus the state machine that guards its refresh."""
 
@@ -111,6 +139,12 @@ class _StaleWhileRevalidateBase:
         self.ttl = ttl
         self.name = name or type(self).__name__
         self._lock = threading.Lock()
+        _instances.add(self)
+
+    def _reinit_after_fork(self) -> None:
+        """Replace the lock (it may have been held elsewhere) and drop state."""
+        self._lock = threading.Lock()
+        self.clear()
 
     def _read(self, entry_of: Callable[[], _Entry], fetch: Callable[[], Any]) -> Any:
         while True:

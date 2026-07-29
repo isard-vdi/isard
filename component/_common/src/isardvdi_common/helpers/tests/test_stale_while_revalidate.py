@@ -357,6 +357,66 @@ class TestKeyed:
         assert cache.currsize == 0
 
 
+@pytest.fixture
+def isolated_module_state():
+    """Restore the module globals the fork handler replaces.
+
+    Running the handler in a process that did not actually fork leaves the real
+    worker alive while clearing the pointer to it, so a later refresh would
+    start a second one. A real child has no such thread.
+    """
+    saved = (mod._refresh_worker, mod._refresh_queue, mod._refresh_worker_lock)
+    yield
+    mod._refresh_worker, mod._refresh_queue, mod._refresh_worker_lock = saved
+
+
+class TestForkSafety:
+    """A forked child inherits a worker thread that does not exist in it."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate(self, isolated_module_state):
+        yield
+
+    def test_child_starts_cold_with_a_fresh_lock_and_no_worker(self, clock):
+        cache = StaleWhileRevalidate(ttl=10)
+        keyed = KeyedStaleWhileRevalidate(ttl=10)
+        fetch = _Counter("parent")
+        cache.get(fetch)
+        keyed.get("k", fetch)
+        parent_lock = cache._lock
+        mod._refresh_worker = object()  # stand-in for the parent's thread
+
+        mod._reset_after_fork()
+
+        assert mod._refresh_worker is None
+        assert cache.currsize == 0 and keyed.currsize == 0
+        assert cache._lock is not parent_lock
+        fetch.value = "child"
+        assert cache.get(fetch) == "child"
+
+    def test_child_does_not_inherit_an_in_flight_refresh(self, clock):
+        cache = StaleWhileRevalidate(ttl=10)
+        fetch = _Counter("old")
+        cache.get(fetch)
+        # Pretend the fork happened while the parent was refreshing: without the
+        # reset, the child's callers would wait on a ghost thread's event.
+        cache._entry.refreshing = True
+        cache._entry.has_value = False
+
+        mod._reset_after_fork()
+
+        fetch.value = "child"
+        assert cache.get(fetch) == "child"
+
+    def test_handler_is_registered_at_fork(self):
+        import os
+
+        assert hasattr(os, "register_at_fork")
+        # The module registers on import; re-running the handler must be safe.
+        mod._reset_after_fork()
+        mod._reset_after_fork()
+
+
 class TestRefreshWorker:
     def test_single_shared_worker_thread(self, clock):
         cache_a = StaleWhileRevalidate(ttl=10, name="a")

@@ -37,6 +37,10 @@ from api.services.error import Error
 from cachetools import Cache
 from fastapi.testclient import TestClient
 from isardvdi_common.helpers.bastion import Bastion
+from isardvdi_common.helpers.stale_while_revalidate import (
+    KeyedStaleWhileRevalidate,
+    StaleWhileRevalidate,
+)
 from rethinkdb_mock import MockThink
 
 
@@ -263,6 +267,11 @@ def test_client(monkeypatch, client, test_client_with_conn):
     return client_factory
 
 
+# Cache flavours the ``clear_cache`` markers must reach. Anything cache-shaped
+# that is not listed here is silently NOT cleared between tests.
+_CLEARABLE_CACHES = (Cache, StaleWhileRevalidate, KeyedStaleWhileRevalidate)
+
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "clear_cache: clear all cachetools caches before/after this test"
@@ -280,7 +289,7 @@ def pytest_runtest_setup(item):
         # clear caches before the test runs
         for obj in gc.get_objects():
             try:
-                if isinstance(obj, Cache):
+                if isinstance(obj, _CLEARABLE_CACHES):
                     obj.clear()
             except Error:
                 raise
@@ -293,7 +302,7 @@ def pytest_runtest_teardown(item, nextitem):
         # clear caches after the test runs
         for obj in gc.get_objects():
             try:
-                if isinstance(obj, Cache):
+                if isinstance(obj, _CLEARABLE_CACHES):
                     obj.clear()
             except Error:
                 raise
