@@ -417,8 +417,91 @@ class TestForkSafety:
         mod._reset_after_fork()
 
 
+class TestDecoratorGuards:
+    """The single-entry decorator must refuse anything it would mis-serve."""
+
+    def test_swr_cached_refuses_a_function_with_arguments(self):
+        cache = StaleWhileRevalidate(ttl=10)
+        with pytest.raises(TypeError) as exc:
+
+            @mod.swr_cached(cache)
+            def per_user(user_id):  # pragma: no cover - never defined
+                return user_id
+
+        assert "swr_cached_keyed" in str(exc.value)
+
+    def test_swr_cached_allows_cls_and_self(self):
+        cache = StaleWhileRevalidate(ttl=10)
+
+        @mod.swr_cached(cache)
+        def as_classmethod(cls):
+            return "ok"
+
+        assert as_classmethod(object) == "ok"
+
+    def test_swr_cached_keyed_takes_the_keyed_function(self):
+        cache = KeyedStaleWhileRevalidate(ttl=10)
+
+        @mod.swr_cached_keyed(cache, key=lambda cls, kind: kind)
+        def per_kind(cls, kind):
+            return f"value-{kind}"
+
+        assert per_kind(object, "a") == "value-a"
+        assert per_kind(object, "b") == "value-b"
+
+
+class TestRefreshSchedulingFailures:
+    def test_a_refresh_that_cannot_be_scheduled_does_not_freeze_the_entry(
+        self, clock, monkeypatch, isolated_module_state
+    ):
+        cache = StaleWhileRevalidate(ttl=10)
+        fetch = _Counter("old")
+        cache.get(fetch)
+        clock.advance(11)
+
+        def boom(job):
+            raise RuntimeError("can't start new thread")
+
+        monkeypatch.setattr(mod, "_submit_refresh", boom)
+        with pytest.raises(RuntimeError):
+            cache.get(fetch)
+        assert cache._entry.refreshing is False
+
+        # The entry must still be refreshable once scheduling works again.
+        monkeypatch.undo()
+        fetch.value = "new"
+        assert cache.get(fetch) == "old"
+        _wait_for_refresh()
+        assert cache.get(fetch) == "new"
+
+    def test_a_dead_worker_is_replaced(self, clock, isolated_module_state):
+        cache = StaleWhileRevalidate(ttl=10)
+        fetch = _Counter("old")
+        cache.get(fetch)
+
+        class _Dead:
+            daemon = True
+
+            def is_alive(self):
+                return False
+
+        mod._refresh_worker = _Dead()
+        clock.advance(11)
+        fetch.value = "new"
+        cache.get(fetch)
+        _wait_for_refresh()
+        assert cache.get(fetch) == "new"
+        assert mod._refresh_worker.is_alive()
+
+
 class TestRefreshWorker:
-    def test_single_shared_worker_thread(self, clock):
+    def test_one_shared_worker_serves_every_cache(self, clock):
+        """Refreshing N caches must not cost N threads."""
+
+        def worker_count():
+            return len([t for t in threading.enumerate() if t.name == "swr-refresh"])
+
+        before = worker_count()
         cache_a = StaleWhileRevalidate(ttl=10, name="a")
         cache_b = StaleWhileRevalidate(ttl=10, name="b")
         fa, fb = _Counter("a"), _Counter("b")
@@ -429,7 +512,7 @@ class TestRefreshWorker:
         cache_b.get(fb)
         _wait_for_refresh()
 
-        workers = [t for t in threading.enumerate() if t.name == "swr-refresh"]
-        assert len(workers) == 1
-        assert workers[0].daemon is True
+        # At most the one lazy start, however many caches went stale.
+        assert worker_count() - before <= 1
+        assert mod._refresh_worker.daemon is True
         assert fa.calls == 2 and fb.calls == 2

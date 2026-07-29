@@ -38,9 +38,15 @@ Usage::
         return _cache.get(lambda: expensive_query())
 
 ``ttl=0`` disables caching (every call fetches) — the knob development wants.
+
+**Do not use this for a decision.** Serving a stale value is the whole point,
+and a stale admission decision over-provisions or authorises after a
+revocation. Quotas, authorization and resource availability must read fresh;
+these caches are for reporting aggregates that a dashboard polls.
 """
 
 import functools
+import inspect
 import logging
 import os
 import threading
@@ -83,9 +89,11 @@ def _refresh_loop() -> None:
 def _submit_refresh(job: Callable[[], None]) -> None:
     """Queue a refresh on the process-wide daemon worker, starting it lazily."""
     global _refresh_worker
-    if _refresh_worker is None:
+    if _refresh_worker is None or not _refresh_worker.is_alive():
         with _refresh_worker_lock:
-            if _refresh_worker is None:
+            # A worker killed by something escaping the loop would otherwise
+            # freeze every cache in the process for good.
+            if _refresh_worker is None or not _refresh_worker.is_alive():
                 _refresh_worker = threading.Thread(
                     target=_refresh_loop, name="swr-refresh", daemon=True
                 )
@@ -108,7 +116,13 @@ def _reset_after_fork() -> None:
     _refresh_queue = Queue()
     _refresh_worker_lock = threading.Lock()
     _refresh_worker = None
-    for cache in list(_instances):
+    try:
+        caches = list(_instances)
+    except RuntimeError:
+        # The WeakSet was caught mid-mutation by the fork; nothing to reinit
+        # that the child can reach anyway.
+        return
+    for cache in caches:
         cache._reinit_after_fork()
 
 
@@ -154,7 +168,14 @@ class _StaleWhileRevalidateBase:
                     stale = (time.monotonic() - entry.fetched_at) >= self.ttl
                     if stale and not entry.refreshing:
                         entry.refreshing = True
-                        _submit_refresh(self._refresh_job(entry, fetch))
+                        try:
+                            _submit_refresh(self._refresh_job(entry, fetch))
+                        except BaseException:
+                            # A refresh that was never scheduled must not leave
+                            # the flag set: the entry would then be frozen for
+                            # the life of the process, silently.
+                            entry.refreshing = False
+                            raise
                     return entry.value
                 if entry.refreshing:
                     ready = entry.ready
@@ -200,8 +221,13 @@ class _StaleWhileRevalidateBase:
             try:
                 value = fetch()
             except Exception:
-                log.warning(
-                    "swr_background_refresh_failed name=%s", self.name, exc_info=True
+                with self._lock:
+                    age = time.monotonic() - entry.fetched_at
+                log.error(
+                    "swr_background_refresh_failed name=%s serving_value_age=%.0fs",
+                    self.name,
+                    age,
+                    exc_info=True,
                 )
                 with self._lock:
                     # Keep serving what we have, but hold off before retrying.
@@ -310,15 +336,32 @@ class KeyedStaleWhileRevalidate(_StaleWhileRevalidateBase):
 def swr_cached(cache: StaleWhileRevalidate) -> Callable:
     """Read a zero-argument function through a :class:`StaleWhileRevalidate`.
 
-    Drop-in shape replacement for ``cachetools``' ``@cached``, so an existing
-    call site only swaps the decorator::
+    Same call shape as ``cachetools``' ``@cached``, so an existing call site
+    only swaps the decorator::
 
         @classmethod
         @swr_cached(_users_stats_cache)
         def get_users_stats(cls) -> dict: ...
+
+    Unlike ``@cached`` this holds ONE entry and does not key on the arguments,
+    so decorating a function that takes any is refused at import time rather
+    than silently serving one caller's value to another. Use
+    :func:`swr_cached_keyed` for those.
     """
 
     def decorate(func: Callable) -> Callable:
+        params = [
+            name
+            for name in inspect.signature(func).parameters
+            if name not in ("cls", "self")
+        ]
+        if params:
+            raise TypeError(
+                f"swr_cached on {func.__qualname__}: this cache holds a single "
+                f"entry and ignores arguments, so every caller would share one "
+                f"value regardless of {params}. Use swr_cached_keyed."
+            )
+
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             return cache.get(lambda: func(*args, **kwargs))

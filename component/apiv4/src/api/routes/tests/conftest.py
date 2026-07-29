@@ -37,10 +37,7 @@ from api.services.error import Error
 from cachetools import Cache
 from fastapi.testclient import TestClient
 from isardvdi_common.helpers.bastion import Bastion
-from isardvdi_common.helpers.stale_while_revalidate import (
-    KeyedStaleWhileRevalidate,
-    StaleWhileRevalidate,
-)
+from isardvdi_common.helpers.stale_while_revalidate import _StaleWhileRevalidateBase
 from rethinkdb_mock import MockThink
 
 
@@ -269,7 +266,7 @@ def test_client(monkeypatch, client, test_client_with_conn):
 
 # Cache flavours the ``clear_cache`` markers must reach. Anything cache-shaped
 # that is not listed here is silently NOT cleared between tests.
-_CLEARABLE_CACHES = (Cache, StaleWhileRevalidate, KeyedStaleWhileRevalidate)
+_CLEARABLE_CACHES = (Cache, _StaleWhileRevalidateBase)
 
 
 def pytest_configure(config):
