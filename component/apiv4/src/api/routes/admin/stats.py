@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import asyncio
+import logging
 import traceback
 
 from api import admin_router
@@ -37,6 +38,8 @@ from api.services.admin.stats import AdminStatsService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+log = logging.getLogger(__name__)
 
 tag = "admin_stats"
 
@@ -63,12 +66,21 @@ def _stats_rows(
       the client's decoder would reject the entire payload, not the row.
     """
     projected = []
+    dropped = 0
     for row in rows or []:
         if any(row.get(key) is None for key in required):
+            dropped += 1
             continue
         item = {key: row[key] for key in required}
         item.update({key: row[key] for key in optional if row.get(key) is not None})
         projected.append(item)
+    if dropped:
+        # Previously an incomplete row failed the whole response, which was at
+        # least visible. Dropping it must not be silent: from the collector's
+        # side the item simply stops existing.
+        log.warning(
+            "stats_inventory_rows_dropped count=%d required=%s", dropped, required
+        )
     return projected
 
 

@@ -69,6 +69,14 @@ class StatsProcessed(RethinkSharedConnection):
         The ``kind_status`` fold answers both in one indexed pass; the
         previous count plus ``group("status")`` on a non-indexed field
         read every desktop document twice.
+
+        ``total`` is now the sum of the per-status groups rather than an
+        independent row count, which are the same number only while every
+        desktop carries a ``status``: a document missing it is absent from
+        the compound index. ``status`` is required on the domain model, and
+        the endpoint that reports the per-status breakdown has always been
+        blind to such a row anyway, so this keeps the two numbers from
+        disagreeing instead of letting one of them quietly count more.
         """
         status = cls._domains_status_by_kind()["desktop"]
         return {"total": sum(status.values()), "status": status}

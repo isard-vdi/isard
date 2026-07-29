@@ -237,3 +237,29 @@ class TestGetGroupByCategories:
         result = stub_rdb["Processed"].get_group_by_categories()
         assert result["cat-a"]["users"]["roles"] == {"admin": 1}
         assert None not in result["cat-a"]["users"]["roles"]
+
+
+class TestDesktopsTotalMatchesTheStatusFold:
+    """``total`` and the per-status breakdown must not be able to disagree."""
+
+    def test_total_is_the_sum_of_the_statuses(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.group.return_value.count.return_value.run.return_value = {
+            ("desktop", "Started"): 4,
+            ("desktop", "Stopped"): 11,
+            ("template", "Stopped"): 2,
+        }
+        result = stub_rdb["Processed"].get_desktops_stats()
+        assert result["total"] == 15
+        assert result["total"] == sum(result["status"].values())
+
+    def test_it_reports_the_same_desktop_numbers_as_domains_status(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.group.return_value.count.return_value.run.return_value = {
+            ("desktop", "Started"): 4,
+            ("desktop", "Failed"): 1,
+        }
+        desktops = stub_rdb["Processed"].get_desktops_stats()
+        stub_rdb["Processed"].clear_get_domains_status_cache()
+        domains = stub_rdb["Processed"].get_domains_status()
+        assert desktops["status"] == domains["desktop"]
