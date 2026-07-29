@@ -156,6 +156,22 @@ function migEscape (s) {
     .replace(/'/g, "&#39;");
 }
 
+// Operators think in GB, the API speaks bytes. One GB here is 1024^3, matching
+// what migBytes() prints, so a value typed in comes back out unchanged.
+const MIG_GB = 1024 * 1024 * 1024;
+
+function migGbToBytes (v) {
+  const n = parseFloat(v);
+  return (!isFinite(n) || n <= 0) ? 0 : Math.round(n * MIG_GB);
+}
+
+function migBytesToGb (n) {
+  n = parseInt(n, 10);
+  if (!n || n <= 0) return 0;
+  // trim to 3 decimals so a round GB does not render as 4.999999
+  return Math.round((n / MIG_GB) * 1000) / 1000;
+}
+
 function migBytes (n) {
   n = Number(n) || 0;
   const u = ["B", "KB", "MB", "GB", "TB", "PB"];
@@ -351,6 +367,12 @@ function migConfigControls (m) {
       </label>
       <label style="margin-left:8px;" title="Failed attempts before a disk is quarantined." data-toggle="tooltip">after
         <input type="number" class="form-control input-sm cfg-quarantine-after" min="1" style="width:52px;" value="${migEscape(c.quarantine_after != null ? c.quarantine_after : 3)}" ${dis}>
+      </label>
+      <label style="margin-left:8px;" title="Move at most this much per run, then stop until the next window. Honoured at tree boundaries, so the run may overshoot by one tree. 0 = no limit." data-toggle="tooltip">Stop&nbsp;after&nbsp;GB
+        <input type="number" class="form-control input-sm cfg-budget-gb" min="0" step="any" style="width:78px;" value="${migEscape(migBytesToGb(c.max_bytes_per_occurrence))}" ${dis}>
+      </label>
+      <label style="margin-left:8px;" title="Refuse a copy that would leave the destination below this much free. Filesystem-level: no protection on a thin-provisioned (VDO) pool — use Stop after there. 0 = off." data-toggle="tooltip">Keep&nbsp;free&nbsp;GB
+        <input type="number" class="form-control input-sm cfg-minfree-gb" min="0" step="any" style="width:78px;" value="${migEscape(migBytesToGb(c.min_free_bytes))}" ${dis}>
       </label>
       <button type="button" class="btn btn-default btn-xs mig-config-apply" style="margin-left:8px;" ${dis} title="Apply these settings to the running job." data-toggle="tooltip"><i class="fa fa-check"></i> Apply</button>
       <span class="mig-config-out" style="margin-left:8px;color:#888;"></span>
@@ -581,7 +603,9 @@ function migCreateConfig () {
     recurring: $("#mig_recurring").is(":checked"),
     rescan_cadence: $("#mig_rescan_cadence").val(),
     failure_policy: $("#mig_failure_policy").val(),
-    quarantine_after: parseInt($("#mig_quarantine_after").val(), 10) || 3
+    quarantine_after: parseInt($("#mig_quarantine_after").val(), 10) || 3,
+    max_bytes_per_occurrence: migGbToBytes($("#mig_budget_gb").val()),
+    min_free_bytes: migGbToBytes($("#mig_min_free_gb").val())
   };
 }
 
@@ -853,7 +877,9 @@ $(document).ready(function () {
       recurring: $f.find(".cfg-recurring").is(":checked"),
       rescan_cadence: $f.find(".cfg-cadence").val(),
       failure_policy: $f.find(".cfg-failure").val(),
-      quarantine_after: parseInt($f.find(".cfg-quarantine-after").val(), 10) || 3
+      quarantine_after: parseInt($f.find(".cfg-quarantine-after").val(), 10) || 3,
+      max_bytes_per_occurrence: migGbToBytes($f.find(".cfg-budget-gb").val()),
+      min_free_bytes: migGbToBytes($f.find(".cfg-minfree-gb").val())
     };
     $f.find(".mig-config-out").text("Saving…");
     $.ajax({ type: "PUT", url: `${MIG_API}/${id}/config`, contentType: "application/json", data: JSON.stringify(body) })

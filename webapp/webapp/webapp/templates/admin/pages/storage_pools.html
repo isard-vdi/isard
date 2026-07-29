@@ -166,6 +166,14 @@
         </label>
         <label style="margin-left:8px;" title="Stop a running desktop to move its disk, instead of skipping it. The desktop is restartable afterwards."><input type="checkbox" id="mig_force_stop"> force-stop</label>
         <label style="margin-left:8px;" title="Checksum-verify each destination copy before deleting the source. Strongly recommended — leave on."><input type="checkbox" id="mig_verify" checked> verify</label>
+        <label style="margin-left:8px;">Stop&nbsp;after
+          <input type="number" id="mig_budget_gb" class="form-control input-sm" value="0" min="0" step="any" style="width:84px;" title="Move at most this much per run, then stop and wait for the next window. 0 = no limit."> GB
+          <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="A budget for one run. Disks move as whole backing-chain trees, so the limit is honoured at TREE boundaries: the tree already copying finishes, and the run can overshoot by up to one tree. Set it to a few times your typical tree size, not below it. The job then reports &ldquo;budget reached&rdquo; and resumes next window."></i>
+        </label>
+        <label style="margin-left:8px;">Keep&nbsp;free
+          <input type="number" id="mig_min_free_gb" class="form-control input-sm" value="0" min="0" step="any" style="width:84px;" title="Refuse a copy that would leave the destination with less free space than this. 0 = no floor."> GB
+          <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Checked on the storage node immediately before each copy, which is the only moment the reading is true. NOTE: this reads the FILESYSTEM&rsquo;s free space. On a thin-provisioned pool (VDO) the filesystem reports logical space while the real limit is physical fill, so this floor does not protect there — use &ldquo;Stop after&rdquo; instead, which measures nothing and is always correct."></i>
+        </label>
       </fieldset>
     </form>
 
