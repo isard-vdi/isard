@@ -35,3 +35,10 @@ export function resolveVue2Path(route: RouteLocationNormalized): string | null {
     return typeof value === 'string' ? value : ''
   })
 }
+
+export function vue2PathForRouteName(name: string | undefined): string | null {
+  if (!name) return null
+  const template = VUE3_TO_VUE2[name]
+  if (!template || template.includes(':')) return null
+  return template
+}
