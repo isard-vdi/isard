@@ -516,6 +516,7 @@ class TestRegistryDownloadSource:
         _url, headers = svc._registry_download_source("media", {"url-isard": "x.iso"})
         assert headers == []
 
+
 class TestDownloadsDeleteAndAbort:
     """The delete button used to write a status and hope.
 
