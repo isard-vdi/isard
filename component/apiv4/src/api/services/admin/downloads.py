@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging as log
 import os
 import time
 import xml.etree.ElementTree as ET
@@ -29,6 +30,7 @@ import requests
 if TYPE_CHECKING:
     from isardvdi_common.models.storage import Storage
 
+from api.schemas.admin.downloads import REGISTRY_ENTRY_MODELS
 from api.services.admin.tables import AdminTablesService
 from api.services.cards import CardService
 from cachetools import cached
@@ -37,12 +39,61 @@ from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.xml_compression import decompress_xml
 from isardvdi_common.lib.downloads.downloads import DownloadsProcessed
 from isardvdi_common.models.config import Config
+from pydantic import ValidationError
 
 # Mirror ``api.services.media`` so registry-domain downloads honour the
 # same ``URL_DOWNLOAD_INSECURE_SSL`` toggle the legacy engine path used.
 URL_DOWNLOAD_INSECURE_SSL = (
     os.environ.get("URL_DOWNLOAD_INSECURE_SSL", "true").lower() == "true"
 )
+
+
+def _registry_rejection(kind: str, entry: dict) -> Optional[str]:
+    """Why this registry entry must not become a row, or None if it may.
+
+    What the updates server publishes is inserted almost verbatim, so a
+    malformed entry does not fail here: it creates a row this
+    installation cannot show. A domain whose kind is outside the
+    taxonomy falls out of every kind-scoped query, leaving a desktop its
+    owner never sees and cannot delete while it holds a disk.
+    """
+    model = REGISTRY_ENTRY_MODELS.get(kind)
+    if model is None or not isinstance(entry, dict):
+        return None
+    try:
+        model.model_validate(entry)
+    except ValidationError as exc:
+        return "; ".join(
+            "{}: {}".format(
+                ".".join(str(part) for part in error.get("loc", ())) or "entry",
+                error.get("msg", "is invalid"),
+            )
+            for error in exc.errors()
+        )
+    return None
+
+
+def _servable_entries(kind: str, entries: list) -> list:
+    """Drop what an installation could not use, saying why.
+
+    Dropping rather than raising on purpose: this runs while listing the
+    catalogue, which is cached and shared, so one bad entry upstream must
+    not cost every other template on the page.
+    """
+    kept = []
+    for entry in entries:
+        rejection = _registry_rejection(kind, entry)
+        if rejection:
+            log.warning(
+                "Not offering %s entry %r published by the updates server: %s",
+                kind,
+                (entry or {}).get("name") if isinstance(entry, dict) else entry,
+                rejection,
+            )
+            continue
+        kept.append(entry)
+    return kept
+
 
 # Named caches so writers can invalidate them after mutations
 # (the registration flow updates the code in the DB and must wipe
@@ -169,7 +220,7 @@ class AdminDownloadsService:
                     for d in req.json():
                         d["id"] = d.get("url-isard")
                         downloads.append(d)
-                    return downloads
+                    return _servable_entries(kind, downloads)
                 else:
                     return req.json()
             elif req.status_code == 500:
@@ -203,7 +254,7 @@ class AdminDownloadsService:
                 timeout=10,
             )
             if req.status_code == 200:
-                return req.json()
+                return _servable_entries(kind, req.json())
         except Exception:
             pass
         return False
@@ -344,6 +395,16 @@ class AdminDownloadsService:
                             f"identifier (url-isard / url-web / name).",
                         )
                     data = matches[0]
+                if data:
+                    rejection = _registry_rejection(kind, data)
+                    if rejection:
+                        raise Error(
+                            "bad_request",
+                            f"This {kind} entry is not a valid row and was "
+                            f"refused: {rejection}. Fix it where it is "
+                            f"published, in the updates registry.",
+                            description_code="registry_entry_invalid",
+                        )
                 if data and kind == "domains":
                     missing_resources = AdminDownloadsService._get_missing_resources(
                         data, user_id
@@ -377,7 +438,19 @@ class AdminDownloadsService:
                     )
             else:
                 items = AdminDownloadsService.get_downloads_kind(kind, user_id)
-                items = [d for d in items if d["new"] is True]
+                items = [d for d in items if d.get("new") is True]
+                # One bad entry must not block the good ones, but if that
+                # leaves nothing, say so rather than report success.
+                offered = len(items)
+                items = _servable_entries(kind, items)
+                if offered and not items:
+                    raise Error(
+                        "bad_request",
+                        f"None of the {offered} {kind} entries the updates "
+                        f"registry offers is a valid row; nothing was "
+                        f"downloaded. Fix them where they are published.",
+                        description_code="registry_entry_invalid",
+                    )
                 if kind == "domains":
                     items = AdminDownloadsService._format_domains(items, user_id)
                 elif kind == "media":

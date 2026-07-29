@@ -18,7 +18,21 @@ Two behaviours are locked in here:
 
 from unittest.mock import patch
 
-from api.services.admin.downloads import AdminDownloadsService
+import pytest
+from api.schemas.admin.downloads import (
+    _REGISTRY_ONLY_DOMAIN_KEYS,
+    _REGISTRY_ONLY_MEDIA_KEYS,
+    RegistryDomainEntry,
+    RegistryMediaEntry,
+)
+from api.services.admin.downloads import (
+    AdminDownloadsService,
+    _registry_rejection,
+    _servable_entries,
+)
+from isardvdi_common.models.domain import DomainModel
+from isardvdi_common.models.media import MediaModel
+from isardvdi_common.schemas.domains import DomainKindEnum
 
 TETROS_XML = """
 <domain type='kvm'>
@@ -41,7 +55,24 @@ TETROS_XML = """
 """.strip()
 
 
-def _registry_entry(cd_bus=None, top_bus=None, xml=None):
+def _media_entry(**overrides):
+    """One ``media`` entry shaped as the updates registry serves it."""
+    entry = {
+        "id": "b6b1a1f0-0000-4000-8000-000000000001",
+        "name": "Virtio ISO drivers",
+        "description": "virtio drivers as an ISO image",
+        "kind": "iso",
+        "icon": "fa-circle-o",
+        "url-isard": "virtio-win.iso",
+        "url-web": False,
+        "default-virtio-iso": True,
+        "hypervisors_pools": ["default"],
+    }
+    entry.update(overrides)
+    return entry
+
+
+def _registry_entry(cd_bus=None, top_bus=None, xml=None, **overrides):
     """Build a registry entry shaped like the upstream /get/domains/list payload."""
     cd_disk = {"file": "x.qcow2", "parent": ""}
     if cd_bus is not None:
@@ -68,6 +99,8 @@ def _registry_entry(cd_bus=None, top_bus=None, xml=None):
         entry["hardware"] = {"disks": [{"bus": top_bus, "dev": "hda"}]}
     if xml is not None:
         entry["xml"] = xml
+    entry["kind"] = "desktop"
+    entry.update(overrides)
     return entry
 
 
@@ -230,3 +263,125 @@ class TestFormatDomainsProtectionHints:
         result = _run_format(entry)
         assert "not_change_cpu_section" not in result["create_dict"]["hardware"]
         assert "xml_protected_sections" not in result["create_dict"]
+
+
+class TestRegistryEntryValidation:
+    """The gate on what the updates registry publishes.
+
+    A template published with a kind outside the taxonomy created a
+    domain row that fell out of every kind-scoped query: its owner never
+    saw the desktop, could not delete it, and it kept its disk.
+    """
+
+    def test_a_real_entry_is_accepted(self):
+        assert _registry_rejection("domains", _registry_entry()) is None
+
+    def test_the_defect_is_refused(self):
+        rejection = _registry_rejection("domains", _registry_entry(kind="server"))
+        assert rejection is not None
+        assert "kind" in rejection
+
+    @pytest.mark.parametrize("kind", ["desktop", "template"])
+    def test_both_legal_kinds_are_accepted(self, kind):
+        assert _registry_rejection("domains", _registry_entry(kind=kind)) is None
+
+    def test_an_entry_without_a_kind_is_refused(self):
+        entry = _registry_entry()
+        del entry["kind"]
+        assert "kind" in _registry_rejection("domains", entry)
+
+    def test_an_unknown_key_is_refused(self):
+        rejection = _registry_rejection("domains", _registry_entry(frobnicate=1))
+        assert "frobnicate" in rejection
+
+    @pytest.mark.parametrize("kind", ["domains", "media"])
+    def test_the_listings_own_new_flag_is_accepted(self, kind):
+        """``new`` is added by our own listing before validation runs — a live
+        registry serves neither it nor ``status``. The bulk download path
+        selects on it, so forbidding it refused every entry: the listing
+        dropped all of them and the download reported success having started
+        nothing."""
+        entry = _registry_entry() if kind == "domains" else _media_entry()
+        entry["new"] = True
+        assert _registry_rejection(kind, entry) is None
+
+    @pytest.mark.parametrize("kind", ["domains", "media"])
+    def test_every_entry_a_live_registry_publishes_is_servable(self, kind):
+        entry = _registry_entry() if kind == "domains" else _media_entry()
+        entry["new"] = False
+        assert _servable_entries(kind, [entry]) == [entry]
+
+    def test_an_entry_with_no_download_source_is_refused(self):
+        entry = _registry_entry()
+        entry["url-isard"] = False
+        assert "url" in _registry_rejection("domains", entry)
+
+    @pytest.mark.parametrize("drop", ["hypervisors_pools", "hardware"])
+    def test_create_dict_members_the_download_indexes_are_required(self, drop):
+        entry = _registry_entry()
+        del entry["create_dict"][drop]
+        assert drop in _registry_rejection("domains", entry)
+
+    def test_interfaces_are_required(self):
+        entry = _registry_entry()
+        del entry["create_dict"]["hardware"]["interfaces"]
+        assert "interfaces" in _registry_rejection("domains", entry)
+
+    def test_media_keeps_its_own_taxonomy(self):
+        media = {
+            "id": "m",
+            "name": "An iso",
+            "kind": "iso",
+            "url-isard": "x.iso",
+            "url-web": False,
+        }
+        assert _registry_rejection("media", media) is None
+        media["kind"] = "server"
+        assert "kind" in _registry_rejection("media", media)
+
+    def test_media_may_carry_the_virtio_defaults(self):
+        """Four published entries do; rejecting them would break Windows."""
+        media = {
+            "id": "m",
+            "name": "virtio",
+            "kind": "iso",
+            "url-isard": "x.iso",
+            "url-web": False,
+            "default-virtio-iso": True,
+            "default-virtio-fd": True,
+        }
+        assert _registry_rejection("media", media) is None
+
+    def test_a_kind_we_do_not_gate_is_left_alone(self):
+        assert _registry_rejection("videos", {"anything": True}) is None
+
+    def test_one_bad_entry_does_not_cost_the_others(self):
+        good, bad = _registry_entry(), _registry_entry(kind="server")
+        assert _servable_entries("domains", [good, bad]) == [good]
+
+
+class TestRegistryModelsFollowTheRowModels:
+    """The accepted keys are derived, not restated.
+
+    If these drift apart, a field added to the row model stops being
+    accepted from the registry — which is a template silently vanishing
+    from the catalogue, so it fails here instead.
+    """
+
+    def test_domain_keys_come_from_the_domain_model(self):
+        assert set(RegistryDomainEntry.model_fields) == set(
+            DomainModel.model_fields
+        ) | {key.replace("-", "_") for key in _REGISTRY_ONLY_DOMAIN_KEYS}
+
+    def test_media_keys_come_from_the_media_model(self):
+        assert set(RegistryMediaEntry.model_fields) == set(MediaModel.model_fields) | {
+            key.replace("-", "_") for key in _REGISTRY_ONLY_MEDIA_KEYS
+        }
+
+    def test_the_domain_kind_is_the_taxonomy(self):
+        legal = {
+            kind
+            for kind in ("desktop", "template", "server", "")
+            if _registry_rejection("domains", _registry_entry(kind=kind)) is None
+        }
+        assert legal == {member.value for member in DomainKindEnum}
