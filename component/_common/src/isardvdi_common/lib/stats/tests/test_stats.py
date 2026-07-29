@@ -5,7 +5,6 @@
 
 """Unit tests for ``StatsProcessed`` top-level summaries."""
 
-import math
 from unittest.mock import MagicMock
 
 import pytest
@@ -227,8 +226,8 @@ class TestCacheWiring:
 
     # Which driver each cache answers to. The periods are constants in the
     # module, read off this repository — never a number derived from one
-    # installation's traffic, which is how a TTL that recomputes on every poll
-    # gets shipped behind a passing test.
+    # installation's traffic, which is how a TTL calibrated against a poll
+    # period that does not exist gets shipped behind a passing test.
     COLLECTOR_DRIVEN = [
         "_domains_status_cache",
         "_kind_cache",
@@ -237,23 +236,28 @@ class TestCacheWiring:
     ]
     PANEL_DRIVEN = ["_desktops_stats_cache", "_domains_by_category_cache"]
 
-    @pytest.mark.parametrize("cache_name", COLLECTOR_DRIVEN)
-    def test_collector_ttl_skips_at_least_every_other_scrape(
-        self, stub_rdb, cache_name
+    @pytest.mark.parametrize(
+        "cache_name, driver_attr",
+        [(name, "_COLLECTOR_SCRAPE_S") for name in COLLECTOR_DRIVEN]
+        + [(name, "_ADMIN_PANEL_POLL_S") for name in PANEL_DRIVEN],
+    )
+    def test_ttl_is_no_longer_than_its_caller_s_interval(
+        self, stub_rdb, cache_name, driver_attr
     ):
-        mod = stub_rdb["mod"]
-        cache = getattr(mod, cache_name)
-        assert math.ceil(cache.ttl / mod._COLLECTOR_SCRAPE_S) >= 2, (
-            f"{cache_name} ttl={cache.ttl}s recomputes on every collector scrape "
-            f"({mod._COLLECTOR_SCRAPE_S}s apart) — it saves the database nothing"
-        )
+        """Serve data as fresh as the caller's cadence allows, and no older.
 
-    @pytest.mark.parametrize("cache_name", PANEL_DRIVEN)
-    def test_panel_ttl_stays_within_a_few_refreshes(self, stub_rdb, cache_name):
-        """The panel is read live, so staleness is what the operator sees."""
+        A TTL longer than the interval does not make the refreshes cheaper —
+        while it is at or below the period there is one refresh per poll either
+        way — it only hands out older numbers. Parallel consumers are absorbed
+        by the single-flight refresh, not by a long TTL.
+        """
         mod = stub_rdb["mod"]
         cache = getattr(mod, cache_name)
-        assert cache.ttl <= 2 * mod._ADMIN_PANEL_POLL_S
+        interval = getattr(mod, driver_attr)
+        assert cache.ttl <= interval, (
+            f"{cache_name} ttl={cache.ttl}s exceeds its caller's {interval}s "
+            "interval, so it serves data older than it needs to"
+        )
 
     def test_the_two_panel_caches_cannot_disagree(self, stub_rdb):
         """Both render on the same screen; different TTLs means visible drift."""

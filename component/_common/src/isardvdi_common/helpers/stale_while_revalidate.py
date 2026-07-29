@@ -68,6 +68,13 @@ log = logging.getLogger(__name__)
 # entry is only allowed to go stale again after this many seconds.
 MIN_RETRY_INTERVAL_S = 2.0
 
+# Longest a caller will block waiting for a fetch it did not start. Reaching it
+# means the query itself is wedged — RethinkDB accepted it and never answered —
+# and there is no timeout inside the driver call to save us. Without this bound
+# a wedged query would pin every waiting request thread for the life of the
+# process. Generous enough that a merely slow aggregate is not cut short.
+FETCH_WAIT_TIMEOUT_S = 60.0
+
 _refresh_queue: "Queue[Callable[[], None]]" = Queue()
 _refresh_worker: Optional[threading.Thread] = None
 _refresh_worker_lock = threading.Lock()
@@ -218,7 +225,11 @@ class _StaleWhileRevalidateBase:
                     owner = True
 
             if not owner:
-                ready.wait()
+                if not ready.wait(timeout=FETCH_WAIT_TIMEOUT_S):
+                    raise TimeoutError(
+                        f"{self.name}: waited {FETCH_WAIT_TIMEOUT_S:.0f}s for an "
+                        "in-flight refresh that never finished"
+                    )
                 with self._lock:
                     if self._servable(entry):
                         return entry.value

@@ -42,10 +42,13 @@ def _ttl(default: float) -> float:
     return default if override is None else float(override)
 
 
-# TTL rule: it must cover at least two polls of whatever drives the endpoint, so
-# at least every other poll is served without recomputing. Name the caller and
-# its period with any change here — a TTL below the driving period recomputes on
-# every single poll, which is a cache that measures as a no-op.
+# TTL rule: the value must be as fresh as its caller's cadence allows, so the
+# TTL is that cadence and no more. A longer one does not make refreshes cheaper
+# in any way that matters — while the TTL is at or below the poll period there is
+# exactly one refresh per poll either way — it only serves older data. What keeps
+# parallel consumers from multiplying the work is not the TTL, it is that a stale
+# value is served immediately and only ONE refresh runs however many callers
+# arrive inside the interval.
 #
 # The two drivers, both read from this repository:
 #   * the metrics collector, one call per scrape — 30 s (docker/grafana-alloy/metrics.alloy)
@@ -63,31 +66,44 @@ _PANEL_MAX_STALE_S = 120
 # Live admin panel: both of these render on the same screen off the same 5 s
 # poll, so they must not be allowed to disagree with each other.
 _desktops_stats_cache = StaleWhileRevalidate(
-    ttl=_ttl(10), name="desktops_stats", max_stale=_PANEL_MAX_STALE_S
+    ttl=_ttl(_ADMIN_PANEL_POLL_S), name="desktops_stats", max_stale=_PANEL_MAX_STALE_S
 )
 _domains_by_category_cache = StaleWhileRevalidate(
-    ttl=_ttl(10), name="domains_by_category_count", max_stale=_PANEL_MAX_STALE_S
+    ttl=_ttl(_ADMIN_PANEL_POLL_S),
+    name="domains_by_category_count",
+    max_stale=_PANEL_MAX_STALE_S,
 )
-# Collector-driven: 2x the scrape interval, so every other scrape is free.
+# Collector-driven: the scrape interval itself.
 _domains_status_cache = StaleWhileRevalidate(
-    ttl=_ttl(60), name="domains_status", max_stale=_COLLECTOR_MAX_STALE_S
+    ttl=_ttl(_COLLECTOR_SCRAPE_S),
+    name="domains_status",
+    max_stale=_COLLECTOR_MAX_STALE_S,
 )
 _kind_cache = KeyedStaleWhileRevalidate(
-    ttl=_ttl(60), maxsize=8, name="kind", max_stale=_COLLECTOR_MAX_STALE_S
+    ttl=_ttl(_COLLECTOR_SCRAPE_S),
+    maxsize=8,
+    name="kind",
+    max_stale=_COLLECTOR_MAX_STALE_S,
 )
 _categories_deployments_cache = StaleWhileRevalidate(
-    ttl=_ttl(60), name="categories_deployments", max_stale=_COLLECTOR_MAX_STALE_S
+    ttl=_ttl(_COLLECTOR_SCRAPE_S),
+    name="categories_deployments",
+    max_stale=_COLLECTOR_MAX_STALE_S,
 )
 _group_by_categories_cache = StaleWhileRevalidate(
-    ttl=_ttl(60), name="group_by_categories", max_stale=_COLLECTOR_MAX_STALE_S
+    ttl=_ttl(_COLLECTOR_SCRAPE_S),
+    name="group_by_categories",
+    max_stale=_COLLECTOR_MAX_STALE_S,
 )
 # No route reaches these two today (nothing calls the service methods in front
 # of them). Cached for parity; do not read a TTL rule off them.
 _users_stats_cache = StaleWhileRevalidate(
-    ttl=_ttl(60), name="users_stats", max_stale=_COLLECTOR_MAX_STALE_S
+    ttl=_ttl(_COLLECTOR_SCRAPE_S), name="users_stats", max_stale=_COLLECTOR_MAX_STALE_S
 )
 _templates_stats_cache = StaleWhileRevalidate(
-    ttl=_ttl(60), name="templates_stats", max_stale=_COLLECTOR_MAX_STALE_S
+    ttl=_ttl(_COLLECTOR_SCRAPE_S),
+    name="templates_stats",
+    max_stale=_COLLECTOR_MAX_STALE_S,
 )
 
 # Steady-state desktop statuses surfaced by category aggregates; anything
