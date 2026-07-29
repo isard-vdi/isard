@@ -67,4 +67,10 @@ loki.write "monitor" {
 	endpoint {
 		url = env("LOKI_ADDRESS") + "/loki/api/v1/push"
 	}
+
+	// Buffer on disk while Loki is unreachable, like prometheus.remote_write does by default.
+	wal {
+		enabled         = true
+		max_segment_age = "4h"
+	}
 }

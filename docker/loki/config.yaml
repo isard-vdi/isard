@@ -20,6 +20,11 @@ common:
     kvstore:
       store: inmemory
 
+ingester:
+  wal:
+    enabled: true
+    dir: /data/wal                              # persistent volume: the default /loki/wal is lost on container recreation
+
 schema_config:
   configs:
     - from: 2020-10-24
