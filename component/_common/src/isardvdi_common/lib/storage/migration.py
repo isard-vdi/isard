@@ -833,6 +833,38 @@ def recurring_status_target(
 # --------------------------------------------------------------------------- #
 # Recurring re-scan cadence + failure policy + audit (pure)
 # --------------------------------------------------------------------------- #
+#: States in which a disk's bytes have actually landed on the destination. A
+#: disk still ``moving`` has consumed nothing durable yet, and ``skipped`` never
+#: moved at all, so neither counts against the budget.
+_BYTES_LANDED = {"moved", "rebased", "verified", "db_updated", "released"}
+
+
+def occurrence_bytes_moved(items):
+    """Bytes this occurrence has actually landed on the destination."""
+    return sum(
+        int(it.get("size_bytes") or 0)
+        for it in items
+        if str(it.get("state")) in _BYTES_LANDED
+    )
+
+
+def budget_allows_new_tree(bytes_moved, max_bytes):
+    """Whether another tree may START under the per-occurrence byte budget.
+
+    ``max_bytes`` of 0 means unlimited. The budget gates only the START of a
+    tree: one already in flight always finishes, since stopping mid-tree would
+    leave a half-migrated backing chain. So the budget is a floor on what a run
+    moves, not a hard ceiling -- the last tree may overshoot it.
+
+    This is deliberately operator-set rather than probe-derived: on a
+    thin-provisioned pool (VDO) the filesystem reports LOGICAL free space while
+    the real limit is physical fill, so no statvfs reading can size this safely.
+    """
+    if not max_bytes:
+        return True
+    return bytes_moved < max_bytes
+
+
 def should_rescan(cadence, occurrence_key, last_occurrence, is_drained, window_open):
     """Whether a recurring job re-scans this tick, per its cadence. Never outside
     the window. ``edge`` only at the occurrence edge (new key); ``edge_on_drain``

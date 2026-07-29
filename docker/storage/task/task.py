@@ -1157,6 +1157,7 @@ def move(
     bwlimit=0,
     remove_source_file=True,
     progress_domain_id=None,
+    min_free_bytes=0,
 ):
     """
     Move disk.
@@ -1206,6 +1207,31 @@ def move(
                 exc,
             )
             method = "rsync"
+
+    # Destination free-space floor. Only a COPY can fill the destination: a
+    # same-filesystem move is a rename, so it consumes nothing and must never be
+    # refused. Basis is the source's ALLOCATED size (st_blocks), which is what a
+    # copy actually lands, not the qcow2 virtual size.
+    #
+    # WARNING: this is a FILESYSTEM-level figure (statvfs f_bavail). On a
+    # thin-provisioned backing store (VDO) the filesystem reports LOGICAL space
+    # and the real constraint is the pool's PHYSICAL fill, which can be ~5x
+    # smaller. On such pools this floor gives no protection and must not be
+    # relied on until the probe learns to read the physical figure.
+    if min_free_bytes and method != "mv":
+        free = _free_space(dirname(destination_path))
+        if free is not None:  # a probe that cannot answer must not block a move
+            try:
+                needed = os_stat(origin_path).st_blocks * 512
+            except OSError:
+                needed = 0
+            if free - needed < min_free_bytes:
+                raise RuntimeError(
+                    f"move: refusing to copy {origin_path}: destination "
+                    f"{dirname(destination_path)} would be left with "
+                    f"{free - needed} bytes free, below the {min_free_bytes} "
+                    "byte floor (filesystem-level figure)"
+                )
 
     on_progress = None
     if progress_domain_id is not None:

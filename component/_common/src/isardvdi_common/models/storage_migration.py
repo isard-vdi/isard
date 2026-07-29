@@ -61,6 +61,10 @@ class MigrationStatus(StrEnum):
     #: drain. Only an admin Cancel ends a recurring job; it never self-completes.
     #: Set only by the reconciler, never directly by an admin action.
     SCHEDULED = "scheduled"
+    #: the per-occurrence byte budget is spent -- idle, NON-TERMINAL. A recurring
+    #: job resumes at its next occurrence; a one-shot waits for an admin to raise
+    #: the budget. Mirrors WINDOW_CLOSED: stopped on purpose, not broken.
+    BUDGET_REACHED = "budget_reached"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELED = "canceled"

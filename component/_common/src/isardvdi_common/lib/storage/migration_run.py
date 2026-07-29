@@ -683,6 +683,9 @@ class MigrationRunner:
                 "method": "rsync",
                 "bwlimit": bwlimit,
                 "remove_source_file": False,  # keep source until release
+                # worker-side floor: only the storage worker can see the pool
+                # mounts, and only immediately before the copy is the figure true
+                "min_free_bytes": int(self.config.get("min_free_bytes") or 0),
             },
             timeout=RSYNC_TIMEOUT,
         )
@@ -938,6 +941,16 @@ class MigrationRunner:
         slots = mig.admission_slots(
             list(phases.values()), self.config.get("parallelism")
         )
+        # Per-occurrence byte budget: stop STARTING trees once spent. A tree in
+        # flight always finishes -- stopping mid-tree would strand a half-moved
+        # backing chain. Operator-set, because on a thin-provisioned pool no
+        # free-space probe can size this safely.
+        budget = int(self.config.get("max_bytes_per_occurrence") or 0)
+        budget_spent = not mig.budget_allows_new_tree(
+            mig.occurrence_bytes_moved(items), budget
+        )
+        if budget_spent:
+            slots = 0
 
         results = []
         failed_this_tick = False
@@ -1043,12 +1056,17 @@ class MigrationRunner:
                 if cur in (
                     MigrationStatus.RUNNING.value,
                     MigrationStatus.WINDOW_CLOSED.value,
+                    MigrationStatus.BUDGET_REACHED.value,
                 ):
-                    target = (
-                        MigrationStatus.WINDOW_CLOSED.value
-                        if (has_window and not win_open)
-                        else MigrationStatus.RUNNING.value
-                    )
+                    if has_window and not win_open:
+                        target = MigrationStatus.WINDOW_CLOSED.value
+                    elif budget_spent and not any_in_flight:
+                        # spent AND drained: say so instead of sitting in
+                        # ``running`` while nothing moves -- an idle job that
+                        # still claims to run is indistinguishable from a wedge.
+                        target = MigrationStatus.BUDGET_REACHED.value
+                    else:
+                        target = MigrationStatus.RUNNING.value
             # recurring: running (in-window/in-flight) or scheduled (idle).
             if target is not None and cur != target:
                 self.migration.status = target

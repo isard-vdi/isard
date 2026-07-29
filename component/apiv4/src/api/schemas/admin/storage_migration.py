@@ -69,6 +69,16 @@ class MigrationConfigData(BaseModel):
     )
     #: consecutive-occurrence failure budget before quarantine (retry_quarantine).
     quarantine_after: int = Field(default=3, ge=1)
+    #: Per-occurrence volume budget in bytes; 0 = unlimited. Operator-set on
+    #: purpose: on a thin-provisioned pool (VDO) the filesystem reports LOGICAL
+    #: free space while the real limit is physical fill, so no probe can size
+    #: this safely. Gates only the START of a tree, so the last one may overshoot.
+    max_bytes_per_occurrence: int = Field(default=0, ge=0)
+    #: Filesystem-level free-space floor on the destination, in bytes; 0 = off.
+    #: Enforced by the worker immediately before each copy (the only place the
+    #: number is true, and the only process that can see the pool mounts).
+    #: NOT valid on thin-provisioned (VDO) pools -- see max_bytes_per_occurrence.
+    min_free_bytes: int = Field(default=0, ge=0)
 
 
 class MigrationPlanData(BaseModel):
