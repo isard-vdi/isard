@@ -1429,7 +1429,7 @@ class Helpers(RethinkSharedConnection):
         if payload.get("role_id", "user") != "user" and desktop.get("tag"):
             try:
                 cls.owns_deployment_id(
-                    payload, desktop["tag"], check_co_owners=check_co_owners
+                    payload, desktop["tag"], check_co_owner=check_co_owners
                 )
             except Exception:
                 return False

@@ -610,7 +610,7 @@ function actionsGroupDetail(){
                             type: "PUT",
                             url: "/api/v4/admin/items/users/bulk/",
                             data: JSON.stringify({
-                                ids: users,
+                                ids: users.map(u => u["id"]),
                                 category: data['category'],
                                 group: data['group']
                             }),
