@@ -176,6 +176,20 @@ def parse_storage_queue(name):
     return None
 
 
+def effective_tier(tier):
+    """The tier a queue's trailing segment actually schedules as.
+
+    A real tier name comes back verbatim; a legacy ``high``/``low`` lane comes
+    back as the tier :func:`normalize_tier` maps it to, so a job left on
+    ``storage.<pool>.low`` by a pre-upgrade producer (or a direct-enqueue caller)
+    is classified — and therefore governed — exactly like the ``maintenance``
+    job it is. Anything else (``default``, which is action-dependent and has no
+    action here, or a free-form priority) is returned unchanged and so keeps
+    classifying as the ungoverned foreground default.
+    """
+    return _LEGACY_MAP.get(tier, tier)
+
+
 def default_tier_for_action(action):
     """Return the default tier for a task *action* with no extra context.
 

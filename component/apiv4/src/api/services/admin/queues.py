@@ -15,6 +15,7 @@ from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.connections.redis_urls import RQ_DB
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.lib import governor_counters
 from isardvdi_common.lib.governed_worker import (
     _LIVE_STATUSES,
     CATEGORY_RUNNING_PREFIX,
@@ -48,6 +49,11 @@ QUEUE_REGISTRIES = [
     "scheduled",
     "canceled",
 ]
+
+# Registries whose jobs are, by definition, still live work: a sweep that
+# deletes from them removes chains that are running or waiting to run - and
+# with dependent cascade, their whole downstream too.
+NON_REAPABLE_REGISTRIES = ["queued", "started", "scheduled", "deferred"]
 
 # Presentation defaults for the live storage-governor block. These mirror the
 # worker's env/hardcoded fallbacks; they are only what the admin view shows for
@@ -576,14 +582,16 @@ class AdminQueuesService:
         """Get job counts for a specific queue."""
         with _connect_redis() as redis_conn:
             queue = Queue(queue_name, connection=redis_conn)
+        # queue.count is a plain LLEN, but registry.count runs cleanup() — for
+        # StartedJobRegistry that MOVES timed-out jobs to FailedJobRegistry.
         return {
             "queued": queue.count,
-            "started": queue.started_job_registry.count,
-            "finished": queue.finished_job_registry.count,
-            "failed": queue.failed_job_registry.count,
-            "deferred": queue.deferred_job_registry.count,
-            "scheduled": queue.scheduled_job_registry.count,
-            "canceled": queue.canceled_job_registry.count,
+            "started": queue.started_job_registry.get_job_count(cleanup=False),
+            "finished": queue.finished_job_registry.get_job_count(cleanup=False),
+            "failed": queue.failed_job_registry.get_job_count(cleanup=False),
+            "deferred": queue.deferred_job_registry.get_job_count(cleanup=False),
+            "scheduled": queue.scheduled_job_registry.get_job_count(cleanup=False),
+            "canceled": queue.canceled_job_registry.get_job_count(cleanup=False),
         }
 
     # -------------------------------------------------------------------------
@@ -745,6 +753,8 @@ class AdminQueuesService:
             "psi_limit": STORAGE_SCHEDULER_DEFAULTS["psi_limit"],
             "redis": {"up": False},
             "heavy": {"running": 0, "cap": 0, "at_cap": False, "leaked": 0},
+            "shed": governor_counters.empty_counters(),
+            "defer": governor_counters.empty_counters(),
             "pools": [],
             "workers": [],
             "warnings": [],
@@ -863,6 +873,13 @@ class AdminQueuesService:
             worker_rows, multitenancy_active = AdminQueuesService._worker_health_rows(
                 conn
             )
+
+            # --- shed / defer event counters ------------------------------
+            # The only durable trace of a producer-side 429 or a worker
+            # background-deferral edge; both are otherwise invisible here
+            # (a shed leaves nothing, and ``deferring`` is a gauge).
+            shed_counters = governor_counters.read_shed(conn)
+            defer_counters = governor_counters.read_defer(conn)
 
         # ----- assemble pools / categories (out of the Redis context) -----
         heavy_scard = leaks.get(HEAVY_RUNNING_KEY, {}).get("count", len(heavy_members))
@@ -1091,6 +1108,8 @@ class AdminQueuesService:
             "psi_limit": effective["psi_limit"],
             "redis": redis_health,
             "heavy": heavy,
+            "shed": shed_counters,
+            "defer": defer_counters,
             "pools": pool_list,
             "workers": worker_rows,
             "warnings": warnings,
@@ -1420,7 +1439,7 @@ class AdminQueuesService:
                     "bad_request",
                     f"Invalid registry: {reg}. Valid registries are: {QUEUE_REGISTRIES}",
                 )
-            if reg in ["queued", "started", "scheduled"]:
+            if reg in NON_REAPABLE_REGISTRIES:
                 raise Error(
                     "bad_request",
                     f"Registry {reg} is not valid for this operation.",
@@ -1441,7 +1460,13 @@ class AdminQueuesService:
             for job in jobs:
                 if job is None:
                     continue
-                if job.ended_at is None or job.ended_at.timestamp() < time_cutoff:
+                # A job with no ``ended_at`` has not finished: it is either
+                # still live or a chain member the consumer marked mid-flight.
+                # Treating that as "old" deleted running work - with
+                # ``delete_dependents``, the rest of its chain with it.
+                if job.ended_at is None:
+                    continue
+                if job.ended_at.timestamp() < time_cutoff:
                     if rtype == "key":
                         old_keys.append(job.key.decode())
                     elif rtype == "id":
@@ -1491,6 +1516,14 @@ class AdminQueuesService:
                 raise Error(
                     "bad_request",
                     f"Invalid registry: {reg}. Valid registries are: {QUEUE_REGISTRIES}",
+                )
+            # Accepting these here and rejecting them at sweep time is what made
+            # every nightly run raise and purge nothing; and had the sweep run,
+            # it would have deleted live chains.
+            if reg in NON_REAPABLE_REGISTRIES:
+                raise Error(
+                    "bad_request",
+                    f"Registry {reg} holds live work and cannot be auto-deleted.",
                 )
         Config.update_old_tasks({"queue_registries": queue_registries})
         return {"queue_registries": queue_registries}

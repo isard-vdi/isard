@@ -54,7 +54,7 @@ import redis
 import redis.asyncio as aioredis
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.task_streams import CANCELED_KIND
-from isardvdi_common.models.task import Task
+from isardvdi_common.models.task import Task, _stamp_ended_at
 from redis.exceptions import ResponseError
 from rq import Queue
 from rq.job import JobStatus
@@ -76,6 +76,9 @@ RECONNECT_DELAY_S = 5
 # e.g. a malformed payload) is dead-lettered after ``MAX_DELIVERIES`` so it
 # can never loop forever.
 DEAD_STREAM = "stream:task-results:dead"
+# Nothing consumes the dead-letter stream, so an uncapped XADD grows for ever.
+# It is a forensic record, not a queue: keep a bounded, recent window.
+DEAD_STREAM_MAXLEN = 10000
 RECLAIM_IDLE_MS = 60000
 RECLAIM_EVERY_S = 30
 MAX_DELIVERIES = 5
@@ -279,6 +282,12 @@ async def _set_job_status(dep_task, status):
         pass
     try:
         await asyncio.to_thread(dep_task.job.set_status, status)
+        # ``set_status`` writes one hash field, so a step settled here has no
+        # ``ended_at`` - and the reconcile ages a chain from exactly that. Any
+        # storage job stranded behind such a step was invisible to the orphan
+        # pass for ever. Safe now that the pass no longer hydrates the queued
+        # backlog and no longer deletes replay state on a failed heal.
+        await asyncio.to_thread(_stamp_ended_at, dep_task._redis, dep_task.id)
     except Exception:
         log.exception(
             "task_results: could not mark %s as %s",
@@ -368,6 +377,10 @@ async def _process_entry(redis_manager, fields):
     # worker: every member is already CANCELED (or legitimately terminal for a
     # mid-chain cancel), so the root's status must be left exactly as it is.
     canceled = kind == CANCELED_KIND or job_status == "canceled"
+    # A chain that failed or was cancelled did not produce its work. Its
+    # finalize handlers still run - that is how the row is released - but
+    # nothing downstream of them may be advanced.
+    chain_failed = canceled or job_status == "failed"
 
     if not canceled:
         root_status = JobStatus.FAILED if job_status == "failed" else JobStatus.FINISHED
@@ -398,16 +411,23 @@ async def _process_entry(redis_manager, fields):
             # sibling/child runs, so handlers that gate on
             # ``task.depending_status`` see the right value (was "deferred"
             # otherwise — no worker on the core queue ever marks it).
-            await _set_job_status(
-                dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED
-            )
+            # A handler gated on ``depending_status`` no-ops when the chain
+            # failed and reports success for having done nothing. Marking that
+            # FINISHED tells the NEXT step in the chain its dependency
+            # succeeded, so a nested step runs its success body for an
+            # operation that never happened.
+            if chain_failed:
+                step_status = JobStatus.FAILED
+            else:
+                step_status = JobStatus.FINISHED if ok else JobStatus.FAILED
+            await _set_job_status(dep_task, step_status)
             # Release any deferred storage-queue dependent of this core dep so
             # the storage worker actually picks it up. See helper docstring
             # for why ``set_status(FINISHED)`` alone is not enough. Skipped
             # when the handler failed — failure must NOT advance the chain —
             # and when the member is cancelled, since releasing its children
             # would run work for an operation the user cancelled.
-            if ok and not _is_canceled(dep_task):
+            if ok and not chain_failed and not _is_canceled(dep_task):
                 await _release_storage_dependents(dep_task)
 
     # MR-3 of the core_worker retirement: core_worker is gone, so the
@@ -526,7 +546,12 @@ async def _reclaim_pending(redis, redis_manager, consumer_name):
         delivered = await _delivery_count(redis, entry_id)
         if delivered > MAX_DELIVERIES:
             try:
-                await redis.xadd(DEAD_STREAM, fields)
+                await redis.xadd(
+                    DEAD_STREAM,
+                    fields,
+                    maxlen=DEAD_STREAM_MAXLEN,
+                    approximate=True,
+                )
                 await _ack(redis, entry_id)
                 log.warning(
                     "task_results: dead-lettered %s after %s deliveries",
