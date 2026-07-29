@@ -53,25 +53,42 @@ def _ttl(default: float) -> float:
 _COLLECTOR_SCRAPE_S = 30
 _ADMIN_PANEL_POLL_S = 5
 
+# Ceiling on how old a served value may get. Below it, staleness is a nuisance;
+# beyond it an operator could decide something on numbers old enough to be
+# wrong, so the endpoint fails instead and the collector's own scrape failure
+# becomes the signal. The first successful refresh clears it by itself.
+_COLLECTOR_MAX_STALE_S = 300
+_PANEL_MAX_STALE_S = 120
+
 # Live admin panel: both of these render on the same screen off the same 5 s
 # poll, so they must not be allowed to disagree with each other.
-_desktops_stats_cache = StaleWhileRevalidate(ttl=_ttl(10), name="desktops_stats")
+_desktops_stats_cache = StaleWhileRevalidate(
+    ttl=_ttl(10), name="desktops_stats", max_stale=_PANEL_MAX_STALE_S
+)
 _domains_by_category_cache = StaleWhileRevalidate(
-    ttl=_ttl(10), name="domains_by_category_count"
+    ttl=_ttl(10), name="domains_by_category_count", max_stale=_PANEL_MAX_STALE_S
 )
 # Collector-driven: 2x the scrape interval, so every other scrape is free.
-_domains_status_cache = StaleWhileRevalidate(ttl=_ttl(60), name="domains_status")
-_kind_cache = KeyedStaleWhileRevalidate(ttl=_ttl(60), maxsize=8, name="kind")
+_domains_status_cache = StaleWhileRevalidate(
+    ttl=_ttl(60), name="domains_status", max_stale=_COLLECTOR_MAX_STALE_S
+)
+_kind_cache = KeyedStaleWhileRevalidate(
+    ttl=_ttl(60), maxsize=8, name="kind", max_stale=_COLLECTOR_MAX_STALE_S
+)
 _categories_deployments_cache = StaleWhileRevalidate(
-    ttl=_ttl(60), name="categories_deployments"
+    ttl=_ttl(60), name="categories_deployments", max_stale=_COLLECTOR_MAX_STALE_S
 )
 _group_by_categories_cache = StaleWhileRevalidate(
-    ttl=_ttl(60), name="group_by_categories"
+    ttl=_ttl(60), name="group_by_categories", max_stale=_COLLECTOR_MAX_STALE_S
 )
 # No route reaches these two today (nothing calls the service methods in front
 # of them). Cached for parity; do not read a TTL rule off them.
-_users_stats_cache = StaleWhileRevalidate(ttl=_ttl(60), name="users_stats")
-_templates_stats_cache = StaleWhileRevalidate(ttl=_ttl(60), name="templates_stats")
+_users_stats_cache = StaleWhileRevalidate(
+    ttl=_ttl(60), name="users_stats", max_stale=_COLLECTOR_MAX_STALE_S
+)
+_templates_stats_cache = StaleWhileRevalidate(
+    ttl=_ttl(60), name="templates_stats", max_stale=_COLLECTOR_MAX_STALE_S
+)
 
 # Steady-state desktop statuses surfaced by category aggregates; anything
 # else is "Other" and must be surfaced for admin triage.

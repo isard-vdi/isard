@@ -428,3 +428,21 @@ class TestDesktopsTotalMatchesTheStatusFold:
         stub_rdb["Processed"].clear_get_domains_status_cache()
         domains = stub_rdb["Processed"].get_domains_status()
         assert desktops["status"] == domains["desktop"]
+
+
+class TestEveryCacheHasAStalenessCeiling:
+    """A frozen dashboard must eventually say so instead of lying quietly."""
+
+    def test_no_stats_cache_serves_an_unbounded_stale_value(self, stub_rdb):
+        caches = [get(stub_rdb["mod"]) for get in CACHE_OF_METHOD.values()]
+        caches.append(stub_rdb["mod"]._kind_cache)
+        missing = [cache.name for cache in caches if cache.max_stale is None]
+        assert not missing, f"caches with no staleness ceiling: {missing}"
+
+    @pytest.mark.parametrize("cache_name", TestCacheWiring.COLLECTOR_DRIVEN)
+    def test_the_ceiling_leaves_room_for_several_refresh_attempts(
+        self, stub_rdb, cache_name
+    ):
+        """Too tight a ceiling would fail the endpoint on a single hiccup."""
+        cache = getattr(stub_rdb["mod"], cache_name)
+        assert cache.max_stale >= 3 * cache.ttl

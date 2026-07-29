@@ -38,6 +38,11 @@ Usage::
         return _cache.get(lambda: expensive_query())
 
 ``ttl=0`` disables caching (every call fetches) — the knob development wants.
+``max_stale`` puts a ceiling on how old a served value may get: past it the
+caller waits for fresh data and receives the real error if that fails, so a
+database that stays unreachable shows up as a failure rather than as a dashboard
+quietly frozen in the past. Recovery needs no special state — the first
+successful fetch makes the entry fresh again.
 
 **Do not use this for a decision.** Serving a stale value is the whole point,
 and a stale admission decision over-provisions or authorises after a
@@ -149,8 +154,18 @@ class _Entry:
 class _StaleWhileRevalidateBase:
     """Read path shared by the plain and keyed caches."""
 
-    def __init__(self, ttl: float, name: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        ttl: float,
+        name: Optional[str] = None,
+        max_stale: Optional[float] = None,
+    ) -> None:
         self.ttl = ttl
+        # Beyond this age the value stops being served and callers wait for a
+        # fresh one, so a database that stays unreachable surfaces as an error
+        # instead of as a dashboard quietly frozen in the past. ``None`` keeps
+        # serving indefinitely.
+        self.max_stale = max_stale
         self.name = name or type(self).__name__
         self._lock = threading.Lock()
         _instances.add(self)
@@ -160,14 +175,28 @@ class _StaleWhileRevalidateBase:
         self._lock = threading.Lock()
         self.clear()
 
+    def _servable(self, entry: _Entry) -> bool:
+        """Whether the held value may still be handed to a caller.
+
+        Past ``max_stale`` it may not: the caller waits for fresh data and gets
+        the real error if that fails, instead of being told a number that is
+        old enough to make them decide the wrong thing.
+        """
+        if not entry.has_value:
+            return False
+        if self.max_stale is None:
+            return True
+        return (time.monotonic() - entry.fetched_at) < self.max_stale
+
     def _read(self, entry_of: Callable[[], _Entry], fetch: Callable[[], Any]) -> Any:
         while True:
             entry = entry_of()
             with self._lock:
-                if entry.has_value:
+                if self._servable(entry):
                     stale = (time.monotonic() - entry.fetched_at) >= self.ttl
                     if stale and not entry.refreshing:
                         entry.refreshing = True
+                        entry.ready = threading.Event()
                         try:
                             _submit_refresh(self._refresh_job(entry, fetch))
                         except BaseException:
@@ -178,6 +207,8 @@ class _StaleWhileRevalidateBase:
                             raise
                     return entry.value
                 if entry.refreshing:
+                    # Includes the past-``max_stale`` case: join whatever is
+                    # already running rather than starting a second copy of it.
                     ready = entry.ready
                     owner = False
                 else:
@@ -189,12 +220,14 @@ class _StaleWhileRevalidateBase:
             if not owner:
                 ready.wait()
                 with self._lock:
-                    if entry.has_value:
+                    if self._servable(entry):
                         return entry.value
                     error = entry.error
                 if error is not None:
                     raise error
-                # Invalidated mid-flight (clear()): start over on a fresh entry.
+                # The refresh we joined finished without leaving a servable
+                # value (invalidated mid-flight, or still past max_stale):
+                # start over rather than return something we just rejected.
                 continue
 
             try:
@@ -220,7 +253,7 @@ class _StaleWhileRevalidateBase:
         def job() -> None:
             try:
                 value = fetch()
-            except Exception:
+            except Exception as exc:
                 with self._lock:
                     age = time.monotonic() - entry.fetched_at
                 log.error(
@@ -235,12 +268,18 @@ class _StaleWhileRevalidateBase:
                         time.monotonic() - self.ttl + MIN_RETRY_INTERVAL_S
                     )
                     entry.refreshing = False
+                    entry.error = exc
+                    ready = entry.ready
+                ready.set()  # release anyone past max_stale waiting on us
                 return
             with self._lock:
                 entry.value = value
                 entry.has_value = True
                 entry.fetched_at = time.monotonic()
                 entry.refreshing = False
+                entry.error = None
+                ready = entry.ready
+            ready.set()
 
         return job
 
@@ -248,8 +287,13 @@ class _StaleWhileRevalidateBase:
 class StaleWhileRevalidate(_StaleWhileRevalidateBase):
     """Cache one value, refreshed in the background once it goes stale."""
 
-    def __init__(self, ttl: float, name: Optional[str] = None) -> None:
-        super().__init__(ttl, name)
+    def __init__(
+        self,
+        ttl: float,
+        name: Optional[str] = None,
+        max_stale: Optional[float] = None,
+    ) -> None:
+        super().__init__(ttl, name, max_stale)
         self._entry = _Entry()
 
     @property
@@ -281,9 +325,13 @@ class KeyedStaleWhileRevalidate(_StaleWhileRevalidateBase):
     """Keyed variant: one independently refreshed entry per key, LRU-bounded."""
 
     def __init__(
-        self, ttl: float, maxsize: int = 10, name: Optional[str] = None
+        self,
+        ttl: float,
+        maxsize: int = 10,
+        name: Optional[str] = None,
+        max_stale: Optional[float] = None,
     ) -> None:
-        super().__init__(ttl, name)
+        super().__init__(ttl, name, max_stale)
         self.maxsize = maxsize
         self._entries: "OrderedDict[Any, _Entry]" = OrderedDict()
 

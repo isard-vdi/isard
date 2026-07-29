@@ -591,3 +591,93 @@ class TestRefreshWorker:
         assert worker_count() - before <= 1
         assert mod._refresh_worker.daemon is True
         assert fa.calls == 2 and fb.calls == 2
+
+
+class TestMaxStaleCeiling:
+    """Past the ceiling the value stops being served — and what happens then."""
+
+    def test_within_the_ceiling_it_still_serves_stale(self, clock):
+        cache = StaleWhileRevalidate(ttl=10, max_stale=100)
+        fetch = _Counter("old")
+        cache.get(fetch)
+        clock.advance(99)
+        assert cache.get(fetch) == "old"
+        _wait_for_refresh()
+
+    def test_past_the_ceiling_a_new_caller_gets_fresh_data(self, clock):
+        cache = StaleWhileRevalidate(ttl=10, max_stale=100)
+        fetch = _Counter("old")
+        cache.get(fetch)
+        clock.advance(101)
+        fetch.value = "fresh"
+        # It waits instead of handing over the too-old value.
+        assert cache.get(fetch) == "fresh"
+
+    def test_past_the_ceiling_a_failing_query_raises(self, clock):
+        cache = StaleWhileRevalidate(ttl=10, max_stale=100)
+        fetch = _Counter("old")
+        cache.get(fetch)
+        clock.advance(101)
+        fetch.raises = RuntimeError("db still down")
+        with pytest.raises(RuntimeError):
+            cache.get(fetch)
+
+    def test_past_the_ceiling_callers_join_the_in_flight_query(
+        self, clock, monkeypatch
+    ):
+        """No second copy of the query, and nobody gets the too-old value."""
+        submitted = []
+        real_submit = mod._submit_refresh
+        monkeypatch.setattr(
+            mod,
+            "_submit_refresh",
+            lambda job: (submitted.append(job), real_submit(job))[1],
+        )
+        cache = StaleWhileRevalidate(ttl=10, max_stale=100)
+        fetch = _Counter("old")
+        cache.get(fetch)
+
+        # A refresh starts while the value is still servable, and hangs.
+        clock.advance(11)
+        fetch.gate = threading.Event()
+        fetch.entered.clear()
+        fetch.value = "fresh"
+        assert cache.get(fetch) == "old"
+        assert fetch.entered.wait(timeout=5), "the refresh never started"
+
+        # Now the ceiling is crossed while that query is still running.
+        clock.advance(200)
+        results = []
+        start = threading.Barrier(5)  # 4 callers + this thread
+
+        def call():
+            start.wait(timeout=5)
+            results.append(cache.get(fetch))
+
+        threads = [threading.Thread(target=call) for _ in range(4)]
+        for t in threads:
+            t.start()
+        start.wait(timeout=5)
+        fetch.gate.set()  # the one in-flight query completes
+        for t in threads:
+            t.join(timeout=5)
+
+        assert results == ["fresh"] * 4, "callers must get the fresh value"
+        assert len(submitted) == 1, "a second query was started"
+        assert fetch.calls == 2
+
+    def test_it_recovers_on_the_first_success(self, clock):
+        cache = StaleWhileRevalidate(ttl=10, max_stale=100)
+        fetch = _Counter("old")
+        cache.get(fetch)
+        clock.advance(101)
+        fetch.raises = RuntimeError("down")
+        with pytest.raises(RuntimeError):
+            cache.get(fetch)
+
+        fetch.raises = None
+        fetch.value = "recovered"
+        assert cache.get(fetch) == "recovered"  # blocks once, then healthy
+        clock.advance(5)
+        assert cache.get(fetch) == "recovered"  # served instantly again
+        assert fetch.calls == 3
