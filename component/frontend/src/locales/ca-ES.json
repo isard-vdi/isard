@@ -384,7 +384,11 @@
       }
     },
     "register": {
-      "title": "Registre"
+      "title": "Registre",
+      "re-register": {
+        "title": "Actualitza el teu registre",
+        "description": "Els teus permisos han canviat. Introdueix el codi de registre que t'ha proporcionat l'administració per continuar."
+      }
     },
     "notifications": {
       "title": "Notificacions",
@@ -2462,7 +2466,8 @@
         "forbidden": "El domini de correu electrònic que està intentant utilitzar no és autoritzat per a la seva categoria.",
         "not_found": "Codi no trobat",
         "conflict": "L'usuari ja existeix",
-        "internal_server": "Error en el servidor"
+        "internal_server": "Error en el servidor",
+        "re_register_not_resolved": "El codi que has introduït no atorga l'accés necessari. Demana un codi vàlid a l'administració."
       }
     },
     "new-desktop": {

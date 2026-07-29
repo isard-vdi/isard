@@ -349,7 +349,7 @@ const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
       meta: {
         title: 'router.register.title',
-        allowedTokenTypes: ['register'],
+        allowedTokenTypes: ['register', 're-register'],
         allowedRoles: ['admin', 'manager', 'advanced', 'user'] as Role[]
       }
     },
@@ -587,6 +587,7 @@ function getRedirectForTokenType(type: TokenType) {
     case TokenType.CategorySelect:
       return { name: 'login' }
     case TokenType.Register:
+    case TokenType.ReRegister:
       return { name: 'register' }
     case TokenType.DisclaimerAcknowledgeRequired:
       return { name: 'disclaimer' }
