@@ -61,8 +61,9 @@ class TestGetUsersStats:
 
 
 def _both_desktop_chains(chain):
-    """Stub the pre- and post-single-pass query chains alike, so the
-    output assertions below pin the shape and not the query used."""
+    """Stub every query shape this method has used, so the assertions below pin
+    the OUTPUT and not the query that produced it — that is what must not change
+    when the query is retuned."""
     chain.get_all.return_value.count.return_value.run.return_value = 7
     chain.get_all.return_value.group.return_value.count.return_value.run.return_value = {
         "Started": 3,
@@ -72,6 +73,10 @@ def _both_desktop_chains(chain):
         ("desktop", "Started"): 3,
         ("desktop", "Stopped"): 4,
         ("template", "Stopped"): 2,
+    }
+    chain.between.return_value.group.return_value.count.return_value.run.return_value = {
+        "Started": 3,
+        "Stopped": 4,
     }
 
 
@@ -239,26 +244,39 @@ class TestGetGroupByCategories:
         assert None not in result["cat-a"]["users"]["roles"]
 
 
+def _consistent_domain_counts(chain, fold):
+    """Feed both query shapes from one truth: the whole-table fold, and the
+    desktop-range fold that is its ``desktop`` half. The two endpoints ask
+    different questions of the same data, so a test that stubs them
+    independently could not catch them disagreeing."""
+    chain.group.return_value.count.return_value.run.return_value = fold
+    chain.between.return_value.group.return_value.count.return_value.run.return_value = {
+        status: n for (kind, status), n in fold.items() if kind == "desktop"
+    }
+
+
 class TestDesktopsTotalMatchesTheStatusFold:
     """``total`` and the per-status breakdown must not be able to disagree."""
 
     def test_total_is_the_sum_of_the_statuses(self, stub_rdb):
-        chain = stub_rdb["mock_table"].return_value
-        chain.group.return_value.count.return_value.run.return_value = {
-            ("desktop", "Started"): 4,
-            ("desktop", "Stopped"): 11,
-            ("template", "Stopped"): 2,
-        }
+        _consistent_domain_counts(
+            stub_rdb["mock_table"].return_value,
+            {
+                ("desktop", "Started"): 4,
+                ("desktop", "Stopped"): 11,
+                ("template", "Stopped"): 2,
+            },
+        )
         result = stub_rdb["Processed"].get_desktops_stats()
         assert result["total"] == 15
         assert result["total"] == sum(result["status"].values())
 
     def test_it_reports_the_same_desktop_numbers_as_domains_status(self, stub_rdb):
-        chain = stub_rdb["mock_table"].return_value
-        chain.group.return_value.count.return_value.run.return_value = {
-            ("desktop", "Started"): 4,
-            ("desktop", "Failed"): 1,
-        }
+        """The two endpoints now run different queries; they must still agree."""
+        _consistent_domain_counts(
+            stub_rdb["mock_table"].return_value,
+            {("desktop", "Started"): 4, ("desktop", "Failed"): 1},
+        )
         desktops = stub_rdb["Processed"].get_desktops_stats()
         stub_rdb["Processed"].clear_get_domains_status_cache()
         domains = stub_rdb["Processed"].get_domains_status()
