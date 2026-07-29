@@ -412,6 +412,83 @@ func TestParseUserMigrationRequiredToken(t *testing.T) {
 	}
 }
 
+func TestParseReRegisterToken(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	cases := map[string]struct {
+		PrepareToken func() string
+		ExpectedErr  string
+		CheckToken   func(jwt.Claims)
+	}{
+		"should work if the token is a valid re-register token": {
+			PrepareToken: func() string {
+				ss, err := token.SignReRegisterToken("", &model.User{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+					Role:     model.RoleManager,
+				})
+				require.NoError(err)
+
+				return ss
+			},
+			CheckToken: func(c jwt.Claims) {
+				claims, ok := c.(*token.ReRegisterClaims)
+
+				assert.True(ok)
+
+				claims.ExpiresAt = nil
+				claims.IssuedAt = nil
+				claims.NotBefore = nil
+
+				assert.Equal(&token.ReRegisterClaims{
+					TypeClaims: token.TypeClaims{
+						RegisteredClaims: &jwt.RegisteredClaims{
+							Issuer: "isard-authentication",
+						},
+						KeyID: "isardvdi",
+						Type:  token.TypeReRegister,
+					},
+					Provider:   "saml",
+					UserID:     "nefix-uid",
+					CategoryID: "default",
+					RoleID:     "manager",
+				}, claims)
+			},
+		},
+		"should return an error if the token is not of type re-register": {
+			PrepareToken: func() string {
+				ss, err := token.SignRegisterToken("", &model.User{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				})
+				require.NoError(err)
+
+				return ss
+			},
+			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			claims, err := token.ParseReRegisterToken("", tc.PrepareToken())
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			if tc.CheckToken != nil {
+				tc.CheckToken(claims)
+			}
+		})
+	}
+}
+
 func TestParseUserMigrationToken(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
