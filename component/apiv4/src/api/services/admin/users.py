@@ -221,9 +221,6 @@ class AdminUsersService:
 
         RethinkUser.init_document(**data)
 
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
         # Strip the password before returning; the route JSON-serializes
         # the result and we never want it leaving the service.
         data.pop("password", None)
@@ -318,10 +315,6 @@ class AdminUsersService:
 
         CommonUsers.update_user(user_id, data)
 
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
-
     @staticmethod
     def update_multiple_users(
         payload: dict, data: dict, background_tasks: BackgroundTasks
@@ -360,10 +353,6 @@ class AdminUsersService:
             str(uuid4()),
             payload,
         )
-
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
 
     @staticmethod
     def delete_users(
@@ -406,14 +395,6 @@ class AdminUsersService:
             except Exception as e:
                 log.error(f"Error during bulk delete: {e}")
                 log.error(traceback.format_exc())
-            finally:
-                # Clear inside the task: the list view changes only
-                # once the delete actually completes, so clearing here
-                # avoids a window where the next read caches pre-delete
-                # state for 360 s.
-                from api.routes.users import clear_users_list_cache
-
-                clear_users_list_cache()
 
         # FastAPI runs the task in its default thread-pool executor after
         # the response is sent — replaces a gevent.spawn that would have
@@ -461,10 +442,6 @@ class AdminUsersService:
         bug tracked in route_filter.SKIPPED_BLOCKING).
         """
         result = CommonUsers.generate_users(payload, data)
-
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
         return result
 
     @staticmethod
@@ -551,10 +528,6 @@ class AdminUsersService:
                 k: v for k, v in user_data.items() if k not in immutable_keys
             }
             CommonUsers.update_user(user_data["id"], update_payload)
-
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
 
     # ── Secondary Groups ────────────────────────────────────────────────
 
@@ -684,10 +657,6 @@ class AdminUsersService:
             data["uid"] = str(uuid4())
 
         RethinkGroup.init_document(**data)
-
-        from api.routes.users import clear_groups_list_cache
-
-        clear_groups_list_cache()
         return data
 
     @staticmethod
@@ -702,10 +671,6 @@ class AdminUsersService:
         )
         AdminTablesService.update_table_item("groups", data)
 
-        from api.routes.users import clear_groups_list_cache
-
-        clear_groups_list_cache()
-
     @staticmethod
     def delete_group(payload: dict, group_id: str) -> None:
         """Delete a group."""
@@ -717,13 +682,6 @@ class AdminUsersService:
         group = Caches.get_document("groups", group_id)
         AdminUsersService.owns_category_id(payload, group["parent_category"])
         CommonGroups.delete_group(group_id, payload["user_id"])
-
-        # Deleting a group cascades to its users, so clear both list
-        # caches.
-        from api.routes.users import clear_groups_list_cache, clear_users_list_cache
-
-        clear_groups_list_cache()
-        clear_users_list_cache()
 
     @staticmethod
     def get_group_users(payload: dict, group_id: str) -> list[dict]:
@@ -837,11 +795,6 @@ class AdminUsersService:
             StoragePoolsProcessed.add_category_to_storage_pool(
                 storage_pool, category_id
             )
-
-        # New category spawns a Main group, so /items/groups changes too.
-        from api.routes.users import clear_groups_list_cache
-
-        clear_groups_list_cache()
         return category_data
 
     @staticmethod
@@ -860,24 +813,10 @@ class AdminUsersService:
             )
         AdminTablesService.update_table_item("categories", data)
 
-        # /items/users and /items/groups both merge in category_name,
-        # so a category rename must invalidate both list caches.
-        from api.routes.users import clear_groups_list_cache, clear_users_list_cache
-
-        clear_groups_list_cache()
-        clear_users_list_cache()
-
     @staticmethod
     def delete_category(payload: dict, category_id: str) -> Optional[dict]:
         """Delete a category."""
         result = CommonCategories.delete_category(category_id, payload["user_id"])
-
-        # Category deletion cascades to its groups and users, so both
-        # list caches go stale.
-        from api.routes.users import clear_groups_list_cache, clear_users_list_cache
-
-        clear_groups_list_cache()
-        clear_users_list_cache()
         return result
 
     @staticmethod
@@ -1209,10 +1148,6 @@ class AdminUsersService:
             email=payload.get("email"),
             secondary_groups=data.get("secondary_groups", []),
         )
-
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
         return user.id if hasattr(user, "id") else user.get("id", user)
 
     # ── Migration ────────────────────────────────────────────────────────
@@ -1248,14 +1183,9 @@ class AdminUsersService:
             try:
                 CommonMigrations.process_migrate_user(user_id, target_user_id)
             finally:
-                # User migration reassigns the source user's data and
-                # eventually deletes the source user, so the /items/users
-                # list view changes only once the migration actually
-                # completes — clear inside the task. The routes import
-                # stays lazy to avoid the services→routes cycle.
-                from api.routes.users import clear_users_list_cache
-
-                clear_users_list_cache()
+                # Migration reassigns the source user's templates, so the
+                # admin template list is only correct once the task has
+                # actually run.
                 clear_templates_cache()
 
         # FastAPI runs the task after the response. Replaces the prior

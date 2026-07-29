@@ -33,28 +33,12 @@ from api.schemas.maintenance import (
 )
 from api.services.error import Error
 from api.services.maintenance import MaintenanceService
-from cachetools import cached
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
-from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 tag = "maintenance"
 
-# Named caches: short TTL is mainly thundering-herd protection during
-# global maintenance toggles, but writers (admin endpoints further down
-# this module) should still drop them so the next read sees the new
-# state instead of a 5 s stale window.
-maintenance_status_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=5)
-get_maintenance_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=5)
 
-
-def clear_maintenance_caches() -> None:
-    """Invalidate both maintenance read caches after a status flip."""
-    maintenance_status_cache.clear()
-    get_maintenance_cache.clear()
-
-
-@cached(cache=maintenance_status_cache)
 @open_router.get(
     "/maintenance/status",
     tags=[tag],
@@ -105,7 +89,6 @@ async def get_maintenance_text_frontend(request: Request):
         )
 
 
-@cached(cache=get_maintenance_cache)
 @maintenance_router.get(
     "/maintenance",
     tags=[tag],

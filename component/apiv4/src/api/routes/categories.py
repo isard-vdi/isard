@@ -27,26 +27,12 @@ from api.schemas.categories import CategoriesUsersSearchResponse
 from api.schemas.common import ErrorResponse
 from api.services.categories import CategoryService
 from api.services.error import Error
-from cachetools import cached
 from fastapi import Depends, Path, Query, Request
 from fastapi.responses import JSONResponse
-from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 tag = "categories"
 
-# Named cache so writers can invalidate it (and tests can clear between
-# cases). Search results are stable for ~10 s.
-category_users_search_cache: SynchronizedTTLCache = SynchronizedTTLCache(
-    maxsize=20, ttl=10
-)
 
-
-def clear_category_users_search_cache() -> None:
-    """Invalidate the category user-search cache after user-list mutations."""
-    category_users_search_cache.clear()
-
-
-@cached(cache=category_users_search_cache)
 @advanced_router.get(
     # NOTE: path has 4 segments after /api/v4 (item/category/users/search) so
     # it cannot collide with the 3-segment /item/category/{custom_url} catch-all

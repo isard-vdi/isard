@@ -68,44 +68,10 @@ from api.services.desktops import DesktopService
 from api.services.error import Error
 from api.services.groups import GroupsService
 from api.services.users import UsersService
-from cachetools import cached
 from fastapi import Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
-from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.users.groups.groups import GroupsProcessed as CommonGroups
 from isardvdi_common.lib.users.users.user import UsersProcessed as CommonUsers
-
-# Separate caches per endpoint so a read of /items/users does not evict
-# the cached /items/groups response (both are keyed by category_id/role,
-# so a single shared maxsize=1 cache would thrash between them).
-users_list_cache = SynchronizedTTLCache(maxsize=10, ttl=360)
-groups_list_cache = SynchronizedTTLCache(maxsize=10, ttl=360)
-
-
-def _items_list_key(request: Request):
-    """Cache key for /items/users and /items/groups.
-
-    Admin sees everything (one shared entry keyed "admin"); managers see
-    only their own category. The Request object must not be part of the
-    key — each HTTP request is a fresh object, so keying by it would
-    make the cache a no-op and (worse) keep an unawaited coroutine per
-    call until TTL expiry.
-    """
-    payload = request.token_payload
-    if payload["role_id"] == "admin":
-        return "admin"
-    return payload["category_id"]
-
-
-def clear_users_list_cache():
-    """Invalidate the /items/users cache after a user-list mutation."""
-    users_list_cache.clear()
-
-
-def clear_groups_list_cache():
-    """Invalidate the /items/groups cache after a group-list mutation."""
-    groups_list_cache.clear()
-
 
 tag = "users"
 
@@ -350,7 +316,6 @@ async def get_allowed_hardware_for_domain(request: Request, domain_id: str):
         )
 
 
-@cached(cache=users_list_cache, key=_items_list_key)
 @advanced_router.get(
     "/items/users",
     summary="Get all users",
@@ -386,7 +351,6 @@ async def get_all_users(request: Request):
         )
 
 
-@cached(cache=groups_list_cache, key=_items_list_key)
 @advanced_router.get(
     "/items/groups",
     summary="Get all groups",

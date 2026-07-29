@@ -57,32 +57,12 @@ from api.schemas.domains.desktop_direct_viewer import (
 from api.schemas.domains.desktops import DesktopNetworksResponse
 from api.services.desktops import DesktopService
 from api.services.error import Error
-from cachetools import cached
 from fastapi import Depends, Path, Request
 from fastapi.responses import JSONResponse
-from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 tag = "desktop_direct_viewer"
 
-# Named caches so the share-link writer (update_share_link below) can
-# invalidate the read cache, and the reset-desktop writer can drop the
-# rate-limit cache. The viewer-docs cache holds a global config blob.
-share_link_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=10)
-viewer_docs_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=360)
-reset_desktop_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=10)
 
-
-def clear_share_link_cache() -> None:
-    """Invalidate the share-link read cache after toggling sharing."""
-    share_link_cache.clear()
-
-
-def clear_viewer_docs_cache() -> None:
-    """Invalidate the viewer-docs cache after admin updates the URL."""
-    viewer_docs_cache.clear()
-
-
-@cached(cache=share_link_cache)
 @token_router.get(
     "/item/desktop/{desktop_id}/get-share-link",
     response_model=DesktopShareLinkResponse,
@@ -196,7 +176,6 @@ async def get_desktop_viewer(
         return await _timed_not_found(start_time)
 
 
-@cached(cache=viewer_docs_cache)
 @open_router.get(
     "/item/desktop/get-viewers-docs",
     tags=[tag],
@@ -409,7 +388,6 @@ async def start_desktop(
         return await _timed_not_found(start_time)
 
 
-@cached(cache=reset_desktop_cache)
 @direct_viewer_router.put(
     "/item/desktop/token/{token}/reset-desktop",
     tags=[tag],

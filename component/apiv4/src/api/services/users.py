@@ -181,10 +181,6 @@ class UsersService:
 
         user = RethinkUser.init_document(**user)
         UserStorage.isard_user_storage_add_user(user)
-
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
         return user
 
     @staticmethod
@@ -361,10 +357,6 @@ class UsersService:
                 f"User with ID '{user_id}' does not exist.",
             )
         CommonUser.delete_user(user_id, user_id, True)
-
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
 
     @staticmethod
     def get_user_desktops(user_id: str) -> list:
