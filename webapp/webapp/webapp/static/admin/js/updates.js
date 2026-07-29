@@ -133,10 +133,13 @@ function load_data(){
                             if(full.status == 'Available'){
                                 return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                             }
-                            if(full.status == 'Downloading' || full.status == 'Unknown'){
+                            // Abort is only for a download that is actually
+                            // running. Unknown is what the engine's broom
+                            // leaves behind, so it needs deleting.
+                            if(full.status == 'Downloading' || full.status == 'DownloadStarting' || full.status == 'ResetDownloading'){
                                 return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
                             }
-                            if(full.status == 'Downloaded' || full.status == 'Failed' || full.status == 'FailedDeleted' || full.status == 'Stopped' || full.status == 'DownloadAborting'){
+                            if(full.status == 'Downloaded' || full.status == 'Failed' || full.status == 'FailedDeleted' || full.status == 'Stopped' || full.status == 'Unknown' || full.status == 'Deleting' || full.status == 'Maintenance' || full.status == 'DownloadAborting'){
                                 return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                             }
                             if(full.status == 'DownloadFailed'){
@@ -258,10 +261,12 @@ function load_data(){
                                 if(['Available', 'deleted'].includes(full.status)){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
-                                if(full.status == 'Downloading' || full.status == 'Unknown'){
+                                // Abort only while something is really running;
+                                // everything else that is stuck needs deleting.
+                                if(['Downloading', 'DownloadStarting', 'Download', 'ResetDownloading'].includes(full.status)){
                                     return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
                                 }
-                                if(full.status == 'Downloaded' || full.status == 'Failed' || full.status == 'FailedDeleted' || full.status == 'Stopped' || full.status == 'DownloadAborting'){
+                                if(['Downloaded', 'Failed', 'FailedDeleted', 'Stopped', 'Unknown', 'Deleting', 'maintenance', 'DownloadFailedInvalidFormat', 'DownloadAborting'].includes(full.status)){
                                     return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                                 }
                                 if(full.status == 'DownloadFailed'){

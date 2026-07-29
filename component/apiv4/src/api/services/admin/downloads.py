@@ -39,6 +39,8 @@ from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.xml_compression import decompress_xml
 from isardvdi_common.lib.downloads.downloads import DownloadsProcessed
 from isardvdi_common.models.config import Config
+from isardvdi_common.models.domain import Domain as RethinkDomain
+from isardvdi_common.models.task import Task
 from pydantic import ValidationError
 
 # Mirror ``api.services.media`` so registry-domain downloads honour the
@@ -473,17 +475,113 @@ class AdminDownloadsService:
                         pending_storage=pending_storage,
                         insecure_ssl=URL_DOWNLOAD_INSECURE_SSL,
                     )
-        elif action == "abort":
-            data = {"id": id, "status": "DownloadAborting"}
-            AdminTablesService.update_table_item(kind, data)
-        elif action == "delete":
-            if kind in ("domains", "media"):
-                data = {"id": id, "status": "Deleting"}
-                AdminTablesService.update_table_item(kind, data)
-            else:
+        elif action in ("abort", "delete"):
+            if kind == "media":
+                return AdminDownloadsService._media_action(action, id, user_id)
+            if kind == "domains":
+                return AdminDownloadsService._domain_action(action, id, user_id)
+            if action == "delete":
                 AdminTablesService.delete_table_item(kind, id)
 
         return {}
+
+    @staticmethod
+    def _media_action(action: str, id: str, user_id: str) -> dict:
+        """Abort or delete a downloaded media, doing the work."""
+        # lazy: avoids services->routes->services cycle
+        from api.services.media import MediaService
+
+        if action == "abort":
+            MediaService.abort_media_download(id)
+            return {"id": id, "kind": "media", "action": action}
+        task = MediaService.delete_media(id, {"user_id": user_id})
+        return {"id": id, "kind": "media", "action": action, "task_id": task}
+
+    @staticmethod
+    def _domain_storage_task(domain) -> Optional[str]:
+        """The task of the storage this download writes into, if any."""
+        disks = (domain.create_dict or {}).get("hardware", {}).get("disks") or []
+        for disk in disks:
+            storage_id = disk.get("storage_id") if isinstance(disk, dict) else None
+            if not storage_id:
+                continue
+            from isardvdi_common.models.storage import Storage
+
+            if Storage.exists(storage_id):
+                return Storage(storage_id).task
+        return None
+
+    @staticmethod
+    def _domain_action(action: str, id: str, user_id: str) -> dict:
+        """Abort or delete a downloaded desktop, doing the work.
+
+        The status was the whole implementation before: it wrote
+        ``Deleting`` and waited for a consumer that no longer exists,
+        which the engine's broom then rewrote to ``Unknown``. Nothing
+        ever reached the storage worker.
+        """
+        # lazy: avoids services->routes->services cycle
+        from api.services.desktops import DesktopService
+
+        if not RethinkDomain.exists(id):
+            raise Error(
+                "not_found",
+                f"Desktop with ID {id} not found.",
+                description_code="not_found",
+            )
+        domain = RethinkDomain(id)
+        status = domain.status
+        in_flight = ("DownloadStarting", "Downloading", "Download")
+        task_id = AdminDownloadsService._domain_storage_task(domain)
+        pending = bool(task_id and Task.exists(task_id) and Task(task_id).pending)
+
+        if action == "abort":
+            if status not in in_flight + ("DownloadAborting", "ResetDownloading"):
+                raise Error(
+                    "bad_request",
+                    f"There is no download to abort for {id}; its status is "
+                    f"{status}.",
+                    description_code="download_not_running",
+                )
+            domain.status = "DownloadAborting"
+            if pending:
+                try:
+                    Task(task_id).cancel()
+                except Exception:
+                    # Best effort: the row flag still stops the worker on
+                    # its next check, and the chain settles the row.
+                    pass
+            else:
+                # No chain will ever finalize this row, so settle it here
+                # instead of leaving it aborting for good.
+                domain.status = "Failed"
+            return {"id": id, "kind": "domains", "action": action}
+
+        if status in in_flight:
+            raise Error(
+                "precondition_required",
+                f"{id} is downloading; abort the download before deleting it.",
+                description_code="download_in_progress",
+            )
+        if pending:
+            raise Error(
+                "precondition_required",
+                f"{id} has the pending task {task_id}; wait for it to settle.",
+                description_code="download_task_pending",
+            )
+        if domain.kind != "desktop":
+            # A row with a kind outside the taxonomy is not something the
+            # desktop delete can reason about; it needs repairing first.
+            raise Error(
+                "precondition_required",
+                f"{id} has the unsupported kind {domain.kind!r} and cannot be "
+                "deleted until it is repaired.",
+                description_code="download_row_unsupported_kind",
+            )
+        # Always permanent: the Downloads page is where an operator goes
+        # to free the space, and the entry can be downloaded again.
+        tasks = DesktopService.delete_desktop(id, user_id=user_id, permanent=True)
+        return {"id": id, "kind": "domains", "action": action, "task_id": tasks}
 
     @staticmethod
     def _get_missing_resources(domain: dict, username: str) -> dict:
