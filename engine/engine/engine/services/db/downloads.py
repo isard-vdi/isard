@@ -1,10 +1,11 @@
-from cachetools import TTLCache, cached
+from cachetools import cached
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
 from engine.services.db import rethink_conn
 from engine.services.log import *
 
-_media_cache = TTLCache(maxsize=50, ttl=30)
+_media_cache = SynchronizedTTLCache(maxsize=50, ttl=30)
 
 
 @cached(cache=_media_cache)
