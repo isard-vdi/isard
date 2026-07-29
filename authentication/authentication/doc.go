@@ -34,7 +34,7 @@
 //	       |                           |            yes |           no |
 //	       |                           |                v              v
 //	       |                           |           sign a         refresh only
-//	       |                           |           register       the identity
+//	       |                           |           re-register    the identity
 //	       |                           |           token          fields
 //	       |                           |           (no login)          |
 //	       v                           v                               v
@@ -47,10 +47,13 @@
 // authoritative: the role, the primary and secondary groups and the identity
 // fields are overwritten with the guessed values, even when the stored role
 // is outside auto_register_roles. When only the stored data passes (2), the
-// login is not completed: a register token is signed instead, and the new
-// role and groups have to be applied through the registration code flow.
-// When neither passes, only the identity fields (name, username, photo and
-// email) are refreshed.
+// login is not completed: a re-register token is signed instead, and the new
+// role and groups have to be applied through the registration code flow. The
+// login stays blocked until the applied code moves the stored role out of
+// auto_register_roles: finishReRegister re-evaluates the policy against the
+// updated user with the IdP-guessed role frozen in the token and, when the
+// restriction still holds, re-issues a re-register token. When neither passes,
+// only the identity fields (name, username, photo and email) are refreshed.
 //
 // Form logins resolve the provider that actually authenticated the user
 // before evaluating the policy, since the form wrapper would answer with the

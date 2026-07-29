@@ -297,6 +297,129 @@ func TestLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "",
 		},
+		"should finish the login flow if the user provides a re-register token": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                     "nefix",
+						"username":                "nefix",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token":    "",
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "user",
+						"group":                   "default-default",
+						"name":                    "Néfix Estrada",
+						"email":                   "nefix@example.org",
+						"email_verified":          &now,
+						"disclaimer_acknowledged": true,
+						"api_key":                 "",
+					},
+				}, nil)
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return([]interface{}{
+					map[string]interface{}{
+						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                     "nefix",
+						"username":                "nefix",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token":    "",
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "user",
+						"group":                   "default-default",
+						"name":                    "Néfix Estrada",
+						"email":                   "nefix@example.org",
+						"email_verified":          &now,
+						"disclaimer_acknowledged": true,
+						"api_key":                 "",
+					},
+				}, nil)
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
+					"id":                       "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"uid":                      "nefix",
+					"username":                 "nefix",
+					"password":                 "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+					"password_reset_token":     "",
+					"provider":                 "local",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "user",
+					"group":                    "default-default",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "nefix@example.org",
+					"email_verified":           r.MockAnything(),
+					"email_verification_token": "",
+					"photo":                    "",
+					"disclaimer_acknowledged":  true,
+					"accessed":                 r.MockAnything(),
+					"api_key":                  "",
+				})).Return(r.WriteResponse{
+					Updated: 1,
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					UserId:     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RemoteAddr: "127.0.0.1",
+				}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
+				})
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				ss, err := token.SignReRegisterToken("", &model.User{
+					Provider: "local",
+					Category: "default",
+					UID:      "nefix",
+				})
+				require.NoError(err)
+
+				return provider.LoginArgs{
+					Host:  "example.com",
+					Token: &ss,
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseLoginToken("", ss)
+				assert.NoError(err)
+
+				assert.Equal("isard-authentication", claims.Issuer)
+				assert.Equal("isardvdi", claims.KeyID)
+				assert.Equal(token.LoginClaimsData{
+					Provider:   "local",
+					ID:         "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RoleID:     "user",
+					CategoryID: "default",
+					GroupID:    "default-default",
+					Name:       "Néfix Estrada",
+				}, claims.Data)
+			},
+			ExpectedRedirect: "",
+		},
 		"should finish the login flow if the user provides a password-reset-required token": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)

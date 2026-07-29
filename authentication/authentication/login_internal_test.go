@@ -1552,7 +1552,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "/",
 		},
-		"should sign a register token when the guessed role is outside the autoregister roles but the stored one is not": {
+		"should sign a re-register token when the guessed role is outside the autoregister roles but the stored one is not": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("categories").Get("default")).Return([]any{
 					map[string]any{
@@ -1607,16 +1607,13 @@ func TestStartLogin(t *testing.T) {
 			Redirect: "/",
 
 			CheckToken: func(ss string) {
-				tkn, err := token.ParseRegisterToken("", ss)
+				tkn, err := token.ParseReRegisterToken("", ss)
 				require.NoError(err)
 
 				assert.Equal("saml", tkn.Provider)
 				assert.Equal("nefix-uid", tkn.UserID)
-				assert.Equal("nefix", tkn.Username)
 				assert.Equal("default", tkn.CategoryID)
-				assert.Equal("Néfix Estrada", tkn.Name)
-				assert.Equal("old@example.com", tkn.Email)
-				assert.Equal("old-photo.png", tkn.Photo)
+				assert.Equal("manager", tkn.RoleID)
 			},
 			ExpectedRedirect: "/",
 		},
@@ -1733,7 +1730,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "/",
 		},
-		"should sign a register token with the authenticating provider when the guessed role is denied on a form re-login": {
+		"should sign a re-register token with the authenticating provider when the guessed role is denied on a form re-login": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("categories").Get("default")).Return([]any{
 					map[string]any{
@@ -1787,13 +1784,13 @@ func TestStartLogin(t *testing.T) {
 			Redirect: "/",
 
 			CheckToken: func(ss string) {
-				tkn, err := token.ParseRegisterToken("", ss)
+				tkn, err := token.ParseReRegisterToken("", ss)
 				require.NoError(err)
 
 				assert.Equal("ldap", tkn.Provider)
 				assert.Equal("nefix-uid", tkn.UserID)
-				assert.Equal("nefix", tkn.Username)
 				assert.Equal("default", tkn.CategoryID)
+				assert.Equal("manager", tkn.RoleID)
 			},
 			ExpectedRedirect: "/",
 		},
@@ -4367,6 +4364,262 @@ func TestFinishRegister(t *testing.T) {
 			}
 
 			tkn, redirect, err := a.finishRegister(ctx, "127.0.0.1", tc.PrepareToken(), "/")
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			if tc.CheckToken == nil {
+				assert.Empty(tkn)
+			} else {
+				tc.CheckToken(tkn)
+			}
+			if tc.ExpectedErr != "" {
+				assert.Empty(redirect)
+			} else {
+				assert.Equal(tc.ExpectedRedirect, redirect)
+			}
+
+			dbMock.AssertExpectations(t)
+			apiMock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestFinishReRegister(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		PrepareDB              func(*r.Mock)
+		PrepareAPI             func(*apiv4.MockInvoker)
+		PrepareProviderManager func(*testing.T, *providermanager.MockProvidermanager)
+
+		PrepareToken func() string
+
+		CheckToken       func(string)
+		ExpectedRedirect string
+		ExpectedErr      string
+	}{
+		"should complete the login when the applied code lifts the restriction": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+						"role":   "manager",
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				p := provider.NewMockProvider(t)
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleManager
+				})).Return(false)
+				m.On("Provider", "saml", "default").Return(p)
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignReRegisterToken("", &model.User{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+					Role:     model.RoleManager,
+				})
+				require.NoError(err)
+
+				return ss
+			},
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should re-issue a re-register token when the code did not lift the restriction": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+						"role":   "user",
+					},
+				}, nil)
+			},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				p := provider.NewMockProvider(t)
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleManager
+				})).Return(false)
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleUser
+				})).Return(true)
+				m.On("Provider", "saml", "default").Return(p)
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignReRegisterToken("", &model.User{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+					Role:     model.RoleManager,
+				})
+				require.NoError(err)
+
+				return ss
+			},
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseReRegisterToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("saml", tkn.Provider)
+				assert.Equal("nefix-uid", tkn.UserID)
+				assert.Equal("default", tkn.CategoryID)
+				assert.Equal("manager", tkn.RoleID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should re-issue a re-register token when the guessed role is empty and the stored role is still in the list": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":     "user-1",
+						"active": true,
+						"role":   "user",
+					},
+				}, nil)
+			},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				p := provider.NewMockProvider(t)
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == ""
+				})).Return(false)
+				p.On("AutoRegister", mock.MatchedBy(func(u *model.User) bool {
+					return u.Role == model.RoleUser
+				})).Return(true)
+				m.On("Provider", "saml", "default").Return(p)
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignReRegisterToken("", &model.User{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+				})
+				require.NoError(err)
+
+				return ss
+			},
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseReRegisterToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("saml", tkn.Provider)
+				assert.Equal("nefix-uid", tkn.UserID)
+				assert.Equal("default", tkn.CategoryID)
+				assert.Equal("", tkn.RoleID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should return an error if the re-register token cannot be parsed": {
+			PrepareToken: func() string {
+				return "invalid-token"
+			},
+
+			ExpectedErr: "error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+		},
+		"should return an error if the user is not registered": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{}, nil)
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignReRegisterToken("", &model.User{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+					Role:     model.RoleManager,
+				})
+				require.NoError(err)
+
+				return ss
+			},
+
+			ExpectedErr: "user not registered",
+		},
+		"should return an error if loading the user fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return(nil, fmt.Errorf("db error"))
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignReRegisterToken("", &model.User{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+					Role:     model.RoleManager,
+				})
+				require.NoError(err)
+
+				return ss
+			},
+
+			ExpectedErr: "load user from db: db error",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+
+			log := log.New("authentication-test", "debug")
+
+			dbMock := r.NewMock()
+			if tc.PrepareDB != nil {
+				tc.PrepareDB(dbMock)
+			}
+
+			apiMock := apiv4.NewMockInvoker(t)
+			if tc.PrepareAPI != nil {
+				tc.PrepareAPI(apiMock)
+			}
+
+			prvManagerMock := providermanager.NewMockProvidermanager(t)
+			if tc.PrepareProviderManager != nil {
+				tc.PrepareProviderManager(t, prvManagerMock)
+			}
+
+			a := &Authentication{
+				Log:        log,
+				Secret:     "",
+				DB:         dbMock,
+				API:        apiMock,
+				prvManager: prvManagerMock,
+			}
+
+			tkn, redirect, err := a.finishReRegister(ctx, "127.0.0.1", tc.PrepareToken(), "/")
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

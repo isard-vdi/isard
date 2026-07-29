@@ -37,6 +37,9 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		case token.TypeRegister:
 			return a.finishRegister(ctx, remoteAddr, *args.Token, *args.Redirect)
 
+		case token.TypeReRegister:
+			return a.finishReRegister(ctx, remoteAddr, *args.Token, *args.Redirect)
+
 		case token.TypeDisclaimerAcknowledgementRequired:
 			return a.finishDisclaimerAcknowledgement(ctx, remoteAddr, *args.Token, *args.Redirect)
 
@@ -215,9 +218,9 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		if provided.Role != "" || g != nil {
 			syncRoleAndGroups = p.AutoRegister(&provided)
 			if !syncRoleAndGroups && p.AutoRegister(dbUser) {
-				ss, err := token.SignRegisterToken(a.Secret, &provided)
+				ss, err := token.SignReRegisterToken(a.Secret, &provided)
 
-				a.Log.Info().Err(err).Str("usr", provided.UID).Msg("register token signed for existing user")
+				a.Log.Info().Err(err).Str("usr", provided.UID).Msg("re-register token signed for existing user")
 
 				return ss, redirect, err
 			}
@@ -465,6 +468,50 @@ func (a *Authentication) finishRegister(ctx context.Context, remoteAddr, ss, red
 	}
 
 	a.Log.Info().Str("usr", u.ID).Msg("register succeeded")
+
+	return ss, redirect, nil
+}
+
+func (a *Authentication) finishReRegister(ctx context.Context, remoteAddr, ss, redirect string) (string, string, error) {
+	claims, err := token.ParseReRegisterToken(a.Secret, ss)
+	if err != nil {
+		return "", "", err
+	}
+
+	u := &model.User{
+		Provider: claims.Provider,
+		Category: claims.CategoryID,
+		UID:      claims.UserID,
+	}
+	if err := u.LoadWithoutID(ctx, a.DB); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return "", "", errors.New("user not registered")
+		}
+
+		return "", "", fmt.Errorf("load user from db: %w", err)
+	}
+
+	p := a.Provider(claims.Provider, claims.CategoryID)
+	guessed := &model.User{
+		Provider: claims.Provider,
+		Category: claims.CategoryID,
+		UID:      claims.UserID,
+		Role:     model.Role(claims.RoleID),
+	}
+	if !p.AutoRegister(guessed) && p.AutoRegister(u) {
+		ss, err := token.SignReRegisterToken(a.Secret, guessed)
+
+		a.Log.Info().Err(err).Str("usr", u.ID).Msg("re-register not resolved, code did not lift the restriction")
+
+		return ss, redirect, err
+	}
+
+	ss, redirect, err = a.finishLogin(ctx, remoteAddr, u, redirect)
+	if err != nil {
+		return "", "", err
+	}
+
+	a.Log.Info().Str("usr", u.ID).Msg("re-register succeeded")
 
 	return ss, redirect, nil
 }
