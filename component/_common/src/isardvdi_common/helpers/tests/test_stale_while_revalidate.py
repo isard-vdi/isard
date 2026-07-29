@@ -63,9 +63,14 @@ class _Counter:
         self.value = value
         self.raises = None
         self.gate = None
+        # Set as soon as the fetch is really running, so a test can wait for
+        # "the refresh is in flight" instead of guessing when the background
+        # worker picked the job up.
+        self.entered = threading.Event()
 
     def __call__(self):
         self.calls += 1
+        self.entered.set()
         if self.gate is not None:
             self.gate.wait(timeout=5)
         if self.raises is not None:
@@ -231,6 +236,76 @@ class TestStaleServing:
         assert results == ["old"] * 6
         # One cold fetch + exactly one background refresh.
         assert fetch.calls == 2
+
+    def test_a_refresh_slower_than_the_ttl_does_not_pile_up(self, clock, monkeypatch):
+        """The contract when the query outlives its own cache interval.
+
+        Callers arriving while a refresh is still running must be served the
+        last value and must NOT schedule another one, however many intervals go
+        by. Counting executions is not enough to prove this — one shared worker
+        serialises them anyway, so extra work would sit invisibly in the queue.
+        Count what is *submitted*.
+        """
+        submitted = []
+        real_submit = mod._submit_refresh
+        monkeypatch.setattr(
+            mod,
+            "_submit_refresh",
+            lambda job: (submitted.append(job), real_submit(job))[1],
+        )
+
+        cache = StaleWhileRevalidate(ttl=10)
+        fetch = _Counter("first")
+        cache.get(fetch)
+
+        clock.advance(11)
+        fetch.gate = threading.Event()  # the refresh will not finish yet
+        fetch.entered.clear()
+        fetch.value = "second"
+        assert cache.get(fetch) == "first"  # schedules the one refresh
+        assert fetch.entered.wait(timeout=5), "the refresh never started"
+
+        # Several further intervals pass while that refresh is still running.
+        for _ in range(5):
+            clock.advance(30)
+            assert cache.get(fetch) == "first"
+
+        assert len(submitted) == 1, "a second refresh was queued behind the first"
+        assert fetch.calls == 2  # the cold start and the single in-flight one
+
+        fetch.gate.set()
+        _wait_for_refresh()
+        assert cache.get(fetch) == "second"
+
+    def test_a_slow_refresh_serves_every_concurrent_caller_without_waiting(self, clock):
+        """And they must not block on it either — stale is served immediately."""
+        cache = StaleWhileRevalidate(ttl=10)
+        fetch = _Counter("old")
+        cache.get(fetch)
+        clock.advance(11)
+        fetch.gate = threading.Event()
+        fetch.entered.clear()
+        cache.get(fetch)  # refresh in flight, gated open
+        assert fetch.entered.wait(timeout=5), "the refresh never started"
+
+        results = []
+        start = threading.Barrier(13)  # 12 callers + this thread
+
+        def call():
+            start.wait(timeout=5)
+            results.append(cache.get(fetch))
+
+        threads = [threading.Thread(target=call) for _ in range(12)]
+        for t in threads:
+            t.start()
+        start.wait(timeout=5)
+        for t in threads:
+            t.join(timeout=5)  # would hang if any of them waited on the refresh
+
+        assert results == ["old"] * 12
+        assert fetch.calls == 2
+        fetch.gate.set()
+        _wait_for_refresh()
 
     def test_failed_background_refresh_keeps_serving_and_backs_off(self, clock):
         cache = StaleWhileRevalidate(ttl=10)
