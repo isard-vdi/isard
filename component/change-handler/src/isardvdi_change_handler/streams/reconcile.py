@@ -56,9 +56,10 @@ safe pre-ready set, so a running VM is never yanked). A storage whose chain is
 still alive is left untouched.
 
 **Pass 3 — domains parked in a storage-lock status** (``Maintenance``/
-``CreatingTemplate``) whose storage settled but never promoted them: → ``Stopped``
-when every backing storage is ``ready``, → ``Failed`` when a backing storage row
-is gone.
+``CreatingTemplate``/``CreatingDisk``) whose storage settled but never promoted
+them. Re-observes the backing storages and lets their own transition drive the
+domain; → ``Failed`` directly only when a backing storage row is gone, since
+there is then nothing left to observe.
 """
 
 import asyncio
@@ -127,13 +128,19 @@ def _dep_job_status(dep):
         return None
 
 
-# Domain statuses that are pure STORAGE locks (set by ``set_maintenance`` / the
-# template chain), never engine-driven runtime states — so they are safe to
-# finalise from the storage's own reality without racing the VM lifecycle. The
-# storage-keyed passes below cannot see a domain whose storage is already
-# ``ready`` (the ready-transition's promote missed it) or whose storage row is
-# gone; Pass 3 reconciles from the domain side to close that gap.
-_DOMAIN_LOCK_STATUSES = ("Maintenance", "CreatingTemplate")
+# Domain statuses whose work is EXECUTED by a storage task chain, so this
+# component owns reconciling them; engine keeps the statuses it drives itself
+# (``CreatingDomain`` onwards, and the libvirt runtime states). They are pure
+# storage locks, never runtime states, so re-observing them cannot race the VM
+# lifecycle.
+#
+# ``CreatingDisk`` is covered for the case that actually strands desktops: the
+# chain died before producing the disk, and the re-observation settles the row
+# ``deleted`` so the domain fails instead of hanging. A ``CreatingDisk`` domain
+# whose disk IS present is re-observed but not advanced — handing it to engine
+# needs a transition that survives the chain's later storage updates, since
+# ``CreatingDomain`` is itself in the promote-to-``Stopped`` set.
+_DOMAIN_LOCK_STATUSES = ("Maintenance", "CreatingTemplate", "CreatingDisk")
 
 
 def _as_aware_utc(dt):
@@ -611,14 +618,22 @@ async def _reconcile_stuck_storage(redis_manager):
 
 def _finalize_stuck_domain(domain):
     """Finalise one domain parked in a storage-lock status from its storage
-    reality. Returns 1 if finalised, else 0.
+    reality. Returns 1 if finalised in place, else 0.
 
     - it declares disks but none of their storage rows still exist -> ``Failed``
-      (the disk is gone).
-    - every backing storage is ``ready`` and settled (no live task) ->
-      ``Stopped`` (the ready-transition's promote missed this domain).
-    A domain whose storage is still in flight (``maintenance`` / a live task) is
-    left to Pass 2 / the consumer.
+      (the disk is gone; there is nothing left to observe).
+    - otherwise the backing storages are re-observed and the storage's own
+      ready/deleted transition drives the domain, exactly as the original chain
+      would have. ``ready`` promotes the domain (to ``Stopped``, or to
+      ``CreatingDomain`` for a ``CreatingDisk`` hand-off); ``deleted`` fails it.
+
+    It used to promote to ``Stopped`` itself whenever every storage read
+    ``ready`` with no live task. That is an inference from two row fields, and
+    a status is a cache: it says what some earlier write concluded, not what is
+    on disk now. Asking the worker costs one task and cannot be wrong.
+
+    A domain whose storage is still in flight (a live chain) is left alone —
+    Pass 2 and the consumer own it.
     """
     declared_ids = [
         disk["storage_id"]
@@ -639,15 +654,30 @@ def _finalize_stuck_domain(domain):
             domain.id,
         )
         return 1
-    if storages and all(
-        storage.status == "ready" and not _task_alive(storage) for storage in storages
-    ):
-        domain.status = "Stopped"
-        domain.current_action = None
-        log.warning(
-            "reconcile: promoted stuck domain %s (storage ready -> Stopped)", domain.id
-        )
-        return 1
+    if not storages:
+        return 0
+    if any(_task_alive(storage) for storage in storages):
+        return 0
+    for storage in storages:
+        try:
+            # ``find`` is the observation that converges a DOMAIN: the disk is
+            # there -> storage ``ready`` -> the promote advances the domain; it
+            # is gone -> ``deleted`` -> the domain fails. Non-blocking and no
+            # retries, so a storage that is busy again by now is simply skipped
+            # rather than queued behind itself.
+            storage.find(user_id=getattr(domain, "user", None), blocking=False, retry=0)
+        except Exception:
+            log.exception(
+                "reconcile: could not re-observe storage %s of stuck domain %s",
+                getattr(storage, "id", "?"),
+                domain.id,
+            )
+    log.warning(
+        "reconcile: stuck domain %s (%s); re-observing %s backing storage(s)",
+        domain.id,
+        getattr(domain, "status", "?"),
+        len(storages),
+    )
     return 0
 
 

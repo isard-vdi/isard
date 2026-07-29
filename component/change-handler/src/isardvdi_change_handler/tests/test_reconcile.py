@@ -531,10 +531,10 @@ async def test_pass2_recovers_a_stuck_creating_storage_by_re_observing():
 
 
 @pytest.mark.asyncio
-async def test_pass3_promotes_stuck_domain_when_storage_ready():
-    """A domain parked in a storage-lock status whose backing storage is
-    already ``ready`` and settled (no live task) was missed by the promote and
-    must be returned to Stopped."""
+async def test_pass3_re_observes_instead_of_promoting_from_the_rows_status():
+    """A ``ready`` status on the storage row is what an earlier write
+    concluded, not what is on disk now. Pass 3 asks the worker and lets the
+    storage's own transition drive the domain."""
     from isardvdi_change_handler.streams import reconcile
 
     storage = _storage(status="ready")
@@ -547,9 +547,49 @@ async def test_pass3_promotes_stuck_domain_when_storage_ready():
     ):
         healed = await reconcile._reconcile_stuck_domains(AsyncMock())
 
-    assert healed == 1
-    assert dom.status == "Stopped"
-    assert dom.current_action is None
+    assert healed == 0
+    assert dom.status == "CreatingTemplate"
+    storage.find.assert_called_once()
+    assert storage.find.call_args.kwargs["blocking"] is False
+
+
+@pytest.mark.asyncio
+async def test_pass3_leaves_a_domain_whose_storage_chain_is_still_live():
+    """Live work is not stuck work: never re-observe a disk a worker owns."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="maintenance")
+    dom = _domain(
+        status="Maintenance", storages=[storage], disks=[{"storage_id": "s1"}]
+    )
+    with (
+        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        patch.object(reconcile, "_task_alive", return_value=True),
+    ):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 0
+    assert dom.status == "Maintenance"
+    storage.find.assert_not_called()
+
+
+def test_pass3_covers_the_disk_half_of_desktop_creation():
+    """``CreatingDisk`` is executed by a storage chain, so this component
+    reconciles it. Engine keeps the libvirt half it runs itself."""
+    from isardvdi_change_handler.streams import reconcile
+
+    assert "CreatingDisk" in reconcile._DOMAIN_LOCK_STATUSES
+    assert "CreatingDomain" not in reconcile._DOMAIN_LOCK_STATUSES
+
+
+def test_a_handed_off_domain_would_be_flattened_by_the_next_storage_update():
+    """Why Pass 3 does not advance a ``CreatingDisk`` domain to
+    ``CreatingDomain``: the promote set contains ``CreatingDomain``, and a find
+    chain emits more than one ready update, so the hand-off would be undone
+    before engine ever saw it."""
+    from isardvdi_change_handler.task_results.storage import _DOMAIN_PRE_READY_STATUSES
+
+    assert "CreatingDomain" in _DOMAIN_PRE_READY_STATUSES
 
 
 @pytest.mark.asyncio
