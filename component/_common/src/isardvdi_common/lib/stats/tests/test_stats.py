@@ -60,18 +60,35 @@ class TestGetUsersStats:
         stub_rdb["mock_table"].assert_any_call("users")
 
 
+def _both_desktop_chains(chain):
+    """Stub the pre- and post-single-pass query chains alike, so the
+    output assertions below pin the shape and not the query used."""
+    chain.get_all.return_value.count.return_value.run.return_value = 7
+    chain.get_all.return_value.group.return_value.count.return_value.run.return_value = {
+        "Started": 3,
+        "Stopped": 4,
+    }
+    chain.group.return_value.count.return_value.run.return_value = {
+        ("desktop", "Started"): 3,
+        ("desktop", "Stopped"): 4,
+        ("template", "Stopped"): 2,
+    }
+
+
 class TestGetDesktopsStats:
     def test_returns_total_and_status_breakdown(self, stub_rdb):
         chain = stub_rdb["mock_table"].return_value
-        # First call: total. Second call: grouped count.
-        chain.get_all.return_value.count.return_value.run.return_value = 7
-        chain.get_all.return_value.group.return_value.count.return_value.run.return_value = {
-            "Started": 3,
-            "Stopped": 4,
-        }
+        _both_desktop_chains(chain)
         result = stub_rdb["Processed"].get_desktops_stats()
         assert result == {"total": 7, "status": {"Started": 3, "Stopped": 4}}
         stub_rdb["mock_table"].assert_any_call("domains")
+
+    def test_reads_domains_once(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        _both_desktop_chains(chain)
+        stub_rdb["Processed"].get_desktops_stats()
+        runs = [call for call in chain.mock_calls if call[0].endswith("run")]
+        assert len(runs) == 1
 
 
 class TestGetTemplatesStats:

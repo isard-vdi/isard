@@ -41,6 +41,37 @@ from fastapi.responses import JSONResponse
 tag = "admin_stats"
 
 
+def _stats_rows(
+    rows: list[dict] | None,
+    required: tuple[str, ...],
+    optional: tuple[str, ...] = (),
+) -> list[dict]:
+    """Project plucked inventory rows onto their schema's wire shape.
+
+    Building one Pydantic model per row and ``model_dump(mode="json")``-ing
+    it only to hand the result to ``JSONResponse`` encodes the whole
+    inventory twice, inline on the event loop. Pass ``required``/``optional``
+    in schema declaration order so the projection stays byte-identical, and
+    keep the two invariants the round-trip provided:
+
+    * ``None`` never reaches the wire. The Go stats collector's ogen-
+      generated ``OptString`` decodes "absent" vs "present", not ``null``,
+      so a null field fails it with ``unexpected byte 110 'n'``. Orphan
+      rows — a deleted user document whose vpn config still exists — are
+      what carry those nulls (see the schema comment on ``StatsKindUser``).
+    * Rows short of a required value are dropped, not emitted incomplete:
+      the client's decoder would reject the entire payload, not the row.
+    """
+    projected = []
+    for row in rows or []:
+        if any(row.get(key) is None for key in required):
+            continue
+        item = {key: row[key] for key in required}
+        item.update({key: row[key] for key in optional if row.get(key) is not None})
+        projected.append(item)
+    return projected
+
+
 @admin_router.get(
     "/admin/item/stats/desktops/status",
     tags=[tag],
@@ -172,20 +203,8 @@ async def stats_categories_deployments(request: Request):
 async def stats_users(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_kind, "users")
-        # ``role``/``category``/``group`` are ``Optional[str]`` so the
-        # Pydantic schema accepts orphan rows whose user document was
-        # deleted but whose vpn config still exists (see the schema
-        # comment in api/schemas/admin/stats.py). Serialising them as
-        # `"role": null` makes the Go stats-go collector's ogen-
-        # generated `OptString.Decode` fail with `unexpected byte 110
-        # 'n'` because ogen's `OptString` only handles "absent" vs
-        # "present", not "null". Omit None fields so the wire shape
-        # matches what `OptString` can decode.
         return JSONResponse(
-            content=[
-                StatsKindUser(**u).model_dump(mode="json", exclude_none=True)
-                for u in result
-            ],
+            content=_stats_rows(result, ("id",), ("role", "category", "group")),
             status_code=200,
         )
     except Error:
@@ -211,7 +230,7 @@ async def stats_desktops(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_kind, "desktops")
         return JSONResponse(
-            content=[StatsKindDesktop(**d).model_dump(mode="json") for d in result],
+            content=_stats_rows(result, ("id", "user")),
             status_code=200,
         )
     except Error:
@@ -237,7 +256,7 @@ async def stats_templates(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_kind, "templates")
         return JSONResponse(
-            content=[StatsKindTemplate(**t).model_dump(mode="json") for t in result],
+            content=_stats_rows(result, ("id",)),
             status_code=200,
         )
     except Error:
@@ -263,7 +282,7 @@ async def stats_hypervisors(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_kind, "hypervisors")
         return JSONResponse(
-            content=[StatsKindHypervisor(**h).model_dump(mode="json") for h in result],
+            content=_stats_rows(result, ("id", "status", "only_forced")),
             status_code=200,
         )
     except Error:

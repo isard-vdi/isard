@@ -64,23 +64,14 @@ class StatsProcessed(RethinkSharedConnection):
     @classmethod
     @cached(cache=_desktops_stats_cache)
     def get_desktops_stats(cls) -> dict:
-        """Return total desktops and per-status counts."""
-        with cls._rdb_context():
-            total = (
-                r.table("domains")
-                .get_all("desktop", index="kind")
-                .count()
-                .run(cls._rdb_connection)
-            )
-        with cls._rdb_context():
-            group_by_status = (
-                r.table("domains")
-                .get_all("desktop", index="kind")
-                .group("status")
-                .count()
-                .run(cls._rdb_connection)
-            )
-        return {"total": total, "status": group_by_status}
+        """Return total desktops and per-status counts.
+
+        The ``kind_status`` fold answers both in one indexed pass; the
+        previous count plus ``group("status")`` on a non-indexed field
+        read every desktop document twice.
+        """
+        status = cls._domains_status_by_kind()["desktop"]
+        return {"total": sum(status.values()), "status": status}
 
     @classmethod
     def clear_get_desktops_stats_cache(cls) -> None:
@@ -117,11 +108,13 @@ class StatsProcessed(RethinkSharedConnection):
     @classmethod
     @cached(cache=_domains_status_cache)
     def get_domains_status(cls) -> dict:
-        """Return per-kind, per-status domain counts.
+        """Return per-kind, per-status domain counts."""
+        return cls._domains_status_by_kind()
 
-        Groups on the ``kind_status`` compound index and folds the
-        cursor into ``{"desktop": {<status>: <n>}, "template": {...}}``.
-        """
+    @classmethod
+    def _domains_status_by_kind(cls) -> dict:
+        """Group on the ``kind_status`` compound index and fold the cursor
+        into ``{"desktop": {<status>: <n>}, "template": {...}}``."""
         with cls._rdb_context():
             domains = (
                 r.table("domains")
