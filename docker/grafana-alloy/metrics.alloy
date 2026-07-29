@@ -19,6 +19,8 @@ prometheus.exporter.unix "exporter_node_exporter" {
 		"meminfo",
 		"mountstats",
 		"netclass",
+		"nfs",
+		"nfsd",
 		"schedstat",
 		"stat",
 		"textfile",
