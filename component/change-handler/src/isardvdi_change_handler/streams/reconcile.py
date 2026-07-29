@@ -68,6 +68,7 @@ from datetime import datetime, timezone
 
 from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.media import Media
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.task import Task, _chain_closure, finalize_has_unstamped
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
@@ -701,6 +702,93 @@ async def _reconcile_stuck_domains(redis_manager):
     return healed
 
 
+# A media parked here is mid-delete: ``maintenance`` means a task was
+# enqueued and never settled the row. ``Deleting`` is the older shape the
+# downloads page wrote for a consumer that never existed; the delete does
+# the work now, so no new row can land here and the arm only drains what
+# an upgrade inherited — those rows never had a task at all.
+#
+# LOAD-BEARING: ``delete_file`` is the only thing that writes
+# ``maintenance`` on a media, which is what makes it safe to answer by
+# re-issuing a delete. The storage pass deliberately re-issues a *check*
+# instead, because a storage reaches ``maintenance`` through many
+# operations and repeating the original could destroy something nobody
+# asked to remove. Give media another operation that parks a row here and
+# this pass has to grow the same indirection.
+#
+# Both statuses clear every precondition in ``delete_file``: neither is a
+# download in flight, neither is ``deleted``, and the pending-task refusal
+# cannot fire on a row ``_task_alive`` has already called dead. That is
+# what makes the pass act rather than log — an earlier revision of it was
+# written against a ``delete_file`` that accepted only the three download
+# statuses, so every row it selected was a row the delete refused.
+_MEDIA_STUCK_STATUSES = ("maintenance", "Deleting")
+
+
+def _finalize_stuck_media(media):
+    """Settle a stuck media by handing it back to the delete.
+
+    This process has no volumes mounted, so unlike Pass 2 — which can read
+    the disk information the row already carries — it cannot see whether
+    the file survived. So it asks the only component that can: the delete
+    task is authoritative either way, since removing a file that is
+    already gone is a no-op and the chain settles the row in both cases.
+    A row that never had a path is settled without a task at all, inside
+    ``delete_file`` — which is why the two outcomes are logged apart.
+    Returns 1 when the row was handed back or settled.
+    """
+    try:
+        task_id = media.delete_file()
+    except Exception:
+        log.exception("reconcile: could not re-issue the delete of media %s", media.id)
+        return 0
+    if task_id:
+        log.warning(
+            "reconcile: re-issued the delete of stuck media %s as task %s",
+            media.id,
+            task_id,
+        )
+    else:
+        log.warning(
+            "reconcile: settled stuck media %s in place, it had no file", media.id
+        )
+    return 1
+
+
+async def _reconcile_stuck_media(redis_manager):
+    """Pass 4: finish the deletes of media left mid-flight with a dead task.
+
+    Passes 2 and 3 are keyed on storage and domains, so nothing was
+    watching media: a worker lost between the enqueue and the settle left
+    the row at ``maintenance`` for good, with no way out but the admin
+    pressing delete again. Returns the count re-issued.
+
+    ``_task_alive`` is reused as-is: it reads ``.task``, asks whether that
+    task still exists and is pending, and touches nothing storage-shaped,
+    so a media answers it as well as a storage does. It is also the exact
+    negation of the pending-task precondition inside ``delete_file``, which
+    is why a row this pass selects is never a row the delete then refuses.
+    """
+    healed = 0
+    for status in _MEDIA_STUCK_STATUSES:
+        try:
+            stuck = await asyncio.to_thread(Media.get_index, [status], "status")
+        except Exception:
+            log.exception("reconcile: could not list %s media", status)
+            continue
+        for media in stuck:
+            try:
+                if _task_alive(media):
+                    continue
+                healed += await asyncio.to_thread(_finalize_stuck_media, media)
+            except Exception:
+                log.exception(
+                    "reconcile: finalize failed for media %s",
+                    getattr(media, "id", "?"),
+                )
+    return healed
+
+
 async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
     """Long-running reconcile loop: an eager pass on startup, then all passes
     every ``interval_s`` seconds. Started alongside the changefeed listener and
@@ -723,6 +811,7 @@ async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
             await _reconcile_orphan_deferred(redis_manager, grace_s=grace_s)
             await _reconcile_stuck_storage(redis_manager)
             await _reconcile_stuck_domains(redis_manager)
+            await _reconcile_stuck_media(redis_manager)
             await _assert_core_empty()
         except Exception:
             log.exception("reconcile: pass raised")
