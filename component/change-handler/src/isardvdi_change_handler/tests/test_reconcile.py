@@ -270,7 +270,14 @@ def _domain(did="d1", *, status="Maintenance", storages=None, disks=None):
 
 
 @pytest.mark.asyncio
-async def test_pass2_valid_disk_promoted_to_ready():
+async def test_pass2_never_promotes_from_the_rows_cached_disk_info():
+    """A positive ``virtual-size`` on the row is not an observation.
+
+    It is written only when an info task succeeded, the branch that concludes
+    ``deleted`` does not write it, and the row update merges — so after a
+    delete the stale size survives and used to be enough to assert ``ready``.
+    The worker is asked instead.
+    """
     from isardvdi_change_handler.streams import reconcile
 
     storage = _storage(virtual_size=171798691840)
@@ -278,13 +285,13 @@ async def test_pass2_valid_disk_promoted_to_ready():
         patch.object(reconcile.Storage, "get_index", return_value=[storage]),
         patch.object(reconcile, "_task_alive", return_value=False),
         patch.object(reconcile, "_apply_storage_update") as apply_u,
-        patch.object(reconcile, "send_status_socket", new=AsyncMock()) as sock,
+        patch.object(reconcile, "send_status_socket", new=AsyncMock()),
     ):
         healed = await reconcile._reconcile_stuck_storage(AsyncMock())
 
-    assert healed == 1
-    apply_u.assert_called_once_with({"id": "s1", "status": "ready"})
-    sock.assert_awaited_once()
+    assert healed == 0
+    apply_u.assert_not_called()
+    storage.check_backing_chain.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -334,13 +341,16 @@ def test_task_alive_false_when_task_not_pending():
     from isardvdi_change_handler.streams import reconcile
 
     storage = _storage(task="t9")
+    # spec off the real class, captured before the patch: a bare MagicMock
+    # accepts any attribute name, so a renamed or missing property would read
+    # as "settled" and the test would pass against broken code.
+    inst = MagicMock(spec=reconcile.Task)
+    inst.chain_pending = False
     with (
         patch.object(reconcile.Task, "exists", return_value=True),
         patch.object(reconcile, "Task", wraps=reconcile.Task) as TaskCls,
     ):
         TaskCls.exists.return_value = True
-        inst = MagicMock()
-        inst.pending = False
         TaskCls.return_value = inst
         assert reconcile._task_alive(storage) is False
 
@@ -382,8 +392,8 @@ def test_task_alive_convert_target_recoverable_once_origin_settled():
     storage = _storage(status="creating", task=None, converted_from="origin-1")
     origin = MagicMock()
     origin.task = "convert-task"
-    settled = MagicMock()
-    settled.pending = False
+    settled = MagicMock(spec=reconcile.Task)
+    settled.chain_pending = False
     with (
         patch.object(reconcile, "Storage", return_value=origin),
         patch.object(reconcile.Task, "exists", return_value=True),
@@ -422,8 +432,8 @@ def test_task_alive_parked_template_recoverable_once_its_parker_settles():
     storage = _storage(status="maintenance", task=None, parked_by="desktop-1")
     parker = MagicMock()
     parker.task = "move-task"
-    settled = MagicMock()
-    settled.pending = False
+    settled = MagicMock(spec=reconcile.Task)
+    settled.chain_pending = False
     with (
         patch.object(reconcile, "Storage", return_value=parker),
         patch.object(reconcile.Task, "exists", return_value=True),
@@ -496,9 +506,9 @@ async def test_pass2_skips_a_parked_template_row_whose_chain_still_runs():
 
 
 @pytest.mark.asyncio
-async def test_pass2_recovers_stuck_creating_storage_with_valid_disk():
-    """A ``creating`` convert target whose finalize was lost (task dead) but whose
-    disk is valid is adopted -> ready (finalize-forward)."""
+async def test_pass2_recovers_a_stuck_creating_storage_by_re_observing():
+    """A ``creating`` convert target whose finalize was lost is still
+    recovered — through the worker's recheck, not the row's cached size."""
     from isardvdi_change_handler.streams import reconcile
 
     storage = _storage(status="creating", virtual_size=171798691840)
@@ -510,8 +520,9 @@ async def test_pass2_recovers_stuck_creating_storage_with_valid_disk():
     ):
         healed = await reconcile._reconcile_stuck_storage(AsyncMock())
 
-    assert healed == 1
-    apply_u.assert_called_once_with({"id": "s1", "status": "ready"})
+    assert healed == 0
+    apply_u.assert_not_called()
+    storage.check_backing_chain.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

@@ -932,6 +932,60 @@ class Task(RedisBase):
         return global_status(self._chain)
 
     @property
+    def chain_pending(self):
+        """Like :attr:`pending`, but over the WHOLE chain rather than its
+        immediate neighbours.
+
+        ``pending`` walks ``dependencies + self + dependents``, which is one
+        level each way — ``dependents`` lists direct children only. A chain
+        deeper than that reads as settled from its root while later levels are
+        still running: template creation builds eight. A caller asking "is this
+        row's work finished?" needs the closure, or it acts on a disk a worker
+        is still writing.
+
+        An unreadable chain answers True: not being able to prove work is over
+        is not the same as it being over.
+
+        :return: True if anything in the closure is still real work
+        :rtype: bool
+        """
+        active = (
+            JobStatus.STARTED,
+            JobStatus.SCHEDULED,
+            JobStatus.QUEUED,
+        )
+        try:
+            closure = _chain_closure(self.job, self._redis)
+        except Exception:
+            return True
+        for job in closure.values():
+            try:
+                status = job.get_status(refresh=True)
+            except Exception:
+                return True
+            if status in active:
+                return True
+            if status != JobStatus.DEFERRED:
+                continue
+            # Same rule as ``pending``: deferred is real work only while it
+            # legitimately waits on something unsettled. A deferred job whose
+            # dependencies have all settled was never re-enqueued and is an
+            # orphan, which Pass 1 heals — it must not block for ever.
+            for dependency_id in (getattr(job, "meta", None) or {}).get(
+                "dependency_ids"
+            ) or []:
+                dependency = closure.get(dependency_id)
+                if dependency is None:
+                    continue
+                try:
+                    dependency_status = dependency.get_status(refresh=True)
+                except Exception:
+                    return True
+                if dependency_status in active + (JobStatus.DEFERRED,):
+                    return True
+        return False
+
+    @property
     def pending(self):
         """
         Get True if the task (or anything in its chain) is still actively

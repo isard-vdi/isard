@@ -30,11 +30,13 @@ read it — plus a one-shot legacy drain on upgrade.
 
 Recovery principle (per task): reconcile every transitional item from **on-disk
 reality** to a stable status the user can re-trigger from, and **never destroy a
-present disk**. An in-place op returns its intact disk to ``ready``; a
-create/convert that finished on disk is adopted (finalize-forward); one that did
-not is failed via an authoritative recheck; a delete whose file is already gone
-completes, one whose file is still present resets to ``ready``. Data is never
-lost because the reconcile only reads disks and sets statuses.
+present disk**. Reality means *asking the worker*, never reading a status or a
+size off the row: those are caches, written by whichever branch last succeeded,
+and they outlive what they described. So a stuck item is re-observed and its own
+transition decides — an intact disk returns to ``ready``, a create that never
+produced one settles ``deleted``, a delete whose file is gone completes and one
+whose file is still there resets to a re-triggerable state. Data is never lost
+because the reconcile only reads disks and sets statuses.
 
 **Startup drain (one-shot).** :func:`_drain_core_once` clears any residual legacy
 ``core`` tombstones left by a system upgraded FROM rq-dependent finalize. Post
@@ -48,10 +50,9 @@ residual legacy ``core``-queue orphan (the DEFERRED counterpart to the QUEUED
 tombstones ``_drain_core_once`` sweeps) is healed via :func:`_heal_core_orphan`.
 
 **Pass 2 — storages stuck in a transitional status** (``maintenance``/``creating``)
-whose backing task is dead. Finalize from the row's own ``qemu-img-info`` per the
-principle above (valid → ``ready`` via :func:`_apply_storage_update`, which only
-promotes the safe pre-ready set so a running VM is never yanked; else re-issue
-``check_backing_chain`` for an authoritative recheck). A storage whose task is
+whose backing chain is dead. Re-issues ``check_backing_chain`` and lets the
+worker's answer drive the row through the normal path (which only promotes the
+safe pre-ready set, so a running VM is never yanked). A storage whose chain is
 still alive is left untouched.
 
 **Pass 3 — domains parked in a storage-lock status** (``Maintenance``/
@@ -70,7 +71,13 @@ from isardvdi_common.models.task import CoreStep, Task
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
-from ..task_results.storage import _apply_storage_update, send_status_socket
+# Imported, never called: the pass no longer writes a storage row itself, and
+# the tests patch these to assert it stays that way. Deleting them as "unused"
+# breaks those tests with AttributeError, not at the deletion site.
+from ..task_results.storage import (  # noqa: F401
+    _apply_storage_update,
+    send_status_socket,
+)
 from .task_results_consumer import (
     _release_storage_dependents,
     _run_handler,
@@ -456,7 +463,9 @@ def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
         return False
     try:
         task = Task(task_id)
-        if not task.pending:
+        # The WHOLE chain, not its neighbours: a deeper chain reads as settled
+        # from its root while later levels are still writing the disk.
+        if not task.chain_pending:
             return False
         return not _metadata_finalize_orphaned(
             task, now or datetime.now(timezone.utc), min_age_s
@@ -466,42 +475,28 @@ def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
 
 
 async def _finalize_stuck_storage(redis_manager, storage):
-    """Finalize one stuck transitional storage from its on-disk reality.
+    """Finalize one stuck transitional storage by re-observing the disk.
 
-    This is the per-task crash-recovery, resolved from the disk rather than the
-    (lost) chain — so it is uniform across every op and, crucially, **never
-    destroys a present disk**:
+    Always re-issues ``check_backing_chain`` and lets the storage worker say
+    what is really there: the row is driven to ``ready`` (a present disk), or
+    ``deleted`` (a create that never produced one, or a delete whose file is
+    already gone). The recheck reads the disk and never removes a present
+    file, so a not-yet-run delete resets to a re-triggerable state rather
+    than losing data.
 
-    - **Valid disk** (``qemu-img-info.virtual-size > 0``) → ``ready`` via the
-      canonical handler. For an in-place op the untouched disk returns to its
-      stable status; for a create/convert that DID complete on disk this adopts
-      the finished work (finalize-forward). A running VM is never yanked
-      (``_apply_storage_update`` only promotes the safe pre-ready set).
-    - **No valid disk info** → re-issue ``check_backing_chain`` for an
-      authoritative recheck by the storage worker, which drives the row to
-      ``ready`` (a present-but-unindexed disk) or ``deleted`` (a create that
-      never produced a disk, or a delete whose file is already gone). The
-      recheck reads the disk; it never removes a present file, so a not-yet-run
-      delete resets to ``ready`` (re-triggerable) rather than losing data.
+    It used to short-circuit to ``ready`` whenever the row's stored
+    ``qemu-img-info`` showed a positive ``virtual-size``. That field is
+    written only when an info task SUCCEEDS, and the branch that concludes
+    ``deleted`` does not write it at all — and the row update merges rather
+    than replaces, so the size of a file that has since been deleted survives
+    on the row. A delete whose chain died therefore matched the shortcut
+    exactly, and the pass asserted a disk that was gone: a ``ready`` storage
+    and a bootable-looking desktop that fails at libvirt. Reading the row was
+    never an observation; only the worker can make one.
 
-    Returns 1 only when finalized in place.
+    Returns 0: nothing is finalized in place any more.
     """
     prev = getattr(storage, "status", "?")
-    qemu_img_info = getattr(storage, "qemu-img-info", None)
-    virtual_size = 0
-    if isinstance(qemu_img_info, dict):
-        virtual_size = qemu_img_info.get("virtual-size", 0) or 0
-    if virtual_size > 0:
-        _apply_storage_update({"id": storage.id, "status": "ready"})
-        await send_status_socket(
-            redis_manager, storage.id, "ready", getattr(storage, "user_id", None)
-        )
-        log.warning(
-            "reconcile: finalized stuck storage %s (%s → ready)",
-            storage.id,
-            prev,
-        )
-        return 1
     try:
         # A self-heal recheck of a STUCK storage: recover it soon rather than on
         # the idle ``background`` lane (the method default), but off the reserved
@@ -511,8 +506,8 @@ async def _finalize_stuck_storage(redis_manager, storage):
             user_id=getattr(storage, "user_id", None), priority="standard"
         )
         log.warning(
-            "reconcile: stuck storage %s (%s) has no valid disk info; re-issued "
-            "check_backing_chain",
+            "reconcile: stuck storage %s (%s); re-issued check_backing_chain to "
+            "observe the disk",
             storage.id,
             prev,
         )
