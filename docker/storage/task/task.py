@@ -1308,8 +1308,13 @@ def move_delete(path):
 
         rename(path, join(delete_path, basename(path)))
         return 0
-    else:
-        raise ValueError(f"Path {path} not found")
+    if isdir(dirname(path)):
+        # Its directory is reachable and the file is not there: already
+        # gone. Failing here strands the recycle-bin entry of a storage
+        # whose file was never materialised.
+        log.info("move_delete: %s is already absent", path)
+        return 0
+    raise ValueError(f"Path {path} not found")
 
 
 def _storage_qcow():

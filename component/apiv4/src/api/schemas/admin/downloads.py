@@ -38,6 +38,20 @@ class DownloadsOverviewResponse(BaseModel):
     pass
 
 
+class DownloadActionResponse(BaseModel):
+    """Outcome of a download/abort/delete action on one catalogue item.
+
+    The action used to answer 204 because it only wrote a status and
+    hoped a consumer would act on it. It now performs the operation, so
+    it reports what it did and the task doing the work when there is one.
+    """
+
+    id: Optional[str] = None
+    kind: Optional[str] = None
+    action: Optional[str] = None
+    task_id: Optional[Any] = None
+
+
 class DownloadItem(BaseModel):
     """One row of ``GET /admin/items/downloads/{kind}``.
 

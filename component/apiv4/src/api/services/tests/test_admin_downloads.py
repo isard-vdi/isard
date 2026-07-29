@@ -16,6 +16,7 @@ Two behaviours are locked in here:
    guests (TetrOS-style kvm32 + rtl8139) keep the drivers they shipped.
 """
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -30,6 +31,7 @@ from api.services.admin.downloads import (
     _registry_rejection,
     _servable_entries,
 )
+from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.models.domain import DomainModel
 from isardvdi_common.models.media import MediaModel
 from isardvdi_common.schemas.domains import DomainKindEnum
@@ -513,3 +515,113 @@ class TestRegistryDownloadSource:
         svc = self._cfg(monkeypatch, code=None)
         _url, headers = svc._registry_download_source("media", {"url-isard": "x.iso"})
         assert headers == []
+
+class TestDownloadsDeleteAndAbort:
+    """The delete button used to write a status and hope.
+
+    Nothing consumed it, the engine's broom rewrote it to ``Unknown``,
+    and the storage worker never saw a task — so the row could not be
+    deleted at all. These pin that the endpoint now does the work, and
+    that it refuses rather than half-doing it.
+    """
+
+    def _domain(self, status, kind="desktop", storage_id="s-1"):
+        domain = SimpleNamespace(
+            id="d-1",
+            status=status,
+            kind=kind,
+            create_dict={"hardware": {"disks": [{"storage_id": storage_id}]}},
+        )
+        return domain
+
+    def _patched(self, domain, task_pending=False, storage_task="t-1"):
+        """Patch everything the action reaches, returning the mocks."""
+        storage = SimpleNamespace(task=storage_task)
+        return (
+            patch(
+                "isardvdi_common.models.domain.Domain.exists",
+                staticmethod(lambda _id: True),
+            ),
+            patch(
+                "isardvdi_common.models.domain.Domain.__new__",
+                lambda cls, *a, **k: domain,
+            ),
+            patch(
+                "isardvdi_common.models.storage.Storage.exists",
+                staticmethod(lambda _id: True),
+            ),
+            patch(
+                "isardvdi_common.models.storage.Storage.__new__",
+                lambda cls, *a, **k: storage,
+            ),
+            patch(
+                "isardvdi_common.models.task.Task.exists",
+                staticmethod(lambda _id: bool(storage_task)),
+            ),
+            patch(
+                "isardvdi_common.models.task.Task.__new__",
+                lambda cls, *a, **k: SimpleNamespace(
+                    pending=task_pending, cancel=lambda: None
+                ),
+            ),
+        )
+
+    def _run(self, action, domain, task_pending=False, storage_task="t-1"):
+        patches = self._patched(domain, task_pending, storage_task)
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
+            with patch(
+                "api.services.desktops.DesktopService.delete_desktop"
+            ) as delete_desktop:
+                result = AdminDownloadsService._domain_action(action, "d-1", "u1")
+                return result, delete_desktop
+
+    @pytest.mark.parametrize("status", ["Downloading", "DownloadStarting"])
+    def test_deleting_a_running_download_is_refused(self, status):
+        with pytest.raises(Error) as raised:
+            self._run("delete", self._domain(status))
+        assert raised.value.error["description_code"] == "download_in_progress"
+
+    def test_deleting_while_a_task_is_pending_is_refused(self):
+        with pytest.raises(Error) as raised:
+            self._run("delete", self._domain("Failed"), task_pending=True)
+        assert raised.value.error["description_code"] == "download_task_pending"
+
+    def test_a_row_with_an_unsupported_kind_is_refused(self):
+        with pytest.raises(Error) as raised:
+            self._run("delete", self._domain("Unknown", kind="server"))
+        assert raised.value.error["description_code"] == "download_row_unsupported_kind"
+
+    @pytest.mark.parametrize("status", ["Stopped", "Failed", "Unknown", "Deleting"])
+    def test_a_settled_row_is_really_deleted(self, status):
+        """Including the states the old code left stranded."""
+        _result, delete_desktop = self._run("delete", self._domain(status))
+        delete_desktop.assert_called_once()
+        assert delete_desktop.call_args.kwargs["permanent"] is True
+
+    def test_aborting_what_is_not_running_is_refused(self):
+        with pytest.raises(Error) as raised:
+            self._run("abort", self._domain("Stopped"))
+        assert raised.value.error["description_code"] == "download_not_running"
+
+    def test_aborting_a_live_download_asks_the_task_to_stop(self):
+        domain = self._domain("Downloading")
+        self._run("abort", domain, task_pending=True)
+        assert domain.status == "DownloadAborting"
+
+    def test_aborting_with_nothing_running_settles_the_row(self):
+        """Otherwise it sits at DownloadAborting for good."""
+        domain = self._domain("DownloadAborting")
+        self._run("abort", domain, task_pending=False, storage_task=None)
+        assert domain.status == "Failed"
+
+    def test_media_delete_goes_through_the_media_service(self):
+        with patch("api.services.media.MediaService.delete_media") as delete_media:
+            delete_media.return_value = "task-7"
+            result = AdminDownloadsService._media_action("delete", "m-1", "u1")
+        delete_media.assert_called_once_with("m-1", {"user_id": "u1"})
+        assert result["task_id"] == "task-7"
+
+    def test_media_abort_goes_through_the_media_service(self):
+        with patch("api.services.media.MediaService.abort_media_download") as abort:
+            AdminDownloadsService._media_action("abort", "m-1", "u1")
+        abort.assert_called_once_with("m-1")
