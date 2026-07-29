@@ -42,29 +42,36 @@ def _ttl(default: float) -> float:
     return default if override is None else float(override)
 
 
-# TTL rule: it must exceed the poll period of whatever drives the endpoint, so
-# at least every other poll is served without recomputing. The stats collector
-# polls each route roughly every 16 s and samples at 30 s, so anything fresher
-# than 30 s is discarded by the consumer anyway; the admin desktop-status panel
-# is read live and polls every 5 s, so it keeps a short one. Name the caller and
-# its period with any change here.
-_users_stats_cache = StaleWhileRevalidate(ttl=_ttl(30), name="users_stats")
+# TTL rule: it must cover at least two polls of whatever drives the endpoint, so
+# at least every other poll is served without recomputing. Name the caller and
+# its period with any change here — a TTL below the driving period recomputes on
+# every single poll, which is a cache that measures as a no-op.
+#
+# The two drivers, both read from this repository:
+#   * the metrics collector, one call per scrape — 30 s (docker/grafana-alloy/metrics.alloy)
+#   * the admin desktop-status page, read live — 5 s (webapp desktops_status.js)
+_COLLECTOR_SCRAPE_S = 30
+_ADMIN_PANEL_POLL_S = 5
+
+# Live admin panel: both of these render on the same screen off the same 5 s
+# poll, so they must not be allowed to disagree with each other.
 _desktops_stats_cache = StaleWhileRevalidate(ttl=_ttl(10), name="desktops_stats")
-_templates_stats_cache = StaleWhileRevalidate(ttl=_ttl(30), name="templates_stats")
-_domains_status_cache = StaleWhileRevalidate(ttl=_ttl(30), name="domains_status")
-# Full inventories, one entry per kind (desktops, templates, users, hypervisors,
-# categories, groups).
-_kind_cache = KeyedStaleWhileRevalidate(ttl=_ttl(30), maxsize=8, name="kind")
-# Per-category aggregates: the expensive ones, and the slowest-changing.
+_domains_by_category_cache = StaleWhileRevalidate(
+    ttl=_ttl(10), name="domains_by_category_count"
+)
+# Collector-driven: 2x the scrape interval, so every other scrape is free.
+_domains_status_cache = StaleWhileRevalidate(ttl=_ttl(60), name="domains_status")
+_kind_cache = KeyedStaleWhileRevalidate(ttl=_ttl(60), maxsize=8, name="kind")
+_categories_deployments_cache = StaleWhileRevalidate(
+    ttl=_ttl(60), name="categories_deployments"
+)
 _group_by_categories_cache = StaleWhileRevalidate(
     ttl=_ttl(60), name="group_by_categories"
 )
-_categories_deployments_cache = StaleWhileRevalidate(
-    ttl=_ttl(30), name="categories_deployments"
-)
-_domains_by_category_cache = StaleWhileRevalidate(
-    ttl=_ttl(30), name="domains_by_category_count"
-)
+# No route reaches these two today (nothing calls the service methods in front
+# of them). Cached for parity; do not read a TTL rule off them.
+_users_stats_cache = StaleWhileRevalidate(ttl=_ttl(60), name="users_stats")
+_templates_stats_cache = StaleWhileRevalidate(ttl=_ttl(60), name="templates_stats")
 
 # Steady-state desktop statuses surfaced by category aggregates; anything
 # else is "Other" and must be surfaced for admin triage.

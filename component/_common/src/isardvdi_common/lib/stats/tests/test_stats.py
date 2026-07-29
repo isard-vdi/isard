@@ -225,32 +225,41 @@ class TestCacheWiring:
             for cache in caches
         )
 
-    @pytest.mark.parametrize(
-        "cache_name, caller, poll_period_s",
-        [
-            # A TTL below the caller's poll period recomputes on every single
-            # poll, which is how a cache that measures as a no-op gets shipped.
-            # Name the caller and its period with any TTL change.
-            ("_domains_status_cache", "stats collector", 16),
-            ("_kind_cache", "stats collector", 16),
-            ("_categories_deployments_cache", "stats collector", 16),
-            ("_group_by_categories_cache", "stats collector", 16),
-            ("_domains_by_category_cache", "stats collector", 16),
-        ],
-    )
-    def test_ttl_skips_at_least_every_other_poll(
-        self, stub_rdb, cache_name, caller, poll_period_s
+    # Which driver each cache answers to. The periods are constants in the
+    # module, read off this repository — never a number derived from one
+    # installation's traffic, which is how a TTL that recomputes on every poll
+    # gets shipped behind a passing test.
+    COLLECTOR_DRIVEN = [
+        "_domains_status_cache",
+        "_kind_cache",
+        "_categories_deployments_cache",
+        "_group_by_categories_cache",
+    ]
+    PANEL_DRIVEN = ["_desktops_stats_cache", "_domains_by_category_cache"]
+
+    @pytest.mark.parametrize("cache_name", COLLECTOR_DRIVEN)
+    def test_collector_ttl_skips_at_least_every_other_scrape(
+        self, stub_rdb, cache_name
     ):
-        cache = getattr(stub_rdb["mod"], cache_name)
-        polls_per_refresh = math.ceil(cache.ttl / poll_period_s)
-        assert polls_per_refresh >= 2, (
-            f"{cache_name} ttl={cache.ttl}s recomputes on every {caller} poll "
-            f"({poll_period_s}s apart) — it saves the database nothing"
+        mod = stub_rdb["mod"]
+        cache = getattr(mod, cache_name)
+        assert math.ceil(cache.ttl / mod._COLLECTOR_SCRAPE_S) >= 2, (
+            f"{cache_name} ttl={cache.ttl}s recomputes on every collector scrape "
+            f"({mod._COLLECTOR_SCRAPE_S}s apart) — it saves the database nothing"
         )
 
-    def test_desktops_status_stays_fresh_for_the_live_panel(self, stub_rdb):
-        """The admin desktop-status panel polls every 5s and is read live."""
-        assert stub_rdb["mod"]._desktops_stats_cache.ttl <= 10
+    @pytest.mark.parametrize("cache_name", PANEL_DRIVEN)
+    def test_panel_ttl_stays_within_a_few_refreshes(self, stub_rdb, cache_name):
+        """The panel is read live, so staleness is what the operator sees."""
+        mod = stub_rdb["mod"]
+        cache = getattr(mod, cache_name)
+        assert cache.ttl <= 2 * mod._ADMIN_PANEL_POLL_S
+
+    def test_the_two_panel_caches_cannot_disagree(self, stub_rdb):
+        """Both render on the same screen; different TTLs means visible drift."""
+        mod = stub_rdb["mod"]
+        ttls = {getattr(mod, name).ttl for name in self.PANEL_DRIVEN}
+        assert len(ttls) == 1, f"panel caches would drift apart: {ttls}"
 
 
 class TestGetKind:
