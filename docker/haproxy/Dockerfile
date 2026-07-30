@@ -19,6 +19,7 @@ COPY haproxy-sync /build/haproxy-sync
 WORKDIR /build/haproxy-sync
 
 RUN CGO_ENABLED=0 go build -o bin/haproxy-sync cmd/haproxy-sync/main.go
+RUN CGO_ENABLED=0 go build -o bin/cert-watch cmd/cert-watch/main.go
 
 # HAProxy production image
 FROM ${HAPROXY_RUN_IMAGE} as production
@@ -30,6 +31,7 @@ RUN apk add --no-cache openssl acme.sh
 
 # Copy haproxy-sync binary
 COPY --from=haproxy-sync-build /build/haproxy-sync/bin/haproxy-sync /usr/local/bin/haproxy-sync
+COPY --from=haproxy-sync-build /build/haproxy-sync/bin/cert-watch /usr/local/bin/cert-watch
 
 # Copy HAProxy scripts and configs
 COPY docker/haproxy/_common/prepare.sh /usr/local/sbin/
