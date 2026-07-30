@@ -1366,30 +1366,12 @@ func TestStartLogin(t *testing.T) {
 						"api_key":                  "",
 					},
 				}, nil)
-
-				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
-					"id":                       "user-resync-1",
-					"uid":                      "nefix-uid",
-					"username":                 "nefix",
-					"password":                 "",
-					"password_reset_token":     "",
-					"provider":                 "saml",
-					"active":                   true,
-					"category":                 "default",
-					"role":                     "manager",
-					"group":                    "default-default",
-					"secondary_groups":         []string{},
-					"name":                     "Néfix Estrada",
-					"email":                    "old@example.com",
-					"email_verified":           verified,
-					"email_verification_token": "verify-token",
-					"photo":                    "old-photo.png",
-					"accessed":                 float64(0),
-					"disclaimer_acknowledged":  true,
-					"api_key":                  "",
-				})).Return(r.WriteResponse{Updated: 1}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminUpdateUser", mock.AnythingOfType("context.backgroundCtx"), &apiv4.AdminUserUpdateData{
+					Role: apiv4.NewOptNilString("manager"),
+				}, apiv4.AdminUpdateUserParams{UserID: "user-resync-1"}).Return(&apiv4.AdminUpdateUserNoContent{}, nil)
+
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -1480,30 +1462,14 @@ func TestStartLogin(t *testing.T) {
 						"id": "new-group-id",
 					},
 				}, nil)
-
-				m.On(r.Table("users").Get("user-resync-1").Update(map[string]any{
-					"id":                       "user-resync-1",
-					"uid":                      "nefix-uid",
-					"username":                 "nefix",
-					"password":                 "",
-					"password_reset_token":     "",
-					"provider":                 "saml",
-					"active":                   true,
-					"category":                 "default",
-					"role":                     "user",
-					"group":                    "new-group-id",
-					"secondary_groups":         []string{},
-					"name":                     "Néfix Estrada",
-					"email":                    "old@example.com",
-					"email_verified":           verified,
-					"email_verification_token": "verify-token",
-					"photo":                    "old-photo.png",
-					"accessed":                 float64(0),
-					"disclaimer_acknowledged":  true,
-					"api_key":                  "",
-				})).Return(r.WriteResponse{Updated: 1}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminUpdateUser", mock.AnythingOfType("context.backgroundCtx"), &apiv4.AdminUserUpdateData{
+					Role:            apiv4.NewOptNilString("user"),
+					Group:           apiv4.NewOptNilString("new-group-id"),
+					SecondaryGroups: apiv4.NewOptNilStringArray([]string{}),
+				}, apiv4.AdminUpdateUserParams{UserID: "user-resync-1"}).Return(&apiv4.AdminUpdateUserNoContent{}, nil)
+
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -1663,30 +1629,14 @@ func TestStartLogin(t *testing.T) {
 						"id": "new-group-id",
 					},
 				}, nil)
-
-				m.On(r.Table("users").Get("user-resync-1").Update(map[string]any{
-					"id":                       "user-resync-1",
-					"uid":                      "nefix-uid",
-					"username":                 "nefix",
-					"password":                 "",
-					"password_reset_token":     "",
-					"provider":                 "ldap",
-					"active":                   true,
-					"category":                 "default",
-					"role":                     "manager",
-					"group":                    "new-group-id",
-					"secondary_groups":         []string{},
-					"name":                     "Néfix Estrada",
-					"email":                    "old@example.com",
-					"email_verified":           verified,
-					"email_verification_token": "verify-token",
-					"photo":                    "old-photo.png",
-					"accessed":                 float64(0),
-					"disclaimer_acknowledged":  true,
-					"api_key":                  "",
-				})).Return(r.WriteResponse{Updated: 1}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminUpdateUser", mock.AnythingOfType("context.backgroundCtx"), &apiv4.AdminUserUpdateData{
+					Role:            apiv4.NewOptNilString("manager"),
+					Group:           apiv4.NewOptNilString("new-group-id"),
+					SecondaryGroups: apiv4.NewOptNilStringArray([]string{}),
+				}, apiv4.AdminUpdateUserParams{UserID: "user-resync-1"}).Return(&apiv4.AdminUpdateUserNoContent{}, nil)
+
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -2317,30 +2267,13 @@ func TestStartLogin(t *testing.T) {
 						"id": "new-group-id",
 					},
 				}, nil)
-
-				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
-					"id":                       "user-resync-1",
-					"uid":                      "nefix-uid",
-					"username":                 "nefix",
-					"password":                 "",
-					"password_reset_token":     "",
-					"provider":                 "saml",
-					"active":                   true,
-					"category":                 "default",
-					"role":                     "advanced",
-					"group":                    "new-group-id",
-					"secondary_groups":         []string{},
-					"name":                     "Néfix Estrada",
-					"email":                    "old@example.com",
-					"email_verified":           verified,
-					"email_verification_token": "verify-token",
-					"photo":                    "old-photo.png",
-					"accessed":                 float64(0),
-					"disclaimer_acknowledged":  true,
-					"api_key":                  "",
-				})).Return(r.WriteResponse{Updated: 1}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminUpdateUser", mock.AnythingOfType("context.backgroundCtx"), &apiv4.AdminUserUpdateData{
+					Group:           apiv4.NewOptNilString("new-group-id"),
+					SecondaryGroups: apiv4.NewOptNilStringArray([]string{}),
+				}, apiv4.AdminUpdateUserParams{UserID: "user-resync-1"}).Return(&apiv4.AdminUpdateUserNoContent{}, nil)
+
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -2432,28 +2365,6 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
 					r.Eq(r.Row.Field("external_gid"), "new group"),
 				))).Return([]interface{}{}, nil)
-
-				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
-					"id":                       "user-resync-1",
-					"uid":                      "nefix-uid",
-					"username":                 "nefix",
-					"password":                 "",
-					"password_reset_token":     "",
-					"provider":                 "saml",
-					"active":                   true,
-					"category":                 "default",
-					"role":                     "advanced",
-					"group":                    "created-group-id",
-					"secondary_groups":         []string{},
-					"name":                     "Néfix Estrada",
-					"email":                    "old@example.com",
-					"email_verified":           verified,
-					"email_verification_token": "verify-token",
-					"photo":                    "old-photo.png",
-					"accessed":                 float64(0),
-					"disclaimer_acknowledged":  true,
-					"api_key":                  "",
-				})).Return(r.WriteResponse{Updated: 1}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminCreateGroup", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AdminGroupCreateData) bool {
@@ -2462,6 +2373,10 @@ func TestStartLogin(t *testing.T) {
 					ID:  "created-group-id",
 					UID: "created-group-id",
 				}, nil)
+				c.On("AdminUpdateUser", mock.AnythingOfType("context.backgroundCtx"), &apiv4.AdminUserUpdateData{
+					Group:           apiv4.NewOptNilString("created-group-id"),
+					SecondaryGroups: apiv4.NewOptNilStringArray([]string{}),
+				}, apiv4.AdminUpdateUserParams{UserID: "user-resync-1"}).Return(&apiv4.AdminUpdateUserNoContent{}, nil)
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -2566,30 +2481,13 @@ func TestStartLogin(t *testing.T) {
 						"id": "primary-id",
 					},
 				}, nil)
-
-				m.On(r.Table("users").Get("user-resync-1").Update(map[string]interface{}{
-					"id":                       "user-resync-1",
-					"uid":                      "nefix-uid",
-					"username":                 "nefix",
-					"password":                 "",
-					"password_reset_token":     "",
-					"provider":                 "saml",
-					"active":                   true,
-					"category":                 "default",
-					"role":                     "advanced",
-					"group":                    "primary-id",
-					"secondary_groups":         []string{"new-secondary-id"},
-					"name":                     "Néfix Estrada",
-					"email":                    "old@example.com",
-					"email_verified":           verified,
-					"email_verification_token": "verify-token",
-					"photo":                    "old-photo.png",
-					"accessed":                 float64(0),
-					"disclaimer_acknowledged":  true,
-					"api_key":                  "",
-				})).Return(r.WriteResponse{Updated: 1}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminUpdateUser", mock.AnythingOfType("context.backgroundCtx"), &apiv4.AdminUserUpdateData{
+					Group:           apiv4.NewOptNilString("primary-id"),
+					SecondaryGroups: apiv4.NewOptNilStringArray([]string{"new-secondary-id"}),
+				}, apiv4.AdminUpdateUserParams{UserID: "user-resync-1"}).Return(&apiv4.AdminUpdateUserNoContent{}, nil)
+
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -2629,6 +2527,93 @@ func TestStartLogin(t *testing.T) {
 					Name:     &name,
 					Email:    &email,
 					Photo:    &photo,
+				}
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				require.NoError(err)
+
+				assert.Equal("user-resync-1", tkn.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should not call apiv4 when neither the role nor the groups change": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":               "user-resync-1",
+						"uid":              "nefix-uid",
+						"provider":         "saml",
+						"active":           true,
+						"category":         "default",
+						"role":             "advanced",
+						"group":            "primary-id",
+						"secondary_groups": []string{"secondary-id"},
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "secondary group"),
+				))).Return([]any{
+					map[string]any{
+						"id": "secondary-id",
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "primary group"),
+				))).Return([]any{
+					map[string]any{
+						"id": "primary-id",
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "primary group",
+				Name:          "category",
+			},
+			SecondaryGroups: []*model.Group{{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "secondary group",
+				Name:          "category",
+			}},
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleAdvanced
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role: &role,
 				}
 			},
 			Redirect: "/",
@@ -2854,6 +2839,176 @@ func TestStartLogin(t *testing.T) {
 			Redirect: "/",
 
 			ExpectedErr: "auto register group: register the group: create error",
+		},
+		"should not call apiv4 if checking the mapped group fails after the role changed": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":       "user-resync-1",
+						"uid":      "nefix-uid",
+						"provider": "saml",
+						"active":   true,
+						"category": "default",
+						"role":     "advanced",
+						"group":    "old-group-id",
+					},
+				}, nil)
+
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "new group"),
+				))).Return(nil, fmt.Errorf("group error"))
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			Group: &model.Group{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "new group",
+				Name:          "category",
+				Description:   "some description",
+			},
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleManager
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role: &role,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "check if group exists: group error",
+		},
+		"should not update the user in the database if updating it through apiv4 fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":       "user-resync-1",
+						"uid":      "nefix-uid",
+						"provider": "saml",
+						"active":   true,
+						"category": "default",
+						"role":     "advanced",
+						"group":    "default-default",
+						"name":     "Old Name",
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminUpdateUser", mock.AnythingOfType("context.backgroundCtx"), &apiv4.AdminUserUpdateData{
+					Role: apiv4.NewOptNilString("manager"),
+				}, apiv4.AdminUpdateUserParams{UserID: "user-resync-1"}).Return(nil, fmt.Errorf("update error"))
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleManager
+				name := "New Name"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role: &role,
+					Name: &name,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "sync the role and groups through apiv4: update error",
+		},
+		"should return an error if updating the user through apiv4 returns an unexpected response": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"nefix-uid",
+					"default",
+					"saml",
+				})).Return([]any{
+					map[string]any{
+						"id":       "user-resync-1",
+						"uid":      "nefix-uid",
+						"provider": "saml",
+						"active":   true,
+						"category": "default",
+						"role":     "advanced",
+						"group":    "default-default",
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminUpdateUser", mock.AnythingOfType("context.backgroundCtx"), &apiv4.AdminUserUpdateData{
+					Role: apiv4.NewOptNilString("manager"),
+				}, apiv4.AdminUpdateUserParams{UserID: "user-resync-1"}).Return(&apiv4.AdminUpdateUserUnauthorized{
+					Error:       "unauthorized",
+					Description: "invalid session",
+				}, nil)
+			},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("saml")
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
+			},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				role := model.RoleManager
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Role: &role,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "sync the role and groups through apiv4: ogen 401 unauthorized: invalid session []",
 		},
 		"should return an error if checking the group fails during registration": {
 			PrepareDB: func(m *r.Mock) {
@@ -3216,6 +3371,12 @@ func TestStartLogin(t *testing.T) {
 				m.On(r.Table("users").Get("user-resync-1").Update(expected)).Return(r.WriteResponse{Updated: 1}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminUpdateUser", mock.AnythingOfType("context.backgroundCtx"), &apiv4.AdminUserUpdateData{
+					Role:            apiv4.NewOptNilString("manager"),
+					Group:           apiv4.NewOptNilString("new-group-id"),
+					SecondaryGroups: apiv4.NewOptNilStringArray([]string{"new-secondary-id"}),
+				}, apiv4.AdminUpdateUserParams{UserID: "user-resync-1"}).Return(&apiv4.AdminUpdateUserNoContent{}, nil)
+
 				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user-resync-1"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			PrepareProvider: func(p *provider.MockProvider) {

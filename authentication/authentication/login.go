@@ -16,6 +16,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/db"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 )
 
 func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args provider.LoginArgs, remoteAddr string) (string, string, error) {
@@ -249,8 +250,12 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		}
 
 		if syncRoleAndGroups {
+			upd := &apiv4.AdminUserUpdateData{}
+			needsSync := false
+
 			if provided.Role != "" && u.Role != provided.Role {
-				needsUpdate = true
+				upd.Role = apiv4.NewOptNilString(string(provided.Role))
+				needsSync = true
 				u.Role = provided.Role
 			}
 
@@ -265,9 +270,22 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 				}
 
 				if u.Group != g.ID || !slices.Equal(u.SecondaryGroups, secondaryGroups) {
-					needsUpdate = true
+					upd.Group = apiv4.NewOptNilString(g.ID)
+					upd.SecondaryGroups = apiv4.NewOptNilStringArray(secondaryGroups)
+					needsSync = true
 					u.Group = g.ID
 					u.SecondaryGroups = secondaryGroups
+				}
+			}
+
+			if needsSync {
+				rsp, err := a.API.AdminUpdateUser(ctx, upd, apiv4.AdminUpdateUserParams{UserID: u.ID})
+				if err != nil {
+					return "", "", fmt.Errorf("sync the role and groups through apiv4: %w", err)
+				}
+
+				if _, ok := rsp.(*apiv4.AdminUpdateUserNoContent); !ok {
+					return "", "", fmt.Errorf("sync the role and groups through apiv4: %w", ogenclient.AsAPIError(rsp))
 				}
 			}
 		}
