@@ -55,6 +55,15 @@ from ....models.user import UserModel
 from ....schemas.user import UserFromCSV
 from .user_policies import UserPolicies
 
+# Throttle for the storage-quota sync, which spawns an unpooled daemon thread
+# per call. One entry per (user_id, session_id): a fresh login always syncs,
+# every later request of that session is a no-op until the entry expires. The
+# TTL matches the user_config cache below so the sync keeps the once-per-minute
+# ceiling it used to inherit from it.
+_user_quota_sync_throttle: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=600, ttl=60
+)
+
 
 class UsersProcessed(RethinkSharedConnection):
 
@@ -501,11 +510,57 @@ class UsersProcessed(RethinkSharedConnection):
         return False
 
     @classmethod
+    def _sync_user_storage_quota(cls, payload):
+        """Start the storage-quota sync unless this session already did.
+
+        Returns whether the sync was started.
+        """
+        key = hashkey(payload["user_id"], payload.get("session_id"))
+        # Claim the slot under the cache lock: cachetools' @cached runs the
+        # wrapped function outside its lock, so it cannot bound a side effect.
+        with _user_quota_sync_throttle.lock:
+            if key in _user_quota_sync_throttle:
+                return False
+            _user_quota_sync_throttle[key] = True
+        UserStorage.isard_user_storage_update_user_quota(payload["user_id"])
+        return True
+
+    @classmethod
+    def user_config(cls, payload):
+        """Assemble the frontend config: cached body plus per-request session."""
+        # The quota sync is a side effect and the session block is per-request
+        # state, so neither may be served from the cached body below.
+        cls._sync_user_storage_quota(payload)
+        # If the session id is isard-service it means that it's an impersonated user
+        if payload.get("session_id") in ["isardvdi-service", "api-key"]:
+            session = {
+                "id": "isardvdi-service",
+                "max_renew_time": 0,
+                "max_time": 0,
+            }
+        else:
+            user_session = get_user_session_id(payload["user_id"])
+            session = {
+                "id": user_session.id,
+                "max_renew_time": user_session.time.max_renew_time.ToSeconds(),
+                "max_time": user_session.time.max_time.ToSeconds(),
+            }
+        return {**cls._user_config_cached(payload), "session": session}
+
+    @classmethod
     @cached(
         cache=SynchronizedTTLCache(maxsize=600, ttl=60),
-        key=lambda cls, payload: payload["user_id"],
+        # Every payload field the body reads, directly or through
+        # Helpers.can_use_bastion* -> Alloweds.is_allowed (which reads group_id).
+        key=lambda cls, payload: hashkey(
+            payload["user_id"],
+            payload["role_id"],
+            payload["category_id"],
+            payload.get("group_id"),
+            payload.get("provider", "local"),
+        ),
     )
-    def user_config(cls, payload):
+    def _user_config_cached(cls, payload):
         """_From api/libv2/api_users.py ApiUsers.Config()_"""
         show_bookings_button = (
             True
@@ -534,27 +589,12 @@ class UsersProcessed(RethinkSharedConnection):
             if os.environ.get(env_var, "").lower() == "true":
                 frontend_show_change_email = False
 
-        UserStorage.isard_user_storage_update_user_quota(payload["user_id"])
         if Helpers.can_use_bastion(payload):
             bastion_allowed = True
             bastion_domain = Bastion.get_bastion_domain(payload["category_id"])
         else:
             bastion_allowed = False
             bastion_domain = None
-        # If the session id is isard-service it means that it's an impersonated user
-        if payload.get("session_id") in ["isardvdi-service", "api-key"]:
-            session = {
-                "id": "isardvdi-service",
-                "max_renew_time": 0,
-                "max_time": 0,
-            }
-        else:
-            user_session = get_user_session_id(payload["user_id"])
-            session = {
-                "id": user_session.id,
-                "max_renew_time": user_session.time.max_renew_time.ToSeconds(),
-                "max_time": user_session.time.max_time.ToSeconds(),
-            }
 
         frontend_mode_raw = getenv("FRONTEND_MODE", "deprecated")
         frontend_mode = (
@@ -597,7 +637,6 @@ class UsersProcessed(RethinkSharedConnection):
                 "can_use_bastion_individual_domains": Helpers.can_use_bastion_individual_domains(
                     payload
                 ),
-                "session": session,
                 "category_custom_url": CategoriesProcessed.get_custom_login_url(
                     payload["category_id"]
                 ),

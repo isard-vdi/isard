@@ -17,8 +17,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from rethinkdb import r
 
@@ -27,8 +28,8 @@ from .db import rethink
 # Module-level named caches so they can be explicitly invalidated. A short TTL
 # also bounds how long a storage_pool / QoS change takes to propagate to the
 # engine (it was 30s, so a pool or QoS edit could be ignored for half a minute).
-_all_storage_pools_cache = TTLCache(maxsize=10, ttl=10)
-_storage_pools_cache = TTLCache(maxsize=10, ttl=10)
+_all_storage_pools_cache = SynchronizedTTLCache(maxsize=10, ttl=10)
+_storage_pools_cache = SynchronizedTTLCache(maxsize=10, ttl=10)
 
 
 def clear_storage_pools_cache():

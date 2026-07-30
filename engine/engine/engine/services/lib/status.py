@@ -4,8 +4,9 @@ import ssl
 from datetime import datetime
 
 import OpenSSL
-from cachetools import TTLCache, cached
+from cachetools import cached
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 from engine.models.balancers import BalancerInterface
 from engine.services.log import *
@@ -26,13 +27,13 @@ virt_balancer = BalancerInterface(
 )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=5))
+@cached(cache=SynchronizedTTLCache(maxsize=1, ttl=5))
 def get_next_hypervisor():
     virt, _ = virt_balancer.get_next_hypervisor(storage_pool_id=DEFAULT_STORAGE_POOL_ID)
     return virt
 
 
-@cached(cache=TTLCache(maxsize=10, ttl=5))
+@cached(cache=SynchronizedTTLCache(maxsize=10, ttl=5))
 def check_spice_video_connection(
     proxy_host,
     proxy_port,

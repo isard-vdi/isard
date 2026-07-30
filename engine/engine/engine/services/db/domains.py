@@ -7,7 +7,7 @@ from copy import deepcopy
 from pathlib import PurePath
 from typing import TypedDict
 
-from cachetools import TTLCache
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.vgpu_state import vgpu_pool_frees_for_domain
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
@@ -1243,7 +1243,7 @@ def insert_domain(dict_domain):
     return result
 
 
-failed_autostarts_cache = TTLCache(maxsize=100, ttl=60)
+failed_autostarts_cache = SynchronizedTTLCache(maxsize=100, ttl=60)
 
 
 def get_domains_flag_autostart_to_starting():

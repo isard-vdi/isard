@@ -93,25 +93,12 @@ from api.schemas.common import EmptyResponse, ErrorResponse, PasswordPolicyError
 from api.services.admin.socketio import AdminSocketioService
 from api.services.admin.users import AdminUsersService
 from api.services.error import Error
-from cachetools import cached
 from fastapi import BackgroundTasks, Depends, Header, Path, Query, Request
 from fastapi.responses import JSONResponse, Response
-from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.models.user import UserModel as UserDBModel
 from pydantic import ValidationError
 
 tag = "admin_users"
-
-# Named cache so writers (admin user updates further down this module
-# and in admin_users service) can invalidate the cached profile blob.
-admin_user_full_data_cache: SynchronizedTTLCache = SynchronizedTTLCache(
-    maxsize=100, ttl=60
-)
-
-
-def clear_admin_user_full_data_cache():
-    """Invalidate the per-user admin profile cache after a user mutation."""
-    admin_user_full_data_cache.clear()
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -186,7 +173,6 @@ async def admin_user_exists(request: Request, user_id: str):
         )
 
 
-@cached(cache=admin_user_full_data_cache)
 @manager_router.get(
     "/admin/item/user/{user_id}",
     tags=[tag],
