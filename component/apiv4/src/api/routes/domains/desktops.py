@@ -36,7 +36,7 @@ from api.dependencies.bastion import (
     domain_has_bastion_target,
 )
 from api.dependencies.domains import check_domain_kind
-from api.dependencies.jwt_token import is_admin
+from api.dependencies.jwt_token import is_admin, is_admin_or_manager
 from api.dependencies.storage_pools import (
     check_create_storage_pool_availability,
     check_virt_storage_pool_availability,
@@ -654,8 +654,10 @@ async def bulk_edit_desktops(request: Request, data: BulkEditDesktopsRequest):
         ids = data.ids
         update_payload = data.model_dump(exclude_unset=True, exclude={"ids"})
 
-        if "forced_hyp" in update_payload or "favourite_hyp" in update_payload:
+        if "forced_hyp" in update_payload:
             await is_admin(request.token_payload)
+        if "favourite_hyp" in update_payload:
+            await is_admin_or_manager(request.token_payload)
 
         result = await asyncio.to_thread(
             DesktopService.bulk_edit_desktops,
@@ -1248,8 +1250,10 @@ async def edit_desktop(
         if data.image is not None and getattr(data.image, "file", None) is not None:
             payload["image"]["file"] = data.image.file.model_dump(exclude_unset=True)
 
-        if "forced_hyp" in payload or "favourite_hyp" in payload:
+        if "forced_hyp" in payload:
             await is_admin(request.token_payload)
+        if "favourite_hyp" in payload:
+            await is_admin_or_manager(request.token_payload)
 
         await asyncio.to_thread(
             DesktopService.edit_desktop,

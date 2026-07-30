@@ -839,10 +839,72 @@ def test_edit_desktop_propagates_forced_hyp_for_admin(monkeypatch, test_client):
 
 
 def test_edit_desktop_forbids_forced_hyp_for_non_admin(monkeypatch, test_client):
-    """Only admins may set forced_hyp/favourite_hyp on a desktop, matching
-    the is_admin gate on PUT /item/template/{id}/edit. A manager must get
-    403 and the service must never be reached."""
+    """Only admins may set forced_hyp on a desktop. A manager must get 403
+    and the service must never be reached."""
     jwt = MockJWT(role_id="manager")
+    called = {"edit": False}
+
+    def fake_edit_desktop(desktop_id, data, payload):
+        called["edit"] = True
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.edit_desktop",
+        staticmethod(fake_edit_desktop),
+    )
+    _bypass_owns_domain_id(monkeypatch)
+
+    class _FakeDomain:
+        def __init__(self, _id):
+            self.kind = "desktop"
+
+    monkeypatch.setattr("api.dependencies.domains.Domain", _FakeDomain)
+
+    response = test_client(
+        url="/item/desktop/desktop-1/edit",
+        method="PUT",
+        body={"forced_hyp": ["hyp-a"]},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 403
+    assert called["edit"] is False
+
+
+def test_edit_desktop_allows_favourite_hyp_for_manager(monkeypatch, test_client):
+    """Admins and managers may set favourite_hyp; only forced_hyp is
+    admin-only."""
+    jwt = MockJWT(role_id="manager")
+    captured = {}
+
+    def fake_edit_desktop(desktop_id, data, payload):
+        captured["data"] = data
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.edit_desktop",
+        staticmethod(fake_edit_desktop),
+    )
+    _bypass_owns_domain_id(monkeypatch)
+
+    class _FakeDomain:
+        def __init__(self, _id):
+            self.kind = "desktop"
+
+    monkeypatch.setattr("api.dependencies.domains.Domain", _FakeDomain)
+
+    response = test_client(
+        url="/item/desktop/desktop-1/edit",
+        method="PUT",
+        body={"favourite_hyp": ["hyp-a"]},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert captured["data"] == {"favourite_hyp": ["hyp-a"]}
+
+
+def test_edit_desktop_forbids_favourite_hyp_for_user(monkeypatch, test_client):
+    """A plain user owning the desktop must not set favourite_hyp."""
+    jwt = MockJWT(role_id="user")
     called = {"edit": False}
 
     def fake_edit_desktop(desktop_id, data, payload):
