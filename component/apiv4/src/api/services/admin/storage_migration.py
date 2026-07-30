@@ -230,39 +230,33 @@ class AdminStorageMigrationService:
 
     @staticmethod
     def _assert_move_lanes_served(preview, dst_pool):
-        """Refuse a plan whose cross-pool move lane has no live consumer.
+        """Reject at create a plan whose move lane has no live consumer.
 
-        Every move is enqueued on ``storage.<pool-key>.<tier>``, where the key is
-        the SAME sorted ``src:dst`` join the runner uses. rq keeps a job queued
-        on a lane nobody drains: no worker picks it up, nothing raises and no
-        timeout fires, so the migration reports ``running`` indefinitely with a
-        disk that never moves. Fail-open on a redis error, matching the shed
-        gate's posture -- a broker blip must not block an otherwise valid job.
+        This is a friendly pre-flight, not the enforcement: the runner asks the
+        same gate before every enqueue, which is what actually covers a job that
+        starts hours later or re-scans for a recurring occurrence. Doing it here
+        too just means an admin learns at create instead of watching a job sit
+        idle.
+
+        Delegates to ``queue_coverage``: it consults the LIVE worker index first,
+        falls back to the governor-hash scan, fails open on every kind of coverage
+        uncertainty, and raises the typed retryable 429 the rest of the fleet
+        already returns for this. Re-deriving that policy here got the tolerances
+        wrong and turned a restarting storage node into a permanent 400.
         """
-        try:
-            covered, opaque_pools = queue_coverage.served_coverage(Task._redis)
-        except Exception:
-            return
-        unserved = set()
+        seen = set()
         for item in preview:
             pools = StoragePool.get_by_path(dirname(item.get("src_path") or ""))
             src_pool = pools[0] if pools else dst_pool
             key = get_queue_from_storage_pools(src_pool, dst_pool)
-            if key in opaque_pools:
-                continue
-            # the tier the RUNNER lands on, resolved by the same rules it uses --
-            # a guard that checks a different tier protects nothing
+            # the tier the RUNNER lands on, resolved by the rules it uses -- a
+            # guard that checks a different tier protects nothing
             tier = queue_tiers.normalize_tier(DEFAULT_PRIORITY, "move")
-            if not covered[(key, tier)]:
-                unserved.add(key)
-        if unserved:
-            raise Error(
-                "bad_request",
-                "No storage node serves the move queue(s) "
-                + ", ".join(sorted(unserved))
-                + "; add the destination pool to a node's "
-                "CAPABILITIES_STORAGE_POOLS before migrating into it",
-            )
+            queue = f"storage.{key}.{tier}"
+            if queue in seen:
+                continue
+            seen.add(queue)
+            queue_coverage.check_no_consumer(Task._redis, queue)
 
     @classmethod
     def create(cls, payload: dict, selection: dict, config: dict) -> dict:

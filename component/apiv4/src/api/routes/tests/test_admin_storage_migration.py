@@ -9,8 +9,6 @@ create, pool aggregation) mock at the ``isardvdi_common.lib.storage.migration``
 boundary — that compute/DB layer is unit- and live-tested separately.
 """
 
-from collections import Counter
-
 from api.routes.tests.helpers import MockJWT
 
 ADMIN = MockJWT(role_id="admin")
@@ -405,10 +403,14 @@ class TestCreate:
                 {"items_total": 1},
             ),
         )
-        # nothing in the fleet serves any lane
+        # nothing in the fleet serves the lane: the shared gate says reject with
+        # reason no_consumer, which is what check_no_consumer turns into its 429
         monkeypatch.setattr(
-            "isardvdi_common.lib.queue_coverage.served_coverage",
-            lambda conn: (Counter(), set()),
+            "isardvdi_common.lib.queue_coverage.lane_shed_decision",
+            lambda conn, queue: (
+                "reject",
+                {"reason": "no_consumer", "pool": "src:dst"},
+            ),
         )
         resp = test_client(
             url="/admin/storage/migrations",
@@ -427,7 +429,9 @@ class TestCreate:
                 "storage_migration_item": [],
             },
         )
-        assert resp.status_code == 400
+        # 429, not 400: "nothing drains this lane" is retryable, and the fleet
+        # already answers it that way everywhere else
+        assert resp.status_code == 429
 
     def test_create_rejects_all_in_place_400(self, monkeypatch, test_client):
         # path/category selection resolving entirely in-place (dst == src) moves

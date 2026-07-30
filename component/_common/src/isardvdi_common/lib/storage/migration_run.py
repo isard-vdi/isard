@@ -48,7 +48,7 @@ import redis
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers import task_streams
 from isardvdi_common.helpers.desktop_events import DesktopEvents
-from isardvdi_common.lib import queue_tiers
+from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, get_queue_from_storage_pools
@@ -233,6 +233,29 @@ class MigrationRunner:
     def _pool_of(self, path):
         pools = StoragePool.get_by_path(dirname(path))
         return pools[0] if pools else self.dst_pool
+
+    @staticmethod
+    def lane_is_drainable(conn, queue):
+        """Whether ``queue`` has a live consumer right now.
+
+        The runner is the one storage producer that never passes through
+        ``create_task``, so it is also the one that never consulted
+        ``queue_coverage`` -- which that module documents as MANDATORY on every
+        producer. Without it a move handed to an unserved lane sits queued for
+        ever: no worker takes it, nothing raises, no timeout fires, and the job
+        reports running while not a single disk moves.
+
+        Returns True on ANY uncertainty. That is the gate's own posture, and it
+        matters here: a storage node restarting must delay a migration, never
+        stall it. A False answer is transient by nature, so the caller leaves the
+        disk pending for the next tick rather than failing it -- terminalizing a
+        tree over a worker restart would be a far worse trade.
+        """
+        try:
+            decision, ctx = queue_coverage.lane_shed_decision(conn, queue)
+        except Exception:
+            return True
+        return not (decision == "reject" and ctx.get("reason") == "no_consumer")
 
     def _enqueue(self, task, queue, kwargs, timeout=None):
         # Stamp the migration id into the RQ job meta (the single chokepoint) so
@@ -733,10 +756,21 @@ class MigrationRunner:
             log.exception(
                 "migration: could not set maintenance on %s", item["storage_id"]
             )
+        queue = self._move_queue(item["src_path"])
+        if not self.lane_is_drainable(Task._redis, queue):
+            # transient: leave the disk pending and let the next tick retry, so a
+            # restarting storage node delays the migration instead of stalling it
+            log.warning(
+                "migration %s: no consumer for %s, deferring %s",
+                self.migration_id,
+                queue,
+                item["storage_id"],
+            )
+            return
         bwlimit = int(self.config.get("bwlimit_kbs") or 0)
         task_id = self._enqueue(
             "move",
-            self._move_queue(item["src_path"]),
+            queue,
             {
                 "origin_path": item["src_path"],
                 "destination_path": item["dst_path"],
