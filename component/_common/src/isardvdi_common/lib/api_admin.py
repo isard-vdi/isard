@@ -91,6 +91,15 @@ def _pluck_field_names(pluck) -> list[str]:
     return [str(pluck)]
 
 
+_MANAGER_VISIBLE_FIELDS_BY_TABLE: dict[str, tuple] = {
+    # Managers have no hypervisor views of their own: all they read is the
+    # favourite hypervisor picker, so don't hand them the ssh user and
+    # port, the viewer proxies and the rest of the node document.
+    # Widening this needs the counters merge back in manager_table_list.
+    "hypervisors": ("id", "hostname"),
+}
+
+
 def _validate_pluck_safe(table: str, pluck) -> None:
     """Raise Error('forbidden') if pluck targets blocklisted fields."""
     if pluck is None:
@@ -583,6 +592,7 @@ class ApiAdmin(RethinkSharedConnection):
 
         # Reject pluck requests for sensitive fields
         _validate_pluck_safe(table, pluck)
+        visible_fields = _MANAGER_VISIBLE_FIELDS_BY_TABLE.get(table)
         CATEGORY_LIMITED_TABLES = cls.get_category_limited_tables()
         query = r.table(table)
 
@@ -627,9 +637,6 @@ class ApiAdmin(RethinkSharedConnection):
         if table == "media":
             query = query.merge(cls.parse_media_data_merge())
 
-        if table == "hypervisors":
-            query = query.merge(cls.parse_hypervisor_data_merge())
-
         if table == "deployments":
             query = (
                 query.merge(cls.parse_deployment_data_merge())
@@ -641,6 +648,10 @@ class ApiAdmin(RethinkSharedConnection):
 
         check_item_category = id and not index and table in CATEGORY_LIMITED_TABLES
         requested_fields = set(_pluck_field_names(pluck))
+        if visible_fields:
+            pluck = [f for f in visible_fields if f in requested_fields] or list(
+                visible_fields
+            )
 
         added_fields = []
         if pluck:
