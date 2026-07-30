@@ -512,8 +512,6 @@ class StorageService:
             # Already typed (e.g. set_maintenance's preconditions): re-raise
             # it untouched so its description_code survives.
             raise
-        except Error:
-            raise
         except Exception as e:
             raise Error(*e.args)
 
