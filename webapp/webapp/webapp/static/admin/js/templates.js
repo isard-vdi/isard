@@ -44,7 +44,6 @@ columns= [
     { "data": "category_name"},
     { "data": "group_name"},
     { "data": "server", "width": "10px", "defaultContent":"-"},
-    { "data": "hyp_started", "width": "100px"},
     { "data": "favourite_hyp", "width": "100px"},
     { "data": "forced_hyp", "width": "100px"},
     { "data": "accessed", 'defaultContent': '' },
@@ -105,15 +104,6 @@ columnDefs = [
     },{
         "targets": 13,
         "render": function (data, type, full, meta) {
-            if('hyp_started' in full && full.hyp_started != ''){
-                return full.hyp_started;
-            } else {
-                return '-'
-            }
-        }
-    },{
-        "targets": 14,
-        "render": function (data, type, full, meta) {
             if('favourite_hyp' in full && full.favourite_hyp != ''){
                 return full.favourite_hyp;
             } else {
@@ -121,7 +111,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 15,
+        "targets": 14,
         "render": function (data, type, full, meta) {
             if('forced_hyp' in full && full.forced_hyp != ''){
                 return full.forced_hyp;
@@ -130,7 +120,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 16,
+        "targets": 15,
         "render": function (data, type, full, meta) {
             if ( type === 'display' || type === 'filter' ) {
                 return moment.unix(full.accessed).fromNow()
@@ -142,10 +132,8 @@ columnDefs = [
 
 // Templates table render
     // Remove Select column (used for bulk actions)
-    columns.splice(17, 1)
+    columns.splice(16, 1)
     // Remove Server column
-    columns.splice(12, 1)
-    // Remove Started Hyper column
     columns.splice(12, 1)
     // Remove Status, Action, Memory(GB) and VCPUs columns
     columns.splice(5, 4)
@@ -162,8 +150,8 @@ columnDefs = [
         {"data": "derivates", "width": "2px"},
         {"defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'},
     );
-    // Remove custom rendering of Status, Action, Memory(GB), Server and Started Hyper columns
-    columnDefs.splice(1, 5)
+    // Remove custom rendering of Status, Action, Memory(GB) and Server columns
+    columnDefs.splice(1, 4)
     // Change custom render target of Favourite Hyper, Forced Hyper and Last Access columns
     columnDefs[1]["targets"]=8
     columnDefs[2]["targets"]=9
