@@ -31,7 +31,7 @@ func (r *RDPGwServer) Serve(ctx context.Context) {
 	m := http.NewServeMux()
 	m.Handle("/remoteDesktopGateway/", common.EnrichContext(http.HandlerFunc(r.Gateway.HandleGatewayProtocol)))
 
-	kpr, err := tlsReloader.NewKeyPairReloader(certPath, keyPath)
+	kpr, err := tlsReloader.NewKeyPairReloader(r.Log, certPath, keyPath)
 	if err != nil {
 		r.Log.Fatal().Err(err).Msg("create tls certificate reloader")
 	}
@@ -47,7 +47,7 @@ func (r *RDPGwServer) Serve(ctx context.Context) {
 	}
 
 	go func() {
-		if err := kpr.Start(ctx, r.Log); err != nil {
+		if err := kpr.Start(ctx); err != nil {
 			r.Log.Fatal().Err(err).Msg("start certificate reloader")
 		}
 	}()
