@@ -45,7 +45,6 @@ from subprocess import (
 )
 from time import sleep, time
 
-from isardvdi_common.helpers.error_base import ErrorBase
 from isardvdi_common.helpers.task_cancel import TaskCancelWatcher
 from isardvdi_common.helpers.task_streams import (
     PROGRESS_STREAM,
@@ -53,10 +52,9 @@ from isardvdi_common.helpers.task_streams import (
     maxlen_for_stream,
     stream_for_kind,
 )
-from isardvdi_common.models.domain import Domain
-from isardvdi_common.models.media import Media
 from isardvdi_common.models.task import Task
 from rq import get_current_job
+from rq.job import JobStatus
 
 log = logging.getLogger(__name__)
 
@@ -326,13 +324,13 @@ def run_with_progress(command, extract_progress, on_progress=None, initial_check
     :type extrct_progress: Callable function with progress as firt parameter
     :param on_progress: Optional callback invoked with the rounded progress
         fraction (0.0–1.0) on each tick AND once with ``1.0`` on success.
-        Used by ``move()`` to mirror the rsync percentage onto a Domain row's
-        ``progress`` field so the user-facing templates list can render a
-        progress bar the same way Media downloads do.
+        Used by ``move()`` to state the rsync percentage for the domain row
+        so the user-facing templates list can render a progress bar the same
+        way media downloads do.
     :type on_progress: Callable[[float], None] | None
     :param initial_check: Optional one-shot callable invoked by
         :class:`TaskCancelWatcher` on entry to close the
-        publish-before-subscribe race (see ``_media_aborting``). May be
+        publish-before-subscribe race (see ``_job_canceled``). May be
         ``None`` when the cancel signal can only arrive *after* the
         subprocess is already running (the usual case for the
         ``abort-operations`` storage path).
@@ -738,6 +736,9 @@ _CURL_PROGRESS_KEYS = (
 
 _DOWNLOAD_PROGRESS_FLUSH_SECONDS = 1.0
 
+#: Job metadata key change-handler reads the row payload from.
+ROW_PROGRESS_META_KEY = "row_progress"
+
 
 def _curl_progress_dict(line):
     """Parse a single curl progress meter line into the legacy 12-key dict.
@@ -760,66 +761,44 @@ def _curl_progress_dict(line):
     return progress
 
 
-def _no_verdict_without_a_database(kind, item_id, exc):
-    """Answer "not aborting" when the row cannot be consulted at all.
+def _state_progress(progress):
+    """State the row progress instead of writing it.
 
-    A storage worker routinely runs where there is no ``isard-db`` to ask:
-    the ``storage``, ``hypervisor`` and ``hypervisor-standalone`` flavours
-    each ship the storage part without the database one (``build.sh``), so
-    every model lookup raises there.
-
-    Answering "aborting" in that case set the cancel watcher's event on
-    entry, which killed curl before its first byte, unlinked the partial
-    file and raised ``CalledProcessError(130)`` — so on every remote node
-    each download failed while looking like a user cancellation.
-
-    Cancellation still arrives over redis pub/sub, which is the primary
-    signal and needs no database; this check only closes the narrow
-    publish-before-subscribe race, and closing it is not worth failing
-    every download that a remote node ever starts.
+    A storage worker cannot reach the database of the row it is working on, so
+    it leaves the payload in the job metadata and change-handler persists it
+    from the node that can. The job kwargs already name the row, so nothing
+    else has to travel.
     """
-    log.warning(
-        "%s %s: no database to check for an abort (%s); continuing — redis "
-        "pub/sub remains the cancel signal",
-        kind,
-        item_id,
-        exc,
-    )
-    return False
+    job = get_current_job()
+    if job is None:
+        return
+    job.meta[ROW_PROGRESS_META_KEY] = progress
+    job.save_meta()
 
 
-def _media_aborting(media_id):
-    """Return True if the media row's status was flipped to DownloadAborting.
+def _job_canceled():
+    """True when this job has been cancelled.
 
-    This is the one-shot startup check used by ``TaskCancelWatcher`` to
-    close the narrow race where apiv4 publishes the cancel signal before
-    the worker subscribes. After startup, the pub/sub listener is the
-    primary signal — no per-iteration rethink lookup.
+    Redis only, so it answers on a node that has no database — which is where
+    a storage worker usually runs: the storage, hypervisor and
+    hypervisor-standalone flavours each ship the storage part without the
+    database one.
+
+    It also closes the race the row lookup used to cover. ``Task.cancel`` sets
+    the job status persistently, so a cancel published before the watcher
+    subscribed is still visible here on entry; the row status was only ever a
+    stand-in for that flag.
+
+    Fails open: a redis hiccup must not abort a download that is running.
     """
+    job = get_current_job()
+    if job is None:
+        return False
     try:
-        return Media(media_id).status == "DownloadAborting"
-    except ErrorBase:
-        # The lookup reached the database and it answered "no such
-        # document": the row vanished mid-flight, so abort.
-        return True
+        return job.get_status(refresh=True) == JobStatus.CANCELED
     except Exception as exc:
-        return _no_verdict_without_a_database("media", media_id, exc)
-
-
-def _domain_aborting(domain_id):
-    """Same pattern as ``_media_aborting`` but for the domain table.
-
-    The registry-download chain flips the row status to
-    ``DownloadAborting`` when apiv4 cancels — the
-    :class:`TaskCancelWatcher` checks this once on entry to close the
-    pub/sub-before-subscribe race.
-    """
-    try:
-        return Domain(domain_id).status == "DownloadAborting"
-    except ErrorBase:
-        return True
-    except Exception as exc:
-        return _no_verdict_without_a_database("domain", domain_id, exc)
+        log.warning("cancel check failed, letting the download run: %s", exc)
+        return False
 
 
 def _curl_header_config(headers):
@@ -1010,10 +989,11 @@ def download_url(
     Replaces the engine's SSH-to-hypervisor curl path with an RQ task on
     isard-storage. The curl invocation matches what
     ``engine/services/threads/download_thread.py`` used to issue. Progress
-    is written live to ``Media(media_id).progress`` so the existing
-    frontend keeps rendering the same fields (received / total_percent /
-    speed_current / time_left). The single ``job.meta['progress']`` float
-    is also kept up to date for the generic task panel.
+    is stated in the job metadata and persisted onto the media row by
+    change-handler, so the existing frontend keeps rendering the same fields
+    (received / total_percent / speed_current / time_left). The single
+    ``job.meta['progress']`` float is also kept up to date for the generic
+    task panel.
 
     :param media_id: Media row id to update progress on
     :param url: Source URL (already validated by apiv4)
@@ -1030,15 +1010,9 @@ def download_url(
         ``DownloadFailed``)
     """
     log.info("download_url: media=%s dest=%s", media_id, dest_path)
-    # Flip the row to Downloading so the user sees curl is now actually
-    # running (the chain root shows DownloadStarting while queued).
-    try:
-        Media(media_id).status = "Downloading"
-    except Exception:
-        log.exception("download_url: failed to flip media %s to Downloading", media_id)
 
     def _flush(progress):
-        Media(media_id).progress = progress
+        _state_progress(progress)
 
     _run_curl_download(
         url=url,
@@ -1047,7 +1021,7 @@ def download_url(
         insecure_ssl=insecure_ssl,
         google_drive_cookie=google_drive_cookie,
         flush_progress=_flush,
-        is_aborting=lambda: _media_aborting(media_id),
+        is_aborting=_job_canceled,
     )
 
     return {
@@ -1105,16 +1079,9 @@ def download_url_for_domain(
         storage_id,
         dest_path,
     )
-    try:
-        Domain(domain_id).status = "Downloading"
-    except Exception:
-        log.exception(
-            "download_url_for_domain: failed to flip domain %s to Downloading",
-            domain_id,
-        )
 
     def _flush(progress):
-        Domain(domain_id).progress = progress
+        _state_progress(progress)
 
     _run_curl_download(
         url=url,
@@ -1123,7 +1090,7 @@ def download_url_for_domain(
         insecure_ssl=insecure_ssl,
         google_drive_cookie=google_drive_cookie,
         flush_progress=_flush,
-        is_aborting=lambda: _domain_aborting(domain_id),
+        is_aborting=_job_canceled,
     )
 
     return {
@@ -1237,10 +1204,9 @@ def move(
 
         def _flush_domain_progress(pct):
             percent_int = int(round(pct * 100))
-            Domain(progress_domain_id).progress = {
-                "total_percent": percent_int,
-                "received_percent": percent_int,
-            }
+            _state_progress(
+                {"total_percent": percent_int, "received_percent": percent_int}
+            )
 
         on_progress = _flush_domain_progress
 

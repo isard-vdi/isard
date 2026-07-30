@@ -1,97 +1,96 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""The abort check when the storage worker cannot reach the database.
+"""Deciding whether a download was cancelled, without a database to ask.
 
-``isard-storage`` ships on nodes that have no ``isard-db``: the ``storage``,
-``hypervisor`` and ``hypervisor-standalone`` flavours all include the storage
-part and none of them includes the database one (``build.sh``). On those nodes
-every ``Media(...)`` / ``Domain(...)`` lookup raises.
+The check used to read the row's status and answer *"yes, abort"* to any
+failure of that lookup. On a node with no ``isard-db`` — the normal state for
+the storage, hypervisor and hypervisor-standalone flavours — the lookup always
+fails, so curl was killed before its first byte, the partial file was unlinked
+and the job raised ``CalledProcessError(130)``: every download on every remote
+node failed, and failed looking exactly like a user cancelling it.
 
-The abort check used to answer *"yes, abort"* to any failure. That set the
-cancel watcher's event on entry, so curl was killed before its first byte, the
-partial file was unlinked and the job raised ``CalledProcessError(130)`` — a
-completed-looking cancellation. Every download on every remote node failed that
-way.
-
-A row that is provably gone must still abort; a database we simply cannot reach
-must not.
+The signal is now the job's own status, which lives in redis. ``Task.cancel``
+sets it persistently, so it also closes the race the row lookup covered: a
+cancel published before the watcher subscribed is still visible on entry.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
-from isardvdi_common.helpers.error_base import ErrorBase
+from rq.job import JobStatus
 
 
-class _Unreachable(Exception):
-    """Stands in for the driver's ReqlDriverError.
+@pytest.fixture
+def job(monkeypatch):
+    import task
 
-    The real one is ``rethinkdb.errors.ReqlDriverError``: *"Could not connect
-    to isard-db:28015"*. Any non-:class:`ErrorBase` exception must be treated
-    the same way, which is what this test pins.
-    """
+    j = MagicMock()
+    monkeypatch.setattr(task, "get_current_job", lambda: j, raising=False)
+    return j
 
 
-def _raising(exc):
-    def _factory(_id):
-        raise exc
+def test_a_cancelled_job_aborts(job):
+    import task
 
-    return _factory
+    job.get_status.return_value = JobStatus.CANCELED
+
+    assert task._job_canceled() is True
 
 
 @pytest.mark.parametrize(
-    "check, model",
-    [("_media_aborting", "Media"), ("_domain_aborting", "Domain")],
+    "status", [JobStatus.STARTED, JobStatus.QUEUED, JobStatus.DEFERRED]
 )
-def test_an_unreachable_database_does_not_abort_the_download(monkeypatch, check, model):
+def test_a_running_job_is_left_alone(job, status):
     import task
 
-    monkeypatch.setattr(task, model, _raising(_Unreachable("no route to isard-db")))
+    job.get_status.return_value = status
 
-    assert getattr(task, check)("id-1") is False
+    assert task._job_canceled() is False
 
 
-@pytest.mark.parametrize(
-    "check, model",
-    [("_media_aborting", "Media"), ("_domain_aborting", "Domain")],
-)
-def test_a_row_that_is_gone_still_aborts_the_download(monkeypatch, check, model):
+def test_the_status_is_read_fresh(job):
+    """A cached status would miss a cancel that arrived after the job started."""
     import task
 
-    monkeypatch.setattr(
-        task,
-        model,
-        _raising(ErrorBase("not_found", "Document with id id-1 does not exist.")),
-    )
+    job.get_status.return_value = JobStatus.STARTED
+    task._job_canceled()
 
-    assert getattr(task, check)("id-1") is True
+    job.get_status.assert_called_once_with(refresh=True)
 
 
-@pytest.mark.parametrize(
-    "check, model",
-    [("_media_aborting", "Media"), ("_domain_aborting", "Domain")],
-)
-def test_the_row_flag_still_aborts_when_the_database_answers(monkeypatch, check, model):
+def test_an_unreachable_redis_does_not_abort_the_download(job):
+    """Fail open: losing the cancel channel must not kill a live transfer."""
     import task
 
-    class _Row:
-        def __init__(self, _id):
-            self.status = "DownloadAborting"
+    job.get_status.side_effect = RuntimeError("no redis")
 
-    monkeypatch.setattr(task, model, _Row)
-
-    assert getattr(task, check)("id-1") is True
+    assert task._job_canceled() is False
 
 
-@pytest.mark.parametrize(
-    "check, model",
-    [("_media_aborting", "Media"), ("_domain_aborting", "Domain")],
-)
-def test_a_running_download_is_not_aborted(monkeypatch, check, model):
+def test_no_job_means_nothing_to_cancel(monkeypatch):
     import task
 
-    class _Row:
-        def __init__(self, _id):
-            self.status = "Downloading"
+    monkeypatch.setattr(task, "get_current_job", lambda: None, raising=False)
 
-    monkeypatch.setattr(task, model, _Row)
+    assert task._job_canceled() is False
 
-    assert getattr(task, check)("id-1") is False
+
+def test_the_progress_is_stated_in_the_job_metadata(job):
+    """The worker states the row progress; change-handler persists it."""
+    import task
+
+    job.meta = {}
+    payload = {"received_percent": 42, "total_percent": 42}
+
+    task._state_progress(payload)
+
+    assert job.meta[task.ROW_PROGRESS_META_KEY] == payload
+    job.save_meta.assert_called_once()
+
+
+def test_stating_progress_outside_a_job_is_harmless(monkeypatch):
+    import task
+
+    monkeypatch.setattr(task, "get_current_job", lambda: None, raising=False)
+
+    task._state_progress({"received_percent": 1})
