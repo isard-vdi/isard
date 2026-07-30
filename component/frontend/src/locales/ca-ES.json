@@ -1204,6 +1204,7 @@
         "description": "Vols restablir les claus VPN? Hauràs de descarregar un nou fitxer VPN",
         "cancel": "Cancel·la",
         "confirm": "Restableix la VPN",
+        "success": "Les claus VPN s'han restablert correctament.",
         "errors": {
           "unauthorized": "La teva sessió ha expirat. Si us plau, inicia sessió de nou.",
           "internal_server": "No s'han pogut restablir les claus VPN per un error del servidor. Si us plau, intenta-ho més tard.",

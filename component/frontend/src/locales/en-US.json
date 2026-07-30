@@ -1106,6 +1106,7 @@
         "description": "Reset VPN keys? You will have to download a new VPN file",
         "cancel": "Cancel",
         "confirm": "Reset VPN",
+        "success": "VPN keys were reset successfully.",
         "errors": {
           "unauthorized": "Your session has expired. Please log in again.",
           "internal_server": "We couldn't reset your VPN keys due to a server error. Please try again later.",
