@@ -84,6 +84,8 @@ def new_storage_directory_path(user_id, pool_usage):
     :param pool_usage: Storage pool_usage: desktop or template
     :type pool_usage: str
     """
+    from isardvdi_common.helpers.error_factory import Error
+
     storage_pool = StoragePool.get_by_user_kind(user_id, pool_usage)
     if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
         return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(pool_usage)}"
@@ -91,13 +93,13 @@ def new_storage_directory_path(user_id, pool_usage):
     # the owner is gone the previous code fell through and returned None, which
     # produced a "None/<id>.qcow2" path on disk. Fail loudly instead.
     if not User.exists(user_id):
-        raise Exception(
+        raise Error(
             "precondition_required",
             f"Cannot resolve storage path: user {user_id} does not exist",
         )
     category = User(user_id).category
     if not category:
-        raise Exception(
+        raise Error(
             "precondition_required",
             f"Cannot resolve storage path: user {user_id} has no category",
         )
@@ -129,10 +131,13 @@ class Storage(RethinkCustomBase):
         :param parent_id: Parent ID
         :type parent_id: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         if parent_id and not cls.exists(parent_id):
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"Parent {parent_id} does not exist",
+                description_code="parent_storage_not_found",
             )
 
         storage_dict = {
@@ -229,11 +234,14 @@ class Storage(RethinkCustomBase):
         category (deleted owner) would otherwise produce a literal
         "<mountpoint>/None/..." path, so fail loudly instead.
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         category = self.category
         if not category:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"Cannot resolve storage path: storage {self.id} owner has no category",
+                description_code="storage_owner_no_category",
             )
         return category
 
@@ -264,12 +272,13 @@ class Storage(RethinkCustomBase):
         :param usage: The usage to be used
         :type usage: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         if usage not in ["desktop", "template"]:
-            raise Exception(
-                {
-                    "error": "bad_request",
-                    "description": f"Usage {usage} must be desktop or template",
-                }
+            raise Error(
+                "bad_request",
+                f"Usage {usage} must be desktop or template",
+                description_code="storage_invalid_usage",
             )
 
         # Resolve usage from the directory, not self.path (which includes the
@@ -1308,25 +1317,27 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         if not self.parent:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 "Storage parent missing",
-                "storage_has_no_parent",
+                description_code="storage_has_no_parent",
             )
 
         if not self.operational:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 "Storage parent not ready",
-                "storage_parent_not_ready",
+                description_code="storage_parent_not_ready",
             )
 
         if not Storage.exists(self.parent):
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 "Storage parent missing",
-                "storage_has_no_parent",
+                description_code="storage_has_no_parent",
             )
         storage_parent = Storage(self.parent)
         parent_args = {
@@ -1490,24 +1501,28 @@ class Storage(RethinkCustomBase):
         """
         # No parent_id means a brand-new blank disk; the storage worker's
         # create task omits the backing file in that case.
+        from isardvdi_common.helpers.error_factory import Error
+
         parent_args = {}
         if parent_id:
             if not Storage.exists(parent_id):
-                raise Exception(
+                raise Error(
                     "not_found",
                     f"Parent storage {parent_id} not found",
+                    description_code="parent_storage_not_found",
                 )
             storage_parent = Storage(parent_id)
             if storage_parent.status != "ready":
-                raise Exception(
+                raise Error(
                     "precondition_required",
                     "Parent storage is not ready",
-                    "storage_not_ready",
+                    description_code="storage_not_ready",
                 )
             if storage_parent.type != storage_type:
-                raise Exception(
+                raise Error(
                     "precondition_required",
                     "Parent storage type does not match",
+                    description_code="parent_storage_type_mismatch",
                 )
             parent_args = {
                 "parent_path": storage_parent.path,
@@ -2041,9 +2056,11 @@ class Storage(RethinkCustomBase):
 
         :return: Root task id.
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         pool = self.pool
         if pool is None:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"No storage pool found for domain {domain_id}",
             )
@@ -2190,15 +2207,17 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         if get_storage_id_from_path(new_path) != self.id:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"Storage ID {self.id} does not match the path {new_path}",
-                "storage_id_mismatch",
+                description_code="storage_id_mismatch",
             )
 
         if self.path == new_path:
-            raise Exception(
+            raise Error(
                 "bad_request",
                 f"Path {new_path} is the same as the storage path",
             )
@@ -2282,15 +2301,17 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         if get_storage_id_from_path(path) != self.id:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"Storage ID {self.id} does not match the path {path}",
-                "storage_id_mismatch",
+                description_code="storage_id_mismatch",
             )
 
         if self.path == path:
-            raise Exception(
+            raise Error(
                 "bad_request",
                 f"Path {path} is the same as the storage path",
             )
