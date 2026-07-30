@@ -47,6 +47,7 @@ except ImportError:  # pragma: no cover
 import redis
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.desktop_events import DesktopEvents
+from isardvdi_common.lib import queue_tiers
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, get_queue_from_storage_pools
@@ -216,8 +217,17 @@ class MigrationRunner:
         item.update(fields)
 
     def _move_queue(self, src_path):
+        """Cross-pool move lane for this disk, tiered by the tier RULES.
+
+        The runner enqueues the task itself and so never passes through
+        ``create_task``: nothing else would apply the hard floor that puts a
+        whole-disk move on a PSI-paced heavy tier. Hand-building the tier here
+        left every migration rsync on ``default`` -- governed by neither the PSI
+        defer nor the max-heavy cap, for a copy that runs for hours.
+        """
         src_pool = self._pool_of(src_path)
-        return f"storage.{get_queue_from_storage_pools(src_pool, self.dst_pool)}.{DEFAULT_PRIORITY}"
+        key = get_queue_from_storage_pools(src_pool, self.dst_pool)
+        return queue_tiers.retier_queue(f"storage.{key}.{DEFAULT_PRIORITY}", "move")
 
     def _pool_queue(self, path):
         return f"storage.{self._pool_of(path).id}.{DEFAULT_PRIORITY}"
@@ -946,9 +956,18 @@ class MigrationRunner:
         # backing chain. Operator-set, because on a thin-provisioned pool no
         # free-space probe can size this safely.
         budget = int(self.config.get("max_bytes_per_occurrence") or 0)
-        budget_spent = not mig.budget_allows_new_tree(
-            mig.occurrence_bytes_moved(items), budget
-        )
+        occurrence = self.migration.last_occurrence or "initial"
+
+        def _budget_spent():
+            # Re-read every time a tree is about to start: a tree that committed
+            # earlier in THIS tick has already spent its bytes, so a single
+            # top-of-tick decision would overshoot by parallelism x tree.
+            return not mig.budget_allows_new_tree(
+                mig.occurrence_bytes_moved(self._items(), occurrence),
+                budget,
+            )
+
+        budget_spent = bool(budget) and _budget_spent()
         if budget_spent:
             slots = 0
 
@@ -1058,15 +1077,25 @@ class MigrationRunner:
                     MigrationStatus.WINDOW_CLOSED.value,
                     MigrationStatus.BUDGET_REACHED.value,
                 ):
-                    if has_window and not win_open:
-                        target = MigrationStatus.WINDOW_CLOSED.value
-                    elif budget_spent and not any_in_flight:
-                        # spent AND drained: say so instead of sitting in
-                        # ``running`` while nothing moves -- an idle job that
-                        # still claims to run is indistinguishable from a wedge.
-                        target = MigrationStatus.BUDGET_REACHED.value
-                    else:
-                        target = MigrationStatus.RUNNING.value
+                    target = (
+                        MigrationStatus.WINDOW_CLOSED.value
+                        if (has_window and not win_open)
+                        else MigrationStatus.RUNNING.value
+                    )
+            # A spent budget with nothing left in flight is reported for EVERY
+            # job kind, recurring included: recurring_status_target never returns
+            # None for a recurring job, so gating this on ``target is None`` hid
+            # the status from the only kind that has occurrences -- leaving it
+            # sitting in ``running`` with nothing moving, which is exactly the
+            # wedge-shaped silence the status exists to break.
+            if (
+                budget_spent
+                and not any_in_flight
+                and not finishing
+                and target
+                in (MigrationStatus.RUNNING.value, MigrationStatus.SCHEDULED.value)
+            ):
+                target = MigrationStatus.BUDGET_REACHED.value
             # recurring: running (in-window/in-flight) or scheduled (idle).
             if target is not None and cur != target:
                 self.migration.status = target
@@ -1109,6 +1138,11 @@ _DRIVABLE_STATUSES = {
     MigrationStatus.WINDOW_CLOSED.value,
     MigrationStatus.FINISHING_TREE.value,
     MigrationStatus.SCHEDULED.value,
+    #: budget-parked jobs MUST stay drivable: a recurring one resumes when its
+    #: next occurrence resets the spend, and a one-shot resumes the moment an
+    #: admin raises the budget. Leaving it out made the status a dead end that
+    #: only a manual Start could leave.
+    MigrationStatus.BUDGET_REACHED.value,
 }
 #: Per-migration advance lease TTL. MUST exceed the worst-case SINGLE tick(): a
 #: tick can block on the rethink pool-acquire timeout (~30s) plus redis

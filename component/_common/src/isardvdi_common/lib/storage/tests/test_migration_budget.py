@@ -15,20 +15,16 @@ always finishes, because stopping mid-tree would leave a half-migrated chain.
 from isardvdi_common.lib.storage import migration as mig
 
 
-def _it(state, size):
-    return {"state": state, "size_bytes": size}
-
-
-def test_bytes_moved_counts_only_disks_that_actually_landed():
-    items = [
-        _it("released", 100),
-        _it("db_updated", 50),
-        _it("moved", 25),
-        _it("moving", 999),  # in flight, not landed
-        _it("pending", 999),  # never started
-        _it("skipped", 999),  # never moved
+def test_item_state_is_not_a_budget_basis():
+    """Regression guard. The first implementation summed size_bytes over item
+    STATES, which is cumulative for the job's life and wedged every recurring
+    job with a budget after its first occurrence. The accounting must come from
+    the audit records, so a bare state carries no bytes at all."""
+    state_only = [
+        {"state": "released", "size_bytes": 100},
+        {"state": "moved", "size_bytes": 50},
     ]
-    assert mig.occurrence_bytes_moved(items) == 175
+    assert mig.occurrence_bytes_moved(state_only, "initial") == 0
 
 
 def test_budget_of_zero_means_unlimited():
@@ -42,3 +38,58 @@ def test_budget_allows_a_new_tree_below_the_cap():
 def test_budget_stops_new_trees_once_reached():
     assert mig.budget_allows_new_tree(1000, 1000) is False
     assert mig.budget_allows_new_tree(1001, 1000) is False
+
+
+# --------------------------------------------------------------------------- #
+# The budget must be PER OCCURRENCE. Item state is not a usable basis: a
+# released item keeps that state for the job's whole life and re-arm never
+# resets it, so a state-based sum spends a recurring job's budget once and for
+# ever. The append-only audit records carry the occurrence they belong to.
+# --------------------------------------------------------------------------- #
+def _audited(occurrence, size, result="moved_ok"):
+    return {
+        "state": "released",
+        "size_bytes": size,
+        "audit": [{"occurrence": occurrence, "size_bytes": size, "result": result}],
+    }
+
+
+def test_bytes_moved_counts_only_the_current_occurrence():
+    items = [
+        _audited("night-1", 100),
+        _audited("night-1", 50),
+        _audited("night-2", 7),
+    ]
+    assert mig.occurrence_bytes_moved(items, "night-2") == 7
+    assert mig.occurrence_bytes_moved(items, "night-1") == 150
+
+
+def test_a_recurring_job_does_not_inherit_the_previous_occurrence_budget():
+    """The wedge this prevents: night 1 spends the whole budget, night 2 starts
+    with a clean one instead of being blocked for the rest of the job's life."""
+    spent_night_1 = [_audited("night-1", 500)]
+    assert (
+        mig.budget_allows_new_tree(
+            mig.occurrence_bytes_moved(spent_night_1, "night-1"), 500
+        )
+        is False
+    )
+    # same ledger, next occurrence -> the budget is available again
+    assert (
+        mig.budget_allows_new_tree(
+            mig.occurrence_bytes_moved(spent_night_1, "night-2"), 500
+        )
+        is True
+    )
+
+
+def test_an_in_place_disk_does_not_spend_budget():
+    """``in_place`` means nothing was copied, so it must not consume a volume
+    budget even though the item is released and audited."""
+    items = [_audited("initial", 900, result="in_place")]
+    assert mig.occurrence_bytes_moved(items, "initial") == 0
+
+
+def test_a_one_shot_job_uses_the_initial_occurrence():
+    items = [_audited("initial", 42)]
+    assert mig.occurrence_bytes_moved(items, "initial") == 42

@@ -1222,7 +1222,11 @@ def move(
         free = _free_space(dirname(destination_path))
         if free is not None:  # a probe that cannot answer must not block a move
             try:
-                needed = os_stat(origin_path).st_blocks * 512
+                # APPARENT size, not st_blocks: the rsync argv carries no
+                # --sparse, so a sparse qcow2 lands fully allocated at the
+                # destination. Reserving only the allocated size would let the
+                # copy breach the very floor this gate exists to hold.
+                needed = os_stat(origin_path).st_size
             except OSError:
                 needed = 0
             if free - needed < min_free_bytes:

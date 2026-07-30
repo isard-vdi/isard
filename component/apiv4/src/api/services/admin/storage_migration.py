@@ -34,7 +34,7 @@ from zoneinfo import ZoneInfo
 
 from api.services.error import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
-from isardvdi_common.lib import queue_coverage
+from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.lib.storage.migration_run import DEFAULT_PRIORITY
 from isardvdi_common.models.storage import get_queue_from_storage_pools
@@ -250,7 +250,10 @@ class AdminStorageMigrationService:
             key = get_queue_from_storage_pools(src_pool, dst_pool)
             if key in opaque_pools:
                 continue
-            if not covered[(key, DEFAULT_PRIORITY)]:
+            # the tier the RUNNER lands on, resolved by the same rules it uses --
+            # a guard that checks a different tier protects nothing
+            tier = queue_tiers.normalize_tier(DEFAULT_PRIORITY, "move")
+            if not covered[(key, tier)]:
                 unserved.add(key)
         if unserved:
             raise Error(

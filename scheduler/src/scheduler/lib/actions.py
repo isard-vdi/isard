@@ -187,6 +187,7 @@ class Actions:
                 + StorageMigration.ids_by_status(MigrationStatus.WINDOW_CLOSED.value)
                 + StorageMigration.ids_by_status(MigrationStatus.FINISHING_TREE.value)
                 + StorageMigration.ids_by_status(MigrationStatus.SCHEDULED.value)
+                + StorageMigration.ids_by_status(MigrationStatus.BUDGET_REACHED.value)
             )
         except Exception:
             log.error(

@@ -833,19 +833,32 @@ def recurring_status_target(
 # --------------------------------------------------------------------------- #
 # Recurring re-scan cadence + failure policy + audit (pure)
 # --------------------------------------------------------------------------- #
-#: States in which a disk's bytes have actually landed on the destination. A
-#: disk still ``moving`` has consumed nothing durable yet, and ``skipped`` never
-#: moved at all, so neither counts against the budget.
-_BYTES_LANDED = {"moved", "rebased", "verified", "db_updated", "released"}
+#: Audit results that mean bytes were actually copied to the destination.
+#: ``in_place`` is a release with no copy (dst == src), so it spends no budget.
+_BUDGET_SPENDING_RESULTS = {"moved_ok"}
 
 
-def occurrence_bytes_moved(items):
-    """Bytes this occurrence has actually landed on the destination."""
-    return sum(
-        int(it.get("size_bytes") or 0)
-        for it in items
-        if str(it.get("state")) in _BYTES_LANDED
-    )
+def occurrence_bytes_moved(items, occurrence):
+    """Bytes committed to the destination DURING ``occurrence``.
+
+    Read from each item's append-only ``audit`` records, which carry the
+    occurrence they belong to -- NOT from the item's current state. A released
+    item keeps that state for the job's whole life (``_rearm_for_occurrence``
+    re-arms only failed/skipped disks, never released ones), so a state-based
+    sum is cumulative: it would spend a recurring job's budget on its first
+    occurrence and block every later one for ever.
+
+    Counted at commit, not mid-flight, so an in-flight tree does not spend
+    budget until it releases -- the same basis as ``compute_bytes_done``.
+    """
+    total = 0
+    for it in items:
+        for rec in it.get("audit") or []:
+            if rec.get("occurrence") != occurrence:
+                continue
+            if rec.get("result") in _BUDGET_SPENDING_RESULTS:
+                total += int(rec.get("size_bytes") or 0)
+    return total
 
 
 def budget_allows_new_tree(bytes_moved, max_bytes):
@@ -1418,7 +1431,24 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
 
     def dst_dir_of(s):
         if s.id not in dst_dir_cache:
-            dst_dir_cache[s.id] = s.get_storage_pool_path(dst_pool)
+            try:
+                dst_dir_cache[s.id] = s.get_storage_pool_path(dst_pool)
+            except Exception as exc:
+                # A category-nested (non-default) pool needs the owner's
+                # category, and get_storage_pool_path deliberately raises rather
+                # than write a "<mountpoint>/None/..." path. Keep that refusal,
+                # but say WHICH disk and what to do: otherwise one owner-less row
+                # aborts the whole plan with nothing to act on. Note this still
+                # fails the plan -- skipping just the disk would strand its
+                # children, so skipping its whole tree is separate work.
+                from isardvdi_common.helpers.error_base import ErrorBase
+
+                raise ErrorBase(
+                    "bad_request",
+                    f"Storage {s.id} cannot be placed in pool {dst_pool.id}: "
+                    f"{exc}. Give the disk a resolvable owner category, exclude "
+                    "it from the selection, or migrate into the default pool.",
+                ) from exc
         return dst_dir_cache[s.id]
 
     def dst_path_of(s):
