@@ -642,15 +642,38 @@ class MigrationRunner:
         never-started pending one) is left alone — never blindly forced to
         ``ready``, which would un-bin a ``recycled`` disk (saga-5)."""
         orig = item.get("storage_orig_status")
-        if orig is None:
-            return
+        if orig is not None:
+            updates = {"status": orig, "task": None}
+        else:
+            # No recorded original means we never put this disk into maintenance
+            # — but we may still have claimed it. A disk already sitting at the
+            # destination skips the move, so nothing records an original, while
+            # its parent still moves and the rebase claims the row. Dropping our
+            # claim is a separate concern from restoring a status we never took:
+            # a dead task id left behind makes a lookup by task return more than
+            # one storage and makes the next reconcile read finished work as
+            # live. Only ever clear a claim that is ours.
+            ours = {
+                item.get(key)
+                for key in (
+                    "move_task_id",
+                    "rebase_task_id",
+                    "verify_task_id",
+                    "move_delete_task_id",
+                )
+                if item.get(key)
+            }
+            if not ours:
+                return
+            try:
+                current = Storage(item["storage_id"]).task
+            except Exception:
+                return
+            if not current or current not in ours:
+                return
+            updates = {"task": None}
         try:
-            # clear the saga's claim with the status: leaving a stale task id on
-            # a row that is no longer ours makes the next reconcile pass read a
-            # dead task as if it were live work.
-            Storage.update_document(
-                item["storage_id"], {"status": orig, "task": None}, validate=False
-            )
+            Storage.update_document(item["storage_id"], updates, validate=False)
         except Exception:
             log.exception(
                 "migration: could not restore status on %s", item["storage_id"]
