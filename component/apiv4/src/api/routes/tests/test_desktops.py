@@ -902,6 +902,38 @@ def test_edit_desktop_allows_favourite_hyp_for_manager(monkeypatch, test_client)
     assert captured["data"] == {"favourite_hyp": ["hyp-a"]}
 
 
+def test_edit_desktop_forbids_server_for_user(monkeypatch, test_client):
+    """Only admins and managers may mark a desktop as server; a plain user
+    must get 403 and the service must never be reached."""
+    jwt = MockJWT(role_id="user")
+    called = {"edit": False}
+
+    def fake_edit_desktop(desktop_id, data, payload):
+        called["edit"] = True
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.edit_desktop",
+        staticmethod(fake_edit_desktop),
+    )
+    _bypass_owns_domain_id(monkeypatch)
+
+    class _FakeDomain:
+        def __init__(self, _id):
+            self.kind = "desktop"
+
+    monkeypatch.setattr("api.dependencies.domains.Domain", _FakeDomain)
+
+    response = test_client(
+        url="/item/desktop/desktop-1/edit",
+        method="PUT",
+        body={"server": True},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 403
+    assert called["edit"] is False
+
+
 def test_edit_desktop_forbids_favourite_hyp_for_user(monkeypatch, test_client):
     """A plain user owning the desktop must not set favourite_hyp."""
     jwt = MockJWT(role_id="user")

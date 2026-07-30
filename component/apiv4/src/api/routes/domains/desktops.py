@@ -656,7 +656,7 @@ async def bulk_edit_desktops(request: Request, data: BulkEditDesktopsRequest):
 
         if "forced_hyp" in update_payload:
             await is_admin(request.token_payload)
-        if "favourite_hyp" in update_payload:
+        if "favourite_hyp" in update_payload or "server" in update_payload:
             await is_admin_or_manager(request.token_payload)
 
         result = await asyncio.to_thread(
@@ -1252,7 +1252,7 @@ async def edit_desktop(
 
         if "forced_hyp" in payload:
             await is_admin(request.token_payload)
-        if "favourite_hyp" in payload:
+        if "favourite_hyp" in payload or "server" in payload:
             await is_admin_or_manager(request.token_payload)
 
         await asyncio.to_thread(
