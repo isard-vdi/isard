@@ -7,11 +7,14 @@ config). All endpoints sit on admin_router (admin-only).
 """
 
 import json
+import re
 import time
+from pathlib import Path
 
 import pytest
 from api.routes.tests.helpers import MockJWT
 from api.schemas.admin.queues import GovernorGaugesResponse
+from api.services.admin import queues as queues_service
 from api.services.admin.queues import STORAGE_SCHEDULER_DEFAULTS
 from api.services.error import Error
 
@@ -1738,3 +1741,75 @@ class TestProblemTasksRoute:
     def test_negative_offset_rejected(self, test_client):
         r = test_client(url=self.URL + "?offset=-1", jwt=MockJWT(role_id="admin"))
         assert r.status_code in (400, 422)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Gauge-cache TTL vs the stats-go scrape period
+# ══════════════════════════════════════════════════════════════════════════
+
+_REPO_ROOT = Path(__file__).resolve().parents[6]
+_ALLOY_METRICS = _REPO_ROOT / "docker" / "grafana-alloy" / "metrics.alloy"
+_GOVERNOR_RULES = (
+    _REPO_ROOT / "docker" / "vmalert" / "rules" / "storage_governor.rules.yml"
+)
+
+
+def _alloy_stats_go_scrape_period():
+    """Seconds between two consecutive isard-stats-go scrapes, read from the
+    Alloy config that performs them: the ``metrics_containers`` job, whose
+    discovery keeps the isard-stats-go container."""
+    if not _ALLOY_METRICS.is_file():
+        pytest.skip(f"{_ALLOY_METRICS} not available in this test environment")
+    config = _ALLOY_METRICS.read_text()
+
+    discovery = re.search(
+        r'discovery\.relabel "containers_with_metrics"\s*\{(.*?)\n\}', config, re.S
+    )
+    assert discovery, "containers_with_metrics discovery block not found"
+    assert "stats-go" in discovery.group(
+        1
+    ), "isard-stats-go is no longer discovered by the metrics_containers job"
+
+    scrape = re.search(
+        r'prometheus\.scrape "metrics_containers"\s*\{(.*?)\n\}', config, re.S
+    )
+    assert scrape, "metrics_containers scrape block not found"
+    interval = re.search(r'scrape_interval\s*=\s*"(\d+)s"', scrape.group(1))
+    assert interval, "metrics_containers has no explicit scrape_interval"
+    return int(interval.group(1))
+
+
+def _governor_data_stale_threshold():
+    """The ``data_age_seconds`` ceiling above which GovernorDataStale warns."""
+    if not _GOVERNOR_RULES.is_file():
+        pytest.skip(f"{_GOVERNOR_RULES} not available in this test environment")
+    threshold = re.search(
+        r"isardvdi_storage_governor_data_age_seconds\s*>\s*(\d+)",
+        _GOVERNOR_RULES.read_text(),
+    )
+    assert threshold, "GovernorDataStale threshold not found"
+    return int(threshold.group(1))
+
+
+class TestGaugeCacheTtlVsScrapePeriod:
+    """The stats-go ``storage_governor`` collector is the only automated caller
+    of ``get_governor``, and it calls it exactly once per Alloy scrape. A TTL
+    that does not outlive the scrape period therefore never serves a hit — every
+    scrape recomputes — so the cache would be pure bookkeeping. These caches must
+    outlive one scrape, while staying under the payload-age ceiling the
+    GovernorDataStale alert enforces (a warm serve reports its true age)."""
+
+    @pytest.mark.parametrize("cache_name", ["governor_cache", "category_names_cache"])
+    def test_collector_driven_cache_outlives_one_scrape(self, cache_name):
+        cache = getattr(queues_service, cache_name)
+        assert cache.ttl > _alloy_stats_go_scrape_period()
+
+    def test_governor_cache_stays_under_the_stale_payload_threshold(self):
+        assert queues_service.governor_cache.ttl < _governor_data_stale_threshold()
+
+    @pytest.mark.parametrize("cache_name", ["backlog_cache", "problem_tasks_cache"])
+    def test_operator_driven_caches_stay_short(self, cache_name):
+        """Nothing scrapes these two endpoints; an operator refreshing them right
+        after a retry or a cancel must not be served a scrape-period-old list."""
+        cache = getattr(queues_service, cache_name)
+        assert cache.ttl <= _alloy_stats_go_scrape_period()

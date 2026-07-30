@@ -78,15 +78,28 @@ STORAGE_SCHEDULER_DEFAULTS = {
 # workers already use — and the worker merges it DB->env->hardcoded per poll.
 GOVERNOR_CONFIG_KEY = "governor:config"
 
+# TTL of the read-only gauge caches on the scrape path. The only automated
+# caller of get_governor is the stats-go ``storage_governor`` collector, which
+# Alloy scrapes every 30s (prometheus.scrape "metrics_containers" in
+# docker/grafana-alloy/metrics.alloy) and which calls it exactly once per
+# scrape: a TTL at or below that period can never serve a hit, it only ever
+# recomputes. The ceiling is the 60s GovernorDataStale threshold in
+# docker/vmalert/rules/storage_governor.rules.yml, since a warm serve reports
+# its true age. Rule for anyone retuning this: stay above the scrape period of
+# the collector that drives the cache, and below the staleness alert.
+GOVERNOR_GAUGE_CACHE_TTL = 45
+
 queues_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
 queue_jobs_cache = SynchronizedTTLCache(maxsize=20, ttl=5)
 consumers_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
-# Read-only storage-governor gauge caches (5s TTL so a polling dashboard cannot
-# hammer Redis). These are gauges, not mutated by admin writes, so they are not
-# wired into clear_queue_data_caches.
-governor_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
+# Read-only storage-governor gauge caches. These are gauges, not mutated by
+# admin writes, so they are not wired into clear_queue_data_caches.
+governor_cache = SynchronizedTTLCache(maxsize=1, ttl=GOVERNOR_GAUGE_CACHE_TTL)
+category_names_cache = SynchronizedTTLCache(maxsize=1, ttl=GOVERNOR_GAUGE_CACHE_TTL)
+# Nothing scrapes the backlog / problem-task endpoints — their caller is an
+# operator refreshing the admin view, often right after a retry or a cancel, so
+# they keep the short human-refresh TTL.
 backlog_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
-category_names_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
 # maxsize>1: list_problem_tasks is keyed on (kind, pool, category_id, tier,
 # limit, offset), so distinct filter/page combinations must each get their own
 # cache slot instead of thrashing a single entry.
@@ -122,7 +135,7 @@ def clear_queue_data_caches() -> None:
 
 def clear_governor_caches() -> None:
     """Invalidate the read-only storage-governor gauge caches (used by tests and
-    any caller needing a fresh read; otherwise 5s-TTL-cached)."""
+    any caller needing a fresh read; otherwise TTL-cached)."""
     governor_cache.clear()
     backlog_cache.clear()
     consumers_cache.clear()
@@ -595,9 +608,10 @@ class AdminQueuesService:
         }
 
     # -------------------------------------------------------------------------
-    # Storage-governor read layer (P2.4 §2.2). Every method is 5s-TTL-cached so a
-    # polling dashboard cannot hammer Redis, degrades to 200 + honesty fields on
-    # transient Redis/rdb failure (never raises), and is read-only.
+    # Storage-governor read layer (P2.4 §2.2). Every method is TTL-cached (see
+    # the cache block above) so a poller cannot hammer Redis, degrades to 200 +
+    # honesty fields on transient Redis/rdb failure (never raises), and is
+    # read-only.
     # -------------------------------------------------------------------------
 
     @staticmethod
