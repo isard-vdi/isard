@@ -323,6 +323,8 @@ class StorageService:
                 size=str(size),
                 priority=priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -334,6 +336,8 @@ class StorageService:
         storage = get_storage(payload, storage_id)
         try:
             return storage.task_delete(payload.get("user_id"))
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -421,6 +425,8 @@ class StorageService:
                 priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -443,6 +449,12 @@ class StorageService:
                 secondary_priority="high",
                 retry=retry,
             )
+        except Error:
+            # Already typed (e.g. set_maintenance's preconditions): re-raise
+            # it untouched so its description_code survives.
+            raise
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -493,6 +505,8 @@ class StorageService:
                 priority=priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -536,6 +550,8 @@ class StorageService:
                 priority=priority,
             )
             return {"new_storage_id": new_storage.id, "task_id": task_id}
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -565,6 +581,8 @@ class StorageService:
                 priority=priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -592,6 +610,8 @@ class StorageService:
                 priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -622,6 +642,8 @@ class StorageService:
                 dest_path,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -655,6 +677,8 @@ class StorageService:
                 remove_source_file,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -695,6 +719,8 @@ class StorageService:
                 remove_source_file,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 

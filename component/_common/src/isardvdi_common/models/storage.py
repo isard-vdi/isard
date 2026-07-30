@@ -591,22 +591,29 @@ class Storage(RethinkCustomBase):
         :param action: Action
         :type action: str
         """
+        # Typed ``Error`` so apiv4's exception mapper answers 428 with the
+        # reason, instead of a generic 500 from a plain ``Exception``: every
+        # caller of this method used to surface its preconditions that way.
+        # Import inside the function to avoid the snapshot-bind race
+        # documented in ``reference_apiv4_error_factory_race.md``.
+        from isardvdi_common.helpers.error_factory import Error
+
         if action == "move":
             if self.status not in ["ready", "recycled"]:
-                raise Exception(
+                raise Error(
                     "precondition_required",
                     f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
-                    "storage_invalid_status_for_move",
+                    description_code="storage_invalid_status_for_move",
                 )
         elif self.status != "ready" and action not in (
             "create",
             "delete",
             "download",
         ):
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
-                "storage_not_ready",
+                description_code="storage_not_ready",
             )
         # "create" / "download" are fresh-storage actions — the domain
         # being wired in is the whole point, and by construction it is
@@ -616,16 +623,16 @@ class Storage(RethinkCustomBase):
         if action not in ("create", "download"):
             domains = self.domains
             if any(domain.status != "Stopped" for domain in domains):
-                raise Exception(
+                raise Error(
                     "precondition_required",
                     f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
-                    "desktops_not_stopped",
+                    description_code="desktops_not_stopped",
                 )
             if len(self.children) > 0:
-                raise Exception(
+                raise Error(
                     "precondition_required",
                     f"Storage {self.id} has children storages that depend on it as backing file",
-                    "storage_has_children",
+                    description_code="storage_has_children",
                 )
             for domain in self.domains:
                 domain.current_action = action
@@ -633,14 +640,18 @@ class Storage(RethinkCustomBase):
         self.status = "maintenance"
 
     def set_ready(self):
+        # Same reason as ``set_maintenance``: a precondition must not reach
+        # the caller as a generic 500.
         """
         Set storage and it's domains to ready status.
         """
         if self.status != "maintenance":
-            raise Exception(
+            from isardvdi_common.helpers.error_factory import Error
+
+            raise Error(
                 "precondition_required",
                 f"Storage {self.id} must be maintenance in order to return back to ready status. It's actual status is {self.status}",
-                "storage_not_maintenance",
+                description_code="storage_not_maintenance",
             )
         for domain in self.domains:
             domain.status = "Stopped"
