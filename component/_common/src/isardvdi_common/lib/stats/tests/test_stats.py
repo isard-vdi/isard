@@ -8,6 +8,23 @@
 from unittest.mock import MagicMock
 
 import pytest
+from isardvdi_common.helpers.stale_while_revalidate import (
+    KeyedStaleWhileRevalidate,
+    StaleWhileRevalidate,
+)
+
+# Which module-global cache backs which method. Used by the wiring tests below
+# so a cache swapped onto the wrong method fails instead of silently
+# cross-serving another method's value.
+CACHE_OF_METHOD = {
+    "get_users_stats": lambda mod: mod._users_stats_cache,
+    "get_desktops_stats": lambda mod: mod._desktops_stats_cache,
+    "get_templates_stats": lambda mod: mod._templates_stats_cache,
+    "get_domains_status": lambda mod: mod._domains_status_cache,
+    "get_categories_deployments": lambda mod: mod._categories_deployments_cache,
+    "get_domains_by_category_count": lambda mod: mod._domains_by_category_cache,
+    "get_group_by_categories": lambda mod: mod._group_by_categories_cache,
+}
 
 
 @pytest.fixture
@@ -32,14 +49,22 @@ def stub_rdb(monkeypatch):
     mock_table = MagicMock(name="r.table")
     monkeypatch.setattr(mod.r, "table", mock_table)
 
-    # Each cached method must start with a fresh cache so prior tests
-    # don't leak return values into this one.
-    mod.StatsProcessed.clear_get_users_stats_cache()
-    mod.StatsProcessed.clear_get_desktops_stats_cache()
-    mod.StatsProcessed.clear_get_templates_stats_cache()
-    mod.StatsProcessed.clear_get_domains_status_cache()
+    def clear_all():
+        mod.StatsProcessed.clear_get_users_stats_cache()
+        mod.StatsProcessed.clear_get_desktops_stats_cache()
+        mod.StatsProcessed.clear_get_templates_stats_cache()
+        mod.StatsProcessed.clear_get_domains_status_cache()
+        mod.StatsProcessed.clear_get_kind_cache()
+        mod.StatsProcessed.clear_get_categories_deployments_cache()
+        mod.StatsProcessed.clear_get_domains_by_category_count_cache()
+        mod.StatsProcessed.clear_get_group_by_categories_cache()
 
+    # The caches are module globals: clear on the way in so a prior test can't
+    # leak a value into this one, and on the way out so a stubbed MagicMock
+    # never survives into another module's tests.
+    clear_all()
     yield {"mock_table": mock_table, "Processed": mod.StatsProcessed, "mod": mod}
+    clear_all()
 
 
 class TestGetUsersStats:
@@ -144,6 +169,115 @@ class TestCacheInvalidators:
         stub_rdb["Processed"].clear_get_users_stats_cache()
         assert stub_rdb["mod"]._users_stats_cache.currsize == 0
 
+    @pytest.mark.parametrize(
+        "getter, clearer",
+        [
+            ("get_desktops_stats", "clear_get_desktops_stats_cache"),
+            ("get_templates_stats", "clear_get_templates_stats_cache"),
+            ("get_domains_status", "clear_get_domains_status_cache"),
+            ("get_categories_deployments", "clear_get_categories_deployments_cache"),
+            (
+                "get_domains_by_category_count",
+                "clear_get_domains_by_category_count_cache",
+            ),
+            ("get_group_by_categories", "clear_get_group_by_categories_cache"),
+        ],
+    )
+    def test_every_cached_method_has_a_working_invalidator(
+        self, stub_rdb, getter, clearer
+    ):
+        cache = CACHE_OF_METHOD[getter](stub_rdb["mod"])
+        getattr(stub_rdb["Processed"], getter)()
+        assert cache.currsize == 1
+        getattr(stub_rdb["Processed"], clearer)()
+        assert cache.currsize == 0
+
+    def test_get_kind_invalidator_drops_every_bucket(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.get_all.return_value.pluck.return_value.run.return_value = []
+        chain.pluck.return_value.run.return_value = []
+        stub_rdb["Processed"].get_kind("desktops")
+        stub_rdb["Processed"].get_kind("hypervisors")
+        assert stub_rdb["mod"]._kind_cache.currsize == 2
+        stub_rdb["Processed"].clear_get_kind_cache()
+        assert stub_rdb["mod"]._kind_cache.currsize == 0
+
+
+class TestCacheWiring:
+    """The cache objects themselves — mixing them up is silent and expensive."""
+
+    def test_every_stats_cache_is_a_distinct_object(self, stub_rdb):
+        caches = [get(stub_rdb["mod"]) for get in CACHE_OF_METHOD.values()]
+        caches.append(stub_rdb["mod"]._kind_cache)
+        assert len({id(cache) for cache in caches}) == len(caches)
+
+    def test_no_stats_cache_makes_a_caller_wait_for_a_refresh(self, stub_rdb):
+        """Every stats cache must be stale-while-revalidate, not plain TTL.
+
+        A TTL cache turns each expiry into a blocking miss with no
+        single-flight, which is what these endpoints cannot afford.
+        """
+        caches = [get(stub_rdb["mod"]) for get in CACHE_OF_METHOD.values()]
+        caches.append(stub_rdb["mod"]._kind_cache)
+        assert all(
+            isinstance(cache, (StaleWhileRevalidate, KeyedStaleWhileRevalidate))
+            for cache in caches
+        )
+
+    # Which driver each cache answers to. The periods are constants in the
+    # module, read off this repository — never a number derived from one
+    # installation's traffic, which is how a TTL calibrated against a poll
+    # period that does not exist gets shipped behind a passing test.
+    COLLECTOR_DRIVEN = [
+        "_domains_status_cache",
+        "_kind_cache",
+        "_categories_deployments_cache",
+        "_group_by_categories_cache",
+    ]
+    PANEL_DRIVEN = ["_desktops_stats_cache", "_domains_by_category_cache"]
+
+    @pytest.mark.parametrize(
+        "cache_name, driver_attr",
+        [(name, "_COLLECTOR_SCRAPE_S") for name in COLLECTOR_DRIVEN]
+        + [
+            # The status summary is the graph, and the operator can ask for it
+            # every second, so it must keep up with the fastest interval the
+            # selector offers.
+            ("_desktops_stats_cache", "_ADMIN_PANEL_MIN_POLL_S"),
+            # The per-category table deliberately does not follow a 1 s
+            # selection — see the comment beside its cache — so it is held to
+            # the default interval instead.
+            ("_domains_by_category_cache", "_ADMIN_PANEL_POLL_S"),
+        ],
+    )
+    def test_ttl_is_no_longer_than_its_caller_s_interval(
+        self, stub_rdb, cache_name, driver_attr
+    ):
+        """Serve data as fresh as the caller's cadence allows, and no older.
+
+        A TTL longer than the interval does not make the refreshes cheaper —
+        while it is at or below the period there is one refresh per poll either
+        way — it only hands out older numbers. Parallel consumers are absorbed
+        by the single-flight refresh, not by a long TTL.
+        """
+        mod = stub_rdb["mod"]
+        cache = getattr(mod, cache_name)
+        interval = getattr(mod, driver_attr)
+        assert cache.ttl <= interval, (
+            f"{cache_name} ttl={cache.ttl}s exceeds its caller's {interval}s "
+            "interval, so it serves data older than it needs to"
+        )
+
+    def test_the_graph_is_the_freshest_thing_on_the_panel(self, stub_rdb):
+        """The two panel caches diverge on purpose, in one direction only.
+
+        The status summary is what the operator watches move, so it must never
+        be staler than the table beside it. The reverse would be a bug: a graph
+        lagging behind its own category breakdown.
+        """
+        mod = stub_rdb["mod"]
+        assert mod._desktops_stats_cache.ttl <= mod._domains_by_category_cache.ttl
+
 
 class TestGetKind:
     def test_desktops_pluck_id_user(self, stub_rdb):
@@ -179,6 +313,36 @@ class TestGetKind:
         with pytest.raises(ErrorBase) as exc:
             stub_rdb["Processed"].get_kind("widgets")
         assert "widgets" in str(exc.value)
+
+    def test_unknown_kind_caches_nothing_and_still_raises_next_time(self, stub_rdb):
+        from isardvdi_common.helpers.error_base import ErrorBase
+
+        for _ in range(3):
+            with pytest.raises(ErrorBase):
+                stub_rdb["Processed"].get_kind("widgets")
+        assert stub_rdb["mod"]._kind_cache.currsize == 0
+
+    def test_each_kind_gets_its_own_bucket(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.get_all.return_value.pluck.return_value.run.return_value = [
+            {"id": "d1", "user": "u1"}
+        ]
+        chain.pluck.return_value.run.return_value = [
+            {"id": "h1", "status": "Online", "only_forced": False}
+        ]
+        desktops = stub_rdb["Processed"].get_kind("desktops")
+        hypervisors = stub_rdb["Processed"].get_kind("hypervisors")
+        assert desktops == [{"id": "d1", "user": "u1"}]
+        assert hypervisors == [{"id": "h1", "status": "Online", "only_forced": False}]
+        assert stub_rdb["mod"]._kind_cache.currsize == 2
+
+    def test_second_call_for_a_kind_is_served_from_cache(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        run = chain.get_all.return_value.pluck.return_value.run
+        run.return_value = [{"id": "d1", "user": "u1"}]
+        for _ in range(4):
+            stub_rdb["Processed"].get_kind("desktops")
+        assert run.call_count == 1
 
 
 class TestGetCategoriesDeployments:
@@ -281,3 +445,21 @@ class TestDesktopsTotalMatchesTheStatusFold:
         stub_rdb["Processed"].clear_get_domains_status_cache()
         domains = stub_rdb["Processed"].get_domains_status()
         assert desktops["status"] == domains["desktop"]
+
+
+class TestEveryCacheHasAStalenessCeiling:
+    """A frozen dashboard must eventually say so instead of lying quietly."""
+
+    def test_no_stats_cache_serves_an_unbounded_stale_value(self, stub_rdb):
+        caches = [get(stub_rdb["mod"]) for get in CACHE_OF_METHOD.values()]
+        caches.append(stub_rdb["mod"]._kind_cache)
+        missing = [cache.name for cache in caches if cache.max_stale is None]
+        assert not missing, f"caches with no staleness ceiling: {missing}"
+
+    @pytest.mark.parametrize("cache_name", TestCacheWiring.COLLECTOR_DRIVEN)
+    def test_the_ceiling_leaves_room_for_several_refresh_attempts(
+        self, stub_rdb, cache_name
+    ):
+        """Too tight a ceiling would fail the endpoint on a single hiccup."""
+        cache = getattr(stub_rdb["mod"], cache_name)
+        assert cache.max_stale >= 3 * cache.ttl
