@@ -885,8 +885,10 @@ class Wg(object):
         )
 
     def set_iptables(self, peer):
+        # A null vpn subtree is a real state for a user row, and raising here is
+        # swallowed by the change handler, skipping the rest of the change.
         peer = self._to_dict(peer)
-        iptables = peer["vpn"]["iptables"]
+        iptables = (peer.get("vpn") or {}).get("iptables")
 
     def server_config(self, mtu, postup):
         return """[Interface]

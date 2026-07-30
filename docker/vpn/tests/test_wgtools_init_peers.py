@@ -193,3 +193,18 @@ def test_init_peers_batches_inserts_and_backgrounds_up_peer(
     # Background up_peer covers active targets only: u3, u4 and rv1. u1/u2 were
     # created without 'active', so the original gating is preserved.
     assert sorted(up_seen) == ["rv1", "u3", "u4"]
+
+
+# ---- (E) null vpn subtree outside init_peers ------------------------------
+
+
+def test_set_iptables_survives_a_null_vpn_subtree(wgtools_module):
+    """A users row with `vpn` set to null must not raise here.
+
+    The change handler wraps this call in a bare `except Exception`, so a raise
+    is invisible and silently drops the rest of that change's processing.
+    """
+    wg = _users_wg(wgtools_module)
+    wg.set_iptables({"id": "u1", "vpn": None})
+    wg.set_iptables({"id": "u2"})
+    wg.set_iptables({"id": "u3", "vpn": {"iptables": []}})
