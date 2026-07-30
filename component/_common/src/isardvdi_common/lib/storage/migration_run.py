@@ -46,6 +46,7 @@ except ImportError:  # pragma: no cover
 
 import redis
 from isardvdi_common.connections.redis_urls import rq_url
+from isardvdi_common.helpers import task_streams
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.lib import queue_tiers
 from isardvdi_common.lib.storage import migration as mig
@@ -67,9 +68,6 @@ log = logging.getLogger(__name__)
 DEFAULT_PRIORITY = "default"
 RSYNC_TIMEOUT = 43200  # 12h, matching Storage.rsync
 #: stream the change-handler consumes; XADD a migration progress event here so
-#: the change-handler emits the aggregate storage:migration SocketIO event.
-TASK_RESULTS_STREAM = "stream:task-results"
-TASK_RESULTS_STREAM_MAXLEN = 10000
 #: how many ticks a force-stopped desktop may stay un-Stopped before the disk
 #: is failed — surfaces a stuck force-stop instead of looping forever (the
 #: study's "bound the desktops_not_stopped retry; no silent pass").
@@ -497,12 +495,18 @@ class MigrationRunner:
         """Best-effort XADD of a migration progress event so the change-handler
         emits the aggregate ``storage:migration`` SocketIO event. Never fails
         the tick — the ledger (not the socket) is the source of truth."""
+        conn = None
         try:
             conn = redis.from_url(rq_url())
+            # MAXLEN is STREAM-WIDE: a hardcoded cap here re-trims the shared
+            # result stream for every producer. The floor in task_streams exists
+            # because the old tight cap discarded UNREAD kind=result entries under
+            # a burst, and a cap below the backpressure high-water also disables
+            # the enqueue-admission throttle. Ask for the sanctioned value.
             conn.xadd(
-                TASK_RESULTS_STREAM,
+                task_streams.RESULT_STREAM,
                 {"kind": "migration", "migration_id": self.migration_id},
-                maxlen=TASK_RESULTS_STREAM_MAXLEN,
+                maxlen=task_streams.maxlen_for_stream(task_streams.RESULT_STREAM),
                 approximate=True,
             )
         except Exception:
@@ -510,6 +514,13 @@ class MigrationRunner:
                 "migration: could not publish progress event for %s",
                 self.migration_id,
             )
+        finally:
+            # close the per-call client so a per-minute tick does not churn sockets
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
     def _skip_tree(self, tree_items, state, reason):
         for it in tree_items:
@@ -580,6 +591,27 @@ class MigrationRunner:
         return False
 
     # -- per-disk actions -------------------------------------------------- #
+    def _claim_storage_task(self, item, task_id):
+        """Point the storage row's ``task`` at the saga task currently working it.
+
+        The reconciler's Pass 2 lists every ``maintenance`` row and, when
+        ``_task_alive`` finds no live task, finalizes it to ``ready`` and promotes
+        its domains -- a disk we set to maintenance but never claimed would lose
+        its durable start-block after one 90s sweep, WHILE rsync is still copying
+        it. Re-stamped at every phase so the claim does not lapse between them.
+        """
+        storage_id = item.get("storage_id")
+        if not task_id or not storage_id:
+            return
+        try:
+            Storage.update_document(storage_id, {"task": task_id}, validate=False)
+        except Exception:
+            log.exception(
+                "migration: could not claim storage %s for task %s",
+                storage_id,
+                task_id,
+            )
+
     def _restore_storage_status(self, item):
         """Restore a disk's storage to the status it held BEFORE we set it to
         maintenance (recorded at move start). Only disks we actually put into
@@ -590,8 +622,11 @@ class MigrationRunner:
         if orig is None:
             return
         try:
+            # clear the saga's claim with the status: leaving a stale task id on
+            # a row that is no longer ours makes the next reconcile pass read a
+            # dead task as if it were live work.
             Storage.update_document(
-                item["storage_id"], {"status": orig}, validate=False
+                item["storage_id"], {"status": orig, "task": None}, validate=False
             )
         except Exception:
             log.exception(
@@ -672,6 +707,21 @@ class MigrationRunner:
                 cur = None
             if cur and cur != "maintenance":
                 self._set(item, storage_orig_status=cur)
+            else:
+                # Without a recorded original we could not put the disk back:
+                # release would leave it in maintenance for the reconciler to
+                # finalize to "ready", which UN-BINS a recycled disk -- the exact
+                # outcome the record exists to prevent. Refuse this disk instead
+                # of moving it and losing where it belonged.
+                self._set(
+                    item,
+                    error=(
+                        "cannot record the disk's pre-migration status; refusing "
+                        "to move it rather than risk restoring the wrong one"
+                    ),
+                )
+                self._fail(item)
+                return
         # Per-disk maintenance marker (durable storage-layer start-block).
         # NOT set_maintenance("move") — that refuses a parent-with-children;
         # migration legitimately moves parents (children rebase afterwards).
@@ -699,6 +749,7 @@ class MigrationRunner:
             },
             timeout=RSYNC_TIMEOUT,
         )
+        self._claim_storage_task(item, task_id)
         self._set(
             item,
             state=MigrationItemState.MOVING.value,
@@ -750,6 +801,7 @@ class MigrationRunner:
                 "verify": bool(self.config.get("verify", True)),
             },
         )
+        self._claim_storage_task(item, task_id)
         self._set(item, rebase_task_id=task_id)
 
     def _mark_rebased(self, item):
@@ -816,6 +868,7 @@ class MigrationRunner:
                 "expect_backing": item.get("parent_dst_path"),
             },
         )
+        self._claim_storage_task(item, task_id)
         self._set(item, verify_task_id=task_id)
 
     def _mark_verified(self, item):

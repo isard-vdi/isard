@@ -56,11 +56,15 @@ async def send_migration_socket(redis_manager, migration_id):
     """Broadcast the migration aggregate as the ``storage:migration`` event to
     the ``/administrators`` admins room (admin-only feature). Best-effort: a
     failed emit is logged, never propagated."""
-    payload = await asyncio.to_thread(_build_payload, migration_id)
-    if payload is None:
-        return
-    body = json.dumps(payload)
     try:
+        # inside the try: a DB error building the payload used to propagate out of
+        # _process_entry, leaving the stream entry un-ACKed until it dead-lettered
+        # after its redeliveries -- and pinning the stream's XTRIM floor meanwhile.
+        # A progress emit is best-effort; it must never hold up the consumer.
+        payload = await asyncio.to_thread(_build_payload, migration_id)
+        if payload is None:
+            return
+        body = json.dumps(payload)
         await redis_manager.emit(
             "storage:migration",
             body,
