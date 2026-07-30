@@ -385,3 +385,131 @@ class TestRegistryModelsFollowTheRowModels:
             if _registry_rejection("domains", _registry_entry(kind=kind)) is None
         }
         assert legal == {member.value for member in DomainKindEnum}
+
+
+class TestRegistryMediaGetsADestination:
+    """A registry media row must carry ``path_downloaded`` before it is
+    inserted: ``enqueue_download_chain`` refuses without one
+    (``media_no_path``), so the row was created and the download never started.
+    Reproduced live: the row landed at ``DownloadStarting`` and the request
+    answered 428 with "has no path_downloaded; cannot enqueue download".
+    """
+
+    def _entry(self):
+        return {
+            "id": "c0ffee00-0000-4000-8000-00000000beef",
+            "name": "Virtio ISO drivers",
+            "kind": "iso",
+            "url-isard": "virtio-win.iso",
+        }
+
+    def test_the_destination_is_resolved(self, monkeypatch):
+        from api.services.admin import downloads as mod
+
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_media_if_already_downloaded",
+            staticmethod(lambda d, user_id: d),
+        )
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_user_data",
+            staticmethod(lambda user_id: {"category": "cat1", "user": user_id}),
+        )
+        import isardvdi_common.models.media as media_mod
+
+        monkeypatch.setattr(
+            media_mod.Media,
+            "resolve_download_path",
+            classmethod(
+                lambda cls, user_id, category_id, media_id, kind: (
+                    None,
+                    f"/isard/media/{media_id}.{kind}",
+                )
+            ),
+        )
+        out = mod.AdminDownloadsService._format_medias([self._entry()], "u1")
+        assert out[0]["path_downloaded"] == (
+            "/isard/media/c0ffee00-0000-4000-8000-00000000beef.iso"
+        )
+
+    def test_an_already_downloaded_row_keeps_its_path(self, monkeypatch):
+        from api.services.admin import downloads as mod
+
+        entry = self._entry()
+        entry["path_downloaded"] = "/isard/media/somewhere-else.iso"
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_media_if_already_downloaded",
+            staticmethod(lambda d, user_id: d),
+        )
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_user_data",
+            staticmethod(lambda user_id: {"category": "cat1", "user": user_id}),
+        )
+        out = mod.AdminDownloadsService._format_medias([entry], "u1")
+        assert out[0]["path_downloaded"] == "/isard/media/somewhere-else.iso"
+
+
+class TestRegistryDownloadSource:
+    """``url-isard`` is a path relative to the registry, not a URL. Handed to
+    curl as-is it was resolved as a hostname (exit 6, "couldn't resolve host")
+    and the row landed ``DownloadFailed`` — verified live. The registry also
+    refuses an unauthenticated fetch, so the registration code has to travel
+    with it. The domain branch already built this; media did not.
+    """
+
+    def _cfg(self, monkeypatch, url="https://repository.example.com", code="abc123"):
+        from api.services.admin import downloads as mod
+
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_cfg",
+            staticmethod(lambda: (url, code, None)),
+        )
+        return mod.AdminDownloadsService
+
+    def test_a_relative_isard_path_becomes_an_absolute_registry_url(self, monkeypatch):
+        svc = self._cfg(monkeypatch)
+        url, headers = svc._registry_download_source(
+            "media", {"url-isard": "windows-10-optimizer_v1.iso", "url-web": False}
+        )
+        assert url == (
+            "https://repository.example.com/storage/media/"
+            "windows-10-optimizer_v1.iso"
+        )
+        assert headers == ["Authorization: abc123"]
+
+    def test_domains_use_their_own_folder(self, monkeypatch):
+        svc = self._cfg(monkeypatch)
+        url, _ = svc._registry_download_source(
+            "domains", {"url-isard": "some-template.qcow2"}
+        )
+        assert url.endswith("/storage/domains/some-template.qcow2")
+
+    def test_a_trailing_slash_on_the_configured_url_is_not_doubled(self, monkeypatch):
+        svc = self._cfg(monkeypatch, url="https://repository.example.com/")
+        url, _ = svc._registry_download_source("media", {"url-isard": "/x.iso"})
+        assert url == "https://repository.example.com/storage/media/x.iso"
+
+    def test_url_web_is_absolute_and_carries_no_credentials(self, monkeypatch):
+        svc = self._cfg(monkeypatch)
+        url, headers = svc._registry_download_source(
+            "media", {"url-isard": False, "url-web": "https://elsewhere/x.iso"}
+        )
+        assert url == "https://elsewhere/x.iso"
+        assert headers == []
+
+    def test_an_already_absolute_url_on_the_row_wins(self, monkeypatch):
+        svc = self._cfg(monkeypatch)
+        url, headers = svc._registry_download_source(
+            "media", {"url": "https://direct/x.iso", "url-isard": "x.iso"}
+        )
+        assert url == "https://direct/x.iso"
+        assert headers == []
+
+    def test_no_registration_code_means_no_header(self, monkeypatch):
+        svc = self._cfg(monkeypatch, code=None)
+        _url, headers = svc._registry_download_source("media", {"url-isard": "x.iso"})
+        assert headers == []

@@ -576,6 +576,32 @@ class AdminDownloadsService:
         return result
 
     @staticmethod
+    def _registry_download_source(kind: str, data: dict) -> tuple:
+        """The absolute URL and headers to fetch one registry entry from.
+
+        ``url-isard`` is a path relative to the registry server, not a URL: it
+        has to be joined to the configured server and carry the registration
+        code, which is the build the engine's download thread used
+        (``<url>/storage/<table>/<url-isard>``). ``url-web`` is the optional
+        absolute alternate and needs neither. Shared so the media and domain
+        branches cannot drift apart again — media used to hand the relative
+        path straight to curl, which then resolved it as a hostname.
+        """
+        explicit = str(data.get("url") or "")
+        if explicit.startswith(("http://", "https://")):
+            return explicit, []
+        url_isard = str(data.get("url-isard") or "")
+        url_web = str(data.get("url-web") or "")
+        if url_web and not url_isard:
+            return url_web, []
+        registry_url, code, _ = AdminDownloadsService._get_cfg()
+        url = (
+            f"{str(registry_url).rstrip('/')}/storage/{kind}/"
+            f"{url_isard.lstrip('/')}"
+        )
+        return url, ([f"Authorization: {code}"] if code else [])
+
+    @staticmethod
     def _kick_off_download_chain(
         kind: str,
         data: dict,
@@ -601,13 +627,16 @@ class AdminDownloadsService:
                 media = RethinkMedia(media_id)
             except Exception:
                 return
-            url = data.get("url") or data.get("url-isard") or data.get("url-web")
-            if not url:
+            url, headers = AdminDownloadsService._registry_download_source(
+                "media", data
+            )
+            if not url or url.endswith("/"):
                 return
             try:
                 media.enqueue_download_chain(
                     user_id=data.get("user") or media.user,
-                    url=str(url),
+                    url=url,
+                    headers=headers,
                     insecure_ssl=insecure_ssl,
                 )
             except Exception:
@@ -621,22 +650,9 @@ class AdminDownloadsService:
                 # ISO-only desktop or already-downloaded re-trigger:
                 # nothing to download.
                 return
-            registry_url, code, _ = AdminDownloadsService._get_cfg()
-            url_isard = data.get("url-isard") or ""
-            url_web = data.get("url-web") or ""
-            # Match the engine's deleted ``DownloadChangesThread.run``
-            # build (``url_resources + "/storage/" + table + "/" + url-isard``)
-            # so the existing registry server keeps serving the same
-            # paths. ``url-web`` is the optional alternate (rare).
-            if url_web and not str(url_isard):
-                full_url = url_web
-                headers = []
-            else:
-                full_url = (
-                    f"{registry_url.rstrip('/')}/storage/domains/"
-                    f"{str(url_isard).lstrip('/')}"
-                )
-                headers = [f"Authorization: {code}"] if code else []
+            full_url, headers = AdminDownloadsService._registry_download_source(
+                "domains", data
+            )
             pending_storage.enqueue_registry_download_chain_for_domain(
                 domain_id=data["id"],
                 url=full_url,
@@ -746,6 +762,19 @@ class AdminDownloadsService:
             d["progress"] = {}
             d["status"] = "DownloadStarting"
             d["accessed"] = int(time.time())
+            # The download chain refuses to enqueue without an absolute
+            # destination, and a registry entry carries no path of its own. The
+            # by-URL path resolves one before inserting; do the same here, from
+            # the row's own id so the file is named like every other media.
+            if not d.get("path_downloaded"):
+                from isardvdi_common.models.media import Media as RethinkMedia
+
+                _pool, d["path_downloaded"] = RethinkMedia.resolve_download_path(
+                    user_id=user_id,
+                    category_id=d["category"],
+                    media_id=d["id"],
+                    kind=d["kind"],
+                )
             new_data.append(d)
         return new_data
 
