@@ -788,6 +788,22 @@ def _domain_aborting(domain_id):
         return True
 
 
+def _curl_header_config(headers):
+    """Render ``headers`` as a curl config for ``-K -``.
+
+    Kept out of the argv on purpose: a registry download carries the
+    registration code in an ``Authorization`` header, and in the argv that is
+    readable through ``ps`` for the whole transfer and is rendered verbatim
+    into every ``CalledProcessError`` raised below, which reaches the worker
+    log and Loki.
+    """
+    config = ""
+    for header in headers or []:
+        escaped = str(header).replace("\\", "\\\\").replace('"', '\\"')
+        config += f'header = "{escaped}"\n'
+    return config
+
+
 def _run_curl_download(
     *,
     url,
@@ -839,16 +855,21 @@ def _run_curl_download(
     )
     if google_drive_cookie:
         curl_cmd.extend(["-b", google_drive_cookie])
-    for h in headers or []:
-        curl_cmd.extend(["-H", h])
+    header_config = _curl_header_config(headers)
+    if header_config:
+        curl_cmd.extend(["-K", "-"])
     curl_cmd.append(url)
 
     process = Popen(
         curl_cmd,
+        stdin=PIPE if header_config else None,
         stdout=PIPE,
         stderr=PIPE,
         preexec_fn=os.setsid,
     )
+    if header_config:
+        process.stdin.write(header_config.encode())
+        process.stdin.close()
 
     # Skip the two header lines curl prints before the progress meter.
     process.stderr.readline()
@@ -974,30 +995,6 @@ def download_url(
         job FAILED → dependent ``update_status`` task flips media to
         ``DownloadFailed``)
     """
-    job = get_current_job()
-    makedirs(dirname(dest_path), exist_ok=True)
-
-    curl_cmd = ["curl"]
-    if insecure_ssl:
-        curl_cmd.append("-k")
-    curl_cmd.extend(
-        [
-            "-L",
-            "--max-redirs",
-            "5",
-            "--connect-timeout",
-            "30",
-            "--no-netrc",
-            "-o",
-            dest_path,
-        ]
-    )
-    if google_drive_cookie:
-        curl_cmd.extend(["-b", google_drive_cookie])
-    for h in headers or []:
-        curl_cmd.extend(["-H", h])
-    curl_cmd.append(url)
-
     log.info("download_url: media=%s dest=%s", media_id, dest_path)
     # Flip the row to Downloading so the user sees curl is now actually
     # running (the chain root shows DownloadStarting while queued).
