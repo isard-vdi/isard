@@ -519,3 +519,88 @@ func TestSignApiKey(t *testing.T) {
 	}
 
 }
+
+func TestSignReRegisterToken(t *testing.T) {
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		User        *model.User
+		ExpectedErr string
+		CheckToken  func(string)
+	}{
+		"should work as expected": {
+			User: &model.User{
+				Provider: "saml",
+				Category: "default",
+				UID:      "nefix-uid",
+				Role:     model.RoleManager,
+			},
+			CheckToken: func(ss string) {
+				typ, err := token.GetTokenType(ss)
+				assert.NoError(err)
+				assert.Equal(token.TypeReRegister, typ)
+
+				// Ensure the JWT token has 3 parts (type, claims, and signature)
+				parts := strings.Split(ss, ".")
+				assert.Len(parts, 3)
+
+				// Decode the claims to a JSON
+				b, err := base64.RawURLEncoding.DecodeString(parts[1])
+				assert.NoError(err)
+
+				claims := map[string]any{}
+				err = json.Unmarshal(b, &claims)
+				assert.NoError(err)
+
+				// Exctract the time fields
+				round, frac := math.Modf(claims["exp"].(float64))
+				exp := time.Unix(int64(round), int64(frac*1e9))
+
+				round, frac = math.Modf(claims["iat"].(float64))
+				iat := time.Unix(int64(round), int64(frac*1e9))
+
+				round, frac = math.Modf(claims["nbf"].(float64))
+				nbf := time.Unix(int64(round), int64(frac*1e9))
+
+				// Ensure time vaildity (60 min expiration, like register)
+				assert.True(time.Now().Add(59 * time.Minute).Before(exp))
+				assert.True(time.Now().Add(61 * time.Minute).After(exp))
+				assert.True(time.Now().After(iat))
+				assert.True(time.Now().After(nbf))
+
+				claims["exp"] = nil
+				claims["iat"] = nil
+				claims["nbf"] = nil
+
+				assert.Equal(map[string]any{
+					"kid":         "isardvdi",
+					"iss":         "isard-authentication",
+					"exp":         nil,
+					"iat":         nil,
+					"nbf":         nil,
+					"type":        "re-register",
+					"provider":    "saml",
+					"user_id":     "nefix-uid",
+					"role_id":     "manager",
+					"category_id": "default",
+				}, claims)
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ss, err := token.SignReRegisterToken("", tc.User)
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			if tc.CheckToken != nil {
+				tc.CheckToken(ss)
+			}
+		})
+	}
+}

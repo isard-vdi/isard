@@ -13,7 +13,6 @@ import (
 	"os"
 	"path"
 	"regexp"
-	"slices"
 	"sync"
 	"time"
 
@@ -592,25 +591,10 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 func (s *SAML) AutoRegister(u *model.User) bool {
 	cfg := s.cfg.Cfg()
 
-	if cfg.AutoRegister {
-		if len(cfg.AutoRegisterRoles) != 0 {
-			// If the user role is in the autoregister roles list, auto register
-			allowed := slices.Contains(cfg.AutoRegisterRoles, string(u.Role))
-			if allowed {
-				s.log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", cfg.AutoRegisterRoles).Msg("auto-registration allowed: user role matches allowed roles list")
-			} else {
-				s.log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", cfg.AutoRegisterRoles).Msg("auto-registration denied: user role not in allowed roles list")
-			}
-
-			return allowed
-		}
-
-		s.log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Msg("auto-registration allowed: no role restrictions configured")
-		return true
-	}
-
-	s.log.Info().Str("usr", u.UID).Msg("auto-registration denied: auto_register is disabled in configuration")
-	return false
+	return autoRegister(s.log, autoRegisterOpts{
+		AutoRegister:      cfg.AutoRegister,
+		AutoRegisterRoles: cfg.AutoRegisterRoles,
+	}, u)
 }
 
 func (*SAML) String() string {

@@ -384,7 +384,11 @@
       }
     },
     "register": {
-      "title": "Registro"
+      "title": "Registro",
+      "re-register": {
+        "title": "Actualiza tu registro",
+        "description": "Tus permisos han cambiado. Introduce el código de registro proporcionado por la administración para continuar."
+      }
     },
     "notifications": {
       "title": "Notificaciones",
@@ -2469,7 +2473,8 @@
         "forbidden": "El dominio de correo electrónico que estás intentando utilizar no está autorizado para tu categoría.",
         "not_found": "Código no encontrado",
         "conflict": "El usuario ya existe",
-        "internal_server": "Error en el servidor"
+        "internal_server": "Error en el servidor",
+        "re_register_not_resolved": "El código que has introducido no concede el acceso necesario. Solicita un código válido a la administración."
       }
     },
     "new-desktop": {

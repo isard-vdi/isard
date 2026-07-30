@@ -393,7 +393,11 @@
       }
     },
     "register": {
-      "title": "Sign Up"
+      "title": "Sign Up",
+      "re-register": {
+        "title": "Update your registration",
+        "description": "Your permissions have changed. Enter the sign up code provided by your administrator to continue."
+      }
     },
     "notifications": {
       "title": "Notifications",
@@ -2471,7 +2475,8 @@
         "forbidden": "The email domain you are trying to use is not authorized for your category.",
         "not_found": "Code not found",
         "conflict": "User already exists",
-        "internal_server": "Server error"
+        "internal_server": "Server error",
+        "re_register_not_resolved": "The code you entered doesn't grant the required access. Ask your administrator for a valid code."
       }
     },
     "new-desktop": {

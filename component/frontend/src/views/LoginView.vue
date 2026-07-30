@@ -24,6 +24,7 @@ import {
   getToken as getAuthToken,
   isCategorySelectClaims,
   isRegisterClaims,
+  isReRegisterClaims,
   useCookies as useAuthCookies,
   isLoginClaims,
   setToken as setAuthToken,
@@ -475,7 +476,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     return
   }
 
-  if (isRegisterClaims(jwt)) {
+  if (isRegisterClaims(jwt) || isReRegisterClaims(jwt)) {
     router.push({ name: 'register' })
     return
   }

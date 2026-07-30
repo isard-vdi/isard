@@ -197,6 +197,36 @@ class UsersService:
         )
 
     @staticmethod
+    def re_register(
+        provider: str, category_id: str, uid: str, role_id: str, group_id: str
+    ) -> str:
+        """
+        Apply a registration code to an existing user: the code's role and
+        group replace the current ones and the secondary groups are cleared.
+        """
+        users = CommonUser.get_by_provider_category_uid(provider, category_id, uid)
+        if not users:
+            raise Error(
+                "not_found",
+                "User not found with the provided UID in the category.",
+            )
+
+        user_id = users[0]["id"]
+        CommonUser.update_user(
+            user_id,
+            {
+                "role": role_id,
+                "group": group_id,
+                "secondary_groups": [],
+            },
+        )
+
+        from api.routes.users import clear_users_list_cache
+
+        clear_users_list_cache()
+        return user_id
+
+    @staticmethod
     def get_user_password_policy(
         category_id: str = None,
         role_id: str = None,

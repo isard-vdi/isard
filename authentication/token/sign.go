@@ -83,6 +83,32 @@ func SignRegisterToken(secret string, u *model.User) (string, error) {
 	return ss, nil
 }
 
+func SignReRegisterToken(secret string, u *model.User) (string, error) {
+	tkn := jwt.NewWithClaims(signingMethod, &ReRegisterClaims{
+		TypeClaims: TypeClaims{
+			RegisteredClaims: &jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(60 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Issuer:    issuer,
+			},
+			KeyID: keyID,
+			Type:  TypeReRegister,
+		},
+		Provider:   u.Provider,
+		UserID:     u.UID,
+		CategoryID: u.Category,
+		RoleID:     string(u.Role),
+	})
+
+	ss, err := tkn.SignedString([]byte(secret))
+	if err != nil {
+		return "", fmt.Errorf("sign the re-register token: %w", err)
+	}
+
+	return ss, nil
+}
+
 func SignCallbackToken(secret, prv, cat, redirect string) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &CallbackClaims{
 		TypeClaims: TypeClaims{

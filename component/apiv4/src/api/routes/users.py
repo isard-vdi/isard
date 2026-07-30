@@ -29,6 +29,7 @@ from api import (
     email_verification_router,
     open_router,
     password_reset_router,
+    re_register_router,
     register_router,
     token_router,
 )
@@ -170,6 +171,51 @@ async def register_user(register_post_data: RegisterPostData, request: Request):
             request,
             "internal_server",
             "Failed to register user",
+            traceback.format_exc(),
+        )
+
+
+@re_register_router.put(
+    "/item/user/register",
+    tags=[tag],
+    summary="Apply a registration code to an existing user",
+    description="Updates an existing user's role and group from a registration code.",
+    responses={
+        404: {"model": ErrorResponse, "description": "Register code or user not found"},
+        500: {"model": ErrorResponse, "description": "Failed to re-register user"},
+    },
+    response_model=SimpleResponse,
+    status_code=200,
+)
+async def re_register_user(register_post_data: RegisterPostData, request: Request):
+    try:
+        new_user_data = await asyncio.to_thread(
+            GroupsService.code_search, register_post_data.code
+        )
+        if request.token_payload["category_id"] != new_user_data["category_id"]:
+            raise Error(
+                "not_found",
+                f"Register code not found in the category {request.token_payload['category_id']}.",
+            )
+        user_id = await asyncio.to_thread(
+            UsersService.re_register,
+            provider=request.token_payload["provider"],
+            category_id=request.token_payload["category_id"],
+            uid=request.token_payload["user_id"],
+            role_id=new_user_data["role_id"],
+            group_id=new_user_data["group_id"],
+        )
+        return JSONResponse(
+            content=SimpleResponse(id=user_id).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to re-register user",
             traceback.format_exc(),
         )
 

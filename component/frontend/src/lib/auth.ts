@@ -33,6 +33,7 @@ export enum TokenType {
   Login = 'login',
   CategorySelect = 'category-select',
   Register = 'register',
+  ReRegister = 're-register',
   DisclaimerAcknowledgeRequired = 'disclaimer-acknowledgement-required',
   EmailVerificationRequired = 'email-verification-required',
   EmailVerification = 'email-verification',
@@ -87,6 +88,15 @@ export const isRegisterClaims = (claims: TypeClaims): claims is RegisterClaims =
   return claims.type === TokenType.Register
 }
 
+export interface ReRegisterClaims extends TypeClaims {
+  category_id: string
+  provider: string
+}
+
+export const isReRegisterClaims = (claims: TypeClaims): claims is ReRegisterClaims => {
+  return claims.type === TokenType.ReRegister
+}
+
 export interface DisclaimerAcknowledgementRequiredClaims extends TypeClaims {
   user_id: string
 }
@@ -104,7 +114,12 @@ export const useCookies = () => vueuseCookies([authorizationTokenName, sessionTo
 
 export const parseToken = (
   bearer: string
-): RegisterClaims | CategorySelectClaims | DisclaimerAcknowledgementRequiredClaims | TypeClaims => {
+):
+  | RegisterClaims
+  | ReRegisterClaims
+  | CategorySelectClaims
+  | DisclaimerAcknowledgementRequiredClaims
+  | TypeClaims => {
   const jwt = jwtDecode(bearer) as TypeClaims
   switch (jwt.type) {
     case undefined:
@@ -119,6 +134,9 @@ export const parseToken = (
 
     case TokenType.Register:
       return jwt as RegisterClaims
+
+    case TokenType.ReRegister:
+      return jwt as ReRegisterClaims
 
     case TokenType.DisclaimerAcknowledgeRequired:
       return jwt as DisclaimerAcknowledgementRequiredClaims
