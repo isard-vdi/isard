@@ -1153,9 +1153,20 @@ class UiActions(object):
             xml_from = xml_string
 
         elif "create_from_virt_install_xml" in domain["create_dict"]:
-            xml_from = get_dict_from_item_in_table(
-                "virt_install", domain["create_dict"]["create_from_virt_install_xml"]
-            )["xml"]
+            virt_id = domain["create_dict"]["create_from_virt_install_xml"]
+            virt_install = get_dict_from_item_in_table("virt_install", virt_id)
+            if not virt_install or not virt_install.get("xml"):
+                # A dangling reference used to raise here, leaving the desktop
+                # in CreatingDomain with nothing able to move it: the caller had
+                # already been answered and no sweep finishes that status. Fail
+                # the row with the reason instead.
+                update_domain_status(
+                    "Failed",
+                    id_domain,
+                    detail=f"os_template {virt_id} has no virt_install xml",
+                )
+                return False
+            xml_from = virt_install["xml"]
 
         elif xml_from_virt_install is False:
             id_template = domain["create_dict"]["origin"]
