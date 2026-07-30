@@ -45,6 +45,7 @@ from subprocess import (
 )
 from time import sleep, time
 
+from isardvdi_common.helpers.error_base import ErrorBase
 from isardvdi_common.helpers.task_cancel import TaskCancelWatcher
 from isardvdi_common.helpers.task_streams import (
     PROGRESS_STREAM,
@@ -759,6 +760,34 @@ def _curl_progress_dict(line):
     return progress
 
 
+def _no_verdict_without_a_database(kind, item_id, exc):
+    """Answer "not aborting" when the row cannot be consulted at all.
+
+    A storage worker routinely runs where there is no ``isard-db`` to ask:
+    the ``storage``, ``hypervisor`` and ``hypervisor-standalone`` flavours
+    each ship the storage part without the database one (``build.sh``), so
+    every model lookup raises there.
+
+    Answering "aborting" in that case set the cancel watcher's event on
+    entry, which killed curl before its first byte, unlinked the partial
+    file and raised ``CalledProcessError(130)`` — so on every remote node
+    each download failed while looking like a user cancellation.
+
+    Cancellation still arrives over redis pub/sub, which is the primary
+    signal and needs no database; this check only closes the narrow
+    publish-before-subscribe race, and closing it is not worth failing
+    every download that a remote node ever starts.
+    """
+    log.warning(
+        "%s %s: no database to check for an abort (%s); continuing — redis "
+        "pub/sub remains the cancel signal",
+        kind,
+        item_id,
+        exc,
+    )
+    return False
+
+
 def _media_aborting(media_id):
     """Return True if the media row's status was flipped to DownloadAborting.
 
@@ -769,9 +798,12 @@ def _media_aborting(media_id):
     """
     try:
         return Media(media_id).status == "DownloadAborting"
-    except Exception:
-        # If the row vanished mid-flight, treat as abort.
+    except ErrorBase:
+        # The lookup reached the database and it answered "no such
+        # document": the row vanished mid-flight, so abort.
         return True
+    except Exception as exc:
+        return _no_verdict_without_a_database("media", media_id, exc)
 
 
 def _domain_aborting(domain_id):
@@ -784,8 +816,10 @@ def _domain_aborting(domain_id):
     """
     try:
         return Domain(domain_id).status == "DownloadAborting"
-    except Exception:
+    except ErrorBase:
         return True
+    except Exception as exc:
+        return _no_verdict_without_a_database("domain", domain_id, exc)
 
 
 def _curl_header_config(headers):
