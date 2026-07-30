@@ -1554,6 +1554,7 @@ def virt_win_reg(storage_path, registry_patch):
     # FLATTENS the chain (drops the backing link), doubling disk usage and
     # breaking the template→desktop relationship.
     tmp_path = storage_path + ".regtmp"
+    _safe_unlink(tmp_path)  # clear a stale sibling from a prior crashed run
     try:
         with task_heartbeat("virt_win_reg", storage_path=storage_path):
             # ``--reflink=auto`` is instant on CoW filesystems and a full copy
@@ -1788,6 +1789,9 @@ def sparsify(storage_path):
     # is often run *because* space is tight, so when there isn't headroom we
     # fall back to the classic in-place op (un-cancellable) rather than fail.
     tmp_path = storage_path + ".sparsetmp"
+    # Clear a stale sibling from a prior crashed run before measuring: it holds
+    # a whole disk image of space on the very filesystem being measured.
+    _safe_unlink(tmp_path)
     free = _free_space(dirname(storage_path))
     need = int(old_size) * 1024  # _get_disk_usage is KB, _free_space is bytes
     safe_cancel = old_size > 0 and free is not None and free > need * 1.1
