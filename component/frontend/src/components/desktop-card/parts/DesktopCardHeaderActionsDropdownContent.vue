@@ -27,7 +27,6 @@ const emit = defineEmits<{
   showRecreateModal: []
   createTemplate: []
   bookDesktop: []
-  changeImage: []
   showStorageModal: []
 }>()
 </script>
@@ -44,19 +43,6 @@ const emit = defineEmits<{
           icon-size="md"
         >
           {{ t('components.desktops.desktop-card.actions.edit') }}
-        </Button>
-      </DropdownMenuItem>
-      <!-- A deployment desktop's card belongs to the deployment and is
-           changed in bulk by its owner. -->
-      <DropdownMenuItem v-if="!props.desktop.tag" @click="emit('changeImage')">
-        <Button
-          size="sm"
-          class="mr-2 w-full justify-start"
-          hierarchy="link-gray"
-          icon="image-plus"
-          icon-size="md"
-        >
-          {{ t('components.desktops.desktop-card.actions.change-image') }}
         </Button>
       </DropdownMenuItem>
       <DropdownMenuItem @click="emit('showStorageModal')">

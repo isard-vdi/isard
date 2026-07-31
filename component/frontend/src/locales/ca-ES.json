@@ -1358,7 +1358,6 @@
           "info": "Informació",
           "recreate": "Recrea",
           "template": "Converteix en plantilla",
-          "change-image": "Canvia la imatge",
           "storage": "Emmagatzematge",
           "reset": "Reinicia",
           "bastion-access": "Accés pel bastió (HTTP / HTTPS / SSH)",
