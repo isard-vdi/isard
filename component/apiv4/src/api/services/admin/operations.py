@@ -122,10 +122,14 @@ class AdminOperationsService:
 
         try:
             client = _get_operations_client()
-            response = client.CreateHypervisor(
+            responses = client.CreateHypervisor(
                 operations_pb2.CreateHypervisorRequest(id=hypervisor_id)
             )
-            return {"state": response.state, "msg": response.msg}
+            state, msg = None, None
+            for response in responses:
+                state = operations_pb2.OperationState.Name(response.state)
+                msg = response.msg
+            return {"state": state, "msg": msg}
 
         except grpc.RpcError as rpc_error:
             if rpc_error.code() in [
@@ -143,10 +147,14 @@ class AdminOperationsService:
 
         try:
             client = _get_operations_client()
-            response = client.DestroyHypervisor(
+            responses = client.DestroyHypervisor(
                 operations_pb2.DestroyHypervisorRequest(id=hypervisor_id)
             )
-            return {"state": response.state, "msg": response.msg}
+            state, msg = None, None
+            for response in responses:
+                state = operations_pb2.OperationState.Name(response.state)
+                msg = response.msg
+            return {"state": state, "msg": msg}
 
         except grpc.RpcError as rpc_error:
             if rpc_error.code() in [
