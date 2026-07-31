@@ -1204,6 +1204,7 @@
         "description": "¿Restablecer las claves VPN? Tendrás que descargar un nuevo archivo VPN",
         "cancel": "Cancelar",
         "confirm": "Restablecer VPN",
+        "success": "Las claves VPN se han restablecido correctamente.",
         "errors": {
           "unauthorized": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.",
           "internal_server": "No pudimos restablecer tus claves VPN por un error del servidor. Inténtalo más tarde.",
