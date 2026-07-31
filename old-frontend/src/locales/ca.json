@@ -69,6 +69,12 @@
           "download-direct-viewer": {
             "title": "Descarregar fitxer de visors directes"
           },
+          "bastion": {
+            "title": "Configuració de bastió"
+          },
+          "download-bastion-csv": {
+            "title": "Descarrega el fitxer d'accés de bastió"
+          },
           "delete": {
             "title": "Esborrar desplegament"
           },
@@ -156,7 +162,8 @@
       "actions": {
         "delete": "Esborrar",
         "hide": "Fer invisible",
-        "show": "Fer visible"
+        "show": "Fer visible",
+        "bastion": "Informació de bastió"
       },
       "table-header": {
         "user": "Usuari",
@@ -322,7 +329,8 @@
       "reset-vpn": "Restablir VPN",
       "export": "Exporta usuari",
       "import": "Importa usuari",
-      "api-key": "Clau API"
+      "api-key": "Clau API",
+      "ssh-key": "Clau SSH de bastió"
     },
     "start-now-modal": {
       "title": "Iniciar ara",
@@ -645,7 +653,8 @@
           "make-invisible": "Fer invisible el desplegament '{name}'",
           "download-csv": "Descarregar el CSV de visors directes de '{name}'",
           "delete": "Esborrar desplegament",
-          "co-owners": "Editar copropietari de '{name}'"
+          "co-owners": "Editar copropietari de '{name}'",
+          "bastion": "Configuració de bastió de '{name}'"
         },
         "body": {
           "text": "Aquesta acció és irreversible i es perdran totes les dades associades.",
@@ -656,7 +665,8 @@
           "warning-co-owner": "Com a co-propietari no estàs autoritzat a realitzar aquesta acció. Si us plau, contacta amb el propietari d'aquest desplegament.",
           "co-owners-warning": "AVÍS! Els usuaris establerts com a copropietaris tindran els mateixos permisos que el propietari, excepte per a canviar els propietaris i esborrar el desplegament.",
           "co-owners-label": "Copropietaris:",
-          "owner-label": "Propietari: {owner}"
+          "owner-label": "Propietari: {owner}",
+          "bastion-info": "S'aplica a tots els escriptoris d'aquest desplegament. Els escriptoris en execució s'actualitzen immediatament; els escriptoris nous i recreats hereten aquesta configuració quan s'inicien per primera vegada."
         },
         "option": {
           "dont-stop-desktops": "Fer invisible aquest desplegament pels usuaris i permetre l'ús dels escriptoris fins que s'aturin",
@@ -666,13 +676,14 @@
           "reset-csv": "Reestablir els enllaços del desplegament (els enllaços generats prèviament no estaran disponibles) i descarregar el fitxer CSV"
         },
         "confirmation": {
-          "stop": "Aturar escriptoris",
-          "dont-stop": "No aturar escriptoris",
-          "make-visible": "Fer visible",
-          "keep-csv": "Mantenir URLs i descarregar CSV",
-          "reset-csv": "Reestablir URLs i descarregar CSV",
+          "stop": "Atura els escriptoris",
+          "dont-stop": "No aturis els escriptoris",
+          "make-visible": "Fés visible",
+          "keep-csv": "Manté URLs i descarregar CSV",
+          "reset-csv": "Reestableix URLs i descarregar CSV",
           "delete": "Esborrar",
-          "co-owners": "Actualitzar copropietaris"
+          "co-owners": "Actualitza els copropietaris",
+          "bastion": "Desa"
         }
       },
       "alloweds-warning": "AVÍS! Eliminar usuaris d'aquest desplegament també eliminarà els seus escriptoris associats",
@@ -1061,6 +1072,7 @@
           "http": "URL HTTP:",
           "https": "URL HTTPS:",
           "authorized-keys-ssh": "Claus SSH autoritzades",
+          "authorized-keys-others": "Claus autoritzades per a altres usuaris",
           "domain-name": "Nom de domini personalitzat:",
           "domain-names": "Noms de domini personalitzats:"
         },
@@ -1074,6 +1086,7 @@
           "https_port": "HTTPS: {https_port}",
           "https_copy": "Copiar URL HTTPS",
           "authorized-keys-ssh": "Claus SSH autoritzades",
+          "authorized-keys-others": "Claus públiques d'altres persones a qui vulguis donar accés SSH a aquest escriptori",
           "domain-info": "Informació de DNS"
         },
         "domain-info": {
@@ -1085,12 +1098,17 @@
           "verified-pending-save": "Domini verificat (desa per aplicar)",
           "not-verified": "Domini no verificat - fes clic a l'escut per verificar"
         },
+        "own-key": {
+          "managed": "La teva pròpia clau s'afegeix automàticament des del teu perfil en arrencar aquest escriptori. Aquest camp és només per a les claus públiques d'altres persones.",
+          "missing": "Encara no tens una clau SSH de bastió al teu perfil, així que no obtindràs accés SSH automàticament.",
+          "add-link": "Afegeix-la al teu perfil"
+        },
         "buttons": {
-          "update-authorized-keys": "Actualitzar claus SSH autoritzades",
-          "bastion-domain-updated": "Actualitzar domini personalitzat",
-          "update-domains": "Actualitzar dominis personalitzats",
-          "add-domain": "Afegir domini",
-          "verify-domain": "Verificar DNS del domini"
+          "update-authorized-keys": "Actualitza les claus SSH autoritzades",
+          "update-domain": "Actualitza el domini personalitzat",
+          "update-domains": "Actualitza els dominis personalitzats",
+          "add-domain": "Afegeix un domini",
+          "verify-domain": "Verifica el DNS del domini"
         }
       }
     },
@@ -1302,7 +1320,9 @@
           "https-port": "Port HTTPS",
           "domain-name": "Nom de domini personalitzat (opcional)",
           "domain-names": "Noms de domini personalitzats (opcional)",
-          "add-domain": "Afegir domini"
+          "add-domain": "Afegir domini",
+          "proxy-protocol": "Proxy Protocol v2",
+          "proxy-protocol-tooltip": "Activa-ho per reenviar la IP real del client a l'escriptori. Activa-ho només si el servidor web de l'escriptori admet Proxy Protocol v2."
         },
         "ssh": {
           "checkbox": "SSH",
@@ -1423,6 +1443,18 @@
             "expire": "Caducar",
             "expire-tooltip": "Caducar la clau API existent"
           }
+        }
+      }
+    },
+    "ssh-key": {
+      "modal": {
+        "title": "Clau SSH de bastió",
+        "description": "Afegeix una sola clau pública SSH al teu perfil. S'afegeix automàticament a l'accés SSH del bastió de qualsevol escriptori que arrenquis (quan l'SSH del bastió estigui habilitat en aquest escriptori), així que no cal afegir-la manualment a cada escriptori.",
+        "label": "La teva clau pública SSH",
+        "invalid": "La clau pública SSH proporcionada no és vàlida.",
+        "buttons": {
+          "save": "Desa la clau",
+          "remove": "Elimina la clau"
         }
       }
     }
@@ -1632,6 +1664,8 @@
       "creating-deployment": "Creant desplegament",
       "recreating-deployment": "Recreant desplegament",
       "deployment-desktops-created": "Escriptoris del desplegament creats",
+      "deployment-bastion-updated": "Configuració de bastió del desplegament actualitzada",
+      "bastion-not-configured": "El bastió no està habilitat per a aquest escriptori",
       "deleting-deployment": "Esborrant desplegament",
       "deployment-deleted": "Desplegament eliminat",
       "making-visible-deployment": "Fent el desplegament visible",
@@ -1681,7 +1715,9 @@
       "authorized-ssh-keys-updated": "Claus SSH autoritzades actualitzades",
       "bastion-domain-updated": "Domini de bastió actualitzat",
       "bastion-domains-updated": "Dominis de bastió actualitzats",
-      "bastion-domain-verified": "DNS del domini verificat correctament"
+      "bastion-domain-verified": "DNS del domini verificat correctament",
+      "bastion-ssh-key-updated": "Clau SSH del bastió desada",
+      "bastion-ssh-key-removed": "Clau SSH del bastió eliminada"
     },
     "loading": "Carregant"
   },
