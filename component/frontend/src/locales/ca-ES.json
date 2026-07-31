@@ -2441,6 +2441,12 @@
         "not-found": "No s'ha trobat cap plantilla",
         "more-results": "{count} resultats més, afina la cerca"
       }
+    },
+    "searchable-tags": {
+      "search-placeholder": "Cerca",
+      "not-found": "No s'ha trobat cap resultat",
+      "more-results": "{count} resultats més, afineu la cerca",
+      "remove": "Traieu {name}"
     }
   },
   "authentication": {

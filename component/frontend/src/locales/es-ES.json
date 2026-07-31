@@ -2441,6 +2441,12 @@
         "not-found": "No se ha encontrado ninguna plantilla",
         "more-results": "{count} resultados más, afina tu búsqueda"
       }
+    },
+    "searchable-tags": {
+      "search-placeholder": "Buscar",
+      "not-found": "No se ha encontrado ningún resultado",
+      "more-results": "{count} resultados más, afina tu búsqueda",
+      "remove": "Quitar {name}"
     }
   },
   "authentication": {

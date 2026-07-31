@@ -2441,6 +2441,12 @@
         "not-found": "No OS template found",
         "more-results": "{count} more results, refine your search"
       }
+    },
+    "searchable-tags": {
+      "search-placeholder": "Search",
+      "not-found": "No results found",
+      "more-results": "{count} more results, refine your search",
+      "remove": "Remove {name}"
     }
   },
   "authentication": {
