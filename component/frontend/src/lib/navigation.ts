@@ -11,6 +11,9 @@ export interface Badge {
   label: number
 }
 
+export const formatCompactBadgeLabel = (label: number): string =>
+  label > 99 ? '99+' : String(label)
+
 export interface SidebarItem {
   key: string
   label: string
