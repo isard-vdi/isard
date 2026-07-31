@@ -35,6 +35,12 @@ import { SearchableTags } from '@/components/searchable-tags'
 import SelectNetworksModal from '@/components/modal/SelectNetworksModal.vue'
 import { Button } from '@/components/ui/button'
 import { MAX_VGPU_PROFILES, NO_VGPU_ID, isVgpuSelectable } from '@/lib/vgpuSelection'
+import {
+  VCPU_TIERS,
+  MEMORY_TIERS,
+  buildTieredOptions,
+  roundToNearestTier
+} from '@/lib/hardwareTiers'
 
 interface LimitedHardwareValue {
   old_value: unknown
@@ -118,12 +124,15 @@ const {
 })
 
 // Computed hardware values from template or desktop data or props
-const vcpus = computed(
-  () => templateData.value?.hardware.vcpus || desktopData.value?.hardware.vcpus || props.vcpus
-)
-const memory = computed(
-  () => templateData.value?.hardware.memory || desktopData.value?.hardware.memory || props.memory
-)
+const vcpus = computed(() => {
+  const raw = templateData.value?.hardware.vcpus || desktopData.value?.hardware.vcpus || props.vcpus
+  return roundToNearestTier(raw, vcpuOptions.value)
+})
+const memory = computed(() => {
+  const raw =
+    templateData.value?.hardware.memory || desktopData.value?.hardware.memory || props.memory
+  return roundToNearestTier(raw, memoryOptions.value)
+})
 const diskBus = computed(
   () =>
     templateData.value?.hardware.disk_bus || desktopData.value?.hardware.disk_bus || props.diskBus
@@ -183,27 +192,32 @@ const maxDiskSize = computed(() => {
   return (quota as Record<string, number>).desktops_disk_size ?? 500
 })
 
+const maxVcpus = computed(() => {
+  const quota = userAllowedHardware.value?.quota
+  if (!quota || typeof quota === 'boolean') return 128
+  return (quota as Record<string, number>).vcpus ?? 128
+})
+const maxMemory = computed(() => {
+  const quota = userAllowedHardware.value?.quota
+  if (!quota || typeof quota === 'boolean') return 1024
+  return (quota as Record<string, number>).memory ?? 1024
+})
+const vcpuOptions = computed(() => buildTieredOptions(maxVcpus.value, VCPU_TIERS))
+const memoryOptions = computed(() => buildTieredOptions(maxMemory.value, MEMORY_TIERS))
+
 const formSchema = z.object({
   vcpus: z
     .number()
     .min(1)
-    .refine(
-      (val) => {
-        const maxVcpus = userAllowedHardware.value?.quota?.vcpus ?? 128
-        return val <= maxVcpus
-      },
-      { message: t('components.domain.hardware.limited.quota') }
-    ),
+    .refine((val) => val <= maxVcpus.value, {
+      message: t('components.domain.hardware.limited.quota')
+    }),
   memory: z
     .number()
     .min(0.1)
-    .refine(
-      (val) => {
-        const maxMemory = userAllowedHardware.value?.quota?.memory ?? 128
-        return val <= maxMemory
-      },
-      { message: t('components.domain.hardware.limited.quota') }
-    ),
+    .refine((val) => val <= maxMemory.value, {
+      message: t('components.domain.hardware.limited.quota')
+    }),
   diskBus: z.string(),
   diskSize: props.showDiskSize
     ? z
@@ -493,17 +507,24 @@ defineExpose({
               <FieldLabel :for="field.name">
                 {{ $t('components.domain.hardware.vcpus.label') }}
               </FieldLabel>
-              <InputField
-                :id="field.name"
-                :name="field.name"
+              <Select
+                name="vcpus"
                 :model-value="field.state.value"
-                :destructive="isInvalid(field)"
-                :placeholder="t('components.domain.hardware.vcpus.placeholder')"
-                autocomplete="off"
-                type="number"
-                @blur="field.handleBlur"
-                @input="field.handleChange(Number(($event.target as HTMLInputElement).value))"
-              />
+                @update:model-value="field.handleChange"
+              >
+                <SelectTrigger
+                  :id="field.name"
+                  :aria-invalid="isInvalid(field)"
+                  class="min-w-[120px]"
+                >
+                  <SelectValue :placeholder="t('components.domain.hardware.vcpus.placeholder')" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="option in vcpuOptions" :key="option" :value="option">
+                    {{ option }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
               <FieldDescription
                 v-if="isLimited('vcpus')"
@@ -537,17 +558,24 @@ defineExpose({
               <FieldLabel :for="field.name">
                 {{ $t('components.domain.hardware.memory.label') }}
               </FieldLabel>
-              <InputField
-                :id="field.name"
-                :name="field.name"
+              <Select
+                name="memory"
                 :model-value="field.state.value"
-                :destructive="isInvalid(field)"
-                :placeholder="t('components.domain.hardware.memory.placeholder')"
-                autocomplete="off"
-                type="number"
-                @blur="field.handleBlur"
-                @input="field.handleChange(Number(($event.target as HTMLInputElement).value))"
-              />
+                @update:model-value="field.handleChange"
+              >
+                <SelectTrigger
+                  :id="field.name"
+                  :aria-invalid="isInvalid(field)"
+                  class="min-w-[120px]"
+                >
+                  <SelectValue :placeholder="t('components.domain.hardware.memory.placeholder')" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="option in memoryOptions" :key="option" :value="option">
+                    {{ option }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
               <FieldDescription
                 v-if="isLimited('memory')"
