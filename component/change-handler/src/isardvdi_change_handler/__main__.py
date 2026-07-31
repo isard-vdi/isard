@@ -45,7 +45,7 @@ from .handlers.targets import TargetsHandler
 from .handlers.users import UsersHandler
 from .handlers.users_migrations import UsersMigrationsHandler
 from .handlers.vgpus import VgpusHandler
-from .streams import reconcile, task_results_consumer
+from .streams import reconcile, storage_queue_producer, task_results_consumer
 
 redis_manager = AsyncRedisManager(socketio_url(), write_only=True)
 
@@ -213,6 +213,7 @@ async def main():
         listen_to_redis(),
         task_results_consumer.run(redis_manager),
         reconcile.run(redis_manager),
+        storage_queue_producer.run(redis_manager),
     )
 
 

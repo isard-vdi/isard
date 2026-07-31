@@ -82,7 +82,11 @@ export class DomainsUtils {
           username: guestProperties.credentials.username,
           password: guestProperties.credentials.password
         },
-        viewers: Object.entries(guestProperties.viewers).map(([key, value]) => ({ [key]: value }))
+        // Null-valued viewers are unavailable; keeping them here re-persisted
+        // them on save even though the checkbox rendered unchecked.
+        viewers: Object.entries(guestProperties.viewers)
+          .filter(([, value]) => value !== null)
+          .map(([key, value]) => ({ [key]: value }))
       },
       hardware: {
         bootOrder: hardware.boot_order,

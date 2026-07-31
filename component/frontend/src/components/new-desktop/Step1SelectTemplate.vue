@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/vue-query'
 import TemplatesList from '@/components/templates/TemplatesList.vue'
 import { DomainInfoModal } from '@/components/desktops'
 import { getTemplateDetails } from '@/gen/oas/apiv4/'
+import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 
 interface Props {
   selectedId?: string
@@ -13,7 +14,7 @@ const props = defineProps<Props>()
 
 interface Template {
   id: string
-  image?: { url: string }
+  image?: DomainImageOutput
 }
 
 const emit = defineEmits<{
@@ -78,8 +79,8 @@ const {
   <TemplatesList
     active-template-tab="user"
     :selectable="true"
+    :selected-id="props.selectedId"
     @row-click="handleRowClick"
     @show-info-modal="fetchAndOpenTemplateInfoModal"
-    :selected-id="props.selectedId"
   />
 </template>

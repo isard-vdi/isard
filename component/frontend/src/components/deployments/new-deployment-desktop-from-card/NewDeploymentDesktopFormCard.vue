@@ -12,6 +12,8 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Textarea } from '@/components/ui/textarea'
 
 import { DesktopCardBase, DesktopCardHeader } from '@/components/desktop-card'
+import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
+import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
@@ -33,6 +35,19 @@ const emit = defineEmits<{
 }>()
 
 const open = ref<boolean>(props.open || false)
+
+const showChangeImageModal = ref(false)
+const desktopImage = computed<DomainImageOutput | undefined>(() =>
+  props.form.getFieldValue(`desktops[${props.index}].image`)
+)
+
+function handleImageSelected(image: DomainImageOutput) {
+  props.form.setFieldValue(`desktops[${props.index}].image`, {
+    id: image.id,
+    type: image.type,
+    url: image.url ?? ''
+  })
+}
 
 const nameInputRef = ref<InstanceType<typeof InputField> | null>(null)
 
@@ -84,6 +99,13 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
 </script>
 
 <template>
+  <ChangeImageModal
+    :open="showChangeImageModal"
+    :current-image="desktopImage"
+    @select="handleImageSelected"
+    @close="showChangeImageModal = false"
+  />
+
   <Collapsible v-model:open="open">
     <div class="flex items-center gap-4">
       <CollapsibleTrigger class="flex items-center gap-4 mr-auto overflow-hidden">
@@ -135,7 +157,12 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
                 :show-network-overlay="false"
               >
                 <template #header-actions>
-                  <Button icon="image-plus" hierarchy="secondary-gray" size="sm" />
+                  <Button
+                    icon="image-plus"
+                    hierarchy="secondary-gray"
+                    size="sm"
+                    @click="showChangeImageModal = true"
+                  />
                 </template>
                 <template #header>
                   <!-- <InputField placeholder="Desktop Name" />
@@ -183,9 +210,9 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
                     "
                     autocomplete="off"
                     type="text"
+                    maxlength="50"
                     @blur="field.handleBlur"
                     @input="field.handleChange($event.target.value)"
-                    maxlength="50"
                   />
                 </Field>
               </props.form.Field>
@@ -212,9 +239,9 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
                       )
                     "
                     autocomplete="off"
+                    maxlength="255"
                     @blur="field.handleBlur"
                     @input="field.handleChange($event.target.value)"
-                    maxlength="255"
                   />
                 </Field>
               </props.form.Field>

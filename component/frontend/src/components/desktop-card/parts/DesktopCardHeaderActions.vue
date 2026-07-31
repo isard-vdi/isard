@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
 import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
 
-import { DesktopCardHeaderActionsDropdownContent } from '..'
+import { DesktopCardHeaderActionsDropdownContent, DesktopCardOverlayButton } from '..'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent
 } from '@/components/ui/dropdown-menu'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-
-const { t } = useI18n()
 
 interface Props {
   desktop: UserDesktop
@@ -40,58 +36,32 @@ const emit = defineEmits<{
 
 const bastionEnabled =
   props.desktop.bastion_target?.http?.enabled || props.desktop.bastion_target?.ssh?.enabled
-
-// Highlighted state when this icon's overlay is the active one.
-const iconButtonClass = (active: boolean) =>
-  [
-    'w-9! h-9! flex align-center justify-center p-0! backdrop-blur-[4px]',
-    active ? 'bg-base-white/30 hover:bg-base-white/40' : 'bg-base-black/30 hover:bg-base-black/50'
-  ].join(' ')
 </script>
 
 <template>
-  <Tooltip>
-    <TooltipTrigger as-child>
-      <Button
-        hierarchy="link-gray"
-        size="sm"
-        :class="iconButtonClass(props.activeOverlay === 'info')"
-        icon="info-circle"
-        icon-stroke-color="base-white"
-        @click="emit('infoClick')"
-      />
-    </TooltipTrigger>
-    <TooltipContent :title="t('components.desktops.desktop-card.actions.info')" />
-  </Tooltip>
+  <DesktopCardOverlayButton
+    icon="info-circle"
+    title="components.desktops.desktop-card.actions.info"
+    :active="props.activeOverlay === 'info'"
+    @click="emit('infoClick')"
+  />
 
-  <Tooltip>
-    <TooltipTrigger as-child>
-      <Button
-        hierarchy="link-gray"
-        size="sm"
-        :class="iconButtonClass(props.activeOverlay === 'networks')"
-        icon="modem-02"
-        icon-stroke-color="base-white"
-        @click="emit('networkClick')"
-      />
-    </TooltipTrigger>
-    <TooltipContent :title="t('components.desktops.desktop-card.actions.networks')" />
-  </Tooltip>
+  <DesktopCardOverlayButton
+    icon="modem-02"
+    title="components.desktops.desktop-card.actions.networks"
+    :active="props.activeOverlay === 'networks'"
+    @click="emit('networkClick')"
+  />
 
-  <Tooltip v-if="bastionEnabled">
-    <TooltipTrigger as-child>
-      <Button
-        hierarchy="link-gray"
-        size="sm"
-        :class="iconButtonClass(props.activeOverlay === 'bastion')"
-        icon="globe-04"
-        icon-stroke-color="base-white"
-        :aria-label="t('components.desktops.desktop-card.actions.bastion-access')"
-        @click="emit('bastionClick')"
-      />
-    </TooltipTrigger>
-    <TooltipContent :title="t('components.desktops.desktop-card.actions.bastion-access')" />
-  </Tooltip>
+  <DesktopCardOverlayButton
+    v-if="bastionEnabled"
+    icon="globe-04"
+    title="components.desktops.desktop-card.actions.bastion-access"
+    active-label="components.desktops.desktop-card.actions.bastion"
+    aria-label="components.desktops.desktop-card.actions.bastion-access"
+    :active="props.activeOverlay === 'bastion'"
+    @click="emit('bastionClick')"
+  />
 
   <DropdownMenu>
     <DropdownMenuTrigger>

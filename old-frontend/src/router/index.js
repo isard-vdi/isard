@@ -381,7 +381,7 @@ router.beforeEach(async (to, from, next) => {
 
     const sessionData = jwtDecode(session)
     // Handle user registration
-    if (sessionData.type === 'register') {
+    if (sessionData.type === 'register' || sessionData.type === 're-register') {
       window.location.pathname = '/register'
       return
     } else if (sessionData.type === 'category-select') {

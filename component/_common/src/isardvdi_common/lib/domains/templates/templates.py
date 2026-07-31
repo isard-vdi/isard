@@ -38,6 +38,18 @@ from isardvdi_common.schemas.shared.allowed import Allowed
 from rethinkdb import r
 
 
+def _as_card(image):
+    """Rebuild a card from its id/type.
+
+    Clients send `{id, type}` and the request model fills `url` with None,
+    which would be stored verbatim and leave the card unrenderable. The url
+    is derived data, so recompute it rather than trust the payload.
+    """
+    if not image:
+        return None
+    return Cards.get_card(image["id"], image["type"])
+
+
 class TemplatesProcessed(RethinkSharedConnection):
 
     _rdb_table = "domains"
@@ -171,6 +183,7 @@ class TemplatesProcessed(RethinkSharedConnection):
         allowed={"roles": False, "categories": False, "groups": False, "users": False},
         description="",
         enabled=False,
+        image=None,
     ):
         """_From api/src/api/libv2/api_templates.py ApiTemplates.New()_"""
         try:
@@ -366,7 +379,9 @@ class TemplatesProcessed(RethinkSharedConnection):
             # empty so the engine regenerates on first start.
             "xml": decompress_xml(desktop.get("xml")) or "",
             "icon": desktop.get("icon", ""),
-            "image": Cards.get_domain_stock_card(template_id),
+            # The fallback card is derived from the new template id, so it
+            # bears no relation to the source desktop's card.
+            "image": _as_card(image) or Cards.get_domain_stock_card(template_id),
             "os": desktop.get("os", ""),
             "guest_properties": desktop["guest_properties"],
             "create_dict": create_dict,
@@ -446,6 +461,7 @@ class TemplatesProcessed(RethinkSharedConnection):
         allowed={"roles": False, "categories": False, "groups": False, "users": False},
         description="",
         enabled=False,
+        image=None,
     ):
         """_From api/src/api/libv2/api_templates.py ApiTemplates.Duplicate()_"""
         with cls._rdb_context():
@@ -474,6 +490,10 @@ class TemplatesProcessed(RethinkSharedConnection):
         template["duplicate_parent_template"] = template.get(
             "duplicate_parent_template", template_id
         )
+        # The source doc is copied whole above, so its card is inherited
+        # unless overridden.
+        if image:
+            template["image"] = _as_card(image)
 
         try:
             with cls._rdb_context():

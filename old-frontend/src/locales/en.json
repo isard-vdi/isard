@@ -1556,6 +1556,7 @@
         "loading": "Loading"
     },
     "errors": {
+        "storage_no_consumer_retry_later": "Storage is temporarily unable to accept new requests. Please try again in a few moments.",
         "desktop_new_user_quota_exceeded": "You've exceeded your desktop creation quota. You must delete a desktop in order to create a new one.",
         "desktop_new_group_limit_exceeded": "Group desktop creation limit has been exceeded",
         "desktop_new_category_limit_exceeded": "Category desktop creation limit has been exceeded",

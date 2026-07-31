@@ -105,6 +105,45 @@ class BastionActiveResponse(BaseModel):
     )
 
 
+class BastionDirectViewerResponse(BaseModel):
+    """Read-only bastion connection info for the direct viewer.
+
+    Reachable by anyone holding the share link, so it carries only what is
+    needed to connect — target id, domains and ready-to-use URLs — and no key
+    material nor owner data. The URLs are built server-side because the direct
+    viewer cannot read the config (``bastion_domain``, ports) they need.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description=(
+            "Whether there is any bastion access to show. False when bastion is "
+            "globally disabled, the desktop has no target, or neither SSH nor "
+            "HTTP access is enabled on it."
+        ),
+    )
+    id: str | None = Field(default=None, description="The bastion target ID.")
+    custom_domains: list[str] = Field(
+        default=[],
+        description="Custom domains configured for the target. The access URLs above are only built from the first one.",
+    )
+    ssh_enabled: bool = Field(
+        default=False, description="Whether bastion SSH access is enabled."
+    )
+    ssh_command: str | None = Field(
+        default=None, description="Ready-to-run SSH command, if SSH access is enabled."
+    )
+    http_enabled: bool = Field(
+        default=False, description="Whether bastion HTTP access is enabled."
+    )
+    http_url: str | None = Field(
+        default=None, description="Public HTTP URL, if HTTP access is enabled."
+    )
+    https_url: str | None = Field(
+        default=None, description="Public HTTPS URL, if HTTP access is enabled."
+    )
+
+
 class BastionRequest(BaseModel):
     http: BastionHttpConfig | None = Field(
         default=None,

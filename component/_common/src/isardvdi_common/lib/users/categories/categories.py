@@ -203,6 +203,28 @@ class CategoriesProcessed(RethinkSharedConnection):
         return rows[0]["id"]
 
     @classmethod
+    def get_id_name_map(cls) -> dict:
+        """Return a ``{category_id: name}`` map for every category.
+
+        One bounded ``pluck("id","name")`` over the whole ``categories`` table
+        (all categories, not just ``frontend`` ones — unlike
+        :meth:`get_categories_frontend`). Used by admin observability views
+        (e.g. the storage-governor gauges) to resolve fair-scheduler lane
+        category ids to human names in a single read instead of an N+1
+        per-lane lookup. Read-only and defensive: a transient rdb error
+        degrades to an empty map so a polled admin view falls back to raw ids
+        rather than 500-ing.
+        """
+        try:
+            with cls._rdb_context():
+                rows = list(
+                    r.table(cls._rdb_table).pluck("id", "name").run(cls._rdb_connection)
+                )
+        except Exception:
+            return {}
+        return {row["id"]: row.get("name") for row in rows if row.get("id")}
+
+    @classmethod
     def find_duplicate_uid(
         cls, uid: str, exclude_category_id: str | None = None
     ) -> list[dict]:

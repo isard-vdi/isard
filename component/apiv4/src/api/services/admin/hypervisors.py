@@ -25,6 +25,7 @@ from typing import Optional, Union
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
+from isardvdi_common.schemas.hypervisor import HypervisorStatus
 
 # GENEVE / WireGuard encapsulation overheads. Canonical arithmetic lives in
 # docker/vpn/ovs/ovs_setup.sh (it physically sizes vlan-wg/ovsbr0); this is a
@@ -56,14 +57,12 @@ class AdminHypervisorsService:
     # ── List / Get ───────────────────────────────────────────────────────
 
     @staticmethod
-    def get_hypervisors(status: Optional[str] = None) -> list[dict]:
-        """List hypervisors, optionally filtered by status."""
-        if status and status not in ["Online", "Offline", "Error"]:
-            raise Error(
-                "bad_request",
-                "Hypervisor status incorrect",
-            )
-        return HypervisorsProcessed.get_hypervisors(status)
+    def get_hypervisors(status: Optional[HypervisorStatus] = None) -> list[dict]:
+        """List hypervisors, optionally filtered by status.
+
+        The route-level ``HypervisorStatus`` typing rejects invalid values.
+        """
+        return HypervisorsProcessed.get_hypervisors(status.value if status else None)
 
     @staticmethod
     def get_hyper_status(hyper_id: str) -> dict:
@@ -271,6 +270,11 @@ class AdminHypervisorsService:
     def set_hyper_deadrow_time(hyper_id: str, reset: bool = False) -> Union[dict, bool]:
         """Set or reset dead row timeout for a hypervisor."""
         return HypervisorsProcessed.set_hyper_deadrow_time(hyper_id, reset=reset)
+
+    @staticmethod
+    def set_hyper_only_forced(hyper_id: str, only_forced: bool) -> None:
+        """Set or clear the only_forced flag for a hypervisor."""
+        HypervisorsProcessed.set_hyper_only_forced(hyper_id, only_forced)
 
     @staticmethod
     def set_hyper_orchestrator_managed(hyper_id: str, reset: bool = False) -> None:

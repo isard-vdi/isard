@@ -1,12 +1,13 @@
-FROM alpine:3.22 AS backupninja-src
+FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS backupninja-src
 RUN apk add --no-cache automake autoconf bash gcc git make
 RUN git clone https://gitlab.com/isard/backupninja.git && \
     cd backupninja && \
+    git checkout 183b8c30911d9fa96b66c9f5b436813457240f86 && \
     bash ./autogen.sh && bash configure && \
     make && make install
 
-FROM alpine:3.22 AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
+FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=auto \
@@ -18,7 +19,7 @@ WORKDIR /workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-backupninja --no-editable
 
-FROM alpine:3.22 AS runtime
+FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS runtime
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     bash borgbackup coreutils curl envsubst flock jq libffi libjpeg-turbo \
@@ -33,8 +34,8 @@ COPY --from=builder /opt/uv/python /opt/uv/python
 COPY --from=builder /workspace/.venv /workspace/.venv
 ENV PATH="/workspace/.venv/bin:$PATH"
 
-COPY --from=victoriametrics/vmbackup:v1.147.0 /vmbackup-prod /usr/local/bin/vmbackup
-COPY --from=victoriametrics/vmrestore:v1.147.0 /vmrestore-prod /usr/local/bin/vmrestore
+COPY --from=victoriametrics/vmbackup:v1.147.0@sha256:911a96ab75fd83f9380ac8021681e978a1a7570409f44f7086d7ba23c0fe61ef /vmbackup-prod /usr/local/bin/vmbackup
+COPY --from=victoriametrics/vmrestore:v1.147.0@sha256:4de4c9d1c185638260c0846f55ac0de01311da509bc8dbd0bce878f6cdd3f53c /vmrestore-prod /usr/local/bin/vmrestore
 
 COPY --from=backupninja-src /usr/local/sbin/backupninja /usr/local/sbin/backupninja
 COPY --from=backupninja-src /usr/local/sbin/ninjahelper /usr/local/sbin/ninjahelper

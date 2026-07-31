@@ -57,7 +57,7 @@ def stub_rdb(monkeypatch):
 class TestFetchLogs:
     def test_returns_logs_query_results(self, stub_rdb):
         chain = stub_rdb["mock_table"].return_value
-        chain.filter.return_value.merge.return_value.merge.return_value.run.return_value = [
+        chain.between.return_value.filter.return_value.merge.return_value.merge.return_value.run.return_value = [
             {"id": "u-log-1"}
         ]
         day = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -65,3 +65,5 @@ class TestFetchLogs:
         result = stub_rdb["Processed"].fetch_logs(day, day_after)
         assert result == [{"id": "u-log-1"}]
         stub_rdb["mock_table"].assert_any_call("logs_users")
+        _, kw = chain.between.call_args
+        assert kw.get("index") == "started_time"

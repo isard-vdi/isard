@@ -181,10 +181,6 @@ class UsersService:
 
         user = RethinkUser.init_document(**user)
         UserStorage.isard_user_storage_add_user(user)
-
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
         return user
 
     @staticmethod
@@ -195,6 +191,36 @@ class UsersService:
         return CommonUser.check_user_exists(
             uid=uid, category_id=category_id, provider=provider
         )
+
+    @staticmethod
+    def re_register(
+        provider: str, category_id: str, uid: str, role_id: str, group_id: str
+    ) -> str:
+        """
+        Apply a registration code to an existing user: the code's role and
+        group replace the current ones and the secondary groups are cleared.
+        """
+        users = CommonUser.get_by_provider_category_uid(provider, category_id, uid)
+        if not users:
+            raise Error(
+                "not_found",
+                "User not found with the provided UID in the category.",
+            )
+
+        user_id = users[0]["id"]
+        CommonUser.update_user(
+            user_id,
+            {
+                "role": role_id,
+                "group": group_id,
+                "secondary_groups": [],
+            },
+        )
+
+        from api.routes.users import clear_users_list_cache
+
+        clear_users_list_cache()
+        return user_id
 
     @staticmethod
     def get_user_password_policy(
@@ -361,10 +387,6 @@ class UsersService:
                 f"User with ID '{user_id}' does not exist.",
             )
         CommonUser.delete_user(user_id, user_id, True)
-
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
 
     @staticmethod
     def get_user_desktops(user_id: str) -> list:

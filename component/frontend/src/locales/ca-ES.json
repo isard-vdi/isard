@@ -117,6 +117,9 @@
       },
       "subtitle": "Visualitza, restaura o elimina els elements de la paperera",
       "title": "Paperera"
+    },
+    "disclaimer": {
+      "title": "Avís legal"
     }
   },
   "views": {
@@ -167,6 +170,11 @@
     "login": {
       "separator": "Altres accessos",
       "select-category": "Selecciona una categoria"
+    },
+    "disclaimer": {
+      "accept": "Accepta",
+      "reject": "Rebutja",
+      "error": "No s'ha pogut processar l'acceptació. Torna-ho a provar."
     },
     "new-desktop": {
       "desktop-template": "Plantilla",
@@ -376,7 +384,11 @@
       }
     },
     "register": {
-      "title": "Registre"
+      "title": "Registre",
+      "re-register": {
+        "title": "Actualitza el teu registre",
+        "description": "Els teus permisos han canviat. Introdueix el codi de registre que t'ha proporcionat l'administració per continuar."
+      }
     },
     "notifications": {
       "title": "Notificacions",
@@ -1052,6 +1064,7 @@
           "title": "Genera una nova clau API",
           "description": "Pots generar una nova clau API per utilitzar amb aplicacions externes que integren l'API d'IsardVDI.",
           "warning": "Només podràs veure la clau API una vegada, així que assegura't de guardar-la en un lloc segur.",
+          "max-expiration-hint": "La caducitat màxima és d'un any des d'avui",
           "buttons": {
             "generate": "Genera",
             "expiration-label": "Data de caducitat",
@@ -1321,9 +1334,14 @@
         "title": "No hi ha perfils disponibles"
       },
       "gpu-select": {
-        "placeholder": "Perfils de GPU disponibles",
-        "value": "Canvia a \"{profile}\"",
-        "label": "Nou perfil de GPU"
+        "placeholder": "Selecciona els perfils que es faran servir",
+        "label": "Perfils de GPU"
+      },
+      "errors": {
+        "title": "No s’ha pogut canviar la GPU",
+        "vgpu_profiles_different_hypervisors": "Els perfils de GPU seleccionats no estan tots disponibles en un mateix host. Trieu una altra combinació.",
+        "vgpu_profiles_different_models": "Tots els perfils de GPU seleccionats han de ser del mateix model de GPU per poder executar-se en un mateix host.",
+        "generic": "No s’ha pogut canviar i iniciar l’escriptori. Torneu-ho a provar."
       }
     },
     "desktops": {
@@ -1454,7 +1472,12 @@
         },
         "overlay": {
           "expand": "Detalls",
-          "expand-tooltip": "Obre la finestra de detalls complets"
+          "expand-tooltip": "Obre la finestra de detalls complets",
+          "bastion": {
+            "open-in-browser": "Obre al navegador: {url}",
+            "copy-url": "Copia l'URL: {url}",
+            "copy-ssh": "Copia la connexió SSH: {command}"
+          }
         }
       },
       "desktop-storage-modal": {
@@ -1761,6 +1784,7 @@
     },
     "bastion-info-modal": {
       "description": "Utilitzeu la informació següent per connectar-vos a l'escriptori mitjançant el bastió.",
+      "description-read-only": "Utilitzeu la informació següent per connectar-vos a l'escriptori mitjançant el bastió. Copieu l'URL o l'ordre SSH.",
       "title": "Informació del bastió per a l'escriptori '{name}'",
       "fields": {
         "http": {
@@ -1912,6 +1936,9 @@
         "bastion": {
           "label": "Bastió activat",
           "description": "Permet l'accés a l'escriptori a través d'un host bastió.",
+          "custom-domains": {
+            "label": "Dominis personalitzats"
+          },
           "http-https": {
             "label": "HTTP / HTTPS",
             "description": "Accedeix a l'escriptori amb un navegador web o un visor RDP compatible amb connexions HTTP/HTTPS.",
@@ -2339,7 +2366,9 @@
     "date-picker": {
       "apply": "Aplica",
       "cancel": "Cancel·la",
-      "today": "Avui"
+      "today": "Avui",
+      "month": "Mes",
+      "year": "Any"
     },
     "form": {
       "validation": {
@@ -2437,7 +2466,8 @@
         "forbidden": "El domini de correu electrònic que està intentant utilitzar no és autoritzat per a la seva categoria.",
         "not_found": "Codi no trobat",
         "conflict": "L'usuari ja existeix",
-        "internal_server": "Error en el servidor"
+        "internal_server": "Error en el servidor",
+        "re_register_not_resolved": "El codi que has introduït no atorga l'accés necessari. Demana un codi vàlid a l'administració."
       }
     },
     "new-desktop": {

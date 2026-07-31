@@ -28,6 +28,12 @@ const { isPending: isUserLoading, data: user } = useQuery({
   staleTime: Infinity
 })
 
+// In `hidden` mode the login notifications page is a transitional landing that
+// must funnel the user back to the old frontend.
+const redirectToOldFrontend = computed(
+  () => route.name === 'notifications' && userConfig?.value?.frontend_mode === 'hidden'
+)
+
 // TODO: Uncomment if the TopBar is required
 // const navItems = computed(() => getRoleTopBarItems(user.value?.role as Role).mainItems)
 const sidebarItems = computed(() => {
@@ -36,7 +42,8 @@ const sidebarItems = computed(() => {
     route.name as string,
     user?.value.items_in_bin,
     userConfig?.value.show_bookings_button ?? true,
-    userConfig?.value.show_gpu_plannings ?? false
+    userConfig?.value.show_gpu_plannings ?? false,
+    redirectToOldFrontend.value
   ) ?? {
     mainItems: [],
     footerItems: []

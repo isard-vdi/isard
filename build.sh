@@ -694,7 +694,7 @@ Use SKIP_CHECK_DOCKER_COMPOSE_VERSION=true environment variable to skip the chec
 fi
 
 git submodule init
-git submodule update --recursive --remote
+git submodule update --recursive
 
 CONFIG_FILES=$(get_config_files)
 if [ -z "$CONFIG_FILES" ]; then

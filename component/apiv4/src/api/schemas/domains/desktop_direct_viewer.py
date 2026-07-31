@@ -22,6 +22,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal, Optional, Union
 
+from api.schemas.bastion import BastionDirectViewerResponse
+from api.schemas.domains.desktops import DesktopDetailsResponse
 from isardvdi_common.schemas.domains import DesktopStatusEnum, Image
 from pydantic import BaseModel, Field
 
@@ -180,4 +182,11 @@ class DesktopShareLinkResponse(BaseModel):
     link: Optional[str] = Field(
         default=None,
         description="Link to share the desktop. None if no share link has been generated yet.",
+    )
+
+
+class DesktopDirectViewerDetailsResponse(DesktopDetailsResponse):
+    bastion: BastionDirectViewerResponse = Field(
+        default_factory=BastionDirectViewerResponse,
+        description="Read-only bastion access info for the desktop, if enabled.",
     )

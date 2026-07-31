@@ -29,6 +29,67 @@ from wgtools import Wg
 start_monitoring_vpn_status()
 tunnel_monitor.start()
 
+VM_MAC_MATCH = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
+
+
+def ensure_geneve_port(hyper_id, hostname):
+    """Create the hypervisor's geneve port if missing, then (re)apply its BFD
+    session and flows.
+
+    BFD and the flows are applied even when the port already exists: BFD is the
+    only liveness signal in geneve-only (tunnel_monitor reads bfd_status:state),
+    so a port left without it would report the tunnel down forever, and the
+    flows live in ovs-vswitchd rather than the OVS db, so a restart loses them.
+    """
+    if not hyper_id or not hostname:
+        return False
+    try:
+        resolved_ip = socket.gethostbyname(hostname)
+    except socket.gaierror:
+        log.error(f"Cannot resolve hostname {hostname} for {hyper_id}")
+        return False
+
+    geneve_port = os.environ.get("WG_HYPERS_PORT", "4443")
+    if hyper_id not in check_output(("ovs-vsctl", "show"), text=True).strip():
+        subprocess.run(
+            [
+                "ovs-vsctl",
+                "add-port",
+                "ovsbr0",
+                hyper_id,
+                "--",
+                "set",
+                "interface",
+                hyper_id,
+                "type=geneve",
+                f"options:remote_ip={resolved_ip}",
+                f"options:dst_port={geneve_port}",
+            ]
+        )
+    subprocess.run(
+        [
+            "ovs-vsctl",
+            "set",
+            "Interface",
+            hyper_id,
+            "bfd:enable=true",
+            "bfd:min_tx=200",
+            "bfd:min_rx=200",
+        ]
+    )
+    port = check_output(
+        ("ovs-vsctl", "get", "interface", hyper_id, "ofport"), text=True
+    ).strip()
+    for flow in (
+        f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},actions=NORMAL",
+        f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},tp_src=68,tp_dst=67,actions=NORMAL",
+        f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},actions=resubmit(,2)",
+        f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
+    ):
+        subprocess.run(["ovs-ofctl", "add-flow", "ovsbr0", flow])
+    log.info(f"Ensured geneve hypervisor {hyper_id} (port {port})")
+    return True
+
 
 def _process_vpn_change(change, wg_users, wg_hypers):
     try:
@@ -74,92 +135,9 @@ def _process_vpn_change(change, wg_users, wg_hypers):
                 # in a separate update after the insert), so it defaults to
                 # "wireguard+geneve" and this insert event would wrongly take the
                 # WireGuard branch -- leaving the hypervisor's geneve tunnel (and
-                # its BFD session) never created until a vpn restart. The startup
-                # path already gates on this env, so mirror it here.
+                # its BFD session) never created until a vpn restart.
                 if vpn_tunneling_mode == "geneve" or geneve_only_infra:
-                    hostname = new_val.get("hostname")
-                    if hostname:
-                        try:
-                            resolved_ip = socket.gethostbyname(hostname)
-                        except socket.gaierror:
-                            log.error(f"Cannot resolve {hostname}")
-                            return
-                        hyper_id = new_val["id"]
-                        geneve_port = os.environ.get("WG_HYPERS_PORT", "4443")
-                        # Idempotent: a re-registration fires this event again
-                        # (and the startup path may have already created the
-                        # port), so only add-port when it is missing -- mirrors
-                        # the startup existence guard.
-                        if (
-                            hyper_id
-                            not in check_output(
-                                ("ovs-vsctl", "show"), text=True
-                            ).strip()
-                        ):
-                            subprocess.run(
-                                [
-                                    "ovs-vsctl",
-                                    "add-port",
-                                    "ovsbr0",
-                                    hyper_id,
-                                    "--",
-                                    "set",
-                                    "interface",
-                                    hyper_id,
-                                    "type=geneve",
-                                    f"options:remote_ip={resolved_ip}",
-                                    f"options:dst_port={geneve_port}",
-                                ]
-                            )
-                        subprocess.run(
-                            [
-                                "ovs-vsctl",
-                                "set",
-                                "Interface",
-                                hyper_id,
-                                "bfd:enable=true",
-                                "bfd:min_tx=200",
-                                "bfd:min_rx=200",
-                            ]
-                        )
-                        port = check_output(
-                            ("ovs-vsctl", "get", "interface", hyper_id, "ofport"),
-                            text=True,
-                        ).strip()
-                        vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
-                        subprocess.run(
-                            [
-                                "ovs-ofctl",
-                                "add-flow",
-                                "ovsbr0",
-                                f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=NORMAL",
-                            ]
-                        )
-                        subprocess.run(
-                            [
-                                "ovs-ofctl",
-                                "add-flow",
-                                "ovsbr0",
-                                f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},tp_src=68,tp_dst=67,actions=NORMAL",
-                            ]
-                        )
-                        subprocess.run(
-                            [
-                                "ovs-ofctl",
-                                "add-flow",
-                                "ovsbr0",
-                                f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=resubmit(,2)",
-                            ]
-                        )
-                        subprocess.run(
-                            [
-                                "ovs-ofctl",
-                                "add-flow",
-                                "ovsbr0",
-                                f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
-                            ]
-                        )
-                        log.info(f"Added geneve-only hypervisor {hyper_id}")
+                    ensure_geneve_port(new_val["id"], new_val.get("hostname"))
                 elif wg_hypers is not None:
                     wg_hypers.add_peer(new_val)
                 else:
@@ -171,6 +149,26 @@ def _process_vpn_change(change, wg_users, wg_hypers):
 
         else:
             ### Update
+            if new_val["table"] == "hypervisors":
+                # Under geneve-only the tunnel must exist for every hypervisor,
+                # whichever event carries it: a re-registration of an existing
+                # record arrives here rather than as an insert, and the api stamps
+                # tunneling_mode in a separate update after the insert, so this is
+                # the only event that fires once the record is complete. Kept above
+                # the "vpn not in old_val" return below, which would otherwise skip
+                # precisely the update that first adds vpn.
+                #
+                # Only on a transition: hypervisors stream stats every few seconds,
+                # and re-running the OVS setup per tick would spawn a handful of
+                # ovs-vsctl/ovs-ofctl calls per hypervisor forever.
+                old_mode = (old_val.get("vpn") or {}).get("tunneling_mode")
+                new_mode = (new_val.get("vpn") or {}).get("tunneling_mode")
+                if (geneve_only_infra or new_mode == "geneve") and (
+                    old_mode != new_mode
+                    or old_val.get("hostname") != new_val.get("hostname")
+                ):
+                    ensure_geneve_port(new_val["id"], new_val.get("hostname"))
+
             if old_val["table"] in ["users", "remotevpn", "hypervisors"]:
                 if "vpn" not in old_val:
                     return
@@ -241,97 +239,19 @@ while True:
         # Initialize OVS ports for geneve-only hypervisors
         if geneve_only_infra:
             with vpn_rethink_conn() as _conn:
+                # No tunneling_mode filter: this block already runs only under
+                # GENEVE_ONLY_INFRA, where every hypervisor is geneve. Filtering
+                # on the stored mode raced the api, which writes it in a separate
+                # update after the insert -- a hypervisor still reading
+                # "wireguard+geneve" was skipped here, and a re-registration
+                # arrives as an update (not an insert), so its geneve port and
+                # BFD session were never created and the tunnel read as down
+                # forever. tunnel_monitor treats the env the same way.
                 geneve_hypers = list(
-                    r.table("hypervisors")
-                    .pluck("id", "vpn", "hostname")
-                    .filter(
-                        lambda h: h["vpn"]
-                        .get_field("tunneling_mode")
-                        .default(None)
-                        .eq("geneve")
-                    )
-                    .run(_conn)
+                    r.table("hypervisors").pluck("id", "vpn", "hostname").run(_conn)
                 )
             for hyper in geneve_hypers:
-                hostname = hyper.get("hostname")
-                hyper_id = hyper.get("id")
-                if not hostname or not hyper_id:
-                    continue
-                try:
-                    resolved_ip = socket.gethostbyname(hostname)
-                except socket.gaierror:
-                    log.error(f"Cannot resolve hostname {hostname} for {hyper_id}")
-                    continue
-                geneve_port = os.environ.get("WG_HYPERS_PORT", "4443")
-                if (
-                    hyper_id
-                    not in check_output(("ovs-vsctl", "show"), text=True).strip()
-                ):
-                    subprocess.run(
-                        [
-                            "ovs-vsctl",
-                            "add-port",
-                            "ovsbr0",
-                            hyper_id,
-                            "--",
-                            "set",
-                            "interface",
-                            hyper_id,
-                            "type=geneve",
-                            f"options:remote_ip={resolved_ip}",
-                            f"options:dst_port={geneve_port}",
-                        ]
-                    )
-                    subprocess.run(
-                        [
-                            "ovs-vsctl",
-                            "set",
-                            "Interface",
-                            hyper_id,
-                            "bfd:enable=true",
-                            "bfd:min_tx=200",
-                            "bfd:min_rx=200",
-                        ]
-                    )
-                    port = check_output(
-                        ("ovs-vsctl", "get", "interface", hyper_id, "ofport"), text=True
-                    ).strip()
-                    vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=NORMAL",
-                        ]
-                    )
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},tp_src=68,tp_dst=67,actions=NORMAL",
-                        ]
-                    )
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=resubmit(,2)",
-                        ]
-                    )
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
-                        ]
-                    )
-                    log.info(
-                        f"Initialized geneve-only hypervisor {hyper_id} (port {port})"
-                    )
+                ensure_geneve_port(hyper.get("id"), hyper.get("hostname"))
             log.info(f"Initialized {len(geneve_hypers)} geneve-only hypervisors")
 
         wg_users = Wg(

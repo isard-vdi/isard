@@ -20,6 +20,7 @@
 
 from types import SimpleNamespace
 
+import pytest
 from api.routes.tests.helpers import MockJWT
 from api.services.error import Error
 
@@ -438,3 +439,91 @@ def test_retry_all_failed_tasks_unexpected_error_is_500(monkeypatch, test_client
     jwt = MockJWT()
     response = test_client(url="/admin/tasks/retry", method="PUT", jwt=jwt)
     assert response.status_code == 500
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  DELETE /admin/task/{task_id} — admin cancel, no owner/status gate (P2.4 §7/3)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def test_admin_cancel_task_success(monkeypatch, test_client):
+    """Admin cancel returns 204; the service is handed only the task_id (no
+    owner/role gate)."""
+    calls = []
+    monkeypatch.setattr(
+        "api.services.tasks.TaskService.admin_cancel_task",
+        staticmethod(lambda task_id: calls.append(task_id) or {}),
+    )
+    response = test_client(
+        url="/admin/task/task-1", method="DELETE", jwt=MockJWT(role_id="admin")
+    )
+    assert response.status_code == 204
+    assert calls == ["task-1"]
+
+
+def test_admin_cancel_task_gone_returns_404(monkeypatch, test_client):
+    def raise_not_found(task_id):
+        raise Error("not_found", "Task not found")
+
+    monkeypatch.setattr(
+        "api.services.tasks.TaskService.admin_cancel_task",
+        staticmethod(raise_not_found),
+    )
+    response = test_client(
+        url="/admin/task/ghost", method="DELETE", jwt=MockJWT(role_id="admin")
+    )
+    assert response.status_code == 404
+
+
+def test_admin_cancel_task_rejects_user(test_client):
+    """admin_router — a plain user cannot admin-cancel (guard fires first)."""
+    response = test_client(
+        url="/admin/task/t-1", method="DELETE", jwt=MockJWT(role_id="user")
+    )
+    assert response.status_code == 403
+
+
+def test_admin_cancel_task_rejects_manager(test_client):
+    """admin_router — a manager cannot admin-cancel."""
+    response = test_client(
+        url="/admin/task/t-1", method="DELETE", jwt=MockJWT(role_id="manager")
+    )
+    assert response.status_code == 403
+
+
+def test_admin_cancel_task_service_no_owner_gate(monkeypatch):
+    """The service cancels with NO ownership/status gate: present -> cancel()
+    is called and {} returned, with no user_id/role_id ever consulted."""
+    from api.services.tasks import TaskService
+
+    calls = {}
+
+    class FakeTask:
+        @staticmethod
+        def exists(tid):
+            return True
+
+        def __init__(self, tid):
+            calls["built"] = tid
+
+        def cancel(self):
+            calls["canceled"] = True
+
+    monkeypatch.setattr("api.services.tasks.Task", FakeTask)
+    out = TaskService.admin_cancel_task("t-9")
+    assert out == {}
+    assert calls == {"built": "t-9", "canceled": True}
+
+
+def test_admin_cancel_task_service_gone_raises(monkeypatch):
+    """A gone task raises not_found (-> 404 at the route)."""
+    from api.services.tasks import TaskService
+
+    class FakeTask:
+        @staticmethod
+        def exists(tid):
+            return False
+
+    monkeypatch.setattr("api.services.tasks.Task", FakeTask)
+    with pytest.raises(Error):
+        TaskService.admin_cancel_task("ghost")

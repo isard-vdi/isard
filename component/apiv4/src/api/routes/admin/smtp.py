@@ -30,23 +30,10 @@ from api.schemas.admin.smtp import (
 from api.schemas.common import ErrorResponse
 from api.services.admin.smtp import AdminSmtpService
 from api.services.error import Error
-from cachetools import cached
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 tag = "admin-smtp"
-
-# Named caches so the PUT and POST writers below can drop them and tests
-# can clear between cases. 5 s TTL is mainly thundering-herd protection.
-smtp_config_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=5)
-smtp_enabled_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=5)
-
-
-def clear_smtp_caches():
-    """Invalidate both SMTP read caches after admin_smtp_put."""
-    smtp_config_cache.clear()
-    smtp_enabled_cache.clear()
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -127,7 +114,6 @@ async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
         )
 
 
-@cached(cache=smtp_enabled_cache)
 @admin_router.get(
     "/admin/item/smtp/enabled",
     tags=[tag],

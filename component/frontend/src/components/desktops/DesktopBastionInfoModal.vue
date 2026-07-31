@@ -12,6 +12,7 @@ import {
   updateDesktopBastionAuthorizedKeysMutation,
   updateDesktopBastionDomainMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import type { BastionDirectViewerResponse } from '@/gen/oas/apiv4'
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -29,22 +30,30 @@ interface Props {
   open?: boolean
   desktopId: string
   desktopName: string
+  // Direct viewer: access info comes ready-made from get-details, because that
+  // view can read neither the config nor the target. Switches to read-only.
+  bastion?: BastionDirectViewerResponse
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  open: false
+  open: false,
+  bastion: undefined
 })
 
 const emit = defineEmits<{
   close: []
 }>()
 
+const isReadOnly = computed(() => !!props.bastion)
+const isEditable = computed(() => !isReadOnly.value)
+
+// Every query below needs a logged-in user, so they only run when editable.
 const {
   data: userConfig,
   isPending: userConfigIsPending,
   isError: userConfigIsError,
   error: userConfigError
-} = useQuery(getUserConfigOptions())
+} = useQuery({ ...getUserConfigOptions(), enabled: isEditable })
 
 const {
   data: bastionTargetData,
@@ -52,13 +61,14 @@ const {
   isError: bastionTargetDataIsError,
   error: bastionTargetDataError,
   refetch: refetchBastionTargetData
-} = useQuery(
-  getDesktopBastionLegacyOptions({
+} = useQuery({
+  ...getDesktopBastionLegacyOptions({
     path: {
       desktop_id: props.desktopId
     }
-  })
-)
+  }),
+  enabled: isEditable
+})
 
 const {
   mutate: saveBastionHttpDomain,
@@ -87,7 +97,10 @@ const {
 // start, kept first in the target). This box is only for OTHER people's keys,
 // so we hide the user's own key here; on save the server re-prepends the owner
 // key and strips the editor's own key.
-const { data: userBastionSshKey } = useQuery(getUserBastionSshKeyOptions())
+const { data: userBastionSshKey } = useQuery({
+  ...getUserBastionSshKeyOptions(),
+  enabled: isEditable
+})
 const ownKey = computed(() => (userBastionSshKey.value?.ssh_key || '').trim())
 const hasOwnKey = computed(() => ownKey.value.length > 0)
 
@@ -110,6 +123,24 @@ watch(
 
 const bastionModalDnsAlertOpen = ref(false)
 
+const hasTarget = computed(() =>
+  isReadOnly.value ? !!props.bastion?.enabled : !!bastionTargetData.value
+)
+const targetId = computed(() =>
+  isReadOnly.value ? (props.bastion?.id ?? '') : (bastionTargetData.value?.id ?? '')
+)
+const customDomains = computed(() =>
+  isReadOnly.value
+    ? (props.bastion?.custom_domains ?? [])
+    : (bastionTargetData.value?.domains ?? [])
+)
+const httpEnabled = computed(() =>
+  isReadOnly.value ? !!props.bastion?.http_enabled : !!bastionTargetData.value?.http.enabled
+)
+const sshEnabled = computed(() =>
+  isReadOnly.value ? !!props.bastion?.ssh_enabled : !!bastionTargetData.value?.ssh.enabled
+)
+
 const targetIdSplit = computed(() => {
   // return the id with the last `-` replaced by `.`
   if (!bastionTargetData.value?.id) return ''
@@ -123,6 +154,7 @@ const targetIdSplit = computed(() => {
 // TODO: migrate to the multi-domain (domains array) UI. For now we only
 // surface the first custom domain.
 const httpUrl = computed(() => {
+  if (isReadOnly.value) return props.bastion?.http_url ?? ''
   const port = userConfig.value?.http_port === '80' ? '' : `:${userConfig.value?.http_port}`
   if (bastionTargetData.value?.domains?.[0]) {
     return `http://${bastionTargetData.value?.domains?.[0]}${port}`
@@ -130,6 +162,7 @@ const httpUrl = computed(() => {
   return `http://${targetIdSplit.value}.${userConfig.value?.bastion_domain || window.location.hostname}${port}`
 })
 const httpsUrl = computed(() => {
+  if (isReadOnly.value) return props.bastion?.https_url ?? ''
   const port = userConfig.value?.https_port === '443' ? '' : `:${userConfig.value?.https_port}`
   if (bastionTargetData.value?.domains?.[0]) {
     return `https://${bastionTargetData.value.domains[0]}${port}`
@@ -137,6 +170,7 @@ const httpsUrl = computed(() => {
   return `https://${targetIdSplit.value}.${userConfig.value?.bastion_domain || window.location.hostname}${port}`
 })
 const sshUrl = computed(() => {
+  if (isReadOnly.value) return props.bastion?.ssh_command ?? ''
   const port =
     userConfig.value?.bastion_ssh_port === '22' ? '' : ` -p ${userConfig.value?.bastion_ssh_port}`
   return `ssh ${bastionTargetData.value?.id}@${bastionTargetData.value?.domains?.[0] || userConfig.value?.bastion_domain || window.location.hostname}${port}`
@@ -149,8 +183,14 @@ const closeModal = () => {
   emit('close')
 }
 
-const isPending = userConfigIsPending || bastionTargetDataIsPending
-const isError = userConfigIsError || bastionTargetDataIsError
+// A disabled query stays pending forever, so these states only apply when the
+// data actually comes from a query.
+const isPending = computed(
+  () => isEditable.value && (userConfigIsPending.value || bastionTargetDataIsPending.value)
+)
+const isError = computed(
+  () => isEditable.value && (userConfigIsError.value || bastionTargetDataIsError.value)
+)
 
 const domainNameForm = useForm({
   defaultValues: reactive({
@@ -192,7 +232,13 @@ const authorizedKeysForm = useForm({
     size="2xl"
     class="pt-6"
     :title="t('components.bastion-info-modal.title', { name: props.desktopName })"
-    :description="t('components.bastion-info-modal.description')"
+    :description="
+      t(
+        isReadOnly
+          ? 'components.bastion-info-modal.description-read-only'
+          : 'components.bastion-info-modal.description'
+      )
+    "
     @close="closeModal"
   >
     <div class="flex flex-col gap-4 pb-4">
@@ -224,7 +270,7 @@ const authorizedKeysForm = useForm({
 
       <!-- Empty state: no bastion target -->
       <div
-        v-else-if="!bastionTargetData"
+        v-else-if="!hasTarget"
         class="bg-base-white p-6 rounded-lg border border-gray-warm-300 flex flex-col items-center text-center gap-2"
       >
         <Icon name="globe-04" size="lg" stroke-color="gray-warm-400" />
@@ -249,15 +295,15 @@ const authorizedKeysForm = useForm({
             <code
               class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
             >
-              {{ bastionTargetData.id }}
+              {{ targetId }}
             </code>
-            <CopyIcon :value="bastionTargetData.id" stroke-color="gray-warm-600" />
+            <CopyIcon :value="targetId" stroke-color="gray-warm-600" />
           </div>
         </section>
 
         <!-- HTTP / HTTPS section -->
         <section
-          v-if="bastionTargetData.http.enabled"
+          v-if="httpEnabled"
           class="bg-base-white p-5 rounded-lg border border-gray-warm-300 flex flex-col gap-4"
         >
           <div class="flex items-center gap-2">
@@ -302,8 +348,27 @@ const authorizedKeysForm = useForm({
             </div>
           </div>
 
+          <!-- All configured custom domains; the URLs above only use the first. -->
+          <div
+            v-if="customDomains.length"
+            class="flex flex-col gap-2 pt-2 border-t border-gray-warm-200"
+          >
+            <Label class="text-sm text-gray-warm-700">
+              {{ t('components.domain.access.bastion.custom-domains.label') }}
+            </Label>
+            <div class="flex flex-wrap gap-2">
+              <code
+                v-for="domain in customDomains"
+                :key="domain"
+                class="bg-gray-warm-50 border border-gray-warm-200 rounded px-2.5 py-1 text-sm font-mono"
+              >
+                {{ domain }}
+              </code>
+            </div>
+          </div>
+
           <!-- Custom domain editor -->
-          <div class="flex flex-col gap-2 pt-2 border-t border-gray-warm-200">
+          <div v-if="isEditable" class="flex flex-col gap-2 pt-2 border-t border-gray-warm-200">
             <Label class="text-sm text-gray-warm-700">
               {{ t('components.domain.access.bastion.http-https.custom-domains.label') }}
             </Label>
@@ -375,7 +440,7 @@ const authorizedKeysForm = useForm({
 
         <!-- SSH section -->
         <section
-          v-if="bastionTargetData.ssh.enabled"
+          v-if="sshEnabled"
           class="bg-base-white p-5 rounded-lg border border-gray-warm-300 flex flex-col gap-4"
         >
           <div class="flex items-center gap-2">
@@ -394,7 +459,7 @@ const authorizedKeysForm = useForm({
             <CopyIcon :value="sshUrl" stroke-color="gray-warm-600" />
           </div>
 
-          <div class="flex flex-col gap-2 pt-2 border-t border-gray-warm-200">
+          <div v-if="isEditable" class="flex flex-col gap-2 pt-2 border-t border-gray-warm-200">
             <Label class="text-sm text-gray-warm-700">
               {{ t('components.domain.access.bastion.ssh.authorized-keys.others-label') }}
             </Label>

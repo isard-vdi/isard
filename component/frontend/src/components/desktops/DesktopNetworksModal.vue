@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/vue-query'
 
 import { getDesktopNetworksOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
+import type { Client } from '@/gen/oas/apiv4/client'
+import type { DesktopNetworksResponse } from '@/gen/oas/apiv4'
 
 import { Modal } from '@/components/modal'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -20,28 +22,53 @@ interface Props {
   // The top-level desktop IP — used as the wireguard guest IP when present.
   desktopIp?: string | null
   desktopStatus?: string
+  // When provided, fetches networks via the direct-viewer token endpoint
+  // (using the supplied client's viewer JWT) instead of the standard
+  // user-authenticated endpoint keyed by desktopId.
+  directViewerToken?: string
+  directViewerClient?: Client
 }
 
 const props = withDefaults(defineProps<Props>(), {
   open: false,
   desktopIp: undefined,
-  desktopStatus: undefined
+  desktopStatus: undefined,
+  directViewerToken: undefined,
+  directViewerClient: undefined
 })
 
 const emit = defineEmits<{ close: [] }>()
 
-const {
-  data: desktopNetworks,
-  isPending,
-  isError,
-  error
-} = useQuery(
-  getDesktopNetworksOptions({
-    path: {
-      desktop_id: props.desktopId
-    }
-  })
-)
+const tokenNetworksQueryOptions = {
+  queryKey: ['getDesktopNetworksFromToken', props.directViewerToken] as const,
+  queryFn: async () => {
+    const client = props.directViewerClient
+    const token = props.directViewerToken
+    if (!client || !token) throw new Error('Missing direct viewer client/token')
+    const { data, error } = await client.get<DesktopNetworksResponse>({
+      url: `/api/v4/item/desktop/token/${encodeURIComponent(token)}/get-networks`
+    })
+    if (error) throw error
+    return data as DesktopNetworksResponse
+  },
+  enabled: !!props.directViewerToken && !!props.directViewerClient
+}
+
+const desktopIdNetworksQueryOptions = {
+  ...getDesktopNetworksOptions({
+    path: { desktop_id: props.desktopId }
+  }),
+  enabled: !props.directViewerToken
+}
+
+const tokenQuery = useQuery(tokenNetworksQueryOptions)
+const desktopIdQuery = useQuery(desktopIdNetworksQueryOptions)
+
+const active = computed(() => (props.directViewerToken ? tokenQuery : desktopIdQuery))
+const isPending = computed(() => active.value.isPending.value)
+const isError = computed(() => active.value.isError.value)
+const error = computed(() => active.value.error.value)
+const desktopNetworks = computed(() => active.value.data.value)
 
 // Wireguard first so users see the routable IP at a glance.
 const sortedNetworks = computed(() => {

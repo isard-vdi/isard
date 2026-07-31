@@ -45,6 +45,7 @@ from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.helpers.viewers import available_viewers
 from isardvdi_common.lib.deployments.deployment_desktops import (
     DeploymentDesktopsProcessed as CommonDeploymentDesktops,
 )
@@ -346,7 +347,7 @@ class DesktopService:
             if isinstance(data.image, str):
                 image_data = data.image
             else:
-                image_data = data.image.model_dump(exclude_unset=True)
+                image_data = CardService.get_card(data.image.id, data.image.type)
         else:
             image_data = CardService.get_domain_stock_card(desktop_id)
 
@@ -468,9 +469,7 @@ class DesktopService:
                 {"id": v, "name": videos_names[v]}
                 for v in details["create_dict"]["hardware"].get("videos", [])
             ],
-            "viewers": list(
-                details.get("guest_properties", {}).get("viewers", {}).keys()
-            ),
+            "viewers": available_viewers(details.get("guest_properties")),
             "fullscreen": details.get("guest_properties", {}).get("fullscreen", False),
             "reservables": details["create_dict"].get("reservables", {"vgpus": None}),
             "status": desktop_status,
@@ -692,7 +691,21 @@ class DesktopService:
     @staticmethod
     def get_desktop_details_from_token(token: str) -> dict:
         desktop_id = DesktopDirectViewer.get_desktop_from_token(token)["id"]
-        return DesktopService.get_desktop_details(desktop_id)
+        details = DesktopService.get_desktop_details(desktop_id)
+        try:
+            details["bastion"] = BastionService.get_desktop_bastion_direct_viewer(
+                desktop_id
+            )
+        except Exception:
+            # Bastion is a read-only extra on this response; never let it
+            # break the desktop details the direct viewer actually needs.
+            logging.warning(
+                "Failed to get bastion access for direct viewer of desktop %s",
+                desktop_id,
+                exc_info=True,
+            )
+            details["bastion"] = {"enabled": False}
+        return details
 
     @staticmethod
     def start_desktop_from_token(token, request):

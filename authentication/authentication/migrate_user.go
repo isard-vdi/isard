@@ -16,7 +16,7 @@ func (a *Authentication) MigrateUser(ctx context.Context, tkn string, userID str
 		return "", err
 	}
 
-	a.Log.Info().Str("user_id", userID).Str("tkn", migrationTkn).Msg("migrate user")
+	a.Log.Info().Str("user_id", userID).Msg("migrate user")
 
 	return migrationTkn, nil
 }

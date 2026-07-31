@@ -55,8 +55,10 @@ import asyncio
 import logging as log
 from datetime import datetime, timezone
 
+from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.task import Task
+from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
 from ..task_results.storage import _apply_storage_update, send_status_socket
@@ -70,12 +72,50 @@ from .task_results_consumer import (
 GRACE_S = 120
 RECONCILE_EVERY_S = 90
 
+# Nothing consumes the ``core`` queue since the core_worker retirement, so a
+# job that lands QUEUED on it never leaves by itself.
+_CORE_QUEUE_KEY = "rq:queue:core"
+# Only sweep jobs old enough that they cannot be a live entry's replay state:
+# the consumer's redelivery envelope is 5 reclaims of 60s, so 15 min is well
+# past it.
+REAP_MIN_AGE_S = 900
+# Bound the per-tick work — the rest waits for the next pass.
+_REAP_SCAN = 100
+
 _TERMINAL = (
     JobStatus.FINISHED,
     JobStatus.FAILED,
     JobStatus.CANCELED,
     JobStatus.STOPPED,
 )
+
+
+# A DEFERRED chain can outlive its parents' RQ job data: RQ evicts a
+# finished/failed job's hash after its result TTL, after which reading the
+# dependency's status raises ``InvalidJobOperation`` (the hash is there but its
+# status field is gone) or ``NoSuchJobError`` (the hash itself is gone). Either
+# way the job is necessarily terminal and long settled. Left unguarded these
+# crash a whole reconcile pass and, via the per-task ``except`` in
+# ``_reconcile_orphan_deferred``, ABANDON the very orphan the pass exists to heal.
+_JOB_GONE = (InvalidJobOperation, NoSuchJobError)
+
+
+def _dep_job_status(dep):
+    """RQ status of a dependency, or ``None`` when its job data is gone
+    (evicted after result TTL) — a gone job counts as terminal-and-settled."""
+    try:
+        return dep.job_status
+    except _JOB_GONE:
+        return None
+
+
+# Domain statuses that are pure STORAGE locks (set by ``set_maintenance`` / the
+# template chain), never engine-driven runtime states — so they are safe to
+# finalise from the storage's own reality without racing the VM lifecycle. The
+# storage-keyed passes below cannot see a domain whose storage is already
+# ``ready`` (the ready-transition's promote missed it) or whose storage row is
+# gone; Pass 3 reconciles from the domain side to close that gap.
+_DOMAIN_LOCK_STATUSES = ("Maintenance", "CreatingTemplate")
 
 
 def _as_aware_utc(dt):
@@ -87,12 +127,33 @@ def _as_aware_utc(dt):
     return dt
 
 
+def _settled_at(dep):
+    """When a terminal dependency settled, or ``None`` if we cannot tell.
+
+    RQ writes no ``ended_at`` when a job is cancelled, so a cancelled
+    dependency is aged from its creation instead — otherwise a chain settled
+    by a cancel could never age out and its orphans stayed invisible to this
+    pass for ever.
+
+    A FINISHED/FAILED dependency without ``ended_at`` deliberately stays
+    unreadable: that is a job the consumer marked mid-flight, and it may still
+    be the replay state of an entry being redelivered. Ageing it here would
+    let the heal delete that state before the redelivery arrives.
+    """
+    ended = _as_aware_utc(getattr(dep.job, "ended_at", None))
+    if ended is not None:
+        return ended
+    if dep.job_status == JobStatus.CANCELED:
+        return _as_aware_utc(getattr(dep.job, "created_at", None))
+    return None
+
+
 def _deps_terminal_and_aged(task, now, grace_s):
-    """True if every dependency is terminal AND the most recent one ended
+    """True if every dependency is terminal AND the most recent one settled
     longer than ``grace_s`` ago.
 
     A DEFERRED job with no dependencies, a non-terminal dependency, or a
-    dependency whose ``ended_at`` we cannot read is treated as NOT an orphan —
+    dependency whose settle time we cannot read is treated as NOT an orphan —
     we only ever act on chains we can prove are dead and settled, never on one
     the consumer might still be about to release.
     """
@@ -101,13 +162,26 @@ def _deps_terminal_and_aged(task, now, grace_s):
         return False
     newest = None
     for dep in deps:
-        if dep.job_status not in _TERMINAL:
+        status = _dep_job_status(dep)
+        if status is None:
+            # Vanished dependency job: terminal and long settled. It can neither
+            # block healing nor contribute a settle time to the age check.
+            continue
+        if status not in _TERMINAL:
             return False
-        ended = _as_aware_utc(getattr(dep.job, "ended_at", None))
-        if ended is None:
+        try:
+            settled = _settled_at(dep)
+        except _JOB_GONE:
+            # Job evicted between the status read and here — treat as gone.
+            continue
+        if settled is None:
             return False
-        if newest is None or ended > newest:
-            newest = ended
+        if newest is None or settled > newest:
+            newest = settled
+    if newest is None:
+        # Every dependency's job is gone: the chain is definitively dead and
+        # long settled, so heal it rather than leave the orphan stranded.
+        return True
     return (now - newest).total_seconds() >= grace_s
 
 
@@ -137,20 +211,33 @@ async def _heal_core_orphan(redis_manager, task):
     """Re-run the missed core dispatch for ``task`` and its nested core
     dependents, mirroring :func:`_process_entry` in the consumer.
     """
+    # A chain whose parent failed or was cancelled is dead: run its finalize
+    # handlers (they take their failure branch) but never release its deferred
+    # storage children, which would run work for an operation that is over.
+    doomed = any(
+        getattr(dep, "job_status", None) in (JobStatus.FAILED, JobStatus.CANCELED)
+        for dep in task.dependencies
+    )
     chain = [task] + list(_walk_core_dependents(task))
+    all_ok = True
     for dep_task in chain:
         ok = await _run_handler(redis_manager, dep_task)
+        all_ok = all_ok and ok
         await _set_job_status(dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED)
-        if ok:
+        if ok and not doomed:
             await _release_storage_dependents(dep_task)
-    for dep_task in chain:
-        try:
-            await asyncio.to_thread(dep_task.job.delete)
-        except Exception:
-            log.exception(
-                "reconcile: could not delete healed core orphan %s",
-                getattr(dep_task, "id", "?"),
-            )
+    # Same rule as the consumer: the Jobs ARE the replay state, so they are
+    # only dropped once the whole heal succeeded. Deleting them after a failed
+    # handler would make a later redelivery a no-op and wedge the chain.
+    if all_ok:
+        for dep_task in chain:
+            try:
+                await asyncio.to_thread(dep_task.job.delete)
+            except Exception:
+                log.exception(
+                    "reconcile: could not delete healed core orphan %s",
+                    getattr(dep_task, "id", "?"),
+                )
     return 1
 
 
@@ -158,13 +245,29 @@ async def _heal_storage_orphan(task):
     """Heal a storage-queue orphan: release it if every parent finished, else
     cancel it (a failed parent means the op failed; cancelling releases its
     dependents so their failure handling runs)."""
-    any_failed = any(
-        dep.job_status in (JobStatus.FAILED, JobStatus.CANCELED)
-        for dep in task.dependencies
-    )
-    if any_failed:
+    # Release ONLY when every parent is provably FINISHED. A parent that
+    # failed, was cancelled, or whose job data is gone cannot be shown to have
+    # succeeded, and advancing on it runs the next stage of an operation that
+    # may well have failed — a backing-chain read over a disk whose create
+    # never completed, say. Unknown is not success.
+    all_finished = True
+    for dep in task.dependencies:
         try:
-            await asyncio.to_thread(lambda: task.job.cancel(enqueue_dependents=True))
+            status = dep.job_status
+        except Exception:
+            status = None
+        if status != JobStatus.FINISHED:
+            all_finished = False
+            break
+    if not all_finished:
+        try:
+            # ``Task.cancel`` settles the whole chain and promotes nothing.
+            # Cancelling the raw RQ job with ``enqueue_dependents=True`` is
+            # what used to push this chain's finalize dependents onto the
+            # ``core`` queue, where nothing consumes them: they stayed QUEUED
+            # for ever, ``Task.pending`` read them as active work and the
+            # storage was rejected with ``storage_pending_task`` from then on.
+            await asyncio.to_thread(task.cancel)
         except Exception:
             log.exception(
                 "reconcile: could not cancel storage orphan %s",
@@ -200,6 +303,72 @@ async def _reconcile_orphan_deferred(redis_manager, now=None, grace_s=GRACE_S):
     if healed:
         log.warning("reconcile: healed %s orphaned DEFERRED task(s)", healed)
     return healed
+
+
+def _reap_connection():
+    """Plain redis connection for the tombstone sweep (raw list surgery)."""
+    import redis
+    from isardvdi_common.connections.redis_urls import rq_url
+
+    return redis.from_url(rq_url())
+
+
+async def _reap_core_tombstones(redis_manager, now=None, min_age_s=REAP_MIN_AGE_S):
+    """Pass 1c: clear the ``core`` queue of jobs nothing will ever consume.
+
+    Since the core_worker retirement no worker pops ``core``, so anything that
+    lands QUEUED there stays there — and ``Task.pending`` counts it as active
+    work, which makes ``Storage.create_task`` reject every later operation on
+    that storage. Cancelling used to put them there; a dead-lettered entry
+    still can. This sweep is what clears the debt already on disk, on the
+    eager pass at startup as well as on every tick.
+
+    Only jobs that cannot be anybody's live work are touched: the id must be
+    older than ``min_age_s`` (comfortably past the consumer's redelivery
+    envelope) and every dependency of its chain must be terminal or gone.
+    """
+    now = now or datetime.now(timezone.utc)
+    try:
+        conn = _reap_connection()
+        ids = await asyncio.to_thread(conn.lrange, _CORE_QUEUE_KEY, 0, _REAP_SCAN - 1)
+    except Exception:
+        log.exception("reconcile: could not scan the core queue")
+        return 0
+    reaped = 0
+    for raw_id in ids:
+        job_id = raw_id.decode() if isinstance(raw_id, bytes) else raw_id
+        try:
+            if not Task.exists(job_id):
+                # Nothing left to heal — just stop it keeping the queue alive
+                # (and poisoning every chain walk that meets it).
+                await asyncio.to_thread(conn.lrem, _CORE_QUEUE_KEY, 0, raw_id)
+                log.warning("reconcile: dropped dangling core queue id %s", job_id)
+                reaped += 1
+                continue
+            task = await asyncio.to_thread(Task, job_id)
+            if task.job.get_status() != JobStatus.QUEUED:
+                continue
+            enqueued = _as_aware_utc(
+                getattr(task.job, "enqueued_at", None)
+                or getattr(task.job, "created_at", None)
+            )
+            if enqueued is None or (now - enqueued).total_seconds() < min_age_s:
+                continue
+            if not all(
+                getattr(dep, "job_status", None) in _TERMINAL
+                for dep in task.dependencies
+            ):
+                continue
+            log.warning(
+                "reconcile: healing core tombstone %s (%s, user=%s)",
+                job_id,
+                getattr(task, "task", "?"),
+                getattr(task, "user_id", "?"),
+            )
+            reaped += await _heal_core_orphan(redis_manager, task)
+        except Exception:
+            log.exception("reconcile: core tombstone sweep failed for %s", job_id)
+    return reaped
 
 
 def _task_alive(storage):
@@ -238,7 +407,13 @@ async def _finalize_stuck_storage(redis_manager, storage):
         )
         return 1
     try:
-        storage.check_backing_chain(user_id=getattr(storage, "user_id", None))
+        # A self-heal recheck of a STUCK storage: recover it soon rather than on
+        # the idle ``background`` lane (the method default), but off the reserved
+        # pool — no user desktop is blocked on it. Trigger-driven, like the admin
+        # datatable "check" click.
+        storage.check_backing_chain(
+            user_id=getattr(storage, "user_id", None), priority="standard"
+        )
         log.warning(
             "reconcile: stuck storage %s has no valid disk info; re-issued "
             "check_backing_chain",
@@ -274,8 +449,77 @@ async def _reconcile_stuck_storage(redis_manager):
     return healed
 
 
+def _finalize_stuck_domain(domain):
+    """Finalise one domain parked in a storage-lock status from its storage
+    reality. Returns 1 if finalised, else 0.
+
+    - it declares disks but none of their storage rows still exist -> ``Failed``
+      (the disk is gone).
+    - every backing storage is ``ready`` and settled (no live task) ->
+      ``Stopped`` (the ready-transition's promote missed this domain).
+    A domain whose storage is still in flight (``maintenance`` / a live task) is
+    left to Pass 2 / the consumer.
+    """
+    declared_ids = [
+        disk["storage_id"]
+        for disk in domain.create_dict.get("hardware", {}).get("disks", [])
+        if disk.get("storage_id")
+    ]
+    storages = domain.storages
+    # ``Domain.storages`` drops ids whose row no longer exists, so a domain that
+    # declares two disks and resolves one is PARTIALLY gone. Comparing counts
+    # (rather than "resolved nothing") keeps that case on the Failed branch: a
+    # desktop promoted to Stopped with a missing disk looks bootable and fails
+    # at the next start instead.
+    if declared_ids and len(storages) < len(declared_ids):
+        domain.status = "Failed"
+        domain.current_action = None
+        log.warning(
+            "reconcile: finalized orphaned domain %s (backing storage gone -> Failed)",
+            domain.id,
+        )
+        return 1
+    if storages and all(
+        storage.status == "ready" and not _task_alive(storage) for storage in storages
+    ):
+        domain.status = "Stopped"
+        domain.current_action = None
+        log.warning(
+            "reconcile: promoted stuck domain %s (storage ready -> Stopped)", domain.id
+        )
+        return 1
+    return 0
+
+
+async def _reconcile_stuck_domains(redis_manager):
+    """Pass 3: finalise domains parked in a storage-lock status
+    (``Maintenance`` / ``CreatingTemplate``) whose storage has already settled
+    but never promoted them. The storage-keyed passes above are blind to a
+    domain whose storage is already ``ready`` or whose storage row is gone.
+    Returns the count finalised."""
+    try:
+        stuck = await asyncio.to_thread(
+            Domain.get_index,
+            [["desktop", status] for status in _DOMAIN_LOCK_STATUSES]
+            + [["template", status] for status in _DOMAIN_LOCK_STATUSES],
+            "kind_status",
+        )
+    except Exception:
+        log.exception("reconcile: could not list storage-lock domains")
+        return 0
+    healed = 0
+    for domain in stuck:
+        try:
+            healed += await asyncio.to_thread(_finalize_stuck_domain, domain)
+        except Exception:
+            log.exception(
+                "reconcile: finalize failed for domain %s", getattr(domain, "id", "?")
+            )
+    return healed
+
+
 async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
-    """Long-running reconcile loop: an eager pass on startup, then both passes
+    """Long-running reconcile loop: an eager pass on startup, then all passes
     every ``interval_s`` seconds. Started alongside the changefeed listener and
     the task-results consumer in :func:`__main__.main`.
 
@@ -288,7 +532,9 @@ async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
     while True:
         try:
             await _reconcile_orphan_deferred(redis_manager, grace_s=grace_s)
+            await _reap_core_tombstones(redis_manager)
             await _reconcile_stuck_storage(redis_manager)
+            await _reconcile_stuck_domains(redis_manager)
         except Exception:
             log.exception("reconcile: pass raised")
         await asyncio.sleep(interval_s)

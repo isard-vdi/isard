@@ -199,3 +199,70 @@ def test_provider_export_rejects_other_token_types(monkeypatch, test_client):
     jwt = MockJWT(token_type="direct-viewer")
     response = test_client(url="/item/provider/export/local", jwt=jwt)
     assert response.status_code == 403
+
+
+# ── maintenance bypass on migration_router ─────────────────────────────
+#
+# The profile page loads /item/provider/{export,import}/{provider} on
+# mount. has_migration_required_or_login_token used to call
+# ``maintenance()`` unconditionally, so during maintenance an admin got
+# 503 here while has_token routes (get-details) answered 200 — the
+# old-frontend 503 interceptor then bounced the admin to /maintenance
+# and MaintenanceView sent them back to /desktops, in a loop. Admin
+# login tokens must get the same bypass has_token grants.
+
+
+def test_provider_export_admin_bypasses_maintenance(monkeypatch, test_client):
+    from isardvdi_common.helpers.maintenance import Maintenance
+
+    monkeypatch.setattr(Maintenance, "_enabled", True)
+    monkeypatch.setattr(
+        "api.services.config.ConfigService.get_provider_config",
+        staticmethod(lambda pid: {"migration": {"export": True, "import": False}}),
+    )
+    jwt = MockJWT()
+    response = test_client(url="/item/provider/export/local", jwt=jwt)
+    assert response.status_code == 200
+    assert response.json() == {"enabled": True}
+
+
+def test_provider_import_admin_bypasses_maintenance(monkeypatch, test_client):
+    from isardvdi_common.helpers.maintenance import Maintenance
+
+    monkeypatch.setattr(Maintenance, "_enabled", True)
+    monkeypatch.setattr(
+        "api.services.config.ConfigService.get_provider_config",
+        staticmethod(lambda pid: {"migration": {"export": False, "import": True}}),
+    )
+    jwt = MockJWT()
+    response = test_client(url="/item/provider/import/local", jwt=jwt)
+    assert response.status_code == 200
+    assert response.json() == {"enabled": True}
+
+
+def test_provider_export_non_admin_blocked_during_maintenance(monkeypatch, test_client):
+    from isardvdi_common.helpers.maintenance import Maintenance
+
+    monkeypatch.setattr(Maintenance, "_enabled", True)
+    monkeypatch.setattr(
+        "api.services.config.ConfigService.get_provider_config",
+        staticmethod(lambda pid: {"migration": {"export": True}}),
+    )
+    jwt = MockJWT(role_id="user")
+    response = test_client(url="/item/provider/export/local", jwt=jwt)
+    assert response.status_code == 503
+
+
+def test_provider_export_migration_token_blocked_during_maintenance(
+    monkeypatch, test_client
+):
+    from isardvdi_common.helpers.maintenance import Maintenance
+
+    monkeypatch.setattr(Maintenance, "_enabled", True)
+    monkeypatch.setattr(
+        "api.services.config.ConfigService.get_provider_config",
+        staticmethod(lambda pid: {"migration": {"export": True}}),
+    )
+    jwt = MockJWT(role_id="user", token_type="user-migration-required")
+    response = test_client(url="/item/provider/export/local", jwt=jwt)
+    assert response.status_code == 503

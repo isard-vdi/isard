@@ -36,25 +36,15 @@ from api.services.login_config_cache import logo_cache, logo_collapsed_cache
 from cachetools import cached
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
-from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
-# with open("/version", "r") as file:
-#     version = file.read()
-
-# Named caches: api_version is a constant during a process lifetime, and
-# category custom_url is admin-edited via writers that should invalidate.
-api_version_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=360)
-category_custom_url_cache: SynchronizedTTLCache = SynchronizedTTLCache(
-    maxsize=1, ttl=20
-)
+try:
+    with open("/version", "r") as file:
+        version = file.read()
+except OSError:
+    # /version is baked into the image at build time; absent when running tests
+    version = ""
 
 
-def clear_category_custom_url_cache() -> None:
-    """Invalidate the custom_url cache after a category-branding write."""
-    category_custom_url_cache.clear()
-
-
-@cached(cache=api_version_cache)
 @open_router.get(
     "/",
     response_model=ApiVersion,
@@ -67,7 +57,7 @@ async def api_version():
             content=ApiVersion(
                 name="IsardVDI",
                 api_version="4.0-alpha1",
-                isardvdi_version="fastapi",
+                isardvdi_version=version,
                 usage=os.environ["USAGE"],  # Raises KeyError if missing
             ).model_dump(mode="json"),
             status_code=200,
@@ -80,7 +70,6 @@ async def api_version():
         )
 
 
-@cached(cache=category_custom_url_cache)
 @open_router.get(
     "/item/category/{category_id}/custom_url",
     tags=["categories"],

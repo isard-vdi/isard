@@ -1,0 +1,271 @@
+# promtool unit tests for storage_governor.rules.yml
+#
+# Run: promtool test rules docker/vmalert/rules/storage_governor.test.yml
+#
+# These prove the tricky, easy-to-get-wrong behaviours:
+#   * OldestQueuedAgeHigh fires per-tier (interactive at 301 not 299; a standard
+#     lane at 301 does NOT fire because its SLA is 900; a background lane fires
+#     only past 21600) — a dropped {tier=} matcher would be caught.
+#   * StrandedLane fires only when the `stranded_lane` series is present.
+#   * A per-category alert (CategoryAtCap) does NOT fire when multitenancy_active
+#     is 0 or absent; CategoryStarved fires only when fully gated.
+#   * FailedSpike does NOT fire on a big registry shrink (30 -> 0): increase()
+#     reset-compensation + clamp_min neutralise it even above the crit threshold.
+#   * PSIPinned fires only for the worker actually over psi_limit (group_left join).
+#   * WorkerHeartbeatLost / NoStorageWorkers fire within their for: 2m window.
+
+rule_files:
+  - storage_governor.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # ---------------------------------------------------------------------------
+  # OldestQueuedAgeHigh interactive: below the 300s threshold -> no alert.
+  # ---------------------------------------------------------------------------
+  - name: oldest_queued_interactive_below_sla_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_oldest_queued_age_seconds{pool="default",category="_pool",tier="interactive"}'
+        values: "299 299 299 299 299"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: OldestQueuedAgeHigh
+        exp_alerts: []
+
+  # ---------------------------------------------------------------------------
+  # OldestQueuedAgeHigh interactive: 301s > 300s threshold -> fires immediately.
+  # ---------------------------------------------------------------------------
+  - name: oldest_queued_interactive_over_sla_fires_at_301
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_oldest_queued_age_seconds{pool="default",category="_pool",tier="interactive"}'
+        values: "301 301 301 301 301"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: OldestQueuedAgeHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              pool: default
+              category: _pool
+              tier: interactive
+            exp_annotations:
+              summary: "Oldest queued job exceeds its tier SLA"
+              description: "Lane default/_pool/interactive head job has been queued for 301s, past its tier SLA (interactive 300s / standard 900s / bulk 7200s / background 21600s). Inspect head-task drawer and consumer coverage."
+
+  # ---------------------------------------------------------------------------
+  # Per-tier routing: a STANDARD lane at 301s must NOT fire (its SLA is 900s).
+  # Catches a regression that let the interactive threshold apply fleet-wide.
+  # ---------------------------------------------------------------------------
+  - name: oldest_queued_standard_at_301_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_oldest_queued_age_seconds{pool="default",category="_pool",tier="standard"}'
+        values: "301 301 301 301 301"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: OldestQueuedAgeHigh
+        exp_alerts: []
+
+  # ---------------------------------------------------------------------------
+  # Per-tier routing: a BACKGROUND lane fires only past its 21600s SLA.
+  # ---------------------------------------------------------------------------
+  - name: oldest_queued_background_over_sla_fires
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_oldest_queued_age_seconds{pool="default",category="9a3b",tier="background"}'
+        values: "21601 21601 21601"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: OldestQueuedAgeHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              pool: default
+              category: 9a3b
+              tier: background
+            exp_annotations:
+              summary: "Oldest queued job exceeds its tier SLA"
+              description: "Lane default/9a3b/background head job has been queued for 21601s, past its tier SLA (interactive 300s / standard 900s / bulk 7200s / background 21600s). Inspect head-task drawer and consumer coverage."
+
+  # ---------------------------------------------------------------------------
+  # StrandedLane requires the `stranded_lane` series to be present. With backlog
+  # only (coverage unknown -> series suppressed), it must NOT fire.
+  # ---------------------------------------------------------------------------
+  - name: stranded_lane_no_series_present_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_backlog{pool="oldpool",category="_pool",tier="background"}'
+        values: "27x14"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: StrandedLane
+        exp_alerts: []
+
+  # ---------------------------------------------------------------------------
+  # StrandedLane WITH the series present + backlog>0 -> fires after for: 10m.
+  # ---------------------------------------------------------------------------
+  - name: stranded_lane_series_present_fires_after_10m
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_backlog{pool="oldpool",category="_pool",tier="background"}'
+        values: "27x14"
+      - series: 'isardvdi_storage_governor_stranded_lane{pool="oldpool",category="_pool",tier="background"}'
+        values: "27x14"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: StrandedLane
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              pool: oldpool
+              category: _pool
+              tier: background
+            exp_annotations:
+              summary: "Stranded storage lane: backlog with no consumer"
+              description: "Lane oldpool/_pool/background has backlog but no live consumer (coverage known) for 10m. Start/scale a worker for that pool/tier; confirm producer intent."
+
+  # ---------------------------------------------------------------------------
+  # Per-category gating: CategoryAtCap must NOT fire when multitenancy_active==0.
+  # ---------------------------------------------------------------------------
+  - name: category_at_cap_multitenancy_zero_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_category_at_cap{pool="default",category="9a3b"}'
+        values: "1x25"
+      - series: 'isardvdi_storage_governor_multitenancy_active'
+        values: "0x25"
+    alert_rule_test:
+      - eval_time: 24m
+        alertname: CategoryAtCap
+        exp_alerts: []
+
+  # ---------------------------------------------------------------------------
+  # Per-category gating: CategoryAtCap must NOT fire when multitenancy_active is
+  # ABSENT (absence must never read as a flat/healthy install).
+  # ---------------------------------------------------------------------------
+  - name: category_at_cap_multitenancy_absent_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_category_at_cap{pool="default",category="9a3b"}'
+        values: "1x25"
+    alert_rule_test:
+      - eval_time: 24m
+        alertname: CategoryAtCap
+        exp_alerts: []
+
+  # ---------------------------------------------------------------------------
+  # CategoryStarved fires only when fully gated: starved==1 AND
+  # multitenancy_active==1 AND a worker is up (worker_up:sum>0), held 15m.
+  # ---------------------------------------------------------------------------
+  - name: category_starved_gated_fires_after_15m
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_category_starved{pool="default",category="9a3b"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_multitenancy_active'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage.default.background.def456",pool="default",kind="elastic"}'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: CategoryStarved
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              pool: default
+              category: 9a3b
+            exp_annotations:
+              summary: "Per-category storage lane is starved"
+              description: "Category 9a3b in pool default has backlog but no inflight for 15m while peers run and a worker is alive. Raise its weight/cap or lower a hogging category."
+
+  # ---------------------------------------------------------------------------
+  # FailedSpike anti-shrink: a registry that only SHRINKS from a large value
+  # (auto-delete of 30 failed jobs -> 0) must NOT fire, even though 30 is above
+  # the crit threshold. increase() reset-compensates the drop to ~0 and clamp_min
+  # pins it non-negative, so neither warn (>5) nor crit (>20) fires. This is the
+  # real anti-shrink guarantee (the previous 4->0 case was below warn anyway and
+  # proved nothing).
+  # ---------------------------------------------------------------------------
+  - name: failed_spike_large_shrink_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_failed{pool="default",category="9a3b",tier="background"}'
+        values: "30 30 30 30 30 30 30 30 30 30 30 30 30 0 0 0"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: FailedSpike
+        exp_alerts: []
+
+  # ---------------------------------------------------------------------------
+  # PSIPinned fires ONLY for the worker actually over psi_limit. Two workers both
+  # deferring; workerA psi_cpu 80 > limit 40, workerB psi_cpu 10 < 40. The
+  # group_left() join must select only workerA.
+  # ---------------------------------------------------------------------------
+  - name: psi_pinned_only_over_limit_worker_fires
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_deferring{worker="workerA"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_worker_deferring{worker="workerB"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_worker_psi_cpu{worker="workerA"}'
+        values: "80x20"
+      - series: 'isardvdi_storage_governor_worker_psi_cpu{worker="workerB"}'
+        values: "10x20"
+      - series: 'isardvdi_storage_governor_psi_limit'
+        values: "40x20"
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: PSIPinned
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              worker: workerA
+            exp_annotations:
+              summary: "Storage worker pinned by PSI pressure"
+              description: "Worker workerA has been deferring under CPU/IO pressure above psi_limit for 15m (held by host stall, not the cap). Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
+
+  # ---------------------------------------------------------------------------
+  # WorkerHeartbeatLost fires within its for: 2m window (up==0 held 3m).
+  # ---------------------------------------------------------------------------
+  - name: worker_heartbeat_lost_fires_within_2m
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage.default.background.def456",pool="default",kind="elastic"}'
+        values: "0 0 0 0"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: WorkerHeartbeatLost
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              worker: storage.default.background.def456
+              pool: default
+              kind: elastic
+            exp_annotations:
+              summary: "Storage worker lost its heartbeat"
+              description: "Worker storage.default.background.def456 (pool default, kind elastic) has reported up=0 for 2m (hash expired or heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+
+  # ---------------------------------------------------------------------------
+  # NoStorageWorkers: every worker reporting up==0 -> sum==0 -> fires after 2m.
+  # (When NO worker series exists at all, sum() yields no series and this cannot
+  # fire — that blindness is GovernorScrapeFailed / GovernorExporterAbsent.)
+  # ---------------------------------------------------------------------------
+  - name: no_storage_workers_all_down_fires
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="workerA",pool="default",kind="elastic"}'
+        values: "0 0 0 0"
+      - series: 'isardvdi_storage_governor_worker_up{worker="workerB",pool="default",kind="reserved"}'
+        values: "0 0 0 0"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: NoStorageWorkers
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "No storage workers are up"
+              description: "No storage worker has reported up for 2m; nothing is draining the storage queues. Restart the worker containers."

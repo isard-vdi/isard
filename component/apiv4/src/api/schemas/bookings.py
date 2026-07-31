@@ -302,7 +302,7 @@ class GpuForecastUnit(BaseModel):
     """GPU forecast unit with units count and date"""
 
     units: int
-    date: str
+    date: AwareDatetime
 
 
 class GpuForecastProfile(BaseModel):

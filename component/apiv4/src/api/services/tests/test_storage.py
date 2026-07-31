@@ -6,7 +6,7 @@ methods. Heavy DB-walking methods are exercised by routes/tests/.
 
 from unittest.mock import MagicMock, patch
 
-from api.services.storage import StorageService
+from api.services.storage import StorageService, check_task_priority
 
 JWT_PAYLOAD_ADMIN = {
     "user_id": "u-admin",
@@ -21,6 +21,34 @@ JWT_PAYLOAD_MANAGER = {
     "group_id": "g-mgr",
     "role_id": "manager",
 }
+
+
+class TestCheckTaskPriority:
+    """The governor's tier resolution is role-blind (normalize_tier never
+    demotes by role). The producer must therefore NOT force a non-admin's
+    task to ``low`` (which normalize_tier maps to the maintenance lane) —
+    a non-admin's resize/create would be shoved behind template copies and
+    PSI-deferred. Non-admins get ``default`` (the action's natural tier);
+    only admins may pin a priority.
+    """
+
+    def test_non_admin_gets_action_default_not_demoted_to_low(self):
+        assert check_task_priority(JWT_PAYLOAD_MANAGER, "high") == "default"
+        assert check_task_priority(JWT_PAYLOAD_MANAGER, "low") == "default"
+        assert check_task_priority(JWT_PAYLOAD_MANAGER, "default") == "default"
+
+    def test_admin_may_pin_priority(self):
+        assert check_task_priority(JWT_PAYLOAD_ADMIN, "high") == "high"
+        assert check_task_priority(JWT_PAYLOAD_ADMIN, "low") == "low"
+        assert check_task_priority(JWT_PAYLOAD_ADMIN, "default") == "default"
+
+    def test_admin_unknown_priority_rejected(self):
+        try:
+            check_task_priority(JWT_PAYLOAD_ADMIN, "urgent")
+            raised = None
+        except Exception as exc:
+            raised = exc
+        assert getattr(raised, "status_code", None) == 400
 
 
 class TestSetMaintenance:

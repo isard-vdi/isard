@@ -136,39 +136,47 @@ class IsardVpn(RethinkSharedConnection):
                 description_code="vpn_data_not_found",
             )
 
-        # Race: isard-vpn writes the server keys (sysconfig) before it writes
-        # the per-peer wireguard subtree. Between those two writes the server-keys
-        # check below passes but get_wireguard_file would KeyError on
-        # peer["vpn"]["wireguard"][...]. Surface a typed 4xx so callers retry.
-        # In geneve-only infrastructure the hypervisor has no WireGuard peer
-        # subtree by design (isard-vpn skips WireGuard for hypers and sets up
-        # a geneve port instead), so this race-guard must not apply to it —
-        # otherwise hypervisor registration 428s forever. Mirrors main, which
-        # has no such guard on the geneve-only path.
+        # A peer with no vpn subtree at all will never get one on its own: it's a
+        # permanent state (404), not the initialization race below (428). Telling
+        # them apart keeps clients from retrying forever on a config they'll never get.
+        vpn_config = wgdata.get("vpn")
+        if not isinstance(vpn_config, dict) or not vpn_config:
+            raise Error(
+                "not_found",
+                "No vpn configured for kind " + str(vpn) + " and id " + str(itemid),
+                traceback.format_exc(),
+                description_code="vpn_not_configured",
+            )
+
         geneve_only_hyper = (
             vpn == "hypers"
             and os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
         )
-        if not geneve_only_hyper:
-            peer_wg = (wgdata.get("vpn") or {}).get("wireguard") or {}
-            # reset_vpn() sets keys=False while a rotation is pending, so check
-            # the value and not just its presence.
-            keys = peer_wg.get("keys")
-            if (
-                not all(k in peer_wg for k in ("Address", "keys", "AllowedIPs"))
-                or not isinstance(keys, dict)
-                or not keys.get("private")
-            ):
+        if not cls._wireguard_peer_ready(vpn_config.get("wireguard")):
+            if geneve_only_hyper:
+                # isard-vpn skips WireGuard for hypers in geneve-only infrastructure
+                # and sets up a geneve port instead, so the peer subtree is missing
+                # by design and no amount of retrying will produce one.
                 raise Error(
-                    "precondition_required",
-                    "Vpn peer config not yet initialized for kind "
-                    + str(vpn)
-                    + " and id "
-                    + str(itemid)
-                    + ". Try again in a few seconds...",
+                    "conflict",
+                    "WireGuard is disabled for hypervisors in geneve-only "
+                    "infrastructure; no vpn config to download for id " + str(itemid),
                     traceback.format_exc(),
-                    description_code="vpn_peer_not_ready",
+                    description_code="vpn_wireguard_disabled",
                 )
+            # Race: isard-vpn writes the server keys (sysconfig) before it writes
+            # the per-peer wireguard subtree, and reset_vpn() blanks keys to False
+            # while a rotation is pending. Both are transient — tell callers to retry.
+            raise Error(
+                "precondition_required",
+                "Vpn peer config not yet initialized for kind "
+                + str(vpn)
+                + " and id "
+                + str(itemid)
+                + ". Try again in a few seconds...",
+                traceback.format_exc(),
+                description_code="vpn_peer_not_ready",
+            )
 
         ## First up time the wireguard config keys are missing till isard-vpn populates it.
         # if not getattr(app, "wireguard_server_keys", False):
@@ -218,20 +226,54 @@ class IsardVpn(RethinkSharedConnection):
             description_code="vpn_kind_invalid",
         )
 
+    @staticmethod
+    def _wireguard_peer_ready(wireguard):
+        """Whether a peer wireguard subtree can render a config file.
+
+        Every level can legitimately be False in the db (a peer without vpn, a
+        rotation blanking keys), so check value types and not key presence.
+        """
+        if not isinstance(wireguard, dict):
+            return False
+        keys = wireguard.get("keys")
+        return bool(
+            isinstance(keys, dict)
+            and keys.get("private")
+            and wireguard.get("Address")
+            and wireguard.get("AllowedIPs")
+        )
+
     @classmethod
     def get_wireguard_file(
         cls, endpoint, peer, port, mtu, postup, wireguard_server_keys
     ):
+        # Defensive here and not only in vpn_data: this is the one funnel every
+        # caller goes through, including paths that skip the vpn_data guards.
+        vpn_config = peer.get("vpn") if isinstance(peer, dict) else None
+        wireguard = (
+            vpn_config.get("wireguard") if isinstance(vpn_config, dict) else None
+        )
+        if not cls._wireguard_peer_ready(wireguard) or not isinstance(
+            wireguard_server_keys, dict
+        ):
+            raise Error(
+                "precondition_required",
+                "Vpn peer config not yet initialized for id "
+                + str(peer.get("id") if isinstance(peer, dict) else peer)
+                + ". Try again in a few seconds...",
+                traceback.format_exc(),
+                description_code="vpn_peer_not_ready",
+            )
         return f"""[Interface]
-Address = {peer["vpn"]["wireguard"]["Address"]}
-PrivateKey = {peer["vpn"]["wireguard"]["keys"]["private"]}
+Address = {wireguard["Address"]}
+PrivateKey = {wireguard["keys"]["private"]}
 MTU = {mtu}
 {f"PostUp = {postup}" if postup else ""}
 
 [Peer]
 PublicKey = {wireguard_server_keys["public"]}
 Endpoint = {endpoint}:{port}
-AllowedIPs = {peer["vpn"]["wireguard"]["AllowedIPs"]}
+AllowedIPs = {wireguard["AllowedIPs"]}
 PersistentKeepalive = 25
 """
 

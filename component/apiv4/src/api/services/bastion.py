@@ -257,6 +257,82 @@ class BastionService:
         }
 
     @staticmethod
+    def build_target_urls(target: dict, bastion_domain: str, ssh_port) -> dict:
+        """Build the public bastion connection URLs for a target document.
+
+        Without a custom domain, HTTP(S) is served on a per-target subdomain of
+        the bastion domain (the target id with its last "-" turned into "."),
+        reachable on the platform's public web ports.
+        """
+        ssh = (target or {}).get("ssh") or {}
+        http = (target or {}).get("http") or {}
+        target_id = (target or {}).get("id", "")
+        custom_domains = (target or {}).get("domains") or []
+        custom_domain = custom_domains[0] if custom_domains else ""
+        host = custom_domain or bastion_domain or ""
+        target_host = (
+            f"{'.'.join(target_id.rsplit('-', 1))}.{bastion_domain}"
+            if target_id and not custom_domain
+            else host
+        )
+        ssh_command = ""
+        if ssh.get("enabled") and target_id:
+            port = "" if str(ssh_port) == "22" else f" -p {ssh_port}"
+            ssh_command = f"ssh {target_id}@{host}{port}"
+        http_url = https_url = ""
+        if http.get("enabled"):
+            http_p = os.environ.get("HTTP_PORT", "80")
+            https_p = os.environ.get("HTTPS_PORT", "443")
+            http_url = f"http://{target_host}" + (
+                "" if str(http_p) == "80" else f":{http_p}"
+            )
+            https_url = f"https://{target_host}" + (
+                "" if str(https_p) == "443" else f":{https_p}"
+            )
+        return {
+            "target_id": target_id,
+            "custom_domain": custom_domain,
+            "custom_domains": custom_domains,
+            "ssh_enabled": bool(ssh.get("enabled")),
+            "ssh_command": ssh_command,
+            "http_enabled": bool(http.get("enabled")),
+            "http_url": http_url,
+            "https_url": https_url,
+        }
+
+    @staticmethod
+    def get_desktop_bastion_direct_viewer(desktop_id: str) -> dict:
+        """Read-only bastion access info for the direct viewer.
+
+        Like :meth:`get_desktop_bastion_active` this never creates a target.
+        ``enabled`` is False whenever there is nothing to show.
+        """
+        cfg = BastionService.get_admin_bastion_config()
+        if not cfg.get("bastion_enabled"):
+            return {"enabled": False}
+        try:
+            target = Targets.get_domain_target(desktop_id)
+        except Error as exc:
+            if getattr(exc, "status_code", None) == 404:
+                return {"enabled": False}
+            raise
+        urls = BastionService.build_target_urls(
+            target, cfg.get("bastion_domain"), cfg.get("bastion_ssh_port")
+        )
+        if not (urls["ssh_enabled"] or urls["http_enabled"]):
+            return {"enabled": False}
+        return {
+            "enabled": True,
+            "id": urls["target_id"] or None,
+            "custom_domains": urls["custom_domains"],
+            "ssh_enabled": urls["ssh_enabled"],
+            "ssh_command": urls["ssh_command"] or None,
+            "http_enabled": urls["http_enabled"],
+            "http_url": urls["http_url"] or None,
+            "https_url": urls["https_url"] or None,
+        }
+
+    @staticmethod
     def get_desktop_bastion(desktop_id: str) -> dict:
         """
         Get the bastion target for a desktop.

@@ -66,6 +66,10 @@ export class ErrorUtils {
     snotify.clear()
     console.log(error)
 
+    if (!error.response) {
+      return
+    }
+
     // Errors 401, 500 and 503 are handled through axios interceptors in the axios.js file
     if (![401, 500, 503].includes(error.response.status)) {
       // The quotas errors will show a different notification redirecting to the user profile
@@ -83,6 +87,10 @@ export class ErrorUtils {
   static handleAuthErrors (error, snotify) {
     snotify.clear()
     console.log(error)
+
+    if (!error.response) {
+      return
+    }
 
     // Errors 401, 500 and 503 are handled through axios interceptors in the axios.js file
     if (![401, 500, 503].includes(error.response.status)) {

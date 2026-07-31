@@ -16,6 +16,7 @@ const mainButtonAction = ref<string>('none')
 const cookieSetMock = vi.fn()
 const connectMock = vi.fn()
 const clientSetConfigMock = vi.fn()
+const refetchMock = vi.fn()
 // useMutation is called twice in the view (resetDesktop, then startDesktop);
 // capture each returned mutate in order.
 const mutations: { mutate: ReturnType<typeof vi.fn> }[] = []
@@ -36,7 +37,7 @@ vi.mock('@tanstack/vue-query', () => {
         isPending: viewerPending
       }
     if (idx === 1) return { data: loginConfig, error: ref(null), isPending: ref(false) }
-    return { data: desktopDetails, error: ref(null), isPending: ref(false) }
+    return { data: desktopDetails, error: ref(null), isPending: ref(false), refetch: refetchMock }
   }
   const useQueryClient = () => ({ setQueryData: vi.fn(), invalidateQueries: vi.fn() })
   const useMutation = () => {
@@ -145,8 +146,38 @@ vi.mock('@/components/desktop-card', () => ({
     template: '<button data-test="footer-main" @click="$emit(\'mainButtonClick\')">main</button>'
   },
   DesktopCardIp: { template: '<div data-test="card-ip" />' },
-  DesktopCardNetworksOverlay: { template: '<div data-test="card-networks" />' },
-  DesktopCardSkeleton: { template: '<div data-test="desktop-card-skeleton" />' }
+  DesktopCardNetworksOverlay: {
+    emits: ['showNetworksModal'],
+    template: '<div data-test="card-networks" @click="$emit(\'showNetworksModal\')" />'
+  },
+  DesktopCardBastionOverlay: { template: '<div data-test="card-bastion" />' },
+  DesktopCardSkeleton: { template: '<div data-test="desktop-card-skeleton" />' },
+  DesktopCardOverlayButton: {
+    props: ['icon', 'title', 'active', 'activeLabel', 'ariaLabel'],
+    emits: ['click'],
+    template:
+      '<button data-test="overlay-btn" :data-icon="icon" :aria-label="ariaLabel" @click="$emit(\'click\')" />'
+  }
+}))
+
+vi.mock('@/components/desktops', () => ({
+  DesktopBastionInfoModal: {
+    props: ['open', 'desktopId', 'desktopName', 'bastion'],
+    emits: ['close'],
+    template: '<div data-test="bastion-modal" :data-open="String(open)" />'
+  },
+  DesktopNetworksModal: {
+    props: [
+      'open',
+      'desktopId',
+      'desktopName',
+      'desktopStatus',
+      'directViewerToken',
+      'directViewerClient'
+    ],
+    emits: ['close'],
+    template: '<div data-test="networks-modal" :data-open="String(open)" />'
+  }
 }))
 
 vi.mock('@/components/desktop-card/parts/DirectViewerCardPreview.vue', () => ({
@@ -227,6 +258,7 @@ describe('DirectViewerView', () => {
     cookieSetMock.mockReset()
     connectMock.mockReset()
     clientSetConfigMock.mockReset()
+    refetchMock.mockReset()
     mutations.length = 0
     useQueryCallIndex = 0
   })
@@ -368,5 +400,39 @@ describe('DirectViewerView', () => {
     expect(openSpy).toHaveBeenCalledTimes(1)
     expect(openSpy.mock.calls[0][0]).toContain('direct=1')
     vi.unstubAllGlobals()
+  })
+
+  it('opens the networks modal from the networks overlay overflow', async () => {
+    viewerData.value = startedDesktop()
+    const wrapper = mountView()
+    await flushPromises()
+
+    // Modal is closed (not rendered) until requested.
+    expect(wrapper.find('[data-test="networks-modal"]').exists()).toBe(false)
+
+    // Toggle the networks overlay via its header button (modem-02 icon).
+    const networksBtn = wrapper.find('[data-test="overlay-btn"][data-icon="modem-02"]')
+    expect(networksBtn.exists()).toBe(true)
+    await networksBtn.trigger('click')
+
+    // The overlay's +N overflow emits show-networks-modal, opening the modal.
+    const overlay = wrapper.find('[data-test="card-networks"]')
+    expect(overlay.exists()).toBe(true)
+    await overlay.trigger('click')
+
+    expect(wrapper.find('[data-test="networks-modal"]').attributes('data-open')).toBe('true')
+  })
+
+  it('refetches the desktop details when the viewer status changes', async () => {
+    viewerData.value = startedDesktop({ status: 'WaitingIP' })
+    mountView()
+    await flushPromises()
+    refetchMock.mockClear()
+
+    // Socket flips the desktop to Started → details (holding the IP) refetch.
+    viewerData.value = { ...viewerData.value, status: 'Started' }
+    await flushPromises()
+
+    expect(refetchMock).toHaveBeenCalled()
   })
 })

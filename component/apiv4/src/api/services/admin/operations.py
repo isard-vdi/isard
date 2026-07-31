@@ -16,19 +16,17 @@ if TYPE_CHECKING:
         OperationsServiceStub,
     )
 
-# Named caches: 10 s TTL is mainly thundering-herd protection on the
+# Named cache: 10 s TTL is mainly thundering-herd protection on the
 # orchestrator gRPC, so writers don't normally need to invalidate, but
-# keeping them named lets tests clear between cases.
+# keeping it named lets tests clear between cases. Only read-only calls
+# may be memoized here; a cached mutation is a silent no-op that still
+# reports success to the operator.
 list_hypervisors_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=10)
-start_hypervisor_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=10)
-stop_hypervisor_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=10)
 
 
 def clear_admin_operations_caches() -> None:
     """Clear all admin operations caches at once."""
     list_hypervisors_cache.clear()
-    start_hypervisor_cache.clear()
-    stop_hypervisor_cache.clear()
 
 
 class AdminOperationsService:
@@ -117,7 +115,6 @@ class AdminOperationsService:
             raise Error("internal_server", "Internal server error")
 
     @staticmethod
-    @cached(cache=start_hypervisor_cache)
     def start_hypervisor(hypervisor_id: str) -> dict:
         """Start a hypervisor via operations gRPC."""
         import grpc
@@ -139,7 +136,6 @@ class AdminOperationsService:
             raise Error("internal_server", "Internal server error")
 
     @staticmethod
-    @cached(cache=stop_hypervisor_cache)
     def stop_hypervisor(hypervisor_id: str) -> dict:
         """Stop a hypervisor via operations gRPC."""
         import grpc

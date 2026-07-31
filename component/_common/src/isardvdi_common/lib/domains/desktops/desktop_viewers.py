@@ -41,6 +41,7 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.helpers.viewers import strip_unavailable_viewers
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from rethinkdb import r
 from socketio import RedisManager
@@ -105,7 +106,10 @@ class DesktopViewers(RethinkSharedConnection):
             data["guest_properties"] = {}
         if data.get("guest_properties", {}).get("viewers") == None:
             data["guest_properties"] = domain["guest_properties"]
-        elif not data.get("guest_properties", {}).get("viewers"):
+        # Count by non-null value: an all-null dict is truthy but has no viewers.
+        elif not strip_unavailable_viewers(
+            data.get("guest_properties", {}).get("viewers")
+        ):
             raise Error(
                 "bad_request",
                 "At least one viewer must be selected.",
@@ -193,6 +197,7 @@ class DesktopViewers(RethinkSharedConnection):
         viewers = new_data.get("guest_properties", {}).get("viewers") or template.get(
             "guest_properties", {}
         ).get("viewers")
+        viewers = strip_unavailable_viewers(viewers)
         if not viewers:
             raise Error(
                 "bad_request",

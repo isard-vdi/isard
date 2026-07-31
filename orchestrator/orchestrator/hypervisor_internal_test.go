@@ -20,7 +20,6 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 		"should work as expected": {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				list := apiv4.AdminHypervisorsListOKApplicationJSON([]apiv4.AdminHypervisor{{
-					ID:             "non-buffering",
 					BufferingHyper: false,
 				}, {
 					ID:             "theHyper",
@@ -29,18 +28,14 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 				}})
 				c.On("AdminHypervisorsList", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminHypervisorsListParams{}).Return(&list, nil)
 
-				c.On("AdminTableUpdate", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req apiv4.AdminTableUpdateReq) bool {
-					return string(req["id"]) == `"theHyper"` && string(req["only_forced"]) == "false"
-				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.AdminTableUpdateNoContent{}, nil)
+				c.On("AdminOrchestratorOnlyForcedSet", mock.AnythingOfType("context.backgroundCtx"), &apiv4.OrchestratorOnlyForcedData{OnlyForced: false}, apiv4.AdminOrchestratorOnlyForcedSetParams{HypervisorID: "theHyper"}).Return(&apiv4.AdminOrchestratorOnlyForcedSetNoContent{}, nil)
 			},
 		},
 		"should not do anything if there are no operations to do": {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				list := apiv4.AdminHypervisorsListOKApplicationJSON([]apiv4.AdminHypervisor{{
-					ID:             "non-buffering",
 					BufferingHyper: false,
 				}, {
-					ID:             "buffering-already-open",
 					BufferingHyper: true,
 					OnlyForced:     false,
 				}})
@@ -82,7 +77,6 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 		"should work as expected": {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				list := apiv4.AdminHypervisorsListOKApplicationJSON([]apiv4.AdminHypervisor{{
-					ID:             "non-buffering",
 					BufferingHyper: false,
 				}, {
 					ID:             "theHyper",
@@ -91,18 +85,14 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 				}})
 				c.On("AdminHypervisorsList", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminHypervisorsListParams{}).Return(&list, nil)
 
-				c.On("AdminTableUpdate", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req apiv4.AdminTableUpdateReq) bool {
-					return string(req["id"]) == `"theHyper"` && string(req["only_forced"]) == "true"
-				}), apiv4.AdminTableUpdateParams{Table: "hypervisors"}).Return(&apiv4.AdminTableUpdateNoContent{}, nil)
+				c.On("AdminOrchestratorOnlyForcedSet", mock.AnythingOfType("context.backgroundCtx"), &apiv4.OrchestratorOnlyForcedData{OnlyForced: true}, apiv4.AdminOrchestratorOnlyForcedSetParams{HypervisorID: "theHyper"}).Return(&apiv4.AdminOrchestratorOnlyForcedSetNoContent{}, nil)
 			},
 		},
 		"should not do anything if there are no operations to do": {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				list := apiv4.AdminHypervisorsListOKApplicationJSON([]apiv4.AdminHypervisor{{
-					ID:             "non-buffering",
 					BufferingHyper: false,
 				}, {
-					ID:             "buffering-already-closed",
 					BufferingHyper: true,
 					OnlyForced:     true,
 				}})

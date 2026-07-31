@@ -46,7 +46,9 @@ const emit = defineEmits<{
           {{ t('components.desktops.desktop-card.actions.edit') }}
         </Button>
       </DropdownMenuItem>
-      <DropdownMenuItem @click="emit('changeImage')">
+      <!-- A deployment desktop's card belongs to the deployment and is
+           changed in bulk by its owner. -->
+      <DropdownMenuItem v-if="!props.desktop.tag" @click="emit('changeImage')">
         <Button
           size="sm"
           class="mr-2 w-full justify-start"

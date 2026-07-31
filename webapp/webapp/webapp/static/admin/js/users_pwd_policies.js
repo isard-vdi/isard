@@ -19,6 +19,20 @@
 * SPDX-License-Identifier: AGPL-3.0-or-later
 */
 
+// Relabels the provider (type) select options of a policy modal with the
+// names resolved for the selected category ("all" → global names).
+function relabelPolicyTypeOptions(modal) {
+    const categoryId = $(modal + " #category").val();
+    const categoryAuth = categoryId && categoryId !== "all"
+        ? getCategoriesAuthentication()[categoryId]
+        : null;
+    const providers = getAuthProvidersGlobal();
+    $(modal + " #type-select select option").each(function () {
+        const key = $(this).val();
+        if (key) $(this).text(authProviderLabel(key, categoryAuth, providers));
+    });
+}
+
 $(document).ready(function () {
 
     user_policy_table = $('#users-password-policy').DataTable({
@@ -180,19 +194,13 @@ $(document).ready(function () {
             }
         })
 
-        $.ajax({
-            type: "GET",
-            url: "/api/v4/admin/items/authentication/providers",
-            async: false,
-            cache: false,
-            success: function (type) {
-                $.each(type, function (key, value) {
-                    $(modal + ' #type-select select').append(
-                        `<option value="${key}">${key}</option>`
-                    );
-                });
-            }
-        })
+        const providers = getAuthProvidersGlobal();
+        $.each(providers, function (key, value) {
+            $(modal + ' #type-select select').append(
+                $("<option>").val(key).text(authProviderLabel(key, null, providers))
+            );
+        });
+        relabelPolicyTypeOptions(modal);
     });
 
 
@@ -350,19 +358,13 @@ $(document).ready(function () {
                     });
                 }
             });
-            $.ajax({
-                type: "GET",
-                url: "/api/v4/admin/items/authentication/providers",
-                async: false,
-                cache: false,
-                success: function (type) {
-                    $.each(type, function (key, value) {
-                        $(modal + ' #type-select select').append(
-                            `<option value="${key}">${key}</option>`
-                        );
-                    });
-                }
-            })
+            const providers = getAuthProvidersGlobal();
+            $.each(providers, function (key, value) {
+                $(modal + ' #type-select select').append(
+                    $("<option>").val(key).text(authProviderLabel(key, null, providers))
+                );
+            });
+            relabelPolicyTypeOptions(modal);
             $(modal + " #role").val(data.role);
             $(modal + " #type").val(data.type);
             var type = $('#modalPolicyEdit #type-select select').val();
@@ -512,6 +514,7 @@ $(document).ready(function () {
     $('#modalPolicyAdd #category').on('change', function () {
         showHideContent($('#modalPolicyAdd #disclaimer-content'), $('#category').val() == "all");
         showHideContent($("#modalPolicyAdd #disclaimer-warning"), $('#category').val() != "all");
+        relabelPolicyTypeOptions('#modalPolicyAdd');
     });
     $('.disclaimer-cb').on('ifChanged', function () {
         showHideContent(

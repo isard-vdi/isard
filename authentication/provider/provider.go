@@ -241,6 +241,7 @@ func extractGroups(re *regexp.Regexp, rawGroups []string) ([]string, []string) {
 
 type guessGroupOpts struct {
 	Provider     Provider
+	ProviderName string
 	ReGroup      *regexp.Regexp
 	DefaultGroup string
 }
@@ -250,7 +251,7 @@ func guessGroup(ctx context.Context, sess r.QueryExecutor, opts guessGroupOpts, 
 
 	primaryGroups := make([]*model.Group, 0, len(primaryTokens))
 	for _, t := range primaryTokens {
-		primaryGroups = append(primaryGroups, genExternalGroup(opts.Provider, u.Category, t))
+		primaryGroups = append(primaryGroups, genExternalGroup(opts.Provider, opts.ProviderName, u.Category, t))
 	}
 
 	if len(primaryGroups) == 0 {
@@ -261,7 +262,7 @@ func guessGroup(ctx context.Context, sess r.QueryExecutor, opts guessGroupOpts, 
 			}
 		}
 
-		return genExternalGroup(opts.Provider, u.Category, opts.DefaultGroup), []*model.Group{}, nil
+		return genExternalGroup(opts.Provider, opts.ProviderName, u.Category, opts.DefaultGroup), []*model.Group{}, nil
 	}
 
 	primary, err := guessPrimaryGroup(ctx, sess, primaryGroups)
@@ -274,7 +275,7 @@ func guessGroup(ctx context.Context, sess r.QueryExecutor, opts guessGroupOpts, 
 
 	allGroups := slices.Clone(primaryGroups)
 	for _, t := range secondaryTokens {
-		allGroups = append(allGroups, genExternalGroup(opts.Provider, u.Category, t))
+		allGroups = append(allGroups, genExternalGroup(opts.Provider, opts.ProviderName, u.Category, t))
 	}
 
 	secondary := []*model.Group{}
@@ -312,9 +313,14 @@ func guessPrimaryGroup(ctx context.Context, sess r.QueryExecutor, groups []*mode
 	return groups[0], nil
 }
 
-func genExternalGroup(p Provider, category, externalGID string) *model.Group {
+func genExternalGroup(p Provider, providerName, category, externalGID string) *model.Group {
 	externalAppID := fmt.Sprintf("provider-%s", p.String())
 	description := fmt.Sprintf("This is a auto register created by the authentication service. This group maps a %s group", p.String())
+
+	label := providerName
+	if label == "" {
+		label = p.String()
+	}
 
 	g := &model.Group{
 		Category:      category,
@@ -322,7 +328,7 @@ func genExternalGroup(p Provider, category, externalGID string) *model.Group {
 		ExternalGID:   externalGID,
 		Description:   description,
 	}
-	g.GenerateNameExternal(p.String())
+	g.GenerateNameExternal(label)
 
 	return g
 }
@@ -376,4 +382,29 @@ func guessRole(opts guessRoleOpts, rawRoles []string) (*model.Role, *ProviderErr
 	}
 
 	return role, nil
+}
+
+type autoRegisterOpts struct {
+	AutoRegister      bool
+	AutoRegisterRoles []string
+}
+
+func autoRegister(log *zerolog.Logger, opts autoRegisterOpts, u *model.User) bool {
+	if !opts.AutoRegister {
+		log.Info().Str("usr", u.UID).Msg("auto-registration denied: auto_register is disabled in configuration")
+		return false
+	}
+
+	if len(opts.AutoRegisterRoles) == 0 {
+		log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Msg("auto-registration allowed: no role restrictions configured")
+		return true
+	}
+
+	if !slices.Contains(opts.AutoRegisterRoles, string(u.Role)) {
+		log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", opts.AutoRegisterRoles).Msg("auto-registration denied: user role not in allowed roles list")
+		return false
+	}
+
+	log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", opts.AutoRegisterRoles).Msg("auto-registration allowed: user role matches allowed roles list")
+	return true
 }

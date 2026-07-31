@@ -1428,6 +1428,7 @@
     }
   },
   "errors": {
+    "storage_no_consumer_retry_later": "L'emmagatzematge no pot acceptar noves peticions temporalment. Torna-ho a provar d'aquí a uns moments.",
     "desktop_new_user_quota_exceeded": "Has excedit la teva quota per a crear nous escriptoris. Cal que eliminis algun escriptori per a poder crear-ne de nous.",
     "desktop_new_group_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris del grup",
     "desktop_new_category_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris de la categoria",

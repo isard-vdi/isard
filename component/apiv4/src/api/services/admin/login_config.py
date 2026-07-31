@@ -18,7 +18,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from api.services.login_config_cache import clear_login_config_cache
 from isardvdi_common.models.config import Config
 
 
@@ -26,10 +25,8 @@ class AdminLoginConfigService:
 
     @staticmethod
     def update_login_notification(data: dict) -> None:
-        if Config.update_login_notification(data):
-            clear_login_config_cache()
+        Config.update_login_notification(data)
 
     @staticmethod
     def enable_login_notification(notification_type: str, enable: bool) -> None:
         Config.enable_login_notification(notification_type, enable)
-        clear_login_config_cache()

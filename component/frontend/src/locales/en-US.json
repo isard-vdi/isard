@@ -117,9 +117,17 @@
     },
     "error": {
       "title": "Error"
+    },
+    "disclaimer": {
+      "title": "Disclaimer"
     }
   },
   "views": {
+    "disclaimer": {
+      "accept": "Accept",
+      "reject": "Reject",
+      "error": "Could not process the acknowledgement. Please try again."
+    },
     "export-user": {
       "title": "Export user's items",
       "description": "Migrate user's items via migration token",
@@ -385,7 +393,11 @@
       }
     },
     "register": {
-      "title": "Sign Up"
+      "title": "Sign Up",
+      "re-register": {
+        "title": "Update your registration",
+        "description": "Your permissions have changed. Enter the sign up code provided by your administrator to continue."
+      }
     },
     "notifications": {
       "title": "Notifications",
@@ -1068,6 +1080,7 @@
           "title": "Generate a new API key",
           "description": "You can generate a new API key to use with external applications that integrate with the IsardVDI API.",
           "warning": "You will only be able to see the API key once, so make sure to store it in a safe place.",
+          "max-expiration-hint": "The maximum expiration is one year from today",
           "buttons": {
             "generate": "Generate",
             "expiration-label": "Expiration date",
@@ -1330,6 +1343,9 @@
         "bastion": {
           "label": "Bastion enabled",
           "description": "Enable access to the desktop via a bastion host.",
+          "custom-domains": {
+            "label": "Custom domains"
+          },
           "http-https": {
             "label": "HTTP / HTTPS",
             "description": "Access the desktop using a web browser or an RDP viewer that supports HTTP/HTTPS connections.",
@@ -1697,6 +1713,7 @@
     "bastion-info-modal": {
       "title": "Bastion access — {name}",
       "description": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command, or set a custom domain and authorized SSH keys below.",
+      "description-read-only": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command.",
       "no-bastion-configured": "Bastion is not enabled for this desktop",
       "no-bastion-configured-description": "Edit the desktop and enable HTTP/HTTPS or SSH access to use the bastion.",
       "error": {
@@ -1806,13 +1823,18 @@
         "description": "There are no other GPU profiles currently available."
       },
       "gpu-select": {
-        "label": "New GPU profile",
-        "placeholder": "Available GPU Profiles",
-        "value": "Change to '{profile}'"
+        "label": "GPU profiles",
+        "placeholder": "Select the profiles that will be used"
       },
       "cancel": "Cancel",
       "book": "Book Desktop",
-      "confirm": "Change and Start"
+      "confirm": "Change and Start",
+      "errors": {
+        "title": "Could not change the GPU",
+        "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
+        "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host.",
+        "generic": "The desktop could not be changed and started. Please try again."
+      }
     },
     "desktops": {
       "desktop-card": {
@@ -1849,7 +1871,12 @@
         },
         "overlay": {
           "expand": "Details",
-          "expand-tooltip": "Open the full details modal"
+          "expand-tooltip": "Open the full details modal",
+          "bastion": {
+            "open-in-browser": "Open in browser: {url}",
+            "copy-url": "Copy URL: {url}",
+            "copy-ssh": "Copy SSH connection: {command}"
+          }
         },
         "info": {
           "boot": "Boot"
@@ -2138,7 +2165,9 @@
     "date-picker": {
       "today": "Today",
       "cancel": "Cancel",
-      "apply": "Apply"
+      "apply": "Apply",
+      "month": "Month",
+      "year": "Year"
     },
     "media": {
       "media-type": {
@@ -2446,7 +2475,8 @@
         "forbidden": "The email domain you are trying to use is not authorized for your category.",
         "not_found": "Code not found",
         "conflict": "User already exists",
-        "internal_server": "Server error"
+        "internal_server": "Server error",
+        "re_register_not_resolved": "The code you entered doesn't grant the required access. Ask your administrator for a valid code."
       }
     },
     "new-desktop": {

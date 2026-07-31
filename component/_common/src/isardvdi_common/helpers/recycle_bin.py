@@ -17,6 +17,7 @@ from isardvdi_common.helpers.helpers import Helpers as CommonHelpers
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.user_storage import UserStorage
+from isardvdi_common.lib import queue_tiers
 from isardvdi_common.lib.notifications.notifications_data import (
     NotificationsDataProcessed,
 )
@@ -1978,10 +1979,31 @@ class RecycleBin(RethinkSharedConnection):
                                 storage.id,
                                 time.time() - start,
                             )
+                            # Route through the queue-tier resolver instead of a raw
+                            # ``.default`` queue (the one storage-task producer that
+                            # otherwise bypasses it). The input ``.bulk`` is a hint,
+                            # but ``delete``/``move_delete`` hard-floor to the LOWEST
+                            # ``reclaim`` tier: the user already saw the item vanish
+                            # (its domain row + view were removed synchronously), so
+                            # freeing the bytes is best-effort and must never crowd a
+                            # create/start/template. Thread the storage owner's
+                            # category (or the _nocat sentinel for a deleted owner)
+                            # so the cleanup is fair-scheduled per tenant, exactly as
+                            # ``Storage.create_task`` and ``Media.create_task`` do —
+                            # per-category fairness is structural in the worker
+                            # (``GovernedWorker.multitenancy`` is always on), so
+                            # producers resolve the category unconditionally.
+                            category = storage.category or queue_tiers.NULL_CATEGORY
+                            delete_queue = queue_tiers.retier_queue(
+                                f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.bulk",
+                                task_name,
+                                category,
+                            )
                             start = time.time()
                             task = Task(
                                 user_id=rb.owner_id,
-                                queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
+                                queue=delete_queue,
+                                category_id=category,
                                 task=task_name,
                                 job_kwargs={
                                     "kwargs": {
@@ -2031,6 +2053,16 @@ class RecycleBin(RethinkSharedConnection):
                                         ],
                                     }
                                 ],
+                                # create the job DEFERRED (created +
+                                # saved, id known, dependents deferred) but do
+                                # NOT enqueue it yet. We register it in the
+                                # entry's ``tasks`` via ``_add_task`` FIRST, then
+                                # ``task.enqueue()`` below — so the storage
+                                # worker (and change-handler's completion chain)
+                                # can never run before the task is registered,
+                                # which was the lost-signal window that left
+                                # entries stuck in ``deleting``.
+                                enqueue=False,
                             )
                             log.debug(
                                 "RecycleBin %s delete_storage: Storage %s task %s created in %s seconds",
@@ -2048,7 +2080,15 @@ class RecycleBin(RethinkSharedConnection):
                                     "id": task.id,
                                     "item_id": storage.id,
                                     "item_type": "storage",
-                                    "status": task.status,
+                                    # Registered BEFORE the job is enqueued (see
+                                    # enqueue=False above), so the live chain
+                                    # status isn't readable yet (the RQ job has no
+                                    # status until enqueued). Record the honest
+                                    # pending state; ``update_task_status`` will
+                                    # overwrite it with the real terminal status on
+                                    # completion — and, now that the task is
+                                    # registered first, that signal can't be lost.
+                                    "status": "queued",
                                 }
                             )
                             log.debug(
@@ -2057,6 +2097,12 @@ class RecycleBin(RethinkSharedConnection):
                                 task.id,
                                 time.time() - start,
                             )
+                            # Now that the task is registered in the entry, it is
+                            # safe to enqueue: whenever the worker finishes and
+                            # change-handler runs ``update_task_status``, the map
+                            # will find this task and the completion signal can no
+                            # longer be lost.
+                            task.enqueue()
                             tasks.append(
                                 {
                                     "id": task.id,

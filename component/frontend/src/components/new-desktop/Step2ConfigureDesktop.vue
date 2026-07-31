@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { useUserStore } from '@/stores/user'
 import { getTemplateDetailsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
+import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
 import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
 import { Button } from '@/components/ui/button'
@@ -27,7 +29,7 @@ const userStore = useUserStore()
 
 interface Template {
   id: string
-  image?: { url: string }
+  image?: DomainImageOutput
 }
 
 const props = defineProps<{
@@ -43,9 +45,26 @@ const emit = defineEmits<{
       desktopKind: string
       accessSettings: Record<string, unknown> | undefined
       hardwareSettings: Record<string, unknown> | undefined
+      image: DomainImageOutput | undefined
     }
   ]
 }>()
+
+// Sent explicitly, or the backend derives an unrelated stock card from the
+// new desktop's id and the preview lies.
+const selectedImage = ref<DomainImageOutput | undefined>(props.selectedTemplate?.image)
+const showChangeImageModal = ref(false)
+
+watch(
+  () => props.selectedTemplate,
+  (template) => {
+    selectedImage.value = template?.image
+  }
+)
+
+function handleImageSelected(image: DomainImageOutput) {
+  selectedImage.value = image
+}
 
 // Fetch selected template info when selectedTemplate changes (used for hardware summary)
 const {
@@ -225,7 +244,8 @@ const handleSubmit = () => {
     description: desktopDescription,
     desktopKind: desktopKind.value,
     accessSettings,
-    hardwareSettings
+    hardwareSettings,
+    image: selectedImage.value
   })
 }
 
@@ -236,6 +256,13 @@ defineExpose({
 </script>
 
 <template>
+  <ChangeImageModal
+    :open="showChangeImageModal"
+    :current-image="selectedImage"
+    @select="handleImageSelected"
+    @close="showChangeImageModal = false"
+  />
+
   <div>
     <div class="flex gap-6">
       <template v-if="templateLoading">
@@ -250,11 +277,15 @@ defineExpose({
         <p class="text-sm font-regular mb-6">
           {{ t('views.new-desktop.step-2.preview.description') }}
         </p>
-        <!-- TODO: Allow adding an image -->
-        <DesktopCardBase
-          :image-url="selectedTemplate?.image?.url || ''"
-          :desktop-kind="desktopKind"
-        >
+        <DesktopCardBase :image-url="selectedImage?.url || ''" :desktop-kind="desktopKind">
+          <template #header-actions>
+            <Button
+              icon="image-plus"
+              hierarchy="secondary-gray"
+              size="sm"
+              @click="showChangeImageModal = true"
+            />
+          </template>
           <template #header>
             <DesktopCardHeader
               :name="infoFormValues.name"

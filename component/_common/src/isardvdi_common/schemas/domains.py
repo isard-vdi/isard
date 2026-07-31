@@ -63,6 +63,7 @@ class DesktopStatusEnum(str, Enum):
     # value with a Pydantic enum error.
     creating_template = "CreatingTemplate"
     creating_domain = "CreatingDomain"
+    creating_domain_from_disk = "CreatingDomainFromDisk"
     starting = "Starting"
     starting_paused = DomainStatusEnum.starting_paused.value
     starting_domain_disposable = "StartingDomainDisposable"
@@ -72,10 +73,19 @@ class DesktopStatusEnum(str, Enum):
     shutting_down = "Shutting-down"
     downloading = "Downloading"
     download_starting = "DownloadStarting"
+    downloaded = "Downloaded"
     download_failed = "DownloadFailed"
     download_aborting = "DownloadAborting"
+    # Written for domains by the pre-merge engine download thread. The
+    # thread is gone, but rows upgraded from those releases still carry
+    # it and must not break the list they appear in.
+    reset_downloading = "ResetDownloading"
+    disk_new = "DiskNew"
     creating_disk_from_scratch = "CreatingDiskFromScratch"
     updating = "Updating"
+    deleting = "Deleting"
+    deleting_domain_disk = "DeletingDomainDisk"
+    disk_deleted = "DiskDeleted"
     force_deleting = "ForceDeleting"
     suspended = "Suspended"
     maintenance = "Maintenance"

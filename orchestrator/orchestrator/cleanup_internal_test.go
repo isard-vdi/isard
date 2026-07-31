@@ -4,8 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model"
-	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model/testhelper"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 
@@ -19,7 +17,7 @@ func TestCleanup(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareAPI            func(*apiv4.MockInvoker)
-		APIHypervisors        []*model.Hypervisor
+		APIHypervisors        []*apiv4.OrchestratorHypervisor
 		OperationsHypervisors []*operationsv1.ListHypervisorsResponseHypervisor
 		ExpectedErr           string
 	}{
@@ -27,28 +25,23 @@ func TestCleanup(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminHypervisorDelete", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminHypervisorDeleteParams{HyperID: "zombie"}).Return(&apiv4.AdminHypervisorDeleteNoContent{}, nil)
 			},
-			APIHypervisors: []*model.Hypervisor{
-				testhelper.Hypervisor(
-					testhelper.WithID("zombie"),
-					testhelper.WithOrchestratorManaged(true),
-					testhelper.WithStatus(model.HypervisorStatusOffline),
-				),
-				testhelper.Hypervisor(
-					testhelper.WithID("unmanaged-zombie"),
-					testhelper.WithOrchestratorManaged(false),
-					testhelper.WithStatus(model.HypervisorStatusOffline),
-				),
-				testhelper.Hypervisor(
-					testhelper.WithID("just offline"),
-					testhelper.WithOrchestratorManaged(true),
-					testhelper.WithStatus(model.HypervisorStatusOffline),
-				),
-				testhelper.Hypervisor(
-					testhelper.WithID("online"),
-					testhelper.WithOrchestratorManaged(true),
-					testhelper.WithStatus(model.HypervisorStatusOnline),
-				),
-			},
+			APIHypervisors: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "zombie",
+				OrchestratorManaged: true,
+				Status:              apiv4.HypervisorStatusOffline,
+			}, {
+				ID:                  "unmanaged-zombie",
+				OrchestratorManaged: false,
+				Status:              apiv4.HypervisorStatusOffline,
+			}, {
+				ID:                  "just offline",
+				OrchestratorManaged: true,
+				Status:              apiv4.HypervisorStatusOffline,
+			}, {
+				ID:                  "online",
+				OrchestratorManaged: true,
+				Status:              apiv4.HypervisorStatusOnline,
+			}},
 			OperationsHypervisors: []*operationsv1.ListHypervisorsResponseHypervisor{{
 				Id: "just offline",
 			}, {
@@ -59,15 +52,13 @@ func TestCleanup(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminHypervisorDelete", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminHypervisorDeleteParams{HyperID: "zombie"}).Return(nil, errors.New("oh no :("))
 			},
-			APIHypervisors: []*model.Hypervisor{
-				testhelper.Hypervisor(
-					testhelper.WithID("zombie"),
-					testhelper.WithOrchestratorManaged(true),
-					testhelper.WithStatus(model.HypervisorStatusOffline),
-				),
-			},
+			APIHypervisors: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "zombie",
+				OrchestratorManaged: true,
+				Status:              apiv4.HypervisorStatusOffline,
+			}},
 			OperationsHypervisors: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			ExpectedErr:           "kill zombie hypervisor 'zombie': delete hypervisor \"zombie\": oh no :(",
+			ExpectedErr:           "kill zombie hypervisor 'zombie': oh no :(",
 		},
 	}
 

@@ -12,9 +12,10 @@ never finalize a storage whose task is still alive).
 
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
+from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
 
@@ -51,6 +52,20 @@ def _task(
 # ---------------------------------------------------------------------------
 # _deps_terminal_and_aged — the orphan gate
 # ---------------------------------------------------------------------------
+
+
+def _gone_dep(exc=None):
+    """A dependency whose RQ job data has been evicted: reading ``job_status``
+    raises, exactly as observed in production ("reconcile: orphan heal failed
+    ... rq.exceptions.InvalidJobOperation: Failed to retrieve status for job").
+    RQ evicts a finished/failed job's hash after its result TTL, so a
+    dependency we can no longer read is necessarily terminal and long settled.
+    """
+    if exc is None:
+        exc = InvalidJobOperation("Failed to retrieve status for job: gone")
+    dep = MagicMock(name="gone-dep")
+    type(dep).job_status = PropertyMock(side_effect=exc)
+    return dep
 
 
 def test_orphan_gate_true_when_all_deps_terminal_and_aged():
@@ -201,7 +216,11 @@ async def test_pass1_storage_orphan_with_failed_parent_is_cancelled():
         healed = await reconcile._reconcile_orphan_deferred(AsyncMock())
 
     assert healed == 1
-    orphan.job.cancel.assert_called_once()
+    # Through ``Task.cancel`` — which settles the whole chain — and never
+    # through rq's raw ``job.cancel(enqueue_dependents=True)``, which promoted
+    # the chain's finalize dependents onto the consumerless ``core`` queue.
+    orphan.cancel.assert_called_once_with()
+    orphan.job.cancel.assert_not_called()
     rel.assert_not_awaited()
 
 
@@ -227,6 +246,18 @@ def _storage(
     # ``qemu-img-info`` is not a valid attr name; the model exposes it via getattr
     setattr(s, "qemu-img-info", qi)
     return s
+
+
+def _domain(did="d1", *, status="Maintenance", storages=None, disks=None):
+    """A Domain double: a status + its existing ``storages`` + the disks its
+    ``create_dict`` declares (used to tell 'storage gone' from 'no disks')."""
+    d = MagicMock(name=f"domain-{did}")
+    d.id = did
+    d.status = status
+    d.current_action = "resize"
+    d.storages = storages if storages is not None else []
+    d.create_dict = {"hardware": {"disks": disks if disks is not None else []}}
+    return d
 
 
 @pytest.mark.asyncio
@@ -306,6 +337,110 @@ def test_task_alive_false_when_task_not_pending():
 
 
 # ---------------------------------------------------------------------------
+# Pass 3 — domains stuck in a storage-lock status their storage already left
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_pass3_promotes_stuck_domain_when_storage_ready():
+    """A domain parked in a storage-lock status whose backing storage is
+    already ``ready`` and settled (no live task) was missed by the promote and
+    must be returned to Stopped."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="ready")
+    dom = _domain(
+        status="CreatingTemplate", storages=[storage], disks=[{"storage_id": "s1"}]
+    )
+    with (
+        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        patch.object(reconcile, "_task_alive", return_value=False),
+    ):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 1
+    assert dom.status == "Stopped"
+    assert dom.current_action is None
+
+
+@pytest.mark.asyncio
+async def test_pass3_fails_domain_whose_storage_row_is_gone():
+    """A domain locked in Maintenance whose declared disk's storage row no
+    longer exists is orphaned -> Failed."""
+    from isardvdi_change_handler.streams import reconcile
+
+    dom = _domain(status="Maintenance", storages=[], disks=[{"storage_id": "gone"}])
+    with patch.object(reconcile.Domain, "get_index", return_value=[dom]):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 1
+    assert dom.status == "Failed"
+    assert dom.current_action is None
+
+
+@pytest.mark.asyncio
+async def test_pass3_fails_domain_with_only_some_storage_rows_left():
+    """A domain that declares two disks and resolves one is PARTIALLY gone.
+
+    ``Domain.storages`` drops ids whose row no longer exists, so the surviving
+    disk being ``ready`` used to promote the domain to Stopped — a desktop that
+    looks bootable and then fails at the next start, with the real cause (a
+    deleted disk) lost.
+    """
+    from isardvdi_change_handler.streams import reconcile
+
+    survivor = _storage("s1", status="ready", task=None)
+    domain = _domain(
+        "d1",
+        storages=[survivor],
+        disks=[{"storage_id": "s1"}, {"storage_id": "s2-gone"}],
+    )
+
+    assert reconcile._finalize_stuck_domain(domain) == 1
+    assert domain.status == "Failed"
+
+
+@pytest.mark.asyncio
+async def test_pass3_leaves_domain_whose_storage_task_is_alive():
+    """Storage is ready but a live task is running on it: the op is in flight,
+    do not touch the domain (no race with the primary path)."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="ready")
+    dom = _domain(
+        status="Maintenance", storages=[storage], disks=[{"storage_id": "s1"}]
+    )
+    with (
+        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        patch.object(reconcile, "_task_alive", return_value=True),
+    ):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 0
+    assert dom.status == "Maintenance"
+
+
+@pytest.mark.asyncio
+async def test_pass3_leaves_domain_whose_storage_still_in_maintenance():
+    """Storage is still in maintenance (Pass 2 / the consumer owns it): leave
+    the domain alone."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="maintenance")
+    dom = _domain(
+        status="Maintenance", storages=[storage], disks=[{"storage_id": "s1"}]
+    )
+    with (
+        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        patch.object(reconcile, "_task_alive", return_value=False),
+    ):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 0
+    assert dom.status == "Maintenance"
+
+
+# ---------------------------------------------------------------------------
 # run() — eager pass + periodic loop
 # ---------------------------------------------------------------------------
 
@@ -314,7 +449,7 @@ def test_task_alive_false_when_task_not_pending():
 async def test_run_invokes_both_passes_then_sleeps():
     from isardvdi_change_handler.streams import reconcile
 
-    calls = {"orphan": 0, "stuck": 0}
+    calls = {"orphan": 0, "stuck": 0, "domains": 0}
 
     async def _fake_orphan(rm, *a, **k):
         calls["orphan"] += 1
@@ -322,6 +457,10 @@ async def test_run_invokes_both_passes_then_sleeps():
 
     async def _fake_stuck(rm, *a, **k):
         calls["stuck"] += 1
+        return 0
+
+    async def _fake_domains(rm, *a, **k):
+        calls["domains"] += 1
         return 0
 
     class _Stop(Exception):
@@ -333,6 +472,7 @@ async def test_run_invokes_both_passes_then_sleeps():
     with (
         patch.object(reconcile, "_reconcile_orphan_deferred", new=_fake_orphan),
         patch.object(reconcile, "_reconcile_stuck_storage", new=_fake_stuck),
+        patch.object(reconcile, "_reconcile_stuck_domains", new=_fake_domains),
         patch.object(reconcile.asyncio, "sleep", new=_sleep_then_stop),
     ):
         with pytest.raises(_Stop):
@@ -340,3 +480,44 @@ async def test_run_invokes_both_passes_then_sleeps():
 
     assert calls["orphan"] == 1
     assert calls["stuck"] == 1
+    assert calls["domains"] == 1
+
+
+def test_orphan_gate_treats_vanished_dep_job_as_terminal():
+    """A DEFERRED orphan whose only parent's RQ job data was evicted is a
+    healable orphan (the vanished job is necessarily terminal and long
+    settled). The gate must classify it True, never raise — regression for the
+    production abandonment "reconcile: orphan heal failed ... Failed to retrieve
+    status for job"."""
+    from isardvdi_change_handler.streams import reconcile
+
+    now = datetime.now(timezone.utc)
+    task = _task(dependencies=[_gone_dep()])
+    assert reconcile._deps_terminal_and_aged(task, now, grace_s=120) is True
+
+
+def test_orphan_gate_live_dep_beats_vanished_dep():
+    """A vanished dependency must not mask a still-live sibling: while any
+    dependency is running the task is NOT a healable orphan."""
+    from isardvdi_change_handler.streams import reconcile
+
+    now = datetime.now(timezone.utc)
+    task = _task(dependencies=[_gone_dep(), _dep(JobStatus.STARTED, 600)])
+    assert reconcile._deps_terminal_and_aged(task, now, grace_s=120) is False
+
+
+def test_orphan_gate_vanished_dep_with_finished_aged_sibling():
+    """A vanished dep alongside a finished, aged sibling still heals (the
+    readable sibling provides the age proof)."""
+    from isardvdi_change_handler.streams import reconcile
+
+    now = datetime.now(timezone.utc)
+    task = _task(
+        dependencies=[_gone_dep(NoSuchJobError()), _dep(JobStatus.FINISHED, 600)]
+    )
+    assert reconcile._deps_terminal_and_aged(task, now, grace_s=120) is True
+
+
+# ---------------------------------------------------------------------------
+# Pass 1 — orphaned DEFERRED jobs
+# ---------------------------------------------------------------------------

@@ -312,9 +312,13 @@ def test_domain_creating_disk_flips_creating_to_creating_disk():
 
 
 def test_domain_change_storage_fails_rows_in_place_when_storage_not_ready():
-    """Storage not ready + domain still creating is terminal, so the handler
-    must NOT raise (raising redelivers to exhaustion and dead-letters a normal
-    condition). It fails both rows in place and returns so the entry is ACKed."""
+    """When the chain failed upstream (storage not ready + domain still in a
+    create state), the handler must NOT raise. A raise leaves the stream entry
+    unACKed → redelivered MAX_DELIVERIES times → dead-lettered, for a normal
+    terminal condition (the upstream create produced a non-ready disk that
+    will never recover). Instead it fails both rows in place — exactly what
+    the trailing update_status FAILED branch would do — and returns so the
+    entry is ACKed and the chain finalises cleanly. See #2307."""
     from isardvdi_change_handler.task_results import domain
 
     task = _task()

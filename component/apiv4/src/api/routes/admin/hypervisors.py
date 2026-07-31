@@ -20,7 +20,7 @@
 
 import asyncio
 import traceback
-from typing import Literal, Optional
+from typing import Optional
 
 from api import admin_router
 from api.schemas.admin.hypervisors import (
@@ -52,8 +52,10 @@ from api.schemas.admin.hypervisors import (
     AdminRegisterVlansRequest,
     AdminVlanRegistration,
     DeadRowSetResponse,
+    HypervisorStatus,
     OrchestratorHypervisor,
     OrchestratorManagedHypervisor,
+    OrchestratorOnlyForcedData,
 )
 from api.schemas.common import ErrorResponse
 from api.services.admin.hypervisors import AdminHypervisorsService
@@ -80,7 +82,7 @@ tag = "admin_hypervisors"
 )
 async def admin_hypervisors_list(
     request: Request,
-    status: Optional[str] = None,
+    status: Optional[HypervisorStatus] = None,
 ):
     try:
         result = await asyncio.to_thread(
@@ -114,9 +116,7 @@ async def admin_hypervisors_list(
 )
 async def admin_hypervisors_list_by_status(
     request: Request,
-    status: Literal["Online", "Offline", "Error"] = Path(
-        ..., description="Hypervisor status filter"
-    ),
+    status: HypervisorStatus = Path(..., description="Hypervisor status filter"),
 ):
     try:
         result = await asyncio.to_thread(
@@ -689,6 +689,44 @@ async def admin_orchestrator_dead_row_reset(
             request,
             "internal_server",
             "Failed to reset dead row timeout",
+            traceback.format_exc(),
+        )
+
+
+# ── Orchestrator: Only Forced ────────────────────────────────────────────
+
+
+@admin_router.put(
+    "/admin/item/orchestrator/hypervisor/{hypervisor_id}/only_forced",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Set hypervisor only_forced flag",
+    description="Set or clear the only_forced flag for a hypervisor.",
+    responses={
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def admin_orchestrator_only_forced_set(
+    request: Request,
+    data: OrchestratorOnlyForcedData,
+    hypervisor_id: str = Path(..., description="Hypervisor ID"),
+):
+    try:
+        await asyncio.to_thread(
+            AdminHypervisorsService.set_hyper_only_forced,
+            hypervisor_id,
+            data.only_forced,
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to set only_forced",
             traceback.format_exc(),
         )
 

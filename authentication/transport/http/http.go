@@ -659,7 +659,7 @@ func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.Che
 	}
 
 	if err := a.Authentication.Check(ctx, tkn, remoteAddr); err != nil {
-		if !errors.Is(err, token.ErrInvalidToken) || !errors.Is(err, token.ErrInvalidTokenType) {
+		if !errors.Is(err, token.ErrInvalidToken) && !errors.Is(err, token.ErrInvalidTokenType) {
 			return nil, fmt.Errorf("check JWT: %w", err)
 		}
 
@@ -708,7 +708,7 @@ func (a *AuthenticationServer) AcknowledgeDisclaimer(ctx context.Context, req *o
 		}
 
 		var dbErr *db.Err
-		if !errors.As(err, &dbErr) {
+		if errors.As(err, &dbErr) {
 			return &oasAuthentication.AcknowledgeDisclaimerInternalServerError{
 				Error: oasAuthentication.AcknowledgeDisclaimerErrorErrorInternalServer,
 				Msg:   "database error",
@@ -1039,7 +1039,7 @@ func (a *AuthenticationServer) GenerateAPIKey(ctx context.Context, req *oasAuthe
 	APIKey, err := a.Authentication.GenerateAPIKey(ctx, tkn, req.ExpirationMinutes)
 	if err != nil {
 
-		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) || errors.Is(err, token.ErrInvalidTokenRole) {
 			return &oasAuthentication.GenerateAPIKeyForbidden{
 				Error: oasAuthentication.GenerateAPIKeyErrorErrorInvalidToken,
 				Msg:   err.Error(),

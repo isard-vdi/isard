@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 )
 
@@ -24,9 +24,9 @@ type NeedToScaleHypervisorsResult struct {
 
 type Director interface {
 	// NeedToScaleHypervisors states if there's a scale needed to be done.
-	NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*model.Hypervisor) (NeedToScaleHypervisorsResult, error)
+	NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*apiv4.OrchestratorHypervisor) (NeedToScaleHypervisorsResult, error)
 	// ExtraOperations is a place for running infrastructure operations that don't fit in the other functions but are required
-	ExtraOperations(ctx context.Context, hypers []*model.Hypervisor) error
+	ExtraOperations(ctx context.Context, hypers []*apiv4.OrchestratorHypervisor) error
 	String() string
 }
 

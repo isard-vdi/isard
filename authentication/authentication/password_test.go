@@ -138,7 +138,7 @@ func TestResetPassword(t *testing.T) {
 					Msg:             "Bad request",
 					DescriptionCode: "password_character_length",
 					Description:     "Password must be at least 8 characters long",
-					Params:          apiv4.PasswordPolicyErrorParams{Num: apiv4.NewOptInt(8)},
+					Params:          apiv4.NewNilPasswordPolicyErrorParams(apiv4.PasswordPolicyErrorParams{Num: apiv4.NewOptNilInt(8)}),
 				}, nil)
 			},
 			PrepareDB: func(m *r.Mock, tkn string) {

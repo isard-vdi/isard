@@ -375,7 +375,6 @@ def _stub_update_deps(monkeypatch, target_role="user", target_category="cat-a"):
         "api.services.admin.users.CommonUsers.update_multiple_users",
         staticmethod(lambda *a, **k: None),
     )
-    monkeypatch.setattr("api.routes.users.clear_users_list_cache", lambda *a, **k: None)
 
 
 def test_admin_update_user_blocks_role_elevation(monkeypatch, test_client):
@@ -493,10 +492,6 @@ def test_admin_delete_users_runs_bulk_deletion_after_response(monkeypatch, test_
         "api.services.admin.users.revoke_user_session",
         lambda user_id: None,
     )
-    monkeypatch.setattr(
-        "api.routes.users.clear_users_list_cache",
-        lambda: None,
-    )
 
     response = test_client(
         url="/admin/items/users",
@@ -552,10 +547,6 @@ def test_admin_update_users_bulk_runs_after_response(monkeypatch, test_client):
             )
         ),
     )
-    monkeypatch.setattr(
-        "api.routes.users.clear_users_list_cache",
-        lambda: None,
-    )
 
     response = test_client(
         url="/admin/items/users/bulk",
@@ -595,10 +586,6 @@ def test_admin_migrate_user_runs_migration_after_response(monkeypatch, test_clie
                 (user_id, target_user_id)
             )
         ),
-    )
-    monkeypatch.setattr(
-        "api.routes.users.clear_users_list_cache",
-        lambda: None,
     )
     # ``clear_templates_cache`` is imported into admin/users at module
     # load; the module-local binding must also be patched so the

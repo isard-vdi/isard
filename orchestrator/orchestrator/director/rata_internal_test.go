@@ -8,8 +8,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
-	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model"
-	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model/testhelper"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 )
 
@@ -18,7 +17,7 @@ func TestMinRAM(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Hypers                   []*model.Hypervisor
+		Hypers                   []*apiv4.OrchestratorHypervisor
 		MinRAM                   int
 		MinRAMHourly             map[time.Weekday]map[time.Time]int
 		MinRAMLimitPercent       int
@@ -47,9 +46,15 @@ func TestMinRAM(t *testing.T) {
 		"should apply the percentage correctly using a fixed margin": {
 			MinRAMLimitPercent: 200,
 			MinRAMLimitMargin:  300,
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("1"), testhelper.WithMinFreeMemGB(2)),
-				testhelper.Hypervisor(testhelper.WithID("2"), testhelper.WithMinFreeMemGB(5)),
+			Hypers: []*apiv4.OrchestratorHypervisor{
+				{
+					ID:           "1",
+					MinFreeMemGB: 2,
+				},
+				{
+					ID:           "2",
+					MinFreeMemGB: 5,
+				},
 			},
 			Expected: 5*1024*2 + 2*1024*2 + 300,
 		},
@@ -60,43 +65,62 @@ func TestMinRAM(t *testing.T) {
 					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 1312,
 				},
 			},
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("1"), testhelper.WithMinFreeMemGB(3)),
-				testhelper.Hypervisor(testhelper.WithID("2"), testhelper.WithMinFreeMemGB(2)),
+			Hypers: []*apiv4.OrchestratorHypervisor{
+				{
+					ID:           "1",
+					MinFreeMemGB: 3,
+				},
+				{
+					ID:           "2",
+					MinFreeMemGB: 2,
+				},
 			},
 			Expected: (3*1024)*1.5 + (2*1024)*1.5 + 1312,
 		},
 		"regression test #1": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(
-					testhelper.WithID("bm-e4-01"),
-					testhelper.WithStatus(model.HypervisorStatusOnline),
-					testhelper.WithOnlyForced(false),
-					testhelper.WithBuffering(false),
-					testhelper.WithDestroyTime(time.Time{}),
-					testhelper.WithBookingsEndTime(time.Time{}),
-					testhelper.WithOrchestratorManaged(true),
-					testhelper.WithGpuOnly(false),
-					testhelper.WithDesktopsStarted(57),
-					testhelper.WithMinFreeMemGB(190),
-					testhelper.WithCPU(100, 6, 94),
-					testhelper.WithRAM(2051961, 305801, 1746160),
-				),
-				testhelper.Hypervisor(
-					testhelper.WithID("bm-e2-02"),
-					testhelper.WithStatus(model.HypervisorStatusOnline),
-					testhelper.WithOnlyForced(false),
-					testhelper.WithBuffering(false),
-					testhelper.WithDestroyTime(time.Time{}),
-					testhelper.WithBookingsEndTime(time.Time{}),
-					testhelper.WithOrchestratorManaged(false),
-					testhelper.WithGpuOnly(false),
-					testhelper.WithDesktopsStarted(23),
-					testhelper.WithMinFreeMemGB(47),
-					testhelper.WithCPU(100, 7, 93),
-					testhelper.WithRAM(515855, 160998, 354856),
-				),
-			},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "bm-e4-01",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NilDateTime{Null: true},
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
+				OrchestratorManaged: true,
+				GpuOnly:             false,
+				DesktopsStarted:     57,
+				MinFreeMemGB:        190,
+				CPU: apiv4.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  6,
+					Free:  94,
+				},
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  305801,
+					Free:  1746160,
+				},
+			}, {
+				ID:                  "bm-e2-02",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NilDateTime{Null: true},
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
+				OrchestratorManaged: false,
+				GpuOnly:             false,
+				DesktopsStarted:     23,
+				MinFreeMemGB:        47,
+				CPU: apiv4.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  7,
+					Free:  93,
+				},
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  160998,
+					Free:  354856,
+				},
+			}},
 			MinRAMLimitPercent: 150,
 			MinRAMLimitMargin:  1,
 			HyperMinRAM:        51200,
@@ -105,22 +129,28 @@ func TestMinRAM(t *testing.T) {
 			Expected: ((47*1024 + 51200) * 1.5) + ((190*1024 + 51200) * 1.5) + 1,
 		},
 		"regression test #2": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(
-					testhelper.WithID("bm-e2-02"),
-					testhelper.WithStatus(model.HypervisorStatusOnline),
-					testhelper.WithOnlyForced(false),
-					testhelper.WithBuffering(false),
-					testhelper.WithDestroyTime(time.Time{}),
-					testhelper.WithBookingsEndTime(time.Time{}),
-					testhelper.WithOrchestratorManaged(false),
-					testhelper.WithGpuOnly(false),
-					testhelper.WithDesktopsStarted(23),
-					testhelper.WithMinFreeMemGB(47),
-					testhelper.WithCPU(100, 7, 93),
-					testhelper.WithRAM(515855, 160998, 354856),
-				),
-			},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "bm-e2-02",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				BufferingHyper:      false,
+				DestroyTime:         apiv4.NilDateTime{Null: true},
+				BookingsEndTime:     apiv4.NilDateTime{Null: true},
+				OrchestratorManaged: false,
+				GpuOnly:             false,
+				DesktopsStarted:     23,
+				MinFreeMemGB:        47,
+				CPU: apiv4.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  7,
+					Free:  93,
+				},
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  160998,
+					Free:  354856,
+				},
+			}},
 			MinRAMLimitPercent: 150,
 			MinRAMLimitMargin:  1,
 			HyperMinRAM:        51200,
@@ -139,9 +169,15 @@ func TestMinRAM(t *testing.T) {
 					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 1312,
 				},
 			},
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("1"), testhelper.WithMinFreeMemGB(3)),
-				testhelper.Hypervisor(testhelper.WithID("2"), testhelper.WithMinFreeMemGB(2)),
+			Hypers: []*apiv4.OrchestratorHypervisor{
+				{
+					ID:           "1",
+					MinFreeMemGB: 3,
+				},
+				{
+					ID:           "2",
+					MinFreeMemGB: 2,
+				},
 			},
 			Expected: (3*1024)*1.5 + (2*1024)*1.5 + 1312,
 		},
@@ -173,7 +209,7 @@ func TestMaxRAM(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Hypers                   []*model.Hypervisor
+		Hypers                   []*apiv4.OrchestratorHypervisor
 		MaxRAM                   int
 		MaxRAMHourly             map[time.Weekday]map[time.Time]int
 		MaxRAMLimitPercent       int
@@ -200,9 +236,15 @@ func TestMaxRAM(t *testing.T) {
 		"should apply the percentage correctly using a fixed margin": {
 			MaxRAMLimitPercent: 200,
 			MaxRAMLimitMargin:  300,
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("1"), testhelper.WithMinFreeMemGB(2)),
-				testhelper.Hypervisor(testhelper.WithID("2"), testhelper.WithMinFreeMemGB(5)),
+			Hypers: []*apiv4.OrchestratorHypervisor{
+				{
+					ID:           "1",
+					MinFreeMemGB: 2,
+				},
+				{
+					ID:           "2",
+					MinFreeMemGB: 5,
+				},
 			},
 			Expected: 5*1024*2 + 2*1024*2 + 300,
 		},
@@ -213,9 +255,15 @@ func TestMaxRAM(t *testing.T) {
 					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 1312,
 				},
 			},
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("1"), testhelper.WithMinFreeMemGB(3)),
-				testhelper.Hypervisor(testhelper.WithID("2"), testhelper.WithMinFreeMemGB(2)),
+			Hypers: []*apiv4.OrchestratorHypervisor{
+				{
+					ID:           "1",
+					MinFreeMemGB: 3,
+				},
+				{
+					ID:           "2",
+					MinFreeMemGB: 2,
+				},
 			},
 			Expected: (3*1024)*1.5 + (2*1024)*1.5 + 1312,
 		},
@@ -230,9 +278,15 @@ func TestMaxRAM(t *testing.T) {
 					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 1312,
 				},
 			},
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("1"), testhelper.WithMinFreeMemGB(3)),
-				testhelper.Hypervisor(testhelper.WithID("2"), testhelper.WithMinFreeMemGB(2)),
+			Hypers: []*apiv4.OrchestratorHypervisor{
+				{
+					ID:           "1",
+					MinFreeMemGB: 3,
+				},
+				{
+					ID:           "2",
+					MinFreeMemGB: 2,
+				},
 			},
 			Expected: (3*1024)*1.5 + (2*1024)*1.5 + 1312,
 		},
@@ -262,81 +316,127 @@ func TestClassifyHypervisors(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Hypers                []*model.Hypervisor
-		ExpectedToAcknowledge []*model.Hypervisor
-		ExpectedToHandle      []*model.Hypervisor
-		ExpectedOnDeadRow     []*model.Hypervisor
-		ExpectedLimited       []*model.Hypervisor
+		Hypers                []*apiv4.OrchestratorHypervisor
+		ExpectedToAcknowledge []*apiv4.OrchestratorHypervisor
+		ExpectedToHandle      []*apiv4.OrchestratorHypervisor
+		ExpectedOnDeadRow     []*apiv4.OrchestratorHypervisor
+		ExpectedLimited       []*apiv4.OrchestratorHypervisor
 	}{
 		"should classify the hypervisors correctly": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("hyper1"), testhelper.WithStatus(model.HypervisorStatusOnline)),
-				testhelper.Hypervisor(testhelper.WithID("hyper2"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(true)),
-				testhelper.Hypervisor(testhelper.WithID("hyper3"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(true), testhelper.WithOnlyForced(true), testhelper.WithDestroyTime(time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC))),
-				testhelper.Hypervisor(testhelper.WithID("hyper4"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(true), testhelper.WithOnlyForced(true)),
-			},
-			ExpectedToAcknowledge: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("hyper1"), testhelper.WithStatus(model.HypervisorStatusOnline)),
-				testhelper.Hypervisor(testhelper.WithID("hyper2"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(true)),
-			},
-			ExpectedToHandle: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("hyper2"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(true)),
-				testhelper.Hypervisor(testhelper.WithID("hyper3"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(true), testhelper.WithOnlyForced(true), testhelper.WithDestroyTime(time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC))),
-				testhelper.Hypervisor(testhelper.WithID("hyper4"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(true), testhelper.WithOnlyForced(true)),
-			},
-			ExpectedOnDeadRow: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("hyper3"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(true), testhelper.WithOnlyForced(true), testhelper.WithDestroyTime(time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC))),
-			},
-			ExpectedLimited: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("hyper4"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(true), testhelper.WithOnlyForced(true)),
-			},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:     "hyper1",
+				Status: apiv4.HypervisorStatusOnline,
+			}, {
+				ID:                  "hyper2",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+			}, {
+				ID:                  "hyper3",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+				DestroyTime:         apiv4.NewNilDateTime(time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC)),
+			}, {
+				ID:                  "hyper4",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+			}},
+			ExpectedToAcknowledge: []*apiv4.OrchestratorHypervisor{{
+				ID:     "hyper1",
+				Status: apiv4.HypervisorStatusOnline,
+			}, {
+				ID:                  "hyper2",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+			}},
+			ExpectedToHandle: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "hyper2",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+			}, {
+				ID:                  "hyper3",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+				DestroyTime:         apiv4.NewNilDateTime(time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC)),
+			}, {
+				ID:                  "hyper4",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+			}},
+			ExpectedOnDeadRow: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "hyper3",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+				DestroyTime:         apiv4.NewNilDateTime(time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC)),
+			}},
+			ExpectedLimited: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "hyper4",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+			}},
 		},
 		"should ignore the offline hypervisors": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("offline"), testhelper.WithStatus(model.HypervisorStatusOffline)),
-			},
-			ExpectedToAcknowledge: []*model.Hypervisor{},
-			ExpectedToHandle:      []*model.Hypervisor{},
-			ExpectedOnDeadRow:     []*model.Hypervisor{},
-			ExpectedLimited:       []*model.Hypervisor{},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:     "offline",
+				Status: apiv4.HypervisorStatusOffline,
+			}},
+			ExpectedToAcknowledge: []*apiv4.OrchestratorHypervisor{},
+			ExpectedToHandle:      []*apiv4.OrchestratorHypervisor{},
+			ExpectedOnDeadRow:     []*apiv4.OrchestratorHypervisor{},
+			ExpectedLimited:       []*apiv4.OrchestratorHypervisor{},
 		},
 		"should ignore buffering hypervisors": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("buffering"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithBuffering(true)),
-			},
-			ExpectedToAcknowledge: []*model.Hypervisor{},
-			ExpectedToHandle:      []*model.Hypervisor{},
-			ExpectedOnDeadRow:     []*model.Hypervisor{},
-			ExpectedLimited:       []*model.Hypervisor{},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:             "buffering",
+				Status:         apiv4.HypervisorStatusOnline,
+				BufferingHyper: true,
+			}},
+			ExpectedToAcknowledge: []*apiv4.OrchestratorHypervisor{},
+			ExpectedToHandle:      []*apiv4.OrchestratorHypervisor{},
+			ExpectedOnDeadRow:     []*apiv4.OrchestratorHypervisor{},
+			ExpectedLimited:       []*apiv4.OrchestratorHypervisor{},
 		},
 		"should ignore GPU only hypervisors": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("gpu only"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithGpuOnly(true)),
-			},
-			ExpectedToAcknowledge: []*model.Hypervisor{},
-			ExpectedToHandle:      []*model.Hypervisor{},
-			ExpectedOnDeadRow:     []*model.Hypervisor{},
-			ExpectedLimited:       []*model.Hypervisor{},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:      "gpu only",
+				Status:  apiv4.HypervisorStatusOnline,
+				GpuOnly: true,
+			}},
+			ExpectedToAcknowledge: []*apiv4.OrchestratorHypervisor{},
+			ExpectedToHandle:      []*apiv4.OrchestratorHypervisor{},
+			ExpectedOnDeadRow:     []*apiv4.OrchestratorHypervisor{},
+			ExpectedLimited:       []*apiv4.OrchestratorHypervisor{},
 		},
 		"should not add only forced hypervisors to the acknowledge list": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("only forced"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOnlyForced(true)),
-			},
-			ExpectedToAcknowledge: []*model.Hypervisor{},
-			ExpectedToHandle:      []*model.Hypervisor{},
-			ExpectedOnDeadRow:     []*model.Hypervisor{},
-			ExpectedLimited:       []*model.Hypervisor{},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:         "only forced",
+				Status:     apiv4.HypervisorStatusOnline,
+				OnlyForced: true,
+			}},
+			ExpectedToAcknowledge: []*apiv4.OrchestratorHypervisor{},
+			ExpectedToHandle:      []*apiv4.OrchestratorHypervisor{},
+			ExpectedOnDeadRow:     []*apiv4.OrchestratorHypervisor{},
+			ExpectedLimited:       []*apiv4.OrchestratorHypervisor{},
 		},
 		"should not add a non orchestrator managed hypervisor to the handle list": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("unmanaged"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(false)),
-			},
-			ExpectedToAcknowledge: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("unmanaged"), testhelper.WithStatus(model.HypervisorStatusOnline), testhelper.WithOrchestratorManaged(false)),
-			},
-			ExpectedToHandle:  []*model.Hypervisor{},
-			ExpectedOnDeadRow: []*model.Hypervisor{},
-			ExpectedLimited:   []*model.Hypervisor{},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "unmanaged",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: false,
+			}},
+			ExpectedToAcknowledge: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "unmanaged",
+				Status:              apiv4.HypervisorStatusOnline,
+				OrchestratorManaged: false,
+			}},
+			ExpectedToHandle:  []*apiv4.OrchestratorHypervisor{},
+			ExpectedOnDeadRow: []*apiv4.OrchestratorHypervisor{},
+			ExpectedLimited:   []*apiv4.OrchestratorHypervisor{},
 		},
 	}
 
@@ -437,26 +537,46 @@ func TestBestHyperToPardon(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		DeadRow  []*model.Hypervisor
+		DeadRow  []*apiv4.OrchestratorHypervisor
 		RAMAvail int
 		MinCPU   int
 		MinRAM   int
-		Expected *model.Hypervisor
+		Expected *apiv4.OrchestratorHypervisor
 	}{
 		"should return the hypervisor that has the longest dead row sentence": {
-			DeadRow: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("smol :3"), testhelper.WithDestroyTime(time.Date(9999, 1, 1, 1, 1, 1, 1, time.UTC))),
-				testhelper.Hypervisor(testhelper.WithID("life sentence"), testhelper.WithDestroyTime(time.Date(8888, 1, 1, 1, 1, 1, 1, time.UTC)), testhelper.WithRAM(9999, 0, 999)),
-				testhelper.Hypervisor(testhelper.WithID("short sentence"), testhelper.WithDestroyTime(time.Now()), testhelper.WithRAM(10, 0, 9)),
-			},
+			DeadRow: []*apiv4.OrchestratorHypervisor{{
+				ID:          "smol :3",
+				DestroyTime: apiv4.NewNilDateTime(time.Date(9999, 1, 1, 1, 1, 1, 1, time.UTC)),
+			}, {
+				ID:          "life sentence",
+				DestroyTime: apiv4.NewNilDateTime(time.Date(8888, 1, 1, 1, 1, 1, 1, time.UTC)),
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 9999,
+					Free:  999,
+				},
+			}, {
+				ID:          "short sentence",
+				DestroyTime: apiv4.NewNilDateTime(time.Now()),
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 10,
+					Free:  9,
+				},
+			}},
 			MinRAM:   2,
 			RAMAvail: 1,
-			Expected: testhelper.Hypervisor(testhelper.WithID("life sentence"), testhelper.WithDestroyTime(time.Date(8888, 1, 1, 1, 1, 1, 1, time.UTC)), testhelper.WithRAM(9999, 0, 999)),
+			Expected: &apiv4.OrchestratorHypervisor{
+				ID:          "life sentence",
+				DestroyTime: apiv4.NewNilDateTime(time.Date(8888, 1, 1, 1, 1, 1, 1, time.UTC)),
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 9999,
+					Free:  999,
+				},
+			},
 		},
 		"should ensure that the hypervisor meets the minimum RAM requirements": {
-			DeadRow: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("smol :3")),
-			},
+			DeadRow: []*apiv4.OrchestratorHypervisor{{
+				ID: "smol :3",
+			}},
 			MinRAM:   1,
 			Expected: nil,
 		},
@@ -481,26 +601,57 @@ func TestBestHyperToDestroy(t *testing.T) {
 	now := time.Now()
 
 	cases := map[string]struct {
-		Hypers   []*model.Hypervisor
-		Expected *model.Hypervisor
+		Hypers   []*apiv4.OrchestratorHypervisor
+		Expected *apiv4.OrchestratorHypervisor
 	}{
 		"should work correctly": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("not to destroy"), testhelper.WithOnlyForced(true)),
-				testhelper.Hypervisor(testhelper.WithID("to destroy"), testhelper.WithOnlyForced(true), testhelper.WithDesktopsStarted(1000), testhelper.WithDestroyTime(now.Add(-1*time.Hour))),
+			Hypers: []*apiv4.OrchestratorHypervisor{
+				{
+					ID:         "not to destroy",
+					OnlyForced: true,
+				},
+				{
+					ID:              "to destroy",
+					OnlyForced:      true,
+					DesktopsStarted: 1000,
+					DestroyTime:     apiv4.NewNilDateTime(now.Add(-1 * time.Hour)),
+				},
 			},
-			Expected: testhelper.Hypervisor(testhelper.WithID("to destroy"), testhelper.WithOnlyForced(true), testhelper.WithDesktopsStarted(1000), testhelper.WithDestroyTime(now.Add(-1*time.Hour))),
+			Expected: &apiv4.OrchestratorHypervisor{
+				ID:              "to destroy",
+				OnlyForced:      true,
+				DesktopsStarted: 1000,
+				DestroyTime:     apiv4.NewNilDateTime(now.Add(-1 * time.Hour)),
+			},
 		},
 		"should remove a desktop with a destroy time and 0 desktops": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("not to destroy"), testhelper.WithOnlyForced(true)),
-				testhelper.Hypervisor(testhelper.WithID("to destroy"), testhelper.WithOnlyForced(true), testhelper.WithDesktopsStarted(0), testhelper.WithDestroyTime(now.Add(1*time.Hour))),
+			Hypers: []*apiv4.OrchestratorHypervisor{
+				{
+					ID:         "not to destroy",
+					OnlyForced: true,
+				},
+				{
+					ID:              "to destroy",
+					OnlyForced:      true,
+					DesktopsStarted: 0,
+					DestroyTime:     apiv4.NewNilDateTime(now.Add(1 * time.Hour)),
+				},
 			},
-			Expected: testhelper.Hypervisor(testhelper.WithID("to destroy"), testhelper.WithOnlyForced(true), testhelper.WithDesktopsStarted(0), testhelper.WithDestroyTime(now.Add(1*time.Hour))),
+			Expected: &apiv4.OrchestratorHypervisor{
+				ID:              "to destroy",
+				OnlyForced:      true,
+				DesktopsStarted: 0,
+				DestroyTime:     apiv4.NewNilDateTime(now.Add(1 * time.Hour)),
+			},
 		},
 		"should avoid killing hypervisors that aren't in only forced, due a mismanagement": {
-			Hypers: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("not to destroy"), testhelper.WithOnlyForced(false), testhelper.WithDesktopsStarted(1000), testhelper.WithDestroyTime(now.Add(-1*time.Hour))),
+			Hypers: []*apiv4.OrchestratorHypervisor{
+				{
+					ID:              "not to destroy",
+					OnlyForced:      false,
+					DesktopsStarted: 1000,
+					DestroyTime:     apiv4.NewNilDateTime(now.Add(-1 * time.Hour)),
+				},
 			},
 			Expected: nil,
 		},
@@ -522,8 +673,8 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		HypersToAcknowledge []*model.Hypervisor
-		HypersToManage      []*model.Hypervisor
+		HypersToAcknowledge []*apiv4.OrchestratorHypervisor
+		HypersToManage      []*apiv4.OrchestratorHypervisor
 		RAMAvail            int
 		MinRAM              int
 		MaxRAM              int
@@ -531,112 +682,260 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 		MinRAMLimitMargin   int
 		MaxRAMLimitPercent  int
 		MaxRAMLimitMargin   int
-		Expected            *model.Hypervisor
+		Expected            *apiv4.OrchestratorHypervisor
 	}{
 		"should work correctly": {
-			HypersToAcknowledge: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("smol :3"), testhelper.WithRAM(1, 0, 1)),
-				testhelper.Hypervisor(testhelper.WithID("to sentence"), testhelper.WithRAM(2, 0, 2)),
-				testhelper.Hypervisor(testhelper.WithID("GIGANTIC"), testhelper.WithRAM(10, 0, 10)),
+			HypersToAcknowledge: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "to sentence",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+				{
+					ID: "GIGANTIC",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
 			},
-			HypersToManage: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("smol :3"), testhelper.WithRAM(1, 0, 1)),
-				testhelper.Hypervisor(testhelper.WithID("to sentence"), testhelper.WithRAM(2, 0, 2)),
-				testhelper.Hypervisor(testhelper.WithID("GIGANTIC"), testhelper.WithRAM(10, 0, 10)),
+			HypersToManage: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "to sentence",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+				{
+					ID: "GIGANTIC",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
 			},
 			MinRAM:   10,
 			MaxRAM:   12,
 			RAMAvail: 13,
-			Expected: testhelper.Hypervisor(testhelper.WithID("to sentence"), testhelper.WithRAM(2, 0, 2)),
+			Expected: &apiv4.OrchestratorHypervisor{
+				ID: "to sentence",
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 2,
+					Free:  2,
+				},
+			},
 		},
 		"should work correctly with only forced hypevisors": {
-			HypersToAcknowledge: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("smol :3"), testhelper.WithRAM(1, 0, 1)),
-				testhelper.Hypervisor(testhelper.WithID("normal"), testhelper.WithRAM(2, 0, 2)),
-				testhelper.Hypervisor(testhelper.WithID("GIGANTIC"), testhelper.WithOnlyForced(true), testhelper.WithRAM(10, 0, 10)),
+			HypersToAcknowledge: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "normal",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+				{
+					ID:         "GIGANTIC",
+					OnlyForced: true,
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
 			},
-			HypersToManage: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("smol :3"), testhelper.WithRAM(1, 0, 1)),
-				testhelper.Hypervisor(testhelper.WithID("normal"), testhelper.WithRAM(2, 0, 2)),
-				testhelper.Hypervisor(testhelper.WithID("GIGANTIC"), testhelper.WithOnlyForced(true), testhelper.WithRAM(10, 0, 10)),
+			HypersToManage: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "normal",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+				{
+					ID:         "GIGANTIC",
+					OnlyForced: true,
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
 			},
 			MinRAM:   1,
 			MaxRAM:   2,
 			RAMAvail: 3,
-			Expected: testhelper.Hypervisor(testhelper.WithID("GIGANTIC"), testhelper.WithOnlyForced(true), testhelper.WithRAM(10, 0, 10)),
+			Expected: &apiv4.OrchestratorHypervisor{
+				ID:         "GIGANTIC",
+				OnlyForced: true,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 10,
+					Free:  10,
+				},
+			},
 		},
 		"should not return any hypervisor if by removing it we don't meet the minRAM requirement": {
-			HypersToAcknowledge: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("smol :3"), testhelper.WithRAM(1, 0, 1)),
-				testhelper.Hypervisor(testhelper.WithID("can't sentence"), testhelper.WithRAM(2, 0, 2)),
+			HypersToAcknowledge: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "can't sentence",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
 			},
-			HypersToManage: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("smol :3"), testhelper.WithRAM(1, 0, 1)),
-				testhelper.Hypervisor(testhelper.WithID("can't sentence"), testhelper.WithRAM(2, 0, 2)),
+			HypersToManage: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "can't sentence",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
 			},
 			MinRAM:   3,
 			MaxRAM:   2,
 			RAMAvail: 3,
 		},
 		"should ignore hypervisors already in the dead row": {
-			HypersToAcknowledge: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("smol :3"), testhelper.WithRAM(1, 0, 1)),
-				testhelper.Hypervisor(testhelper.WithID("to ignore"), testhelper.WithDestroyTime(time.Now()), testhelper.WithRAM(2, 0, 2)),
+			HypersToAcknowledge: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID:          "to ignore",
+					DestroyTime: apiv4.NewNilDateTime(time.Now()),
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
 			},
-			HypersToManage: []*model.Hypervisor{
-				testhelper.Hypervisor(testhelper.WithID("smol :3"), testhelper.WithRAM(1, 0, 1)),
-				testhelper.Hypervisor(testhelper.WithID("to ignore"), testhelper.WithDestroyTime(time.Now()), testhelper.WithRAM(2, 0, 2)),
+			HypersToManage: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID:          "to ignore",
+					DestroyTime: apiv4.NewNilDateTime(time.Now()),
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
 			},
 			MinRAM:   1,
 			MaxRAM:   1,
 			RAMAvail: 1,
 		},
 		"regression test #1": {
-			HypersToAcknowledge: []*model.Hypervisor{
-				testhelper.Hypervisor(
-					testhelper.WithID("bm-e4-01"),
-					testhelper.WithStatus(model.HypervisorStatusOnline),
-					testhelper.WithOnlyForced(false),
-					testhelper.WithOrchestratorManaged(true),
-					testhelper.WithDesktopsStarted(10),
-					testhelper.WithMinFreeMemGB(190),
-					testhelper.WithRAM(2051961, 67556, 1984404),
-				),
-				testhelper.Hypervisor(
-					testhelper.WithID("bm-e2-02"),
-					testhelper.WithStatus(model.HypervisorStatusOnline),
-					testhelper.WithDesktopsStarted(2),
-					testhelper.WithOnlyForced(false),
-					testhelper.WithOrchestratorManaged(false),
-					testhelper.WithMinFreeMemGB(47),
-					testhelper.WithRAM(515855, 65620, 450234),
-				),
-			},
-			HypersToManage: []*model.Hypervisor{
-				testhelper.Hypervisor(
-					testhelper.WithID("bm-e4-01"),
-					testhelper.WithStatus(model.HypervisorStatusOnline),
-					testhelper.WithOnlyForced(false),
-					testhelper.WithOrchestratorManaged(true),
-					testhelper.WithDesktopsStarted(10),
-					testhelper.WithMinFreeMemGB(190),
-					testhelper.WithRAM(2051961, 67556, 1984404),
-				),
-			},
+			HypersToAcknowledge: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "bm-e4-01",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DesktopsStarted:     10,
+				MinFreeMemGB:        190,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  67556,
+					Free:  1984404,
+				},
+			}, {
+				ID:                  "bm-e2-02",
+				Status:              apiv4.HypervisorStatusOnline,
+				DesktopsStarted:     2,
+				OnlyForced:          false,
+				OrchestratorManaged: false,
+				MinFreeMemGB:        47,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  65620,
+					Free:  450234,
+				},
+			}},
+			HypersToManage: []*apiv4.OrchestratorHypervisor{{
+				ID:                  "bm-e4-01",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DesktopsStarted:     10,
+				MinFreeMemGB:        190,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  67556,
+					Free:  1984404,
+				},
+			}},
 			RAMAvail:           2191950,
 			MinRAMLimitPercent: 150,
 			MinRAMLimitMargin:  1,
 			MaxRAMLimitPercent: 150,
 			MaxRAMLimitMargin:  112640,
-			Expected: testhelper.Hypervisor(
-				testhelper.WithID("bm-e4-01"),
-				testhelper.WithStatus(model.HypervisorStatusOnline),
-				testhelper.WithOnlyForced(false),
-				testhelper.WithOrchestratorManaged(true),
-				testhelper.WithDesktopsStarted(10),
-				testhelper.WithMinFreeMemGB(190),
-				testhelper.WithRAM(2051961, 67556, 1984404),
-			),
+			Expected: &apiv4.OrchestratorHypervisor{
+				ID:                  "bm-e4-01",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DesktopsStarted:     10,
+				MinFreeMemGB:        190,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  67556,
+					Free:  1984404,
+				},
+			},
 		},
 	}
 	for name, tc := range cases {

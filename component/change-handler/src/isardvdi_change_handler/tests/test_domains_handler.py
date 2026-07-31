@@ -447,3 +447,83 @@ class TestCleanupDeploymentIfEmpty:
         DomainsHandler._cleanup_deployment_if_empty("deploy-1")
 
         stub_rdb.return_value.get.return_value.delete.assert_called_once()
+
+
+class TestWireguardMacCacheInvalidation:
+    """The stopped branch of ``on_update`` must drop the desktop's wg MAC entry.
+
+    ``wg_mac_domain_cache`` is keyed by wireguard MAC, but this handler only
+    ever holds a domain id, so invalidating through the MAC-keyed helper
+    matched nothing and the mapping stayed until its TTL expired.
+    """
+
+    WG_MAC = "52:54:00:2c:7a:13"
+
+    @pytest.fixture(autouse=True)
+    def clean_cache(self):
+        from isardvdi_common.helpers.caches import Caches
+
+        Caches.wg_mac_domain_cache.clear()
+        yield
+        Caches.wg_mac_domain_cache.clear()
+
+    @pytest.fixture
+    def stub_scheduler(self, monkeypatch):
+        monkeypatch.setattr(
+            "isardvdi_change_handler.handlers.domains.Scheduler.remove_desktop_timeouts",
+            staticmethod(lambda _id: None),
+        )
+
+    @staticmethod
+    def _wireguard_hardware(mac):
+        return {"hardware": {"interfaces": [{"id": "wireguard", "mac": mac}]}}
+
+    @pytest.mark.asyncio
+    @patch(
+        "isardvdi_change_handler.handlers.domains.DesktopsProcessed._parse_desktop",
+        side_effect=lambda d: d,
+    )
+    async def test_stop_drops_the_mapping_the_start_cached(
+        self, mock_parse, stub_scheduler, desktop_handler, domain_row_factory
+    ):
+        """Round-trip through the handler: Starting->Started caches, Started->Stopped drops."""
+        from isardvdi_common.helpers.caches import Caches
+
+        starting = domain_row_factory(id="d1", status="Starting")
+        started = domain_row_factory(
+            id="d1",
+            status="Started",
+            create_dict=self._wireguard_hardware(self.WG_MAC),
+        )
+        await desktop_handler.on_update(starting, started)
+        assert Caches.wg_mac_domain_cache[self.WG_MAC] == "d1"
+
+        stopped = domain_row_factory(id="d1", status="Stopped")
+        await desktop_handler.on_update(started, stopped)
+
+        assert self.WG_MAC not in Caches.wg_mac_domain_cache
+
+    @pytest.mark.asyncio
+    @patch(
+        "isardvdi_change_handler.handlers.domains.DesktopsProcessed._parse_desktop",
+        side_effect=lambda d: d,
+    )
+    async def test_stop_leaves_another_desktops_mapping_alone(
+        self, mock_parse, stub_scheduler, desktop_handler, domain_row_factory
+    ):
+        from isardvdi_common.helpers.caches import Caches
+
+        other_mac = "52:54:00:aa:bb:cc"
+        Caches.wg_mac_domain_cache[self.WG_MAC] = "d1"
+        Caches.wg_mac_domain_cache[other_mac] = "d2"
+
+        started = domain_row_factory(
+            id="d1",
+            status="Started",
+            create_dict=self._wireguard_hardware(self.WG_MAC),
+        )
+        stopped = domain_row_factory(id="d1", status="Stopped")
+        await desktop_handler.on_update(started, stopped)
+
+        assert self.WG_MAC not in Caches.wg_mac_domain_cache
+        assert Caches.wg_mac_domain_cache[other_mac] == "d2"

@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.schemas.hypervisor import (
     CapStatus,
+    HypervisorStatus,
     MountPoint,
     Stats,
     Viewer,
@@ -58,7 +59,7 @@ class HypervisorModel(BaseModel):
     port: str
     prev_status: List[Dict[str, Any]] = []
     stats: Optional[Stats] = None
-    status: str = "Offline"
+    status: HypervisorStatus = HypervisorStatus.offline
     status_time: Optional[float] = None
     storage_pools: List[str] = []
     uri: str = ""

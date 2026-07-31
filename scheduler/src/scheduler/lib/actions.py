@@ -68,9 +68,9 @@ from isardvdi_apiv4_client.api.role_advanced import (
 from isardvdi_apiv4_client.api.role_user import delete_desktop, stop_desktop
 from isardvdi_apiv4_client.models import (
     NotifyDesktopRequest,
-    NotifyDesktopRequestParams,
+    NotifyDesktopRequestParamsType0,
     NotifyUserDesktopRequest,
-    NotifyUserDesktopRequestParams,
+    NotifyUserDesktopRequestParamsType0,
     StorageConvertRequest,
     StorageMoveByPathRequest,
     StorageRsyncToPathRequest,
@@ -136,7 +136,7 @@ class Actions:
                     user_id=kwargs["user_id"],
                     type_=kwargs["msg"]["type"],
                     msg_code=kwargs["msg"]["msg_code"],
-                    params=NotifyUserDesktopRequestParams.from_dict(
+                    params=NotifyUserDesktopRequestParamsType0.from_dict(
                         kwargs["msg"]["params"]
                     ),
                 ),
@@ -149,7 +149,7 @@ class Actions:
                     desktop_id=kwargs["desktop_id"],
                     type_=kwargs["msg"]["type"],
                     msg_code=kwargs["msg"]["msg_code"],
-                    params=NotifyDesktopRequestParams.from_dict(
+                    params=NotifyDesktopRequestParamsType0.from_dict(
                         kwargs["msg"]["params"]
                     ),
                 ),

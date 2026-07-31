@@ -226,9 +226,26 @@ class Caches(RethinkSharedConnection):
         cls.wg_mac_domain_cache[wg_mac] = domain_id
 
     @classmethod
-    def invalidate_cached_domain_wg_mac(cls, wg_mac):
-        if wg_mac in cls.wg_mac_domain_cache:
-            del cls.wg_mac_domain_cache[wg_mac]
+    def invalidate_cached_domain_wg_mac_by_domain_id(cls, domain_id):
+        # Callers reacting to a desktop going down hold its id, not its MAC, so
+        # this takes the id and drops every MAC mapped to it. The map holds at
+        # most 50 entries, so the scan is cheap.
+        with cls.wg_mac_domain_cache.lock:
+            stale_macs = [
+                mac
+                for mac in cls.wg_mac_domain_cache
+                if cls.wg_mac_domain_cache.get(mac) == domain_id
+            ]
+            for wg_mac in stale_macs:
+                try:
+                    del cls.wg_mac_domain_cache[wg_mac]
+                except KeyError:
+                    # The lock serialises writers but does not stop the clock:
+                    # an entry can reach its TTL between the scan and the
+                    # delete, and cachetools raises KeyError when deleting an
+                    # already-expired entry after unlinking it. The mapping is
+                    # gone either way, which is all this method promises.
+                    pass
 
     @classmethod
     def get_domain_id_from_wg_mac(cls, wg_mac):

@@ -1,0 +1,12 @@
+{
+  "name": "isardvdi-tools",
+  "private": true,
+  "devDependencies": {
+    "@commitlint/config-conventional": "19.2.2",
+    "@semantic-release/exec": "6.0.3",
+    "@semantic-release/gitlab": "13.3.2",
+    "commitlint": "19.2.2",
+    "conventional-changelog-conventionalcommits": "6.1.0",
+    "semantic-release": "23.1.1"
+  }
+}

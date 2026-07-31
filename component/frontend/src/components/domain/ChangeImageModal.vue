@@ -9,12 +9,11 @@ import {
   editDesktopMutation,
   getDesktopInfoQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
+import type { DomainImageFile, DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 
 import { Modal } from '@/components/modal'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -26,17 +25,23 @@ interface Props {
   open: boolean
   domainId?: string
   currentImage?: DomainImageOutput
+  persistOnSave?: boolean
+  allowUpload?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   domainId: undefined,
-  currentImage: undefined
+  currentImage: undefined,
+  persistOnSave: true,
+  allowUpload: true
 })
+
+const canUpload = computed(() => !!props.domainId && props.allowUpload)
 
 const emit = defineEmits<{
   close: []
   saved: []
-  select: [image: DomainImageOutput]
+  select: [image: DomainImageOutput & { file?: DomainImageFile }]
 }>()
 
 const { t } = useI18n()
@@ -57,12 +62,23 @@ const images = computed<DomainImageOutput[]>(() => imagesResponse.value?.images 
 
 const selectedImage = ref<DomainImageOutput | null>(null)
 
-// Reset selection when modal opens
+// A newly uploaded file is only staged locally until Save is pressed, so it
+// never gets applied to the domain behind the user's back
+const pendingFile = ref<DomainImageFile | null>(null)
+
+const displayImages = computed(() => {
+  if (pendingFile.value && selectedImage.value) {
+    return [selectedImage.value, ...images.value]
+  }
+  return images.value
+})
+
 watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
       selectedImage.value = props.currentImage ?? null
+      pendingFile.value = null
     }
   }
 )
@@ -72,7 +88,12 @@ function isSelected(image: DomainImageOutput): boolean {
   return selectedImage.value.id === image.id && selectedImage.value.type === image.type
 }
 
+function isPendingUpload(image: DomainImageOutput): boolean {
+  return !!pendingFile.value && image.id === '' && image.type === 'user'
+}
+
 function selectImage(image: DomainImageOutput) {
+  if (!isPendingUpload(image)) pendingFile.value = null
   selectedImage.value = image
 }
 
@@ -91,6 +112,7 @@ const { mutate: saveImage, isPending: saveIsPending } = useMutation({
         query: { domain_id: props.domainId }
       })
     })
+    pendingFile.value = null
     emit('saved')
     emit('close')
   },
@@ -101,8 +123,8 @@ const { mutate: saveImage, isPending: saveIsPending } = useMutation({
 
 function handleSave() {
   if (!selectedImage.value) return
-  if (!props.domainId) {
-    emit('select', selectedImage.value)
+  if (!props.domainId || !props.persistOnSave) {
+    emit('select', { ...selectedImage.value, file: pendingFile.value ?? undefined })
     emit('close')
     return
   }
@@ -110,39 +132,18 @@ function handleSave() {
   saveImage({
     path: { desktop_id: props.domainId },
     body: {
-      image: {
-        id: selectedImage.value.id,
-        type: selectedImage.value.type
-      }
+      image: pendingFile.value
+        ? { id: '', type: 'user', file: pendingFile.value }
+        : { id: selectedImage.value.id, type: selectedImage.value.type }
     }
   })
 }
 
-// --- Upload logic ---
+// --- Upload logic: stages the file locally, the actual API call only
+// happens when Save is pressed (see handleSave) ---
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploadErrorCode = ref<string | undefined>(undefined)
-
-const { mutate: uploadImage, isPending: uploadIsPending } = useMutation({
-  ...editDesktopMutation(),
-  onSuccess: () => {
-    uploadErrorCode.value = undefined
-    queryClient.invalidateQueries({
-      queryKey: getDesktopImagesQueryKey({
-        query: { domain_id: props.domainId }
-      })
-    })
-    queryClient.invalidateQueries({
-      queryKey: getDesktopInfoQueryKey({
-        path: { desktop_id: props.domainId }
-      })
-    })
-    if (fileInput.value) fileInput.value.value = ''
-  },
-  onError: (error) => {
-    uploadErrorCode.value = 'description_code' in error ? String(error.description_code) : 'generic'
-  }
-})
 
 function triggerFilePicker() {
   fileInput.value?.click()
@@ -172,16 +173,10 @@ function handleFileSelected(event: Event) {
     }
     // Strip the 'data:<mime>;base64,' prefix to match the backend expectation
     const base64 = result.replace(/^data:[^;]+;base64,/, '')
-    uploadImage({
-      path: { desktop_id: props.domainId },
-      body: {
-        image: {
-          id: '',
-          type: 'user',
-          file: { data: base64, filename: file.name }
-        }
-      }
-    })
+    uploadErrorCode.value = undefined
+    pendingFile.value = { data: base64, filename: file.name }
+    selectedImage.value = { id: '', type: 'user', url: result }
+    if (fileInput.value) fileInput.value.value = ''
   }
   reader.onerror = () => {
     uploadErrorCode.value = 'generic'
@@ -189,7 +184,7 @@ function handleFileSelected(event: Event) {
   reader.readAsDataURL(file)
 }
 
-const anyPending = computed(() => saveIsPending.value || uploadIsPending.value)
+const anyPending = computed(() => saveIsPending.value)
 </script>
 
 <template>
@@ -232,12 +227,12 @@ const anyPending = computed(() => saveIsPending.value || uploadIsPending.value)
       <div class="flex items-center justify-between mb-4">
         <p class="text-sm text-gray-warm-600">
           {{
-            props.domainId
+            canUpload
               ? t('components.change-image-modal.hint')
               : t('components.change-image-modal.hint-select-only')
           }}
         </p>
-        <template v-if="props.domainId">
+        <template v-if="canUpload">
           <input
             ref="fileInput"
             type="file"
@@ -252,13 +247,7 @@ const anyPending = computed(() => saveIsPending.value || uploadIsPending.value)
             :disabled="anyPending"
             @click="triggerFilePicker"
           >
-            <template v-if="uploadIsPending">
-              <Icon name="loading-02" class="motion-safe:animate-[spin_2s_linear_infinite]" />
-              {{ t('components.change-image-modal.upload.uploading') }}
-            </template>
-            <template v-else>
-              {{ t('components.change-image-modal.upload.label') }}
-            </template>
+            {{ t('components.change-image-modal.upload.label') }}
           </Button>
         </template>
       </div>
@@ -268,7 +257,7 @@ const anyPending = computed(() => saveIsPending.value || uploadIsPending.value)
       </div>
       <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         <button
-          v-for="image in images"
+          v-for="image in displayImages"
           :key="`${image.type}-${image.id}`"
           type="button"
           :class="

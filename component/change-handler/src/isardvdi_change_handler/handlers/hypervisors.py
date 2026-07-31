@@ -20,7 +20,7 @@
 import logging as log
 
 from isardvdi_common.models.hypervisor import Hypervisor
-from isardvdi_common.schemas.hypervisor import HypervisorStatusEnum
+from isardvdi_common.schemas.hypervisor import HypervisorStatus
 
 from .base import BaseHandler, json_dumps
 
@@ -50,7 +50,7 @@ class HypervisorsHandler(BaseHandler):
             return
 
         enriched = new_val.model_copy()
-        if new_val.status != HypervisorStatusEnum.online.value:
+        if new_val.status != HypervisorStatus.online.value:
             desktops_started = 0
         else:
             desktops_started = Hypervisor.count_started_desktops(new_val.id)

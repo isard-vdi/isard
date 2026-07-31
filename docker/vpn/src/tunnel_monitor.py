@@ -36,8 +36,23 @@ from subprocess import check_output
 
 from rethinkdb import RethinkDB
 
-POLL_INTERVAL_S = 5
-HANDSHAKE_TIMEOUT_S = 75  # 3 x persistent-keepalive (25 s)
+POLL_INTERVAL_S = 5  # steady state: every tunnel settled
+# wireguard refreshes latest_handshake only on a rekey (~120 s REKEY_AFTER_TIME),
+# NOT on each keepalive, so a healthy tunnel's handshake legitimately ages to
+# ~120 s. A 75 s window therefore false-reported disconnected for ~1/3 of every
+# rekey cycle. 180 s (wireguard REJECT_AFTER_TIME, when the session itself dies)
+# clears the healthy case while still catching a genuinely dead peer.
+HANDSHAKE_TIMEOUT_S = 180
+
+# A tunnel that just came up must be published quickly — BFD converges in
+# ~1-2 s (200 ms intervals) but at the 5 s steady poll the connected write
+# lagged the actual up by up to 5 s, so the "sub-second detection" the tight
+# BFD gave was thrown away at the publish step. While any hypervisor is still
+# coming up we poll fast; once all are settled we fall back to the 5 s cadence.
+# The fast cadence is capped to FAST_FOLLOW_S per disconnect so a hypervisor
+# that is genuinely down for good cannot pin the loop at the fast rate forever.
+FAST_POLL_INTERVAL_S = 1
+FAST_FOLLOW_S = 60
 
 
 def _rdb_connect():
@@ -131,16 +146,26 @@ def _set_status(r, conn, hyper_id: str, connected: bool):
     return connected
 
 
-def _poll_once(r, conn, geneve_only: bool):
-    """One pass over the hypervisors table."""
+def _poll_once(r, conn, geneve_only: bool, not_connected_since: dict[str, float]):
+    """One pass over the hypervisors table.
+
+    ``not_connected_since`` maps a hypervisor id to the monotonic time it was
+    first observed disconnected (cleared when it comes up). Returns True when
+    at least one hypervisor is disconnected and still within FAST_FOLLOW_S of
+    that first observation — the signal for the caller to poll fast so a tunnel
+    coming up is published promptly."""
     hypers = list(
         r.table("hypervisors")
         .pluck("id", {"vpn": ["tunneling_mode", "wireguard"]})
         .run(conn)
     )
     handshakes = {} if geneve_only else _wg_handshakes("hypers")
+    now = time.monotonic()
+    seen: set[str] = set()
+    fast = False
     for h in hypers:
         hyper_id = h["id"]
+        seen.add(hyper_id)
         vpn = h.get("vpn") or {}
         mode = vpn.get("tunneling_mode", "wireguard+geneve")
         try:
@@ -152,21 +177,39 @@ def _poll_once(r, conn, geneve_only: bool):
             _set_status(r, conn, hyper_id, connected)
         except Exception:
             log.debug("tunnel_monitor %s failed:\n%s", hyper_id, traceback.format_exc())
+            continue
+        if connected:
+            # Clear the fast-follow anchor only once the window has fully
+            # elapsed. A flapping hypervisor that keeps reconnecting must not
+            # re-arm a fresh 1 s window on every brief reconnect — it gets one
+            # FAST_FOLLOW_S burst anchored at its first down, then the cadence
+            # backs off even while it keeps flapping.
+            since = not_connected_since.get(hyper_id)
+            if since is None or now - since >= FAST_FOLLOW_S:
+                not_connected_since.pop(hyper_id, None)
+        elif now - not_connected_since.setdefault(hyper_id, now) < FAST_FOLLOW_S:
+            fast = True
+    # Drop hypervisors that vanished from the table so the tracker can't grow.
+    for gone in set(not_connected_since) - seen:
+        not_connected_since.pop(gone, None)
+    return fast
 
 
 def _run(geneve_only: bool):
     """Long-running poller. Reconnects to rdb on driver errors."""
+    not_connected_since: dict[str, float] = {}
     while True:
         try:
             r, conn = _rdb_connect()
             log.info(
-                "tunnel_monitor started (interval=%ss, mode=%s)",
+                "tunnel_monitor started (interval=%ss, fast=%ss, mode=%s)",
                 POLL_INTERVAL_S,
+                FAST_POLL_INTERVAL_S,
                 "geneve-only" if geneve_only else "wireguard+geneve",
             )
             while True:
-                _poll_once(r, conn, geneve_only)
-                time.sleep(POLL_INTERVAL_S)
+                fast = _poll_once(r, conn, geneve_only, not_connected_since)
+                time.sleep(FAST_POLL_INTERVAL_S if fast else POLL_INTERVAL_S)
         except Exception:
             log.warning(
                 "tunnel_monitor reconnecting after error:\n%s", traceback.format_exc()

@@ -148,9 +148,6 @@ def create_indexes(
                     "status_category", [r.row["status"], r.row["category"]]
                 ).run(conn)
                 r.table("media").index_create(
-                    "status_group", [r.row["status"], r.row["group"]]
-                ).run(conn)
-                r.table("media").index_create(
                     "status_user", [r.row["status"], r.row["user"]]
                 ).run(conn)
                 r.table("media").index_create("url-isard").run(conn)

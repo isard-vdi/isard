@@ -214,9 +214,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Debug().Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("Validating user ownership")
 	res, err := cli.UserOwnsDesktop(r.Context(), &apiv4.UserOwnsDesktopRequest{
-		ProxyVideo:     apiv4.NewOptString(r.Host),
-		ProxyHyperHost: apiv4.NewOptString(hyper),
-		Port:           apiv4.NewOptInt(port),
+		ProxyVideo:     apiv4.NewOptNilString(r.Host),
+		ProxyHyperHost: apiv4.NewOptNilString(hyper),
+		Port:           apiv4.NewOptNilInt(port),
 	})
 	if err != nil {
 		logger.Error().Err(err).Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("API validation error")

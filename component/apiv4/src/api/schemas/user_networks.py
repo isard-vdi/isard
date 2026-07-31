@@ -5,7 +5,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 
 class UserNetworkAllowed(BaseModel):
@@ -89,8 +89,8 @@ class UserNetworkResponse(BaseModel):
     user: str = ""
     group: str = ""
     category: str = ""
-    created: Optional[str] = None
-    modified: Optional[str] = None
+    created: Optional[AwareDatetime] = None
+    modified: Optional[AwareDatetime] = None
 
 
 class UserNetworkListResponse(BaseModel):

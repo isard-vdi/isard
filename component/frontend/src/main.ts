@@ -97,6 +97,8 @@ apiv4Client.interceptors.response.use(async (response) => {
   }
   if ([403, 500].includes(response.status)) {
     router.push({ name: 'error', params: { code: String(response.status) } })
+  } else if (response.status === 503) {
+    router.push({ name: 'maintenance' })
   }
   return response
 })
@@ -111,7 +113,7 @@ instrumentClient(apiv4Client, 'apiv4')
 watch(
   () => authStore.token,
   (newToken) => {
-    const headers = newToken ? { Authorization: `Bearer ${newToken}` } : undefined
+    const headers = { Authorization: newToken ? `Bearer ${newToken}` : null }
 
     authClient.setConfig({
       headers

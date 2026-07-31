@@ -96,32 +96,34 @@ stages:
 
 commit-lint:
   stage: lint
-  image: node:lts
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
-    - npm install -g commitlint@19.2.2 @commitlint/config-conventional@19.2.2
+    - apk add --no-cache git
+    - bun install --frozen-lockfile
   script:
     - git fetch https://gitlab.com/isard/isardvdi.git main
-    - commitlint --from=$(git merge-base HEAD FETCH_HEAD)
+    - bunx commitlint --from=$(git merge-base HEAD FETCH_HEAD)
 
 version:
   stage: lint
-  image: node:lts
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   rules:
     # semantic-release checks repository write access and we cannot use
     # GITLAB_TOKEN in unprotected branches due to security reasons.
     # https://github.com/semantic-release/semantic-release/issues/2207
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   before_script:
-    - npm install -g semantic-release@23 @semantic-release/exec @semantic-release/gitlab conventional-changelog-conventionalcommits@6
+    - apk add --no-cache git
+    - bun install --frozen-lockfile
   script:
-    - semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
+    - bunx semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
   artifacts:
     paths:
       - .VERSION
 
 check-alloy-config:
   stage: lint
-  image: alpine
+  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
   before_script:
     - apk add --no-cache alloy make
   script:
@@ -129,7 +131,7 @@ check-alloy-config:
 
 .lint-uv-job:
   stage: lint
-  image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine
+  image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
   before_script:
     - apk add --no-cache make
     - uv sync --only-group dev
@@ -146,13 +148,13 @@ check-system-deps:
 
 check-golang:
   stage: lint
-  image: golangci/golangci-lint
+  image: golangci/golangci-lint@sha256:5cceeef04e53efe1470638d4b4b4f5ceefd574955ab3941b2d9a68a8c9ad5240
   script:
     - make lint-go
 
 check-frontend:
   stage: lint
-  image: oven/bun:1.3-alpine
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   parallel:
     matrix:
       - JOB: "format"
@@ -172,7 +174,7 @@ check-frontend:
 
 check-old-frontend:
   stage: lint
-  image: oven/bun:1.3-alpine
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
     - apk add --no-cache make
   script:
@@ -181,7 +183,7 @@ check-old-frontend:
 check-protobuf:
   stage: lint
   image:
-    name: bufbuild/buf:1.44.0
+    name: bufbuild/buf:1.44.0@sha256:7e06f3027a16f8f63c25db6a1b5544866b677ad16e3907c14563c4a61d408228
     entrypoint: [""]
   allow_failure: $[[ inputs.allow-protobuf-lint-failure ]]
   # bufbuild/buf image is distroless — no package manager to install make.
@@ -191,10 +193,10 @@ check-protobuf:
     - buf breaking --against https://gitlab.com/isard/isardvdi.git
 
 docker-image-codegen:
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   stage: build-codegen
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
   parallel:
     matrix:
       - DOCKERFILE: docker/codegen/Dockerfile
@@ -222,9 +224,9 @@ docker-image-codegen:
 
 gen-protobuf:
   stage: generate
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
   before_script:
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
@@ -250,9 +252,9 @@ gen-protobuf:
 docker-compose-build:
   stage: generate
   needs: []
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
   before_script:
     - apk add bash git docker-compose yq
   script:
@@ -291,14 +293,11 @@ docker-compose-build:
 unit-test-go:
   stage: unit-test
   needs: ["gen-protobuf"]
-  image: golang:1.25.8
+  image: golang:1.25.8@sha256:3ac2864710f25e84381bf5d4272261c7ba73ada0339d62034df4de20dabb33ca
   variables:
     GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
   before_script:
     - apt-get update && apt-get install -y libvirt-dev make
-    - go install gotest.tools/gotestsum@latest
-    - go install github.com/boumenot/gocover-cobertura@latest
-    - export PATH=$PATH:~/go/bin
   script:
     - make ci-test-go
   artifacts:
@@ -314,7 +313,7 @@ unit-test-go:
 .python-test-base:
   stage: unit-test
   needs: ["gen-protobuf"]
-  image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine
+  image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
   variables:
     UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   before_script:
@@ -407,7 +406,7 @@ check-codegen-freshness:
   # we compare them to what was committed.
   stage: unit-test
   needs: ["gen-protobuf"]
-  image: alpine:3.20
+  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
   before_script:
     - apk add --no-cache git
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
@@ -508,7 +507,7 @@ unit-test-frontend:
   # gen-protobuf-produced component/frontend/src/gen tree must be present.
   stage: unit-test
   needs: ["gen-protobuf"]
-  image: oven/bun:1.3-alpine
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
     - apk add --no-cache make
   script:
@@ -534,13 +533,13 @@ unit-test-storage:
       junit: docker/storage/report.xml
 
 docker-image:
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   stage: build
   needs:
     - docker-compose-build
     - gen-protobuf
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
   parallel:
     matrix:
       - DOCKER_COMPOSE: build
@@ -587,7 +586,7 @@ docker-image:
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - git submodule update --init --recursive --remote
+    - git submodule update --init --recursive
     - |
       if $[[ inputs.use-image-build-cache ]]
       then
@@ -615,9 +614,9 @@ unit-test-engine:
   # ``/isard`` and pytest against it.
   stage: test
   needs: ["docker-image", "gen-protobuf"]
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
       alias: docker
   before_script:
     - apk add bash git
@@ -674,7 +673,7 @@ test-e2e:
   variables:
     DOCKER_TLS_CERTDIR: "/certs-root"
   services:
-    - name: "docker:${DOCKER_VERSION}-dind"
+    - name: "docker:${DOCKER_VERSION}-dind@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
       variables:
         DOCKER_TLS_CERTDIR: "/certs-root"
       alias: docker
@@ -682,7 +681,7 @@ test-e2e:
         - "sh"
         - "-c"
         - "apk add --no-cache fuse-overlayfs && exec dockerd-entrypoint.sh"
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   before_script:
     # Get dependencies:
     - |
@@ -709,7 +708,7 @@ test-e2e:
     - docker-compose -f docker-compose.e2e.yml pull --quiet
     - docker-compose -f docker-compose.e2e.yml up -d
     ## Download bun
-    - docker create --name bun-bin oven/bun:1.3-alpine
+    - docker create --name bun-bin oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
     - docker cp bun-bin:/usr/local/bin/bun /usr/local/bin/bun
     - docker rm bun-bin
   script:
@@ -747,15 +746,17 @@ integration-real:
   variables:
     DOCKER_TLS_CERTDIR: "/certs-root"
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
       variables:
         DOCKER_TLS_CERTDIR: "/certs-root"
       alias: docker
-  image: "docker:${DOCKER_VERSION}"
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   before_script:
     - apk add bash git docker-compose python3 curl
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.local/bin:$PATH"
+    - curl -fsSL -o /tmp/uv.tar.gz https://github.com/astral-sh/uv/releases/download/0.11.23/uv-x86_64-unknown-linux-musl.tar.gz
+    - echo "6be47081100ff1ce0ac7e85ba2ac12e32f2ffa6f946d78bf7f24ee9ce3a46181  /tmp/uv.tar.gz" | sha256sum -c -
+    - tar -xzf /tmp/uv.tar.gz -C /tmp
+    - mv /tmp/uv-x86_64-unknown-linux-musl/uv /usr/local/bin/uv
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - cp isardvdi.cfg.example isardvdi.e2e.cfg
@@ -822,7 +823,7 @@ gemnasium-dependency_scanning:
 docker-tag:
   stage: release
   image:
-    name: gcr.io/go-containerregistry/crane:debug
+    name: gcr.io/go-containerregistry/crane:debug@sha256:1b1fb24d2b1bb27a9daf81a588157e68463876904e8e537a812edba6284fb252
     entrypoint: [""]
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -845,14 +846,16 @@ docker-tag:
 
 release:
   stage: release
-  image: node:lts
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - apk add --no-cache git sed
+    - bun install --frozen-lockfile
   script:
     - test ! -e ".VERSION" && exit 0
     - 'sed -i "s/^\(\s*DOCKER_IMAGE_TAG: \)$CI_DEFAULT_BRANCH$/\1v$(cat .VERSION | tr "." "-")/" docker-compose*.yml'
-    - npm install -g semantic-release@23 @semantic-release/exec @semantic-release/gitlab conventional-changelog-conventionalcommits@6
-    - semantic-release --branches $CI_DEFAULT_BRANCH
+    - bunx semantic-release --branches $CI_DEFAULT_BRANCH
 
 container_scanning:
   stage: container-scan

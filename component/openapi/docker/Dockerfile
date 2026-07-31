@@ -1,5 +1,5 @@
-FROM python:3.13-alpine AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.23 /uv /usr/local/bin/
+FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
 # Place the venv outside /app — devel mode bind-mounts
 # ./component/openapi/src onto /app and would otherwise shadow
 # /app/.venv (no uvicorn in the bind-mounted source). The
@@ -14,7 +14,7 @@ WORKDIR /workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-openapi --no-editable
 
-FROM python:3.13-alpine AS runtime
+FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS runtime
 RUN apk add --no-cache curl libffi openssl
 
 WORKDIR /app

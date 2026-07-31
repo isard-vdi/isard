@@ -117,6 +117,9 @@
       },
       "subtitle": "Visualiza, restaura o elimina los elementos de la papelera",
       "title": "Papelera"
+    },
+    "disclaimer": {
+      "title": "Aviso legal"
     }
   },
   "views": {
@@ -167,6 +170,11 @@
     "login": {
       "separator": "Otros accesos",
       "select-category": "Selecciona una categoría"
+    },
+    "disclaimer": {
+      "accept": "Aceptar",
+      "reject": "Rechazar",
+      "error": "No se ha podido procesar la aceptación. Inténtalo de nuevo."
     },
     "new-desktop": {
       "desktop-template": "Plantilla",
@@ -376,7 +384,11 @@
       }
     },
     "register": {
-      "title": "Registro"
+      "title": "Registro",
+      "re-register": {
+        "title": "Actualiza tu registro",
+        "description": "Tus permisos han cambiado. Introduce el código de registro proporcionado por la administración para continuar."
+      }
     },
     "notifications": {
       "title": "Notificaciones",
@@ -1052,6 +1064,7 @@
           "title": "Generar una nueva llave API",
           "description": "Puedes generar una nueva llave API para usar con aplicaciones externas que integren la API de IsardVDI.",
           "warning": "Solo podrás ver la llave API una vez, así que asegúrate de guardarla en un lugar seguro.",
+          "max-expiration-hint": "La caducidad máxima es de un año desde hoy",
           "buttons": {
             "generate": "Generar",
             "expiration-label": "Fecha de caducidad",
@@ -1321,9 +1334,14 @@
         "title": "No hay perfiles disponibles"
       },
       "gpu-select": {
-        "placeholder": "Perfiles de GPU disponibles",
-        "value": "Cambiar a '{profile}'",
-        "label": "Nuevo perfil de GPU"
+        "placeholder": "Selecciona los perfiles que se utilizarán",
+        "label": "Perfiles de GPU"
+      },
+      "errors": {
+        "title": "No se ha podido cambiar la GPU",
+        "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
+        "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host.",
+        "generic": "No se ha podido cambiar e iniciar el escritorio. Inténtalo de nuevo."
       }
     },
     "desktops": {
@@ -1454,7 +1472,12 @@
         },
         "overlay": {
           "expand": "Detalles",
-          "expand-tooltip": "Abre la ventana de detalles completos"
+          "expand-tooltip": "Abre la ventana de detalles completos",
+          "bastion": {
+            "open-in-browser": "Abrir en el navegador: {url}",
+            "copy-url": "Copiar URL: {url}",
+            "copy-ssh": "Copiar conexión SSH: {command}"
+          }
         }
       },
       "desktop-storage-modal": {
@@ -1780,6 +1803,7 @@
     },
     "bastion-info-modal": {
       "description": "Utilice la siguiente información para conectarse al escritorio a través del bastión.",
+      "description-read-only": "Utilice la siguiente información para conectarse al escritorio a través del bastión. Copie la URL o el comando SSH.",
       "title": "Información de bastión para el escritorio '{name}'",
       "fields": {
         "http": {
@@ -1931,6 +1955,9 @@
         "bastion": {
           "label": "Bastión activado",
           "description": "Permite el acceso al escritorio a través de un host bastión.",
+          "custom-domains": {
+            "label": "Dominios personalizados"
+          },
           "http-https": {
             "label": "HTTP / HTTPS",
             "description": "Accede al escritorio usando un navegador web o un visor RDP compatible con conexiones HTTP/HTTPS.",
@@ -2346,7 +2373,9 @@
     "date-picker": {
       "apply": "Aplicar",
       "cancel": "Cancelar",
-      "today": "Hoy"
+      "today": "Hoy",
+      "month": "Mes",
+      "year": "Año"
     },
     "form": {
       "validation": {
@@ -2444,7 +2473,8 @@
         "forbidden": "El dominio de correo electrónico que estás intentando utilizar no está autorizado para tu categoría.",
         "not_found": "Código no encontrado",
         "conflict": "El usuario ya existe",
-        "internal_server": "Error en el servidor"
+        "internal_server": "Error en el servidor",
+        "re_register_not_resolved": "El código que has introducido no concede el acceso necesario. Solicita un código válido a la administración."
       }
     },
     "new-desktop": {

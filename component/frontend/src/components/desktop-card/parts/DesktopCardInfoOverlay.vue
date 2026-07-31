@@ -65,20 +65,15 @@ const attachedMedia = computed<AttachedMedia[]>(() => {
 
 <template>
   <div :class="cardOverlayPaddingVariants({ size })" class="text-base-white text-start">
-    <div class="flex items-center gap-2 mb-1.5">
-      <Icon name="info-circle" size="sm" stroke-color="base-white" />
-      <span class="text-[10px] font-bold uppercase tracking-wide truncate">
-        {{ t('components.desktops.desktop-card.actions.info') }}
-      </span>
-      <span
-        class="ml-auto inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide"
-        :class="statusBadge"
-      >
-        {{ desktop.status }}
-      </span>
-    </div>
-
     <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+      <div class="col-span-2">
+        <span
+          class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide"
+          :class="statusBadge"
+        >
+          {{ desktop.status }}
+        </span>
+      </div>
       <div class="flex items-center gap-1.5 min-w-0">
         <Icon name="cpu" size="xs" stroke-color="base-white" class="shrink-0" />
         <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-12" />

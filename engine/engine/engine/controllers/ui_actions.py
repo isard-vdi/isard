@@ -8,7 +8,8 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
-from cachetools import TTLCache, cached
+from cachetools import cached
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
@@ -62,7 +63,7 @@ Q_LONGOPERATIONS_PRIORITY_DOMAIN_FROM_TEMPLATE = 40
 
 # TTL cache for template lookups during batch domain creation
 # Avoids repeated DB queries when creating many domains from the same template
-_template_cache = TTLCache(maxsize=100, ttl=60)
+_template_cache = SynchronizedTTLCache(maxsize=100, ttl=60)
 
 # Thread pool for the async post-edit "Updating" → "Stopped" transition.
 # Matches the apiv4-and-websockets pattern (updating_thread_pool in that

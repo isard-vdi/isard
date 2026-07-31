@@ -21,6 +21,16 @@
 #}
 {% with id_prefix = 'saml-config-show-' if disabled is true else 'saml-config-edit-' %}
   {% include '/snippets/config_enable_field.html' %}
+  {% with name_prefix="saml_config" %}
+    {% with
+      name="name",
+      label="Provider Name",
+      placeholder="",
+      required=false
+    %}
+      {% include '/snippets/form_field.html' %}
+    {% endwith %}
+  {% endwith %}
   <div class="config-fields">
     {% with name_prefix="saml_config" %}
       {% include '/snippets/saml_config_form.html' %}

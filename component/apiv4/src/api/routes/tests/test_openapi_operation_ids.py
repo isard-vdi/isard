@@ -21,11 +21,7 @@ import warnings
 import pytest
 from api import app
 from fastapi.openapi.utils import get_openapi
-from gen_openapi import (
-    _normalize_operation_ids,
-    _strip_null_unions,
-    _strip_parameter_titles,
-)
+from gen_openapi import _normalize_operation_ids, _strip_parameter_titles
 
 _is_production = os.environ.get("USAGE", "production") == "production"
 
@@ -40,7 +36,6 @@ def _normalized_spec():
             description=app.description,
             routes=app.routes,
         )
-    _strip_null_unions(spec)
     _strip_parameter_titles(spec)
     _normalize_operation_ids(spec)
     return spec

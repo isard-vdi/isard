@@ -37,6 +37,8 @@ import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ErrorResponse } from '@/gen/oas/apiv4'
+import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
+import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 
 const { t, d } = useI18n()
 
@@ -69,9 +71,17 @@ const { data: desktopDetails, isPending: desktopDetailsIsPending } = useQuery(
   })
 )
 
-const imageUrl = computed(() => {
-  return desktopInfo.value?.image?.url || ''
-})
+const selectedImage = ref<DomainImageOutput | undefined>(undefined)
+const showChangeImageModal = ref(false)
+
+// The API derives an unrelated stock card from the new template id unless
+// one is sent, so default to the card the preview already shows.
+const currentImage = computed(() => selectedImage.value ?? desktopInfo.value?.image)
+const imageUrl = computed(() => currentImage.value?.url || '')
+
+function handleImageSelected(image: DomainImageOutput) {
+  selectedImage.value = image
+}
 
 const createTemplateErrorCode = ref<string | undefined>(undefined)
 const {
@@ -137,6 +147,9 @@ const form = useForm({
         name: value.name,
         description: value.description,
         enabled: value.enabled,
+        image: currentImage.value
+          ? { id: currentImage.value.id, type: currentImage.value.type }
+          : undefined,
         allowed: {
           users: false,
           groups: false
@@ -160,6 +173,13 @@ defineExpose({ form, isPending })
 </script>
 
 <template>
+  <ChangeImageModal
+    :open="showChangeImageModal"
+    :current-image="currentImage"
+    @select="handleImageSelected"
+    @close="showChangeImageModal = false"
+  />
+
   <div class="w-full flex flex-col gap-[24px]">
     <Alert v-if="createTemplateIsError" variant="destructive" class="max-w-256 w-full mx-auto">
       <FeaturedIconOutline kind="outline" color="error" />
@@ -209,6 +229,7 @@ defineExpose({ form, isPending })
               hierarchy="secondary-gray"
               size="sm"
               icon="image-plus"
+              @click="showChangeImageModal = true"
             />
           </div>
         </div>

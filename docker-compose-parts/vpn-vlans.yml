@@ -6,7 +6,7 @@ services:
       - pipework_cmd=--direct-phys ${HYPERVISOR_HOST_TRUNK_INTERFACE} -i ${HYPERVISOR_HOST_TRUNK_INTERFACE} isard-vpn 0/0
   # https://gitlab.com/isard/dreamcat4-docker-images/pipework (isardvdi branch)
   isard-pipework:
-    image: registry.gitlab.com/isard/isardvdi/pipework:latest
+    image: registry.gitlab.com/isard/isardvdi/pipework:latest@sha256:34ddb11ec60cf0887436814f000985fc3ed40de9ad05057a35ceb4b139724f19
     logging:
       driver: "json-file"
       options:
