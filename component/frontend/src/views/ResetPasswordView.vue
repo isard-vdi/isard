@@ -16,18 +16,26 @@ import { getUserPasswordPolicyOptions } from '@/gen/oas/apiv4/@tanstack/vue-quer
 import PasswordRequirements from '@/components/password-requirements/PasswordRequirements.vue'
 import { cn } from '@/lib/utils'
 import { PASSWORD_REGEX } from '@/lib/password'
+import { getBearer, useCookies as useAuthCookies } from '@/lib/auth'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const cookies = useAuthCookies()
 
 const { mutateAsync: resetPassword, isPending: isSending } = useMutation({
   ...resetPasswordMutation()
 })
 
-const urlToken = computed(() => {
+// The reset token reaches this view two ways:
+//  - voluntary flow: the email link carries it as ?token=… (a 'password-reset' JWT)
+//  - forced flow: the password policy expired the password at login, so there is
+//    no query param and the token lives only in the session cookie (a
+//    'password-reset-required' JWT)
+const resetToken = computed(() => {
   const tokenId = route.query.token
-  return typeof tokenId === 'string' ? tokenId : ''
+  if (typeof tokenId === 'string' && tokenId) return tokenId
+  return getBearer(cookies) ?? ''
 })
 
 const {
@@ -36,7 +44,7 @@ const {
   error: policyError
 } = useQuery({
   ...getUserPasswordPolicyOptions({
-    headers: { Authorization: `Bearer ${urlToken.value}` }
+    headers: { Authorization: `Bearer ${resetToken.value}` }
   }),
   // The token comes from the reset-password email link and expires after 60 min.
   // A 401 (token_expired) is a permanent, expected outcome here — retrying just
@@ -149,7 +157,7 @@ const form = useForm({
     try {
       await resetPassword({
         body: { password: value.newPassword },
-        headers: { Authorization: `Bearer ${urlToken.value}` }
+        headers: { Authorization: `Bearer ${resetToken.value}` }
       })
       startCountdown()
     } catch (err) {
