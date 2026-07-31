@@ -217,9 +217,6 @@ class UsersService:
             },
         )
 
-        from api.routes.users import clear_users_list_cache
-
-        clear_users_list_cache()
         return user_id
 
     @staticmethod
