@@ -584,6 +584,53 @@ def test_create_desktop_from_media_uses_token_router_and_calls_quota(
     ]
 
 
+def test_create_desktop_from_media_rejects_unknown_os_template(
+    monkeypatch, test_client
+):
+    """``os_template`` is stored verbatim as
+    ``create_dict.create_from_virt_install_xml``; an unknown value must be
+    rejected with 400 instead of returning 200 and leaving the engine
+    crashing while the desktop stays stuck in ``CreatingDomain``.
+    """
+    jwt = MockJWT(role_id="user")
+    monkeypatch.setattr(
+        "api.services.desktops.RethinkUser.exists", staticmethod(lambda _: True)
+    )
+    monkeypatch.setattr(
+        "api.services.desktops.RethinkMedia.exists", staticmethod(lambda _: True)
+    )
+    monkeypatch.setattr(
+        "api.services.desktops.XmlSectionsProcessed.get_virt_install",
+        staticmethod(lambda _: None),
+    )
+
+    body = {
+        "media_id": "media-1",
+        "kind": "iso",
+        "os_template": "does-not-exist",
+        "name": "from-media-bad-template",
+        "description": "x",
+        "guest_properties": {"viewers": {"browser_vnc": {"options": None}}},
+        "hardware": {
+            "boot_order": ["disk"],
+            "disk_bus": "default",
+            "disk_size": 10,
+            "interfaces": ["default"],
+            "memory": 1.0,
+            "vcpus": 1,
+            "videos": ["default"],
+            "reservables": {"vgpus": None},
+        },
+    }
+
+    response = test_client(
+        url="/item/desktop/from-media", method="POST", body=body, jwt=jwt
+    )
+
+    assert response.status_code == 400
+    assert response.json()["description_code"] == "os_template_not_found"
+
+
 def test_create_desktop_from_media_accepts_payload_without_reservables(
     monkeypatch, test_client
 ):
