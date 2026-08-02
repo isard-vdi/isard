@@ -79,6 +79,24 @@ export const isCategorySelectClaims = (claims: TypeClaims): claims is CategorySe
   return claims.type === TokenType.CategorySelect
 }
 
+export interface PasswordResetRequiredClaims extends TypeClaims {
+  user_id: string
+}
+
+export const isPasswordResetRequiredClaims = (
+  claims: TypeClaims
+): claims is PasswordResetRequiredClaims => {
+  return claims.type === TokenType.PasswordResetRequired
+}
+
+export interface PasswordResetClaims extends TypeClaims {
+  user_id: string
+}
+
+export const isPasswordResetClaims = (claims: TypeClaims): claims is PasswordResetClaims => {
+  return claims.type === TokenType.PasswordReset
+}
+
 export interface RegisterClaims extends TypeClaims {
   category_id: string
   provider: string
@@ -119,7 +137,9 @@ export const parseToken = (
   | ReRegisterClaims
   | CategorySelectClaims
   | DisclaimerAcknowledgementRequiredClaims
-  | TypeClaims => {
+  | TypeClaims
+  | PasswordResetRequiredClaims
+  | PasswordResetClaims => {
   const jwt = jwtDecode(bearer) as TypeClaims
   switch (jwt.type) {
     case undefined:
@@ -140,6 +160,12 @@ export const parseToken = (
 
     case TokenType.DisclaimerAcknowledgeRequired:
       return jwt as DisclaimerAcknowledgementRequiredClaims
+
+    case TokenType.PasswordResetRequired:
+      return jwt as PasswordResetRequiredClaims
+
+    case TokenType.PasswordReset:
+      return jwt as PasswordResetClaims
 
     default:
       return jwt

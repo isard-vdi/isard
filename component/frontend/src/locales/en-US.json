@@ -897,14 +897,15 @@
         "save": "Save changes"
       },
       "errors": {
-        "title": "Error saving desktop"
+        "title": "Error saving desktop",
+        "load": "Error loading desktop"
       },
       "info": {
-        "title": "Name & description",
-        "description": "Set the desktop name and description."
+        "title": "@:domains.capitalized.desktops Information",
+        "description": "Provide a name and description for your desktop to help identify it"
       },
       "access": {
-        "title": "Access",
+        "title": "Access configuration",
         "description": "Viewers, credentials, and bastion configuration."
       },
       "hardware": {
@@ -1105,6 +1106,7 @@
         "description": "Reset VPN keys? You will have to download a new VPN file",
         "cancel": "Cancel",
         "confirm": "Reset VPN",
+        "success": "VPN keys were reset successfully.",
         "errors": {
           "unauthorized": "Your session has expired. Please log in again.",
           "internal_server": "We couldn't reset your VPN keys due to a server error. Please try again later.",
@@ -2032,6 +2034,21 @@
         "description": "You have reached the maximum number of running desktops. A desktop must be stopped in order to start a new one.",
         "cancel": "Go back to desktops"
       },
+      "start-memory-quota-exceeded-modal": {
+        "title": "Memory quota exceeded",
+        "description": "You've exceeded your memory quota. Stop a desktop to start another one, or edit this desktop to reduce its memory.",
+        "cancel": "Go back to desktops"
+      },
+      "start-vcpu-quota-exceeded-modal": {
+        "title": "vCPU quota exceeded",
+        "description": "You've exceeded your vCPU quota. Stop a desktop to start another one, or edit this desktop to reduce its vCPUs.",
+        "cancel": "Go back to desktops"
+      },
+      "start-disk-quota-exceeded-modal": {
+        "title": "Storage quota exceeded",
+        "description": "You've exceeded your storage quota. Free up disk space to start this desktop.",
+        "cancel": "Go back to desktops"
+      },
       "storage-unavailable-modal": {
         "title": "Storage unavailable",
         "description": "The creation storage is currently unavailable and desktops cannot be created. Please try again later.",
@@ -2139,13 +2156,6 @@
           "2": "Best experience on Windows desktops",
           "3": "Requires VPN access with WireGuard client"
         }
-      },
-      "guide-url": {
-        "browser-vnc": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/#vnc-browser",
-        "browser-rdp": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/#rdp-browser-viewer",
-        "file-spice": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/#spice",
-        "file-rdpgw": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/#native-rdp",
-        "file-rdpvpn": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/#native-rdp"
       }
     },
     "domain-hardware-summary": {
@@ -2423,6 +2433,20 @@
     },
     "notification-modal": {
       "title": "Notifications"
+    },
+    "new-desktop": {
+      "os-template-select": {
+        "placeholder": "Select an OS template",
+        "search-placeholder": "Search OS templates",
+        "not-found": "No OS template found",
+        "more-results": "{count} more results, refine your search"
+      }
+    },
+    "searchable-tags": {
+      "search-placeholder": "Search",
+      "not-found": "No results found",
+      "more-results": "{count} more results, refine your search",
+      "remove": "Remove {name}"
     }
   },
   "authentication": {
@@ -2563,7 +2587,12 @@
       "errors": {
         "generic": "There was an error saving the desktop. Please try again.",
         "internal_server": "Internal server error while saving the desktop.",
-        "desktop_not_stopped": "The desktop must be stopped before editing."
+        "precondition_required": "The desktop must be stopped before editing.",
+        "not_found": "The desktop was not found.",
+        "bad_request": "RDP viewers need the wireguard network. Please add the wireguard network to this desktop or remove RDP viewers.",
+        "new_desktop_name_exists": "A desktop with the same name already exists. Please choose a different name.",
+        "one_viewer_minimum": "At least one viewer must be selected.",
+        "only_works_rdp": "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option."
       }
     },
     "edit-template": {

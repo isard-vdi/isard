@@ -19,6 +19,7 @@ import { LocaleSwitch } from '@/components/locale-switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertModal } from '@/components/modal'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { toast } from '@/components/ui/toast'
 import ApiKeyModal from '@/components/profile/ApiKeyModal.vue'
 import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
 import ImportUserModal from '@/components/profile/ImportUserModal.vue'
@@ -72,7 +73,7 @@ const fetchVpn = async () => {
   try {
     const { data } = await refetchUserVpn()
 
-    if (!data) return
+    if (typeof data !== 'string' || !data) return
 
     const el = document.createElement('a')
     el.setAttribute('href', `data:text/plain;charset=utf-8,${encodeURIComponent(data)}`)
@@ -156,9 +157,11 @@ const handleResetVpn = () => {
       onSuccess: () => {
         resetVpnError.value = ''
         showResetVpnModal.value = false
+        toast.success(t('components.profile.reset-vpn-modal.success'))
       },
       onError: (error) => {
-        const descriptionCode = error?.response?.data?.description_code
+        const descriptionCode = (error as { response?: { data?: { description_code?: string } } })
+          ?.response?.data?.description_code
         if (descriptionCode) {
           const errorKey = `components.profile.reset-vpn-modal.errors.${descriptionCode}`
           resetVpnError.value = t(errorKey, t('components.profile.reset-vpn-modal.errors.generic'))

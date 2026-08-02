@@ -480,6 +480,7 @@ def test_get_desktop_direct_viewer_accepts_waiting_ip_stub(monkeypatch, test_cli
             "browser-rdp": {"kind": "browser", "protocol": "rdp"},
             "file-rdpgw": {"kind": "file", "protocol": "rdpgw"},
         },
+        "type": "nonpersistent",
     }
 
     monkeypatch.setattr(
