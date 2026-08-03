@@ -529,6 +529,20 @@ unit-test-sparsify:
   script:
     - make test-sparsify
 
+unit-test-storage-utils:
+  # Sparsify-backup classifier in the `storage` cleanup CLI
+  # (docker/storage/utils/tests). Pure-stdlib pytest: the CLI is loaded via
+  # importlib (it has no .py suffix) and the qemu-img calls its helpers share
+  # are replaced, so no qemu binaries, no lock holder and no root are needed.
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-storage-utils
+  artifacts:
+    when: always
+    reports:
+      junit: docker/storage/utils/report.xml
+
 unit-test-storage:
   # isard-storage worker failure-path suite (docker/storage/task/tests): the
   # raise-on-failure contract, convert partial-dest cleanup, and the delete

@@ -199,14 +199,14 @@ test-sparsify:
 	bash docker/storage/utils/tests/test_sparsify_recover_backup.sh
 
 # Regression test for the `storage` cleanup CLI's sparsify-backup classifier:
-# a locked/in-use canonical must keep its backup (qemu-img check -U reads
-# through the lock and would call it clean). Drives the real classifier against
-# a live qemu-io lock holder, so it needs qemu-img and qemu-io AND the storage
-# CLI's import graph; it is skipif-guarded when qemu tooling is absent. Runs
-# where those exist (e.g. the isard-storage container).
-.PHONY: test-storage-utils
-test-storage-utils:
-	uv run --group test --package isardvdi-storage pytest docker/storage/utils/tests/test_classify_sparsify_backup.py -q
+# a locked/in-use canonical must keep its backup, because the lock-bypassing
+# check reads through the lock and calls a half-written image clean. The CLI is
+# loaded by path (no .py suffix) and its qemu-img calls are replaced, so this
+# needs no qemu binaries and no lock holder.
+.PHONY: ci-test-storage-utils
+ci-test-storage-utils:
+	uv sync --no-dev --group test --package isardvdi-storage
+	cd docker/storage/utils && uv run --no-dev --group test --package isardvdi-storage pytest tests/test_classify_sparsify_backup.py -q --tb=short --junitxml=report.xml
 
 .PHONY: test-changefeed
 test-changefeed:
