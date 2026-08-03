@@ -381,7 +381,27 @@ is_repairable_error() {
 #              cannot separate a held lock from a wrecked header (both are 1),
 #              so the lock message is what tells them apart. Never use -U here:
 #              it reads through the lock and reports a half-written image as
-#              valid. Codes: 0 ok, 2 corruption, 3 leaks, 63 unknown format.
+#              valid (measured: a live-held image gives rc 1 without -U but
+#              rc 0 with -U).
+#
+#              qemu-img check exit codes, measured on qemu-img 9.2.4 and 10.0.0
+#              by building each state for real:
+#                0  consistent                         -> clean  (drop backup)
+#                3  leaked clusters, "no harm to data" -> clean  (drop backup)
+#                2  corruption                         -> dirty  (restore backup)
+#                63 format does not support checks      -> dirty  (restore backup)
+#                1  could-not-open the image
+#                     - "Failed to get ... lock"       -> locked (retry/keep)
+#                     - anything else (unopenable)     -> dirty  (restore backup)
+#                other                                  -> unknown (keep both)
+#
+#              rc 3 is the *likeliest* aftermath of killing a qcow2 writer, and
+#              the leaked space is harmless; we do NOT run `-r leaks` here (it
+#              needs a write lock and the next sparsify pass reclaims the space
+#              anyway). rc 63 means a file that was a qcow2 no longer identifies
+#              as one (magic/header gone) -> the destination is destroyed and
+#              the good backup must win. rc 1 without a lock message is an image
+#              we cannot open at all, i.e. also destroyed, so it restores too.
 # Arguments: $1 - image path
 # Outputs: one of clean|locked|dirty|unknown
 #-------------------------------------------------------------------------------
@@ -391,8 +411,8 @@ _sparsify_image_state() {
     # captured, not piped into grep: pipefail would mask the match with qemu-img's status
     output=$(qemu-img check -q "$file" 2>&1) || rc=$?
     case "$rc" in
-        0) echo "clean" ;;
-        2) echo "dirty" ;;
+        0|3) echo "clean" ;;
+        2|63) echo "dirty" ;;
         1)
             case "$output" in
                 *"Failed to get"*lock*|*"another process using the image"*) echo "locked" ;;
