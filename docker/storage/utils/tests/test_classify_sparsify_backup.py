@@ -21,6 +21,8 @@ import sys
 import tempfile
 from importlib.machinery import SourceFileLoader
 
+import pytest
+
 _UTILS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _STORAGE_CLI = os.path.join(_UTILS_DIR, "storage")
 
@@ -34,6 +36,15 @@ def _load_storage_cli():
     loader.exec_module(module)
     return module
 
+
+# The CLI imports the generated apiv4 client at module level, and that client is
+# produced by codegen rather than carried in a checkout. Skip before the load
+# that would fail, so this file never breaks collection for whichever target
+# picks it up.
+pytest.importorskip(
+    "isardvdi_apiv4_client.client",
+    reason="the generated apiv4 client is produced by codegen",
+)
 
 storagecli = _load_storage_cli()
 
