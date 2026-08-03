@@ -105,6 +105,17 @@ test: test-go test-python test-e2e
 test-go:
 	go test -race -cover ./...
 
+# Behavioural unit tests for the vmalert storage-governor rules, under the same
+# vmalert engine (MetricsQL) the stack runs. The vmalert-tool version is DERIVED
+# from the runtime vmalert pin in docker-compose-parts/monitor.yml, so it cannot
+# drift from what the stack runs.
+.PHONY: test-vmalert
+test-vmalert:
+	@VER=$$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://'); \
+	[ -n "$$VER" ] || { echo "cannot read vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }; \
+	docker run --rm -v "$$(pwd)/docker/vmalert/rules:/rules" -w /rules \
+	  victoriametrics/vmalert-tool:$$VER unittest --files /rules/storage_governor.test.yml
+
 .PHONY: test-python
 test-python: test-apiv4 test-common test-change-handler test-changefeed test-socketio test-openapi test-notifier test-scheduler test-webapp
 
