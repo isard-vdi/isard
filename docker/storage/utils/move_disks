@@ -159,7 +159,7 @@ def get_storage_pool_by_name(pool_name):
                 return pool
         return None
     except Exception as e:
-        print(f"Error retrieving storage pool '{pool_name}': {e}")
+        print(f"Error retrieving storage pool '{pool_name}': {type(e).__name__}: {e}")
         return None
 
 
@@ -193,7 +193,7 @@ def show_storage_pools_info():
         print(f"Total enabled pools: {len(enabled_pools)}")
 
     except Exception as e:
-        print(f"Error retrieving storage pools: {e}")
+        print(f"Error retrieving storage pools: {type(e).__name__}: {e}")
 
 
 def get_storage_statuses(storage_id):
