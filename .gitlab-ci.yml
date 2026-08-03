@@ -309,6 +309,25 @@ unit-test-go:
       junit: report.xml
   coverage: /total:\s+\(statements\)\s+\d+.\d+%/
 
+# Behavioural unit tests for the storage-governor alert rules, run under the SAME
+# engine the stack runs (vmalert / MetricsQL) — promtool green is not vmalert
+# green, and the Go test above only checks that the rules NAME real metrics, not
+# what they DO. Pinned to the vmalert-tool matching the runtime vmalert in
+# docker-compose-parts/monitor.yml; the guard fails CI if the two ever drift, so
+# this pin cannot silently diverge from what the stack actually runs.
+unit-test-vmalert:
+  stage: unit-test
+  needs: []
+  image:
+    name: victoriametrics/vmalert-tool:v1.147.0
+    entrypoint: [""]
+  script:
+    - runtime=$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://')
+    - tool=$(/vmalert-tool-prod --version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    - '[ -n "$runtime" ] || { echo "FAIL: cannot read the runtime vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }'
+    - '[ "$runtime" = "$tool" ] || { echo "FAIL: vmalert-tool $tool != runtime vmalert $runtime (docker-compose-parts/monitor.yml) — bump this job image and monitor.yml together"; exit 1; }'
+    - /vmalert-tool-prod unittest --files docker/vmalert/rules/storage_governor.test.yml
+
 # Shared Python test config — uv cache dir cached via default cache entry.
 .python-test-base:
   stage: unit-test
