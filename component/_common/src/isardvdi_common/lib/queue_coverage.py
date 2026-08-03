@@ -9,9 +9,16 @@
 A read-only view of the storage worker fleet built from the same governor redis
 keys the admin backlog gauge uses, so the enqueue-time shed gate and the admin
 view share ONE ``has_consumer`` / ``stranded`` definition. Everything here is
-bounded (no ``KEYS`` glob, one pipelined pass over ``rq:workers``) and
-**fail-open**: any redis error, or a fleet we cannot see, yields "ok / do not
-shed" so a transient blip never rejects a user action.
+bounded (no ``KEYS`` glob, one pipelined pass over ``rq:workers``).
+
+Ignorance vs knowledge
+----------------------
+The bias is fail-open on **ignorance** only. Every read here RAISES on a redis
+error and returns an empty answer only when redis actually answered, so the two
+are distinguishable and get opposite treatment: unreadable (redis down, index
+unreachable) yields "ok / do not shed" so a blip never rejects a user action,
+while a readable index reporting zero live workers is a FACT about the fleet and
+sheds — otherwise a stopped fleet silently accepts work nothing can ever drain.
 
 Coverage model
 --------------
@@ -191,8 +198,8 @@ def lane_shed_decision(conn, queue):
     consumer for the lane, any tier; or a foreground lane above its hard cap),
     ``"warn"`` (backed up but will run) or ``"ok"``. ``ctx`` carries ``pool``/
     ``category``/``tier``/``backlog``/``has_consumer``/``stranded``/``reason``
-    for the caller's error or notify. Never raises — any failure degrades to
-    ``("ok", ...)``.
+    for the caller's error or notify. Never raises — a read that FAILS degrades
+    to ``("ok", ...)``.
 
     The LIVE coverage index (:func:`pool_live_workers`) is the primary signal:
     a fresh heartbeat there means a governed worker serves the lane right now.
@@ -201,7 +208,12 @@ def lane_shed_decision(conn, queue):
     worker still counts. The index's 15s TTL is authoritative once it shows a
     worker, but an unclean full-pool death during the mixed-version window
     still falls back to the legacy ~90s governor-hash / rq-heartbeat signal —
-    the safe bias."""
+    the safe bias.
+
+    Both reads raise on a redis error, so reaching the end of that fallback with
+    nothing found means redis answered and the fleet is genuinely gone. That is
+    knowledge, and it sheds like any other empty lane: accepting work no worker
+    can drain gives the user neither an error nor progress."""
     parsed = queue_tiers.parse_storage_queue(queue)
     if not parsed:
         return "ok", {"reason": "non_storage_queue"}
@@ -212,19 +224,12 @@ def lane_shed_decision(conn, queue):
             has_consumer, opaque = True, False
         else:
             covered, opaque_pools = served_coverage(conn)
-            if not covered and not opaque_pools:
-                # No worker visible anywhere — a full-fleet restart blip is far
-                # more likely than a deliberate zero-consumer state; fail open.
-                return "ok", {
-                    "reason": "no_coverage_data",
-                    "pool": pool,
-                    "category": category,
-                    "tier": tier,
-                }
             has_consumer = (pool, tier) in covered
             opaque = pool in opaque_pools
         backlog = conn.llen(_RQ_QUEUE_PREFIX + queue)
     except Exception:
+        # We could not READ the fleet (redis down, index unreachable). That is
+        # ignorance, not a zero-consumer verdict: fail open.
         return "ok", {
             "reason": "coverage_error",
             "pool": pool,
@@ -301,9 +306,9 @@ def check_no_consumer(conn, queue):
     """Raise a typed 429 when ``queue`` has NO live consumer for its
     (pool, category) — a task nothing can drain must never be enqueued, for any
     tier. Mandatory on every producer and category-scoped (a dead pool only
-    refuses the categories it serves); fail-open on any coverage uncertainty.
-    Distinct from :func:`check_shed`, the additional foreground backlog-overload
-    gate."""
+    refuses the categories it serves); fail-open only when the coverage index
+    cannot be read. Distinct from :func:`check_shed`, the additional foreground
+    backlog-overload gate."""
     decision, ctx = lane_shed_decision(conn, queue)
     if decision == "reject" and ctx.get("reason") == "no_consumer":
         _raise_lane_429(conn, ctx)
@@ -313,7 +318,7 @@ def check_shed(conn, queue):
     """Raise a typed 429 ``Error`` if a task must not enqueue on ``queue``
     (stranded for any tier, or a foreground lane above its hard backlog cap).
     Call this BEFORE any state mutation so a reject leaves nothing half-done.
-    Fail-open on any coverage uncertainty."""
+    Fail-open only when the coverage index cannot be read."""
     decision, ctx = lane_shed_decision(conn, queue)
     if decision == "reject":
         _raise_lane_429(conn, ctx)
@@ -378,7 +383,9 @@ def _lane_health(conn, pool, tier):
             "backlog": ctx.get("backlog", 0),
             "no_consumer": decision == "reject" and ctx.get("reason") == "no_consumer",
             "overloaded": decision == "reject" and ctx.get("reason") == "overloaded",
-            "degraded": ctx.get("reason") in ("coverage_error", "no_coverage_data"),
+            # Only an unreadable index is degraded; a readable one reporting an
+            # empty fleet is a real no-consumer, not a blind spot.
+            "degraded": ctx.get("reason") == "coverage_error",
         }
     except Exception:
         return {
