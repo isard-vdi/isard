@@ -269,7 +269,14 @@ class Wg(object):
             #    self.uipt.add_user(peer['id'],peer['vpn']['wireguard']['Address'])
 
         with vpn_rethink_conn() as conn:
-            r.table(self.table).insert(create_peers, conflict="update").run(conn)
+            # update, not insert: every peer here was read from this table at the
+            # top of the loop, and generating its config takes long enough (a
+            # subprocess per peer) that the row can be deleted meanwhile. An
+            # upsert would bring it back as an {id, vpn} stub holding a client
+            # IP; update skips a row that is gone.
+            r.expr(create_peers).for_each(
+                lambda peer: r.table(self.table).get(peer["id"]).update(peer)
+            ).run(conn)
 
         ##### The same for remotevpn table
         if self.table == "users":
@@ -309,7 +316,12 @@ class Wg(object):
                 else:
                     self.up_peer(self._to_model(new_peer))
             with vpn_rethink_conn() as conn:
-                r.table("remotevpn").insert(create_peers, conflict="update").run(conn)
+                # Same reasoning as the users loop above: these peers were read
+                # from the table, so the write must not recreate one that has
+                # been deleted since.
+                r.expr(create_peers).for_each(
+                    lambda peer: r.table("remotevpn").get(peer["id"]).update(peer)
+                ).run(conn)
 
     def gen_new_peer(self, peer, extra_client_nets=None):
         peer_dict = peer.model_dump() if isinstance(peer, BaseModel) else peer
@@ -576,7 +588,9 @@ class Wg(object):
             if table == False:
                 table = self.table
             with vpn_rethink_conn() as conn:
-                r.table(table).insert(new_peer, conflict="update").run(conn)
+                # update, not insert: up_peer() shells out, so the row can be
+                # deleted before we get here and an upsert would recreate it.
+                r.table(table).get(new_peer["id"]).update(new_peer).run(conn)
                 if table == "remotevpn":
                     r.table(table).get(new_peer["id"]).replace(
                         r.row.without("nets")
