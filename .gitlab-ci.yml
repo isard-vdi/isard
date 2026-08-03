@@ -517,6 +517,18 @@ unit-test-frontend:
     reports:
       junit: component/frontend/report.xml
 
+unit-test-sparsify:
+  # Recovery-trap suite for the sparsify utility (docker/storage/utils/tests).
+  # Plain bash, no python and no generated code, but it drives real qcow2 files
+  # and a live lock holder, so it needs qemu-img and qemu-io.
+  stage: unit-test
+  needs: []
+  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+  before_script:
+    - apk add --no-cache bash make qemu-img
+  script:
+    - make test-sparsify
+
 unit-test-storage:
   # isard-storage worker failure-path suite (docker/storage/task/tests): the
   # raise-on-failure contract, convert partial-dest cleanup, and the delete

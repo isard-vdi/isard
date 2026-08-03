@@ -192,6 +192,12 @@ test-change-handler:
 test-storage:
 	uv run --group test --package isardvdi-storage pytest docker/storage/task/tests -q
 
+# Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, but it needs
+# real qcow2 images and a live lock holder, so qemu-img and qemu-io must exist.
+.PHONY: test-sparsify
+test-sparsify:
+	bash docker/storage/utils/tests/test_sparsify_recover_backup.sh
+
 .PHONY: test-changefeed
 test-changefeed:
 	uv run --group test --package isardvdi-changefeed pytest component/changefeed/src/isardvdi_changefeed/tests -n auto $(_cfeed_cov)
