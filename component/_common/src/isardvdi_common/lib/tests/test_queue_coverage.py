@@ -83,6 +83,15 @@ class _FakeRedis:
         self._boom()
         return set(self.sets.get(key, ()))
 
+    def set(self, key, value):
+        self._boom()
+        self.strings[key] = value
+        return True
+
+    def get(self, key):
+        self._boom()
+        return self.strings.get(key)
+
     def hgetall(self, key):
         self._boom()
         return dict(self.hashes.get(key, {}))
@@ -791,3 +800,47 @@ def test_counter_failure_never_swallows_the_429():
     with pytest.raises(Exception) as excinfo:
         qc._raise_lane_429(r, ctx)
     assert getattr(excinfo.value, "status_code", None) == 429
+
+
+# --- the fleet gap: a restart is not the same as a stopped fleet -------------
+#
+# A clean worker shutdown unpublishes its lanes right away rather than letting
+# the TTL expire, so a rolling restart makes the index read empty for a few
+# seconds. Treating that instant as "the fleet is gone" turns the normal upgrade
+# path into a fleet-wide refusal, which is worse than the fail-open it replaced.
+
+
+def test_a_brief_gap_after_the_fleet_was_seen_still_admits():
+    r = _FakeRedis()
+    qc.note_fleet_seen(r, now=1000.0)
+    decision, ctx = qc.lane_shed_decision(
+        r, f"storage.{DEF}.standard", now=1000.0 + qc.FLEET_GONE_GRACE_S / 2
+    )
+    assert decision == "ok"
+    assert ctx["reason"] == "fleet_gap"
+
+
+def test_a_gap_longer_than_the_grace_sheds():
+    r = _FakeRedis()
+    qc.note_fleet_seen(r, now=1000.0)
+    decision, ctx = qc.lane_shed_decision(
+        r, f"storage.{DEF}.standard", now=1000.0 + qc.FLEET_GONE_GRACE_S + 1
+    )
+    assert decision == "reject"
+    assert ctx["reason"] == "no_consumer"
+
+
+def test_a_fleet_never_seen_sheds_rather_than_queueing_into_the_void():
+    """No sighting at all is not a restart gap: nothing has ever heartbeated, so
+    refusing is accurate, and it self-heals as soon as a worker publishes."""
+    r = _FakeRedis()
+    decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.standard", now=1000.0)
+    assert decision == "reject"
+    assert ctx["reason"] == "no_consumer"
+
+
+def test_seeing_a_live_worker_records_the_sighting():
+    r = _FakeRedis()
+    qc.publish_lane(r, DEF, "standard", "w1", now=500.0, ttl=qc.COV_TTL_S)
+    qc.lane_shed_decision(r, f"storage.{DEF}.standard", now=500.0)
+    assert qc.fleet_last_seen(r) == 500.0

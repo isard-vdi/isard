@@ -191,7 +191,7 @@ def served_coverage(conn):
     return covered, opaque_pools
 
 
-def lane_shed_decision(conn, queue):
+def lane_shed_decision(conn, queue, now=None):
     """Decide what to do with a task about to enqueue on ``queue``.
 
     Returns ``(decision, ctx)`` where ``decision`` is ``"reject"`` (no live
@@ -218,12 +218,33 @@ def lane_shed_decision(conn, queue):
     if not parsed:
         return "ok", {"reason": "non_storage_queue"}
     pool, category, tier = parsed
+    if now is None:
+        now = time.time()
     try:
         live = pool_live_workers(conn, pool, tier)
         if live > 0:
             has_consumer, opaque = True, False
+            note_fleet_seen(conn, now)
         else:
             covered, opaque_pools = served_coverage(conn)
+            if covered or opaque_pools:
+                note_fleet_seen(conn, now)
+            else:
+                # Redis answered and shows nothing anywhere. Before reading that
+                # as a stopped fleet, date it: a clean shutdown unpublishes its
+                # lanes at once, so a rolling restart looks exactly like this for
+                # as long as the replacements take to heartbeat.
+                # No sighting at all is not a gap: nothing has ever heartbeated
+                # here, so refusing is accurate and self-heals the moment a
+                # worker publishes.
+                seen = fleet_last_seen(conn)
+                if seen is not None and now - seen <= FLEET_GONE_GRACE_S:
+                    return "ok", {
+                        "reason": "fleet_gap",
+                        "pool": pool,
+                        "category": category,
+                        "tier": tier,
+                    }
             has_consumer = (pool, tier) in covered
             opaque = pool in opaque_pools
         backlog = conn.llen(_RQ_QUEUE_PREFIX + queue)
@@ -341,9 +362,37 @@ COV_TTL_S = _env_int("STORAGE_COV_TTL_S", 15)
 COV_HEARTBEAT_S = _env_int("STORAGE_COV_HEARTBEAT_S", 5)
 
 
+# How long an empty index is read as a gap rather than as an absent fleet. A
+# governed worker unpublishes its lanes on a clean shutdown instead of letting
+# them expire, so every rolling restart empties the index for as long as it
+# takes the replacements to heartbeat. Without this window that instant reads as
+# "the fleet is gone" and refuses every storage action mid-upgrade.
+FLEET_GONE_GRACE_S = _env_int("STORAGE_FLEET_GONE_GRACE_S", 120)
+
+_FLEET_SEEN_KEY = f"{_COV_PREFIX}fleet_seen"
+
+
 def cov_key(pool, tier):
     """Redis key for the live (pool, tier) coverage zset."""
     return f"{_COV_PREFIX}{pool}:{tier}"
+
+
+def note_fleet_seen(conn, now):
+    """Record that consumers were visible, so a later gap can be dated."""
+    conn.set(_FLEET_SEEN_KEY, repr(float(now)))
+
+
+def fleet_last_seen(conn):
+    """When consumers were last visible, or ``None`` if never recorded."""
+    raw = conn.get(_FLEET_SEEN_KEY)
+    if raw is None:
+        return None
+    if isinstance(raw, bytes):
+        raw = raw.decode()
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 def publish_lane(conn, pool, tier, worker, now, ttl):
@@ -351,6 +400,10 @@ def publish_lane(conn, pool, tier, worker, now, ttl):
     key = cov_key(pool, tier)
     conn.zadd(key, {worker: now})
     conn.expire(key, ttl)
+    # Date the fleet from the worker side rather than from whoever happens to
+    # ask: the shed gate needs to tell a restart gap from an absent fleet, and a
+    # heartbeat is the one event that proves consumers exist.
+    note_fleet_seen(conn, now)
 
 
 def unpublish_worker(conn, pool, tier, worker):
