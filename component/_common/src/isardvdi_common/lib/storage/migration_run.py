@@ -960,8 +960,13 @@ class MigrationRunner:
     def _skip_release(self, item):
         # dst == src: there is no separate source to delete — move_delete would
         # destroy the live disk in place. The disk was never moved (so never set
-        # to maintenance); just mark it released.
+        # to maintenance), but its parent may well have been: a rebase repoints
+        # this child at the parent's new backing file and claims the row to do
+        # it. Releasing without dropping that claim leaves a dead task id on a
+        # ready disk, so restore runs here too — with no recorded original it
+        # only ever clears a claim that is ours.
         self._set(item, state=MigrationItemState.RELEASED.value)
+        self._restore_storage_status(item)
         self._audit(item, "in_place")
 
     def _terminalize_tree_failure(self, item):

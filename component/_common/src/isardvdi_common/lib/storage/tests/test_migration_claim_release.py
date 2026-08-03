@@ -72,3 +72,30 @@ def test_untouched_disk_is_not_written_at_all():
         _runner()._restore_storage_status(item)
 
     storage.update_document.assert_not_called()
+
+
+def test_skip_release_drops_the_claim_a_rebase_left_on_an_in_place_disk():
+    """The path the live run exposed: dst == src, so the move is skipped and the
+    disk goes straight to released -- but its parent moved, so a rebase ran and
+    claimed the row. Marking it released without dropping that claim leaves a
+    dead task id on a ready disk."""
+    runner = _runner()
+    item = {
+        "storage_id": "s-inplace",
+        "rebase_task_id": "t-rebase",
+        "storage_orig_status": None,
+    }
+    recorded = []
+    with patch(
+        "isardvdi_common.lib.storage.migration_run.Storage"
+    ) as storage, patch.object(
+        MigrationRunner, "_set", lambda self, it, **kw: recorded.append(kw)
+    ), patch.object(
+        MigrationRunner, "_audit", lambda self, it, result: recorded.append(result)
+    ):
+        storage.return_value.task = "t-rebase"
+        runner._skip_release(item)
+
+    assert "in_place" in recorded, "the audit record must still say it was in place"
+    storage.update_document.assert_called_once()
+    assert storage.update_document.call_args[0][1]["task"] is None
