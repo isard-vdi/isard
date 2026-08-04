@@ -106,7 +106,12 @@ def test_a_bin_copy_whose_parent_survives_is_kept():
 
 
 def test_a_live_disk_is_never_dragged_in():
-    """Only copies already inside a bin cascade; a live child never does."""
+    """A live child of a removed parent should not exist in the first place.
+
+    ``set_maintenance`` refuses any op on a disk that has children, so this is
+    an incoherence rather than a case to handle. The cascade leaves it alone so
+    the evidence survives for whoever has to explain it.
+    """
     parent = "/isard/groups/parent.qcow2"
     live_child = "/isard/groups/child.qcow2"
     deps = _deps({parent: None, live_child: parent})
