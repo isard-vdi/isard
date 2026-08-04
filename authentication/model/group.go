@@ -20,8 +20,8 @@ type Group struct {
 	ExternalGID   string `rethinkdb:"external_gid"`
 }
 
-func (g *Group) GenerateNameExternal(prv string) {
-	g.Name = fmt.Sprintf("%s_%s_%s", prv, g.ExternalAppID, g.ExternalGID)
+func (g *Group) GenerateNameExternal(label string) {
+	g.Name = fmt.Sprintf("[%s] %s", label, g.ExternalGID)
 }
 
 func (g *Group) SameExternal(other *Group) bool {

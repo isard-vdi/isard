@@ -161,13 +161,11 @@ $(document).ready(function () {
                     domains = ""
 
                     if (full.authentication) {
-                        const providers = [
-                            { key: 'local', label: 'Local' },
-                            { key: 'google', label: 'Google' },
-                            { key: 'saml', label: 'SAML' },
-                            { key: 'ldap', label: 'LDAP' },
-                        ];
-                        for (const { key, label } of providers) {
+                        const providers = ['local', 'google', 'saml', 'ldap'];
+                        for (const key of providers) {
+                            const label = escapeHtmlText(
+                                authProviderLabel(key, full.authentication, getAuthProvidersGlobal())
+                            );
                             const provider = full.authentication[key];
                             const restriction = provider?.email_domain_restriction;
                             if (
@@ -750,8 +748,16 @@ function actionsCategoryDetail() {
           // Fill form with current saved data
           fillFormData($(modal + " form"), { authentication });
 
+          // Show the resolved provider name in each panel title
+          $.each(["local", "google", "saml", "ldap"], function (_, provider) {
+            $(modal + " #" + provider + "-panel .provider-title").text(
+              authProviderLabel(provider, authentication, providers)
+            );
+          });
+
           // Apply provider-level constraints
-          $.each(providers, function (provider, enabled) {
+          $.each(providers, function (provider, providerEntry) {
+            var enabled = providerEntry && providerEntry.enabled === true;
             var $panel = $(modal + " #" + provider + "-panel");
             var $configSource = $panel.find("select[name$='[config_source]']");
             var configSourceValue = authentication?.[provider]?.config_source

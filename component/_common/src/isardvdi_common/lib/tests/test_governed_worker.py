@@ -12,9 +12,12 @@ never resumed when it cleared.
 
 import fnmatch
 import json
+import time
 
 import pytest
 from isardvdi_common.lib import governed_worker as gw
+from isardvdi_common.lib import governor_counters as gcnt
+from isardvdi_common.lib import queue_coverage as qc
 from rq.exceptions import DequeueTimeout
 
 # --- is_heavy_queue: pure name predicate (heavy tiers only) ------------------
@@ -39,6 +42,12 @@ from rq.exceptions import DequeueTimeout
         # foreground lanes are never heavy
         ("storage.pool-a.interactive", False),
         ("storage.pool-a.standard", False),
+        # legacy lanes classify as the tier they map to: low -> maintenance
+        # (heavy), high -> interactive (not), default -> the foreground default
+        ("storage.pool-a.low", True),
+        ("storage.pool-a.catA.low", True),
+        ("storage.pool-a.high", False),
+        ("storage.pool-a.default", False),
         # non-storage / malformed
         ("maintenance", False),  # no storage. prefix -> not a real lane
         ("storage.pool-a.maintenanceish", False),  # tier must match exactly
@@ -71,6 +80,11 @@ def test_is_heavy_queue(name, expected):
         # foreground lanes never defer
         ("storage.pool-a.interactive", False),
         ("storage.pool-a.standard", False),
+        # legacy lanes defer as the tier they map to
+        ("storage.pool-a.low", True),
+        ("storage.pool-a.catA.low", True),
+        ("storage.pool-a.high", False),
+        ("storage.pool-a.default", False),
         # non-storage / malformed
         ("reclaim", False),
         (None, False),
@@ -121,9 +135,21 @@ class _FakeRedis:
         self._lists.setdefault(key, []).extend(vals)
         return len(self._lists[key])
 
+    def lpush(self, key, *vals):
+        lst = self._lists.setdefault(key, [])
+        for v in vals:
+            lst.insert(0, v)
+        return len(lst)
+
     def zadd(self, key, mapping):
         self._zsets.setdefault(key, {}).update(mapping)
         return len(mapping)
+
+    def zscore(self, key, member):
+        return self._zsets.get(key, {}).get(member)
+
+    def zrem(self, key, member):
+        return 1 if self._zsets.get(key, {}).pop(member, None) is not None else 0
 
     def zrange(self, key, start, end):
         members = [
@@ -180,6 +206,18 @@ class _FakeRedis:
         if mapping:
             h.update({k: str(v) for k, v in mapping.items()})
         return len(mapping or {})
+
+    def hincrby(self, key, field, amount=1):
+        h = self._hashes.setdefault(key, {})
+        h[field] = str(int(h.get(field, 0)) + amount)
+        return int(h[field])
+
+    def incr(self, key):
+        self._kv[key] = str(int(self._kv.get(key, 0)) + 1)
+        return int(self._kv[key])
+
+    def mget(self, keys):
+        return [self._kv.get(k) for k in keys]
 
     def hgetall(self, key):
         return dict(self._hashes.get(key, {}))
@@ -244,28 +282,31 @@ class _FakeRedis:
 
 
 class _FakePipeline:
-    """Minimal pipeline supporting the exact ops ``_publish_status`` issues
-    (``hset(mapping=)`` + ``expire``), applied on ``execute``."""
+    """Records queued commands and replays them against the parent _FakeRedis on
+    ``execute`` — matches redis-py's ``with conn.pipeline() as pipe:`` usage."""
 
     def __init__(self, redis):
         self._redis = redis
         self._ops = []
 
-    def hset(self, key, mapping=None):
-        self._ops.append(("hset", key, mapping))
+    def __enter__(self):
         return self
 
-    def expire(self, key, ttl):
-        self._ops.append(("expire", key, ttl))
-        return self
+    def __exit__(self, *exc):
+        return False
+
+    def __getattr__(self, name):
+        def _queue(*args, **kwargs):
+            self._ops.append((name, args, kwargs))
+            return self
+
+        return _queue
 
     def execute(self):
-        out = []
-        for op in self._ops:
-            if op[0] == "hset":
-                out.append(self._redis.hset(op[1], mapping=op[2]))
-            else:
-                out.append(self._redis.expire(op[1], op[2]))
+        out = [
+            getattr(self._redis, name)(*args, **kwargs)
+            for (name, args, kwargs) in self._ops
+        ]
         self._ops = []
         return out
 
@@ -273,10 +314,25 @@ class _FakePipeline:
 class _Q:
     def __init__(self, name):
         self.name = name
+        self.key = f"rq:queue:{name}"
         self.pushed = None
 
     def push_job_id(self, job_id, at_front=False):
         self.pushed = (job_id, at_front)
+
+
+class _RedisQ(_Q):
+    """``_Q`` whose ``push_job_id`` really LPUSHes onto the fake Redis list, so
+    the lane-GC's LLEN check sees the pushed-back job (RQ's push_job_id is a
+    bare LPUSH — it never re-registers the lane in ``rq:queues``)."""
+
+    def __init__(self, connection, name):
+        super().__init__(name)
+        self._conn = connection
+
+    def push_job_id(self, job_id, at_front=False):
+        super().push_job_id(job_id, at_front=at_front)
+        self._conn.lpush(self.key, job_id)
 
 
 class _Job:
@@ -370,6 +426,7 @@ def _worker(
     w.name = "test-worker"
     w._last_job_id = None
     w._last_job_action = None
+    w._deferring = False
     # Phase-2 multitenancy is a structural env switch; default OFF (P1 flat path)
     # in tests unless a test flips it. _floor = ungoverned bg-floor mode.
     w.multitenancy = False
@@ -780,6 +837,40 @@ def test_dequeue_reserves_slot_for_maintenance_job(tmp_path):
     job, queue = w.dequeue_job_and_maintain_ttl(10)
     assert (job.id, queue.name) == ("j1", "storage.p.maintenance")
     assert r.scard(gw.HEAVY_RUNNING_KEY) == 1
+
+
+def test_dequeue_reserves_slot_for_legacy_low_lane_job(tmp_path):
+    # A pre-upgrade / direct-enqueue job left on the legacy ``low`` lane is the
+    # same heavy work a ``maintenance`` job is, so it must take a heavy slot
+    # instead of running ungoverned beside the capped ones.
+    r = _FakeRedis()
+    qc = _FakeQueueClass([(_Job("j1"), _Q("storage.p.low"))])
+    w = _worker(
+        r,
+        _psi_file(tmp_path, "cpu", 1.0),
+        _psi_file(tmp_path, "io", 1.0),
+        max_heavy=2,
+        queue_class=qc,
+    )
+    w._ordered_queues = [_Q("storage.p.low")]
+    job, queue = w.dequeue_job_and_maintain_ttl(10)
+    assert (job.id, queue.name) == ("j1", "storage.p.low")
+    assert r.scard(gw.HEAVY_RUNNING_KEY) == 1
+
+
+def test_dequeue_defers_legacy_low_lane_under_pressure(tmp_path):
+    low, inter = _Q("storage.p.low"), _Q("storage.p.interactive")
+    qc = _FakeQueueClass([(_Job("i1"), inter)])
+    w = _worker(
+        _FakeRedis(),
+        _psi_file(tmp_path, "cpu", 99.0),
+        _psi_file(tmp_path, "io", 1.0),
+        queue_class=qc,
+    )
+    w._ordered_queues = [low, inter]
+    job, queue = w.dequeue_job_and_maintain_ttl(10)
+    assert queue is inter
+    assert "storage.p.low" not in qc.calls[0]
 
 
 def test_dequeue_pushes_back_at_front_when_reserve_denied(tmp_path):
@@ -1696,6 +1787,72 @@ def test_admit_maintenance_deferred_pushes_back():
     assert r.scard(gw.HEAVY_RUNNING_KEY) == 0
 
 
+# --- push-back must keep the lane discoverable (lane-GC race) ---------------
+#
+# A job popped but not yet admitted is in NO list and NO registry, so a peer
+# worker's boot reconcile sees the lane as drained and SREMs it from rq:queues.
+# RQ's push_job_id is a bare LPUSH, so without re-registering the lane the
+# denied job would sit on a queue no worker ever discovers again.
+
+
+def test_admit_fair_cap_denial_reregisters_lane():
+    r = _FakeRedis()
+    r.sadd(gw.category_running_key("P", "catA"), "x")  # at cap 1
+    w = _mt_worker(r)
+    w.gov_category_max_inflight = {"catA": 1}
+    q = _Q("storage.P.catA.bulk")  # lane already SREM'd by a peer's lane GC
+    assert w._admit(_Job("j1"), q, defer_bg=False) is False
+    assert q.pushed == ("j1", True)
+    assert "rq:queue:storage.P.catA.bulk" in r.smembers("rq:queues")
+
+
+def test_admit_fair_defer_denial_reregisters_lane():
+    r = _FakeRedis()
+    w = _mt_worker(r)
+    q = _Q("storage.P.catA.maintenance")
+    assert w._admit(_Job("j1"), q, defer_bg=True) is False
+    assert "rq:queue:storage.P.catA.maintenance" in r.smembers("rq:queues")
+
+
+def test_admit_flat_defer_denial_reregisters_lane():
+    r = _FakeRedis()
+    w = _worker(r)  # non-multitenancy: flat deferrable path
+    q = _Q("storage.P.maintenance")
+    assert w._admit(_Job("j1"), q, defer_bg=True) is False
+    assert "rq:queue:storage.P.maintenance" in r.smembers("rq:queues")
+
+
+def test_admit_flat_heavy_denial_reregisters_lane(tmp_path):
+    r = _FakeRedis({"other"})  # heavy set full at max_heavy=1
+    w = _worker(
+        r,
+        cpu_path=_psi_file(tmp_path, "cpu", 1.0),
+        io_path=_psi_file(tmp_path, "io", 1.0),
+        max_heavy=1,
+    )
+    q = _Q("storage.P.maintenance")
+    assert w._admit(_Job("j1"), q, defer_bg=False) is False
+    assert "rq:queue:storage.P.maintenance" in r.smembers("rq:queues")
+
+
+def test_pushed_back_job_survives_a_concurrent_lane_gc():
+    r = _FakeRedis()
+    r.sadd("rq:queues", "rq:queue:storage.P.catA.bulk")
+    r.sadd(gw.category_running_key("P", "catA"), "x")  # at cap 1
+    w = _mt_worker(r)
+    w._fair_targets = {("P", "bulk")}
+    w.gov_category_max_inflight = {"catA": 1}
+    # peer worker's boot reconcile: the in-flight job is in no list/registry, so
+    # the lane looks drained and is dropped from rq:queues
+    w._gc_drained_category_lanes()
+    assert "rq:queue:storage.P.catA.bulk" not in r.smembers("rq:queues")
+    q = _RedisQ(r, "storage.P.catA.bulk")
+    assert w._admit(_Job("j1"), q, defer_bg=False) is False
+    assert w._discover_fair_queues() == {("P", "bulk"): ["catA"]}
+    w._gc_drained_category_lanes()  # job is back on the list -> lane kept
+    assert "rq:queue:storage.P.catA.bulk" in r.smembers("rq:queues")
+
+
 def test_admit_kill_switch_runs_fair_tier_ungoverned():
     r = _FakeRedis()
     w = _mt_worker(r)
@@ -1930,3 +2087,109 @@ def test_execute_job_stamps_last_job_id_and_action(monkeypatch):
     # even if the work-horse is then SIGKILLed by a poison job.
     assert w._last_job_id == "task-xyz"
     assert w._last_job_action == "convert"
+
+
+# --- defer-event counter -----------------------------------------------------
+#
+# ``deferring`` in the status hash is a point-in-time gauge: a worker that
+# defers and resumes between polls reads as "not deferring" in every sample an
+# operator (or a 15m-sustained alert rule) ever sees. These pin the durable
+# EDGE counter that makes such a storm visible.
+
+
+def _psi_write(path, value):
+    path.write_text(f"some avg10={value} avg60=0 avg300=0 total=0\n")
+
+
+def test_defer_edge_counted_once_per_storm(tmp_path):
+    r = _FakeRedis()
+    w = _worker(r, _psi_file(tmp_path, "cpu", 99.0), _psi_file(tmp_path, "io", 1.0))
+    assert w._defer_background() is True
+    assert w._defer_background() is True  # same uninterrupted storm
+    doc = gcnt.read_defer(r)
+    assert doc["total"] == 1
+    assert doc["by_reason"] == {"psi": 1}
+    assert doc["last_worker"] == "test-worker"
+    assert doc["recent"] == 1
+
+
+def test_defer_oscillation_counts_every_edge(tmp_path):
+    r = _FakeRedis()
+    cpu = tmp_path / "cpu"
+    io = _psi_file(tmp_path, "io", 1.0)
+    _psi_write(cpu, 1.0)
+    w = _worker(r, str(cpu), io)
+    for value in (99.0, 1.0, 99.0, 1.0, 99.0):
+        _psi_write(cpu, value)
+        w._defer_background()
+    # three separate storms an oscillation-blind gauge would never show
+    assert gcnt.read_defer(r)["total"] == 3
+
+
+def test_no_pressure_records_no_defer():
+    r = _FakeRedis()
+    w = _worker(r)
+    assert w._defer_background() is False
+    assert gcnt.read_defer(r) == gcnt.empty_counters()
+
+
+def test_heavy_cap_defer_is_counted_as_at_cap():
+    r = _FakeRedis({"x"})
+    _JobClass.table = {"x": "started"}  # genuine at-cap: the slot's job is live
+    w = _worker(r, max_heavy=1)
+    assert w._defer_background() is True
+    assert gcnt.read_defer(r)["by_reason"] == {"at_cap": 1}
+
+
+def test_floor_worker_never_counts_a_defer(tmp_path):
+    r = _FakeRedis()
+    w = _worker(r, _psi_file(tmp_path, "cpu", 99.0), _psi_file(tmp_path, "io", 1.0))
+    w._floor = True  # the ungoverned bg-floor never defers, so nothing to count
+    assert w._defer_background() is False
+    assert gcnt.read_defer(r)["total"] == 0
+
+
+# --- live coverage heartbeat (Task 4): _served_lanes / _coverage_beat / stop --
+#
+# Decoupled from the dequeue poll -- these hit _coverage_beat/_served_lanes/
+# _stop_coverage_heartbeat directly, never the live thread's timing (flaky).
+
+
+def test_served_lanes_dedupes_and_drops_non_storage():
+    r = _FakeRedis()
+    w = _worker(r)
+    w._ordered_queues = _ordered(
+        [
+            "storage.p1.interactive",
+            "storage.p1.standard",
+            "storage.p1.interactive",  # duplicate -> deduped
+            "notifier.default",  # non-storage -> dropped
+        ]
+    )
+    assert w._served_lanes() == [("p1", "interactive"), ("p1", "standard")]
+
+
+def test_coverage_beat_publishes_all_served_lanes():
+    r = _FakeRedis()
+    w = _worker(r)
+    w.name = "w-cov"
+    w._ordered_queues = _ordered(["storage.p1.interactive", "storage.p1.standard"])
+    before = time.time()
+    w._coverage_beat()
+    for tier in ("interactive", "standard"):
+        key = qc.cov_key("p1", tier)
+        score = r.zscore(key, "w-cov")
+        assert score is not None
+        assert score >= before
+        assert r._expires[key] <= qc.COV_TTL_S
+
+
+def test_stop_unpublishes_all_lanes():
+    r = _FakeRedis()
+    w = _worker(r)
+    w.name = "w-cov"
+    w._ordered_queues = _ordered(["storage.p1.interactive", "storage.p1.standard"])
+    w._coverage_beat()
+    w._stop_coverage_heartbeat()
+    for tier in ("interactive", "standard"):
+        assert r.zscore(qc.cov_key("p1", tier), "w-cov") is None

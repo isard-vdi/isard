@@ -8,7 +8,14 @@ future re-order under that prefix surfaces immediately.
 """
 
 from api.routes.tests.helpers import MockJWT
+from api.schemas.admin.stats import (
+    StatsKindDesktop,
+    StatsKindHypervisor,
+    StatsKindTemplate,
+    StatsKindUser,
+)
 from api.services.error import Error
+from fastapi.responses import JSONResponse
 
 # ══════════════════════════════════════════════════════════════════════════
 #  GET /stats/desktops/status, /stats/domains/status
@@ -135,6 +142,106 @@ class TestStatsKind:
             url="/admin/items/stats/users", jwt=MockJWT(role_id="user")
         )
         assert response.status_code == 403
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  GET /stats/{kind} — wire payload
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _pydantic_bytes(model, rows, **dump):
+    """The bytes the per-row Pydantic round-trip used to put on the wire."""
+    return JSONResponse(
+        content=[model(**row).model_dump(mode="json", **dump) for row in rows]
+    ).body
+
+
+class TestStatsKindPayload:
+    """The inventories serialise the plucked rows straight to JSON. Pin
+    the bytes against the Pydantic round-trip they replaced, and pin the
+    two shapes the Go collector's generated decoder cannot accept: a
+    ``null`` value, and a row short of a required field."""
+
+    def _get(self, monkeypatch, test_client, rows, url):
+        monkeypatch.setattr(
+            "api.routes.admin.stats.AdminStatsService.get_kind",
+            staticmethod(lambda kind: rows),
+        )
+        return test_client(url=url, jwt=MockJWT(role_id="admin"))
+
+    def test_users_bytes_match_and_drop_nulls(self, monkeypatch, test_client):
+        rows = [
+            {"id": "u1", "role": "admin", "category": "c1", "group": "g1"},
+            # Orphan rows: a null optional, and the same field absent.
+            {"id": "u2", "role": None, "category": "c1", "group": "g1"},
+            {"id": "u3", "category": "c1"},
+        ]
+        response = self._get(monkeypatch, test_client, rows, "/admin/items/stats/users")
+        assert response.status_code == 200
+        assert response.content == _pydantic_bytes(
+            StatsKindUser, rows, exclude_none=True
+        )
+        assert b"null" not in response.content
+
+    def test_users_row_without_id_is_dropped(self, monkeypatch, test_client):
+        rows = [{"id": "u1", "role": "admin"}, {"role": "admin"}, {"id": None}]
+        response = self._get(monkeypatch, test_client, rows, "/admin/items/stats/users")
+        assert response.status_code == 200
+        assert response.json() == [{"id": "u1", "role": "admin"}]
+
+    def test_desktops_bytes_match(self, monkeypatch, test_client):
+        rows = [{"id": "d1", "user": "u1"}, {"id": "d2", "user": "u2"}]
+        response = self._get(
+            monkeypatch, test_client, rows, "/admin/items/stats/desktops"
+        )
+        assert response.status_code == 200
+        assert response.content == _pydantic_bytes(StatsKindDesktop, rows)
+
+    def test_desktops_row_without_user_is_dropped(self, monkeypatch, test_client):
+        rows = [{"id": "d1", "user": "u1"}, {"id": "d2"}, {"id": "d3", "user": None}]
+        response = self._get(
+            monkeypatch, test_client, rows, "/admin/items/stats/desktops"
+        )
+        assert response.status_code == 200
+        assert response.json() == [{"id": "d1", "user": "u1"}]
+
+    def test_templates_bytes_match_and_drop_rows_without_id(
+        self, monkeypatch, test_client
+    ):
+        rows = [{"id": "t1"}, {"id": "t2"}]
+        response = self._get(
+            monkeypatch, test_client, rows, "/admin/items/stats/templates"
+        )
+        assert response.status_code == 200
+        assert response.content == _pydantic_bytes(StatsKindTemplate, rows)
+
+        response = self._get(
+            monkeypatch, test_client, rows + [{}], "/admin/items/stats/templates"
+        )
+        assert response.status_code == 200
+        assert response.json() == rows
+
+    def test_hypervisors_bytes_match_and_drop_incomplete_rows(
+        self, monkeypatch, test_client
+    ):
+        rows = [
+            {"id": "h1", "status": "Online", "only_forced": False},
+            {"id": "h2", "status": "Offline", "only_forced": True},
+        ]
+        response = self._get(
+            monkeypatch, test_client, rows, "/admin/items/stats/hypervisors"
+        )
+        assert response.status_code == 200
+        assert response.content == _pydantic_bytes(StatsKindHypervisor, rows)
+
+        response = self._get(
+            monkeypatch,
+            test_client,
+            rows + [{"id": "h3", "status": "Online"}],
+            "/admin/items/stats/hypervisors",
+        )
+        assert response.status_code == 200
+        assert response.json() == rows
 
 
 # ══════════════════════════════════════════════════════════════════════════

@@ -26,23 +26,12 @@ from api.schemas.common import ErrorResponse
 from api.schemas.groups import GroupUsersResponse
 from api.services.error import Error
 from api.services.groups import GroupsService
-from cachetools import cached
 from fastapi import Depends, Path, Request
 from fastapi.responses import JSONResponse
-from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 tag = "groups"
 
-# Named cache so writers can invalidate (and tests can clear between cases).
-group_users_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=20, ttl=10)
 
-
-def clear_group_users_cache() -> None:
-    """Invalidate the per-group user-list cache after group membership changes."""
-    group_users_cache.clear()
-
-
-@cached(cache=group_users_cache)
 @advanced_router.get(
     "/item/group/{group_id}/get-users",
     response_model=GroupUsersResponse,

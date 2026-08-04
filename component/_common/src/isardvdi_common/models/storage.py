@@ -506,9 +506,8 @@ class Storage(RethinkCustomBase):
         queue_tiers.retier_dependents(kwargs.get("dependents"), category)
         # Fail-fast: refuse to enqueue on a lane with no live consumer (any
         # tier, scoped to the owner's category — a task nothing can drain would
-        # strand forever), so the caller can tell the user the pool is
-        # unavailable instead of the task hanging. The foreground backlog
-        # overload gate stays opt-in (shed=True).
+        # strand forever) OR an overloaded foreground lane, so the caller can
+        # tell the user the pool is unavailable/busy instead of the task hanging.
         queue_coverage.enforce_shed(Task._redis, kwargs)
         if "blocking" in kwargs:
             blocking = kwargs.pop("blocking")
@@ -1005,7 +1004,18 @@ class Storage(RethinkCustomBase):
             },
             dependents=[
                 {
-                    "queue": f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}",
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": Storage._maintenance_release_statuses(
+                                self.id, [domain.id for domain in self.domains]
+                            ),
+                        },
+                    },
+                },
+                {
+                    "queue": f"storage.{StoragePool.get_best_for_action('resize', path=self.directory_path).id}.{priority}",
                     "task": "qemu_img_info_backing_chain",
                     "job_kwargs": {
                         "kwargs": {
@@ -1019,11 +1029,33 @@ class Storage(RethinkCustomBase):
                             "task": "storage_update",
                         }
                     ],
-                }
+                },
             ],
         )
 
         return self.task
+
+    @staticmethod
+    def _maintenance_release_statuses(storage_id, domain_ids):
+        """Terminal branches that release a storage from ``maintenance``.
+
+        An in-place operation puts the storage (and its domains) into
+        maintenance before enqueuing. Without a terminal step that names the
+        failure outcomes, a chain that failed or was cancelled simply stops and
+        the row stays in maintenance for ever - the disk is untouched but the
+        user can no longer do anything with it. The success side is owned by the
+        chain's own update, so only the release branches live here.
+        """
+        return {
+            "failed": {
+                "ready": {"storage": [storage_id]},
+                "Stopped": {"domain": domain_ids},
+            },
+            "canceled": {
+                "ready": {"storage": [storage_id]},
+                "Stopped": {"domain": domain_ids},
+            },
+        }
 
     def virt_win_reg(
         self,
@@ -1735,28 +1767,39 @@ class Storage(RethinkCustomBase):
         # exactly) and root the chain on the first storage task.
         from isardvdi_common.models.domain import Domain
 
-        # Pre-flight: refuse a disk-create whose pool has no live consumer
-        # BEFORE mutating the domain/storage state, and mark the domain Failed
-        # with a category-scoped reason (the storage analog of "no hypervisors
+        # Pre-flight: refuse a disk-create whose pool has no live consumer OR
+        # whose foreground lane is overloaded, BEFORE mutating the
+        # domain/storage state, and mark the domain Failed with a
+        # category-scoped reason (the storage analog of "no hypervisors
         # online") so the desktop shows why instead of stranding in
-        # CreatingDisk. check_no_consumer fails open on coverage uncertainty,
-        # so a worker-restart blip never falsely fails a desktop.
+        # CreatingDisk or hitting the same 429 later at enforce_shed.
+        # check_shed fails open on coverage uncertainty, so a worker-restart
+        # blip never falsely fails a desktop.
         create_queue = queue_tiers.retier_queue(
             f"storage.{self.pool.id}.{priority}",
             "create",
             queue_tiers.resolve_category(self.category),
         )
         try:
-            queue_coverage.check_no_consumer(Task._redis, create_queue)
-        except Error as no_consumer:
+            queue_coverage.check_shed(Task._redis, create_queue)
+        except Error as shed_error:
             if Domain.exists(domain_id):
                 domain = Domain(domain_id)
                 domain.status = "Failed"
-                domain.detail = (
-                    f"desktop disk not created: storage pool {self.pool.id} "
-                    "has no online storage worker"
+                description_code = getattr(shed_error, "error", {}).get(
+                    "description_code"
                 )
-            raise no_consumer
+                if description_code == "storage_overloaded_retry_later":
+                    domain.detail = (
+                        f"desktop disk not created: storage pool {self.pool.id} "
+                        "is temporarily overloaded, please retry"
+                    )
+                else:
+                    domain.detail = (
+                        f"desktop disk not created: storage pool {self.pool.id} "
+                        "has no online storage worker"
+                    )
+            raise shed_error
 
         if Domain.exists(domain_id):
             _d = Domain(domain_id)

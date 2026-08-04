@@ -2144,6 +2144,15 @@ function renderStorageActionsButton(data) {
                     data['hardware-interfaces'] = [];
                 }
                 data=parse_desktop(JSON.unflatten(parseViewersOptions(data)));
+
+                if (data.hardware) {
+                    $.each(["isos", "floppies"], function(_, media) {
+                        data.hardware[media] = $('#modalEdit #m-' + media + ' option:selected').map(function() {
+                            return { id: this.value, name: this.text };
+                        }).get();
+                    });
+                }
+
                 var notice = new PNotify({
                     text: 'Updating selected item...',
                     hide: false,

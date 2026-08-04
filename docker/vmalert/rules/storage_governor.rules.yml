@@ -84,20 +84,43 @@ groups:
       # Reserved tiers (interactive/standard) carry the `_pool` sentinel as
       # category; fair tiers (bulk/background) carry a real category id. One
       # rule, per-tier thresholds selected by the series `tier` label via `or`:
-      #   interactive>300s, standard>900s, bulk>7200s (between std and bg),
-      #   background>21600s. A single rule keeps the alertname stable and avoids
+      #   interactive>300s, standard>900s, template/bulk>7200s,
+      #   maintenance/reclaim>14400s, background>21600s. Every tier needs a
+      #   branch: a series matching none of them can wedge indefinitely without
+      #   ever raising this alert, which is what left the three governed tiers
+      #   (template, maintenance, reclaim) - the ones most likely to stall,
+      #   since they are the deferrable and capped ones - with no age SLA at
+      #   all. A single rule keeps the alertname stable and avoids
       #   duplicate-rule lint on identical static label sets.
       - alert: OldestQueuedAgeHigh
         expr: |
           (isardvdi_storage_governor_oldest_queued_age_seconds{tier="interactive"} > 300)
           or (isardvdi_storage_governor_oldest_queued_age_seconds{tier="standard"} > 900)
+          or (isardvdi_storage_governor_oldest_queued_age_seconds{tier="template"} > 7200)
           or (isardvdi_storage_governor_oldest_queued_age_seconds{tier="bulk"} > 7200)
+          or (isardvdi_storage_governor_oldest_queued_age_seconds{tier="maintenance"} > 14400)
+          or (isardvdi_storage_governor_oldest_queued_age_seconds{tier="reclaim"} > 14400)
           or (isardvdi_storage_governor_oldest_queued_age_seconds{tier="background"} > 21600)
         labels:
           severity: warning
         annotations:
           summary: "Oldest queued job exceeds its tier SLA"
           description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} head job has been queued for {{ $value }}s, past its tier SLA (interactive 300s / standard 900s / bulk 7200s / background 21600s). Inspect head-task drawer and consumer coverage."
+
+      # --- Jobs parked on a queue nothing consumes ---------------------------
+      # The `core` queue has had no worker since the finalize step moved into
+      # change-handler, so anything QUEUED there is by definition stuck: it is
+      # counted as pending work and blocks every later operation on its
+      # storage. A healthy install shows a transient depth that drains within
+      # seconds, so a sustained non-zero depth means chains are being stranded.
+      - alert: ConsumerlessQueueBacklog
+        expr: isardvdi_storage_governor_queue_depth{queue=~"core.*"} > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Jobs parked on a queue with no consumer"
+          description: "Queue {{ $labels.queue }} has held {{ $value }} job(s) for 15m. Nothing consumes it, so these will not drain on their own and the storages they belong to cannot start new work."
 
       # --- Hung STARTED task holding a slot (catalog #2b) --------------------
       - alert: StartedJobStuck
@@ -322,3 +345,31 @@ groups:
         annotations:
           summary: "Storage governor lane scan truncated"
           description: "The bounded lane scan has been hitting its cap for 30m ({{ $value }} lanes truncated); the view is not seeing every lane. Narrow by pool/category or raise the cap deliberately; investigate a lane explosion."
+
+      # Shed and defer are DECISIONS, not states: a rejection lasts microseconds
+      # and a pressure defer flaps, so the gauges elsewhere in this file almost
+      # always sample between them. These fire on the counted events instead.
+      - alert: StorageGovernorShedStorm
+        expr: increase(isardvdi_storage_governor_events_total{kind="shed"}[15m]) > 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Storage governor is shedding requests ({{ $labels.reason }})'
+          description: >-
+            {{ $value | printf "%.0f" }} storage requests rejected in 15m on
+            {{ $labels.reason }}. Users see these as 429s. Either a lane lost its
+            consumer or the pool is genuinely saturated — check queue depth and
+            worker_up for the tier in isardvdi_storage_governor_events_tier_total.
+
+      - alert: StorageGovernorDeferStorm
+        expr: increase(isardvdi_storage_governor_events_total{kind="defer"}[15m]) > 200
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Storage workers are deferring background work continuously'
+          description: >-
+            {{ $value | printf "%.0f" }} defer events in 15m. Sustained node
+            pressure is holding maintenance and reclaim work back, so that work
+            is not draining even though the workers are alive.

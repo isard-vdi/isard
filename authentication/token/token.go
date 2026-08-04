@@ -20,6 +20,7 @@ const (
 	TypeLogin                             Type = "login"
 	TypeCallback                          Type = "callback"
 	TypeRegister                          Type = "register"
+	TypeReRegister                        Type = "re-register"
 	TypeExternal                          Type = "external"
 	TypeDisclaimerAcknowledgementRequired Type = "disclaimer-acknowledgement-required"
 	TypeEmailVerificationRequired         Type = "email-verification-required"
@@ -91,6 +92,22 @@ type RegisterClaims struct {
 
 func (c RegisterClaims) Validate() error {
 	if c.Type != TypeRegister {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
+type ReRegisterClaims struct {
+	TypeClaims
+	Provider   string `json:"provider"`
+	UserID     string `json:"user_id"`
+	CategoryID string `json:"category_id"`
+	RoleID     string `json:"role_id"`
+}
+
+func (c ReRegisterClaims) Validate() error {
+	if c.Type != TypeReRegister {
 		return ErrInvalidTokenType
 	}
 
@@ -269,6 +286,7 @@ func GetTokenType(ss string) (Type, error) {
 	switch claims.Type {
 	case TypeCallback,
 		TypeRegister,
+		TypeReRegister,
 		TypeExternal,
 		TypeDisclaimerAcknowledgementRequired,
 		TypeEmailVerificationRequired,

@@ -43,6 +43,23 @@ func (a *Authentication) registerUser(ctx context.Context, u *model.User) error 
 	return nil
 }
 
+func (a *Authentication) registerGroups(ctx context.Context, g *model.Group, secondary []*model.Group) error {
+	for _, group := range append(secondary, g) {
+		gExists, err := group.Exists(ctx, a.DB)
+		if err != nil {
+			return fmt.Errorf("check if group exists: %w", err)
+		}
+
+		if !gExists {
+			if err := a.registerGroup(ctx, group); err != nil {
+				return fmt.Errorf("auto register group: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (a *Authentication) registerGroup(ctx context.Context, g *model.Group) error {
 	rsp, err := a.API.AdminCreateGroup(
 		ctx,

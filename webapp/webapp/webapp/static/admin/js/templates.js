@@ -1236,6 +1236,15 @@ function renderDisplay(data){
                 // from the select (select2 keeps the underlying <select> in sync).
                 data['reservables-vgpus'] = $('#modalEdit #reservables-vgpus').val() || []
                 data=parse_desktop(JSON.unflatten(parseViewersOptions(data)));
+
+                if (data.hardware) {
+                    $.each(["isos", "floppies"], function(_, media) {
+                        data.hardware[media] = $('#modalEdit #m-' + media + ' option:selected').map(function() {
+                            return { id: this.value, name: this.text };
+                        }).get();
+                    });
+                }
+
                 var notice = new PNotify({
                     text: 'Updating selected item...',
                     hide: false,

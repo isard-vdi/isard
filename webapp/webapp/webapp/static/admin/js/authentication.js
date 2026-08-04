@@ -350,6 +350,9 @@ function renderProviderDataTable(provider) {
             "type": 'GET',
             "dataSrc": function (json) {
                 $(`#${provider}-enabled`).css("color", json["enabled"] ? "green" : "darkgrey");
+                $(`#${provider}_panel .provider-title`).text(
+                    authProviderLabel(provider, null, { [provider]: { name: (json[`${provider}_config`] || {}).name } })
+                );
                 $(`#${provider} .x_content`).toggle(json["enabled"]);
                 $(`#${provider}_panel li.collapse`).find('i')
                 .toggleClass('fa-chevron-up', json["enabled"])

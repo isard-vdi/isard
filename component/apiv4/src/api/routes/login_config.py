@@ -22,10 +22,7 @@
 
 Both endpoints serve the login-page configuration consumed by Vue 2
 (``old-frontend``) and Vue 3 (``component/frontend``). Grouped here per
-the apiv4 skill rule B5 (one resource → one route file). The previous
-split across ``login.py`` (no category) and ``open.py`` (per category)
-forced two writers to clear caches owned by routes/open.py via lazy
-imports — the cache now lives in ``services.login_config_cache``.
+the apiv4 skill rule B5 (one resource → one route file).
 """
 
 import asyncio
@@ -37,8 +34,6 @@ from api.schemas.login import LoginConfigResponse
 from api.services.admin.categories import AdminCategoryService
 from api.services.config import ConfigService
 from api.services.error import Error
-from api.services.login_config_cache import login_config_cache
-from cachetools import cached
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
@@ -82,10 +77,6 @@ async def get_login_config(request: Request):
         )
 
 
-@cached(
-    cache=login_config_cache,
-    key=lambda r, cid: cid,
-)
 @open_router.get(
     "/item/login-config/{category_id}",
     tags=[tag],

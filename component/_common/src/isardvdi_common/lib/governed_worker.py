@@ -53,14 +53,18 @@ it needs no fork handling because the Redis client is already RQ-fork-safe.
 
 import json
 import os
+import threading
 import time
 
+from isardvdi_common.lib import governor_counters
+from isardvdi_common.lib import queue_coverage as qcov
 from isardvdi_common.lib import resource_governor as rg
 from isardvdi_common.lib.queue_tiers import (
     _FAIR_TIERS,
     DEFERRABLE_TIERS,
     HEAVY_TIERS,
     NULL_CATEGORY,
+    effective_tier,
     parse_storage_queue,
 )
 from rq import Worker
@@ -293,11 +297,13 @@ def is_heavy_queue(name):
     deferred under pressure but NOT capped (trivial deletes), so it is not heavy.
 
     Parses the tier segment (handles both the flat ``storage.<pool>.<tier>`` and
-    per-category ``storage.<pool>.<cat>.<tier>`` shapes), so a non-storage name or
-    a non-heavy tier (interactive/standard/bulk/reclaim/legacy) returns False.
+    per-category ``storage.<pool>.<cat>.<tier>`` shapes) through
+    :func:`effective_tier`, so a legacy ``low`` lane counts as the maintenance
+    lane it maps to. A non-storage name or a non-heavy tier
+    (interactive/standard/bulk/reclaim) returns False.
     """
     parsed = parse_storage_queue(name)
-    return parsed is not None and parsed[2] in HEAVY_TIERS
+    return parsed is not None and effective_tier(parsed[2]) in HEAVY_TIERS
 
 
 def is_deferrable_queue(name):
@@ -305,11 +311,12 @@ def is_deferrable_queue(name):
     maintenance / reclaim) — hidden from the dequeue order under node pressure. A
     superset of :func:`is_heavy_queue`: ``reclaim`` defers (a mass-delete / broom
     storm can add IO on discard-heavy backends) but is not counted against the
-    max-heavy cap. Non-storage or non-deferrable tiers (interactive / standard /
-    bulk / legacy) return False.
+    max-heavy cap. The tier segment goes through :func:`effective_tier`, so a
+    legacy ``low`` lane defers as the maintenance lane it maps to. Non-storage or
+    non-deferrable tiers (interactive / standard / bulk) return False.
     """
     parsed = parse_storage_queue(name)
-    return parsed is not None and parsed[2] in DEFERRABLE_TIERS
+    return parsed is not None and effective_tier(parsed[2]) in DEFERRABLE_TIERS
 
 
 class GovernedWorker(Worker):
@@ -351,6 +358,12 @@ class GovernedWorker(Worker):
         # same job leaves that job's id/action visible before the hash expires.
         self._last_job_id = None
         self._last_job_action = None
+        # Last poll's background-deferral state, so only the rising edge is counted.
+        self._deferring = False
+        # Dedicated live coverage heartbeat (Task 4): started/stopped around the
+        # work lifecycle, see _start_coverage_heartbeat/_stop_coverage_heartbeat.
+        self._cov_thread = None
+        self._cov_stop = None
         # Fair-scheduling scaffolding derived once from the static base queue set:
         # the (pool, tier) pairs whose per-category sub-queues we discover, and a
         # name->Queue cache so we don't rebuild Queue objects every poll.
@@ -898,6 +911,21 @@ class GovernedWorker(Worker):
                 strays.append(self._make_fair_queue(f"storage.{pool}.{c}.{tier}"))
         return base + strays
 
+    def _push_back(self, queue, job_id):
+        """Return a denied job to the FRONT of its lane and keep that lane
+        discoverable. RQ's ``push_job_id`` is a bare ``LPUSH`` — only the enqueue
+        paths ``SADD`` ``rq:queues`` — while a job in the pop->denial window is in
+        no list and no registry, so a peer's ``_gc_drained_category_lanes`` reads
+        the lane as drained and SREMs it; the pushed-back job would then sit on a
+        lane discovery never returns again. Re-registering AFTER the push needs no
+        atomicity: once the id is back on the list the GC's ``LLEN`` check can no
+        longer drop the lane, whatever the interleaving."""
+        queue.push_job_id(job_id, at_front=True)
+        try:
+            self.connection.sadd("rq:queues", queue.key)
+        except Exception:
+            pass
+
     def _admit(self, job, queue, defer_bg):
         """Decide whether to run ``job`` from ``queue`` now. On admission record
         the reserved slots on the job (for execute_job to release) and return
@@ -918,7 +946,7 @@ class GovernedWorker(Worker):
             if (
                 deferrable and (defer_bg or self._pressure_high())
             ) or not self._reserve_fair(job.id, pool, category, capped):
-                queue.push_job_id(job.id, at_front=True)
+                self._push_back(queue, job.id)
                 return False
             job._gov_reserved = ("fair", pool, category, capped)
             return True
@@ -926,11 +954,11 @@ class GovernedWorker(Worker):
             # Flat (non-multitenancy) path: reclaim defers under pressure but is
             # not heavy-capped; template/maintenance defer AND reserve the slot.
             if defer_bg or self._pressure_high():
-                queue.push_job_id(job.id, at_front=True)
+                self._push_back(queue, job.id)
                 return False
             if is_heavy_queue(queue.name):
                 if not self._reserve_heavy(job.id):
-                    queue.push_job_id(job.id, at_front=True)
+                    self._push_back(queue, job.id)
                     return False
                 job._gov_reserved = ("heavy",)
             return True
@@ -943,13 +971,26 @@ class GovernedWorker(Worker):
         under PSI pressure, or at the heavy cap after a leak-reconcile. Nothing is
         ever deferred by the kill-switch or the ungoverned bg-floor worker."""
         if not self._is_governing():
-            return False
+            return self._note_defer(None)
         if self._pressure_high():
-            return True
+            return self._note_defer("psi")
         if self._heavy_at_cap():
             self._reconcile_heavy()
-            return self._heavy_at_cap()
-        return False
+            return self._note_defer("at_cap" if self._heavy_at_cap() else None)
+        return self._note_defer(None)
+
+    def _note_defer(self, reason):
+        """Count the RISING EDGE of a background deferral and return the state.
+
+        The published ``deferring`` flag is a point-in-time gauge, so a worker
+        that defers and resumes between polls reads as "not deferring" in every
+        sample anyone ever sees; only an edge counter makes such a storm visible.
+        """
+        was_deferring = self._deferring
+        self._deferring = reason is not None
+        if self._deferring and not was_deferring:
+            governor_counters.record_defer(self.connection, reason, worker=self.name)
+        return self._deferring
 
     # --- observability: publish live state for the apiv4 read layer ---------
     def _served_pools(self):
@@ -1153,3 +1194,87 @@ class GovernedWorker(Worker):
                     self._release_fair(job.id, pool, category, is_heavy)
                 elif reserved[0] == "heavy":
                     self._release_heavy(job.id)
+
+    # --- live coverage heartbeat (Task 4) -----------------------------------
+    # Dedicated thread, deliberately decoupled from the dequeue poll: a worker
+    # blocked on an empty queue never reaches _publish_status, so on its own it
+    # would age out of the live coverage index (TTL) while still perfectly
+    # alive. This thread refreshes coverage on its own clock regardless of what
+    # the dequeue loop is doing.
+    def _served_lanes(self):
+        """Distinct ``(pool, tier)`` pairs from this worker's subscribed
+        queues, in first-seen order (category dropped: coverage is tracked per
+        (pool, tier), not per-category)."""
+        seen = set()
+        lanes = []
+        for q in self._ordered_queues or []:
+            parsed = parse_storage_queue(q.name)
+            if not parsed:
+                continue
+            pair = (parsed[0], parsed[2])
+            if pair not in seen:
+                seen.add(pair)
+                lanes.append(pair)
+        return lanes
+
+    def _coverage_beat(self):
+        """One heartbeat pass over every served lane. Per-lane best-effort: a
+        Redis error on one lane must not skip the rest, or crash the worker."""
+        now = time.time()
+        for pool, tier in self._served_lanes():
+            try:
+                qcov.publish_lane(
+                    self.connection, pool, tier, self.name, now, qcov.COV_TTL_S
+                )
+            except Exception:
+                continue
+
+    def _start_coverage_heartbeat(self):
+        """Start the heartbeat thread, no-op if one is already running."""
+        if (
+            getattr(self, "_cov_thread", None) is not None
+            and self._cov_thread.is_alive()
+        ):
+            return
+        self._cov_stop = threading.Event()
+
+        def _loop():
+            while not self._cov_stop.is_set():
+                try:
+                    self._coverage_beat()
+                except Exception:
+                    pass  # a beat error must never kill this thread
+                self._cov_stop.wait(qcov.COV_HEARTBEAT_S)
+
+        self._cov_thread = threading.Thread(
+            target=_loop, name="coverage-heartbeat", daemon=True
+        )
+        self._cov_thread.start()
+
+    def _stop_coverage_heartbeat(self):
+        """Stop the heartbeat thread and unpublish right away, so a clean
+        shutdown drops this worker's coverage immediately instead of waiting
+        on the TTL."""
+        stop_event = getattr(self, "_cov_stop", None)
+        if stop_event is not None:
+            stop_event.set()
+        thread = getattr(self, "_cov_thread", None)
+        if thread is not None:
+            thread.join(timeout=1)
+        for pool, tier in self._served_lanes():
+            try:
+                qcov.unpublish_worker(self.connection, pool, tier, self.name)
+            except Exception:
+                continue
+
+    # --- lifecycle wiring: start at birth, stop at death --------------------
+    def bootstrap(self, *args, **kwargs):
+        super().bootstrap(*args, **kwargs)
+        self._start_coverage_heartbeat()
+
+    def register_death(self):
+        # teardown()'s finally calls this on every shutdown path (clean stop
+        # or signal), so it is the one place guaranteed to run before the
+        # worker actually goes away.
+        self._stop_coverage_heartbeat()
+        super().register_death()

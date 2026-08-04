@@ -270,6 +270,26 @@ class GovernorWarning(BaseModel):
     max_lateness_seconds: Optional[float] = None
 
 
+class GovernorCounters(BaseModel):
+    """Durable shed / defer event counters. ``total`` is monotonic since the
+    counter key was created (answers "did this EVER happen", which a gauge
+    cannot); ``recent`` is the rolling ``window_minutes`` sum — the rate that
+    makes a storm visible in one sample. High-cardinality dimensions (pool ids,
+    worker names) appear only as ``last_*`` context, never as counters."""
+
+    total: int = 0
+    recent: int = 0
+    window_minutes: int = 15
+    by_reason: Dict[str, int] = {}
+    by_tier: Dict[str, int] = {}
+    last_ts: Optional[float] = None
+    last_seconds_ago: Optional[float] = None
+    last_reason: Optional[str] = None
+    last_pool: Optional[str] = None
+    last_tier: Optional[str] = None
+    last_worker: Optional[str] = None
+
+
 class GovernorGaugesResponse(BaseModel):
     """Composite storage-governor gauge document — the ``GET
     /admin/items/queues/governor`` payload AND the stats-go scrape source
@@ -287,6 +307,9 @@ class GovernorGaugesResponse(BaseModel):
     psi_limit: float = 40.0
     redis: RedisHealth = RedisHealth()
     heavy: HeavyGauge = HeavyGauge()
+    # shed 429s and worker defer edges — decisions that leave no other trace.
+    shed: GovernorCounters = GovernorCounters()
+    defer: GovernorCounters = GovernorCounters()
     pools: List[PoolGauge] = []
     workers: List[WorkerHealthRow] = []
     warnings: List[GovernorWarning] = []

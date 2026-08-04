@@ -162,6 +162,8 @@ const mainButtonData = computed(() => {
   return desktopActionsData(desktopViewer.value.status, false, true)
 })
 
+const desktopCardKind = computed(() => desktopViewer.value?.type as 'persistent' | 'nonpersistent')
+
 const normalizeViewerId = (viewerId: string) => viewerId.replace(/_/g, '-')
 
 const viewerIds = computed<string[]>(() => {
@@ -432,7 +434,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                 />
                 <div class="self-center">
                   <DesktopCardBase
-                    desktop-kind="nonpersistent"
+                    :desktop-kind="desktopCardKind"
                     :image-url="desktopViewer.image?.url ?? ''"
                     :show-overlay="activeOverlay !== null"
                     class="shadow-md"

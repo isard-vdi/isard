@@ -11,8 +11,12 @@ per-pool opacity that suppresses false stranding, and the fail-open paths.
 """
 
 import json
+import time
 from datetime import datetime, timezone
 
+import pytest
+from isardvdi_common.lib import category_pools
+from isardvdi_common.lib import governor_counters as gcnt
 from isardvdi_common.lib import queue_coverage as qc
 
 DEF = "00000000-0000-0000-0000-000000000000"
@@ -47,12 +51,18 @@ class _Pipe:
     def __exit__(self, *exc):
         return False
 
-    def hgetall(self, key):
-        self._ops.append(key)
-        return self
+    def __getattr__(self, name):
+        def _queue(*args, **kwargs):
+            self._ops.append((name, args, kwargs))
+            return self
+
+        return _queue
 
     def execute(self):
-        return [self._redis.hgetall(key) for key in self._ops]
+        return [
+            getattr(self._redis, name)(*args, **kwargs)
+            for (name, args, kwargs) in self._ops
+        ]
 
 
 class _FakeRedis:
@@ -60,20 +70,106 @@ class _FakeRedis:
         self.sets = {}
         self.hashes = {}
         self.lists = {}  # lane -> queued count
+        self.strings = {}
+        self.zsets = {}
+        self.ttls = {}
         self.fail = False
 
-    def smembers(self, key):
+    def _boom(self):
         if self.fail:
             raise RuntimeError("redis down")
+
+    def smembers(self, key):
+        self._boom()
         return set(self.sets.get(key, ()))
 
     def hgetall(self, key):
+        self._boom()
         return dict(self.hashes.get(key, {}))
 
     def llen(self, key):
-        if self.fail:
-            raise RuntimeError("redis down")
+        self._boom()
         return self.lists.get(key, 0)
+
+    def hincrby(self, key, field, amount=1):
+        self._boom()
+        h = self.hashes.setdefault(key, {})
+        h[field] = str(int(h.get(field, 0)) + amount)
+        return int(h[field])
+
+    def hset(self, key, mapping=None):
+        self._boom()
+        self.hashes.setdefault(key, {}).update(
+            {k: str(v) for k, v in (mapping or {}).items()}
+        )
+        return len(mapping or {})
+
+    def incr(self, key):
+        self._boom()
+        self.strings[key] = str(int(self.strings.get(key, 0)) + 1)
+        return int(self.strings[key])
+
+    def expire(self, key, ttl):
+        self._boom()
+        self.ttls[key] = ttl
+        return True
+
+    def ttl(self, key):
+        self._boom()
+        return self.ttls.get(key, -2)
+
+    def zadd(self, key, mapping):
+        self._boom()
+        self.zsets.setdefault(key, {}).update(mapping)
+        return len(mapping)
+
+    def zscore(self, key, member):
+        self._boom()
+        return self.zsets.get(key, {}).get(member)
+
+    def zrem(self, key, member):
+        self._boom()
+        return 1 if self.zsets.get(key, {}).pop(member, None) is not None else 0
+
+    @staticmethod
+    def _score_bound(raw):
+        """Parse a redis score-bound token: a number, "-inf"/"+inf", or a
+        "(<score>" exclusive form. Returns (value, inclusive)."""
+        if isinstance(raw, (int, float)):
+            return float(raw), True
+        s = str(raw)
+        if s in ("-inf", "+inf"):
+            return float(s.replace("inf", "inf")), True
+        if s.startswith("("):
+            return float(s[1:]), False
+        return float(s), True
+
+    def _in_range(self, score, min_score, max_score):
+        lo, lo_incl = self._score_bound(min_score)
+        hi, hi_incl = self._score_bound(max_score)
+        above_lo = score > lo or (lo_incl and score == lo)
+        below_hi = score < hi or (hi_incl and score == hi)
+        return above_lo and below_hi
+
+    def zcount(self, key, min_score, max_score):
+        self._boom()
+        return sum(
+            1
+            for score in self.zsets.get(key, {}).values()
+            if self._in_range(score, min_score, max_score)
+        )
+
+    def zremrangebyscore(self, key, min_score, max_score):
+        self._boom()
+        zset = self.zsets.get(key, {})
+        stale = [m for m, s in zset.items() if self._in_range(s, min_score, max_score)]
+        for member in stale:
+            del zset[member]
+        return len(stale)
+
+    def mget(self, keys):
+        self._boom()
+        return [self.strings.get(k) for k in keys]
 
     def pipeline(self):
         return _Pipe(self)
@@ -251,7 +347,9 @@ def test_non_storage_queue_is_ok():
 # --- enforce_shed (the create_task gate) -----------------------------------
 
 
-def test_enforce_shed_pops_flag_and_is_noop_when_not_opted_in():
+def test_enforce_shed_pops_legacy_shed_key_on_empty_fleet():
+    # ``shed`` is a deprecated/legacy kwarg now (overload is mandatory, not
+    # opt-in); an empty fleet still fails open regardless of its value.
     r = _FakeRedis()  # no workers -> would be no_coverage_data anyway
     kwargs = {"queue": "storage.ghost.standard", "shed": False, "task": "resize"}
     qc.enforce_shed(r, kwargs)  # must not raise
@@ -282,10 +380,10 @@ def test_enforce_shed_rejects_stranded_foreground_with_429():
     )
 
 
-def test_enforce_shed_rejects_stranded_even_without_opt_in():
+def test_enforce_shed_rejects_stranded_governed_tier():
     r = _FakeRedis()
     _governed_worker(r, "w1", DEF)  # serves DEF, not ghost
-    # No shed=True: the no-consumer refusal is MANDATORY (fail-fast), so a
+    # No shed key at all: the no-consumer refusal is MANDATORY (fail-fast), so a
     # produce to a dead pool is rejected even for a governed tier.
     kwargs = {"queue": "storage.ghost.maintenance"}
     try:
@@ -310,6 +408,56 @@ def test_enforce_shed_noop_when_consumer_present_but_backed_up():
     assert "shed" not in kwargs
 
 
+# --- enforce_shed: the foreground overload gate is now mandatory (Task 7) --
+
+
+def test_enforce_shed_blocks_overloaded_foreground_without_flag():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
+    r.lists["rq:queue:storage.p1.interactive"] = qc.hard_cap("interactive") + 5
+    kwargs = {"queue": "storage.p1.interactive"}  # NO "shed" key
+    try:
+        qc.enforce_shed(r, kwargs)
+        raised = None
+    except Exception as exc:
+        raised = exc
+    assert raised is not None
+    assert getattr(raised, "status_code", None) == 429
+    assert getattr(raised, "error", {}).get("description_code") == (
+        "storage_overloaded_retry_later"
+    )
+
+
+def test_enforce_shed_ignores_overload_on_governed():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "bulk", "w1", time.time(), qc.COV_TTL_S)
+    r.lists["rq:queue:storage.p1.bulk"] = 10_000
+    qc.enforce_shed(r, {"queue": "storage.p1.bulk"})  # must not raise
+
+
+def test_enforce_shed_still_blocks_no_consumer():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", "p2")  # keeps the fleet visible; p1 stays stranded
+    try:
+        qc.enforce_shed(r, {"queue": "storage.p1.interactive"})
+        raised = None
+    except Exception as exc:
+        raised = exc
+    assert raised is not None
+    assert getattr(raised, "status_code", None) == 429
+    assert getattr(raised, "error", {}).get("description_code") == (
+        "storage_no_consumer_retry_later"
+    )
+
+
+def test_enforce_shed_pops_shed_kwarg():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    kwargs = {"queue": f"storage.{DEF}.interactive", "shed": True}
+    qc.enforce_shed(r, kwargs)  # healthy lane -> no raise, same as without shed
+    assert "shed" not in kwargs
+
+
 def test_check_shed_raises_on_stranded_and_noop_on_healthy():
     r = _FakeRedis()
     _governed_worker(r, "w1", DEF)
@@ -320,3 +468,214 @@ def test_check_shed_raises_on_stranded_and_noop_on_healthy():
     except Exception as exc:
         raised = exc
     assert getattr(raised, "status_code", None) == 429
+
+
+# --- shed observability -----------------------------------------------------
+#
+# A shed is a decision nobody but the rejected user sees. These pin that every
+# 429 leaves a durable, dimensioned trace, and that the trace can never become
+# a second failure mode of the gate itself.
+
+
+def test_no_consumer_rejection_records_a_durable_counter():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    with pytest.raises(Exception):
+        qc.check_no_consumer(r, "storage.ghost.standard")
+    doc = gcnt.read_shed(r)
+    assert doc["total"] == 1
+    assert doc["recent"] == 1
+    assert doc["by_reason"] == {"no_consumer": 1}
+    assert doc["by_tier"] == {"standard": 1}
+    assert doc["last_pool"] == "ghost"
+    assert doc["last_tier"] == "standard"
+
+
+def test_overload_rejection_is_counted_under_its_own_reason():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    r.lists[f"rq:queue:storage.{DEF}.interactive"] = 10_000
+    with pytest.raises(Exception):
+        qc.check_shed(r, f"storage.{DEF}.interactive")
+    doc = gcnt.read_shed(r)
+    assert doc["by_reason"] == {"overloaded": 1}
+    assert doc["by_tier"] == {"interactive": 1}
+
+
+def test_accepted_enqueue_records_no_shed():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    qc.enforce_shed(r, {"queue": f"storage.{DEF}.standard", "shed": True})
+    assert gcnt.read_shed(r) == gcnt.empty_counters()
+
+
+def test_shed_storm_accumulates_across_pools_and_tiers():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    for tier in ("interactive", "standard", "bulk"):
+        for pool in ("ghost-a", "ghost-b"):
+            with pytest.raises(Exception):
+                qc.check_no_consumer(r, f"storage.{pool}.{tier}")
+    doc = gcnt.read_shed(r)
+    assert doc["total"] == 6
+    assert doc["recent"] == 6
+    assert doc["by_tier"] == {"interactive": 2, "standard": 2, "bulk": 2}
+
+
+# --- coverage-index publish primitive ---------------------------------------
+
+
+def test_publish_lane_adds_member_and_ttl():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", 100.0, 15)
+    assert r.zscore(qc.cov_key("p1", "interactive"), "w1") == 100.0
+    assert 0 < r.ttl(qc.cov_key("p1", "interactive")) <= 15
+
+
+def test_unpublish_worker_removes_member():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", 100.0, 15)
+    qc.unpublish_worker(r, "p1", "interactive", "w1")
+    assert r.zscore(qc.cov_key("p1", "interactive"), "w1") is None
+
+
+def test_pool_live_workers_counts_fresh():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", 1000.0, 15)
+    qc.publish_lane(r, "p1", "interactive", "w2", 1000.0, 15)
+    assert qc.pool_live_workers(r, "p1", "interactive", now=1000.0, ttl=15) == 2
+
+
+def test_pool_live_workers_excludes_stale():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w_old", 900.0, 15)
+    qc.publish_lane(r, "p1", "interactive", "w_new", 1000.0, 15)
+    assert qc.pool_live_workers(r, "p1", "interactive", now=1000.0, ttl=15) == 1
+
+
+def test_pool_live_workers_zero_when_empty():
+    r = _FakeRedis()
+    assert qc.pool_live_workers(r, "p1", "interactive", now=1000.0) == 0
+
+
+# --- lane_shed_decision: LIVE index is the primary has-consumer signal ------
+
+
+class _IndexBoomRedis(_FakeRedis):
+    """Fails only on the live-index read, proving the try/except around
+    lane_shed_decision covers pool_live_workers too, not just served_coverage."""
+
+    def zremrangebyscore(self, key, min_score, max_score):
+        raise RuntimeError("index down")
+
+
+def test_decision_ok_when_index_live():
+    r = _FakeRedis()
+    # lane_shed_decision reads the index with no explicit now/ttl, so publish
+    # against the real wall clock it will use.
+    qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
+    assert decision == "ok"
+    assert ctx["has_consumer"] is True
+
+
+def test_decision_reject_no_consumer_index_empty_fleet_up():
+    r = _FakeRedis()
+    # index empty for p1, but p2 is served (legacy fallback) -> fleet is up
+    _governed_worker(r, "w1", "p2")
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.standard")
+    assert decision == "reject"
+    assert ctx["reason"] == "no_consumer"
+
+
+def test_decision_fail_open_no_coverage_data_when_fleet_invisible():
+    r = _FakeRedis()  # index empty AND no rq:workers at all
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
+    assert decision == "ok"
+    assert ctx["reason"] == "no_coverage_data"
+
+
+def test_decision_fail_open_on_redis_error():
+    r = _IndexBoomRedis()
+    _governed_worker(r, "w1", "p1")
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
+    assert decision == "ok"
+    assert ctx["reason"] == "coverage_error"
+
+
+def test_decision_reject_overloaded_foreground_over_cap():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
+    r.lists["rq:queue:storage.p1.interactive"] = qc.hard_cap("interactive") + 5
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
+    assert decision == "reject"
+    assert ctx["reason"] == "overloaded"
+    assert ctx["hard_cap"] == qc.hard_cap("interactive")
+
+
+def test_decision_ok_governed_over_backlog():
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "bulk", "w1", time.time(), qc.COV_TTL_S)
+    r.lists["rq:queue:storage.p1.bulk"] = 10_000
+    decision, ctx = qc.lane_shed_decision(r, "storage.p1.bulk")
+    assert decision != "reject"
+    assert ctx.get("reason") != "overloaded"
+
+
+def test_health_available_when_pool_live(monkeypatch):
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
+    health = qc.category_storage_health(r, "cat-a")
+    assert health["available"] is True
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["pool"] == "p1"
+    assert interactive["no_consumer"] is False
+    assert interactive["overloaded"] is False
+    assert interactive["degraded"] is False
+
+
+def test_health_no_consumer_when_pool_empty(monkeypatch):
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
+    r = _FakeRedis()
+    # index empty for p1, but p2 served (legacy fallback) -> fleet is up, so
+    # p1's absence is a genuine no-consumer, not a fail-open blip.
+    _governed_worker(r, "w1", "p2")
+    health = qc.category_storage_health(r, "cat-a")
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["no_consumer"] is True
+    assert health["available"] is False
+
+
+def test_health_overloaded_when_foreground_over_cap(monkeypatch):
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
+    r = _FakeRedis()
+    qc.publish_lane(r, "p1", "interactive", "w1", time.time(), qc.COV_TTL_S)
+    r.lists["rq:queue:storage.p1.interactive"] = qc.hard_cap("interactive") + 5
+    health = qc.category_storage_health(r, "cat-a")
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["overloaded"] is True
+    assert health["available"] is False
+
+
+def test_health_degraded_on_redis_error(monkeypatch):
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
+    r = _FakeRedis()
+    _governed_worker(r, "w1", "p1")
+    r.fail = True
+    health = qc.category_storage_health(r, "cat-a")  # must not raise
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["degraded"] is True
+    assert health["available"] is False
+
+
+def test_counter_failure_never_swallows_the_429():
+    """The counter is observability, not a gate: a redis blip between the shed
+    decision and the INCR must still leave the caller with the typed 429."""
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    _, ctx = qc.lane_shed_decision(r, "storage.ghost.standard")
+    r.fail = True
+    with pytest.raises(Exception) as excinfo:
+        qc._raise_lane_429(r, ctx)
+    assert getattr(excinfo.value, "status_code", None) == 429

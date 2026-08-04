@@ -21,7 +21,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # --- Policy schemas ---
 
@@ -107,19 +107,33 @@ class PolicyResponse(BaseModel):
     password: Optional[Dict[str, Any]] = None
 
 
+class ProviderEntry(BaseModel):
+    """Enabled flag of one authentication provider."""
+
+    enabled: bool = False
+
+
+class ProviderWithNameEntry(ProviderEntry):
+    """Provider entry with the optional display name read from
+    ``config.auth.<provider>.<provider>_config.name``."""
+
+    name: Optional[str] = None
+
+
 class ProvidersResponse(BaseModel):
     """Response shape for ``GET /admin/items/authentication/providers``.
 
-    The service returns a flat ``dict[str, bool]`` mapping provider
-    name (``local`` / ``google`` / ``saml`` / ``ldap``) to its enabled
-    flag. Modelled with explicit fields so the OpenAPI schema is
-    self-documenting.
+    The service returns a dict mapping provider name (``local`` /
+    ``google`` / ``saml`` / ``ldap``) to its enabled flag, plus the
+    optional display name for the nameable providers (``local`` can
+    never have one). Modelled with explicit fields so the OpenAPI
+    schema is self-documenting.
     """
 
-    local: bool = False
-    google: bool = False
-    saml: bool = False
-    ldap: bool = False
+    local: ProviderEntry = Field(default_factory=ProviderEntry)
+    google: ProviderWithNameEntry = Field(default_factory=ProviderWithNameEntry)
+    saml: ProviderWithNameEntry = Field(default_factory=ProviderWithNameEntry)
+    ldap: ProviderWithNameEntry = Field(default_factory=ProviderWithNameEntry)
 
 
 class DisclaimerResponse(BaseModel):

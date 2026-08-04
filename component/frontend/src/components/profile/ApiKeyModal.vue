@@ -249,6 +249,7 @@ const expireButtonLabel = computed(() =>
               :max-value="maxValue"
               :default-placeholder="defaultPlaceholder"
               :placeholder="$t('components.profile.api-key-modal.new-key.buttons.expiration-label')"
+              :max-hint="$t('components.profile.api-key-modal.new-key.max-expiration-hint')"
               :locale="locale"
             />
           </div>

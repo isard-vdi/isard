@@ -349,7 +349,7 @@ const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
       meta: {
         title: 'router.register.title',
-        allowedTokenTypes: ['register'],
+        allowedTokenTypes: ['register', 're-register'],
         allowedRoles: ['admin', 'manager', 'advanced', 'user'] as Role[]
       }
     },
@@ -433,7 +433,7 @@ const router = createRouter({
       component: () => import('../views/ResetPasswordView.vue'),
       meta: {
         title: 'Reset Password',
-        allowedTokenTypes: ['password-reset']
+        allowedTokenTypes: ['password-reset', 'password-reset-required']
       }
     },
     {
@@ -446,6 +446,15 @@ const router = createRouter({
         // export launched from the deprecated (Vue 2) profile, which does a
         // full-page load to /export-user with the user's normal login token.
         allowedTokenTypes: ['user-migration-required', 'login']
+      }
+    },
+    {
+      path: '/disclaimer',
+      name: 'disclaimer',
+      component: () => import('../views/DisclaimerView.vue'),
+      meta: {
+        title: 'router.disclaimer.title',
+        allowedTokenTypes: ['disclaimer-acknowledgement-required']
       }
     }
   ]
@@ -499,6 +508,22 @@ router.beforeEach(async (to, from, next) => {
     return next(await sessionStore.loginRoute())
   }
 
+  const now = Date.now()
+  const adjustedNow =
+    now + (Math.abs(sessionStore.timeDrift) < 24 * 60 * 60 * 1000 ? sessionStore.timeDrift : 0) // 24h in ms
+
+  // Expired non-login tokens (disclaimer, register, email-verify, etc.) are
+  // not renewable — redirecting to their dedicated view would just 401 on
+  // the next API call and leave the user stuck. Force a clean login instead.
+  if (
+    tokenType !== TokenType.Login &&
+    authStore.claims?.exp &&
+    adjustedNow > authStore.claims.exp * 1000
+  ) {
+    authStore.logout()
+    return next({ name: 'login' })
+  }
+
   if (allowedTokenTypes && !allowedTokenTypes.includes(tokenType)) {
     return next(getRedirectForTokenType(tokenType))
   }
@@ -521,10 +546,6 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // Renew the session 1 minute before it expires
-  const now = Date.now()
-  const adjustedNow =
-    now + (Math.abs(sessionStore.timeDrift) < 24 * 60 * 60 * 1000 ? sessionStore.timeDrift : 0) // 24h in ms
-
   if (
     authStore.sessionId !== 'isardvdi-service' &&
     authStore.claims &&
@@ -566,14 +587,13 @@ function getRedirectForTokenType(type: TokenType) {
     case TokenType.CategorySelect:
       return { name: 'login' }
     case TokenType.Register:
+    case TokenType.ReRegister:
       return { name: 'register' }
     case TokenType.DisclaimerAcknowledgeRequired:
-      // TODO: Use a new disclaimer page
-      return (window.location.pathname = '/disclaimer')
+      return { name: 'disclaimer' }
     case TokenType.PasswordResetRequired:
     case TokenType.PasswordReset:
-      // TODO: Use a new password reset page
-      return (window.location.pathname = '/reset-password')
+      return { name: 'reset-password' }
     case TokenType.EmailVerificationRequired:
       return { name: 'verify-email' }
     case TokenType.UserMigrationRequired:

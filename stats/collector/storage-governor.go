@@ -72,6 +72,12 @@ type StorageGovernor struct {
 	descWorkerPsiCPU       *prometheus.Desc
 	descWorkerPsiIo        *prometheus.Desc
 	descWorkerDeferring    *prometheus.Desc
+
+	descEventsTotal      *prometheus.Desc
+	descEventsTierTotal  *prometheus.Desc
+	descEventsWindow     *prometheus.Desc
+	descEventsWindowMins *prometheus.Desc
+	descLastEventAge     *prometheus.Desc
 }
 
 func NewStorageGovernor(ctx context.Context, log *zerolog.Logger, cli apiv4.Invoker) *StorageGovernor {
@@ -122,6 +128,18 @@ func NewStorageGovernor(ctx context.Context, log *zerolog.Logger, cli apiv4.Invo
 	s.descWorkerPsiIo = d("worker_psi_io", "Worker-reported IO pressure (PSI some avg)", "worker")
 	s.descWorkerDeferring = d("worker_deferring", "Worker is deferring background work under PSI (1)", "worker")
 
+	// Shed/defer EVENTS. The gauges above answer "is it happening right now",
+	// which is exactly the question a storm defeats: a shed lasts microseconds
+	// and a PSI defer flaps, so a scrape almost always lands between them. These
+	// are the durable event record. Only the closed reason set and the tier are
+	// labels — pool ids and worker names stay out of the label space and are
+	// reachable as the payload's last_* context instead.
+	s.descEventsTotal = d("events_total", "Governor decisions that reject or postpone work, since the counter was created", "kind", "reason")
+	s.descEventsTierTotal = d("events_tier_total", "Same events broken down by the tier they hit", "kind", "tier")
+	s.descEventsWindow = d("events_window", "Events in the payload's rolling window — the rate that makes a storm visible in one sample", "kind")
+	s.descEventsWindowMins = d("events_window_minutes", "Width of that rolling window, so a rule can normalise it", "kind")
+	s.descLastEventAge = d("last_event_age_seconds", "Seconds since the most recent event of this kind", "kind")
+
 	return s
 }
 
@@ -162,6 +180,11 @@ func (s *StorageGovernor) Describe(ch chan<- *prometheus.Desc) {
 	ch <- s.descWorkerPsiCPU
 	ch <- s.descWorkerPsiIo
 	ch <- s.descWorkerDeferring
+	ch <- s.descEventsTotal
+	ch <- s.descEventsTierTotal
+	ch <- s.descEventsWindow
+	ch <- s.descEventsWindowMins
+	ch <- s.descLastEventAge
 }
 
 func boolToFloat(b bool) float64 {
@@ -314,6 +337,14 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 		gauge(s.descWorkerDeferring, boolToFloat(w.Deferring.Or(false)), w.Name)
 	}
 
+	// --- shed / defer events --------------------------------------------
+	if c, ok := gov.Shed.Get(); ok {
+		s.emitCounters(ch, "shed", c)
+	}
+	if c, ok := gov.Defer.Get(); ok {
+		s.emitCounters(ch, "defer", c)
+	}
+
 	// --- warnings -> derived gauges -------------------------------------
 	// stranded_lane warnings carry no category_id and there can be several per
 	// (pool, tier) — one per stranded fair-tier category — which would all map
@@ -333,4 +364,47 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	emitScrape(1)
+}
+
+// emitCounters exports one GovernorCounters block under a "kind" label.
+//
+// The totals go out as counters, not gauges: they only ever grow, so PromQL
+// can rate() them and still read a restart correctly — a gauge would make a
+// reset look like the storm stopping. The window sum stays a gauge because it
+// is a bounded rolling value that legitimately goes down.
+//
+// A block whose total is zero is still emitted: an explicit 0 is what lets a
+// rule distinguish "never happened" from "the exporter is not reporting",
+// which is the whole point of counting these at all.
+func (s *StorageGovernor) emitCounters(ch chan<- prometheus.Metric, kind string, c apiv4.GovernorCounters) {
+	counter := func(desc *prometheus.Desc, v float64, labels ...string) {
+		ch <- prometheus.MustNewConstMetric(desc, prometheus.CounterValue, v, labels...)
+	}
+	gauge := func(desc *prometheus.Desc, v float64, labels ...string) {
+		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, v, labels...)
+	}
+
+	if byReason, ok := c.ByReason.Get(); ok && len(byReason) > 0 {
+		for reason, n := range byReason {
+			counter(s.descEventsTotal, float64(n), kind, reason)
+		}
+	} else {
+		// No breakdown yet — still publish the total under a sentinel reason so
+		// the series exists from the first scrape rather than appearing only
+		// once something goes wrong, which is when nobody can add a rule.
+		counter(s.descEventsTotal, float64(c.Total.Or(0)), kind, "_unknown")
+	}
+
+	if byTier, ok := c.ByTier.Get(); ok {
+		for tier, n := range byTier {
+			counter(s.descEventsTierTotal, float64(n), kind, tier)
+		}
+	}
+
+	gauge(s.descEventsWindow, float64(c.Recent.Or(0)), kind)
+	gauge(s.descEventsWindowMins, float64(c.WindowMinutes.Or(0)), kind)
+
+	if age, ok := c.LastSecondsAgo.Get(); ok {
+		gauge(s.descLastEventAge, age, kind)
+	}
 }

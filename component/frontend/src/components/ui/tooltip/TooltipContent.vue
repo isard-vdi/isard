@@ -50,8 +50,13 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
         )
       "
     >
-      <p class="text-base-white font-semibold leading-[18px] text-[12px]">{{ props.title }}</p>
-      <p class="text-gray-warm-300 mt-1 font-medium leading-[16px] text-[12px]">
+      <p class="text-base-white font-semibold leading-[18px] text-[12px] break-words">
+        {{ props.title }}
+      </p>
+      <p
+        v-if="props.subtitle"
+        class="text-gray-warm-300 mt-1 font-medium leading-[16px] text-[12px] break-words"
+      >
         {{ props.subtitle }}
       </p>
       <div v-if="props.dismissLabel" class="mt-3 text-gray-warm-300">

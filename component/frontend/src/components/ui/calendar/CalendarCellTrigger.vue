@@ -50,8 +50,9 @@ const forwardedProps = useForwardProps(delegatedProps)
         'data-[outside-view]:text-gray-warm-400',
 
         // Disabled state
-        'data-[disabled]:text-gray-warm-500',
-        'data-[disabled]:cursor-not-allowed',
+        'data-[disabled]:text-gray-warm-400',
+        'data-[disabled]:bg-gray-warm-50',
+        'data-[disabled]:pointer-events-none',
 
         // Unavailable state
         'data-[unavailable]:text-gray-warm-500',

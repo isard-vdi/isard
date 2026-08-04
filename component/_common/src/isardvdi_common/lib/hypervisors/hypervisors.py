@@ -2199,11 +2199,10 @@ class HypervisorsProcessed(RethinkSharedConnection):
             r.table("domains").get(domain_id).update(data).run(cls._rdb_connection)
 
     @classmethod
-    @cached(
-        cache=SynchronizedTTLCache(maxsize=25, ttl=10),
-        key=lambda cls, mac, data: f"{mac}:{data.get('viewer', {}).get('guest_ip', '')}",
-    )
     def update_wg_address(cls, mac, data):
+        # Never memoize this: it is a write, and a memo hit would both skip the
+        # update and return a domain id resolved earlier, so a MAC that has
+        # since stopped resolving cannot report not_found.
         domain_id = Caches.get_domain_id_from_wg_mac(mac)
         if not domain_id:
             raise Error(
