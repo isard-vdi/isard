@@ -42,20 +42,47 @@ class _FakeReQL:
     def filter(self, *a, **k):
         return self
 
-    def insert(self, batch, conflict=None):
-        self._insert = list(batch)
+    def insert(self, batch, conflict=None):  # pragma: no cover
+        raise AssertionError(
+            "insert() would resurrect a row deleted while its config was built"
+        )
+
+    def get(self, key):
+        self._get = key
+        return self
+
+    def update(self, doc):
+        self._rec.append((self._table, doc))
+        self._updated = doc
         return self
 
     def run(self, conn):
-        if self._insert is not None:
-            self._rec.append((self._table, self._insert))
-            return {"inserted": len(self._insert)}
+        if getattr(self, "_updated", None) is not None:
+            return {"replaced": 1, "skipped": 0}
         return list(self._reads.get(self._table, []))
+
+
+class _FakeExpr:
+    """Stands in for r.expr(seq).for_each(...): applies the lambda per item."""
+
+    def __init__(self, seq):
+        self._seq = seq
+
+    def for_each(self, fn):
+        for item in self._seq:
+            fn(item)
+        return self
+
+    def run(self, conn):
+        return {"replaced": len(self._seq), "skipped": 0}
 
 
 class _FakeR:
     def __init__(self, recorder, reads):
         self._rec, self._reads = recorder, reads
+
+    def expr(self, seq):
+        return _FakeExpr(seq)
 
     def table(self, name, *a, **k):
         return _FakeReQL(self._rec, name, self._reads)
@@ -101,7 +128,8 @@ def test_flush_peers_batch_inserts_and_noop_on_empty(wgtools_module, monkeypatch
     wg = _users_wg(wgtools_module)
     wg._flush_peers_batch("users", [{"id": "a"}, {"id": "b"}], 2, 2, time.monotonic())
     wg._flush_peers_batch("users", [], 2, 2, time.monotonic())  # no-op
-    assert rec == [("users", [{"id": "a"}, {"id": "b"}])]
+    # one update per peer, never a batch insert
+    assert rec == [("users", {"id": "a"}), ("users", {"id": "b"})]
 
 
 # ---- (D) background up_peer draining -------------------------------------
@@ -181,14 +209,14 @@ def test_init_peers_batches_inserts_and_backgrounds_up_peer(
 
     assert isinstance(wg.clients_reserved_ips, set)
 
-    users_inserts = [batch for tbl, batch in rec if tbl == "users"]
-    rv_inserts = [batch for tbl, batch in rec if tbl == "remotevpn"]
-    # chunked (batch=2 over 4 creates), not one terminal insert
-    assert len(users_inserts) >= 2
-    created_ids = {p["id"] for batch in users_inserts for p in batch}
+    users_writes = [doc for tbl, doc in rec if tbl == "users"]
+    rv_writes = [doc for tbl, doc in rec if tbl == "remotevpn"]
+    # chunked (batch=2 over 4 creates), so the backfill is not one terminal write
+    assert len(users_writes) >= 2
+    created_ids = {p["id"] for p in users_writes}
     # u5 (vpn=None) is treated as lazy-init instead of crashing init_peers.
     assert created_ids == {"u1", "u2", "u4", "u5"}
-    assert {p["id"] for batch in rv_inserts for p in batch} == {"rv1"}
+    assert {p["id"] for p in rv_writes} == {"rv1"}
 
     # Background up_peer covers active targets only: u3, u4 and rv1. u1/u2 were
     # created without 'active', so the original gating is preserved.
@@ -208,3 +236,47 @@ def test_set_iptables_survives_a_null_vpn_subtree(wgtools_module):
     wg.set_iptables({"id": "u1", "vpn": None})
     wg.set_iptables({"id": "u2"})
     wg.set_iptables({"id": "u3", "vpn": {"iptables": []}})
+
+
+def test_add_peer_removes_the_peer_when_its_row_vanished(wgtools_module):
+    """The row can be deleted while the config is generated.
+
+    up_peer() has already put the peer on the interface by then, so a write
+    that skips a missing row must also take the peer back off. Leaving it is
+    the orphan that answers 404 on every reconnect, and recreating the row is
+    the stub that breaks the users listing -- neither is acceptable.
+    """
+    wg = _users_wg(wgtools_module)
+    removed = []
+
+    class _Skipped:
+        def get(self, key):
+            return self
+
+        def update(self, doc):
+            return self
+
+        def run(self, conn):
+            return {"skipped": 1, "replaced": 0}
+
+    class _R:
+        def table(self, name):
+            return _Skipped()
+
+    wgtools_module.r = _R()
+    wgtools_module.vpn_rethink_conn = lambda: _NullCtx()
+    wg.gen_new_peer = lambda peer, extra_client_nets=None: {"id": peer["id"], "vpn": {}}
+    wg.up_peer = lambda peer: True
+    wg.down_peer = lambda peer, table=False: removed.append(peer["id"])
+
+    wg.add_peer({"id": "gone"}, table="users")
+
+    assert removed == ["gone"], "the peer added for a vanished row must be removed"
+
+
+class _NullCtx:
+    def __enter__(self):
+        return object()
+
+    def __exit__(self, *a):
+        return False
