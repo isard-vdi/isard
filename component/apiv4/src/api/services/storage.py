@@ -594,7 +594,11 @@ class StorageService:
         """Convert a storage to a new format."""
         priority = check_task_priority(payload, priority)
         origin_storage = get_storage(payload, storage_id)
-        origin_storage.set_maintenance("convert")
+        # The transition belongs to Storage.convert, which opens with it like
+        # every other action. Doing it here too flipped the disk to maintenance
+        # and then let the model's call refuse it -- set_maintenance requires
+        # ready for anything outside {create, delete, download} -- so convert
+        # could never succeed and left the disk stuck in maintenance.
 
         new_storage = Storage.init_document(
             user_id=origin_storage.user_id,
