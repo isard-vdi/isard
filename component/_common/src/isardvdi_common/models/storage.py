@@ -1437,7 +1437,7 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        pass
+        return self.task
 
     def recreate(
         self,
