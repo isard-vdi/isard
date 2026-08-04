@@ -44,6 +44,7 @@ from isardvdi_apiv4_client.api.role_manager import admin_storage_by_status
 from isardvdi_apiv4_client.api.role_user import get_task as get_task_op
 from isardvdi_apiv4_client.models import StorageRsyncToStoragePoolRequest
 from isardvdi_apiv4_client_auth import build_client, raise_for_status
+from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
 
 
 def _as_dict(obj):
@@ -602,6 +603,15 @@ def get_sorted_file_paths_by_date(iterate_path, filter_date, min_size_bytes=0, m
 
     for file in Path(iterate_path).rglob("*"):
         if file.is_file():
+            # A soft-deleted disk is not unlinked, it is moved into a "deleted"
+            # subdirectory of the same pool. The storage id comes from the file
+            # NAME, so scanning those copies resolves them to the LIVE row -- the
+            # same disk gets queued twice, and where the live row already sits at
+            # the destination apiv4 rejects it ("already in destination pool").
+            # The row's own status is "ready", so only the location tells them
+            # apart. Match a path SEGMENT, never a name that merely starts with it.
+            if RECYCLE_BIN_DIR in file.parts:
+                continue
             total += 1
             # Get the modification time and size of the file
             mtime = datetime.fromtimestamp(file.stat().st_mtime)
