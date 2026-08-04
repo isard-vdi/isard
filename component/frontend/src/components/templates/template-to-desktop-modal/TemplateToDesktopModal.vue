@@ -154,7 +154,6 @@ function isInvalid(field) {
     level="danger"
     :size="filteredDomains.length > 0 ? '5xl' : 'lg'"
     :title="t('components.templates.convert-to-desktop-modal.title', { name: props.templateName })"
-    class="pt-[24px]"
     @close="emit('close')"
   >
     <div>
@@ -180,7 +179,7 @@ function isInvalid(field) {
             }}</AlertDescription>
           </Alert>
         </div>
-
+        <!-- 
         <DataTable
           v-if="filteredDomains.length > 0"
           :headers="[
@@ -257,7 +256,7 @@ function isInvalid(field) {
               </template>
             </div>
           </template>
-        </DataTable>
+        </DataTable> -->
       </template>
 
       <div v-else class="w-full flex flex-col items-center justify-center">

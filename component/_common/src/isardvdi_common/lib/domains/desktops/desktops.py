@@ -68,7 +68,12 @@ from isardvdi_common.schemas.domains import (
 from rethinkdb import r
 from socketio import RedisManager
 
-from ....schemas.domains import DesktopFromTemplate, DesktopStatusEnum, DomainStatus
+from ....schemas.domains import (
+    DesktopFromTemplate,
+    DesktopStatusEnum,
+    DesktopTypeEnum,
+    DomainStatus,
+)
 
 socketio = RedisManager(socketio_url(), write_only=True)
 
@@ -205,9 +210,9 @@ class DesktopsProcessed(RethinkSharedConnection):
         )
 
         if desktop.get("persistent", True):
-            desktop["type"] = "persistent"
+            desktop["type"] = DesktopTypeEnum.persistent.value
         else:
-            desktop["type"] = "nonpersistent"
+            desktop["type"] = DesktopTypeEnum.nonpersistent.value
 
         gp = desktop.get("guest_properties") or default_guest_properties()
         desktop["viewers"] = [v.replace("_", "-") for v in available_viewers(gp)]

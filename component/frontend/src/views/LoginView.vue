@@ -494,7 +494,12 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
       return
     }
 
-    // Fall through to window.location for other types (disclaimer, password reset, etc.)
+    if (jwt.type === TokenType.PasswordResetRequired || jwt.type === TokenType.PasswordReset) {
+      router.push({ name: 'reset-password' })
+      return
+    }
+
+    // Fall through to window.location for other types.
   }
 
   if (isLoginClaims(jwt)) {
