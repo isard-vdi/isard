@@ -2562,15 +2562,50 @@
     },
     "allowed-modal": {
       "title": "Manage users",
-      "description": "Edit the groups and users allowed to access this {item-type}",
+      "description": {
+        "generic": "Edit the groups and users allowed to access it",
+        "template": "Edit the groups and users allowed to access this template",
+        "deployment": "Edit the groups and users allowed to access this deployment",
+        "media": "Edit the groups and users allowed to access this media"
+      },
+      "columns": {
+        "groups": "Groups",
+        "users": "Users",
+        "users-in-group": "Users in '{group_name}'"
+      },
+      "empty": {
+        "groups": "No groups available",
+        "users": "This group has no users",
+        "no-group": "Select a group or search for users",
+        "no-group-short-term": "Type at least 2 characters to search users"
+      },
+      "share-everyone": {
+        "unchecked": {
+          "title": "Share with everyone",
+          "description": "Give every user in this category access"
+        },
+        "checked": {
+          "title": "Shared with everyone",
+          "description": "Every user in this category will have access"
+        }
+      },
+      "view-group": "Show the users in '{group_name}'",
+      "unview-group": "Stop showing the users in '{group_name}'",
+      "require-selection": "Select at least one group or user",
+      "no-changes": "Make a change to save",
+      "select-all": {
+        "groups": "Select all groups",
+        "count": "{selected} of {total} selected"
+      },
       "search": {
         "user-in-group": {
           "placeholder": "Search user in group '{group_name}'",
           "empty": "No user found"
         },
         "user": {
-          "placeholder": "Search user",
-          "empty": "No user found"
+          "placeholder": "Search all users",
+          "empty": "No user found",
+          "truncated": "Showing {shown} of {total} results, refine your search"
         },
         "group": {
           "placeholder": "Search group",

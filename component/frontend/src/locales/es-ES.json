@@ -506,6 +506,8 @@
           "alloweds": {
             "title": "Grupos y Usuarios Permitidos",
             "subtitle": "Esta plantilla se compartirá con {groups} y {users}.",
+            "subtitle-everyone": "Esta plantilla se compartirá con todos los usuarios de su categoría.",
+            "subtitle-nobody": "Esta plantilla no se compartirá con nadie.",
             "button": "Gestionar usuarios y grupos"
           },
           "access": {
@@ -2528,6 +2530,61 @@
       "not-found": "No se ha encontrado ningún resultado",
       "more-results": "{count} resultados más, afina tu búsqueda",
       "remove": "Quitar {name}"
+    },
+    "allowed-modal": {
+      "title": "Gestionar usuarios",
+      "description": {
+        "generic": "Edita los grupos y usuarios que pueden acceder",
+        "template": "Edita los grupos y usuarios que pueden acceder a esta plantilla",
+        "deployment": "Edita los grupos y usuarios que pueden acceder a este despliegue",
+        "media": "Edita los grupos y usuarios que pueden acceder a este medio"
+      },
+      "columns": {
+        "groups": "Grupos",
+        "users": "Usuarios",
+        "users-in-group": "Usuarios del grupo '{group_name}'"
+      },
+      "empty": {
+        "groups": "No hay grupos disponibles",
+        "users": "Este grupo no tiene usuarios",
+        "no-group": "Selecciona un grupo o busca usuarios",
+        "no-group-short-term": "Escribe al menos 2 caracteres para buscar usuarios"
+      },
+      "share-everyone": {
+        "unchecked": {
+          "title": "Compartir con todos",
+          "description": "Dar acceso a todos los usuarios de esta categoría"
+        },
+        "checked": {
+          "title": "Compartido con todos",
+          "description": "Todos los usuarios de esta categoría tendrán acceso"
+        }
+      },
+      "view-group": "Mostrar los usuarios del grupo '{group_name}'",
+      "unview-group": "Dejar de mostrar los usuarios del grupo '{group_name}'",
+      "require-selection": "Selecciona como mínimo un grupo o un usuario",
+      "no-changes": "Haz algún cambio para guardar",
+      "select-all": {
+        "groups": "Seleccionar todos los grupos",
+        "count": "{selected} de {total} seleccionados"
+      },
+      "search": {
+        "user-in-group": {
+          "placeholder": "Buscar un usuario en el grupo '{group_name}'",
+          "empty": "No se ha encontrado ningún usuario"
+        },
+        "user": {
+          "placeholder": "Buscar todos los usuarios",
+          "empty": "No se ha encontrado ningún usuario",
+          "truncated": "Mostrando {shown} de {total} resultados, afina tu búsqueda"
+        },
+        "group": {
+          "placeholder": "Buscar grupo",
+          "empty": "No se ha encontrado ningún grupo"
+        }
+      },
+      "cancel": "Cancelar",
+      "save": "Aceptar cambios"
     }
   },
   "authentication": {
