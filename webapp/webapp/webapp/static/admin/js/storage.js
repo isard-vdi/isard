@@ -745,7 +745,7 @@ $(document).on('click', '.btn-convert', function () {
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
-    if (data.derivatives > 1) {
+    if (data.derivatives > 0) {
       new PNotify({
         title: `ERROR`,
         text: "This storage has derivatives",
@@ -1311,7 +1311,7 @@ $(document).on('click', '.btn-virt_win_reg', function () {
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
-    if (data.derivatives > 1) {
+    if (data.derivatives > 0) {
       new PNotify({
         title: `ERROR`,
         text: "This storage has derivatives",
@@ -1393,6 +1393,18 @@ $(document).on('click', '.btn-sparsify', function () {
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
+    if (data.derivatives > 0) {
+      new PNotify({
+        title: `ERROR`,
+        text: "This storage has derivatives",
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+      return;
+    }
     $(modal + " #id").val(storageId);
     populatePrioritySelect(modal);
     $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
@@ -1437,7 +1449,7 @@ $(document).on('click', '.btn-move', function () {
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
-    if (data.derivatives > 1) {
+    if (data.derivatives > 0) {
       new PNotify({
         title: `ERROR`,
         text: "This storage has derivatives",

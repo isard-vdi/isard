@@ -425,9 +425,23 @@ class StorageService:
 
     @staticmethod
     def has_derivatives(payload: dict, storage_id: str) -> int:
-        """Return the number of derivatives (children) for a storage."""
+        """Return how many disks depend on this one as a backing file.
+
+        The whole subtree, not just the first level — which is what the
+        endpoint's name always claimed. It used to answer
+        ``len(storage.children)``, and callers read the "derivatives" name
+        as "the chain this disk is part of" and compared it with ``> 1``
+        to discount the disk itself; a disk with exactly one dependent
+        therefore passed every client-side gate and only failed later,
+        server-side, with ``storage_has_children``.
+
+        As a gate the count is equivalent to the server's precondition:
+        a disk has a descendant if and only if it has a direct child, so
+        ``> 0`` here and ``len(children) > 0`` in ``set_maintenance``
+        accept and reject exactly the same disks.
+        """
         storage = get_storage(payload, storage_id)
-        return len(storage.children)
+        return len(storage.dependents())
 
     # ── DISK OPERATIONS ────────────────────────────────────────────────
 

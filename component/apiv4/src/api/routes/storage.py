@@ -475,7 +475,10 @@ async def get_storage_statuses(request: Request, storage_id: str):
     tags=[tag],
     response_model=StorageDerivativesResponse,
     summary="Check if storage has derivatives",
-    description="Returns the number of derivatives (children) for a storage item.",
+    description=(
+        "Returns how many disks depend on this one as a backing file, "
+        "counting the whole subtree and not just the direct children."
+    ),
     responses={
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},

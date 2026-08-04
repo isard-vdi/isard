@@ -183,3 +183,43 @@ class TestConvertSetsMaintenanceOnce:
             "longer ready -- convert can never succeed and the disk is left stuck"
         )
         origin.convert.assert_called_once()
+
+
+class TestHasDerivatives:
+    """The endpoint is named *derivatives* but returned
+    ``len(storage.children)`` — the first level only. Callers read the name
+    as "the chain this disk belongs to" and gated on ``> 1`` to discount
+    the disk itself, so a disk with exactly one dependent sailed through
+    every client-side check and only failed later, server-side, with
+    ``storage_has_children``.
+    """
+
+    @staticmethod
+    def _storage(dependents):
+        storage = MagicMock()
+        storage.dependents.return_value = dependents
+        return storage
+
+    @patch("api.services.storage.get_storage")
+    def test_counts_the_whole_subtree_not_just_the_first_level(self, mock_get):
+        mock_get.return_value = self._storage(
+            [MagicMock(id="child"), MagicMock(id="grandchild")]
+        )
+
+        assert StorageService.has_derivatives(JWT_PAYLOAD_ADMIN, "s1") == 2
+
+    @patch("api.services.storage.get_storage")
+    def test_one_dependent_is_reported_as_one_not_zero(self, mock_get):
+        """The case the ``> 1`` gates let through: a template with a single
+        derived desktop. As a gate the count is equivalent to the server's
+        ``len(children) > 0`` precondition — a disk has a descendant if and
+        only if it has a direct child."""
+        mock_get.return_value = self._storage([MagicMock(id="only-child")])
+
+        assert StorageService.has_derivatives(JWT_PAYLOAD_ADMIN, "s1") == 1
+
+    @patch("api.services.storage.get_storage")
+    def test_leaf_reports_zero(self, mock_get):
+        mock_get.return_value = self._storage([])
+
+        assert StorageService.has_derivatives(JWT_PAYLOAD_ADMIN, "s1") == 0

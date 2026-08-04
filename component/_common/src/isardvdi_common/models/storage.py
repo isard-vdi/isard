@@ -359,14 +359,103 @@ class Storage(RethinkCustomBase):
                 storage_pool.get_usage_path(self.pool_usage),
             )
 
+    @classmethod
+    def get_children(cls, storage_ids, include_deleted=False):
+        """
+        Returns the direct children of every id in ``storage_ids`` — one
+        indexed query for the whole batch, not one per id.
+
+        This is the single place the "what depends on this disk?" question
+        is answered; every property below is expressed in terms of it so
+        the guards, the delete cascade and the API count cannot drift apart
+        again.
+
+        ``include_deleted=False`` (the default, and what every guard has
+        always used) drops rows in status ``deleted``, on the premise that
+        a genuinely gone child must not keep blocking its parent. That
+        premise does not always hold: a recycle-bin purge run with ``move``
+        renames the qcow2 into ``deleted/`` instead of unlinking it, so the
+        copy survives on disk still carrying its ``backing_file=`` link.
+        Pass ``True`` where those rows matter — they are invisible to the
+        default, and that is how they end up stranded.
+
+        :param storage_ids: Ids whose direct children are wanted
+        :type storage_ids: list
+        :param include_deleted: Also return rows in status ``deleted``
+        :type include_deleted: bool
+        :return: List of Storage objects
+        :rtype: list
+        """
+        storage_ids = list(dict.fromkeys(storage_ids))
+        if not storage_ids:
+            return []
+        return cls.get_index(
+            storage_ids,
+            index="parent",
+            filter=None if include_deleted else (lambda s: s["status"] != "deleted"),
+        )
+
     @property
     def children(self):
         """
         Returns the non-deleted storages that have this storage as parent.
         """
-        return self.get_index(
-            [self.id], index="parent", filter=lambda s: s["status"] != "deleted"
-        )
+        return Storage.get_children([self.id])
+
+    def dependent_levels(self, include_deleted=False):
+        """
+        Returns the storages that depend on this one as a backing file,
+        grouped by distance: ``[[children], [grandchildren], ...]``.
+
+        One indexed lookup per level rather than one per node, which is
+        what the previous hand-rolled walk did.
+
+        The walk is cycle-guarded: ``parent`` is a plain field with no
+        referential integrity, so a corrupt row pointing back up its own
+        chain would otherwise loop until the process died.
+
+        Reversing the levels gives leaf-to-root — the only order in which
+        no intermediate step leaves a child without its parent.
+
+        :param include_deleted: Also walk rows in status ``deleted``
+        :type include_deleted: bool
+        :return: List of lists of Storage objects, nearest level first
+        :rtype: list
+        """
+        levels = []
+        seen = {self.id}
+        frontier = [self.id]
+        while frontier:
+            level = [
+                child
+                for child in Storage.get_children(
+                    frontier, include_deleted=include_deleted
+                )
+                if child.id not in seen
+            ]
+            if not level:
+                break
+            seen.update(child.id for child in level)
+            levels.append(level)
+            frontier = [child.id for child in level]
+        return levels
+
+    def dependents(self, include_deleted=False):
+        """
+        Returns every storage that transitively depends on this one as a
+        backing file, nearest first.
+        NOTE: Does not include the storage itself.
+
+        :param include_deleted: Also return rows in status ``deleted``
+        :type include_deleted: bool
+        :return: List of Storage objects
+        :rtype: list
+        """
+        return [
+            child
+            for level in self.dependent_levels(include_deleted=include_deleted)
+            for child in level
+        ]
 
     @property
     def derivatives(self):
@@ -375,17 +464,7 @@ class Storage(RethinkCustomBase):
         recursively including all descendant children (leaf nodes).
         NOTE: Does not include the storage itself.
         """
-        # Get the direct children first
-        direct_children = self.children
-
-        # For each child, recursively get their children
-        all_children = []
-        for child in direct_children:
-            all_children.append(child)
-            # Recursively get children of the child
-            all_children.extend(child.children)
-
-        return all_children
+        return self.dependents()
 
     @property
     def parents(self):
@@ -421,24 +500,35 @@ class Storage(RethinkCustomBase):
         """
         return domain.Domain.get_with_storage(self)
 
+    def domains_dependents(self, include_deleted=False):
+        """
+        Returns the domains attached to every transitive dependent of this
+        storage, in one indexed query.
+        NOTE: Does not include the storage's own domains.
+
+        Takes the same ``include_deleted`` as the walk it is built on, so a
+        caller that reaches through already-deleted rows for the disks
+        reaches the same distance for their domains. Answering the two
+        halves of "what breaks if this disk goes" at different depths is
+        how a disk ends up marked and the desktop on it left looking
+        startable.
+
+        :param include_deleted: Also walk rows in status ``deleted``
+        :type include_deleted: bool
+        :return: List of Domain objects
+        :rtype: list
+        """
+        return domain.Domain.get_with_storages(
+            [storage.id for storage in self.dependents(include_deleted=include_deleted)]
+        )
+
     @property
     def domains_derivatives(self):
         """
         Returns all domains attached to the storage and its descendants recursively.
         NOTE: Does not include the storage domains itself.
         """
-        # First, get the domains attached to the current storage object
-        storage_domains = self.domains
-
-        # Recursively get all child storages
-        all_children = self.children
-
-        # For each child storage, add its domains to the list
-        all_domains = []
-        for child in all_children:
-            all_domains.extend(child.domains)
-
-        return all_domains
+        return self.domains_dependents()
 
     @property
     def category(self):
