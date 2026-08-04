@@ -84,6 +84,32 @@ class AdminLogsQueryData(BaseModel):
     pass
 
 
+class AdminDomainXmlParseData(BaseModel):
+    """Request body for ``POST /admin/item/domains/xml_sections/parse``."""
+
+    xml: str = Field(
+        max_length=2 * 1024 * 1024,
+        description="The full domain XML to split into editable sections",
+    )
+
+
+class AdminVirtInstallSaveAsData(BaseModel):
+    """Request body for ``POST …/xml_sections/{domain_id}/save_virt_install``."""
+
+    sections: dict = Field(
+        description="Edited XML sections, keyed by section name",
+    )
+    name: str = Field(description="Name for the new virt_install record")
+
+
+class AdminVirtInstallXmlSectionsSaveData(BaseModel):
+    """Request body for ``POST /admin/item/virt_install/xml_sections/{virt_id}``."""
+
+    sections: dict = Field(
+        description="Edited XML sections, keyed by section name",
+    )
+
+
 class AdminDomainXmlSectionsSaveData(BaseModel):
     """Request body for ``POST /admin/item/domains/xml_sections/{domain_id}``.
 
