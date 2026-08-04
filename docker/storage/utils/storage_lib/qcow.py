@@ -7,6 +7,8 @@ import subprocess
 from pathlib import Path
 from time import time
 
+from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
+
 from .formatting import format_time_remaining, log
 
 _UUID_RE = re.compile(
@@ -354,7 +356,17 @@ def _build_uuid_index(search_dirs):
             continue
         for f in p.rglob("*.qcow2"):
             uid = uuid_from_path(str(f))
-            if uid and uid not in index:
+            if not uid:
+                continue
+            # A soft-deleted disk keeps its name in the bin directory beside
+            # it, so the same uuid exists twice. First-wins would let whichever
+            # rglob reached first decide, and this index is what chain repair
+            # resolves a missing backing file against -- pointing a live disk at
+            # a discarded copy. A live file always wins.
+            binned = RECYCLE_BIN_DIR in f.parts
+            if uid not in index:
+                index[uid] = str(f)
+            elif not binned and RECYCLE_BIN_DIR in Path(index[uid]).parts:
                 index[uid] = str(f)
     return index
 
