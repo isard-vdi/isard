@@ -23,6 +23,7 @@ from isardvdi_common.lib.governed_worker import (
     WORKER_STATUS_PREFIX,
     category_running_key,
 )
+from isardvdi_common.lib.queue_coverage import served_coverage
 from isardvdi_common.lib.queue_tiers import (
     _FAIR_TIERS,
     NULL_CATEGORY,
@@ -636,62 +637,59 @@ class AdminQueuesService:
             return []
 
     @staticmethod
-    def _lane_pool_prefix(queue_name: str) -> str:
-        """Pool identity of a storage lane, used to match a queue to the workers
-        that serve it. ``storage.<pool>.<tier>`` and the per-category
-        ``storage.<pool>.<cat>.<tier>`` both yield ``<pool>`` (so a governed
-        worker serving a pool's tier lane also covers that pool's per-category
-        sub-lanes); the cross-pool move lane ``storage.<src>:<dst>.<tier>``
-        yields ``<src>:<dst>`` (matched the same way on both sides)."""
-        rest = (
-            queue_name[len("storage.") :]
-            if queue_name.startswith("storage.")
-            else queue_name
-        )
-        return rest.split(".")[0]
-
-    @staticmethod
     def get_storage_lane_health() -> dict:
         """Lane-centric detector for ORPHAN storage lanes.
 
         An orphan lane is a queue that holds jobs but is served by no worker, so
         its tasks stall forever (the pool-consumer-missing failure). The
         worker-centric ``get_consumers`` view cannot see this because it only
-        enumerates queues that already have a worker. Grouping is by pool
-        identity (``_lane_pool_prefix``) so a governed worker serving a pool's
-        tier lane correctly covers that pool's per-category sub-lanes too."""
-        with _connect_redis() as redis_conn:
-            queued_by_pool: dict[str, int] = {}
-            lanes_by_pool: dict[str, list] = {}
-            for qkey in redis_conn.scan_iter(match=b"rq:queue:storage.*", count=1000):
-                name = qkey.decode().split("rq:queue:", 1)[1]
-                depth = redis_conn.llen(qkey)
-                if depth <= 0:
-                    continue
-                pool = AdminQueuesService._lane_pool_prefix(name)
-                queued_by_pool[pool] = queued_by_pool.get(pool, 0) + depth
-                lanes_by_pool.setdefault(pool, []).append(
-                    {"queue": name, "queued": depth}
-                )
-            served: set[str] = set()
-            for wkey in redis_conn.scan_iter(match=b"rq:workers:storage.*", count=1000):
-                if redis_conn.scard(wkey) <= 0:
-                    continue
-                served.add(
-                    AdminQueuesService._lane_pool_prefix(
-                        wkey.decode().split("rq:workers:", 1)[1]
-                    )
-                )
+        enumerates queues that already have a worker.
+
+        Both halves come from what the shed gate already reads: the lanes from
+        the bounded ``rq:queues`` snapshot, the fleet from ``served_coverage``.
+        That brings its fail-open with them -- a pool whose worker has not
+        published its served set is opaque, not absent, and reporting it dead
+        would send an operator to restart a consumer that is already running.
+        Grouping is by pool, so a worker on any of a pool's lanes covers that
+        pool's per-category sub-lanes too.
+        """
+        try:
+            with _connect_redis() as redis_conn:
+                lanes, truncated = _storage_lane_snapshot(redis_conn)
+                with redis_conn.pipeline() as pipe:
+                    for _, _, _, lane in lanes:
+                        pipe.llen(_RQ_QUEUE_PREFIX + lane)
+                    depths = pipe.execute()
+                covered, opaque_pools = served_coverage(redis_conn)
+        except Exception:
+            return {
+                "orphan_pools": [],
+                "orphans": [],
+                "healthy": True,
+                "truncated_lanes": 0,
+                "coverage_known": False,
+            }
+
+        served = {pool for pool, _tier in covered} | set(opaque_pools)
+        queued_by_pool: dict[str, int] = {}
+        lanes_by_pool: dict[str, list] = {}
+        for (pool, _category, _tier, lane), depth in zip(lanes, depths):
+            if not depth or pool in served:
+                continue
+            queued_by_pool[pool] = queued_by_pool.get(pool, 0) + depth
+            lanes_by_pool.setdefault(pool, []).append({"queue": lane, "queued": depth})
+
         orphans = [
             {"pool": pool, "queued": queued, "lanes": lanes_by_pool[pool]}
             for pool, queued in queued_by_pool.items()
-            if pool not in served
         ]
         orphans.sort(key=lambda o: o["queued"], reverse=True)
         return {
             "orphan_pools": [o["pool"] for o in orphans],
             "orphans": orphans,
             "healthy": len(orphans) == 0,
+            "truncated_lanes": truncated,
+            "coverage_known": True,
         }
 
     @staticmethod
