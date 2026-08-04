@@ -7,8 +7,9 @@
 
 import re
 import traceback
+from typing import Union
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
@@ -789,15 +790,31 @@ class Alloweds(RethinkCustomBase):
         )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=20, ttl=60))
-    def get_indeterminate_groups(cls, allowed_users: str) -> list:
-        if not allowed_users:
+    def get_indeterminate_groups(cls, allowed_users: Union[bool, list]) -> list:
+        if not isinstance(allowed_users, list) or not allowed_users:
             return []
+
         with cls._rdb_context():
-            indeterminate_groups = (
+            users = list(
                 r.table("users")
                 .get_all(r.args(allowed_users), index="id")
-                .pluck("secondary_groups", "group")
+                .pluck("group", "secondary_groups")
                 .run(cls._rdb_connection)
             )
-        return indeterminate_groups
+
+        group_ids = set()
+        for user in users:
+            if user.get("group"):
+                group_ids.add(user["group"])
+            group_ids.update(user.get("secondary_groups") or [])
+
+        if not group_ids:
+            return []
+
+        with cls._rdb_context():
+            return list(
+                r.table(Group._rdb_table)
+                .get_all(r.args(list(group_ids)))
+                .pluck("id", "name")
+                .run(cls._rdb_connection)
+            )
