@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from enum import Enum
 from time import time
 from typing import Any, Dict, List, Literal, Optional, Union
 from uuid import uuid4
@@ -47,6 +48,64 @@ _owner_category_cache = SynchronizedTTLCache(maxsize=4096, ttl=60)
 def _owner_category(user_id):
     owner = User.get(user_id)
     return owner.get("category") if owner else None
+
+
+class DiskEffect(str, Enum):
+    """What an action does to the disk FILE, and so what must be re-measured.
+
+    The stored ``qemu-img-info`` is a snapshot: nothing watches the filesystem,
+    so a row is only as current as the last measurement. An action that changes
+    the file without re-measuring leaves the row lying -- silently, because the
+    task still succeeds. ``convert`` did exactly that: it writes a flat image
+    and its chain ended at ``update_status``, so the destination reached its
+    final status with no ``qemu-img-info`` at all and counted as zero bytes
+    against every quota.
+
+    Declaring the effect is what makes the omission impossible to repeat: a new
+    action cannot be added without answering the question, because
+    :data:`DISK_EFFECTS` is asserted to cover every task-creating method.
+    """
+
+    #: The file is untouched, or it is going away, or the action IS the
+    #: measurement. Nothing to re-measure afterwards.
+    NONE = "none"
+    #: The bytes change but the backing file and the location do not (resize,
+    #: sparsify, a write into the guest). Needs a fresh ``qemu-img-info``.
+    SIZE = "size"
+    #: The file is replaced, or its backing file changes (create, convert,
+    #: disconnect). Needs a fresh ``qemu-img-info`` AND the parent re-resolved.
+    CHAIN = "chain"
+    #: Same bytes at a new location. Nothing to re-measure, but every path the
+    #: row records -- ``directory_path`` and the paths inside ``qemu-img-info``
+    #: -- has to follow the file.
+    PATH = "path"
+
+
+#: Every :class:`Storage` method that creates a task, and what it does to the
+#: file. Kept beside the actions so it is edited in the same breath as them;
+#: ``test_disk_effects_contract`` fails when a task-creating method is missing.
+DISK_EFFECTS = {
+    "find": DiskEffect.NONE,
+    "check_backing_chain": DiskEffect.NONE,
+    "rsync": DiskEffect.PATH,
+    "mv": DiskEffect.PATH,
+    "task_delete": DiskEffect.NONE,
+    "increase_size": DiskEffect.SIZE,
+    "virt_win_reg": DiskEffect.SIZE,
+    "sparsify": DiskEffect.SIZE,
+    "disconnect_chain": DiskEffect.CHAIN,
+    "convert": DiskEffect.CHAIN,
+    "recreate": DiskEffect.CHAIN,
+    "create_new_storage": DiskEffect.CHAIN,
+    "enqueue_disk_creation_chain_for_domain": DiskEffect.CHAIN,
+    "enqueue_template_creation_chain_from_desktop": DiskEffect.CHAIN,
+    "enqueue_registry_download_chain_for_domain": DiskEffect.CHAIN,
+    # A cancelled operation can leave the file half-written or already
+    # replaced, so what is on disk after an abort is unknown by definition.
+    "abort_operations": DiskEffect.CHAIN,
+    "set_path": DiskEffect.PATH,
+    "delete_path": DiskEffect.NONE,
+}
 
 
 class StorageModel(BaseModel):
@@ -1082,6 +1141,10 @@ class Storage(RethinkCustomBase):
         :rtype: str
         """
         queue_virt_win_reg = f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=self.directory_path).id}.{priority}"
+        # virt-win-reg writes into the guest registry, so the qcow2 allocation
+        # grows. Re-measure on a separate queue, as sparsify does, so a bulk run
+        # does not queue behind its own patches.
+        queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.background"
 
         self.set_maintenance("virt_win_reg")
         self.create_task(
@@ -1098,6 +1161,22 @@ class Storage(RethinkCustomBase):
                 "timeout": timeout,
             },
             dependents=[
+                {
+                    "queue": queue_backing_chain,
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        }
+                    ],
+                },
                 {
                     "queue": "core",
                     "task": "update_status",
@@ -1302,6 +1381,15 @@ class Storage(RethinkCustomBase):
         :rtype: str
         """
 
+        # qemu-img convert is given no -B, so the destination is a FLAT image:
+        # new bytes, and no backing file. Nothing else measures it, so without
+        # this the destination reaches its final status carrying no
+        # qemu-img-info at all -- and every consumer that sizes a disk from it
+        # (quotas, usage, analytics) counts a real disk as zero bytes.
+        # It rides a storage queue, so a failed convert leaves it unenqueued
+        # rather than measuring a destination that was just unlinked.
+        queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=new_storage.directory_path).id}.background"
+
         self.set_maintenance("convert")
         self.create_task(
             user_id=user_id,
@@ -1318,6 +1406,22 @@ class Storage(RethinkCustomBase):
                 },
             },
             dependents=[
+                {
+                    "queue": queue_backing_chain,
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": new_storage.id,
+                            "storage_path": new_storage.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        }
+                    ],
+                },
                 {
                     "queue": "core",
                     "task": "update_status",
@@ -1353,7 +1457,7 @@ class Storage(RethinkCustomBase):
                             }
                         }
                     },
-                }
+                },
             ],
         )
 
