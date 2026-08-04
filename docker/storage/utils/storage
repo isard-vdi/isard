@@ -1518,10 +1518,15 @@ def _with_stranded_bin_copies(deletable, qcow_deps):
     share: a clean cleanup left 23 such copies pointing at a parent it had just
     moved aside.
 
-    Only files already inside a bin cascade. A LIVE child of a deleted parent is
-    never dragged in: that is a broken chain for a human to look at, not
-    something to sweep. A bin copy whose parent survives is a restorable backup
-    and is kept.
+    Only files already inside a bin cascade. A bin copy whose parent survives is
+    a restorable backup and is kept.
+
+    A LIVE child of a removed parent is never dragged in either -- but not
+    because it is an ordinary case to leave alone. ``set_maintenance`` refuses
+    any op on a disk with children (``storage_has_children``), so a live disk
+    whose backing file is gone should not be able to exist at all; measured on a
+    live share, none did. If one turns up it is an INCOHERENCE, not a category
+    of work, and sweeping it would destroy the evidence of how it happened.
     """
     dependency_map = qcow_deps.get("dependency_map", {})
     # The scan IS the snapshot we are reasoning about: a parent it did not see
