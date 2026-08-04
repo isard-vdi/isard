@@ -873,14 +873,15 @@
         "save": "Guardar cambios"
       },
       "errors": {
-        "title": "Error al guardar el escritorio"
+        "title": "Error al guardar el escritorio",
+        "load": "Error al cargar el escritorio"
       },
       "info": {
-        "title": "Nombre y descripción",
-        "description": "Define el nombre y la descripción del escritorio."
+        "title": "Información del escritorio",
+        "description": "Proporciona un nombre y una descripción para identificar tu escritorio"
       },
       "access": {
-        "title": "Acceso",
+        "title": "Configuración de acceso",
         "description": "Visores, credenciales y configuración del bastion."
       },
       "hardware": {
@@ -1203,6 +1204,7 @@
         "description": "¿Restablecer las claves VPN? Tendrás que descargar un nuevo archivo VPN",
         "cancel": "Cancelar",
         "confirm": "Restablecer VPN",
+        "success": "Las claves VPN se han restablecido correctamente.",
         "errors": {
           "unauthorized": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.",
           "internal_server": "No pudimos restablecer tus claves VPN por un error del servidor. Inténtalo más tarde.",
@@ -1559,6 +1561,21 @@
         "description": "Se ha alcanzado el número máximo de escritorios en ejecución. Se debe detener un escritorio para iniciar uno nuevo.",
         "cancel": "Volver a escritorios"
       },
+      "start-memory-quota-exceeded-modal": {
+        "title": "Cuota de memoria superada",
+        "description": "Se ha superado tu cuota de memoria. Debes detener un escritorio para iniciar otro, o editar este escritorio para reducir su memoria.",
+        "cancel": "Volver a escritorios"
+      },
+      "start-vcpu-quota-exceeded-modal": {
+        "title": "Cuota de vCPU superada",
+        "description": "Se ha superado tu cuota de vCPU. Debes detener un escritorio para iniciar otro, o editar este escritorio para reducir sus vCPU.",
+        "cancel": "Volver a escritorios"
+      },
+      "start-disk-quota-exceeded-modal": {
+        "title": "Cuota de almacenamiento superada",
+        "description": "Se ha superado tu cuota de almacenamiento. Libera espacio en disco para poder iniciar este escritorio.",
+        "cancel": "Volver a escritorios"
+      },
       "storage-unavailable-modal": {
         "title": "Almacenamiento no disponible",
         "description": "El almacenamiento de creación no está disponible actualmente y no se pueden crear escritorios. Por favor, inténtelo más tarde.",
@@ -1723,13 +1740,6 @@
           "2": "Mejor experiencia en escritorios Windows",
           "3": "Requiere acceso VPN con cliente WireGuard"
         }
-      },
-      "guide-url": {
-        "browser-vnc": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#vnc-browser",
-        "browser-rdp": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#rdp-browser-viewer",
-        "file-spice": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#spice",
-        "file-rdpgw": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#native-rdp",
-        "file-rdpvpn": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#native-rdp"
       }
     },
     "domain-hardware-summary": {
@@ -2423,6 +2433,20 @@
         "go-back": "Atrás",
         "next": "Siguiente"
       }
+    },
+    "new-desktop": {
+      "os-template-select": {
+        "placeholder": "Selecciona una plantilla de sistema operativo",
+        "search-placeholder": "Buscar plantillas de sistema operativo",
+        "not-found": "No se ha encontrado ninguna plantilla",
+        "more-results": "{count} resultados más, afina tu búsqueda"
+      }
+    },
+    "searchable-tags": {
+      "search-placeholder": "Buscar",
+      "not-found": "No se ha encontrado ningún resultado",
+      "more-results": "{count} resultados más, afina tu búsqueda",
+      "remove": "Quitar {name}"
     }
   },
   "authentication": {
@@ -2571,7 +2595,12 @@
       "errors": {
         "generic": "Se ha producido un error al guardar el escritorio. Inténtalo de nuevo.",
         "internal_server": "Error interno del servidor al guardar el escritorio.",
-        "desktop_not_stopped": "El escritorio debe estar detenido antes de editarlo."
+        "precondition_required": "El escritorio debe estar detenido antes de editarlo.",
+        "not_found": "No se encontró el escritorio.",
+        "bad_request": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a este escritorio o elimina los visores RDP.",
+        "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre. Por favor, elige un nombre diferente.",
+        "one_viewer_minimum": "Debes seleccionar al menos un visor.",
+        "only_works_rdp": "El modo 'Solo GPU' solo funciona con visores RDP. Por favor, elimina los visores que no sean RDP o elige otra opción de vídeo."
       }
     },
     "booking": {
