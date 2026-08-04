@@ -1449,11 +1449,28 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
                     f"{exc}. Give the disk a resolvable owner category, exclude "
                     "it from the selection, or migrate into the default pool.",
                 ) from exc
+            if dst_dir_cache[s.id] is None:
+                # The other way the destination can be unknown: the disk's usage
+                # cannot be reverse-mapped in the destination pool, and
+                # get_storage_pool_path answers None instead of raising. Refuse
+                # here too. Left to travel, that None reaches the item as
+                # dst_path and task.move dies inside os.path.isfile(None) with a
+                # TypeError, which the admin only sees as "move or rebase task
+                # failed" -- with the disk's whole subtree skipped behind it.
+                from isardvdi_common.helpers.error_base import ErrorBase
+
+                raise ErrorBase(
+                    "bad_request",
+                    f"Storage {s.id} cannot be placed in pool {dst_pool.id}: its "
+                    f"directory {getattr(s, 'directory_path', '?')} does not match "
+                    "any usage path of its current pool, so the destination "
+                    "directory is unknown. Fix the disk's directory_path or "
+                    "exclude it from the selection.",
+                )
         return dst_dir_cache[s.id]
 
     def dst_path_of(s):
-        directory = dst_dir_of(s)
-        return None if directory is None else f"{directory}/{s.id}.{s.type}"
+        return f"{dst_dir_of(s)}/{s.id}.{s.type}"
 
     def node_info(sid):
         s = st(sid)

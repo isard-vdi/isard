@@ -315,3 +315,35 @@ def test_build_plan_survives_a_dangling_parent(monkeypatch):
     assert items[0]["storage_id"] == "orphan"
     assert not items[0].get("parent_storage_id")
     assert not items[0].get("parent_dst_path")
+
+
+def test_build_plan_refuses_a_disk_with_no_resolvable_destination(monkeypatch):
+    """An unresolvable destination must fail the PLAN, not the disk at run time.
+
+    ``get_storage_pool_path`` answers ``None`` -- rather than raising -- when the
+    disk's usage cannot be reverse-mapped in the destination pool. That ``None``
+    used to travel all the way into the item, and ``task.move`` then died inside
+    ``os.path.isfile(None)`` with a TypeError the admin only ever saw as "move or
+    rebase task failed", with the disk's whole subtree skipped behind it. Refuse
+    up front, naming the disk, exactly as the raising sibling path already does.
+    """
+    _FakeStorage.registry = {
+        "root": {
+            "type": "qcow2",
+            "parent": None,
+            "perms": ["r"],
+            "children": [],
+            "pool_usage": None,
+        },
+    }
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+
+    with pytest.raises(Exception) as raised:
+        mig.build_plan_for_roots("mig1", ["root"], _MultiPathPool())
+
+    message = str(raised.value)
+    assert "root" in message, message
+    assert "TypeError" not in message, message
