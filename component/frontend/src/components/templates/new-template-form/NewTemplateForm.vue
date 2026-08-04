@@ -37,7 +37,7 @@ import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ErrorResponse } from '@/gen/oas/apiv4'
-import { AllowedModal } from '@/components/modal/allowed'
+import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 
@@ -57,7 +57,19 @@ const emit = defineEmits<{
 
 const desktopId = ref<string>(props.desktopId)
 const showAllowedModal = ref<boolean>(false)
-// const desktopId = ref<string>('f3861bec-69f1-47ae-8b7a-50a11bf5fa27')
+
+const allowed = ref<AllowedSelection>({ groups: false, users: false })
+
+const bucketCount = (bucket: boolean | string[]) => (Array.isArray(bucket) ? bucket.length : 0)
+const isEveryone = (bucket: boolean | string[]) => Array.isArray(bucket) && bucket.length === 0
+
+const allowedGroupCount = computed(() => bucketCount(allowed.value.groups))
+const allowedUserCount = computed(() => bucketCount(allowed.value.users))
+
+const allowedSummary = computed<'everyone' | 'nobody' | 'counts'>(() => {
+  if (isEveryone(allowed.value.groups) || isEveryone(allowed.value.users)) return 'everyone'
+  return allowedGroupCount.value + allowedUserCount.value === 0 ? 'nobody' : 'counts'
+})
 
 const { data: desktopInfo, isPending: desktopInfoIsPending } = useQuery(
   getDesktopInfoOptions({
@@ -153,10 +165,7 @@ const form = useForm({
         image: currentImage.value
           ? { id: currentImage.value.id, type: currentImage.value.type }
           : undefined,
-        allowed: {
-          users: false,
-          groups: false
-        }
+        allowed: allowed.value
       }
     })
   }
@@ -175,9 +184,9 @@ const isPending = computed(() => {
 defineExpose({ form, isPending })
 
 // Allowed
-const handleSaveAllowed = (allowed: { groups: string[]; users: string[] }) => {
-  console.log('Allowed saved:', allowed)
-  // Handle the allowed users and groups as needed
+const handleSaveAllowed = (selection: AllowedSelection) => {
+  allowed.value = selection
+  showAllowedModal.value = false
 }
 </script>
 
@@ -346,16 +355,20 @@ const handleSaveAllowed = (allowed: { groups: string[]; users: string[] }) => {
           <h1 class="text-lg font-semibold text-gray-warm-900">
             {{ t('views.new-template.form.sections.alloweds.title') }}
           </h1>
+          <h2 v-if="allowedSummary !== 'counts'" class="text-sm font-regular text-gray-warm-700">
+            {{ t(`views.new-template.form.sections.alloweds.subtitle-${allowedSummary}`) }}
+          </h2>
           <i18n-t
+            v-else
             keypath="views.new-template.form.sections.alloweds.subtitle"
             tag="h2"
             class="text-sm font-regular text-gray-warm-700"
           >
             <template #groups>
-              <b>{{ t('users.count.groups', 0) }}</b>
+              <b>{{ t('users.count.groups', allowedGroupCount) }}</b>
             </template>
             <template #users>
-              <b>{{ t('users.count.users', 0) }}</b>
+              <b>{{ t('users.count.users', allowedUserCount) }}</b>
             </template>
           </i18n-t>
         </div>
@@ -365,11 +378,9 @@ const handleSaveAllowed = (allowed: { groups: string[]; users: string[] }) => {
             t('views.new-template.form.sections.alloweds.button')
           }}</Button>
           <AllowedModal
-            :title="t('components.allowed-modal.title')"
-            :description="
-              t('components.allowed-modal.description', { 'item-type': t('domains.templates', 1) })
-            "
             :open="showAllowedModal"
+            item-type="template"
+            :selection="allowed"
             @close="showAllowedModal = false"
             @save="handleSaveAllowed"
           />

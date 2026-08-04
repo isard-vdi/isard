@@ -515,6 +515,8 @@
           "alloweds": {
             "title": "Allowed Groups and Users",
             "subtitle": "This template will be shared with {groups} and {users}.",
+            "subtitle-everyone": "This template will be shared with everyone in its category.",
+            "subtitle-nobody": "This template will not be shared with anyone.",
             "button": "Manage users and groups"
           },
           "access": {
