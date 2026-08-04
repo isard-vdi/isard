@@ -14,6 +14,7 @@ import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { DesktopCellImage, DesktopCellName } from '@/components/desktops-data-table'
 import { Button } from '@/components/ui/button'
 import { copyToClipboard } from '@/lib/utils'
+import { resolveDesktopKind } from '@/lib/desktops'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { DomainInfoModal } from '@/components/desktops'
 import { StepperForm } from '@/components/stepper-form'
@@ -104,16 +105,21 @@ const {
       throwOnError: true
     })
     return data
-  },
-  onSuccess: (data) => {
-    showDesktopInfoModal.value = true
   }
 })
 
-const openDesktopInfoModal = async (desktopId: string) => {
+const openDesktopInfoModal = (desktopId: string) => {
   fetchDesktopDetails(desktopId)
   showDesktopInfoModal.value = true
 }
+
+const desktopDetailsKind = computed(() => {
+  const id = desktopDetailsDesktopId.value
+  if (!id) return undefined
+  const desktop = desktops.value?.desktops.find((d) => d.id === id)
+  if (!desktop) return undefined
+  return resolveDesktopKind(desktop)
+})
 
 // ------------------------------------------
 
@@ -220,7 +226,8 @@ const table = useVueTable({
 
   <template v-if="quotaCheckPassed">
     <DomainInfoModal
-      :open="desktopDetails !== undefined"
+      :open="showDesktopInfoModal"
+      :is-loading="fetchDesktopDetailsIsPending"
       :domain-id="desktopDetailsDesktopId"
       :name="desktopDetails?.name || ''"
       :description="desktopDetails?.description"
@@ -235,9 +242,16 @@ const table = useVueTable({
       :isos="desktopDetails?.isos?.map((iso) => iso.name)"
       :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"
       :reservables="desktopDetails?.reservables?.vgpus"
+      :credentials="desktopDetails?.credentials"
       :kind="'desktop'"
       :template="desktopDetails?.template"
-      @close="resetDesktopDetails()"
+      :desktop-kind="desktopDetailsKind"
+      @close="
+        () => {
+          showDesktopInfoModal = false
+          resetDesktopDetails()
+        }
+      "
     />
 
     <header
@@ -468,7 +482,7 @@ const table = useVueTable({
                         hierarchy="secondary-gray"
                         icon="info-circle"
                         class="aspect-square p-[10px]"
-                        @click.stop="fetchDesktopDetails(row.original.id)"
+                        @click.stop="openDesktopInfoModal(row.original.id)"
                         @keydown.space.stop
                         @keydown.enter.stop
                       />

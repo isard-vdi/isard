@@ -56,6 +56,7 @@ import { getEndTimeIntervals } from '@/lib/booking/end-time-intervals'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { sessionTokenName } from '@/lib/auth'
 import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
+import { resolveDesktopKind } from '@/lib/desktops'
 import { useNotificationModalStore } from '@/stores/notification-modal'
 
 import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
@@ -347,6 +348,14 @@ const openDesktopInfoModal = async (desktopId: string) => {
   fetchDesktopDetails(desktopId)
   showDesktopInfoModal.value = true
 }
+
+const desktopDetailsKind = computed(() => {
+  const id = desktopDetailsDesktopId.value
+  if (!id) return undefined
+  const desktop = desktops.value?.desktops.find((d) => d.id === id)
+  if (!desktop) return undefined
+  return resolveDesktopKind(desktop)
+})
 
 // --------------------------------------------------
 
@@ -1031,6 +1040,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
 
   <DomainInfoModal
     :open="showDesktopInfoModal"
+    :is-loading="fetchDesktopDetailsIsPending"
     :domain-id="desktopDetailsDesktopId"
     :name="desktopDetails?.name || ''"
     :description="desktopDetails?.description"
@@ -1045,8 +1055,10 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     :isos="desktopDetails?.isos?.map((iso) => iso.name)"
     :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"
     :reservables="desktopDetails?.reservables?.vgpus"
+    :credentials="desktopDetails?.credentials"
     :kind="'desktop'"
     :template="desktopDetails?.template"
+    :desktop-kind="desktopDetailsKind"
     @close="
       () => {
         showDesktopInfoModal = false

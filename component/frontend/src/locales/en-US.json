@@ -1673,9 +1673,18 @@
         }
       },
       "title": "Information",
+      "loading": "Loading desktop details…",
+      "kind": {
+        "persistent": "Persistent desktop",
+        "nonpersistent": "Temporary desktop",
+        "deployment": "Deployment desktop"
+      },
       "fields": {
         "description": {
           "title": "Description"
+        },
+        "credentials": {
+          "title": "Credentials"
         },
         "status": {
           "title": "Status"

@@ -211,7 +211,8 @@ export default {
         'secondary-1': {
           400: 'var(--secondary-1-400)',
           500: 'var(--secondary-1-500)',
-          600: 'var(--secondary-1-600)'
+          600: 'var(--secondary-1-600)',
+          700: 'var(--secondary-1-700)'
         },
         'secondary-2': {
           400: 'var(--secondary-2-400)',
@@ -219,11 +220,13 @@ export default {
           600: 'var(--secondary-2-600)',
           700: 'var(--secondary-2-700)',
           800: 'var(--secondary-2-800)',
+          900: 'var(--secondary-2-900)',
         },
         'secondary-3': {
           400: 'var(--secondary-3-400)',
           500: 'var(--secondary-3-500)',
-          600: 'var(--secondary-3-600)'
+          600: 'var(--secondary-3-600)',
+          700: 'var(--secondary-3-700)'
         },
         'secondary-4': {
           400: 'var(--secondary-4-400)',

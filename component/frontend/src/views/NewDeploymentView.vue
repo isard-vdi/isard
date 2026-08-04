@@ -131,7 +131,7 @@ const {
 // Template Info Modal
 const showTemplateInfoModal = ref(false)
 const {
-  mutate: fetchAndOpenTemplateInfoModal,
+  mutate: fetchTemplateDetails,
   isPending: fetchTemplateDetailsIsPending,
   isError: fetchTemplateDetailsIsError,
   error: fetchTemplateDetailsError,
@@ -147,11 +147,13 @@ const {
       throwOnError: true
     })
     return data
-  },
-  onSuccess: () => {
-    showTemplateInfoModal.value = true
   }
 })
+
+const openTemplateInfoModal = (templateId: string) => {
+  fetchTemplateDetails(templateId)
+  showTemplateInfoModal.value = true
+}
 
 const formSchema = z.object({
   name: z
@@ -518,6 +520,7 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
 
       <DomainInfoModal
         :open="showTemplateInfoModal"
+        :is-loading="fetchTemplateDetailsIsPending"
         :domain-id="templateDetailsDesktopId"
         :name="templateDetails?.name || ''"
         :description="templateDetails?.description"
@@ -529,6 +532,7 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
         :viewers="templateDetails?.viewers"
         :isos="templateDetails?.isos?.map((iso) => iso.name)"
         :reservables="templateDetails?.reservables?.vgpus"
+        :credentials="templateDetails?.credentials"
         :kind="'template'"
         @close="
           () => {
@@ -549,7 +553,7 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
             selectTemplateModalData = null
           }
         "
-        @show-info-modal="fetchAndOpenTemplateInfoModal"
+        @show-info-modal="openTemplateInfoModal"
       />
 
       <template #footer>
