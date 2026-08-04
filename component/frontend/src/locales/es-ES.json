@@ -2168,7 +2168,8 @@
         },
         "vgpus": {
           "label": "vGPU",
-          "placeholder": "Selecciona una vGPU"
+          "placeholder": "Selecciona una vGPU",
+          "hint": "Máximo {max} perfiles de vGPU por escritorio."
         },
         "hardwareGroups": {
           "hardware": "Hardware",
@@ -2784,6 +2785,9 @@
         "not_found": "No se encontró la plantilla.",
         "precondition_required": "La plantilla debe estar detenida antes de poder editarla.",
         "rdp_requires_wireguard": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a esta plantilla o elimina los visores RDP.",
+        "too_many_vgpu_profiles": "Se ha superado el número máximo de perfiles de vGPU permitidos.",
+        "duplicate_vgpu_profiles": "No se puede seleccionar el mismo perfil de vGPU más de una vez.",
+        "vgpu_profile_not_found": "Uno o más perfiles de vGPU seleccionados ya no existen.",
         "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
         "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host."
       }

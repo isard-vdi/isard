@@ -108,3 +108,16 @@ export const LongLabels = createStory({
   ],
   placeholder: 'Select tags'
 })
+
+/** Tags bucketed via `group`, with a disabled item per group (mirrors the
+ *  vGPU profile selector's hypervisor/NUMA grouping + selection-limit disabling). */
+export const GroupedWithDisabledTags = createStory({
+  modelValue: ['tag1'],
+  tags: [
+    { label: 'Tag 1', value: 'tag1', group: 'Group A' },
+    { label: 'Tag 2', value: 'tag2', group: 'Group A', disabled: true },
+    { label: 'Tag 3', value: 'tag3', group: 'Group B' },
+    { label: 'Tag 4', value: 'tag4', group: 'Group B', disabled: true }
+  ],
+  placeholder: 'Select tags'
+})

@@ -2,6 +2,8 @@
 import {
   ListboxContent,
   ListboxFilter,
+  ListboxGroup,
+  ListboxGroupLabel,
   ListboxItem,
   ListboxItemIndicator,
   ListboxRoot,
@@ -20,6 +22,8 @@ import { cn } from '@/lib/utils'
 interface Tag {
   value: string
   label: string
+  group?: string
+  disabled?: boolean
 }
 
 interface Props {
@@ -93,6 +97,24 @@ const visibleTags = computed(() => {
 
 const hiddenResultsCount = computed(() => filteredTags.value.length - visibleTags.value.length)
 
+// Grouped over the already-capped visibleTags, so the pinning above still applies.
+const groupedVisibleTags = computed(() => {
+  const groups = new Map<string, Tag[]>()
+  for (const tag of visibleTags.value) {
+    const key = tag.group ?? ''
+    const bucket = groups.get(key) ?? []
+    bucket.push(tag)
+    groups.set(key, bucket)
+  }
+  const labelled = [...groups.keys()].filter((key) => key !== '')
+  if (labelled.length <= 1) {
+    return [{ label: null as string | null, items: visibleTags.value }]
+  }
+  return [...groups.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([label, items]) => ({ label: label || null, items }))
+})
+
 const visibleChips = computed(() =>
   props.tagsDisplay === 'scroll'
     ? selectedTags.value
@@ -127,6 +149,11 @@ function removeTag(value: string) {
     props.modelValue.filter((selected) => selected !== value)
   )
 }
+
+function removeLastTag() {
+  const last = selectedTags.value.at(-1)
+  if (last) removeTag(last.value)
+}
 </script>
 
 <template>
@@ -145,13 +172,14 @@ function removeTag(value: string) {
           :class="
             cn(
               selectTriggerVariants({ hierarchy: props.invalid ? 'destructive' : 'primary' }),
-              'h-auto gap-2 cursor-pointer',
+              'h-auto gap-2 cursor-pointer focus:border-secondary-3-400',
               scrollbarVisible ? 'min-h-12' : 'min-h-10',
               props.disabled && 'cursor-not-allowed opacity-50 pointer-events-none'
             )
           "
           @keydown.enter.prevent="open = !open"
           @keydown.space.prevent="open = !open"
+          @keydown.backspace.prevent="!open && removeLastTag()"
         >
           <span
             v-if="selectedTags.length === 0"
@@ -181,9 +209,10 @@ function removeTag(value: string) {
               <span class="truncate">{{ tag.label }}</span>
               <button
                 type="button"
-                class="shrink-0 flex items-center justify-center rounded-xs hover:bg-brand-200"
+                class="shrink-0 flex items-center justify-center rounded-xs border border-transparent hover:bg-brand-200 outline-none focus-visible:border-secondary-3-600"
                 :aria-label="t('components.searchable-tags.remove', { name: tag.label })"
                 @click.stop="removeTag(tag.value)"
+                @keydown.stop
               >
                 <Icon name="x-close" size="sm" stroke-color="gray-warm-500" />
               </button>
@@ -206,9 +235,7 @@ function removeTag(value: string) {
           <ListboxFilter
             v-model="searchTerm"
             auto-focus
-            :placeholder="
-              selectedTags.length === 0 ? t('components.searchable-tags.search-placeholder') : ''
-            "
+            :placeholder="t('components.searchable-tags.search-placeholder')"
             class="w-full text-md text-gray-warm-900 outline-none bg-transparent placeholder:text-gray-warm-500 placeholder:font-regular"
           />
         </div>
@@ -220,18 +247,27 @@ function removeTag(value: string) {
             {{ t('components.searchable-tags.not-found') }}
           </p>
           <template v-else>
-            <ListboxItem
-              v-for="tag in visibleTags"
-              :key="tag.value"
-              class="data-[highlighted]:bg-brand-100 data-[highlighted]:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
-              :value="tag.value"
-            >
-              <span class="truncate">{{ tag.label }}</span>
+            <ListboxGroup v-for="grp in groupedVisibleTags" :key="grp.label ?? ''">
+              <ListboxGroupLabel
+                v-if="grp.label"
+                class="px-2 py-1.5 text-sm font-medium text-gray-warm-500"
+              >
+                {{ grp.label }}
+              </ListboxGroupLabel>
+              <ListboxItem
+                v-for="tag in grp.items"
+                :key="`${tag.value}-${tag.disabled}`"
+                class="data-[state=checked]:bg-gray-warm-100 data-highlighted:bg-brand-100 data-highlighted:text-accent-foreground data-[state=checked]:data-highlighted:bg-brand-100 relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 outline-hidden select-none data-disabled:cursor-not-allowed data-disabled:opacity-50"
+                :value="tag.value"
+                :disabled="tag.disabled"
+              >
+                <span class="truncate">{{ tag.label }}</span>
 
-              <ListboxItemIndicator class="ml-auto inline-flex items-center justify-center">
-                <Icon name="check" stroke-color="brand-700" />
-              </ListboxItemIndicator>
-            </ListboxItem>
+                <ListboxItemIndicator class="ml-auto inline-flex items-center justify-center">
+                  <Icon name="check" stroke-color="brand-700" />
+                </ListboxItemIndicator>
+              </ListboxItem>
+            </ListboxGroup>
             <p v-if="hiddenResultsCount > 0" class="px-2 py-1.5 text-sm text-gray-warm-500">
               {{ t('components.searchable-tags.more-results', { count: hiddenResultsCount }) }}
             </p>

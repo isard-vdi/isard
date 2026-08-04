@@ -23,9 +23,7 @@ import {
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectSeparator,
   SelectTrigger,
   SelectValue
@@ -312,31 +310,20 @@ const vgpuGroupLabel = (v: VgpuOption): string | null => {
   return nodes.length ? `${host} (NUMA ${nodes[0]})` : host
 }
 
-// Group the options only when there is more than one distinct placement
-// (multi-socket / multi-hypervisor); otherwise present a single flat list.
-const groupedVgpus = computed<{ label: string | null; items: VgpuOption[] }[]>(() => {
-  const opts = vgpusOptions.value as VgpuOption[]
-  const groups = new Map<string, VgpuOption[]>()
-  for (const v of opts) {
-    const key = vgpuGroupLabel(v) ?? ''
-    const bucket = groups.get(key) ?? []
-    bucket.push(v)
-    groups.set(key, bucket)
-  }
-  const labelled = [...groups.keys()].filter((k) => k !== '')
-  if (labelled.length <= 1) {
-    return [{ label: null, items: opts }]
-  }
-  return [...groups.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([label, items]) => ({ label: label || null, items }))
-})
 // Grey out a profile that can't be added to the current selection (count limit
 // reached or not co-locatable on a single hypervisor). The backend enforces the
 // same rules; this just prevents obviously-invalid picks.
 const vgpuDisabled = (option: VgpuOption, ids: string[] | undefined): boolean => {
   return !isVgpuSelectable(option, ids ?? [], vgpusOptions.value as VgpuOption[])
 }
+
+const vgpuTagsFor = (selected: string[] | undefined) =>
+  (vgpusOptions.value as VgpuOption[]).map((v) => ({
+    value: v.id,
+    label: v.name,
+    group: vgpuGroupLabel(v) ?? undefined,
+    disabled: vgpuDisabled(v, selected)
+  }))
 
 const networksOptions = computed(() => userAllowedHardware.value?.interfaces || [])
 
@@ -737,29 +724,20 @@ defineExpose({
                 <FieldLabel :for="field.name">
                   {{ $t('components.domain.hardware.vgpus.label') }}
                 </FieldLabel>
-                <Select
-                  name="reservables.vgpus"
-                  multiple
+                <SearchableTags
+                  :tags="vgpuTagsFor(field.state.value)"
+                  :placeholder="t('components.domain.hardware.vgpus.placeholder')"
                   :model-value="field.state.value ?? []"
-                  @update:model-value="field.handleChange"
+                  tagsDisplay="wrap"
+                  :invalid="isInvalid(field)"
+                  @update:model-value="field.handleChange($event)"
+                />
+                <FieldDescription
+                  v-if="(field.state.value?.length ?? 0) >= MAX_VGPU_PROFILES"
+                  class="text-error-600"
                 >
-                  <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
-                    <SelectValue :placeholder="t('components.domain.hardware.vgpus.placeholder')" />
-                  </SelectTrigger>
-                  <SelectContent position="item-aligned">
-                    <SelectGroup v-for="(grp, gi) in groupedVgpus" :key="gi">
-                      <SelectLabel v-if="grp.label">{{ grp.label }}</SelectLabel>
-                      <SelectItem
-                        v-for="vgpu in grp.items"
-                        :key="vgpu.id"
-                        :value="vgpu.id"
-                        :disabled="vgpuDisabled(vgpu, field.state.value)"
-                      >
-                        {{ vgpu.name }}
-                      </SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                  {{ t('components.domain.hardware.vgpus.hint', { max: MAX_VGPU_PROFILES }) }}
+                </FieldDescription>
                 <HardwareLimitChip :limited="limitedField('vgpus')" />
               </Field>
             </form.Field>
