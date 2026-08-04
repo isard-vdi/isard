@@ -590,7 +590,27 @@ class Wg(object):
             with vpn_rethink_conn() as conn:
                 # update, not insert: up_peer() shells out, so the row can be
                 # deleted before we get here and an upsert would recreate it.
-                r.table(table).get(new_peer["id"]).update(new_peer).run(conn)
+                written = r.table(table).get(new_peer["id"]).update(new_peer).run(conn)
+                if written.get("skipped"):
+                    # The row is gone and up_peer() already put the peer on the
+                    # interface: leaving it there orphans it until a restart.
+                    log.warning(
+                        "add_peer: %s no longer exists in %s; removing the peer "
+                        "just added to %s instead of resurrecting the row",
+                        new_peer["id"],
+                        table,
+                        self.interface,
+                    )
+                    try:
+                        self.down_peer(new_peer, table)
+                    except Exception:
+                        log.exception(
+                            "add_peer: could not remove the peer for the vanished "
+                            "row %s; it is now orphaned on %s",
+                            new_peer["id"],
+                            self.interface,
+                        )
+                    return
                 if table == "remotevpn":
                     r.table(table).get(new_peer["id"]).replace(
                         r.row.without("nets")
