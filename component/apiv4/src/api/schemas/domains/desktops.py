@@ -22,7 +22,11 @@ from enum import Enum
 from typing import List, Literal, Optional, Union
 
 from api.schemas.common import PaginationResponseList
-from isardvdi_common.schemas.domains import DesktopStatusEnum, DomainViewerEnum
+from isardvdi_common.schemas.domains import (
+    DesktopStatusEnum,
+    DesktopTypeEnum,
+    DomainViewerEnum,
+)
 from isardvdi_common.schemas.media import MediaKindEnum
 from isardvdi_common.schemas.shared.hardware import GuestProperties, Hardware
 from pydantic import BaseModel, ConfigDict, Field
@@ -360,8 +364,8 @@ class UserDesktop(BaseModel):
         default=None,
         description="Human-readable reason for the current status, set by the engine (e.g. why a start ended Failed: no hypervisor online / no GPU capacity). None when there is no reason.",
     )
-    type: str = Field(
-        description="Type of the desktop, e.g., 'persistent', 'non-persistent'.",
+    type: DesktopTypeEnum = Field(
+        description="Type of the desktop.",
     )
     template: Optional[str] = Field(
         default=None,

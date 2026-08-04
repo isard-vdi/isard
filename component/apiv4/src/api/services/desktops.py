@@ -63,6 +63,7 @@ from isardvdi_common.lib.domains.domains import DomainsProcessed
 from isardvdi_common.lib.domains.templates.templates import (
     TemplatesProcessed as CommonTemplates,
 )
+from isardvdi_common.lib.domains.xml_sections import XmlSectionsProcessed
 from isardvdi_common.lib.media.media import MediaProcessed as CommonMedia
 from isardvdi_common.lib.storage.storage import StorageProcessed as CommonStorage
 from isardvdi_common.models.boots import Boot as RethinkBoot
@@ -232,6 +233,16 @@ class DesktopService:
                 "not_found",
                 f"Media with ID {data.media_id} not found",
                 description_code="not_found",
+            )
+        # Validate os_template against virt_install: it is stored verbatim as
+        # create_dict.create_from_virt_install_xml, and an unknown value leaves
+        # the engine's creating_and_test_xml_start crashing on a None row while
+        # the desktop stays stuck in CreatingDomain (the caller already got 200).
+        if XmlSectionsProcessed.get_virt_install(data.os_template) is None:
+            raise Error(
+                "bad_request",
+                f"os_template {data.os_template} not found",
+                description_code="os_template_not_found",
             )
         # Match v3 ApiDesktopsPersistent.NewFromMedia: enforce per-user
         # desktop_create quota and require at least one viewer.
