@@ -72,17 +72,21 @@ class StorageProcessed(RethinkSharedConnection):
             domains = list(
                 r.table("domains")
                 .get_all(r.args(statuses), index="status")
-                .pluck("id", "user", {"hardware": {"disks": True}})
+                .pluck("id", "user", {"create_dict": {"hardware": {"disks": True}}})
                 .run(cls._rdb_connection)
             )
 
         # Map each attached storage to its owning desktop's user. The
         # first running desktop that references a storage wins (a disk is
-        # normally attached to a single desktop).
+        # normally attached to a single desktop). The disks live under
+        # ``create_dict.hardware`` -- there is no top-level ``hardware`` on a
+        # domain, which is why ``Domain.storages`` and the engine's own on-stop
+        # refresh read it there too.
         storage_users = {}
         for domain in domains:
             user_id = domain.get("user")
-            for disk in domain.get("hardware", {}).get("disks", []):
+            hardware = (domain.get("create_dict") or {}).get("hardware") or {}
+            for disk in hardware.get("disks", []):
                 storage_id = disk.get("storage_id")
                 if storage_id:
                     storage_users.setdefault(storage_id, user_id)
