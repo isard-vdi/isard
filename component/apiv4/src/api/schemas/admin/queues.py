@@ -408,3 +408,9 @@ class StorageLaneHealthResponse(BaseModel):
     orphan_pools: List[str]
     orphans: List[OrphanPool]
     healthy: bool
+    #: Lanes past the snapshot cap, so a caller can tell a bounded read from a
+    #: complete one instead of reading `healthy` as "all clear".
+    truncated_lanes: int = 0
+    #: False when redis could not be read: the answer is the fail-open empty
+    #: one, not an observation that every pool has a consumer.
+    coverage_known: bool = True
