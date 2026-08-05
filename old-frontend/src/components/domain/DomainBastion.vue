@@ -536,7 +536,9 @@ export default {
     }
 
     watch(wireguard, (newVal, prevVal) => {
-      if (!wireguard.value) {
+      // Same transition guard as DomainViewers: announce the removal only when
+      // the network really went away, not whenever it happens to be absent.
+      if (prevVal === true && newVal === false) {
         ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.wireguard-bastion-removed'), '', true, 5000)
         bastion.value = false
       }
