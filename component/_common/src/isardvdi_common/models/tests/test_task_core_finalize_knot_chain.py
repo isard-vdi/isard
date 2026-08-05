@@ -16,7 +16,12 @@ become metadata on it. This mirrors the real structure in
 import itertools
 from unittest.mock import MagicMock, patch
 
-from isardvdi_common.models.task import CoreStep, Task, _serialize_finalize
+from isardvdi_common.models.task import (
+    CoreStep,
+    Task,
+    _serialize_finalize,
+    knot_child_id,
+)
 from rq.job import JobStatus
 
 # The ``storage_update`` core step + everything below it, exactly as the template
@@ -194,3 +199,36 @@ def test_an_unbuilt_knot_step_depends_on_the_child_that_will_never_run():
 
     assert step.job_status == JobStatus.FINISHED
     assert steps[0].depending_status == JobStatus.CANCELED
+
+
+def test_a_pre_upgrade_chain_says_so_when_it_derives_its_knot_ids(caplog):
+    """The one thing an operator upgrading a busy install needs told.
+
+    A chain already in flight when this version deploys has no declared edge,
+    so its knot children re-derive and it still drains — but a cancel of that
+    chain cannot reach them, exactly as before the upgrade. It is invisible
+    otherwise: the operator sees a cancel that appears to do nothing, on those
+    chains only, until they finish.
+    """
+    import logging
+
+    step = _knot_step()
+    step._node.pop("storage_dependent_ids")
+
+    with caplog.at_level(logging.WARNING):
+        assert step.knot_child_ids == [knot_child_id(step.id, 0)]
+
+    assert "predates the knot edge" in caplog.text
+
+
+def test_a_chain_built_with_the_edge_is_silent(caplog):
+    """Only the pre-upgrade shape warns; every chain built from now on is
+    normal and must not log anything."""
+    import logging
+
+    step = _knot_step()
+
+    with caplog.at_level(logging.WARNING):
+        assert step.knot_child_ids == step._node["storage_dependent_ids"]
+
+    assert caplog.text == ""

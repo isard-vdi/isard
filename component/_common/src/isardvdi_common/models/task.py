@@ -473,10 +473,24 @@ class CoreStep:
         declared = self._node.get("storage_dependent_ids")
         if declared:
             return list(declared)
-        return [
-            knot_child_id(self.id, index)
-            for index in range(len(self.storage_dependents))
-        ]
+        children = self.storage_dependents
+        if children:
+            # Only a chain built before the edge existed reaches here, i.e. one
+            # that was already in flight when this version was deployed. The
+            # ids re-derive, so it still runs and settles — but its ROOT never
+            # recorded them, so a cancel of that chain cannot reach its knot
+            # child, exactly as it could not before the upgrade. Said out loud
+            # because it is invisible otherwise: the operator sees a cancel
+            # that appears to do nothing, on that chain only, once.
+            log.warning(
+                "task: chain step %s predates the knot edge (built before this "
+                "version); its knot children are reachable by derivation but "
+                "not from the chain root, so a cancel cannot reach them. "
+                "Pre-existing chains drain with the old behaviour; chains "
+                "started after this deploy are unaffected.",
+                self.id,
+            )
+        return [knot_child_id(self.id, index) for index in range(len(children))]
 
     @property
     def anchor(self):
