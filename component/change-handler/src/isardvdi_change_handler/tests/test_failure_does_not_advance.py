@@ -19,7 +19,8 @@ from rq.job import JobStatus
 
 
 def _core_step(
-    node_id, task_name="storage_update", kwargs=None, storage_dependents=None
+    node_id, task_name="storage_update", kwargs=None, storage_dependents=None,
+    parent_status=JobStatus.FINISHED,
 ):
     """A real metadata finalize step (the only kind the consumer dispatches).
     Its parent is terminal so the step is QUEUED (dispatchable)."""
@@ -37,7 +38,7 @@ def _core_step(
     # carries this node, and where the consumer makes the step's mark durable.
     # It therefore needs an id and a job, like the Task it doubles for.
     anchor = SimpleNamespace(
-        job_status=JobStatus.FINISHED, id=f"anchor-of-{node_id}", job=MagicMock()
+        job_status=parent_status, id=f"anchor-of-{node_id}", job=MagicMock()
     )
     return CoreStep(node, anchor, MagicMock())
 
@@ -118,7 +119,9 @@ class TestFailedChainDoesNotAdvance:
         ``depending_status == "finished"`` and run its success body."""
         from isardvdi_change_handler.streams import task_results_consumer
 
-        dep = _core_step("dep")
+        # The step hangs off the root the event says FAILED, so that is what
+        # its own dependency status has to report.
+        dep = _core_step("dep", parent_status=JobStatus.FAILED)
         root = _stub(
             "root",
             task_name="create",
@@ -181,3 +184,59 @@ class TestSettledStepsAreAgeable:
             await task_results_consumer._set_job_status(dep, JobStatus.FINISHED)
 
         stamp.assert_called_once()
+
+
+class TestPerStepOutcome:
+    """A finalize step's outcome is its own, not the chain's.
+
+    A chain cancelled half way still contains steps whose dependency genuinely
+    succeeded. Marking those FAILED because the chain as a whole did not
+    succeed rewrites history that happened, and tells the step below them that
+    a dependency failed when it did not.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_step_whose_dependency_succeeded_is_marked_finished(self):
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        step = _core_step("succeeded-step")          # parent is FINISHED
+        root = _stub("root", queue="storage.pool.template", dependents=[step],
+                     job_status=JobStatus.CANCELED)
+
+        with (
+            patch.object(task_results_consumer, "emit_task_feedback", new=AsyncMock()),
+            patch.object(task_results_consumer, "HANDLERS", {}),
+            patch.object(task_results_consumer, "Task", return_value=root),
+        ):
+            await task_results_consumer._process_entry(
+                AsyncMock(),
+                {"kind": "canceled", "task_id": "root", "job_status": "canceled"},
+            )
+
+        assert step.job_status == JobStatus.FINISHED
+
+    @pytest.mark.asyncio
+    async def test_a_step_whose_dependency_was_cancelled_is_marked_failed(self):
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        step = CoreStep(
+            {"id": "cancelled-dep-step", "task": "storage_update", "queue": "core",
+             "kwargs": {}, "args": [], "core_finalize": [], "storage_dependents": [],
+             "status": None},
+            SimpleNamespace(job_status=JobStatus.CANCELED, id="anchor", job=MagicMock()),
+            MagicMock(),
+        )
+        root = _stub("root", queue="storage.pool.template", dependents=[step],
+                     job_status=JobStatus.CANCELED)
+
+        with (
+            patch.object(task_results_consumer, "emit_task_feedback", new=AsyncMock()),
+            patch.object(task_results_consumer, "HANDLERS", {}),
+            patch.object(task_results_consumer, "Task", return_value=root),
+        ):
+            await task_results_consumer._process_entry(
+                AsyncMock(),
+                {"kind": "canceled", "task_id": "root", "job_status": "canceled"},
+            )
+
+        assert step.job_status == JobStatus.FAILED

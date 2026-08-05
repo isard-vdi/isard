@@ -80,6 +80,19 @@ def _build_metadata_root(dependents):
         job.meta = {}
         job.args = []
         job.get_position.return_value = None
+        # A real job reports back what was written to it. The consumer marks
+        # the root FAILED when the event says the task failed, and every step
+        # hanging off it decides from that status — so a stub whose get_status
+        # ignores set_status describes a chain that cannot exist.
+        state = {}
+
+        def _set_status(status, *a, **k):
+            state["status"] = status
+
+        job.set_status.side_effect = _set_status
+        job.get_status.side_effect = lambda *a, **k: state.get(
+            "status", JobStatus.FINISHED
+        )
         return job
 
     with patch("isardvdi_common.models.task.Job") as Job, patch(
@@ -95,7 +108,6 @@ def _build_metadata_root(dependents):
             user_id="u1",
             dependents=dependents,
         )
-    root.job.get_status.return_value = JobStatus.FINISHED
     return root
 
 

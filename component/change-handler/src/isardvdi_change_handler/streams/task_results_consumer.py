@@ -54,7 +54,12 @@ import redis
 import redis.asyncio as aioredis
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.task_streams import CANCELED_KIND
-from isardvdi_common.models.task import CoreStep, Task, _stamp_ended_at
+from isardvdi_common.models.task import (
+    _TERMINAL_STATUSES,
+    CoreStep,
+    Task,
+    _stamp_ended_at,
+)
 from redis.exceptions import ResponseError
 from rq import Queue
 from rq.job import JobStatus
@@ -120,9 +125,31 @@ def _is_canceled(task):
         return False
 
 
+def _is_settled(task):
+    """True when this chain member will never run again.
+
+    A settled storage member is one a dead chain may be walked THROUGH: it has
+    no further event of its own to drive a dispatch, so anything the chain
+    declared behind it is reachable only from here.
+    """
+    try:
+        return task.job_status in (
+            JobStatus.FINISHED,
+            JobStatus.FAILED,
+            JobStatus.STOPPED,
+            JobStatus.CANCELED,
+        )
+    except Exception:
+        return False
+
+
 def _walk_dependents(task, dead_chain):
     """This member's dependents, plus — on a dead chain — the finalize steps of
     knot children that will now never be built.
+
+    ``dead_chain`` is the status the chain died with (``CANCELED`` / ``FAILED``)
+    or ``None`` while it is still succeeding, so the steps behind a child that
+    will never exist report the right reason rather than just "not finished".
 
     A knot child is created when its finalize step runs, and only while the
     chain is still succeeding. On a failed or cancelled chain it is never
@@ -132,7 +159,7 @@ def _walk_dependents(task, dead_chain):
     """
     dependents = list(task.dependents)
     if dead_chain and isinstance(task, CoreStep):
-        dependents.extend(task.unbuilt_knot_steps())
+        dependents.extend(task.unbuilt_knot_steps(dead_chain))
     return dependents
 
 
@@ -149,6 +176,15 @@ def _walk_core_dependents(
     finalizers sitting behind it are reachable only by recursing through it.
     The member itself is still not yielded — there is no handler for a
     storage task.
+
+    ``dead_chain`` lifts it for any SETTLED storage member. A chain cancelled
+    half way has finished members between the root and the cancelled one, and
+    refusing to walk past them leaves everything below the cancel unreachable —
+    a cancelled template creation is then announced and nothing settles its
+    rows. Walking THROUGH a finished member does not touch its history: it is
+    not yielded, so no handler runs for it and no status of its is rewritten.
+    Traversal and mutation are different things, and only traversal happens
+    here.
 
     ``_visited`` guards against a malformed/cyclic ``meta`` graph, which would
     otherwise recurse until the stack blows.
@@ -170,7 +206,9 @@ def _walk_core_dependents(
             yield from _walk_core_dependents(
                 dep, include_canceled_storage, dead_chain, _visited
             )
-        elif include_canceled_storage and _is_canceled(dep):
+        elif (include_canceled_storage and _is_canceled(dep)) or (
+            dead_chain and _is_settled(dep)
+        ):
             yield from _walk_core_dependents(
                 dep, include_canceled_storage, dead_chain, _visited
             )
@@ -466,10 +504,14 @@ async def _process_entry(redis_manager, fields):
         if root_status == JobStatus.FINISHED:
             await asyncio.to_thread(_record_service_time, task)
 
+    # The status the chain died with, or None while it is still succeeding.
+    dead_chain = None
+    if chain_failed:
+        dead_chain = JobStatus.CANCELED if canceled else JobStatus.FAILED
     dependents = await asyncio.to_thread(
         lambda: list(
             _walk_core_dependents(
-                task, include_canceled_storage=canceled, dead_chain=chain_failed
+                task, include_canceled_storage=canceled, dead_chain=dead_chain
             )
         )
     )
@@ -496,6 +538,18 @@ async def _process_entry(redis_manager, fields):
             # startup drain heals those, so skip rather than mishandle it.
             if not isinstance(dep_task, CoreStep):
                 continue
+            # Reaching what is behind a completed step means passing THROUGH
+            # it, not running it again. On a dead chain the walk yields those
+            # steps after the failure branch has already run, so re-executing
+            # one re-applies a success body over what the failure branch just
+            # wrote — a template marked Failed gets promoted back to ready by a
+            # step redoing work it had already done. Its mark stands as it is.
+            #
+            # Only on a dead chain: a redelivered RESULT event must still
+            # re-run its handlers, which is the at-least-once contract that
+            # recovers a knot child whose enqueue failed.
+            if dead_chain and dep_task.job_status in _TERMINAL_STATUSES:
+                continue
             ok = await _run_handler(redis_manager, dep_task)
             all_ok = all_ok and ok
             # Propagate the outcome onto this dep before the next sibling/child
@@ -506,10 +560,18 @@ async def _process_entry(redis_manager, fields):
             # nothing. Marking that FINISHED tells the NEXT step its dependency
             # succeeded, so a nested step runs its success body for an operation
             # that never happened.
-            if chain_failed:
-                step_status = JobStatus.FAILED
-            else:
-                step_status = JobStatus.FINISHED if ok else JobStatus.FAILED
+            # A step's outcome is ITS OWN, not the chain's. A chain cancelled
+            # half way still contains steps whose dependency genuinely
+            # succeeded; marking those FAILED because the chain as a whole did
+            # not succeed rewrites history that happened, and tells the step
+            # below them that a dependency failed when it did not. Every
+            # handler already decides this way — it gates on
+            # ``task.depending_status`` — so the mark has to agree with it, or
+            # a step reports an outcome its own handler did not take.
+            dependency_succeeded = dep_task.depending_status == JobStatus.FINISHED
+            step_status = (
+                JobStatus.FINISHED if ok and dependency_succeeded else JobStatus.FAILED
+            )
             # Stamp the shared meta node in place. A nested
             # child's ``depending_status`` reads this parent, so the mark
             # must land before the child runs (the walk yields parent first).
@@ -521,6 +583,12 @@ async def _process_entry(redis_manager, fields):
             # Skipped when the handler failed — failure must NOT advance the
             # chain — and when the member is cancelled, since running its
             # children would do work for an operation the user cancelled.
+            #
+            # This one stays keyed on the WHOLE chain, deliberately, while the
+            # mark above is per step: creating work is mutation, not traversal.
+            # A step whose own dependency succeeded may still not start a disk
+            # operation once the chain it belongs to is dead — that is the
+            # operation the user cancelled.
             if ok and not chain_failed and not _is_canceled(dep_task):
                 enqueued = await _enqueue_metadata_storage_dependents(dep_task)
                 all_ok = all_ok and enqueued

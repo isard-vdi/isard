@@ -439,7 +439,7 @@ class CoreStep:
             node = node._parent
         return node
 
-    def unbuilt_knot_steps(self):
+    def unbuilt_knot_steps(self, unbuilt_status=JobStatus.FAILED):
         """This step's knot children's finalize steps, for children that will
         never be built.
 
@@ -467,7 +467,26 @@ class CoreStep:
         in the anchor's meta with the rest. Without that a step would run and
         still read as never having run, which is the state the reconcile treats
         as work in progress.
+
+        ``unbuilt_status`` is what the child's non-execution reports as. These
+        steps hang off the CHILD, not off this step, and every handler decides
+        what to do from its own dependency's status — so a step here must see
+        the child that will never run, not the step that carried it. Reporting
+        this step instead would answer "finished" whenever the first half of
+        the chain succeeded, and the step would run its success body for a disk
+        operation that never happened.
         """
+        # Stands in for the knot child that will never exist: ``job_status``
+        # says "this member did not run", which is what the steps behind it
+        # read. It also carries this tree's anchor identity, because the child
+        # has no meta of its own — these nodes live in the anchor's, and that
+        # is where their marks have to be saved.
+        anchor = self.anchor
+        never_ran = SimpleNamespace(
+            job_status=unbuilt_status,
+            id=getattr(anchor, "id", None),
+            job=getattr(anchor, "job", None),
+        )
         steps = []
         child_ids = self.knot_child_ids
         materialized = self._node.setdefault("unbuilt_knot_finalize", {})
@@ -500,7 +519,7 @@ class CoreStep:
                         )
                     )
                 materialized[child_id] = nodes
-            steps.extend(CoreStep(node, self, self._redis) for node in nodes)
+            steps.extend(CoreStep(node, never_ran, self._redis) for node in nodes)
         return steps
 
     def mark(self, ok):

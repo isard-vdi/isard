@@ -17,6 +17,7 @@ import itertools
 from unittest.mock import MagicMock, patch
 
 from isardvdi_common.models.task import CoreStep, Task, _serialize_finalize
+from rq.job import JobStatus
 
 # The ``storage_update`` core step + everything below it, exactly as the template
 # chain builds it (the core-bearing subtree that hangs off the middle
@@ -173,3 +174,23 @@ def test_a_knot_child_that_exists_is_not_exposed_as_metadata():
     with patch("isardvdi_common.models.task.Job") as Job:
         Job.exists.return_value = True
         assert step.unbuilt_knot_steps() == []
+
+
+def test_an_unbuilt_knot_step_depends_on_the_child_that_will_never_run():
+    """A finalize step decides what to do from ITS OWN dependency status.
+
+    For a step behind an unbuilt knot child, that dependency is the child —
+    which will never run. Reporting the step that CARRIES the knot instead
+    would say "finished" whenever the first half of the chain succeeded, and
+    the step would run its success body for a disk operation that never
+    happened.
+    """
+    step = _knot_step()
+    step.mark(True)  # the carrying step itself succeeded
+
+    with patch("isardvdi_common.models.task.Job") as Job:
+        Job.exists.return_value = False
+        steps = step.unbuilt_knot_steps(JobStatus.CANCELED)
+
+    assert step.job_status == JobStatus.FINISHED
+    assert steps[0].depending_status == JobStatus.CANCELED
