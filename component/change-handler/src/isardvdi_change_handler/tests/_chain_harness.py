@@ -41,13 +41,20 @@ FINALIZE_TASKS = ("storage_update", "storage_update_parent", "update_status")
 
 
 def scratch_connection():
-    """A Redis handle on the scratch db, or ``None`` if there is no server."""
+    """A Redis handle on the scratch db, or ``None`` if there is no server.
+
+    Explicit timeouts: an unresolvable host otherwise leaves the probe blocking
+    on DNS for minutes, which turns "there is no Redis here, skip" into a hung
+    job.
+    """
     assert SCRATCH_DB != 0, "refusing to run against the live rq db"
     connection = Redis(
         host=os.environ.get("REDIS_HOST") or "isard-redis",
         port=int(os.environ.get("REDIS_PORT") or 6379),
         password=os.environ.get("REDIS_PASSWORD", ""),
         db=SCRATCH_DB,
+        socket_connect_timeout=5,
+        socket_timeout=5,
     )
     try:
         connection.ping()

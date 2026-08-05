@@ -47,6 +47,26 @@ KNOT_DEPENDENTS = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def knot_child_is_not_created_yet():
+    """Answer "does this knot child exist?" without a Redis.
+
+    The chain now DECLARES its knot children's ids when it is built, so
+    resolving the root's dependents asks whether each declared id exists yet.
+    These are unit tests of the dispatch with no server behind them, and
+    without this the lookup reaches for a real connection.
+
+    "Not created yet" is the state every test here builds. The redelivery test
+    states the opposite through the consumer's OWN Task mock, which is a
+    different question — whether to create the child — and is what that test
+    asserts on; the graph walk's separate answer does not enter into it.
+    """
+    from isardvdi_common.models.task import Task
+
+    with patch.object(Task, "exists", return_value=False):
+        yield
+
+
 def _build_metadata_root(dependents):
     """A real metadata-mode root Task with Job/Queue mocked (no redis). Its
     ``job`` is a MagicMock whose ``meta`` holds the real ``core_finalize`` tree."""
