@@ -56,6 +56,23 @@ class TestRetryTask:
         assert excinfo.value.status_code == 428
         task.retry.assert_not_called()
 
+    def test_retries_a_failed_root_whose_chain_reads_canceled(self):
+        """The two gates must not contradict each other.
+
+        Cancelling a chain whose root had already FAILED leaves the root job
+        FAILED and its dependents CANCELED, and ``global_status`` ranks
+        CANCELED above FAILED — so the chain reads ``canceled`` on a root that
+        is genuinely retryable. ``_retry_refusal`` (per-job, the predicate the
+        row's own display and the bulk path use) says yes; the chain-global
+        gate said 428. Retry must defer to the one predicate."""
+        task = _task(job_status=JobStatus.FAILED, status=JobStatus.CANCELED)
+        assert TaskService._retry_refusal(task) is None
+        with patch("api.services.tasks.Task") as Task:
+            Task.exists.return_value = True
+            Task.return_value = task
+            assert TaskService.retry_task("t-1") == {"id": "t-1"}
+        task.retry.assert_called_once_with()
+
     def test_refuses_a_job_on_a_lane_with_no_worker_fleet(self):
         """``core`` steps are executed in-process by the change-handler and no
         rq worker subscribes to that queue: re-enqueueing one strands it."""
