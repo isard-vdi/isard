@@ -284,15 +284,20 @@ class TaskService:
 
     @staticmethod
     def retry_task(task_id: str) -> dict:
-        """Retry a failed task (admin only)."""
+        """Retry a failed task (admin only).
+
+        Admission is decided by :meth:`_retry_refusal` ALONE — the per-job
+        predicate. A second, chain-global gate on ``task.status`` used to run
+        first and contradicted it: ``global_status`` ranks CANCELED above
+        FAILED, so cancelling a chain whose root had already failed leaves that
+        root retryable per-job but ``canceled`` chain-wide, and the row said
+        "retry" while the endpoint answered 428. The bulk path never had that
+        gate, so the two endpoints disagreed as well. One predicate, so what a
+        row displays and what it may do come from the same source.
+        """
         if not Task.exists(task_id):
             raise Error("not_found", "Task not found")
         task = Task(task_id)
-        if task.status != "failed":
-            raise Error(
-                "precondition_required",
-                f"Task should be failed, but is {task.status}",
-            )
         refusal = TaskService._retry_refusal(task)
         if refusal:
             raise Error("precondition_required", refusal)
