@@ -6,10 +6,20 @@ serialization behaviour: unknown fields are captured on parse and
 merged back into the output on model_dump / model_dump_json.
 """
 
+import os
+import time
 from typing import Any, Optional
 
 import pytest
 from pydantic import BaseModel, Field, model_serializer, model_validator
+
+# Guards exclusive use of a scratch Redis db by one xdist worker at a time.
+# The TTL is the crash hatch: a worker killed mid-test would otherwise wedge
+# every later run on that db. The timeout is generous because a contending
+# worker is waiting for a whole test, not a lock hold of a few milliseconds.
+_SCRATCH_LOCK_KEY = "isard:test:chain-harness-lock"
+_SCRATCH_LOCK_TTL_S = 300
+_SCRATCH_LOCK_TIMEOUT_S = 120
 
 
 class FakeRow(BaseModel):
@@ -200,11 +210,40 @@ def scratch_redis():
     connection = scratch_connection()
     if connection is None:
         pytest.skip("no Redis available for the real-chain harness")
-    connection.flushdb()
+
+    # Exclusive use of this db for the duration of the test. Each xdist worker
+    # normally has a db to itself (see ``scratch_db``), so this lock is
+    # uncontended — it exists for the case of more workers than the 15
+    # available dbs, where two workers share one and would otherwise flush each
+    # other's rq graph mid-test. Contending workers serialise instead.
+    deadline = time.monotonic() + _SCRATCH_LOCK_TIMEOUT_S
+    while not connection.set(
+        _SCRATCH_LOCK_KEY, os.getpid(), nx=True, ex=_SCRATCH_LOCK_TTL_S
+    ):
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                f"scratch redis db busy for {_SCRATCH_LOCK_TIMEOUT_S}s; a "
+                "previous run may have died holding the lock (it expires "
+                f"after {_SCRATCH_LOCK_TTL_S}s)"
+            )
+        time.sleep(0.05)
+
+    # The clear is INSIDE the lock: it is the thing that must not land in
+    # another worker's test. It is NOT ``flushdb`` — that would delete the lock
+    # we are holding and let the next worker in while this test still runs.
+    lock_key = _SCRATCH_LOCK_KEY.encode()
+
+    def clear_but_keep_the_lock():
+        keys = [key for key in connection.scan_iter("*") if key != lock_key]
+        if keys:
+            connection.delete(*keys)
+
+    clear_but_keep_the_lock()
     try:
         yield connection
     finally:
-        connection.flushdb()
+        clear_but_keep_the_lock()
+        connection.delete(_SCRATCH_LOCK_KEY)
 
 
 @pytest.fixture

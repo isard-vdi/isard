@@ -32,27 +32,61 @@ TEMPLATE_ID = "test-template-1"
 DESKTOP_STORAGE_ID = "test-desktop-storage-1"
 TEMPLATE_STORAGE_ID = "test-template-storage-1"
 
-# A scratch Redis db, never the rq db (0): these tests create, cancel and then
+# Scratch Redis dbs, never the rq db (0): these tests create, cancel and then
 # destroy real rq jobs, and they flush the db they work on.
-SCRATCH_DB = int(os.environ.get("TASK_CHAIN_TEST_REDIS_DB", "9"))
+#
+# One db per xdist worker, not one db for the suite. The chain ids these tests
+# build are DETERMINISTIC (``test-desktop-storage-1`` and friends), and the
+# fixture flushes the db around every test, so two workers on one db overwrite
+# and flush each other's graph mid-test. Under the CI invocation
+# (``-n auto --dist=loadfile``) the three files that use this harness land on
+# three different workers and do exactly that: every test passes alone and the
+# suite is red together.
+#
+# Redis ships 16 databases and 0 is out, leaving 1-15. More workers than that
+# wrap onto a shared db, so ``scratch_redis`` also holds a lock — see the
+# fixture. The lock is what makes this correct for ANY worker count; the pool
+# is what keeps workers from queueing on it in the common case.
+_SCRATCH_DB_POOL = tuple(range(1, 16))
+_DEFAULT_SCRATCH_DB = 9
 
 # Every finalize task name the template chain declares.
 FINALIZE_TASKS = ("storage_update", "storage_update_parent", "update_status")
 
 
+def scratch_db():
+    """The Redis db this xdist worker owns.
+
+    ``TASK_CHAIN_TEST_REDIS_DB`` still pins one db explicitly, for a developer
+    who wants to watch the keys of a single run.
+    """
+    override = os.environ.get("TASK_CHAIN_TEST_REDIS_DB")
+    if override:
+        return int(override)
+    # xdist names its workers "gw0", "gw1", ...; unset means we are the only
+    # process and can have the historical db.
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if not worker:
+        return _DEFAULT_SCRATCH_DB
+    index = int("".join(char for char in worker if char.isdigit()) or 0)
+    return _SCRATCH_DB_POOL[index % len(_SCRATCH_DB_POOL)]
+
+
 def scratch_connection():
-    """A Redis handle on the scratch db, or ``None`` if there is no server.
+    """A Redis handle on this worker's scratch db, or ``None`` if there is no
+    server.
 
     Explicit timeouts: an unresolvable host otherwise leaves the probe blocking
     on DNS for minutes, which turns "there is no Redis here, skip" into a hung
     job.
     """
-    assert SCRATCH_DB != 0, "refusing to run against the live rq db"
+    db = scratch_db()
+    assert db != 0, "refusing to run against the live rq db"
     connection = Redis(
         host=os.environ.get("REDIS_HOST") or "isard-redis",
         port=int(os.environ.get("REDIS_PORT") or 6379),
         password=os.environ.get("REDIS_PASSWORD", ""),
-        db=SCRATCH_DB,
+        db=db,
         socket_connect_timeout=5,
         socket_timeout=5,
     )
