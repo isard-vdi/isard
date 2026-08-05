@@ -46,10 +46,29 @@ from ._chain_harness import (
     TEMPLATE_ID,
     TEMPLATE_STORAGE_ID,
     canceled_event,
+    first_core_step,
     recording_handlers,
     repair_storage_new_slot,  # noqa: F401  (fixture)
     template_chain_kwargs,
 )
+
+
+async def _dispatch_cancel(connection, root):
+    """Cancel ``root`` and hand the consumer the event that cancel published."""
+    from unittest.mock import AsyncMock, patch
+
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    root.cancel()
+    ran = []
+    with (
+        patch.object(task_results_consumer, "emit_task_feedback", new=AsyncMock()),
+        patch.object(task_results_consumer, "HANDLERS", recording_handlers(ran)),
+    ):
+        await task_results_consumer._process_entry(
+            AsyncMock(), canceled_event(connection)
+        )
+    return ran
 
 
 @pytest.mark.asyncio
@@ -61,21 +80,8 @@ async def test_canceled_template_chain_runs_its_terminal_update_status(
     desktop, the template and both storage rows. Without it the four rows keep
     the transitional status the caller set before enqueuing, forever.
     """
-    from unittest.mock import AsyncMock, patch
-
-    from isardvdi_change_handler.streams import task_results_consumer
-
     root = Task(**template_chain_kwargs())
-    root.cancel()
-
-    ran = []
-    with (
-        patch.object(task_results_consumer, "emit_task_feedback", new=AsyncMock()),
-        patch.object(task_results_consumer, "HANDLERS", recording_handlers(ran)),
-    ):
-        await task_results_consumer._process_entry(
-            AsyncMock(), canceled_event(task_on_scratch_redis)
-        )
+    ran = await _dispatch_cancel(task_on_scratch_redis, root)
 
     dispatched = [name for name, _id, _kwargs in ran]
     assert "update_status" in dispatched, (
@@ -92,3 +98,31 @@ async def test_canceled_template_chain_runs_its_terminal_update_status(
         "domain": [DESKTOP_ID, TEMPLATE_ID],
         "storage": [DESKTOP_STORAGE_ID, TEMPLATE_STORAGE_ID],
     }
+
+
+@pytest.mark.asyncio
+async def test_the_terminal_step_runs_once_when_the_knot_child_does_exist(
+    task_on_scratch_redis, repair_storage_new_slot  # noqa: F811
+):
+    """Cancel AFTER the anchor ran, so the knot child is a real member.
+
+    Then the child carries its own finalize tree and is reached as the job it
+    is. The chain must not ALSO be read out of the raw definition the parent
+    step still carries, or one member would exist twice and every step below it
+    would be dispatched twice.
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    root = Task(**template_chain_kwargs())
+    step = first_core_step(root)
+    assert await task_results_consumer._enqueue_metadata_storage_dependents(step)
+
+    ran = await _dispatch_cancel(task_on_scratch_redis, root)
+
+    dispatched = [name for name, _id, _kwargs in ran]
+    assert dispatched.count("update_status") == 1, (
+        f"the terminal step ran {dispatched.count('update_status')} times: {dispatched}"
+    )
+    assert len(set(step_id for _n, step_id, _k in ran)) == len(ran), (
+        f"a finalize step was dispatched twice: {[s for _n, s, _k in ran]}"
+    )

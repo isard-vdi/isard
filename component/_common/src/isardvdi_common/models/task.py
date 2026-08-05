@@ -439,6 +439,70 @@ class CoreStep:
             node = node._parent
         return node
 
+    def unbuilt_knot_steps(self):
+        """This step's knot children's finalize steps, for children that will
+        never be built.
+
+        A knot child is created when this step runs — but only on a chain that
+        is still succeeding. On one that failed or was cancelled the child is
+        never created, and everything the chain declared BELOW it stays a raw
+        dict that no walk can reach: in a template creation that includes the
+        terminal ``update_status``, the one step that maps FAILED/CANCELED onto
+        ``Failed`` for the desktop, the template and both storage rows.
+
+        The subtree is already carried here in full — the raw child dict keeps
+        its own ``dependents`` — so nothing needs materialising in Redis to
+        reach it. It is serialised with the same deterministic ids the real
+        child would have produced, so a step has ONE identity whether it was
+        reached as metadata or as a job.
+
+        Only children that do not exist are returned, using the same existence
+        check that decides whether to create one, so the two can never both
+        claim the same member. Callers must ask only when the chain is dead: on
+        a live chain a missing child means "not created YET", and running its
+        finalizers would settle rows for work that is about to happen.
+
+        The nodes are kept ON this node the first time they are built, so a
+        step reached this way can be marked like any other and the mark lands
+        in the anchor's meta with the rest. Without that a step would run and
+        still read as never having run, which is the state the reconcile treats
+        as work in progress.
+        """
+        steps = []
+        child_ids = self.knot_child_ids
+        materialized = self._node.setdefault("unbuilt_knot_finalize", {})
+        for index, child in enumerate(self.storage_dependents):
+            child_id = child_ids[index]
+            try:
+                if Job.exists(child_id, connection=self._redis):
+                    # It is a real member with its own finalize tree; whoever
+                    # walks jobs reaches it. Drop any view built while it did
+                    # not exist so one member never has two representations.
+                    materialized.pop(child_id, None)
+                    continue
+            except Exception:
+                # Unreadable is not "absent": leave the child to the reader that
+                # can see it rather than inventing a second copy of it here.
+                continue
+            nodes = materialized.get(child_id)
+            if nodes is None:
+                nodes = []
+                for dependent in child.get("dependents") or []:
+                    if not str(dependent.get("queue", "")).startswith("core"):
+                        continue
+                    nodes.append(
+                        _serialize_finalize(
+                            dependent,
+                            child_id,
+                            len(nodes),
+                            child.get("user_id", self.user_id),
+                            child.get("category_id", self.category_id),
+                        )
+                    )
+                materialized[child_id] = nodes
+            steps.extend(CoreStep(node, self, self._redis) for node in nodes)
+        return steps
+
     def mark(self, ok):
         """Record this step's outcome so a later sibling/child reads the right
         ``depending_status`` and ``Task.pending`` stops counting it as active."""

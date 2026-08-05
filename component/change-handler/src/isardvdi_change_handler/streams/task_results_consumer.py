@@ -120,7 +120,25 @@ def _is_canceled(task):
         return False
 
 
-def _walk_core_dependents(task, include_canceled_storage=False, _visited=None):
+def _walk_dependents(task, dead_chain):
+    """This member's dependents, plus — on a dead chain — the finalize steps of
+    knot children that will now never be built.
+
+    A knot child is created when its finalize step runs, and only while the
+    chain is still succeeding. On a failed or cancelled chain it is never
+    created, so everything the chain declared below it is unreachable as a job
+    and reachable only as the metadata it already is. See
+    ``CoreStep.unbuilt_knot_steps``.
+    """
+    dependents = list(task.dependents)
+    if dead_chain and isinstance(task, CoreStep):
+        dependents.extend(task.unbuilt_knot_steps())
+    return dependents
+
+
+def _walk_core_dependents(
+    task, include_canceled_storage=False, dead_chain=False, _visited=None
+):
     """Yield every dependent (recursively) whose RQ queue starts with
     ``core``. Dependents on storage queues are skipped — the storage
     worker will publish its own stream event when each finishes, which
@@ -137,7 +155,7 @@ def _walk_core_dependents(task, include_canceled_storage=False, _visited=None):
     """
     if _visited is None:
         _visited = set()
-    for dep in task.dependents:
+    for dep in _walk_dependents(task, dead_chain):
         try:
             queue = dep.queue
         except Exception:
@@ -149,9 +167,13 @@ def _walk_core_dependents(task, include_canceled_storage=False, _visited=None):
             _visited.add(dep_id)
         if queue and queue.startswith("core"):
             yield dep
-            yield from _walk_core_dependents(dep, include_canceled_storage, _visited)
+            yield from _walk_core_dependents(
+                dep, include_canceled_storage, dead_chain, _visited
+            )
         elif include_canceled_storage and _is_canceled(dep):
-            yield from _walk_core_dependents(dep, include_canceled_storage, _visited)
+            yield from _walk_core_dependents(
+                dep, include_canceled_storage, dead_chain, _visited
+            )
 
 
 async def _run_handler(redis_manager, dep_task):
@@ -445,7 +467,11 @@ async def _process_entry(redis_manager, fields):
             await asyncio.to_thread(_record_service_time, task)
 
     dependents = await asyncio.to_thread(
-        lambda: list(_walk_core_dependents(task, include_canceled_storage=canceled))
+        lambda: list(
+            _walk_core_dependents(
+                task, include_canceled_storage=canceled, dead_chain=chain_failed
+            )
+        )
     )
     # Finalize is always carried as ``meta["core_finalize"]``; ``_walk_core_dependents``
     # yields those as CoreStep views. A CoreStep is stamped via ``mark`` (not

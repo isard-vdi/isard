@@ -148,12 +148,19 @@ def canceled_event(connection):
 
 
 def finalize_nodes(job):
-    """Every ``core_finalize`` node carried by ``job``'s meta, depth first."""
+    """Every finalize node carried by ``job``'s meta, depth first.
+
+    That includes the views of a knot child that will never be built: they are
+    finalize steps that run, so anything asking "did this step's mark survive?"
+    must count them too.
+    """
 
     def walk(nodes):
         for node in nodes or []:
             yield node
             yield from walk(node.get("core_finalize"))
+            for unbuilt in (node.get("unbuilt_knot_finalize") or {}).values():
+                yield from walk(unbuilt)
 
     return list(walk(job.meta.get("core_finalize")))
 
