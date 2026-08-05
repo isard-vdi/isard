@@ -36,10 +36,13 @@ to RethinkDB) — replaced by recorders, so what is asserted is *which chain
 members the consumer reached*.
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from isardvdi_common.models.task import Task
-from rq.job import JobStatus
+from rq.job import Job, JobStatus
 
+from ._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
 from ._chain_harness import (
     DESKTOP_ID,
     DESKTOP_STORAGE_ID,
@@ -48,19 +51,16 @@ from ._chain_harness import (
     canceled_event,
     first_core_step,
     recording_handlers,
-    repair_storage_new_slot,  # noqa: F401  (fixture)
     template_chain_kwargs,
 )
 
 
-async def _dispatch_cancel(connection, root):
-    """Cancel ``root`` and hand the consumer the event that cancel published."""
-    from unittest.mock import AsyncMock, patch
-
+async def _dispatch_cancel_event(connection, ran=None):
+    """Hand the consumer the cancel event ``Task.cancel`` already published."""
     from isardvdi_change_handler.streams import task_results_consumer
 
-    root.cancel()
-    ran = []
+    if ran is None:
+        ran = []
     with (
         patch.object(task_results_consumer, "emit_task_feedback", new=AsyncMock()),
         patch.object(task_results_consumer, "HANDLERS", recording_handlers(ran)),
@@ -69,6 +69,12 @@ async def _dispatch_cancel(connection, root):
             AsyncMock(), canceled_event(connection)
         )
     return ran
+
+
+async def _dispatch_cancel(connection, root):
+    """Cancel ``root`` and hand the consumer the event that cancel published."""
+    root.cancel()
+    return await _dispatch_cancel_event(connection)
 
 
 @pytest.mark.asyncio
@@ -120,9 +126,88 @@ async def test_the_terminal_step_runs_once_when_the_knot_child_does_exist(
     ran = await _dispatch_cancel(task_on_scratch_redis, root)
 
     dispatched = [name for name, _id, _kwargs in ran]
-    assert dispatched.count("update_status") == 1, (
-        f"the terminal step ran {dispatched.count('update_status')} times: {dispatched}"
+    assert (
+        dispatched.count("update_status") == 1
+    ), f"the terminal step ran {dispatched.count('update_status')} times: {dispatched}"
+    assert len(set(step_id for _n, step_id, _k in ran)) == len(
+        ran
+    ), f"a finalize step was dispatched twice: {[s for _n, s, _k in ran]}"
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_member_that_runs_anyway_does_not_revive_the_chain(
+    task_on_scratch_redis, repair_storage_new_slot  # noqa: F811
+):
+    """The cancel has to outlive the job's own status.
+
+    rq runs a job a worker had already dequeued even after it is cancelled, and
+    its success handler then rewrites the status to finished. The completion it
+    publishes is indistinguishable from a healthy one, so the chain is
+    dispatched as if it were alive and the success bodies run back over
+    everything the cancel settled — measured live: four rows marked Failed by
+    the cancel were promoted back to ready.
+
+    So the cancel is recorded durably on the member itself, and a result
+    arriving for a member that carries that record takes the failure branch.
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    root = Task(**template_chain_kwargs())
+    step = first_core_step(root)
+    assert await task_results_consumer._enqueue_metadata_storage_dependents(step)
+    child_id = step.knot_child_ids[0]
+
+    root.cancel()
+    await _dispatch_cancel_event(task_on_scratch_redis)
+
+    # The worker runs it anyway and reports success, exactly as rq does.
+    Job.fetch(child_id, connection=task_on_scratch_redis).set_status(JobStatus.FINISHED)
+
+    ran = []
+    with (
+        patch.object(task_results_consumer, "emit_task_feedback", new=AsyncMock()),
+        patch.object(task_results_consumer, "HANDLERS", recording_handlers(ran)),
+    ):
+        await task_results_consumer._process_entry(
+            AsyncMock(),
+            {"kind": "result", "task_id": child_id, "job_status": "finished"},
+        )
+
+    assert ran == [], (
+        "a cancelled member's late completion re-ran the chain's success "
+        f"bodies: {[name for name, _i, _k in ran]}"
     )
-    assert len(set(step_id for _n, step_id, _k in ran)) == len(ran), (
-        f"a finalize step was dispatched twice: {[s for _n, s, _k in ran]}"
-    )
+
+
+@pytest.mark.asyncio
+async def test_an_uncancelled_member_completing_still_advances_the_chain(
+    task_on_scratch_redis, repair_storage_new_slot  # noqa: F811
+):
+    """The record's ABSENCE must mean "not cancelled".
+
+    A chain already in flight when this lands carries no record, and it has to
+    behave exactly as it does today.
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    root = Task(**template_chain_kwargs())
+    step = first_core_step(root)
+    assert await task_results_consumer._enqueue_metadata_storage_dependents(step)
+    child_id = step.knot_child_ids[0]
+    Job.fetch(child_id, connection=task_on_scratch_redis).set_status(JobStatus.FINISHED)
+
+    ran = []
+    with (
+        patch.object(task_results_consumer, "emit_task_feedback", new=AsyncMock()),
+        patch.object(task_results_consumer, "HANDLERS", recording_handlers(ran)),
+    ):
+        await task_results_consumer._process_entry(
+            AsyncMock(),
+            {"kind": "result", "task_id": child_id, "job_status": "finished"},
+        )
+
+    assert [name for name, _i, _k in ran] == [
+        "storage_update",
+        "storage_update_parent",
+        "update_status",
+    ]

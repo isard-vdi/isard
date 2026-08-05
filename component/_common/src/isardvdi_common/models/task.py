@@ -115,6 +115,65 @@ return 0
 """
 
 
+# A cancel has to outlive the job's own status. rq runs a job a worker had
+# already dequeued even after it is cancelled, and the worker's success handler
+# then rewrites the status to ``finished`` — so by the time the completion is
+# published there is nothing left in the job to say it was ever cancelled, and
+# the chain is dispatched as if it were alive.
+#
+# The record lives as a field on the JOB'S OWN hash, deliberately. It is not a
+# second thing to expire: it shares the job's key, the job's expiry and the
+# job's deletion, so it can never outlive what it refers to and there is no
+# retention clock of its own to get wrong. rq's ``Job.save`` writes its own
+# fields with ``HSET mapping=...``, which leaves unrelated fields alone, so the
+# worker's success write does not clear it — verified against rq 2.3.2.
+CANCELED_FIELD = "isard_canceled_at"
+
+# Guarded by EXISTS so a cancel racing a delete can never recreate the hash as a
+# status-less ghost — the same trap ``_stamp_ended_at`` documents. Absence of
+# the field is therefore always readable as "not cancelled".
+_CANCELED_STAMP = """
+if redis.call('EXISTS', KEYS[1]) == 1 then
+  return redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
+end
+return 0
+"""
+
+
+def mark_canceled(connection, job_id):
+    """Record durably that this member was cancelled.
+
+    Written once, where the cancel is decided (:meth:`Task.cancel`), never by
+    the producers of result events — they only read it.
+    """
+    try:
+        connection.eval(
+            _CANCELED_STAMP,
+            1,
+            Job.key_for(job_id),
+            CANCELED_FIELD,
+            utcformat(rq_now()),
+        )
+    except Exception:
+        log.debug("task cancel: could not record the cancel of %s", job_id)
+
+
+def was_canceled(connection, job_id):
+    """True only when this member carries the cancel record.
+
+    Absence means "not cancelled" — an unreadable job, a job from before this
+    existed, and a job nobody ever cancelled all answer False, so a chain that
+    predates the record behaves exactly as it did. Failing this open is
+    deliberate: the cost of missing a cancel is the behaviour we have today,
+    while the cost of inventing one is running a chain's failure branch over
+    work that succeeded.
+    """
+    try:
+        return connection.hget(Job.key_for(job_id), CANCELED_FIELD) is not None
+    except Exception:
+        return False
+
+
 def _stamp_ended_at(connection, job_id):
     """Give a cancelled job an ``ended_at``.
 
@@ -983,6 +1042,12 @@ class Task(RedisBase):
                 log.exception("task cancel: could not cancel %s", job.id)
                 continue
             _stamp_ended_at(self._redis, job.id)
+            # Record the cancel where it is decided, on the member itself. rq
+            # may still run this job if a worker had already dequeued it, and
+            # the worker will then rewrite its status to finished; the record
+            # is what lets the completion it publishes be recognised as a
+            # cancelled member's rather than a healthy one's.
+            mark_canceled(self._redis, job.id)
 
         # The change-handler runs the finalize handlers, and a cancelled job
         # publishes no result of its own — announce the chain so its cancelled

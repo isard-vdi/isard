@@ -19,7 +19,10 @@ from rq.job import JobStatus
 
 
 def _core_step(
-    node_id, task_name="storage_update", kwargs=None, storage_dependents=None,
+    node_id,
+    task_name="storage_update",
+    kwargs=None,
+    storage_dependents=None,
     parent_status=JobStatus.FINISHED,
 ):
     """A real metadata finalize step (the only kind the consumer dispatches).
@@ -62,7 +65,10 @@ def _stub(
         dependents=dependents or [],
         job=job,
         job_status=job_status,
-        _redis=MagicMock(),
+        # No cancel record on this member. A bare MagicMock would answer
+        # every hget truthily, i.e. "cancelled", which is the one thing a
+        # default must never mean.
+        _redis=MagicMock(**{"hget.return_value": None}),
     )
 
 
@@ -199,9 +205,13 @@ class TestPerStepOutcome:
     async def test_a_step_whose_dependency_succeeded_is_marked_finished(self):
         from isardvdi_change_handler.streams import task_results_consumer
 
-        step = _core_step("succeeded-step")          # parent is FINISHED
-        root = _stub("root", queue="storage.pool.template", dependents=[step],
-                     job_status=JobStatus.CANCELED)
+        step = _core_step("succeeded-step")  # parent is FINISHED
+        root = _stub(
+            "root",
+            queue="storage.pool.template",
+            dependents=[step],
+            job_status=JobStatus.CANCELED,
+        )
 
         with (
             patch.object(task_results_consumer, "emit_task_feedback", new=AsyncMock()),
@@ -220,14 +230,27 @@ class TestPerStepOutcome:
         from isardvdi_change_handler.streams import task_results_consumer
 
         step = CoreStep(
-            {"id": "cancelled-dep-step", "task": "storage_update", "queue": "core",
-             "kwargs": {}, "args": [], "core_finalize": [], "storage_dependents": [],
-             "status": None},
-            SimpleNamespace(job_status=JobStatus.CANCELED, id="anchor", job=MagicMock()),
+            {
+                "id": "cancelled-dep-step",
+                "task": "storage_update",
+                "queue": "core",
+                "kwargs": {},
+                "args": [],
+                "core_finalize": [],
+                "storage_dependents": [],
+                "status": None,
+            },
+            SimpleNamespace(
+                job_status=JobStatus.CANCELED, id="anchor", job=MagicMock()
+            ),
             MagicMock(),
         )
-        root = _stub("root", queue="storage.pool.template", dependents=[step],
-                     job_status=JobStatus.CANCELED)
+        root = _stub(
+            "root",
+            queue="storage.pool.template",
+            dependents=[step],
+            job_status=JobStatus.CANCELED,
+        )
 
         with (
             patch.object(task_results_consumer, "emit_task_feedback", new=AsyncMock()),

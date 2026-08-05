@@ -55,6 +55,10 @@ def _stub_task(
         kwargs=kwargs or {},
         dependents=dependents or [],
         job=job,
+        # No cancel record on this member. A bare MagicMock would answer
+        # every hget truthily, i.e. "cancelled", which is the one thing a
+        # default must never mean.
+        _redis=MagicMock(**{"hget.return_value": None}),
     )
 
 

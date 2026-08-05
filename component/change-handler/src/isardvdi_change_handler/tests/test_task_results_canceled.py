@@ -61,6 +61,10 @@ def _stub_task(
         kwargs=kwargs or {},
         dependents=dependents or [],
         job=job,
+        # No cancel record on this member. A bare MagicMock would answer
+        # every hget truthily, i.e. "cancelled", which is the one thing a
+        # default must never mean.
+        _redis=MagicMock(**{"hget.return_value": None}),
         job_status=job_status,
     )
 
@@ -238,16 +242,29 @@ def test_walk_passes_through_a_finished_storage_member_on_a_dead_chain():
 
     behind = _core_step("behind")
     canceled_stage = _stub_task(
-        "canceled-stage", queue="storage.pool.template",
-        job_status=JobStatus.CANCELED, dependents=[behind])
+        "canceled-stage",
+        queue="storage.pool.template",
+        job_status=JobStatus.CANCELED,
+        dependents=[behind],
+    )
     finished_stage = _stub_task(
-        "finished-stage", queue="storage.pool.template",
-        job_status=JobStatus.FINISHED, dependents=[canceled_stage])
-    root = _stub_task("root", queue="storage.pool.template",
-                      job_status=JobStatus.FINISHED, dependents=[finished_stage])
+        "finished-stage",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[canceled_stage],
+    )
+    root = _stub_task(
+        "root",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[finished_stage],
+    )
 
-    found = list(task_results_consumer._walk_core_dependents(
-        root, include_canceled_storage=True, dead_chain=True))
+    found = list(
+        task_results_consumer._walk_core_dependents(
+            root, include_canceled_storage=True, dead_chain=True
+        )
+    )
 
     assert [t.id for t in found] == ["behind"]
 
@@ -261,10 +278,17 @@ def test_walk_does_not_pass_through_a_finished_storage_member_on_a_live_chain():
 
     behind = _core_step("behind")
     finished_stage = _stub_task(
-        "finished-stage", queue="storage.pool.template",
-        job_status=JobStatus.FINISHED, dependents=[behind])
-    root = _stub_task("root", queue="storage.pool.template",
-                      job_status=JobStatus.FINISHED, dependents=[finished_stage])
+        "finished-stage",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[behind],
+    )
+    root = _stub_task(
+        "root",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[finished_stage],
+    )
 
     found = list(task_results_consumer._walk_core_dependents(root))
 
@@ -287,13 +311,23 @@ async def test_a_step_that_already_ran_is_not_re_run_on_a_dead_chain():
     done.mark(True)
     behind = _core_step("behind", task_name="update_status")
     canceled_child = _stub_task(
-        "canceled-child", queue="storage.pool.template",
-        job_status=JobStatus.CANCELED, dependents=[behind])
+        "canceled-child",
+        queue="storage.pool.template",
+        job_status=JobStatus.CANCELED,
+        dependents=[behind],
+    )
     anchor = _stub_task(
-        "anchor", queue="storage.pool.template", job_status=JobStatus.FINISHED,
-        dependents=[canceled_child, done])
-    root = _stub_task("root", queue="storage.pool.template",
-                      job_status=JobStatus.FINISHED, dependents=[anchor])
+        "anchor",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[canceled_child, done],
+    )
+    root = _stub_task(
+        "root",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[anchor],
+    )
 
     ran = []
     handlers = {

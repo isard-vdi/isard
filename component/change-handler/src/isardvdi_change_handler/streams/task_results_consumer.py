@@ -59,6 +59,7 @@ from isardvdi_common.models.task import (
     CoreStep,
     Task,
     _stamp_ended_at,
+    was_canceled,
 )
 from redis.exceptions import ResponseError
 from rq import Queue
@@ -488,6 +489,19 @@ async def _process_entry(redis_manager, fields):
     # worker: every member is already CANCELED (or legitimately terminal for a
     # mid-chain cancel), so the root's status must be left exactly as it is.
     canceled = kind == CANCELED_KIND or job_status == "canceled"
+    # A member a worker had already dequeued runs to completion even once it is
+    # cancelled, and the worker's success handler rewrites its status — so this
+    # event can say "finished" for work the user cancelled, and nothing in the
+    # job itself contradicts it. Consult the record the cancel left instead.
+    # Absence means not cancelled, so a chain from before the record existed
+    # takes exactly the path it takes today.
+    if not canceled and await asyncio.to_thread(was_canceled, task._redis, task_id):
+        log.warning(
+            "task_results: %s completed after being cancelled; "
+            "settling the chain as cancelled rather than advancing it",
+            task_id,
+        )
+        canceled = True
     # A chain that failed or was cancelled did not produce its work. Its
     # finalize handlers still run - that is how the row is released - but
     # nothing downstream of them may be advanced.
