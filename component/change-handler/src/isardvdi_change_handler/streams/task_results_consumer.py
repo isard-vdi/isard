@@ -264,13 +264,27 @@ async def _enqueue_metadata_storage_dependents(step):
     which the transitional reconcile does not scan.
     """
     children = getattr(step, "storage_dependents", []) or []
+    child_ids = step.knot_child_ids
+    anchor = step.anchor
     ok = True
     for index, child in enumerate(children):
         child = dict(child)
-        # rq Job ids forbid ":"; the metadata step ids carry it, so flatten to a colon-free deterministic id.
-        child_id = f"{step.id}:sd:{index}".replace(":", "-")
+        # The id the chain already declared for this child when it was built —
+        # never recomputed here, so the creator and every reader of the graph
+        # cannot drift into two names for one member.
+        child_id = child_ids[index]
         job_kwargs = dict(child.get("job_kwargs") or {})
         job_kwargs["id"] = child_id
+        # The other half of the edge. Without it the child has no dependency
+        # inside the closure, so it reads as a second ROOT of its own chain:
+        # ``Task.cancel`` would announce the cancel twice and the whole finalize
+        # chain would be dispatched twice. It also gives the child a
+        # ``depending_status`` and lets the orphan rule in ``Task.pending``
+        # retire it once the anchor has settled.
+        if anchor is not None:
+            meta = dict(job_kwargs.get("meta") or {})
+            meta.setdefault("dependency_ids", [anchor.id])
+            job_kwargs["meta"] = meta
         child["job_kwargs"] = job_kwargs
         try:
             if await asyncio.to_thread(Task.exists, child_id):

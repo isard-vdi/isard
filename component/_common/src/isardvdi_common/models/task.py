@@ -251,6 +251,24 @@ def _await_result_stream_admission(connection, queue):
         waited += 1.0
 
 
+def knot_child_id(step_id, index):
+    """The rq job id of the ``index``-th storage child of finalize step
+    ``step_id`` — the storage-under-core knot.
+
+    Deterministic, so the id is known when the chain is BUILT even though the
+    job is created when the step runs: that is what lets the edge to the child
+    be declared up front instead of being patched in afterwards, and what makes
+    a redelivery address the same child instead of starting a second disk
+    operation. rq job ids forbid ``:`` and the metadata step ids carry it, so
+    the whole thing is flattened.
+
+    The single definition is load-bearing: whoever creates the child and
+    whoever looks for it must compute the same id, or the graph acquires two
+    names for one member.
+    """
+    return f"{step_id}:sd:{index}".replace(":", "-")
+
+
 def _serialize_finalize(dep, parent_id, index, user_id, category_id):
     """One ``core`` dependent (and its subtree) as a finalize metadata node.
 
@@ -258,6 +276,11 @@ def _serialize_finalize(dep, parent_id, index, user_id, category_id):
     ``storage_dependents`` entry the consumer enqueues fresh when this step runs
     (the storage-under-core knot). Ids are deterministic, never uuid4, so a
     redelivery addresses the same step.
+
+    Each knot child's future id is recorded on the node as
+    ``storage_dependent_ids`` at the same time. The child does not exist yet,
+    but its id does, so the graph can carry the edge to it from the moment the
+    chain is built rather than acquiring it later — if ever.
     """
     step_user_id = dep.get("user_id", user_id)
     step_category_id = dep.get("category_id", category_id)
@@ -271,6 +294,7 @@ def _serialize_finalize(dep, parent_id, index, user_id, category_id):
         "args": (dep.get("job_kwargs") or {}).get("args", []) or [],
         "core_finalize": [],
         "storage_dependents": [],
+        "storage_dependent_ids": [],
         "status": None,
     }
     for child_index, child in enumerate(dep.get("dependents", []) or []):
@@ -283,8 +307,24 @@ def _serialize_finalize(dep, parent_id, index, user_id, category_id):
         else:
             child.setdefault("user_id", step_user_id)
             child.setdefault("category_id", step_category_id)
+            node["storage_dependent_ids"].append(
+                knot_child_id(node["id"], len(node["storage_dependents"]))
+            )
             node["storage_dependents"].append(child)
     return node
+
+
+def _knot_child_ids(node):
+    """Every knot child id declared anywhere in a finalize tree.
+
+    They all belong on the ANCHOR's ``dependent_ids``: the anchor is the only
+    real rq job in the tree, so it is the only place an id-based walk can pick
+    the edge up from.
+    """
+    ids = list(node.get("storage_dependent_ids") or [])
+    for child in node.get("core_finalize") or []:
+        ids.extend(_knot_child_ids(child))
+    return ids
 
 
 class CoreStep:
@@ -362,6 +402,22 @@ class CoreStep:
     def storage_dependents(self):
         """Raw dependent dicts to enqueue as rq Tasks when this step runs."""
         return self._node.get("storage_dependents", []) or []
+
+    @property
+    def knot_child_ids(self):
+        """The rq job ids of this step's storage children, in the same order.
+
+        Declared when the chain was built, so they name the children whether or
+        not they exist yet. A chain built before this existed has none, and the
+        ids are re-derived from the step id so such a chain still resolves.
+        """
+        declared = self._node.get("storage_dependent_ids")
+        if declared:
+            return list(declared)
+        return [
+            knot_child_id(self.id, index)
+            for index in range(len(self.storage_dependents))
+        ]
 
     @property
     def anchor(self):
@@ -537,14 +593,24 @@ class Task(RedisBase):
                 # path. The change-handler runs it off ``meta["core_finalize"]``.
                 if str(dependent.get("queue", "")).startswith("core"):
                     finalize = self.job.meta.setdefault("core_finalize", [])
-                    finalize.append(
-                        _serialize_finalize(
-                            dependent,
-                            self.job.id,
-                            len(finalize),
-                            kwargs.get("user_id"),
-                            kwargs.get("category_id"),
-                        )
+                    node = _serialize_finalize(
+                        dependent,
+                        self.job.id,
+                        len(finalize),
+                        kwargs.get("user_id"),
+                        kwargs.get("category_id"),
+                    )
+                    finalize.append(node)
+                    # Declare the edge to every knot child the tree carries, now,
+                    # while this job is the only real one that can hold it. The
+                    # children are created later (when their step runs) or never
+                    # (on a chain that fails or is cancelled), so linking them at
+                    # creation time would leave them unreachable in exactly the
+                    # states where reaching them matters most. A declared id that
+                    # cannot be fetched is skipped by every reader, so declaring
+                    # early costs nothing.
+                    self.job.meta.setdefault("dependent_ids", []).extend(
+                        _knot_child_ids(node)
                     )
                     continue
                 dependent.setdefault("retry", kwargs.get("retry", 0))

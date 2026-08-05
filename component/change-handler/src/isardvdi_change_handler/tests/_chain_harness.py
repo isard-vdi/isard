@@ -158,6 +158,25 @@ def finalize_nodes(job):
     return list(walk(job.meta.get("core_finalize")))
 
 
+def first_core_step(task):
+    """The chain's first metadata finalize step, found by walking the real
+    dependents from the root — i.e. the step that carries the knot.
+
+    In the template chain that is the ``storage_update`` hanging off the third
+    storage job; the walk finds it rather than the test asserting where it is.
+    """
+    from isardvdi_common.models.task import CoreStep
+
+    frontier = [task]
+    while frontier:
+        current = frontier.pop(0)
+        for dependent in current.dependents:
+            if isinstance(dependent, CoreStep):
+                return dependent
+            frontier.append(dependent)
+    raise AssertionError("the chain has no finalize step — the harness is broken")
+
+
 def storage_jobs(connection):
     """Every rq job currently in the scratch db, by id."""
     from rq.job import Job
