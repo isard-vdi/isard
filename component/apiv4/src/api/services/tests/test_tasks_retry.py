@@ -114,17 +114,21 @@ class TestRqDependentAdmission:
     """The premise the CANCELED-dependent refusal rests on, proved against the
     rq we actually ship instead of taken on trust.
 
-    Needs a reachable redis (an unused db, default 15) — skipped where there is
-    none, which is why the refusal itself is also covered by a unit test above.
+    This needs a real redis and does NOT skip without one: a guard whose
+    premise is only checked where someone happens to have a redis running is a
+    guard nobody can vouch for. ``unit-test-apiv4`` runs a redis service for
+    exactly this. Work happens in an unused db (15) under a per-run queue name,
+    and every key created is deleted again.
     """
 
     @staticmethod
     def _queue():
-        redis = pytest.importorskip("redis")
+        import redis
         from rq import Queue
 
+        host = os.environ.get("REDIS_HOST", "isard-redis")
         connection = redis.Redis(
-            host=os.environ.get("REDIS_HOST", "isard-redis"),
+            host=host,
             port=int(os.environ.get("REDIS_PORT", 6379)),
             password=os.environ.get("REDIS_PASSWORD") or None,
             db=int(os.environ.get("RQ_PROOF_REDIS_DB", 15)),
@@ -132,7 +136,10 @@ class TestRqDependentAdmission:
         try:
             connection.ping()
         except Exception as exc:
-            pytest.skip(f"no redis to prove rq's behaviour against: {exc}")
+            pytest.fail(
+                f"this proof requires a reachable redis (REDIS_HOST={host}); "
+                f"it must not be skipped into silence: {exc}"
+            )
         return Queue(f"rq-proof-{uuid.uuid4().hex[:8]}", connection=connection)
 
     def test_rq_skips_a_canceled_dependent_and_enqueues_a_deferred_one(self):
