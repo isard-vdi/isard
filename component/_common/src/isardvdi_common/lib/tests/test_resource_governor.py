@@ -166,3 +166,35 @@ def test_max_heavy_zero_always_defers():
         )
         is True
     )
+
+
+# --- pressure_available: tell "no pressure" apart from "no PSI" --------------
+
+
+def test_pressure_available_true_for_a_readable_psi_file(tmp_path):
+    psi = tmp_path / "cpu"
+    psi.write_text("some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n")
+    assert rg.pressure_available(str(psi)) is True
+
+
+def test_pressure_available_false_when_the_file_is_absent(tmp_path):
+    # a kernel without PSI, or with it compiled-but-disabled: same absence
+    assert rg.pressure_available(str(tmp_path / "nope")) is False
+
+
+def test_pressure_available_false_for_an_empty_file(tmp_path):
+    # nothing to read is not a usable PSI source either
+    psi = tmp_path / "cpu"
+    psi.write_text("")
+    assert rg.pressure_available(str(psi)) is False
+
+
+def test_zero_pressure_and_absent_psi_are_indistinguishable_by_value(tmp_path):
+    # the reason pressure_available exists: read_pressure reports both as 0.0,
+    # so an idle host and a host with no PSI publish the same number
+    idle = tmp_path / "cpu"
+    idle.write_text("some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n")
+    missing = str(tmp_path / "nope")
+    assert rg.read_pressure(str(idle)) == rg.read_pressure(missing) == 0.0
+    assert rg.pressure_available(str(idle)) is True
+    assert rg.pressure_available(missing) is False

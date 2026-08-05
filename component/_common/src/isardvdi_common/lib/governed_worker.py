@@ -379,6 +379,19 @@ class GovernedWorker(Worker):
         self.gov_mem_psi_path = os.environ.get(
             "STORAGE_GOVERNOR_MEM_PSI_PATH", rg.MEMORY_PRESSURE_PATH
         )
+        # Probed once here rather than per poll: whether the kernel exposes PSI
+        # cannot change without a reboot, which restarts the worker anyway.
+        self.gov_psi_available = rg.pressure_available(self.gov_cpu_psi_path)
+        if not self.gov_psi_available:
+            # A missing PSI file reads as 0.0 ("no pressure"), so without this
+            # line the pressure axis is simply gone and every reading looks like
+            # a perfectly idle node. The heavy-concurrency cap still applies.
+            self.log.warning(
+                "PSI is unavailable (%s cannot be read): the governor will not "
+                "defer heavy work under load on this host. The max-heavy cap "
+                "still applies. See sysadm/psi/setup-psi.sh.",
+                self.gov_cpu_psi_path,
+            )
         # Clear any heavy-slot / per-category ids this fleet leaked before we
         # (re)started.
         self._reconcile_heavy()
@@ -1052,6 +1065,11 @@ class GovernedWorker(Worker):
             "floor": "1" if self._floor else "0",
             "multitenancy": "1" if self.multitenancy else "0",
             "served_lanes": json.dumps(served),
+            # Without this the psi_* values below are ambiguous: a host with no
+            # PSI publishes 0.0, which is exactly what a perfectly idle host
+            # publishes. Readers need to tell "no pressure" from "no data".
+            # Read defensively for the same reason as the PSI paths above.
+            "psi_available": "1" if getattr(self, "gov_psi_available", True) else "0",
         }
         if cpu_psi is not None:
             mapping["psi_cpu"] = repr(cpu_psi)

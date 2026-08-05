@@ -401,6 +401,7 @@ def _build_worker_row(
         "current_lane": current_lane,
         "served_lanes": served_lanes,
         "served_known": served_known,
+        "psi_available": _gov_bool("psi_available"),
         "psi_cpu": _gov_float("psi_cpu"),
         "psi_io": _gov_float("psi_io"),
         "psi_mem": _gov_float("psi_mem"),

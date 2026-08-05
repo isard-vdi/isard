@@ -417,6 +417,7 @@ def _worker(
     w.gov_psi_limit = psi_limit
     w.gov_max_heavy = max_heavy
     w.gov_backoff = 1
+    w.gov_psi_available = True
     w.gov_category_weights = {}
     w.gov_category_max_inflight = {}
     w.gov_category_default_max_inflight = None

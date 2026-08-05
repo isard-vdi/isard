@@ -58,6 +58,7 @@ class QueueConsumerResponse(BaseModel):
     current_lane: Optional[str] = None
     served_lanes: Optional[List[str]] = None
     served_known: Optional[bool] = None
+    psi_available: Optional[bool] = None
     psi_cpu: Optional[float] = None
     psi_io: Optional[float] = None
     psi_mem: Optional[float] = None
@@ -208,6 +209,7 @@ class WorkerHealthRow(BaseModel):
     current_lane: Optional[str] = None
     served_lanes: List[str] = []
     served_known: bool = False
+    psi_available: Optional[bool] = None
     psi_cpu: Optional[float] = None
     psi_io: Optional[float] = None
     psi_mem: Optional[float] = None
