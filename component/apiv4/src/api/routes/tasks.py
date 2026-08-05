@@ -48,6 +48,7 @@ async def get_queues_health(request: Request):
     summary="Get a task",
     description="Returns a task by its ID. Users can only see their own tasks.",
     responses={
+        403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
@@ -83,8 +84,9 @@ async def get_task(request: Request, task_id: str):
     summary="Cancel a task",
     description="Cancels a queued task. Only the task owner can cancel it.",
     responses={
+        403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
-        412: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
@@ -231,7 +233,8 @@ async def admin_cancel_task(request: Request, task_id: str):
     description="Retries a failed task. Admin only.",
     responses={
         404: {"model": ErrorResponse},
-        412: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        429: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
