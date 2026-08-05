@@ -197,6 +197,93 @@ class Wg(object):
 
     _INIT_PEERS_BATCH = 100
 
+    # ------------------------------------------------------------------ #
+    # Applied-peer index
+    #
+    # This service is the only writer of its WireGuard interface, so it must not
+    # need the database to undo its own work: a squashed delete event carries no
+    # vpn subtree and would leave the peer orphaned. The row ``id`` is the one
+    # identifier such an event always carries, so the index is keyed by it.
+    # ------------------------------------------------------------------ #
+
+    @property
+    def _applied_peers(self):
+        """``{row id: {public, address, extra_client_nets}}`` for this interface.
+
+        Created on first use rather than in ``__init__`` so an instance built
+        with ``Wg.__new__`` (tests, and any future partial construction) has it
+        too, and so each interface keeps its own -- a class attribute would
+        share one index between the users and hypers instances.
+        """
+        index = self.__dict__.get("_applied_peers_index")
+        if index is None:
+            index = {}
+            self.__dict__["_applied_peers_index"] = index
+        return index
+
+    def _remember_applied_peer(self, peer_id, wireguard):
+        """Record what ``up_peer`` just put on the interface for ``peer_id``."""
+        if not peer_id or not isinstance(wireguard, dict):
+            return
+        public = (wireguard.get("keys") or {}).get("public")
+        if not public:
+            return
+        self._applied_peers[peer_id] = {
+            "public": public,
+            "address": wireguard.get("Address"),
+            "extra_client_nets": wireguard.get("extra_client_nets"),
+        }
+
+    def _forget_applied_peer(self, peer_id):
+        self._applied_peers.pop(peer_id, None)
+
+    def _resolve_applied_peer(self, peer):
+        """What to take off the interface for ``peer``, or ``None``.
+
+        The event's own subtree wins when it is usable -- it is the freshest
+        view, and a key rotation writes the new key there. The index is the
+        fallback for exactly the case that motivated it: an ``old_val`` the
+        changefeed squashed down to a bare row.
+        """
+        wireguard = (peer.get("vpn") or {}).get("wireguard")
+        if isinstance(wireguard, dict):
+            public = (wireguard.get("keys") or {}).get("public")
+            if public:
+                return {
+                    "public": public,
+                    "address": wireguard.get("Address"),
+                    "extra_client_nets": wireguard.get("extra_client_nets"),
+                }
+        remembered = self._applied_peers.get(peer.get("id"))
+        if remembered is not None:
+            log.info(
+                "down_peer[%s]: %s arrived without a usable wireguard subtree; "
+                "resolving it from the applied-peer index (key %s)",
+                self.interface,
+                peer.get("id"),
+                remembered["public"],
+            )
+        return remembered
+
+    @staticmethod
+    def _peer_with_applied_wireguard(peer, applied):
+        """``peer`` for the iptables reaper, backfilled from ``applied``.
+
+        ``remove_matching_rules`` reaps by Address, which a squashed event does
+        not carry either -- without this the peer's ACCEPT pairs would survive
+        the removal of the peer itself.
+        """
+        if applied is None or (peer.get("vpn") or {}).get("wireguard"):
+            return peer
+        enriched = dict(peer)
+        enriched["vpn"] = dict(peer.get("vpn") or {})
+        enriched["vpn"]["wireguard"] = {
+            "Address": applied["address"],
+            "keys": {"public": applied["public"]},
+            "extra_client_nets": applied["extra_client_nets"],
+        }
+        return enriched
+
     def _flush_peers_batch(self, table, batch, inserted, total_expected, started_at):
         """Insert one chunk of generated peers into ``table`` and log
         progress + ETA. Called from :meth:`init_peers` whenever
@@ -635,6 +722,9 @@ class Wg(object):
                     "25",
                 ]
             )
+            # Recorded the moment it is on the wire, before the OVS work below
+            # can fail, so a later removal can name it even from a gutted row.
+            self._remember_applied_peer(peer.get("id"), peer["vpn"]["wireguard"])
             if peer["vpn"]["wireguard"]["extra_client_nets"] != None:
                 subprocess.run(
                     [
@@ -795,14 +885,15 @@ class Wg(object):
         peer = self._to_dict(peer)
         if table == False:
             table = self.table
-        if peer.get("vpn") is not None and "wireguard" in (peer.get("vpn") or {}):
-            if peer["vpn"]["wireguard"]["extra_client_nets"] != None:
+        applied = self._resolve_applied_peer(peer)
+        if applied is not None:
+            if applied["extra_client_nets"]:
                 subprocess.run(
                     [
                         "ip",
                         "route",
                         "del",
-                        peer["vpn"]["wireguard"]["extra_client_nets"],
+                        applied["extra_client_nets"],
                         "dev",
                         self.interface,
                     ]
@@ -813,12 +904,24 @@ class Wg(object):
                     "set",
                     self.interface,
                     "peer",
-                    peer["vpn"]["wireguard"]["keys"]["public"],
+                    applied["public"],
                     "remove",
                 ),
                 text=True,
             ).strip()
-        self.uipt.remove_matching_rules(peer)
+            self._forget_applied_peer(peer.get("id"))
+        elif self.table != "hypervisors" or (peer.get("vpn") or {}).get("wireguard"):
+            # Neither the event nor our own record names a key, so there is
+            # nothing to remove -- but say so rather than orphan it in silence.
+            log.error(
+                "down_peer[%s]: cannot resolve a public key for %s from the "
+                "event or from the applied-peer index; no peer removed",
+                self.interface,
+                peer.get("id"),
+            )
+        self.uipt.remove_matching_rules(
+            self._peer_with_applied_wireguard(peer, applied)
+        )
         if table == "hypervisors":
             # Resolve the ofport BEFORE del-port so del-flows uses the numeric id
             # that matches how the rules were installed in up_peer().
