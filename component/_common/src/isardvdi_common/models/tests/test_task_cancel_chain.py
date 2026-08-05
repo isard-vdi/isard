@@ -262,16 +262,43 @@ class TestEndedAtStampSemantics:
 
     @staticmethod
     def _redis_or_skip():
+        """One criterion for "is there a real Redis here", shared with every
+        other suite that needs one: an explicit ``ISARD_TEST_REDIS`` if set,
+        otherwise the server the rest of the stack is configured against — and
+        skip when it cannot be reached.
+
+        Never the rq db: these write fixed ``rq:job:test-stamp-*`` keys, and a
+        unit test has no business writing into the db real jobs live in. The
+        connect timeout keeps "there is no Redis here" from becoming a hung job
+        on an unresolvable host.
+        """
         import os
 
         import pytest
-
-        url = os.environ.get("ISARD_TEST_REDIS")
-        if not url:
-            pytest.skip("set ISARD_TEST_REDIS to run the real-redis stamp tests")
         import redis as redis_lib
 
-        return redis_lib.from_url(url)
+        url = os.environ.get("ISARD_TEST_REDIS")
+        if url:
+            connection = redis_lib.from_url(
+                url, socket_connect_timeout=5, socket_timeout=5
+            )
+        else:
+            connection = redis_lib.Redis(
+                host=os.environ.get("REDIS_HOST") or "isard-redis",
+                port=int(os.environ.get("REDIS_PORT") or 6379),
+                password=os.environ.get("REDIS_PASSWORD", ""),
+                db=int(os.environ.get("TASK_CHAIN_TEST_REDIS_DB", "9")),
+                socket_connect_timeout=5,
+                socket_timeout=5,
+            )
+        assert (
+            connection.get_connection_kwargs().get("db") != 0
+        ), "refusing to run against the rq db"
+        try:
+            connection.ping()
+        except Exception as error:
+            pytest.skip(f"no Redis for the real-redis stamp tests: {error}")
+        return connection
 
     def test_stamps_when_the_field_is_empty(self):
         """RQ serialises an unset ``ended_at`` as an EMPTY field, not a missing
