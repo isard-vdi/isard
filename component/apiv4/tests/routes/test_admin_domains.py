@@ -186,7 +186,7 @@ def test_admin_virt_install_xml_sections_save(monkeypatch, test_client):
     response = test_client(
         url="/admin/item/virt_install/xml_sections/vi-1",
         method="POST",
-        body={"sections": [{"key": "memory", "xml": "<memory>4096</memory>"}]},
+        body={"sections": {"memory": "<memory>4096</memory>"}},
         jwt=jwt,
     )
     assert response.status_code == 200
@@ -215,7 +215,7 @@ def test_admin_domains_save_as_virt_install(monkeypatch, test_client):
         url="/admin/item/domains/xml_sections/desktop-1/save_virt_install",
         method="POST",
         body={
-            "sections": [{"key": "memory", "xml": "<memory>2048</memory>"}],
+            "sections": {"memory": "<memory>2048</memory>"},
             "name": "My new VI template",
         },
         jwt=jwt,
