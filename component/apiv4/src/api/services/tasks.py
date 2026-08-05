@@ -280,6 +280,21 @@ class TaskService:
                 f"Task {task.id} is a chain finalize step with no worker fleet "
                 "and cannot be re-enqueued"
             )
+        # ``Queue.enqueue_dependents`` admits a dependent only when its status
+        # is not CANCELED, so after a chain cancel a retried root re-runs its
+        # disk operation while the dependents that finalise it stay cancelled:
+        # the operation happens and nothing closes it out.
+        canceled = [
+            dependent.id
+            for dependent in task.dependents
+            if dependent.job_status == JobStatus.CANCELED
+        ]
+        if canceled:
+            return (
+                f"Task {task.id} has cancelled dependents ({', '.join(canceled)}) "
+                "that rq will not re-enqueue: the operation would re-run with "
+                "nothing left to finalise it"
+            )
         return None
 
     @staticmethod
