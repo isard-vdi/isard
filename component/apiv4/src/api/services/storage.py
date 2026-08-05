@@ -27,7 +27,7 @@ from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
-from isardvdi_common.models.task import Task
+from isardvdi_common.models.task import Task, tasks_from_ids
 from isardvdi_common.models.user import User as RethinkUser
 
 
@@ -365,11 +365,23 @@ class StorageService:
 
     @staticmethod
     def get_task(payload: dict, storage_id: str) -> dict | None:
-        """Get storage task as dict."""
+        """Get storage task as dict, or ``None`` when there is no readable one.
+
+        A storage row can outlive the RQ job it points at, and building
+        ``Task`` on a dangling pointer raises ``NoSuchJobError`` — which the
+        route turns into a 500 although "no task" is a perfectly good answer.
+        ``tasks_from_ids`` is the fetch-tolerant helper the rest of the
+        codebase already uses for this: it swallows the load failure rather
+        than pairing a check with a construct, so the pointer cannot go stale
+        between the two calls. A bare ``Task.exists`` would not do — a hash
+        left with only a status field passes that check and still cannot be
+        loaded.
+        """
         storage = get_storage(payload, storage_id)
-        if storage.task:
-            return Task(storage.task).to_dict()
-        return None
+        if not storage.task:
+            return None
+        tasks = tasks_from_ids([storage.task])
+        return tasks[0].to_dict() if tasks else None
 
     @staticmethod
     def get_statuses(payload: dict, storage_id: str) -> dict:
@@ -743,7 +755,14 @@ class StorageService:
         # swallow as 500.
         if not storage.task:
             return ""
-        task_agent_id = Task(storage.task).user_id
+        # A pointer whose job RQ has dropped is the same answer: there is no
+        # live job left to abort and no initiator to own it. Loaded through the
+        # fetch-tolerant helper so a dangling (or status-only, which
+        # ``Task.exists`` waves through) pointer is a no-op instead of a 500.
+        tasks = tasks_from_ids([storage.task])
+        if not tasks:
+            return ""
+        task_agent_id = tasks[0].user_id
         # Check ownership: only the user who initiated the task or admin can abort
         if payload["role_id"] != "admin" and task_agent_id != payload["user_id"]:
             raise Error(

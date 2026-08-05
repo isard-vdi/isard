@@ -11,7 +11,7 @@ import traceback
 from api.services.error import Error
 from isardvdi_common.helpers.error_base import ErrorBase
 from isardvdi_common.lib.queue_tiers import parse_storage_queue
-from isardvdi_common.models.task import Task
+from isardvdi_common.models.task import Task, tasks_from_ids
 from rq.job import JobStatus
 
 log = logging.getLogger(__name__)
@@ -21,6 +21,22 @@ class TaskService:
     """Service for task management operations."""
 
     @staticmethod
+    def _load(task_id: str):
+        """Load a task, or raise ``not_found`` when its RQ job is gone.
+
+        ``Task.exists`` is a bare key check: a hash left with only a status
+        field passes it and still cannot be loaded. Pairing it with a separate
+        construct is also a race — the job can be dropped between the two
+        calls. ``tasks_from_ids`` is the fetch-tolerant helper the rest of the
+        codebase already uses for this; it swallows the load failure, so the
+        answer is the 404 the caller deserved rather than a 500.
+        """
+        tasks = tasks_from_ids([task_id])
+        if not tasks:
+            raise Error("not_found", "Task not found")
+        return tasks[0]
+
+    @staticmethod
     def get_task(task_id: str) -> dict:
         """Get a single task by ID, best-effort enriched with observability
         fields (tier / timestamps / age / retries_left / exc_string).
@@ -28,9 +44,7 @@ class TaskService:
         Enrichment is SINGLE-task only — deliberately NOT applied to
         ``get_admin_tasks``/``to_dict``, whose per-row ``latest_result`` Redis
         fetch would be a listing regression."""
-        if not Task.exists(task_id):
-            raise Error("not_found", "Task not found")
-        task = Task(task_id)
+        task = TaskService._load(task_id)
         data = task.to_dict()
         TaskService._enrich_task_dict(data, task)
         return data
@@ -133,9 +147,7 @@ class TaskService:
     @staticmethod
     def get_task_with_owner_check(task_id: str, user_id: str, role_id: str) -> dict:
         """Get a task with ownership verification."""
-        if not Task.exists(task_id):
-            raise Error("not_found", "Task not found")
-        task = Task(task_id)
+        task = TaskService._load(task_id)
         if role_id != "admin" and task.user_id != user_id:
             raise Error("forbidden", "Not authorized to access this task")
         return task
@@ -260,9 +272,7 @@ class TaskService:
         gate, so the two endpoints disagreed as well. One predicate, so what a
         row displays and what it may do come from the same source.
         """
-        if not Task.exists(task_id):
-            raise Error("not_found", "Task not found")
-        task = Task(task_id)
+        task = TaskService._load(task_id)
         refusal = TaskService._retry_refusal(task)
         if refusal:
             raise Error("precondition_required", refusal)
@@ -305,8 +315,7 @@ class TaskService:
         ``task:cancel:<id>`` pub/sub signal, but CANNOT stop an already-running
         task body unless that body cooperates by watching for the signal
         (``TaskCancelWatcher``). A gone task surfaces as a ``not_found`` Error
-        (-> 404)."""
-        if not Task.exists(task_id):
-            raise Error("not_found", "Task not found")
-        Task(task_id).cancel()
+        A task whose job RQ has dropped is the same answer: ``not_found``,
+        never a 500."""
+        TaskService._load(task_id).cancel()
         return {}

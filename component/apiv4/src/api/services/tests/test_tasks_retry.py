@@ -46,9 +46,7 @@ def _task(
 class TestRetryTask:
     def test_retries_a_task_whose_own_job_failed(self):
         task = _task()
-        with patch("api.services.tasks.Task") as Task:
-            Task.exists.return_value = True
-            Task.return_value = task
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
             assert TaskService.retry_task("t-1") == {"id": "t-1"}
         task.retry.assert_called_once_with()
 
@@ -57,9 +55,7 @@ class TestRetryTask:
         it raises inside rq (it is not a failed-registry member) and would also
         re-run work that succeeded — refuse with a precondition instead."""
         task = _task(job_status=JobStatus.FINISHED)
-        with patch("api.services.tasks.Task") as Task:
-            Task.exists.return_value = True
-            Task.return_value = task
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
             with pytest.raises(Error) as excinfo:
                 TaskService.retry_task("t-1")
         assert excinfo.value.status_code == 428
@@ -76,9 +72,7 @@ class TestRetryTask:
         gate said 428. Retry must defer to the one predicate."""
         task = _task(job_status=JobStatus.FAILED, status=JobStatus.CANCELED)
         assert TaskService._retry_refusal(task) is None
-        with patch("api.services.tasks.Task") as Task:
-            Task.exists.return_value = True
-            Task.return_value = task
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
             assert TaskService.retry_task("t-1") == {"id": "t-1"}
         task.retry.assert_called_once_with()
 
@@ -89,9 +83,7 @@ class TestRetryTask:
         cancelled — the operation happens and nothing closes it out."""
         dependent = _task(job_status=JobStatus.CANCELED, task_id="dep-1")
         task = _task(dependents=[dependent])
-        with patch("api.services.tasks.Task") as Task:
-            Task.exists.return_value = True
-            Task.return_value = task
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
             with pytest.raises(Error) as excinfo:
                 TaskService.retry_task("t-1")
         assert excinfo.value.status_code == 428
@@ -103,9 +95,7 @@ class TestRetryTask:
         will promote once the root succeeds."""
         dependent = _task(job_status=JobStatus.DEFERRED, task_id="dep-1")
         task = _task(dependents=[dependent])
-        with patch("api.services.tasks.Task") as Task:
-            Task.exists.return_value = True
-            Task.return_value = task
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
             assert TaskService.retry_task("t-1") == {"id": "t-1"}
         task.retry.assert_called_once_with()
 
@@ -113,9 +103,7 @@ class TestRetryTask:
         """``core`` steps are executed in-process by the change-handler and no
         rq worker subscribes to that queue: re-enqueueing one strands it."""
         task = _task(queue="core")
-        with patch("api.services.tasks.Task") as Task:
-            Task.exists.return_value = True
-            Task.return_value = task
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
             with pytest.raises(Error) as excinfo:
                 TaskService.retry_task("t-1")
         assert excinfo.value.status_code == 428
