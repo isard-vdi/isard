@@ -22,7 +22,13 @@ def _core_step(node_id, task_name, kwargs=None):
         "storage_dependents": [],
         "status": None,
     }
-    return CoreStep(node, SimpleNamespace(job_status=JobStatus.FINISHED), MagicMock())
+    # The parent stands in for the step's ANCHOR: the real rq job whose meta
+    # carries this node, and where the consumer makes the step's mark durable.
+    # It therefore needs an id and a job, like the Task it doubles for.
+    anchor = SimpleNamespace(
+        job_status=JobStatus.FINISHED, id=f"anchor-of-{node_id}", job=MagicMock()
+    )
+    return CoreStep(node, anchor, MagicMock())
 
 
 def _stub_task(

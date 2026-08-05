@@ -438,6 +438,11 @@ async def _process_entry(redis_manager, fields):
     # ``Job.set_status``), its knot children are enqueued fresh, and it has no rq
     # job to drop.
     all_ok = True
+    # Every anchor a mark was written to during this dispatch. A finalize tree
+    # hangs off the job that carries it, and one dispatch walks several of
+    # them, so collecting the anchors is what makes the marks durable — see the
+    # save loop below.
+    anchors = {}
     # ``dedup_status_emits`` collapses repeated identical ``(storage_id,
     # status)`` socket fan-outs within this one dispatch pass (a chain often
     # lands the same status via two handlers). Every finalize handler is an
@@ -469,6 +474,9 @@ async def _process_entry(redis_manager, fields):
             # child's ``depending_status`` reads this parent, so the mark
             # must land before the child runs (the walk yields parent first).
             dep_task.mark(step_status == JobStatus.FINISHED)
+            anchor = dep_task.anchor
+            if anchor is not None:
+                anchors[anchor.id] = anchor
             # Advance this dep's storage children so the worker picks them up.
             # Skipped when the handler failed — failure must NOT advance the
             # chain — and when the member is cancelled, since running its
@@ -483,13 +491,22 @@ async def _process_entry(redis_manager, fields):
     # re-stamps. Metadata finalize steps are not rq jobs, so there is nothing to
     # drop from a queue — the persisted ``status`` mark is what retires each step
     # and leaving the node in meta is the forensic record of what ran.
-    try:
-        await asyncio.to_thread(task.job.save_meta)
-    except Exception:
-        log.exception(
-            "task_results: failed to persist core_finalize marks for %s",
-            task_id,
-        )
+    #
+    # Save EVERY anchor the dispatch marked, not just the job the event was
+    # keyed on. One event walks several finalize trees — in a template chain
+    # the tree hangs off the third storage job while the event names the root —
+    # and a mark written to an unsaved job is lost the moment this pass ends,
+    # leaving a step that ran looking like a step that never did.
+    for anchor in anchors.values():
+        try:
+            await asyncio.to_thread(anchor.job.save_meta)
+        except Exception:
+            all_ok = False
+            log.exception(
+                "task_results: failed to persist core_finalize marks on %s (event %s)",
+                anchor.id,
+                task_id,
+            )
     return all_ok
 
 

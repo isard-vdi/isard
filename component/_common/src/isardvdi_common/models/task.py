@@ -363,6 +363,26 @@ class CoreStep:
         """Raw dependent dicts to enqueue as rq Tasks when this step runs."""
         return self._node.get("storage_dependents", []) or []
 
+    @property
+    def anchor(self):
+        """The rq job whose ``meta`` carries this step — where :meth:`mark`
+        becomes durable.
+
+        A finalize tree hangs off ONE real job and can be several levels deep,
+        so the anchor is the first non-``CoreStep`` ancestor, not the immediate
+        parent. It is also not necessarily the job an incoming result event is
+        keyed on: in the template chain the tree hangs off the third storage
+        job while the event names the root.
+
+        ``None`` when the step has no parent at all — the reconcile builds such
+        a step in its own heal path — which callers must read as "there is
+        nothing to save", never as an error.
+        """
+        node = self._parent
+        while isinstance(node, CoreStep):
+            node = node._parent
+        return node
+
     def mark(self, ok):
         """Record this step's outcome so a later sibling/child reads the right
         ``depending_status`` and ``Task.pending`` stops counting it as active."""

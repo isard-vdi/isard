@@ -186,6 +186,44 @@ def hypervisors_handler(fake_socketio):
     return HypervisorsHandler(fake_socketio, "hypervisors")
 
 
+@pytest.fixture
+def scratch_redis():
+    """A real Redis on a scratch db, or skip.
+
+    rq's job graph (dependency sets, deferred registries, ``Job.cancel``, the
+    Lua ``ended_at`` stamp) is not something a stub can stand in for without
+    the stub becoming the thing under test — so the chain tests want a real
+    server, and say so by skipping when there is none.
+    """
+    from isardvdi_change_handler.tests._chain_harness import scratch_connection
+
+    connection = scratch_connection()
+    if connection is None:
+        pytest.skip("no Redis available for the real-chain harness")
+    connection.flushdb()
+    try:
+        yield connection
+    finally:
+        connection.flushdb()
+
+
+@pytest.fixture
+def task_on_scratch_redis(scratch_redis):
+    """Point every ``Task`` (and the ``CoreStep`` views it hands out) at the
+    scratch db for the duration of the test."""
+    from isardvdi_common.models.task import Task
+
+    original = Task.__dict__.get("_redis")
+    Task._redis = scratch_redis
+    try:
+        yield scratch_redis
+    finally:
+        if original is None:
+            del Task._redis
+        else:
+            Task._redis = original
+
+
 @pytest.fixture(autouse=True)
 def pinned_helper_returns(monkeypatch, request):
     if "no_pinned_helpers" in request.keywords:
