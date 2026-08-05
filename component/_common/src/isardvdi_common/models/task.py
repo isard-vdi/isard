@@ -386,6 +386,41 @@ def _knot_child_ids(node):
     return ids
 
 
+def finalize_has_unstamped(nodes):
+    """True if any metadata finalize step in this tree never ran.
+
+    ``status`` is ``None`` until the step's handler has been dispatched;
+    ``"finished"`` or ``"failed"`` both mean it RAN, so only ``None`` is
+    outstanding work.
+
+    Walks ``unbuilt_knot_finalize`` as well as ``core_finalize``. Those are the
+    steps of a knot child that will never be created — on a failed or cancelled
+    chain they are materialised onto the anchor instead, and they still run
+    (the terminal ``update_status`` that maps FAILED/CANCELED onto ``Failed``
+    is one of them), so an unstamped one is still work outstanding.
+    """
+    for node in nodes or []:
+        if node.get("status") is None:
+            return True
+        if finalize_has_unstamped(node.get("core_finalize")):
+            return True
+        for unbuilt in (node.get("unbuilt_knot_finalize") or {}).values():
+            if finalize_has_unstamped(unbuilt):
+                return True
+    return False
+
+
+def _job_has_unstamped_finalize(job):
+    """True if this rq job's meta carries a finalize step that never ran.
+
+    Only ``core_finalize`` is read here: ``unbuilt_knot_finalize`` is stored on
+    a finalize NODE (see :meth:`CoreStep.unbuilt_knot_steps`), never on a job's
+    meta, so the tree walk is what reaches it.
+    """
+    meta = getattr(job, "meta", None) or {}
+    return finalize_has_unstamped(meta.get("core_finalize"))
+
+
 class CoreStep:
     """A ``meta["core_finalize"]`` node that quacks like a :class:`Task` for the
     finalize consumer and the ``to_dict`` / ``pending`` contract.
@@ -988,9 +1023,23 @@ class Task(RedisBase):
         ``pending`` walks ``dependencies + self + dependents``, which is one
         level each way — ``dependents`` lists direct children only. A chain
         deeper than that reads as settled from its root while later levels are
-        still running: template creation builds eight. A caller asking "is this
-        row's work finished?" needs the closure, or it acts on a disk a worker
-        is still writing.
+        still running: the template chain is three rq jobs plus a knot child. A
+        caller asking "is this row's work finished?" needs the closure, or it
+        acts on a disk a worker is still writing.
+
+        Metadata finalize steps count too, even though they are not rq jobs and
+        an id walk cannot reach them. An unstamped step IS outstanding work:
+        the change-handler still has to run its handler, and that handler is
+        what releases the row. ``pending`` already counts one (an unstamped
+        ``CoreStep`` reads QUEUED once its parent is terminal), and two sibling
+        predicates over one graph must not answer this differently — measured
+        on the real template chain, asked on the anchor, ``pending`` said True
+        and this said False.
+
+        That makes a lost result event pin the chain pending indefinitely,
+        which is only safe because ``_metadata_finalize_orphaned`` is
+        closure-wide and can open for a knotted chain. Do not relax that
+        ordering.
 
         An unreadable chain answers True: not being able to prove work is over
         is not the same as it being over.
@@ -1008,6 +1057,12 @@ class Task(RedisBase):
         except Exception:
             return True
         for job in closure.values():
+            # Checked before the status: a finalize step is outstanding
+            # regardless of what its anchor's rq job now reads as. On a settled
+            # chain the anchor is FINISHED and the step is exactly what has not
+            # happened yet.
+            if _job_has_unstamped_finalize(job):
+                return True
             try:
                 status = job.get_status(refresh=True)
             except Exception:

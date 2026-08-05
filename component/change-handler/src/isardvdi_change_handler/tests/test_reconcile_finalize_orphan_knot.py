@@ -19,6 +19,7 @@ it.
 """
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock
 
 import pytest
 from isardvdi_common.models.task import Task, _chain_closure
@@ -205,6 +206,94 @@ def test_the_hatch_stays_shut_for_a_legacy_chain_with_no_finalize_metadata(
         )
         is False
     ), "the hatch opened on a chain that has no metadata finalize at all"
+
+
+def test_chain_pending_is_true_from_the_root_while_a_finalize_step_is_unstamped(
+    task_on_scratch_redis, repair_storage_new_slot  # noqa: F811
+):
+    """The predicate the reconcile reads, asked where the reconcile asks it.
+
+    Every rq job in the chain is FINISHED, but the finalize that releases the
+    row has not run. That is outstanding work, and the root must say so.
+    """
+    root = Task(**template_chain_kwargs())
+    _settle_every_real_job(task_on_scratch_redis, root)
+
+    assert Task(root.id).chain_pending is True, (
+        "the chain read as settled while the step that releases the row had " "not run"
+    )
+
+
+def test_the_two_pending_predicates_agree_on_the_anchor(
+    task_on_scratch_redis, repair_storage_new_slot  # noqa: F811
+):
+    """``pending`` and ``chain_pending`` are the same question at two scopes.
+    Measured on this chain before the fix: on the anchor ``pending`` was True
+    and ``chain_pending`` False — two sibling predicates, one graph, opposite
+    answers."""
+    root = Task(**template_chain_kwargs())
+    _settle_every_real_job(task_on_scratch_redis, root)
+
+    closure = _chain_closure(root.job, task_on_scratch_redis)
+    anchor_id = next(
+        job_id
+        for job_id, job in closure.items()
+        if (job.meta or {}).get("core_finalize")
+    )
+    anchor = Task(anchor_id)
+
+    assert anchor.pending is True, "premise: pending counts the unstamped step"
+    assert anchor.chain_pending is anchor.pending
+
+
+def test_chain_pending_goes_false_once_every_finalize_step_has_run(
+    task_on_scratch_redis, repair_storage_new_slot  # noqa: F811
+):
+    """The other half of the contract: a chain that really is finished must
+    stop reading as busy, or nothing is ever released."""
+    root = Task(**template_chain_kwargs())
+    _settle_every_real_job(task_on_scratch_redis, root)
+
+    for job in _chain_closure(root.job, task_on_scratch_redis).values():
+        finalize = (job.meta or {}).get("core_finalize")
+        if finalize:
+            _stamp_all(finalize)
+            job.save()
+
+    assert Task(root.id).chain_pending is False
+
+
+def test_the_hatch_is_what_stops_an_unstamped_chain_pinning_the_row_for_ever(
+    task_on_scratch_redis, repair_storage_new_slot  # noqa: F811
+):
+    """The interlock, end to end, as ``_task_alive`` resolves it.
+
+    Counting an unstamped step as pending is what makes a lost result event
+    dangerous: without a hatch the row is live work for ever and Pass 2 can
+    never heal it — "428 forever", re-entered backwards. Inside the redelivery
+    envelope the chain is still live (the consumer may yet deliver); past it
+    the hatch opens and the row becomes healable.
+    """
+    from isardvdi_change_handler.streams import reconcile
+
+    root = Task(**template_chain_kwargs())
+    _settle_every_real_job(task_on_scratch_redis, root, aged_s=100)
+
+    storage = MagicMock()
+    storage.task = root.id
+    storage.status = "maintenance"
+
+    assert (
+        reconcile._task_alive(storage, min_age_s=MIN_AGE_S) is True
+    ), "a just-settled chain must stay live: the result event may still arrive"
+
+    # Same chain, now older than the envelope.
+    _settle_every_real_job(task_on_scratch_redis, root, aged_s=AGED_S)
+
+    assert reconcile._task_alive(storage, min_age_s=MIN_AGE_S) is False, (
+        "the row is pinned pending for ever: chain_pending counts the "
+        "unstamped step and the hatch never opened"
+    )
 
 
 def _stamp_all(nodes):

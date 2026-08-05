@@ -69,13 +69,22 @@ def test_pending_false_for_orphaned_deferred_dependent():
 class _Job:
     """An rq job as ``_chain_closure`` walks it: an id, a status and meta."""
 
-    def __init__(self, job_id, status, dependency_ids=(), dependent_ids=()):
+    def __init__(
+        self,
+        job_id,
+        status,
+        dependency_ids=(),
+        dependent_ids=(),
+        core_finalize=None,
+    ):
         self.id = job_id
         self._status = status
         self.meta = {
             "dependency_ids": list(dependency_ids),
             "dependent_ids": list(dependent_ids),
         }
+        if core_finalize is not None:
+            self.meta["core_finalize"] = core_finalize
 
     def get_status(self, refresh=True):
         return self._status
@@ -142,6 +151,93 @@ def test_chain_pending_false_for_an_orphaned_deferred_member():
         _Job("child", JobStatus.DEFERRED, dependency_ids=["root"]),
     ]
     assert _chain_pending_for(jobs) is False
+
+
+# ---------------------------------------------------------------------------
+# ``chain_pending`` and metadata finalize steps
+#
+# A finalize step is not an rq job, so the closure walk cannot see it by
+# following ids. But an unstamped one IS outstanding work: the change-handler
+# still has to run its handler, and that handler is what releases the row. Two
+# sibling predicates over one graph must not answer this differently —
+# ``pending`` counts it (an unstamped ``CoreStep`` reads QUEUED once its parent
+# is terminal), so ``chain_pending`` counts it too.
+# ---------------------------------------------------------------------------
+
+
+def test_chain_pending_counts_an_unstamped_finalize_step():
+    # Every rq job done, but the finalize that releases the row never ran.
+    jobs = [
+        _Job("root", JobStatus.FINISHED, dependent_ids=["anchor"]),
+        _Job(
+            "anchor",
+            JobStatus.FINISHED,
+            dependency_ids=["root"],
+            core_finalize=[{"id": "anchor:cf:0", "status": None}],
+        ),
+    ]
+    assert _chain_pending_for(jobs) is True
+
+
+def test_chain_pending_counts_a_finalize_step_nested_under_a_stamped_one():
+    jobs = [
+        _Job(
+            "root",
+            JobStatus.FINISHED,
+            core_finalize=[
+                {
+                    "id": "root:cf:0",
+                    "status": "finished",
+                    "core_finalize": [{"id": "root:cf:0:cf:0", "status": None}],
+                }
+            ],
+        ),
+    ]
+    assert _chain_pending_for(jobs) is True
+
+
+def test_chain_pending_ignores_a_finalize_that_already_ran():
+    jobs = [
+        _Job(
+            "root",
+            JobStatus.FINISHED,
+            core_finalize=[
+                {
+                    "id": "root:cf:0",
+                    "status": "finished",
+                    "core_finalize": [{"id": "root:cf:0:cf:0", "status": "failed"}],
+                }
+            ],
+        ),
+    ]
+    # "failed" is a step that RAN; the chain is settled, not outstanding.
+    assert _chain_pending_for(jobs) is False
+
+
+def test_chain_pending_counts_the_steps_of_a_knot_child_that_will_never_exist():
+    # On a dead chain the knot child is never created and its finalize steps
+    # are materialised onto the finalize NODE that declared it — not onto the
+    # job's meta — by ``CoreStep.unbuilt_knot_steps``. They still run: the
+    # terminal ``update_status`` that maps CANCELED onto ``Failed`` is one of
+    # them, so an unstamped one is still outstanding work.
+    jobs = [
+        _Job(
+            "root",
+            JobStatus.CANCELED,
+            core_finalize=[
+                {
+                    "id": "root:cf:0",
+                    "status": "finished",
+                    "unbuilt_knot_finalize": {
+                        "root-cf-0-sd-0": [
+                            {"id": "root-cf-0-sd-0:cf:0", "status": None}
+                        ]
+                    },
+                }
+            ],
+        ),
+    ]
+    assert _chain_pending_for(jobs) is True
 
 
 @pytest.mark.parametrize(

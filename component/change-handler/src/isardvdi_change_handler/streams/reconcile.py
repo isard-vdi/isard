@@ -67,7 +67,7 @@ from datetime import datetime, timezone
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
-from isardvdi_common.models.task import Task, _chain_closure
+from isardvdi_common.models.task import Task, _chain_closure, finalize_has_unstamped
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
@@ -402,14 +402,11 @@ async def _drain_core_once(redis_manager):
     return drained
 
 
-def _finalize_has_unstamped(nodes):
-    """True if any metadata finalize step (at any depth) never ran."""
-    for node in nodes or []:
-        if node.get("status") is None:
-            return True
-        if _finalize_has_unstamped(node.get("core_finalize")):
-            return True
-    return False
+# The same predicate ``chain_pending`` uses, deliberately shared rather than
+# reimplemented: the hatch and the pending check must agree about what "this
+# finalize step has not run" means, or the hatch opens for chains the predicate
+# still calls busy (or worse, never opens for ones it does).
+_finalize_has_unstamped = finalize_has_unstamped
 
 
 def _job_settled_at(job, status):
