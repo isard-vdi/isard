@@ -6,7 +6,11 @@ methods. Heavy DB-walking methods are exercised by routes/tests/.
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+from api.services.error import Error
 from api.services.storage import StorageService, check_task_priority
+from isardvdi_common.models.task import Task
+from rq.exceptions import NoSuchJobError
 
 JWT_PAYLOAD_ADMIN = {
     "user_id": "u-admin",
@@ -223,3 +227,67 @@ class TestHasDerivatives:
         mock_get.return_value = self._storage([])
 
         assert StorageService.has_derivatives(JWT_PAYLOAD_ADMIN, "s1") == 0
+class TestStaleTaskPointer:
+    """A storage row can outlive the RQ job it points at (result TTL expiry, a
+    redis restart mid-chain, a job deleted while something was still writing
+    its status). Building ``Task(storage.task)`` then raises ``NoSuchJobError``
+    out of the service and the route turns it into a 500 — on two endpoints
+    that both have a good answer available: "no task" and "nothing to abort".
+
+    Both cases below leave the job hash *present but unloadable*, which is the
+    documented shape a bare ``Task.exists`` key check waves through — so these
+    pin the fetch-tolerant behaviour, not an existence check.
+    """
+
+    @staticmethod
+    def _unloadable_job():
+        """Job hash present (``exists`` says yes) but ``fetch`` cannot load it."""
+        return (
+            patch("isardvdi_common.models.task.Job.exists", return_value=True),
+            patch(
+                "isardvdi_common.models.task.Job.fetch",
+                side_effect=NoSuchJobError("No such job: t-gone"),
+            ),
+        )
+
+    @patch("api.services.storage.get_storage")
+    def test_get_task_answers_no_task_instead_of_raising(self, mock_get_storage):
+        mock_get_storage.return_value = MagicMock(task="t-gone")
+        exists, fetch = self._unloadable_job()
+        with exists, fetch:
+            assert StorageService.get_task(JWT_PAYLOAD_ADMIN, "s1") is None
+
+    @patch("api.services.storage.get_storage")
+    def test_get_task_still_serialises_a_live_task(self, mock_get_storage):
+        """The tolerant path must not swallow the normal answer."""
+        mock_get_storage.return_value = MagicMock(task="t-live")
+        job = MagicMock(meta={}, origin="storage.default.default.default")
+        with patch("isardvdi_common.models.task.Job.exists", return_value=True), patch(
+            "isardvdi_common.models.task.Job.fetch", return_value=job
+        ), patch.object(Task, "to_dict", return_value={"id": "t-live"}):
+            assert StorageService.get_task(JWT_PAYLOAD_ADMIN, "s1") == {"id": "t-live"}
+
+    @patch("api.services.storage.get_storage")
+    def test_abort_operations_is_a_no_op_instead_of_raising(self, mock_get_storage):
+        """Same idempotent no-op the method already gives a storage with no
+        task: there is no live job to abort and no initiator to own it."""
+        storage = MagicMock(task="t-gone")
+        mock_get_storage.return_value = storage
+        exists, fetch = self._unloadable_job()
+        with exists, fetch:
+            assert StorageService.abort_operations(JWT_PAYLOAD_MANAGER, "s1") == ""
+        storage.abort_operations.assert_not_called()
+
+    @patch("api.services.storage.get_storage")
+    def test_abort_operations_still_checks_the_owner_of_a_live_task(
+        self, mock_get_storage
+    ):
+        """The tolerant path must not weaken the ownership gate."""
+        mock_get_storage.return_value = MagicMock(task="t-live")
+        job = MagicMock(meta={"user_id": "someone-else"}, origin="storage.p.d.default")
+        with patch("isardvdi_common.models.task.Job.exists", return_value=True), patch(
+            "isardvdi_common.models.task.Job.fetch", return_value=job
+        ):
+            with pytest.raises(Error) as excinfo:
+                StorageService.abort_operations(JWT_PAYLOAD_MANAGER, "s1")
+        assert excinfo.value.status_code == 403

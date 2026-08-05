@@ -499,31 +499,26 @@ def test_admin_cancel_task_service_no_owner_gate(monkeypatch):
     calls = {}
 
     class FakeTask:
-        @staticmethod
-        def exists(tid):
-            return True
-
-        def __init__(self, tid):
-            calls["built"] = tid
-
         def cancel(self):
             calls["canceled"] = True
 
-    monkeypatch.setattr("api.services.tasks.Task", FakeTask)
+    def fake_load(task_ids):
+        calls["loaded"] = task_ids
+        return [FakeTask()]
+
+    monkeypatch.setattr("api.services.tasks.tasks_from_ids", fake_load)
     out = TaskService.admin_cancel_task("t-9")
     assert out == {}
-    assert calls == {"built": "t-9", "canceled": True}
+    assert calls == {"loaded": ["t-9"], "canceled": True}
 
 
 def test_admin_cancel_task_service_gone_raises(monkeypatch):
-    """A gone task raises not_found (-> 404 at the route)."""
+    """A task whose job is gone — or is there but unloadable — raises not_found
+    (-> 404 at the route), never a bare NoSuchJobError the route would have to
+    turn into a 500."""
     from api.services.tasks import TaskService
 
-    class FakeTask:
-        @staticmethod
-        def exists(tid):
-            return False
-
-    monkeypatch.setattr("api.services.tasks.Task", FakeTask)
-    with pytest.raises(Error):
+    monkeypatch.setattr("api.services.tasks.tasks_from_ids", lambda task_ids: [])
+    with pytest.raises(Error) as excinfo:
         TaskService.admin_cancel_task("ghost")
+    assert excinfo.value.status_code == 404
