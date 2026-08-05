@@ -435,15 +435,21 @@ class TestRefreshRunningSizes:
                 "id": "d-run",
                 "status": "Started",
                 "user": "u1",
-                "hardware": {
-                    "disks": [{"storage_id": "s-ready"}, {"storage_id": "s-ro"}]
+                # A domain carries its disks under create_dict, not at the root:
+                # that is where Domain.storages and the engine's post-stop
+                # refresh read them. A root-level "hardware" is the shape the
+                # sweep used to query, and it matches no real document.
+                "create_dict": {
+                    "hardware": {
+                        "disks": [{"storage_id": "s-ready"}, {"storage_id": "s-ro"}]
+                    }
                 },
             },
             {
                 "id": "d-stop",
                 "status": "Stopped",
                 "user": "u1",
-                "hardware": {"disks": [{"storage_id": "s-stopped"}]},
+                "create_dict": {"hardware": {"disks": [{"storage_id": "s-stopped"}]}},
             },
         ],
         "storage": [
@@ -542,7 +548,7 @@ class TestRefreshRunningSizes:
                     "id": "d-run",
                     "status": "Started",
                     "user": "u1",
-                    "hardware": {"disks": [{"storage_id": "s-ready"}]},
+                    "create_dict": {"hardware": {"disks": [{"storage_id": "s-ready"}]}},
                 }
             ],
             "storage": [
