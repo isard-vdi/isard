@@ -67,7 +67,7 @@ from datetime import datetime, timezone
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
-from isardvdi_common.models.task import CoreStep, Task
+from isardvdi_common.models.task import Task, _chain_closure
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
@@ -412,20 +412,80 @@ def _finalize_has_unstamped(nodes):
     return False
 
 
+def _job_settled_at(job, status):
+    """:func:`_settled_at` for a raw rq job rather than a :class:`Task`.
+
+    Same rule, and the same deliberate blind spot: a FINISHED/FAILED job with
+    no ``ended_at`` reads as unknown, because that is a job the consumer marked
+    mid-flight and it may still be the replay state of an entry being
+    redelivered.
+    """
+    ended = _as_aware_utc(getattr(job, "ended_at", None))
+    if ended is not None:
+        return ended
+    if status == JobStatus.CANCELED:
+        return _as_aware_utc(getattr(job, "created_at", None))
+    return None
+
+
 def _metadata_finalize_orphaned(task, now, min_age_s):
     """A metadata chain whose real (storage) work all settled but whose finalize
     never applied and is older than the redelivery envelope: the result event
     was lost (worker died before publishing). Not live work — Pass 2 heals it
     from the storage's own reality.
+
+    Asked over the whole CLOSURE, not the task it was handed. ``_task_alive``
+    resolves a row's chain through ``storage.task``, which holds the id of the
+    chain's ROOT — but the job carrying ``core_finalize`` is not the root. In
+    the real template chain the anchor is the third storage job
+    (``move → create → qemu_img_info_backing_chain``), so a hatch that reads
+    ``core_finalize`` off the root alone can never open for the one chain shape
+    that has a knot. Measured on this base: from the root it answered False,
+    from the anchor True, for the very same settled chain.
+
+    That is only latent while ``chain_pending`` is blind to finalize steps and
+    answers False here anyway. The moment an unstamped step counts as pending,
+    a lost result event pins the chain pending for ever and the reconcile can
+    never heal that row again — the "428 forever" class this stack exists to
+    kill, re-entered backwards. Hence closure-wide first, stricter predicate
+    after.
+
+    Conservative in both directions: a member that cannot be read, or that is
+    terminal without a readable settle time, means we cannot prove the chain is
+    dead, so the hatch stays shut.
     """
-    finalize = task.job.meta.get("core_finalize")
-    if not finalize or not _finalize_has_unstamped(finalize):
+    try:
+        closure = _chain_closure(task.job, task._redis)
+    except Exception:
         return False
-    members = [task] + [d for d in task.dependents if not isinstance(d, CoreStep)]
-    if any(getattr(m, "job_status", None) not in _TERMINAL for m in members):
+
+    if not any(
+        _finalize_has_unstamped((getattr(job, "meta", None) or {}).get("core_finalize"))
+        for job in closure.values()
+    ):
         return False
-    settled = _settled_at(task)
-    return settled is not None and (now - settled).total_seconds() >= min_age_s
+
+    settled = []
+    for job in closure.values():
+        try:
+            status = job.get_status(refresh=True)
+        except _JOB_GONE:
+            # Hash evicted after its result TTL: necessarily terminal and long
+            # settled, so it neither blocks the hatch nor dates it.
+            continue
+        except Exception:
+            return False
+        if status not in _TERMINAL:
+            return False
+        when = _job_settled_at(job, status)
+        if when is None:
+            return False
+        settled.append(when)
+
+    if not settled:
+        return False
+    # The chain settled when its LAST member did.
+    return (now - max(settled)).total_seconds() >= min_age_s
 
 
 def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
