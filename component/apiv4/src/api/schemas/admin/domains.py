@@ -61,7 +61,7 @@ class AdminMultipleActionsData(BaseModel):
 class AdminDomainXmlData(BaseModel):
     """Request body for updating domain XML."""
 
-    xml: Optional[dict] = None
+    xml: Optional[str] = None
 
 
 # ── Domain Storage Path ──────────────────────────────────────────────────
