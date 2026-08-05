@@ -601,3 +601,39 @@ def _declared_statuses(method: str, path: str) -> set[int]:
 )
 def test_declared_responses_match_what_the_route_can_raise(method, path):
     assert _declared_statuses(method, path) == TASK_ROUTE_RESPONSES[(method, path)]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Cancel route descriptions state the real contract
+# ══════════════════════════════════════════════════════════════════════════
+
+# The description is shipped to callers in the OpenAPI schema and in every
+# generated client, so "cancels a queued task" is a promise the endpoint does
+# not keep: RQ can only drop a job that is still queued, a running body stops
+# only if it cooperates by watching its cancel signal, and a body that does not
+# watch runs to completion. Each phrase below is one of the three facts a
+# caller needs in order to know the 204 is not proof the work stopped.
+CANCEL_ROUTE_FACTS = {
+    ("DELETE", "/api/v4/task/{task_id}"),
+    ("DELETE", "/api/v4/admin/task/{task_id}"),
+}
+
+
+def _description(method: str, path: str) -> str:
+    from api import app
+
+    for route in app.routes:
+        if getattr(route, "path", None) == path and method in getattr(
+            route, "methods", set()
+        ):
+            return route.description or ""
+    raise AssertionError(f"no route registered for {method} {path}")
+
+
+@pytest.mark.parametrize(("method", "path"), sorted(CANCEL_ROUTE_FACTS))
+def test_cancel_descriptions_state_the_best_effort_contract(method, path):
+    description = _description(method, path).lower()
+    assert "queued" in description, "must say a queued job is what drops"
+    assert "cooperat" in description, "must say a running body must cooperate"
+    assert "best effort" in description, "must say the endpoint is best effort"
+    assert "re-read" in description, "must tell the caller to re-read the row"
