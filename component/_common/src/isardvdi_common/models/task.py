@@ -674,6 +674,55 @@ class CoreStep:
         }
 
 
+# What ``Task.to_dict`` puts on the wire. A SAFELIST, deliberately: this used
+# to be a denylist over ``dir(self)``, which meant a new ``@property`` joined
+# every task listing, every task GET and every SocketIO emit by merely existing.
+# That happened twice — ``storage_id``, then ``chain_pending`` — so the default
+# is now "not serialised" and adding a key is a decision someone makes.
+#
+# Before adding a name here, know what it costs. ``to_dict`` recurses into
+# dependents, so a property that walks the chain is O(N^2) over the whole
+# closure on EVERY progress tick (``emit_task_feedback``). And a property
+# returning a ``datetime`` makes ``json.dumps`` raise inside that emitter's
+# try/except, which silently stops every task SocketIO event everywhere.
+#
+# ``CoreStep.to_dict`` lists the same keys explicitly so a metadata chain and a
+# legacy rq one render identically in the admin Tasks view. Keep them in step.
+_TO_DICT_PROPERTIES = (
+    "category_id",
+    "depending_status",
+    "exc_info",
+    "id",
+    "job_status",
+    "kwargs",
+    "pending",
+    "position",
+    "progress",
+    "queue",
+    "result",
+    "status",
+    "task",
+    "user_id",
+)
+
+# Properties deliberately kept OFF the wire, with the reason. Listed rather
+# than merely absent so that ``test_every_task_property_has_a_recorded_decision``
+# can tell "decided against" from "nobody looked at it yet".
+_TO_DICT_OMITTED_PROPERTIES = {
+    # Internal traversal helpers, not part of the rendered task.
+    "_chain",
+    # Built explicitly by to_dict itself (they recurse with the filter).
+    "args",
+    "dependencies",
+    "dependents",
+    # A full closure walk with a cache-bypassing status read per member; see
+    # the cost note above. Callers that need it ask the Task directly.
+    "chain_pending",
+    # Resolved per row elsewhere; serialising it made every listing O(N^2).
+    "storage_id",
+}
+
+
 class Task(RedisBase):
     """
     Manage tasks with RQ backend.
@@ -1145,26 +1194,7 @@ class Task(RedisBase):
             filter = []
         filter.append(self.id)
         return {
-            **{
-                name: getattr(self, name)
-                for name in dir(self)
-                if name
-                not in [
-                    "dict",
-                    "args",
-                    "job",
-                    "_chain",
-                    "dependencies",
-                    "dependents",
-                    "storage_id",
-                ]
-                # getattr with a default: instance-only attributes (e.g.
-                # _enqueued / _queue_name set in __init__) appear in dir(self)
-                # but are NOT class attributes, so a bare getattr(self.__class__,
-                # name) raises AttributeError and breaks the whole dict. None is
-                # not a property, so they are simply skipped.
-                and isinstance(getattr(self.__class__, name, None), property)
-            },
+            **{name: getattr(self, name) for name in _TO_DICT_PROPERTIES},
             "args": [
                 arg.to_dict() if hasattr(arg, "to_dict") else arg for arg in self.args
             ],
