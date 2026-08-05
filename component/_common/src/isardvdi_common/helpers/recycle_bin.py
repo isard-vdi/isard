@@ -2004,6 +2004,12 @@ class RecycleBin(RethinkSharedConnection):
                                 user_id=rb.owner_id,
                                 queue=delete_queue,
                                 category_id=category,
+                                # Builds a Task directly (create -> register ->
+                                # enqueue closes the completion-before-registration
+                                # race), so it names its own row for the index and
+                                # the meta rather than inheriting them.
+                                storage_id=storage.id,
+                                index_owners=[storage.id],
                                 task=task_name,
                                 job_kwargs={
                                     "kwargs": {

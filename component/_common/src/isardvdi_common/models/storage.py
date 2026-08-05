@@ -519,6 +519,10 @@ class Storage(RethinkCustomBase):
         category = self.category or queue_tiers.NULL_CATEGORY
         kwargs.setdefault("category_id", category)
         kwargs.setdefault("storage_id", self.id)
+        # Owners of the index entry, defaulting to this row. A caller whose
+        # chain LOCKS another row names it here too — that relationship has
+        # no place in the single-valued meta.
+        kwargs.setdefault("index_owners", [self.id])
         if "queue" in kwargs:
             kwargs["queue"] = queue_tiers.retier_queue(
                 kwargs["queue"], kwargs.get("task"), category

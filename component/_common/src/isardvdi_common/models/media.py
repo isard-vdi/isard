@@ -82,6 +82,8 @@ class Media(RethinkCustomBase):
         category = self.category or queue_tiers.NULL_CATEGORY
         kwargs.setdefault("category_id", category)
         kwargs.setdefault("media_id", self.id)
+        kwargs.setdefault("index_owners", [self.id])
+        kwargs.setdefault("index_kind", "media")
         if "queue" in kwargs:
             kwargs["queue"] = queue_tiers.retier_queue(
                 kwargs["queue"], kwargs.get("task"), category
