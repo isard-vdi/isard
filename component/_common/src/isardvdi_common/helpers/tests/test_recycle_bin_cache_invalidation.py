@@ -75,3 +75,54 @@ class TestUpdateStatusInvalidatesCaches:
         assert len(helper._get_count_cache) == 0
         assert len(helper._get_user_amount_cache) == 0
         assert len(helper._get_user_recycle_bin_ids_cache) == 0
+
+
+@pytest.fixture
+def config_writer(monkeypatch):
+    from isardvdi_common.helpers import recycle_bin as mod
+
+    class _Ctx:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(mod.RecycleBin, "_rdb_context", classmethod(lambda cls: _Ctx()))
+    monkeypatch.setattr(
+        type(mod.RecycleBin),
+        "_rdb_connection",
+        property(lambda self: MagicMock(name="conn")),
+    )
+    monkeypatch.setattr(mod, "r", MagicMock(name="r"))
+    yield mod
+
+
+class TestConfigWritesInvalidateTheirCache:
+    """Every setter of a cached recycle-bin config value must drop that cache.
+
+    The values are read through a 60 s TTL cache, so a write that leaves the
+    cache alone is invisible for up to a minute: an admin flips the setting,
+    reloads, and sees the old one.
+    """
+
+    def test_default_delete(self, config_writer):
+        config_writer._get_default_delete_cache["k"] = "old"
+        config_writer.RecycleBin.set_default_delete(True)
+        assert len(config_writer._get_default_delete_cache) == 0
+
+    def test_delete_action(self, config_writer):
+        config_writer._get_delete_action_cache["k"] = "old"
+        config_writer.RecycleBin.set_delete_action("delete")
+        assert len(config_writer._get_delete_action_cache) == 0
+
+    def test_old_entries_max_time(self, config_writer):
+        config_writer._get_old_entries_config_cache["k"] = {"max_time": 1}
+        config_writer.RecycleBin.set_old_entries_max_time(30)
+        assert len(config_writer._get_old_entries_config_cache) == 0
+
+    @pytest.mark.parametrize("action", ["delete", "none"])
+    def test_old_entries_action_on_both_branches(self, config_writer, action):
+        config_writer._get_old_entries_config_cache["k"] = {"action": "old"}
+        config_writer.RecycleBin.set_old_entries_action(action)
+        assert len(config_writer._get_old_entries_config_cache) == 0
