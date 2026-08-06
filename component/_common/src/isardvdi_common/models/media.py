@@ -81,6 +81,7 @@ class Media(RethinkCustomBase):
         # ownerless media) resolves to the NULL_CATEGORY sentinel lane.
         category = self.category or queue_tiers.NULL_CATEGORY
         kwargs.setdefault("category_id", category)
+        kwargs.setdefault("media_id", self.id)
         if "queue" in kwargs:
             kwargs["queue"] = queue_tiers.retier_queue(
                 kwargs["queue"], kwargs.get("task"), category

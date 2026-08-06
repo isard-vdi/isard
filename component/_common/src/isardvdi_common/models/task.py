@@ -720,6 +720,7 @@ class Task(RedisBase):
             # template), and that relationship belongs in the task index's
             # owner list, never here.
             meta.setdefault("storage_id", kwargs.get("storage_id"))
+            meta.setdefault("media_id", kwargs.get("media_id"))
             # Give every task an explicit, action-appropriate job_timeout so a
             # long-running op (download / convert / sparsify / move) is not
             # killed by RQ's 180 s Queue.DEFAULT_TIMEOUT mid-flight. A callsite
@@ -754,6 +755,7 @@ class Task(RedisBase):
                 dependent.setdefault("user_id", kwargs.get("user_id"))
                 dependent.setdefault("category_id", kwargs.get("category_id"))
                 dependent.setdefault("storage_id", kwargs.get("storage_id"))
+                dependent.setdefault("media_id", kwargs.get("media_id"))
                 # A ``core`` finalize dependent is ALWAYS metadata, never a rq job
                 # on the consumerless ``core`` queue; storage dependents keep the rq
                 # path. The change-handler runs it off ``meta["core_finalize"]``.
