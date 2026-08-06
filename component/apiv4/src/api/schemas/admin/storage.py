@@ -38,6 +38,12 @@ class AdminStorageStatusCount(BaseModel):
     count: int
 
 
+class AdminStorageRefreshResponse(BaseModel):
+    """Result of the running-desktops qemu-img-info refresh sweep."""
+
+    enqueued: int = Field(description="Number of qemu-img-info refresh tasks enqueued.")
+
+
 class AdminStorageItem(BaseModel):
     """One row of ``GET /admin/items/storage`` and the by-status / by-role
     variants. Permissive (``ConfigDict(extra="allow")``) because the

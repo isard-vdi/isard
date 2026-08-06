@@ -18,6 +18,14 @@
 #     registry shrink can never be read as a spike.
 #   * StrandedLane requires the `stranded_lane` series to be present (it is only
 #     emitted when consumer coverage is known) AND backlog>0, crit, for: 10m.
+#     Nothing populates that series today — the API only ever marks coverage
+#     KNOWN for a pool/tier some live worker already covers — so the rule is
+#     inert until that is fixed.
+#   * No rule infers "nothing is consuming this lane" from the lane series. The
+#     shapes that would carry it (a flat backlog, a head age growing 1:1) are
+#     also what a burst-enqueued lane draining fast, a PSI defer, and a pool
+#     whose workers are all busy look like. The long note further down records
+#     every series that was tried and why each one fails.
 #   * for: windows -> leak 30m, at-cap 15m, stranded 10m, worker-loss 2m,
 #     redis-down 2m, PSIPinned 15m, DataStale 5m (see each rule).
 
@@ -107,20 +115,44 @@ groups:
           summary: "Oldest queued job exceeds its tier SLA"
           description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} head job has been queued for {{ $value }}s, past its tier SLA (interactive 300s / standard 900s / bulk 7200s / background 21600s). Inspect head-task drawer and consumer coverage."
 
-      # --- Jobs parked on a queue nothing consumes ---------------------------
-      # The `core` queue has had no worker since the finalize step moved into
-      # change-handler, so anything QUEUED there is by definition stuck: it is
-      # counted as pending work and blocks every later operation on its
-      # storage. A healthy install shows a transient depth that drains within
-      # seconds, so a sustained non-zero depth means chains are being stranded.
-      - alert: ConsumerlessQueueBacklog
-        expr: isardvdi_storage_governor_queue_depth{queue=~"core.*"} > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Jobs parked on a queue with no consumer"
-          description: "Queue {{ $labels.queue }} has held {{ $value }} job(s) for 15m. Nothing consumes it, so these will not drain on their own and the storages they belong to cannot start new work."
+      # --- No alert for "a lane nothing consumes", and why --------------------
+      # The incident is real: a cross-pool move lane (pool `<src>:<dst>`) is
+      # served only by a host holding BOTH pools; where none does, rq keeps the
+      # job QUEUED for ever — no raise, no timeout, no retry. There was a rule
+      # here that claimed to catch it. It never could: it selected a metric name
+      # and a label that no collector exports, so it silently evaluated to
+      # nothing. It is removed rather than repaired, because none of the series
+      # that exist today can express the condition, and a rule that pages on
+      # healthy lanes is worse than the silence it replaces:
+      #
+      #   * `oldest_queued_age_seconds` — the FIFO head age grows 1:1 with wall
+      #     clock on any BURST-enqueued lane (the shape of bulk/reclaim, and of a
+      #     migration plan enqueued in one go): every job still queued carries the
+      #     same old enqueue time, so the age climbs while the lane drains fast.
+      #   * `backlog` — a backlog that stops moving is equally what a PSI defer
+      #     looks like (the governor drops the whole deferrable tier out of the
+      #     dequeue order and leaves the jobs QUEUED), and what a pool whose
+      #     workers are all busy looks like.
+      #   * `category_inflight` — not in-flight but the SCARD of the governor's
+      #     per-category RESERVATION set, written only while multitenancy AND
+      #     gating are both on. It carries no tier, is never emitted for the
+      #     `_pool` category the reserved/flat lanes use, and reads 0 on a flat
+      #     install whose workers are running flat out.
+      #   * `events_total{kind="shed",reason="no_consumer"}` — counts producer
+      #     REFUSALS at enqueue time, which is a different event from the jobs
+      #     already queued that nobody drains. It is also born at 1 on its first
+      #     event (no zero precursor), so a delta over it misses the first
+      #     incident entirely, and it carries no pool/category/tier label.
+      #   * `stranded_lane` — provably never emitted: the API marks coverage
+      #     KNOWN only for a pair it also adds to COVERED, so the rule's
+      #     `coverage_known and not covered` can never hold.
+      #
+      # What would close it: a per-(pool, tier) live consumer count taken from
+      # the `governor:cov:<pool>:<tier>` zset that `queue_coverage`
+      # already reads, or the per-lane `started` count that the lane stats
+      # compute and the pool payload drops before the wire. Either also revives
+      # StrandedLane. Until one of them is exported, `OldestQueuedAgeHigh` is the
+      # only thing that eventually notices, by tier SLA rather than by cause.
 
       # --- Hung STARTED task holding a slot (catalog #2b) --------------------
       - alert: StartedJobStuck

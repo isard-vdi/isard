@@ -105,6 +105,17 @@ test: test-go test-python test-e2e
 test-go:
 	go test -race -cover ./...
 
+# Behavioural unit tests for the vmalert storage-governor rules, under the same
+# vmalert engine (MetricsQL) the stack runs. The vmalert-tool version is DERIVED
+# from the runtime vmalert pin in docker-compose-parts/monitor.yml, so it cannot
+# drift from what the stack runs.
+.PHONY: test-vmalert
+test-vmalert:
+	@VER=$$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://'); \
+	[ -n "$$VER" ] || { echo "cannot read vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }; \
+	docker run --rm -v "$$(pwd)/docker/vmalert/rules:/rules" -w /rules \
+	  victoriametrics/vmalert-tool:$$VER unittest --files /rules/storage_governor.test.yml
+
 .PHONY: test-python
 test-python: test-apiv4 test-common test-change-handler test-changefeed test-socketio test-openapi test-notifier test-scheduler test-webapp
 
@@ -191,6 +202,22 @@ test-change-handler:
 .PHONY: test-storage
 test-storage:
 	uv run --group test --package isardvdi-storage pytest docker/storage/task/tests -q
+
+# Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, but it needs
+# real qcow2 images and a live lock holder, so qemu-img and qemu-io must exist.
+.PHONY: test-sparsify
+test-sparsify:
+	bash docker/storage/utils/tests/test_sparsify_recover_backup.sh
+
+# Regression test for the `storage` cleanup CLI's sparsify-backup classifier:
+# a locked/in-use canonical must keep its backup, because the lock-bypassing
+# check reads through the lock and calls a half-written image clean. The CLI is
+# loaded by path (no .py suffix) and its qemu-img calls are replaced, so this
+# needs no qemu binaries and no lock holder.
+.PHONY: ci-test-storage-utils
+ci-test-storage-utils:
+	uv sync --no-dev --group test --package isardvdi-storage
+	cd docker/storage/utils && uv run --no-dev --group test --package isardvdi-storage pytest tests/test_classify_sparsify_backup.py -q --tb=short --junitxml=report.xml
 
 .PHONY: test-changefeed
 test-changefeed:

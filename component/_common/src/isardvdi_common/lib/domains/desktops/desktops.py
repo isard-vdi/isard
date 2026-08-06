@@ -1270,6 +1270,24 @@ class DesktopsProcessed(RethinkSharedConnection):
                 description_code="storage_has_recycled_children",
             )
 
+        ## Block conversion if the template's disk still has dependent
+        ## (backing-child) storages. The route already enforces the
+        ## DOMAIN-level ``template_has_no_children`` guard, but that keys on
+        ## ``domains.parents``; if that ever diverges from the real
+        ## ``storage.parent`` chain, the disk move below would trip
+        ## ``set_maintenance('move')``'s ``storage_has_children`` — a plain
+        ## Exception surfaced as a generic 500 *after* the kind flip
+        ## (leaving the domain half-converted). Fail here with a typed 428
+        ## before any mutation so the caller gets an actionable error and
+        ## the template is left untouched.
+        if template.storages and template.storages[0].children:
+            raise Error(
+                "precondition_required",
+                f"Template {data['template_id']} disk has dependent disks; "
+                "cannot convert to desktop",
+                description_code="storage_has_children",
+            )
+
         ## TODO: Delete deployments if any
 
         desktop_data = cls.new_from_template(
