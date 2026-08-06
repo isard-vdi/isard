@@ -788,6 +788,22 @@ def _domain_aborting(domain_id):
         return True
 
 
+def _curl_header_config(headers):
+    """Render ``headers`` as a curl config for ``-K -``.
+
+    Kept out of the argv on purpose: a registry download carries the
+    registration code in an ``Authorization`` header, and in the argv that is
+    readable through ``ps`` for the whole transfer and is rendered verbatim
+    into every ``CalledProcessError`` raised below, which reaches the worker
+    log and Loki.
+    """
+    config = ""
+    for header in headers or []:
+        escaped = str(header).replace("\\", "\\\\").replace('"', '\\"')
+        config += f'header = "{escaped}"\n'
+    return config
+
+
 def _run_curl_download(
     *,
     url,
@@ -839,22 +855,28 @@ def _run_curl_download(
     )
     if google_drive_cookie:
         curl_cmd.extend(["-b", google_drive_cookie])
-    for h in headers or []:
-        curl_cmd.extend(["-H", h])
+    header_config = _curl_header_config(headers)
+    if header_config:
+        curl_cmd.extend(["-K", "-"])
     curl_cmd.append(url)
 
     process = Popen(
         curl_cmd,
+        stdin=PIPE if header_config else None,
         stdout=PIPE,
         stderr=PIPE,
         preexec_fn=os.setsid,
     )
+    if header_config:
+        process.stdin.write(header_config.encode())
+        process.stdin.close()
 
     # Skip the two header lines curl prints before the progress meter.
     process.stderr.readline()
     process.stderr.readline()
 
     last_flush = 0.0
+    last_progress = {}
     line = ""
     aborted = False
     with TaskCancelWatcher(job.id, initial_check=is_aborting) as watcher:
@@ -875,6 +897,8 @@ def _run_curl_download(
             if ch in ("\r", "\n"):
                 progress = _curl_progress_dict(line)
                 line = ""
+                if progress:
+                    last_progress = progress
                 now = time()
                 if progress and (now - last_flush) >= _DOWNLOAD_PROGRESS_FLUSH_SECONDS:
                     last_flush = now
@@ -936,6 +960,22 @@ def _run_curl_download(
             returncode=process.returncode, cmd=curl_cmd, stderr=stderr
         )
 
+    # The loop only reads while curl is running and throttles its writes, so
+    # the last line it printed is never persisted: a finished download was left
+    # showing whatever fraction the previous tick caught (89-99% observed). The
+    # job's own progress was set to 1.0 here while the ROW kept the stale value
+    # for ever, so the bar never completed. Close it explicitly.
+    final = dict(last_progress)
+    final["received_percent"] = 100
+    final["total_percent"] = 100
+    if final.get("total"):
+        final["received"] = final["total"]
+    final["time_left"] = ""
+    try:
+        flush_progress(final)
+    except Exception:
+        log.exception("download: failed to persist the final progress")
+
     job.meta["progress"] = 1.0
     job.save_meta()
     return True
@@ -974,30 +1014,6 @@ def download_url(
         job FAILED → dependent ``update_status`` task flips media to
         ``DownloadFailed``)
     """
-    job = get_current_job()
-    makedirs(dirname(dest_path), exist_ok=True)
-
-    curl_cmd = ["curl"]
-    if insecure_ssl:
-        curl_cmd.append("-k")
-    curl_cmd.extend(
-        [
-            "-L",
-            "--max-redirs",
-            "5",
-            "--connect-timeout",
-            "30",
-            "--no-netrc",
-            "-o",
-            dest_path,
-        ]
-    )
-    if google_drive_cookie:
-        curl_cmd.extend(["-b", google_drive_cookie])
-    for h in headers or []:
-        curl_cmd.extend(["-H", h])
-    curl_cmd.append(url)
-
     log.info("download_url: media=%s dest=%s", media_id, dest_path)
     # Flip the row to Downloading so the user sees curl is now actually
     # running (the chain root shows DownloadStarting while queued).
@@ -1255,8 +1271,13 @@ def move_delete(path):
 
         rename(path, join(delete_path, basename(path)))
         return 0
-    else:
-        raise ValueError(f"Path {path} not found")
+    if isdir(dirname(path)):
+        # Its directory is reachable and the file is not there: already
+        # gone. Failing here strands the recycle-bin entry of a storage
+        # whose file was never materialised.
+        log.info("move_delete: %s is already absent", path)
+        return 0
+    raise ValueError(f"Path {path} not found")
 
 
 @_publishes_result

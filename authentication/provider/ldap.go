@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"regexp"
-	"slices"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -244,6 +243,25 @@ func (l *LDAP) newConn() (*ldap.Conn, error) {
 	return conn, nil
 }
 
+func (l *LDAP) userRoles(usr, userDN string) ([]string, *ProviderError) {
+	cfg := l.cfg.Cfg()
+
+	searchID := usr
+	if cfg.RoleListUseUserDN {
+		searchID = userDN
+	}
+
+	roles, err := l.listRoles(searchID)
+	if err != nil {
+		return nil, &ProviderError{
+			User:   ErrInternal,
+			Detail: fmt.Errorf("list all groups: %w", err),
+		}
+	}
+
+	return roles, nil
+}
+
 func (l *LDAP) listRoles(usr string) ([]string, error) {
 	cfg := l.cfg.Cfg()
 
@@ -369,13 +387,23 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 	if cfg.GuessCategory {
 		attrCategories := entry.GetAttributeValues(cfg.FieldCategory)
-		var attrGroups *[]string
+		var (
+			attrGroups *[]string
+			attrRoles  *[]string
+		)
 		if cfg.AutoRegister {
 			g := entry.GetAttributeValues(cfg.FieldGroup)
 			attrGroups = &g
+
+			roles, err := l.userRoles(usr, entry.DN)
+			if err != nil {
+				return nil, nil, nil, "", "", err
+			}
+
+			attrRoles = &roles
 		}
 
-		tkn, err := guessCategory(ctx, l.log, l.db, l.secret, cfg.ReCategory, attrCategories, attrGroups, nil, u)
+		tkn, err := guessCategory(ctx, l.log, l.db, l.secret, cfg.ReCategory, attrCategories, attrGroups, attrRoles, u)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
@@ -405,17 +433,9 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		//
 		// Guess role
 		//
-		searchID := usr
-		if cfg.RoleListUseUserDN {
-			searchID = entry.DN
-		}
-
-		attrRoles, lErr := l.listRoles(searchID)
-		if lErr != nil {
-			return nil, nil, nil, "", "", &ProviderError{
-				User:   ErrInternal,
-				Detail: fmt.Errorf("list all groups: %w", lErr),
-			}
+		attrRoles, err := l.userRoles(usr, entry.DN)
+		if err != nil {
+			return nil, nil, nil, "", "", err
 		}
 
 		u.Role, err = l.GuessRole(ctx, u, attrRoles)
@@ -437,16 +457,10 @@ func (l *LDAP) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*
 func (l *LDAP) AutoRegister(u *model.User) bool {
 	cfg := l.cfg.Cfg()
 
-	if cfg.AutoRegister {
-		if len(cfg.AutoRegisterRoles) != 0 {
-			// If the user role is in the autoregister roles list, auto register
-			return slices.Contains(cfg.AutoRegisterRoles, string(u.Role))
-		}
-
-		return true
-	}
-
-	return false
+	return autoRegister(l.log, autoRegisterOpts{
+		AutoRegister:      cfg.AutoRegister,
+		AutoRegisterRoles: cfg.AutoRegisterRoles,
+	}, u)
 }
 
 func (l *LDAP) String() string {

@@ -3,13 +3,10 @@
 """Tests for admin/smtp.py — SMTP configuration get/put, enabled flag,
 test-connection. All endpoints live on admin_router (admin-only).
 
-GET endpoints (`/smtp`, `/smtp/enabled`) are wrapped in
-`@cached(cache=TTLCache(...))` so cross-test pollution is possible —
-the test_client fixture uses MockJWT(category_id="default") which
-matches the seeded default category, but tests still need
-``@pytest.mark.clear_cache`` when they monkeypatch the service and
-expect the new return value to be observed (per Critical gotcha 5
-in the testing skill).
+The GET endpoints are uncached. The ``@pytest.mark.clear_cache`` marks
+below stay useful anyway: the conftest hook they trigger clears every
+live ``cachetools.Cache`` instance, so they keep these cases isolated
+from caches owned by other modules.
 """
 
 import pytest
@@ -17,7 +14,7 @@ from api.routes.tests.helpers import MockJWT
 from api.services.error import Error
 
 # ══════════════════════════════════════════════════════════════════════════
-#  GET /smtp — TTLCache-wrapped
+#  GET /smtp
 # ══════════════════════════════════════════════════════════════════════════
 
 

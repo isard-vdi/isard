@@ -297,7 +297,7 @@ class DesktopDomainHandler:
             )
         # If the desktop is stopped, we invalidate the cached WireGuard MAC
         elif new_val.status == DesktopStatusEnum.stopped.value:
-            Caches.invalidate_cached_domain_wg_mac(new_val.id)
+            Caches.invalidate_cached_domain_wg_mac_by_domain_id(new_val.id)
 
         # Parse the desktop to return only the necessary fields in the emitted event
         desktop = await asyncio.to_thread(

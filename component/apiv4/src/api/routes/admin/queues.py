@@ -117,7 +117,7 @@ async def admin_queues_consumers(request: Request):
 async def admin_queues_governor(request: Request):
     try:
         data = await asyncio.to_thread(AdminQueuesService.get_governor)
-        # Recompute data_age_seconds at response time so a warm 5s cache serve
+        # Recompute data_age_seconds at response time so a warm cache serve
         # reports its true age (catalog #17 — frozen-cache honesty), not 0.
         generated_at = (data or {}).get("generated_at", time.time())
         data = {

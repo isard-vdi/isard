@@ -240,6 +240,24 @@ async def has_token_register(
     return payload
 
 
+async def has_token_re_register(
+    token: dict = Depends(HTTPBearer()), request: Request = None
+) -> TokenPayload:
+    token = token.credentials
+    payload: TokenPayload = TokenFastAPI.get_token_payload(token)
+    if payload.get("type", "") != "re-register":
+        raise Error(
+            "forbidden",
+            "Token not valid for this operation.",
+            traceback.format_exc(),
+        )
+
+    maintenance(payload)
+    request.token_payload = payload
+
+    return payload
+
+
 async def has_token_password_reset_login(
     token: dict = Depends(HTTPBearer()), request: Request = None
 ) -> TokenPayload:

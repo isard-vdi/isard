@@ -1007,14 +1007,39 @@ class QuotasProcess(RethinkCustomBase):
     #     return False
 
     @classmethod
-    @cached(
-        SynchronizedTTLCache(maxsize=100, ttl=10),
-        key=lambda cls, category_id, group_id: (category_id, group_id),
-    )
+    def _live_users_count(cls, index, id):
+        with cls._rdb_context():
+            return (
+                r.table("users")
+                .get_all(id, index=index)
+                .count()
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def _with_live_users(cls, limits, index, id):
+        """Refresh the users usage of a TTL-cached ``process_*_limits`` result.
+
+        Returns a copy: the argument is the object held in the cache. The
+        percentage is recomputed exactly as ``process_*_limits`` does,
+        rounding included, so the gate keeps comparing the same number.
+        """
+        users = cls._live_users_count(index, id)
+        percent = users * 100 / limits["uq"] if limits["uq"] else 100
+        return {**limits, "u": users, "uqp": int(round(percent, 0))}
+
+    # Not cached: cachetools memoizes the return value, never the raise, so a
+    # cached "ok" would wave through every later create inside the TTL.
+    @classmethod
     def check_new_autoregistered_user(cls, category_id, group_id):
         """All common events should call here and check if quota/limits have exceeded already."""
         group = cls.process_group_limits(group_id, from_user_id=False)
         category = cls.process_category_limits(category_id, from_user_id=False)
+
+        if group != False:
+            group = cls._with_live_users(group, "group", group_id)
+        if category != False:
+            category = cls._with_live_users(category, "category", category_id)
 
         if group != False and float(group["uqp"]) >= 100:
             raise Error(

@@ -1,7 +1,6 @@
 import base64
 import json
 
-from cachetools import TTLCache, cached
 from flask import Blueprint, current_app, jsonify, request
 
 from engine.services.db import (
@@ -45,7 +44,6 @@ def engine_info():
     return "alive", 200
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=5))
 @api.route("/engine/status", methods=["GET"])
 @is_admin
 def engine_status(payload):
@@ -68,7 +66,6 @@ def engine_status(payload):
         return "Exception! Internal error.", 500
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=5))
 @api.route("/engine/status/detail", methods=["GET"])
 @is_admin
 def engine_status_detail(payload):

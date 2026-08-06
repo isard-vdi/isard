@@ -21,13 +21,14 @@
 import logging
 from functools import wraps
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 from flask import redirect, render_template
 from flask_login import current_user, logout_user
 from isardvdi_apiv4_client.api.open_ import maintenance_status
 from isardvdi_apiv4_client.api.role_admin import get_category_maintenance
 from isardvdi_apiv4_client.models import MaintenanceStatusResponse
 from isardvdi_apiv4_client_auth import build_client, raise_for_status
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 
 
 def checkRole(fn):
@@ -64,7 +65,7 @@ def isAdminManager(fn):
     return decorated_view
 
 
-@cached(TTLCache(maxsize=1, ttl=5))
+@cached(SynchronizedTTLCache(maxsize=1, ttl=5))
 def _get_maintenance(category_id=None):
     logging.debug("Check api maintenance mode")
     with build_client("isard-webapp") as client:

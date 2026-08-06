@@ -33,6 +33,7 @@ export enum TokenType {
   Login = 'login',
   CategorySelect = 'category-select',
   Register = 'register',
+  ReRegister = 're-register',
   DisclaimerAcknowledgeRequired = 'disclaimer-acknowledgement-required',
   EmailVerificationRequired = 'email-verification-required',
   EmailVerification = 'email-verification',
@@ -78,6 +79,24 @@ export const isCategorySelectClaims = (claims: TypeClaims): claims is CategorySe
   return claims.type === TokenType.CategorySelect
 }
 
+export interface PasswordResetRequiredClaims extends TypeClaims {
+  user_id: string
+}
+
+export const isPasswordResetRequiredClaims = (
+  claims: TypeClaims
+): claims is PasswordResetRequiredClaims => {
+  return claims.type === TokenType.PasswordResetRequired
+}
+
+export interface PasswordResetClaims extends TypeClaims {
+  user_id: string
+}
+
+export const isPasswordResetClaims = (claims: TypeClaims): claims is PasswordResetClaims => {
+  return claims.type === TokenType.PasswordReset
+}
+
 export interface RegisterClaims extends TypeClaims {
   category_id: string
   provider: string
@@ -85,6 +104,15 @@ export interface RegisterClaims extends TypeClaims {
 
 export const isRegisterClaims = (claims: TypeClaims): claims is RegisterClaims => {
   return claims.type === TokenType.Register
+}
+
+export interface ReRegisterClaims extends TypeClaims {
+  category_id: string
+  provider: string
+}
+
+export const isReRegisterClaims = (claims: TypeClaims): claims is ReRegisterClaims => {
+  return claims.type === TokenType.ReRegister
 }
 
 export interface DisclaimerAcknowledgementRequiredClaims extends TypeClaims {
@@ -104,7 +132,14 @@ export const useCookies = () => vueuseCookies([authorizationTokenName, sessionTo
 
 export const parseToken = (
   bearer: string
-): RegisterClaims | CategorySelectClaims | DisclaimerAcknowledgementRequiredClaims | TypeClaims => {
+):
+  | RegisterClaims
+  | ReRegisterClaims
+  | CategorySelectClaims
+  | DisclaimerAcknowledgementRequiredClaims
+  | TypeClaims
+  | PasswordResetRequiredClaims
+  | PasswordResetClaims => {
   const jwt = jwtDecode(bearer) as TypeClaims
   switch (jwt.type) {
     case undefined:
@@ -120,8 +155,17 @@ export const parseToken = (
     case TokenType.Register:
       return jwt as RegisterClaims
 
+    case TokenType.ReRegister:
+      return jwt as ReRegisterClaims
+
     case TokenType.DisclaimerAcknowledgeRequired:
       return jwt as DisclaimerAcknowledgementRequiredClaims
+
+    case TokenType.PasswordResetRequired:
+      return jwt as PasswordResetRequiredClaims
+
+    case TokenType.PasswordReset:
+      return jwt as PasswordResetClaims
 
     default:
       return jwt

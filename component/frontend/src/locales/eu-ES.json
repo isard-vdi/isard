@@ -247,7 +247,11 @@
       }
     },
     "register": {
-      "title": "Erregistroa"
+      "title": "Erregistroa",
+      "re-register": {
+        "title": "Eguneratu zure izen-ematea",
+        "description": "Zure baimenak aldatu dira. Jarraitzeko, sartu administrazioak emandako izen-emate kodea."
+      }
     },
     "notifications": {
       "title": "Jakinarazpenak",
@@ -1501,7 +1505,8 @@
         "forbidden": "Erabiltzen saiatzen ari zaren posta elektronikoaren domeinua ez dago baimenduta zure kategoriarako.",
         "not_found": "Kodea ez da aurkitu",
         "conflict": "Erabiltzailea badago lehendik",
-        "internal_server": "Zerbitzariaren errorea"
+        "internal_server": "Zerbitzariaren errorea",
+        "re_register_not_resolved": "Sartu duzun kodeak ez du behar den sarbidea ematen. Eskatu kode baliozko bat administrazioari."
       }
     },
     "new-desktop": {
