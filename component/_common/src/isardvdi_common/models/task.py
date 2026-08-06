@@ -405,6 +405,41 @@ def _knot_child_ids(node):
     return ids
 
 
+def finalize_has_unstamped(nodes):
+    """True if any metadata finalize step in this tree never ran.
+
+    ``status`` is ``None`` until the step's handler has been dispatched;
+    ``"finished"`` or ``"failed"`` both mean it RAN, so only ``None`` is
+    outstanding work.
+
+    Walks ``unbuilt_knot_finalize`` as well as ``core_finalize``. Those are the
+    steps of a knot child that will never be created — on a failed or cancelled
+    chain they are materialised onto the anchor instead, and they still run
+    (the terminal ``update_status`` that maps FAILED/CANCELED onto ``Failed``
+    is one of them), so an unstamped one is still work outstanding.
+    """
+    for node in nodes or []:
+        if node.get("status") is None:
+            return True
+        if finalize_has_unstamped(node.get("core_finalize")):
+            return True
+        for unbuilt in (node.get("unbuilt_knot_finalize") or {}).values():
+            if finalize_has_unstamped(unbuilt):
+                return True
+    return False
+
+
+def _job_has_unstamped_finalize(job):
+    """True if this rq job's meta carries a finalize step that never ran.
+
+    Only ``core_finalize`` is read here: ``unbuilt_knot_finalize`` is stored on
+    a finalize NODE (see :meth:`CoreStep.unbuilt_knot_steps`), never on a job's
+    meta, so the tree walk is what reaches it.
+    """
+    meta = getattr(job, "meta", None) or {}
+    return finalize_has_unstamped(meta.get("core_finalize"))
+
+
 class CoreStep:
     """A ``meta["core_finalize"]`` node that quacks like a :class:`Task` for the
     finalize consumer and the ``to_dict`` / ``pending`` contract.
@@ -691,6 +726,55 @@ class CoreStep:
                 if dependent.id not in filter
             ],
         }
+
+
+# What ``Task.to_dict`` puts on the wire. A SAFELIST, deliberately: this used
+# to be a denylist over ``dir(self)``, which meant a new ``@property`` joined
+# every task listing, every task GET and every SocketIO emit by merely existing.
+# That happened twice — ``storage_id``, then ``chain_pending`` — so the default
+# is now "not serialised" and adding a key is a decision someone makes.
+#
+# Before adding a name here, know what it costs. ``to_dict`` recurses into
+# dependents, so a property that walks the chain is O(N^2) over the whole
+# closure on EVERY progress tick (``emit_task_feedback``). And a property
+# returning a ``datetime`` makes ``json.dumps`` raise inside that emitter's
+# try/except, which silently stops every task SocketIO event everywhere.
+#
+# ``CoreStep.to_dict`` lists the same keys explicitly so a metadata chain and a
+# legacy rq one render identically in the admin Tasks view. Keep them in step.
+_TO_DICT_PROPERTIES = (
+    "category_id",
+    "depending_status",
+    "exc_info",
+    "id",
+    "job_status",
+    "kwargs",
+    "pending",
+    "position",
+    "progress",
+    "queue",
+    "result",
+    "status",
+    "task",
+    "user_id",
+)
+
+# Properties deliberately kept OFF the wire, with the reason. Listed rather
+# than merely absent so that ``test_every_task_property_has_a_recorded_decision``
+# can tell "decided against" from "nobody looked at it yet".
+_TO_DICT_OMITTED_PROPERTIES = {
+    # Internal traversal helpers, not part of the rendered task.
+    "_chain",
+    # Built explicitly by to_dict itself (they recurse with the filter).
+    "args",
+    "dependencies",
+    "dependents",
+    # A full closure walk with a cache-bypassing status read per member; see
+    # the cost note above. Callers that need it ask the Task directly.
+    "chain_pending",
+    # Resolved per row elsewhere; serialising it made every listing O(N^2).
+    "storage_id",
+}
 
 
 class Task(RedisBase):
@@ -984,6 +1068,80 @@ class Task(RedisBase):
         return global_status(self._chain)
 
     @property
+    def chain_pending(self):
+        """Like :attr:`pending`, but over the WHOLE chain rather than its
+        immediate neighbours.
+
+        ``pending`` walks ``dependencies + self + dependents``, which is one
+        level each way — ``dependents`` lists direct children only. A chain
+        deeper than that reads as settled from its root while later levels are
+        still running: the template chain is three rq jobs plus a knot child. A
+        caller asking "is this row's work finished?" needs the closure, or it
+        acts on a disk a worker is still writing.
+
+        Metadata finalize steps count too, even though they are not rq jobs and
+        an id walk cannot reach them. An unstamped step IS outstanding work:
+        the change-handler still has to run its handler, and that handler is
+        what releases the row. ``pending`` already counts one (an unstamped
+        ``CoreStep`` reads QUEUED once its parent is terminal), and two sibling
+        predicates over one graph must not answer this differently — measured
+        on the real template chain, asked on the anchor, ``pending`` said True
+        and this said False.
+
+        That makes a lost result event pin the chain pending indefinitely,
+        which is only safe because ``_metadata_finalize_orphaned`` is
+        closure-wide and can open for a knotted chain. Do not relax that
+        ordering.
+
+        An unreadable chain answers True: not being able to prove work is over
+        is not the same as it being over.
+
+        :return: True if anything in the closure is still real work
+        :rtype: bool
+        """
+        active = (
+            JobStatus.STARTED,
+            JobStatus.SCHEDULED,
+            JobStatus.QUEUED,
+        )
+        try:
+            closure = _chain_closure(self.job, self._redis)
+        except Exception:
+            return True
+        for job in closure.values():
+            # Checked before the status: a finalize step is outstanding
+            # regardless of what its anchor's rq job now reads as. On a settled
+            # chain the anchor is FINISHED and the step is exactly what has not
+            # happened yet.
+            if _job_has_unstamped_finalize(job):
+                return True
+            try:
+                status = job.get_status(refresh=True)
+            except Exception:
+                return True
+            if status in active:
+                return True
+            if status != JobStatus.DEFERRED:
+                continue
+            # Same rule as ``pending``: deferred is real work only while it
+            # legitimately waits on something unsettled. A deferred job whose
+            # dependencies have all settled was never re-enqueued and is an
+            # orphan, which Pass 1 heals — it must not block for ever.
+            for dependency_id in (getattr(job, "meta", None) or {}).get(
+                "dependency_ids"
+            ) or []:
+                dependency = closure.get(dependency_id)
+                if dependency is None:
+                    continue
+                try:
+                    dependency_status = dependency.get_status(refresh=True)
+                except Exception:
+                    return True
+                if dependency_status in active + (JobStatus.DEFERRED,):
+                    return True
+        return False
+
+    @property
     def pending(self):
         """
         Get True if the task (or anything in its chain) is still actively
@@ -1143,26 +1301,7 @@ class Task(RedisBase):
             filter = []
         filter.append(self.id)
         return {
-            **{
-                name: getattr(self, name)
-                for name in dir(self)
-                if name
-                not in [
-                    "dict",
-                    "args",
-                    "job",
-                    "_chain",
-                    "dependencies",
-                    "dependents",
-                    "storage_id",
-                ]
-                # getattr with a default: instance-only attributes (e.g.
-                # _enqueued / _queue_name set in __init__) appear in dir(self)
-                # but are NOT class attributes, so a bare getattr(self.__class__,
-                # name) raises AttributeError and breaks the whole dict. None is
-                # not a property, so they are simply skipped.
-                and isinstance(getattr(self.__class__, name, None), property)
-            },
+            **{name: getattr(self, name) for name in _TO_DICT_PROPERTIES},
             "args": [
                 arg.to_dict() if hasattr(arg, "to_dict") else arg for arg in self.args
             ],

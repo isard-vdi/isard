@@ -30,11 +30,13 @@ read it — plus a one-shot legacy drain on upgrade.
 
 Recovery principle (per task): reconcile every transitional item from **on-disk
 reality** to a stable status the user can re-trigger from, and **never destroy a
-present disk**. An in-place op returns its intact disk to ``ready``; a
-create/convert that finished on disk is adopted (finalize-forward); one that did
-not is failed via an authoritative recheck; a delete whose file is already gone
-completes, one whose file is still present resets to ``ready``. Data is never
-lost because the reconcile only reads disks and sets statuses.
+present disk**. Reality means *asking the worker*, never reading a status or a
+size off the row: those are caches, written by whichever branch last succeeded,
+and they outlive what they described. So a stuck item is re-observed and its own
+transition decides — an intact disk returns to ``ready``, a create that never
+produced one settles ``deleted``, a delete whose file is gone completes and one
+whose file is still there resets to a re-triggerable state. Data is never lost
+because the reconcile only reads disks and sets statuses.
 
 **Startup drain (one-shot).** :func:`_drain_core_once` clears any residual legacy
 ``core`` tombstones left by a system upgraded FROM rq-dependent finalize. Post
@@ -48,16 +50,16 @@ residual legacy ``core``-queue orphan (the DEFERRED counterpart to the QUEUED
 tombstones ``_drain_core_once`` sweeps) is healed via :func:`_heal_core_orphan`.
 
 **Pass 2 — storages stuck in a transitional status** (``maintenance``/``creating``)
-whose backing task is dead. Finalize from the row's own ``qemu-img-info`` per the
-principle above (valid → ``ready`` via :func:`_apply_storage_update`, which only
-promotes the safe pre-ready set so a running VM is never yanked; else re-issue
-``check_backing_chain`` for an authoritative recheck). A storage whose task is
+whose backing chain is dead. Re-issues ``check_backing_chain`` and lets the
+worker's answer drive the row through the normal path (which only promotes the
+safe pre-ready set, so a running VM is never yanked). A storage whose chain is
 still alive is left untouched.
 
 **Pass 3 — domains parked in a storage-lock status** (``Maintenance``/
-``CreatingTemplate``) whose storage settled but never promoted them: → ``Stopped``
-when every backing storage is ``ready``, → ``Failed`` when a backing storage row
-is gone.
+``CreatingTemplate``/``CreatingDisk``) whose storage settled but never promoted
+them. Re-observes the backing storages and lets their own transition drive the
+domain; → ``Failed`` directly only when a backing storage row is gone, since
+there is then nothing left to observe.
 """
 
 import asyncio
@@ -66,11 +68,17 @@ from datetime import datetime, timezone
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
-from isardvdi_common.models.task import CoreStep, Task
+from isardvdi_common.models.task import Task, _chain_closure, finalize_has_unstamped
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
-from ..task_results.storage import _apply_storage_update, send_status_socket
+# Imported, never called: the pass no longer writes a storage row itself, and
+# the tests patch these to assert it stays that way. Deleting them as "unused"
+# breaks those tests with AttributeError, not at the deletion site.
+from ..task_results.storage import (  # noqa: F401
+    _apply_storage_update,
+    send_status_socket,
+)
 from .task_results_consumer import (
     _release_storage_dependents,
     _run_handler,
@@ -120,13 +128,19 @@ def _dep_job_status(dep):
         return None
 
 
-# Domain statuses that are pure STORAGE locks (set by ``set_maintenance`` / the
-# template chain), never engine-driven runtime states — so they are safe to
-# finalise from the storage's own reality without racing the VM lifecycle. The
-# storage-keyed passes below cannot see a domain whose storage is already
-# ``ready`` (the ready-transition's promote missed it) or whose storage row is
-# gone; Pass 3 reconciles from the domain side to close that gap.
-_DOMAIN_LOCK_STATUSES = ("Maintenance", "CreatingTemplate")
+# Domain statuses whose work is EXECUTED by a storage task chain, so this
+# component owns reconciling them; engine keeps the statuses it drives itself
+# (``CreatingDomain`` onwards, and the libvirt runtime states). They are pure
+# storage locks, never runtime states, so re-observing them cannot race the VM
+# lifecycle.
+#
+# ``CreatingDisk`` is covered for the case that actually strands desktops: the
+# chain died before producing the disk, and the re-observation settles the row
+# ``deleted`` so the domain fails instead of hanging. A ``CreatingDisk`` domain
+# whose disk IS present is re-observed but not advanced — handing it to engine
+# needs a transition that survives the chain's later storage updates, since
+# ``CreatingDomain`` is itself in the promote-to-``Stopped`` set.
+_DOMAIN_LOCK_STATUSES = ("Maintenance", "CreatingTemplate", "CreatingDisk")
 
 
 def _as_aware_utc(dt):
@@ -395,14 +409,27 @@ async def _drain_core_once(redis_manager):
     return drained
 
 
-def _finalize_has_unstamped(nodes):
-    """True if any metadata finalize step (at any depth) never ran."""
-    for node in nodes or []:
-        if node.get("status") is None:
-            return True
-        if _finalize_has_unstamped(node.get("core_finalize")):
-            return True
-    return False
+# The same predicate ``chain_pending`` uses, deliberately shared rather than
+# reimplemented: the hatch and the pending check must agree about what "this
+# finalize step has not run" means, or the hatch opens for chains the predicate
+# still calls busy (or worse, never opens for ones it does).
+_finalize_has_unstamped = finalize_has_unstamped
+
+
+def _job_settled_at(job, status):
+    """:func:`_settled_at` for a raw rq job rather than a :class:`Task`.
+
+    Same rule, and the same deliberate blind spot: a FINISHED/FAILED job with
+    no ``ended_at`` reads as unknown, because that is a job the consumer marked
+    mid-flight and it may still be the replay state of an entry being
+    redelivered.
+    """
+    ended = _as_aware_utc(getattr(job, "ended_at", None))
+    if ended is not None:
+        return ended
+    if status == JobStatus.CANCELED:
+        return _as_aware_utc(getattr(job, "created_at", None))
+    return None
 
 
 def _metadata_finalize_orphaned(task, now, min_age_s):
@@ -410,15 +437,59 @@ def _metadata_finalize_orphaned(task, now, min_age_s):
     never applied and is older than the redelivery envelope: the result event
     was lost (worker died before publishing). Not live work — Pass 2 heals it
     from the storage's own reality.
+
+    Asked over the whole CLOSURE, not the task it was handed. ``_task_alive``
+    resolves a row's chain through ``storage.task``, which holds the id of the
+    chain's ROOT — but the job carrying ``core_finalize`` is not the root. In
+    the real template chain the anchor is the third storage job
+    (``move → create → qemu_img_info_backing_chain``), so a hatch that reads
+    ``core_finalize`` off the root alone can never open for the one chain shape
+    that has a knot. Measured on this base: from the root it answered False,
+    from the anchor True, for the very same settled chain.
+
+    That is only latent while ``chain_pending`` is blind to finalize steps and
+    answers False here anyway. The moment an unstamped step counts as pending,
+    a lost result event pins the chain pending for ever and the reconcile can
+    never heal that row again — the "428 forever" class this stack exists to
+    kill, re-entered backwards. Hence closure-wide first, stricter predicate
+    after.
+
+    Conservative in both directions: a member that cannot be read, or that is
+    terminal without a readable settle time, means we cannot prove the chain is
+    dead, so the hatch stays shut.
     """
-    finalize = task.job.meta.get("core_finalize")
-    if not finalize or not _finalize_has_unstamped(finalize):
+    try:
+        closure = _chain_closure(task.job, task._redis)
+    except Exception:
         return False
-    members = [task] + [d for d in task.dependents if not isinstance(d, CoreStep)]
-    if any(getattr(m, "job_status", None) not in _TERMINAL for m in members):
+
+    if not any(
+        _finalize_has_unstamped((getattr(job, "meta", None) or {}).get("core_finalize"))
+        for job in closure.values()
+    ):
         return False
-    settled = _settled_at(task)
-    return settled is not None and (now - settled).total_seconds() >= min_age_s
+
+    settled = []
+    for job in closure.values():
+        try:
+            status = job.get_status(refresh=True)
+        except _JOB_GONE:
+            # Hash evicted after its result TTL: necessarily terminal and long
+            # settled, so it neither blocks the hatch nor dates it.
+            continue
+        except Exception:
+            return False
+        if status not in _TERMINAL:
+            return False
+        when = _job_settled_at(job, status)
+        if when is None:
+            return False
+        settled.append(when)
+
+    if not settled:
+        return False
+    # The chain settled when its LAST member did.
+    return (now - max(settled)).total_seconds() >= min_age_s
 
 
 def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
@@ -456,7 +527,9 @@ def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
         return False
     try:
         task = Task(task_id)
-        if not task.pending:
+        # The WHOLE chain, not its neighbours: a deeper chain reads as settled
+        # from its root while later levels are still writing the disk.
+        if not task.chain_pending:
             return False
         return not _metadata_finalize_orphaned(
             task, now or datetime.now(timezone.utc), min_age_s
@@ -466,42 +539,28 @@ def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
 
 
 async def _finalize_stuck_storage(redis_manager, storage):
-    """Finalize one stuck transitional storage from its on-disk reality.
+    """Finalize one stuck transitional storage by re-observing the disk.
 
-    This is the per-task crash-recovery, resolved from the disk rather than the
-    (lost) chain — so it is uniform across every op and, crucially, **never
-    destroys a present disk**:
+    Always re-issues ``check_backing_chain`` and lets the storage worker say
+    what is really there: the row is driven to ``ready`` (a present disk), or
+    ``deleted`` (a create that never produced one, or a delete whose file is
+    already gone). The recheck reads the disk and never removes a present
+    file, so a not-yet-run delete resets to a re-triggerable state rather
+    than losing data.
 
-    - **Valid disk** (``qemu-img-info.virtual-size > 0``) → ``ready`` via the
-      canonical handler. For an in-place op the untouched disk returns to its
-      stable status; for a create/convert that DID complete on disk this adopts
-      the finished work (finalize-forward). A running VM is never yanked
-      (``_apply_storage_update`` only promotes the safe pre-ready set).
-    - **No valid disk info** → re-issue ``check_backing_chain`` for an
-      authoritative recheck by the storage worker, which drives the row to
-      ``ready`` (a present-but-unindexed disk) or ``deleted`` (a create that
-      never produced a disk, or a delete whose file is already gone). The
-      recheck reads the disk; it never removes a present file, so a not-yet-run
-      delete resets to ``ready`` (re-triggerable) rather than losing data.
+    It used to short-circuit to ``ready`` whenever the row's stored
+    ``qemu-img-info`` showed a positive ``virtual-size``. That field is
+    written only when an info task SUCCEEDS, and the branch that concludes
+    ``deleted`` does not write it at all — and the row update merges rather
+    than replaces, so the size of a file that has since been deleted survives
+    on the row. A delete whose chain died therefore matched the shortcut
+    exactly, and the pass asserted a disk that was gone: a ``ready`` storage
+    and a bootable-looking desktop that fails at libvirt. Reading the row was
+    never an observation; only the worker can make one.
 
-    Returns 1 only when finalized in place.
+    Returns 0: nothing is finalized in place any more.
     """
     prev = getattr(storage, "status", "?")
-    qemu_img_info = getattr(storage, "qemu-img-info", None)
-    virtual_size = 0
-    if isinstance(qemu_img_info, dict):
-        virtual_size = qemu_img_info.get("virtual-size", 0) or 0
-    if virtual_size > 0:
-        _apply_storage_update({"id": storage.id, "status": "ready"})
-        await send_status_socket(
-            redis_manager, storage.id, "ready", getattr(storage, "user_id", None)
-        )
-        log.warning(
-            "reconcile: finalized stuck storage %s (%s → ready)",
-            storage.id,
-            prev,
-        )
-        return 1
     try:
         # A self-heal recheck of a STUCK storage: recover it soon rather than on
         # the idle ``background`` lane (the method default), but off the reserved
@@ -511,8 +570,8 @@ async def _finalize_stuck_storage(redis_manager, storage):
             user_id=getattr(storage, "user_id", None), priority="standard"
         )
         log.warning(
-            "reconcile: stuck storage %s (%s) has no valid disk info; re-issued "
-            "check_backing_chain",
+            "reconcile: stuck storage %s (%s); re-issued check_backing_chain to "
+            "observe the disk",
             storage.id,
             prev,
         )
@@ -559,14 +618,22 @@ async def _reconcile_stuck_storage(redis_manager):
 
 def _finalize_stuck_domain(domain):
     """Finalise one domain parked in a storage-lock status from its storage
-    reality. Returns 1 if finalised, else 0.
+    reality. Returns 1 if finalised in place, else 0.
 
     - it declares disks but none of their storage rows still exist -> ``Failed``
-      (the disk is gone).
-    - every backing storage is ``ready`` and settled (no live task) ->
-      ``Stopped`` (the ready-transition's promote missed this domain).
-    A domain whose storage is still in flight (``maintenance`` / a live task) is
-    left to Pass 2 / the consumer.
+      (the disk is gone; there is nothing left to observe).
+    - otherwise the backing storages are re-observed and the storage's own
+      ready/deleted transition drives the domain, exactly as the original chain
+      would have. ``ready`` promotes the domain (to ``Stopped``, or to
+      ``CreatingDomain`` for a ``CreatingDisk`` hand-off); ``deleted`` fails it.
+
+    It used to promote to ``Stopped`` itself whenever every storage read
+    ``ready`` with no live task. That is an inference from two row fields, and
+    a status is a cache: it says what some earlier write concluded, not what is
+    on disk now. Asking the worker costs one task and cannot be wrong.
+
+    A domain whose storage is still in flight (a live chain) is left alone —
+    Pass 2 and the consumer own it.
     """
     declared_ids = [
         disk["storage_id"]
@@ -587,15 +654,30 @@ def _finalize_stuck_domain(domain):
             domain.id,
         )
         return 1
-    if storages and all(
-        storage.status == "ready" and not _task_alive(storage) for storage in storages
-    ):
-        domain.status = "Stopped"
-        domain.current_action = None
-        log.warning(
-            "reconcile: promoted stuck domain %s (storage ready -> Stopped)", domain.id
-        )
-        return 1
+    if not storages:
+        return 0
+    if any(_task_alive(storage) for storage in storages):
+        return 0
+    for storage in storages:
+        try:
+            # ``find`` is the observation that converges a DOMAIN: the disk is
+            # there -> storage ``ready`` -> the promote advances the domain; it
+            # is gone -> ``deleted`` -> the domain fails. Non-blocking and no
+            # retries, so a storage that is busy again by now is simply skipped
+            # rather than queued behind itself.
+            storage.find(user_id=getattr(domain, "user", None), blocking=False, retry=0)
+        except Exception:
+            log.exception(
+                "reconcile: could not re-observe storage %s of stuck domain %s",
+                getattr(storage, "id", "?"),
+                domain.id,
+            )
+    log.warning(
+        "reconcile: stuck domain %s (%s); re-observing %s backing storage(s)",
+        domain.id,
+        getattr(domain, "status", "?"),
+        len(storages),
+    )
     return 0
 
 
