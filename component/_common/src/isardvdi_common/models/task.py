@@ -711,6 +711,15 @@ class Task(RedisBase):
             # bulk/background throughput per category (Phase 2). None for a task
             # with no resolvable owner (system maintenance / deleted owner).
             meta.setdefault("category_id", kwargs.get("category_id"))
+            # The row that CREATED this chain, so a task can be traced back to
+            # it without the RethinkDB secondary index — the same semantics as
+            # the ``task`` index it replaces, which is built from
+            # ``storage.task``. NOT the row the chain locked: several chains
+            # park a different row than the one they were created from (a
+            # template creation is built from the desktop and locks the
+            # template), and that relationship belongs in the task index's
+            # owner list, never here.
+            meta.setdefault("storage_id", kwargs.get("storage_id"))
             # Give every task an explicit, action-appropriate job_timeout so a
             # long-running op (download / convert / sparsify / move) is not
             # killed by RQ's 180 s Queue.DEFAULT_TIMEOUT mid-flight. A callsite
@@ -744,6 +753,7 @@ class Task(RedisBase):
             for dependent in kwargs.get("dependents", []):
                 dependent.setdefault("user_id", kwargs.get("user_id"))
                 dependent.setdefault("category_id", kwargs.get("category_id"))
+                dependent.setdefault("storage_id", kwargs.get("storage_id"))
                 # A ``core`` finalize dependent is ALWAYS metadata, never a rq job
                 # on the consumerless ``core`` queue; storage dependents keep the rq
                 # path. The change-handler runs it off ``meta["core_finalize"]``.
