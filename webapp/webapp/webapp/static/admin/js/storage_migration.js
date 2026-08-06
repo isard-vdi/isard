@@ -14,7 +14,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-// Admin view for the storage-disk path->path migration (I+D #1924): totals
+// Admin view for the storage-disk path->path migration: totals
 // cards, aggregate progress + ETA, per-tree and per-disk expand, and the
 // window / parallelism / bwlimit / force-stop controls. Kept live by the
 // aggregate `storage:migration` SocketIO event the change-handler emits.
