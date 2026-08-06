@@ -48,6 +48,7 @@ from api.schemas.storage import (
     StorageVirtWinRegRequest,
     TaskIdResponse,
 )
+from api.schemas.tasks import OwnerTaskItem
 from api.services.error import Error
 from api.services.storage import StorageService
 from fastapi import Request
@@ -223,6 +224,46 @@ async def get_storage(request: Request, storage_id: str):
             request,
             "internal_server",
             "Failed to retrieve storage",
+            traceback.format_exc(),
+        )
+
+
+@token_router.get(
+    "/item/storage/{storage_id}/tasks",
+    tags=[tag],
+    response_model=list[OwnerTaskItem],
+    summary="Get the tasks a storage has had",
+    description=(
+        "Returns the tasks this storage item has had, newest first, read from "
+        "the per-owner task index. Bounded: the index keeps the newest entries "
+        "per row, and an entry whose job has expired is dropped on read rather "
+        "than returned. Same ownership rules as every other per-item storage "
+        "route."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_storage_tasks(request: Request, storage_id: str):
+    try:
+        tasks = await asyncio.to_thread(
+            StorageService.get_tasks, request.token_payload, storage_id
+        )
+        return JSONResponse(
+            content=[
+                OwnerTaskItem(**task).model_dump(mode="json") for task in (tasks or [])
+            ],
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve storage tasks",
             traceback.format_exc(),
         )
 

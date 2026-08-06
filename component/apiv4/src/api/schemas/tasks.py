@@ -49,6 +49,34 @@ class TaskResponse(BaseModel):
     stranded: Optional[bool] = None
 
 
+class OwnerTaskItem(BaseModel):
+    """One row of "the tasks this storage or media has had".
+
+    Deliberately not ``TaskResponse``. That model is shaped by the single-task
+    detail path: its observability fields are filled by an enrichment step a
+    listing must never run (a Redis fetch per row), and its ``storage_id``
+    comes off a Task property that ``to_dict`` excludes — so reusing it here
+    would put a dozen permanently null keys on the wire and imply a chain view
+    this listing does not compute. Every field below is read from the job hash
+    the batch already fetched.
+
+    ``job_status`` is this job's own status, not its chain's: the chain status
+    would mean walking dependencies, one round trip per member.
+    """
+
+    id: str
+    task: Optional[str] = None
+    queue: Optional[str] = None
+    job_status: Optional[str] = None
+    user_id: Optional[str] = None
+    category_id: Optional[str] = None
+    storage_id: Optional[str] = None
+    media_id: Optional[str] = None
+    enqueued_at: Optional[float] = None
+    started_at: Optional[float] = None
+    ended_at: Optional[float] = None
+
+
 class TaskListResponse(BaseModel):
     """List of tasks"""
 

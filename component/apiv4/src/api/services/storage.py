@@ -372,6 +372,19 @@ class StorageService:
         return None
 
     @staticmethod
+    def get_tasks(payload: dict, storage_id: str) -> list:
+        """The tasks this storage has had, newest first.
+
+        ``get_storage`` is the access control: same ownership rules as every
+        other per-item storage route, so a user sees their own disk's history
+        and nobody else's. Reading is :meth:`TaskService.owner_tasks`.
+        """
+        from api.services.tasks import TaskService
+
+        get_storage(payload, storage_id)
+        return TaskService.owner_tasks(storage_id, kind="storage")
+
+    @staticmethod
     def get_statuses(payload: dict, storage_id: str) -> dict:
         """Get storage and domain statuses."""
         storage = get_storage(payload, storage_id)
