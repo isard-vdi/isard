@@ -488,25 +488,6 @@ class Storage(RethinkCustomBase):
     Tasks
     """
 
-    def _parking_task(self):
-        """The task of the row that parked this one, or None.
-
-        A row parked by another row's chain (the NEW template storage of a
-        template creation) carries no task of its own: the producing task is
-        stamped on the origin, which the parked row names via ``parked_by``.
-        The task id is deliberately NOT copied onto the parked row — two rows
-        under one task id would break the ``task`` secondary index for every
-        lookup through it — so every reader resolves it through here instead.
-
-        ``self.parked_by`` reads through ``__getattr__`` (a DB round-trip that
-        answers None for a row that has no such field), hence the guard.
-        """
-        try:
-            parked_by = self.parked_by
-            return Storage(parked_by).task if parked_by else None
-        except Exception:
-            return None
-
     def create_task(self, *args, **kwargs):
         """
         Create a Task for this Storage and return its root task id.
@@ -1992,27 +1973,14 @@ class Storage(RethinkCustomBase):
                 description_code="storage_no_pool",
             )
 
-        # The rows this chain parks. Being parked has two faces and they are
-        # decided here, from this one list, so they cannot drift: the row is
-        # busy with this chain — ``parked_by``, which ``_task_alive`` and
-        # ``create_task``'s 428 gate resolve — AND this chain's tasks are that
-        # row's own history, which is what its task listing shows. A row parked
-        # but not listed would spend the whole copy showing an empty history at
-        # the one moment there is something to watch; a row listed but not
-        # parked would claim work that cannot touch it.
-        #
-        # ``parked_by`` is written BEFORE the park: the only task this method
-        # creates is stamped on the DESKTOP's storage (the move's origin), so
-        # the template row would otherwise sit in a transitional status naming
-        # nothing — the exact shape the self-heal reads as an abandoned
-        # operation. On its first tick it re-checks a path the move has not
-        # produced yet, gets "no such disk" and fails the template with its
-        # derivatives orphaned; cross-pool that window is the whole rsync copy.
-        # Written first so the row is never observable as parked-with-no-parker
-        # by a tick landing in between.
+        # The rows this chain parks. Naming them as owners of its tasks is the
+        # whole of it: the index then answers "what is this row busy with" for
+        # the parked template row exactly as it does for the desktop, which is
+        # what the 428 gate and the self-heal's liveness check both ask. The
+        # marker this replaces had to be written before the park and read only
+        # while parked, because nothing ever cleared it; an owner list has
+        # neither problem, since it names THIS chain's task and nothing else.
         parked_rows = [template_storage]
-        for parked_row in parked_rows:
-            parked_row.parked_by = self.id
 
         # The new template storage is fresh (status="non_existing"); the
         # "create" maintenance label is allowlisted for that and skips the

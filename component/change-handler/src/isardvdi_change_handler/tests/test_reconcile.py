@@ -237,7 +237,6 @@ def _storage(
     virtual_size=171798691840,
     user_id="u1",
     converted_from=None,
-    parked_by=None,
 ):
     s = MagicMock(name=f"storage-{sid}")
     s.id = sid
@@ -248,9 +247,6 @@ def _storage(
     # the origin it points at via ``converted_from``. Default None mirrors a
     # non-convert row (MagicMock would otherwise auto-create a truthy attr).
     s.converted_from = converted_from
-    # Same shape one step further: a row parked by another row's chain (the new
-    # template storage of a template creation) names its parker via ``parked_by``.
-    s.parked_by = parked_by
     qi = {"virtual-size": virtual_size} if virtual_size is not None else None
     # ``qemu-img-info`` is not a valid attr name; the model exposes it via getattr
     setattr(s, "qemu-img-info", qi)
@@ -467,7 +463,7 @@ def test_task_alive_maintenance_without_task_or_parker_is_still_an_orphan():
     row that names neither a task nor a parker is a genuine abandoned op."""
     from isardvdi_change_handler.streams import reconcile
 
-    storage = _storage(status="maintenance", task=None, parked_by=None)
+    storage = _storage(status="maintenance", task=None)
     assert reconcile._task_alive(storage) is False
 
 
@@ -889,7 +885,7 @@ def test_task_alive_falls_back_to_the_convert_origin():
             assert reconcile._task_alive(row) is True
 
 
-def test_task_alive_needs_no_parked_by_because_the_index_names_the_parked_row():
+def test_task_alive_answers_for_a_parked_row_from_the_index():
     from isardvdi_change_handler.streams import reconcile
 
     """The chain that parks a row lists it as an owner of its tasks, so the
@@ -905,7 +901,7 @@ def test_task_alive_needs_no_parked_by_because_the_index_names_the_parked_row():
             chain_pending=True, job=SimpleNamespace(meta={})
         )
         with patch.object(reconcile, "_metadata_finalize_orphaned", return_value=False):
-            # no ``parked_by`` on the row at all
+            # nothing on the row names a parker; the index answers for it
             assert reconcile._task_alive(_bare(status="maintenance")) is True
 
 
