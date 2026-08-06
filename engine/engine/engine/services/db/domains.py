@@ -43,6 +43,26 @@ def delete_domain(id):
     return results
 
 
+def _storage_task_in_flight(task_id):
+    """True only while ``task_id`` is real work still running.
+
+    Stands in front of a DELETE, so it fails SAFE: a task that cannot be read
+    counts as in flight. Losing a sweep is a domain cleaned up on the next one;
+    inventing a settled task is a domain removed while its disk is being
+    written.
+    """
+    if not task_id:
+        return False
+    from isardvdi_common.models.task import Task
+
+    try:
+        if not Task.exists(task_id):
+            return False
+        return bool(Task(task_id).pending)
+    except Exception:
+        return True
+
+
 def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
     status_to_delete = [
         "Creating",
@@ -64,10 +84,15 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
             .run(r_conn)
         )
 
-    # Skip any candidate whose first disk points at a storage with an
-    # active task. That signals task-based disk creation is in flight
-    # (apiv4 pre-created the storage and kicked off the RQ chain) and
-    # deleting the domain would orphan the storage row and the qcow2.
+    # Skip any candidate whose first disk points at a storage whose disk
+    # creation is IN FLIGHT (apiv4 pre-created the storage and kicked off the
+    # RQ chain): deleting the domain would orphan the storage row and the qcow2
+    # the chain is still writing.
+    #
+    # In flight, not merely "names a task". Nothing in the stack ever clears
+    # the row's task field, so a pointer outlives its job indefinitely and the
+    # naming test protected every one of these domains forever, which is not a
+    # policy anyone chose.
     storage_ids = [
         sid
         for domain in candidates
@@ -88,8 +113,9 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
             for row in r.table("storage")
             .get_all(r.args(list(set(storage_ids))), index="id")
             .filter(lambda s: s.has_fields("task") & (s["task"] != None))  # noqa: E711
-            .pluck("id")
+            .pluck("id", "task")
             .run(r_conn)
+            if _storage_task_in_flight(row.get("task"))
         )
 
     domains_to_delete = [
