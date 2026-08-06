@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
-import { getUserNotificationTriggerDisplayOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import {
+  getUserNotificationTriggerDisplayOptions,
+  getUserConfigOptions
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { NotificationDisplayEnum } from '@/gen/oas/apiv4'
+import { vue2PathForRouteName } from '@/lib/frontendModeMap'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
@@ -30,6 +34,21 @@ const {
   })
 )
 
+const { data: userConfig } = useQuery({
+  ...getUserConfigOptions(),
+  staleTime: Infinity
+})
+
+function goToDesktops() {
+  // In `hidden` mode this page is a transitional login-flow landing: send the
+  // user to the old frontend instead of deeper into the (hidden) new one.
+  if (userConfig.value?.frontend_mode === 'hidden') {
+    window.location.assign(vue2PathForRouteName('desktops') ?? '/desktops')
+    return
+  }
+  router.push({ name: 'desktops' })
+}
+
 const isPending = computed(() => notificationsIsPending.value)
 const isError = computed(() => notificationsIsError.value)
 const errorMessage = computed(() => {
@@ -42,12 +61,7 @@ const data = computed(() => notificationsData.value)
 <template>
   <div class="relative">
     <div class="flex justify-end w-full">
-      <Button
-        icon="arrow-right"
-        hierarchy="link-color"
-        class="text-lg mr-10"
-        @click="router.push({ name: 'desktops' })"
-      >
+      <Button icon="arrow-right" hierarchy="link-color" class="text-lg mr-10" @click="goToDesktops">
         {{ t('views.notifications.go-to-desktops') }}
       </Button>
     </div>

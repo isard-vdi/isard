@@ -155,7 +155,7 @@ const desktopKindStyle = computed(() => {
         <div :class="cardGradientVariants({ size })" />
 
         <template v-if="showOverlay">
-          <div class="absolute inset-0 bg-base-black/60 transition-opacity duration-300 z-0" />
+          <div class="absolute inset-0 bg-base-black/75 transition-opacity duration-300 z-0" />
           <!-- Overlay flows into the parent's flex column (parent has
                `justify-end`), so content lands above the name/desc footer.
                The white border below visually separates the overlay panel

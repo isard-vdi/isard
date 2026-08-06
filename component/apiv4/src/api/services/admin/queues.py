@@ -15,6 +15,7 @@ from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.connections.redis_urls import RQ_DB
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.lib import governor_counters
 from isardvdi_common.lib.governed_worker import (
     _LIVE_STATUSES,
     CATEGORY_RUNNING_PREFIX,
@@ -49,6 +50,11 @@ QUEUE_REGISTRIES = [
     "canceled",
 ]
 
+# Registries whose jobs are, by definition, still live work: a sweep that
+# deletes from them removes chains that are running or waiting to run - and
+# with dependent cascade, their whole downstream too.
+NON_REAPABLE_REGISTRIES = ["queued", "started", "scheduled", "deferred"]
+
 # Presentation defaults for the live storage-governor block. These mirror the
 # worker's env/hardcoded fallbacks; they are only what the admin view shows for
 # an unset block — the worker does its own DB->env->hardcoded merge.
@@ -72,15 +78,28 @@ STORAGE_SCHEDULER_DEFAULTS = {
 # workers already use — and the worker merges it DB->env->hardcoded per poll.
 GOVERNOR_CONFIG_KEY = "governor:config"
 
+# TTL of the read-only gauge caches on the scrape path. The only automated
+# caller of get_governor is the stats-go ``storage_governor`` collector, which
+# Alloy scrapes every 30s (prometheus.scrape "metrics_containers" in
+# docker/grafana-alloy/metrics.alloy) and which calls it exactly once per
+# scrape: a TTL at or below that period can never serve a hit, it only ever
+# recomputes. The ceiling is the 60s GovernorDataStale threshold in
+# docker/vmalert/rules/storage_governor.rules.yml, since a warm serve reports
+# its true age. Rule for anyone retuning this: stay above the scrape period of
+# the collector that drives the cache, and below the staleness alert.
+GOVERNOR_GAUGE_CACHE_TTL = 45
+
 queues_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
 queue_jobs_cache = SynchronizedTTLCache(maxsize=20, ttl=5)
 consumers_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
-# Read-only storage-governor gauge caches (5s TTL so a polling dashboard cannot
-# hammer Redis). These are gauges, not mutated by admin writes, so they are not
-# wired into clear_queue_data_caches.
-governor_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
+# Read-only storage-governor gauge caches. These are gauges, not mutated by
+# admin writes, so they are not wired into clear_queue_data_caches.
+governor_cache = SynchronizedTTLCache(maxsize=1, ttl=GOVERNOR_GAUGE_CACHE_TTL)
+category_names_cache = SynchronizedTTLCache(maxsize=1, ttl=GOVERNOR_GAUGE_CACHE_TTL)
+# Nothing scrapes the backlog / problem-task endpoints — their caller is an
+# operator refreshing the admin view, often right after a retry or a cancel, so
+# they keep the short human-refresh TTL.
 backlog_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
-category_names_cache = SynchronizedTTLCache(maxsize=1, ttl=5)
 # maxsize>1: list_problem_tasks is keyed on (kind, pool, category_id, tier,
 # limit, offset), so distinct filter/page combinations must each get their own
 # cache slot instead of thrashing a single entry.
@@ -116,7 +135,7 @@ def clear_queue_data_caches() -> None:
 
 def clear_governor_caches() -> None:
     """Invalidate the read-only storage-governor gauge caches (used by tests and
-    any caller needing a fresh read; otherwise 5s-TTL-cached)."""
+    any caller needing a fresh read; otherwise TTL-cached)."""
     governor_cache.clear()
     backlog_cache.clear()
     consumers_cache.clear()
@@ -576,20 +595,23 @@ class AdminQueuesService:
         """Get job counts for a specific queue."""
         with _connect_redis() as redis_conn:
             queue = Queue(queue_name, connection=redis_conn)
+        # queue.count is a plain LLEN, but registry.count runs cleanup() — for
+        # StartedJobRegistry that MOVES timed-out jobs to FailedJobRegistry.
         return {
             "queued": queue.count,
-            "started": queue.started_job_registry.count,
-            "finished": queue.finished_job_registry.count,
-            "failed": queue.failed_job_registry.count,
-            "deferred": queue.deferred_job_registry.count,
-            "scheduled": queue.scheduled_job_registry.count,
-            "canceled": queue.canceled_job_registry.count,
+            "started": queue.started_job_registry.get_job_count(cleanup=False),
+            "finished": queue.finished_job_registry.get_job_count(cleanup=False),
+            "failed": queue.failed_job_registry.get_job_count(cleanup=False),
+            "deferred": queue.deferred_job_registry.get_job_count(cleanup=False),
+            "scheduled": queue.scheduled_job_registry.get_job_count(cleanup=False),
+            "canceled": queue.canceled_job_registry.get_job_count(cleanup=False),
         }
 
     # -------------------------------------------------------------------------
-    # Storage-governor read layer (P2.4 §2.2). Every method is 5s-TTL-cached so a
-    # polling dashboard cannot hammer Redis, degrades to 200 + honesty fields on
-    # transient Redis/rdb failure (never raises), and is read-only.
+    # Storage-governor read layer (P2.4 §2.2). Every method is TTL-cached (see
+    # the cache block above) so a poller cannot hammer Redis, degrades to 200 +
+    # honesty fields on transient Redis/rdb failure (never raises), and is
+    # read-only.
     # -------------------------------------------------------------------------
 
     @staticmethod
@@ -745,6 +767,8 @@ class AdminQueuesService:
             "psi_limit": STORAGE_SCHEDULER_DEFAULTS["psi_limit"],
             "redis": {"up": False},
             "heavy": {"running": 0, "cap": 0, "at_cap": False, "leaked": 0},
+            "shed": governor_counters.empty_counters(),
+            "defer": governor_counters.empty_counters(),
             "pools": [],
             "workers": [],
             "warnings": [],
@@ -863,6 +887,13 @@ class AdminQueuesService:
             worker_rows, multitenancy_active = AdminQueuesService._worker_health_rows(
                 conn
             )
+
+            # --- shed / defer event counters ------------------------------
+            # The only durable trace of a producer-side 429 or a worker
+            # background-deferral edge; both are otherwise invisible here
+            # (a shed leaves nothing, and ``deferring`` is a gauge).
+            shed_counters = governor_counters.read_shed(conn)
+            defer_counters = governor_counters.read_defer(conn)
 
         # ----- assemble pools / categories (out of the Redis context) -----
         heavy_scard = leaks.get(HEAVY_RUNNING_KEY, {}).get("count", len(heavy_members))
@@ -1091,6 +1122,8 @@ class AdminQueuesService:
             "psi_limit": effective["psi_limit"],
             "redis": redis_health,
             "heavy": heavy,
+            "shed": shed_counters,
+            "defer": defer_counters,
             "pools": pool_list,
             "workers": worker_rows,
             "warnings": warnings,
@@ -1420,7 +1453,7 @@ class AdminQueuesService:
                     "bad_request",
                     f"Invalid registry: {reg}. Valid registries are: {QUEUE_REGISTRIES}",
                 )
-            if reg in ["queued", "started", "scheduled"]:
+            if reg in NON_REAPABLE_REGISTRIES:
                 raise Error(
                     "bad_request",
                     f"Registry {reg} is not valid for this operation.",
@@ -1441,7 +1474,13 @@ class AdminQueuesService:
             for job in jobs:
                 if job is None:
                     continue
-                if job.ended_at is None or job.ended_at.timestamp() < time_cutoff:
+                # A job with no ``ended_at`` has not finished: it is either
+                # still live or a chain member the consumer marked mid-flight.
+                # Treating that as "old" deleted running work - with
+                # ``delete_dependents``, the rest of its chain with it.
+                if job.ended_at is None:
+                    continue
+                if job.ended_at.timestamp() < time_cutoff:
                     if rtype == "key":
                         old_keys.append(job.key.decode())
                     elif rtype == "id":
@@ -1491,6 +1530,14 @@ class AdminQueuesService:
                 raise Error(
                     "bad_request",
                     f"Invalid registry: {reg}. Valid registries are: {QUEUE_REGISTRIES}",
+                )
+            # Accepting these here and rejecting them at sweep time is what made
+            # every nightly run raise and purge nothing; and had the sweep run,
+            # it would have deleted live chains.
+            if reg in NON_REAPABLE_REGISTRIES:
+                raise Error(
+                    "bad_request",
+                    f"Registry {reg} holds live work and cannot be auto-deleted.",
                 )
         Config.update_old_tasks({"queue_registries": queue_registries})
         return {"queue_registries": queue_registries}

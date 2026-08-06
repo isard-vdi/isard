@@ -48,6 +48,7 @@ from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.helpers.rules import get_unused_item_timeout
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.helpers.viewers import available_viewers, strip_unavailable_viewers
 from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
@@ -67,7 +68,12 @@ from isardvdi_common.schemas.domains import (
 from rethinkdb import r
 from socketio import RedisManager
 
-from ....schemas.domains import DesktopFromTemplate, DesktopStatusEnum, DomainStatus
+from ....schemas.domains import (
+    DesktopFromTemplate,
+    DesktopStatusEnum,
+    DesktopTypeEnum,
+    DomainStatus,
+)
 
 socketio = RedisManager(socketio_url(), write_only=True)
 
@@ -204,14 +210,12 @@ class DesktopsProcessed(RethinkSharedConnection):
         )
 
         if desktop.get("persistent", True):
-            desktop["type"] = "persistent"
+            desktop["type"] = DesktopTypeEnum.persistent.value
         else:
-            desktop["type"] = "nonpersistent"
+            desktop["type"] = DesktopTypeEnum.nonpersistent.value
 
         gp = desktop.get("guest_properties") or default_guest_properties()
-        desktop["viewers"] = [
-            v.replace("_", "-") for v in list(gp.get("viewers", {}).keys())
-        ]
+        desktop["viewers"] = [v.replace("_", "-") for v in available_viewers(gp)]
 
         if desktop["status"] == DesktopStatusEnum.started.value:
             if "wireguard" in [
@@ -1741,7 +1745,10 @@ class DesktopsProcessed(RethinkSharedConnection):
             data["guest_properties"] = {}
         if data.get("guest_properties", {}).get("viewers") == None:
             data["guest_properties"] = domain["guest_properties"]
-        elif not data.get("guest_properties", {}).get("viewers"):
+        # Count by non-null value: an all-null dict is truthy but has no viewers.
+        elif not strip_unavailable_viewers(
+            data.get("guest_properties", {}).get("viewers")
+        ):
             raise Error(
                 "bad_request",
                 "At least one viewer must be selected.",

@@ -700,7 +700,12 @@ async def test_reclaim_dead_letters_after_max_deliveries():
         await task_results_consumer._reclaim_pending(redis, AsyncMock(), "c1")
 
     proc.assert_not_awaited()  # poison entry is NOT re-run
-    redis.xadd.assert_awaited_once_with(task_results_consumer.DEAD_STREAM, fields)
+    redis.xadd.assert_awaited_once_with(
+        task_results_consumer.DEAD_STREAM,
+        fields,
+        maxlen=task_results_consumer.DEAD_STREAM_MAXLEN,
+        approximate=True,
+    )
     redis.xack.assert_awaited_once()
 
 

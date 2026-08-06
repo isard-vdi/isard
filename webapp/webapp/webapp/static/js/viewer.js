@@ -44,7 +44,10 @@ function setViewerButtonData(desktop_id,data){
     // Check if desktop has guest_ip (required for RDP viewers)
     const hasGuestIp = 'viewer' in data && 'guest_ip' in data['viewer'] && data['viewer']['guest_ip'];
 
-    if ("file_spice" in data["guest_properties"]["viewers"]){
+    // Test the value, not key presence: a disabled viewer can be stored as null.
+    var viewers = (data["guest_properties"] || {})["viewers"] || {};
+
+    if (viewers["file_spice"]){
         offer.push({
             'text': 'SPICE',
             'type': 'spice',
@@ -53,7 +56,7 @@ function setViewerButtonData(desktop_id,data){
             'preferred': true
         })
     }
-    if ("browser_vnc" in data["guest_properties"]["viewers"]){
+    if (viewers["browser_vnc"]){
         offer.push({
             'text': 'VNC browser',
             'type': 'vnc',
@@ -62,7 +65,7 @@ function setViewerButtonData(desktop_id,data){
             'preferred': false
         })
     }
-    if ("file_rdpgw" in data["guest_properties"]["viewers"]){
+    if (viewers["file_rdpgw"]){
         if (hasGuestIp) {  // Only add if IP available
             offer.push({
                 'text': 'RDP',
@@ -73,7 +76,7 @@ function setViewerButtonData(desktop_id,data){
             })
         }
     }
-    if ("file_rdpvpn" in data["guest_properties"]["viewers"]){
+    if (viewers["file_rdpvpn"]){
         if (hasGuestIp) {  // Only add if IP available
             offer.push({
                 'text': 'RDP VPN',
@@ -84,7 +87,7 @@ function setViewerButtonData(desktop_id,data){
             })
         }
     }
-    if ("browser_rdp" in data["guest_properties"]["viewers"]){
+    if (viewers["browser_rdp"]){
         if (hasGuestIp) {  // Only add if IP available
             offer.push({
                 'text': 'RDP browser',

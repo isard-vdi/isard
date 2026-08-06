@@ -33,7 +33,8 @@ export enum TokenType {
   Login = 'login',
   CategorySelect = 'category-select',
   Register = 'register',
-  DisclaimerAcknowledgeRequired = 'disclaimer-acknowledge-required',
+  ReRegister = 're-register',
+  DisclaimerAcknowledgeRequired = 'disclaimer-acknowledgement-required',
   EmailVerificationRequired = 'email-verification-required',
   EmailVerification = 'email-verification',
   PasswordResetRequired = 'password-reset-required',
@@ -78,6 +79,24 @@ export const isCategorySelectClaims = (claims: TypeClaims): claims is CategorySe
   return claims.type === TokenType.CategorySelect
 }
 
+export interface PasswordResetRequiredClaims extends TypeClaims {
+  user_id: string
+}
+
+export const isPasswordResetRequiredClaims = (
+  claims: TypeClaims
+): claims is PasswordResetRequiredClaims => {
+  return claims.type === TokenType.PasswordResetRequired
+}
+
+export interface PasswordResetClaims extends TypeClaims {
+  user_id: string
+}
+
+export const isPasswordResetClaims = (claims: TypeClaims): claims is PasswordResetClaims => {
+  return claims.type === TokenType.PasswordReset
+}
+
 export interface RegisterClaims extends TypeClaims {
   category_id: string
   provider: string
@@ -87,12 +106,40 @@ export const isRegisterClaims = (claims: TypeClaims): claims is RegisterClaims =
   return claims.type === TokenType.Register
 }
 
+export interface ReRegisterClaims extends TypeClaims {
+  category_id: string
+  provider: string
+}
+
+export const isReRegisterClaims = (claims: TypeClaims): claims is ReRegisterClaims => {
+  return claims.type === TokenType.ReRegister
+}
+
+export interface DisclaimerAcknowledgementRequiredClaims extends TypeClaims {
+  user_id: string
+}
+
+export const isDisclaimerAcknowledgementRequiredClaims = (
+  claims: TypeClaims
+): claims is DisclaimerAcknowledgementRequiredClaims => {
+  return claims.type === TokenType.DisclaimerAcknowledgeRequired
+}
+
 const authorizationTokenName = 'authorization'
 export const sessionTokenName = 'isardvdi_session'
 
 export const useCookies = () => vueuseCookies([authorizationTokenName, sessionTokenName])
 
-export const parseToken = (bearer: string): RegisterClaims | CategorySelectClaims | TypeClaims => {
+export const parseToken = (
+  bearer: string
+):
+  | RegisterClaims
+  | ReRegisterClaims
+  | CategorySelectClaims
+  | DisclaimerAcknowledgementRequiredClaims
+  | TypeClaims
+  | PasswordResetRequiredClaims
+  | PasswordResetClaims => {
   const jwt = jwtDecode(bearer) as TypeClaims
   switch (jwt.type) {
     case undefined:
@@ -107,6 +154,18 @@ export const parseToken = (bearer: string): RegisterClaims | CategorySelectClaim
 
     case TokenType.Register:
       return jwt as RegisterClaims
+
+    case TokenType.ReRegister:
+      return jwt as ReRegisterClaims
+
+    case TokenType.DisclaimerAcknowledgeRequired:
+      return jwt as DisclaimerAcknowledgementRequiredClaims
+
+    case TokenType.PasswordResetRequired:
+      return jwt as PasswordResetRequiredClaims
+
+    case TokenType.PasswordReset:
+      return jwt as PasswordResetClaims
 
     default:
       return jwt
@@ -141,7 +200,10 @@ export const setToken = (cookies: ReturnType<typeof useCookies>, bearer: string)
 }
 
 export const removeToken = (cookies: ReturnType<typeof useCookies>) => {
-  cookies.remove(authorizationTokenName, cookieOpts)
+  // The `authorization` cookie is set server-side with Secure=true
+  // (authentication/transport/http/http.go). Removal must match that attribute
+  // set or the browser won't delete it.
+  cookies.remove(authorizationTokenName, { path: '/', sameSite: 'strict', secure: true })
   cookies.remove(sessionTokenName, cookieOpts)
 }
 
@@ -157,6 +219,7 @@ interface LoginRegisterReturn {
   error?: LoginError | RegisterError
   errorParams?: Date
 }
+
 export const checkLoginRegister = (
   error: { error?: string | null }, // TODO: check this type
   response: Response,

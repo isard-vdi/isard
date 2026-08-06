@@ -275,6 +275,23 @@ def test_retier_queue_maps_legacy_low_and_high():
     assert qt.retier_queue("storage.POOL.high", "delete") == "storage.POOL.reclaim"
 
 
+def test_effective_tier_passes_through_every_real_tier():
+    for tier in qt.TIERS:
+        assert qt.effective_tier(tier) == tier
+
+
+def test_effective_tier_maps_legacy_lane_names():
+    # A pre-upgrade job still sitting on ``storage.<pool>.low`` runs the same
+    # work a ``maintenance`` job does, so it must classify as maintenance.
+    assert qt.effective_tier("low") == "maintenance"
+    assert qt.effective_tier("high") == "interactive"
+
+
+def test_effective_tier_leaves_unknown_segments_untouched():
+    assert qt.effective_tier("bogus") == "bogus"
+    assert qt.effective_tier(None) is None
+
+
 def test_retier_queue_template_move():
     # template-from-desktop passes priority="template" -> its own governed lane
     assert qt.retier_queue("storage.POOL.template", "move") == "storage.POOL.template"

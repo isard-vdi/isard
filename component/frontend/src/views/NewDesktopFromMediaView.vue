@@ -19,13 +19,7 @@ import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { InputField } from '@/components/input-field'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
+import OsTemplateSelect from '@/components/new-desktop/OsTemplateSelect.vue'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
 import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
 import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
@@ -413,32 +407,14 @@ const handleSubmit = () => {
                       <Skeleton class="h-10 w-full" />
                     </div>
                     <div v-else>
-                      <Select
+                      <OsTemplateSelect
+                        :options="osTemplateOptions"
                         :disabled="installsError || !hasOsTemplateOptions"
+                        :invalid="field.state.value === ''"
+                        :placeholder="t('views.new-desktop-from-media.os-template.placeholder')"
                         :model-value="field.state.value"
                         @update:model-value="(v) => field.handleChange(String(v))"
-                      >
-                        <SelectTrigger
-                          :class="field.state.value === '' ? 'w-full ring-3 ring-error' : 'w-full'"
-                          :aria-invalid="field.state.value === ''"
-                        >
-                          <SelectValue
-                            :placeholder="t('views.new-desktop-from-media.os-template.placeholder')"
-                          />
-                        </SelectTrigger>
-                        <SelectContent position="item-aligned">
-                          <SelectItem
-                            v-for="install in osTemplateOptions"
-                            :key="install.id"
-                            :value="install.id"
-                          >
-                            {{ install.name }}
-                            <span v-if="install.vers" class="text-gray-warm-500 ml-1">
-                              ({{ install.vers }})
-                            </span>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      />
                     </div>
                   </div>
                 </desktopInfoForm.Field>

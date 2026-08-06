@@ -130,7 +130,7 @@ export default {
         )
 
       const token = jwtDecode(response.data)
-      if (token.type === 'register') {
+      if (token.type === 'register' || token.type === 're-register') {
         window.location.pathname = '/register'
       } else if (token.type === 'category-select') {
         window.location.pathname = '/'

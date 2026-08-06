@@ -4,12 +4,17 @@
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
 import asyncio
+import logging
 import time
 import traceback
 
 from api.services.error import Error
+from isardvdi_common.helpers.error_base import ErrorBase
 from isardvdi_common.lib.queue_tiers import parse_storage_queue
 from isardvdi_common.models.task import Task
+from rq.job import JobStatus
+
+log = logging.getLogger(__name__)
 
 
 class TaskService:
@@ -200,6 +205,34 @@ class TaskService:
         return [task.to_dict() for task in page]
 
     @staticmethod
+    def _retry_refusal(task):
+        """Why this task cannot be retried, or ``None`` when it can.
+
+        A predicate rather than a raiser so the bulk path can skip a task
+        without paying for (and logging) a full ``Error``.
+
+        ``task.status`` is the status of the whole dependency CHAIN and
+        ``global_status`` ranks FAILED above FINISHED, so a chain whose core
+        finalize failed reports ``failed`` on its FINISHED root too. Only the
+        job that actually failed may be requeued: rq's ``requeue`` looks the job
+        up in ``FailedJobRegistry`` and raises when it is not there, and
+        re-running a FINISHED storage op would redo work that already
+        succeeded."""
+        if task.job_status != JobStatus.FAILED:
+            return (
+                f"Task {task.id} did not fail (it is {task.job_status}): "
+                "the failure is elsewhere in its chain"
+            )
+        # ``core`` steps are dispatched in-process by the change-handler and no
+        # rq worker pops that queue, so re-enqueueing one strands it forever.
+        if str(task.queue or "").startswith("core"):
+            return (
+                f"Task {task.id} is a chain finalize step with no worker fleet "
+                "and cannot be re-enqueued"
+            )
+        return None
+
+    @staticmethod
     def retry_task(task_id: str) -> dict:
         """Retry a failed task (admin only)."""
         if not Task.exists(task_id):
@@ -210,19 +243,37 @@ class TaskService:
                 "precondition_required",
                 f"Task should be failed, but is {task.status}",
             )
+        refusal = TaskService._retry_refusal(task)
+        if refusal:
+            raise Error("precondition_required", refusal)
         task.retry()
         return task.to_dict()
 
     @staticmethod
     def retry_all_failed_tasks() -> dict:
-        """Retry all failed storage tasks (admin only). Runs in background."""
-        tasks = Task.get_failed_storage_tasks()
-        for task in tasks:
+        """Retry all failed storage tasks (admin only). Runs in background.
+
+        Returns a per-outcome summary. Typed refusals (not the failed job of its
+        chain, no worker fleet, stranded lane) are *skipped*; anything else is
+        counted AND logged — the previous blanket ``except: pass`` made a
+        fleet-wide failure look like a successful bulk retry."""
+        summary = {"retried": 0, "skipped": 0, "errors": 0}
+        for task in Task.get_failed_storage_tasks():
+            if TaskService._retry_refusal(task):
+                summary["skipped"] += 1
+                continue
             try:
                 task.retry()
+            except ErrorBase:
+                # Typed refusal from the lane consumer gate — deliberate, not a
+                # batch error.
+                summary["skipped"] += 1
             except Exception:
-                pass
-        return {}
+                summary["errors"] += 1
+                log.error("could not retry task %s", task.id, exc_info=True)
+            else:
+                summary["retried"] += 1
+        return summary
 
     @staticmethod
     def admin_cancel_task(task_id: str) -> dict:

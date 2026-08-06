@@ -31,15 +31,22 @@
 # Environment overrides:
 #   ISARD_DIR   install dir holding docker-compose-parts/ (default: autodetected, else /opt/isard)
 #   STATS_DIR   metrics data dir (default: $ISARD_DIR/stats)
+#   PROMETHEUS_READY_TIMEOUT_SECONDS        how long to wait for the temporary Prometheus to
+#                                           replay its WAL before snapshotting (default: 1800)
+#   VICTORIAMETRICS_READY_TIMEOUT_SECONDS   how long to wait for the temporary VictoriaMetrics
+#                                           to answer /health (default: 120)
 #
 set -eu
+
+PROMETHEUS_READY_TIMEOUT_SECONDS=${PROMETHEUS_READY_TIMEOUT_SECONDS:-1800}
+VICTORIAMETRICS_READY_TIMEOUT_SECONDS=${VICTORIAMETRICS_READY_TIMEOUT_SECONDS:-120}
 
 FORCE=0
 for arg in "$@"; do
 	case "$arg" in
 	--force) FORCE=1 ;;
 	-h | --help)
-		sed -n '2,35p' "$0" | sed 's/^# \{0,1\}//'
+		sed -n '2,38p' "$0" | sed 's/^# \{0,1\}//'
 		exit 0
 		;;
 	*)
@@ -163,18 +170,33 @@ while :; do
 		break
 	fi
 
-	log "Creating a Prometheus snapshot (waiting for it to be ready)..."
-	_snapshot_url="http://$_prometheus_ip:9090/api/v1/admin/tsdb/snapshot"
-	_snapshot=""
+	# Prometheus replays its whole write-ahead log before serving the admin API, and
+	# that scales with the TSDB: a multi-tens-of-GiB store needs several minutes, so a
+	# short fixed wait aborts the migration on exactly the installs that need it most.
+	# Poll /-/ready (503 while replaying) instead of hammering the snapshot endpoint.
+	log "Waiting for the temporary Prometheus to replay its WAL (timeout ${PROMETHEUS_READY_TIMEOUT_SECONDS}s)..."
+	_ready=0
 	_waited=0
-	while [ "$_waited" -lt 60 ]; do
-		_snapshot=$(curl -sf -X POST "$_snapshot_url" 2>/dev/null | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
-		[ -n "$_snapshot" ] && break
-		_waited=$((_waited + 1))
-		sleep 1
+	while [ "$_waited" -lt "$PROMETHEUS_READY_TIMEOUT_SECONDS" ]; do
+		if curl -sf "http://$_prometheus_ip:9090/-/ready" >/dev/null 2>&1; then
+			_ready=1
+			break
+		fi
+		_waited=$((_waited + 5))
+		sleep 5
 	done
+	if [ "$_ready" != 1 ]; then
+		err "ERROR: the temporary Prometheus was not ready after ${PROMETHEUS_READY_TIMEOUT_SECONDS}s."
+		err "       Raise PROMETHEUS_READY_TIMEOUT_SECONDS if the WAL replay is still progressing. Its logs:"
+		docker logs --tail 20 "$PROMETHEUS_CONTAINER" 2>&1 | sed 's/^/    /' >&2 || true
+		break
+	fi
+
+	log "Creating a Prometheus snapshot..."
+	_snapshot_url="http://$_prometheus_ip:9090/api/v1/admin/tsdb/snapshot"
+	_snapshot=$(curl -sf -X POST "$_snapshot_url" 2>/dev/null | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
 	if [ -z "$_snapshot" ]; then
-		err "ERROR: the temporary Prometheus did not return a snapshot after 60s. Its logs:"
+		err "ERROR: the temporary Prometheus did not return a snapshot. Its logs:"
 		docker logs --tail 20 "$PROMETHEUS_CONTAINER" 2>&1 | sed 's/^/    /' >&2 || true
 		break
 	fi
@@ -203,7 +225,7 @@ while :; do
 	log "Waiting for VictoriaMetrics to be ready..."
 	_ready=0
 	_waited=0
-	while [ "$_waited" -lt 60 ]; do
+	while [ "$_waited" -lt "$VICTORIAMETRICS_READY_TIMEOUT_SECONDS" ]; do
 		if curl -sf "http://$_victoriametrics_ip:8428/health" >/dev/null 2>&1; then
 			_ready=1
 			break
@@ -212,7 +234,7 @@ while :; do
 		sleep 1
 	done
 	if [ "$_ready" != 1 ]; then
-		err "ERROR: the temporary VictoriaMetrics was not healthy after 60s."
+		err "ERROR: the temporary VictoriaMetrics was not healthy after ${VICTORIAMETRICS_READY_TIMEOUT_SECONDS}s."
 		break
 	fi
 

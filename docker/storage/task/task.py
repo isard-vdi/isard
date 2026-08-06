@@ -119,7 +119,15 @@ def _publishes_result(func):
             result = func(*args, **kwargs)
         except BaseException:
             job = get_current_job()
-            if job is not None:
+            # Only announce a failure once RQ has actually given up. It retries
+            # while ``retries_left`` is positive (``Job.should_retry``), and
+            # ``find`` / ``check_backing_chain`` are created with ``retry=3``,
+            # so publishing on every raised attempt made the change-handler run
+            # the chain's FAILURE branch and delete its core dependents while
+            # the task was still going to run again — leaving the successful
+            # retry with no finalizers to drive.
+            retries_left = getattr(job, "retries_left", None) if job else None
+            if job is not None and not (retries_left and retries_left > 0):
                 _publish_task_event(
                     job.connection,
                     kind="result",
@@ -1669,6 +1677,7 @@ def disconnect(storage_path):
     # a sibling temp file followed by an atomic rename; the operation is
     # short and the temp-file cleanup on cancel would need its own logic.
     disconnected_path = storage_path + ".wo_chain"
+    _safe_unlink(disconnected_path)  # clear a stale sibling from a prior crashed run
 
     try:
         run(
@@ -1690,6 +1699,8 @@ def disconnect(storage_path):
         # success. Clean the partial sibling and re-raise.
         _safe_unlink(disconnected_path)
         raise
-    remove(storage_path)
+    # One atomic rename replaces the original in place. Do NOT remove() the
+    # original first: a crash between the remove and the rename would leave the
+    # disk missing and dangle any child that backs onto this path.
     rename(disconnected_path, storage_path)
     return 0

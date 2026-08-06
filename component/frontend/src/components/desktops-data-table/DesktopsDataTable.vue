@@ -164,12 +164,27 @@ const headers = [
     </template>
 
     <template #cell-actions="{ row }">
-      <div class="flex flex-row items-center justify-end gap-2">
+      <div class="flex flex-row items-center justify-end gap-2 w-full">
+        <Button
+          hierarchy="secondary-gray"
+          icon="info-circle"
+          class="aspect-square p-[10px]"
+          @click="emit('showInfoModal', row)"
+        />
+
         <Button
           hierarchy="secondary-gray"
           icon="modem-02"
           class="aspect-square p-[10px]"
           @click="emit('showNetworksModal', row)"
+        />
+
+        <Button
+          v-if="row.bastion_target?.http?.enabled || row.bastion_target?.ssh?.enabled"
+          hierarchy="secondary-gray"
+          icon="globe-04"
+          class="aspect-square p-[10px]"
+          @click="emit('showBastionModal', row)"
         />
 
         <DropdownMenu>
@@ -184,10 +199,8 @@ const headers = [
           <DropdownMenuContent class="bg-white border border-gray-warm-300 rounded-lg" align="end">
             <DesktopCardHeaderActionsDropdownContent
               :desktop="row"
-              @show-info-modal="emit('showInfoModal', row)"
               @edit-desktop="emit('editDesktop', row)"
               @show-delete-modal="emit('showDeleteModal', row)"
-              @show-bastion-modal="emit('showBastionModal', row)"
               @show-direct-link-modal="emit('showDirectLinkModal', row)"
               @show-recreate-modal="emit('showRecreateModal', row)"
               @create-template="emit('createTemplate', row)"

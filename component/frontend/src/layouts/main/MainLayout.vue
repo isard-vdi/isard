@@ -12,9 +12,10 @@ import { MessageModal } from '@/components/modal'
 
 import { useSessionStore } from '@/stores/session'
 import { sidebarItemsToShow } from '@/lib/navigation'
+import { DEFAULT_DOCS_URL, DEFAULT_VIEWERS_DOCS_URL, docsUrl } from '@/lib/docs'
 import { getUserOptions, getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const sessionStore = useSessionStore()
 
@@ -28,6 +29,12 @@ const { isPending: isUserLoading, data: user } = useQuery({
   staleTime: Infinity
 })
 
+// In `hidden` mode the login notifications page is a transitional landing that
+// must funnel the user back to the old frontend.
+const redirectToOldFrontend = computed(
+  () => route.name === 'notifications' && userConfig?.value?.frontend_mode === 'hidden'
+)
+
 // TODO: Uncomment if the TopBar is required
 // const navItems = computed(() => getRoleTopBarItems(user.value?.role as Role).mainItems)
 const sidebarItems = computed(() => {
@@ -36,7 +43,8 @@ const sidebarItems = computed(() => {
     route.name as string,
     user?.value.items_in_bin,
     userConfig?.value.show_bookings_button ?? true,
-    userConfig?.value.show_gpu_plannings ?? false
+    userConfig?.value.show_gpu_plannings ?? false,
+    redirectToOldFrontend.value
   ) ?? {
     mainItems: [],
     footerItems: []
@@ -52,16 +60,17 @@ const sidebarItems = computed(() => {
             if (subItem.key === 'docs') {
               return {
                 ...subItem,
-                href:
-                  userConfig?.value?.documentation_url || 'https://isard.gitlab.io/isardvdi-docs/'
+                href: docsUrl(userConfig?.value?.documentation_url, DEFAULT_DOCS_URL, locale.value)
               }
             }
             if (subItem.key === 'viewers') {
               return {
                 ...subItem,
-                href:
-                  userConfig?.value?.viewers_documentation_url ||
-                  'https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/'
+                href: docsUrl(
+                  userConfig?.value?.viewers_documentation_url,
+                  DEFAULT_VIEWERS_DOCS_URL,
+                  locale.value
+                )
               }
             }
             return subItem

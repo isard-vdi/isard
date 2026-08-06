@@ -4,7 +4,7 @@ import { ref, computed, watch } from 'vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useAuthStore } from './auth'
 import { useUserStore } from './user'
-import { isProvider } from '@/lib/auth'
+import { isProvider, TokenType } from '@/lib/auth'
 import { apiV4CategoryCustomUrl } from '@/gen/oas/apiv4'
 
 export type SessionModalKind = 'renew' | 'max-renew-time' | 'max-time' | 'error-renew'
@@ -47,6 +47,11 @@ export const useSessionStore = defineStore('session', () => {
    */
   const initialize = async () => {
     console.debug('🎯 Initializing session management')
+
+    if (authStore.tokenType !== TokenType.Login) {
+      console.debug('❌ Non-login token, skipping session initialization')
+      return
+    }
 
     // If session is isard-service skip session initialization
     if (authStore.sessionId === 'isard-service') {

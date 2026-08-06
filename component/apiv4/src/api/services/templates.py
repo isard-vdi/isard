@@ -30,6 +30,7 @@ from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.helpers.viewers import available_viewers
 from isardvdi_common.lib.api_admin import ApiAdmin as CommonApiAdmin
 from isardvdi_common.lib.domains.desktops.desktops import (
     DesktopsProcessed as CommonDesktops,
@@ -485,9 +486,7 @@ class TemplateService:
                 {"id": i["id"], "name": interfaces_names[i["id"]]}
                 for i in details["create_dict"]["hardware"].get("interfaces", [])
             ],
-            "viewers": list(
-                details.get("guest_properties", {}).get("viewers", {}).keys()
-            ),
+            "viewers": available_viewers(details.get("guest_properties")),
             "fullscreen": details.get("guest_properties", {}).get("fullscreen", False),
             "reservables": details["create_dict"].get("reservables", {"vgpus": None}),
             "credentials": details.get("guest_properties", {}).get(

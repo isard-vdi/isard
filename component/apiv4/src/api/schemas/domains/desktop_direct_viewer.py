@@ -24,7 +24,7 @@ from typing import Literal, Optional, Union
 
 from api.schemas.bastion import BastionDirectViewerResponse
 from api.schemas.domains.desktops import DesktopDetailsResponse
-from isardvdi_common.schemas.domains import DesktopStatusEnum, Image
+from isardvdi_common.schemas.domains import DesktopStatusEnum, DesktopTypeEnum, Image
 from pydantic import BaseModel, Field
 
 
@@ -146,6 +146,9 @@ class DesktopViewerResponse(BaseModel):
     )
     status: DesktopStatusEnum = Field(
         description="Status of the desktop.",
+    )
+    type: DesktopTypeEnum = Field(
+        description="Type of the desktop.",
     )
     scheduled: Optional[DesktopViewerScheduled] = Field(
         default=None,

@@ -247,6 +247,21 @@ class StoragePool(RethinkCustomBase):
             storage_pools = cls.get_by_path(path)
         else:
             storage_pools = cls.get_all()
+        # Never route a task to a DISABLED pool: its queue lane has no worker,
+        # so the job would sit queued forever. A task only needs SOME enabled
+        # pool's worker — the worker operates on the job's storage_path (shared
+        # storage), not on "its" own pool — so any enabled pool is a valid
+        # target. Mirrors the disabled-skip already done in get_by_user_kind.
+        #
+        # Only an explicit ``False`` disables a pool. ``RethinkBase.__getattr__``
+        # plucks the field and returns ``.get(name)``, so a document predating
+        # ``enabled`` yields None instead of raising — a ``getattr`` default
+        # would be unreachable and every such pool would read as disabled.
+        storage_pools = [sp for sp in storage_pools if sp.enabled is not False]
+        if not storage_pools:
+            # The path resolved only to disabled pool(s) (e.g. one being
+            # drained). Fall back to any enabled pool so the op still runs.
+            storage_pools = [sp for sp in cls.get_all() if sp.enabled is not False]
         # No eligible pool (empty/misconfigured storage_pool table). Surface a
         # typed error instead of returning None — every caller dereferences
         # ``.id`` on the result, so a None would become an opaque 500 for what

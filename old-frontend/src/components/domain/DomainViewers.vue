@@ -97,7 +97,11 @@ export default {
     const wireguard = computed(() => domain.value.hardware.interfaces.includes('wireguard'))
     const availableHardware = computed(() => $store.getters.getHardware)
     watch(wireguard, (newVal, prevVal) => {
-      if (!wireguard.value) {
+      // Only on a real removal. Reading the current value instead of the
+      // transition also fired when the form was simply handed a domain that
+      // never had the network, announcing a removal that never happened and
+      // stripping the RDP viewers on plain navigation.
+      if (prevVal === true && newVal === false) {
         ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.wireguard-viewers-removed'), '', true, 5000)
         $store.dispatch('removeWireguardViewers')
       }

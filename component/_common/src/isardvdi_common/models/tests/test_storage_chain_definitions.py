@@ -535,7 +535,7 @@ def test_enqueue_disk_creation_fails_domain_with_reason_on_no_consumer():
         ),
         patch("isardvdi_common.models.domain.Domain") as MockDomain,
         patch(
-            "isardvdi_common.models.storage.queue_coverage.check_no_consumer",
+            "isardvdi_common.models.storage.queue_coverage.check_shed",
             side_effect=Error(
                 "too_many_requests",
                 "Storage lane poolA/interactive is temporarily unable to accept work",
@@ -552,6 +552,56 @@ def test_enqueue_disk_creation_fails_domain_with_reason_on_no_consumer():
     assert domain_obj.status == "Failed"
     assert "no online storage worker" in domain_obj.detail
     mock_create.assert_not_called()  # aborted before enqueuing anything
+
+
+def test_enqueue_disk_creation_fails_domain_with_overload_detail_on_shed():
+    """When the disk-create lane is a FOREGROUND overload (live consumer, but
+    over its hard backlog cap), the pre-flight must reject it too — before
+    any state mutation — same as no-consumer, but with overload wording so
+    the desktop shows a retry-shortly message instead of the no-worker one."""
+    import pytest
+
+    Error = _import_error_class()
+    s = _bare_storage(id="child-storage", parent=None)
+    domain_obj = MagicMock()
+
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch.object(Storage, "set_maintenance") as mock_maintenance,
+        patch.object(
+            Storage,
+            "pool",
+            new_callable=PropertyMock,
+            return_value=MagicMock(id="poolA"),
+        ),
+        patch.object(
+            Storage,
+            "category",
+            new_callable=PropertyMock,
+            return_value="cat-1",
+            create=True,
+        ),
+        patch("isardvdi_common.models.domain.Domain") as MockDomain,
+        patch(
+            "isardvdi_common.models.storage.queue_coverage.check_shed",
+            side_effect=Error(
+                "too_many_requests",
+                "Storage lane poolA/interactive is temporarily unable to accept work",
+                description_code="storage_overloaded_retry_later",
+            ),
+        ),
+    ):
+        MockDomain.exists.return_value = True
+        MockDomain.return_value = domain_obj
+        with pytest.raises(Error) as exc_info:
+            s.enqueue_disk_creation_chain_for_domain(domain_id="d1", size="10G")
+
+    assert getattr(exc_info.value, "status_code", None) == 429
+    assert domain_obj.status == "Failed"
+    assert "overloaded" in domain_obj.detail
+    assert "no online storage worker" not in domain_obj.detail
+    mock_create.assert_not_called()  # aborted before enqueuing anything
+    mock_maintenance.assert_not_called()  # no state mutation before the reject
 
 
 def test_enqueue_disk_creation_preflights_consumer_then_proceeds():
@@ -577,7 +627,7 @@ def test_enqueue_disk_creation_preflights_consumer_then_proceeds():
         ),
         patch("isardvdi_common.models.domain.Domain") as MockDomain,
         patch(
-            "isardvdi_common.models.storage.queue_coverage.check_no_consumer",
+            "isardvdi_common.models.storage.queue_coverage.check_shed",
         ) as mock_check,
     ):
         MockDomain.exists.return_value = False  # skip the CreatingDisk flip

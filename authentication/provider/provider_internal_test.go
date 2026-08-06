@@ -818,3 +818,64 @@ func TestGuessRole(t *testing.T) {
 		})
 	}
 }
+
+func TestAutoRegister(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	log := log.New("test", "debug")
+
+	cases := map[string]struct {
+		Cfg      autoRegisterOpts
+		User     *model.User
+		Expected bool
+	}{
+		"should allow the registration if there are no role restrictions": {
+			Cfg: autoRegisterOpts{
+				AutoRegister: true,
+			},
+			User:     &model.User{UID: "nefix", Role: model.RoleUser},
+			Expected: true,
+		},
+		"should allow the registration if the user role is in the allowed roles list": {
+			Cfg: autoRegisterOpts{
+				AutoRegister:      true,
+				AutoRegisterRoles: []string{"admin", "user"},
+			},
+			User:     &model.User{UID: "nefix", Role: model.RoleUser},
+			Expected: true,
+		},
+		"should deny the registration if auto register is disabled": {
+			Cfg: autoRegisterOpts{
+				AutoRegister: false,
+			},
+			User:     &model.User{UID: "nefix", Role: model.RoleUser},
+			Expected: false,
+		},
+		"should deny the registration if the user role is not in the allowed roles list": {
+			Cfg: autoRegisterOpts{
+				AutoRegister:      true,
+				AutoRegisterRoles: []string{"admin"},
+			},
+			User:     &model.User{UID: "nefix", Role: model.RoleUser},
+			Expected: false,
+		},
+		"should deny the registration if the user role is empty and there are allowed roles configured": {
+			Cfg: autoRegisterOpts{
+				AutoRegister:      true,
+				AutoRegisterRoles: []string{"admin", "user"},
+			},
+			User:     &model.User{UID: "nefix", Role: ""},
+			Expected: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(tc.Expected, autoRegister(log, tc.Cfg, tc.User))
+		})
+	}
+}

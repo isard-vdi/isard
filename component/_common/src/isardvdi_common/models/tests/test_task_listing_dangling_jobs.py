@@ -41,6 +41,14 @@ def _full_queue(registry_ids=None, queued_ids=()):
     return queue, regs
 
 
+def _patch_exists(dangling):
+    """``Task.exists`` mirrors the construction fake: a dangling id does not
+    exist, everything else does."""
+    return patch.object(
+        Task, "exists", classmethod(lambda cls, jid: jid not in dangling)
+    )
+
+
 def _patch_construction(dangling):
     """Patch ``Task(id=...)`` so listed ids resolve to a light fake task, except
     the given dangling ids which raise ``NoSuchJobError`` like a real
@@ -76,8 +84,14 @@ def test_get_by_status_purges_dangling_registry_id():
 
 
 def test_get_by_status_purges_dangling_queue_id():
+    """A dangling id on the queue list is cleared even by a scan that does not
+    want queued jobs — otherwise it breaks every later pass."""
     queue, _ = _full_queue(queued_ids=["dangling_q"])
-    with _patch_queue(queue), _patch_construction({"dangling_q"}):
+    with (
+        _patch_queue(queue),
+        _patch_construction({"dangling_q"}),
+        _patch_exists({"dangling_q"}),
+    ):
         tasks = Task.get_by_status(JobStatus.DEFERRED.value)
     assert tasks == []
     queue.remove.assert_called_once_with("dangling_q")
@@ -87,9 +101,10 @@ def test_get_by_status_no_purge_when_all_live():
     queue, regs = _full_queue(
         registry_ids={"deferred": ["live1"]}, queued_ids=["live2"]
     )
-    with _patch_queue(queue), _patch_construction(set()):
+    with _patch_queue(queue), _patch_construction(set()), _patch_exists(set()):
         tasks = Task.get_by_status(JobStatus.DEFERRED.value)
-    assert sorted(t.job.id for t in tasks) == ["live1", "live2"]
+    # ``live2`` is QUEUED: a DEFERRED scan must not return it.
+    assert sorted(t.job.id for t in tasks) == ["live1"]
     regs["deferred"].remove.assert_not_called()
     queue.remove.assert_not_called()
 

@@ -22,7 +22,7 @@ import html
 import traceback
 
 from api.services.error import Error
-from api.services.login_config_cache import clear_login_config_cache, clear_logo_cache
+from api.services.login_config_cache import clear_logo_cache
 from isardvdi_common.configuration import Configuration
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.category import Category
@@ -184,8 +184,6 @@ class AdminCategoryService:
 
         Category(category_id).login_notification = current
 
-        clear_login_config_cache()
-
     @staticmethod
     def enable_login_notification(
         payload: dict, category_id: str, notification_type: str, enabled: bool
@@ -200,8 +198,6 @@ class AdminCategoryService:
         notif["enabled"] = enabled
         current[key] = notif
         Category(category_id).login_notification = current
-
-        clear_login_config_cache()
 
     # ── Logo (public) ────────────────────────────────────────────────────
 

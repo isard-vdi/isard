@@ -21,7 +21,7 @@
 from typing import Literal, Optional, Union
 
 from isardvdi_common.schemas.domains import DomainViewerEnum
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
 class DomainImageFile(BaseModel):
@@ -174,6 +174,19 @@ class DomainGuestProperties(BaseModel):
         default=None,
         description="Configuration for various viewers that will be available to access the desktop. Only the configured viewers will be available.",
     )
+
+    @field_serializer("viewers")
+    def _drop_unavailable_viewers(self, value):
+        # The fields are ``Optional[...] = None``, so without this every
+        # model_dump emits all five keys and an unavailable viewer looks
+        # available to clients that read by key presence.
+        if value is None:
+            return None
+        return {
+            key: viewer
+            for key, viewer in value.model_dump().items()
+            if viewer is not None
+        }
 
 
 class MediaHardware(BaseModel):

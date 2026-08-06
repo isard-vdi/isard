@@ -30,9 +30,12 @@ RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repo
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
 RUN apk -U upgrade --no-cache
+# @community (edge) is load-bearing here: Alpine stable also ships guacamole, so dropping
+# it silently downgrades guacd 1.6 -> 1.5.5 and breaks RDP Browser against the 1.6 client.
 RUN apk add --no-cache \
-    conntrack-tools dnsmasq guacamole-server guacamole-server-dev \
-    guacamole-server-rdp iptables libffi openssh openssl \
+    conntrack-tools dnsmasq guacamole-server@community \
+    guacamole-server-dev@community guacamole-server-rdp@community \
+    iptables libffi openssh openssl \
     openvswitch@community wireguard-tools
 
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db

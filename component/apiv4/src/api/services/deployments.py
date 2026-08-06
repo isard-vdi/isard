@@ -35,6 +35,7 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.helpers.viewers import available_viewers
 from isardvdi_common.lib.deployments.deployment_desktops import (
     DeploymentDesktopsProcessed as CommonDeploymentDesktops,
 )
@@ -326,8 +327,7 @@ class DeploymentService:
             # response model (``UserDeploymentDesktop``) hyphenates on
             # output via ``_hyphenate_viewers_for_clients`` so old- and
             # new-frontend i18n lookups resolve.
-            viewers = (desktop.get("guest_properties") or {}).get("viewers") or {}
-            desktop["viewers"] = list(viewers.keys())
+            desktop["viewers"] = available_viewers(desktop.get("guest_properties"))
             if "guest_properties" in desktop and "viewers" in (
                 desktop["guest_properties"] or {}
             ):

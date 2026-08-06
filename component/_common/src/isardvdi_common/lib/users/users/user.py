@@ -55,6 +55,15 @@ from ....models.user import UserModel
 from ....schemas.user import UserFromCSV
 from .user_policies import UserPolicies
 
+# Throttle for the storage-quota sync, which spawns an unpooled daemon thread
+# per call. One entry per (user_id, session_id): a fresh login always syncs,
+# every later request of that session is a no-op until the entry expires. The
+# TTL matches the user_config cache below so the sync keeps the once-per-minute
+# ceiling it used to inherit from it.
+_user_quota_sync_throttle: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=600, ttl=60
+)
+
 
 class UsersProcessed(RethinkSharedConnection):
 
@@ -501,11 +510,57 @@ class UsersProcessed(RethinkSharedConnection):
         return False
 
     @classmethod
+    def _sync_user_storage_quota(cls, payload):
+        """Start the storage-quota sync unless this session already did.
+
+        Returns whether the sync was started.
+        """
+        key = hashkey(payload["user_id"], payload.get("session_id"))
+        # Claim the slot under the cache lock: cachetools' @cached runs the
+        # wrapped function outside its lock, so it cannot bound a side effect.
+        with _user_quota_sync_throttle.lock:
+            if key in _user_quota_sync_throttle:
+                return False
+            _user_quota_sync_throttle[key] = True
+        UserStorage.isard_user_storage_update_user_quota(payload["user_id"])
+        return True
+
+    @classmethod
+    def user_config(cls, payload):
+        """Assemble the frontend config: cached body plus per-request session."""
+        # The quota sync is a side effect and the session block is per-request
+        # state, so neither may be served from the cached body below.
+        cls._sync_user_storage_quota(payload)
+        # If the session id is isard-service it means that it's an impersonated user
+        if payload.get("session_id") in ["isardvdi-service", "api-key"]:
+            session = {
+                "id": "isardvdi-service",
+                "max_renew_time": 0,
+                "max_time": 0,
+            }
+        else:
+            user_session = get_user_session_id(payload["user_id"])
+            session = {
+                "id": user_session.id,
+                "max_renew_time": user_session.time.max_renew_time.ToSeconds(),
+                "max_time": user_session.time.max_time.ToSeconds(),
+            }
+        return {**cls._user_config_cached(payload), "session": session}
+
+    @classmethod
     @cached(
         cache=SynchronizedTTLCache(maxsize=600, ttl=60),
-        key=lambda cls, payload: payload["user_id"],
+        # Every payload field the body reads, directly or through
+        # Helpers.can_use_bastion* -> Alloweds.is_allowed (which reads group_id).
+        key=lambda cls, payload: hashkey(
+            payload["user_id"],
+            payload["role_id"],
+            payload["category_id"],
+            payload.get("group_id"),
+            payload.get("provider", "local"),
+        ),
     )
-    def user_config(cls, payload):
+    def _user_config_cached(cls, payload):
         """_From api/libv2/api_users.py ApiUsers.Config()_"""
         show_bookings_button = (
             True
@@ -534,27 +589,12 @@ class UsersProcessed(RethinkSharedConnection):
             if os.environ.get(env_var, "").lower() == "true":
                 frontend_show_change_email = False
 
-        UserStorage.isard_user_storage_update_user_quota(payload["user_id"])
         if Helpers.can_use_bastion(payload):
             bastion_allowed = True
             bastion_domain = Bastion.get_bastion_domain(payload["category_id"])
         else:
             bastion_allowed = False
             bastion_domain = None
-        # If the session id is isard-service it means that it's an impersonated user
-        if payload.get("session_id") in ["isardvdi-service", "api-key"]:
-            session = {
-                "id": "isardvdi-service",
-                "max_renew_time": 0,
-                "max_time": 0,
-            }
-        else:
-            user_session = get_user_session_id(payload["user_id"])
-            session = {
-                "id": user_session.id,
-                "max_renew_time": user_session.time.max_renew_time.ToSeconds(),
-                "max_time": user_session.time.max_time.ToSeconds(),
-            }
 
         frontend_mode_raw = getenv("FRONTEND_MODE", "deprecated")
         frontend_mode = (
@@ -597,7 +637,6 @@ class UsersProcessed(RethinkSharedConnection):
                 "can_use_bastion_individual_domains": Helpers.can_use_bastion_individual_domains(
                     payload
                 ),
-                "session": session,
                 "category_custom_url": CategoriesProcessed.get_custom_login_url(
                     payload["category_id"]
                 ),
@@ -1149,76 +1188,81 @@ class UsersProcessed(RethinkSharedConnection):
 
             # TODO: Test when changing to apiv4 since deployments in apiv4 are different
             for deployment in deployments:
+                # Desktops migrated from before release 184 carry
+                # tag_desktop_id=False, so they can only be matched by tag.
+                with cls._rdb_context():
+                    deployment_desktops = list(
+                        r.table("domains")
+                        .get_all(deployment["id"], index="tag")
+                        .pluck("id", "tag_desktop_id")
+                        .run(cls._rdb_connection)
+                    )
+
+                desktop_ids_by_recipe = {}
+                legacy_desktop_ids = []
+                for desktop in deployment_desktops:
+                    recipe_id = desktop.get("tag_desktop_id")
+                    if recipe_id:
+                        desktop_ids_by_recipe.setdefault(recipe_id, []).append(
+                            desktop["id"]
+                        )
+                    else:
+                        legacy_desktop_ids.append(desktop["id"])
+
                 new_create_dict = []
-                for create_dict in deployment["create_dict"]:
+                for position, create_dict in enumerate(deployment["create_dict"]):
                     Helpers.revoke_hardware_permissions(
                         {"create_dict": create_dict}, user_gen_payload
                     )
                     new_create_dict.append(create_dict)
+
+                    desktop_ids = list(
+                        desktop_ids_by_recipe.get(create_dict.get("tag_desktop_id"), [])
+                    )
+                    if position == 0:
+                        desktop_ids.extend(legacy_desktop_ids)
+                    if not desktop_ids:
+                        continue
+
+                    create_dict_update = {
+                        "hardware": {
+                            "boot_order": create_dict["hardware"]["boot_order"],
+                            "disk_bus": create_dict["hardware"]["disk_bus"],
+                            "floppies": create_dict["hardware"]["floppies"],
+                            "isos": create_dict["hardware"]["isos"],
+                            "memory": create_dict["hardware"]["memory"],
+                            "vcpus": create_dict["hardware"]["vcpus"],
+                            "videos": create_dict["hardware"]["videos"],
+                        }
+                    }
+                    if "reservables" in create_dict:
+                        create_dict_update["reservables"] = create_dict["reservables"]
+
                     allowed_interfaces = create_dict["hardware"]["interfaces"]
+                    # One parameter only: ReQL takes the lambda's arity from its
+                    # signature, so extra default args make the write a no-op.
                     with cls._rdb_context():
-                        r.table("domains").get_all(
-                            create_dict["tag_desktop_id"], index="tag_desktop_id"
-                        ).update(
+                        r.table("domains").get_all(r.args(desktop_ids)).update(
                             lambda desktop: {
-                                "create_dict": {
-                                    "hardware": {
-                                        "interfaces": desktop["create_dict"][
-                                            "hardware"
-                                        ]["interfaces"].filter(
-                                            lambda interface: r.expr(
-                                                allowed_interfaces
-                                            ).contains(interface["id"])
-                                        ),
-                                        "boot_order": create_dict["hardware"][
-                                            "boot_order"
-                                        ],
-                                        "disk_bus": create_dict["hardware"]["disk_bus"],
-                                        "floppies": create_dict["hardware"]["floppies"],
-                                        "isos": create_dict["hardware"]["isos"],
-                                        "memory": create_dict["hardware"]["memory"],
-                                        "vcpus": create_dict["hardware"]["vcpus"],
-                                        "videos": create_dict["hardware"]["videos"],
-                                    },
-                                    "reservables": create_dict["reservables"],
-                                }
+                                "create_dict": r.expr(create_dict_update).merge(
+                                    {
+                                        "hardware": {
+                                            "interfaces": desktop["create_dict"][
+                                                "hardware"
+                                            ]["interfaces"].filter(
+                                                lambda interface: r.expr(
+                                                    allowed_interfaces
+                                                ).contains(interface["id"])
+                                            )
+                                        }
+                                    }
+                                )
                             }
-                        ).run(
-                            cls._rdb_connection
-                        )
+                        ).run(cls._rdb_connection)
 
                 with cls._rdb_context():
                     r.table("deployments").get(deployment["id"]).update(
                         {"create_dict": new_create_dict}
-                    ).run(cls._rdb_connection)
-
-                # Limit deployment desktops hardware
-                allowed_interfaces = new_create_dict["hardware"]["interfaces"]
-                with cls._rdb_context():
-                    r.table("domains").get_all(deployment["id"], index="tag").update(
-                        lambda desktop: {
-                            "create_dict": {
-                                "hardware": {
-                                    "interfaces": desktop["create_dict"]["hardware"][
-                                        "interfaces"
-                                    ].filter(
-                                        lambda interface: r.expr(
-                                            allowed_interfaces
-                                        ).contains(interface["id"])
-                                    ),
-                                    "boot_order": new_create_dict["hardware"][
-                                        "boot_order"
-                                    ],
-                                    "disk_bus": new_create_dict["hardware"]["disk_bus"],
-                                    "floppies": new_create_dict["hardware"]["floppies"],
-                                    "isos": new_create_dict["hardware"]["isos"],
-                                    "memory": new_create_dict["hardware"]["memory"],
-                                    "vcpus": new_create_dict["hardware"]["vcpus"],
-                                    "videos": new_create_dict["hardware"]["videos"],
-                                },
-                                "reservables": new_create_dict["reservables"],
-                            }
-                        }
                     ).run(cls._rdb_connection)
 
     # ``update_multiple_users_th`` was a fire-and-forget gevent.spawn
@@ -1257,12 +1301,13 @@ class UsersProcessed(RethinkSharedConnection):
             data.pop("ids")
 
         with cls._rdb_context():
-            users = (
+            users = list(
                 r.table("users")
                 .get_all(r.args(user_ids))
-                .pluck("id", "category", "group", "uid", "provider")
+                .pluck("id", "category", "group", "uid", "provider", "email", "role")
                 .run(cls._rdb_connection)
             )
+        users_by_id = {user["id"]: user for user in users}
 
         for user in users:
             if (
@@ -1375,7 +1420,7 @@ class UsersProcessed(RethinkSharedConnection):
                 enabled=data.get("active"),
             )
 
-            if data.get("group") and user["group"] != data["group"]:
+            if data.get("group") and users_by_id[user_id]["group"] != data["group"]:
                 cls.change_user_group(
                     user_id,
                     data["group"],
@@ -1499,11 +1544,6 @@ class UsersProcessed(RethinkSharedConnection):
                     traceback.format_exc(),
                 )
             data["quota"] = False
-
-            cls.change_user_group(
-                user["id"],
-                data["group"],
-            )
 
         with cls._rdb_context():
             # TODO(move-users-to-common): pydantic validation

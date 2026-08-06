@@ -7,10 +7,14 @@ config). All endpoints sit on admin_router (admin-only).
 """
 
 import json
+import re
 import time
+from pathlib import Path
 
 import pytest
 from api.routes.tests.helpers import MockJWT
+from api.schemas.admin.queues import GovernorGaugesResponse
+from api.services.admin import queues as queues_service
 from api.services.admin.queues import STORAGE_SCHEDULER_DEFAULTS
 from api.services.error import Error
 
@@ -771,6 +775,9 @@ class FakeRedis:
     def get(self, key):
         return self._strings.get(key)
 
+    def mget(self, keys):
+        return [self._strings.get(k) for k in keys]
+
     # --- WRITES: must never be called by a read path ---
     def set(self, key, value, *a, **k):
         self.set_calls.append((key, value))
@@ -994,6 +1001,81 @@ class TestLaneStats:
         assert counts["started_cleanup"] == [False]
 
 
+# ── the /admin/queues counters are a GET: they must not mutate RQ state ────
+class TestQueueJobCountsAreReadOnly:
+    QUEUE = "storage.default.maintenance"
+
+    @pytest.fixture(autouse=True)
+    def _clean(self):
+        gov.clear_queue_data_caches()
+        yield
+        gov.clear_queue_data_caches()
+
+    def _fake_redis(self):
+        return FakeRedis(
+            lists={f"rq:queue:{self.QUEUE}": ["a", "b", "c"]},
+            zsets={
+                f"rq:wip:{self.QUEUE}": ["s1", "s2"],
+                f"rq:finished:{self.QUEUE}": ["f1"],
+                f"rq:failed:{self.QUEUE}": ["e1", "e2", "e3"],
+                f"rq:deferred:{self.QUEUE}": ["d1"],
+                f"rq:scheduled:{self.QUEUE}": [],
+                f"rq:canceled:{self.QUEUE}": ["c1", "c2", "c3", "c4"],
+            },
+        )
+
+    def test_no_registry_cleanup_on_dashboard_read(self, monkeypatch):
+        # StartedJobRegistry.cleanup() moves timed-out started jobs into
+        # FailedJobRegistry, firing failure callbacks / retries / dependent
+        # enqueues. A dashboard poll must never trigger it.
+        import rq.registry as rqreg
+
+        def boom(self, *a, **k):
+            raise AssertionError(
+                f"{type(self).__name__}.cleanup() called from a read path"
+            )
+
+        for cls in (
+            rqreg.BaseRegistry,
+            rqreg.StartedJobRegistry,
+            rqreg.FinishedJobRegistry,
+            rqreg.FailedJobRegistry,
+            rqreg.DeferredJobRegistry,
+        ):
+            monkeypatch.setattr(cls, "cleanup", boom)
+        monkeypatch.setattr(gov, "_connect_redis", self._fake_redis)
+
+        gov.AdminQueuesService._get_queue_jobs(self.QUEUE)
+
+    def test_registry_reads_pass_cleanup_false_and_counts_are_correct(
+        self, monkeypatch
+    ):
+        import rq.registry as rqreg
+
+        seen = []
+        real = rqreg.BaseRegistry.get_job_count
+
+        def spy(self, cleanup=True):
+            seen.append(cleanup)
+            return real(self, cleanup=cleanup)
+
+        monkeypatch.setattr(rqreg.BaseRegistry, "get_job_count", spy)
+        monkeypatch.setattr(gov, "_connect_redis", self._fake_redis)
+
+        counts = gov.AdminQueuesService._get_queue_jobs(self.QUEUE)
+
+        assert seen and all(c is False for c in seen)
+        assert counts == {
+            "queued": 3,
+            "started": 2,
+            "finished": 1,
+            "failed": 3,
+            "deferred": 1,
+            "scheduled": 0,
+            "canceled": 4,
+        }
+
+
 # ── (g) category name map: friendly labels, one read, no N+1 ───────────────
 class TestCategoryNameMap:
     def test_resolves_and_reads_once(self, monkeypatch, clean_gov_caches):
@@ -1143,6 +1225,75 @@ class TestConfiguredCategorySeed:
         # flat/P1 install: no per-category scheduling -> panels stay empty.
         assert data["multitenancy_active"] is False
         assert data["pools"] == []
+
+
+# ── (h2) shed / defer counters surfaced in the governor payload ────────────
+#
+# A shed 429 is seen only by the rejected caller and ``deferring`` is a
+# point-in-time gauge, so without these fields a shed storm or an oscillating
+# defer storm is invisible to every operator view.
+class TestShedDeferCounters:
+    def _conn(self, **strings):
+        from isardvdi_common.lib import governor_counters as gcnt
+
+        minute = int(time.time() // 60)
+        return FakeRedis(
+            rq_queues=["storage.default.maintenance"],
+            hashes={
+                gcnt.totals_key(gcnt.SHED): {
+                    b"total": b"7",
+                    b"reason:no_consumer": b"5",
+                    b"reason:overloaded": b"2",
+                    b"tier:interactive": b"7",
+                    b"last_reason": b"no_consumer",
+                    b"last_pool": b"default",
+                    b"last_tier": b"interactive",
+                },
+                gcnt.totals_key(gcnt.DEFER): {
+                    b"total": b"3",
+                    b"reason:psi": b"3",
+                    b"last_worker": b"storage-1",
+                },
+            },
+            strings={
+                f"{gcnt.COUNTERS_PREFIX}:{gcnt.SHED}:m:{minute}": b"4",
+                f"{gcnt.COUNTERS_PREFIX}:{gcnt.DEFER}:m:{minute}": b"3",
+            },
+        )
+
+    def test_counters_in_payload(self, monkeypatch, clean_gov_caches):
+        conn = self._conn()
+        monkeypatch.setattr(gov, "_connect_redis", lambda: conn)
+        monkeypatch.setattr(
+            gov.CommonCategories, "get_id_name_map", staticmethod(lambda: {})
+        )
+        monkeypatch.setattr(
+            gov.Config, "get_storage_scheduler_config", staticmethod(lambda: {})
+        )
+        data = gov.AdminQueuesService.get_governor()
+        assert data["shed"]["total"] == 7
+        assert data["shed"]["recent"] == 4
+        assert data["shed"]["by_reason"] == {"no_consumer": 5, "overloaded": 2}
+        assert data["shed"]["by_tier"] == {"interactive": 7}
+        assert data["shed"]["last_pool"] == "default"
+        assert data["defer"]["total"] == 3
+        assert data["defer"]["recent"] == 3
+        assert data["defer"]["last_worker"] == "storage-1"
+        # still read-only: reading a counter must never write one.
+        assert conn.set_calls == []
+        assert conn.forbidden_calls == []
+
+    def test_counters_zeroed_when_degraded(self):
+        data = gov.AdminQueuesService._degraded_governor(1751884800.0)
+        assert data["shed"]["total"] == 0
+        assert data["defer"]["total"] == 0
+        assert data["shed"]["last_reason"] is None
+
+    def test_counters_validate_against_the_response_model(self):
+        data = gov.AdminQueuesService._degraded_governor(1751884800.0)
+        model = GovernorGaugesResponse(**data)
+        assert model.shed.total == 0
+        assert model.defer.window_minutes == data["defer"]["window_minutes"]
 
 
 # ── (i) 200 + redis.up=false when Redis is down (never raise) ──────────────
@@ -1590,3 +1741,75 @@ class TestProblemTasksRoute:
     def test_negative_offset_rejected(self, test_client):
         r = test_client(url=self.URL + "?offset=-1", jwt=MockJWT(role_id="admin"))
         assert r.status_code in (400, 422)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Gauge-cache TTL vs the stats-go scrape period
+# ══════════════════════════════════════════════════════════════════════════
+
+_REPO_ROOT = Path(__file__).resolve().parents[6]
+_ALLOY_METRICS = _REPO_ROOT / "docker" / "grafana-alloy" / "metrics.alloy"
+_GOVERNOR_RULES = (
+    _REPO_ROOT / "docker" / "vmalert" / "rules" / "storage_governor.rules.yml"
+)
+
+
+def _alloy_stats_go_scrape_period():
+    """Seconds between two consecutive isard-stats-go scrapes, read from the
+    Alloy config that performs them: the ``metrics_containers`` job, whose
+    discovery keeps the isard-stats-go container."""
+    if not _ALLOY_METRICS.is_file():
+        pytest.skip(f"{_ALLOY_METRICS} not available in this test environment")
+    config = _ALLOY_METRICS.read_text()
+
+    discovery = re.search(
+        r'discovery\.relabel "containers_with_metrics"\s*\{(.*?)\n\}', config, re.S
+    )
+    assert discovery, "containers_with_metrics discovery block not found"
+    assert "stats-go" in discovery.group(
+        1
+    ), "isard-stats-go is no longer discovered by the metrics_containers job"
+
+    scrape = re.search(
+        r'prometheus\.scrape "metrics_containers"\s*\{(.*?)\n\}', config, re.S
+    )
+    assert scrape, "metrics_containers scrape block not found"
+    interval = re.search(r'scrape_interval\s*=\s*"(\d+)s"', scrape.group(1))
+    assert interval, "metrics_containers has no explicit scrape_interval"
+    return int(interval.group(1))
+
+
+def _governor_data_stale_threshold():
+    """The ``data_age_seconds`` ceiling above which GovernorDataStale warns."""
+    if not _GOVERNOR_RULES.is_file():
+        pytest.skip(f"{_GOVERNOR_RULES} not available in this test environment")
+    threshold = re.search(
+        r"isardvdi_storage_governor_data_age_seconds\s*>\s*(\d+)",
+        _GOVERNOR_RULES.read_text(),
+    )
+    assert threshold, "GovernorDataStale threshold not found"
+    return int(threshold.group(1))
+
+
+class TestGaugeCacheTtlVsScrapePeriod:
+    """The stats-go ``storage_governor`` collector is the only automated caller
+    of ``get_governor``, and it calls it exactly once per Alloy scrape. A TTL
+    that does not outlive the scrape period therefore never serves a hit — every
+    scrape recomputes — so the cache would be pure bookkeeping. These caches must
+    outlive one scrape, while staying under the payload-age ceiling the
+    GovernorDataStale alert enforces (a warm serve reports its true age)."""
+
+    @pytest.mark.parametrize("cache_name", ["governor_cache", "category_names_cache"])
+    def test_collector_driven_cache_outlives_one_scrape(self, cache_name):
+        cache = getattr(queues_service, cache_name)
+        assert cache.ttl > _alloy_stats_go_scrape_period()
+
+    def test_governor_cache_stays_under_the_stale_payload_threshold(self):
+        assert queues_service.governor_cache.ttl < _governor_data_stale_threshold()
+
+    @pytest.mark.parametrize("cache_name", ["backlog_cache", "problem_tasks_cache"])
+    def test_operator_driven_caches_stay_short(self, cache_name):
+        """Nothing scrapes these two endpoints; an operator refreshing them right
+        after a retry or a cancel must not be served a scrape-period-old list."""
+        cache = getattr(queues_service, cache_name)
+        assert cache.ttl <= _alloy_stats_go_scrape_period()

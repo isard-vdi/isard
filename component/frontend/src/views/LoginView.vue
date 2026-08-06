@@ -24,6 +24,7 @@ import {
   getToken as getAuthToken,
   isCategorySelectClaims,
   isRegisterClaims,
+  isReRegisterClaims,
   useCookies as useAuthCookies,
   isLoginClaims,
   setToken as setAuthToken,
@@ -475,7 +476,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     return
   }
 
-  if (isRegisterClaims(jwt)) {
+  if (isRegisterClaims(jwt) || isReRegisterClaims(jwt)) {
     router.push({ name: 'register' })
     return
   }
@@ -488,7 +489,17 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
       router.push({ name: 'verify-email' })
       return
     }
-    // Fall through to window.location for other types (disclaimer, password reset, etc.)
+    if (jwt.type === TokenType.DisclaimerAcknowledgeRequired) {
+      router.push({ name: 'disclaimer' })
+      return
+    }
+
+    if (jwt.type === TokenType.PasswordResetRequired || jwt.type === TokenType.PasswordReset) {
+      router.push({ name: 'reset-password' })
+      return
+    }
+
+    // Fall through to window.location for other types.
   }
 
   if (isLoginClaims(jwt)) {

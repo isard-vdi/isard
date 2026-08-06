@@ -55,8 +55,10 @@ import asyncio
 import logging as log
 from datetime import datetime, timezone
 
+from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.task import Task
+from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
 from ..task_results.storage import _apply_storage_update, send_status_socket
@@ -86,6 +88,34 @@ _TERMINAL = (
     JobStatus.CANCELED,
     JobStatus.STOPPED,
 )
+
+
+# A DEFERRED chain can outlive its parents' RQ job data: RQ evicts a
+# finished/failed job's hash after its result TTL, after which reading the
+# dependency's status raises ``InvalidJobOperation`` (the hash is there but its
+# status field is gone) or ``NoSuchJobError`` (the hash itself is gone). Either
+# way the job is necessarily terminal and long settled. Left unguarded these
+# crash a whole reconcile pass and, via the per-task ``except`` in
+# ``_reconcile_orphan_deferred``, ABANDON the very orphan the pass exists to heal.
+_JOB_GONE = (InvalidJobOperation, NoSuchJobError)
+
+
+def _dep_job_status(dep):
+    """RQ status of a dependency, or ``None`` when its job data is gone
+    (evicted after result TTL) — a gone job counts as terminal-and-settled."""
+    try:
+        return dep.job_status
+    except _JOB_GONE:
+        return None
+
+
+# Domain statuses that are pure STORAGE locks (set by ``set_maintenance`` / the
+# template chain), never engine-driven runtime states — so they are safe to
+# finalise from the storage's own reality without racing the VM lifecycle. The
+# storage-keyed passes below cannot see a domain whose storage is already
+# ``ready`` (the ready-transition's promote missed it) or whose storage row is
+# gone; Pass 3 reconciles from the domain side to close that gap.
+_DOMAIN_LOCK_STATUSES = ("Maintenance", "CreatingTemplate")
 
 
 def _as_aware_utc(dt):
@@ -132,13 +162,26 @@ def _deps_terminal_and_aged(task, now, grace_s):
         return False
     newest = None
     for dep in deps:
-        if dep.job_status not in _TERMINAL:
+        status = _dep_job_status(dep)
+        if status is None:
+            # Vanished dependency job: terminal and long settled. It can neither
+            # block healing nor contribute a settle time to the age check.
+            continue
+        if status not in _TERMINAL:
             return False
-        settled = _settled_at(dep)
+        try:
+            settled = _settled_at(dep)
+        except _JOB_GONE:
+            # Job evicted between the status read and here — treat as gone.
+            continue
         if settled is None:
             return False
         if newest is None or settled > newest:
             newest = settled
+    if newest is None:
+        # Every dependency's job is gone: the chain is definitively dead and
+        # long settled, so heal it rather than leave the orphan stranded.
+        return True
     return (now - newest).total_seconds() >= grace_s
 
 
@@ -406,8 +449,77 @@ async def _reconcile_stuck_storage(redis_manager):
     return healed
 
 
+def _finalize_stuck_domain(domain):
+    """Finalise one domain parked in a storage-lock status from its storage
+    reality. Returns 1 if finalised, else 0.
+
+    - it declares disks but none of their storage rows still exist -> ``Failed``
+      (the disk is gone).
+    - every backing storage is ``ready`` and settled (no live task) ->
+      ``Stopped`` (the ready-transition's promote missed this domain).
+    A domain whose storage is still in flight (``maintenance`` / a live task) is
+    left to Pass 2 / the consumer.
+    """
+    declared_ids = [
+        disk["storage_id"]
+        for disk in domain.create_dict.get("hardware", {}).get("disks", [])
+        if disk.get("storage_id")
+    ]
+    storages = domain.storages
+    # ``Domain.storages`` drops ids whose row no longer exists, so a domain that
+    # declares two disks and resolves one is PARTIALLY gone. Comparing counts
+    # (rather than "resolved nothing") keeps that case on the Failed branch: a
+    # desktop promoted to Stopped with a missing disk looks bootable and fails
+    # at the next start instead.
+    if declared_ids and len(storages) < len(declared_ids):
+        domain.status = "Failed"
+        domain.current_action = None
+        log.warning(
+            "reconcile: finalized orphaned domain %s (backing storage gone -> Failed)",
+            domain.id,
+        )
+        return 1
+    if storages and all(
+        storage.status == "ready" and not _task_alive(storage) for storage in storages
+    ):
+        domain.status = "Stopped"
+        domain.current_action = None
+        log.warning(
+            "reconcile: promoted stuck domain %s (storage ready -> Stopped)", domain.id
+        )
+        return 1
+    return 0
+
+
+async def _reconcile_stuck_domains(redis_manager):
+    """Pass 3: finalise domains parked in a storage-lock status
+    (``Maintenance`` / ``CreatingTemplate``) whose storage has already settled
+    but never promoted them. The storage-keyed passes above are blind to a
+    domain whose storage is already ``ready`` or whose storage row is gone.
+    Returns the count finalised."""
+    try:
+        stuck = await asyncio.to_thread(
+            Domain.get_index,
+            [["desktop", status] for status in _DOMAIN_LOCK_STATUSES]
+            + [["template", status] for status in _DOMAIN_LOCK_STATUSES],
+            "kind_status",
+        )
+    except Exception:
+        log.exception("reconcile: could not list storage-lock domains")
+        return 0
+    healed = 0
+    for domain in stuck:
+        try:
+            healed += await asyncio.to_thread(_finalize_stuck_domain, domain)
+        except Exception:
+            log.exception(
+                "reconcile: finalize failed for domain %s", getattr(domain, "id", "?")
+            )
+    return healed
+
+
 async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
-    """Long-running reconcile loop: an eager pass on startup, then both passes
+    """Long-running reconcile loop: an eager pass on startup, then all passes
     every ``interval_s`` seconds. Started alongside the changefeed listener and
     the task-results consumer in :func:`__main__.main`.
 
@@ -422,6 +534,7 @@ async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
             await _reconcile_orphan_deferred(redis_manager, grace_s=grace_s)
             await _reap_core_tombstones(redis_manager)
             await _reconcile_stuck_storage(redis_manager)
+            await _reconcile_stuck_domains(redis_manager)
         except Exception:
             log.exception("reconcile: pass raised")
         await asyncio.sleep(interval_s)

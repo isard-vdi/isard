@@ -117,6 +117,9 @@
       },
       "subtitle": "Visualitza, restaura o elimina els elements de la paperera",
       "title": "Paperera"
+    },
+    "disclaimer": {
+      "title": "Avís legal"
     }
   },
   "views": {
@@ -167,6 +170,11 @@
     "login": {
       "separator": "Altres accessos",
       "select-category": "Selecciona una categoria"
+    },
+    "disclaimer": {
+      "accept": "Accepta",
+      "reject": "Rebutja",
+      "error": "No s'ha pogut processar l'acceptació. Torna-ho a provar."
     },
     "new-desktop": {
       "desktop-template": "Plantilla",
@@ -376,7 +384,11 @@
       }
     },
     "register": {
-      "title": "Registre"
+      "title": "Registre",
+      "re-register": {
+        "title": "Actualitza el teu registre",
+        "description": "Els teus permisos han canviat. Introdueix el codi de registre que t'ha proporcionat l'administració per continuar."
+      }
     },
     "notifications": {
       "title": "Notificacions",
@@ -854,14 +866,15 @@
         "save": "Desa els canvis"
       },
       "errors": {
-        "title": "Error en desar l’escriptori"
+        "title": "Error en desar l’escriptori",
+        "load": "Error en carregar l’escriptori"
       },
       "info": {
-        "title": "Nom i descripció",
-        "description": "Defineix el nom i la descripció de l’escriptori."
+        "title": "Informació de l'escriptori",
+        "description": "Proporciona un nom i una descripció per identificar el teu escriptori"
       },
       "access": {
-        "title": "Accés",
+        "title": "Configuració d'accés",
         "description": "Visualitzadors, credencials i configuració del bastion."
       },
       "hardware": {
@@ -1191,6 +1204,7 @@
         "description": "Vols restablir les claus VPN? Hauràs de descarregar un nou fitxer VPN",
         "cancel": "Cancel·la",
         "confirm": "Restableix la VPN",
+        "success": "Les claus VPN s'han restablert correctament.",
         "errors": {
           "unauthorized": "La teva sessió ha expirat. Si us plau, inicia sessió de nou.",
           "internal_server": "No s'han pogut restablir les claus VPN per un error del servidor. Si us plau, intenta-ho més tard.",
@@ -1546,6 +1560,21 @@
         "title": "Quota d'arrencada d'escriptoris superada",
         "description": "S'ha arribat al nombre màxim d'escriptoris en execució. Cal aturar un escriptori per iniciar-ne un de nou.",
         "cancel": "Tornar als escriptoris"
+      },
+      "start-memory-quota-exceeded-modal": {
+        "title": "Quota de memòria superada",
+        "description": "Heu superat la vostra quota de memòria. Atureu un escriptori per iniciar-ne un altre, o editeu aquest escriptori per reduir-ne la memòria.",
+        "cancel": "Torneu als escriptoris"
+      },
+      "start-vcpu-quota-exceeded-modal": {
+        "title": "Quota de vCPU superada",
+        "description": "Heu superat la vostra quota de vCPU. Atureu un escriptori per iniciar-ne un altre, o editeu aquest escriptori per reduir-ne les vCPU.",
+        "cancel": "Torneu als escriptoris"
+      },
+      "start-disk-quota-exceeded-modal": {
+        "title": "Quota d'emmagatzematge superada",
+        "description": "Heu superat la vostra quota d'emmagatzematge. Allibereu espai en disc per poder iniciar aquest escriptori.",
+        "cancel": "Torneu als escriptoris"
       },
       "storage-unavailable-modal": {
         "title": "Emmagatzematge no disponible",
@@ -2404,6 +2433,20 @@
         "go-back": "Enrere",
         "next": "Següent"
       }
+    },
+    "new-desktop": {
+      "os-template-select": {
+        "placeholder": "Selecciona una plantilla de sistema operatiu",
+        "search-placeholder": "Cerca plantilles de sistema operatiu",
+        "not-found": "No s'ha trobat cap plantilla",
+        "more-results": "{count} resultats més, afina la cerca"
+      }
+    },
+    "searchable-tags": {
+      "search-placeholder": "Cerca",
+      "not-found": "No s'ha trobat cap resultat",
+      "more-results": "{count} resultats més, afineu la cerca",
+      "remove": "Traieu {name}"
     }
   },
   "authentication": {
@@ -2454,7 +2497,8 @@
         "forbidden": "El domini de correu electrònic que està intentant utilitzar no és autoritzat per a la seva categoria.",
         "not_found": "Codi no trobat",
         "conflict": "L'usuari ja existeix",
-        "internal_server": "Error en el servidor"
+        "internal_server": "Error en el servidor",
+        "re_register_not_resolved": "El codi que has introduït no atorga l'accés necessari. Demana un codi vàlid a l'administració."
       }
     },
     "new-desktop": {
@@ -2578,7 +2622,12 @@
       "errors": {
         "generic": "Hi ha hagut un error en desar l’escriptori. Torna-ho a provar.",
         "internal_server": "Error intern del servidor en desar l’escriptori.",
-        "desktop_not_stopped": "L’escriptori ha d’estar aturat abans d’editar-lo."
+        "precondition_required": "L’escriptori ha d’estar aturat abans d’editar-lo.",
+        "not_found": "No s’ha trobat l’escriptori.",
+        "bad_request": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquest escriptori o elimina els visors RDP.",
+        "new_desktop_name_exists": "Ja existeix un escriptori amb el mateix nom. Si us plau, tria un nom diferent.",
+        "one_viewer_minimum": "Cal seleccionar almenys un visor.",
+        "only_works_rdp": "El mode «Només GPU» només funciona amb visors RDP. Si us plau, elimina els visors que no siguin RDP o tria una altra opció de vídeo."
       }
     }
   },

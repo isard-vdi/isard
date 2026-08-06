@@ -180,6 +180,21 @@ const quotaExceededModalData = ref<{
   cancelLabel: string
 } | null>(null)
 
+const QUOTA_EXCEEDED_MODAL_KEYS: Record<string, string> = {
+  desktop_start_user_quota_exceeded: 'start-quota-exceeded-modal',
+  desktop_start_group_limit_exceeded: 'start-quota-exceeded-modal',
+  desktop_start_category_limit_exceeded: 'start-quota-exceeded-modal',
+  desktop_start_memory_quota_exceeded: 'start-memory-quota-exceeded-modal',
+  desktop_start_group_memory_limit_exceeded: 'start-memory-quota-exceeded-modal',
+  desktop_start_category_memory_limit_exceeded: 'start-memory-quota-exceeded-modal',
+  desktop_start_vcpu_quota_exceeded: 'start-vcpu-quota-exceeded-modal',
+  desktop_start_group_vcpu_limit_exceeded: 'start-vcpu-quota-exceeded-modal',
+  desktop_start_category_vcpu_limit_exceeded: 'start-vcpu-quota-exceeded-modal',
+  total_size_quota_exceeded: 'start-disk-quota-exceeded-modal',
+  group_total_size_limit_exceeded: 'start-disk-quota-exceeded-modal',
+  category_total_size_limit_exceeded: 'start-disk-quota-exceeded-modal'
+}
+
 const showStartStorageUnavailableModal = ref(false)
 
 const desktopsKey = getUserDesktopsQueryKey()
@@ -206,11 +221,12 @@ const {
     baseMutation: startDesktopMutation(),
     onError: (error) => {
       const err = error as ErrorResponse
-      if (err.description_code === 'desktop_start_user_quota_exceeded') {
+      const modalKey = QUOTA_EXCEEDED_MODAL_KEYS[err.description_code]
+      if (modalKey) {
         quotaExceededModalData.value = {
-          title: t('components.desktops.start-quota-exceeded-modal.title'),
-          description: t('components.desktops.start-quota-exceeded-modal.description'),
-          cancelLabel: t('components.desktops.start-quota-exceeded-modal.cancel')
+          title: t(`components.desktops.${modalKey}.title`),
+          description: t(`components.desktops.${modalKey}.description`),
+          cancelLabel: t(`components.desktops.${modalKey}.cancel`)
         }
       } else if (err.description_code === 'no_storage_pool_available') {
         showStartStorageUnavailableModal.value = true
