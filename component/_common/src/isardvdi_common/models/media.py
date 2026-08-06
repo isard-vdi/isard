@@ -96,15 +96,18 @@ class Media(RethinkCustomBase):
             blocking = kwargs.pop("blocking")
         else:
             blocking = True
+        # The index, not the row's scalar: the field is never cleared, so a
+        # media whose job expired long ago would be refused work forever.
+        pending_task = current_task_id(Task._redis, self.id, kind=MEDIA)
         if (
             blocking
-            and self.task
-            and Task.exists(self.task)
-            and Task(self.task).pending
+            and pending_task
+            and Task.exists(pending_task)
+            and Task(pending_task).pending
         ):
             raise Error(
                 "precondition_required",
-                f"Media {self.id} has the pending task {self.task}",
+                f"Media {self.id} has the pending task {pending_task}",
             )
         self.task = Task(*args, **kwargs).id
 

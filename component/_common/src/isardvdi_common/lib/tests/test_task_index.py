@@ -25,6 +25,8 @@ from unittest.mock import MagicMock
 import pytest
 from isardvdi_common.lib import task_index
 from isardvdi_common.lib.task_index import (
+    MEDIA,
+    current_task_id,
     index_cap,
     index_key,
     index_task,
@@ -298,3 +300,45 @@ class TestFailureIsNeverFatal:
         conn = MagicMock()
         conn.zrevrange.side_effect = RuntimeError("redis down")
         assert owner_task_ids(conn, "d-1") == []
+
+
+class TestCurrentTaskId:
+    """``current_task_id`` is the primitive every reader of the retired row
+    pointer asks for: "the task this row is busy with right now, or nothing".
+
+    It is deliberately the newest LIVE member and not the newest member: the
+    scalar it replaces named a job that could have expired, and every reader
+    already had to guard for that with ``Task.exists``.
+    """
+
+    def test_the_newest_task_is_the_current_one(self, redis):
+        for job_id, score in (("old", 1.0), ("new", 3.0), ("mid", 2.0)):
+            redis.z.setdefault(index_key("storage", "d-1"), {})[job_id] = score
+            redis.h[f"rq:job:{job_id}"] = {}
+        assert current_task_id(redis, "d-1") == "new"
+
+    def test_a_row_that_never_had_a_task_answers_nothing(self, redis):
+        assert current_task_id(redis, "never-seen") is None
+
+    def test_a_dead_newest_member_falls_through_to_the_live_one(self, redis):
+        """The reclaim is the reader's job, so a member whose job is gone must
+        not shadow the task the row really is busy with."""
+        for job_id, score in (("alive", 1.0), ("gone", 2.0)):
+            redis.z.setdefault(index_key("storage", "d-1"), {})[job_id] = score
+        redis.h["rq:job:alive"] = {}
+        assert current_task_id(redis, "d-1") == "alive"
+
+    def test_every_member_dead_answers_nothing(self, redis):
+        redis.z[index_key("storage", "d-1")] = {"gone-1": 1.0, "gone-2": 2.0}
+        assert current_task_id(redis, "d-1") is None
+
+    def test_media_reads_its_own_index(self, redis):
+        redis.z[index_key("media", "m-1")] = {"j-1": 1.0}
+        redis.h["rq:job:j-1"] = {}
+        assert current_task_id(redis, "m-1", kind=MEDIA) == "j-1"
+        assert current_task_id(redis, "m-1") is None
+
+    def test_a_redis_failure_answers_nothing_rather_than_raising(self):
+        broken = MagicMock()
+        broken.zrevrange.side_effect = RuntimeError("redis down")
+        assert current_task_id(broken, "d-1") is None

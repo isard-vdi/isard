@@ -28,6 +28,7 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
+from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.user import User
 from pydantic import BaseModel, Field
@@ -537,11 +538,13 @@ class Storage(RethinkCustomBase):
             blocking = kwargs.pop("blocking")
         else:
             blocking = True
-        # A parked row is as busy as the row that parked it: the chain is about
-        # to write that very disk. Resolving the back-reference is what makes
-        # the parked template row answer the same 428 the desktop row answers,
-        # without putting a second row on the ``task`` index to get it.
-        pending_task = self.task or self._parking_task()
+        # What is this row busy with right now? The index answers for the row
+        # itself AND for a row parked by someone else's chain — the chain names
+        # both as owners — so the parked template row gets the same 428 the
+        # desktop row does without a back-reference to resolve. The retired
+        # scalar is deliberately not consulted: it is never cleared, so a row
+        # whose job expired long ago would be refused work forever.
+        pending_task = current_task_id(Task._redis, self.id)
         if (
             blocking
             and pending_task
@@ -2303,9 +2306,10 @@ class Storage(RethinkCustomBase):
         # then root the chain on the storage-side
         # ``qemu_img_info_backing_chain`` so the consumer takes over
         # naturally.
-        if self.task and Task.exists(self.task):
+        in_flight = current_task_id(Task._redis, self.id)
+        if in_flight:
             try:
-                Task(self.task).cancel()
+                Task(in_flight).cancel()
             except Exception:
                 # Best-effort — Task.cancel is itself best-effort
                 # (see Task.cancel docstring). Even if cancel raises,

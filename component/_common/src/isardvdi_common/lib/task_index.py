@@ -140,6 +140,43 @@ def index_task(connection, job, owner_ids, kind=STORAGE):
         )
 
 
+def current_task_id(connection, owner_id, kind=STORAGE):
+    """The task ``owner_id`` is busy with right now, or ``None``.
+
+    The primitive that replaces the row's scalar ``task`` field. It answers the
+    newest member whose job still EXISTS, not simply the newest: the scalar
+    could name a job that had long expired, which is why every one of its
+    readers already had to pair it with an existence check.
+
+    Reads the index newest-first and proves liveness in one pipelined batch,
+    stopping at the first survivor — so the common case (the newest member is
+    alive) costs two round trips regardless of how much history the row has.
+    Unlike :func:`owner_task_ids` this does not prune what it finds dead: it is
+    on the task-creation path, and a listing pass reclaims those anyway.
+
+    Answers ``None`` on any redis failure rather than raising: a reader asking
+    "is this row busy" must not turn a blip into a failed operation.
+    """
+    key = index_key(kind, owner_id)
+    try:
+        members = [
+            member.decode() if isinstance(member, bytes) else member
+            for member in connection.zrevrange(key, 0, -1)
+        ]
+        if not members:
+            return None
+        pipe = connection.pipeline(transaction=False)
+        for job_id in members:
+            pipe.exists(f"rq:job:{job_id}")
+        for job_id, alive in zip(members, pipe.execute()):
+            if alive:
+                return job_id
+        return None
+    except Exception:
+        log.warning("task index: could not read %s", key, exc_info=True)
+        return None
+
+
 def owner_task_ids(connection, owner_id, kind=STORAGE):
     """``owner_id``'s task ids, newest first, proven to still exist.
 

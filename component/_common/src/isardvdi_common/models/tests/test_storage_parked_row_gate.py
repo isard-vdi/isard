@@ -48,8 +48,11 @@ def _parker(*, id="desktop-row", task="chain-task"):
 def _run_create_task(storage, parker=None, parker_task_pending=True):
     """Call ``create_task`` with the queue/tiering machinery stubbed out.
 
-    ``Storage(parked_by)`` is routed to ``parker`` so the gate resolves the
-    back-reference without a DB hit. Returns the ``Task`` class mock.
+    The parked row's busy-ness now comes from the task INDEX rather than from
+    resolving ``parked_by``: the chain that parks a row names it as an owner of
+    its tasks, so the row answers for itself. ``parker`` therefore stands for
+    "the index has this parker's task under the row" — the same guarantee, one
+    lookup instead of a back-reference.
     """
     real_new = Storage.__new__
 
@@ -63,6 +66,10 @@ def _run_create_task(storage, parker=None, parker_task_pending=True):
     task_cls.return_value = MagicMock(id="new-task", pending=parker_task_pending)
     with (
         patch("isardvdi_common.models.storage.Task", task_cls),
+        patch(
+            "isardvdi_common.models.storage.current_task_id",
+            return_value=parker.task if parker is not None else None,
+        ),
         patch("isardvdi_common.models.storage.queue_coverage.enforce_shed"),
         patch("isardvdi_common.models.storage.Storage.__new__", side_effect=fake_new),
         patch.object(Storage, "category", new_callable=PropertyMock, return_value="c1"),
@@ -83,7 +90,8 @@ def _repair_storage_new_slot():
 
 def test_parked_row_refuses_a_second_operation_while_its_parker_runs():
     """The 428 the origin row already answers must also come from the row
-    its chain parked — the chain is about to write that very disk."""
+    its chain parked — the chain is about to write that very disk. Resolved
+    through the index, which lists the chain under both rows."""
     parker = _parker()
     parked = _bare_storage(id="template-row", parked_by="desktop-row")
 
