@@ -48,7 +48,7 @@ from isardvdi_common.helpers.scheduler import Scheduler
 from isardvdi_common.helpers.viewers import available_viewers
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
-from isardvdi_common.schemas.domains import DesktopStatusEnum
+from isardvdi_common.schemas.domains import DesktopStatusEnum, DesktopTypeEnum
 from rethinkdb import r
 from socketio import RedisManager
 
@@ -315,6 +315,11 @@ class DesktopDirectViewer(RethinkSharedConnection):
             ),
             "viewers": {},
             "image": domain.get("image"),
+            "type": (
+                DesktopTypeEnum.persistent.value
+                if domain.get("persistent", True)
+                else DesktopTypeEnum.nonpersistent.value
+            ),
         }
         desktop_viewers = available_viewers(domain["guest_properties"])
         if "file_spice" in desktop_viewers:

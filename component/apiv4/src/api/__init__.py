@@ -184,16 +184,17 @@ async def lifespan(app: FastAPI):
 
     # Watch haproxy-sync health and resync on reconnection
     health_task = None
+    haproxy_health_channel = None
     try:
         from api.connections.grpc_client import (
             async_watch_health_check,
-            create_haproxy_sync_client,
+            create_health_watch_channel,
         )
 
-        _, haproxy_channel = create_haproxy_sync_client("isard-portal", 1312)
+        haproxy_health_channel = create_health_watch_channel("isard-portal", 1312)
         health_task = asyncio.create_task(
             async_watch_health_check(
-                haproxy_channel,
+                haproxy_health_channel,
                 "haproxy_sync.v1.HaproxySyncService",
                 _sync_haproxy_maps,
             )
@@ -210,6 +211,12 @@ async def lifespan(app: FastAPI):
     # Shutdown
     if health_task:
         health_task.cancel()
+        try:
+            await health_task
+        except (asyncio.CancelledError, Exception):
+            pass
+    if haproxy_health_channel:
+        await haproxy_health_channel.close()
     if pool_sampler_task:
         pool_sampler_task.cancel()
         try:

@@ -433,7 +433,7 @@ const router = createRouter({
       component: () => import('../views/ResetPasswordView.vue'),
       meta: {
         title: 'Reset Password',
-        allowedTokenTypes: ['password-reset']
+        allowedTokenTypes: ['password-reset', 'password-reset-required']
       }
     },
     {
@@ -593,8 +593,7 @@ function getRedirectForTokenType(type: TokenType) {
       return { name: 'disclaimer' }
     case TokenType.PasswordResetRequired:
     case TokenType.PasswordReset:
-      // TODO: Use a new password reset page
-      return (window.location.pathname = '/reset-password')
+      return { name: 'reset-password' }
     case TokenType.EmailVerificationRequired:
       return { name: 'verify-email' }
     case TokenType.UserMigrationRequired:
