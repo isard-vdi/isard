@@ -52,6 +52,16 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.models.storage import Storage
 
 
+def _description_code(excinfo):
+    """The description_code, wherever this Error flavour keeps it."""
+    err = excinfo.value
+    code = getattr(err, "description_code", None)
+    if code:
+        return code
+    payload = getattr(err, "error", None)
+    return payload.get("description_code") if isinstance(payload, dict) else None
+
+
 def _bare_storage(
     *,
     id: str = "child-storage",
@@ -212,11 +222,10 @@ def test_recreate_reaches_graceful_storage_has_no_parent():
         patch.object(Storage, "exists", return_value=False),
         patch.object(Storage, "create_task"),
     ):
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Error) as exc_info:
             s.recreate(user_id="u1", domain_id="d1")
 
-    assert exc_info.value.args == (
-        "precondition_required",
-        "Storage parent missing",
-        "storage_has_no_parent",
-    )
+    # Typed now, so the description code rides as a keyword instead of a third
+    # positional that Error would have read as ``debug``.
+    assert exc_info.value.args[0] == "precondition_required"
+    assert _description_code(exc_info) == "storage_has_no_parent"
