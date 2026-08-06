@@ -254,7 +254,15 @@ class StorageService:
         # Access-control side-effect (raises 404 if missing / not owned).
         get_storage(payload, storage_id)
         row = StorageProcessed.get_storage_row(storage_id)
-        return row or {}
+        if not row:
+            return {}
+        # The retired ``task`` pointer may still sit on the row; never serve it.
+        # What consumers asked of it was whether the row is busy, so answer that
+        # from the index instead — one lookup here rather than a request per row
+        # from whoever is rendering the list.
+        row.pop("task", None)
+        row["has_pending_task"] = bool(current_task_id(Task._redis, storage_id))
+        return row
 
     @staticmethod
     def get_user_ready_storages(user_id: str) -> list[dict]:

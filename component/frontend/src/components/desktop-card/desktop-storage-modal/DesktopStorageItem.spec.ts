@@ -126,7 +126,7 @@ describe('DesktopStorageItem', () => {
 
   it('hides Increase for plain "user" role', () => {
     setRole('user')
-    setStorage({ id: 's-1', status: 'ready', user_id: 'u-1', task: null })
+    setStorage({ id: 's-1', status: 'ready', user_id: 'u-1', has_pending_task: false })
     const wrapper = mount(DesktopStorageItem, {
       props: { desktop: stoppedDesktop, storageId: 's-1' }
     })
@@ -135,7 +135,7 @@ describe('DesktopStorageItem', () => {
 
   it('shows Increase for advanced/manager/admin when desktop is Stopped + storage ready', () => {
     setRole('advanced')
-    setStorage({ id: 's-1', status: 'ready', user_id: 'u-1', task: null })
+    setStorage({ id: 's-1', status: 'ready', user_id: 'u-1', has_pending_task: false })
     const wrapper = mount(DesktopStorageItem, {
       props: { desktop: stoppedDesktop, storageId: 's-1' }
     })
@@ -148,7 +148,7 @@ describe('DesktopStorageItem', () => {
 
   it('disables Increase when desktop is not Stopped', () => {
     setRole('admin')
-    setStorage({ id: 's-1', status: 'ready', user_id: 'u-1', task: null })
+    setStorage({ id: 's-1', status: 'ready', user_id: 'u-1', has_pending_task: false })
     const wrapper = mount(DesktopStorageItem, {
       props: { desktop: startedDesktop, storageId: 's-1' }
     })
@@ -159,7 +159,7 @@ describe('DesktopStorageItem', () => {
 
   it('disables Increase when storage is not ready', () => {
     setRole('admin')
-    setStorage({ id: 's-1', status: 'maintenance', user_id: 'u-1', task: 't-1' })
+    setStorage({ id: 's-1', status: 'maintenance', user_id: 'u-1', has_pending_task: true })
     const wrapper = mount(DesktopStorageItem, {
       props: { desktop: stoppedDesktop, storageId: 's-1' }
     })
@@ -170,7 +170,7 @@ describe('DesktopStorageItem', () => {
 
   it('hides Cancel when there is no running task', () => {
     setRole('admin')
-    setStorage({ id: 's-1', status: 'ready', user_id: 'u-1', task: null })
+    setStorage({ id: 's-1', status: 'ready', user_id: 'u-1', has_pending_task: false })
     const wrapper = mount(DesktopStorageItem, {
       props: { desktop: stoppedDesktop, storageId: 's-1' }
     })
@@ -180,7 +180,7 @@ describe('DesktopStorageItem', () => {
 
   it('shows Cancel for the storage owner when a task is running', () => {
     setRole('user')
-    setStorage({ id: 's-1', status: 'maintenance', user_id: 'u-1', task: 't-99' })
+    setStorage({ id: 's-1', status: 'maintenance', user_id: 'u-1', has_pending_task: true })
     const wrapper = mount(DesktopStorageItem, {
       props: { desktop: stoppedDesktop, storageId: 's-1' }
     })
@@ -190,7 +190,12 @@ describe('DesktopStorageItem', () => {
 
   it("hides Cancel when a non-owner user views someone else's task", () => {
     setRole('user')
-    setStorage({ id: 's-1', status: 'maintenance', user_id: 'someone-else', task: 't-99' })
+    setStorage({
+      id: 's-1',
+      status: 'maintenance',
+      user_id: 'someone-else',
+      has_pending_task: true
+    })
     const wrapper = mount(DesktopStorageItem, {
       props: { desktop: stoppedDesktop, storageId: 's-1' }
     })
@@ -200,7 +205,12 @@ describe('DesktopStorageItem', () => {
 
   it('shows Cancel for admin even when not the task owner', () => {
     setRole('admin')
-    setStorage({ id: 's-1', status: 'maintenance', user_id: 'someone-else', task: 't-99' })
+    setStorage({
+      id: 's-1',
+      status: 'maintenance',
+      user_id: 'someone-else',
+      has_pending_task: true
+    })
     const wrapper = mount(DesktopStorageItem, {
       props: { desktop: stoppedDesktop, storageId: 's-1' }
     })

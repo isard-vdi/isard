@@ -1511,35 +1511,39 @@ class Task(RedisBase):
     @property
     def storage_id(self):
         """
-        Check if any storage has this task.
+        The id of the row that CREATED this task's chain, or ``None``.
 
-        :return: True if the storage has any task, False otherwise
-        :rtype: bool
+        Read off the job's own meta, where the producer stamps it. It used to
+        resolve through RethinkDB's ``task`` secondary index, which answered
+        with a Storage OBJECT despite this docstring promising a bool — and
+        which is retired with the row field that fed it.
         """
-        try:
-            from .storage import Storage  # To avoid circular import
-
-            return Storage.get_from_task_id(self.id)
-        except Exception:
-            return None
+        return self.job.meta.get("storage_id")
 
     @classmethod
     def filter_last_tasks(cls, task_ids: list[str]) -> list["Task"]:
-        """
-        Get the tasks that are the last task of a storage from a list of task IDs.
+        """The given tasks that are still their owner row's current task.
+
+        Was a RethinkDB lookup through the ``task`` secondary index, which is
+        retired with the row field that fed it. Same question, asked of the
+        index: a task is its owner's current one when it is the newest live
+        member of that owner's set. Resolved through the job's own meta, so no
+        table is read at all.
 
         :param task_ids: List of task IDs to filter
         """
-        try:
-            from .storage import Storage  # To avoid circular import
+        from isardvdi_common.lib.task_index import current_task_id
 
-            tasks = []
-            for task in Storage.get_storage_ids_from_task_ids(task_ids):
-                tasks.append(cls(task["task_id"]))
-
-            return tasks
-        except Exception:
-            return []
+        tasks = []
+        for task_id in task_ids:
+            try:
+                task = cls(task_id)
+                owner_id = task.storage_id
+                if owner_id and current_task_id(cls._redis, owner_id) == task_id:
+                    tasks.append(task)
+            except Exception:
+                continue
+        return tasks
 
     @classmethod
     def get_failed_storage_tasks(cls) -> list["Task"]:

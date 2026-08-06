@@ -260,7 +260,10 @@ class StorageDetailResponse(BaseModel):
     user_id: Optional[str] = None
     perms: Optional[list[str]] = None
     status_logs: Optional[list[StorageStatusLog]] = None
-    task: Optional[str] = None
+    # Derived, not the retired row field: the only thing any consumer asked of
+    # it was "is this row busy". Resolved server-side so a modal listing N rows
+    # stays one request.
+    has_pending_task: Optional[bool] = None
     qemu_img_info: Optional[StorageQemuImgInfo] = Field(
         default=None, alias="qemu-img-info"
     )

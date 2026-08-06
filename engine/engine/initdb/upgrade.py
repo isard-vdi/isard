@@ -6239,6 +6239,18 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 205:
+            # The row pointer and its index are retired: every reader resolves
+            # a row's current task through the per-owner Redis index, seeded by
+            # the backfill in this same version. Dropping the index is safe
+            # once nothing queries it; the field itself is left on the rows,
+            # since deleting data buys nothing and a rollback would want it.
+            try:
+                r.table(table).index_drop("task").run(self.conn)
+                log.info("v205: dropped the storage 'task' secondary index")
+            except Exception as e:
+                log.warning(f"v205: could not drop the storage 'task' index: {e}")
+
         if version == 186:
             try:
                 # Find storage records missing user_id

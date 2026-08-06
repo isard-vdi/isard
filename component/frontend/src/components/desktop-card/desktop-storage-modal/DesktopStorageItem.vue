@@ -70,15 +70,15 @@ const increaseDisabled = computed(
   () => !desktopIsStopped.value || storage.value?.status !== 'ready'
 )
 
-// Show Cancel iff the storage has a current task. Server enforces
+// Show Cancel iff the storage is busy with a task. Server enforces
 // ownership (owner/admin always, manager when in same category) — we
 // hide for plain users on someone else's task to avoid a guaranteed 403.
 const canSeeCancel = computed(() => {
-  if (!storage.value?.task) return false
+  if (!storage.value?.has_pending_task) return false
   if (userRole.value === 'admin' || userRole.value === 'manager') return true
   return storage.value.user_id === userId.value
 })
-const cancelDisabled = computed(() => !storage.value?.task)
+const cancelDisabled = computed(() => !storage.value?.has_pending_task)
 
 const showCancelModal = ref(false)
 const showIncreaseModal = ref(false)
