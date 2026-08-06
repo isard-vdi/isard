@@ -432,8 +432,19 @@ def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
         # live until that origin task settles, so a still-running convert's
         # half-written disk is never finalized ``ready``. With no task and no
         # resolvable origin a ``creating`` row cannot be proven dead, so leave it
-        # to its parent op; a ``maintenance`` row with no task IS a stuck orphan.
+        # to its parent op; a ``maintenance`` row with no task IS a stuck orphan
+        # UNLESS it names the row that parked it: template creation parks the new
+        # template row while the move's task sits on the desktop it copies from,
+        # and that row is named by ``parked_by``. Same resolution, same rule —
+        # live only while the resolved task is, so a row still parked after its
+        # chain settles is recovered exactly as before. Consulted only WHILE
+        # parked: the marker outlives the chain, and on a row that is no longer
+        # in ``maintenance`` it would answer with whatever the parker happens to
+        # be doing months later (this function also decides, from ``ready`` rows,
+        # whether a stuck domain may be finalized).
         origin_id = getattr(storage, "converted_from", None)
+        if not origin_id and getattr(storage, "status", None) == "maintenance":
+            origin_id = getattr(storage, "parked_by", None)
         if origin_id:
             try:
                 task_id = Storage(origin_id).task

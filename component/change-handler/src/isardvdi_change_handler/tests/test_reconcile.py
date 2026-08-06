@@ -237,6 +237,7 @@ def _storage(
     virtual_size=171798691840,
     user_id="u1",
     converted_from=None,
+    parked_by=None,
 ):
     s = MagicMock(name=f"storage-{sid}")
     s.id = sid
@@ -247,6 +248,9 @@ def _storage(
     # the origin it points at via ``converted_from``. Default None mirrors a
     # non-convert row (MagicMock would otherwise auto-create a truthy attr).
     s.converted_from = converted_from
+    # Same shape one step further: a row parked by another row's chain (the new
+    # template storage of a template creation) names its parker via ``parked_by``.
+    s.parked_by = parked_by
     qi = {"virtual-size": virtual_size} if virtual_size is not None else None
     # ``qemu-img-info`` is not a valid attr name; the model exposes it via getattr
     setattr(s, "qemu-img-info", qi)
@@ -386,6 +390,109 @@ def test_task_alive_convert_target_recoverable_once_origin_settled():
         patch.object(reconcile, "Task", return_value=settled),
     ):
         assert reconcile._task_alive(storage) is False
+
+
+def test_task_alive_parked_template_live_while_its_parker_runs():
+    """The other half of the same class: template creation parks the NEW
+    template row ``maintenance`` with no task of its own — the move's task
+    is on the DESKTOP's row, which the parked row names via ``parked_by``.
+    Live until that task settles, or Pass 2 re-checks a path the move has
+    not produced yet and fails the template mid-copy."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="maintenance", task=None, parked_by="desktop-1")
+    parker = MagicMock()
+    parker.task = "move-task"
+    running = MagicMock()
+    running.pending = True
+    with (
+        patch.object(reconcile, "Storage", return_value=parker),
+        patch.object(reconcile.Task, "exists", return_value=True),
+        patch.object(reconcile, "Task", return_value=running),
+        patch.object(reconcile, "_metadata_finalize_orphaned", return_value=False),
+    ):
+        assert reconcile._task_alive(storage) is True
+
+
+def test_task_alive_parked_template_recoverable_once_its_parker_settles():
+    """Once the parking chain settles, a row still parked IS stuck, and Pass 2
+    must recover it — the marker buys the chain its runtime, not immunity."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="maintenance", task=None, parked_by="desktop-1")
+    parker = MagicMock()
+    parker.task = "move-task"
+    settled = MagicMock()
+    settled.pending = False
+    with (
+        patch.object(reconcile, "Storage", return_value=parker),
+        patch.object(reconcile.Task, "exists", return_value=True),
+        patch.object(reconcile, "Task", return_value=settled),
+    ):
+        assert reconcile._task_alive(storage) is False
+
+
+def test_task_alive_ignores_a_stale_parker_on_an_unparked_row():
+    """Nothing clears the marker when the chain unparks the row, so it is read
+    only while the row is still parked. A ``ready`` row must not borrow the
+    liveness of whatever its old parker is doing now — Pass 3 asks this very
+    question about ``ready`` storages before finalizing a stuck domain."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="ready", task=None, parked_by="desktop-1")
+    parker = MagicMock()
+    parker.task = "some-unrelated-task"
+    running = MagicMock()
+    running.pending = True
+    with (
+        patch.object(reconcile, "Storage", return_value=parker),
+        patch.object(reconcile.Task, "exists", return_value=True),
+        patch.object(reconcile, "Task", return_value=running),
+    ):
+        assert reconcile._task_alive(storage) is False
+
+
+def test_task_alive_maintenance_without_task_or_parker_is_still_an_orphan():
+    """The door 7425e27021 deliberately left shut stays shut: a ``maintenance``
+    row that names neither a task nor a parker is a genuine abandoned op."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="maintenance", task=None, parked_by=None)
+    assert reconcile._task_alive(storage) is False
+
+
+@pytest.mark.asyncio
+async def test_pass2_skips_a_parked_template_row_whose_chain_still_runs():
+    """End to end through Pass 2: the parked template row survives the tick
+    instead of being finalized from a disk the move has not written yet."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(
+        status="maintenance", task=None, parked_by="desktop-1", virtual_size=0
+    )
+    storage.check_backing_chain = MagicMock()
+    parker = MagicMock()
+    parker.task = "move-task"
+    running = MagicMock()
+    running.pending = True
+    # One double for both uses of the class: the Pass 2 listing and the
+    # ``Storage(parked_by)`` lookup the liveness check makes.
+    storage_cls = MagicMock()
+    storage_cls.get_index.return_value = [storage]
+    storage_cls.return_value = parker
+    with (
+        patch.object(reconcile, "Storage", storage_cls),
+        patch.object(reconcile.Task, "exists", return_value=True),
+        patch.object(reconcile, "Task", return_value=running),
+        patch.object(reconcile, "_metadata_finalize_orphaned", return_value=False),
+        patch.object(reconcile, "_apply_storage_update") as apply_u,
+        patch.object(reconcile, "send_status_socket", new=AsyncMock()),
+    ):
+        healed = await reconcile._reconcile_stuck_storage(AsyncMock())
+
+    assert healed == 0
+    apply_u.assert_not_called()
+    storage.check_backing_chain.assert_not_called()
 
 
 @pytest.mark.asyncio

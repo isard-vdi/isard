@@ -236,14 +236,33 @@ def test_mv_chain_does_not_reference_storage_domains_force_update():
 # ---------------------------------------------------------------------------
 
 
-def _template_chain_dependents(s, template_storage_id):
-    """Run the template chain on ``s`` with the heavy bits mocked out
-    and return the captured ``dependents`` dict."""
-    tpl_storage_obj = MagicMock()
-    tpl_storage_obj.pool = MagicMock(id="dst-pool")
-    tpl_storage_obj.path = f"/isard/templates/{template_storage_id}.qcow2"
-    tpl_storage_obj.type = "qcow2"
-    tpl_storage_obj.set_maintenance = MagicMock()
+class _ParkedRow:
+    """Stand-in for the NEW template storage row the chain parks.
+
+    A plain object rather than a ``MagicMock`` on purpose: a MagicMock
+    auto-creates any attribute on first read, so ``parked_by`` / ``task``
+    would look written even when the chain never writes them, and the
+    assertions below would pass vacuously.
+    """
+
+    def __init__(self, storage_id):
+        self.id = storage_id
+        self.pool = MagicMock(id="dst-pool")
+        self.path = f"/isard/templates/{storage_id}.qcow2"
+        self.type = "qcow2"
+        # What ``parked_by`` held at the moment the row was parked. The
+        # sentinel distinguishes "not parked yet" from "parked with nothing".
+        self.parker_when_parked = "<set_maintenance not called>"
+        self.set_maintenance = MagicMock(side_effect=self._park)
+
+    def _park(self, action):
+        self.parker_when_parked = getattr(self, "parked_by", None)
+
+
+def _run_template_chain(s, template_storage_id):
+    """Run the template chain on ``s`` with the heavy bits mocked out and
+    return the captured ``create_task`` mock plus the parked template row."""
+    tpl_storage_obj = _ParkedRow(template_storage_id)
 
     # The chain calls ``Storage(template_storage_id)`` once. Route that
     # construction to our mock without affecting the bare ``s`` already
@@ -271,7 +290,44 @@ def _template_chain_dependents(s, template_storage_id):
             template_id="template-1",
             template_storage_id=template_storage_id,
         )
+    return mock_create, tpl_storage_obj
+
+
+def _template_chain_dependents(s, template_storage_id):
+    """The captured ``dependents`` dict of the template chain."""
+    mock_create, _ = _run_template_chain(s, template_storage_id)
     return mock_create.call_args.kwargs["dependents"]
+
+
+def test_template_chain_names_the_parker_on_the_parked_template_row():
+    """The template row is parked ``maintenance`` while the only task is
+    created on the DESKTOP's row, so the parked row must name what will
+    unpark it. Unnamed, it is a row in a transitional status with no
+    backing task — the shape the self-heal reads as an abandoned op, which
+    on its first tick re-checks a path the move has not produced yet."""
+    s = _bare_storage(id="src-desktop-storage")
+    _, parked = _run_template_chain(s, "new-template-storage-99")
+    assert parked.parked_by == s.id
+
+
+def test_template_chain_names_the_parker_before_parking_the_row():
+    """Order matters: written after ``set_maintenance``, the row would be
+    briefly observable as parked-with-no-parker, which is exactly what a
+    reconcile tick landing in that window reads as an abandoned op."""
+    s = _bare_storage(id="src-desktop-storage")
+    _, parked = _run_template_chain(s, "new-template-storage-99")
+    assert parked.parker_when_parked == s.id
+
+
+def test_template_chain_leaves_the_task_index_unique():
+    """The parked row names its parker, never the parker's task. Stamping
+    the task id here would put two storage rows on the ``task`` secondary
+    index for one task, permanently: ``get_from_task_id`` then returns an
+    arbitrary row, ``get_storage_ids_from_task_ids`` returns the task twice,
+    and nothing ever clears the field."""
+    s = _bare_storage(id="src-desktop-storage")
+    _, parked = _run_template_chain(s, "new-template-storage-99")
+    assert not hasattr(parked, "task")
 
 
 def test_template_chain_has_storage_update_parent_for_template_storage():
