@@ -627,6 +627,209 @@ def test_register_blocked_during_maintenance(monkeypatch, test_client):
     assert response.status_code == 503
 
 
+def test_re_register_user(monkeypatch, test_client):
+    captured = {}
+
+    monkeypatch.setattr(
+        "api.services.groups.GroupsService.code_search",
+        staticmethod(
+            lambda code: {
+                "role_id": "manager",
+                "category_id": "default",
+                "group_id": "default-default",
+            }
+        ),
+    )
+
+    def fake_re_register(provider, category_id, uid, role_id, group_id):
+        captured.update(
+            provider=provider,
+            category_id=category_id,
+            uid=uid,
+            role_id=role_id,
+            group_id=group_id,
+        )
+        return "existing-user-id"
+
+    monkeypatch.setattr(
+        "api.services.users.UsersService.re_register",
+        staticmethod(fake_re_register),
+    )
+
+    jwt = MockJWT(
+        provider="saml",
+        user_id="nefix-uid",
+        role_id="user",
+        token_type="re-register",
+    )
+    response = test_client(
+        url="/item/user/register",
+        method="PUT",
+        body={"code": "a-register-code"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"id": "existing-user-id"}
+    assert captured == {
+        "provider": "saml",
+        "category_id": "default",
+        "uid": "nefix-uid",
+        "role_id": "manager",
+        "group_id": "default-default",
+    }
+
+
+def test_re_register_code_from_another_category(monkeypatch, test_client):
+    monkeypatch.setattr(
+        "api.services.groups.GroupsService.code_search",
+        staticmethod(
+            lambda code: {
+                "role_id": "manager",
+                "category_id": "other-category",
+                "group_id": "other-group",
+            }
+        ),
+    )
+
+    jwt = MockJWT(
+        provider="saml",
+        user_id="nefix-uid",
+        role_id="user",
+        token_type="re-register",
+    )
+    response = test_client(
+        url="/item/user/register",
+        method="PUT",
+        body={"code": "a-register-code"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 404
+
+
+def test_re_register_code_not_found(monkeypatch, test_client):
+    from api.services.error import Error
+
+    def raise_not_found(code):
+        raise Error("not_found", f"Group with code {code} not found.")
+
+    monkeypatch.setattr(
+        "api.services.groups.GroupsService.code_search",
+        staticmethod(raise_not_found),
+    )
+
+    jwt = MockJWT(
+        provider="saml",
+        user_id="nefix-uid",
+        role_id="user",
+        token_type="re-register",
+    )
+    response = test_client(
+        url="/item/user/register",
+        method="PUT",
+        body={"code": "missing-code"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 404
+
+
+def test_re_register_rejects_register_token(test_client):
+    jwt = MockJWT(role_id="user", token_type="register")
+    response = test_client(
+        url="/item/user/register",
+        method="PUT",
+        body={"code": "a-register-code"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 403
+
+
+def test_register_rejects_re_register_token(test_client):
+    jwt = MockJWT(role_id="user", token_type="re-register")
+    response = test_client(
+        url="/item/user/register",
+        method="POST",
+        body={"code": "a-register-code"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 403
+
+
+def test_re_register_blocked_during_maintenance(monkeypatch, test_client):
+    from isardvdi_common.helpers.maintenance import Maintenance
+
+    monkeypatch.setattr(Maintenance, "_enabled", True)
+
+    jwt = MockJWT(role_id="user", token_type="re-register")
+    response = test_client(
+        url="/item/user/register",
+        method="PUT",
+        body={"code": "a-register-code"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 503
+
+
+def test_re_register_service_updates_role_group_and_clears_secondary(monkeypatch):
+    from api.services import users as users_service
+
+    captured = {}
+
+    monkeypatch.setattr(
+        users_service.CommonUser,
+        "get_by_provider_category_uid",
+        classmethod(lambda cls, provider, category, uid: [{"id": "existing-user-id"}]),
+    )
+
+    def fake_update_user(
+        cls, user_id, data, revoke=True, force_email_verification=False
+    ):
+        captured["update"] = (user_id, data)
+
+    monkeypatch.setattr(
+        users_service.CommonUser, "update_user", classmethod(fake_update_user)
+    )
+
+    user_id = users_service.UsersService.re_register(
+        provider="saml",
+        category_id="default",
+        uid="nefix-uid",
+        role_id="manager",
+        group_id="default-default",
+    )
+
+    assert user_id == "existing-user-id"
+    assert captured["update"] == (
+        "existing-user-id",
+        {"role": "manager", "group": "default-default", "secondary_groups": []},
+    )
+
+
+def test_re_register_service_user_not_found(monkeypatch):
+    from api.services import users as users_service
+    from api.services.error import Error
+
+    monkeypatch.setattr(
+        users_service.CommonUser,
+        "get_by_provider_category_uid",
+        classmethod(lambda cls, provider, category, uid: []),
+    )
+
+    with pytest.raises(Error):
+        users_service.UsersService.re_register(
+            provider="saml",
+            category_id="default",
+            uid="nefix-uid",
+            role_id="manager",
+            group_id="default-default",
+        )
+
+
 def test_set_user_email(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}

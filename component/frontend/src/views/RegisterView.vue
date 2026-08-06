@@ -5,8 +5,8 @@ import { useI18n } from 'vue-i18n'
 import { type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery } from '@tanstack/vue-query'
 import { login, type LoginData, type LoginError as AuthLoginError } from '@/gen/oas/authentication'
-import type { RegisterUserData, ErrorResponse } from '@/gen/oas/apiv4'
-import { registerUser } from '@/gen/oas/apiv4'
+import type { RegisterUserData, ReRegisterUserData, ErrorResponse } from '@/gen/oas/apiv4'
+import { registerUser, reRegisterUser } from '@/gen/oas/apiv4'
 import { apiV4LoginConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   parseToken as parseAuthToken,
@@ -18,6 +18,7 @@ import {
   getBearer as getAuthBearer,
   removeToken as removeAuthToken,
   isRegisterClaims,
+  isReRegisterClaims,
   checkLoginRegister as checkAuthLoginRegister
 } from '@/lib/auth'
 import { dateIsToday } from '@/lib/utils'
@@ -57,6 +58,7 @@ type RegisterError =
   | AuthLoginError['error']
   | 'unknown'
   | 'missing_category'
+  | 're_register_not_resolved'
 
 const isregisterError = (error: string): error is RegisterError => {
   switch (error) {
@@ -157,11 +159,16 @@ const registerErrorMsg = computed(() => {
 
 const isRegisterToken = () => {
   const token = getAuthToken(cookies)
-  if (!token || !isRegisterClaims(token)) {
+  if (!token || (!isRegisterClaims(token) && !isReRegisterClaims(token))) {
     return false
   }
   return true
 }
+
+const isReRegister = computed(() => {
+  const token = getAuthToken(cookies)
+  return token !== undefined && isReRegisterClaims(token)
+})
 
 /*
  * Actions
@@ -199,6 +206,12 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     return
   }
 
+  if (isReRegisterClaims(jwt)) {
+    registerError.value = 're_register_not_resolved'
+    setAuthToken(cookies, bearer)
+    return
+  }
+
   if (isLoginClaims(jwt)) {
     // Login to Webapp
     if (['admin', 'manager'].includes(jwt.data.role_id)) {
@@ -227,13 +240,17 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
   window.location.pathname = '/'
 }
 
-const submitRegister = async (options: ClientOptions<RegisterUserData>) => {
+const submitRegister = async (options: ClientOptions<RegisterUserData | ReRegisterUserData>) => {
   const bearer = getAuthBearer(cookies) ?? ''
+  const claims = parseAuthToken(bearer)
 
-  const { error, response } = await registerUser({
+  const requestOptions = {
     ...options,
     headers: { Authorization: `Bearer ${bearer}` }
-  })
+  }
+  const { error, response } = isReRegisterClaims(claims)
+    ? await reRegisterUser(requestOptions)
+    : await registerUser(requestOptions)
   const err = checkAuthLoginRegister(error, response, true)
   if (err) {
     if (err.error) {
@@ -245,12 +262,9 @@ const submitRegister = async (options: ClientOptions<RegisterUserData>) => {
     return
   }
 
-  // setAuthToken(cookies, bearer)
-  const registeredUser = parseAuthToken(bearer)
-
-  if (isRegisterClaims(registeredUser)) {
-    if (registeredUser.provider === 'local' || registeredUser.provider === 'ldap') {
-      registeredUser.provider = 'form'
+  if (isRegisterClaims(claims) || isReRegisterClaims(claims)) {
+    if (claims.provider === 'local' || claims.provider === 'ldap') {
+      claims.provider = 'form'
     }
 
     await submitLogin({
@@ -258,8 +272,8 @@ const submitRegister = async (options: ClientOptions<RegisterUserData>) => {
         Authorization: 'Bearer ' + bearer
       },
       query: {
-        category_id: registeredUser.category_id,
-        provider: registeredUser.provider as Provider
+        category_id: claims.category_id,
+        provider: claims.provider as Provider
       }
     })
   }
@@ -303,7 +317,7 @@ onMounted(() => {
 })
 watch(cookies, (newCookies) => {
   const token = getAuthToken(newCookies)
-  if (!token || !isRegisterClaims(token)) {
+  if (!token || (!isRegisterClaims(token) && !isReRegisterClaims(token))) {
     window.location.pathname = '/'
   }
 })
@@ -321,7 +335,7 @@ watch(config, (newCfg) => {
     :loading="isPending"
     :hide-locale-switch="config?.locale?.hide"
     :hide-logo="config?.logo?.hide"
-    :title="t('views.register.title')"
+    :title="isReRegister ? t('views.register.re-register.title') : t('views.register.title')"
   >
     <template v-if="config?.notification_cover?.enabled" #cover>
       <LoginNotification :config="config.notification_cover" class="border-error-600" />
@@ -343,6 +357,10 @@ watch(config, (newCfg) => {
           <Alert v-if="registerError" variant="destructive">
             <AlertDescription>{{ registerErrorMsg }}</AlertDescription>
           </Alert>
+
+          <p v-if="isReRegister" class="text-sm text-muted-foreground">
+            {{ t('views.register.re-register.description') }}
+          </p>
 
           <RegisterForm
             v-if="isRegisterToken()"

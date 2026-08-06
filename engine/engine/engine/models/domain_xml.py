@@ -21,7 +21,8 @@ from io import StringIO
 from pprint import pprint
 
 import xmltodict
-from cachetools import TTLCache, cached
+from cachetools import cached
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.xml_compression import (
     decompress_xml,
     lazy_compress_in_place,
@@ -66,10 +67,10 @@ BUS_LETTER = {"ide": "h", "sata": "s", "virtio": "v"}
 
 # TTL caches for interface and QoS lookups during batch domain creation
 # These avoid repeated DB queries for the same interface/QoS definitions
-_interface_cache = TTLCache(maxsize=200, ttl=30)
-_qos_net_cache = TTLCache(maxsize=100, ttl=30)
-_videos_cache = TTLCache(maxsize=10, ttl=30)
-_storage_cache = TTLCache(maxsize=200, ttl=30)
+_interface_cache = SynchronizedTTLCache(maxsize=200, ttl=30)
+_qos_net_cache = SynchronizedTTLCache(maxsize=100, ttl=30)
+_videos_cache = SynchronizedTTLCache(maxsize=10, ttl=30)
+_storage_cache = SynchronizedTTLCache(maxsize=200, ttl=30)
 
 
 @cached(cache=_interface_cache)
@@ -96,7 +97,7 @@ def get_storage_cached(storage_id):
     return get_dict_from_item_in_table("storage", storage_id)
 
 
-_guest_mtu_cache = TTLCache(maxsize=1, ttl=30)
+_guest_mtu_cache = SynchronizedTTLCache(maxsize=1, ttl=30)
 
 
 @cached(cache=_guest_mtu_cache)

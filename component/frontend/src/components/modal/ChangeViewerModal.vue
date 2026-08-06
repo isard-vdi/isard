@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { checkboxGroupItemVariants } from '@/components/checkbox-group'
 import { cn } from '@/lib/utils'
+import { viewerGuideUrl } from '@/lib/docs'
 
 import vncBrowser from '@/assets/img/viewers/vnc-browser.svg'
 import rdpBrowser from '@/assets/img/viewers/rdp-browser.svg'
@@ -27,7 +28,7 @@ const emit = defineEmits<{
   change: [viewerId: string]
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 type ViewerKind = 'browser' | 'application'
 
@@ -86,7 +87,7 @@ const getBulletKeys = (id: string) =>
     (_, i) => `components.change-viewer-modal.bullets.${id}.${i}`
   )
 
-const getGuideUrl = (id: string) => t(`components.change-viewer-modal.guide-url.${id}`)
+const getGuideUrl = (id: string) => viewerGuideUrl(locale.value, id)
 
 const handleConfirm = () => {
   emit('change', selected.value)

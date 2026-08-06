@@ -102,69 +102,94 @@ class Media(RethinkCustomBase):
             raise Error(
                 "precondition_required",
                 f"Media {self.id} has the pending task {self.task}",
+                description_code="media_pending_task",
             )
         self.task = Task(*args, **kwargs).id
 
     def delete_file(self, user_id=None, keep_status=None):
+        """Delete the media file and settle the row.
+
+        Ordered so nothing is mutated before the last thing that can
+        raise: a refused delete used to leave the row at ``maintenance``
+        with no task behind it, which is a media nobody can delete
+        afterwards.
         """
-        Delete media physical file if it has been downloaded and update status.
-        """
-        if self.status not in [
-            "Downloaded",
-            "DownloadFailed",
-            "DownloadFailedInvalidFormat",
-        ]:
+        if self.status in ("DownloadStarting", "Downloading", "Download"):
             raise Error(
                 "precondition_required",
-                f"Unable to delete downloading media. Status: {self.status}",
-                description_code="unable_to_delete_downloading_media",
+                f"Media {self.id} is downloading; abort the download first.",
+                description_code="media_should_not_be_downloading",
+            )
+        if self.status == "deleted":
+            return None
+        if not self.path_downloaded:
+            # A row without a path never had a file: the download chain
+            # refuses to start without one, and the path is where curl
+            # would have written.
+            self.status = "deleted"
+            return None
+        if self.task and Task.exists(self.task) and Task(self.task).pending:
+            raise Error(
+                "precondition_required",
+                f"Media {self.id} has the pending task {self.task}",
+                description_code="media_pending_task",
             )
 
-        actual_status = self.status
-        if self.status == "DownloadFailedInvalidFormat" and not keep_status:
-            self.status = "deleted"
-            return
-        finished_status = actual_status if keep_status else "deleted"
-        if actual_status == "DownloadFailed":
-            self.status = "deleted"
-            return
-        else:
-            self.status = "maintenance"
-        self.create_task(
-            user_id=user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('delete', path=self.path_downloaded.rsplit('/', 1)[0]).id}.default",
-            task="delete",
-            job_kwargs={
-                "kwargs": {
-                    "path": self.path_downloaded,
+        queue = (
+            f"storage.{StoragePool.get_best_for_action('delete', path=self.path_downloaded.rsplit('/', 1)[0]).id}"
+            ".default"
+        )
+        previous_status = self.status
+        # Every status that reaches here owns a file, so all of them get a
+        # real delete task. Short-circuiting the failed ones to "deleted"
+        # left their file on disk.
+        finished_status = previous_status if keep_status else "deleted"
+        recovery_status = (
+            previous_status
+            if previous_status in ("Downloaded", "DownloadFailed")
+            else "Downloaded"
+        )
+        self.status = "maintenance"
+        try:
+            self.create_task(
+                user_id=user_id,
+                queue=queue,
+                task="delete",
+                blocking=False,
+                job_kwargs={
+                    "kwargs": {
+                        "path": self.path_downloaded,
+                    },
                 },
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "update_status",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "statuses": {
-                                "finished": {
-                                    "deleted": {
-                                        "media": [self.id],
+                dependents=[
+                    {
+                        "queue": "core",
+                        "task": "update_status",
+                        "job_kwargs": {
+                            "kwargs": {
+                                "statuses": {
+                                    "finished": {
+                                        finished_status: {
+                                            "media": [self.id],
+                                        },
                                     },
-                                },
-                                "failed": {
-                                    "Downloaded": {"media": [self.id]},
-                                },
-                                "canceled": {
-                                    "Downloaded": {
-                                        "media": [self.id],
+                                    "failed": {
+                                        recovery_status: {"media": [self.id]},
+                                    },
+                                    "canceled": {
+                                        recovery_status: {
+                                            "media": [self.id],
+                                        },
                                     },
                                 },
                             },
                         },
-                    },
-                }
-            ],
-        )
+                    }
+                ],
+            )
+        except Exception:
+            self.status = previous_status
+            raise
         return self.task
 
     @classmethod

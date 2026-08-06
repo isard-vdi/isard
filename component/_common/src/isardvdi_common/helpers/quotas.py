@@ -234,11 +234,9 @@ class Quotas(RethinkCustomBase):
             "grouplimits": group.get("limits", False),
         }
 
+    # Not cached: cachetools memoizes the return value, never the raise, so a
+    # cached "ok" would wave through every later create inside the TTL.
     @classmethod
-    @cached(
-        SynchronizedTTLCache(maxsize=100, ttl=5),
-        key=lambda cls, category_id, group_id: (category_id, group_id),
-    )
     def UserCreate(cls, category_id, group_id):
         QuotasProcess.check_new_autoregistered_user(category_id, group_id)
 

@@ -383,3 +383,28 @@ func guessRole(opts guessRoleOpts, rawRoles []string) (*model.Role, *ProviderErr
 
 	return role, nil
 }
+
+type autoRegisterOpts struct {
+	AutoRegister      bool
+	AutoRegisterRoles []string
+}
+
+func autoRegister(log *zerolog.Logger, opts autoRegisterOpts, u *model.User) bool {
+	if !opts.AutoRegister {
+		log.Info().Str("usr", u.UID).Msg("auto-registration denied: auto_register is disabled in configuration")
+		return false
+	}
+
+	if len(opts.AutoRegisterRoles) == 0 {
+		log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Msg("auto-registration allowed: no role restrictions configured")
+		return true
+	}
+
+	if !slices.Contains(opts.AutoRegisterRoles, string(u.Role)) {
+		log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", opts.AutoRegisterRoles).Msg("auto-registration denied: user role not in allowed roles list")
+		return false
+	}
+
+	log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", opts.AutoRegisterRoles).Msg("auto-registration allowed: user role matches allowed roles list")
+	return true
+}

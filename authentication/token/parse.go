@@ -59,6 +59,10 @@ func ParseRegisterToken(secret, ss string) (*RegisterClaims, error) {
 	return parseAuthenticationToken[*RegisterClaims](secret, ss, &RegisterClaims{})
 }
 
+func ParseReRegisterToken(secret, ss string) (*ReRegisterClaims, error) {
+	return parseAuthenticationToken[*ReRegisterClaims](secret, ss, &ReRegisterClaims{})
+}
+
 func ParseExternalToken(db rethinkdb.QueryExecutor, ss string) (*ExternalClaims, error) {
 	tkn, err := jwt.ParseWithClaims(ss, &ExternalClaims{}, func(tkn *jwt.Token) (interface{}, error) {
 		if _, ok := tkn.Method.(*jwt.SigningMethodHMAC); !ok {

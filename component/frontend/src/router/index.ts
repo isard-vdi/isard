@@ -349,7 +349,7 @@ const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
       meta: {
         title: 'router.register.title',
-        allowedTokenTypes: ['register'],
+        allowedTokenTypes: ['register', 're-register'],
         allowedRoles: ['admin', 'manager', 'advanced', 'user'] as Role[]
       }
     },
@@ -433,7 +433,7 @@ const router = createRouter({
       component: () => import('../views/ResetPasswordView.vue'),
       meta: {
         title: 'Reset Password',
-        allowedTokenTypes: ['password-reset']
+        allowedTokenTypes: ['password-reset', 'password-reset-required']
       }
     },
     {
@@ -587,13 +587,13 @@ function getRedirectForTokenType(type: TokenType) {
     case TokenType.CategorySelect:
       return { name: 'login' }
     case TokenType.Register:
+    case TokenType.ReRegister:
       return { name: 'register' }
     case TokenType.DisclaimerAcknowledgeRequired:
       return { name: 'disclaimer' }
     case TokenType.PasswordResetRequired:
     case TokenType.PasswordReset:
-      // TODO: Use a new password reset page
-      return (window.location.pathname = '/reset-password')
+      return { name: 'reset-password' }
     case TokenType.EmailVerificationRequired:
       return { name: 'verify-email' }
     case TokenType.UserMigrationRequired:
