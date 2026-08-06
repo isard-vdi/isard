@@ -374,7 +374,7 @@ def test_task_alive_convert_target_live_while_origin_task_runs():
     origin = MagicMock()
     origin.task = "convert-task"
     running = MagicMock()
-    running.pending = True
+    running.chain_pending = True
     with (
         patch.object(reconcile, "Storage", return_value=origin),
         patch.object(reconcile.Task, "exists", return_value=True),
@@ -390,12 +390,15 @@ def test_task_alive_convert_target_recoverable_once_origin_settled():
     from isardvdi_change_handler.streams import reconcile
 
     storage = _storage(status="creating", task=None, converted_from="origin-1")
-    origin = MagicMock()
-    origin.task = "convert-task"
     settled = MagicMock(spec=reconcile.Task)
     settled.chain_pending = False
+    answers = {"origin-1": "convert-task"}
     with (
-        patch.object(reconcile, "Storage", return_value=origin),
+        patch.object(
+            reconcile,
+            "current_task_id",
+            side_effect=lambda conn, owner, **kw: answers.get(owner),
+        ),
         patch.object(reconcile.Task, "exists", return_value=True),
         patch.object(reconcile, "Task", return_value=settled),
     ):
@@ -405,18 +408,17 @@ def test_task_alive_convert_target_recoverable_once_origin_settled():
 def test_task_alive_parked_template_live_while_its_parker_runs():
     """The other half of the same class: template creation parks the NEW
     template row ``maintenance`` with no task of its own — the move's task
-    is on the DESKTOP's row, which the parked row names via ``parked_by``.
-    Live until that task settles, or Pass 2 re-checks a path the move has
-    not produced yet and fails the template mid-copy."""
+    is on the DESKTOP's row — and the chain names the parked row as an owner of
+    its tasks, so the row answers for itself through the index. Live until that
+    task settles, or Pass 2 re-checks a path the move has not produced yet and
+    fails the template mid-copy."""
     from isardvdi_change_handler.streams import reconcile
 
-    storage = _storage(status="maintenance", task=None, parked_by="desktop-1")
-    parker = MagicMock()
-    parker.task = "move-task"
+    storage = _storage(status="maintenance", task=None)
     running = MagicMock()
-    running.pending = True
+    running.chain_pending = True
     with (
-        patch.object(reconcile, "Storage", return_value=parker),
+        patch.object(reconcile, "current_task_id", return_value="move-task"),
         patch.object(reconcile.Task, "exists", return_value=True),
         patch.object(reconcile, "Task", return_value=running),
         patch.object(reconcile, "_metadata_finalize_orphaned", return_value=False),
@@ -429,35 +431,33 @@ def test_task_alive_parked_template_recoverable_once_its_parker_settles():
     must recover it — the marker buys the chain its runtime, not immunity."""
     from isardvdi_change_handler.streams import reconcile
 
-    storage = _storage(status="maintenance", task=None, parked_by="desktop-1")
-    parker = MagicMock()
-    parker.task = "move-task"
+    storage = _storage(status="maintenance", task=None)
     settled = MagicMock(spec=reconcile.Task)
     settled.chain_pending = False
     with (
-        patch.object(reconcile, "Storage", return_value=parker),
+        patch.object(reconcile, "current_task_id", return_value="move-task"),
         patch.object(reconcile.Task, "exists", return_value=True),
         patch.object(reconcile, "Task", return_value=settled),
     ):
         assert reconcile._task_alive(storage) is False
 
 
-def test_task_alive_ignores_a_stale_parker_on_an_unparked_row():
-    """Nothing clears the marker when the chain unparks the row, so it is read
-    only while the row is still parked. A ``ready`` row must not borrow the
-    liveness of whatever its old parker is doing now — Pass 3 asks this very
-    question about ``ready`` storages before finalizing a stuck domain."""
+def test_task_alive_cannot_borrow_an_unrelated_parkers_liveness():
+    """The marker needed a "read it only while parked" rule because nothing
+    cleared it, so a ``ready`` row could borrow the liveness of whatever its
+    old parker was doing months later — and Pass 3 asks this very question
+    about ``ready`` storages before finalizing a stuck domain. The index cannot
+    express that mistake: it names the parking chain's own task, so once that
+    task settles the row is settled, whatever the parker does next."""
     from isardvdi_change_handler.streams import reconcile
 
-    storage = _storage(status="ready", task=None, parked_by="desktop-1")
-    parker = MagicMock()
-    parker.task = "some-unrelated-task"
-    running = MagicMock()
-    running.pending = True
+    storage = _storage(status="ready", task=None)
+    settled = MagicMock()
+    settled.chain_pending = False
     with (
-        patch.object(reconcile, "Storage", return_value=parker),
+        patch.object(reconcile, "current_task_id", return_value="the-parking-task"),
         patch.object(reconcile.Task, "exists", return_value=True),
-        patch.object(reconcile, "Task", return_value=running),
+        patch.object(reconcile, "Task", return_value=settled),
     ):
         assert reconcile._task_alive(storage) is False
 
@@ -477,21 +477,17 @@ async def test_pass2_skips_a_parked_template_row_whose_chain_still_runs():
     instead of being finalized from a disk the move has not written yet."""
     from isardvdi_change_handler.streams import reconcile
 
-    storage = _storage(
-        status="maintenance", task=None, parked_by="desktop-1", virtual_size=0
-    )
+    storage = _storage(status="maintenance", task=None, virtual_size=0)
     storage.check_backing_chain = MagicMock()
-    parker = MagicMock()
-    parker.task = "move-task"
     running = MagicMock()
-    running.pending = True
-    # One double for both uses of the class: the Pass 2 listing and the
-    # ``Storage(parked_by)`` lookup the liveness check makes.
+    running.chain_pending = True
+    # The liveness check no longer looks the parker up: the parking chain lists
+    # this row as an owner of its tasks, so the index answers for the row.
     storage_cls = MagicMock()
     storage_cls.get_index.return_value = [storage]
-    storage_cls.return_value = parker
     with (
         patch.object(reconcile, "Storage", storage_cls),
+        patch.object(reconcile, "current_task_id", return_value="move-task"),
         patch.object(reconcile.Task, "exists", return_value=True),
         patch.object(reconcile, "Task", return_value=running),
         patch.object(reconcile, "_metadata_finalize_orphaned", return_value=False),
@@ -840,3 +836,82 @@ def test_orphan_gate_vanished_dep_with_finished_aged_sibling():
 # ---------------------------------------------------------------------------
 # Pass 1 — orphaned DEFERRED jobs
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# _task_alive resolves through the task index, not the row's scalar
+# ---------------------------------------------------------------------------
+
+
+def _bare(**fields):
+    """A storage stand-in carrying only what ``_task_alive`` reads."""
+    return SimpleNamespace(**{"id": "s1", "status": "maintenance", **fields})
+
+
+def test_task_alive_reads_the_index_for_the_row_itself():
+    from isardvdi_change_handler.streams import reconcile
+
+    with (
+        patch.object(reconcile, "current_task_id", return_value="t-1") as current,
+        patch.object(reconcile.Task, "exists", return_value=True),
+        patch.object(reconcile, "Task") as Task,
+    ):
+        Task.exists.return_value = True
+        Task.return_value = SimpleNamespace(
+            chain_pending=True, job=SimpleNamespace(meta={})
+        )
+        with patch.object(reconcile, "_metadata_finalize_orphaned", return_value=False):
+            assert reconcile._task_alive(_bare()) is True
+    assert current.call_args.args[1] == "s1"
+
+
+def test_task_alive_falls_back_to_the_convert_origin():
+    from isardvdi_change_handler.streams import reconcile
+
+    """A convert destination carries no task of its own and is not named as an
+    owner of the chain either — the producing task lives on the origin, which
+    the row names through ``converted_from``."""
+    answers = {"s1": None, "origin-1": "t-9"}
+    with (
+        patch.object(
+            reconcile,
+            "current_task_id",
+            side_effect=lambda conn, owner, **kw: answers[owner],
+        ),
+        patch.object(reconcile, "Task") as Task,
+    ):
+        Task.exists.return_value = True
+        Task.return_value = SimpleNamespace(
+            chain_pending=True, job=SimpleNamespace(meta={})
+        )
+        with patch.object(reconcile, "_metadata_finalize_orphaned", return_value=False):
+            row = _bare(status="creating", converted_from="origin-1")
+            assert reconcile._task_alive(row) is True
+
+
+def test_task_alive_needs_no_parked_by_because_the_index_names_the_parked_row():
+    from isardvdi_change_handler.streams import reconcile
+
+    """The chain that parks a row lists it as an owner of its tasks, so the
+    parked row answers for itself. No back-reference, and none of the
+    "consulted only while parked" gymnastics the marker needed: the index names
+    that chain's task, never whatever the parker happens to be doing later."""
+    with (
+        patch.object(reconcile, "current_task_id", return_value="t-parker"),
+        patch.object(reconcile, "Task") as Task,
+    ):
+        Task.exists.return_value = True
+        Task.return_value = SimpleNamespace(
+            chain_pending=True, job=SimpleNamespace(meta={})
+        )
+        with patch.object(reconcile, "_metadata_finalize_orphaned", return_value=False):
+            # no ``parked_by`` on the row at all
+            assert reconcile._task_alive(_bare(status="maintenance")) is True
+
+
+def test_task_alive_false_when_the_index_is_empty_and_nothing_resolves():
+    from isardvdi_change_handler.streams import reconcile
+
+    with patch.object(reconcile, "current_task_id", return_value=None):
+        assert reconcile._task_alive(_bare(status="maintenance")) is False
+        assert reconcile._task_alive(_bare(status="creating")) is True

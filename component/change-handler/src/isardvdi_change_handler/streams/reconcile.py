@@ -66,6 +66,7 @@ import asyncio
 import logging as log
 from datetime import datetime, timezone
 
+from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.task import Task, _chain_closure, finalize_has_unstamped
@@ -496,31 +497,23 @@ def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
     """True if the storage's backing task is still live work — Pass 1 / the
     consumer will finalize it and Pass 2 must not interfere. A metadata chain
     with an orphaned finalize is pending but NOT live, so Pass 2 may heal it."""
-    task_id = storage.task
+    task_id = current_task_id(Task._redis, getattr(storage, "id", None))
     if not task_id:
         # A ``creating`` target (a convert destination) carries no task of its
-        # own — the producing task lives on the origin (``converted_from``). It is
-        # live until that origin task settles, so a still-running convert's
-        # half-written disk is never finalized ``ready``. With no task and no
-        # resolvable origin a ``creating`` row cannot be proven dead, so leave it
-        # to its parent op; a ``maintenance`` row with no task IS a stuck orphan
-        # UNLESS it names the row that parked it: template creation parks the new
-        # template row while the move's task sits on the desktop it copies from,
-        # and that row is named by ``parked_by``. Same resolution, same rule —
-        # live only while the resolved task is, so a row still parked after its
-        # chain settles is recovered exactly as before. Consulted only WHILE
-        # parked: the marker outlives the chain, and on a row that is no longer
-        # in ``maintenance`` it would answer with whatever the parker happens to
-        # be doing months later (this function also decides, from ``ready`` rows,
-        # whether a stuck domain may be finalized).
+        # own and is not named as an owner of the chain either — the producing
+        # task lives on the origin (``converted_from``). It is live until that
+        # origin task settles, so a still-running convert's half-written disk is
+        # never finalized ``ready``. With nothing resolvable a ``creating`` row
+        # cannot be proven dead, so leave it to its parent op.
+        #
+        # A parked row needs no such fallback: the chain that parks it names it
+        # as an owner of its tasks, so the row answers for itself. That also
+        # retires the "consult the marker only while parked" rule the
+        # back-reference needed — the index names THAT chain's task, never
+        # whatever the parker happens to be doing months later.
         origin_id = getattr(storage, "converted_from", None)
-        if not origin_id and getattr(storage, "status", None) == "maintenance":
-            origin_id = getattr(storage, "parked_by", None)
         if origin_id:
-            try:
-                task_id = Storage(origin_id).task
-            except Exception:
-                task_id = None
+            task_id = current_task_id(Task._redis, origin_id)
         if not task_id:
             return getattr(storage, "status", None) == "creating"
     if not Task.exists(task_id):
