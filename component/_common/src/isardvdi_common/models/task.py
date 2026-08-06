@@ -30,6 +30,7 @@ from isardvdi_common.helpers.task_streams import (
     result_stream_backpressured,
 )
 from isardvdi_common.helpers.task_timeouts import job_timeout_for
+from isardvdi_common.lib.task_index import index_task
 from rq import Queue, Retry
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import Job, JobStatus
@@ -328,7 +329,9 @@ def knot_child_id(step_id, index):
     return f"{step_id}:sd:{index}".replace(":", "-")
 
 
-def _serialize_finalize(dep, parent_id, index, user_id, category_id):
+def _serialize_finalize(
+    dep, parent_id, index, user_id, category_id, storage_id=None, media_id=None
+):
     """One ``core`` dependent (and its subtree) as a finalize metadata node.
 
     A ``core`` child becomes a nested finalize node; a storage child becomes a
@@ -340,9 +343,17 @@ def _serialize_finalize(dep, parent_id, index, user_id, category_id):
     ``storage_dependent_ids`` at the same time. The child does not exist yet,
     but its id does, so the graph can carry the edge to it from the moment the
     chain is built rather than acquiring it later — if ever.
+
+    The owning row descends with the subtree for the same reason ``user_id``
+    does: a knot child becomes a real rq job doing that row's disk work, and
+    before the metadata path it inherited the owner by recursion through
+    ``Task.__init__``. The node itself does not carry it — a finalize step is
+    not an rq job and owns nothing.
     """
     step_user_id = dep.get("user_id", user_id)
     step_category_id = dep.get("category_id", category_id)
+    step_storage_id = dep.get("storage_id", storage_id)
+    step_media_id = dep.get("media_id", media_id)
     node = {
         "id": f"{parent_id}:cf:{index}",
         "task": dep.get("task"),
@@ -360,12 +371,20 @@ def _serialize_finalize(dep, parent_id, index, user_id, category_id):
         if str(child.get("queue", "")).startswith("core"):
             node["core_finalize"].append(
                 _serialize_finalize(
-                    child, node["id"], child_index, step_user_id, step_category_id
+                    child,
+                    node["id"],
+                    child_index,
+                    step_user_id,
+                    step_category_id,
+                    step_storage_id,
+                    step_media_id,
                 )
             )
         else:
             child.setdefault("user_id", step_user_id)
             child.setdefault("category_id", step_category_id)
+            child.setdefault("storage_id", step_storage_id)
+            child.setdefault("media_id", step_media_id)
             node["storage_dependent_ids"].append(
                 knot_child_id(node["id"], len(node["storage_dependents"]))
             )
@@ -756,6 +775,10 @@ class Task(RedisBase):
                 dependent.setdefault("category_id", kwargs.get("category_id"))
                 dependent.setdefault("storage_id", kwargs.get("storage_id"))
                 dependent.setdefault("media_id", kwargs.get("media_id"))
+                # NOT index_owners: a chain's finalize steps are not
+                # operations the disk had, and indexing them would spend the
+                # cap several times over on one operation. A dependent that
+                # genuinely is a disk's own operation names its owners itself.
                 # A ``core`` finalize dependent is ALWAYS metadata, never a rq job
                 # on the consumerless ``core`` queue; storage dependents keep the rq
                 # path. The change-handler runs it off ``meta["core_finalize"]``.
@@ -767,6 +790,8 @@ class Task(RedisBase):
                         len(finalize),
                         kwargs.get("user_id"),
                         kwargs.get("category_id"),
+                        kwargs.get("storage_id"),
+                        kwargs.get("media_id"),
                     )
                     finalize.append(node)
                     # Declare the edge to every knot child the tree carries, now,
@@ -817,6 +842,21 @@ class Task(RedisBase):
             self._enqueued = False
             if kwargs.get("enqueue", True):
                 self.enqueue()
+            # Index AFTER the enqueue so the score is the job's ``enqueued_at``;
+            # a task created for deferred enqueue scores on ``created_at`` and
+            # is findable from the moment it exists. Written here rather than in
+            # each ``create_task`` because not every producer goes through one —
+            # ``RecycleBin.delete_storage`` builds a ``Task`` directly so it can
+            # register before enqueuing — and one write site means a new
+            # producer cannot silently bypass the index.
+            owners = kwargs.get("index_owners") or []
+            if owners:
+                index_task(
+                    self._redis,
+                    self.job,
+                    owners,
+                    kind=kwargs.get("index_kind", "storage"),
+                )
 
     def enqueue(self):
         """Place the (already created + saved) root job on its queue.
