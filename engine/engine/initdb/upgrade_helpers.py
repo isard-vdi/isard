@@ -708,6 +708,45 @@ def get_card(self, card_id, type):
     }
 
 
+# --- v204 task-index backfill (pure selection) ------------------------------
+# Kept at module level with no imports of its own so the backfill test can load
+# this file bare, same reason as the v189 helpers above.
+
+
+def task_index_backfill_entries(rows, job_scores):
+    """The ``(owner_id, task_id, score)`` a task-index backfill must write.
+
+    ``rows`` is an iterable of ``(owner_id, task_id)`` read from the table and
+    ``job_scores`` maps a task id to the score of its rq job — a key that is
+    absent means the job is gone.
+
+    A pointer whose job is gone is SKIPPED, not carried across. Nothing in the
+    stack ever cleared the scalar, so a row can name a task that expired months
+    ago; the index's invariant is that every member names a job that exists, so
+    seeding it with a dead id would only be dropped on the very next read while
+    re-introducing the "names a task nobody can load" state the index exists to
+    end.
+
+    The score is the job's own, never the clock: tasks are created that never
+    touch a row pointer (the recycle bin builds one directly), so a backfilled
+    entry stamped ``now()`` could outrank an index member that really was
+    enqueued later and make the newest task the second-newest.
+    """
+    entries = []
+    seen = set()
+    for owner_id, task_id in rows:
+        if not owner_id or not task_id:
+            continue
+        if (owner_id, task_id) in seen:
+            continue
+        score = job_scores.get(task_id)
+        if score is None:
+            continue
+        seen.add((owner_id, task_id))
+        entries.append((owner_id, task_id, score))
+    return entries
+
+
 """
 System upgrades
 """

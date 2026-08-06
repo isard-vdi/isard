@@ -49,7 +49,14 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 203
+release_version = 205
+# release 205: seed the per-owner Redis task index from the storage/media row
+#              pointers, so the index answers for rows whose last chain
+#              predates it, and drop the now-unread storage "task" secondary
+#              index. Pointers whose rq job is gone are skipped.
+#              NUMBER ASSUMES the 204 claimed by the registry-template
+#              download work merges first. Whoever merges this must re-check
+#              it: it depends on the order the open migrations land in.
 # release 203: drop null-valued guest_properties.viewers entries on domains and
 #              deployment (a disabled viewer is an absent key)
 # release 202: drop dead RethinkDB indexes and reconcile populate on hot tables
@@ -308,6 +315,7 @@ tables = [
     "targets",
     "vgpus",
     "redis_tasks_cleanup",
+    "task_index_backfill",
 ]
 
 
@@ -8373,6 +8381,150 @@ password:s:%s"""
                 log.error(f"v197 non-full-use GPU profile prune failed: {e}")
 
         return True
+
+    def task_index_backfill(self, version):
+        """Seed the per-owner task index from the row pointers (v205).
+
+        The scalar ``task`` on a storage/media row and the Redis index are two
+        sources of truth for the same question, and the row's is the one that
+        lies: it holds a single id, is never cleared, and cannot express a row
+        locked by a chain it did not create. The index replaces it, but it only
+        knows the tasks created since it shipped — so this carries each row's
+        last chain across before the readers switch over.
+
+        Idempotent by construction (ZADD of the same member is a no-op beyond
+        the score), so a run that dies halfway is resumed by running it again;
+        nothing is deleted and no row is written.
+
+        A pointer whose rq job is gone is deliberately NOT carried across:
+        every index member must name a job that exists, and the reader would
+        drop a dead one on its next pass anyway. That is a real difference in
+        what the two sources can express, and it is why the reader that depends
+        on the pointer's mere PRESENCE is migrated separately, ahead of this.
+
+        Batched end to end: one pipelined fetch of the candidate jobs and one
+        pipelined write per chunk. Per-member round trips measured an order of
+        magnitude slower on a full index, and this runs over every row in the
+        table at engine start.
+        """
+        if version != 205:
+            return
+
+        log.info("UPGRADING task_index_backfill TO VERSION " + str(version))
+        try:
+            from isardvdi_common.lib.task_index import (
+                MEDIA,
+                STORAGE,
+                index_cap,
+                index_key,
+                job_score,
+            )
+            from rq.job import Job
+
+            from .upgrade_helpers import task_index_backfill_entries
+
+            conn = Redis(
+                host=os.environ.get("REDIS_HOST") or "isard-redis",
+                port=int(os.environ.get("REDIS_PORT") or 6379),
+                password=os.environ.get("REDIS_PASSWORD", ""),
+                db=0,
+            )
+            cap = index_cap(conn)
+            chunk_size = 500
+            seeded = 0
+            seeded_parked = 0
+            skipped = 0
+
+            for table, kind in (("storage", STORAGE), ("media", MEDIA)):
+                rows = [
+                    (row["id"], row.get("task"))
+                    for row in r.table(table)
+                    .has_fields("task")
+                    .pluck("id", "task")
+                    .run(self.conn)
+                ]
+                for start in range(0, len(rows), chunk_size):
+                    chunk = [
+                        pair for pair in rows[start : start + chunk_size] if pair[1]
+                    ]
+                    if not chunk:
+                        continue
+                    jobs = Job.fetch_many(
+                        [task_id for _, task_id in chunk], connection=conn
+                    )
+                    job_scores = {
+                        job.id: job_score(job) for job in jobs if job is not None
+                    }
+                    entries = task_index_backfill_entries(chunk, job_scores)
+                    skipped += len(chunk) - len(entries)
+                    if not entries:
+                        continue
+                    pipe = conn.pipeline(transaction=False)
+                    for owner_id, task_id, score in entries:
+                        key = index_key(kind, owner_id)
+                        pipe.zadd(key, {task_id: score})
+                        pipe.zremrangebyrank(key, 0, -(cap + 1))
+                    pipe.execute()
+                    seeded += len(entries)
+
+            # A parked row names no task of its own: template creation stamps
+            # the only task on the desktop it copies from and the new template
+            # row points back through ``parked_by``. The index expresses that
+            # relationship directly (the chain names both rows as owners), but
+            # a creation already in flight when this runs was built before that
+            # wiring existed, so its parked row would sit unprotected until the
+            # chain settles. Seed those from their parker's pointer too.
+            parked = [
+                (row["id"], row.get("parked_by"))
+                for row in r.table("storage")
+                .has_fields("parked_by")
+                .pluck("id", "parked_by")
+                .run(self.conn)
+            ]
+            parker_ids = sorted({parker for _, parker in parked if parker})
+            parker_tasks = {}
+            if parker_ids:
+                parker_tasks = {
+                    row["id"]: row.get("task")
+                    for row in r.table("storage")
+                    .get_all(r.args(parker_ids), index="id")
+                    .pluck("id", "task")
+                    .run(self.conn)
+                }
+            parked_pairs = [
+                (parked_id, parker_tasks.get(parker))
+                for parked_id, parker in parked
+                if parker and parker_tasks.get(parker)
+            ]
+            for start in range(0, len(parked_pairs), chunk_size):
+                chunk = parked_pairs[start : start + chunk_size]
+                jobs = Job.fetch_many(
+                    [task_id for _, task_id in chunk], connection=conn
+                )
+                job_scores = {job.id: job_score(job) for job in jobs if job is not None}
+                entries = task_index_backfill_entries(chunk, job_scores)
+                if not entries:
+                    continue
+                pipe = conn.pipeline(transaction=False)
+                for owner_id, task_id, score in entries:
+                    key = index_key(STORAGE, owner_id)
+                    pipe.zadd(key, {task_id: score})
+                    pipe.zremrangebyrank(key, 0, -(cap + 1))
+                pipe.execute()
+                seeded_parked += len(entries)
+
+            log.info(
+                "task_index_backfill v205: seeded %s row pointers and %s parked "
+                "rows into the task index, skipped %s whose job is gone",
+                seeded,
+                seeded_parked,
+                skipped,
+            )
+        except Exception as e:
+            # Non-fatal, like the other Redis-side migration: the index keeps
+            # working for everything created since it shipped, and re-running
+            # the upgrade re-attempts the seed.
+            log.error(f"task_index_backfill v205 failed (non-fatal): {e}")
 
     def redis_tasks_cleanup(self, version):
         """One-time purge of decommissioned ``core_worker`` RQ state (v199).

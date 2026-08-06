@@ -92,8 +92,12 @@ def index_key(kind, owner_id):
     return f"{kind}:{owner_id}:tasks"
 
 
-def _score(job):
+def job_score(job):
     """When the job entered the system.
+
+    Public because the v204 backfill scores the pointers it carries across with
+    the same rule: a second definition would rank seeded entries against live
+    ones by a different clock.
 
     ``enqueued_at`` is only set once the job reaches its queue, so a job built
     with ``enqueue=False`` — the create/register/enqueue ordering the recycle
@@ -119,7 +123,7 @@ def index_task(connection, job, owner_ids, kind=STORAGE):
     if not owners:
         return
     try:
-        score = _score(job)
+        score = job_score(job)
         cap = index_cap(connection)
         pipe = connection.pipeline(transaction=False)
         for owner_id in owners:
