@@ -6,8 +6,8 @@ test.skip(true, 'Deprecated test, see specs/ for replacements')
 // Vue 3 per-item BookingView — /frontend/bookings/desktop/{id}
 //
 // The seeded booked desktop has id 7a9d3c12-1b23-4a56-8c9d-0e1f2a3b4c5d
-// (testing/db/data/domains.json) with reservables.vgpus = ['NVIDIA-A16-2Q'].
-// An active plan at testing/db/data/resource_planner.json covers the
+// (testing/src/isardvdi_testing/data/domains.json) with reservables.vgpus = ['NVIDIA-A16-2Q'].
+// An active plan at testing/src/isardvdi_testing/data/resource_planner.json covers the
 // NVIDIA-A16-2Q subitem so the calendar renders availability.
 
 const BOOKED_DESKTOP_ID = '7a9d3c12-1b23-4a56-8c9d-0e1f2a3b4c5d'

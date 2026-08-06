@@ -45,7 +45,7 @@ const SEEDED = {
   s16: { id: '238b6c50-fc3f-40b9-8dc5-2f331c00c925', name: 'Desktop S16 storage' },
 }
 
-// The e2e-owned seed template (testing/db/data/domains.json → "Template Test Frontend").
+// The e2e-owned seed template (testing/src/isardvdi_testing/data/domains.json → "Template Test Frontend").
 // Used as the create-from source for every create-based test. We pick it explicitly
 // instead of "first allowed template": the base demo "Slax" template that also ships
 // in the dev DB carries forced_hyp/favourite_hyp as lists, which DesktopFromTemplate
@@ -53,7 +53,7 @@ const SEEDED = {
 // can yield an uncreatable template.
 const SEEDED_TEMPLATE_ID = 'template-test-001'
 
-// Seeded, already-Downloaded local ISO (testing/db/data/media.json → "empty-iso").
+// Seeded, already-Downloaded local ISO (testing/src/isardvdi_testing/data/media.json → "empty-iso").
 // Building a desktop from it makes the storage worker carve a real qcow2, so a
 // template snapshotted from that desktop is disk-backed and its clones can boot —
 // unlike the pure-DB seed template, whose desktops have no disk.
@@ -1874,7 +1874,7 @@ test.describe('Admin Desktops — webapp', () => {
     apiv4Admin,
   }, testInfo) => {
     // Expected values come from the seeded user (admin_e2e_09) who owns SEEDED.test.
-    // See testing/db/data/users.json (id: c7e77d70-e443-53d2-9933-d9b83e4a19a1),
+    // See testing/src/isardvdi_testing/data/users.json (id: c7e77d70-e443-53d2-9933-d9b83e4a19a1),
     // categories.json (id: default) and groups.json (id: default-default).
     const SEEDED_TEST_CELLS = {
       user_name: 'E2E Admin 09',
@@ -2087,7 +2087,7 @@ test.describe('Admin Desktops — webapp', () => {
     expect((await hardwareResponse).status()).toBeLessThan(400)
 
     // Description comes from GET /details.
-    // Seed value: testing/db/data/domains.json → description: "Base desktop".
+    // Seed value: testing/src/isardvdi_testing/data/domains.json → description: "Base desktop".
     const descEl = page.locator(`#description-${SEEDED.test.id}`)
     await expect(descEl).toHaveText('Base desktop', { timeout: 8000 })
 

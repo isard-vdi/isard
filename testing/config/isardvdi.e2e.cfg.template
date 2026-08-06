@@ -30,7 +30,7 @@ DOMAIN=host.docker.internal
 # Browser tests do not speak PROXY protocol.
 PROXY_PROTOCOL=false
 
-# ------ Admin password (matches testing/db/data/users.json) ----------
+# ------ Admin password (matches testing/src/isardvdi_testing/data/users.json) ----------
 WEBAPP_ADMIN_PWD=IsardVDI
 
 # ------ Authentication rate limits -----------------------------------
@@ -42,7 +42,7 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=false
 # ------ LDAP / SAML / Google wiring ----------------------------------
 # The Go isard-authentication service loads provider config from the
 # RethinkDB `config` table's `auth` key (see authentication/model/config.go).
-# For tests we seed that shape directly via testing/db/data/config.json
+# For tests we seed that shape directly via testing/src/isardvdi_testing/data/config.json
 # — no cfg passthrough needed.
 #
 # The only env var that still matters here is the SAML test-IdP

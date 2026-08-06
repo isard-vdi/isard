@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default function globalSetup() {
   if (process.env.E2E_SKIP_SEED === 'true') return
-  const script = path.resolve(__dirname, '../db/populate_test_db.py')
+  const script = path.resolve(__dirname, '../src/isardvdi_testing/populate_test_db.py')
   if (!existsSync(script)) return
   try {
     execFileSync('python3', [script], { stdio: 'inherit' })

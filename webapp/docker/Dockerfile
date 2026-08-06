@@ -18,7 +18,7 @@ FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1
 RUN apk add --no-cache libffi libjpeg-turbo openssl yarn zlib
 
 COPY --from=builder /.venv /.venv
-COPY webapp/webapp /isard
+COPY webapp/src /isard
 COPY webapp/docker/healthcheck.js /
 RUN cd /isard/webapp && yarn install --frozen-lockfile
 ENV PATH="/.venv/bin:$PATH"

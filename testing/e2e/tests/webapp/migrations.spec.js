@@ -3,7 +3,7 @@
 // numbered scenario (A1..A9).
 //
 // All `users_migrations` rows used here come from the committed seed
-// testing/db/data/users_migrations.json, loaded by populate_test_db.py like
+// testing/src/isardvdi_testing/data/users_migrations.json, loaded by populate_test_db.py like
 // every other spec's data — there is no create API for migrations, so nothing
 // is created at runtime. The read-only rows (A1..A6) are only read. The
 // mutating tests (A7 delete / A8 revoke) each own a distinct seeded row and

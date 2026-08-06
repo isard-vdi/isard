@@ -13,6 +13,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from isardvdi_vpn import wgadmin
 
 
 def _calls(mock):
@@ -20,12 +21,12 @@ def _calls(mock):
 
 
 @pytest.fixture
-def geneve_env(wgadmin_module, monkeypatch):
+def geneve_env(monkeypatch):
     monkeypatch.setenv("WG_HYPERS_PORT", "4443")
     monkeypatch.setattr(
-        wgadmin_module.socket, "gethostbyname", lambda h: "10.0.0.9", raising=False
+        wgadmin.socket, "gethostbyname", lambda h: "10.0.0.9", raising=False
     )
-    return wgadmin_module
+    return wgadmin
 
 
 def test_creates_port_and_enables_bfd_when_missing(geneve_env):

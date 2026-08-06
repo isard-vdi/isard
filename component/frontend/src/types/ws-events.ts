@@ -77,7 +77,7 @@ export interface WsDesktopPayload {
 // Desktops queue — emitted by apiv4 AdminNotifyService.notify_desktop_queue
 // when a hypervisor reports queued desktop operations. Payload is a map of
 // desktop_id → entry, where the entry's `position` is the user-visible queue
-// position. See component/apiv4/src/api/services/admin_notify.py:34-61.
+// position. See component/apiv4/src/api/services/admin/notify.py:34-61.
 // ---------------------------------------------------------------------------
 
 export interface WsDesktopsQueueEntry {
@@ -239,7 +239,7 @@ export interface WsPlanPayload {
 // ---------------------------------------------------------------------------
 // Users — emitted by change-handler UsersHandler to /userspace room=user.id
 // when the user's own record changes (e.g. email verified). Payload is the
-// full user model. See component/change-handler/src/handlers/users.py.
+// full user model. See component/change-handler/src/isardvdi_change_handler/handlers/users.py.
 // ---------------------------------------------------------------------------
 
 export interface WsUserDataPayload {
@@ -277,7 +277,7 @@ export interface WsMessagePayload {
 // users_migrations record: `status` walks exported → imported → migrating →
 // migrated|failed, and each `migrated_<kind>` flag flips true (or its
 // `migrated_<kind>_error` is set) as that resource type finishes.
-// See component/change-handler/src/handlers/users_migrations.py.
+// See component/change-handler/src/isardvdi_change_handler/handlers/users_migrations.py.
 // ---------------------------------------------------------------------------
 
 export interface WsUserMigrationPayload {
@@ -306,7 +306,7 @@ export interface WsUserMigrationPayload {
 // Shared-deployment desktop start/stop — emitted by DesktopDomainHandler
 // when a participant desktop in a shared deployment crosses the started
 // boundary. Payload is the deployment id (i.e. desktop.tag).
-// See component/change-handler/src/handlers/domains.py:405-415.
+// See component/change-handler/src/isardvdi_change_handler/handlers/domains.py:405-415.
 // ---------------------------------------------------------------------------
 
 export interface WsSharedDeploymentDesktopPayload {

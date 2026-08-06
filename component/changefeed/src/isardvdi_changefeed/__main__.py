@@ -49,7 +49,7 @@ def _configure_logging() -> None:
 
 # The set of tables and their RethinkDB ``pluck`` projections lives in a
 # sibling ``tables.json`` file so the AsyncAPI contract generator
-# (``docker/codegen/gen_changefeed_asyncapi.py``) can consume the exact same
+# (``gen-changefeed-asyncapi``) can consume the exact same
 # source of truth at build time.
 class _TableEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")

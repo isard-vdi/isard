@@ -348,10 +348,10 @@ gen-protobuf:
       # propagating these paths the downstream unit-test-apiv4 /
       # unit-test-webapp jobs see only __init__.py whose first line is
       # `from .client import …`, which raises ModuleNotFoundError at import.
-      - component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client
-      - component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client
-      - component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client
-      - component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client
+      - component/apiv4-client/src/isardvdi_apiv4_client
+      - component/authentication-client/src/isardvdi_authentication_client
+      - component/notifier-client/src/isardvdi_notifier_client
+      - component/scheduler-client/src/isardvdi_scheduler_client
 
 docker-compose-build:
   stage: generate
@@ -493,7 +493,7 @@ unit-test-vmalert:
 unit-test-apiv4:
   extends: .python-test-job
   variables:
-    COVERAGE_DIR: component/apiv4/src
+    COVERAGE_DIR: component/apiv4
     USAGE: "production"
   script:
     - make ci-test-apiv4
@@ -525,21 +525,21 @@ unit-test-change-handler:
   # Real rq graphs: which members of a chain can be reached from its root.
   extends: .python-test-job-redis
   variables:
-    COVERAGE_DIR: component/change-handler/src
+    COVERAGE_DIR: component/change-handler
   script:
     - make ci-test-change-handler
 
 unit-test-changefeed:
   extends: .python-test-job
   variables:
-    COVERAGE_DIR: component/changefeed/src
+    COVERAGE_DIR: component/changefeed
   script:
     - make ci-test-changefeed
 
 unit-test-webapp:
   extends: .python-test-job
   variables:
-    COVERAGE_DIR: webapp/webapp
+    COVERAGE_DIR: webapp
     USAGE: "test"
     API_ISARDVDI_SECRET: "ci-test-secret"
   script:
@@ -551,7 +551,7 @@ unit-test-common:
   # real. Those tests have been skipping since they were written.
   extends: .python-test-job-redis
   variables:
-    COVERAGE_DIR: component/_common/src
+    COVERAGE_DIR: component/_common
   script:
     - make ci-test-common
 
@@ -565,7 +565,7 @@ unit-test-hypervisor:
   # test rides unit-test-apiv4.
   extends: .python-test-job
   variables:
-    COVERAGE_DIR: docker/hypervisor/src
+    COVERAGE_DIR: docker/hypervisor
   script:
     - make ci-test-hypervisor
 
@@ -596,14 +596,14 @@ check-codegen-freshness:
 unit-test-socketio:
   extends: .python-test-job
   variables:
-    COVERAGE_DIR: component/socketio/src
+    COVERAGE_DIR: component/socketio
   script:
     - make ci-test-socketio
 
 unit-test-openapi:
   extends: .python-test-job
   variables:
-    COVERAGE_DIR: component/openapi/src
+    COVERAGE_DIR: component/openapi
   script:
     - make ci-test-openapi
 
@@ -623,11 +623,11 @@ unit-test-scheduler:
 
 unit-test-apiv4-client:
   # isardvdi_apiv4_client / isardvdi_apiv4_client_auth suites. The generated
-  # isardvdi_apiv4_client/src tree is gitignored and produced by gen-protobuf,
+  # src/isardvdi_apiv4_client tree is gitignored and produced by gen-protobuf,
   # so this job depends on it (like unit-test-apiv4 / unit-test-webapp).
   extends: .python-test-job
   variables:
-    COVERAGE_DIR: component/_common/isardvdi_apiv4_client
+    COVERAGE_DIR: component/apiv4-client
   script:
     - make ci-test-apiv4-client
 
@@ -741,7 +741,7 @@ unit-test-storage-utils:
       junit: docker/storage/utils/report.xml
 
 unit-test-storage:
-  # isard-storage worker failure-path suite (docker/storage/task/tests): the
+  # isard-storage worker failure-path suite (docker/storage/tests): the
   # raise-on-failure contract, convert partial-dest cleanup, and the delete
   # reachable-mount guard. The storage package depends on the generated
   # isardvdi_apiv4_client, so this job depends on gen-protobuf via
@@ -751,6 +751,17 @@ unit-test-storage:
     COVERAGE_DIR: docker/storage
   script:
     - make ci-test-storage
+
+unit-test-backupninja:
+  # isard-backupninja backup-report body-building suite: the generated apiv4
+  # client's attrs __slots__ model must absorb the parser's undeclared fields.
+  # It imports the generated isardvdi_apiv4_client, so this job depends on
+  # gen-protobuf via .python-test-base.
+  extends: .python-test-job
+  variables:
+    COVERAGE_DIR: docker/backupninja
+  script:
+    - make ci-test-backupninja
 
 docker-image:
   image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
@@ -1026,7 +1037,7 @@ integration-real:
     - docker compose -f docker-compose.e2e.yml pull
     - docker compose -f docker-compose.e2e.yml up -d
     - uv sync --frozen --package isardvdi-testing --group test --no-editable
-    - uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py
+    - uv run --group test --package isardvdi-testing isardvdi-populate-test-db
   script:
     - |
       NETWORK_ID="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' isard-portal | tr -d '\n')"

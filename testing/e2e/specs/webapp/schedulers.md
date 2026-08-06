@@ -5,11 +5,11 @@ Functional, traceable specification for **Config → Schedulers** in legacy admi
 ## Context
 
 - **Page**: `/isard-admin/admin/schedulers`
-- **Template**: `webapp/webapp/webapp/templates/admin/pages/schedulers.html`
-- **Main JS**: `webapp/webapp/webapp/static/admin/js/schedulers.js`
-- **Timeout rules JS**: `webapp/webapp/webapp/static/admin/js/desktops_priority.js`
-- **Modals**: `webapp/webapp/webapp/templates/admin/pages/schedulers_modals.html` + `desktops_priority_modals.html`
-- **Alloweds snippet**: `webapp/webapp/webapp/static/js/snippets/alloweds.js`
+- **Template**: `webapp/src/webapp/templates/admin/pages/schedulers.html`
+- **Main JS**: `webapp/src/webapp/static/admin/js/schedulers.js`
+- **Timeout rules JS**: `webapp/src/webapp/static/admin/js/desktops_priority.js`
+- **Modals**: `webapp/src/webapp/templates/admin/pages/schedulers_modals.html` + `desktops_priority_modals.html`
+- **Alloweds snippet**: `webapp/src/webapp/static/js/snippets/alloweds.js`
 
 ## Resource / action matrix
 

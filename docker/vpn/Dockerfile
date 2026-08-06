@@ -55,7 +55,6 @@ RUN ln -s /usr/sbin/iptables /sbin/iptables
 
 COPY --from=builder /.venv /.venv
 COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
-COPY docker/vpn/src /src
 COPY docker/vpn/run.sh /
 COPY --from=rdpgw-build /build/rdpgw/bin/rdpgw /rdpgw
 ENV PATH="/.venv/bin:$PATH"

@@ -5,11 +5,11 @@ Functional, traceable specification for **Config → Login** in legacy admin web
 ## Context
 
 - **Page**: `/isard-admin/admin/login`
-- **Template**: `webapp/webapp/webapp/templates/admin/pages/login.html`
-- **Main JS**: `webapp/webapp/webapp/static/admin/js/login.js`
-- **Modal template**: `webapp/webapp/webapp/templates/admin/pages/login_modals.html`
-- **Field snippet**: `webapp/webapp/webapp/templates/snippets/login_notification_fields.html`
-- **Helper JS**: `webapp/webapp/webapp/static/js/snippets/login_notification.js`
+- **Template**: `webapp/src/webapp/templates/admin/pages/login.html`
+- **Main JS**: `webapp/src/webapp/static/admin/js/login.js`
+- **Modal template**: `webapp/src/webapp/templates/admin/pages/login_modals.html`
+- **Field snippet**: `webapp/src/webapp/templates/snippets/login_notification_fields.html`
+- **Helper JS**: `webapp/src/webapp/static/js/snippets/login_notification.js`
 
 ## Resource / action matrix
 

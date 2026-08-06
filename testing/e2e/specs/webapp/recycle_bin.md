@@ -33,9 +33,9 @@ Serves as the contract for **two separate** E2E test files:
     dropdown.
 - **Roles**: `admin` and `manager` (the page template is gated by
   `{% if current_user.role in ['admin', 'manager'] %}`,
-  [recyclebin_domains.html:6](../../../../webapp/webapp/webapp/templates/admin/pages/recyclebin_domains.html#L6); the Flask
+  [recyclebin_domains.html:6](../../../../webapp/src/webapp/templates/admin/pages/recyclebin_domains.html#L6); the Flask
   route is `@isAdminManager`,
-  [AdminViews.py:269-287](../../../../webapp/webapp/webapp/views/AdminViews.py#L269-L287)).
+  [AdminViews.py:269-287](../../../../webapp/src/webapp/views/AdminViews.py#L269-L287)).
   Managers see only their **own category**'s entries; admins see all.
 - **Actions covered**: bulk delete, bulk restore, "no selection"
   guard, automatic-delete cutoff, individual delete, individual
@@ -62,7 +62,7 @@ Serves as the contract for **two separate** E2E test files:
    hand-built URLs.
 2. **Locate rows by `tr[id]` — caveat to verify at implementation.**
    The main table sets `"rowId": "id"`
-   ([recyclebin_domains.js:256](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L256)),
+   ([recyclebin_domains.js:256](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L256)),
    so each row *should* be reachable as
    `#recyclebin_domains tbody tr[id="<entry_id>"]`, the entry id taken
    from the SDK (`getRecycleBinAdminEntries`) — the same pattern
@@ -76,7 +76,7 @@ Serves as the contract for **two separate** E2E test files:
      is that **if a column is not visible, Playwright cannot see/use
      it**, and the only way to expose the **Id** column is the
      **Ctrl+Alt+I** shortcut, which is **admin‑only**
-     ([isard.js:932-945](../../../../webapp/webapp/webapp/static/isard.js#L932-L945)).
+     ([isard.js:932-945](../../../../webapp/src/webapp/static/isard.js#L932-L945)).
      If `tr[id]` turns out to be insufficient for this table, the test
      must reveal the Id column first (admin) before locating rows — and
      **managers cannot**. So manager UI row‑location may be infeasible;
@@ -117,7 +117,7 @@ reads the owner's category `recycle_bin_cutoff_time`, falling back to
 the system value
 ([recycle_bin.py:996-1025](../../../../component/_common/src/isardvdi_common/helpers/recycle_bin.py#L996-L1025)).
 The seeded `default` category ships `recycle_bin_cutoff_time: null`
-([categories.json](../../../../testing/db/data/categories.json)), i.e. it falls back to the
+([categories.json](../../../../testing/src/isardvdi_testing/data/categories.json)), i.e. it falls back to the
 system cutoff, which in the dev/CI DB is non‑immediate. So:
 
 - Deleting an **admin/manager‑owned** item created in `default` →
@@ -187,11 +187,11 @@ SDK rather than expect an instant terminal state.
 
 1. For each entry, click `tr[id="<id>"] .select-checkbox input` to
    select the row (sets `.active` via `toggleRow`,
-   [isard.js:401-410](../../../../webapp/webapp/webapp/static/isard.js#L401-L410)).
+   [isard.js:401-410](../../../../webapp/src/webapp/static/isard.js#L401-L410)).
 2. Select **"Delete permanently"** in `#mactions`.
 3. A confirmation PNotify *"Are you sure you want to delete \<N\>
    recycle bin entries?"* appears
-   ([recyclebin_domains.js:597](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L597)).
+   ([recyclebin_domains.js:597](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L597)).
 4. Assert the rendered count equals `N`.
 5. Click **Ok** (`.ui-pnotify-action-button` with text `ok`).
 
@@ -254,7 +254,7 @@ SDK rather than expect an instant terminal state.
 #### Then
 
 1. A warning PNotify **"Please select items to delete"** appears
-   ([recyclebin_domains.js:652-666](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L652-L666));
+   ([recyclebin_domains.js:652-666](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L652-L666));
    `#mactions` resets to `none`.
 2. **No** `PUT /api/v4/items/recycle-bin/{delete,restore}` request is
    fired (assert via a request listener, as `gpus.spec.js` does for the
@@ -284,7 +284,7 @@ SDK rather than expect an instant terminal state.
    options (Immediately, 1 h, 6 h, … 1 year).
 2. Choose a **non-zero** value (e.g. `1` hour).
 3. A confirmation PNotify appears
-   ([recyclebin_domains.js:788-832](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L788-L832));
+   ([recyclebin_domains.js:788-832](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L788-L832));
    click **Ok**.
 4. Reload the page.
 
@@ -322,7 +322,7 @@ SDK rather than expect an instant terminal state.
    `button#btn-delete`.
 2. A confirmation PNotify *"Do you really want to permanently delete the
    bin `<id>`?"* appears
-   ([recyclebin_domains.js:430-457](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L430-L457)).
+   ([recyclebin_domains.js:430-457](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L430-L457)).
 3. Click **Ok**.
 
 #### Then
@@ -349,7 +349,7 @@ SDK rather than expect an instant terminal state.
 1. On `tr[id="<id>"]`, click `button#btn-restore`.
 2. The confirmation PNotify lists counts (*"\<n\> desktops … \<n\>
    disks"*,
-   [recyclebin_domains.js:459-505](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L459-L505)).
+   [recyclebin_domains.js:459-505](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L459-L505)).
 3. Click **Ok**.
 
 #### Then
@@ -377,7 +377,7 @@ SDK rather than expect an instant terminal state.
 
 1. In the `#recyclebin_domains` table footer, type a distinctive value
    (e.g. the owner name) into a per-column **Filter** input
-   ([recyclebin_domains.js:372-406](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L372-L406)).
+   ([recyclebin_domains.js:372-406](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L372-L406)).
 
 #### Then
 
@@ -414,7 +414,7 @@ Each column is non-empty and correctly formatted:
 3. **Agent name** = `agent_name`; **Agent type** = `agent_type`.
 4. **Owner name** = `owner_name` (or italic *(deleted)* placeholder
    when null,
-   [recyclebin_domains.js:298-300](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L298-L300)).
+   [recyclebin_domains.js:298-300](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L298-L300)).
 5. **Item type** = `item_type` (e.g. `desktop`).
 6. **Deleted desktops / templates / deployments / storages** counts
    equal the SDK entry's `desktops`/`templates`/`deployments`/`storages`
@@ -435,7 +435,7 @@ Each column is non-empty and correctly formatted:
 
 1. In the **Item type** footer cell — a `<select>` with options
    Desktop/Template/Deployment/User/Group/Category
-   ([recyclebin_domains.js:386-402](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L386-L402))
+   ([recyclebin_domains.js:386-402](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L386-L402))
    — select **Desktop**.
 
 #### Then
@@ -470,7 +470,7 @@ Each column is non-empty and correctly formatted:
 2. The **Desktops** sub-table shows the desktop row (its `id`/`name`).
 3. The **Storages** sub-table shows ≥1 disk.
 4. Each panel's `.quantity` header reads `(<n> items)`
-   ([recyclebin_domains.js:537-548](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L537-L548)).
+   ([recyclebin_domains.js:537-548](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L537-L548)).
 5. Main-table `Deleted desktops`/`… storages` column values == detail
    sub-table row counts == SDK `getRecycleBin().desktops.length` /
    `.storages.length`. Templates/deployments are `0` for a
@@ -520,7 +520,7 @@ Each column is non-empty and correctly formatted:
 1. The administrator is authenticated and the Recyclebin/Domains page
    has loaded with ≥1 row.
 2. The **Id** column is defined `"visible": false`
-   ([recyclebin_domains.js:361-365](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L361-L365)).
+   ([recyclebin_domains.js:361-365](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L361-L365)).
 
 #### When
 
@@ -530,7 +530,7 @@ Each column is non-empty and correctly formatted:
 
 1. `adminShowIdCol` toggles the last column's visibility for
    `data-role == 'admin'`
-   ([isard.js:932-945](../../../../webapp/webapp/webapp/static/isard.js#L932-L945)).
+   ([isard.js:932-945](../../../../webapp/src/webapp/static/isard.js#L932-L945)).
 2. The **Id** column is now visible and shows the entry id.
 3. Pressing **Ctrl+Alt+I** again hides it.
 
@@ -550,7 +550,7 @@ Each column is non-empty and correctly formatted:
 1. Observe the `#status` dropdown, populated from
    `GET /api/v4/items/recycle-bin/status` (`by_status`), **excluding**
    `recycled` and `deleting`
-   ([recyclebin_domains.js:668-681](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L668-L681)).
+   ([recyclebin_domains.js:668-681](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L668-L681)).
    Options read like `deleted (N items)`.
 2. Select the status that was produced in the precondition.
 
@@ -713,7 +713,7 @@ Each column is non-empty and correctly formatted:
 
 1. On `#maxtime`, choose a non-zero value (options trimmed to ≤ the
    system maximum,
-   [recyclebin_domains.js:834-852](../../../../webapp/webapp/webapp/static/admin/js/recyclebin_domains.js#L834-L852)).
+   [recyclebin_domains.js:834-852](../../../../webapp/src/webapp/static/admin/js/recyclebin_domains.js#L834-L852)).
 2. Confirm the PNotify (category-variant text).
 3. Reload the page.
 
@@ -745,7 +745,7 @@ Each column is non-empty and correctly formatted:
 
 1. The **Id** column **stays hidden** — the keydown listener is only
    registered for `data-role == 'admin'`
-   ([isard.js:932-945](../../../../webapp/webapp/webapp/static/isard.js#L932-L945)).
+   ([isard.js:932-945](../../../../webapp/src/webapp/static/isard.js#L932-L945)).
 2. The Id column header/cell is not visible after the shortcut (negative
    assertion).
 
@@ -891,7 +891,7 @@ mix it with the Domains spec (`recycle_bin.spec.js`).
   driven by `static/admin/js/recycle_bin_config.js`.
 - **Screen**: **Recycle bin → Config**, reached at
   `/isard-admin/admin/domains/render/Recyclebin/Config`
-  ([AdminViews.py:269-287](../../../../webapp/webapp/webapp/views/AdminViews.py#L269-L287)).
+  ([AdminViews.py:269-287](../../../../webapp/src/webapp/views/AdminViews.py#L269-L287)).
 - **Role**: **admin only** (per product). The Flask route is
   `@isAdminManager`, so the page *renders* for managers too, but the
   config write endpoints are admin‑scoped and the page is treated as
@@ -939,7 +939,7 @@ mix it with the Domains spec (`recycle_bin.spec.js`).
 1. Toggle `#default-delete-checkbox` via the iCheck control.
    `checkDefaultDelete` binds `ifChecked`→`toggleDefaultDelete(true)` /
    `ifUnchecked`→`toggleDefaultDelete(false)`
-   ([recycle_bin_config.js:283-320](../../../../webapp/webapp/webapp/static/admin/js/recycle_bin_config.js#L283-L320)).
+   ([recycle_bin_config.js:283-320](../../../../webapp/src/webapp/static/admin/js/recycle_bin_config.js#L283-L320)).
 
 #### Then
 
@@ -963,10 +963,10 @@ mix it with the Domains spec (`recycle_bin.spec.js`).
 > **E2E test status**: normal test. **Bug #3 is FIXED.**
 > The two radios — `#delete-action-radio` (`value="delete"`) and
 > `#move-action-radio` (`value="move"`,
-> [recyclebin_config.html:45-56](../../../../webapp/webapp/webapp/templates/admin/pages/recyclebin_config.html#L45-L56))
+> [recyclebin_config.html:45-56](../../../../webapp/src/webapp/templates/admin/pages/recyclebin_config.html#L45-L56))
 > — fire `PUT /api/v4/item/recycle-bin/config/delete-action/{value}`
 > (`toggleDeleteAction`,
-> [recycle_bin_config.js:322-371](../../../../webapp/webapp/webapp/static/admin/js/recycle_bin_config.js#L322-L371)).
+> [recycle_bin_config.js:322-371](../../../../webapp/src/webapp/static/admin/js/recycle_bin_config.js#L322-L371)).
 > `DeleteActionEnum` now accepts **`move`** / **`delete`**, so the PUT
 > returns **204**.
 >
@@ -991,7 +991,7 @@ mix it with the Domains spec (`recycle_bin.spec.js`).
 
 1. Change `#maxtime` — options "5 minutes"=`0` … "2 years",
    "Never"=`null`
-   ([recyclebin_config.html:73-90](../../../../webapp/webapp/webapp/templates/admin/pages/recyclebin_config.html#L73-L90)).
+   ([recyclebin_config.html:73-90](../../../../webapp/src/webapp/templates/admin/pages/recyclebin_config.html#L73-L90)).
 
 > **Note**: this is a **different** `#maxtime` from the one on the
 > Domains page (which drives the cutoff — **A5**). Here it drives
@@ -1018,7 +1018,7 @@ mix it with the Domains spec (`recycle_bin.spec.js`).
 
 1. Toggle `#delete-radio` (a **checkbox**, `name="archive-delete-action"`,
    `value="delete"`,
-   [recyclebin_config.html:92-107](../../../../webapp/webapp/webapp/templates/admin/pages/recyclebin_config.html#L92-L107))
+   [recyclebin_config.html:92-107](../../../../webapp/src/webapp/templates/admin/pages/recyclebin_config.html#L92-L107))
    via iCheck.
    - `ifChecked` → `toggleOldEntriesAction('delete')`.
    - `ifUnchecked` → `toggleOldEntriesAction('none')`.
@@ -1043,7 +1043,7 @@ mix it with the Domains spec (`recycle_bin.spec.js`).
 2. `#unused-desktops-table` has loaded via
    `GET /api/v4/items/recycle-bin/unused-item-timeout-rules`
    (`sAjaxDataProp: "rules"`,
-   [recycle_bin_config.js:373-417](../../../../webapp/webapp/webapp/static/admin/js/recycle_bin_config.js#L373-L417));
+   [recycle_bin_config.js:373-417](../../../../webapp/src/webapp/static/admin/js/recycle_bin_config.js#L373-L417));
    assert it renders without error (SDK `getAllUnusedItemTimeoutRules`
    for the baseline).
 

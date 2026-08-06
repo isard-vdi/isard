@@ -12,9 +12,11 @@ services:
     - type: bind
       source: ${BUILD_ROOT_PATH}/docker/backupninja/nfs_umount.sh
       target: /usr/local/bin/nfs_umount.sh
+    # The package is installed non-editable into the image venv, so hot-reload
+    # comes from shadowing it on PYTHONPATH, which wins over site-packages.
     - type: bind
-      source: ${BUILD_ROOT_PATH}/docker/backupninja/backup_report.py
-      target: /usr/local/bin/backup_report.py
+      source: ${BUILD_ROOT_PATH}/docker/backupninja/src/isardvdi_backupninja
+      target: /opt/isardvdi/isardvdi_backupninja
     - type: bind
       source: ${BUILD_ROOT_PATH}/docker/backupninja/send_backup_report.sh
       target: /usr/local/bin/send_backup_report.sh

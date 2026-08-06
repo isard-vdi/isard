@@ -33,8 +33,8 @@ for pid in $(pgrep -x ovs-vswitchd); do
     renice -n -5 -p $pid 2>/dev/null && echo "ovs-vswitchd ($pid): nice -5"
 done
 
-# ovs-worker.py - Flow management
-for pid in $(pgrep -f 'ovs-worker.py'); do
+# OVS worker daemon - Flow management
+for pid in $(pgrep -f 'isardvdi-hypervisor-ovs-worker'); do
     renice -n -5 -p $pid 2>/dev/null && echo "ovs-worker ($pid): nice -5"
 done
 

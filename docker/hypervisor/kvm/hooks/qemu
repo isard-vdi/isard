@@ -60,7 +60,7 @@ XML=$(cat -)
 # torn down (which would wedge the PF). The guard only reads sysfs + /run; it
 # never calls virsh (which would deadlock libvirtd).
 if [ "${operation}" = "prepare" ] || [ "${operation}" = "start" ]; then
-    if ! printf '%s' "$XML" | python3 /src/lib/gpu_change_guard.py; then
+    if ! printf '%s' "$XML" | /.venv/bin/isardvdi-hypervisor-gpu-change-guard; then
         echo "qemu hook: refusing start of ${domain_name} -- a GPU card is mid profile-change" >&2
         exit 1
     fi

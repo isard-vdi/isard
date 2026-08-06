@@ -8,7 +8,7 @@ test.skip(true, 'Deprecated test, see specs/ for replacements')
 // Admin-only surface for managing reservable resource availability.
 // Router guards: allowedRoles: ['admin'].
 //
-// Seed dependencies (testing/db/data/):
+// Seed dependencies (testing/src/isardvdi_testing/data/):
 //   gpus.json               — 2 GPUs (A16 + T4)
 //   gpu_profiles.json       — 6 GPU-profile definitions
 //   reservables_vgpus.json  — 4 vGPU subitems

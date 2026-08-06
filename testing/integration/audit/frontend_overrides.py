@@ -8,9 +8,9 @@ audit's ScratchEntities namespace + ids dict; callables can reference
 ``scratch.group_id``, etc.
 
 Sourced from grepping the actual frontend code:
-- ``webapp/webapp/webapp/static/admin/js/users_management.js``
-- ``webapp/webapp/webapp/static/admin/js/categories_management.js``
-- ``webapp/webapp/webapp/static/admin/js/groups_management.js``
+- ``webapp/src/webapp/static/admin/js/users_management.js``
+- ``webapp/src/webapp/static/admin/js/categories_management.js``
+- ``webapp/src/webapp/static/admin/js/groups_management.js``
 - ``component/frontend/src/`` for vue3 admin views
 
 When the audit hits a (method, path) without an override, it falls back

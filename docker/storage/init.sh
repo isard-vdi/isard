@@ -106,7 +106,7 @@ start_worker() {
     env ${_floor_env} rq worker \
         --connection-class="isardvdi_common.connections.redis_retry.RedisRetry" \
         --url "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}/0" \
-        --path /opt/isardvdi/isardvdi_task \
+        --path "${TASK_IMPORT_PATH}" \
         --logging_level ${LOG_LEVEL:-INFO} \
         --with-scheduler \
         ${_class_arg} \
@@ -148,6 +148,21 @@ fi
 
 if [ "${REDIS_WORKERS:-1}" -ne 0 ] && [ "${_cap_disk_enabled}" -eq 1 ]
 then
+    # Task bodies ship in the installed ``isardvdi_storage`` package, but RQ job
+    # names are built as ``task.<action>`` by isardvdi_common.models.task
+    # (``Job.create(f"task.{...}")``), so rq's ``import_attribute`` imports a
+    # TOP-LEVEL ``task`` module. Putting the installed package DIRECTORY on
+    # ``--path`` is what makes ``isardvdi_storage/task.py`` resolve under that
+    # name. Resolved at runtime rather than hard-coded so a devel bind-mount
+    # that shadows the package (PYTHONPATH) wins over the copy in /.venv.
+    # An empty value would make rq append "" (i.e. cwd) and every job would then
+    # fail to import, so refuse to start instead of running a broken fleet.
+    TASK_IMPORT_PATH=$(python3 -c 'import pathlib, isardvdi_storage; print(pathlib.Path(isardvdi_storage.__file__).parent)')
+    if [ -z "${TASK_IMPORT_PATH}" ]; then
+        echo "init.sh: cannot locate the installed isardvdi_storage package; refusing to start the storage worker fleet" >&2
+        exit 1
+    fi
+
     # Wait for Redis to be ready before starting workers
     /utils/wait_for_redis
 

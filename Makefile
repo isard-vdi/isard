@@ -120,42 +120,42 @@ test-vmalert:
 
 # Python test matrix — single source of truth for both the dev (`test-*`)
 # and CI (`ci-test-*`) targets. One row per workspace package:
-#   name : cov-module : dir : pytest-path [: pytest-path...]
+#   name : cov-module : dir
 # The uv package is always isardvdi-<name>, so it is derived, not a column.
 # Both target flavours cd into the same dir, so cov-module resolves
-# identically for the dev and the CI run. Every field after the third is a
-# pytest path, so a package whose suites live in two trees lists both.
+# identically for the dev and the CI run. No member is nested inside another,
+# so uv discovers the workspace root from any of them.
 # Dev targets run with the dev group; CI targets run --no-dev (prod + test).
 # Every Python workspace suite is generated from this table. The suites that
 # are not workspace packages keep their own targets: test-go/ci-test-go,
 # ci-test-frontend (bun), test-engine (runs inside the container), test-e2e,
 # test-vmalert, test-sparsify and ci-test-storage-utils.
 PY_PKGS := \
-	apiv4:api:component/apiv4/src:api/ \
-	common:isardvdi_common:component/_common/src:isardvdi_common \
-	change-handler:isardvdi_change_handler:component/change-handler/src:isardvdi_change_handler/tests/ \
-	changefeed:isardvdi_changefeed:component/changefeed/src:isardvdi_changefeed/tests/ \
-	socketio:isardvdi_socketio:component/socketio/src:isardvdi_socketio/tests \
-	openapi:isardvdi_openapi:component/openapi/src:isardvdi_openapi/tests \
-	notifier:notifier:notifier:tests \
-	scheduler:scheduler:scheduler:tests \
-	webapp:webapp:webapp/webapp:tests \
-	apiv4-client:isardvdi_apiv4_client_auth:component/_common/isardvdi_apiv4_client:tests \
-	vpn:src:docker/vpn:tests \
-	storage:task:docker/storage:task/tests:utils/tests \
-	codegen:.:docker/codegen:tests \
-	anonymize-db:anonymize_db:sysadm/anonymize-db:tests \
-	backupninja:.:docker/backupninja:tests \
-	hypervisor:lib:docker/hypervisor/src:.
+	apiv4:api:component/apiv4 \
+	common:isardvdi_common:component/_common \
+	change-handler:isardvdi_change_handler:component/change-handler \
+	changefeed:isardvdi_changefeed:component/changefeed \
+	socketio:isardvdi_socketio:component/socketio \
+	openapi:isardvdi_openapi:component/openapi \
+	notifier:notifier:notifier \
+	scheduler:scheduler:scheduler \
+	webapp:webapp:webapp \
+	apiv4-client:isardvdi_apiv4_client_auth:component/apiv4-client \
+	vpn:isardvdi_vpn:docker/vpn \
+	storage:isardvdi_storage:docker/storage \
+	codegen:isardvdi_codegen:docker/codegen \
+	anonymize-db:anonymize_db:sysadm/anonymize-db \
+	hypervisor:isardvdi_hypervisor:docker/hypervisor \
+	backupninja:isardvdi_backupninja:docker/backupninja
 
 # Just the short names, in PY_PKGS order — drives the aggregate prereq lists.
 PY_PKG_NAMES := $(foreach r,$(PY_PKGS),$(word 1,$(subst :, ,$(r))))
 
-# $1 = whitespace-split row: word 1=name 2=cov-mod 3=dir 4..=pytest-path(s)
+# $1 = whitespace-split row: word 1=name 2=cov-mod 3=dir
 define TEST_RULE
 .PHONY: test-$(word 1,$1)
 test-$(word 1,$1):
-	cd $(word 3,$1) && uv run --group test --package isardvdi-$(word 1,$1) pytest $(wordlist 4,$(words $1),$1) -n auto --cov=$(word 2,$1)
+	cd $(word 3,$1) && uv run --group test --package isardvdi-$(word 1,$1) pytest tests -n auto --cov=$(word 2,$1)
 endef
 $(foreach r,$(PY_PKGS),$(eval $(call TEST_RULE,$(subst :, ,$(r)))))
 
@@ -186,7 +186,7 @@ test-e2e-seed:
 	-e UV_CACHE_DIR=/tmp/uv-cache \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
 	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine \
-	sh -c 'apk add --no-cache git && uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py'
+	sh -c 'apk add --no-cache git && uv run --group test --package isardvdi-testing isardvdi-populate-test-db'
 
 .PHONY: test-e2e
 test-e2e: test-e2e-seed
@@ -215,15 +215,15 @@ test-e2e: test-e2e-seed
 test-sparsify:
 	bash docker/storage/utils/tests/test_sparsify_recover_backup.sh
 
-# Regression test for the `storage` cleanup CLI's sparsify-backup classifier:
-# a locked/in-use canonical must keep its backup, because the lock-bypassing
-# check reads through the lock and calls a half-written image clean. The CLI is
-# loaded by path (no .py suffix) and its qemu-img calls are replaced, so this
-# needs no qemu binaries and no lock holder.
+# docker/storage/utils holds standalone operator CLIs (storage, sparsify,
+# storage_lib), not part of the isardvdi_storage package, so its suite is not
+# reachable from the matrix row's docker/storage/tests and gets its own target.
+# The CLIs are loaded by path (no .py suffix) and their qemu-img calls are
+# replaced, so this needs no qemu binaries and no lock holder.
 .PHONY: ci-test-storage-utils
 ci-test-storage-utils:
 	uv sync --no-dev --group test --package isardvdi-storage
-	cd docker/storage/utils && uv run --no-dev --group test --package isardvdi-storage pytest tests/test_classify_sparsify_backup.py -q --tb=short --junitxml=report.xml
+	cd docker/storage/utils && uv run --no-dev --group test --package isardvdi-storage pytest tests -q --tb=short --junitxml=report.xml
 
 
 # CI test targets: emit JUnit + Cobertura XML so GitLab CI can consume them
@@ -247,7 +247,7 @@ define CI_TEST_RULE
 .PHONY: ci-test-$(word 1,$1)
 ci-test-$(word 1,$1):
 	uv sync --no-dev --group test --package isardvdi-$(word 1,$1)
-	cd $(word 3,$1) && uv run --no-dev --group test --package isardvdi-$(word 1,$1) pytest $(wordlist 4,$(words $1),$1) -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=$(word 2,$1) --cov-report=term --cov-report=xml:coverage.xml
+	cd $(word 3,$1) && uv run --no-dev --group test --package isardvdi-$(word 1,$1) pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=$(word 2,$1) --cov-report=term --cov-report=xml:coverage.xml
 endef
 $(foreach r,$(PY_PKGS),\
   $(if $(filter $(word 1,$(subst :, ,$(r))),$(CI_TEST_GENERATED)),\
@@ -264,12 +264,12 @@ ci-test-contracts:
 .PHONY: ci-test-common
 ci-test-common:
 	uv sync --no-dev --group test --package isardvdi-common --package isardvdi-apiv4 --package isardvdi-change-handler --package isardvdi-socketio
-	SKIP_GATE_REPORT=component/_common/src/report.xml docker/lib/ci-with-redis.sh sh -c 'cd component/_common/src && uv run --no-dev --group test --package isardvdi-common pytest isardvdi_common -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml'
+	SKIP_GATE_REPORT=component/_common/report.xml docker/lib/ci-with-redis.sh sh -c 'cd component/_common && uv run --no-dev --group test --package isardvdi-common pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml'
 
 .PHONY: ci-test-change-handler
 ci-test-change-handler:
 	uv sync --no-dev --group test --package isardvdi-change-handler
-	SKIP_GATE_REPORT=component/change-handler/src/report.xml docker/lib/ci-with-redis.sh sh -c 'cd component/change-handler/src && uv run --no-dev --group test --package isardvdi-change-handler pytest isardvdi_change_handler/tests/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_change_handler --cov-report=term --cov-report=xml:coverage.xml'
+	SKIP_GATE_REPORT=component/change-handler/report.xml docker/lib/ci-with-redis.sh sh -c 'cd component/change-handler && uv run --no-dev --group test --package isardvdi-change-handler pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_change_handler --cov-report=term --cov-report=xml:coverage.xml'
 
 .PHONY: ci-test-frontend
 ci-test-frontend:
@@ -277,7 +277,7 @@ ci-test-frontend:
 
 .PHONY: ci-test-webapp-js
 ci-test-webapp-js:
-	for t in webapp/webapp/webapp/static/admin/js/tests/*.test.js; do echo "== $$t"; bun "$$t" || exit 1; done
+	for t in webapp/src/webapp/static/admin/js/tests/*.test.js; do echo "== $$t"; bun "$$t" || exit 1; done
 
 .PHONY: ci-test-python
 ci-test-python: $(addprefix ci-test-,$(PY_PKG_NAMES))

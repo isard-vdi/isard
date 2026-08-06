@@ -22,7 +22,6 @@ ENV LIBGUESTFS_BACKEND=direct
 RUN useradd -ms /bin/bash v2v
 
 COPY --from=builder /.venv /.venv
-COPY docker/storage/task /opt/isardvdi/isardvdi_task
 COPY docker/storage/init.sh /init.sh
 RUN mkdir /utils
 COPY docker/storage/utils /utils

@@ -17,31 +17,11 @@ stops updating.
 """
 from __future__ import annotations
 
-import importlib.util
 from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
 
 import pytest
-
-SRC_DIR = Path(__file__).resolve().parent.parent / "src"
-
-
-def _load_real_wg_monitor():
-    """Load ``docker/vpn/src/wg_monitor.py`` under a private module name.
-
-    The session-scoped conftest installs ``sys.modules['wg_monitor']`` as a
-    stub (to stop ``wgadmin`` spawning the monitor thread), so importing the
-    name would hand back that stub. Loading straight from the file under a
-    different name gives us the real ``log_wireguard_peers``.
-    """
-    spec = importlib.util.spec_from_file_location(
-        "wg_monitor_real_2070", str(SRC_DIR / "wg_monitor.py")
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+from isardvdi_vpn import wg_monitor
 
 
 class _FakeResp:
@@ -74,7 +54,7 @@ def _make_peer(mod, *, public_key: str, client_ip: str):
 
 @pytest.fixture
 def wg_monitor_real():
-    return _load_real_wg_monitor()
+    return wg_monitor
 
 
 def test_poison_peer_does_not_block_other_peers(wg_monitor_real, monkeypatch):

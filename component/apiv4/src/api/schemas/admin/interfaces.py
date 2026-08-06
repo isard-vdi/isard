@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class LabOptsModel(BaseModel):
     """Per-interface "lab options" for network laboratory use. Each flag, when
     True, relaxes one OVS port protection in the hypervisor
-    (docker/hypervisor/src/ovs/ovs-worker.py); all default False so the
+    (docker/hypervisor/src/isardvdi_hypervisor/ovs_worker.py); all default False so the
     hypervisor emits the strict anti-MAC-spoofing flow set (identical to legacy
     behaviour). Every flag is restricted at the service layer to
     kind=ovs/personal and never on VLAN 4095 (wireguard infra). Legacy rows

@@ -17,15 +17,7 @@ outside the try that wraps the user lookup.
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-import types
-from pathlib import Path
 from unittest.mock import patch
-
-import pytest
-
-SRC_DIR = Path(__file__).resolve().parent.parent / "src"
 
 STARTED = [
     {"id": "no-viewer-yet", "user": "u1", "viewer": {}},
@@ -49,29 +41,6 @@ class _FakeR:
 
     def run(self, _conn):
         return list(self._rows)
-
-
-@pytest.fixture()
-def simple_iptools(monkeypatch):
-    db_stub = types.ModuleType("db")
-
-    class _Conn:
-        def __enter__(self):
-            return object()
-
-        def __exit__(self, *args):
-            return False
-
-    db_stub.vpn_rethink_conn = _Conn  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "db", db_stub)
-    monkeypatch.syspath_prepend(str(SRC_DIR))
-    spec = importlib.util.spec_from_file_location(
-        "simple_iptools_nullip_under_test", str(SRC_DIR / "simple_iptools.py")
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def test_a_desktop_without_an_address_does_not_stop_the_scan(simple_iptools):

@@ -478,7 +478,7 @@ class hyp(object):
             self.info = {}
             # KVM module type is reported by the hypervisor container at
             # registration (admin_hypervisor_create) — see
-            # docker/hypervisor/src/lib/setup.py:_detect_kvm_module. Hypervisors
+            # docker/hypervisor/src/isardvdi_hypervisor/setup.py:_detect_kvm_module. Hypervisors
             # registered before this field existed surface as None here, which
             # fails the kvm_module gate in hyp_worker_thread and forces the
             # operator to restart the hypervisor container so it re-registers.
@@ -687,8 +687,11 @@ class hyp(object):
         # teardown (defense-in-depth; the engine already quiesced inline) instead
         # of skipping a busy card -- and aborts rather than unbinding an in-use
         # vfio device (which would wedge the PF in D-state).
+        # Absolute venv path: this runs over SSH, whose non-login shell does not
+        # inherit the image's PATH, so the console script must be addressed
+        # directly rather than by name.
         cmd = (
-            "python3 /src/lib/gpu_apply_cli.py "
+            "/.venv/bin/isardvdi-hypervisor-gpu-apply "
             f"--pci-bdf {shlex.quote(pci_bdf)} "
             f"--target-profile {shlex.quote(new_profile)} "
             f"--mdevs-reset-at {shlex.quote(reset_at)} "
@@ -1686,7 +1689,7 @@ class hyp(object):
 
         # Nested virtualization is reported by the hypervisor container at
         # registration (admin_hypervisor_create) — see
-        # docker/hypervisor/src/lib/setup.py:_detect_nested_virtualization.
+        # docker/hypervisor/src/isardvdi_hypervisor/setup.py:_detect_nested_virtualization.
         # Re-fetch the row here so a hypervisor that toggled the kvm_*.nested
         # module parameter and re-registered shows up correctly without
         # restarting the engine worker.

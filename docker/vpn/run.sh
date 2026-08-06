@@ -59,7 +59,6 @@ cd /
 # python3 networking.py
 
 /ovs/ovs_setup.sh
-cd /src
 
 echo "$(date): INFO: Starting vpn server"
-python3 wgadmin.py
+isardvdi-vpn-admin

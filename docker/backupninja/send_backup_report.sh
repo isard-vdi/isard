@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# The isardvdi-backupninja console scripts live in the image venv; make them
+# resolvable by name regardless of the (cron-scrubbed) PATH this runs under.
+export PATH="/workspace/.venv/bin:$PATH"
+
 set -u
 
 LOG_FILE="${LOG_FILE:-/var/log/backupninja.log}"
@@ -21,4 +25,4 @@ sync
 # not overwrite it to "automated".
 export BACKUP_TYPE="$BACKUP_TYPE_FOR_SESSION"
 
-python3 /usr/local/bin/backup_report.py
+isardvdi-backupninja-report

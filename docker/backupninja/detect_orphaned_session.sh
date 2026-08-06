@@ -6,6 +6,10 @@
 # has no record for that day, so the failure is silent.
 set -u
 
+# The isardvdi-backupninja console scripts live in the image venv; make them
+# resolvable by name regardless of the (cron-scrubbed) PATH this runs under.
+export PATH="/workspace/.venv/bin:$PATH"
+
 LOG_FILE="${LOG_FILE:-/var/log/backupninja.log}"
 [ -f "$LOG_FILE" ] || exit 0
 
@@ -32,4 +36,4 @@ sync
 
 echo "Detected orphaned backup session; sending CRITICAL report to API..."
 export BACKUP_TYPE="automated"
-python3 /usr/local/bin/backup_report.py || echo "Warning: failed to send orphaned-session report"
+isardvdi-backupninja-report || echo "Warning: failed to send orphaned-session report"

@@ -43,6 +43,11 @@ WORKDIR /workspace
 COPY --parents ./**/pyproject.toml ./uv.lock ./.python-version ./
 RUN uv sync --frozen --no-dev \
         --package isardvdi-codegen \
+        --no-editable \
+        --no-install-workspace
+COPY docker/codegen/src ./docker/codegen/src
+RUN uv sync --frozen --no-dev \
+        --package isardvdi-codegen \
         --no-editable && \
     chmod -R a+w /venv
 
@@ -78,9 +83,6 @@ ENV GOTOOLCHAIN=local \
     PATH=/venv/bin:/deps/node_modules/.bin:/usr/local/go/bin:/usr/local/bin:/usr/bin:/sbin:/bin
 
 COPY docker/codegen/gen.sh /gen.sh
-COPY docker/codegen/changefeed_utils.py /changefeed_utils.py
-COPY docker/codegen/gen_changefeed_asyncapi.py /gen_changefeed_asyncapi.py
-COPY docker/codegen/gen_changefeed_subscribers.py /gen_changefeed_subscribers.py
 COPY docker/codegen/gen_changefeed_models.js /gen_changefeed_models.js
 
 WORKDIR /build

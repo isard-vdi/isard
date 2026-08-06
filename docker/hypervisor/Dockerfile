@@ -150,7 +150,14 @@ RUN mkdir -p \
 COPY --from=mdevctl-build /usr/sbin/mdevctl /usr/sbin/mdevctl
 
 COPY --from=builder /.venv /.venv
-COPY docker/hypervisor/src /src
+# The Python code ships as the installed isardvdi_hypervisor package in /.venv;
+# /src only carries the shell/XML assets start.sh and the hooks reference by
+# absolute path. Excluding the package dir keeps a second, shadowing copy of it
+# off the WORKDIR (cwd precedes site-packages on sys.path).
+COPY --exclude=isardvdi_hypervisor docker/hypervisor/src /src
+# gpu_probe._load_shared and setup.py load the shared GPU builders / storage-pool
+# constant from here BY PATH (isardvdi-common is not a dependency of this
+# package), so this copy is load-bearing.
 COPY component/_common/src/isardvdi_common /src/isardvdi_common
 COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
 

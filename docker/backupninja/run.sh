@@ -2,6 +2,11 @@
 
 set -e
 
+# The isardvdi-backupninja console scripts live in the image venv; make them
+# resolvable by name regardless of the (cron-scrubbed) PATH run.sh runs under
+# when invoked from /etc/periodic/15min/backupninja-self-heal.
+export PATH="/workspace/.venv/bin:$PATH"
+
 # Serialize the setup block with the 15-min self-heal cron so a self-heal
 # tick cannot race the entrypoint (or a manual `run.sh setup`) on
 # /usr/local/etc/backup.d{.staging,}/. The lock is released explicitly
@@ -443,7 +448,7 @@ case "$1" in
         # Send backup report to API after manual execution
         echo "Sending backup report to API..."
         export BACKUP_TYPE="manual"
-        python3 /usr/local/bin/backup_report.py || echo "Warning: Failed to send backup report to API"
+        isardvdi-backupninja-report || echo "Warning: Failed to send backup report to API"
 
         # Unmount NFS if enabled
         umount_nfs
@@ -479,7 +484,7 @@ case "$1" in
         # Send backup report to API after manual execution of full backup
         echo "Sending backup report to API..."
         export BACKUP_TYPE="manual"
-        python3 /usr/local/bin/backup_report.py || echo "Warning: Failed to send backup report to API"
+        isardvdi-backupninja-report || echo "Warning: Failed to send backup report to API"
 
         # Unmount NFS if enabled
         umount_nfs

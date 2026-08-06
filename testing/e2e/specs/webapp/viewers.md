@@ -5,9 +5,9 @@ Functional, traceable specification for **Config → Viewers** in legacy admin w
 ## Context
 
 - **Page**: `/isard-admin/admin/viewers`
-- **Template**: `webapp/webapp/webapp/templates/admin/pages/viewers_config.html`
-- **Main JS**: `webapp/webapp/webapp/static/admin/js/viewers_config.js`
-- **Modal template**: `webapp/webapp/webapp/templates/admin/pages/viewers_config_modals.html`
+- **Template**: `webapp/src/webapp/templates/admin/pages/viewers_config.html`
+- **Main JS**: `webapp/src/webapp/static/admin/js/viewers_config.js`
+- **Modal template**: `webapp/src/webapp/templates/admin/pages/viewers_config_modals.html`
 
 ## Resource / action matrix
 

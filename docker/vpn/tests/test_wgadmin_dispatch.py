@@ -12,11 +12,12 @@ from unittest.mock import MagicMock, create_autospec
 
 import pytest
 from changefeed_subscribers import TABLE_TO_SUBSCRIBER
+from isardvdi_vpn import wgadmin
 
 
 @pytest.fixture
-def process_change(wgadmin_module):
-    return wgadmin_module._process_vpn_change
+def process_change():
+    return wgadmin._process_vpn_change
 
 
 @pytest.fixture
@@ -161,9 +162,7 @@ def test_process_vpn_change_update_with_explicit_null_vpn(process_change):
     assert wg_users.set_user_rules.called
 
 
-def test_hypervisor_delete_without_wg_hypers_uses_ovs(
-    process_change, wgadmin_module, monkeypatch
-):
+def test_hypervisor_delete_without_wg_hypers_uses_ovs(process_change, monkeypatch):
     """When wg_hypers is None (GENEVE_ONLY_INFRA), a hypervisor delete must
     shell out to ovs-ofctl/ovs-vsctl instead of calling a WireGuard helper."""
     captured: list[list[str]] = []
@@ -172,7 +171,7 @@ def test_hypervisor_delete_without_wg_hypers_uses_ovs(
         captured.append(list(cmd))
         return MagicMock(returncode=0)
 
-    monkeypatch.setattr(wgadmin_module.subprocess, "run", _fake_run)
+    monkeypatch.setattr(wgadmin.subprocess, "run", _fake_run)
 
     wg_users = MagicMock()
 

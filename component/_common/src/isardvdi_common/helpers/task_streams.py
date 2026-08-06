@@ -7,7 +7,7 @@
 """Shared task-stream names + routing for the #2084 stopgap ① (progress split).
 
 Single source of truth for the storage-worker producer
-(``docker/storage/task/task.py``) and the change-handler consumer
+(``docker/storage/src/isardvdi_storage/task.py``) and the change-handler consumer
 (``streams/trim.py`` / ``streams/task_results_consumer.py``), which previously
 duplicated these constants because the storage image doesn't ship the
 change-handler package. No redis / no heavy imports: pure names + functions so

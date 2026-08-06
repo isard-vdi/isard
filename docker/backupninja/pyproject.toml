@@ -10,6 +10,10 @@ dependencies = [
   "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/de0aa01a894bc08c3d8ecb9333bec2eafe9fd504.tar.gz",
 ]
 
+[project.scripts]
+isardvdi-backupninja-report = "isardvdi_backupninja.backup_report:main"
+isardvdi-backupninja-integrity-enabled = "isardvdi_backupninja.get_integrity_enabled:main"
+
 [dependency-groups]
 test = [
   "pytest",
@@ -25,7 +29,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-bypass-selection = true
+packages = ["src/isardvdi_backupninja"]
 
 [tool.isardvdi.system-deps]
 apk-build = ["build-base", "libffi-dev", "libjpeg-turbo-dev", "musl-dev", "openssl-dev", "zlib-dev"]

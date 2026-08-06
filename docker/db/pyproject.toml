@@ -14,4 +14,8 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
+# Dependency-only member: it ships no Python module of its own. The venv exists
+# solely so the rethinkdb wheel's rethinkdb-dump / rethinkdb-restore console
+# scripts are on PATH inside the isard-db container (see sysadm/anonymize-db,
+# which shells out to `docker exec isard-db rethinkdb-restore`).
 bypass-selection = true

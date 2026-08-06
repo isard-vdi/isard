@@ -83,7 +83,7 @@ therefore needs a **disk-backed** source. `beforeAll` builds one once for the wh
 suite:
 
 1. **Media → desktop.** `POST /api/v4/item/desktop/from-media` against the seeded,
-   already-`Downloaded` local ISO `empty-iso` (`testing/db/data/media.json`). The
+   already-`Downloaded` local ISO `empty-iso` (`testing/src/isardvdi_testing/data/media.json`). The
    storage worker carves a real qcow2 for the new desktop — no download is needed.
    The `os_template` is taken from `GET /api/v4/items/media/installs` (falling back
    to `vi-1`).

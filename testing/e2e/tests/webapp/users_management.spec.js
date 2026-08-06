@@ -2,7 +2,7 @@
 //
 // Spec:  testing/e2e/specs/webapp/users_management.md
 // Route: /isard-admin/admin/users/Management
-// JS:    webapp/webapp/webapp/static/admin/js/users_management.js
+// JS:    webapp/src/webapp/static/admin/js/users_management.js
 //
 // Test IDs (A1-A34, M1-M15) are kept aligned with the spec so that
 // regressions can be traced back to the contract document.

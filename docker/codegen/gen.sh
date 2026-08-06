@@ -22,11 +22,13 @@ openapi_ts_e2e() {
 }
 
 openapi_python() {
+	client_dir="component/${1#isardvdi_}"
+	client_dir="${client_dir%_client}-client"
 	run_quietly openapi-python-client generate \
 		--path "$2" \
-		--output-path "component/_common/$1/src/$1" \
+		--output-path "$client_dir/src/$1" \
 		--overwrite \
-		--config "component/_common/$1/openapi-python-client.yml" \
+		--config "$client_dir/openapi-python-client.yml" \
 		--meta=none \
 		&& echo "  generated Python client: $1"
 }
@@ -53,10 +55,10 @@ rm -rf pkg/gen/asyncapi/changefeed/changefeed_subscribers
 rm -f pkg/gen/asyncapi/changefeed/changefeed.yaml
 rm -rf component/frontend/src/gen
 rm -rf testing/e2e/src/gen
-rm -rf component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client
-rm -rf component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client
-rm -rf component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client
-rm -rf component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client
+rm -rf component/apiv4-client/src/isardvdi_apiv4_client
+rm -rf component/authentication-client/src/isardvdi_authentication_client
+rm -rf component/notifier-client/src/isardvdi_notifier_client
+rm -rf component/scheduler-client/src/isardvdi_scheduler_client
 rm -f ./*/**/testing_*_mock.go
 
 mkdir -p "$GOPATH" "$GOCACHE"
@@ -147,7 +149,7 @@ echo "==> Phase 2: APIv4 OpenAPI spec + changefeed (parallel)"
 (
 	set -e
 	mkdir -p pkg/gen/asyncapi/changefeed
-	run_quietly python /gen_changefeed_asyncapi.py \
+	run_quietly gen-changefeed-asyncapi \
 		--tables component/changefeed/src/isardvdi_changefeed/tables.json \
 		--output pkg/gen/asyncapi/changefeed/changefeed.yaml \
 		&& echo "  generated changefeed AsyncAPI spec"
@@ -161,7 +163,7 @@ echo "==> Phase 2: APIv4 OpenAPI spec + changefeed (parallel)"
 		&& echo "  generated changefeed Python models"
 	touch pkg/gen/asyncapi/changefeed/changefeed_models/__init__.py
 	# Per-table subscriber classes (type-safe wrappers around generated models).
-	run_quietly python /gen_changefeed_subscribers.py \
+	run_quietly gen-changefeed-subscribers \
 		--tables component/changefeed/src/isardvdi_changefeed/tables.json \
 		--output-dir pkg/gen/asyncapi/changefeed/changefeed_subscribers \
 		&& echo "  generated changefeed Python subscribers"

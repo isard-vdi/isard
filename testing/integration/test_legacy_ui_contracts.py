@@ -11,7 +11,7 @@ some larger lifecycle test in a confusing way.
 
 Endpoint discovery: ``grep -roh "apiV[34]Segment}/...">"`` over
 ``old-frontend/src/`` plus ``grep -roh "/api/v[34]/...">"`` over
-``webapp/webapp/webapp/``. The selection here is the union of high-
+``webapp/src/webapp/``. The selection here is the union of high-
 value endpoints the two UIs reach for on every login/dashboard load
 plus the per-item read endpoints (desktop / template / media / user /
 recycle bin / login config / maintenance / quotas / hypervisors /

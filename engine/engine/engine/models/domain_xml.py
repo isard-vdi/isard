@@ -294,7 +294,7 @@ index_to_char_suffix_disks = "a,b,c,d,e,f,g,h,i,j,k,l,m,n".split(",")
 
 
 # Per-interface "lab options". Each flag, when True, relaxes one OVS port
-# protection in the hypervisor (see docker/hypervisor/src/ovs/ovs-worker.py).
+# protection in the hypervisor (see docker/hypervisor/src/isardvdi_hypervisor/ovs_worker.py).
 # Maps the lab_opts key (API/DB name) -> the <isard:mapping> attribute name.
 LAB_OPT_ATTRS = {
     "mac_spoofing": "lab_mac_spoofing",

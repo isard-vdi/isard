@@ -36,7 +36,7 @@ For each top-frequency signature in the report:
    script (mirror the pattern from `/tmp/audit_users.py` we wrote
    earlier — see `~/.claude/skills/isardvdi-apiv4/`).
 2. Find the broken call site in `component/apiv4/src/api/services/*.py`
-   or `component/_common/isardvdi_common/`.
+   or `component/_common/src/isardvdi_common/`.
 3. Fix per the patterns in the migration skill / today's commits
    (`cf0e124a5`, `bc9a34fc3`, `71bd544bc`).
 4. Re-run a scoped audit:

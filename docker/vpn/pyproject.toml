@@ -11,6 +11,9 @@ dependencies = [
   "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/de0aa01a894bc08c3d8ecb9333bec2eafe9fd504.tar.gz",
 ]
 
+[project.scripts]
+isardvdi-vpn-admin = "isardvdi_vpn.wgadmin:main"
+
 [dependency-groups]
 test = [
   "pytest",
@@ -26,7 +29,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-bypass-selection = true
+packages = ["src/isardvdi_vpn"]
 
 [tool.isardvdi.system-deps]
 apk-build = ["autoconf", "automake", "build-base", "git", "libffi-dev", "libtool", "linux-headers", "musl-dev", "openssl-dev", "python3-dev"]
