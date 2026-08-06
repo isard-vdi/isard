@@ -16,6 +16,7 @@ interface Props extends PrimitiveProps {
   disabled?: boolean
   items?: (CardItem | TextItem | ImageItem | FeaturedIconItem)[]
   direction?: string
+  hideDescription?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -75,6 +76,7 @@ const selectItem = (value: string) => {
       :is-selected="isItemSelected(item.value)"
       :check-type="props.checkType"
       :disabled="props.disabled"
+      :hide-description="props.hideDescription"
       @check="selectItem(item.value)"
     />
   </div>

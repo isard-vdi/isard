@@ -5,6 +5,7 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Icon } from '@/components/icon'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { checkboxGroupItemVariants } from '@/components/checkbox-group'
 
@@ -31,6 +32,7 @@ interface Props extends PrimitiveProps {
   isSelected?: boolean
   disabled?: boolean
   item: FeaturedIconItem
+  hideDescription?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -38,7 +40,8 @@ const props = withDefaults(defineProps<Props>(), {
   checkType: 'checkbox',
   isSelected: false,
   loading: false,
-  disabled: false
+  disabled: false,
+  hideDescription: false
 })
 
 const emit = defineEmits(['check'])
@@ -61,23 +64,34 @@ const selectItem = () => {
 </script>
 
 <template>
-  <div :class="containerClasses" @click="selectItem">
-    <div v-if="loading" class="flex items-center gap-3 mx-2 mb-3">
+  <div :class="cn(containerClasses, 'relative')" @click="selectItem">
+    <div v-if="loading" class="w-26 flex items-center gap-3 mx-2 mb-3">
       <Skeleton class="mt-2 h-8 aspect-square rounded-full" />
       <Skeleton class="h-4 w-full" />
     </div>
-    <template v-else>
-      <div class="flex items-center gap-3">
-        <FeaturedIconOutline :name="item.icon" kind="filled" :color="item.color" />
-        <div class="flex-1">
-          <p :class="cn('text-sm', isSelected ? 'font-bold' : 'font-regular')">
-            {{ item.title }}
-          </p>
-          <p class="text-sm font-regular text-gray-warm-700">{{ item.description }}</p>
-        </div>
-        <Icon v-if="isDisabled" name="lock-01" size="lg" stroke-color="secondary-1-600" />
-        <Checkbox v-else :model-value="isSelected" :type="checkType" />
+    <div v-else class="flex items-center gap-3">
+      <FeaturedIconOutline :name="item.icon" kind="filled" :color="item.color" size="sm" />
+      <div class="flex-1">
+        <p :class="cn('text-sm', isSelected ? 'font-bold' : 'font-regular')">
+          {{ item.title }}
+        </p>
+        <p v-if="!hideDescription" class="text-sm font-regular text-gray-warm-700">
+          {{ item.description }}
+        </p>
       </div>
-    </template>
+      <Icon v-if="isDisabled" name="lock-01" size="lg" stroke-color="secondary-1-600" />
+      <Checkbox v-else :model-value="isSelected" :type="checkType" />
+    </div>
+    <Tooltip v-if="hideDescription && item.description">
+      <TooltipTrigger as-child>
+        <div
+          class="absolute -top-2 -right-2 flex h-6 w-6 cursor-help items-center justify-center rounded-full border border-gray-warm-300 bg-base-white"
+          @click.stop
+        >
+          <Icon name="info-circle" size="xs" stroke-color="gray-warm-500" />
+        </div>
+      </TooltipTrigger>
+      <TooltipContent :title="item.description" />
+    </Tooltip>
   </div>
 </template>

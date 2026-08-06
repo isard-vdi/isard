@@ -34,7 +34,7 @@ const iconMap: Record<NonNullable<Props['color']>, string> = {
   warning: 'alert-circle',
   success: 'check-circle',
   temporary: 'clock',
-  persistent: 'monitor-02',
+  persistent: 'browser',
   brand: 'info-circle',
   gray: 'info-circle',
   current: 'info-circle',
