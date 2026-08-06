@@ -218,6 +218,8 @@ const activeRows = computed(() => {
   }
 })
 
+const isSearching = computed(() => searchQuery.value.trim().length > 0)
+
 const filteredRows = computed(() => {
   if (!searchQuery.value.trim()) return activeRows.value
   const query = searchQuery.value.toLowerCase()
@@ -472,7 +474,9 @@ const entryErrorKey = computed(
           </EmptyHeader>
           <div class="flex flex-col items-start text-left rounded bg-base-background/75">
             <EmptyTitle class="text-[30px] leading-16 font-bold text-gray-warm-950">{{
-              t('views.recycle-bin.entry.empty.title')
+              isSearching
+                ? t('components.empty-search.title')
+                : t('views.recycle-bin.entry.empty.title')
             }}</EmptyTitle>
             <EmptyDescription class="text-4! text-gray-warm-900">{{
               t('views.recycle-bin.entry.empty.description')

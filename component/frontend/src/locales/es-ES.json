@@ -1599,6 +1599,7 @@
       "title": "No hay {kind} disponibles"
     },
     "empty-search": {
+      "clear": "Limpiar búsqueda",
       "title": "No se encontraron resultados"
     },
     "recreate-desktop-confirmation-modal": {
