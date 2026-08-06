@@ -23,11 +23,16 @@ import traceback
 from typing import Literal, Optional
 
 from api import admin_router
-from api.schemas.admin.downloads import DownloadItem, DownloadsOverviewResponse
+from api.schemas.admin.downloads import (
+    DownloadActionResponse,
+    DownloadItem,
+    DownloadsOverviewResponse,
+)
 from api.schemas.common import ErrorResponse
 from api.services.admin.downloads import AdminDownloadsService
 from api.services.error import Error
 from fastapi import Body, Path, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, Response
 
 tag = "admin_downloads"
@@ -198,8 +203,8 @@ async def admin_downloads_action(
 @admin_router.post(
     "/admin/item/downloads/{action}/{kind}/{id}",
     tags=[tag],
-    status_code=204,
-    response_class=Response,
+    status_code=200,
+    response_model=DownloadActionResponse,
     summary="Execute download action for a specific item",
     description="Execute a download action (download, abort, delete) for a specific item.",
     responses={
@@ -218,7 +223,7 @@ async def admin_downloads_action_id(
     try:
         # Same threadpool offload as the no-id variant; the registry
         # download path also calls Storage / Scheduler synchronously.
-        await asyncio.to_thread(
+        result = await asyncio.to_thread(
             AdminDownloadsService.download_action,
             action,
             kind,
@@ -226,7 +231,7 @@ async def admin_downloads_action_id(
             id=id,
             data=body,
         )
-        return Response(status_code=204)
+        return JSONResponse(content=jsonable_encoder(result or {}), status_code=200)
     except Error:
         raise
     except Exception:
