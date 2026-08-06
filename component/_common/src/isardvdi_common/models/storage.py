@@ -2006,16 +2006,27 @@ class Storage(RethinkCustomBase):
                 description_code="storage_no_pool",
             )
 
-        # Name the row whose chain parks this one, BEFORE parking it: the only
-        # task this method creates is stamped on the DESKTOP's storage (the
-        # move's origin), so the template row would otherwise sit in a
-        # transitional status naming nothing — the exact shape the self-heal
-        # reads as an abandoned operation. On its first tick it re-checks a
-        # path the move has not produced yet, gets "no such disk" and fails the
-        # template with its derivatives orphaned; cross-pool that window is the
-        # whole rsync copy. Written first so the row is never observable as
-        # parked-with-no-parker by a tick landing in between.
-        template_storage.parked_by = self.id
+        # The rows this chain parks. Being parked has two faces and they are
+        # decided here, from this one list, so they cannot drift: the row is
+        # busy with this chain — ``parked_by``, which ``_task_alive`` and
+        # ``create_task``'s 428 gate resolve — AND this chain's tasks are that
+        # row's own history, which is what its task listing shows. A row parked
+        # but not listed would spend the whole copy showing an empty history at
+        # the one moment there is something to watch; a row listed but not
+        # parked would claim work that cannot touch it.
+        #
+        # ``parked_by`` is written BEFORE the park: the only task this method
+        # creates is stamped on the DESKTOP's storage (the move's origin), so
+        # the template row would otherwise sit in a transitional status naming
+        # nothing — the exact shape the self-heal reads as an abandoned
+        # operation. On its first tick it re-checks a path the move has not
+        # produced yet, gets "no such disk" and fails the template with its
+        # derivatives orphaned; cross-pool that window is the whole rsync copy.
+        # Written first so the row is never observable as parked-with-no-parker
+        # by a tick landing in between.
+        parked_rows = [template_storage]
+        for parked_row in parked_rows:
+            parked_row.parked_by = self.id
 
         # The new template storage is fresh (status="non_existing"); the
         # "create" maintenance label is allowlisted for that and skips the
@@ -2030,6 +2041,9 @@ class Storage(RethinkCustomBase):
             task="move",
             retry=retry,
             retry_intervals=15,
+            # The other face of the park, from the same list: this row plus
+            # every row this chain parks.
+            index_owners=[self.id, *(row.id for row in parked_rows)],
             job_kwargs={
                 "kwargs": {
                     "origin_path": self.path,

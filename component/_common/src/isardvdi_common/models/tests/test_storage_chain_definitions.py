@@ -712,3 +712,42 @@ def test_enqueue_template_creation_raises_typed_error_when_template_storage_miss
                 template_storage_id="missing-template-storage",
             )
         assert "not found" in str(exc_info.value).lower()
+
+
+# ---------------------------------------------------------------------------
+# enqueue_template_creation_chain_from_desktop: a parked row is also an owner
+# of the chain's tasks
+# ---------------------------------------------------------------------------
+
+
+def test_template_chain_lists_its_tasks_under_the_parked_row_too():
+    """The chain's only task is created on the DESKTOP's row, but the disk it
+    is producing is the TEMPLATE's. Listed only under the desktop, the template
+    row's own task history would be empty for the whole copy — the one moment
+    a user has something to watch."""
+    s = _bare_storage(id="src-desktop-storage")
+    mock_create, _ = _run_template_chain(s, "new-template-storage-99")
+    assert mock_create.call_args.kwargs["index_owners"] == [
+        s.id,
+        "new-template-storage-99",
+    ]
+
+
+def test_the_row_this_chain_parks_is_the_row_it_lists_under():
+    """The two faces of one fact, pinned together: ``parked_by`` answers who is
+    busy with this row (liveness and the 428 gate) and ``index_owners`` answers
+    whose listing the tasks appear in. A row parked but not listed, or listed
+    but not parked, means the two have drifted apart and one of the answers is
+    wrong."""
+    s = _bare_storage(id="src-desktop-storage")
+    mock_create, parked = _run_template_chain(s, "new-template-storage-99")
+    owners = mock_create.call_args.kwargs["index_owners"]
+    assert parked.parked_by == s.id
+    assert set(owners) - {s.id} == {parked.id}
+
+
+def test_the_desktop_row_keeps_its_own_tasks_listed():
+    """The origin does not lose its history to the row it parks."""
+    s = _bare_storage(id="src-desktop-storage")
+    mock_create, _ = _run_template_chain(s, "new-template-storage-99")
+    assert mock_create.call_args.kwargs["index_owners"][0] == s.id
