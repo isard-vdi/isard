@@ -109,7 +109,7 @@ class Media(RethinkCustomBase):
                 "precondition_required",
                 f"Media {self.id} has the pending task {pending_task}",
             )
-        self.task = Task(*args, **kwargs).id
+        return Task(*args, **kwargs).id
 
     def delete_file(self, user_id=None, keep_status=None):
         """
@@ -136,7 +136,7 @@ class Media(RethinkCustomBase):
             return
         else:
             self.status = "maintenance"
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('delete', path=self.path_downloaded.rsplit('/', 1)[0]).id}.default",
             task="delete",
@@ -171,7 +171,6 @@ class Media(RethinkCustomBase):
                 }
             ],
         )
-        return self.task
 
     @classmethod
     def resolve_download_path(cls, user_id, category_id, media_id, kind):
@@ -256,7 +255,7 @@ class Media(RethinkCustomBase):
             "google_drive_cookie": google_drive_cookie,
         }
 
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{pool.id}.{priority}",
             task="download_url",
@@ -281,7 +280,6 @@ class Media(RethinkCustomBase):
                 }
             ],
         )
-        return self.task
 
     def check_existence(self, user_id=None):
         """From api/libv2/api_media media_task_check()"""
@@ -289,7 +287,7 @@ class Media(RethinkCustomBase):
             self.status = "deleted"
             return
 
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('check_media_existence', path=self.path_downloaded.rsplit('/', 1)[0]).id}.default",
             task="check_media_existence",
@@ -306,8 +304,6 @@ class Media(RethinkCustomBase):
                 }
             ],
         )
-
-        return self.task
 
     @classmethod
     def get_user_allowed_media(

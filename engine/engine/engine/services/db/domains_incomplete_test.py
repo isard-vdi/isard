@@ -8,6 +8,9 @@ What is pinned here is which storages protect their domain from the sweep. The
 sweep deletes a domain stuck in a ``Creating*`` status; a storage with disk
 creation IN FLIGHT must stop it, or the delete orphans the storage row and the
 qcow2 the chain is still writing.
+
+The gate takes a STORAGE id and asks the task index what that row is busy with,
+so ``_index`` here stands for the index's answer.
 """
 
 import os as _os
@@ -61,6 +64,8 @@ class _Task:
     that is absent is a job rq no longer has."""
 
     registry = {}
+    # the gate hands the index the shared connection off the model
+    _redis = None
 
     def __init__(self, task_id):
         self.id = task_id
@@ -85,12 +90,17 @@ def _registry():
     _Task.registry = {}
 
 
-def _in_flight(task_id):
+def _in_flight(task_id, storage_id="disk-1"):
+    """Run the gate with the index answering ``task_id`` for ``storage_id``."""
+    index = _types.SimpleNamespace(current_task_id=lambda conn, owner, **kw: task_id)
     with patch.dict(
         _sys.modules,
-        {"isardvdi_common.models.task": _types.SimpleNamespace(Task=_Task)},
+        {
+            "isardvdi_common.models.task": _types.SimpleNamespace(Task=_Task),
+            "isardvdi_common.lib.task_index": index,
+        },
     ):
-        return mod._storage_task_in_flight(task_id)
+        return mod._storage_task_in_flight(storage_id)
 
 
 class TestWhatProtectsADomainFromTheSweep:
@@ -110,9 +120,11 @@ class TestWhatProtectsADomainFromTheSweep:
         indefinitely and its domain could never be swept."""
         assert _in_flight("expired-long-ago") is False
 
-    def test_a_row_with_no_task_does_not_protect(self):
+    def test_a_row_the_index_calls_free_does_not_protect(self):
         assert _in_flight(None) is False
-        assert _in_flight("") is False
+
+    def test_no_storage_at_all_does_not_protect(self):
+        assert _in_flight("t-1", storage_id=None) is False
 
     def test_an_unreadable_task_protects(self):
         """Fail SAFE. This gate stands in front of a delete: uncertainty must
@@ -123,8 +135,12 @@ class TestWhatProtectsADomainFromTheSweep:
             def exists(cls, task_id):
                 raise RuntimeError("redis unreachable")
 
+        index = _types.SimpleNamespace(current_task_id=lambda conn, owner, **kw: "t-1")
         with patch.dict(
             _sys.modules,
-            {"isardvdi_common.models.task": _types.SimpleNamespace(Task=_Boom)},
+            {
+                "isardvdi_common.models.task": _types.SimpleNamespace(Task=_Boom),
+                "isardvdi_common.lib.task_index": index,
+            },
         ):
-            assert mod._storage_task_in_flight("t-1") is True
+            assert mod._storage_task_in_flight("disk-1") is True

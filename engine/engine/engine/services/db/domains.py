@@ -43,20 +43,23 @@ def delete_domain(id):
     return results
 
 
-def _storage_task_in_flight(task_id):
-    """True only while ``task_id`` is real work still running.
+def _storage_task_in_flight(storage_id):
+    """True only while ``storage_id`` has real work still running.
 
-    Stands in front of a DELETE, so it fails SAFE: a task that cannot be read
-    counts as in flight. Losing a sweep is a domain cleaned up on the next one;
-    inventing a settled task is a domain removed while its disk is being
-    written.
+    Asks the per-owner task index, the single source now that the row's scalar
+    is retired. Stands in front of a DELETE, so it fails SAFE: a task that
+    cannot be read counts as in flight. Losing a sweep is a domain cleaned up
+    on the next one; inventing a settled task is a domain removed while its
+    disk is being written.
     """
-    if not task_id:
+    if not storage_id:
         return False
+    from isardvdi_common.lib.task_index import current_task_id
     from isardvdi_common.models.task import Task
 
     try:
-        if not Task.exists(task_id):
+        task_id = current_task_id(Task._redis, storage_id)
+        if not task_id or not Task.exists(task_id):
             return False
         return bool(Task(task_id).pending)
     except Exception:
@@ -112,10 +115,9 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
             row["id"]
             for row in r.table("storage")
             .get_all(r.args(list(set(storage_ids))), index="id")
-            .filter(lambda s: s.has_fields("task") & (s["task"] != None))  # noqa: E711
-            .pluck("id", "task")
+            .pluck("id")
             .run(r_conn)
-            if _storage_task_in_flight(row.get("task"))
+            if _storage_task_in_flight(row.get("id"))
         )
 
     domains_to_delete = [

@@ -509,7 +509,13 @@ class Storage(RethinkCustomBase):
 
     def create_task(self, *args, **kwargs):
         """
-        Create Task for a Storage.
+        Create a Task for this Storage and return its root task id.
+
+        The id is RETURNED, not stamped on the row. A row field could name only
+        one chain, was never cleared, and could not name a chain another row
+        started; the per-owner index answers all three, and every reader now
+        asks it. Callers that used to read ``self.task`` back after calling
+        this return what this returns.
         """
         # Normalise the root task's queue and every dependent's queue to the tier
         # model, using each task's own ``action`` for the action-aware rules, and
@@ -559,10 +565,7 @@ class Storage(RethinkCustomBase):
                 f"Storage {self.id} has the pending task {pending_task}",
                 description_code="storage_pending_task",
             )
-        try:
-            self.task = Task(*args, **kwargs).id
-        except Exception as e:
-            raise
+        return Task(*args, **kwargs).id
 
     def find(self, user_id, blocking=True, retry=3):
         """
@@ -577,7 +580,7 @@ class Storage(RethinkCustomBase):
         :rtype: str
         """
 
-        self.create_task(
+        return self.create_task(
             blocking=blocking,
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.default",
@@ -609,7 +612,6 @@ class Storage(RethinkCustomBase):
                 }
             ],
         )
-        return self.task
 
     def check_backing_chain(
         self, user_id, blocking=True, retry=3, priority="background"
@@ -632,7 +634,7 @@ class Storage(RethinkCustomBase):
         :rtype: str
         """
 
-        self.create_task(
+        return self.create_task(
             blocking=blocking,
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{priority}",
@@ -652,7 +654,6 @@ class Storage(RethinkCustomBase):
                 }
             ],
         )
-        return self.task
 
     def set_maintenance(self, action="system maintenance"):
         """
@@ -756,7 +757,7 @@ class Storage(RethinkCustomBase):
         queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
         queue_origin = f"storage.{StoragePool.get_best_for_action('move_delete', path=self.directory_path).id}.{priority}"
         self.set_maintenance("move")
-        self.create_task(
+        return self.create_task(
             blocking=True,
             user_id=user_id,
             queue=queue_rsync,
@@ -832,8 +833,6 @@ class Storage(RethinkCustomBase):
             ),
         )
 
-        return self.task
-
     def mv(
         self,
         user_id,
@@ -858,7 +857,7 @@ class Storage(RethinkCustomBase):
         queue_mv = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
 
         self.set_maintenance("move")
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=queue_mv,
             task="move",
@@ -910,8 +909,6 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return self.task
-
     def task_delete(
         self,
         user_id,
@@ -932,7 +929,7 @@ class Storage(RethinkCustomBase):
         domains_to_failed = [domain.id for domain in self.domains]
         domains_to_failed.extend([domain.id for domain in self.domains_derivatives])
         self.set_maintenance("delete")
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('delete', path=self.directory_path).id}.{priority}",
             task="delete",
@@ -1003,8 +1000,6 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return self.task
-
     def increase_size(
         self,
         user_id,
@@ -1025,7 +1020,7 @@ class Storage(RethinkCustomBase):
         resize_queue = f"storage.{StoragePool.get_best_for_action('resize', path=self.directory_path).id}.{priority}"
 
         self.set_maintenance("resize")
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=resize_queue,
             task="resize",
@@ -1064,8 +1059,6 @@ class Storage(RethinkCustomBase):
                 },
             ],
         )
-
-        return self.task
 
     @staticmethod
     def _maintenance_release_statuses(storage_id, domain_ids):
@@ -1116,7 +1109,7 @@ class Storage(RethinkCustomBase):
         queue_virt_win_reg = f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=self.directory_path).id}.{priority}"
 
         self.set_maintenance("virt_win_reg")
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=queue_virt_win_reg,
             task="virt_win_reg",
@@ -1179,8 +1172,6 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return self.task
-
     def sparsify(
         self,
         user_id,
@@ -1209,7 +1200,7 @@ class Storage(RethinkCustomBase):
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"
 
         self.set_maintenance("sparsify")
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=queue_sparsify,
             task="sparsify",
@@ -1241,8 +1232,6 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return self.task
-
     def disconnect_chain(
         self,
         user_id,
@@ -1260,7 +1249,7 @@ class Storage(RethinkCustomBase):
         disconnect_queue = f"storage.{StoragePool.get_best_for_action('disconnect', path=self.directory_path).id}.{priority}"
 
         self.set_maintenance("disconnect")
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=disconnect_queue,
             task="disconnect",
@@ -1298,8 +1287,6 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return self.task
-
     def convert(
         self,
         user_id,
@@ -1335,7 +1322,7 @@ class Storage(RethinkCustomBase):
         """
 
         self.set_maintenance("convert")
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('convert', path=self.directory_path).id}.{priority}",
             task="convert",
@@ -1458,7 +1445,7 @@ class Storage(RethinkCustomBase):
         )
 
         self.set_maintenance("recreate")
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('create', new_storage.directory_path).id}.{priority}",
             task="create",
@@ -1565,8 +1552,6 @@ class Storage(RethinkCustomBase):
                 }
             ],
         )
-
-        return self.task
 
     @classmethod
     def create_new_storage(
@@ -1839,7 +1824,7 @@ class Storage(RethinkCustomBase):
                 _d.status = "CreatingDisk"
 
         self.set_maintenance("create")
-        self.create_task(
+        return self.create_task(
             user_id=self.user_id,
             queue=f"storage.{self.pool.id}.{priority}",
             task="create",
@@ -1901,8 +1886,6 @@ class Storage(RethinkCustomBase):
                 }
             ],
         )
-
-        return self.task
 
     def enqueue_template_creation_chain_from_desktop(
         self,
@@ -2038,7 +2021,7 @@ class Storage(RethinkCustomBase):
         # "ready" — see docstring for the locking argument.
         template_storage.set_maintenance("create")
 
-        self.create_task(
+        return self.create_task(
             user_id=self.user_id,
             queue=f"storage.{dst_pool.id}.{priority}",
             task="move",
@@ -2182,8 +2165,6 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return self.task
-
     def enqueue_registry_download_chain_for_domain(
         self,
         domain_id,
@@ -2230,7 +2211,7 @@ class Storage(RethinkCustomBase):
         }
 
         self.set_maintenance("download")
-        self.create_task(
+        return self.create_task(
             user_id=self.user_id,
             queue=f"storage.{pool.id}.{priority}",
             task="download_url_for_domain",
@@ -2281,8 +2262,6 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return self.task
-
     def abort_operations(
         self,
         user_id,
@@ -2318,7 +2297,7 @@ class Storage(RethinkCustomBase):
                 # state.
                 pass
 
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{storage_pool.id}.default",
             task="qemu_img_info_backing_chain",
@@ -2336,8 +2315,6 @@ class Storage(RethinkCustomBase):
                 }
             ],
         )
-
-        return self.task
 
     """
     Tasks for storages with uuid
@@ -2393,7 +2370,7 @@ class Storage(RethinkCustomBase):
             ).run(self._rdb_connection)
 
         self.set_maintenance("set_path")
-        self.create_task(
+        return self.create_task(
             blocking=True,
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('touch', path=new_path).id}.{priority}",
@@ -2433,8 +2410,6 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return self.task
-
     def delete_path(
         self,
         user_id,
@@ -2468,7 +2443,7 @@ class Storage(RethinkCustomBase):
             )
 
         self.set_maintenance("delete_path")
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('delete', path=self.directory_path).id}.{priority}",
             task="delete",
@@ -2503,5 +2478,3 @@ class Storage(RethinkCustomBase):
                 },
             ],
         )
-
-        return self.task
