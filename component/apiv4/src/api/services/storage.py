@@ -25,9 +25,10 @@ from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage import StorageProcessed
+from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
-from isardvdi_common.models.task import Task
+from isardvdi_common.models.task import Task, tasks_from_ids
 from isardvdi_common.models.user import User as RethinkUser
 
 
@@ -365,11 +366,20 @@ class StorageService:
 
     @staticmethod
     def get_task(payload: dict, storage_id: str) -> dict | None:
-        """Get storage task as dict."""
+        """The task this storage is busy with, or ``None``.
+
+        Read from the index rather than the row: the row's scalar names one
+        chain, is never cleared, and cannot name a chain another row started.
+        Loaded through the fetch-tolerant helper because a key the index proves
+        present can still fail to load, and a task nobody can read is "no task",
+        not a 500.
+        """
         storage = get_storage(payload, storage_id)
-        if storage.task:
-            return Task(storage.task).to_dict()
-        return None
+        task_id = current_task_id(Task._redis, storage.id)
+        if not task_id:
+            return None
+        tasks = tasks_from_ids([task_id])
+        return tasks[0].to_dict() if tasks else None
 
     @staticmethod
     def get_tasks(payload: dict, storage_id: str) -> list:
@@ -751,12 +761,16 @@ class StorageService:
         # Idempotent no-op when the storage has no active task — the
         # Vue 2 desktop-edit modal fans this call out per attached
         # storage when the user clicks "cancel", and most attached
-        # storages have nothing to abort. ``Task(None)`` would raise a
-        # bare exception that the route's ``except Exception`` would
-        # swallow as 500.
-        if not storage.task:
+        # storages have nothing to abort. A task the index names but that
+        # cannot be loaded is the same answer: there is nothing to abort and
+        # no initiator to own it.
+        task_id = current_task_id(Task._redis, storage.id)
+        if not task_id:
             return ""
-        task_agent_id = Task(storage.task).user_id
+        tasks = tasks_from_ids([task_id])
+        if not tasks:
+            return ""
+        task_agent_id = tasks[0].user_id
         # Check ownership: only the user who initiated the task or admin can abort
         if payload["role_id"] != "admin" and task_agent_id != payload["user_id"]:
             raise Error(
