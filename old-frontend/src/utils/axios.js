@@ -4,22 +4,22 @@ import { sessionCookieName } from '../shared/constants'
 import { getCookie } from 'tiny-cookie'
 import store from '@/store'
 import { jwtDecode } from 'jwt-decode'
-import { setFaroApiEvent, setFaroError } from '@/lib/faro'
+import { setFaroApiEvent, setFaroError, pageIdFor } from '@/lib/faro'
 
 // Strip token-bearing path segments and querystrings so Faro's
 // route_template stays a low-cardinality, OpenAPI-shaped value.
 function routeTemplateFor (urlString) {
   try {
     const parsed = new URL(urlString, window.location.origin)
-    return parsed.pathname
+    return pageIdFor(parsed.pathname)
   } catch {
-    return urlString.split('?')[0]
+    return pageIdFor(urlString.split('?')[0])
   }
 }
 
 function clientFor (urlString) {
   if (urlString.includes('/authentication')) return 'auth'
-  if (urlString.includes('/api/v3') || urlString.includes('/api/v4')) return 'api'
+  if (urlString.includes('/api/v4')) return 'apiv4'
   return 'api'
 }
 
@@ -104,6 +104,21 @@ export default function axiosSetUp () {
       }
       // Any status code that lie within the range of 2xx cause this function to trigger
       // Do something with response data
+      const cfg = response.config || {}
+      const url = cfg.url || ''
+      const started = cfg.metadata?.faroStart ?? performance.now()
+
+      setFaroApiEvent({
+        client: clientFor(url),
+        method: (cfg.method || 'GET').toUpperCase(),
+        route_template: routeTemplateFor(url),
+        duration_ms: Math.round(performance.now() - started),
+        outcome: 'completed',
+        status: response.status,
+        request_id: response.headers?.['x-request-id'] || undefined,
+        response_size: Number(response.headers?.['content-length']) || undefined
+      })
+
       return response
     },
     async function (error) {
@@ -123,6 +138,7 @@ export default function axiosSetUp () {
         method: (cfg.method || 'GET').toUpperCase(),
         route_template: routeTemplateFor(url),
         duration_ms: Math.round(performance.now() - started),
+        outcome: 'failed',
         error_type: error.response ? 'http' : 'network',
         status: error.response?.status,
         request_id: requestId,

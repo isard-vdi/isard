@@ -9,7 +9,7 @@ function ensureFaroInitialized (faroConfig) {
   if (!faroConfig?.enabled || !faroConfig.url) return
   if (faroInitPromise) return faroInitPromise
   faroInitPromise = import('@/lib/faro').then(({ initFaro }) => {
-    initFaro(faroConfig.url)
+    initFaro(faroConfig.url, { httpSampling: faroConfig.http_sampling })
   })
   return faroInitPromise
 }
