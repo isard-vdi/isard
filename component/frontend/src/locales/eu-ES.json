@@ -357,6 +357,7 @@
           "change-password": "Aldatu pasahitza",
           "verify-email": "Egiaztatu / Aldatu helbide elektronikoa",
           "api-key": "API gakoa",
+          "vpn": "VPN",
           "reset-vpn": "Berrezarri VPN",
           "ssh-key": "Bastioiko SSH gakoa"
         }
@@ -524,15 +525,15 @@
           }
         }
       },
-      "reset-vpn-modal": {
-        "title": "Berrezarri VPN gakoak",
-        "description": "VPN gakoak berrezarri? VPN fitxategi berri bat deskargatu beharko duzu",
+      "vpn-modal": {
+        "title": "VPN",
         "cancel": "Utzi",
-        "confirm": "Berrezarri VPN",
-        "errors": {
-          "unauthorized": "Zure saioa iraungita dago. Mesedez, hasi saioa berriro.",
-          "internal_server": "Ezin izan dira zure VPN gakoak berrezarri zerbitzariaren errore batengatik. Mesedez, saiatu berriro geroago.",
-          "generic": "Ezin izan dira zure VPN gakoak berrezarri. Mesedez, saiatu berriro."
+        "confirm": {
+          "download": "Deskargatu",
+          "reset": "Berrezarri VPN"
+        },
+        "success": {
+          "download": "VPN konfiguratzeko fitxategia ondo deskargatu da."
         }
       },
       "email-verification-modal": {

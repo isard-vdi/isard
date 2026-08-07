@@ -505,6 +505,7 @@
           "change-password": "Cambiar contraseña",
           "verify-email": "Verificar / Cambiar correo",
           "api-key": "Llave API",
+          "vpn": "VPN",
           "reset-vpn": "Restablecer VPN",
           "download-vpn": "Descargar VPN",
           "ssh-key": "Llave SSH del bastión"
@@ -1184,16 +1185,32 @@
           "started_deployment_desktops": "Escritorios en ejecución del despliegue"
         }
       },
-      "reset-vpn-modal": {
-        "title": "Restablecer claves VPN",
-        "description": "¿Restablecer las claves VPN? Tendrás que descargar un nuevo archivo VPN",
+      "vpn-modal": {
+        "title": "VPN",
+        "description": "Elige qué quieres hacer con la configuración de la VPN.",
+        "options": {
+          "download": {
+            "description": "Descargar el archivo de configuración actual de la VPN."
+          },
+          "reset": {
+            "description": "Generar unas claves nuevas.",
+            "warning": "El archivo descargado anteriormente dejará de funcionar, así que tendrás que descargarlo de nuevo."
+          }
+        },
         "cancel": "Cancelar",
-        "confirm": "Restablecer VPN",
-        "success": "Las claves VPN se han restablecido correctamente.",
+        "confirm": {
+          "download": "Descargar",
+          "reset": "Restablecer VPN"
+        },
+        "success": {
+          "download": "El archivo de configuración de la VPN se ha descargado correctamente.",
+          "reset": "Las claves VPN se han restablecido correctamente."
+        },
         "errors": {
-          "unauthorized": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.",
-          "internal_server": "No pudimos restablecer tus claves VPN por un error del servidor. Inténtalo más tarde.",
-          "generic": "No pudimos restablecer tus claves VPN. Inténtalo de nuevo."
+          "download": "No se ha podido descargar el archivo de configuración de la VPN. Inténtalo de nuevo.",
+          "unauthorized": "La sesión ha expirado. Por favor, inicia sesión de nuevo.",
+          "internal_server": "No se han podido restablecer las claves VPN por un error del servidor. Inténtalo más tarde.",
+          "generic": "No se han podido restablecer las claves VPN. Inténtalo de nuevo."
         }
       },
       "ssh-key-modal": {
