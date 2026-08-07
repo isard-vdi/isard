@@ -100,12 +100,11 @@ class StorageProcessed(RethinkSharedConnection):
             if storage.status != "ready" or getattr(storage, "readonly", False):
                 continue
             # Idempotency: a refresh (or any task) already in flight for
-            # this storage — skip so repeated sweeps don't pile up.
-            if (
-                storage.task
-                and Task.exists(storage.task)
-                and Task(storage.task).pending
-            ):
+            # this storage — skip so repeated sweeps don't pile up. The index
+            # is the source of truth for a row's live task (it proves the job
+            # exists); the retired ``.task`` scalar is no longer written.
+            pending = current_task_id(Task._redis, storage.id)
+            if pending and Task(pending).pending:
                 continue
             storage.check_backing_chain(
                 user_id, blocking=False, retry=1, priority="background"
