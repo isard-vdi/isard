@@ -307,6 +307,16 @@ class TestCreate:
                 {"items_total": 1, "bytes_total": 10},
             ),
         )
+        # this asserts persistence, so pin the lane gate open: left ambient it
+        # answers from whatever redis the runner happens to have. Unreachable it
+        # fails open and the create returns 200; reachable and empty it is a
+        # readable fact about an absent fleet and the create is a 429. Same
+        # code, opposite verdicts, decided by a service this test does not care
+        # about. The reject path is the sibling below.
+        monkeypatch.setattr(
+            "isardvdi_common.lib.queue_coverage.lane_shed_decision",
+            lambda conn, queue, **k: ("ok", {}),
+        )
         resp = test_client(
             url="/admin/storage/migrations",
             method="POST",
