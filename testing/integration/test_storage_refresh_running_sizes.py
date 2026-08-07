@@ -29,6 +29,8 @@ import os
 import uuid
 
 import pytest
+from isardvdi_common.lib.task_index import current_task_id
+from isardvdi_common.models.task import Task
 
 rethinkdb = pytest.importorskip("rethinkdb")
 from rethinkdb import r  # noqa: E402
@@ -140,8 +142,11 @@ def test_refresh_running_sizes_selects_only_running_ready_nonreadonly_disks(
         # in the environment may add to the count.
         assert result.get("enqueued", 0) >= 1
 
+        # Asked of the task index, not the row: the ``task`` scalar is retired
+        # and no longer written, so reading it would call every disk untouched
+        # and this assertion would pass or fail for the wrong reason.
         tasks = {
-            sid: r.table("storage").get(sid)["task"].default(None).run(conn)
+            sid: current_task_id(Task._redis, sid)
             for sid in (sid_ready, sid_readonly, sid_stopped)
         }
         # Only the running desktop's ready, non-readonly disk got a refresh.
