@@ -5,7 +5,7 @@ import { jwtDecode } from 'jwt-decode'
 import { getCookie } from 'tiny-cookie'
 import { isEmpty } from 'lodash'
 import { appTitle } from '../shared/constants'
-import { resolveVue3Path } from '@/shared/frontendModeMap'
+import { resolveVue3Path, clearPreferredFrontend } from '@/shared/frontendModeMap'
 import i18n from '@/i18n'
 import store from '@/store'
 import { setFaroView } from '@/lib/faro'
@@ -433,6 +433,10 @@ router.beforeEach(async (to, from, next) => {
         store.dispatch('openSocket', {})
         if (isEmpty(store.getters.getConfig)) {
           await store.dispatch('fetchConfig')
+        }
+        // A deployment can leave `all` after browsers already stored a preference.
+        if (store.getters.getConfig.frontendMode !== 'all') {
+          clearPreferredFrontend()
         }
         if (store.getters.getConfig.frontendMode === 'actual') {
           const target = resolveVue3Path(to) || '/frontend/desktops'

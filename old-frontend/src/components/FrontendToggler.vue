@@ -13,7 +13,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { EDIT_FORM_ROUTES, VUE2_TO_VUE3, resolveVue3Path } from '@/shared/frontendModeMap'
+import { EDIT_FORM_ROUTES, VUE2_TO_VUE3, resolveVue3Path, setPreferredFrontend } from '@/shared/frontendModeMap'
 
 export default {
   name: 'FrontendToggler',
@@ -34,6 +34,7 @@ export default {
     switchFrontend () {
       const target = resolveVue3Path(this.$route)
       if (target) {
+        setPreferredFrontend('vue3')
         window.location.assign(target)
       }
     }

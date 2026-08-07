@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSessionStore } from '@/stores/session'
 import { useSocketStore } from '@/stores/socket'
 import { getUserConfig } from '@/gen/oas/apiv4'
-import { resolveVue2Path, type FrontendMode } from '@/lib/frontendModeMap'
+import { resolveVue2Path, clearPreferredFrontend, type FrontendMode } from '@/lib/frontendModeMap'
 import { ensureFaroInitialized, setFaroView } from '@/lib/faro-hook'
 
 const router = createRouter({
@@ -501,6 +501,8 @@ async function getFrontendMode(): Promise<FrontendMode> {
       void ensureFaroInitialized(data.faro)
     }
     cachedFrontendMode = data.frontend_mode ?? 'deprecated'
+    // A deployment can leave `all` after browsers already stored a preference.
+    if (cachedFrontendMode !== 'all') clearPreferredFrontend()
     return cachedFrontendMode
   } catch {
     cachedFrontendMode = 'deprecated'

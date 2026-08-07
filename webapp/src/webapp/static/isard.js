@@ -963,6 +963,13 @@ $(document).ready(function() {
     });
 });
 
+// Sidebar Home is hardcoded to the old frontend; honour the toggler's last choice.
+$(document).ready(function() {
+    if (localStorage.getItem('preferredFrontend') === 'vue3') {
+        $('a[href="/Desktops"]').attr('href', '/frontend/desktops');
+    }
+});
+
 function show_no_os_hardware_template_selected() {
   $('#modal_add_install').closest('.x_panel').addClass('datatables-error');
   $('#datatables-install-error-status').html('No OS hardware template selected').addClass('my-error');

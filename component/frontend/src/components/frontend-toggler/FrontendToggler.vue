@@ -5,7 +5,12 @@ import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
 import { getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { EDIT_FORM_ROUTES, VUE3_TO_VUE2, resolveVue2Path } from '@/lib/frontendModeMap'
+import {
+  EDIT_FORM_ROUTES,
+  VUE3_TO_VUE2,
+  resolveVue2Path,
+  setPreferredFrontend
+} from '@/lib/frontendModeMap'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -31,6 +36,7 @@ const hasEquivalent = computed(() => {
 
 function switchFrontend() {
   if (!target.value) return
+  setPreferredFrontend('vue2')
   window.location.assign(target.value)
 }
 </script>

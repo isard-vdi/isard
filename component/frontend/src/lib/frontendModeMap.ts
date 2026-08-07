@@ -2,6 +2,24 @@ import type { RouteLocationNormalized } from 'vue-router'
 
 export type FrontendMode = 'deprecated' | 'actual' | 'all' | 'hidden'
 
+export type PreferredFrontend = 'vue2' | 'vue3'
+
+// Same origin, so also read by the old frontend and by the webapp sidebar.
+const PREFERRED_FRONTEND_KEY = 'preferredFrontend'
+
+export function getPreferredFrontend(): PreferredFrontend | null {
+  const stored = localStorage.getItem(PREFERRED_FRONTEND_KEY)
+  return stored === 'vue2' || stored === 'vue3' ? stored : null
+}
+
+export function setPreferredFrontend(value: PreferredFrontend): void {
+  localStorage.setItem(PREFERRED_FRONTEND_KEY, value)
+}
+
+export function clearPreferredFrontend(): void {
+  localStorage.removeItem(PREFERRED_FRONTEND_KEY)
+}
+
 export const VUE3_TO_VUE2: Record<string, string> = {
   desktops: '/desktops',
   'single-desktop': '/desktops',

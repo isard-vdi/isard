@@ -34,6 +34,7 @@ import {
 } from '@/lib/auth'
 import { useAuthStore } from '@/stores/auth'
 import { dateIsToday } from '@/lib/utils'
+import { getPreferredFrontend } from '@/lib/frontendModeMap'
 import { Locale, setLocale } from '@/lib/i18n'
 import { LoginLayout } from '@/layouts/login'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -562,7 +563,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     return
   }
 
-  window.location.pathname = '/'
+  window.location.pathname = getPreferredFrontend() === 'vue3' ? '/frontend/desktops' : '/'
 }
 
 const onFormSubmit = async (values) => {
