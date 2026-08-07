@@ -1554,7 +1554,9 @@ class Storage(RethinkCustomBase):
         storage.status_logs = [{"time": int(time()), "status": "created"}]
 
         storage.set_maintenance("create")
-        storage.create_task(
+        # ``create_task`` returns the root task id; the row's ``task`` scalar is
+        # retired and no longer written, so it is the return value or nothing.
+        task_id = storage.create_task(
             user_id=storage.user_id,
             queue=f"storage.{storage.pool.id}.{priority}",
             task="create",
@@ -1588,7 +1590,7 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return (storage, storage.task)
+        return (storage, task_id)
 
     @classmethod
     def create_new_storage_for_domain(
@@ -1620,13 +1622,15 @@ class Storage(RethinkCustomBase):
             format=storage_type,
         )
         storage.status_logs = [{"time": int(time()), "status": "created"}]
-        storage.enqueue_disk_creation_chain_for_domain(
+        # Same contract as ``create_new_storage``: the chain enqueuer hands
+        # back the root task id, and the retired scalar answers nothing.
+        task_id = storage.enqueue_disk_creation_chain_for_domain(
             domain_id=domain_id,
             size=size,
             priority=priority,
             retry=retry,
         )
-        return (storage, storage.task)
+        return (storage, task_id)
 
     def enqueue_disk_creation_chain_for_domain(
         self,
