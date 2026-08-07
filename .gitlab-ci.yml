@@ -335,6 +335,13 @@ gen-protobuf:
         echo "ERROR: codegen removed or replaced the tracked root package.json"
         exit 1
       fi
+    - |-
+      if [ -n "$(git status --porcelain)" ]; then
+        echo "ERROR: codegen changed files that are committed to the repo."
+        echo "Re-run codegen locally (bash build.sh) and commit the result."
+        git status --porcelain
+        exit 1
+      fi
   artifacts:
     paths:
       - pkg/gen
