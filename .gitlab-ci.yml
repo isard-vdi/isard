@@ -377,7 +377,7 @@ unit-test-go:
         coverage_format: cobertura
         path: coverage.xml
       junit: report.xml
-  coverage: /total:\s+\(statements\)\s+\d+.\d+%/
+  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
 
 # Behavioural unit tests for the storage-governor alert rules, run under the SAME
 # engine the stack runs (vmalert / MetricsQL) — promtool green is not vmalert
@@ -412,7 +412,7 @@ unit-test-vmalert:
         coverage_format: cobertura
         path: ${COVERAGE_DIR}/coverage.xml
       junit: ${COVERAGE_DIR}/report.xml
-  coverage: '/TOTAL\s+\d+\s+\d+\s+\d+%/'
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
 
 # The suites that assert on Redis's own behaviour — an rq job graph (hashes,
 # dependency links, registries, Job.cancel), or a Lua script whose effect a

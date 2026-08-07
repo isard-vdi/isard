@@ -245,7 +245,7 @@ ci-test-integration: test-e2e-seed
 .PHONY: ci-test-go
 ci-test-go:
 	go tool -modfile=tools/go.mod gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
-	go tool cover -func coverage.out
+	go tool cover -func coverage.out | grep '^total:'
 	go tool -modfile=tools/go.mod gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
 
 # ci-test-* targets generated entirely from PY_PKGS (the matrix above). No
