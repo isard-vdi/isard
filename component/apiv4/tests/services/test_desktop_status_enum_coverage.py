@@ -39,8 +39,8 @@ _REPO_ROOT = _repo_root()
 
 # (path, symbol) of each collection of desktop statuses owned elsewhere.
 _SOURCES = (
-    ("engine/engine/engine/config.py", "TRANSITIONAL_STATUS"),
-    ("engine/engine/engine/services/db/domains.py", "status_to_failed"),
+    ("engine/src/engine/config.py", "TRANSITIONAL_STATUS"),
+    ("engine/src/engine/services/db/domains.py", "status_to_failed"),
     (
         "component/change-handler/src/isardvdi_change_handler/task_results/storage.py",
         "_DOMAIN_PRE_READY_STATUSES",

@@ -132,8 +132,8 @@ test-vmalert:
 # Dev targets run with the dev group; CI targets run --no-dev (prod + test).
 # Every Python workspace suite is generated from this table. The suites that
 # are not workspace packages keep their own targets: test-go/ci-test-go,
-# ci-test-frontend (bun), test-engine (runs inside the container), test-e2e,
-# test-vmalert, test-sparsify and ci-test-storage-utils.
+# ci-test-frontend (bun), test-e2e, test-vmalert, test-sparsify and
+# ci-test-storage-utils.
 PY_PKGS := \
 	apiv4:api:component/apiv4 \
 	common:isardvdi_common:component/_common \
@@ -150,7 +150,8 @@ PY_PKGS := \
 	codegen:isardvdi_codegen:docker/codegen \
 	anonymize-db:anonymize_db:sysadm/anonymize-db \
 	hypervisor:isardvdi_hypervisor:docker/hypervisor \
-	backupninja:isardvdi_backupninja:docker/backupninja
+	backupninja:isardvdi_backupninja:docker/backupninja \
+	engine:engine:engine
 
 # Just the short names, in PY_PKGS order — drives the aggregate prereq lists.
 PY_PKG_NAMES := $(foreach r,$(PY_PKGS),$(word 1,$(subst :, ,$(r))))
@@ -165,13 +166,6 @@ $(foreach r,$(PY_PKGS),$(eval $(call TEST_RULE,$(subst :, ,$(r)))))
 
 .PHONY: test-python
 test-python: $(addprefix test-,$(PY_PKG_NAMES))
-
-# Mirrors the unit-test-engine CI job: same paths, same two invocations.
-# engine/services/db needs importlib mode (see .gitlab-ci.yml for why).
-.PHONY: test-engine
-test-engine:
-	docker exec isard-engine sh -c "cd /isard && python3 -m pytest engine/models engine/controllers engine/services/threads engine/services/lib initdb -v --tb=short"
-	docker exec isard-engine sh -c "cd /isard && python3 -m pytest --import-mode=importlib engine/services/db -v --tb=short"
 
 _e2e_tty := $(if $(CI),,-it)
 

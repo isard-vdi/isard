@@ -32,6 +32,8 @@ dependencies = [
 [dependency-groups]
 test = [
   "pytest",
+  "pytest-cov",
+  "pytest-xdist",
 ]
 
 [build-system]
@@ -42,7 +44,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["engine"]
+packages = ["src/engine"]
 
 [tool.isardvdi.system-deps]
 apk-build = ["build-base", "libffi-dev", "libvirt-dev", "musl-dev", "openssl-dev", "pciutils-dev", "pkgconfig"]

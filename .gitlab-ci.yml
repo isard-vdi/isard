@@ -739,6 +739,17 @@ unit-test-backupninja:
   script:
     - make ci-test-backupninja
 
+unit-test-engine:
+  # The engine suites import libvirt and paramiko at module load, so the job
+  # installs their build deps on top of the shared uv image.
+  extends: .python-test-job
+  before_script:
+    - apk add --no-cache git make build-base libvirt-dev musl-dev openssl-dev pciutils pkgconfig
+  variables:
+    COVERAGE_DIR: engine
+  script:
+    - make ci-test-engine
+
 docker-image:
   image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   stage: build
@@ -820,63 +831,6 @@ docker-image:
         docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest
         docker push $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest
       fi
-
-unit-test-engine:
-  # Engine tests under ``engine/services/threads`` and ``engine/models``
-  # import libvirt + paramiko + ``changefeed_models`` at module load,
-  # so running them in a generic python image is impractical. Re-use
-  # the freshly-built engine image as the runner — it already has the
-  # full runtime (libvirt-dev, paramiko, ``/opt/isardvdi/asyncapi_changefeed``
-  # on PYTHONPATH). Overlay the source tree via ``docker cp`` into
-  # ``/isard`` and pytest against it.
-  stage: test
-  needs: ["docker-image", "gen-protobuf"]
-  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
-  services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
-      alias: docker
-  before_script:
-    - apk add bash git
-    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  script:
-    - ENGINE_IMAGE="$CI_REGISTRY_IMAGE/engine:git-$CI_COMMIT_SHORT_SHA"
-    - docker pull "$ENGINE_IMAGE"
-    - mkdir -p "$CI_PROJECT_DIR/ci-results"
-    - |
-      # The container writes its junit reports to /ci-results, which is inside the
-      # ephemeral dind container (not $CI_PROJECT_DIR), so we docker cp them back
-      # into a project-relative dir afterwards for the junit artifact. Keep the
-      # container (no --rm) so the cp works even when the tests fail.
-      set +e
-      docker run --name engine-tests \
-        -v "$CI_PROJECT_DIR:/build:ro" \
-        -w /isard \
-        "$ENGINE_IMAGE" \
-        sh -c '
-          set -e
-          mkdir -p /ci-results
-          cp -r /build/engine/engine/. /isard/
-          cp -r /build/component/_common/src/isardvdi_common /opt/isardvdi/isardvdi_common 2>/dev/null || true
-          rc=0
-          pytest engine/models engine/controllers engine/services/threads engine/services/lib initdb -q --tb=short --junitxml=/ci-results/report.xml || rc=1
-          # engine/services/db is stubbed as MagicMock by conftest.py; its tests
-          # pop the stub and load the real module, which only works under the
-          # importlib import mode. Run it as a separate invocation so the default
-          # prepend-mode suite above is unaffected.
-          pytest --import-mode=importlib engine/services/db -q --tb=short --junitxml=/ci-results/report-db.xml || rc=1
-          exit $rc
-        '
-      RC=$?
-      docker cp engine-tests:/ci-results/. "$CI_PROJECT_DIR/ci-results/" || true
-      docker rm -f engine-tests >/dev/null 2>&1 || true
-      exit $RC
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - ci-results/report.xml
-        - ci-results/report-db.xml
 
 test-e2e:
   stage: test

@@ -93,10 +93,10 @@ tetris/.env
 
 #debug
 /debug.yml
-/engine/engine/debug.py
+/engine/src/debug.py
 
 #development
-engine/engine/supervisord.pid
+engine/src/supervisord.pid
 docker/hypervisor/src/vlans/api_client.py
 component/frontend/yarn.lock
 

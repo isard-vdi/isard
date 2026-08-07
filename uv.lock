@@ -1203,6 +1203,8 @@ dependencies = [
 [package.dev-dependencies]
 test = [
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
 ]
 
 [package.metadata]
@@ -1234,7 +1236,11 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-test = [{ name = "pytest" }]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+]
 
 [[package]]
 name = "isardvdi-hypervisor"

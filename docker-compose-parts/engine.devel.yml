@@ -1,7 +1,7 @@
 services:
   isard-engine:
     volumes:
-      - ${BUILD_ROOT_PATH}/engine/engine:/isard:rw
+      - ${BUILD_ROOT_PATH}/engine/src:/isard:rw
       - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common
       - ${BUILD_ROOT_PATH}/pkg/gen/asyncapi/changefeed:/opt/isardvdi/asyncapi_changefeed
       - ${BUILD_ROOT_PATH}/component/apiv4-client/src/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client

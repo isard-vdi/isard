@@ -16,7 +16,7 @@ here instead of reaching production as a 500 on user create.
 
 ``users`` and its ``group`` / ``category`` secondary indexes are the same ones
 ``process_group_limits`` / ``process_category_limits`` count with; the indexes
-are declared in ``engine/engine/initdb/populate.py``.
+are declared in ``engine/src/initdb/populate.py``.
 
 ``ErrorBase`` rather than ``error_factory.Error``: the factory resolves lazily
 to either ``ErrorBase`` or apiv4's ``Error`` subclass depending on whether

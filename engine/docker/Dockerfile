@@ -18,7 +18,7 @@ FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1
 RUN apk add --no-cache curl libffi libvirt-client libvirt-libs openssh-client openssl pciutils sshpass
 
 COPY --from=builder /.venv /.venv
-COPY engine/engine /isard
+COPY engine/src /isard
 COPY engine/docker/genrsa.sh /
 COPY engine/docker/run.sh /
 COPY engine/docker/add-hypervisor.sh /

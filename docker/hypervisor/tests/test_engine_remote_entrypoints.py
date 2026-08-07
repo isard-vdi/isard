@@ -14,7 +14,7 @@ out when the remote command exits non-zero on a real host.
 The guard lives on the hypervisor side because this is the component that
 owns the console scripts, and because its suite runs from the host with the
 whole repo tree available. The engine suite runs inside the ``isard-engine``
-container, which only holds a copy of ``engine/engine``: from there neither
+container, which only holds a copy of ``engine/src``: from there neither
 ``docker/hypervisor/pyproject.toml`` nor the uv workspace root exists.
 
 This test reads both sides as text and asserts every remote console script
@@ -34,7 +34,7 @@ def _workspace_root() -> Path:
     raise RuntimeError("uv workspace root not found above this test")
 
 
-_HYP_SOURCE = _workspace_root() / "engine" / "engine" / "engine" / "models" / "hyp.py"
+_HYP_SOURCE = _workspace_root() / "engine" / "src" / "engine" / "models" / "hyp.py"
 _HYPERVISOR_PYPROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
 # Matches the absolute venv path the engine must use over SSH, because a
