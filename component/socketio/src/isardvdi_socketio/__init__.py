@@ -29,8 +29,8 @@ async_server_kwargs = {}
 if environ.get("LOG_LEVEL") == "DEBUG":
     kwargs = {"logger": True, "engineio_logger": True}
 manager = AsyncRedisManager(socketio_url())
-cors_origins = environ.get("CORS_ALLOWED_ORIGINS", "").strip()
-cors_allowed = cors_origins.split(",") if cors_origins else []
+cors_origins = environ.get("CORS_ALLOWED_ORIGINS", "")
+cors_allowed = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
 
 socketio_server = AsyncServer(
     client_manager=manager,
