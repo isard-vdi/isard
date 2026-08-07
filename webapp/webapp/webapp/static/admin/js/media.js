@@ -459,7 +459,7 @@ function createDatatable(tableId, status, initCompleteFn = null) {
                 data: null,
                 defaultContent: '',
                 render: function ( data, type, full, meta ) {
-                    const checkButtons = '<button id="btn-task" type="button" data-task="' + full.task + '" class="btn btn-pill-right btn-xs" title="Show last task info"><i class="fa fa-tasks" style="color:darkblue"></i></button> \
+                    const checkButtons = '<button id="btn-task" type="button" data-task="' + full.last_task_id + '" class="btn btn-pill-right btn-xs" title="Show last task info"><i class="fa fa-tasks" style="color:darkblue"></i></button> \
                         <button id="btn-check" type="button" data-id="' + full.id + '" class="btn btn-pill-right  btn-xs" title="Check media status"><i class="fa fa-refresh" style="color:darkgreen"></i></button>'
                     if(['Available', 'DownloadFailed'].includes(full.status)){
                         return checkButtons + '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
@@ -596,7 +596,7 @@ function showActions(table ,tr, row, button) {
         case 'btn-task':
             $.ajax({
                 type: 'GET',
-                url: '/api/v4/task/' + data.task,
+                url: '/api/v4/task/' + data.last_task_id,
                 contentType: 'application/json',
                 success: function (result) {
                     element.html('<i class="fa fa-tasks"></i>')

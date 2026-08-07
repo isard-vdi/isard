@@ -23,7 +23,9 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.media.media import MediaProcessed
 from isardvdi_common.lib.storage.storage import StorageProcessed
+from isardvdi_common.lib.task_index import last_task_ids
 from isardvdi_common.models.storage import Storage
+from isardvdi_common.models.task import Task
 
 
 class AdminStorageService:
@@ -46,18 +48,20 @@ class AdminStorageService:
         )
         admin_categories = categories if payload["role_id"] == "admin" else None
 
-        if status == "delete_pending":
-            return StorageProcessed.get_storages(
-                status=status,
-                category_id=category_id,
-                categories=admin_categories,
-            )
-        else:
-            return StorageProcessed.get_storages(
-                status=status,
-                category_id=category_id,
-                categories=admin_categories,
-            )
+        rows = StorageProcessed.get_storages(
+            status=status,
+            category_id=category_id,
+            categories=admin_categories,
+        )
+        # The retired ``task`` scalar used to ride along on these rows and the
+        # admin tables read it: to label the Task column, to gate Retry, and as
+        # the row key a progress event is routed to. Serve the same id from the
+        # index instead. It is the LAST KNOWN task, not proof of a running one —
+        # ``has_pending_task`` is the field that answers "busy".
+        last = last_task_ids(Task._redis, [row.get("id") for row in rows])
+        for row in rows:
+            row["last_task_id"] = last.get(row.get("id"))
+        return rows
 
     @staticmethod
     def get_storage_domains(payload: dict, storage_id: str) -> list:

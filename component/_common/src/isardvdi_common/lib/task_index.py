@@ -177,6 +177,58 @@ def current_task_id(connection, owner_id, kind=STORAGE):
         return None
 
 
+def last_task_ids(connection, owner_ids, kind=STORAGE):
+    """The last known task of each owner, as ``{owner_id: task_id or None}``.
+
+    The batched twin of :func:`current_task_id`, for listings. A per-row call
+    costs two round trips, and the admin tables this feeds render dozens of
+    rows; this is two round trips for the whole page regardless of how many.
+
+    Same meaning as ``current_task_id`` — the newest member whose job still
+    EXISTS — and therefore the same caveat, which is worth stating loudly
+    because getting it wrong has already cost us once: **an existing job is
+    not a running one.** rq keeps a finished job's hash for its result TTL, so
+    what comes back here may name a task that has already ended. That is
+    exactly what its consumers want (show the last task's info, retry it,
+    route a progress event to its row), and it is NOT an answer to "is this
+    row busy". For that question, and only that one, ask ``has_pending_task``.
+
+    Never raises: a listing must not fail because redis blinked, so an
+    unreadable index answers ``None`` for every owner.
+    """
+    owner_ids = [owner_id for owner_id in owner_ids if owner_id]
+    if not owner_ids:
+        return {}
+    answer = {owner_id: None for owner_id in owner_ids}
+    try:
+        pipe = connection.pipeline(transaction=False)
+        for owner_id in owner_ids:
+            pipe.zrevrange(index_key(kind, owner_id), 0, -1)
+        per_owner = [
+            [
+                member.decode() if isinstance(member, bytes) else member
+                for member in members
+            ]
+            for members in pipe.execute()
+        ]
+        candidates = [job_id for members in per_owner for job_id in members]
+        if not candidates:
+            return answer
+        pipe = connection.pipeline(transaction=False)
+        for job_id in candidates:
+            pipe.exists(f"rq:job:{job_id}")
+        alive = dict(zip(candidates, pipe.execute()))
+        for owner_id, members in zip(owner_ids, per_owner):
+            for job_id in members:
+                if alive.get(job_id):
+                    answer[owner_id] = job_id
+                    break
+        return answer
+    except Exception:
+        log.warning("task index: could not batch-read %s owners", len(owner_ids))
+        return answer
+
+
 def owner_task_ids(connection, owner_id, kind=STORAGE):
     """``owner_id``'s task ids, newest first, proven to still exist.
 
