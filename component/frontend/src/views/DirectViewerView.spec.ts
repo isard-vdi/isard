@@ -151,6 +151,10 @@ vi.mock('@/components/desktop-card', () => ({
     template: '<div data-test="card-networks" @click="$emit(\'showNetworksModal\')" />'
   },
   DesktopCardBastionOverlay: { template: '<div data-test="card-bastion" />' },
+  DesktopCardInfoOverlay: {
+    emits: ['showInfoModal'],
+    template: '<div data-test="card-info" @click="$emit(\'showInfoModal\')" />'
+  },
   DesktopCardSkeleton: { template: '<div data-test="desktop-card-skeleton" />' },
   DesktopCardOverlayButton: {
     props: ['icon', 'title', 'active', 'activeLabel', 'ariaLabel'],
@@ -177,6 +181,34 @@ vi.mock('@/components/desktops', () => ({
     ],
     emits: ['close'],
     template: '<div data-test="networks-modal" :data-open="String(open)" />'
+  },
+  DomainInfoModal: {
+    props: [
+      'open',
+      'isLoading',
+      'domainId',
+      'name',
+      'description',
+      'status',
+      'ip',
+      'vcpu',
+      'ram',
+      'bootOrder',
+      'diskBus',
+      'vga',
+      'viewers',
+      'fullscreen',
+      'isos',
+      'floppies',
+      'reservables',
+      'credentials',
+      'kind',
+      'template',
+      'desktopKind',
+      'items'
+    ],
+    emits: ['close'],
+    template: '<div data-test="info-modal" :data-open="String(open)" />'
   }
 }))
 
@@ -421,6 +453,27 @@ describe('DirectViewerView', () => {
     await overlay.trigger('click')
 
     expect(wrapper.find('[data-test="networks-modal"]').attributes('data-open')).toBe('true')
+  })
+
+  it('opens the info domain modal from the info overlay', async () => {
+    viewerData.value = startedDesktop()
+    const wrapper = mountView()
+    await flushPromises()
+
+    // Modal is rendered (no v-if) but closed.
+    expect(wrapper.find('[data-test="info-modal"]').attributes('data-open')).toBe('false')
+
+    // Toggle the info overlay via its header button (info-circle icon).
+    const infoBtn = wrapper.find('[data-test="overlay-btn"][data-icon="info-circle"]')
+    expect(infoBtn.exists()).toBe(true)
+    await infoBtn.trigger('click')
+
+    // The overlay's "details" action emits show-info-modal
+    const overlay = wrapper.find('[data-test="card-info"]')
+    expect(overlay.exists()).toBe(true)
+    await overlay.trigger('click')
+
+    expect(wrapper.find('[data-test="info-modal"]').attributes('data-open')).toBe('true')
   })
 
   it('refetches the desktop details when the viewer status changes', async () => {
