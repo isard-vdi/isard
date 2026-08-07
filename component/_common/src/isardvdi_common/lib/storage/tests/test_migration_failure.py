@@ -92,7 +92,7 @@ def test_restore_storage_status_uses_recorded_original(monkeypatch):
     _runner()._restore_storage_status(
         {"storage_id": "s1", "storage_orig_status": "recycled"}
     )
-    assert updates == [("s1", {"status": "recycled", "task": None})]
+    assert updates == [("s1", {"status": "recycled"})]
 
 
 def test_restore_storage_status_skips_untouched_disk(monkeypatch):
@@ -148,8 +148,8 @@ def test_terminalize_resets_storage_and_cascades(monkeypatch):
     assert states["i-s0"] == "skipped"  # committed ancestor abandoned
     su = dict(storage_updates)
     # qcow-3 + saga-5: maintenance disks reset to their ORIGINAL status
-    assert su["s1"] == {"status": "recycled", "task": None}
-    assert su["s0"] == {"status": "ready", "task": None}
+    assert su["s1"] == {"status": "recycled"}
+    assert su["s0"] == {"status": "ready"}
     assert "s2" not in su  # never in maintenance -> untouched
 
 
@@ -637,7 +637,7 @@ def test_cancel_skips_uncommitted_in_flight_tree(monkeypatch):
     # nothing enqueued at all -> no resumed move, and no move_delete (no data loss)
     assert caps["enqueued"] == []
     # recycled status restored, never clobbered to ready
-    assert ("s0", {"status": "recycled", "task": None}) in caps["storage_updates"]
+    assert ("s0", {"status": "recycled"}) in caps["storage_updates"]
     assert ("s0", {"status": "ready"}) not in caps["storage_updates"]
     # autostart restored + job canceled (not completed/failed)
     assert caps["activated"] == ["d1"]

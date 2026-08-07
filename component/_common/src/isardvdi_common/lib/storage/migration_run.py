@@ -651,40 +651,19 @@ class MigrationRunner:
         maintenance (recorded at move start). Only disks we actually put into
         maintenance carry a recorded original, so an untouched disk (a
         never-started pending one) is left alone — never blindly forced to
-        ``ready``, which would un-bin a ``recycled`` disk (saga-5)."""
+        ``ready``, which would un-bin a ``recycled`` disk (saga-5).
+
+        Nothing releases a claim here any more. We claim through the task index,
+        which reclaims its own dangling members, so there is no counterpart to
+        undo; and the row's ``task`` field is retired, kept only so a rollback
+        can still read it, which is exactly why this must not write to it."""
         orig = item.get("storage_orig_status")
-        if orig is not None:
-            updates = {"status": orig, "task": None}
-        else:
-            # No recorded original means we never put this disk into maintenance
-            # — but we may still have claimed it. A disk already sitting at the
-            # destination skips the move, so nothing records an original, while
-            # its parent still moves and the rebase claims the row. Dropping our
-            # claim is a separate concern from restoring a status we never took:
-            # a dead task id left behind makes a lookup by task return more than
-            # one storage and makes the next reconcile read finished work as
-            # live. Only ever clear a claim that is ours.
-            ours = {
-                item.get(key)
-                for key in (
-                    "move_task_id",
-                    "rebase_task_id",
-                    "verify_task_id",
-                    "move_delete_task_id",
-                )
-                if item.get(key)
-            }
-            if not ours:
-                return
-            try:
-                current = Storage(item["storage_id"]).task
-            except Exception:
-                return
-            if not current or current not in ours:
-                return
-            updates = {"task": None}
+        if orig is None:
+            return
         try:
-            Storage.update_document(item["storage_id"], updates, validate=False)
+            Storage.update_document(
+                item["storage_id"], {"status": orig}, validate=False
+            )
         except Exception:
             log.exception(
                 "migration: could not restore status on %s", item["storage_id"]
@@ -971,11 +950,8 @@ class MigrationRunner:
     def _skip_release(self, item):
         # dst == src: there is no separate source to delete — move_delete would
         # destroy the live disk in place. The disk was never moved (so never set
-        # to maintenance), but its parent may well have been: a rebase repoints
-        # this child at the parent's new backing file and claims the row to do
-        # it. Releasing without dropping that claim leaves a dead task id on a
-        # ready disk, so restore runs here too — with no recorded original it
-        # only ever clears a claim that is ours.
+        # to maintenance), so restore has nothing to put back; it runs anyway for
+        # the case where a parent's move did record one.
         self._set(item, state=MigrationItemState.RELEASED.value)
         self._restore_storage_status(item)
         self._audit(item, "in_place")
