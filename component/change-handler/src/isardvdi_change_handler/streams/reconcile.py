@@ -66,7 +66,7 @@ import asyncio
 import logging as log
 from datetime import datetime, timezone
 
-from isardvdi_common.lib.task_index import current_task_id
+from isardvdi_common.lib.task_index import MEDIA, STORAGE, current_task_id
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.media import Media
 from isardvdi_common.models.storage import Storage
@@ -494,11 +494,18 @@ def _metadata_finalize_orphaned(task, now, min_age_s):
     return (now - max(settled)).total_seconds() >= min_age_s
 
 
-def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
-    """True if the storage's backing task is still live work — Pass 1 / the
+def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S, kind=STORAGE):
+    """True if the row's backing task is still live work — Pass 1 / the
     consumer will finalize it and Pass 2 must not interfere. A metadata chain
-    with an orphaned finalize is pending but NOT live, so Pass 2 may heal it."""
-    task_id = current_task_id(Task._redis, getattr(storage, "id", None))
+    with an orphaned finalize is pending but NOT live, so Pass 2 may heal it.
+
+    ``kind`` selects the index namespace and MUST match how the producer wrote
+    it: ``Media.create_task`` indexes under ``media``, ``Storage.create_task``
+    under ``storage``. Pass 4 reuses this for media, and the two namespaces are
+    disjoint — reading a media id out of the storage namespace finds nothing,
+    which is indistinguishable here from "the task is dead".
+    """
+    task_id = current_task_id(Task._redis, getattr(storage, "id", None), kind=kind)
     if not task_id:
         # A ``creating`` target (a convert destination) carries no task of its
         # own and is not named as an owner of the chain either — the producing
@@ -514,7 +521,7 @@ def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S):
         # whatever the parker happens to be doing months later.
         origin_id = getattr(storage, "converted_from", None)
         if origin_id:
-            task_id = current_task_id(Task._redis, origin_id)
+            task_id = current_task_id(Task._redis, origin_id, kind=kind)
         if not task_id:
             return getattr(storage, "status", None) == "creating"
     if not Task.exists(task_id):
@@ -763,11 +770,15 @@ async def _reconcile_stuck_media(redis_manager):
     the row at ``maintenance`` for good, with no way out but the admin
     pressing delete again. Returns the count re-issued.
 
-    ``_task_alive`` is reused as-is: it reads ``.task``, asks whether that
-    task still exists and is pending, and touches nothing storage-shaped,
-    so a media answers it as well as a storage does. It is also the exact
-    negation of the pending-task precondition inside ``delete_file``, which
-    is why a row this pass selects is never a row the delete then refuses.
+    ``_task_alive`` is reused, but it must be told ``kind=MEDIA``: it resolves
+    the task through the per-owner index, whose keys are namespaced by kind,
+    and ``Media.create_task`` writes under ``media``. Asked for the storage
+    namespace a media id simply is not there, which reads exactly like a dead
+    task — so this pass would select every media that has live work. Apart from
+    the namespace it touches nothing storage-shaped, so a media answers it as
+    well as a storage does. It is also the exact negation of the pending-task
+    precondition inside ``delete_file``, which is why a row this pass selects
+    is never a row the delete then refuses.
     """
     healed = 0
     for status in _MEDIA_STUCK_STATUSES:
@@ -778,7 +789,7 @@ async def _reconcile_stuck_media(redis_manager):
             continue
         for media in stuck:
             try:
-                if _task_alive(media):
+                if _task_alive(media, kind=MEDIA):
                     continue
                 healed += await asyncio.to_thread(_finalize_stuck_media, media)
             except Exception:

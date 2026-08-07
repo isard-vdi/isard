@@ -27,7 +27,7 @@ from isardvdi_common.models.task import Task, _chain_closure
 from rq.job import Job, JobStatus
 
 from ._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
-from ._chain_harness import first_core_step, template_chain_kwargs
+from ._chain_harness import DESKTOP_STORAGE_ID, first_core_step, template_chain_kwargs
 
 # Comfortably past the consumer's redelivery envelope (5 reclaims of 60s).
 AGED_S = 5000
@@ -280,11 +280,14 @@ def test_the_hatch_is_what_stops_an_unstamped_chain_pinning_the_row_for_ever(
     root = Task(**template_chain_kwargs())
     _settle_every_real_job(task_on_scratch_redis, root, aged_s=100)
 
-    # The chain is reached through the index, so seed it the way the product
-    # does rather than stubbing the lookup: this test's whole value is that
-    # every layer under it is real.
+    # ``_task_alive`` resolves the task from the per-owner index keyed on the
+    # row's ID, not from a ``task`` field on the row. Naming the id is what
+    # makes this exercise the hatch at all: an unindexed row short-circuits on
+    # "no task" long before the interlock is reached, and both assertions below
+    # would then hold for a reason that has nothing to do with the hatch.
     storage = MagicMock()
-    storage.id = "s-finalize-orphan-knot"
+    storage.id = DESKTOP_STORAGE_ID
+    storage.converted_from = None
     storage.status = "maintenance"
     index_task(task_on_scratch_redis, root.job, [storage.id])
 
