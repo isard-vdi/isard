@@ -1443,8 +1443,6 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return self.task
-
     def recreate(
         self,
         user_id,
