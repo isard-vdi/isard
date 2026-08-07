@@ -260,8 +260,14 @@ class StorageService:
         # What consumers asked of it was whether the row is busy, so answer that
         # from the index instead — one lookup here rather than a request per row
         # from whoever is rendering the list.
+        #
+        # ``current_task_id`` proves the job EXISTS, not that it is unfinished:
+        # rq keeps a finished job's hash for its result TTL, so the bare bool
+        # reported a ready disk as busy for minutes after its chain completed.
+        # Pair it with the pending check, as every other reader of the index does.
         row.pop("task", None)
-        row["has_pending_task"] = bool(current_task_id(Task._redis, storage_id))
+        task_id = current_task_id(Task._redis, storage_id)
+        row["has_pending_task"] = bool(task_id and Task(task_id).pending)
         return row
 
     @staticmethod
