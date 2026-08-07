@@ -6,6 +6,7 @@ import {
   type Faro
 } from '@grafana/faro-web-sdk'
 import {
+  pageIdFor,
   registerFaroApiEventHandler,
   registerFaroErrorHandler,
   registerFaroUserSetter,
@@ -21,8 +22,9 @@ export type { FaroUser }
  * Initialize the Faro SDK. Called once from main.ts when runtime config
  * reports faro.enabled=true. Idempotent on repeated calls.
  */
-export function initFaro(url: string): void {
+export function initFaro(url: string, options?: { httpSampling?: number }): void {
   if (faro) return
+  const httpSampling = options?.httpSampling ?? 1
   faro = initializeFaro({
     url,
     app: {
@@ -36,6 +38,9 @@ export function initFaro(url: string): void {
     consoleInstrumentation: {
       disabledLevels: [LogLevel.LOG, LogLevel.INFO, LogLevel.DEBUG, LogLevel.TRACE]
     },
+    pageTracking: {
+      generatePageId: (location) => pageIdFor(location.pathname)
+    },
     instrumentations: [
       ...getWebInstrumentations({
         captureConsole: false,
@@ -44,6 +49,11 @@ export function initFaro(url: string): void {
       new ConsoleInstrumentation()
     ]
   })
+
+  // Seed anonymous *before* registering the setter: registering replays the
+  // user parked by the auth store during bootstrap, and seeding afterwards
+  // would overwrite that authenticated identity with `anonymous`.
+  faro.api.setUser({ attributes: { role: 'anonymous' } })
 
   registerFaroUserSetter((user) => {
     if (!faro) return
@@ -56,17 +66,33 @@ export function initFaro(url: string): void {
     faro.api.setUser({ id: user.id, attributes })
   })
 
-  faro.api.setUser({ attributes: { role: 'anonymous' } })
+  let currentView: { name: string; started: number } | null = null
+
+  const flushViewTime = (): void => {
+    if (!faro || !currentView) return
+    const { name, started } = currentView
+    currentView = null
+    faro.api.pushEvent('view_time', {
+      view_name: name,
+      page_id: pageIdFor(name),
+      duration_ms: String(Math.round(performance.now() - started))
+    })
+  }
 
   registerFaroViewSetter((name) => {
     if (!faro) return
+    flushViewTime()
     faro.api.setView({ name })
+    currentView = { name, started: performance.now() }
   })
 
   // Seed a view name immediately from the current location so events emitted
   // before the router finishes its first navigation (errors thrown during
   // component setup/mount) still carry a `view_name`.
-  faro.api.setView({ name: window.location.pathname || '/' })
+  const initialView = window.location.pathname || '/'
+  faro.api.setView({ name: initialView })
+
+  window.addEventListener('pagehide', flushViewTime)
 
   registerFaroErrorHandler((err, context) => {
     if (!faro) return
@@ -82,13 +108,18 @@ export function initFaro(url: string): void {
 
   registerFaroApiEventHandler((info) => {
     if (!faro) return
-    faro.api.pushEvent('request_failed', {
+    if (info.outcome === 'completed' && Math.random() >= httpSampling) return
+    // A network failure never got a response, so it has no HTTP status. Report
+    // it as 0 — the value the dashboard's `$status` picker offers for exactly
+    // this case — instead of dropping the attribute.
+    const status = info.status ?? (info.error_type === 'network' ? 0 : undefined)
+    faro.api.pushEvent(info.outcome === 'failed' ? 'request_failed' : 'request_completed', {
       client: info.client,
       method: info.method,
       route_template: info.route_template,
-      error_type: info.error_type,
       duration_ms: String(info.duration_ms),
-      ...(info.status !== undefined && { status: String(info.status) }),
+      ...(info.error_type && { error_type: info.error_type }),
+      ...(status !== undefined && { status: String(status) }),
       ...(info.request_id && { request_id: info.request_id }),
       ...(info.response_size !== undefined && {
         response_size: String(info.response_size)

@@ -73,7 +73,8 @@ export interface FaroApiEvent {
    */
   route_template: string
   status?: number
-  error_type: 'http' | 'network'
+  outcome: 'completed' | 'failed'
+  error_type?: 'http' | 'network'
   duration_ms: number
   request_id?: string
   response_size?: number
@@ -82,7 +83,7 @@ export interface FaroApiEvent {
 let apiEventImpl: ((info: FaroApiEvent) => void) | null = null
 
 /**
- * Report a failed API request (non-2xx or network error) to Faro. Safe to
+ * Report a finished API request (success or failure) to Faro. Safe to
  * call before `initFaro` runs (and when Faro is disabled): the call is a
  * no-op in that case.
  */
@@ -104,12 +105,30 @@ let faroInitPromise: Promise<void> | null = null
 export function ensureFaroInitialized(faroConfig: {
   enabled: boolean
   url?: string | null
+  http_sampling?: number
 }): Promise<void> {
   if (!faroConfig.enabled || !faroConfig.url) return Promise.resolve()
   if (faroInitPromise) return faroInitPromise
   const url = faroConfig.url
+  const httpSampling = faroConfig.http_sampling
   faroInitPromise = import('./faro').then(({ initFaro }) => {
-    initFaro(url)
+    initFaro(url, { httpSampling })
   })
   return faroInitPromise
+}
+
+const ID_SEGMENT =
+  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{16,}|\d+|.{33,})$/i
+
+/**
+ * Collapse identifier-looking path segments into `{id}` so dashboards can
+ * aggregate by page. Without it every desktop is its own page.
+ */
+export function pageIdFor(pathname: string): string {
+  const collapsed = pathname
+    .split('/')
+    .map((segment) => (segment !== '' && ID_SEGMENT.test(segment) ? '{id}' : segment))
+    .join('/')
+
+  return collapsed === '' ? '/' : collapsed
 }
