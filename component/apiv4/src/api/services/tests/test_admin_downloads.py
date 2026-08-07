@@ -17,7 +17,7 @@ Two behaviours are locked in here:
 """
 
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from api.schemas.admin.downloads import (
@@ -536,40 +536,46 @@ class TestDownloadsDeleteAndAbort:
         return domain
 
     def _patched(self, domain, task_pending=False, storage_task="t-1"):
-        """Patch everything the action reaches, returning the mocks."""
+        """Patch the models WHERE ``_domain_action`` looks them up, not their
+        ``__new__``.
+
+        Patching ``__new__`` on a shared model class does not round-trip
+        cleanly under ``unittest.mock``: a single ``with`` block that exits
+        normally leaves ``Storage(id)`` raising ``object.__new__() takes
+        exactly one argument`` for every later test in the same worker process,
+        which surfaced as intermittent 500s in ``TestRefreshRunningSizes``
+        under ``-n auto``. Replacing the class at its lookup site — the
+        module-level ``RethinkDomain`` / ``Task`` names the service imports, and
+        the ``isardvdi_common.models.storage.Storage`` attribute its lazy import
+        reads — patches a plain attribute, which mock restores cleanly.
+        """
         storage = SimpleNamespace(task=storage_task)
+
+        domain_cls = MagicMock(name="DomainClass", return_value=domain)
+        domain_cls.exists = lambda _id: True
+
+        storage_cls = MagicMock(name="StorageClass", return_value=storage)
+        storage_cls.exists = lambda _id: True
+
+        task_cls = MagicMock(
+            name="TaskClass",
+            return_value=SimpleNamespace(pending=task_pending, cancel=lambda: None),
+        )
+        task_cls.exists = lambda _id: bool(storage_task)
+
         return (
-            patch(
-                "isardvdi_common.models.domain.Domain.exists",
-                staticmethod(lambda _id: True),
-            ),
-            patch(
-                "isardvdi_common.models.domain.Domain.__new__",
-                lambda cls, *a, **k: domain,
-            ),
-            patch(
-                "isardvdi_common.models.storage.Storage.exists",
-                staticmethod(lambda _id: True),
-            ),
-            patch(
-                "isardvdi_common.models.storage.Storage.__new__",
-                lambda cls, *a, **k: storage,
-            ),
-            patch(
-                "isardvdi_common.models.task.Task.exists",
-                staticmethod(lambda _id: bool(storage_task)),
-            ),
-            patch(
-                "isardvdi_common.models.task.Task.__new__",
-                lambda cls, *a, **k: SimpleNamespace(
-                    pending=task_pending, cancel=lambda: None
-                ),
-            ),
+            # Module-level imports in the service (``Domain as RethinkDomain``,
+            # ``Task``): patch the name the service resolves.
+            patch("api.services.admin.downloads.RethinkDomain", domain_cls),
+            patch("api.services.admin.downloads.Task", task_cls),
+            # ``Storage`` is imported lazily inside the service functions, so the
+            # only shared handle is the model-module attribute they re-read.
+            patch("isardvdi_common.models.storage.Storage", storage_cls),
         )
 
     def _run(self, action, domain, task_pending=False, storage_task="t-1"):
         patches = self._patched(domain, task_pending, storage_task)
-        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
+        with patches[0], patches[1], patches[2]:
             with patch(
                 "api.services.desktops.DesktopService.delete_desktop"
             ) as delete_desktop:
