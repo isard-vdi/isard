@@ -2,10 +2,10 @@
 
 """The finalize-orphan hatch, asked the way the reconcile actually asks it.
 
-``_task_alive`` looks a row's chain up by ``storage.task``, which is the id of
-the chain's ROOT. But the job whose meta carries ``core_finalize`` is not the
-root: in the real template chain it is the third storage job, the one whose
-result the finalize hangs off. So a hatch that reads ``core_finalize`` off the
+``_task_alive`` looks a row's chain up through the task index, which answers
+with the id of the chain's ROOT. But the job whose meta carries
+``core_finalize`` is not the root: in the real template chain it is the third
+storage job, the one whose result the finalize hangs off. So a hatch that reads ``core_finalize`` off the
 task it was handed can never open for the one chain shape that has a knot.
 
 That matters only once an unstamped finalize step counts as pending — and then
@@ -22,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
+from isardvdi_common.lib.task_index import index_task
 from isardvdi_common.models.task import Task, _chain_closure
 from rq.job import Job, JobStatus
 
@@ -67,9 +68,9 @@ def test_the_anchor_is_not_the_root(
 def test_the_hatch_opens_for_a_chain_whose_finalize_hangs_off_a_deeper_job(
     task_on_scratch_redis, repair_storage_new_slot  # noqa: F811
 ):
-    """The whole point. Asked from the root — which is what ``storage.task``
-    holds and therefore what ``_task_alive`` passes — the hatch must still see
-    the unstamped finalize sitting on a deeper member."""
+    """The whole point. Asked from the root — which is what the index answers
+    and therefore what ``_task_alive`` passes — the hatch must still see the
+    unstamped finalize sitting on a deeper member."""
     from isardvdi_change_handler.streams import reconcile
 
     root = Task(**template_chain_kwargs())
@@ -279,9 +280,13 @@ def test_the_hatch_is_what_stops_an_unstamped_chain_pinning_the_row_for_ever(
     root = Task(**template_chain_kwargs())
     _settle_every_real_job(task_on_scratch_redis, root, aged_s=100)
 
+    # The chain is reached through the index, so seed it the way the product
+    # does rather than stubbing the lookup: this test's whole value is that
+    # every layer under it is real.
     storage = MagicMock()
-    storage.task = root.id
+    storage.id = "s-finalize-orphan-knot"
     storage.status = "maintenance"
+    index_task(task_on_scratch_redis, root.job, [storage.id])
 
     assert (
         reconcile._task_alive(storage, min_age_s=MIN_AGE_S) is True

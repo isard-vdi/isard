@@ -440,8 +440,8 @@ def _metadata_finalize_orphaned(task, now, min_age_s):
     from the storage's own reality.
 
     Asked over the whole CLOSURE, not the task it was handed. ``_task_alive``
-    resolves a row's chain through ``storage.task``, which holds the id of the
-    chain's ROOT — but the job carrying ``core_finalize`` is not the root. In
+    resolves a row's chain through the task index, which answers with the id of
+    the chain's ROOT — but the job carrying ``core_finalize`` is not the root. In
     the real template chain the anchor is the third storage job
     (``move → create → qemu_img_info_backing_chain``), so a hatch that reads
     ``core_finalize`` off the root alone can never open for the one chain shape
