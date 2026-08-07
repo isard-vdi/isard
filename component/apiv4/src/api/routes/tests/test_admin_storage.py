@@ -529,10 +529,12 @@ class TestRefreshRunningSizes:
         calls = self._capture_cbc(monkeypatch)
 
         # A refresh is already in flight for s-ready → it must be skipped
-        # so repeated sweeps don't dogpile the task queue. Replace the
-        # ``Task`` used by the sweep with a fake whose task is pending,
-        # so the guard fires without touching redis.
+        # so repeated sweeps don't dogpile the task queue. The guard resolves
+        # the row's live task through the index, so that is what the fake
+        # answers; the row's ``task`` scalar is retired and no longer read.
         class _FakeTask:
+            _redis = None
+
             def __init__(self, task_id):
                 self.pending = True
 
@@ -541,6 +543,10 @@ class TestRefreshRunningSizes:
                 return True
 
         monkeypatch.setattr("isardvdi_common.lib.storage.storage.Task", _FakeTask)
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.storage.current_task_id",
+            lambda _connection, storage_id, **kwargs: "task-in-flight",
+        )
 
         db = {
             "domains": [
@@ -558,7 +564,6 @@ class TestRefreshRunningSizes:
                     "user_id": "u1",
                     "directory_path": "/p",
                     "type": "qcow2",
-                    "task": "task-in-flight",
                 }
             ],
         }
