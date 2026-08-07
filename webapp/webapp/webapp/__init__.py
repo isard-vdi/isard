@@ -89,9 +89,16 @@ def send_static_js(path):
 @app.context_processor
 def inject_faro():
     enabled = os.getenv("FARO_ENABLED", "false").lower() == "true"
+    try:
+        http_sampling = float(os.getenv("FARO_HTTP_SAMPLING", "1"))
+    except ValueError:
+        http_sampling = 1.0
+    if not 0.0 <= http_sampling <= 1.0:
+        http_sampling = 1.0
     return {
         "faro_enabled": enabled,
         "faro_url": (os.getenv("FARO_URL") or "/faro/collect") if enabled else None,
+        "faro_http_sampling": http_sampling,
     }
 
 

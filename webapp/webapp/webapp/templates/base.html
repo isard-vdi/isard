@@ -163,6 +163,7 @@
   <script>
     window.__FARO_CONFIG__ = {
       url: {{ faro_url|tojson }},
+      httpSampling: {{ faro_http_sampling|tojson }},
       version: 'dev',
       user: {
         id: {{ (current_user.id if current_user.is_authenticated else '')|tojson }},
