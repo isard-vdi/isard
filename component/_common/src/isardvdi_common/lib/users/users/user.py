@@ -604,9 +604,16 @@ class UsersProcessed(RethinkSharedConnection):
         )
 
         faro_enabled = getenv("FARO_ENABLED", "false").lower() == "true"
+        try:
+            http_sampling = float(getenv("FARO_HTTP_SAMPLING", "1"))
+        except ValueError:
+            http_sampling = 1.0
+        if not 0.0 <= http_sampling <= 1.0:
+            http_sampling = 1.0
         faro = {
             "enabled": faro_enabled,
             "url": (getenv("FARO_URL") or "/faro/collect") if faro_enabled else None,
+            "http_sampling": http_sampling,
         }
 
         return {

@@ -81,6 +81,7 @@ services:
       DEBUG_WEBSOCKETS: "false"
       FARO_ENABLED:
       FARO_URL:
+      FARO_HTTP_SAMPLING:
       RETHINKDB_HOST:
       RETHINKDB_PORT:
       RETHINKDB_DB:
