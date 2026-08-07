@@ -1364,7 +1364,12 @@ class Storage(RethinkCustomBase):
         # (quotas, usage, analytics) counts a real disk as zero bytes.
         # It rides a storage queue, so a failed convert leaves it unenqueued
         # rather than measuring a destination that was just unlinked.
+        # The measurement must be told the DESTINATION's format: it pins -f
+        # rather than probing, and convert is the one action whose output is
+        # not qcow2. Measured as qcow2, a good vmdk reads as "could not open"
+        # and the row is set to deleted while the file stays on disk forever.
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=new_storage.directory_path).id}.background"
+        dest_type = new_storage_type.lower()
 
         self.set_maintenance("convert")
         return self.create_task(
@@ -1377,7 +1382,7 @@ class Storage(RethinkCustomBase):
                 "kwargs": {
                     "source_disk_path": self.path,
                     "dest_disk_path": new_storage.path,
-                    "format": new_storage_type.lower(),
+                    "format": dest_type,
                     "compression": compress,
                 },
             },
@@ -1389,6 +1394,7 @@ class Storage(RethinkCustomBase):
                         "kwargs": {
                             "storage_id": new_storage.id,
                             "storage_path": new_storage.path,
+                            "storage_type": dest_type,
                         }
                     },
                     "dependents": [

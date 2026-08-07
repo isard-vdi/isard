@@ -643,7 +643,7 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     ).returncode
 
 
-def qemu_img_info(storage_id, storage_path):
+def qemu_img_info(storage_id, storage_path, storage_type="qcow2"):
     """
     Get storage data with `qemu-img info` data updated.
 
@@ -651,6 +651,10 @@ def qemu_img_info(storage_id, storage_path):
     :type storage_id: str
     :param storage_path: Storage path
     :type storage_path: str
+    :param storage_type: Format of the file on disk. Defaults to qcow2, which
+        is what every disk IsardVDI creates itself is; ``convert`` is the one
+        action that produces something else.
+    :type storage_type: str
     :return: Storage data to update
     :rtype: dict
     """
@@ -661,7 +665,7 @@ def qemu_img_info(storage_id, storage_path):
                 "info",
                 "-U",
                 "-f",
-                "qcow2",
+                storage_type,
                 "--output",
                 "json",
                 storage_path,
@@ -676,14 +680,25 @@ def qemu_img_info(storage_id, storage_path):
 
 
 @_publishes_result
-def qemu_img_info_backing_chain(storage_id, storage_path):
+def qemu_img_info_backing_chain(storage_id, storage_path, storage_type="qcow2"):
     """
     Get storage data with `qemu-img info` data updated.
+
+    ``-f`` is passed explicitly rather than letting qemu-img probe, so a
+    hostile guest cannot make its own disk read as another format. That means
+    the caller has to say which format it is: every disk IsardVDI creates is
+    qcow2, hence the default, but ``convert`` exists precisely to write
+    something else, and measuring a vmdk as qcow2 fails with
+    ``Could not open '<the file itself>'`` -- which this function then reads as
+    "the file is gone" and reports ``deleted``, orphaning a disk that is
+    perfectly fine.
 
     :param storage_id: Storage ID
     :type storage_id: str
     :param storage_path: Storage path
     :type storage_path: str
+    :param storage_type: Format of the file on disk
+    :type storage_type: str
     :return: Storage data to update
     :rtype: dict
     """
@@ -696,7 +711,7 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
                 "-U",
                 "--backing-chain",
                 "-f",
-                "qcow2",
+                storage_type,
                 "--output",
                 "json",
                 storage_path,
@@ -733,7 +748,7 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
             else:
                 try:
                     backing = (
-                        qemu_img_info(storage_id, storage_path)
+                        qemu_img_info(storage_id, storage_path, storage_type)
                         .get("qemu-img-info", {})
                         .get("backing-filename")
                     )
