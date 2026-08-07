@@ -30,18 +30,20 @@ from api.services.storage import StorageService
 ROW = {"id": "s-1", "status": "ready", "task": "leftover-scalar"}
 
 
-def _run(task_id, pending):
-    """Run the real ``get_storage_detail`` with the index and Task stubbed."""
-    task_cls = MagicMock(
-        name="TaskClass", return_value=SimpleNamespace(pending=pending)
-    )
+def _run(task_id, pending, loadable=True):
+    """Run the real ``get_storage_detail`` with the index and the resolver
+    stubbed. ``loadable`` models the job whose hash the index can see but rq
+    cannot load: the resolver's contract is to answer with nothing."""
+    task_cls = MagicMock(name="TaskClass")
     task_cls._redis = MagicMock(name="redis")
-    task_cls.exists = lambda _id: bool(task_id)
+    resolved = [SimpleNamespace(pending=pending)] if (task_id and loadable) else []
 
     with patch("api.services.storage.get_storage"), patch(
         "api.services.storage.StorageProcessed.get_storage_row",
         return_value=dict(ROW),
     ), patch("api.services.storage.Task", task_cls), patch(
+        "api.services.storage.tasks_from_ids", return_value=resolved
+    ), patch(
         "api.services.storage.current_task_id", return_value=task_id
     ):
         return StorageService.get_storage_detail({"user_id": "u-1"}, "s-1")
@@ -61,3 +63,18 @@ class TestHasPendingTask:
     def test_the_retired_scalar_is_never_served(self):
         """Unchanged contract, pinned so the fix cannot reintroduce it."""
         assert "task" not in _run("t-live", pending=True)
+
+    def test_a_hash_the_index_sees_but_rq_cannot_load_is_not_a_500(self):
+        """The other half of "exists is not enough".
+
+        The index proves the hash is THERE. A hash left with only a status
+        field passes that and still cannot be loaded — rq raises on it, and
+        this route's blanket handler would serve that as internal_server. So
+        the id is resolved the way the neighbouring endpoints resolve it,
+        through ``tasks_from_ids``, which answers with nothing instead of
+        raising. Reading a disk must not fail because of a half-expired job.
+        """
+        assert _run("t-half-expired", pending=True, loadable=False) == {
+            **{k: v for k, v in ROW.items() if k != "task"},
+            "has_pending_task": False,
+        }

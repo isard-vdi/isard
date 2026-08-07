@@ -267,7 +267,12 @@ class StorageService:
         # Pair it with the pending check, as every other reader of the index does.
         row.pop("task", None)
         task_id = current_task_id(Task._redis, storage_id)
-        row["has_pending_task"] = bool(task_id and Task(task_id).pending)
+        # ``tasks_from_ids`` and not ``Task(...)``: the index proves the job's
+        # hash is THERE, and a hash left with only a status field passes that
+        # and still cannot be loaded — which rq raises on, and this route turns
+        # into a 500. The two endpoints below resolve the same id the same way.
+        tasks = tasks_from_ids([task_id]) if task_id else []
+        row["has_pending_task"] = bool(tasks and tasks[0].pending)
         return row
 
     @staticmethod
