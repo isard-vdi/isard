@@ -50,6 +50,7 @@ from isardvdi_common.helpers import task_streams
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage import migration as mig
+from isardvdi_common.lib.task_index import index_task
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, get_queue_from_storage_pools
 from isardvdi_common.models.storage_migration import (
@@ -61,6 +62,7 @@ from isardvdi_common.models.storage_migration import (
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
 from redis.exceptions import LockError, RedisError
+from rq.job import Job
 from rq.registry import StartedJobRegistry
 
 log = logging.getLogger(__name__)
@@ -615,19 +617,28 @@ class MigrationRunner:
 
     # -- per-disk actions -------------------------------------------------- #
     def _claim_storage_task(self, item, task_id):
-        """Point the storage row's ``task`` at the saga task currently working it.
+        """Record the saga task working this disk in the per-owner task index.
 
         The reconciler's Pass 2 lists every ``maintenance`` row and, when
         ``_task_alive`` finds no live task, finalizes it to ``ready`` and promotes
         its domains -- a disk we set to maintenance but never claimed would lose
         its durable start-block after one 90s sweep, WHILE rsync is still copying
-        it. Re-stamped at every phase so the claim does not lapse between them.
+        it. ``_task_alive`` (and ``abort_operations``, and the 428 gate) resolve
+        liveness through the index, not the retired ``task`` scalar, so the claim
+        MUST land in the index: the runner enqueues its tasks directly (see
+        ``_enqueue``) and so never passes through ``create_task``, the one other
+        place that indexes. Re-stamped at every phase so the claim does not lapse.
         """
         storage_id = item.get("storage_id")
         if not task_id or not storage_id:
             return
         try:
-            Storage.update_document(storage_id, {"task": task_id}, validate=False)
+            index_task(
+                Task._redis,
+                Job.fetch(task_id, connection=Task._redis),
+                [storage_id],
+                kind="storage",
+            )
         except Exception:
             log.exception(
                 "migration: could not claim storage %s for task %s",
