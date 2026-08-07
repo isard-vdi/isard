@@ -548,13 +548,18 @@ class TestDownloadsDeleteAndAbort:
         module-level ``RethinkDomain`` / ``Task`` names the service imports, and
         the ``isardvdi_common.models.storage.Storage`` attribute its lazy import
         reads — patches a plain attribute, which mock restores cleanly.
-        """
-        storage = SimpleNamespace(task=storage_task)
 
+        ``storage_task`` is served by the **index**, not stamped on the row.
+        It used to be declared as ``SimpleNamespace(task=storage_task)``, which
+        stopped feeding the service the moment the pointer retirement landed
+        underneath: the field is no longer written, so the double was asserting
+        through something nothing reads and these tests stayed green while both
+        guards inverted in production.
+        """
         domain_cls = MagicMock(name="DomainClass", return_value=domain)
         domain_cls.exists = lambda _id: True
 
-        storage_cls = MagicMock(name="StorageClass", return_value=storage)
+        storage_cls = MagicMock(name="StorageClass")
         storage_cls.exists = lambda _id: True
 
         task_cls = MagicMock(
@@ -562,6 +567,7 @@ class TestDownloadsDeleteAndAbort:
             return_value=SimpleNamespace(pending=task_pending, cancel=lambda: None),
         )
         task_cls.exists = lambda _id: bool(storage_task)
+        task_cls._redis = MagicMock(name="redis")
 
         return (
             # Module-level imports in the service (``Domain as RethinkDomain``,
@@ -571,11 +577,16 @@ class TestDownloadsDeleteAndAbort:
             # ``Storage`` is imported lazily inside the service functions, so the
             # only shared handle is the model-module attribute they re-read.
             patch("isardvdi_common.models.storage.Storage", storage_cls),
+            # Where the live task actually comes from now.
+            patch(
+                "api.services.admin.downloads.current_task_id",
+                lambda _connection, _owner_id, **kwargs: storage_task,
+            ),
         )
 
     def _run(self, action, domain, task_pending=False, storage_task="t-1"):
         patches = self._patched(domain, task_pending, storage_task)
-        with patches[0], patches[1], patches[2]:
+        with patches[0], patches[1], patches[2], patches[3]:
             with patch(
                 "api.services.desktops.DesktopService.delete_desktop"
             ) as delete_desktop:
