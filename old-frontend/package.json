@@ -25,6 +25,7 @@
     "bootstrap": "^4.4.1",
     "bootstrap-vue": "^2.9.0",
     "core-js": "^3.6.4",
+    "dompurify": "^3.4.12",
     "jwt-decode": "^4.0.0",
     "material-icons": "^1.13.14",
     "moment": "^2.29.4",

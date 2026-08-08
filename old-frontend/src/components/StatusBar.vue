@@ -452,7 +452,7 @@
         :variant="statusBarNotification.level"
       >
         <!-- eslint-disable -->
-        <span class="mt-2" v-html="statusBarNotification.text" />
+        <span class="mt-2" v-html="$sanitize(statusBarNotification.text)" />
         <!-- eslint-enable -->
         <b-button
           v-if="statusBarNotification.migration_config.export"

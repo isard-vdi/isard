@@ -34,6 +34,7 @@ import router from './router'
 import store from './store'
 
 import axiosSetup from './utils/axios'
+import SanitizeHtml from './utils/sanitizeHtml'
 import { setFaroError } from '@/lib/faro'
 
 // Websockets
@@ -47,6 +48,8 @@ import VueFab from 'vue-float-action-button'
 import vSelect from 'vue-select'
 
 Vue.component('VSelect', vSelect)
+
+Vue.use(SanitizeHtml)
 
 console.log(i18n.locale)
 

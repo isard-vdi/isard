@@ -26,7 +26,7 @@
         {{ notification.title }}
       </h5>
       <!-- eslint-disable-next-line vue/no-v-html -->
-      <span v-html="notification.body" />
+      <span v-html="$sanitize(notification.body)" />
       <hr>
     </div>
   </b-modal>
