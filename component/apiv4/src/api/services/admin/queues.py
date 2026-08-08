@@ -652,15 +652,18 @@ class AdminQueuesService:
         worker_hashes = {}
         gov_hashes = {}
         current_job_ids = {}
-        try:
-            with conn.pipeline() as pipe:
-                for key in worker_keys:
-                    pipe.hgetall(key)
-                    name = key[len(_RQ_WORKER_PREFIX) :]
-                    pipe.hgetall(_GOVERNOR_WORKER_PREFIX + name)
-                results = pipe.execute()
-        except Exception:
-            results = []
+        # A failure here is Redis being unreadable, NOT "every worker is dead":
+        # let it propagate so the caller degrades to redis.up=false (the same
+        # posture _redis_health takes above). Swallowing it into an empty result
+        # gave every worker an empty hash -> up=false while redis still read
+        # healthy, firing WorkerHeartbeatLost / NoStorageWorkers against a live
+        # Redis on any partial (PING-alive) read failure.
+        with conn.pipeline() as pipe:
+            for key in worker_keys:
+                pipe.hgetall(key)
+                name = key[len(_RQ_WORKER_PREFIX) :]
+                pipe.hgetall(_GOVERNOR_WORKER_PREFIX + name)
+            results = pipe.execute()
         for idx, key in enumerate(worker_keys):
             name = key[len(_RQ_WORKER_PREFIX) :]
             wh = _decode_hash(results[idx * 2]) if idx * 2 < len(results) else {}
