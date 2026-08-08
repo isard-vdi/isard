@@ -274,12 +274,21 @@ async def _heal_core_orphan(redis_manager, task):
                 dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED
             )
         # Per MEMBER, not just per chain: ``doomed`` is read off the ROOT's
-        # dependencies, so a member cancelled on its own — the shape rq leaves
-        # when a worker had already dequeued it — passes that test and gets its
-        # deferred storage children released, running real disk work for an
-        # operation that is over. The consumer already gates its own release
-        # this way; the heal did not.
-        if ok and not doomed and not _is_canceled(dep_task):
+        # dependencies, so a member cancelled on its own passes that test and
+        # gets its deferred storage children released, running real disk work
+        # for an operation that is over.
+        #
+        # BOTH signals are needed, and neither alone is enough — measured
+        # against real rq chains. A member a worker had already dequeued runs to
+        # completion and its success handler rewrites the rq status to
+        # ``finished``, so ``job_status`` reads NOT cancelled and only the
+        # durable record shows it; a member cancelled through rq directly has
+        # the opposite shape, a CANCELED status and no record. ``_set_job_status``
+        # already trusts the record for exactly this reason.
+        member_canceled = _is_canceled(dep_task) or await asyncio.to_thread(
+            was_canceled, dep_task._redis, dep_task.id
+        )
+        if ok and not doomed and not member_canceled:
             await _release_storage_dependents(dep_task)
     # Same rule as the consumer: the Jobs ARE the replay state, so they are
     # only dropped once the whole heal succeeded. Deleting them after a failed
