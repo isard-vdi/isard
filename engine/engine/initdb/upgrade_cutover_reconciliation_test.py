@@ -141,3 +141,58 @@ def test_v197_recycle_bin_count_backfill_is_guarded():
     assert "desktops_count" in block
     # guarded on absence so it is a no-op on apiv4-lineage DBs
     assert 'has_fields("desktops_count")' in block
+
+
+def _blocks():
+    """Every ``if version == N:`` body, keyed by (function, N), comment- and
+    whitespace-normalised so the same migration is recognisable under any
+    number.
+
+    Bounded by DEDENT, not by the next ``if version ==``: the last block of a
+    function would otherwise swallow everything after it (``return True`` and
+    the rest), which makes two identical copies read as different bodies and
+    silently defeats the duplicate check below.
+    """
+    out = {}
+    for fn, (_versions, seg) in _FUNCS.items():
+        lines = seg.split("\n")
+        for i, line in enumerate(lines):
+            m = re.match(r"(\s*)if version == (\d+):\s*$", line)
+            if not m:
+                continue
+            indent = len(m.group(1))
+            body = []
+            for nxt in lines[i + 1 :]:
+                if not nxt.strip():
+                    continue
+                if len(nxt) - len(nxt.lstrip()) <= indent:
+                    break
+                if not nxt.strip().startswith("#"):
+                    body.append(nxt.strip())
+            out[(fn, int(m.group(2)))] = "\n".join(body)
+    return out
+
+
+def test_no_block_is_numbered_above_the_release_version():
+    """A block above ``release_version`` is never replayed: the loop stops at
+    the release, so the migration is dead code that looks live."""
+    src = open(_SRC).read()
+    release = int(re.search(r"^release_version = (\d+)", src, re.M).group(1))
+    over = sorted({v for _fn, v in _blocks() if v > release})
+    assert not over, f"blocks above release_version {release}: {over}"
+
+
+def test_no_migration_body_is_claimed_by_two_numbers():
+    """The same migration under two numbers means two branches each brought
+    their own copy. Both then run: once on the way to N, again on the way to
+    M. The number is a position in a global sequence, so it can only be
+    settled by the merge order -- never inside the branch that adds it.
+    """
+    per_body = {}
+    for (fn, version), body in _blocks().items():
+        # short bodies (a lone guarded index_drop) legitimately recur
+        if len(body.split("\n")) < 5:
+            continue
+        per_body.setdefault((fn, body), set()).add(version)
+    dupes = {fn: sorted(vs) for (fn, _body), vs in per_body.items() if len(vs) > 1}
+    assert not dupes, f"the same migration appears under several numbers: {dupes}"

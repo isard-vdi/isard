@@ -49,15 +49,16 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 204
-# release 204: seed the per-owner Redis task index from the storage/media row
+release_version = 205
+# release 205: seed the per-owner Redis task index from the storage/media row
 #              pointers, so the index answers for rows whose last chain
 #              predates it, and drop the now-unread storage "task" secondary
 #              index. Pointers whose rq job is gone are skipped.
-#              This is the next number after main's, and the MRs stacked on
-#              this one take 205 and 206. Re-check against main before
-#              merging: a block at or below a database's stored version is
-#              never replayed on it.
+#              204 belongs to the downloads collection, which merges first
+#              (see the merge order on the umbrella ticket). The number is a
+#              position in a global sequence, not a property of this branch:
+#              a block at or below a database's stored version is never
+#              replayed on it, and that failure is silent.
 # release 203: drop null-valued guest_properties.viewers entries on domains and
 #              deployment (a disabled viewer is an absent key)
 # release 202: drop dead RethinkDB indexes and reconcile populate on hot tables
@@ -6241,7 +6242,7 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
-        if version == 204:
+        if version == 205:
             # The row pointer and its index are retired: every reader resolves
             # a row's current task through the per-owner Redis index, seeded by
             # the backfill in this same version. Dropping the index is safe
@@ -8421,7 +8422,7 @@ password:s:%s"""
         magnitude slower on a full index, and this runs over every row in the
         table at engine start.
         """
-        if version != 204:
+        if version != 205:
             return
 
         log.info("UPGRADING task_index_backfill TO VERSION " + str(version))
