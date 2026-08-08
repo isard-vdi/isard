@@ -862,27 +862,45 @@ async def test_pass1_non_cancelled_orphan_is_still_flipped_finished():
 
 
 @pytest.mark.asyncio
-async def test_pass1_does_not_release_the_children_of_a_cancelled_member():
+@pytest.mark.parametrize(
+    "member_status,member_record",
+    [
+        (JobStatus.CANCELED, None),  # cancelled through rq
+        (JobStatus.FINISHED, b"1"),  # cancelled after a worker had dequeued it
+    ],
+    ids=["rq-cancel", "dequeued-then-cancelled"],
+)
+async def test_pass1_does_not_release_the_children_of_a_cancelled_member(
+    member_status, member_record
+):
     """A member cancelled on its own must not have its storage children released.
 
-    ``doomed`` is computed from the ROOT's dependencies, so a chain whose root
-    is alive passes it — and that is exactly the shape rq leaves when a worker
-    had already dequeued the member: the member is CANCELED while the root is
-    not. Releasing there runs real disk work for an operation that is over. The
-    consumer gates its own release per member; the heal did not.
+    ``doomed`` is computed from the ROOT's dependencies, so a chain whose root is
+    alive passes it and the release is decided per member. Both shapes a
+    cancelled member can take are covered here, and they are NOT
+    interchangeable -- measured against real rq chains:
+
+    - cancelled through rq: status CANCELED and no durable record;
+    - cancelled after a worker had already dequeued it: the member runs to
+      completion and its success handler rewrites the status to ``finished``,
+      so ONLY the durable record still shows the cancel.
+
+    A guard reading just ``job_status`` passes the first and lets the second
+    release its children -- and the second is the shape that actually occurs.
     """
     from isardvdi_change_handler.streams import reconcile
 
+    # The ROOT is alive and carries no cancel record (``_task`` gives each task
+    # its OWN redis stub answering hget -> None), so nothing here is decided by
+    # the chain-level guard.
     orphan = _task("core1", queue="core", task_name="storage_update")
-    orphan._redis = MagicMock(name="redis")
-    orphan._redis.hget.return_value = None  # the ROOT carries no cancel record
     orphan.job.get_status.return_value = JobStatus.QUEUED
     orphan.job_status = JobStatus.QUEUED
 
     member = _task("core2", queue="core", task_name="update_status")
-    member._redis = orphan._redis
-    member.job.get_status.return_value = JobStatus.CANCELED
-    member.job_status = JobStatus.CANCELED
+    member.job.get_status.return_value = member_status
+    member.job_status = member_status
+    member._redis.hget.return_value = member_record
 
     with (
         patch.object(reconcile.Task, "get_by_status", return_value=[orphan]),
