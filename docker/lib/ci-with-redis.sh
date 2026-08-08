@@ -41,9 +41,45 @@ set -eu
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_root=$(CDPATH= cd -- "$script_dir/../.." && pwd)
 
+# The skip-count gate. "0 failed" says nothing when a suite quietly skipped the
+# tests that mattered, so when SKIP_GATE_REPORT names a junit xml we fail the
+# run whenever its skip count differs from EXPECTED_SKIPS (default 0). A larger
+# count is not automatically wrong — but it has to be declared on purpose, not
+# drift in unnoticed. Returns the command's own status when the gate passes.
+run_gate() {
+    cmd_status="$1"
+    [ -n "${SKIP_GATE_REPORT:-}" ] || return "$cmd_status"
+    report="$SKIP_GATE_REPORT"
+    case "$report" in
+        /*) : ;;
+        *) report="$repo_root/$report" ;;
+    esac
+    # No report means pytest never got far enough to write one; its own
+    # non-zero status already tells that story.
+    [ -f "$report" ] || return "$cmd_status"
+    expected="${EXPECTED_SKIPS:-0}"
+    # The first skipped="N" is the run-level total pytest writes on the
+    # <testsuites>/<testsuite> root.
+    skipped=$(grep -oE 'skipped="[0-9]+"' "$report" | head -n1 | grep -oE '[0-9]+' || true)
+    skipped=${skipped:-0}
+    if [ "$skipped" != "$expected" ]; then
+        echo "" >&2
+        echo "ci-with-redis: SKIP GATE — $report reports $skipped skipped, expected $expected." >&2
+        echo "A suite that skips has proved nothing there. Give it what it needs to run," >&2
+        echo "or set EXPECTED_SKIPS=$skipped to declare the count on purpose." >&2
+        return 1
+    fi
+    echo "ci-with-redis: SKIP GATE ok — $skipped skipped == expected $expected ($report)." >&2
+    return "$cmd_status"
+}
+
 # A Redis already declared (CI service, or a dev's own stack) — use it untouched.
 if [ -n "${ISARD_TEST_REDIS:-}" ] || [ -n "${REDIS_HOST:-}" ]; then
-    exec "$@"
+    set +e
+    "$@"
+    status=$?
+    run_gate "$status"
+    exit $?
 fi
 
 # No Redis in the environment: raise the same image and digest the CI service
@@ -108,6 +144,5 @@ export ISARD_TEST_REDIS="redis://127.0.0.1:$port/9"
 set +e
 "$@"
 status=$?
-set -e
-
-exit "$status"
+run_gate "$status"
+exit $?
