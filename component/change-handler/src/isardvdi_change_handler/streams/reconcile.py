@@ -67,7 +67,13 @@ from datetime import datetime, timezone
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
-from isardvdi_common.models.task import Task, _chain_closure, finalize_has_unstamped
+from isardvdi_common.models.task import (
+    CoreStep,
+    Task,
+    _chain_closure,
+    finalize_has_unstamped,
+    was_canceled,
+)
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
@@ -229,10 +235,21 @@ async def _heal_core_orphan(redis_manager, task):
     """Re-run the missed core dispatch for ``task`` and its nested core
     dependents, mirroring :func:`_process_entry` in the consumer.
     """
+    # Cancellation is terminal, and here the durable record is the ONLY signal
+    # for it. ``Task.cancel`` stamps every member of the closure, but a member a
+    # worker had already dequeued runs to completion and its success handler
+    # rewrites the rq status to ``finished`` — so ``job_status`` (and the
+    # ``doomed`` scan below) reads finished for a cancelled member, and a
+    # metadata ``CoreStep`` never reports ``CANCELED`` at all. Only
+    # ``was_canceled`` on the real root sees the cancel. Without it, the heal
+    # flips a cancelled member to FINISHED and the next step reads its dependency
+    # as succeeded and runs its success body for an operation the user cancelled
+    # — the same defect the consumer guards at its own ``was_canceled`` gate.
+    canceled = await asyncio.to_thread(was_canceled, task._redis, task.id)
     # A chain whose parent failed or was cancelled is dead: run its finalize
     # handlers (they take their failure branch) but never release its deferred
     # storage children, which would run work for an operation that is over.
-    doomed = any(
+    doomed = canceled or any(
         getattr(dep, "job_status", None) in (JobStatus.FAILED, JobStatus.CANCELED)
         for dep in task.dependencies
     )
@@ -241,7 +258,12 @@ async def _heal_core_orphan(redis_manager, task):
     for dep_task in chain:
         ok = await _run_handler(redis_manager, dep_task)
         all_ok = all_ok and ok
-        await _set_job_status(dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED)
+        # A cancelled chain must not be advanced: leave each member's terminal
+        # CANCELED as it is rather than flipping it FINISHED.
+        if not canceled:
+            await _set_job_status(
+                dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED
+            )
         if ok and not doomed:
             await _release_storage_dependents(dep_task)
     # Same rule as the consumer: the Jobs ARE the replay state, so they are

@@ -800,3 +800,65 @@ def test_orphan_gate_vanished_dep_with_finished_aged_sibling():
 # ---------------------------------------------------------------------------
 # Pass 1 — orphaned DEFERRED jobs
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Pass 1 must honour the durable cancel record, like the consumer does.
+#
+# A member a worker had already dequeued runs to completion and its success
+# handler rewrites the rq status to ``finished`` — so ``job_status`` reads
+# finished for a cancelled member and a metadata ``CoreStep`` never reports
+# CANCELED at all. Only ``was_canceled`` on the real root sees the cancel. These
+# drive the REAL ``_set_job_status`` (spying on ``job.set_status``) rather than
+# mocking it away, or they would prove nothing about the flip.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_pass1_cancelled_orphan_is_not_flipped_finished():
+    """A cancelled chain healed by Pass 1 must NOT have its member flipped
+    FINISHED (which would tell a downstream step its dependency succeeded and
+    run its success body for an operation the user cancelled)."""
+    from isardvdi_change_handler.streams import reconcile
+
+    orphan = _task("core1", queue="core", task_name="storage_update")
+    # A redis whose HGET returns the cancel record -> the real ``was_canceled``
+    # answers True for this root (no mock of ``was_canceled`` or ``_set_job_status``).
+    orphan._redis = MagicMock(name="redis")
+    orphan._redis.hget.return_value = b"1"
+    # get_status must not read CANCELED, so _set_job_status' own (CoreStep-inert)
+    # guard cannot be what saves us — the external was_canceled guard must.
+    orphan.job.get_status.return_value = JobStatus.FINISHED
+
+    with (
+        patch.object(reconcile.Task, "get_by_status", return_value=[orphan]),
+        patch.object(reconcile, "_walk_core_dependents", return_value=[]),
+        patch.object(reconcile, "_run_handler", new=AsyncMock(return_value=True)),
+        patch.object(reconcile, "_release_storage_dependents", new=AsyncMock()),
+    ):
+        healed = await reconcile._reconcile_orphan_deferred(AsyncMock())
+
+    assert healed == 1  # it is still healed (handlers run) — just not advanced
+    orphan.job.set_status.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_pass1_non_cancelled_orphan_is_still_flipped_finished():
+    """The guard must not break the normal path: a chain that was NOT cancelled
+    is still marked FINISHED by the heal."""
+    from isardvdi_change_handler.streams import reconcile
+
+    orphan = _task("core1", queue="core", task_name="storage_update")
+    orphan._redis = MagicMock(name="redis")
+    orphan._redis.hget.return_value = None  # no cancel record -> was_canceled False
+    orphan.job.get_status.return_value = JobStatus.QUEUED
+
+    with (
+        patch.object(reconcile.Task, "get_by_status", return_value=[orphan]),
+        patch.object(reconcile, "_walk_core_dependents", return_value=[]),
+        patch.object(reconcile, "_run_handler", new=AsyncMock(return_value=True)),
+        patch.object(reconcile, "_release_storage_dependents", new=AsyncMock()),
+    ):
+        await reconcile._reconcile_orphan_deferred(AsyncMock())
+
+    orphan.job.set_status.assert_called_once_with(JobStatus.FINISHED)
