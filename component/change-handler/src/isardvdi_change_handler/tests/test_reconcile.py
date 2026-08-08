@@ -37,6 +37,13 @@ def _task(
     user_id="u1",
 ):
     job = MagicMock(name=f"job-{task_id}")
+    # Every real Task carries ``_redis`` (it is how the durable cancel record is
+    # read), so the stub must too — otherwise a pass that consults it dies with
+    # AttributeError inside the per-task ``except`` and the orphan is abandoned,
+    # which reads as "the heal is broken" instead of "the stub is incomplete".
+    # ``hget`` -> None means: no cancel record for this member.
+    redis = MagicMock(name=f"redis-{task_id}")
+    redis.hget.return_value = None
     return SimpleNamespace(
         id=task_id,
         task=task_name,
@@ -45,6 +52,7 @@ def _task(
         dependencies=dependencies if dependencies is not None else [_dep()],
         dependents=dependents or [],
         job=job,
+        _redis=redis,
         cancel=MagicMock(name=f"cancel-{task_id}"),
     )
 
