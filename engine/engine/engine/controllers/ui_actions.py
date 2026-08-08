@@ -1054,6 +1054,7 @@ class UiActions(object):
                 return True
 
             user_id = dict_domain.get("user")
+            failed = False
             for d in disks:
                 storage_id = d.get("storage_id")
                 if not storage_id:
@@ -1083,7 +1084,9 @@ class UiActions(object):
                     )
                     continue
                 try:
-                    Storage(storage_id).task_delete(user_id=user_id)
+                    Storage(storage_id).task_delete(
+                        user_id=user_id, exclude_domains=[id_domain]
+                    )
                     log.info(
                         "DELETE_DOMAIN_DISKS: Domain {} storage {} enqueued for deletion via task chain".format(
                             id_domain, storage_id
@@ -1096,7 +1099,11 @@ class UiActions(object):
                             storage_id, id_domain, e
                         )
                     )
-            return True
+                    failed = True
+            # Reporting success here while nothing was enqueued is what let the
+            # caller drop the domain row and leave the qcow2 behind, owned by
+            # nobody and in no recycle bin.
+            return not failed
         except Exception as e:
             logs.exception_id.debug("0071")
             log.error(
@@ -1114,7 +1121,20 @@ class UiActions(object):
             if hyp_id is not None and hyp_id is not False:
                 self.stop_domain(domain_id, hyp_id, not_change_status=True)
 
-        self.deleting_disks_from_domain(domain_id)
+        if not self.deleting_disks_from_domain(domain_id):
+            # Keeping the row is what stops the disks becoming orphans: nothing
+            # else references them, and no recycle bin entry claims them. Fail
+            # it loudly rather than leaving it parked at ForceDeleting, which no
+            # sweep finishes.
+            log.error(
+                f"domain {domain_id} NOT deleted: its disks could not be enqueued for deletion"
+            )
+            update_domain_status(
+                "Failed",
+                domain_id,
+                detail="Could not enqueue the deletion of its disks; the desktop was kept so they are not orphaned",
+            )
+            return {"deleted": 0}
 
         result = delete_domain(domain_id)
         log.info(
