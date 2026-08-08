@@ -34,8 +34,10 @@ def _conn_or_skip():
         conn = redis_lib.from_url(rq_url())
         conn.ping()
         return conn
-    except Exception:
-        pytest.skip("no redis reachable (run on isard-network)")
+    except Exception as error:
+        from isardvdi_common.redis_test_gate import redis_required
+
+        redis_required(f"no redis reachable (run on isard-network): {error}")
 
 
 @pytest.fixture

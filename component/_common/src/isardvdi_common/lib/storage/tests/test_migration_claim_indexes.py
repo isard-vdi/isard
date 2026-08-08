@@ -46,7 +46,9 @@ def _redis_or_skip():
     try:
         connection.ping()
     except Exception as error:
-        pytest.skip(f"no Redis for the migration-claim index test: {error}")
+        from isardvdi_common.redis_test_gate import redis_required
+
+        redis_required(f"no Redis for the migration-claim index test: {error}")
     return connection
 
 
