@@ -484,3 +484,41 @@ class TestRecycleUnusedItemsPacing:
             for g in range(4)
         ]
         assert self._run(groups=groups).call_count == 2
+
+
+class TestDeleteOldEntries:
+    """The recurring purge must obey the configured action.
+
+    The scheduler job is created once and keeps firing every few minutes;
+    changing the action afterwards only rewrites a config field. Unless the
+    purge itself reads that field, choosing to keep old entries writes a
+    label nothing obeys.
+    """
+
+    @patch("api.services.recycle_bin.CommonRecycleBin.delete_old_entries")
+    @patch("api.services.recycle_bin.RecycleBinHelpers.get_old_deleted_entry_ids")
+    @patch(
+        "api.services.recycle_bin.RecycleBinHelpers.old_entries_purge_enabled",
+        return_value=False,
+    )
+    def test_does_nothing_when_the_action_is_not_delete(
+        self, _enabled, mock_ids, mock_delete
+    ):
+        RecycleBinService.delete_old_entries()
+        mock_ids.assert_not_called()
+        mock_delete.assert_not_called()
+
+    @patch("api.services.recycle_bin.CommonRecycleBin.delete_old_entries")
+    @patch(
+        "api.services.recycle_bin.RecycleBinHelpers.get_old_deleted_entry_ids",
+        return_value=["rb-1", "rb-2"],
+    )
+    @patch(
+        "api.services.recycle_bin.RecycleBinHelpers.old_entries_purge_enabled",
+        return_value=True,
+    )
+    def test_purges_the_selection_when_the_action_is_delete(
+        self, _enabled, _ids, mock_delete
+    ):
+        RecycleBinService.delete_old_entries()
+        mock_delete.assert_called_once_with(["rb-1", "rb-2"])

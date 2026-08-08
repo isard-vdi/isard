@@ -1000,18 +1000,40 @@ class Helpers(RethinkSharedConnection):
         _get_old_entries_config_cache.clear()
 
     @classmethod
-    def check_older_than_old_entry_max_time(cls, last):
-        max_time_config = cls.get_old_entries_config()["max_time"]
-        if max_time_config is None:
-            return False
-        else:
-            max_time_hours = int(max_time_config)
-            return (
-                last
-                < (
-                    datetime.now(timezone.utc) - timedelta(hours=max_time_hours)
-                ).timestamp()
+    def old_entries_purge_enabled(cls):
+        """Whether the configured action asks for old entries to be purged."""
+        return cls.get_old_entries_config().get("action") == "delete"
+
+    @classmethod
+    def get_old_entries_cutoff(cls):
+        """Return the timestamp before which an entry counts as old."""
+        max_time = cls.get_old_entries_config()["max_time"]
+        if max_time is None:
+            return None
+        try:
+            hours = int(max_time)
+        except (TypeError, ValueError):
+            log.warning("Recycle bin max_time %r is not a number; ignoring", max_time)
+            return None
+        if hours < 0:
+            log.warning(
+                "Recycle bin max_time %r is negative; keeping every entry", hours
             )
+            return None
+        try:
+            return (datetime.now(timezone.utc) - timedelta(hours=hours)).timestamp()
+        except OverflowError:
+            log.warning(
+                "Recycle bin max_time %r is out of range; keeping every entry", hours
+            )
+            return None
+
+    @classmethod
+    def check_older_than_old_entry_max_time(cls, last):
+        cutoff = cls.get_old_entries_cutoff()
+        if cutoff is None:
+            return False
+        return last < cutoff
 
     @classmethod
     def get_old_deleted_entry_ids(cls):
@@ -1021,12 +1043,9 @@ class Helpers(RethinkSharedConnection):
         # (with the full count merge) and Python-filtered them. Reads
         # ``max_time`` from ``get_old_entries_config()`` and yields
         # ids whose ``accessed`` timestamp is older than the cutoff.
-        max_time_config = cls.get_old_entries_config()["max_time"]
-        if max_time_config is None:
+        cutoff = cls.get_old_entries_cutoff()
+        if cutoff is None:
             return []
-        cutoff = (
-            datetime.now(timezone.utc) - timedelta(hours=int(max_time_config))
-        ).timestamp()
         with cls._rdb_context():
             return list(
                 r.table("recycle_bin")

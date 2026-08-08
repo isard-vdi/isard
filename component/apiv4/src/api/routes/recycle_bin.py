@@ -54,7 +54,7 @@ from api.schemas.recycle_bin import (
 )
 from api.services.error import Error
 from api.services.recycle_bin import RecycleBinService
-from fastapi import Depends, Request
+from fastapi import Depends, Path, Request
 from fastapi.responses import JSONResponse, Response
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 
@@ -651,7 +651,7 @@ async def recover_stuck_recycle_bin_entries(
     summary="Set old entries max time",
     description="Sets the maximum time (in hours) before old entries are processed.",
 )
-async def set_old_entries_max_time(request: Request, max_time: str):
+async def set_old_entries_max_time(request: Request, max_time: int = Path(..., ge=0)):
     try:
         await asyncio.to_thread(RecycleBinService.set_old_entries_max_time, max_time)
         return Response(status_code=204)
