@@ -71,3 +71,68 @@ class TestAbortOperations:
         with patch("api.services.storage.current_task_id", return_value=None):
             assert StorageService.abort_operations(PAYLOAD, "disk-1") == ""
         storage.abort_operations.assert_not_called()
+
+
+class TestAbortResolvesOnlyThroughTheIndex:
+    """``abort_operations`` must read the live task ONCE, from the index.
+
+    These exist because the four tests above cannot tell the correct
+    implementation from the one the merge of this delivery can fabricate. When
+    two branches both edit this function — one moving to the index, one still
+    reading the retired ``storage.task`` — keeping "both sides" leaves a second
+    ``tasks_from_ids`` call that silently overwrites the first. Measured: with
+    that second read injected, every other abort test still passes.
+
+    It cannot be caught by asserting on the outcome either, because the double
+    is a ``MagicMock``: ``storage.task`` answers with a child mock, the loader
+    is patched, and the function returns the same thing both ways. What
+    separates them is *what was asked for*, so that is what these assert.
+    """
+
+    @patch("api.services.storage.get_storage")
+    def test_the_retired_row_scalar_is_never_read(self, mock_get_storage):
+        """One load, and with the id the index gave — not the row's field."""
+        storage = MagicMock(id="disk-1")
+        # A recognisable value: a bare MagicMock attribute would come back as a
+        # child mock and a second read would be indistinguishable from the first.
+        storage.task = "stale-pointer"
+        mock_get_storage.return_value = storage
+        with patch("api.services.storage.current_task_id", return_value="t-1"), patch(
+            "api.services.storage.tasks_from_ids",
+            return_value=[MagicMock(user_id="u-1")],
+        ) as loader:
+            StorageService.abort_operations(PAYLOAD, "disk-1")
+        assert loader.call_count == 1, (
+            "the live task was loaded %d times; a second load means something "
+            "still reads the retired row pointer" % loader.call_count
+        )
+        assert list(loader.call_args_list[0].args[0]) == ["t-1"]
+
+    @patch("api.services.storage.get_storage")
+    def test_ownership_follows_the_index_not_the_stale_pointer(self, mock_get_storage):
+        """The consequence, so the guard cannot silently invert.
+
+        The index names a task somebody else started; the retired field still
+        names one this caller owns. Reading the field lets the caller cancel
+        work that is not theirs, and nothing about the response says so.
+
+        ``TestAbortOperations`` above already checks the 403, but it cannot
+        catch this: it patches the loader with a fixed ``return_value``, so both
+        reads answer the same task and the verdict is identical either way. The
+        two ids have to answer differently for the second read to be visible.
+        """
+        storage = MagicMock(id="disk-1")
+        storage.task = "stale-pointer"
+        mock_get_storage.return_value = storage
+        owners = {"t-1": "someone-else", "stale-pointer": "u-1"}
+
+        def load(ids, *args, **kwargs):
+            return [MagicMock(user_id=owners[list(ids)[0]])]
+
+        payload = {"user_id": "u-1", "category_id": "default", "role_id": "advanced"}
+        with patch("api.services.storage.current_task_id", return_value="t-1"), patch(
+            "api.services.storage.tasks_from_ids", side_effect=load
+        ):
+            with pytest.raises(Error) as raised:
+                StorageService.abort_operations(payload, "disk-1")
+        assert raised.value.status_code == 403
