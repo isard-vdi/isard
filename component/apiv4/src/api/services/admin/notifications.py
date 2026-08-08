@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional
 import pytz
 from api.services.error import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.html_validation import first_unsafe_html
 from isardvdi_common.lib.notifications.notifications import NotificationsProcessed
 from isardvdi_common.lib.notifications.notifications_action import (
     NotificationsActionProcessed,
@@ -36,24 +37,29 @@ from isardvdi_common.lib.notifications.notifications_templates import (
 from isardvdi_common.lib.users.users.user import UsersProcessed
 from isardvdi_common.models.config import Config
 
-FORBIDDEN_TAGS = ["<script", "<iframe", "javascript:"]
-
 
 class AdminNotificationService:
+
+    @staticmethod
+    def _refuse_unsafe_html(data: dict) -> None:
+        """Refuse a body/footer that would run script in the reader's session.
+
+        The clients render these fields as HTML, and the old frontend does it
+        without a sanitizer, so this is the only gate for them.
+        """
+        reason = first_unsafe_html(data.get("body"), data.get("footer"))
+        if reason:
+            raise Error(
+                "bad_request",
+                f"Invalid expression in body or footer: {reason}",
+                description_code="bad_request",
+            )
 
     # --- Templates ---
 
     @staticmethod
     def create_template(data: dict) -> str:
-        body_lower = data.get("body", "").lower()
-        footer_lower = data.get("footer", "").lower()
-        for tag in FORBIDDEN_TAGS:
-            if tag in body_lower or tag in footer_lower:
-                raise Error(
-                    "bad_request",
-                    "Invalid expression in body or footer",
-                    description_code="bad_request",
-                )
+        AdminNotificationService._refuse_unsafe_html(data)
 
         language = data.pop("language")
         data["lang"] = {
@@ -76,15 +82,7 @@ class AdminNotificationService:
 
     @staticmethod
     def update_template(template_id: str, data: dict) -> None:
-        body_lower = data.get("body", "").lower()
-        footer_lower = data.get("footer", "").lower()
-        for tag in FORBIDDEN_TAGS:
-            if tag in body_lower or tag in footer_lower:
-                raise Error(
-                    "bad_request",
-                    "Invalid expression in body or footer",
-                    description_code="bad_request",
-                )
+        AdminNotificationService._refuse_unsafe_html(data)
 
         language = data.pop("language")
         data["lang"] = {
