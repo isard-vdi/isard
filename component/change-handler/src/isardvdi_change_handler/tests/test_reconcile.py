@@ -859,3 +859,40 @@ async def test_pass1_non_cancelled_orphan_is_still_flipped_finished():
         await reconcile._reconcile_orphan_deferred(AsyncMock())
 
     orphan.job.set_status.assert_called_once_with(JobStatus.FINISHED)
+
+
+@pytest.mark.asyncio
+async def test_pass1_does_not_release_the_children_of_a_cancelled_member():
+    """A member cancelled on its own must not have its storage children released.
+
+    ``doomed`` is computed from the ROOT's dependencies, so a chain whose root
+    is alive passes it — and that is exactly the shape rq leaves when a worker
+    had already dequeued the member: the member is CANCELED while the root is
+    not. Releasing there runs real disk work for an operation that is over. The
+    consumer gates its own release per member; the heal did not.
+    """
+    from isardvdi_change_handler.streams import reconcile
+
+    orphan = _task("core1", queue="core", task_name="storage_update")
+    orphan._redis = MagicMock(name="redis")
+    orphan._redis.hget.return_value = None  # the ROOT carries no cancel record
+    orphan.job.get_status.return_value = JobStatus.QUEUED
+    orphan.job_status = JobStatus.QUEUED
+
+    member = _task("core2", queue="core", task_name="update_status")
+    member._redis = orphan._redis
+    member.job.get_status.return_value = JobStatus.CANCELED
+    member.job_status = JobStatus.CANCELED
+
+    with (
+        patch.object(reconcile.Task, "get_by_status", return_value=[orphan]),
+        patch.object(reconcile, "_walk_core_dependents", return_value=[member]),
+        patch.object(reconcile, "_run_handler", new=AsyncMock(return_value=True)),
+        patch.object(reconcile, "_release_storage_dependents", new=AsyncMock()) as rel,
+    ):
+        healed = await reconcile._reconcile_orphan_deferred(AsyncMock())
+
+    assert healed == 1
+    released = [call.args[0].id for call in rel.await_args_list]
+    assert "core1" in released  # the live root still advances
+    assert "core2" not in released  # the cancelled member does not

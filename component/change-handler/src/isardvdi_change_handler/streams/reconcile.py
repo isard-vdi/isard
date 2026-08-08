@@ -72,6 +72,7 @@ from rq.job import JobStatus
 
 from ..task_results.storage import _apply_storage_update, send_status_socket
 from .task_results_consumer import (
+    _is_canceled,
     _release_storage_dependents,
     _run_handler,
     _set_job_status,
@@ -251,7 +252,13 @@ async def _heal_core_orphan(redis_manager, task):
             await _set_job_status(
                 dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED
             )
-        if ok and not doomed:
+        # Per MEMBER, not just per chain: ``doomed`` is read off the ROOT's
+        # dependencies, so a member cancelled on its own — the shape rq leaves
+        # when a worker had already dequeued it — passes that test and gets its
+        # deferred storage children released, running real disk work for an
+        # operation that is over. The consumer already gates its own release
+        # this way; the heal did not.
+        if ok and not doomed and not _is_canceled(dep_task):
             await _release_storage_dependents(dep_task)
     # Same rule as the consumer: the Jobs ARE the replay state, so they are
     # only dropped once the whole heal succeeded. Deleting them after a failed
