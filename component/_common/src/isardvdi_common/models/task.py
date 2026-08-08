@@ -274,13 +274,17 @@ class Task(RedisBase):
                     "Provide task to create a new task or id keyword to get an existing one"
                 )
             kwargs.setdefault("job_kwargs", {}).setdefault("connection", self._redis)
-            kwargs["job_kwargs"].setdefault(
-                "result_ttl",
-                os.environ.get(
-                    "REDIS_TASK_RESULT_TTL",
-                    2592000,  # 30 days
-                ),
+            retention = os.environ.get(
+                "REDIS_TASK_RESULT_TTL",
+                2592000,  # 30 days
             )
+            kwargs["job_kwargs"].setdefault("result_ttl", retention)
+            # rq only EXPIREs the result stream when a ttl is given, and it takes
+            # ``failure_ttl`` for the failed branch. Left unset, a failed job's
+            # ``rq:results:<id>`` never expires while its successful sibling goes
+            # after ``result_ttl`` -- unbounded growth on the one path that only
+            # ever accumulates. One clock for the whole life of a task.
+            kwargs["job_kwargs"].setdefault("failure_ttl", retention)
             meta = kwargs["job_kwargs"].setdefault("meta", {})
             meta.setdefault("user_id", kwargs.get("user_id"))
             # Owner category, threaded so the storage worker can fair-schedule
