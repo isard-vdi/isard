@@ -131,6 +131,46 @@ async def test_non_canceled_member_status_is_still_written():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("gone", ["InvalidJobOperation", "NoSuchJobError"])
+async def test_a_job_whose_data_is_gone_is_not_resurrected(gone):
+    """A job that no longer exists must not be written to.
+
+    ``set_status`` is a bare ``HSET``, so a write against a deleted job
+    RECREATES its hash, and the ``ended_at`` stamp that follows completes it
+    into something indistinguishable from a settled chain member. The heal
+    reaches here right after deleting a healed chain's jobs, so a redelivery
+    lands on exactly the ids it just removed.
+    """
+    import rq.exceptions
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    dep = _stub_task("dep", job_status=JobStatus.DEFERRED)
+    dep.job.get_status.side_effect = getattr(rq.exceptions, gone)("gone")
+
+    await task_results_consumer._set_job_status(dep, JobStatus.FINISHED)
+
+    dep.job.set_status.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_a_status_we_merely_could_not_read_is_still_written():
+    """The guard is about a job that is GONE, not about a Redis blip.
+
+    An ordinary read failure keeps the previous fail-open behaviour: refusing
+    the write there would leave the step unmarked and strand every handler
+    behind it on ``depending_status != finished``.
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    dep = _stub_task("dep", job_status=JobStatus.DEFERRED)
+    dep.job.get_status.side_effect = ConnectionError("redis blip")
+
+    await task_results_consumer._set_job_status(dep, JobStatus.FINISHED)
+
+    dep.job.set_status.assert_called_once_with(JobStatus.FINISHED)
+
+
+@pytest.mark.asyncio
 async def test_canceled_chain_deletes_only_canceled_core_jobs():
     """Cancelled core members are dropped, but a FINISHED core member is left
     alone — it may still be the replay state of an earlier pending entry."""

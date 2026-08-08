@@ -57,12 +57,19 @@ from isardvdi_common.helpers.task_streams import CANCELED_KIND
 from isardvdi_common.models.task import Task, _stamp_ended_at
 from redis.exceptions import ResponseError
 from rq import Queue
+from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
 from ..task_results.feedback import emit_task_feedback
 from ..task_results.registry import HANDLERS
 from ..task_results.storage import dedup_status_emits
 from .trim import PROGRESS_STREAM, RESULT_STREAM, compute_trim_floor
+
+# Reading a job whose data is gone raises ``InvalidJobOperation`` (the hash is
+# there but its ``status`` field is not, or the hash itself has been deleted and
+# the HGET returns nothing) or ``NoSuchJobError``. Either way the job no longer
+# exists, which is a different thing from a status we could not read.
+_JOB_GONE = (InvalidJobOperation, NoSuchJobError)
 
 STREAM_KEY = RESULT_STREAM
 CONSUMER_GROUP = "change-handler"
@@ -266,6 +273,16 @@ async def _set_job_status(dep_task, status):
     FINISHED, or the handlers deeper in the chain would read
     ``depending_status == "finished"`` and run their success bodies for an
     operation the user cancelled.
+
+    A job whose hash is GONE is not an unreadable status, it is a job that no
+    longer exists — and ``set_status`` is a bare ``HSET``, so writing to it
+    RECREATES the hash, which the ``_stamp_ended_at`` below then completes into
+    something that reads like a settled job. Nothing distinguishes that ghost
+    from a real chain member afterwards, and it is reachable from the heal
+    itself, which deletes a healed chain's jobs and can then be redelivered onto
+    the ids it just removed. The same guard is already the house rule for the
+    two stamps in ``models.task`` (``_ENDED_AT_STAMP`` and ``_CANCELED_STAMP``
+    both write only ``if EXISTS``).
     """
     try:
         if await asyncio.to_thread(dep_task.job.get_status, refresh=True) == (
@@ -277,6 +294,14 @@ async def _set_job_status(dep_task, status):
                 status,
             )
             return
+    except _JOB_GONE:
+        # The job is gone, not unreadable: writing would resurrect it.
+        log.debug(
+            "task_results: %s no longer exists, not marking it %s",
+            getattr(dep_task, "id", "?"),
+            status,
+        )
+        return
     except Exception:
         # Unreadable status: fall through to the write, as before.
         pass
