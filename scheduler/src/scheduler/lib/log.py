@@ -57,8 +57,16 @@ class StructuredMessage(object):
 
 app.sm = StructuredMessage
 
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+# Normalised at the source: below, LOG_LEVEL is also compared against
+# uppercase literals to decide what gets logged, so a lowercase value would
+# quietly change filtering even where it does not raise.
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").strip().upper()
+# getLevelName returns the string "Level <x>" for an unknown name, and
+# basicConfig then raises ValueError at import. Fall back instead.
 LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
+if not isinstance(LOG_LEVEL_NUM, int):
+    print(f"LOG_LEVEL={LOG_LEVEL!r} is not a log level; falling back to INFO")
+    LOG_LEVEL_NUM = log.INFO
 log.basicConfig(
     level=LOG_LEVEL_NUM, format="%(asctime)s - %(levelname)-8s - %(message)s"
 )

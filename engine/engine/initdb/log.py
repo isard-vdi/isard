@@ -20,5 +20,10 @@ except Exception as e:
 # LOG FORMATS
 LOG_FORMAT = "%(asctime)s %(msecs)d - %(levelname)s - %(threadName)s: %(message)s"
 LOG_DATE_FORMAT = "%Y/%m/%d %H:%M:%S"
-LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
+# getLevelName returns the string "Level <x>" for an unknown name, and
+# basicConfig then raises ValueError at import. Normalise and fall back.
+LOG_LEVEL_NUM = log.getLevelName(str(LOG_LEVEL).strip().upper())
+if not isinstance(LOG_LEVEL_NUM, int):
+    print(f"LOG_LEVEL={LOG_LEVEL!r} is not a log level; falling back to INFO")
+    LOG_LEVEL_NUM = log.INFO
 log.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT, level=LOG_LEVEL_NUM)
