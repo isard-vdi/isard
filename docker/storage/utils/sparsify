@@ -58,6 +58,8 @@ LOG_FAILURE="$STATE_DIR/failure.log"
 LOCK_FILE="$STATE_DIR/lock"
 INTERRUPT_FLAG="$STATE_DIR/interrupt"
 EXCLUDE_PATTERNS_FILE="$STATE_DIR/exclude_patterns.txt"
+# Paths that another qcow2 in the scan reads through; never sparsify these.
+BACKING_FILES_FILE="$STATE_DIR/backing_files.txt"
 
 #-------------------------------------------------------------------------------
 # Color Codes (for terminal output)
@@ -222,6 +224,50 @@ is_excluded() {
 }
 
 #-------------------------------------------------------------------------------
+# Function: is_backing_file
+# Description: True when another qcow2 in the scanned set reads through this
+#              file. virt-sparsify --in-place mounts the guest filesystems
+#              read-write and discards every block they call free; an overlay
+#              reads from its backing file every cluster it has not written
+#              itself, so sparsifying a backing file changes what its children
+#              see -- permanently, and with no signal: the virtual size, the
+#              path and the children's backing pointers are all unchanged, and
+#              qemu-img check on a child still passes.
+#              The set is built once by build_backing_file_set().
+# Arguments: $1 - file path
+# Returns: 0 when the file backs another one
+#-------------------------------------------------------------------------------
+is_backing_file() {
+    local file="$1"
+
+    [ -s "$BACKING_FILES_FILE" ] || return 1
+    grep -Fxq -- "$file" "$BACKING_FILES_FILE"
+}
+
+#-------------------------------------------------------------------------------
+# Function: build_backing_file_set
+# Description: Collect every path used as a backing file by any qcow2 in the
+#              scan, into BACKING_FILES_FILE (one absolute path per line).
+#              Costs one `qemu-img info` per file, up front. That is the price
+#              of not corrupting derived disks; it is not optional.
+#              -U is deliberate: this reads metadata only, and a file held open
+#              by a running guest is exactly the one whose children we must
+#              protect, so failing to read it would defeat the guard.
+# Arguments: $1 - newline-separated file list
+#-------------------------------------------------------------------------------
+build_backing_file_set() {
+    local files="$1"
+    : > "$BACKING_FILES_FILE"
+
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        qemu-img info -U --output=json "$f" 2>/dev/null \
+            | grep -o '"full-backing-filename": "[^"]*"' \
+            | cut -d'"' -f4
+    done <<< "$files" | sort -u > "$BACKING_FILES_FILE"
+}
+
+#-------------------------------------------------------------------------------
 # Function: check_interrupt
 # Description: Check if interrupt signal was received
 # Returns: 0 if interrupted, 1 if not
@@ -251,7 +297,7 @@ format_bytes() {
 check_dependencies() {
     local missing_deps=()
 
-    for cmd in virt-sparsify find xargs flock stat; do
+    for cmd in virt-sparsify qemu-img find xargs flock stat sort grep; do
         if ! command -v "$cmd" &> /dev/null; then
             missing_deps+=("$cmd")
         fi
@@ -546,6 +592,15 @@ process_file() {
     # Check exclusion patterns
     if is_excluded "$file"; then
         log_message INFO "Excluded by pattern, skipping: $file"
+        update_stats 0 -1 0
+        return
+    fi
+
+    # Never sparsify a file another disk reads through (see is_backing_file).
+    # There is no flag to override this: the safe way to sparsify a disk that
+    # has descendants is to flatten them off it first.
+    if is_backing_file "$file"; then
+        log_message WARN "Used as a backing file by another disk, skipping: $file"
         update_stats 0 -1 0
         return
     fi
@@ -882,6 +937,15 @@ main() {
     ) 200>"$LOCK_FILE"
 
     log_message INFO "Found $total_files .qcow2 files"
+
+    # Build the backing-file set BEFORE processing anything: a file another disk
+    # reads through must never be sparsified, and the only way to know is to ask
+    # every candidate what it backs onto. One `qemu-img info` per file.
+    log_message INFO "Resolving backing chains to find files other disks read through..."
+    build_backing_file_set "$qcow2_files"
+    local backing_count=0
+    [ -s "$BACKING_FILES_FILE" ] && backing_count=$(wc -l < "$BACKING_FILES_FILE")
+    log_message INFO "$backing_count file(s) are a backing file for another disk and will be skipped"
     echo ""
 
     # Export necessary functions and variables for parallel jobs
@@ -894,6 +958,7 @@ main() {
     export -f mark_processed
     export -f is_processed
     export -f is_excluded
+    export -f is_backing_file
     export -f check_interrupt
     export -f format_bytes
     export OWNER_FILTER
@@ -913,6 +978,7 @@ main() {
     export STATE_DIR
     export RED GREEN YELLOW BLUE CYAN NC
     export EXCLUDE_PATTERNS_FILE
+    export BACKING_FILES_FILE
     export INTERRUPT_FLAG
 
     # Process files in parallel

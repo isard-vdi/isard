@@ -190,7 +190,7 @@ test-change-handler:
 
 .PHONY: test-storage
 test-storage:
-	uv run --group test --package isardvdi-storage pytest docker/storage/task/tests -q
+	uv run --group test --package isardvdi-storage pytest docker/storage/task/tests docker/storage/utils/tests -q
 
 .PHONY: test-changefeed
 test-changefeed:
@@ -311,7 +311,7 @@ ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-chan
 .PHONY: ci-test-storage
 ci-test-storage:
 	uv sync --no-dev --group test --package isardvdi-storage
-	cd docker/storage && uv run --no-dev --group test --package isardvdi-storage pytest task/tests -q --tb=short --junitxml=report.xml
+	cd docker/storage && uv run --no-dev --group test --package isardvdi-storage pytest task/tests utils/tests -q --tb=short --junitxml=report.xml
 
 .PHONY: setup-hooks
 setup-hooks:
