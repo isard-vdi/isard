@@ -64,6 +64,25 @@ def _run(domain_statuses, exclude_domains=None):
     return domains
 
 
+def _code(raised):
+    """The refusal's description code, whichever shape the exception has.
+
+    On this branch ``set_maintenance`` still raises a plain ``Exception`` and
+    the code is the third positional argument. `!5003` turns the whole model
+    into a typed ``Error`` that carries it as ``description_code`` so apiv4
+    answers 428 instead of a generic 500 — and then ``args[2]`` no longer
+    exists. Asserting the code rather than its position keeps this test honest
+    on both sides, which matters because neither branch can see the other.
+    """
+    err = raised.value
+    code = getattr(err, "description_code", None)
+    if code is None and isinstance(getattr(err, "error", None), dict):
+        code = err.error.get("description_code")
+    if code is None and len(err.args) > 2:
+        code = err.args[2]
+    return code
+
+
 def test_the_desktop_being_deleted_does_not_block_its_own_disk():
     domains = _run({"desktop-1": "Started"}, exclude_domains=["desktop-1"])
     # And it is still parked, so the row says a task owns it while it happens.
@@ -77,11 +96,11 @@ def test_another_running_desktop_on_the_same_disk_still_blocks_it():
             {"desktop-1": "Started", "desktop-2": "Started"},
             exclude_domains=["desktop-1"],
         )
-    assert raised.value.args[2] == "desktops_not_stopped"
+    assert _code(raised) == "desktops_not_stopped"
 
 
 def test_without_the_exclusion_a_running_desktop_still_blocks_it():
     """The default is unchanged for every other caller."""
     with pytest.raises(Exception) as raised:
         _run({"desktop-1": "Started"})
-    assert raised.value.args[2] == "desktops_not_stopped"
+    assert _code(raised) == "desktops_not_stopped"
