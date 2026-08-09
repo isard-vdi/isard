@@ -119,6 +119,50 @@ async def _ensure_consumer_group(redis, stream=STREAM_KEY):
             raise
 
 
+# A consumer that has been silent this long is a process that is gone. A live
+# one re-reads on every block timeout, so its idle time never approaches this.
+DEAD_CONSUMER_IDLE_MS = 12 * 60 * 60 * 1000
+
+
+async def _reap_dead_consumers(redis, stream, keep):
+    """Drop the consumers left behind by previous processes.
+
+    Each start registers a fresh ``change-handler-<uuid4>`` and nothing ever
+    removed the old one, so the group accumulates one member per restart,
+    forever. Measured on hypgpu05 (09/08/2026): **14 registered, 2 alive**, the
+    other 12 idle between 39 and 55 days.
+
+    No entry is lost either way — ``_reclaim_pending`` XAUTOCLAIMs whatever a
+    dead consumer was holding. What rots is the COUNT: ``XINFO GROUPS`` reports
+    14 where there are 2, which is the number an operator, a panel or a
+    "nobody is consuming" alert reads. The alert can never fire, because the
+    corpses keep it satisfied.
+
+    Only consumers with **nothing pending** are dropped: one still holding
+    entries must be left for the reclaim pass, and deleting it would move its
+    pending list rather than let it be redelivered. Failure here is logged and
+    ignored — a tidy-up must never stop the consumer from starting.
+    """
+    reaped = 0
+    try:
+        for consumer in await redis.xinfo_consumers(stream, CONSUMER_GROUP):
+            name = consumer.get("name")
+            if not name or name == keep:
+                continue
+            if int(consumer.get("pending") or 0) > 0:
+                continue
+            if int(consumer.get("idle") or 0) < DEAD_CONSUMER_IDLE_MS:
+                continue
+            await redis.xgroup_delconsumer(stream, CONSUMER_GROUP, name)
+            reaped += 1
+    except Exception:
+        log.warning("task_results: could not reap dead consumers on %s", stream)
+        return 0
+    if reaped:
+        log.warning("task_results: reaped %s dead consumer(s) from %s", reaped, stream)
+    return reaped
+
+
 def _is_canceled(task):
     """True when this chain member is cancelled."""
     try:
@@ -686,6 +730,8 @@ async def run(redis_manager):
             await redis.ping()
             await _ensure_consumer_group(redis, RESULT_STREAM)
             await _ensure_consumer_group(redis, PROGRESS_STREAM)
+            await _reap_dead_consumers(redis, RESULT_STREAM, consumer_name)
+            await _reap_dead_consumers(redis, PROGRESS_STREAM, consumer_name)
             log.warning(
                 "task_results: connected to %s (+progress %s); reading group=%s",
                 STREAM_KEY,
