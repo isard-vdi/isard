@@ -89,3 +89,18 @@ def test_move_proceeds_when_free_space_is_unknown(tmp_path, monkeypatch):
     monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
 
     task.move(src, dst, "rsync", min_free_bytes=1 << 40, remove_source_file=False)
+
+
+def test_move_reserves_the_source_size_against_the_floor(tmp_path, monkeypatch):
+    """The floor must count what the copy will WRITE — the source's apparent
+    size — not just the free space right now. Here free is above the floor, but
+    landing the whole source would breach it, so the move must still refuse."""
+    src = _sized(tmp_path, "src.qcow2", 5000)
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    monkeypatch.setattr(task, "_free_space", lambda p: 10000)
+    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
+    with pytest.raises(RuntimeError) as excinfo:
+        task.move(src, dst, "rsync", min_free_bytes=8000, remove_source_file=False)
+    assert "refusing to copy" in str(excinfo.value)
+    assert not Path(dst).exists()  # nothing was written
+    assert Path(src).exists()  # and the source is untouched
