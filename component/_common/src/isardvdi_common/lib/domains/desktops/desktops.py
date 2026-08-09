@@ -906,7 +906,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 "not_found",
                 "Not found domain to be updated",
                 traceback.format_exc(),
-                description="not_found",
+                description_code="not_found",
             )
         new_domain = {}
 
