@@ -713,6 +713,48 @@ def get_card(self, card_id, type):
 # this file bare, same reason as the v189 helpers above.
 
 
+TERMINAL_JOB_STATUSES = frozenset({"finished", "failed", "canceled", "stopped"})
+
+
+def live_job_scores(jobs, score_of):
+    """``({task_id: score}, terminal_count)`` for the jobs worth carrying across.
+
+    Existing is not the same as being alive, and the task index cares about the
+    second. An rq job outlives its own execution by its result TTL (30 days
+    here), so ``exists`` stays true long after the work ended — and
+    ``current_task_id`` answers the newest member whose job exists. Seed a
+    finished one and the row reads as BUSY until that TTL runs out, so the
+    admission gate refuses every new operation on it.
+
+    Measured on hypgpu05 (09/08/2026, upgrading 203 -> 205 before this filter
+    existed): all three rows the seed carried across came out busy with jobs
+    that had ended an hour before the upgrade, TTL 2.587.534 s.
+
+    And the migration cannot meet a live one anyway: an upgrade runs with no
+    work in flight, so every pointer it finds names a job that has already
+    reached a terminal state. Filtering them out is what makes the seed a no-op
+    on a correct upgrade, which is the honest outcome — there is no live state
+    to carry.
+
+    ``score_of`` is injected so this stays importable from the migration
+    without dragging ``isardvdi_common`` into the helper module.
+    """
+    scores = {}
+    terminal = 0
+    for job in jobs:
+        if job is None:
+            continue
+        try:
+            status = job.get_status(refresh=False)
+        except Exception:
+            status = None
+        if status in TERMINAL_JOB_STATUSES:
+            terminal += 1
+            continue
+        scores[job.id] = score_of(job)
+    return scores, terminal
+
+
 def task_index_backfill_entries(rows, job_scores):
     """The ``(owner_id, task_id, score)`` a task-index backfill must write.
 
