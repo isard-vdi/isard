@@ -169,6 +169,16 @@ class TestIndexWrite:
         index_task(redis, _job("j-1", enqueued_at=None, created_at=_dt(50)), ["d-1"])
         assert redis.zscore("storage:d-1:tasks", "j-1") == 50
 
+    def test_the_score_prefers_enqueued_at_over_created_at(self, redis):
+        """When BOTH clocks are set they rank differently, and the score must be
+        ``enqueued_at`` — when the job reached its queue — not ``created_at``,
+        which is only the ``enqueue=False`` fallback. A swapped fallback order
+        would rank every normally-enqueued job by its build time instead."""
+        index_task(
+            redis, _job("j-1", enqueued_at=_dt(100), created_at=_dt(50)), ["d-1"]
+        )
+        assert redis.zscore("storage:d-1:tasks", "j-1") == 100
+
     def test_one_task_may_name_several_owners(self, redis):
         index_task(redis, _job("j-1", enqueued_at=_dt(100)), ["d-1", "d-2"])
         assert redis.zrange("storage:d-1:tasks", 0, -1) == [b"j-1"]
