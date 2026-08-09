@@ -844,3 +844,44 @@ def test_seeing_a_live_worker_records_the_sighting():
     qc.publish_lane(r, DEF, "standard", "w1", now=500.0, ttl=qc.COV_TTL_S)
     qc.lane_shed_decision(r, f"storage.{DEF}.standard", now=500.0)
     assert qc.fleet_last_seen(r) == 500.0
+
+
+# --- exact boundaries of the reject/warn/grace thresholds (off-by-one guards) --
+
+
+def test_reject_at_exactly_the_hard_cap():
+    """A foreground lane AT its hard cap is already refused: the cap is the first
+    backlog that must not be exceeded, so the test is ``>=``, not ``>``."""
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    r.lists[f"rq:queue:storage.{DEF}.interactive"] = qc.hard_cap("interactive")
+    decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.interactive")
+    assert decision == "reject"
+    assert ctx["reason"] == "overloaded"
+
+
+def test_warn_at_exactly_the_warn_backlog():
+    """A lane AT its warn threshold is already backed up: the boundary belongs to
+    ``warn``, not to ``ok``."""
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    assert qc.warn_backlog("interactive") < qc.hard_cap(
+        "interactive"
+    )  # else it'd reject
+    r.lists[f"rq:queue:storage.{DEF}.interactive"] = qc.warn_backlog("interactive")
+    decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.interactive")
+    assert decision == "warn"
+
+
+def test_grace_window_includes_its_exact_edge():
+    """A lane whose fleet was seen EXACTLY ``FLEET_GONE_GRACE_S`` ago is still
+    inside the grace window and admits: the edge belongs to the window (``<=``),
+    so a rolling restart at the boundary is not misread as a dead fleet."""
+    r = _FakeRedis()  # empty fleet -> would be no_consumer without the grace
+    seen = 1000.0
+    qc.note_fleet_seen(r, seen)
+    decision, ctx = qc.lane_shed_decision(
+        r, f"storage.{DEF}.interactive", now=seen + qc.FLEET_GONE_GRACE_S
+    )
+    assert decision == "ok"
+    assert ctx["reason"] == "fleet_gap"
