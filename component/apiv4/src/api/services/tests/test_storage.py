@@ -70,7 +70,17 @@ class TestSetMaintenance:
     @staticmethod
     def _storage():
         storage = MagicMock(id="s1")
-        storage.set_maintenance = create_autospec(Storage.set_maintenance)
+        # Spec the BOUND method, not the plain function. `Storage.set_maintenance`
+        # is unbound, so a stub built from it still expects `self`: it takes
+        # `set_maintenance("lock")` and files "lock" under `self`, leaving
+        # `action` at its default. `assert_called_once_with("lock")` then passes
+        # while `assert_called_once_with(action="lock")` fails — the assertion
+        # says "exactly one positional equal to 'lock'", not "the action is
+        # 'lock'" — and the day somebody writes the keyword form the stub raises
+        # TypeError and turns this red on correct code. Bound, the spec is
+        # `(action='system maintenance')` and both forms mean what they say.
+        bound = Storage.set_maintenance.__get__(object.__new__(Storage), Storage)
+        storage.set_maintenance = create_autospec(bound)
         return storage
 
     @patch("api.services.storage.get_storage")
