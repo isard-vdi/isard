@@ -21,9 +21,35 @@ import pytest
 from isardvdi_common.helpers.error_base import ErrorBase
 
 
+def _clear_cachetools_caches(*modules):
+    """Empty every ``cachetools`` cache reachable from these modules.
+
+    Several of these helpers are ``@cached``, so a result another test left
+    behind is returned without the guard ever running. The test then passes for
+    the wrong reason, and whether it passes at all depends on ordering.
+    """
+    seen = set()
+    for module in modules:
+        for owner in vars(module).values():
+            if not isinstance(owner, type):
+                continue
+            for attr in vars(owner).values():
+                fn = getattr(attr, "__func__", attr)
+                cache = getattr(fn, "cache", None)
+                if cache is not None and id(cache) not in seen:
+                    seen.add(id(cache))
+                    try:
+                        cache.clear()
+                    except Exception:
+                        pass
+
+
 @pytest.fixture
 def q(monkeypatch):
+    from isardvdi_common.helpers import caches as caches_mod
     from isardvdi_common.helpers import quotas as mod
+
+    _clear_cachetools_caches(mod, caches_mod)
 
     class _Ctx:
         def __enter__(self):

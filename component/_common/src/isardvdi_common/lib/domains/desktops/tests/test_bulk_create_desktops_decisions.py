@@ -5,10 +5,10 @@
 
 """Decisions inside ``DesktopsProcessed.bulk_create_desktops``.
 
-Round 1 (MR !5038) pinned the two entry guards (template-not-found,
-no-targets-selected). This file targets the *decisions* in the target-user
-resolution — not one test per branch (most of that body is iteration).
-The three that actually change who gets a desktop:
+The two entry guards (template-not-found, no-targets-selected) are pinned
+elsewhere. This file targets the *decisions* in the target-user resolution —
+not one test per branch, since most of that body is iteration. The three that
+actually change who gets a desktop:
 
 * selecting targets by **role** / **category** is admin-only (L1351): a
   manager's role selection resolves nobody;
