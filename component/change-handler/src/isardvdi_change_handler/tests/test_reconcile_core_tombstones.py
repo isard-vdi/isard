@@ -45,8 +45,15 @@ def _task(
     user_id="u1",
 ):
     job = MagicMock(name=f"job-{task_id}")
+    # ``_heal_core_orphan`` asks the durable cancel record through
+    # ``was_canceled(task._redis, task.id)``; a double without it raises
+    # AttributeError before the gate under test ever runs. ``hget`` -> None is
+    # "no cancel record", the same shape test_reconcile.py already uses.
+    redis = MagicMock(name=f"redis-{task_id}")
+    redis.hget.return_value = None
     return SimpleNamespace(
         id=task_id,
+        _redis=redis,
         task=task_name,
         queue=queue,
         user_id=user_id,
