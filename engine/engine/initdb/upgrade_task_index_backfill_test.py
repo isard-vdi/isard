@@ -81,3 +81,66 @@ class TestBackfillSelection:
         assert m.task_index_backfill_entries(rows, {"task-1": 1.0}) == [
             ("disk-1", "task-1", 1.0)
         ]
+
+
+class _Job:
+    def __init__(self, job_id, status):
+        self.id = job_id
+        self._status = status
+
+    def get_status(self, refresh=False):
+        return self._status
+
+
+def _score(job):
+    return 1000.0
+
+
+class TestOnlyLiveJobsAreCarriedAcross:
+    """An upgrade runs with no work in flight, so every pointer it finds names
+    a job that already ended — and an rq job survives its execution by its
+    result TTL. ``current_task_id`` answers the newest member whose job
+    EXISTS, so a finished one seeded here reads as busy and the admission gate
+    refuses the row until that TTL runs out. Measured on hypgpu05 before this
+    filter: three rows seeded, three rows busy, TTL 2.587.534 s.
+    """
+
+    @pytest.mark.parametrize("status", ["finished", "failed", "canceled", "stopped"])
+    def test_a_terminal_job_is_not_carried_across(self, status):
+        scores, terminal = m.live_job_scores([_Job("task-1", status)], _score)
+        assert scores == {}
+        assert terminal == 1
+
+    def test_a_started_job_is_carried_across(self):
+        scores, terminal = m.live_job_scores([_Job("task-1", "started")], _score)
+        assert scores == {"task-1": 1000.0}
+        assert terminal == 0
+
+    def test_a_queued_job_is_carried_across(self):
+        scores, _ = m.live_job_scores([_Job("task-1", "queued")], _score)
+        assert scores == {"task-1": 1000.0}
+
+    def test_a_missing_job_is_not_counted_as_terminal(self):
+        """``None`` is 'rq dropped it', which the entries helper already skips.
+        Counting it as terminal would inflate the number the migration logs."""
+        scores, terminal = m.live_job_scores([None], _score)
+        assert scores == {}
+        assert terminal == 0
+
+    def test_an_unreadable_status_is_carried_across(self):
+        """A job whose status cannot be read is not proven terminal, and the
+        seed must not silently drop what it could not check."""
+
+        class _Broken(_Job):
+            def get_status(self, refresh=False):
+                raise RuntimeError("redis blip")
+
+        scores, terminal = m.live_job_scores([_Broken("task-1", None)], _score)
+        assert scores == {"task-1": 1000.0}
+        assert terminal == 0
+
+    def test_a_terminal_pointer_never_reaches_the_index(self):
+        """End to end through both helpers: the row names a finished job, so
+        nothing is written for it."""
+        scores, _ = m.live_job_scores([_Job("task-1", "finished")], _score)
+        assert m.task_index_backfill_entries([("disk-1", "task-1")], scores) == []

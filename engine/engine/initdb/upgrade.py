@@ -8417,6 +8417,24 @@ password:s:%s"""
         what the two sources can express, and it is why the reader that depends
         on the pointer's mere PRESENCE is migrated separately, ahead of this.
 
+        ⛔ Neither is one whose job merely EXISTS: it must still be LIVE. An
+        upgrade runs with no work in flight, so every pointer it finds names a
+        job that has already ended — and an rq job outlives its execution by
+        its result TTL (30 days here). ``current_task_id`` answers the newest
+        member whose job exists, so seeding a finished one makes the row read
+        as busy and the admission gate refuse every operation on it until that
+        TTL runs out. Measured on hypgpu05 (09/08/2026, 203 -> 205): all three
+        rows the seed carried across came out busy with jobs that had ended an
+        hour earlier, TTL 2.587.534 s. Three only because the install had been
+        idle for three weeks; on a live one it is every row whose last task
+        ended inside the TTL. So the seed keeps only non-terminal jobs — which
+        on a correct upgrade means it seeds nothing, and that is the right
+        answer, because there is no live state to carry.
+
+        The scalar is dropped from the rows once the index has what it needs.
+        Leaving it would keep a field that still looks like the answer to "what
+        owns this row" long after nothing reads it.
+
         Batched end to end: one pipelined fetch of the candidate jobs and one
         pipelined write per chunk. Per-member round trips measured an order of
         magnitude slower on a full index, and this runs over every row in the
@@ -8436,7 +8454,7 @@ password:s:%s"""
             )
             from rq.job import Job
 
-            from .upgrade_helpers import task_index_backfill_entries
+            from .upgrade_helpers import live_job_scores, task_index_backfill_entries
 
             conn = Redis(
                 host=os.environ.get("REDIS_HOST") or "isard-redis",
@@ -8449,6 +8467,7 @@ password:s:%s"""
             seeded = 0
             seeded_parked = 0
             skipped = 0
+            terminal = 0
 
             for table, kind in (("storage", STORAGE), ("media", MEDIA)):
                 rows = [
@@ -8467,9 +8486,8 @@ password:s:%s"""
                     jobs = Job.fetch_many(
                         [task_id for _, task_id in chunk], connection=conn
                     )
-                    job_scores = {
-                        job.id: job_score(job) for job in jobs if job is not None
-                    }
+                    job_scores, batch_terminal = live_job_scores(jobs, job_score)
+                    terminal += batch_terminal
                     entries = task_index_backfill_entries(chunk, job_scores)
                     skipped += len(chunk) - len(entries)
                     if not entries:
@@ -8516,7 +8534,8 @@ password:s:%s"""
                 jobs = Job.fetch_many(
                     [task_id for _, task_id in chunk], connection=conn
                 )
-                job_scores = {job.id: job_score(job) for job in jobs if job is not None}
+                job_scores, batch_terminal = live_job_scores(jobs, job_score)
+                terminal += batch_terminal
                 entries = task_index_backfill_entries(chunk, job_scores)
                 if not entries:
                     continue
@@ -8528,12 +8547,30 @@ password:s:%s"""
                 pipe.execute()
                 seeded_parked += len(entries)
 
+            # The scalar has no readers left once this migration runs, and
+            # leaving it behind is not harmless bookkeeping: it still LOOKS
+            # like the answer to "what owns this row". Measured on hypgpu05
+            # before this cleanup existed: 151 of 184 rows kept one, and 148 of
+            # those named a job rq had already dropped.
+            dropped = 0
+            for table in ("storage", "media"):
+                result = (
+                    r.table(table)
+                    .has_fields("task")
+                    .replace(r.row.without("task"))
+                    .run(self.conn)
+                )
+                dropped += (result or {}).get("replaced", 0)
+
             log.info(
                 "task_index_backfill v205: seeded %s row pointers and %s parked "
-                "rows into the task index, skipped %s whose job is gone",
+                "rows into the task index, skipped %s whose job is gone and %s "
+                "already terminal, then dropped the scalar from %s rows",
                 seeded,
                 seeded_parked,
                 skipped,
+                terminal,
+                dropped,
             )
         except Exception as e:
             # Non-fatal, like the other Redis-side migration: the index keeps
