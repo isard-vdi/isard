@@ -4,9 +4,10 @@
 methods. Heavy DB-walking methods are exercised by routes/tests/.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 from api.services.storage import StorageService, check_task_priority
+from isardvdi_common.models.storage import Storage
 
 JWT_PAYLOAD_ADMIN = {
     "user_id": "u-admin",
@@ -52,13 +53,46 @@ class TestCheckTaskPriority:
 
 
 class TestSetMaintenance:
-    @patch("api.services.storage.get_storage")
-    def test_forwards_action_and_returns_id(self, mock_get):
+    """The service forwards the ACTION, and nothing else.
+
+    ``Storage.set_maintenance(self, action=..., exclude_domains=None)`` takes the
+    action first. Passing the storage id as well binds it to ``action`` and the
+    action to ``exclude_domains``: every attached domain is then stamped
+    ``current_action = <storage uuid>`` and the exclusion set becomes a set of
+    the action string's characters, so it excludes nothing.
+
+    The double is bound to the real signature on purpose. A ``MagicMock``
+    accepts any call, so it cannot tell a right call from a wrong one — which is
+    why the previous version of this test asserted the wrong order and stayed
+    green.
+    """
+
+    @staticmethod
+    def _storage():
         storage = MagicMock(id="s1")
+        storage.set_maintenance = create_autospec(Storage.set_maintenance)
+        return storage
+
+    @patch("api.services.storage.get_storage")
+    def test_forwards_the_action_and_returns_id(self, mock_get):
+        storage = self._storage()
         mock_get.return_value = storage
+
         result = StorageService.set_maintenance(JWT_PAYLOAD_ADMIN, "s1", "lock")
-        storage.set_maintenance.assert_called_once_with("s1", "lock")
+
+        storage.set_maintenance.assert_called_once_with("lock")
         assert result == "s1"
+
+    @patch("api.services.storage.get_storage")
+    def test_never_passes_the_storage_id(self, mock_get):
+        """The regression, stated as the thing that must not happen."""
+        storage = self._storage()
+        mock_get.return_value = storage
+
+        StorageService.set_maintenance(JWT_PAYLOAD_ADMIN, "s1", "lock")
+
+        (args, kwargs) = storage.set_maintenance.call_args
+        assert "s1" not in args and "s1" not in kwargs.values()
 
 
 class TestSetReady:
