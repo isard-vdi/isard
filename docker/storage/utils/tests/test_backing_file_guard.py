@@ -62,3 +62,50 @@ class TestSplitBackingFiles:
         safe, protected = split_backing_files(["/a", "/b"], None)
 
         assert (safe, protected) == (["/a", "/b"], [])
+
+
+class TestHasBackingFile:
+    """``compress`` rewrites the file through ``qemu-img convert -O qcow2``
+    without ``-B``, which writes a FLAT image, and then replaces the original
+    with it. On a disk that reads through another one that severs the chain
+    while the stored parent still claims it is there.
+    """
+
+    @staticmethod
+    def _run(stdout="{}", returncode=0):
+        from unittest.mock import MagicMock
+
+        return MagicMock(stdout=stdout, returncode=returncode)
+
+    def test_a_chained_disk_is_reported_as_backed(self, monkeypatch):
+        from storage_lib import qcow
+
+        monkeypatch.setattr(
+            qcow.subprocess,
+            "run",
+            lambda *a, **k: self._run(
+                '{"full-backing-filename": "/isard/templates/p.qcow2"}'
+            ),
+        )
+
+        assert qcow.has_backing_file("/isard/groups/c.qcow2") == (True, None)
+
+    def test_a_root_disk_is_not(self, monkeypatch):
+        from storage_lib import qcow
+
+        monkeypatch.setattr(
+            qcow.subprocess, "run", lambda *a, **k: self._run('{"virtual-size": 100}')
+        )
+
+        assert qcow.has_backing_file("/isard/templates/p.qcow2") == (False, None)
+
+    def test_an_unanswerable_question_is_an_error_not_a_no(self, monkeypatch):
+        """A caller must treat "I could not tell" as "do not touch it"."""
+        from storage_lib import qcow
+
+        monkeypatch.setattr(
+            qcow.subprocess, "run", lambda *a, **k: self._run("not json at all")
+        )
+
+        has, err = qcow.has_backing_file("/x.qcow2")
+        assert has is False and err
