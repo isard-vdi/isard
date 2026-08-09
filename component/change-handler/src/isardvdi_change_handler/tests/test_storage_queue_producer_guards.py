@@ -10,6 +10,7 @@
 Only the RQ / model collaborators are stubbed; the decisions are the code's.
 """
 
+from contextlib import ExitStack
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -35,28 +36,54 @@ class TestStillQueued:
 class TestCollect:
     def _run(self, tasks, ests, storage_rows):
         """Drive _collect with one lane holding ``tasks`` (list of SimpleNamespace),
-        ``ests`` keyed by task id, and a storage-id lookup ``storage_rows``."""
+        ``ests`` keyed by task id, and a storage-id lookup ``storage_rows``.
+
+        The producer resolves task -> storage two different ways depending on
+        which side of the task-pointer retirement you are on: here it is one
+        batched ``Storage.get_storage_ids_from_task_ids``; once the retirement
+        lands it reads ``Task(task_id).storage_id`` instead, and the batched
+        classmethod is gone. Feed BOTH, so the test states the same thing on
+        either side rather than passing on one and erroring on the other.
+        """
         conn = MagicMock()
         task_by_id = {t.id: t for t in tasks}
-        with (
-            patch.object(mod, "_storage_lanes", return_value=["storage.poolA.high"]),
-            patch.object(
-                mod,
-                "Queue",
-                return_value=SimpleNamespace(
-                    get_job_ids=lambda a, b: [t.id for t in tasks]
-                ),
-            ),
-            patch.object(mod, "Task", side_effect=lambda jid: task_by_id[jid]),
-            patch.object(
-                mod.queue_estimate, "estimate_task", side_effect=lambda t, c: ests[t.id]
-            ),
-            patch.object(
-                mod.Storage,
-                "get_storage_ids_from_task_ids",
-                return_value=storage_rows,
-            ),
-        ):
+        storage_by_task = {r["task_id"]: r["storage_id"] for r in storage_rows}
+        for task_id, task in task_by_id.items():
+            if getattr(task, "storage_id", None) is None:
+                task.storage_id = storage_by_task.get(task_id)
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch.object(mod, "_storage_lanes", return_value=["storage.poolA.high"])
+            )
+            stack.enter_context(
+                patch.object(
+                    mod,
+                    "Queue",
+                    return_value=SimpleNamespace(
+                        get_job_ids=lambda a, b: [t.id for t in tasks]
+                    ),
+                )
+            )
+            stack.enter_context(
+                patch.object(mod, "Task", side_effect=lambda jid: task_by_id[jid])
+            )
+            stack.enter_context(
+                patch.object(
+                    mod.queue_estimate,
+                    "estimate_task",
+                    side_effect=lambda t, c: ests[t.id],
+                )
+            )
+            # Only where it still exists: patching a name the retirement removed
+            # raises AttributeError before a single assertion runs.
+            if hasattr(mod.Storage, "get_storage_ids_from_task_ids"):
+                stack.enter_context(
+                    patch.object(
+                        mod.Storage,
+                        "get_storage_ids_from_task_ids",
+                        return_value=storage_rows,
+                    )
+                )
             return mod._collect(conn)
 
     def test_skips_scheduler_and_emits_waiting_user_task(self):
