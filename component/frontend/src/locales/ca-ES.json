@@ -1644,9 +1644,18 @@
         }
       },
       "title": "Informació",
+      "loading": "Carregant detalls de l'escriptori…",
+      "kind": {
+        "persistent": "Escriptori persistent",
+        "nonpersistent": "Escriptori temporal",
+        "deployment": "Escriptori de desplegament"
+      },
       "fields": {
         "description": {
           "title": "Descripció"
+        },
+        "credentials": {
+          "title": "Credencials"
         },
         "hardware": {
           "ram": "{ram} GB RAM",

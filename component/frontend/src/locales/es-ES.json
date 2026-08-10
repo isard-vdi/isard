@@ -1644,9 +1644,18 @@
         }
       },
       "title": "Información",
+      "loading": "Cargando detalles del escritorio…",
+      "kind": {
+        "persistent": "Escritorio persistente",
+        "nonpersistent": "Escritorio temporal",
+        "deployment": "Escritorio de despliegue"
+      },
       "fields": {
         "description": {
           "title": "Descripción"
+        },
+        "credentials": {
+          "title": "Credenciales"
         },
         "hardware": {
           "ram": "{ram} GB RAM",

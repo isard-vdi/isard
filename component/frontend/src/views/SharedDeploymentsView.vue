@@ -126,8 +126,10 @@ const deploymentDesktopItems = computed<DomainInfoItem[]>(() => {
     isos: d.isos?.map((iso) => iso.name),
     floppies: d.floppies?.map((f) => f.name),
     reservables: d.reservables?.vgpus,
+    credentials: d.credentials,
     kind: 'desktop' as const,
-    template: d.template
+    template: d.template,
+    desktopKind: 'deployment' as const
   }))
 })
 

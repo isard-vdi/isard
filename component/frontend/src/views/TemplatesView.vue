@@ -165,7 +165,7 @@ const handleWithDesktopQuotaCheck = async (callback: () => void) => {
 // Template Info Modal
 const showTemplateInfoModal = ref(false)
 const {
-  mutate: fetchAndOpenTemplateInfoModal,
+  mutate: fetchTemplateDetails,
   isPending: fetchTemplateDetailsIsPending,
   isError: fetchTemplateDetailsIsError,
   error: fetchTemplateDetailsError,
@@ -181,11 +181,13 @@ const {
       throwOnError: true
     })
     return data
-  },
-  onSuccess: () => {
-    showTemplateInfoModal.value = true
   }
 })
+
+const openTemplateInfoModal = (templateId: string) => {
+  fetchTemplateDetails(templateId)
+  showTemplateInfoModal.value = true
+}
 
 const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 </script>
@@ -227,6 +229,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 
   <DomainInfoModal
     :open="showTemplateInfoModal"
+    :is-loading="fetchTemplateDetailsIsPending"
     :domain-id="templateDetailsDesktopId"
     :name="templateDetails?.name || ''"
     :description="templateDetails?.description"
@@ -238,6 +241,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
     :viewers="templateDetails?.viewers"
     :isos="templateDetails?.isos?.map((iso) => iso.name)"
     :reservables="templateDetails?.reservables?.vgpus"
+    :credentials="templateDetails?.credentials"
     :kind="'template'"
     @close="
       () => {
@@ -412,7 +416,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
                 align="end"
               >
                 <DropdownMenuGroup>
-                  <DropdownMenuItem @click="fetchAndOpenTemplateInfoModal(row.id)">
+                  <DropdownMenuItem @click="openTemplateInfoModal(row.id)">
                     <Button
                       size="sm"
                       class="mr-2 w-full justify-start"
