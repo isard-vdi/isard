@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { type SidebarItem, type Badge } from '@/lib/navigation'
+import { type SidebarItem, type Badge, formatCompactBadgeLabel } from '@/lib/navigation'
 import { sidebarItemVariants } from '@/components/sidebar'
 import SidebarItemLabel from '@/components/sidebar/SidebarItemLabel.vue'
 import { cn } from '@/lib/utils'
@@ -235,7 +235,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
             <div
               :class="`'text-center text-xs font-medium leading-4 cursor-pointer ${badge.textColor}`"
             >
-              {{ badge.label }}
+              {{ formatCompactBadgeLabel(badge.label) }}
             </div>
           </div>
         </div>
@@ -252,6 +252,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
           class="px-2 py-0.5 bg-gray-50 rounded-2xl outline outline-2 outline-sidebar flex justify-start items-center"
         >
           <div class="text-center text-slate-700 text-xs font-medium leading-4 cursor-pointer">
+            <!-- we display the full number when sidebar is expanded -->
             {{ badge.label }}
           </div>
         </div>
@@ -266,7 +267,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
             <div
               :class="`'text-center text-xs font-medium leading-4 cursor-pointer ${badge.textColor}`"
             >
-              {{ badge.label }}
+              {{ formatCompactBadgeLabel(badge.label) }}
             </div>
           </div>
         </div>
@@ -285,6 +286,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
           <div
             :class="`'text-center text-xs font-medium leading-4 cursor-pointer ${badge.textColor}`"
           >
+            <!-- we display the full number when sidebar is expanded -->
             {{ badge.label }}
           </div>
         </div>
