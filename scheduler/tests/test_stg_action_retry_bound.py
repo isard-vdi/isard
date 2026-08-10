@@ -58,6 +58,18 @@ def _find_function(name):
     raise AssertionError(f"{name} not found in actions.py")
 
 
+def _calls_name(node, name):
+    """True if the subtree calls ``name``, bare or as an attribute."""
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Call):
+            func = sub.func
+            if isinstance(func, ast.Name) and func.id == name:
+                return True
+            if isinstance(func, ast.Attribute) and func.attr == name:
+                return True
+    return False
+
+
 def test_stg_action_max_attempts_default_is_60():
     ns = _load_predicate_namespace()
     assert ns["STG_ACTION_MAX_ATTEMPTS"] == 60
@@ -95,6 +107,40 @@ def test_desktops_not_stopped_branch_is_bounded_not_silent():
     assert "_bump_stg_action_attempts(" in src
     assert "_stg_action_should_abandon(" in src
     assert "scheduler_client.delete(" in src
+
+
+def test_desktops_not_stopped_delete_is_inside_the_abandon_guard():
+    """The delete must sit INSIDE the ``_stg_action_should_abandon`` branch.
+
+    The test above reads the handler as text, so all three calls being present
+    somewhere in it satisfies it — including the shape this bound exists to
+    prevent, where the delete has drifted out of the guard and the action is
+    abandoned on its FIRST deferral instead of on crossing the cap. Containment
+    is a structural property, so it is asserted on the tree.
+    """
+    handler = _find_function("wait_desktops_to_do_storage_action")
+
+    branch = None
+    for node in ast.walk(handler):
+        if isinstance(node, ast.If) and isinstance(node.test, ast.Compare):
+            if any(
+                isinstance(other, ast.Constant)
+                and other.value == "desktops_not_stopped"
+                for other in node.test.comparators
+            ):
+                branch = node
+    assert branch is not None, "desktops_not_stopped branch not found"
+
+    guard = None
+    for node in ast.walk(branch):
+        if isinstance(node, ast.If) and _calls_name(
+            node.test, "_stg_action_should_abandon"
+        ):
+            guard = node
+    assert guard is not None, "the abandon delete is no longer gated by the cap"
+    assert any(
+        _calls_name(stmt, "delete") for stmt in guard.body
+    ), "the capped branch must be the one that removes the job"
 
 
 def test_bump_attempts_is_none_safe():
