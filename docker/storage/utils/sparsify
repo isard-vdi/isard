@@ -243,6 +243,10 @@ is_backing_file() {
     [ -s "$BACKING_FILES_FILE" ] || return 1
     grep -Fxq -- "$file" "$BACKING_FILES_FILE"
 }
+# Exported here as well as in the block below: the guard runs inside the xargs
+# worker shells, and an undefined guard refuses nothing, silently.
+export -f is_backing_file
+export BACKING_FILES_FILE
 
 #-------------------------------------------------------------------------------
 # Function: build_backing_file_set

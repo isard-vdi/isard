@@ -11,6 +11,9 @@ The operator tools had no such check: the only protection was a literal
 ``/isard/templates`` path match, which a per-category storage pool defeats.
 """
 
+import subprocess
+from pathlib import Path
+
 from storage_lib.deps import split_backing_files
 
 
@@ -109,3 +112,48 @@ class TestHasBackingFile:
 
         has, err = qcow.has_backing_file("/x.qcow2")
         assert has is False and err
+
+
+class TestTheGuardReachesTheWorkerShells:
+    """``sparsify`` fans the work out with ``xargs … bash -c 'process_file …'``,
+    so the guard runs in a *child shell*. A bash function is not inherited
+    unless it is exported, and an undefined guard cannot refuse anything: the
+    file gets rewritten and nothing says so.
+
+    The script also exports a block of names just before the fan-out. That
+    block is a list, and lists get rewritten by refactors -- one landed while
+    this MR was open and dropped these two lines. Pinning the export next to
+    the definition is what makes the guard survive that.
+    """
+
+    SCRIPT = Path(__file__).resolve().parent.parent / "sparsify"
+
+    def _lines(self):
+        return self.SCRIPT.read_text().splitlines()
+
+    def test_the_function_is_exported_where_it_is_defined(self):
+        lines = self._lines()
+        end = next(i for i, l in enumerate(lines) if l.startswith("is_backing_file()"))
+        # near the definition, not only in the block hundreds of lines below
+        near = "\n".join(lines[end : end + 20])
+        assert "export -f is_backing_file" in near
+        assert "export BACKING_FILES_FILE" in near
+
+    def test_an_exported_guard_refuses_inside_a_child_shell(self, tmp_path):
+        """The mechanism itself, run for real: the same shape as the fan-out."""
+        backing = tmp_path / "backing_files.txt"
+        backing.write_text("/isard/a.qcow2\n")
+
+        script = f"""
+        BACKING_FILES_FILE={backing}
+        is_backing_file() {{ [ -s "$BACKING_FILES_FILE" ] || return 1
+                             grep -Fxq -- "$1" "$BACKING_FILES_FILE"; }}
+        export -f is_backing_file
+        export BACKING_FILES_FILE
+        echo /isard/a.qcow2 | xargs -I {{}} bash -c \
+            'is_backing_file "$1" && echo refused || echo rewritten' _ {{}}
+        """
+        out = subprocess.run(
+            ["bash", "-c", script], capture_output=True, text=True
+        ).stdout
+        assert out.strip() == "refused"
