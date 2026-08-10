@@ -971,6 +971,12 @@ def _run_curl_download(
     if final.get("total"):
         final["received"] = final["total"]
     final["time_left"] = ""
+    # curl's ``total`` is a rounded string ("3408k"); space accounting needs
+    # bytes. Measure the file, not the header.
+    try:
+        final["total_bytes"] = os_stat(dest_path).st_size
+    except OSError:
+        log.exception("download: failed to stat %s for its size", dest_path)
     try:
         flush_progress(final)
     except Exception:
