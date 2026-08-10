@@ -73,7 +73,7 @@ class TestBackingChainClassification:
         monkeypatch.setattr(
             task,
             "qemu_img_info",
-            lambda sid, p: {
+            lambda *a, **k: {
                 "qemu-img-info": {"backing-filename": "/isard/parent.qcow2"}
             },
         )
@@ -88,7 +88,7 @@ class TestBackingChainClassification:
         monkeypatch.setattr(
             task,
             "qemu_img_info",
-            lambda sid, p: {
+            lambda *a, **k: {
                 "qemu-img-info": {"backing-filename": "/isard/other.qcow2"}
             },
         )
