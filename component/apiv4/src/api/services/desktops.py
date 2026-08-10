@@ -1269,6 +1269,7 @@ class DesktopService:
             desktop_data=data,
             admin_or_manager=payload["role_id"] in ["admin", "manager"],
             bulk=False,
+            payload=payload,
         )
 
         if bastion_data is not None:
