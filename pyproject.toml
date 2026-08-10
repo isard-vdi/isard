@@ -70,7 +70,7 @@ override-dependencies = [
 # these into $CI_PROJECT_DIR before .lint-uv-job, so isort/black would
 # otherwise scan stray .py files vendored under them.
 # <name>-client/src/isardvdi_<name>_client: openapi-python-client output,
-# gitignored except __init__.py; propagated by gen-protobuf as artifacts
+# gitignored except __init__.py; propagated by the codegen job as artifacts
 # (.gitlab-ci.yml:230-234) so it lands in the lint workspace too.
 extend-exclude = '''
 (

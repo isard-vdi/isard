@@ -59,7 +59,7 @@ COPY component/frontend /build
 WORKDIR /build
 
 # Generated API clients (src/gen/oas/) are tracked in git and copied
-# via COPY above. If codegen runs in CI, the gen-protobuf stage
+# via COPY above. If codegen runs in CI, the codegen job
 # produces fresh files that override these committed versions.
 
 # TODO: Run the typecheck here too!

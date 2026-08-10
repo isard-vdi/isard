@@ -276,7 +276,7 @@ docker-image-codegen:
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest || true
     - docker push $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest || true
 
-gen-protobuf:
+codegen:
   stage: generate
   image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   services:
@@ -296,10 +296,12 @@ gen-protobuf:
         exit 1
       fi
     - |-
-      if [ -n "$(git status --porcelain)" ]; then
+      untracked=$(git ls-files --others --exclude-standard)
+      if ! git diff --quiet || [ -n "$untracked" ]; then
         echo "ERROR: codegen changed files that are committed to the repo."
         echo "Re-run codegen locally (bash build.sh) and commit the result."
-        git status --porcelain
+        git diff --stat
+        [ -n "$untracked" ] && printf 'new files:\n%s\n' "$untracked"
         exit 1
       fi
   artifacts:
@@ -364,7 +366,7 @@ docker-compose-build:
 
 unit-test-go:
   stage: unit-test
-  needs: ["gen-protobuf"]
+  needs: ["codegen"]
   image: golang:1.25.8@sha256:3ac2864710f25e84381bf5d4272261c7ba73ada0339d62034df4de20dabb33ca
   before_script:
     - apt-get update && apt-get install -y libvirt-dev make
@@ -401,7 +403,7 @@ unit-test-vmalert:
 # Shared Python test config — uv cache dir cached via default cache entry.
 .python-test-template:
   stage: unit-test
-  needs: ["gen-protobuf", "warm-uv-cache"]
+  needs: ["codegen", "warm-uv-cache"]
   image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
   before_script:
     - apk add --no-cache git make $EXTRA_APK_PACKAGES
@@ -525,9 +527,9 @@ unit-test-webapp-js:
 unit-test-frontend:
   # Vue 3 (component/frontend) vitest unit suites. The specs vi.mock the
   # generated @/gen/oas/apiv4 client, but the alias must still resolve, so the
-  # gen-protobuf-produced component/frontend/src/gen tree must be present.
+  # codegen-produced component/frontend/src/gen tree must be present.
   stage: unit-test
-  needs: ["gen-protobuf"]
+  needs: ["codegen"]
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
     - apk add --no-cache make
@@ -566,7 +568,7 @@ docker-image:
   stage: build
   needs:
     - docker-compose-build
-    - gen-protobuf
+    - codegen
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
   parallel:
@@ -650,7 +652,7 @@ docker-image:
   tags:
     - gpu
     - kvm
-  needs: ["docker-image", "gen-protobuf"]
+  needs: ["docker-image", "codegen"]
   allow_failure: true
   variables:
     DOCKER_TLS_CERTDIR: "/certs-root"
