@@ -65,6 +65,31 @@ def test_the_metadata_progress_reaches_the_row(wire, name, kwargs, item_class):
     assert row.progress == payload
 
 
+def test_the_stated_size_reaches_the_row(wire):
+    """The worker states the exact on-disk byte size in ``total_bytes`` on the
+    final tick. It is the figure every media-space reader (quota, usage,
+    analytics, cleanup) sums, so it has to land on the row verbatim -- not the
+    human-rounded ``total`` string ("3408k") that curl prints and that no reader
+    consumes."""
+    payload = {
+        "received": "3408k",
+        "total": "3408k",
+        "received_percent": 100,
+        "total_percent": 100,
+        "total_bytes": 3490290,
+    }
+    row = wire(
+        "download_url",
+        {"media_id": "m1"},
+        {ROW_PROGRESS_META_KEY: payload},
+        "media",
+        _Row("m1"),
+    )
+
+    assert apply_row_progress("t1") is True
+    assert row.progress["total_bytes"] == 3490290
+
+
 def test_a_worker_that_still_writes_its_own_row_is_a_no_op(wire):
     """No metadata means an old worker: it wrote the row itself."""
     row = wire("download_url", {"media_id": "m1"}, {}, "media", _Row("m1"))
