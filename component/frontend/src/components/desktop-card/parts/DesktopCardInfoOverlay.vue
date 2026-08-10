@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
 import { getDesktopInfoOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import type { UserDesktop } from '@/gen/oas/apiv4/'
+import type { DesktopDetailsResponse } from '@/gen/oas/apiv4/'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
 import { Icon, CopyIcon } from '@/components/icon'
@@ -15,19 +15,65 @@ import { CARD_SIZE_INJECTION_KEY, cardOverlayPaddingVariants } from '..'
 
 const { t } = useI18n()
 
-interface Props {
-  desktop: UserDesktop
+interface DesktopInfoTarget {
+  id: string
+  status: DesktopStatusEnum
+  ip?: string | null
 }
 
-const props = defineProps<Props>()
+interface Props {
+  desktop: DesktopInfoTarget
+  directViewer?: boolean
+  directViewerDetails?: DesktopDetailsResponse | null
+  directViewerDetailsPending?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  directViewer: false,
+  directViewerDetails: undefined,
+  directViewerDetailsPending: false
+})
 const emit = defineEmits<{ showInfoModal: [] }>()
 
 const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 
-const { data: info, isPending } = useQuery(
-  getDesktopInfoOptions({
+const isDirectViewer = computed(() => props.directViewer)
+
+const { data: info, isPending: isInfoPending } = useQuery({
+  ...getDesktopInfoOptions({
     path: { desktop_id: props.desktop.id }
-  })
+  }),
+  enabled: computed(() => !isDirectViewer.value)
+})
+
+const hardware = computed(() => {
+  if (isDirectViewer.value) {
+    const details = props.directViewerDetails
+    return {
+      vcpus: details?.vcpu,
+      memory: details?.memory,
+      bootOrder: details?.boot_order?.map((b) => b.id) ?? [],
+      isos: details?.isos ?? [],
+      floppies: details?.floppies ?? []
+    }
+  }
+  return {
+    vcpus: info.value?.hardware?.vcpus,
+    memory: info.value?.hardware?.memory,
+    bootOrder: info.value?.hardware?.boot_order ?? [],
+    isos: info.value?.hardware?.isos ?? [],
+    floppies: info.value?.hardware?.floppies ?? []
+  }
+})
+
+const isPending = computed(() =>
+  isDirectViewer.value ? !!props.directViewerDetailsPending : isInfoPending.value
+)
+
+// get-info (non-direct-viewer) doesn't expose the desktop's live IP on
+// `desktop`, but the direct-viewer's separately-fetched details do.
+const desktopIp = computed(() =>
+  isDirectViewer.value ? props.directViewerDetails?.ip : props.desktop.ip
 )
 
 const statusBadge = computed(() => {
@@ -40,11 +86,7 @@ const statusBadge = computed(() => {
 
 // Boot device labels — short, lowercase, comma-joined for the card. The
 // modal shows the full per-device names; here we only need a glance.
-const bootOrderLabel = computed(() => {
-  const order = info.value?.hardware?.boot_order
-  if (!order || !order.length) return ''
-  return order.join(' → ')
-})
+const bootOrderLabel = computed(() => hardware.value.bootOrder.join(' → '))
 
 // Attached media — combine ISOs and floppies into one list of (icon, name)
 // rows. apiv4 returns enriched {id, name?} objects; fall back to id when
@@ -54,8 +96,8 @@ interface AttachedMedia {
   label: string
 }
 const attachedMedia = computed<AttachedMedia[]>(() => {
-  const isos = info.value?.hardware?.isos ?? []
-  const floppies = info.value?.hardware?.floppies ?? []
+  const isos = hardware.value.isos
+  const floppies = hardware.value.floppies
   return [
     ...isos.map((m) => ({ kind: 'iso' as const, label: m.name || m.id })),
     ...floppies.map((m) => ({ kind: 'floppy' as const, label: m.name || m.id }))
@@ -79,9 +121,9 @@ const attachedMedia = computed<AttachedMedia[]>(() => {
         <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-12" />
         <span v-else class="font-semibold truncate">
           {{
-            info?.hardware?.vcpus
+            hardware.vcpus
               ? t('components.domain-info-modal.fields.hardware.vcpu', {
-                  vcpu: info.hardware.vcpus
+                  vcpu: hardware.vcpus
                 })
               : '—'
           }}
@@ -92,18 +134,18 @@ const attachedMedia = computed<AttachedMedia[]>(() => {
         <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-16" />
         <span v-else class="font-semibold truncate">
           {{
-            info?.hardware?.memory != null
+            hardware.memory != null
               ? t('components.domain-info-modal.fields.hardware.ram', {
-                  ram: Number(info.hardware.memory).toFixed(2)
+                  ram: Number(hardware.memory).toFixed(2)
                 })
               : '—'
           }}
         </span>
       </div>
-      <div v-if="desktop.ip" class="flex items-center gap-1.5 w-fit">
+      <div v-if="desktopIp" class="flex items-center gap-1.5 w-fit">
         <Icon name="signal-01" size="xs" stroke-color="base-white" class="shrink-0" />
-        <code class="font-mono truncate flex-1 min-w-0">{{ desktop.ip }}</code>
-        <CopyIcon :value="desktop.ip" size="xs" stroke-color="base-white" class="shrink-0 ml-2" />
+        <code class="font-mono truncate flex-1 min-w-0">{{ desktopIp }}</code>
+        <CopyIcon :value="desktopIp" size="xs" stroke-color="base-white" class="shrink-0 ml-2" />
       </div>
 
       <!-- Boot order (always shown; falls back to em-dash while loading or if absent) -->

@@ -5,6 +5,7 @@ import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { AlertModal } from '@/components/modal'
+import { DomainInfoModal } from '@/components/desktops'
 
 import {
   getDesktopViewerByTokenOptions,
@@ -35,7 +36,8 @@ import {
   DesktopCardIp,
   DesktopCardNetworksOverlay,
   DesktopCardBastionOverlay,
-  DesktopCardOverlayButton
+  DesktopCardOverlayButton,
+  DesktopCardInfoOverlay
 } from '@/components/desktop-card'
 import DirectViewerCardPreview from '@/components/desktop-card/parts/DirectViewerCardPreview.vue'
 import { Button } from '@/components/ui/button'
@@ -45,10 +47,7 @@ import { LoginNotification } from '@/components/login'
 import { ChangeViewerModal } from '@/components/modal'
 import { DesktopBastionInfoModal, DesktopNetworksModal } from '@/components/desktops'
 import { DesktopCardSkeleton } from '@/components/desktop-card'
-import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
 import LogoSvg from '@/assets/logo.svg?url'
-import Separator from '@/components/ui/separator/Separator.vue'
-import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
 
 const { t, d } = useI18n()
 const route = useRoute()
@@ -111,20 +110,6 @@ const {
 })
 
 const bastion = computed(() => desktopDetails.value?.bastion)
-
-const hardwareBootOrder = computed(() => desktopDetails.value?.boot_order?.map((b) => b.name))
-const hardwareVideos = computed(() => desktopDetails.value?.videos?.map((v) => v.name))
-const hardwareIsos = computed(() => desktopDetails.value?.isos?.map((m) => m.name))
-const hardwareFloppies = computed(() => desktopDetails.value?.floppies?.map((m) => m.name))
-const hardwareInterfaces = computed(() => desktopDetails.value?.interfaces?.map((n) => n.name))
-const hardwareDiskSize = computed(() => desktopDetails.value?.disks?.[0]?.size)
-const hardwareVgpus = computed(() => desktopDetails.value?.reservables?.vgpus ?? null)
-const hardwareViewers = computed(() => desktopDetails.value?.viewers ?? [])
-const hardwareFullscreen = computed(() => desktopDetails.value?.fullscreen ?? false)
-const hardwareCredentials = computed(() => ({
-  username: desktopDetails.value?.credentials?.username ?? 'isard',
-  password: desktopDetails.value?.credentials?.password ?? 'pirineus'
-}))
 
 watch(
   () => desktopViewer.value?.jwt,
@@ -247,7 +232,7 @@ const notificationText = computed<string | null>(() => {
 
 // One overlay at a time, same as the desktop cards: clicking the same icon
 // toggles it off, clicking another swaps.
-type OverlayKind = 'networks' | 'bastion'
+type OverlayKind = 'networks' | 'bastion' | 'info'
 const activeOverlay = ref<OverlayKind | null>(null)
 
 const toggleOverlay = (kind: OverlayKind) => {
@@ -278,6 +263,8 @@ const { mutate: resetDesktop, isPending: isResetting } = useMutation({
     showResetModal.value = false
   }
 })
+
+const showDesktopInfoModal = ref(false)
 
 // Start desktop (authenticated via the direct-viewer JWT). Used for
 // explicit user clicks after the owner has stopped the desktop from
@@ -349,47 +336,12 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
     <main class="flex-1 flex flex-col items-center justify-center px-2">
       <div class="w-full grid place-items-center">
         <template v-if="isPending">
-          <div class="flex flex-col">
-            <div class="flex flex-col gap-2.5 items-center animate-pulse">
-              <div class="h-5 w-48 rounded-md bg-gray-warm-200"></div>
-              <div class="h-9 w-72 rounded-md bg-gray-warm-200"></div>
+          <div class="flex flex-col items-center gap-10 animate-pulse">
+            <div class="flex flex-col gap-1.5 items-center">
+              <div class="h-3.5 w-40 rounded-md bg-gray-warm-200"></div>
+              <div class="h-6 w-64 rounded-md bg-gray-warm-200"></div>
             </div>
-            <Separator class="pt-4 pb-5" />
-            <div class="flex gap-10 items-start">
-              <div>
-                <DesktopCardSkeleton variant="started" class="shadow-md h-[310px] w-[433px]" />
-              </div>
-              <div class="flex flex-col gap-10 max-w-[700px]">
-                <section
-                  class="p-5 rounded-md border border-gray-warm-200 shadow-md flex flex-col gap-7"
-                >
-                  <div>
-                    <div class="flex items-center gap-3 mb-3.5">
-                      <div class="w-1.5 h-4 rounded-full bg-brand-700"></div>
-                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
-                        {{ t('views.direct-viewer.access-summary') }}
-                      </h3>
-                    </div>
-                    <DomainAccessSummary
-                      :loading="true"
-                      :credentials="{ username: '', password: '' }"
-                      :fullscreen="false"
-                      :viewers="[]"
-                    />
-                  </div>
-                  <Separator />
-                  <div>
-                    <div class="flex items-center gap-3 mb-3.5">
-                      <div class="w-1.5 h-4 rounded-full bg-brand-700"></div>
-                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
-                        {{ t('views.direct-viewer.hardware-summary') }}
-                      </h3>
-                    </div>
-                    <DomainHardwareSummary :loading="true" />
-                  </div>
-                </section>
-              </div>
-            </div>
+            <DesktopCardSkeleton variant="started" class="shadow-lg h-[370px] w-[520px]" />
           </div>
         </template>
         <template v-else-if="isError">
@@ -416,28 +368,36 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
           </div>
         </template>
         <template v-else-if="desktopViewer">
-          <div class="flex flex-col">
+          <div class="flex flex-col items-center gap-10">
             <div class="flex flex-col gap-1.5 items-center">
-              <p class="text-display-sm text-left font-light text-brand-700">
+              <p class="text-md text-left font-light text-gray-warm-800">
                 {{ t('views.direct-viewer.connecting-to') }}
               </p>
-              <h2 class="text-display-md text-left font-semibold text-brand-700">
+              <h2 class="text-xl text-left font-semibold text-brand-700">
                 {{ desktopViewer.name }}
               </h2>
             </div>
-            <Separator class="pt-4 pb-5" />
             <div class="flex gap-10 items-start">
               <div>
                 <LoginNotification
                   v-if="loginConfig?.notification_cover?.enabled"
                   :config="loginConfig.notification_cover"
                 />
-                <div class="self-center">
+                <div class="self-center relative">
+                  <!-- Sized in % of the card so the dot field keeps the same bleed
+                       around it at any breakpoint (viewBox is 900x520 for a 433x310 card). -->
+                  <img
+                    src="@/assets/img/bg-blue-dots.svg"
+                    alt=""
+                    aria-hidden="true"
+                    class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[208%] h-[168%] max-w-none z-0 select-none pointer-events-none"
+                  />
                   <DesktopCardBase
                     :desktop-kind="desktopCardKind"
                     :image-url="desktopViewer.image?.url ?? ''"
                     :show-overlay="activeOverlay !== null"
-                    class="shadow-md"
+                    class="shadow-lg relative z-10"
+                    size="xl"
                   >
                     <template #image>
                       <DirectViewerCardPreview
@@ -447,6 +407,12 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       />
                     </template>
                     <template #header-actions>
+                      <DesktopCardOverlayButton
+                        icon="info-circle"
+                        title="components.desktops.desktop-card.actions.info"
+                        :active="activeOverlay === 'info'"
+                        @click="toggleOverlay('info')"
+                      />
                       <DesktopCardOverlayButton
                         icon="modem-02"
                         title="components.desktops.desktop-card.actions.networks"
@@ -484,6 +450,14 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                         v-else-if="activeOverlay === 'bastion'"
                         :bastion="bastion"
                         @show-bastion-modal="showBastionModal = true"
+                      />
+                      <DesktopCardInfoOverlay
+                        v-else-if="activeOverlay === 'info'"
+                        :desktop="desktopViewer"
+                        direct-viewer
+                        :direct-viewer-details="desktopDetails"
+                        :direct-viewer-details-pending="isDetailsPending"
+                        @show-info-modal="showDesktopInfoModal = true"
                       />
                     </template>
                     <template #header>
@@ -534,48 +508,6 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                   </DesktopCardBase>
                 </div>
               </div>
-              <div class="flex flex-col gap-10 max-w-[700px]">
-                <section
-                  class="bg-gray-warm-50 p-5 rounded-md border border-gray-warm-200 shadow-md flex flex-col gap-7"
-                >
-                  <div>
-                    <div class="flex items-center gap-3 mb-3.5">
-                      <div class="w-1.5 h-4 rounded-full bg-brand-700 self-stretch"></div>
-                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
-                        {{ t('views.direct-viewer.access-summary') }}
-                      </h3>
-                    </div>
-                    <DomainAccessSummary
-                      :credentials="hardwareCredentials"
-                      :fullscreen="hardwareFullscreen"
-                      :viewers="hardwareViewers"
-                      :loading="isDetailsPending"
-                    />
-                  </div>
-                  <Separator />
-                  <div>
-                    <div class="flex items-center gap-3 mb-3.5">
-                      <div class="w-1.5 h-4 rounded-full bg-brand-700 self-stretch"></div>
-                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
-                        {{ t('views.direct-viewer.hardware-summary') }}
-                      </h3>
-                    </div>
-                    <DomainHardwareSummary
-                      :vcpu="desktopDetails?.vcpu"
-                      :memory="desktopDetails?.memory"
-                      :disk-bus="desktopDetails?.disk_bus"
-                      :disk-size="hardwareDiskSize"
-                      :boot-order="hardwareBootOrder"
-                      :videos="hardwareVideos"
-                      :isos="hardwareIsos"
-                      :floppies="hardwareFloppies"
-                      :vgpus="hardwareVgpus"
-                      :interfaces="hardwareInterfaces"
-                      :loading="isDetailsPending"
-                    />
-                  </div>
-                </section>
-              </div>
             </div>
           </div>
         </template>
@@ -608,12 +540,38 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       @close="isViewerChangeModalOpen = false"
       @change="(id) => (selectedViewerId = id)"
     />
+    <DomainInfoModal
+      :open="showDesktopInfoModal"
+      :domain-id="desktopViewer?.id"
+      :name="desktopDetails?.name || desktopViewer?.name || ''"
+      :description="desktopDetails?.description || ''"
+      :status="desktopDetails?.status"
+      :ip="desktopDetails?.ip"
+      :vcpu="desktopDetails?.vcpu"
+      :ram="desktopDetails?.memory"
+      :boot-order="desktopDetails?.boot_order?.map((bo) => bo.name)"
+      :disk-bus="desktopDetails?.disk_bus"
+      :vga="desktopDetails?.videos?.map((v) => v.name)"
+      :viewers="desktopDetails?.viewers"
+      :isos="desktopDetails?.isos?.map((iso) => iso.name)"
+      :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"
+      :reservables="desktopDetails?.reservables?.vgpus"
+      :template="desktopDetails?.template"
+      kind="desktop"
+      :desktop-kind="desktopCardKind"
+      :credentials="desktopDetails?.credentials"
+      @close="showDesktopInfoModal = false"
+    />
     <img
       src="@/assets/img/mountains.svg"
+      alt=""
+      aria-hidden="true"
       class="fixed bottom-0 right-0 -z-10 select-none pointer-events-none"
     />
     <img
       src="@/assets/img/clouds.svg"
+      alt=""
+      aria-hidden="true"
       class="absolute hidden lg:block top-20 lg:left-0 xl:left-10 -z-10 select-none pointer-events-none"
     />
 
