@@ -76,7 +76,7 @@ default:
         - .go-build-cache
     - key:
         files:
-          - component/frontend/bun.lockb
+          - component/frontend/bun.lock
           - old-frontend/bun.lock
       paths:
         - .bun-cache
