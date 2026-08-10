@@ -38,7 +38,6 @@ variables:
   DOCKER_HOST: tcp://docker:2376
   DOCKER_VERSION: "28"
   DOCKER_TLS_CERTDIR: "/certs"
-  GITLAB_ADVANCED_SAST_ENABLED: "true"
   MAX_UNVERIFIED_CORES: "16"
   GOMODCACHE: "${CI_PROJECT_DIR}/.go-mod-cache"
   GOCACHE: "${CI_PROJECT_DIR}/.go-build-cache"
@@ -55,11 +54,6 @@ variables:
   # integrity checks. Caching the global store lets bun detect a bad entry by hash
   # and refetch it, rebuilding node_modules fresh each run.
   BUN_INSTALL_CACHE_DIR: "$CI_PROJECT_DIR/.bun-cache"
-  # Secret Detection scans third-party Go module testdata fixtures (RSA/SSH keys,
-  # AWS sample IDs, etc.) inside .go-mod-cache as critical findings. Those are
-  # not project secrets — they ship inside dependency tarballs. Excluding the
-  # dependency caches keeps the report focused on this repo's own code.
-  SECRET_DETECTION_EXCLUDED_PATHS: ".go-mod-cache,.go-build-cache,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
 
 default:
   # Every job only reads the tree or pushes SHA-tagged images, so cancelling one
@@ -93,10 +87,57 @@ default:
         - .uv-cache
 
 include:
-  - template: Jobs/Dependency-Scanning.gitlab-ci.yml
-  - template: Jobs/Container-Scanning.gitlab-ci.yml
-  - template: Jobs/SAST.gitlab-ci.yml
-  - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/security@v1.11.0
+    inputs:
+      max-scan-depth: -1
+      include-dev-dependencies: false
+      # Secret Detection scans third-party Go module testdata fixtures (RSA/SSH keys,
+      # AWS sample IDs, etc.) inside .go-mod-cache as critical findings. Those are
+      # not project secrets — they ship inside dependency tarballs. Excluding the
+      # dependency caches keeps the report focused on this repo's own code.
+      secret-detection-excluded-paths: ".go-mod-cache,.go-build-cache,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
+      enable-static-reachability: true
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/commits@v1.11.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/release@v1.11.0
+    inputs:
+      extra-command: 'sed -i "s/^\(\s*DOCKER_IMAGE_TAG: \)$CI_DEFAULT_BRANCH$/\1v$(cat .VERSION | tr "." "-")/" docker-compose*.yml'
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/alloy@v1.11.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/python@v1.11.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/go@v1.11.0
+    inputs:
+      unit-test: false
+      dependencies: "libvirt-dev"
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/protobuf@v1.11.0
+    inputs:
+      allow-failure: $[[ inputs.allow-protobuf-lint-failure ]]
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.11.0
+    inputs:
+      job-prefix: "old-frontend:"
+      project-directory: "old-frontend"
+      bun-script: "lint --no-fix --max-warnings 0"
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.11.0
+    inputs:
+      job-prefix: "frontend:lint-"
+      project-directory: "component/frontend"
+      bun-script: "lint --format gitlab"
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.11.0
+    inputs:
+      job-prefix: "frontend:format-"
+      project-directory: "component/frontend"
+      bun-script: "format --write=false --check"
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.11.0
+    inputs:
+      job-prefix: "frontend:type-check-"
+      project-directory: "component/frontend"
+      bun-script: "type-check"
+      allow-failure: true
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/docker@v1.11.0
+    inputs:
+      job-prefix: "build-codegen:"
+      build-stage: build-codegen
+      use-image-build-cache: $[[ inputs.use-image-build-cache ]]
+      image: codegen
+      dockerfile: docker/codegen/Dockerfile
 
 stages:
   - lint
@@ -107,41 +148,6 @@ stages:
   - test
   - release
   - container-scan
-
-commit-lint:
-  stage: lint
-  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
-  before_script:
-    - apk add --no-cache git
-    - bun install --frozen-lockfile
-  script:
-    - git fetch https://gitlab.com/isard/isardvdi.git "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
-    - bunx commitlint --from=$(git merge-base HEAD FETCH_HEAD)
-
-version:
-  stage: lint
-  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
-  rules:
-    # semantic-release checks repository write access and we cannot use
-    # GITLAB_TOKEN in unprotected branches due to security reasons.
-    # https://github.com/semantic-release/semantic-release/issues/2207
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  before_script:
-    - apk add --no-cache git
-    - bun install --frozen-lockfile
-  script:
-    - bunx semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
-  artifacts:
-    paths:
-      - .VERSION
-
-check-alloy-config:
-  stage: lint
-  image: alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40
-  before_script:
-    - apk add --no-cache alloy make
-  script:
-    - make lint-alloy
 
 # The uv cache is keyed on uv.lock, so whenever that changes — or whenever the
 # cache configuration itself changes, which alters the key's index prefix — every
@@ -182,99 +188,15 @@ warm-uv-cache:
       --package isardvdi-webapp
     - uv sync --frozen --only-group dev
 
-.lint-uv-job:
+check-system-deps:
   stage: lint
   needs: ["warm-uv-cache"]
   image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
   before_script:
     - apk add --no-cache make
     - uv sync --frozen --only-group dev
-
-check-python:
-  extends: .lint-uv-job
-  script:
-    - make lint-python
-
-check-system-deps:
-  extends: .lint-uv-job
   script:
     - make lint-system-deps
-
-check-golang:
-  stage: lint
-  image: golangci/golangci-lint@sha256:5cceeef04e53efe1470638d4b4b4f5ceefd574955ab3941b2d9a68a8c9ad5240
-  script:
-    - make lint-go
-
-check-frontend:
-  stage: lint
-  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
-  parallel:
-    matrix:
-      - JOB: "format"
-      - JOB: "lint"
-      - JOB: "type-check"
-        # TODO: Remove this when all type errors are fixed
-        ALLOW_FAILURE: "true"
-  rules:
-    - if: $ALLOW_FAILURE == "true"
-      allow_failure: true
-    - if: $ALLOW_FAILURE != "true"
-      allow_failure: false
-  before_script:
-    - apk add --no-cache make
-  script:
-    - make lint-frontend-$JOB
-
-check-old-frontend:
-  stage: lint
-  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
-  before_script:
-    - apk add --no-cache make
-  script:
-    - make lint-old-frontend
-
-check-protobuf:
-  stage: lint
-  image:
-    name: bufbuild/buf:1.44.0@sha256:7e06f3027a16f8f63c25db6a1b5544866b677ad16e3907c14563c4a61d408228
-    entrypoint: [""]
-  allow_failure: $[[ inputs.allow-protobuf-lint-failure ]]
-  # bufbuild/buf image is distroless, we can't install make
-  # Commands match `make lint-protobuf`
-  script:
-    - buf lint
-    - buf breaking --against https://gitlab.com/isard/isardvdi.git
-
-docker-image-codegen:
-  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
-  stage: build-codegen
-  services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
-  parallel:
-    matrix:
-      - DOCKERFILE: docker/codegen/Dockerfile
-        IMAGE: codegen
-  before_script:
-    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  script:
-    - |
-      if $[[ inputs.use-image-build-cache ]]
-      then
-        CACHE_ARGS="--cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main --cache-to type=inline"
-        if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
-          CACHE_ARGS="--cache-from $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest $CACHE_ARGS"
-        fi
-        docker build -f $DOCKERFILE $CACHE_ARGS -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
-      else
-        docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
-      fi
-    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
-    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest || true
-    - docker push $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest || true
 
 codegen:
   stage: generate
@@ -738,13 +660,6 @@ test-integration:
     reports:
       junit: testing/integration/report.xml
 
-gemnasium-dependency_scanning:
-  variables:
-    # Scan all the subdirectories
-    DS_MAX_DEPTH: -1
-    DS_INCLUDE_DEV_DEPENDENCIES: "false"
-    DS_REMEDIATE: "false"
-
 docker-tag:
   stage: release
   # Half of the images tagged and half not is a broken release, so this one
@@ -772,30 +687,13 @@ docker-tag:
     - crane auth login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - crane tag $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA v$(cat .VERSION | tr '.' '-')
 
-release:
-  stage: release
-  # semantic-release pushes the tag and creates the release; cancelling it
-  # mid-flight leaves one without the other, so it opts out of the default.
-  interruptible: false
-  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  before_script:
-    - apk add --no-cache git sed
-    - bun install --frozen-lockfile
-  script:
-    - test ! -e ".VERSION" && exit 0
-    - 'sed -i "s/^\(\s*DOCKER_IMAGE_TAG: \)$CI_DEFAULT_BRANCH$/\1v$(cat .VERSION | tr "." "-")/" docker-compose*.yml'
-    - bunx semantic-release --branches $CI_DEFAULT_BRANCH
-
 container_scanning:
   stage: container-scan
   needs:
     - job: docker-image
       artifacts: false
   variables:
-    CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE/$IMAGE
-    CI_APPLICATION_TAG: $CI_COMMIT_REF_SLUG
+    CS_IMAGE: $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
   parallel:
     matrix:
       - IMAGE: *containers

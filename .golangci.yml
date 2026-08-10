@@ -1,0 +1,9 @@
+---
+version: "2"
+
+formatters:
+  enable:
+    - gofmt
+
+linters:
+  default: none

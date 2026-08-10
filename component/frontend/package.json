@@ -71,6 +71,7 @@
     "autoprefixer": "^10.4.19",
     "axe-playwright": "^2.0.1",
     "eslint": "^8.57.0",
+    "eslint-formatter-gitlab": "5.1.0",
     "eslint-plugin-playwright": "^1.6.2",
     "eslint-plugin-storybook": "10.2.10",
     "eslint-plugin-vue": "^9.23.0",
