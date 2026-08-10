@@ -30,8 +30,7 @@ const isAccepting = ref(false)
 
 const { data: disclaimer, isPending } = useQuery(apiV4DisclaimerOptions())
 
-// The disclaimer body/footer are admin-authored HTML rendered via v-html;
-// sanitize them with DOMPurify to prevent stored-XSS.
+// Admin-authored HTML painted with v-html: sanitize to prevent stored-XSS.
 const sanitizedBody = computed(() =>
   disclaimer.value?.body ? DOMPurify.sanitize(disclaimer.value.body) : ''
 )
