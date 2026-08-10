@@ -52,7 +52,6 @@ from isardvdi_common.helpers.task_streams import (
     maxlen_for_stream,
     stream_for_kind,
 )
-from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.media import Media
 from isardvdi_common.models.task import Task
@@ -1336,7 +1335,7 @@ def move_delete(path):
     :rtype: int
     """
     if isfile(path):
-        delete_path = join(dirname(path), RECYCLE_BIN_DIR)
+        delete_path = join(dirname(path), "deleted")
         if not isdir(delete_path):
             makedirs(delete_path, exist_ok=True)
 
