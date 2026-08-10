@@ -1904,7 +1904,6 @@
           "networks": "Networks",
           "direct-link": "Direct Link",
           "recreate": "Recreate",
-          "change-image": "Change image",
           "storage": "Storage",
           "reset": "Reset"
         },

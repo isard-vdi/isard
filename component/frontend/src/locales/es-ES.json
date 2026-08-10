@@ -1358,7 +1358,6 @@
           "info": "Información",
           "recreate": "Recrear",
           "template": "Convertir en plantilla",
-          "change-image": "Cambiar imagen",
           "storage": "Almacenamiento",
           "reset": "Reiniciar",
           "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",

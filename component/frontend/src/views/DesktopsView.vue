@@ -69,7 +69,6 @@ import {
   DesktopBastionInfoModal,
   DesktopNetworksModal
 } from '@/components/desktops'
-import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 import { DesktopStorageModal } from '@/components/desktop-card/desktop-storage-modal'
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
@@ -863,21 +862,6 @@ const goToBookingDesktop = (desktopId: string) => {
   window.location.assign(`/booking/desktop/${desktopId}`)
 }
 
-const changeImageModalData = ref<{
-  domainId: string
-  currentImage?: { id: string; type: string; url?: string }
-} | null>(null)
-
-const openChangeImageModal = (desktop: {
-  id: string
-  image?: { id: string; type: string; url?: string }
-}) => {
-  changeImageModalData.value = {
-    domainId: desktop.id,
-    currentImage: desktop.image
-  }
-}
-
 const templateCreationCheckIsPending = ref(false)
 
 const goToNewTemplate = async (desktopId: string) => {
@@ -1028,15 +1012,6 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
       <Skeleton v-else class="h-full w-32" />
     </template>
   </AlertModal>
-
-  <ChangeImageModal
-    v-if="changeImageModalData !== null"
-    :open="changeImageModalData !== null"
-    :domain-id="changeImageModalData.domainId"
-    :current-image="changeImageModalData.currentImage"
-    @close="changeImageModalData = null"
-    @saved="changeImageModalData = null"
-  />
 
   <DomainInfoModal
     :open="showDesktopInfoModal"
@@ -1399,7 +1374,6 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
         "
         @create-template="goToNewTemplate(routeDesktop.id)"
         @book-desktop="goToBookingDesktop(routeDesktop.id)"
-        @change-image="openChangeImageModal(routeDesktop)"
         @show-storage-modal="storageModalDesktop = routeDesktop"
       />
 
@@ -1646,7 +1620,6 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           "
           @create-template="(dktp) => goToNewTemplate(dktp.id)"
           @book-desktop="(dktp) => goToBookingDesktop(dktp.id)"
-          @change-image="(dktp) => openChangeImageModal(dktp)"
           @show-storage-modal="(dktp: UserDesktop) => (storageModalDesktop = dktp)"
         />
 
@@ -1694,7 +1667,6 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
               "
               @create-template="goToNewTemplate(dktp.id)"
               @book-desktop="goToBookingDesktop(dktp.id)"
-              @change-image="openChangeImageModal(dktp)"
               @show-storage-modal="storageModalDesktop = dktp"
             />
           </template>
