@@ -5,6 +5,22 @@
 * License: AGPLv3
 */
 table={}
+
+// A refused action used to leave the button spinning and say nothing:
+// these calls only declared success:. Show what the API answered and
+// redraw the row so the button comes back.
+function downloadsActionError (kind) {
+    return function (xhr) {
+        new PNotify({
+            title: 'Action refused',
+            text: (xhr.responseJSON || {}).description || 'The action could not be completed.',
+            type: 'error',
+            hide: false,
+            opacity: 0.9
+        })
+        if (table[kind]) { table[kind].ajax.reload() }
+    }
+}
 $(document).ready(function() {
     $.ajax({
         type: "GET",
@@ -117,10 +133,13 @@ function load_data(){
                             if(full.status == 'Available'){
                                 return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                             }
-                            if(full.status == 'Downloading' || full.status == 'Unknown'){
+                            // Abort is only for a download that is actually
+                            // running. Unknown is what the engine's broom
+                            // leaves behind, so it needs deleting.
+                            if(full.status == 'Downloading' || full.status == 'DownloadStarting' || full.status == 'ResetDownloading'){
                                 return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
                             }
-                            if(full.status == 'Downloaded' || full.status == 'Failed' || full.status == 'FailedDeleted' || full.status == 'Stopped' || full.status == 'DownloadAborting'){
+                            if(full.status == 'Downloaded' || full.status == 'Failed' || full.status == 'FailedDeleted' || full.status == 'Stopped' || full.status == 'Unknown' || full.status == 'Deleting' || full.status == 'Maintenance' || full.status == 'DownloadAborting'){
                                 return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                             }
                             if(full.status == 'DownloadFailed'){
@@ -152,7 +171,8 @@ function load_data(){
                     type: "POST",
                     url:"/api/v4/admin/item/downloads/download/domains/" + id,
                     data: JSON.stringify(table['domains'].row( $(this).parents('tr') ).data()),
-                    success: function(data){table['domains'].ajax.reload();}
+                    success: function(data){table['domains'].ajax.reload();},
+                    error: downloadsActionError('domains')
                 })
                 break;
             case 'btn-abort':
@@ -161,7 +181,8 @@ function load_data(){
                     type: "POST",
                     url:"/api/v4/admin/item/downloads/abort/domains/" + id,
                     data: JSON.stringify({}),
-                    success: function(data){table['domains'].ajax.reload();}
+                    success: function(data){table['domains'].ajax.reload();},
+                    error: downloadsActionError('domains')
                 })
                 break;
             case 'btn-delete':
@@ -170,7 +191,8 @@ function load_data(){
                     type: "POST",
                     url:"/api/v4/admin/item/downloads/delete/domains/" + id,
                     data: JSON.stringify({}),
-                    success: function(data){table['domains'].ajax.reload();}
+                    success: function(data){table['domains'].ajax.reload();},
+                    error: downloadsActionError('domains')
                 })
                 break;
             };
@@ -239,10 +261,12 @@ function load_data(){
                                 if(['Available', 'deleted'].includes(full.status)){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
-                                if(full.status == 'Downloading' || full.status == 'Unknown'){
+                                // Abort only while something is really running;
+                                // everything else that is stuck needs deleting.
+                                if(['Downloading', 'DownloadStarting', 'Download', 'ResetDownloading'].includes(full.status)){
                                     return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
                                 }
-                                if(full.status == 'Downloaded' || full.status == 'Failed' || full.status == 'FailedDeleted' || full.status == 'Stopped' || full.status == 'DownloadAborting'){
+                                if(['Downloaded', 'Failed', 'FailedDeleted', 'Stopped', 'Unknown', 'Deleting', 'maintenance', 'DownloadFailedInvalidFormat', 'DownloadAborting'].includes(full.status)){
                                     return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                                 }
                                 if(full.status == 'DownloadFailed'){
@@ -280,7 +304,8 @@ function load_data(){
                     type: "POST",
                     url:"/api/v4/admin/item/downloads/download/media/" + id,
                     data: JSON.stringify(table['media'].row( $(this).parents('tr') ).data()),
-                    success: function(data){table['media'].ajax.reload();}
+                    success: function(data){table['media'].ajax.reload();},
+                    error: downloadsActionError('media')
                 })
                 break;
             case 'btn-abort':
@@ -289,7 +314,8 @@ function load_data(){
                     type: "POST",
                     url:"/api/v4/admin/item/downloads/abort/media/" + id,
                     data: JSON.stringify({}),
-                    success: function(data){table['media'].ajax.reload();}
+                    success: function(data){table['media'].ajax.reload();},
+                    error: downloadsActionError('media')
                 })
                 break;
             case 'btn-delete':
@@ -298,7 +324,8 @@ function load_data(){
                     type: "POST",
                     url:"/api/v4/admin/item/downloads/delete/media/" + id,
                     data: JSON.stringify({}),
-                    success: function(data){table['media'].ajax.reload();}
+                    success: function(data){table['media'].ajax.reload();},
+                    error: downloadsActionError('media')
                 })
                 break;
             };
@@ -365,7 +392,8 @@ function load_data(){
                     type: "POST",
                     url:"/api/v4/admin/item/downloads/download/virt_install/" + id,
                     data: JSON.stringify(table['virt_install'].row( $(this).parents('tr') ).data()),
-                    success: function(data){table['virt_install'].ajax.reload();}
+                    success: function(data){table['virt_install'].ajax.reload();},
+                    error: downloadsActionError('virt_install')
                 })
                 break;
             case 'btn-delete':
@@ -374,7 +402,8 @@ function load_data(){
                     type: "POST",
                     url:"/api/v4/admin/item/downloads/delete/virt_install/" + id,
                     data: JSON.stringify({}),
-                    success: function(data){table['virt_install'].ajax.reload();}
+                    success: function(data){table['virt_install'].ajax.reload();},
+                    error: downloadsActionError('virt_install')
                 })
                 break;
             };
@@ -441,7 +470,8 @@ function load_data(){
                     type: "POST",
                     url:"/api/v4/admin/item/downloads/download/videos/" + id,
                     data: JSON.stringify(table['videos'].row( $(this).parents('tr') ).data()),
-                    success: function(data){table['videos'].ajax.reload();}
+                    success: function(data){table['videos'].ajax.reload();},
+                    error: downloadsActionError('videos')
                 })
                 break;
             case 'btn-delete':
@@ -450,7 +480,8 @@ function load_data(){
                     type: "POST",
                     url:"/api/v4/admin/item/downloads/delete/videos/" + id,
                     data: JSON.stringify({}),
-                    success: function(data){table['videos'].ajax.reload();}
+                    success: function(data){table['videos'].ajax.reload();},
+                    error: downloadsActionError('videos')
                 })
                 break;
             };

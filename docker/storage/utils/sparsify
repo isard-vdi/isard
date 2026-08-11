@@ -47,6 +47,11 @@ LOG_FORMAT="text"
 REPAIR_ON_FAIL=true
 EXCLUDE_PATTERNS=()
 
+# Bound on how long the recovery trap waits for a dying virt-sparsify to let go
+# of the image before it gives up on classifying it (whole seconds)
+SPARSIFY_RECOVER_SETTLE_TIMEOUT=${SPARSIFY_RECOVER_SETTLE_TIMEOUT:-30}
+SPARSIFY_RECOVER_SETTLE_INTERVAL=${SPARSIFY_RECOVER_SETTLE_INTERVAL:-1}
+
 #-------------------------------------------------------------------------------
 # State and Log Files
 #-------------------------------------------------------------------------------
@@ -251,7 +256,7 @@ format_bytes() {
 check_dependencies() {
     local missing_deps=()
 
-    for cmd in virt-sparsify find xargs flock stat; do
+    for cmd in virt-sparsify qemu-img find xargs flock stat; do
         if ! command -v "$cmd" &> /dev/null; then
             missing_deps+=("$cmd")
         fi
@@ -371,25 +376,111 @@ is_repairable_error() {
 }
 
 #-------------------------------------------------------------------------------
+# Function: _sparsify_image_state
+# Description: Classify a qcow2 with qemu-img check. The exit status on its own
+#              cannot separate a held lock from a wrecked header (both are 1),
+#              so the lock message is what tells them apart. Never use -U here:
+#              it reads through the lock and reports a half-written image as
+#              valid (measured: a live-held image gives rc 1 without -U but
+#              rc 0 with -U).
+#
+#              qemu-img check exit codes, measured on qemu-img 9.2.4 and 10.0.0
+#              by building each state for real:
+#                0  consistent                         -> clean  (drop backup)
+#                3  leaked clusters, "no harm to data" -> clean  (drop backup)
+#                2  corruption                         -> dirty  (restore backup)
+#                63 format does not support checks      -> dirty  (restore backup)
+#                1  could-not-open the image
+#                     - "Failed to get ... lock"       -> locked (retry/keep)
+#                     - anything else (unopenable)     -> dirty  (restore backup)
+#                other                                  -> unknown (keep both)
+#
+#              rc 3 is the *likeliest* aftermath of killing a qcow2 writer, and
+#              the leaked space is harmless; we do NOT run `-r leaks` here (it
+#              needs a write lock and the next sparsify pass reclaims the space
+#              anyway). rc 63 means a file that was a qcow2 no longer identifies
+#              as one (magic/header gone) -> the destination is destroyed and
+#              the good backup must win. rc 1 without a lock message is an image
+#              we cannot open at all, i.e. also destroyed, so it restores too.
+# Arguments: $1 - image path
+# Outputs: one of clean|locked|dirty|unknown
+#-------------------------------------------------------------------------------
+_sparsify_image_state() {
+    local file="$1"
+    local output rc=0
+    # captured, not piped into grep: pipefail would mask the match with qemu-img's status
+    output=$(qemu-img check -q "$file" 2>&1) || rc=$?
+    case "$rc" in
+        0|3) echo "clean" ;;
+        2|63) echo "dirty" ;;
+        1)
+            case "$output" in
+                *"Failed to get"*lock*|*"another process using the image"*) echo "locked" ;;
+                *) echo "dirty" ;;
+            esac
+            ;;
+        *) echo "unknown" ;;
+    esac
+}
+
+#-------------------------------------------------------------------------------
+# Function: _sparsify_settled_state
+# Description: State of the image once its writer has let go, or the last state
+#              seen if it has not let go within SPARSIFY_RECOVER_SETTLE_TIMEOUT
+# Arguments: $1 - image path
+# Outputs: one of clean|locked|dirty|unknown
+#-------------------------------------------------------------------------------
+_sparsify_settled_state() {
+    local file="$1"
+    local waited=0
+    local state
+    while true; do
+        state=$(_sparsify_image_state "$file")
+        [ "$state" != "locked" ] && break
+        [ "$waited" -ge "$SPARSIFY_RECOVER_SETTLE_TIMEOUT" ] && break
+        sleep "$SPARSIFY_RECOVER_SETTLE_INTERVAL"
+        waited=$((waited + SPARSIFY_RECOVER_SETTLE_INTERVAL))
+    done
+    echo "$state"
+}
+
+#-------------------------------------------------------------------------------
 # Function: _sparsify_recover_backup
-# Description: trap handler invoked if the script is killed mid-sparsify.
-#              Validates the destination file; if invalid, restores from
-#              backup. If the destination is fine, removes the backup. The
-#              normal success/failure paths run their own cleanup and disarm
-#              the trap, so this only fires on unexpected termination.
+# Description: trap handler invoked if the script is killed mid-sparsify. It
+#              fires while virt-sparsify is still dying and still holding the
+#              image, so it waits for the image to settle and then decides:
+#              clean drops the backup, corrupt restores it, and anything it
+#              cannot establish keeps the backup untouched for manual recovery.
+#              The normal success/failure paths run their own cleanup and
+#              disarm the trap, so this only fires on unexpected termination.
 # Arguments: $1 - destination file, $2 - backup file
 #-------------------------------------------------------------------------------
 _sparsify_recover_backup() {
     local file="$1"
     local backup_file="$2"
     [ -f "$backup_file" ] || return 0
-    if [ -f "$file" ] && qemu-img check -q "$file" >/dev/null 2>&1; then
-        rm -f "$backup_file"
-        log_message INFO "Trap: removed leftover backup (dest qcow2 valid): $backup_file"
-    else
+
+    if [ ! -f "$file" ]; then
         mv -f "$backup_file" "$file"
-        log_message WARN "Trap: restored backup over invalid/missing dest: $file"
+        log_message WARN "Trap: restored backup over missing dest: $file"
+        return 0
     fi
+
+    local state
+    state=$(_sparsify_settled_state "$file")
+    case "$state" in
+        clean)
+            rm -f "$backup_file"
+            log_message INFO "Trap: removed leftover backup (dest qcow2 valid): $backup_file"
+            ;;
+        dirty)
+            mv -f "$backup_file" "$file"
+            log_message WARN "Trap: restored backup over corrupt dest: $file"
+            ;;
+        *)
+            log_message WARN "Trap: dest qcow2 $state after ${SPARSIFY_RECOVER_SETTLE_TIMEOUT}s, backup kept for manual recovery: $backup_file"
+            ;;
+    esac
 }
 
 #-------------------------------------------------------------------------------
@@ -813,6 +904,49 @@ initialize() {
 }
 
 #-------------------------------------------------------------------------------
+# Function: export_worker_context
+# Description: Publish every function and variable the xargs worker shells need.
+#              The recovery trap is armed inside those shells, so its handler
+#              has to travel with them or it dies as "command not found".
+#-------------------------------------------------------------------------------
+export_worker_context() {
+    export -f process_file
+    export -f attempt_sparsify
+    export -f is_repairable_error
+    export -f log_message
+    export -f update_stats
+    export -f get_stats
+    export -f mark_processed
+    export -f is_processed
+    export -f is_excluded
+    export -f check_interrupt
+    export -f format_bytes
+    export -f _sparsify_image_state
+    export -f _sparsify_settled_state
+    export -f _sparsify_recover_backup
+    export OWNER_FILTER
+    export MIN_SIZE
+    export DRY_RUN
+    export RESUME
+    export CREATE_BACKUP
+    export REPAIR_ON_FAIL
+    export VERBOSE
+    export QUIET
+    export LOG_FORMAT
+    export STATS_FILE
+    export PROCESSED_FILE
+    export LOG_SUCCESS
+    export LOG_FAILURE
+    export LOCK_FILE
+    export STATE_DIR
+    export RED GREEN YELLOW BLUE CYAN NC
+    export EXCLUDE_PATTERNS_FILE
+    export INTERRUPT_FLAG
+    export SPARSIFY_RECOVER_SETTLE_TIMEOUT
+    export SPARSIFY_RECOVER_SETTLE_INTERVAL
+}
+
+#-------------------------------------------------------------------------------
 # Function: main
 # Description: Main execution flow
 #-------------------------------------------------------------------------------
@@ -884,36 +1018,7 @@ main() {
     log_message INFO "Found $total_files .qcow2 files"
     echo ""
 
-    # Export necessary functions and variables for parallel jobs
-    export -f process_file
-    export -f attempt_sparsify
-    export -f is_repairable_error
-    export -f log_message
-    export -f update_stats
-    export -f get_stats
-    export -f mark_processed
-    export -f is_processed
-    export -f is_excluded
-    export -f check_interrupt
-    export -f format_bytes
-    export OWNER_FILTER
-    export MIN_SIZE
-    export DRY_RUN
-    export RESUME
-    export CREATE_BACKUP
-    export REPAIR_ON_FAIL
-    export VERBOSE
-    export QUIET
-    export LOG_FORMAT
-    export STATS_FILE
-    export PROCESSED_FILE
-    export LOG_SUCCESS
-    export LOG_FAILURE
-    export LOCK_FILE
-    export STATE_DIR
-    export RED GREEN YELLOW BLUE CYAN NC
-    export EXCLUDE_PATTERNS_FILE
-    export INTERRUPT_FLAG
+    export_worker_context
 
     # Process files in parallel
     echo "$qcow2_files" | xargs -I {} -P "$MAX_PARALLEL" bash -c 'process_file "$@"' _ {}
@@ -961,5 +1066,7 @@ main() {
     fi
 }
 
-# Execute main function with all arguments
-main "$@"
+# Execute main function with all arguments, unless sourced by the test suite
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    main "$@"
+fi

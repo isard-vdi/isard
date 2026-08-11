@@ -521,3 +521,159 @@ def test_orphan_gate_vanished_dep_with_finished_aged_sibling():
 # ---------------------------------------------------------------------------
 # Pass 1 — orphaned DEFERRED jobs
 # ---------------------------------------------------------------------------
+
+
+# --- Pass 4: media left mid-delete -------------------------------------
+#
+# These rows are REAL ``Media`` objects, not stand-ins with a stub
+# ``delete_file``. That is the whole point of them: an earlier revision of
+# this pass selected exactly the statuses ``delete_file`` refused, so every
+# row it found raised ``precondition_required``, got swallowed by the
+# pass's own ``except Exception`` and healed nothing — and three tests
+# built on a hand-written ``delete_file`` stayed green through all of it,
+# because the precondition they had to exercise was the one thing they
+# replaced. Only persistence and the queue are stubbed below; every
+# precondition runs for real.
+
+from isardvdi_change_handler.streams import reconcile  # noqa: E402
+from isardvdi_common.models.media import Media  # noqa: E402
+from isardvdi_common.models.storage_pool import StoragePool  # noqa: E402
+from isardvdi_common.models.task import Task  # noqa: E402
+
+
+class _StuckMedia(Media):
+    """A real ``Media`` whose row lives in memory.
+
+    Mirrors ``isardvdi_common.models.tests.test_media_delete_file``:
+    ``RethinkCustomBase`` writes through to RethinkDB on every assignment,
+    so the persisted attributes are held in a dict instead. ``delete_file``
+    itself is inherited untouched.
+    """
+
+    def __init__(self, status, path_downloaded="/isard/media/m.iso", task=None):
+        object.__setattr__(self, "_values", {})
+        self._values.update(
+            {
+                "id": "m-1",
+                "status": status,
+                "path_downloaded": path_downloaded,
+                "task": task,
+            }
+        )
+        self.created_tasks = []
+
+    def __getattr__(self, name):
+        try:
+            return object.__getattribute__(self, "_values")[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __setattr__(self, name, value):
+        if name in ("created_tasks", "create_task"):
+            object.__setattr__(self, name, value)
+        else:
+            self._values[name] = value
+
+    def create_task(self, **kwargs):
+        self.created_tasks.append(kwargs)
+        self._values["task"] = "task-1"
+
+
+@pytest.fixture
+def _media_queue(monkeypatch):
+    """Stub only what reaches outside the process: the pool and the task."""
+    pool = StoragePool.__new__(StoragePool)
+    object.__setattr__(pool, "id", "pool-a")
+    monkeypatch.setattr(
+        StoragePool, "get_best_for_action", classmethod(lambda cls, *a, **k: pool)
+    )
+    monkeypatch.setattr(Task, "exists", staticmethod(lambda task_id: False))
+
+
+def _index_returns(monkeypatch, rows):
+    """Serve ``Media.get_index`` from ``rows`` keyed by status."""
+    monkeypatch.setattr(
+        reconcile.Media,
+        "get_index",
+        classmethod(lambda cls, values, index: [r for r in rows if r.status in values]),
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["maintenance", "Deleting"])
+async def test_pass4_reissues_the_delete_of_stuck_media(
+    monkeypatch, _media_queue, status
+):
+    """Every status the pass selects must be one the real delete accepts.
+
+    This is the regression test for the inert pass: it asserts the delete
+    task actually exists afterwards, not merely that something was called.
+    """
+    media = _StuckMedia(status)
+    _index_returns(monkeypatch, [media])
+
+    assert await reconcile._reconcile_stuck_media(None) == 1
+
+    assert len(media.created_tasks) == 1
+    assert media.created_tasks[0]["task"] == "delete"
+    assert media.created_tasks[0]["job_kwargs"]["kwargs"]["path"] == (
+        "/isard/media/m.iso"
+    )
+    assert media.status == "maintenance"
+    assert media.task == "task-1"
+
+
+@pytest.mark.asyncio
+async def test_pass4_settles_a_media_that_never_had_a_file(monkeypatch, _media_queue):
+    """No path means no file to unlink, so ``delete_file`` ends it in place."""
+    media = _StuckMedia("maintenance", path_downloaded="")
+    _index_returns(monkeypatch, [media])
+
+    assert await reconcile._reconcile_stuck_media(None) == 1
+    assert media.status == "deleted"
+    assert media.created_tasks == []
+
+
+@pytest.mark.asyncio
+async def test_pass4_leaves_media_whose_task_is_alive(monkeypatch, _media_queue):
+    """Pass 1 and the consumer own it while the task is still running."""
+    media = _StuckMedia("maintenance", task="task-9")
+    _index_returns(monkeypatch, [media])
+    monkeypatch.setattr(Task, "exists", staticmethod(lambda task_id: True))
+    monkeypatch.setattr(Task, "__init__", lambda self, task_id: None)
+    monkeypatch.setattr(Task, "pending", property(lambda self: True))
+
+    assert await reconcile._reconcile_stuck_media(None) == 0
+    assert media.created_tasks == []
+    assert media.status == "maintenance"
+
+
+@pytest.mark.asyncio
+async def test_pass4_survives_a_media_that_cannot_be_re_issued(
+    monkeypatch, _media_queue
+):
+    """A shedding queue must leave the row where it was, not half-moved."""
+    media = _StuckMedia("maintenance")
+    _index_returns(monkeypatch, [media])
+
+    def boom(**kwargs):
+        raise RuntimeError("queue down")
+
+    monkeypatch.setattr(media, "create_task", boom)
+
+    assert await reconcile._reconcile_stuck_media(None) == 0
+    assert media.status == "maintenance"
+
+
+@pytest.mark.asyncio
+async def test_pass4_heals_every_status_it_claims_to_watch(monkeypatch, _media_queue):
+    """Pin the tuple against the delete it feeds.
+
+    If ``delete_file`` ever grows a precondition that refuses one of these
+    statuses again, this fails instead of the pass silently going quiet.
+    """
+    rows = [_StuckMedia(s) for s in reconcile._MEDIA_STUCK_STATUSES]
+    _index_returns(monkeypatch, rows)
+
+    assert await reconcile._reconcile_stuck_media(None) == len(rows)
+    assert all(row.created_tasks for row in rows)

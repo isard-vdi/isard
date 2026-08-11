@@ -1813,3 +1813,76 @@ class TestGaugeCacheTtlVsScrapePeriod:
         after a retry or a cancel must not be served a scrape-period-old list."""
         cache = getattr(queues_service, cache_name)
         assert cache.ttl <= _alloy_stats_go_scrape_period()
+
+
+# ── a worker-hash read failure must not read as "every worker dead" ─────────
+class TestWorkerHashReadFailureIsDistinguishable:
+    """A PARTIAL Redis failure — PING alive, the worker-hash HGETALL pipeline
+    read fails — must not paint every worker up=false while redis reads healthy.
+    That combination is what fires WorkerHeartbeatLost against a LIVE Redis. The
+    read must propagate so the governor degrades to its honest posture instead.
+
+    NoStorageWorkers is deliberately NOT covered by that: it runs
+    noDataState=Alerting, so it pages on an empty worker_up series by design.
+    What this pins down is the lie — redis.up=true alongside a dead fleet."""
+
+    class _WorkerPipeBoom(FakeRedis):
+        """PING/INFO and the lane (LLEN) pipeline work; only the worker-hash
+        HGETALL pipeline raises."""
+
+        def pipeline(self):
+            class _Boom(_FakePipeline):
+                def execute(self_inner):
+                    if any(
+                        name == "hgetall"
+                        and args
+                        and str(args[0]).startswith("rq:worker:")
+                        for name, args, _ in self_inner._ops
+                    ):
+                        from redis.exceptions import ConnectionError as RedisConnError
+
+                        raise RedisConnError("worker-hash pipeline down")
+                    return _FakePipeline.execute(self_inner)
+
+            return _Boom(self)
+
+    def _conn(self):
+        now = datetime.now(timezone.utc)
+        return self._WorkerPipeBoom(
+            sets={"rq:workers": {b"rq:worker:storage.default.maintenance.w1"}},
+            hashes={
+                "rq:worker:storage.default.maintenance.w1": {
+                    b"last_heartbeat": _utc(now).encode(),
+                    b"queues": b"storage.default.maintenance",
+                    b"state": b"busy",
+                },
+            },
+        )
+
+    def test_worker_health_rows_propagates_the_read_failure(self):
+        # The specific error, not just "something raised": a bare Exception
+        # match would also pass on a broken double, proving nothing.
+        from redis.exceptions import ConnectionError as RedisConnError
+
+        with pytest.raises(RedisConnError):
+            gov.AdminQueuesService._worker_health_rows(self._conn())
+
+    def test_governor_never_reports_redis_up_with_every_worker_dead(
+        self, monkeypatch, clean_gov_caches
+    ):
+        conn = self._conn()
+        monkeypatch.setattr(gov, "_connect_redis", lambda: conn)
+        data = gov.AdminQueuesService.get_governor()  # must NOT raise
+        # The condition WorkerHeartbeatLost keys off: redis healthy AND every
+        # worker dead must never coexist. Without the fix redis.up=true while
+        # the one live worker reads up=false.
+        assert not (data["redis"]["up"] and data["workers"]) or any(
+            w["up"] for w in data["workers"]
+        ), (
+            "redis.up=true while every worker reads up=false — a partial Redis "
+            "read failure is firing WorkerHeartbeatLost against a live Redis"
+        )
+        # And positively: the degraded posture the fix actually produces, so a
+        # future change that swallows the read again cannot pass this vacuously.
+        assert data["redis"]["up"] is False
+        assert data["workers"] == []
