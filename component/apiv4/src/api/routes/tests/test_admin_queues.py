@@ -1886,3 +1886,96 @@ class TestWorkerHashReadFailureIsDistinguishable:
         # future change that swallows the read again cannot pass this vacuously.
         assert data["redis"]["up"] is False
         assert data["workers"] == []
+
+
+# ── a lane nothing consumes must be REPORTED, not suppressed ───────────────
+class TestStrandedLaneIsReachable:
+    """A lane holding backlog that no live worker serves is the one failure the
+    panel and its critical vmalert rule exist for. ``queue_coverage`` already
+    refuses to enqueue on such a lane, and its module docstring promises the
+    shed gate and the admin view share ONE ``has_consumer`` / ``stranded``
+    definition — so the admin read has to reach the same verdict.
+
+    The suppression that must SURVIVE is the rolling-upgrade one: a live worker
+    whose served set is not published could be draining the lane invisibly, so
+    its pool stays unknown rather than being alarmed.
+    """
+
+    def _conn(self, *, publishes_served_set: bool):
+        # Real clock: worker liveness is judged against datetime.now(), so a
+        # frozen timestamp would make every worker read dead and pass the
+        # suppression assertions vacuously.
+        now = datetime.now(timezone.utc)
+        hashes = {
+            "rq:worker:w1": {
+                "last_heartbeat": _utc(now - timedelta(seconds=2)),
+                "queues": "storage.default.bulk",
+                "state": "idle",
+            }
+        }
+        if publishes_served_set:
+            hashes["governor:worker:w1"] = {
+                "served_lanes": json.dumps(["storage.default.bulk"])
+            }
+        return FakeRedis(
+            rq_queues=["storage.default.bulk", "storage.default.reclaim"],
+            lists={"rq:queue:storage.default.reclaim": [b"job-1"]},
+            sets={"rq:workers": {b"rq:worker:w1"}},
+            hashes=hashes,
+        )
+
+    def _patch(self, monkeypatch, conn):
+        monkeypatch.setattr(queues_service, "_connect_redis", lambda: conn)
+        monkeypatch.setattr(
+            queues_service.CommonCategories, "get_id_name_map", staticmethod(lambda: {})
+        )
+        monkeypatch.setattr(
+            queues_service.Config,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: {}),
+        )
+
+    def _reclaim_row(self, rows):
+        return next(r for r in rows if r["tier"] == "reclaim")
+
+    def test_backlog_row_is_stranded_when_the_whole_fleet_is_visible(
+        self, monkeypatch, clean_gov_caches
+    ):
+        self._patch(monkeypatch, self._conn(publishes_served_set=True))
+        row = self._reclaim_row(queues_service.AdminQueuesService.get_backlog_rollup())
+        assert row["queued"] == 1
+        assert row["has_consumer"] is False
+        assert row["coverage_known"] is True
+        assert row["stranded"] is True
+
+    def test_governor_emits_the_stranded_lane_warning(
+        self, monkeypatch, clean_gov_caches
+    ):
+        self._patch(monkeypatch, self._conn(publishes_served_set=True))
+        data = queues_service.AdminQueuesService.get_governor()
+        stranded = [w for w in data["warnings"] if w["kind"] == "stranded_lane"]
+        assert len(stranded) == 1
+        assert stranded[0]["tier"] == "reclaim"
+        assert stranded[0]["backlog"] == 1
+        assert stranded[0]["coverage_known"] is True
+
+    def test_rolling_upgrade_still_suppresses_the_alarm(
+        self, monkeypatch, clean_gov_caches
+    ):
+        # w1 is alive but does not publish its served set: it might be draining
+        # the reclaim lane invisibly, so the pool's coverage stays UNKNOWN.
+        self._patch(monkeypatch, self._conn(publishes_served_set=False))
+        row = self._reclaim_row(queues_service.AdminQueuesService.get_backlog_rollup())
+        assert row["coverage_known"] is False
+        assert row["stranded"] is False
+        data = queues_service.AdminQueuesService.get_governor()
+        assert [w for w in data["warnings"] if w["kind"] == "stranded_lane"] == []
+
+    def test_a_served_lane_is_never_stranded(self, monkeypatch, clean_gov_caches):
+        conn = self._conn(publishes_served_set=True)
+        conn._lists["rq:queue:storage.default.bulk"] = [b"job-2"]
+        self._patch(monkeypatch, conn)
+        rows = queues_service.AdminQueuesService.get_backlog_rollup()
+        bulk = next(r for r in rows if r["tier"] == "bulk")
+        assert bulk["has_consumer"] is True
+        assert bulk["stranded"] is False

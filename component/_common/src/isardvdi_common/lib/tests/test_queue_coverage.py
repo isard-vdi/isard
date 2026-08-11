@@ -885,3 +885,52 @@ def test_grace_window_includes_its_exact_edge():
     )
     assert decision == "ok"
     assert ctx["reason"] == "fleet_gap"
+
+
+class TestCoverageFromLaneSets:
+    """The pure core of ``served_coverage``. It exists so the admin read layer,
+    which has already loaded the worker rows, can reach the SAME verdict as the
+    enqueue-time shed gate without a second pass over redis — the one
+    definition this module's docstring promises."""
+
+    def test_a_published_served_set_covers_its_lanes_and_hides_nothing(self):
+        covered, opaque = qc.coverage_from_lane_sets(
+            [(["storage.default.bulk", "storage.default.template"], True)]
+        )
+        assert covered[("default", "bulk")] == 1
+        assert covered[("default", "template")] == 1
+        assert opaque == set()
+
+    def test_an_unpublished_served_set_makes_its_pool_opaque(self):
+        covered, opaque = qc.coverage_from_lane_sets(
+            [(["storage.default.bulk"], False)]
+        )
+        assert covered[("default", "bulk")] == 1
+        assert opaque == {"default"}
+
+    def test_a_lane_nobody_serves_is_uncovered_without_making_its_pool_opaque(self):
+        covered, opaque = qc.coverage_from_lane_sets([(["storage.default.bulk"], True)])
+        assert ("default", "reclaim") not in covered
+        assert opaque == set()
+
+    def test_counts_workers_per_lane_for_the_effective_concurrency(self):
+        covered, _ = qc.coverage_from_lane_sets(
+            [(["storage.default.bulk"], True), (["storage.default.bulk"], True)]
+        )
+        assert covered[("default", "bulk")] == 2
+
+    def test_ignores_non_storage_lanes_and_an_empty_set(self):
+        covered, opaque = qc.coverage_from_lane_sets([(["default"], True), ([], False)])
+        assert dict(covered) == {}
+        assert opaque == set()
+
+    def test_served_coverage_agrees_with_the_pure_core(self):
+        r = _FakeRedis()
+        _governed_worker(r, "w1", DEF, tiers=("bulk",))
+        _opaque_worker(r, "res1", "pool2", tiers=("reclaim",))
+        covered, opaque = qc.served_coverage(r)
+        pure_covered, pure_opaque = qc.coverage_from_lane_sets(
+            [([f"storage.{DEF}.bulk"], True), (["storage.pool2.reclaim"], False)]
+        )
+        assert dict(covered) == dict(pure_covered)
+        assert opaque == pure_opaque

@@ -147,6 +147,29 @@ def _worker_lanes(worker_hash, gov_hash):
     return [lane for lane in birth.split(",") if lane], False
 
 
+def coverage_from_lane_sets(entries):
+    """``(covered, opaque_pools)`` from ``(served_lanes, served_known)`` pairs.
+
+    The pure core of :func:`served_coverage`, so a caller that has already
+    loaded the worker rows — the admin governor/backlog read — reaches the same
+    verdict as the enqueue-time shed gate without a second pass over redis.
+    ``entries`` must already be filtered to LIVE workers.
+    """
+    covered = Counter()
+    opaque_pools = set()
+    for lanes, known in entries:
+        birth_pool = None
+        for lane in lanes or []:
+            parsed = queue_tiers.parse_storage_queue(lane)
+            if parsed:
+                covered[(parsed[0], parsed[2])] += 1
+                if birth_pool is None:
+                    birth_pool = parsed[0]
+        if not known and birth_pool:
+            opaque_pools.add(birth_pool)
+    return covered, opaque_pools
+
+
 def served_coverage(conn):
     """``(covered, opaque_pools)`` over the live fleet.
 
@@ -173,22 +196,14 @@ def served_coverage(conn):
         results = pipe.execute()
 
     now_ts = time.time()
+    entries = []
     for idx in range(len(worker_keys)):
         worker_hash = _dec_hash(results[idx * 2])
         gov_hash = _dec_hash(results[idx * 2 + 1])
         if not _worker_up(worker_hash, gov_hash, now_ts):
             continue
-        lanes, known = _worker_lanes(worker_hash, gov_hash)
-        birth_pool = None
-        for lane in lanes:
-            parsed = queue_tiers.parse_storage_queue(lane)
-            if parsed:
-                covered[(parsed[0], parsed[2])] += 1
-                if birth_pool is None:
-                    birth_pool = parsed[0]
-        if not known and birth_pool:
-            opaque_pools.add(birth_pool)
-    return covered, opaque_pools
+        entries.append(_worker_lanes(worker_hash, gov_hash))
+    return coverage_from_lane_sets(entries)
 
 
 def lane_shed_decision(conn, queue, now=None):
