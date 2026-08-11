@@ -1470,6 +1470,30 @@
             "text": "Pausado",
             "action": "Parar"
           },
+          "suspended": {
+            "text": "Suspendido",
+            "action": "Parar"
+          },
+          "crashed": {
+            "text": "Ha fallado",
+            "action": "Reintentar"
+          },
+          "startingpaused": {
+            "text": "Iniciando",
+            "action": "Iniciando"
+          },
+          "startingdomaindisposable": {
+            "text": "Iniciando",
+            "action": "Iniciando"
+          },
+          "creatingdiskfromscratch": {
+            "text": "Creando",
+            "action": "Creando"
+          },
+          "deleting": {
+            "text": "Borrando",
+            "action": "Borrando"
+          },
           "resetting": {
             "text": "Reiniciando",
             "action": "Reiniciando"
