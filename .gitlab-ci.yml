@@ -198,8 +198,12 @@ check-system-deps:
   script:
     - make lint-system-deps
 
+"build-codegen:docker-build":
+  needs: []
+
 codegen:
   stage: generate
+  needs: ["build-codegen:docker-build"]
   image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
@@ -659,6 +663,11 @@ test-integration:
       - docker-compose.log
     reports:
       junit: testing/integration/report.xml
+
+release:
+  # semantic-release pushes the tag and creates the release; cancelling it
+  # mid-flight leaves one without the other, so it opts out of the default.
+  interruptible: false
 
 docker-tag:
   stage: release
