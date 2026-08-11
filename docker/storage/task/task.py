@@ -876,6 +876,7 @@ def _run_curl_download(
     process.stderr.readline()
 
     last_flush = 0.0
+    last_progress = {}
     line = ""
     aborted = False
     with TaskCancelWatcher(job.id, initial_check=is_aborting) as watcher:
@@ -896,6 +897,8 @@ def _run_curl_download(
             if ch in ("\r", "\n"):
                 progress = _curl_progress_dict(line)
                 line = ""
+                if progress:
+                    last_progress = progress
                 now = time()
                 if progress and (now - last_flush) >= _DOWNLOAD_PROGRESS_FLUSH_SECONDS:
                     last_flush = now
@@ -956,6 +959,28 @@ def _run_curl_download(
         raise CalledProcessError(
             returncode=process.returncode, cmd=curl_cmd, stderr=stderr
         )
+
+    # The loop only reads while curl is running and throttles its writes, so
+    # the last line it printed is never persisted: a finished download was left
+    # showing whatever fraction the previous tick caught (89-99% observed). The
+    # job's own progress was set to 1.0 here while the ROW kept the stale value
+    # for ever, so the bar never completed. Close it explicitly.
+    final = dict(last_progress)
+    final["received_percent"] = 100
+    final["total_percent"] = 100
+    if final.get("total"):
+        final["received"] = final["total"]
+    final["time_left"] = ""
+    # curl's ``total`` is a rounded string ("3408k"); space accounting needs
+    # bytes. Measure the file, not the header.
+    try:
+        final["total_bytes"] = os_stat(dest_path).st_size
+    except OSError:
+        log.exception("download: failed to stat %s for its size", dest_path)
+    try:
+        flush_progress(final)
+    except Exception:
+        log.exception("download: failed to persist the final progress")
 
     job.meta["progress"] = 1.0
     job.save_meta()
