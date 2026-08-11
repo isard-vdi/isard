@@ -2407,7 +2407,29 @@ class RecycleBinTemplate(RecycleBinDomain):
         :type template_id: str, None
         """
 
-        # First recycle deployments to avoid overlapping desktops deletions
+        # Validate everything that can abort BEFORE mutating anything: once a
+        # deployment is recycled its rows are gone from ``deployments`` and
+        # ``domains`` and RethinkDB has no rollback. The existence check and the
+        # cross-category ``forbidden`` gate (``get_template_with_all_derivatives``)
+        # must therefore run before the destructive loop, not after it.
+        if template_id:
+            with self._rdb_context():
+                template = r.table("domains").get(template_id).run(self._rdb_connection)
+            if template is None:
+                raise Error(
+                    "not_found",
+                    f"Template {template_id} not found",
+                    description_code="template_not_found",
+                )
+            # Get template ids tree. Raises ``forbidden`` when a derivative
+            # lives in another category (manager path).
+            data = CommonHelpers.get_template_with_all_derivatives(
+                template_id, user_id=self.agent_id
+            )
+            self._add_item_name(template["name"])
+
+        # Only now start mutating. Recycle deployments first to avoid
+        # overlapping desktop deletions.
         deployments = CommonHelpers.get_template_derivated_deployments(template_id)
         failed_deployments = []
         for deployment in deployments:
@@ -2426,21 +2448,6 @@ class RecycleBinTemplate(RecycleBinDomain):
                 f"Failed to recycle some deployments: {failed_deployments}. Template deletion aborted.",
                 traceback.format_exc(),
                 description_code="deployment_recycle_failed",
-            )
-
-        if template_id:
-            with self._rdb_context():
-                template = r.table("domains").get(template_id).run(self._rdb_connection)
-            if template is None:
-                raise Error(
-                    "not_found",
-                    f"Template {template_id} not found",
-                    description_code="template_not_found",
-                )
-            self._add_item_name(template["name"])
-            # Get template ids tree
-            data = CommonHelpers.get_template_with_all_derivatives(
-                template_id, user_id=self.agent_id
             )
 
         domains = [
