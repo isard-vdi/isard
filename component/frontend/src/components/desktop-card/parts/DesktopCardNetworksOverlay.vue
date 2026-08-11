@@ -3,10 +3,12 @@ import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 
-import { getDesktopNetworksOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import {
+  getDesktopNetworksOptions,
+  getNetworksFromTokenOptions
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import type { Client } from '@/gen/oas/apiv4/client'
-import type { DesktopNetworksResponse } from '@/gen/oas/apiv4'
 
 import { Icon } from '@/components/icon'
 import { CopyIcon } from '@/components/icon'
@@ -43,17 +45,10 @@ const emit = defineEmits<{
 }>()
 
 const tokenNetworksQueryOptions = {
-  queryKey: ['getDesktopNetworksFromToken', props.directViewerToken] as const,
-  queryFn: async () => {
-    const client = props.directViewerClient
-    const token = props.directViewerToken
-    if (!client || !token) throw new Error('Missing direct viewer client/token')
-    const { data, error } = await client.get<DesktopNetworksResponse>({
-      url: `/api/v4/item/desktop/token/${encodeURIComponent(token)}/get-networks`
-    })
-    if (error) throw error
-    return data as DesktopNetworksResponse
-  },
+  ...getNetworksFromTokenOptions({
+    path: { token: props.directViewerToken ?? '' },
+    client: props.directViewerClient
+  }),
   enabled: !!props.directViewerToken && !!props.directViewerClient
 }
 
