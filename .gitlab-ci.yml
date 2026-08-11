@@ -309,6 +309,25 @@ unit-test-go:
       junit: report.xml
   coverage: /total:\s+\(statements\)\s+\d+.\d+%/
 
+# Behavioural unit tests for the storage-governor alert rules, run under the SAME
+# engine the stack runs (vmalert / MetricsQL) — promtool green is not vmalert
+# green, and the Go test above only checks that the rules NAME real metrics, not
+# what they DO. Pinned to the vmalert-tool matching the runtime vmalert in
+# docker-compose-parts/monitor.yml; the guard fails CI if the two ever drift, so
+# this pin cannot silently diverge from what the stack actually runs.
+unit-test-vmalert:
+  stage: unit-test
+  needs: []
+  image:
+    name: victoriametrics/vmalert-tool:v1.147.0
+    entrypoint: [""]
+  script:
+    - runtime=$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://')
+    - tool=$(/vmalert-tool-prod --version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    - '[ -n "$runtime" ] || { echo "FAIL: cannot read the runtime vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }'
+    - '[ "$runtime" = "$tool" ] || { echo "FAIL: vmalert-tool $tool != runtime vmalert $runtime (docker-compose-parts/monitor.yml) — bump this job image and monitor.yml together"; exit 1; }'
+    - /vmalert-tool-prod unittest --files docker/vmalert/rules/storage_governor.test.yml
+
 # Shared Python test config — uv cache dir cached via default cache entry.
 .python-test-base:
   stage: unit-test
@@ -361,9 +380,19 @@ unit-test-go:
 
 unit-test-apiv4:
   extends: .python-test-job
+  # A real redis, because the retry guard that refuses a task whose direct
+  # dependent is CANCELED rests on rq's own admission rule, and that premise is
+  # proved by running rq rather than by asserting it. The service is declared
+  # here and NOT on ``.python-test-base``: sixteen other python jobs extend that
+  # base and none of them wants a redis container. Same image and digest the
+  # stack runs, so the proof exercises the redis we ship.
+  services:
+    - name: redis:7.4-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+      alias: redis
   variables:
     COVERAGE_DIR: component/apiv4/src
     USAGE: "production"
+    REDIS_HOST: redis
   script:
     - make ci-test-apiv4
 
@@ -549,6 +578,32 @@ unit-test-frontend:
     when: always
     reports:
       junit: component/frontend/report.xml
+
+unit-test-sparsify:
+  # Recovery-trap suite for the sparsify utility (docker/storage/utils/tests).
+  # Plain bash, no python and no generated code, but it drives real qcow2 files
+  # and a live lock holder, so it needs qemu-img and qemu-io.
+  stage: unit-test
+  needs: []
+  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+  before_script:
+    - apk add --no-cache bash make qemu-img
+  script:
+    - make test-sparsify
+
+unit-test-storage-utils:
+  # Sparsify-backup classifier in the `storage` cleanup CLI
+  # (docker/storage/utils/tests). Pure-stdlib pytest: the CLI is loaded via
+  # importlib (it has no .py suffix) and the qemu-img calls its helpers share
+  # are replaced, so no qemu binaries, no lock holder and no root are needed.
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-storage-utils
+  artifacts:
+    when: always
+    reports:
+      junit: docker/storage/utils/report.xml
 
 unit-test-storage:
   # isard-storage worker failure-path suite (docker/storage/task/tests): the

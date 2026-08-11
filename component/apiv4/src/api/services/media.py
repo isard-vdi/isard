@@ -477,6 +477,10 @@ class MediaService:
             MediaStatusEnum.downloading.value,
             MediaStatusEnum.download_starting.value,
             MediaStatusEnum.download.value,
+            # Re-pressing abort must settle a row whose task is already
+            # gone, otherwise it stays here with no way out.
+            MediaStatusEnum.download_aborting.value,
+            MediaStatusEnum.reset_downloading.value,
         ]
         if media.status not in allowed_statuses:
             raise Error(
@@ -492,7 +496,7 @@ class MediaService:
         media.status = MediaStatusEnum.download_aborting.value
 
         task_id = current_task_id(Task._redis, media.id, kind=MEDIA)
-        if task_id:
+        if task_id and Task.exists(task_id) and Task(task_id).pending:
             try:
                 Task(task_id).cancel()
             except Exception:
@@ -500,6 +504,10 @@ class MediaService:
                 # initial_check on the worker side, and the dependent
                 # update_status will finalize the row when curl exits.
                 pass
+        else:
+            # Nothing is running, so no chain will ever finalize this
+            # row: settle it here instead of leaving it aborting forever.
+            media.status = MediaStatusEnum.download_failed.value
 
     @staticmethod
     def start_media_download(media_id: str) -> None:

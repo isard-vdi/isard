@@ -297,7 +297,9 @@ class TestEndedAtStampSemantics:
         try:
             connection.ping()
         except Exception as error:
-            pytest.skip(f"no Redis for the real-redis stamp tests: {error}")
+            from isardvdi_common.redis_test_gate import redis_required
+
+            redis_required(f"no Redis for the real-redis stamp tests: {error}")
         return connection
 
     def test_stamps_when_the_field_is_empty(self):

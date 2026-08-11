@@ -350,6 +350,8 @@ class StorageService:
                 size=str(size),
                 priority=priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -361,6 +363,8 @@ class StorageService:
         storage = get_storage(payload, storage_id)
         try:
             return storage.task_delete(payload.get("user_id"))
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -421,9 +425,23 @@ class StorageService:
 
     @staticmethod
     def has_derivatives(payload: dict, storage_id: str) -> int:
-        """Return the number of derivatives (children) for a storage."""
+        """Return how many disks depend on this one as a backing file.
+
+        The whole subtree, not just the first level — which is what the
+        endpoint's name always claimed. It used to answer
+        ``len(storage.children)``, and callers read the "derivatives" name
+        as "the chain this disk is part of" and compared it with ``> 1``
+        to discount the disk itself; a disk with exactly one dependent
+        therefore passed every client-side gate and only failed later,
+        server-side, with ``storage_has_children``.
+
+        As a gate the count is equivalent to the server's precondition:
+        a disk has a descendant if and only if it has a direct child, so
+        ``> 0`` here and ``len(children) > 0`` in ``set_maintenance``
+        accept and reject exactly the same disks.
+        """
         storage = get_storage(payload, storage_id)
-        return len(storage.children)
+        return len(storage.dependents())
 
     # ── DISK OPERATIONS ────────────────────────────────────────────────
 
@@ -480,6 +498,8 @@ class StorageService:
                 priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -502,6 +522,10 @@ class StorageService:
                 secondary_priority="high",
                 retry=retry,
             )
+        except Error:
+            # Already typed (e.g. set_maintenance's preconditions): re-raise
+            # it untouched so its description_code survives.
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -552,6 +576,8 @@ class StorageService:
                 priority=priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -582,7 +608,11 @@ class StorageService:
         """Convert a storage to a new format."""
         priority = check_task_priority(payload, priority)
         origin_storage = get_storage(payload, storage_id)
-        origin_storage.set_maintenance("convert")
+        # The transition belongs to Storage.convert, which opens with it like
+        # every other action. Doing it here too flipped the disk to maintenance
+        # and then let the model's call refuse it -- set_maintenance requires
+        # ready for anything outside {create, delete, download} -- so convert
+        # could never succeed and left the disk stuck in maintenance.
 
         new_storage = Storage.init_document(
             user_id=origin_storage.user_id,
@@ -602,6 +632,8 @@ class StorageService:
                 priority=priority,
             )
             return {"new_storage_id": new_storage.id, "task_id": task_id}
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -631,6 +663,8 @@ class StorageService:
                 priority=priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -658,6 +692,8 @@ class StorageService:
                 priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -688,6 +724,8 @@ class StorageService:
                 dest_path,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -721,6 +759,8 @@ class StorageService:
                 remove_source_file,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -761,6 +801,8 @@ class StorageService:
                 remove_source_file,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 

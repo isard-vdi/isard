@@ -35,8 +35,8 @@ from os.path import basename, dirname, getmtime, isdir, isfile, join
 from pathlib import Path
 from re import search
 from subprocess import (
+    DEVNULL,
     PIPE,
-    STDOUT,
     CalledProcessError,
     Popen,
     TimeoutExpired,
@@ -135,6 +135,11 @@ def _publishes_result(func):
                     task_name=task_name,
                     queue=job.origin,
                     job_status="failed",
+                    # echo the migration id (stamped into job.meta by the
+                    # reconciler _enqueue) so an edge-triggered consumer can route
+                    # a wake to advance(this migration). None for non-migration
+                    # tasks -> dropped by _publish_task_event.
+                    migration_id=(getattr(job, "meta", None) or {}).get("migration_id"),
                 )
             raise
         job = get_current_job()
@@ -146,6 +151,7 @@ def _publishes_result(func):
                 task_name=task_name,
                 queue=job.origin,
                 job_status="finished",
+                migration_id=(getattr(job, "meta", None) or {}).get("migration_id"),
             )
         return result
 
@@ -175,6 +181,21 @@ def _free_space(path):
         return None
 
 
+STDERR_TAIL_BYTES = 64 * 1024  # what we keep of a failed child's stderr
+
+
+def _read_tail(path, limit=STDERR_TAIL_BYTES):
+    """Last ``limit`` bytes of ``path`` decoded as text, ``""`` if unreadable."""
+    try:
+        with open(path, "rb") as capture:
+            capture.seek(0, os.SEEK_END)
+            capture.seek(max(0, capture.tell() - limit))
+            return capture.read().decode(errors="replace")
+    except OSError:
+        log.exception("could not read %s", path)
+        return ""
+
+
 def _run_cancellable(command):
     """Run ``command`` in its own process group, terminating it if the task is
     cancelled, and raising on failure.
@@ -182,8 +203,14 @@ def _run_cancellable(command):
     Like :func:`run_with_progress` but for long operations with no
     machine-parsable progress (a disk byte-copy, ``virt-sparsify``,
     ``virt-win-reg``): it polls the :class:`TaskCancelWatcher` on a timer
-    instead of reading stdout. ``stderr`` is merged into ``stdout`` and
-    surfaced on failure.
+    instead of reading stdout. The tail of ``stderr`` is surfaced on failure.
+
+    The child gets no pipe: ``stdout`` is discarded and ``stderr`` goes to a
+    temporary file. A pipe would only be read after ``wait()`` returns, so a
+    child writing past the ~64 KiB pipe buffer would block in ``write()`` and
+    never exit, wedging this task forever. Draining the pipe with
+    ``communicate()`` instead would trade that for an equally bad deal: no
+    cancel could be honoured until the child finished.
 
     :raises subprocess.CalledProcessError: rc 130 when cancelled mid-run
         (so the ``_publishes_result`` decorator publishes
@@ -194,44 +221,42 @@ def _run_cancellable(command):
     if job is None:
         # No RQ context (unit test / manual call): run synchronously. Raises
         # CalledProcessError on a non-zero rc, matching the wired path.
-        run(command, check=True, stdout=PIPE, stderr=STDOUT)
+        run(command, check=True, stdout=DEVNULL, stderr=PIPE)
         return 0
-    process = Popen(command, stdout=PIPE, stderr=STDOUT, preexec_fn=os.setsid)
+    capture_fd, capture_path = tempfile.mkstemp(prefix="isard-storage-stderr-")
     aborted = False
-    output = b""
     try:
-        with TaskCancelWatcher(job.id) as watcher:
-            while process.poll() is None:
-                if watcher.wait(timeout=2):
-                    aborted = True
-                    try:
-                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                    except ProcessLookupError:
-                        pass
-                    break
-        try:
-            process.wait(timeout=10)
-        except TimeoutExpired:
+        with os.fdopen(capture_fd, "wb") as capture:
+            process = Popen(
+                command, stdout=DEVNULL, stderr=capture, preexec_fn=os.setsid
+            )
+            with TaskCancelWatcher(job.id) as watcher:
+                while process.poll() is None:
+                    if watcher.wait(timeout=2):
+                        aborted = True
+                        try:
+                            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                        except ProcessLookupError:
+                            pass
+                        break
             try:
-                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            process.wait(timeout=5)
+                process.wait(timeout=10)
+            except TimeoutExpired:
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=5)
+        if aborted:
+            raise CalledProcessError(returncode=130, cmd=command)
+        if process.returncode != 0:
+            raise CalledProcessError(
+                returncode=process.returncode,
+                cmd=command,
+                output=_read_tail(capture_path),
+            )
     finally:
-        if process.stdout:
-            try:
-                output = process.stdout.read() or b""
-            except Exception:
-                output = b""
-            process.stdout.close()
-    if aborted:
-        raise CalledProcessError(returncode=130, cmd=command)
-    if process.returncode != 0:
-        raise CalledProcessError(
-            returncode=process.returncode,
-            cmd=command,
-            output=output.decode(errors="replace"),
-        )
+        _safe_unlink(capture_path)
     return 0
 
 
@@ -617,7 +642,7 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     ).returncode
 
 
-def qemu_img_info(storage_id, storage_path):
+def qemu_img_info(storage_id, storage_path, storage_type="qcow2"):
     """
     Get storage data with `qemu-img info` data updated.
 
@@ -625,6 +650,10 @@ def qemu_img_info(storage_id, storage_path):
     :type storage_id: str
     :param storage_path: Storage path
     :type storage_path: str
+    :param storage_type: Format of the file on disk. Defaults to qcow2, which
+        is what every disk IsardVDI creates itself is; ``convert`` is the one
+        action that produces something else.
+    :type storage_type: str
     :return: Storage data to update
     :rtype: dict
     """
@@ -635,7 +664,7 @@ def qemu_img_info(storage_id, storage_path):
                 "info",
                 "-U",
                 "-f",
-                "qcow2",
+                storage_type,
                 "--output",
                 "json",
                 storage_path,
@@ -650,14 +679,25 @@ def qemu_img_info(storage_id, storage_path):
 
 
 @_publishes_result
-def qemu_img_info_backing_chain(storage_id, storage_path):
+def qemu_img_info_backing_chain(storage_id, storage_path, storage_type="qcow2"):
     """
     Get storage data with `qemu-img info` data updated.
+
+    ``-f`` is passed explicitly rather than letting qemu-img probe, so a
+    hostile guest cannot make its own disk read as another format. That means
+    the caller has to say which format it is: every disk IsardVDI creates is
+    qcow2, hence the default, but ``convert`` exists precisely to write
+    something else, and measuring a vmdk as qcow2 fails with
+    ``Could not open '<the file itself>'`` -- which this function then reads as
+    "the file is gone" and reports ``deleted``, orphaning a disk that is
+    perfectly fine.
 
     :param storage_id: Storage ID
     :type storage_id: str
     :param storage_path: Storage path
     :type storage_path: str
+    :param storage_type: Format of the file on disk
+    :type storage_type: str
     :return: Storage data to update
     :rtype: dict
     """
@@ -670,7 +710,7 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
                 "-U",
                 "--backing-chain",
                 "-f",
-                "qcow2",
+                storage_type,
                 "--output",
                 "json",
                 storage_path,
@@ -707,7 +747,7 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
             else:
                 try:
                     backing = (
-                        qemu_img_info(storage_id, storage_path)
+                        qemu_img_info(storage_id, storage_path, storage_type)
                         .get("qemu-img-info", {})
                         .get("backing-filename")
                     )
@@ -788,6 +828,22 @@ def _domain_aborting(domain_id):
         return True
 
 
+def _curl_header_config(headers):
+    """Render ``headers`` as a curl config for ``-K -``.
+
+    Kept out of the argv on purpose: a registry download carries the
+    registration code in an ``Authorization`` header, and in the argv that is
+    readable through ``ps`` for the whole transfer and is rendered verbatim
+    into every ``CalledProcessError`` raised below, which reaches the worker
+    log and Loki.
+    """
+    config = ""
+    for header in headers or []:
+        escaped = str(header).replace("\\", "\\\\").replace('"', '\\"')
+        config += f'header = "{escaped}"\n'
+    return config
+
+
 def _run_curl_download(
     *,
     url,
@@ -839,22 +895,28 @@ def _run_curl_download(
     )
     if google_drive_cookie:
         curl_cmd.extend(["-b", google_drive_cookie])
-    for h in headers or []:
-        curl_cmd.extend(["-H", h])
+    header_config = _curl_header_config(headers)
+    if header_config:
+        curl_cmd.extend(["-K", "-"])
     curl_cmd.append(url)
 
     process = Popen(
         curl_cmd,
+        stdin=PIPE if header_config else None,
         stdout=PIPE,
         stderr=PIPE,
         preexec_fn=os.setsid,
     )
+    if header_config:
+        process.stdin.write(header_config.encode())
+        process.stdin.close()
 
     # Skip the two header lines curl prints before the progress meter.
     process.stderr.readline()
     process.stderr.readline()
 
     last_flush = 0.0
+    last_progress = {}
     line = ""
     aborted = False
     with TaskCancelWatcher(job.id, initial_check=is_aborting) as watcher:
@@ -875,6 +937,8 @@ def _run_curl_download(
             if ch in ("\r", "\n"):
                 progress = _curl_progress_dict(line)
                 line = ""
+                if progress:
+                    last_progress = progress
                 now = time()
                 if progress and (now - last_flush) >= _DOWNLOAD_PROGRESS_FLUSH_SECONDS:
                     last_flush = now
@@ -936,6 +1000,22 @@ def _run_curl_download(
             returncode=process.returncode, cmd=curl_cmd, stderr=stderr
         )
 
+    # The loop only reads while curl is running and throttles its writes, so
+    # the last line it printed is never persisted: a finished download was left
+    # showing whatever fraction the previous tick caught (89-99% observed). The
+    # job's own progress was set to 1.0 here while the ROW kept the stale value
+    # for ever, so the bar never completed. Close it explicitly.
+    final = dict(last_progress)
+    final["received_percent"] = 100
+    final["total_percent"] = 100
+    if final.get("total"):
+        final["received"] = final["total"]
+    final["time_left"] = ""
+    try:
+        flush_progress(final)
+    except Exception:
+        log.exception("download: failed to persist the final progress")
+
     job.meta["progress"] = 1.0
     job.save_meta()
     return True
@@ -974,30 +1054,6 @@ def download_url(
         job FAILED → dependent ``update_status`` task flips media to
         ``DownloadFailed``)
     """
-    job = get_current_job()
-    makedirs(dirname(dest_path), exist_ok=True)
-
-    curl_cmd = ["curl"]
-    if insecure_ssl:
-        curl_cmd.append("-k")
-    curl_cmd.extend(
-        [
-            "-L",
-            "--max-redirs",
-            "5",
-            "--connect-timeout",
-            "30",
-            "--no-netrc",
-            "-o",
-            dest_path,
-        ]
-    )
-    if google_drive_cookie:
-        curl_cmd.extend(["-b", google_drive_cookie])
-    for h in headers or []:
-        curl_cmd.extend(["-H", h])
-    curl_cmd.append(url)
-
     log.info("download_url: media=%s dest=%s", media_id, dest_path)
     # Flip the row to Downloading so the user sees curl is now actually
     # running (the chain root shows DownloadStarting while queued).
@@ -1151,6 +1207,7 @@ def move(
     bwlimit=0,
     remove_source_file=True,
     progress_domain_id=None,
+    min_free_bytes=0,
 ):
     """
     Move disk.
@@ -1200,6 +1257,35 @@ def move(
                 exc,
             )
             method = "rsync"
+
+    # Destination free-space floor. Only a COPY can fill the destination: a
+    # same-filesystem move is a rename, so it consumes nothing and must never be
+    # refused. Basis is the source's ALLOCATED size (st_blocks), which is what a
+    # copy actually lands, not the qcow2 virtual size.
+    #
+    # WARNING: this is a FILESYSTEM-level figure (statvfs f_bavail). On a
+    # thin-provisioned backing store (VDO) the filesystem reports LOGICAL space
+    # and the real constraint is the pool's PHYSICAL fill, which can be ~5x
+    # smaller. On such pools this floor gives no protection and must not be
+    # relied on until the probe learns to read the physical figure.
+    if min_free_bytes and method != "mv":
+        free = _free_space(dirname(destination_path))
+        if free is not None:  # a probe that cannot answer must not block a move
+            try:
+                # APPARENT size, not st_blocks: the rsync argv carries no
+                # --sparse, so a sparse qcow2 lands fully allocated at the
+                # destination. Reserving only the allocated size would let the
+                # copy breach the very floor this gate exists to hold.
+                needed = os_stat(origin_path).st_size
+            except OSError:
+                needed = 0
+            if free - needed < min_free_bytes:
+                raise RuntimeError(
+                    f"move: refusing to copy {origin_path}: destination "
+                    f"{dirname(destination_path)} would be left with "
+                    f"{free - needed} bytes free, below the {min_free_bytes} "
+                    "byte floor (filesystem-level figure)"
+                )
 
     on_progress = None
     if progress_domain_id is not None:
@@ -1255,8 +1341,126 @@ def move_delete(path):
 
         rename(path, join(delete_path, basename(path)))
         return 0
-    else:
-        raise ValueError(f"Path {path} not found")
+    if isdir(dirname(path)):
+        # Its directory is reachable and the file is not there: already
+        # gone. Failing here strands the recycle-bin entry of a storage
+        # whose file was never materialised.
+        log.info("move_delete: %s is already absent", path)
+        return 0
+    raise ValueError(f"Path {path} not found")
+
+
+def _storage_qcow():
+    """Lazy import of ``storage_lib.qcow`` (lives at ``/utils`` in the image,
+    which is on PATH but not PYTHONPATH). Imported lazily so this task module
+    stays importable in contexts where ``/utils`` is absent."""
+    try:
+        from storage_lib import qcow
+    except ModuleNotFoundError:
+        import sys
+
+        if "/utils" not in sys.path:
+            sys.path.insert(0, "/utils")
+        from storage_lib import qcow
+    return qcow
+
+
+@_publishes_result
+def rebase(child_path, new_backing_path, verify=False):
+    """Re-point a qcow2 child's backing file to its parent's NEW path.
+
+    Net-new task for the admin storage-disk path->path migration saga: once a
+    parent disk has been moved, each child must repoint its own backing pointer
+    to the parent's new location. Wraps :func:`storage_lib.qcow.rebase_file`,
+    which runs ``qemu-img rebase -u -b <new_backing_path> -F qcow2 <child>`` and
+    refuses (returns failure) if the child is locked by a hypervisor.
+
+    Runs on a ``storage.*`` queue and is decorated ``@_publishes_result`` so its
+    completion is published to ``stream:task-results`` and change-handler
+    advances the chain (its ``core`` dependents — ``storage_update`` /
+    ``update_status``).
+
+    ``-u`` (unsafe / metadata-only) is correct ONLY when the backing CONTENT is
+    unchanged and only its path moved — exactly the migration case, where the
+    parent's bytes were copied verbatim to ``new_backing_path``. ``-F qcow2``
+    assumes a qcow2 parent. Idempotent: re-running against an already-repointed
+    child re-writes the same pointer and succeeds (safe under resume /
+    at-least-once redelivery).
+
+    :param child_path: Path of the child qcow2 whose backing is repointed.
+    :param new_backing_path: The parent's NEW absolute path (from the ledger).
+    :param verify: When True, run ``qemu-img check -U`` on the child after the
+        rebase and fail unless the whole chain is intact — the migration saga's
+        "qemu_img_check on rebased before advancing" gate, run here because the
+        disks are mounted on the storage worker, not in the orchestrator.
+    :raises RuntimeError: if the rebase fails, the child is in use, or (when
+        ``verify``) the rebased chain does not check out clean.
+    :return: 0 on success.
+    """
+    qcow = _storage_qcow()
+    success, error = qcow.rebase_file(child_path, new_backing_path)
+    if not success:
+        raise RuntimeError(
+            f"rebase of {child_path} onto {new_backing_path} failed: {error}"
+        )
+    if verify and not qcow.qemu_img_check(child_path):
+        raise RuntimeError(
+            f"rebase of {child_path} onto {new_backing_path} left an unclean chain"
+        )
+    return 0
+
+
+@_publishes_result
+def migration_verify_destination(dst_path, expect_backing=None):
+    """UNCONDITIONAL pre-release destination gate for the migration saga.
+
+    A migrated disk's source must NEVER be ``move_delete``d until its destination
+    is PROVABLY sound. This runs on the storage worker (where the disks live) and
+    RAISES on any failure, so the reconciler classifies the job failed (exc_info)
+    and terminalizes the tree with the source retained — no data loss.
+
+    Why this is needed even though ``move`` reports success: ``run_with_progress``
+    RETURNS rsync's non-zero exit code on a non-cancel failure (e.g. the
+    destination pool fills mid-copy -> rc 11/23) instead of raising, so ``move``
+    finishes ``exc_info=None`` and a ROOT disk (which skips rebase, so never gets
+    the rebase task's qemu-img check) would otherwise sail through to release and
+    delete a live source against an absent/partial destination. This gate closes
+    that path for EVERY disk, root or not, regardless of ``config.verify`` (that
+    knob may relax the post-rebase check but can never license deleting a source
+    against an unverified destination).
+
+    Checks, all mandatory:
+      * the destination file EXISTS;
+      * ``qemu-img check -U`` is clean (this also opens the whole backing chain,
+        so a missing/broken backing link fails here too);
+      * for a NON-root disk, the destination's backing was repointed to the
+        parent's NEW path (``expect_backing``) — a child still pointing at the
+        OLD parent would pass the check now but break the instant the old parent
+        is released.
+
+    :param dst_path: the migrated disk's destination path.
+    :param expect_backing: the parent's NEW path for a non-root disk; ``None``
+        for a root (its backing is outside the migrated tree and unchanged).
+    :raises RuntimeError: on a missing/corrupt destination or wrong backing.
+    :return: 0 when the destination is provably good.
+    """
+    qcow = _storage_qcow()
+    if not isfile(dst_path):
+        raise RuntimeError(f"migration: destination {dst_path} does not exist")
+    if not qcow.qemu_img_check(dst_path):
+        raise RuntimeError(
+            f"migration: destination {dst_path} did not pass qemu-img check"
+        )
+    if expect_backing:
+        backing = qcow.get_backing_file(dst_path)
+        if backing != expect_backing and os.path.realpath(
+            backing or ""
+        ) != os.path.realpath(expect_backing):
+            raise RuntimeError(
+                f"migration: destination {dst_path} backs onto {backing!r}, "
+                f"expected the new parent {expect_backing!r}"
+            )
+    return 0
 
 
 @_publishes_result
@@ -1364,6 +1568,7 @@ def virt_win_reg(storage_path, registry_patch):
     # FLATTENS the chain (drops the backing link), doubling disk usage and
     # breaking the template→desktop relationship.
     tmp_path = storage_path + ".regtmp"
+    _safe_unlink(tmp_path)  # clear a stale sibling from a prior crashed run
     try:
         with task_heartbeat("virt_win_reg", storage_path=storage_path):
             # ``--reflink=auto`` is instant on CoW filesystems and a full copy
@@ -1378,7 +1583,7 @@ def virt_win_reg(storage_path, registry_patch):
         return 0
     except CalledProcessError as cpe:
         # Returning an error string publishes job_status="finished" for a
-        # failed merge, marking the disk ready. Log stderr (merged into the
+        # failed merge, marking the disk ready. Log stderr (captured into the
         # CalledProcessError output by _run_cancellable), discard the temp so
         # the live disk is untouched, and re-raise.
         log.error(
@@ -1598,6 +1803,9 @@ def sparsify(storage_path):
     # is often run *because* space is tight, so when there isn't headroom we
     # fall back to the classic in-place op (un-cancellable) rather than fail.
     tmp_path = storage_path + ".sparsetmp"
+    # Clear a stale sibling from a prior crashed run before measuring: it holds
+    # a whole disk image of space on the very filesystem being measured.
+    _safe_unlink(tmp_path)
     free = _free_space(dirname(storage_path))
     need = int(old_size) * 1024  # _get_disk_usage is KB, _free_space is bytes
     safe_cancel = old_size > 0 and free is not None and free > need * 1.1
@@ -1631,7 +1839,7 @@ def sparsify(storage_path):
     except CalledProcessError as cpe:
         # A returned value publishes job_status="finished", recording a failed
         # sparsify as success. Log stderr (in .stderr on the in-place fallback,
-        # merged into .output by _run_cancellable), discard any temp, re-raise.
+        # captured into .output by _run_cancellable), discard any temp, re-raise.
         log.error(
             "virt-sparsify failed for %s (exit %s): %s",
             storage_path,

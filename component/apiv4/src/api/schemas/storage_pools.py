@@ -105,3 +105,30 @@ class CheckCategoryAvailabilityResponse(BaseModel):
     """Response model for category availability check"""
 
     available: bool
+
+
+class StoragePoolWarning(BaseModel):
+    """A non-blocking advisory returned by a storage-pool mutation."""
+
+    code: str
+    message: str
+    disks: Optional[int] = None
+    queued_tasks: Optional[int] = None
+
+
+class StoragePoolMutationResponse(BaseModel):
+    """Response for create/update: advisory warnings (never blocks the write)."""
+
+    warnings: list[StoragePoolWarning] = Field(default_factory=list)
+
+
+class StoragePoolPendingResponse(BaseModel):
+    """Drain-status of a pool: whether it is quiescent enough to disable/delete."""
+
+    id: str
+    enabled: bool
+    categories: int
+    disks: int
+    queued_tasks: int
+    coverage: int
+    drained: bool

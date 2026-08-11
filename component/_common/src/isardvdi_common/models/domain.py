@@ -155,7 +155,34 @@ class Domain(RethinkCustomBase):
         """
         Get domains with specific Storage
         """
-        return cls.get_index([storage.id], index="storage_ids")
+        return cls.get_with_storages([storage.id])
+
+    @classmethod
+    def get_with_storages(cls, storage_ids):
+        """
+        Get the domains using any of ``storage_ids``, in a single indexed
+        query rather than one per storage.
+
+        ``storage_ids`` is a multi index, so a domain holding two of the
+        queried ids comes back once per match — de-duplicate, or a caller
+        counting domains double-counts the multi-disk ones.
+
+        :param storage_ids: Storage ids to look up
+        :type storage_ids: list
+        :return: List of Domain objects
+        :rtype: list
+        """
+        storage_ids = list(dict.fromkeys(storage_ids))
+        if not storage_ids:
+            return []
+        seen = set()
+        domains = []
+        for found in cls.get_index(storage_ids, index="storage_ids"):
+            if found.id in seen:
+                continue
+            seen.add(found.id)
+            domains.append(found)
+        return domains
 
     def toggle_user_visible(self):
         """

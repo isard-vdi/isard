@@ -209,7 +209,9 @@ def scratch_redis():
 
     connection = scratch_connection()
     if connection is None:
-        pytest.skip("no Redis available for the real-chain harness")
+        from isardvdi_common.redis_test_gate import redis_required
+
+        redis_required("no Redis available for the real-chain harness")
 
     # Exclusive use of this db for the duration of the test. Each xdist worker
     # normally has a db to itself (see ``scratch_db``), so this lock is

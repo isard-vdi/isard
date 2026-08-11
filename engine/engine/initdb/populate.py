@@ -119,6 +119,8 @@ class Populate(object):
             "vgpus",
             "storage",
             "storage_pool",
+            "storage_migration",
+            "storage_migration_item",
             "logs_desktops",
             "logs_users",
             "usage_consumption",
@@ -1262,6 +1264,38 @@ class Populate(object):
 
     def user_storage(self):
         self.create_table("user_storage")
+
+    def storage_migration(self):
+        # Durable ledger: one row per admin storage-disk migration job.
+        # MUST be registered here or check_integrity drops it every boot.
+        self.create_table("storage_migration")
+        self.index_create("storage_migration", ["status"])
+
+    def storage_migration_item(self):
+        # Durable ledger: one row per disk (the resumable saga unit).
+        self.create_table("storage_migration_item")
+        self.index_create("storage_migration_item", ["migration_id", "storage_id"])
+        # Compound indexes for per-tree fan-out and natural-key idempotency.
+        try:
+            r.table("storage_migration_item").index_create(
+                "migration_tree",
+                [r.row["migration_id"], r.row["tree_id"]],
+            ).run(self.conn)
+            r.table("storage_migration_item").index_wait("migration_tree").run(
+                self.conn
+            )
+        except Exception:
+            None
+        try:
+            r.table("storage_migration_item").index_create(
+                "migration_storage",
+                [r.row["migration_id"], r.row["storage_id"]],
+            ).run(self.conn)
+            r.table("storage_migration_item").index_wait("migration_storage").run(
+                self.conn
+            )
+        except Exception:
+            None
 
     def index_create(self, table, indexes):
         indexes_ontable = r.table(table).index_list().run(self.conn)

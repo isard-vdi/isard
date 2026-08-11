@@ -154,6 +154,13 @@ def template_chain_kwargs():
     kwargs = dict(create_task.call_args.kwargs)
     # ``blocking`` is consumed by ``create_task`` itself, not by ``Task``.
     kwargs.pop("blocking", None)
+    # So is ``index_owners``: ``Storage.create_task`` defaults it to its own row
+    # before handing the kwargs to ``Task``, and it is patched out here, so the
+    # captured call never carries it. Without this the chain these tests build
+    # is absent from the per-owner index, and everything that resolves a task
+    # THROUGH the index — ``_task_alive`` and every caller of it — silently
+    # reads "no task" and stops exercising what the test names.
+    kwargs.setdefault("index_owners", [DESKTOP_STORAGE_ID])
     return kwargs
 
 

@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging as log
 import os
 import time
 import xml.etree.ElementTree as ET
@@ -29,6 +30,7 @@ import requests
 if TYPE_CHECKING:
     from isardvdi_common.models.storage import Storage
 
+from api.schemas.admin.downloads import REGISTRY_ENTRY_MODELS
 from api.services.admin.tables import AdminTablesService
 from api.services.cards import CardService
 from cachetools import cached
@@ -36,13 +38,65 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.xml_compression import decompress_xml
 from isardvdi_common.lib.downloads.downloads import DownloadsProcessed
+from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.config import Config
+from isardvdi_common.models.domain import Domain as RethinkDomain
+from isardvdi_common.models.task import Task
+from pydantic import ValidationError
 
 # Mirror ``api.services.media`` so registry-domain downloads honour the
 # same ``URL_DOWNLOAD_INSECURE_SSL`` toggle the legacy engine path used.
 URL_DOWNLOAD_INSECURE_SSL = (
     os.environ.get("URL_DOWNLOAD_INSECURE_SSL", "true").lower() == "true"
 )
+
+
+def _registry_rejection(kind: str, entry: dict) -> Optional[str]:
+    """Why this registry entry must not become a row, or None if it may.
+
+    What the updates server publishes is inserted almost verbatim, so a
+    malformed entry does not fail here: it creates a row this
+    installation cannot show. A domain whose kind is outside the
+    taxonomy falls out of every kind-scoped query, leaving a desktop its
+    owner never sees and cannot delete while it holds a disk.
+    """
+    model = REGISTRY_ENTRY_MODELS.get(kind)
+    if model is None or not isinstance(entry, dict):
+        return None
+    try:
+        model.model_validate(entry)
+    except ValidationError as exc:
+        return "; ".join(
+            "{}: {}".format(
+                ".".join(str(part) for part in error.get("loc", ())) or "entry",
+                error.get("msg", "is invalid"),
+            )
+            for error in exc.errors()
+        )
+    return None
+
+
+def _servable_entries(kind: str, entries: list) -> list:
+    """Drop what an installation could not use, saying why.
+
+    Dropping rather than raising on purpose: this runs while listing the
+    catalogue, which is cached and shared, so one bad entry upstream must
+    not cost every other template on the page.
+    """
+    kept = []
+    for entry in entries:
+        rejection = _registry_rejection(kind, entry)
+        if rejection:
+            log.warning(
+                "Not offering %s entry %r published by the updates server: %s",
+                kind,
+                (entry or {}).get("name") if isinstance(entry, dict) else entry,
+                rejection,
+            )
+            continue
+        kept.append(entry)
+    return kept
+
 
 # Named caches so writers can invalidate them after mutations
 # (the registration flow updates the code in the DB and must wipe
@@ -169,7 +223,7 @@ class AdminDownloadsService:
                     for d in req.json():
                         d["id"] = d.get("url-isard")
                         downloads.append(d)
-                    return downloads
+                    return _servable_entries(kind, downloads)
                 else:
                     return req.json()
             elif req.status_code == 500:
@@ -203,7 +257,7 @@ class AdminDownloadsService:
                 timeout=10,
             )
             if req.status_code == 200:
-                return req.json()
+                return _servable_entries(kind, req.json())
         except Exception:
             pass
         return False
@@ -344,6 +398,16 @@ class AdminDownloadsService:
                             f"identifier (url-isard / url-web / name).",
                         )
                     data = matches[0]
+                if data:
+                    rejection = _registry_rejection(kind, data)
+                    if rejection:
+                        raise Error(
+                            "bad_request",
+                            f"This {kind} entry is not a valid row and was "
+                            f"refused: {rejection}. Fix it where it is "
+                            f"published, in the updates registry.",
+                            description_code="registry_entry_invalid",
+                        )
                 if data and kind == "domains":
                     missing_resources = AdminDownloadsService._get_missing_resources(
                         data, user_id
@@ -377,7 +441,19 @@ class AdminDownloadsService:
                     )
             else:
                 items = AdminDownloadsService.get_downloads_kind(kind, user_id)
-                items = [d for d in items if d["new"] is True]
+                items = [d for d in items if d.get("new") is True]
+                # One bad entry must not block the good ones, but if that
+                # leaves nothing, say so rather than report success.
+                offered = len(items)
+                items = _servable_entries(kind, items)
+                if offered and not items:
+                    raise Error(
+                        "bad_request",
+                        f"None of the {offered} {kind} entries the updates "
+                        f"registry offers is a valid row; nothing was "
+                        f"downloaded. Fix them where they are published.",
+                        description_code="registry_entry_invalid",
+                    )
                 if kind == "domains":
                     items = AdminDownloadsService._format_domains(items, user_id)
                 elif kind == "media":
@@ -400,17 +476,120 @@ class AdminDownloadsService:
                         pending_storage=pending_storage,
                         insecure_ssl=URL_DOWNLOAD_INSECURE_SSL,
                     )
-        elif action == "abort":
-            data = {"id": id, "status": "DownloadAborting"}
-            AdminTablesService.update_table_item(kind, data)
-        elif action == "delete":
-            if kind in ("domains", "media"):
-                data = {"id": id, "status": "Deleting"}
-                AdminTablesService.update_table_item(kind, data)
-            else:
+        elif action in ("abort", "delete"):
+            if kind == "media":
+                return AdminDownloadsService._media_action(action, id, user_id)
+            if kind == "domains":
+                return AdminDownloadsService._domain_action(action, id, user_id)
+            if action == "delete":
                 AdminTablesService.delete_table_item(kind, id)
 
         return {}
+
+    @staticmethod
+    def _media_action(action: str, id: str, user_id: str) -> dict:
+        """Abort or delete a downloaded media, doing the work."""
+        # lazy: avoids services->routes->services cycle
+        from api.services.media import MediaService
+
+        if action == "abort":
+            MediaService.abort_media_download(id)
+            return {"id": id, "kind": "media", "action": action}
+        task = MediaService.delete_media(id, {"user_id": user_id})
+        return {"id": id, "kind": "media", "action": action, "task_id": task}
+
+    @staticmethod
+    def _domain_storage_task(domain) -> Optional[str]:
+        """The task of the storage this download writes into, if any.
+
+        Resolved through the per-owner index, not the row's ``task`` scalar:
+        that field is retired and no longer written, so reading it answers
+        ``None`` for every download and both callers' guards invert — abort
+        stops cancelling and buries the row as ``Failed`` with the chain still
+        running, and delete stops refusing while that chain runs.
+        """
+        disks = (domain.create_dict or {}).get("hardware", {}).get("disks") or []
+        for disk in disks:
+            storage_id = disk.get("storage_id") if isinstance(disk, dict) else None
+            if not storage_id:
+                continue
+            from isardvdi_common.models.storage import Storage
+
+            if Storage.exists(storage_id):
+                return current_task_id(Task._redis, storage_id)
+        return None
+
+    @staticmethod
+    def _domain_action(action: str, id: str, user_id: str) -> dict:
+        """Abort or delete a downloaded desktop, doing the work.
+
+        The status was the whole implementation before: it wrote
+        ``Deleting`` and waited for a consumer that no longer exists,
+        which the engine's broom then rewrote to ``Unknown``. Nothing
+        ever reached the storage worker.
+        """
+        # lazy: avoids services->routes->services cycle
+        from api.services.desktops import DesktopService
+
+        if not RethinkDomain.exists(id):
+            raise Error(
+                "not_found",
+                f"Desktop with ID {id} not found.",
+                description_code="not_found",
+            )
+        domain = RethinkDomain(id)
+        status = domain.status
+        in_flight = ("DownloadStarting", "Downloading", "Download")
+        task_id = AdminDownloadsService._domain_storage_task(domain)
+        pending = bool(task_id and Task.exists(task_id) and Task(task_id).pending)
+
+        if action == "abort":
+            if status not in in_flight + ("DownloadAborting", "ResetDownloading"):
+                raise Error(
+                    "bad_request",
+                    f"There is no download to abort for {id}; its status is "
+                    f"{status}.",
+                    description_code="download_not_running",
+                )
+            domain.status = "DownloadAborting"
+            if pending:
+                try:
+                    Task(task_id).cancel()
+                except Exception:
+                    # Best effort: the row flag still stops the worker on
+                    # its next check, and the chain settles the row.
+                    pass
+            else:
+                # No chain will ever finalize this row, so settle it here
+                # instead of leaving it aborting for good.
+                domain.status = "Failed"
+            return {"id": id, "kind": "domains", "action": action}
+
+        if status in in_flight:
+            raise Error(
+                "precondition_required",
+                f"{id} is downloading; abort the download before deleting it.",
+                description_code="download_in_progress",
+            )
+        if pending:
+            raise Error(
+                "precondition_required",
+                f"{id} has the pending task {task_id}; wait for it to settle.",
+                description_code="download_task_pending",
+            )
+        if domain.kind != "desktop":
+            # A row with a kind outside the taxonomy is not something the
+            # desktop delete can reason about; it needs repairing first.
+            raise Error(
+                "precondition_required",
+                f"{id} has the unsupported kind {domain.kind!r} and cannot be "
+                "deleted until it is repaired.",
+                description_code="download_row_unsupported_kind",
+            )
+        # Always permanent: the Downloads page is where an operator goes
+        # to free the space, and the entry can be downloaded again.
+        tasks = DesktopService.delete_desktop(id, user_id=user_id, permanent=True)
+        return {"id": id, "kind": "domains", "action": action, "task_id": tasks}
 
     @staticmethod
     def _get_missing_resources(domain: dict, username: str) -> dict:
@@ -503,6 +682,32 @@ class AdminDownloadsService:
         return result
 
     @staticmethod
+    def _registry_download_source(kind: str, data: dict) -> tuple:
+        """The absolute URL and headers to fetch one registry entry from.
+
+        ``url-isard`` is a path relative to the registry server, not a URL: it
+        has to be joined to the configured server and carry the registration
+        code, which is the build the engine's download thread used
+        (``<url>/storage/<table>/<url-isard>``). ``url-web`` is the optional
+        absolute alternate and needs neither. Shared so the media and domain
+        branches cannot drift apart again — media used to hand the relative
+        path straight to curl, which then resolved it as a hostname.
+        """
+        explicit = str(data.get("url") or "")
+        if explicit.startswith(("http://", "https://")):
+            return explicit, []
+        url_isard = str(data.get("url-isard") or "")
+        url_web = str(data.get("url-web") or "")
+        if url_web and not url_isard:
+            return url_web, []
+        registry_url, code, _ = AdminDownloadsService._get_cfg()
+        url = (
+            f"{str(registry_url).rstrip('/')}/storage/{kind}/"
+            f"{url_isard.lstrip('/')}"
+        )
+        return url, ([f"Authorization: {code}"] if code else [])
+
+    @staticmethod
     def _kick_off_download_chain(
         kind: str,
         data: dict,
@@ -528,13 +733,16 @@ class AdminDownloadsService:
                 media = RethinkMedia(media_id)
             except Exception:
                 return
-            url = data.get("url") or data.get("url-isard") or data.get("url-web")
-            if not url:
+            url, headers = AdminDownloadsService._registry_download_source(
+                "media", data
+            )
+            if not url or url.endswith("/"):
                 return
             try:
                 media.enqueue_download_chain(
                     user_id=data.get("user") or media.user,
-                    url=str(url),
+                    url=url,
+                    headers=headers,
                     insecure_ssl=insecure_ssl,
                 )
             except Exception:
@@ -548,22 +756,9 @@ class AdminDownloadsService:
                 # ISO-only desktop or already-downloaded re-trigger:
                 # nothing to download.
                 return
-            registry_url, code, _ = AdminDownloadsService._get_cfg()
-            url_isard = data.get("url-isard") or ""
-            url_web = data.get("url-web") or ""
-            # Match the engine's deleted ``DownloadChangesThread.run``
-            # build (``url_resources + "/storage/" + table + "/" + url-isard``)
-            # so the existing registry server keeps serving the same
-            # paths. ``url-web`` is the optional alternate (rare).
-            if url_web and not str(url_isard):
-                full_url = url_web
-                headers = []
-            else:
-                full_url = (
-                    f"{registry_url.rstrip('/')}/storage/domains/"
-                    f"{str(url_isard).lstrip('/')}"
-                )
-                headers = [f"Authorization: {code}"] if code else []
+            full_url, headers = AdminDownloadsService._registry_download_source(
+                "domains", data
+            )
             pending_storage.enqueue_registry_download_chain_for_domain(
                 domain_id=data["id"],
                 url=full_url,
@@ -673,6 +868,19 @@ class AdminDownloadsService:
             d["progress"] = {}
             d["status"] = "DownloadStarting"
             d["accessed"] = int(time.time())
+            # The download chain refuses to enqueue without an absolute
+            # destination, and a registry entry carries no path of its own. The
+            # by-URL path resolves one before inserting; do the same here, from
+            # the row's own id so the file is named like every other media.
+            if not d.get("path_downloaded"):
+                from isardvdi_common.models.media import Media as RethinkMedia
+
+                _pool, d["path_downloaded"] = RethinkMedia.resolve_download_path(
+                    user_id=user_id,
+                    category_id=d["category"],
+                    media_id=d["id"],
+                    kind=d["kind"],
+                )
             new_data.append(d)
         return new_data
 

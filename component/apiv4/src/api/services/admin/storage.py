@@ -39,6 +39,14 @@ class AdminStorageService:
         return StorageProcessed.get_status_counts(category_id=category_id)
 
     @staticmethod
+    def refresh_running_sizes() -> int:
+        """Enqueue a qemu-img-info refresh for every running desktop's disk.
+
+        Returns the number of refresh tasks enqueued.
+        """
+        return StorageProcessed.enqueue_running_desktops_size_refresh()
+
+    @staticmethod
     def get_storages(
         payload: dict, status: str = None, categories: list = None
     ) -> list:

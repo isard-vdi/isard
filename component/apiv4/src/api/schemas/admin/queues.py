@@ -384,3 +384,33 @@ class ProblemTasksResponse(BaseModel):
     truncated: bool = False
     count: int = 0
     tasks: List[ProblemTask] = []
+
+
+class OrphanLane(BaseModel):
+    """A single storage queue lane holding jobs with no consumer."""
+
+    queue: str
+    queued: int
+
+
+class OrphanPool(BaseModel):
+    """A pool (or move-lane pair) whose queued jobs are served by no worker."""
+
+    pool: str
+    queued: int
+    lanes: List[OrphanLane]
+
+
+class StorageLaneHealthResponse(BaseModel):
+    """Lane-centric health of the storage queues: orphan lanes (jobs but no
+    consumer, so tasks stall). ``healthy`` is true when there are none."""
+
+    orphan_pools: List[str]
+    orphans: List[OrphanPool]
+    healthy: bool
+    #: Lanes past the snapshot cap, so a caller can tell a bounded read from a
+    #: complete one instead of reading `healthy` as "all clear".
+    truncated_lanes: int = 0
+    #: False when redis could not be read: the answer is the fail-open empty
+    #: one, not an observation that every pool has a consumer.
+    coverage_known: bool = True

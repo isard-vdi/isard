@@ -1318,6 +1318,10 @@ class DesktopService:
                     priority="default",
                     retry=0,
                 )
+            except Error:
+                # Already typed: re-raise untouched so its description_code
+                # survives instead of being flattened by the re-wrap below.
+                raise
             except Exception as e:
                 raise Error(*e.args)
 

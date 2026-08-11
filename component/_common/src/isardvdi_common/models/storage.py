@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from enum import Enum
 from time import time
 from typing import Any, Dict, List, Literal, Optional, Union
 from uuid import uuid4
@@ -48,6 +49,64 @@ _owner_category_cache = SynchronizedTTLCache(maxsize=4096, ttl=60)
 def _owner_category(user_id):
     owner = User.get(user_id)
     return owner.get("category") if owner else None
+
+
+class DiskEffect(str, Enum):
+    """What an action does to the disk FILE, and so what must be re-measured.
+
+    The stored ``qemu-img-info`` is a snapshot: nothing watches the filesystem,
+    so a row is only as current as the last measurement. An action that changes
+    the file without re-measuring leaves the row lying -- silently, because the
+    task still succeeds. ``convert`` did exactly that: it writes a flat image
+    and its chain ended at ``update_status``, so the destination reached its
+    final status with no ``qemu-img-info`` at all and counted as zero bytes
+    against every quota.
+
+    Declaring the effect is what makes the omission impossible to repeat: a new
+    action cannot be added without answering the question, because
+    :data:`DISK_EFFECTS` is asserted to cover every task-creating method.
+    """
+
+    #: The file is untouched, or it is going away, or the action IS the
+    #: measurement. Nothing to re-measure afterwards.
+    NONE = "none"
+    #: The bytes change but the backing file and the location do not (resize,
+    #: sparsify, a write into the guest). Needs a fresh ``qemu-img-info``.
+    SIZE = "size"
+    #: The file is replaced, or its backing file changes (create, convert,
+    #: disconnect). Needs a fresh ``qemu-img-info`` AND the parent re-resolved.
+    CHAIN = "chain"
+    #: Same bytes at a new location. Nothing to re-measure, but every path the
+    #: row records -- ``directory_path`` and the paths inside ``qemu-img-info``
+    #: -- has to follow the file.
+    PATH = "path"
+
+
+#: Every :class:`Storage` method that creates a task, and what it does to the
+#: file. Kept beside the actions so it is edited in the same breath as them;
+#: ``test_disk_effects_contract`` fails when a task-creating method is missing.
+DISK_EFFECTS = {
+    "find": DiskEffect.NONE,
+    "check_backing_chain": DiskEffect.NONE,
+    "rsync": DiskEffect.PATH,
+    "mv": DiskEffect.PATH,
+    "task_delete": DiskEffect.NONE,
+    "increase_size": DiskEffect.SIZE,
+    "virt_win_reg": DiskEffect.SIZE,
+    "sparsify": DiskEffect.SIZE,
+    "disconnect_chain": DiskEffect.CHAIN,
+    "convert": DiskEffect.CHAIN,
+    "recreate": DiskEffect.CHAIN,
+    "create_new_storage": DiskEffect.CHAIN,
+    "enqueue_disk_creation_chain_for_domain": DiskEffect.CHAIN,
+    "enqueue_template_creation_chain_from_desktop": DiskEffect.CHAIN,
+    "enqueue_registry_download_chain_for_domain": DiskEffect.CHAIN,
+    # A cancelled operation can leave the file half-written or already
+    # replaced, so what is on disk after an abort is unknown by definition.
+    "abort_operations": DiskEffect.CHAIN,
+    "set_path": DiskEffect.PATH,
+    "delete_path": DiskEffect.NONE,
+}
 
 
 class StorageModel(BaseModel):
@@ -98,6 +157,8 @@ def new_storage_directory_path(user_id, pool_usage):
     :param pool_usage: Storage pool_usage: desktop or template
     :type pool_usage: str
     """
+    from isardvdi_common.helpers.error_factory import Error
+
     storage_pool = StoragePool.get_by_user_kind(user_id, pool_usage)
     if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
         return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(pool_usage)}"
@@ -105,13 +166,13 @@ def new_storage_directory_path(user_id, pool_usage):
     # the owner is gone the previous code fell through and returned None, which
     # produced a "None/<id>.qcow2" path on disk. Fail loudly instead.
     if not User.exists(user_id):
-        raise Exception(
+        raise Error(
             "precondition_required",
             f"Cannot resolve storage path: user {user_id} does not exist",
         )
     category = User(user_id).category
     if not category:
-        raise Exception(
+        raise Error(
             "precondition_required",
             f"Cannot resolve storage path: user {user_id} has no category",
         )
@@ -143,10 +204,13 @@ class Storage(RethinkCustomBase):
         :param parent_id: Parent ID
         :type parent_id: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         if parent_id and not cls.exists(parent_id):
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"Parent {parent_id} does not exist",
+                description_code="parent_storage_not_found",
             )
 
         storage_dict = {
@@ -199,11 +263,14 @@ class Storage(RethinkCustomBase):
         category (deleted owner) would otherwise produce a literal
         "<mountpoint>/None/..." path, so fail loudly instead.
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         category = self.category
         if not category:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"Cannot resolve storage path: storage {self.id} owner has no category",
+                description_code="storage_owner_no_category",
             )
         return category
 
@@ -234,12 +301,13 @@ class Storage(RethinkCustomBase):
         :param usage: The usage to be used
         :type usage: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         if usage not in ["desktop", "template"]:
-            raise Exception(
-                {
-                    "error": "bad_request",
-                    "description": f"Usage {usage} must be desktop or template",
-                }
+            raise Error(
+                "bad_request",
+                f"Usage {usage} must be desktop or template",
+                description_code="storage_invalid_usage",
             )
 
         # Resolve usage from the directory, not self.path (which includes the
@@ -291,14 +359,103 @@ class Storage(RethinkCustomBase):
                 storage_pool.get_usage_path(self.pool_usage),
             )
 
+    @classmethod
+    def get_children(cls, storage_ids, include_deleted=False):
+        """
+        Returns the direct children of every id in ``storage_ids`` — one
+        indexed query for the whole batch, not one per id.
+
+        This is the single place the "what depends on this disk?" question
+        is answered; every property below is expressed in terms of it so
+        the guards, the delete cascade and the API count cannot drift apart
+        again.
+
+        ``include_deleted=False`` (the default, and what every guard has
+        always used) drops rows in status ``deleted``, on the premise that
+        a genuinely gone child must not keep blocking its parent. That
+        premise does not always hold: a recycle-bin purge run with ``move``
+        renames the qcow2 into ``deleted/`` instead of unlinking it, so the
+        copy survives on disk still carrying its ``backing_file=`` link.
+        Pass ``True`` where those rows matter — they are invisible to the
+        default, and that is how they end up stranded.
+
+        :param storage_ids: Ids whose direct children are wanted
+        :type storage_ids: list
+        :param include_deleted: Also return rows in status ``deleted``
+        :type include_deleted: bool
+        :return: List of Storage objects
+        :rtype: list
+        """
+        storage_ids = list(dict.fromkeys(storage_ids))
+        if not storage_ids:
+            return []
+        return cls.get_index(
+            storage_ids,
+            index="parent",
+            filter=None if include_deleted else (lambda s: s["status"] != "deleted"),
+        )
+
     @property
     def children(self):
         """
         Returns the non-deleted storages that have this storage as parent.
         """
-        return self.get_index(
-            [self.id], index="parent", filter=lambda s: s["status"] != "deleted"
-        )
+        return Storage.get_children([self.id])
+
+    def dependent_levels(self, include_deleted=False):
+        """
+        Returns the storages that depend on this one as a backing file,
+        grouped by distance: ``[[children], [grandchildren], ...]``.
+
+        One indexed lookup per level rather than one per node, which is
+        what the previous hand-rolled walk did.
+
+        The walk is cycle-guarded: ``parent`` is a plain field with no
+        referential integrity, so a corrupt row pointing back up its own
+        chain would otherwise loop until the process died.
+
+        Reversing the levels gives leaf-to-root — the only order in which
+        no intermediate step leaves a child without its parent.
+
+        :param include_deleted: Also walk rows in status ``deleted``
+        :type include_deleted: bool
+        :return: List of lists of Storage objects, nearest level first
+        :rtype: list
+        """
+        levels = []
+        seen = {self.id}
+        frontier = [self.id]
+        while frontier:
+            level = [
+                child
+                for child in Storage.get_children(
+                    frontier, include_deleted=include_deleted
+                )
+                if child.id not in seen
+            ]
+            if not level:
+                break
+            seen.update(child.id for child in level)
+            levels.append(level)
+            frontier = [child.id for child in level]
+        return levels
+
+    def dependents(self, include_deleted=False):
+        """
+        Returns every storage that transitively depends on this one as a
+        backing file, nearest first.
+        NOTE: Does not include the storage itself.
+
+        :param include_deleted: Also return rows in status ``deleted``
+        :type include_deleted: bool
+        :return: List of Storage objects
+        :rtype: list
+        """
+        return [
+            child
+            for level in self.dependent_levels(include_deleted=include_deleted)
+            for child in level
+        ]
 
     @property
     def derivatives(self):
@@ -307,17 +464,7 @@ class Storage(RethinkCustomBase):
         recursively including all descendant children (leaf nodes).
         NOTE: Does not include the storage itself.
         """
-        # Get the direct children first
-        direct_children = self.children
-
-        # For each child, recursively get their children
-        all_children = []
-        for child in direct_children:
-            all_children.append(child)
-            # Recursively get children of the child
-            all_children.extend(child.children)
-
-        return all_children
+        return self.dependents()
 
     @property
     def parents(self):
@@ -353,24 +500,35 @@ class Storage(RethinkCustomBase):
         """
         return domain.Domain.get_with_storage(self)
 
+    def domains_dependents(self, include_deleted=False):
+        """
+        Returns the domains attached to every transitive dependent of this
+        storage, in one indexed query.
+        NOTE: Does not include the storage's own domains.
+
+        Takes the same ``include_deleted`` as the walk it is built on, so a
+        caller that reaches through already-deleted rows for the disks
+        reaches the same distance for their domains. Answering the two
+        halves of "what breaks if this disk goes" at different depths is
+        how a disk ends up marked and the desktop on it left looking
+        startable.
+
+        :param include_deleted: Also walk rows in status ``deleted``
+        :type include_deleted: bool
+        :return: List of Domain objects
+        :rtype: list
+        """
+        return domain.Domain.get_with_storages(
+            [storage.id for storage in self.dependents(include_deleted=include_deleted)]
+        )
+
     @property
     def domains_derivatives(self):
         """
         Returns all domains attached to the storage and its descendants recursively.
         NOTE: Does not include the storage domains itself.
         """
-        # First, get the domains attached to the current storage object
-        storage_domains = self.domains
-
-        # Recursively get all child storages
-        all_children = self.children
-
-        # For each child storage, add its domains to the list
-        all_domains = []
-        for child in all_children:
-            all_domains.extend(child.domains)
-
-        return all_domains
+        return self.domains_dependents()
 
     @property
     def category(self):
@@ -419,11 +577,11 @@ class Storage(RethinkCustomBase):
     @property
     def statuses(self):
         """
-        Retrieve the status and IDs for a storage and its associated domain
-        based on the provided storage ID.
+        Retrieve the status and IDs for this storage and its associated domains.
 
-        :param storage_id: The storage ID to filter by
-        :return: A list of dictionaries with storage and domain statuses and IDs
+        :return: A single dict with the storage's own id, status, path and pool,
+            plus a ``domains`` list of id/status/kind entries
+        :rtype: dict
         """
         return {
             "id": self.id,
@@ -601,22 +759,29 @@ class Storage(RethinkCustomBase):
         :param action: Action
         :type action: str
         """
+        # Typed ``Error`` so apiv4's exception mapper answers 428 with the
+        # reason, instead of a generic 500 from a plain ``Exception``: every
+        # caller of this method used to surface its preconditions that way.
+        # Import inside the function to avoid the snapshot-bind race
+        # documented in ``reference_apiv4_error_factory_race.md``.
+        from isardvdi_common.helpers.error_factory import Error
+
         if action == "move":
             if self.status not in ["ready", "recycled"]:
-                raise Exception(
+                raise Error(
                     "precondition_required",
                     f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
-                    "storage_invalid_status_for_move",
+                    description_code="storage_invalid_status_for_move",
                 )
         elif self.status != "ready" and action not in (
             "create",
             "delete",
             "download",
         ):
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
-                "storage_not_ready",
+                description_code="storage_not_ready",
             )
         # "create" / "download" are fresh-storage actions — the domain
         # being wired in is the whole point, and by construction it is
@@ -626,16 +791,16 @@ class Storage(RethinkCustomBase):
         if action not in ("create", "download"):
             domains = self.domains
             if any(domain.status != "Stopped" for domain in domains):
-                raise Exception(
+                raise Error(
                     "precondition_required",
                     f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
-                    "desktops_not_stopped",
+                    description_code="desktops_not_stopped",
                 )
             if len(self.children) > 0:
-                raise Exception(
+                raise Error(
                     "precondition_required",
                     f"Storage {self.id} has children storages that depend on it as backing file",
-                    "storage_has_children",
+                    description_code="storage_has_children",
                 )
             for domain in self.domains:
                 domain.current_action = action
@@ -643,14 +808,18 @@ class Storage(RethinkCustomBase):
         self.status = "maintenance"
 
     def set_ready(self):
+        # Same reason as ``set_maintenance``: a precondition must not reach
+        # the caller as a generic 500.
         """
         Set storage and it's domains to ready status.
         """
         if self.status != "maintenance":
-            raise Exception(
+            from isardvdi_common.helpers.error_factory import Error
+
+            raise Error(
                 "precondition_required",
                 f"Storage {self.id} must be maintenance in order to return back to ready status. It's actual status is {self.status}",
-                "storage_not_maintenance",
+                description_code="storage_not_maintenance",
             )
         for domain in self.domains:
             domain.status = "Stopped"
@@ -1044,6 +1213,10 @@ class Storage(RethinkCustomBase):
         :rtype: str
         """
         queue_virt_win_reg = f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=self.directory_path).id}.{priority}"
+        # virt-win-reg writes into the guest registry, so the qcow2 allocation
+        # grows. Re-measure on a separate queue, as sparsify does, so a bulk run
+        # does not queue behind its own patches.
+        queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.background"
 
         self.set_maintenance("virt_win_reg")
         return self.create_task(
@@ -1060,6 +1233,22 @@ class Storage(RethinkCustomBase):
                 "timeout": timeout,
             },
             dependents=[
+                {
+                    "queue": queue_backing_chain,
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        }
+                    ],
+                },
                 {
                     "queue": "core",
                     "task": "update_status",
@@ -1258,6 +1447,20 @@ class Storage(RethinkCustomBase):
         :rtype: str
         """
 
+        # qemu-img convert is given no -B, so the destination is a FLAT image:
+        # new bytes, and no backing file. Nothing else measures it, so without
+        # this the destination reaches its final status carrying no
+        # qemu-img-info at all -- and every consumer that sizes a disk from it
+        # (quotas, usage, analytics) counts a real disk as zero bytes.
+        # It rides a storage queue, so a failed convert leaves it unenqueued
+        # rather than measuring a destination that was just unlinked.
+        # The measurement must be told the DESTINATION's format: it pins -f
+        # rather than probing, and convert is the one action whose output is
+        # not qcow2. Measured as qcow2, a good vmdk reads as "could not open"
+        # and the row is set to deleted while the file stays on disk forever.
+        queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=new_storage.directory_path).id}.background"
+        dest_type = new_storage_type.lower()
+
         self.set_maintenance("convert")
         return self.create_task(
             user_id=user_id,
@@ -1269,11 +1472,28 @@ class Storage(RethinkCustomBase):
                 "kwargs": {
                     "source_disk_path": self.path,
                     "dest_disk_path": new_storage.path,
-                    "format": new_storage_type.lower(),
+                    "format": dest_type,
                     "compression": compress,
                 },
             },
             dependents=[
+                {
+                    "queue": queue_backing_chain,
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": new_storage.id,
+                            "storage_path": new_storage.path,
+                            "storage_type": dest_type,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        }
+                    ],
+                },
                 {
                     "queue": "core",
                     "task": "update_status",
@@ -1309,11 +1529,9 @@ class Storage(RethinkCustomBase):
                             }
                         }
                     },
-                }
+                },
             ],
         )
-
-        pass
 
     def recreate(
         self,
@@ -1335,31 +1553,34 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         # recreate is a foreground op (fresh disk from the parent, then delete the
         # old one): route its default to the seconds ``standard`` lane, not the
         # sub-second reserved (interactive) pool a plain ``create`` would take. An
         # explicit non-default priority from the caller is still honoured.
         if priority == "default":
             priority = "standard"
+
         if not self.parent:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 "Storage parent missing",
-                "storage_has_no_parent",
+                description_code="storage_has_no_parent",
             )
 
         if not self.operational:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 "Storage parent not ready",
-                "storage_parent_not_ready",
+                description_code="storage_parent_not_ready",
             )
 
         if not Storage.exists(self.parent):
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 "Storage parent missing",
-                "storage_has_no_parent",
+                description_code="storage_has_no_parent",
             )
         storage_parent = Storage(self.parent)
         parent_args = {
@@ -1521,24 +1742,28 @@ class Storage(RethinkCustomBase):
         """
         # No parent_id means a brand-new blank disk; the storage worker's
         # create task omits the backing file in that case.
+        from isardvdi_common.helpers.error_factory import Error
+
         parent_args = {}
         if parent_id:
             if not Storage.exists(parent_id):
-                raise Exception(
+                raise Error(
                     "not_found",
                     f"Parent storage {parent_id} not found",
+                    description_code="parent_storage_not_found",
                 )
             storage_parent = Storage(parent_id)
             if storage_parent.status != "ready":
-                raise Exception(
+                raise Error(
                     "precondition_required",
                     "Parent storage is not ready",
-                    "storage_not_ready",
+                    description_code="storage_not_ready",
                 )
             if storage_parent.type != storage_type:
-                raise Exception(
+                raise Error(
                     "precondition_required",
                     "Parent storage type does not match",
+                    description_code="parent_storage_type_mismatch",
                 )
             parent_args = {
                 "parent_path": storage_parent.path,
@@ -2121,9 +2346,11 @@ class Storage(RethinkCustomBase):
 
         :return: Root task id.
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         pool = self.pool
         if pool is None:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"No storage pool found for domain {domain_id}",
             )
@@ -2267,15 +2494,17 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         if get_storage_id_from_path(new_path) != self.id:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"Storage ID {self.id} does not match the path {new_path}",
-                "storage_id_mismatch",
+                description_code="storage_id_mismatch",
             )
 
         if self.path == new_path:
-            raise Exception(
+            raise Error(
                 "bad_request",
                 f"Path {new_path} is the same as the storage path",
             )
@@ -2357,15 +2586,17 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         if get_storage_id_from_path(path) != self.id:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"Storage ID {self.id} does not match the path {path}",
-                "storage_id_mismatch",
+                description_code="storage_id_mismatch",
             )
 
         if self.path == path:
-            raise Exception(
+            raise Error(
                 "bad_request",
                 f"Path {path} is the same as the storage path",
             )
