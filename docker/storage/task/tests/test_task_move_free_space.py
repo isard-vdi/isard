@@ -69,26 +69,28 @@ def test_a_same_filesystem_move_is_never_blocked(tmp_path, monkeypatch):
     assert not Path(src).exists()  # renamed
 
 
-def test_move_without_a_floor_is_unchanged(tmp_path, monkeypatch):
-    """Every non-migration caller passes no floor and must keep today's
-    behaviour, even on a filesystem that reports almost nothing free."""
+def test_move_without_a_floor_gets_the_default_one(tmp_path, monkeypatch):
+    """A caller that passes no floor used to get NO protection at all, which
+    made the guard a migration-only feature while every other caller could
+    still fill the destination. It now falls back to the default floor; passing
+    ``min_free_bytes=0`` is how an operator turns it off (see
+    test_task_free_space_gate.py)."""
     src = _sized(tmp_path, "src.qcow2", 1024)
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "_free_space", lambda p: 1)
     monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
 
-    task.move(src, dst, "rsync", remove_source_file=False)  # no raise
+    with pytest.raises(RuntimeError) as excinfo:
+        task.move(src, dst, "rsync", remove_source_file=False)
+
+    assert "refusing to copy" in str(excinfo.value)
 
 
-def test_move_proceeds_when_free_space_is_unknown(tmp_path, monkeypatch):
-    """``_free_space`` returns None when statvfs fails. Fail OPEN: a probe that
-    cannot answer must not block an otherwise valid migration."""
-    src = _sized(tmp_path, "src.qcow2", 1024)
-    dst = str(tmp_path / "out" / "dst.qcow2")
-    monkeypatch.setattr(task, "_free_space", lambda p: None)
-    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
-
-    task.move(src, dst, "rsync", min_free_bytes=1 << 40, remove_source_file=False)
+# The unknown-free-space case used to live here asserting the OPPOSITE (fail
+# open). That contract was the defect, and the assertion was what made it look
+# intentional. It now lives in test_task_free_space_gate.py as
+# ``test_move_refuses_when_free_space_is_unknown``, together with the same
+# decision applied to convert and disconnect.
 
 
 def test_move_reserves_the_source_size_against_the_floor(tmp_path, monkeypatch):
