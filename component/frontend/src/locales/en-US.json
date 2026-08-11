@@ -88,7 +88,11 @@
     },
     "deployment": {
       "title": "Deployment management",
-      "subtitle": "View deployment details and review user status"
+      "subtitle": "View deployment details and review user status",
+      "view": {
+        "title": "Deployment",
+        "subtitle": "Quickly interact with the desktops of the deployment"
+      }
     },
     "deployment-videowall": {
       "title": "Videowall",
@@ -802,6 +806,36 @@
         "title-invisible": "Make the user's desktops invisible",
         "description-visible": "The user will see and be able to use their deployment desktops.",
         "description-invisible": "The user will no longer see their deployment desktops."
+      }
+    },
+    "view-deployment": {
+      "sections": {
+        "desktops": {
+          "title": "Desktops",
+          "actions": {
+            "stop-all": {
+              "label": "Stop all",
+              "tooltip": "Stop all desktops in the deployment"
+            },
+            "book": {
+              "tooltip": "Book deployment"
+            },
+            "collapse": "Collapse desktops panel",
+            "expand": "Expand desktops panel"
+          }
+        },
+        "viewer": {
+          "actions": {
+            "close": "Close viewer",
+            "maximize": "Maximize viewer",
+            "minimize": "Restore viewer size"
+          },
+          "empty": {
+            "title": "No desktop selected",
+            "description": "Start and select a desktop from the sidebar to view it here",
+            "not-available": "Viewer not available"
+          }
+        }
       }
     },
     "new-deployment": {
@@ -2404,6 +2438,17 @@
         },
         "cancel": "Cancel",
         "confirm": "Confirm"
+      },
+      "desktop-card": {
+        "view": "View",
+        "viewing": "Viewing",
+        "viewers": "Viewers",
+        "not-available": "The desktop must be started in order to view it",
+        "tooltips": {
+          "view": "Click to view this desktop on this page",
+          "viewing": "You are viewing this desktop",
+          "no-web-viewer": "This desktop has no web viewer; open it from the viewers menu"
+        }
       }
     },
     "bookings": {

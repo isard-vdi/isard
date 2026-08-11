@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLocalStorage } from '@vueuse/core'
+import { cn } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
@@ -14,23 +15,20 @@ import {
   DropdownMenuItem
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { type Viewer, ViewerSelectDropdownItem } from '.'
 
 const { t } = useI18n()
-
-interface Viewer {
-  id: string
-  loading: boolean
-  // TODO: should you pass loading for each viewer, or should the component manage it based on a global loading prop?
-}
 
 // interface Props extends PrimitiveProps {
 interface Props {
   viewers: Viewer[]
   selectedViewer?: string
+  size?: 'default' | 'compact'
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  selectedViewer: undefined
+  selectedViewer: undefined,
+  size: 'default'
 })
 
 const emit = defineEmits<{
@@ -93,6 +91,7 @@ const selectViewer = (viewer: Viewer) => {
   <ButtonGroup v-if="selectedViewer" class="min-w-0">
     <!-- TODO: rework component to update loading state dynamically -->
     <Tooltip
+      v-if="props.size !== 'compact'"
       :open="tooltipOpen"
       :disabled="viewerTooltipDismissed"
       @update:open="tooltipOpen = $event"
@@ -116,16 +115,19 @@ const selectViewer = (viewer: Viewer) => {
     </Tooltip>
 
     <template v-if="props.viewers.length > 1">
-      <ButtonGroupSeparator color="brand-800" />
+      <ButtonGroupSeparator v-if="props.size !== 'compact'" color="brand-800" />
 
       <DropdownMenu>
-        <DropdownMenuTrigger>
-          <Button icon="chevron-down" class="rounded-l-none" />
+        <DropdownMenuTrigger @click.stop>
+          <Button
+            icon="chevron-down"
+            :class="cn(props.size === 'compact' ? 'p-[10px]' : 'rounded-l-none')"
+          />
         </DropdownMenuTrigger>
         <DropdownMenuContent class="bg-white border border-[#D7D3D0] rounded-lg" align="end">
           <DropdownMenuGroup>
             <template v-for="viewer in viewers" :key="viewer.id">
-              <DropdownMenuItem v-if="viewer.id !== selectedViewer.id">
+              <!-- <DropdownMenuItem v-if="viewer.id !== selectedViewer.id">
                 <Tooltip
                   :disabled="viewerTooltipDismissed"
                   :open="dropdownTooltipOpen[viewer.id]"
@@ -152,7 +154,14 @@ const selectViewer = (viewer: Viewer) => {
                     @dismiss="dismissTooltip"
                   />
                 </Tooltip>
-              </DropdownMenuItem>
+              </DropdownMenuItem> -->
+              <ViewerSelectDropdownItem
+                v-if="viewer.id !== selectedViewer.id"
+                :viewer="viewer"
+                :tooltip-dismissed="viewerTooltipDismissed"
+                @select="selectViewer(viewer)"
+                @dismiss-tooltip="dismissTooltip"
+              />
             </template>
           </DropdownMenuGroup>
         </DropdownMenuContent>

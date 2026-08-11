@@ -342,7 +342,7 @@ async def stop_all_desktops_in_deployment(
         )
 
 
-@advanced_router.put(
+@token_router.put(
     "/item/deployment/{deployment_id}/user/{user_id}/stop",
     tags=[tag],
     status_code=204,
@@ -355,7 +355,7 @@ async def stop_all_desktops_in_deployment(
         500: {"model": ErrorResponse},
     },
     dependencies=[
-        Depends(owns_deployment_id()),
+        Depends(is_allowed_deployment_id_and_user_id),
     ],
 )
 async def stop_user_desktops_in_deployment(

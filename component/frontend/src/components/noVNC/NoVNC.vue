@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, HTMLAttributes, onBeforeUnmount } from 'vue'
 import RFB from '@novnc/novnc'
 
 interface Props {
@@ -16,6 +16,7 @@ interface Props {
   compressionLevel?: number // From 0 to 9. Leave unset to use noVNC default (2)
   background?: string
   sessionCookieName?: string
+  class?: HTMLAttributes['class']
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -77,10 +78,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div :style="`height: ${props.height}; width: 100%;`">
-    <div
-      ref="screen"
-      :style="`height: 100%; width: 100%; pointer-events: ${props.viewOnly ? 'none' : 'auto'};`"
-    />
-  </div>
+  <div
+    ref="screen"
+    :style="`height: ${props.height}; width: 100%; pointer-events: ${props.viewOnly ? 'none' : 'auto'};`"
+    :class="props.class"
+  />
 </template>

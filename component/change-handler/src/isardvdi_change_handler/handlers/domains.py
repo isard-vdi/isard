@@ -456,6 +456,12 @@ class DesktopDomainHandler:
                 namespace="/userspace",
                 room=deployment_owners,
             )
+            await self.emit(
+                "deploymentdesktop_update",
+                json_dumps(deployment_desktop),
+                namespace="/userspace",
+                room=new_val.user,
+            )
 
             await self.emit(
                 "deployments_update",

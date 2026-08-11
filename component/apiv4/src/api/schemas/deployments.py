@@ -543,6 +543,10 @@ class UserDeploymentInfo(BaseModel):
     resources: Optional[UserDeploymentResource] = Field(
         description="Resources associated with the deployment", default=None
     )
+    user_permissions: list[DeploymentPermissions] = Field(
+        description="List of permissions the user has over the deployment desktops",
+        default=[],
+    )
 
 
 class UserDeploymentDesktop(BaseModel):
@@ -559,7 +563,8 @@ class UserDeploymentDesktop(BaseModel):
     """
 
     id: str = Field(description="ID of the desktop")
-    name: Optional[str] = None
+    image: Image = Field(description="Image associated with the desktop")
+    name: str = Field(description="Name of the desktop")
     status: DesktopStatusEnum = Field(description="Status of the desktop")
     state: Optional[DesktopStatusEnum] = Field(
         default=None,
@@ -571,11 +576,13 @@ class UserDeploymentDesktop(BaseModel):
         default=[],
         description="List of viewers that will be available to access the desktop.",
     )
+    ip: Optional[str] = Field(
+        default=None,
+        description="IP of the desktop. Only set when the desktop is started and has an IP assigned.",
+    )
     viewer: Optional[Union[bool, dict]] = None
     icon: Optional[str] = None
-    image: Optional[Image] = None
     description: Optional[str] = None
-    ip: Optional[str] = None
     progress: Optional[dict] = None
     editable: Optional[bool] = None
     scheduled: Optional[dict] = None

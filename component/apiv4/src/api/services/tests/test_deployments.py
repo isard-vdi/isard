@@ -193,6 +193,36 @@ class TestGetDeploymentDesktopBastion:
             DeploymentService.get_deployment_desktop_bastion("d1", "desk-x")
 
 
+class TestGetDeploymentUserDesktops:
+    @patch(
+        "api.services.deployments.CommonDeploymentDesktops.get_deployment_user_desktops",
+        return_value=[
+            {"id": "desk-1", "status": "CreatingDisk", "viewer": {}},
+            {"id": "desk-2", "status": "Started", "viewer": {"passwd": "x"}},
+        ],
+    )
+    @patch(
+        "api.services.deployments.CommonDeployments.retrieve_user_deployment",
+        return_value={"id": "d1"},
+    )
+    @patch(
+        "api.services.deployments.CommonDeploymentUsers.get_users",
+        return_value=["u1"],
+    )
+    @patch("api.services.deployments.RethinkUser.exists", return_value=True)
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_collapses_engine_internal_statuses(
+        self, _exists, _user_exists, _users, _info, _desktops
+    ):
+        result = DeploymentService.get_deployment_user_desktops("d1", "u1")
+        assert [d["status"] for d in result["desktops"]] == ["Creating", "Started"]
+
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=False)
+    def test_raises_not_found(self, _exists):
+        with pytest.raises(Error):
+            DeploymentService.get_deployment_user_desktops("ghost", "u1")
+
+
 class TestBastionCsv:
     @patch(
         "api.services.deployments.BastionService.get_admin_bastion_config",

@@ -48,6 +48,9 @@ from isardvdi_common.lib.deployments.deployment_users import (
 from isardvdi_common.lib.deployments.deployments import (
     DeploymentsProcessed as CommonDeployments,
 )
+from isardvdi_common.lib.domains.desktops.desktops import (
+    DesktopsProcessed as CommonDesktops,
+)
 from isardvdi_common.models.deployment import Deployment as RethinkDeployment
 from isardvdi_common.models.domain import Domain as RethinkDomain
 from isardvdi_common.models.targets import Targets
@@ -322,6 +325,11 @@ class DeploymentService:
             ),
         }
         for desktop in user_deployment["desktops"]:
+            # Collapse the engine-internal statuses (``CreatingDisk``, ...) the
+            # same way the desktop list and the socketio events do, otherwise
+            # clients get a status they have no translation for.
+            CommonDesktops.parse_frontend_desktop_status(desktop)
+            desktop.pop("create_dict", None)
             # ``guest_properties.viewers`` keys are the underscored DB form
             # (``browser_vnc`` / ``file_spice`` / ...). The Pydantic
             # response model (``UserDeploymentDesktop``) hyphenates on
