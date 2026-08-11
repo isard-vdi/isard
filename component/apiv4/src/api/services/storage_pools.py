@@ -29,11 +29,12 @@ from isardvdi_common.models.storage_pool import StoragePool
 class StoragePoolService:
 
     @staticmethod
-    def add_storage_pool(data: dict) -> None:
+    def add_storage_pool(data: dict) -> dict:
         """
-        Create a new storage pool.
+        Create a new storage pool. Returns a ``{"warnings": [...]}`` payload
+        (e.g. "no node serves this pool yet").
         """
-        StoragePoolsProcessed.add_storage_pool(data)
+        return StoragePoolsProcessed.add_storage_pool(data) or {"warnings": []}
 
     @staticmethod
     def get_storage_pools() -> list[dict]:
@@ -70,18 +71,30 @@ class StoragePoolService:
         return result
 
     @staticmethod
-    def update_storage_pool(storage_pool_id: str, data: dict) -> None:
+    def update_storage_pool(storage_pool_id: str, data: dict) -> dict:
         """
-        Update a storage pool.
+        Update a storage pool. Returns a ``{"warnings": [...]}`` payload (e.g.
+        on disable, what is still pending and keeps draining).
         """
-        StoragePoolsProcessed.update_storage_pool(storage_pool_id, data)
+        return StoragePoolsProcessed.update_storage_pool(storage_pool_id, data) or {
+            "warnings": []
+        }
 
     @staticmethod
     def delete_storage_pool(storage_pool_id: str) -> None:
         """
-        Delete a storage pool.
+        Delete a storage pool. Only a disabled + fully drained pool is deletable
+        (the guard raises a 400 otherwise).
         """
         StoragePoolsProcessed.delete_storage_pool(storage_pool_id)
+
+    @staticmethod
+    def get_pool_pending(storage_pool_id: str) -> dict:
+        """
+        Drain-status of a pool: enabled flag, categories, residing disks, queued
+        lane jobs, consumer coverage, and whether it is fully drained.
+        """
+        return StoragePoolsProcessed.pool_pending_summary(storage_pool_id)
 
     @staticmethod
     def get_default_storage_pool() -> dict:

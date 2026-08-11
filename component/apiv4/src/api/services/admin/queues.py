@@ -4,6 +4,7 @@
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
+import logging as log
 import os
 import time
 import traceback
@@ -23,6 +24,7 @@ from isardvdi_common.lib.governed_worker import (
     WORKER_STATUS_PREFIX,
     category_running_key,
 )
+from isardvdi_common.lib.queue_coverage import served_coverage
 from isardvdi_common.lib.queue_tiers import (
     _FAIR_TIERS,
     NULL_CATEGORY,
@@ -634,6 +636,62 @@ class AdminQueuesService:
             return rows
         except Exception:
             return []
+
+    @staticmethod
+    def get_storage_lane_health() -> dict:
+        """Lane-centric detector for ORPHAN storage lanes.
+
+        An orphan lane is a queue that holds jobs but is served by no worker, so
+        its tasks stall forever (the pool-consumer-missing failure). The
+        worker-centric ``get_consumers`` view cannot see this because it only
+        enumerates queues that already have a worker.
+
+        Both halves come from what the shed gate already reads: the lanes from
+        the bounded ``rq:queues`` snapshot, the fleet from ``served_coverage``.
+        That brings its fail-open with them -- a pool whose worker has not
+        published its served set is opaque, not absent, and reporting it dead
+        would send an operator to restart a consumer that is already running.
+        Grouping is by pool, so a worker on any of a pool's lanes covers that
+        pool's per-category sub-lanes too.
+        """
+        try:
+            with _connect_redis() as redis_conn:
+                lanes, truncated = _storage_lane_snapshot(redis_conn)
+                with redis_conn.pipeline() as pipe:
+                    for _, _, _, lane in lanes:
+                        pipe.llen(_RQ_QUEUE_PREFIX + lane)
+                    depths = pipe.execute()
+                covered, opaque_pools = served_coverage(redis_conn)
+        except Exception:
+            return {
+                "orphan_pools": [],
+                "orphans": [],
+                "healthy": True,
+                "truncated_lanes": 0,
+                "coverage_known": False,
+            }
+
+        served = {pool for pool, _tier in covered} | set(opaque_pools)
+        queued_by_pool: dict[str, int] = {}
+        lanes_by_pool: dict[str, list] = {}
+        for (pool, _category, _tier, lane), depth in zip(lanes, depths):
+            if not depth or pool in served:
+                continue
+            queued_by_pool[pool] = queued_by_pool.get(pool, 0) + depth
+            lanes_by_pool.setdefault(pool, []).append({"queue": lane, "queued": depth})
+
+        orphans = [
+            {"pool": pool, "queued": queued, "lanes": lanes_by_pool[pool]}
+            for pool, queued in queued_by_pool.items()
+        ]
+        orphans.sort(key=lambda o: o["queued"], reverse=True)
+        return {
+            "orphan_pools": [o["pool"] for o in orphans],
+            "orphans": orphans,
+            "healthy": len(orphans) == 0,
+            "truncated_lanes": truncated,
+            "coverage_known": True,
+        }
 
     @staticmethod
     def _worker_health_rows(conn) -> tuple:
@@ -1439,6 +1497,36 @@ class AdminQueuesService:
         return job_ids
 
     @staticmethod
+    def _reap_reference_time(job: Job, terminal_only: bool) -> Optional[float]:
+        """When this job provably stopped, or ``None`` if that cannot be shown.
+
+        ``ended_at`` is the only acceptable answer while a registry may hold
+        live work: a job without one has not finished, and deleting it takes
+        the rest of its chain with it through ``delete_dependents``.
+
+        In a terminal registry there is no live work to protect, and refusing
+        to age a job that has none makes it immortal instead of safe. Two rq
+        paths produce exactly that: an abandoned job (``StartedJobRegistry``
+        cleanup calls ``job._handle_failure()``, which never sets ``ended_at``
+        - only the worker's own failure path does) and every cancellation
+        (``Job.cancel()`` does not set one either), which is why the canceled
+        registry could never be swept at all.
+
+        So fall back to ``started_at``, then ``created_at``. Both precede the
+        moment the job actually stopped, so a job may clear the cutoff sooner
+        than its true death deserves - but it is terminal either way, and what
+        that costs is retained history, never work.
+        """
+        if job.ended_at is not None:
+            return job.ended_at.timestamp()
+        if not terminal_only:
+            return None
+        for stamp in (job.started_at, job.created_at):
+            if stamp is not None:
+                return stamp.timestamp()
+        return None
+
+    @staticmethod
     def _get_old_jobs(
         older_than: int,
         batch_size: int = 5000,
@@ -1458,6 +1546,11 @@ class AdminQueuesService:
                     "bad_request",
                     f"Registry {reg} is not valid for this operation.",
                 )
+        # Every registry being swept is terminal, so nothing here can still be
+        # running and the age test may fall back to an earlier timestamp. The
+        # loop above guarantees it; recompute it rather than assume, so a
+        # future caller that widens the set loses the fallback automatically.
+        terminal_only = not set(registries) & set(NON_REAPABLE_REGISTRIES)
         time_cutoff = time.time() - older_than
         with _connect_redis() as redis_conn:
             queues = Queue.all(connection=redis_conn)
@@ -1474,13 +1567,10 @@ class AdminQueuesService:
             for job in jobs:
                 if job is None:
                     continue
-                # A job with no ``ended_at`` has not finished: it is either
-                # still live or a chain member the consumer marked mid-flight.
-                # Treating that as "old" deleted running work - with
-                # ``delete_dependents``, the rest of its chain with it.
-                if job.ended_at is None:
+                stopped_at = AdminQueuesService._reap_reference_time(job, terminal_only)
+                if stopped_at is None:
                     continue
-                if job.ended_at.timestamp() < time_cutoff:
+                if stopped_at < time_cutoff:
                     if rtype == "key":
                         old_keys.append(job.key.decode())
                     elif rtype == "id":
@@ -1694,6 +1784,38 @@ class AdminQueuesService:
         return AdminQueuesService.get_storage_scheduler_config()
 
     @staticmethod
+    def _reapable_registries(registries: list) -> list:
+        """Keep the registries this sweep may reap, warning about the rest.
+
+        The unattended path must degrade, not die. One unusable entry in the
+        stored config used to abort the whole pass on its first iteration -
+        before a single job was examined - so an install could keep a nightly
+        run that raised, purged nothing, and said so only in a log line at
+        00:30. The operator-facing setter still refuses these outright: there
+        a human is present to be told no.
+        """
+        reapable = []
+        for reg in registries:
+            if reg not in QUEUE_REGISTRIES:
+                log.warning(
+                    "old-tasks sweep: skipping unknown registry %r; valid "
+                    "registries are %s - correct old_tasks.queue_registries",
+                    reg,
+                    QUEUE_REGISTRIES,
+                )
+                continue
+            if reg in NON_REAPABLE_REGISTRIES:
+                log.warning(
+                    "old-tasks sweep: skipping registry %r; it holds live "
+                    "work and can never be auto-deleted - correct "
+                    "old_tasks.queue_registries",
+                    reg,
+                )
+                continue
+            reapable.append(reg)
+        return reapable
+
+    @staticmethod
     def delete_old_tasks_auto() -> dict:
         """Delete old tasks based on auto-delete config."""
         kwargs = AdminQueuesService.get_auto_delete_config()
@@ -1703,10 +1825,18 @@ class AdminQueuesService:
             raise Error("bad_request", "No max_time set in the db.")
         if kwargs.get("queue_registries") is None:
             raise Error("bad_request", "No queue_registries set in the db.")
+        registries = AdminQueuesService._reapable_registries(kwargs["queue_registries"])
+        if not registries:
+            log.warning(
+                "old-tasks sweep: no reapable registry left to sweep out of "
+                "the configured %s; nothing was purged",
+                kwargs["queue_registries"],
+            )
+            return {"ok": [], "errors": []}
         old_jobs = AdminQueuesService._get_old_jobs(
             kwargs["older_than"],
             rtype="job",
-            registries=kwargs["queue_registries"],
+            registries=registries,
         )
         delete_ok, delete_errors = AdminQueuesService._delete_jobs(old_jobs)
         clear_queue_data_caches()

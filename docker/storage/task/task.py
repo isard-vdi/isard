@@ -35,8 +35,8 @@ from os.path import basename, dirname, getmtime, isdir, isfile, join
 from pathlib import Path
 from re import search
 from subprocess import (
+    DEVNULL,
     PIPE,
-    STDOUT,
     CalledProcessError,
     Popen,
     TimeoutExpired,
@@ -175,6 +175,21 @@ def _free_space(path):
         return None
 
 
+STDERR_TAIL_BYTES = 64 * 1024  # what we keep of a failed child's stderr
+
+
+def _read_tail(path, limit=STDERR_TAIL_BYTES):
+    """Last ``limit`` bytes of ``path`` decoded as text, ``""`` if unreadable."""
+    try:
+        with open(path, "rb") as capture:
+            capture.seek(0, os.SEEK_END)
+            capture.seek(max(0, capture.tell() - limit))
+            return capture.read().decode(errors="replace")
+    except OSError:
+        log.exception("could not read %s", path)
+        return ""
+
+
 def _run_cancellable(command):
     """Run ``command`` in its own process group, terminating it if the task is
     cancelled, and raising on failure.
@@ -182,8 +197,14 @@ def _run_cancellable(command):
     Like :func:`run_with_progress` but for long operations with no
     machine-parsable progress (a disk byte-copy, ``virt-sparsify``,
     ``virt-win-reg``): it polls the :class:`TaskCancelWatcher` on a timer
-    instead of reading stdout. ``stderr`` is merged into ``stdout`` and
-    surfaced on failure.
+    instead of reading stdout. The tail of ``stderr`` is surfaced on failure.
+
+    The child gets no pipe: ``stdout`` is discarded and ``stderr`` goes to a
+    temporary file. A pipe would only be read after ``wait()`` returns, so a
+    child writing past the ~64 KiB pipe buffer would block in ``write()`` and
+    never exit, wedging this task forever. Draining the pipe with
+    ``communicate()`` instead would trade that for an equally bad deal: no
+    cancel could be honoured until the child finished.
 
     :raises subprocess.CalledProcessError: rc 130 when cancelled mid-run
         (so the ``_publishes_result`` decorator publishes
@@ -194,44 +215,42 @@ def _run_cancellable(command):
     if job is None:
         # No RQ context (unit test / manual call): run synchronously. Raises
         # CalledProcessError on a non-zero rc, matching the wired path.
-        run(command, check=True, stdout=PIPE, stderr=STDOUT)
+        run(command, check=True, stdout=DEVNULL, stderr=PIPE)
         return 0
-    process = Popen(command, stdout=PIPE, stderr=STDOUT, preexec_fn=os.setsid)
+    capture_fd, capture_path = tempfile.mkstemp(prefix="isard-storage-stderr-")
     aborted = False
-    output = b""
     try:
-        with TaskCancelWatcher(job.id) as watcher:
-            while process.poll() is None:
-                if watcher.wait(timeout=2):
-                    aborted = True
-                    try:
-                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                    except ProcessLookupError:
-                        pass
-                    break
-        try:
-            process.wait(timeout=10)
-        except TimeoutExpired:
+        with os.fdopen(capture_fd, "wb") as capture:
+            process = Popen(
+                command, stdout=DEVNULL, stderr=capture, preexec_fn=os.setsid
+            )
+            with TaskCancelWatcher(job.id) as watcher:
+                while process.poll() is None:
+                    if watcher.wait(timeout=2):
+                        aborted = True
+                        try:
+                            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                        except ProcessLookupError:
+                            pass
+                        break
             try:
-                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            process.wait(timeout=5)
+                process.wait(timeout=10)
+            except TimeoutExpired:
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=5)
+        if aborted:
+            raise CalledProcessError(returncode=130, cmd=command)
+        if process.returncode != 0:
+            raise CalledProcessError(
+                returncode=process.returncode,
+                cmd=command,
+                output=_read_tail(capture_path),
+            )
     finally:
-        if process.stdout:
-            try:
-                output = process.stdout.read() or b""
-            except Exception:
-                output = b""
-            process.stdout.close()
-    if aborted:
-        raise CalledProcessError(returncode=130, cmd=command)
-    if process.returncode != 0:
-        raise CalledProcessError(
-            returncode=process.returncode,
-            cmd=command,
-            output=output.decode(errors="replace"),
-        )
+        _safe_unlink(capture_path)
     return 0
 
 
@@ -617,7 +636,7 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     ).returncode
 
 
-def qemu_img_info(storage_id, storage_path):
+def qemu_img_info(storage_id, storage_path, storage_type="qcow2"):
     """
     Get storage data with `qemu-img info` data updated.
 
@@ -625,6 +644,10 @@ def qemu_img_info(storage_id, storage_path):
     :type storage_id: str
     :param storage_path: Storage path
     :type storage_path: str
+    :param storage_type: Format of the file on disk. Defaults to qcow2, which
+        is what every disk IsardVDI creates itself is; ``convert`` is the one
+        action that produces something else.
+    :type storage_type: str
     :return: Storage data to update
     :rtype: dict
     """
@@ -635,7 +658,7 @@ def qemu_img_info(storage_id, storage_path):
                 "info",
                 "-U",
                 "-f",
-                "qcow2",
+                storage_type,
                 "--output",
                 "json",
                 storage_path,
@@ -650,14 +673,25 @@ def qemu_img_info(storage_id, storage_path):
 
 
 @_publishes_result
-def qemu_img_info_backing_chain(storage_id, storage_path):
+def qemu_img_info_backing_chain(storage_id, storage_path, storage_type="qcow2"):
     """
     Get storage data with `qemu-img info` data updated.
+
+    ``-f`` is passed explicitly rather than letting qemu-img probe, so a
+    hostile guest cannot make its own disk read as another format. That means
+    the caller has to say which format it is: every disk IsardVDI creates is
+    qcow2, hence the default, but ``convert`` exists precisely to write
+    something else, and measuring a vmdk as qcow2 fails with
+    ``Could not open '<the file itself>'`` -- which this function then reads as
+    "the file is gone" and reports ``deleted``, orphaning a disk that is
+    perfectly fine.
 
     :param storage_id: Storage ID
     :type storage_id: str
     :param storage_path: Storage path
     :type storage_path: str
+    :param storage_type: Format of the file on disk
+    :type storage_type: str
     :return: Storage data to update
     :rtype: dict
     """
@@ -670,7 +704,7 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
                 "-U",
                 "--backing-chain",
                 "-f",
-                "qcow2",
+                storage_type,
                 "--output",
                 "json",
                 storage_path,
@@ -707,7 +741,7 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
             else:
                 try:
                     backing = (
-                        qemu_img_info(storage_id, storage_path)
+                        qemu_img_info(storage_id, storage_path, storage_type)
                         .get("qemu-img-info", {})
                         .get("backing-filename")
                     )
@@ -1391,6 +1425,7 @@ def virt_win_reg(storage_path, registry_patch):
     # FLATTENS the chain (drops the backing link), doubling disk usage and
     # breaking the template→desktop relationship.
     tmp_path = storage_path + ".regtmp"
+    _safe_unlink(tmp_path)  # clear a stale sibling from a prior crashed run
     try:
         with task_heartbeat("virt_win_reg", storage_path=storage_path):
             # ``--reflink=auto`` is instant on CoW filesystems and a full copy
@@ -1405,7 +1440,7 @@ def virt_win_reg(storage_path, registry_patch):
         return 0
     except CalledProcessError as cpe:
         # Returning an error string publishes job_status="finished" for a
-        # failed merge, marking the disk ready. Log stderr (merged into the
+        # failed merge, marking the disk ready. Log stderr (captured into the
         # CalledProcessError output by _run_cancellable), discard the temp so
         # the live disk is untouched, and re-raise.
         log.error(
@@ -1625,6 +1660,9 @@ def sparsify(storage_path):
     # is often run *because* space is tight, so when there isn't headroom we
     # fall back to the classic in-place op (un-cancellable) rather than fail.
     tmp_path = storage_path + ".sparsetmp"
+    # Clear a stale sibling from a prior crashed run before measuring: it holds
+    # a whole disk image of space on the very filesystem being measured.
+    _safe_unlink(tmp_path)
     free = _free_space(dirname(storage_path))
     need = int(old_size) * 1024  # _get_disk_usage is KB, _free_space is bytes
     safe_cancel = old_size > 0 and free is not None and free > need * 1.1
@@ -1658,7 +1696,7 @@ def sparsify(storage_path):
     except CalledProcessError as cpe:
         # A returned value publishes job_status="finished", recording a failed
         # sparsify as success. Log stderr (in .stderr on the in-place fallback,
-        # merged into .output by _run_cancellable), discard any temp, re-raise.
+        # captured into .output by _run_cancellable), discard any temp, re-raise.
         log.error(
             "virt-sparsify failed for %s (exit %s): %s",
             storage_path,

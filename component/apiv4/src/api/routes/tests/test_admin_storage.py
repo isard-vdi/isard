@@ -410,3 +410,175 @@ class TestStorageByRole:
             url="/admin/items/storage/by-role/invalid", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 400
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  POST /admin/storage/refresh-running-sizes
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestRefreshRunningSizes:
+    """The admin sweep that re-measures qemu-img-info for the disks of
+    currently-running desktops, so a long-running desktop's stored
+    ``actual-size`` doesn't stay frozen at its last stop.
+
+    The real selection logic runs against the mock DB; only
+    ``Storage.check_backing_chain`` (the RQ/redis enqueue boundary) is
+    stubbed, capturing which storages would be refreshed.
+    """
+
+    URL = "/admin/storage/refresh-running-sizes"
+
+    DB = {
+        "domains": [
+            {
+                "id": "d-run",
+                "status": "Started",
+                "user": "u1",
+                # A domain carries its disks under create_dict, not at the root:
+                # that is where Domain.storages and the engine's post-stop
+                # refresh read them. A root-level "hardware" is the shape the
+                # sweep used to query, and it matches no real document.
+                "create_dict": {
+                    "hardware": {
+                        "disks": [{"storage_id": "s-ready"}, {"storage_id": "s-ro"}]
+                    }
+                },
+            },
+            {
+                "id": "d-stop",
+                "status": "Stopped",
+                "user": "u1",
+                "create_dict": {"hardware": {"disks": [{"storage_id": "s-stopped"}]}},
+            },
+        ],
+        "storage": [
+            {
+                "id": "s-ready",
+                "status": "ready",
+                "user_id": "u1",
+                "directory_path": "/p",
+                "type": "qcow2",
+                "task": None,
+            },
+            {
+                "id": "s-ro",
+                "status": "ready",
+                "readonly": True,
+                "user_id": "u1",
+                "directory_path": "/p",
+                "type": "qcow2",
+                "task": None,
+            },
+            {
+                "id": "s-stopped",
+                "status": "ready",
+                "user_id": "u1",
+                "directory_path": "/p",
+                "type": "qcow2",
+                "task": None,
+            },
+        ],
+    }
+
+    def _capture_cbc(self, monkeypatch):
+        calls = []
+
+        def fake_check_backing_chain(
+            zelf, user_id, blocking=True, retry=3, priority="background"
+        ):
+            calls.append(
+                {
+                    "storage_id": zelf.id,
+                    "user_id": user_id,
+                    "blocking": blocking,
+                    "retry": retry,
+                    "priority": priority,
+                }
+            )
+            return "task-id"
+
+        monkeypatch.setattr(
+            "isardvdi_common.models.storage.Storage.check_backing_chain",
+            fake_check_backing_chain,
+        )
+        return calls
+
+    def test_enqueues_only_running_ready_nonreadonly_disks(
+        self, monkeypatch, test_client
+    ):
+        calls = self._capture_cbc(monkeypatch)
+        response = test_client(
+            url=self.URL,
+            method="POST",
+            jwt=MockJWT(role_id="admin"),
+            db_tables_data=self.DB,
+        )
+        assert response.status_code == 200
+        assert response.json()["enqueued"] == 1
+        # Only the running desktop's ready, non-readonly disk is refreshed:
+        # the stopped desktop's disk and the read-only disk are skipped.
+        assert [c["storage_id"] for c in calls] == ["s-ready"]
+        # Best-effort, lowest priority so it never contends with
+        # interactive disk operations.
+        assert calls[0]["blocking"] is False
+        assert calls[0]["priority"] == "background"
+        assert calls[0]["user_id"] == "u1"
+
+    def test_skips_storage_with_pending_refresh_task(self, monkeypatch, test_client):
+        calls = self._capture_cbc(monkeypatch)
+
+        # A refresh is already in flight for s-ready → it must be skipped
+        # so repeated sweeps don't dogpile the task queue. Replace the
+        # ``Task`` used by the sweep with a fake whose task is pending,
+        # so the guard fires without touching redis.
+        class _FakeTask:
+            def __init__(self, task_id):
+                self.pending = True
+
+            @staticmethod
+            def exists(task_id):
+                return True
+
+        monkeypatch.setattr("isardvdi_common.lib.storage.storage.Task", _FakeTask)
+
+        db = {
+            "domains": [
+                {
+                    "id": "d-run",
+                    "status": "Started",
+                    "user": "u1",
+                    "create_dict": {"hardware": {"disks": [{"storage_id": "s-ready"}]}},
+                }
+            ],
+            "storage": [
+                {
+                    "id": "s-ready",
+                    "status": "ready",
+                    "user_id": "u1",
+                    "directory_path": "/p",
+                    "type": "qcow2",
+                    "task": "task-in-flight",
+                }
+            ],
+        }
+        response = test_client(
+            url=self.URL,
+            method="POST",
+            jwt=MockJWT(role_id="admin"),
+            db_tables_data=db,
+        )
+        assert response.status_code == 200
+        assert response.json()["enqueued"] == 0
+        assert calls == []
+
+    def test_manager_forbidden(self, monkeypatch, test_client):
+        calls = self._capture_cbc(monkeypatch)
+        response = test_client(
+            url=self.URL,
+            method="POST",
+            jwt=MockJWT(role_id="manager"),
+            db_tables_data=self.DB,
+        )
+        assert response.status_code == 403
+        assert calls == []
