@@ -1276,8 +1276,28 @@
             "text": "Pausatuta",
             "action": "Gelditu"
           },
-          "reset": {
-            "text": "Berrezarrita",
+          "suspended": {
+            "text": "Esekita",
+            "action": "Gelditu"
+          },
+          "crashed": {
+            "text": "Kraskatuta",
+            "action": "Saiatu berriro"
+          },
+          "startingpaused": {
+            "text": "Abiarazten",
+            "action": "Abiarazten"
+          },
+          "startingdomaindisposable": {
+            "text": "Abiarazten",
+            "action": "Abiarazten"
+          },
+          "deleting": {
+            "text": "Ezabatzen",
+            "action": "Ezabatzen"
+          },
+          "resetting": {
+            "text": "Berrezartzen",
             "action": "Berrezartzen"
           },
           "updating": {

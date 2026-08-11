@@ -41,6 +41,17 @@ from rethinkdb.errors import ReqlError
 from .base import BaseHandler, json_dumps
 
 
+def _frontend_status(val):
+    """Status as the frontend sees it, same rewriting ``desktop_update`` applies."""
+    return DesktopsProcessed.parse_frontend_desktop_status(
+        {
+            "status": val.status,
+            "viewer": (val.additional_properties or {}).get("viewer") or {},
+            "create_dict": val.create_dict or {},
+        }
+    )["status"]
+
+
 class DomainsHandler(BaseHandler):
     def __init__(self, socketio_server, table):
         super().__init__(socketio_server, table)
@@ -372,7 +383,13 @@ class DesktopDomainHandler:
         direct_viewer_visible = jumperurl and (
             not new_val.tag or new_val.tag and new_val.tag_visible
         )
-        status_changed = old_val.status != new_val.status
+        # Send the parsed status, not the raw engine one: this room was the only
+        # client path left forwarding statuses like `CreatingDisk`, which the
+        # frontends have no translation for. Compare parsed values too, so the
+        # `Started` -> `Starting` rewrite still emits when the viewer password
+        # lands without the raw status changing.
+        parsed_status = desktop["status"]
+        status_changed = _frontend_status(old_val) != parsed_status
         guest_ip_became_available = (
             new_val.status == DesktopStatusEnum.started.value
             and new_viewer.get("passwd")
@@ -382,7 +399,7 @@ class DesktopDomainHandler:
         if direct_viewer_visible and (status_changed or guest_ip_became_available):
             viewer_data = {
                 "id": new_val.id,
-                "status": new_val.status,
+                "status": parsed_status,
             }
             if guest_ip_became_available:
                 try:
@@ -398,8 +415,8 @@ class DesktopDomainHandler:
                         "jwt": viewers.pop("jwt", None),
                         "name": viewers.pop("name", None),
                         "description": viewers.pop("description", None),
-                        # Prefer real status over the helper's hard-coded value
-                        "status": new_val.status,
+                        # Prefer the real status over the helper's hard-coded value
+                        "status": parsed_status,
                         "scheduled": viewers.pop("scheduled", None),
                         "viewers": viewers["viewers"],
                         "needs_booking": viewers.pop("needs_booking", False),

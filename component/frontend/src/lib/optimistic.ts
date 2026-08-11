@@ -22,15 +22,16 @@ type ListEnvelope<TItem, K extends string> = { [P in K]: TItem[] } & Record<stri
 interface BaseOpts<TVars> {
   queryClient: QueryClient
   queryKey: QueryKey
-  extractItemId: (vars: TVars) => string
   baseMutation: UseMutationOptions<unknown, unknown, TVars, unknown>
   onError?: NonNullable<UseMutationOptions<unknown, unknown, TVars, unknown>['onError']>
   onSuccess?: NonNullable<UseMutationOptions<unknown, unknown, TVars, unknown>['onSuccess']>
 }
 
-interface StatusFlipOpts<TVars, TItem, K extends string> extends BaseOpts<TVars> {
-  /** Property name in the envelope that holds the item array, e.g. `'desktops'`. */
-  listKey: K
+interface ItemOpts<TVars> extends BaseOpts<TVars> {
+  extractItemId: (vars: TVars) => string
+}
+
+interface StatusOpts<TItem> {
   /** Field on each item that carries the status, default `'status'`. */
   statusKey?: keyof TItem & string
   /** Status to optimistically write to the targeted item. */
@@ -43,6 +44,12 @@ interface StatusFlipOpts<TVars, TItem, K extends string> extends BaseOpts<TVars>
    * the optimistic `Starting` write to fight the WS event).
    */
   nextStatusGuard?: (currentStatus: TItem[keyof TItem]) => boolean
+}
+
+interface StatusFlipOpts<TVars, TItem, K extends string>
+  extends ItemOpts<TVars>, StatusOpts<TItem> {
+  /** Property name in the envelope that holds the item array, e.g. `'desktops'`. */
+  listKey: K
 }
 
 /**
@@ -92,7 +99,45 @@ export function withOptimisticItemStatus<TVars, TItem, K extends string>(
   }
 }
 
-interface RemovalOpts<TVars, TItem, K extends string> extends BaseOpts<TVars> {
+interface SingleStatusOpts<TVars, TItem> extends BaseOpts<TVars>, StatusOpts<TItem> {}
+
+/**
+ * Optimistically flip the status field of a query whose data is a single item
+ * rather than a list envelope (e.g. the direct-viewer's get-viewer payload).
+ */
+export function withOptimisticStatus<TItem, TVars = void>(
+  opts: SingleStatusOpts<TVars, TItem>
+): UseMutationOptions<unknown, unknown, TVars, unknown> {
+  const statusKey = (opts.statusKey ?? 'status') as keyof TItem & string
+
+  return {
+    ...opts.baseMutation,
+    onMutate: async () => {
+      await opts.queryClient.cancelQueries({ queryKey: opts.queryKey })
+      const prev = opts.queryClient.getQueryData(opts.queryKey)
+      opts.queryClient.setQueryData(opts.queryKey, (old: TItem | undefined) => {
+        if (!old) return old
+        if (opts.nextStatusGuard && !opts.nextStatusGuard(old[statusKey] as TItem[keyof TItem])) {
+          return old
+        }
+        return { ...old, [statusKey]: opts.nextStatus }
+      })
+      return { prev }
+    },
+    onError: (err, vars, context) => {
+      const ctx = context as { prev?: unknown } | undefined
+      if (ctx?.prev !== undefined) {
+        opts.queryClient.setQueryData(opts.queryKey, ctx.prev)
+      }
+      opts.onError?.(err, vars, context)
+    },
+    onSuccess: (data, vars, context) => {
+      opts.onSuccess?.(data, vars, context)
+    }
+  }
+}
+
+interface RemovalOpts<TVars, TItem, K extends string> extends ItemOpts<TVars> {
   listKey: K
   matches?: (item: TItem, id: string) => boolean
 }

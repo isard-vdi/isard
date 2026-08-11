@@ -51,18 +51,25 @@ vi.mock('@tanstack/vue-query', () => {
 vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
   getDesktopViewerByTokenOptions: () => ({ queryKey: { _id: 'viewer' } }),
   getDesktopViewerByTokenQueryKey: () => ({ _id: 'viewer' }),
+  getDesktopDetailsFromTokenOptions: () => ({ queryKey: { _id: 'details' } }),
+  startDesktopFromTokenMutation: () => ({ mutationFn: vi.fn() }),
+  resetDesktopMutation: () => ({ mutationFn: vi.fn() }),
   apiV4LoginConfigOptions: () => ({ queryKey: { _id: 'login' } })
 }))
 
-vi.mock('@/gen/oas/apiv4', () => ({
-  resetDesktop: vi.fn(async () => ({ data: {}, error: null }))
-}))
+vi.mock('@/gen/oas/apiv4', () => ({}))
 
 vi.mock('@/gen/oas/apiv4/types.gen', () => ({
   DesktopStatusEnum: {
     UNKNOWN: 'Unknown',
     STARTED: 'Started',
     STARTING: 'Starting',
+    STOPPED: 'Stopped',
+    STOPPING: 'Stopping',
+    SHUTTING_DOWN: 'Shutting-down',
+    SUSPENDED: 'Suspended',
+    RESETTING: 'Resetting',
+    FAILED: 'Failed',
     WAITING_IP: 'WaitingIP'
   }
 }))

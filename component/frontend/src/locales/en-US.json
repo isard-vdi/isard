@@ -2025,8 +2025,28 @@
             "text": "Paused",
             "action": "Stop"
           },
-          "reset": {
-            "text": "Reset",
+          "suspended": {
+            "text": "Suspended",
+            "action": "Stop"
+          },
+          "crashed": {
+            "text": "Crashed",
+            "action": "Retry"
+          },
+          "startingpaused": {
+            "text": "Starting",
+            "action": "Starting"
+          },
+          "startingdomaindisposable": {
+            "text": "Starting",
+            "action": "Starting"
+          },
+          "deleting": {
+            "text": "Deleting",
+            "action": "Deleting"
+          },
+          "resetting": {
+            "text": "Resetting",
             "action": "Resetting"
           },
           "updating": {
