@@ -1470,8 +1470,8 @@
             "text": "Pausat",
             "action": "Aturar"
           },
-          "reset": {
-            "text": "Reiniciar",
+          "resetting": {
+            "text": "Reiniciant",
             "action": "Reiniciant"
           },
           "updating": {

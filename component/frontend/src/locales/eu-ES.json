@@ -1276,8 +1276,8 @@
             "text": "Pausatuta",
             "action": "Gelditu"
           },
-          "reset": {
-            "text": "Berrezarrita",
+          "resetting": {
+            "text": "Berrezartzen",
             "action": "Berrezartzen"
           },
           "updating": {

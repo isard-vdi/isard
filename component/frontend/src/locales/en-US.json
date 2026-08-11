@@ -2025,8 +2025,8 @@
             "text": "Paused",
             "action": "Stop"
           },
-          "reset": {
-            "text": "Reset",
+          "resetting": {
+            "text": "Resetting",
             "action": "Resetting"
           },
           "updating": {
