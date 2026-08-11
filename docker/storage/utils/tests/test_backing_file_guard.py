@@ -11,9 +11,11 @@ The operator tools had no such check: the only protection was a literal
 ``/isard/templates`` path match, which a per-category storage pool defeats.
 """
 
+import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
 from storage_lib.deps import split_backing_files
 
 
@@ -139,6 +141,15 @@ class TestTheGuardReachesTheWorkerShells:
         assert "export -f is_backing_file" in near
         assert "export BACKING_FILES_FILE" in near
 
+    @pytest.mark.skipif(
+        shutil.which("bash") is None,
+        reason=(
+            "exporting a function is a bash feature and sparsify is a bash "
+            "script; the CI image ships only sh, so the mechanism cannot be "
+            "demonstrated there. The placement test above is the guard that "
+            "matters and runs everywhere."
+        ),
+    )
     def test_an_exported_guard_refuses_inside_a_child_shell(self, tmp_path):
         """The mechanism itself, run for real: the same shape as the fan-out."""
         backing = tmp_path / "backing_files.txt"
