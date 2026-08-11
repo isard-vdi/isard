@@ -1632,6 +1632,7 @@
       "title": "No hi ha {kind} disponibles"
     },
     "empty-search": {
+      "clear": "Neteja la cerca",
       "title": "No s'ha trobat cap resultat"
     },
     "recreate-desktop-confirmation-modal": {

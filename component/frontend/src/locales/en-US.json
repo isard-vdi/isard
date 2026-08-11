@@ -1856,7 +1856,8 @@
       "clear-filters": "Clear filters"
     },
     "empty-search": {
-      "title": "No results found"
+      "title": "No results found",
+      "clear": "Clear search"
     },
     "not-enough-advanced-time-modal": {
       "title": "Not enough advanced time",
