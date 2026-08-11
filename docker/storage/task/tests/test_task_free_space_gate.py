@@ -75,6 +75,24 @@ def test_move_refuses_when_the_source_cannot_be_sized(tmp_path, monkeypatch):
     assert not Path(dst).exists()
 
 
+def test_an_unknown_method_is_rejected_before_the_floor_is_probed(
+    tmp_path, monkeypatch
+):
+    """Order matters: the floor runs early, so without an explicit method check
+    ahead of it a caller error (``method="teleport"``) surfaces as "cannot read
+    the free space" and points at the filesystem instead of at the call."""
+    src = _sized(tmp_path, "src.qcow2", 1024)
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    probed = []
+    monkeypatch.setattr(task, "_free_space", lambda p: probed.append(p) or None)
+
+    with pytest.raises(ValueError) as excinfo:
+        task.move(src, dst, "teleport", min_free_bytes=8192)
+
+    assert "Invalid move method" in str(excinfo.value)
+    assert probed == []  # the filesystem was never touched
+
+
 def test_a_same_filesystem_move_is_still_never_blocked(tmp_path, monkeypatch):
     """A rename consumes nothing, so no probe failure may refuse it. This must
     keep holding after the gate turns fail-closed."""

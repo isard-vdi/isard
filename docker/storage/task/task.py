@@ -1298,6 +1298,11 @@ def move(
     :return: Exit code of rsync command or 0 if rsync is False
     :rtype: int
     """
+    # Before any filesystem probing: an unknown method is a caller error, and
+    # reporting it as "cannot read the free space" hides it.
+    if method not in ("mv", "rsync", "auto"):
+        raise ValueError(f"Invalid move method: {method}")
+
     if not isfile(origin_path):
         raise ValueError(f"Path {origin_path} not found")
 
