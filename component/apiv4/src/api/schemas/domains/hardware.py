@@ -190,7 +190,10 @@ class DomainGuestProperties(BaseModel):
 
 
 class MediaHardware(BaseModel):
-    boot_order: list[str]
+    # Constrained like every other boot_order in this file and in the shared
+    # domain schemas: an unconstrained string was accepted here and only
+    # rejected later, when the desktop it created was validated against those.
+    boot_order: list[Literal["iso", "floppy", "disk", "pxe"]]
     disk_bus: str
     disk_size: int = Field(
         ge=1,

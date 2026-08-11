@@ -214,7 +214,9 @@ def test_virt_win_reg_failure_cleans_tmp_and_never_swaps(monkeypatch):
 
     with pytest.raises(task.CalledProcessError):
         task.virt_win_reg("/isard/d.qcow2", "[HKEY_LOCAL_MACHINE]")
-    assert unlinked == ["/isard/d.qcow2.regtmp"]  # temp discarded
+    # temp discarded on the way out (the first unlink is the stale-temp sweep
+    # on entry)
+    assert unlinked[-1] == "/isard/d.qcow2.regtmp"
     assert renamed == []  # live disk NEVER swapped on failure
 
 
@@ -296,3 +298,69 @@ def test_disconnect_cleans_stale_sibling_before_convert(monkeypatch):
     # stale .wo_chain is unlinked BEFORE the convert runs
     assert order[0] == ("unlink", "/isard/g/d.qcow2.wo_chain")
     assert order.index(("run",)) > 0
+
+
+# ---------------------------------------------------------------------------
+# Stale sibling temps: a worker killed mid-operation (container restart, OOM)
+# leaves its .regtmp / .sparsetmp copy behind. Nothing ever collects them, so
+# they sit there holding a full disk image of space and look like orphans to
+# the storage cleanup CLI. Each op clears its own stale temp on entry, the way
+# disconnect already does with .wo_chain.
+# ---------------------------------------------------------------------------
+
+
+def test_virt_win_reg_clears_stale_tmp_before_copying(monkeypatch):
+    import task
+
+    monkeypatch.setattr(task, "task_heartbeat", _nullcontext)
+    order = []
+    monkeypatch.setattr(task, "_safe_unlink", lambda p: order.append(("unlink", p)))
+    monkeypatch.setattr(
+        task, "_run_cancellable", lambda cmd: order.append((cmd[0],)) or 0
+    )
+    monkeypatch.setattr(task, "rename", lambda a, b: order.append(("rename",)))
+
+    task.virt_win_reg("/isard/d.qcow2", "[HKEY_LOCAL_MACHINE]")
+    assert order[0] == ("unlink", "/isard/d.qcow2.regtmp")
+    assert order.index(("cp",)) > 0
+
+
+def test_sparsify_clears_stale_tmp_before_measuring_headroom(monkeypatch):
+    import task
+
+    monkeypatch.setattr(task, "task_heartbeat", _nullcontext)
+    monkeypatch.setattr(task, "_get_disk_usage", lambda p: 100)
+    order = []
+    monkeypatch.setattr(task, "_safe_unlink", lambda p: order.append(("unlink", p)))
+    monkeypatch.setattr(
+        task, "_free_space", lambda p: order.append(("free_space",)) or 100 * 1024 * 10
+    )
+    monkeypatch.setattr(
+        task, "_run_cancellable", lambda cmd: order.append((cmd[0],)) or 0
+    )
+    monkeypatch.setattr(task, "rename", lambda a, b: order.append(("rename",)))
+
+    task.sparsify("/isard/d.qcow2")
+    # the stale temp goes first: it is dead weight on the same filesystem whose
+    # free space decides whether the safe-cancel copy fits
+    assert order[0] == ("unlink", "/isard/d.qcow2.sparsetmp")
+    assert order.index(("free_space",)) == 1
+
+
+def test_sparsify_clears_stale_tmp_in_the_in_place_fallback(monkeypatch):
+    import task
+
+    monkeypatch.setattr(task, "task_heartbeat", _nullcontext)
+    monkeypatch.setattr(task, "_get_disk_usage", lambda p: 100)
+    monkeypatch.setattr(task, "_free_space", lambda p: 10)  # no headroom
+    unlinked = []
+    monkeypatch.setattr(task, "_safe_unlink", lambda p: unlinked.append(p))
+
+    class _R:
+        returncode = 0
+        stderr = ""
+
+    monkeypatch.setattr(task, "run", lambda *a, **k: _R())
+
+    task.sparsify("/isard/d.qcow2")
+    assert unlinked == ["/isard/d.qcow2.sparsetmp"]

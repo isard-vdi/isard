@@ -16,7 +16,8 @@ Two behaviours are locked in here:
    guests (TetrOS-style kvm32 + rtl8139) keep the drivers they shipped.
 """
 
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 from api.schemas.admin.downloads import (
@@ -30,6 +31,7 @@ from api.services.admin.downloads import (
     _registry_rejection,
     _servable_entries,
 )
+from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.models.domain import DomainModel
 from isardvdi_common.models.media import MediaModel
 from isardvdi_common.schemas.domains import DomainKindEnum
@@ -385,3 +387,248 @@ class TestRegistryModelsFollowTheRowModels:
             if _registry_rejection("domains", _registry_entry(kind=kind)) is None
         }
         assert legal == {member.value for member in DomainKindEnum}
+
+
+class TestRegistryMediaGetsADestination:
+    """A registry media row must carry ``path_downloaded`` before it is
+    inserted: ``enqueue_download_chain`` refuses without one
+    (``media_no_path``), so the row was created and the download never started.
+    Reproduced live: the row landed at ``DownloadStarting`` and the request
+    answered 428 with "has no path_downloaded; cannot enqueue download".
+    """
+
+    def _entry(self):
+        return {
+            "id": "c0ffee00-0000-4000-8000-00000000beef",
+            "name": "Virtio ISO drivers",
+            "kind": "iso",
+            "url-isard": "virtio-win.iso",
+        }
+
+    def test_the_destination_is_resolved(self, monkeypatch):
+        from api.services.admin import downloads as mod
+
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_media_if_already_downloaded",
+            staticmethod(lambda d, user_id: d),
+        )
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_user_data",
+            staticmethod(lambda user_id: {"category": "cat1", "user": user_id}),
+        )
+        import isardvdi_common.models.media as media_mod
+
+        monkeypatch.setattr(
+            media_mod.Media,
+            "resolve_download_path",
+            classmethod(
+                lambda cls, user_id, category_id, media_id, kind: (
+                    None,
+                    f"/isard/media/{media_id}.{kind}",
+                )
+            ),
+        )
+        out = mod.AdminDownloadsService._format_medias([self._entry()], "u1")
+        assert out[0]["path_downloaded"] == (
+            "/isard/media/c0ffee00-0000-4000-8000-00000000beef.iso"
+        )
+
+    def test_an_already_downloaded_row_keeps_its_path(self, monkeypatch):
+        from api.services.admin import downloads as mod
+
+        entry = self._entry()
+        entry["path_downloaded"] = "/isard/media/somewhere-else.iso"
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_media_if_already_downloaded",
+            staticmethod(lambda d, user_id: d),
+        )
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_user_data",
+            staticmethod(lambda user_id: {"category": "cat1", "user": user_id}),
+        )
+        out = mod.AdminDownloadsService._format_medias([entry], "u1")
+        assert out[0]["path_downloaded"] == "/isard/media/somewhere-else.iso"
+
+
+class TestRegistryDownloadSource:
+    """``url-isard`` is a path relative to the registry, not a URL. Handed to
+    curl as-is it was resolved as a hostname (exit 6, "couldn't resolve host")
+    and the row landed ``DownloadFailed`` — verified live. The registry also
+    refuses an unauthenticated fetch, so the registration code has to travel
+    with it. The domain branch already built this; media did not.
+    """
+
+    def _cfg(self, monkeypatch, url="https://repository.example.com", code="abc123"):
+        from api.services.admin import downloads as mod
+
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_cfg",
+            staticmethod(lambda: (url, code, None)),
+        )
+        return mod.AdminDownloadsService
+
+    def test_a_relative_isard_path_becomes_an_absolute_registry_url(self, monkeypatch):
+        svc = self._cfg(monkeypatch)
+        url, headers = svc._registry_download_source(
+            "media", {"url-isard": "windows-10-optimizer_v1.iso", "url-web": False}
+        )
+        assert url == (
+            "https://repository.example.com/storage/media/"
+            "windows-10-optimizer_v1.iso"
+        )
+        assert headers == ["Authorization: abc123"]
+
+    def test_domains_use_their_own_folder(self, monkeypatch):
+        svc = self._cfg(monkeypatch)
+        url, _ = svc._registry_download_source(
+            "domains", {"url-isard": "some-template.qcow2"}
+        )
+        assert url.endswith("/storage/domains/some-template.qcow2")
+
+    def test_a_trailing_slash_on_the_configured_url_is_not_doubled(self, monkeypatch):
+        svc = self._cfg(monkeypatch, url="https://repository.example.com/")
+        url, _ = svc._registry_download_source("media", {"url-isard": "/x.iso"})
+        assert url == "https://repository.example.com/storage/media/x.iso"
+
+    def test_url_web_is_absolute_and_carries_no_credentials(self, monkeypatch):
+        svc = self._cfg(monkeypatch)
+        url, headers = svc._registry_download_source(
+            "media", {"url-isard": False, "url-web": "https://elsewhere/x.iso"}
+        )
+        assert url == "https://elsewhere/x.iso"
+        assert headers == []
+
+    def test_an_already_absolute_url_on_the_row_wins(self, monkeypatch):
+        svc = self._cfg(monkeypatch)
+        url, headers = svc._registry_download_source(
+            "media", {"url": "https://direct/x.iso", "url-isard": "x.iso"}
+        )
+        assert url == "https://direct/x.iso"
+        assert headers == []
+
+    def test_no_registration_code_means_no_header(self, monkeypatch):
+        svc = self._cfg(monkeypatch, code=None)
+        _url, headers = svc._registry_download_source("media", {"url-isard": "x.iso"})
+        assert headers == []
+
+
+class TestDownloadsDeleteAndAbort:
+    """The delete button used to write a status and hope.
+
+    Nothing consumed it, the engine's broom rewrote it to ``Unknown``,
+    and the storage worker never saw a task — so the row could not be
+    deleted at all. These pin that the endpoint now does the work, and
+    that it refuses rather than half-doing it.
+    """
+
+    def _domain(self, status, kind="desktop", storage_id="s-1"):
+        domain = SimpleNamespace(
+            id="d-1",
+            status=status,
+            kind=kind,
+            create_dict={"hardware": {"disks": [{"storage_id": storage_id}]}},
+        )
+        return domain
+
+    def _patched(self, domain, task_pending=False, storage_task="t-1"):
+        """Patch the models WHERE ``_domain_action`` looks them up, not their
+        ``__new__``.
+
+        Patching ``__new__`` on a shared model class does not round-trip
+        cleanly under ``unittest.mock``: a single ``with`` block that exits
+        normally leaves ``Storage(id)`` raising ``object.__new__() takes
+        exactly one argument`` for every later test in the same worker process,
+        which surfaced as intermittent 500s in ``TestRefreshRunningSizes``
+        under ``-n auto``. Replacing the class at its lookup site — the
+        module-level ``RethinkDomain`` / ``Task`` names the service imports, and
+        the ``isardvdi_common.models.storage.Storage`` attribute its lazy import
+        reads — patches a plain attribute, which mock restores cleanly.
+        """
+        storage = SimpleNamespace(task=storage_task)
+
+        domain_cls = MagicMock(name="DomainClass", return_value=domain)
+        domain_cls.exists = lambda _id: True
+
+        storage_cls = MagicMock(name="StorageClass", return_value=storage)
+        storage_cls.exists = lambda _id: True
+
+        task_cls = MagicMock(
+            name="TaskClass",
+            return_value=SimpleNamespace(pending=task_pending, cancel=lambda: None),
+        )
+        task_cls.exists = lambda _id: bool(storage_task)
+
+        return (
+            # Module-level imports in the service (``Domain as RethinkDomain``,
+            # ``Task``): patch the name the service resolves.
+            patch("api.services.admin.downloads.RethinkDomain", domain_cls),
+            patch("api.services.admin.downloads.Task", task_cls),
+            # ``Storage`` is imported lazily inside the service functions, so the
+            # only shared handle is the model-module attribute they re-read.
+            patch("isardvdi_common.models.storage.Storage", storage_cls),
+        )
+
+    def _run(self, action, domain, task_pending=False, storage_task="t-1"):
+        patches = self._patched(domain, task_pending, storage_task)
+        with patches[0], patches[1], patches[2]:
+            with patch(
+                "api.services.desktops.DesktopService.delete_desktop"
+            ) as delete_desktop:
+                result = AdminDownloadsService._domain_action(action, "d-1", "u1")
+                return result, delete_desktop
+
+    @pytest.mark.parametrize("status", ["Downloading", "DownloadStarting"])
+    def test_deleting_a_running_download_is_refused(self, status):
+        with pytest.raises(Error) as raised:
+            self._run("delete", self._domain(status))
+        assert raised.value.error["description_code"] == "download_in_progress"
+
+    def test_deleting_while_a_task_is_pending_is_refused(self):
+        with pytest.raises(Error) as raised:
+            self._run("delete", self._domain("Failed"), task_pending=True)
+        assert raised.value.error["description_code"] == "download_task_pending"
+
+    def test_a_row_with_an_unsupported_kind_is_refused(self):
+        with pytest.raises(Error) as raised:
+            self._run("delete", self._domain("Unknown", kind="server"))
+        assert raised.value.error["description_code"] == "download_row_unsupported_kind"
+
+    @pytest.mark.parametrize("status", ["Stopped", "Failed", "Unknown", "Deleting"])
+    def test_a_settled_row_is_really_deleted(self, status):
+        """Including the states the old code left stranded."""
+        _result, delete_desktop = self._run("delete", self._domain(status))
+        delete_desktop.assert_called_once()
+        assert delete_desktop.call_args.kwargs["permanent"] is True
+
+    def test_aborting_what_is_not_running_is_refused(self):
+        with pytest.raises(Error) as raised:
+            self._run("abort", self._domain("Stopped"))
+        assert raised.value.error["description_code"] == "download_not_running"
+
+    def test_aborting_a_live_download_asks_the_task_to_stop(self):
+        domain = self._domain("Downloading")
+        self._run("abort", domain, task_pending=True)
+        assert domain.status == "DownloadAborting"
+
+    def test_aborting_with_nothing_running_settles_the_row(self):
+        """Otherwise it sits at DownloadAborting for good."""
+        domain = self._domain("DownloadAborting")
+        self._run("abort", domain, task_pending=False, storage_task=None)
+        assert domain.status == "Failed"
+
+    def test_media_delete_goes_through_the_media_service(self):
+        with patch("api.services.media.MediaService.delete_media") as delete_media:
+            delete_media.return_value = "task-7"
+            result = AdminDownloadsService._media_action("delete", "m-1", "u1")
+        delete_media.assert_called_once_with("m-1", {"user_id": "u1"})
+        assert result["task_id"] == "task-7"
+
+    def test_media_abort_goes_through_the_media_service(self):
+        with patch("api.services.media.MediaService.abort_media_download") as abort:
+            AdminDownloadsService._media_action("abort", "m-1", "u1")
+        abort.assert_called_once_with("m-1")

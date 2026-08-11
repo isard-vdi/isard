@@ -330,6 +330,8 @@ class StorageService:
                 size=str(size),
                 priority=priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -341,6 +343,8 @@ class StorageService:
         storage = get_storage(payload, storage_id)
         try:
             return storage.task_delete(payload.get("user_id"))
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -438,6 +442,8 @@ class StorageService:
                 priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -460,6 +466,10 @@ class StorageService:
                 secondary_priority="high",
                 retry=retry,
             )
+        except Error:
+            # Already typed (e.g. set_maintenance's preconditions): re-raise
+            # it untouched so its description_code survives.
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -510,6 +520,8 @@ class StorageService:
                 priority=priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -540,7 +552,11 @@ class StorageService:
         """Convert a storage to a new format."""
         priority = check_task_priority(payload, priority)
         origin_storage = get_storage(payload, storage_id)
-        origin_storage.set_maintenance("convert")
+        # The transition belongs to Storage.convert, which opens with it like
+        # every other action. Doing it here too flipped the disk to maintenance
+        # and then let the model's call refuse it -- set_maintenance requires
+        # ready for anything outside {create, delete, download} -- so convert
+        # could never succeed and left the disk stuck in maintenance.
 
         new_storage = Storage.init_document(
             user_id=origin_storage.user_id,
@@ -560,6 +576,8 @@ class StorageService:
                 priority=priority,
             )
             return {"new_storage_id": new_storage.id, "task_id": task_id}
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -589,6 +607,8 @@ class StorageService:
                 priority=priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -616,6 +636,8 @@ class StorageService:
                 priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -646,6 +668,8 @@ class StorageService:
                 dest_path,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -679,6 +703,8 @@ class StorageService:
                 remove_source_file,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -719,6 +745,8 @@ class StorageService:
                 remove_source_file,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 

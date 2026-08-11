@@ -28,6 +28,7 @@ from api.schemas.admin.storage import (
     AdminStorageFilterRequest,
     AdminStorageInfo,
     AdminStorageItem,
+    AdminStorageRefreshResponse,
     AdminStorageStatusCount,
 )
 from api.schemas.common import DeleteResponse, EmptyResponse, ErrorResponse
@@ -463,5 +464,34 @@ async def admin_storage_by_role(
             request,
             "internal_server",
             "Failed to get storages by role",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/storage/refresh-running-sizes",
+    tags=[tag],
+    response_model=AdminStorageRefreshResponse,
+    summary="Refresh qemu-img-info size of running desktops' disks",
+    description=(
+        "Enqueue a low-priority qemu-img-info refresh for every ready, "
+        "non-readonly disk attached to a currently-running desktop, so a "
+        "long-running desktop's stored actual-size does not stay frozen at "
+        "its last stop. Intended to be driven by the scheduler "
+        "(cron/interval). Admin only."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_storage_refresh_running_sizes(request: Request):
+    try:
+        enqueued = await asyncio.to_thread(AdminStorageService.refresh_running_sizes)
+        return AdminStorageRefreshResponse(enqueued=enqueued)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to refresh running storage sizes",
             traceback.format_exc(),
         )
