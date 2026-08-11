@@ -10,11 +10,13 @@ import { DomainInfoModal } from '@/components/desktops'
 import {
   getDesktopViewerByTokenOptions,
   getDesktopViewerByTokenQueryKey,
+  getDesktopDetailsFromTokenOptions,
+  startDesktopFromTokenMutation,
+  resetDesktopMutation,
   apiV4LoginConfigOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
-  resetDesktop as resetDesktopRequest,
-  type DesktopDirectViewerDetailsResponse,
+  type DesktopViewerResponse,
   type ViewersModel,
   type BrowserVncValues
 } from '@/gen/oas/apiv4'
@@ -26,6 +28,8 @@ import {
   desktopBookingNotificationText,
   DesktopActionsEnum
 } from '@/lib/desktops'
+
+import { withOptimisticStatus } from '@/lib/optimistic'
 
 import { useDirectViewerSocket } from '@/services/directViewerSocket'
 
@@ -97,16 +101,12 @@ const {
   data: desktopDetails,
   isPending: isDetailsPending,
   refetch: refetchDesktopDetails
-} = useQuery<DesktopDirectViewerDetailsResponse>({
-  queryKey: ['direct-viewer-details', token],
-  enabled: computed(() => !!viewerJwt.value),
-  queryFn: async () => {
-    const { data, error } = await directViewerClient.get<DesktopDirectViewerDetailsResponse>({
-      url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/get-details`
-    })
-    if (error) throw error
-    return data as DesktopDirectViewerDetailsResponse
-  }
+} = useQuery({
+  ...getDesktopDetailsFromTokenOptions({
+    path: { token: token.value },
+    client: directViewerClient
+  }),
+  enabled: computed(() => !!viewerJwt.value)
 })
 
 const bastion = computed(() => desktopDetails.value?.bastion)
@@ -250,34 +250,47 @@ const handleLogoError = () => {
 
 const showResetModal = ref(false)
 
-const { mutate: resetDesktop, isPending: isResetting } = useMutation({
-  mutationFn: async () => {
-    const { data, error } = await resetDesktopRequest({
-      path: { token: token.value },
-      client: directViewerClient
-    })
-    if (error) throw error
-    return data
-  },
-  onSuccess: () => {
-    showResetModal.value = false
-  }
-})
+// Both direct-viewer mutations are addressed by the share token, not a desktop id.
+interface DirectViewerVars {
+  path: { token: string }
+}
+const directViewerVars = computed<DirectViewerVars>(() => ({ path: { token: token.value } }))
+
+const { mutate: resetDesktop, isPending: isResetting } = useMutation(
+  withOptimisticStatus<DesktopViewerResponse, DirectViewerVars>({
+    queryClient,
+    queryKey,
+    nextStatus: DesktopStatusEnum.RESETTING,
+    // Mirror DesktopEvents.desktop_reset: any other state is rejected server-side.
+    nextStatusGuard: (current) =>
+      current === DesktopStatusEnum.STARTED ||
+      current === DesktopStatusEnum.SHUTTING_DOWN ||
+      current === DesktopStatusEnum.SUSPENDED ||
+      current === DesktopStatusEnum.STOPPING,
+    baseMutation: resetDesktopMutation({ client: directViewerClient }),
+    onSuccess: () => {
+      showResetModal.value = false
+    }
+  })
+)
 
 const showDesktopInfoModal = ref(false)
 
 // Start desktop (authenticated via the direct-viewer JWT). Used for
 // explicit user clicks after the owner has stopped the desktop from
 // elsewhere; initial auto-start is handled server-side by get-viewer.
-const { mutate: startDesktop } = useMutation({
-  mutationFn: async () => {
-    const { data, error } = await directViewerClient.put<{ id: string }>({
-      url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/start-desktop`
-    })
-    if (error) throw error
-    return data
-  }
-})
+const { mutate: startDesktop } = useMutation(
+  withOptimisticStatus<DesktopViewerResponse, DirectViewerVars>({
+    queryClient,
+    queryKey,
+    nextStatus: DesktopStatusEnum.STARTING,
+    // Mirror DesktopDirectViewer.start_desktop: only Stopped/Failed trigger an
+    // engine start, so a flicker can't re-fire it and regenerate the SPICE password.
+    nextStatusGuard: (current) =>
+      current === DesktopStatusEnum.STOPPED || current === DesktopStatusEnum.FAILED,
+    baseMutation: startDesktopFromTokenMutation({ client: directViewerClient })
+  })
+)
 
 const handleDesktopAction = (action: DesktopActionsEnum) => {
   switch (action) {
@@ -286,7 +299,7 @@ const handleDesktopAction = (action: DesktopActionsEnum) => {
       showResetModal.value = true
       break
     case DesktopActionsEnum.Start:
-      startDesktop()
+      startDesktop(directViewerVars.value)
       break
     default:
       break
@@ -593,7 +606,12 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
         >
           {{ t('views.direct-viewer.reset-modal.cancel') }}
         </Button>
-        <Button hierarchy="primary" size="lg" :disabled="isResetting" @click="resetDesktop()">
+        <Button
+          hierarchy="primary"
+          size="lg"
+          :disabled="isResetting"
+          @click="resetDesktop(directViewerVars)"
+        >
           {{ t('views.direct-viewer.reset-modal.confirm') }}
         </Button>
       </template>
