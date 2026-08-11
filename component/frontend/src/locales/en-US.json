@@ -1248,13 +1248,22 @@
       },
       "delete-confirmation-modal": {
         "title": "Delete template '{name}'",
-        "subtitle": "This action cannot be undone and all its associated data will be lost.",
+        "subtitle": "No other desktops, templates or deployments depend on this template.",
+        "recycle-bin": {
+          "temporary": "Deleted items are moved to the recycle bin and permanently removed after {time}. Template deletion always goes through the recycle bin and cannot be made permanent from here.",
+          "permanent": "Deleted items are removed permanently and cannot be recovered.",
+          "infinite": "Deleted items are moved to the recycle bin and are not removed automatically."
+        },
         "fields": {
+          "summary": {
+            "total": "{count} items will be deleted",
+            "breakdown": "{desktops} desktops · {templates} templates · {deployments} deployments · {hidden} hidden"
+          },
           "dependency": {
             "alert": {
               "title": "Dependency warning",
-              "description": "The following desktops and templates depend on this template and will be deleted. This action cannot be undone and all its associated data will be lost.",
-              "pending": "There are some items that depend on this template that are not yours. Please contact an administrator to delete this template."
+              "description": "The following desktops, templates and deployments depend on this template and will be deleted together with their disks.",
+              "pending": "Some desktops, templates or deployments that depend on this template are not yours. Please contact an administrator to delete this template."
             },
             "datatable": {
               "headers": {
@@ -1263,10 +1272,29 @@
                 "user": "User"
               }
             }
+          },
+          "cross-category": {
+            "title": "Derivatives in other categories",
+            "description": "Some derivatives of this template belong to other categories. Deleting it will also affect items outside your own category."
           }
         },
         "cancel": "Cancel",
         "confirm": "Delete Template",
+        "toast": {
+          "recycled": {
+            "title": "Template '{name}' moved to the recycle bin",
+            "description": "{count} items were moved. They will be permanently removed after {time}."
+          },
+          "recycled-infinite": {
+            "title": "Template '{name}' moved to the recycle bin",
+            "description": "{count} items were moved to the recycle bin."
+          },
+          "permanent": {
+            "title": "Template '{name}' deleted",
+            "description": "{count} items were permanently removed."
+          },
+          "open-recycle-bin": "Open recycle bin"
+        },
         "debug-options": {
           "copy-id": "Copy ID"
         }
