@@ -13,7 +13,13 @@ import { Icon, CopyIcon } from '@/components/icon'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CARD_SIZE_INJECTION_KEY, cardOverlayPaddingVariants } from '..'
+import {
+  CARD_SIZE_INJECTION_KEY,
+  cardOverlayPaddingVariants,
+  cardOverlayTextVariants,
+  cardOverlayDetailVariants,
+  cardOverlayLabelVariants
+} from '..'
 
 const { t } = useI18n()
 
@@ -95,10 +101,13 @@ const sshUrl = computed(() => {
       <Skeleton class="bg-base-white/20 h-4 w-full" />
       <Skeleton class="bg-base-white/20 h-4 w-3/4" />
     </div>
-    <div v-else-if="!hasAccess" class="text-[11px] text-base-white/80">
+    <div
+      v-else-if="!hasAccess"
+      :class="[cardOverlayDetailVariants({ size }), 'text-base-white/80']"
+    >
       {{ t('components.bastion-info-modal.no-bastion-configured') }}
     </div>
-    <div v-else class="flex flex-wrap gap-1.5 text-xs">
+    <div v-else class="flex flex-wrap gap-1.5" :class="cardOverlayTextVariants({ size })">
       <div v-if="httpEnabled" class="flex items-center gap-1.5 rounded bg-base-white/15 px-2 py-1">
         <Icon name="globe-04" size="xs" stroke-color="base-white" class="shrink-0" />
         <span class="font-semibold">HTTPS</span>
@@ -187,7 +196,8 @@ const sshUrl = computed(() => {
           <Button
             hierarchy="link-gray"
             size="sm"
-            class="h-6! px-2! gap-1 bg-base-white/15 hover:bg-base-white/30 text-[10px] font-semibold text-base-white"
+            class="h-6! px-2! gap-1 bg-base-white/15 hover:bg-base-white/30 font-semibold text-base-white"
+            :class="cardOverlayLabelVariants({ size })"
             @click="emit('showBastionModal')"
           >
             {{ t('components.desktops.desktop-card.overlay.expand') }}

@@ -41,11 +41,15 @@ import {
   DesktopCardNetworksOverlay,
   DesktopCardBastionOverlay,
   DesktopCardOverlayButton,
-  DesktopCardInfoOverlay
+  DesktopCardInfoOverlay,
+  cardOverlayPaddingVariants,
+  cardOverlayLabelVariants
 } from '@/components/desktop-card'
+import type { CardSize } from '@/components/desktop-card'
 import DirectViewerCardPreview from '@/components/desktop-card/parts/DirectViewerCardPreview.vue'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Icon } from '@/components/icon'
 import { LoginNotification } from '@/components/login'
 import { ChangeViewerModal } from '@/components/modal'
@@ -60,6 +64,10 @@ const cookies = vueuseCookies(['browser_viewer', 'viewerToken'])
 
 // Path / sameSite are required so /viewer/noVNC/ can read both cookies; without path:/ the cookie is scoped to /direct/<token>.
 const VIEWER_COOKIE_OPTS = { path: '/', sameSite: 'strict' } as const
+
+const CARD_SIZE: CardSize = 'xl'
+
+const networksOverlayRef = ref<InstanceType<typeof DesktopCardNetworksOverlay> | null>(null)
 
 const token = computed(() => route.params.token as string)
 
@@ -409,8 +417,9 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                     :desktop-kind="desktopCardKind"
                     :image-url="desktopViewer.image?.url ?? ''"
                     :show-overlay="activeOverlay !== null"
+                    :fill-overlay="activeOverlay === 'info'"
                     class="shadow-lg relative z-10"
-                    size="xl"
+                    :size="CARD_SIZE"
                   >
                     <template #image>
                       <DirectViewerCardPreview
@@ -446,8 +455,13 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       <DesktopCardIp :desktop-status="desktopViewer.status" :desktop-ip="null" />
                     </template>
                     <template #overlay>
-                      <div v-if="activeOverlay === 'networks'" class="z-10 pl-3 pr-3 pb-2">
+                      <div
+                        v-if="activeOverlay === 'networks'"
+                        :class="cardOverlayPaddingVariants({ size: CARD_SIZE })"
+                        class="text-base-white text-start"
+                      >
                         <DesktopCardNetworksOverlay
+                          ref="networksOverlayRef"
                           :desktop-id="desktopViewer.id"
                           :desktop-status="desktopViewer.status"
                           :desktop-ip="desktopDetails?.ip"
@@ -458,6 +472,28 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                           "
                           @show-networks-modal="showNetworksModal = true"
                         />
+                        <div
+                          v-if="!networksOverlayRef?.hasOverflow"
+                          class="flex justify-end mt-1.5"
+                        >
+                          <Tooltip>
+                            <TooltipTrigger as-child>
+                              <Button
+                                hierarchy="link-gray"
+                                size="sm"
+                                class="h-6! px-2! gap-1 bg-base-white/15 hover:bg-base-white/30 font-semibold text-base-white"
+                                :class="cardOverlayLabelVariants({ size: CARD_SIZE })"
+                                @click="showNetworksModal = true"
+                              >
+                                {{ t('components.desktops.desktop-card.overlay.expand') }}
+                                <Icon name="expand-04" size="xs" stroke-color="base-white" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              :title="t('components.desktops.desktop-card.overlay.expand-tooltip')"
+                            />
+                          </Tooltip>
+                        </div>
                       </div>
                       <DesktopCardBastionOverlay
                         v-else-if="activeOverlay === 'bastion'"

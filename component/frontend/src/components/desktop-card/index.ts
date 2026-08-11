@@ -30,12 +30,17 @@ export const CARD_SIZE_INJECTION_KEY = Symbol('cardSize') as InjectionKey<CardSi
 // --- Header icon buttons ---
 
 // Icon-only when idle; when its overlay is active the button highlights and
-// widens to reveal the overlay's title label beside the icon.
-export const overlayIconButtonClass = (active: boolean) =>
+// widens to reveal the overlay's title label beside the icon. That label names
+// the panel below it, so it rides the same scale as the panel's own captions
+// (`cardOverlayLabelVariants`, declared further down — read lazily at call
+// time, never during module evaluation).
+export const overlayIconButtonClass = (active: boolean, size: CardSize = 'lg') =>
   [
     'h-9! flex items-center justify-center backdrop-blur-[4px]',
     active
-      ? 'w-auto! px-2.5! gap-1.5 bg-base-white/30 hover:bg-base-white/40 text-[10px] font-bold uppercase tracking-wide text-base-white'
+      ? `w-auto! px-2.5! gap-1.5 bg-base-white/30 hover:bg-base-white/40 ${cardOverlayLabelVariants(
+          { size }
+        )} font-bold uppercase tracking-wide text-base-white`
       : 'w-9! p-0! bg-base-black/30 hover:bg-base-black/50'
   ].join(' ')
 
@@ -205,18 +210,80 @@ export const cardNetworkVariants = cva('z-10', {
   }
 })
 
+export const cardOverlaySlotVariants = cva('z-10 w-full overflow-y-auto', {
+  variants: {
+    fill: {
+      true: 'flex-1 min-h-0',
+      false: ''
+    }
+  },
+  defaultVariants: {
+    fill: false
+  }
+})
+
 // Overlay sits at the bottom of the image, below the type-identifier SVG, so
 // it can align its left edge with the desktop name (`cardHeaderSlotVariants`)
 // instead of clearing the SVG offset.
 export const cardOverlayPaddingVariants = cva('z-10', {
   variants: {
     size: {
-      '2xs': 'pl-1.5 pr-1.5 pb-1',
-      xs: 'pl-2 pr-2 pb-1',
-      sm: 'pl-2.5 pr-2.5 pb-1.5',
-      md: 'pl-3 pr-3 pb-2',
-      lg: 'pl-3 pr-3 pb-2',
-      xl: 'pl-4 pr-4 pb-2'
+      '2xs': 'pl-[20px] pr-1.5 pb-1 pt-[44px]',
+      xs: 'pl-[28px] pr-2 pb-1 pt-[46px]',
+      sm: 'pl-[34px] pr-2.5 pb-1.5 pt-[46px]',
+      md: 'pl-[15px] pr-3 pb-2 pt-[50px]',
+      lg: 'pl-[15px] pr-3 pb-2 pt-[59px]',
+      xl: 'pl-[20px] pr-4 pb-2 pt-[70px]'
+    }
+  },
+  defaultVariants: {
+    size: 'lg'
+  }
+})
+
+export const cardOverlayTextVariants = cva('', {
+  variants: {
+    size: {
+      '2xs': 'text-xs',
+      xs: 'text-xs',
+      sm: 'text-xs',
+      md: 'text-xs',
+      lg: 'text-xs',
+      xl: 'text-sm'
+    }
+  },
+  defaultVariants: {
+    size: 'lg'
+  }
+})
+
+// Secondary lines: MAC/IP monospace rows and the networks overflow button.
+export const cardOverlayDetailVariants = cva('', {
+  variants: {
+    size: {
+      '2xs': 'text-[11px]',
+      xs: 'text-[11px]',
+      sm: 'text-[11px]',
+      md: 'text-[11px]',
+      lg: 'text-[11px]',
+      xl: 'text-[12px]'
+    }
+  },
+  defaultVariants: {
+    size: 'lg'
+  }
+})
+
+// Micro-labels: status badge, uppercase field captions, +N and expand buttons.
+export const cardOverlayLabelVariants = cva('', {
+  variants: {
+    size: {
+      '2xs': 'text-[10px]',
+      xs: 'text-[10px]',
+      sm: 'text-[10px]',
+      md: 'text-[10px]',
+      lg: 'text-[10px]',
+      xl: 'text-[12px]'
     }
   },
   defaultVariants: {
@@ -235,6 +302,22 @@ export const cardHeaderNameVariants = cva('font-bold text-start truncate text-ba
       md: 'text-base',
       lg: 'text-lg',
       xl: 'text-xl'
+    }
+  },
+  defaultVariants: {
+    size: 'lg'
+  }
+})
+
+export const cardHeaderNameCompactVariants = cva('', {
+  variants: {
+    size: {
+      '2xs': 'text-xs',
+      xs: 'text-sm',
+      sm: 'text-sm',
+      md: 'text-sm',
+      lg: 'text-sm',
+      xl: 'text-sm'
     }
   },
   defaultVariants: {

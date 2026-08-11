@@ -6,12 +6,14 @@ interface Props {
   desktopKind: 'persistent' | 'nonpersistent' | 'deployment'
   imageUrl: string
   showOverlay?: boolean
+  fillOverlay?: boolean
   size?: CardSize
   fill?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
   showOverlay: false,
+  fillOverlay: false,
   size: 'lg',
   fill: false
 })
@@ -35,6 +37,7 @@ withDefaults(defineProps<Props>(), {
         :desktop-kind="desktopKind"
         :image-url="imageUrl"
         :show-overlay="showOverlay"
+        :fill-overlay="fillOverlay"
         :size="size"
         :fill="fill"
       >
