@@ -39,7 +39,9 @@ const {
   ...getDesktopInfoOptions({
     path: { desktop_id: desktopId.value }
   }),
-  enabled: computed(() => !!desktopId.value)
+  enabled: computed(() => !!desktopId.value),
+  staleTime: 0,
+  refetchOnMount: 'always'
 })
 
 const { data: userConfig } = useQuery(getUserConfigOptions())
@@ -51,8 +53,8 @@ const desktopInfoFormSchema = z.object({
 })
 
 const defaultValues = reactive({
-  name: '',
-  description: ''
+  name: computed(() => desktopData.value?.name ?? ''),
+  description: computed(() => desktopData.value?.description ?? '')
 })
 
 const desktopInfoForm = useForm({
@@ -78,8 +80,6 @@ watch(
   desktopData,
   (data) => {
     if (!data) return
-    desktopInfoForm.setFieldValue('name', data.name)
-    desktopInfoForm.setFieldValue('description', data.description || '')
     selectedImage.value = data.image
     pendingImageFile.value = undefined
   },
@@ -121,10 +121,11 @@ const submitError = ref<string | null>(null)
 
 const { mutate: submitEdit, isPending: submitPending } = useMutation({
   ...editDesktopMutation(),
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: getUserDesktopsLegacyQueryKey() })
-    queryClient.invalidateQueries({
-      queryKey: getDesktopInfoQueryKey({ path: { desktop_id: desktopId.value } })
+  onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: getUserDesktopsLegacyQueryKey() })
+    queryClient.removeQueries({
+      queryKey: getDesktopInfoQueryKey({ path: { desktop_id: desktopId.value } }),
+      exact: true
     })
     router.push({ name: 'desktops' })
   },

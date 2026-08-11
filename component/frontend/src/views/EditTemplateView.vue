@@ -62,7 +62,10 @@ const templateInfoFormSchema = z.object({
   description: z.string().max(255).optional()
 })
 
-const defaultValues = reactive({ name: '', description: '' })
+const defaultValues = reactive({
+  name: computed(() => templateDetails.value?.name ?? ''),
+  description: computed(() => templateDetails.value?.description ?? '')
+})
 
 const templateInfoForm = useForm({
   defaultValues,
@@ -75,8 +78,6 @@ watch(
   templateDetails,
   (data) => {
     if (!data) return
-    templateInfoForm.setFieldValue('name', data.name)
-    templateInfoForm.setFieldValue('description', data.description || '')
     selectedImage.value = (data as { image?: DomainImageOutput }).image
     pendingImageFile.value = undefined
   },
