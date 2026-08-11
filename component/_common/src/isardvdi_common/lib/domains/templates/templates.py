@@ -581,8 +581,15 @@ class TemplatesProcessed(RethinkSharedConnection):
             ).update({"status": "ForceDeleting"}).run(cls._rdb_connection)
 
     @classmethod
-    def check_children(cls, payload, domain_tree):
+    def check_children(cls, payload, domain_tree, seen_deployments=None):
         """_From api/libv2/api_templates.py ApiTemplates.check_children()_"""
+        # The tree builder can emit the same deployment twice: once flattened
+        # under the root (ApiAdmin._derivated stamps template_id = root) and
+        # once nested under a duplicated template (ApiAdmin._duplicated calls
+        # _derivated(duplicate_id) again). ``seen_deployments`` is shared across
+        # the whole recursion so the caller sees each deployment once.
+        if seen_deployments is None:
+            seen_deployments = set()
         try:
             Helpers.owns_domain_id(payload, domain_tree["id"])
             domains = [
@@ -609,11 +616,15 @@ class TemplatesProcessed(RethinkSharedConnection):
             }
 
             if item.get("children"):
-                child_result = cls.check_children(payload, item)
+                child_result = cls.check_children(payload, item, seen_deployments)
                 domains.extend(child_result["domains"])
+                deployments.extend(child_result["deployments"])
                 pending = pending or child_result["pending"]
             else:
                 if item["kind"] == "deployment":
+                    if item["id"] in seen_deployments:
+                        continue
+                    seen_deployments.add(item["id"])
                     try:
                         Helpers.owns_deployment_id(payload, item["id"], True)
                         deployments.append(item_result)
@@ -628,7 +639,12 @@ class TemplatesProcessed(RethinkSharedConnection):
                         pending = True
                         domains.append({})
 
-        return {"deployments": deployments, "domains": domains, "pending": pending}
+        return {
+            "deployments": deployments,
+            "domains": domains,
+            "pending": pending,
+            "deployment_ids": sorted(seen_deployments),
+        }
 
     @classmethod
     def get_deployments_with_template(cls, template_id, return_username=False):
