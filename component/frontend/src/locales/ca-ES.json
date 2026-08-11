@@ -818,7 +818,8 @@
         "viewer": {
           "actions": {
             "close": "Tanca el visor",
-            "maximize": "Maximitza el visor"
+            "maximize": "Maximitza el visor",
+            "minimize": "Restaura la mida del visor"
           },
           "empty": {
             "title": "Cap escriptori seleccionat",
@@ -2324,7 +2325,12 @@
         "view": "Veure",
         "viewing": "Veient",
         "viewers": "Visors",
-        "not-available": "L'escriptori ha d'estar iniciat per poder-lo veure"
+        "not-available": "L'escriptori ha d'estar iniciat per poder-lo veure",
+        "tooltips": {
+          "view": "Fes clic per veure aquest escriptori en aquesta pàgina",
+          "viewing": "Estàs veient aquest escriptori",
+          "no-web-viewer": "Aquest escriptori no té visor web; obre'l des del menú de visors"
+        }
       }
     },
     "change-image-modal": {

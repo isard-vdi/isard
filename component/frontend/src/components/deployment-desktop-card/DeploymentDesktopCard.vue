@@ -124,7 +124,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
         {{ desktop.name }}
       </p>
 
-      <!-- TODO: inform the user if the desktop doesn't have novnc -->
       <Tooltip>
         <TooltipTrigger as-child>
           <Button
@@ -187,11 +186,9 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
           :class="mainButtonData.text.iconClass"
           :stroke-color="mainButtonData.text.iconColor"
         />
-        <template v-if="true">
-          {{
-            t(`components.desktops.desktop-card.status.${props.desktop.status.toLowerCase()}.text`)
-          }}
-        </template>
+        {{
+          t(`components.desktops.desktop-card.status.${props.desktop.status.toLowerCase()}.text`)
+        }}
       </div>
 
       <!-- <ViewerSelect

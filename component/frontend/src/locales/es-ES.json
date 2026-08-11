@@ -818,7 +818,8 @@
         "viewer": {
           "actions": {
             "close": "Cerrar visor",
-            "maximize": "Maximizar visor"
+            "maximize": "Maximizar visor",
+            "minimize": "Restaurar el tamaño del visor"
           },
           "empty": {
             "title": "Ningún escritorio seleccionado",
@@ -2336,7 +2337,12 @@
         "view": "Ver",
         "viewing": "Viendo",
         "viewers": "Visores",
-        "not-available": "El escritorio debe estar iniciado para poder verlo"
+        "not-available": "El escritorio debe estar iniciado para poder verlo",
+        "tooltips": {
+          "view": "Haz clic para ver este escritorio en esta página",
+          "viewing": "Estás viendo este escritorio",
+          "no-web-viewer": "Este escritorio no tiene visor web; ábrelo desde el menú de visores"
+        }
       }
     },
     "change-image-modal": {

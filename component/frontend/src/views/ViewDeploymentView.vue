@@ -13,7 +13,7 @@ import {
   stopUserDesktopsInDeploymentMutation,
   getDesktopDetailsOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { getDeploymentUserDesktopsDetail } from '@/gen/oas/apiv4'
+import { getDeploymentUserDesktopsDetail, type UserDeploymentDesktop } from '@/gen/oas/apiv4'
 
 import { Button } from '@/components/ui/button'
 import NoVNC from '@/components/noVNC/NoVNC.vue'
@@ -140,6 +140,27 @@ watch(selectedDesktopHasViewer, (hasViewer) => {
 const fullScreen = ref(false)
 
 const desktopsPanelCollapsed = ref(false)
+
+// Mirrors the DeploymentDesktopCard `canOpenViewer` rule so both panel modes enable the same desktops
+const canViewDesktop = (desktop: UserDeploymentDesktop) =>
+  !!desktopActionsData(desktop.status).viewers &&
+  !!desktop.viewers?.some((viewer) => viewer.replace(/_/g, '-') === 'browser-vnc')
+
+const collapsedDesktopTooltip = (desktop: UserDeploymentDesktop) => {
+  if (viewerVariables.value === desktop.id) {
+    return t('components.deployments.desktop-card.tooltips.viewing')
+  }
+
+  if (!desktopActionsData(desktop.status).viewers) {
+    return t('components.deployments.desktop-card.not-available')
+  }
+
+  if (!canViewDesktop(desktop)) {
+    return t('components.deployments.desktop-card.tooltips.no-web-viewer')
+  }
+
+  return t('components.deployments.desktop-card.tooltips.view')
+}
 
 const recreateDesktopModalDesktopData = ref<{
   id: string
@@ -289,18 +310,38 @@ const openDeploymentInfoModal = () => {
       </h1>
 
       <div v-if="viewerData" class="ml-auto flex flex-row items-center gap-4">
-        <Button
-          hierarchy="secondary-gray"
-          class="p-[10px]"
-          icon="underscore"
-          @click="resetViewer()"
-        />
-        <Button
-          hierarchy="secondary-gray"
-          class="p-[10px]"
-          :icon="fullScreen ? 'minimize-02' : 'maximize-02'"
-          @click="fullScreen = !fullScreen"
-        />
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              hierarchy="secondary-gray"
+              class="p-[10px]"
+              icon="underscore"
+              @click="resetViewer()"
+            />
+          </TooltipTrigger>
+          <TooltipContent
+            :title="t('views.view-deployment.sections.viewer.actions.close')"
+            side="top"
+          />
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              hierarchy="secondary-gray"
+              class="p-[10px]"
+              :icon="fullScreen ? 'minimize-02' : 'maximize-02'"
+              @click="fullScreen = !fullScreen"
+            />
+          </TooltipTrigger>
+          <TooltipContent
+            :title="
+              t(
+                `views.view-deployment.sections.viewer.actions.${fullScreen ? 'minimize' : 'maximize'}`
+              )
+            "
+            side="top"
+          />
+        </Tooltip>
         <!-- <Button hierarchy="secondary-gray" class="p-[10px]" icon="link-external-01" disabled /> -->
       </div>
     </div>
@@ -463,24 +504,33 @@ const openDeploymentInfoModal = () => {
         <div v-else class="flex flex-row gap-4 p-4 mb-4">
           <!-- TODO: merge this into DeploymentDesktopCard to centralise the logic -->
           <template v-for="desktop in desktops?.desktops" :key="desktop.id">
-            <div
-              class="size-16 shrink-0 bg-cover bg-center rounded-md relative"
-              :class="{
-                'ring-3 ring-brand-700': viewerVariables === desktop.id,
-                'cursor-pointer': viewerVariables !== desktop.id,
-                'contrast-50 cursor-not-allowed!': desktop.status !== 'Started'
-              }"
-              :style="{
-                backgroundImage: `url(${desktop.image.url})`
-              }"
-              @click="
-                () => {
-                  if (desktop.status === 'Started' && viewerVariables !== desktop.id) {
-                    fetchViewer(desktop.id)
-                  }
-                }
-              "
-            />
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <div
+                  class="size-16 shrink-0 bg-cover bg-center rounded-md relative"
+                  :class="{
+                    'ring-3 ring-brand-700': viewerVariables === desktop.id,
+                    'cursor-pointer': viewerVariables !== desktop.id && canViewDesktop(desktop),
+                    'contrast-50 cursor-not-allowed!': !canViewDesktop(desktop)
+                  }"
+                  :style="{
+                    backgroundImage: `url(${desktop.image.url})`
+                  }"
+                  @click="
+                    () => {
+                      if (canViewDesktop(desktop) && viewerVariables !== desktop.id) {
+                        fetchViewer(desktop.id)
+                      }
+                    }
+                  "
+                />
+              </TooltipTrigger>
+              <TooltipContent
+                :title="desktop.name"
+                :subtitle="collapsedDesktopTooltip(desktop)"
+                side="top"
+              />
+            </Tooltip>
           </template>
         </div>
 

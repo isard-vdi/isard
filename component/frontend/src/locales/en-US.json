@@ -827,7 +827,8 @@
         "viewer": {
           "actions": {
             "close": "Close viewer",
-            "maximize": "Maximize viewer"
+            "maximize": "Maximize viewer",
+            "minimize": "Restore viewer size"
           },
           "empty": {
             "title": "No desktop selected",
@@ -2442,7 +2443,12 @@
         "view": "View",
         "viewing": "Viewing",
         "viewers": "Viewers",
-        "not-available": "The desktop must be started in order to view it"
+        "not-available": "The desktop must be started in order to view it",
+        "tooltips": {
+          "view": "Click to view this desktop on this page",
+          "viewing": "You are viewing this desktop",
+          "no-web-viewer": "This desktop has no web viewer; open it from the viewers menu"
+        }
       }
     },
     "bookings": {
