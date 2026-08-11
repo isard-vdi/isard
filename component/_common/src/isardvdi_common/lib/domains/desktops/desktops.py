@@ -206,10 +206,14 @@ class DesktopsProcessed(RethinkSharedConnection):
         ).get("passwd"):
             desktop["status"] = DesktopStatusEnum.starting.value
 
+        # Callers that pluck a subset of the domain (deployment desktops) may
+        # not carry the interfaces at all; treat that as "no wireguard".
+        interfaces = ((desktop.get("create_dict") or {}).get("hardware") or {}).get(
+            "interfaces"
+        ) or []
         if (
             desktop["status"] == DesktopStatusEnum.started.value
-            and "wireguard"
-            in [i["id"] for i in desktop["create_dict"]["hardware"]["interfaces"]]
+            and "wireguard" in [i["id"] for i in interfaces]
             and not desktop.get("viewer", {}).get("guest_ip")
         ):
             desktop["status"] = DesktopStatusEnum.waiting_ip.value

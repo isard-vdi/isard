@@ -144,6 +144,10 @@ class DeploymentDesktopsProcessed(RethinkSharedConnection):
                     "tag_visible",
                     {"viewer": {"guest_ip", "passwd"}},
                     "guest_properties",
+                    # Needed by ``parse_frontend_desktop_status`` to tell a
+                    # wireguard desktop still waiting for its guest IP apart
+                    # from a fully started one.
+                    {"create_dict": {"hardware": "interfaces"}},
                 )
                 .run(cls._rdb_connection)
             )
