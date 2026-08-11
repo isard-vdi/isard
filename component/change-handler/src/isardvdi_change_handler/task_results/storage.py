@@ -312,6 +312,12 @@ async def handle_update_status(redis_manager, task, statuses=None):
                     )
                     continue
                 for item_id in item_ids:
+                    if not model.exists(item_id):
+                        # The row was deleted while its chain was still
+                        # settling. init_document inserts, so writing the
+                        # status here would re-create it as a zombie with
+                        # nothing but an id and a status.
+                        continue
                     model.init_document(item_id, status=item_status)
                     if item_class.lower() == "storage":
                         await send_status_socket(redis_manager, item_id, item_status)

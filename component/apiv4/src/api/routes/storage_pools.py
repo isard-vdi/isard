@@ -29,6 +29,8 @@ from api.schemas.storage_pools import (
     StoragePoolByPathRequest,
     StoragePoolCreateRequest,
     StoragePoolListResponse,
+    StoragePoolMutationResponse,
+    StoragePoolPendingResponse,
     StoragePoolResponse,
     StoragePoolUpdateRequest,
 )
@@ -128,19 +130,23 @@ async def get_storage_pool_by_path(request: Request, data: StoragePoolByPathRequ
     "/storage-pool",
     tags=[tag],
     status_code=201,
-    response_class=Response,
+    response_model=StoragePoolMutationResponse,
     summary="Create storage pool",
-    description="Creates a new storage pool.",
+    description="Creates a new storage pool. May return non-blocking warnings "
+    "(e.g. no storage/hypervisor node serves the new pool yet).",
     responses={
         500: {"model": ErrorResponse},
     },
 )
 async def create_storage_pool(request: Request, data: StoragePoolCreateRequest):
     try:
-        await asyncio.to_thread(
+        result = await asyncio.to_thread(
             StoragePoolService.add_storage_pool, data.model_dump(exclude_none=True)
         )
-        return Response(status_code=201)
+        return JSONResponse(
+            content=StoragePoolMutationResponse(**result).model_dump(mode="json"),
+            status_code=201,
+        )
     except Error:
         raise
     except Exception as e:
@@ -245,10 +251,11 @@ async def get_storage_pool(request: Request, storage_pool_id: str):
 @admin_router.put(
     "/storage-pool/{storage_pool_id}",
     tags=[tag],
-    status_code=204,
-    response_class=Response,
+    status_code=200,
+    response_model=StoragePoolMutationResponse,
     summary="Update storage pool",
-    description="Updates an existing storage pool.",
+    description="Updates an existing storage pool. On disable, returns a warning "
+    "listing pending work (residing disks + queued tasks) that keeps draining.",
     responses={
         500: {"model": ErrorResponse},
     },
@@ -257,12 +264,15 @@ async def update_storage_pool(
     request: Request, storage_pool_id: str, data: StoragePoolUpdateRequest
 ):
     try:
-        await asyncio.to_thread(
+        result = await asyncio.to_thread(
             StoragePoolService.update_storage_pool,
             storage_pool_id,
             data.model_dump(exclude_none=True),
         )
-        return Response(status_code=204)
+        return JSONResponse(
+            content=StoragePoolMutationResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -296,6 +306,39 @@ async def delete_storage_pool(request: Request, storage_pool_id: str):
             request,
             "internal_server",
             "Failed to delete storage pool",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/storage-pool/{storage_pool_id}/pending",
+    tags=[tag],
+    response_model=StoragePoolPendingResponse,
+    summary="Storage pool drain-status",
+    description="Whether a pool is quiescent: enabled flag, categories, residing "
+    "disks, queued lane jobs, consumer coverage, and a 'drained' flag (true when "
+    "it can be deleted). Use after disabling a pool to watch it drain.",
+    responses={
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_storage_pool_pending(request: Request, storage_pool_id: str):
+    try:
+        result = await asyncio.to_thread(
+            StoragePoolService.get_pool_pending, storage_pool_id
+        )
+        return JSONResponse(
+            content=StoragePoolPendingResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get storage pool drain-status",
             traceback.format_exc(),
         )
 

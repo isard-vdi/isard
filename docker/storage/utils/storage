@@ -68,6 +68,7 @@ from storage_lib.qcow import (
     diagnose_broken_chains,
     get_backing_chain,
     get_full_info,
+    is_file_in_use,
     qemu_img_check,
     qemu_img_info,
     rebase_file,
@@ -1480,6 +1481,11 @@ def _classify_non_qcow2_files(non_qcow_files, qcow_deps, db_storage_lookup=None)
     restore the canonical file if it ever turned out broken. We therefore
     only mark such a backup as "dead" when ALL of:
       - the canonical .qcow2 exists on disk
+      - the canonical is not currently locked/in-use (a locked image cannot be
+        proven at rest: qemu-img check -U would read straight through the lock
+        and call a half-written image clean — measured, a live-held image gives
+        rc 0 under -U — which is exactly how the in-flight backup of a running
+        sparsify/convert would get deleted)
       - qemu-img check on the canonical reports no errors
       - the canonical's UUID is in the API storage table with status=ready
         (or no API lookup was passed in, in which case we skip this check)
@@ -1506,6 +1512,13 @@ def _classify_non_qcow2_files(non_qcow_files, qcow_deps, db_storage_lookup=None)
         if f_str.endswith(".qcow2.sparsify-backup"):
             canonical = f_str[: -len(".sparsify-backup")]
             if not Path(canonical).is_file():
+                unknown.append(f_str)
+                continue
+            # A locked/in-use canonical is not provably at rest. is_file_in_use
+            # opens WITHOUT -U so a held lock surfaces (unlike qemu_img_check,
+            # which is -U by design and reads through it); keep the backup.
+            in_use, _lock_err = is_file_in_use(canonical)
+            if in_use:
                 unknown.append(f_str)
                 continue
             if not qemu_img_check(canonical):

@@ -141,3 +141,45 @@ class TestGetAllStoragesWithUuid:
     def test_status_filter_forwarded(self, mock_get):
         StorageService.get_all_storages_with_uuid(JWT_PAYLOAD_ADMIN, status="ready")
         assert mock_get.call_args.kwargs["status"] == "ready"
+
+
+class TestConvertSetsMaintenanceOnce:
+    """``convert`` may only put the disk into maintenance once.
+
+    ``Storage.convert`` opens with ``self.set_maintenance("convert")`` -- every
+    action owns that transition in the model. The service was doing it too, and
+    ``set_maintenance`` refuses any action outside {create, delete, download}
+    unless the storage is ``ready``. So the first call flipped the disk to
+    maintenance and the second call raised ``precondition_required``: convert
+    could never succeed, and it left the disk stuck in maintenance, unusable.
+
+    Reproduced against a live install: every convert answered
+    ``428 ... must be Ready ... It's actual status is maintenance``.
+    """
+
+    def test_the_service_leaves_the_transition_to_the_model(self):
+        origin = MagicMock(name="origin_storage")
+        origin.user_id = "u-1"
+        origin.directory_path = "/isard/groups"
+        origin.id = "s-1"
+        origin.convert.return_value = "task-1"
+
+        with patch("api.services.storage.get_storage", return_value=origin), patch(
+            "api.services.storage.Storage"
+        ) as storage_cls:
+            storage_cls.init_document.return_value = MagicMock(id="s-2")
+            StorageService.convert(
+                JWT_PAYLOAD_ADMIN,
+                storage_id="s-1",
+                new_storage_type="qcow2",
+                new_storage_status="ready",
+                compress=False,
+                priority="default",
+            )
+
+        assert origin.set_maintenance.call_count == 0, (
+            "the service set maintenance itself; Storage.convert sets it too, and "
+            "the second call raises precondition_required because the disk is no "
+            "longer ready -- convert can never succeed and the disk is left stuck"
+        )
+        origin.convert.assert_called_once()
