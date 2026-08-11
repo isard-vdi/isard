@@ -101,7 +101,7 @@ commit-lint:
     - apk add --no-cache git
     - bun install --frozen-lockfile
   script:
-    - git fetch https://gitlab.com/isard/isardvdi.git main
+    - git fetch https://gitlab.com/isard/isardvdi.git "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
     - bunx commitlint --from=$(git merge-base HEAD FETCH_HEAD)
 
 version:
