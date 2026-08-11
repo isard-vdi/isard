@@ -380,9 +380,19 @@ unit-test-vmalert:
 
 unit-test-apiv4:
   extends: .python-test-job
+  # A real redis, because the retry guard that refuses a task whose direct
+  # dependent is CANCELED rests on rq's own admission rule, and that premise is
+  # proved by running rq rather than by asserting it. The service is declared
+  # here and NOT on ``.python-test-base``: sixteen other python jobs extend that
+  # base and none of them wants a redis container. Same image and digest the
+  # stack runs, so the proof exercises the redis we ship.
+  services:
+    - name: redis:7.4-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+      alias: redis
   variables:
     COVERAGE_DIR: component/apiv4/src
     USAGE: "production"
+    REDIS_HOST: redis
   script:
     - make ci-test-apiv4
 

@@ -48,6 +48,7 @@ async def get_queues_health(request: Request):
     summary="Get a task",
     description="Returns a task by its ID. Users can only see their own tasks.",
     responses={
+        403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
@@ -81,10 +82,18 @@ async def get_task(request: Request, task_id: str):
     status_code=204,
     response_class=Response,
     summary="Cancel a task",
-    description="Cancels a queued task. Only the task owner can cancel it.",
+    description=(
+        "Cancels a task, and with it every job linked to it through "
+        "dependencies. Only the task owner can cancel it, and only while the "
+        "chain is still queued (428 otherwise). Best effort: a queued job "
+        "drops immediately, a running body stops only if it cooperates by "
+        "watching its cancel signal, and a body that does not watch runs to "
+        "completion. Re-read the task rather than trust the 204."
+    ),
     responses={
+        403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
-        412: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
@@ -197,10 +206,13 @@ async def get_admin_tasks(
     response_class=Response,
     summary="Admin cancel a task",
     description=(
-        "Admin-cancels a task with no ownership or status gate — clears a "
-        "wedged / deferred / running-if-cooperative task. Cancel drops queued "
-        "jobs and signals ``task:cancel:<id>`` but cannot stop an "
-        "already-running body unless it cooperates. 404 if the task is gone."
+        "Admin-cancels a task and its whole dependency chain, with no "
+        "ownership or status gate — clears a wedged / deferred / "
+        "running-if-cooperative task. Best effort: a queued job drops "
+        "immediately, a running body stops only if it cooperates by watching "
+        "the ``task:cancel:<id>`` signal, and a body that does not watch runs "
+        "to completion. Re-read the task rather than trust the 204. 404 if "
+        "the task is gone."
     ),
     responses={
         404: {"model": ErrorResponse},
@@ -228,10 +240,17 @@ async def admin_cancel_task(request: Request, task_id: str):
     status_code=204,
     response_class=Response,
     summary="Retry a failed task",
-    description="Retries a failed task. Admin only.",
+    description=(
+        "Re-enqueues a failed task on the lane it came from. Admin only. "
+        "Refused with 428 when the addressed job is not itself the one that "
+        "failed, when it is a chain finalize step no worker fleet serves, or "
+        "when a direct dependent was cancelled and rq would therefore never "
+        "re-run it; 429 when the lane has no live consumer."
+    ),
     responses={
         404: {"model": ErrorResponse},
-        412: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        429: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )

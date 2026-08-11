@@ -35,7 +35,11 @@ def _bare(status, domains=(), children=()):
 
 
 class _Domain:
-    def __init__(self, status="Stopped"):
+    # ``set_maintenance`` filters its domains by id before checking the
+    # "all stopped" precondition (the ``exclude_domains`` parameter), so the
+    # double has to carry one or the filter raises AttributeError instead.
+    def __init__(self, status="Stopped", domain_id="domain-1"):
+        self.id = domain_id
         self.status = status
         self.current_action = None
 

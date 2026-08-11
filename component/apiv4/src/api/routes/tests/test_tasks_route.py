@@ -200,8 +200,8 @@ def test_cancel_task_not_found_returns_404(monkeypatch, test_client):
 
 def test_cancel_task_wrong_status_returns_428(monkeypatch, test_client):
     """Cancelling a non-queued task must surface precondition_required as 428
-    (RFC 6585). The route's OpenAPI responses advertise 412 but the
-    Error class in isardvdi_common maps precondition_required → 428."""
+    (RFC 6585), which is what the Error class in isardvdi_common maps it to and
+    what the route now declares."""
 
     def raise_precondition(task_id, user_id, role_id):
         raise Error("precondition_required", "Task should be queued, but is completed")
@@ -499,31 +499,141 @@ def test_admin_cancel_task_service_no_owner_gate(monkeypatch):
     calls = {}
 
     class FakeTask:
-        @staticmethod
-        def exists(tid):
-            return True
-
-        def __init__(self, tid):
-            calls["built"] = tid
-
         def cancel(self):
             calls["canceled"] = True
 
-    monkeypatch.setattr("api.services.tasks.Task", FakeTask)
+    def fake_load(task_ids):
+        calls["loaded"] = task_ids
+        return [FakeTask()]
+
+    monkeypatch.setattr("api.services.tasks.tasks_from_ids", fake_load)
     out = TaskService.admin_cancel_task("t-9")
     assert out == {}
-    assert calls == {"built": "t-9", "canceled": True}
+    assert calls == {"loaded": ["t-9"], "canceled": True}
 
 
 def test_admin_cancel_task_service_gone_raises(monkeypatch):
-    """A gone task raises not_found (-> 404 at the route)."""
+    """A task whose job is gone — or is there but unloadable — raises not_found
+    (-> 404 at the route), never a bare NoSuchJobError the route would have to
+    turn into a 500."""
     from api.services.tasks import TaskService
 
-    class FakeTask:
-        @staticmethod
-        def exists(tid):
-            return False
-
-    monkeypatch.setattr("api.services.tasks.Task", FakeTask)
-    with pytest.raises(Error):
+    monkeypatch.setattr("api.services.tasks.tasks_from_ids", lambda task_ids: [])
+    with pytest.raises(Error) as excinfo:
         TaskService.admin_cancel_task("ghost")
+    assert excinfo.value.status_code == 404
+
+
+def test_cancel_task_forbidden_returns_403(monkeypatch, test_client):
+    """``cancel_task`` runs the owner check first, so a non-owner gets 403.
+    Proves the status the declaration below has to carry."""
+
+    def raise_forbidden(task_id, user_id, role_id):
+        raise Error("forbidden", "Not authorized to access this task")
+
+    monkeypatch.setattr(
+        "api.services.tasks.TaskService.cancel_task",
+        staticmethod(raise_forbidden),
+    )
+    jwt = MockJWT(role_id="user")
+    response = test_client(url="/task/t-others", method="DELETE", jwt=jwt)
+    assert response.status_code == 403
+
+
+def test_retry_task_stranded_lane_returns_429(monkeypatch, test_client):
+    """``Task.retry`` takes the same mandatory consumer gate as ``create_task``
+    and raises a typed 429 for a lane with no live worker. It resolves to
+    apiv4's own Error in-process, so the route re-raises it untouched."""
+
+    def raise_stranded(task_id):
+        raise Error("too_many_requests", "lane has no consumer")
+
+    monkeypatch.setattr(
+        "api.services.tasks.TaskService.retry_task",
+        staticmethod(raise_stranded),
+    )
+    jwt = MockJWT()
+    response = test_client(url="/admin/task/t-stranded/retry", method="PUT", jwt=jwt)
+    assert response.status_code == 429
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Declared responses == what the routes can actually raise
+# ══════════════════════════════════════════════════════════════════════════
+
+# Every status each task route can really produce, and the test that proves it.
+# The generated clients are built from this schema, so a wrong declaration is a
+# wrong client: 412 was declared where the runtime raises 428
+# (``precondition_required`` maps to 428), and the owner check's 403 and the
+# retry lane gate's 429 were not declared at all. 401 is contributed by the
+# authenticated router itself rather than by the handler.
+TASK_ROUTE_RESPONSES = {
+    # 403 test_get_task_forbidden_returns_403
+    # 404 test_get_task_not_found_returns_404
+    # 500 test_get_task_unexpected_error_is_500
+    ("GET", "/api/v4/task/{task_id}"): {401, 403, 404, 500},
+    # 403 test_cancel_task_forbidden_returns_403
+    # 404 test_cancel_task_not_found_returns_404
+    # 428 test_cancel_task_wrong_status_returns_428
+    ("DELETE", "/api/v4/task/{task_id}"): {401, 403, 404, 428, 500},
+    # 404 test_admin_cancel_task_gone_returns_404
+    ("DELETE", "/api/v4/admin/task/{task_id}"): {401, 404, 500},
+    # 404 test_retry_task_not_found_returns_404
+    # 428 test_retry_task_wrong_status_returns_428
+    # 429 test_retry_task_stranded_lane_returns_429
+    ("PUT", "/api/v4/admin/task/{task_id}/retry"): {401, 404, 428, 429, 500},
+}
+
+
+def _declared_statuses(method: str, path: str) -> set[int]:
+    from api import app
+
+    for route in app.routes:
+        if getattr(route, "path", None) == path and method in getattr(
+            route, "methods", set()
+        ):
+            return set(route.responses or {})
+    raise AssertionError(f"no route registered for {method} {path}")
+
+
+@pytest.mark.parametrize(
+    ("method", "path"), sorted(TASK_ROUTE_RESPONSES), ids=lambda v: str(v)
+)
+def test_declared_responses_match_what_the_route_can_raise(method, path):
+    assert _declared_statuses(method, path) == TASK_ROUTE_RESPONSES[(method, path)]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Cancel route descriptions state the real contract
+# ══════════════════════════════════════════════════════════════════════════
+
+# The description is shipped to callers in the OpenAPI schema and in every
+# generated client, so "cancels a queued task" is a promise the endpoint does
+# not keep: RQ can only drop a job that is still queued, a running body stops
+# only if it cooperates by watching its cancel signal, and a body that does not
+# watch runs to completion. Each phrase below is one of the three facts a
+# caller needs in order to know the 204 is not proof the work stopped.
+CANCEL_ROUTE_FACTS = {
+    ("DELETE", "/api/v4/task/{task_id}"),
+    ("DELETE", "/api/v4/admin/task/{task_id}"),
+}
+
+
+def _description(method: str, path: str) -> str:
+    from api import app
+
+    for route in app.routes:
+        if getattr(route, "path", None) == path and method in getattr(
+            route, "methods", set()
+        ):
+            return route.description or ""
+    raise AssertionError(f"no route registered for {method} {path}")
+
+
+@pytest.mark.parametrize(("method", "path"), sorted(CANCEL_ROUTE_FACTS))
+def test_cancel_descriptions_state_the_best_effort_contract(method, path):
+    description = _description(method, path).lower()
+    assert "queued" in description, "must say a queued job is what drops"
+    assert "cooperat" in description, "must say a running body must cooperate"
+    assert "best effort" in description, "must say the endpoint is best effort"
+    assert "re-read" in description, "must tell the caller to re-read the row"

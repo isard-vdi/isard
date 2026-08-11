@@ -261,12 +261,12 @@ ci-test-apiv4:
 .PHONY: ci-test-common
 ci-test-common:
 	uv sync --no-dev --group test --package isardvdi-common --package isardvdi-apiv4 --package isardvdi-change-handler --package isardvdi-socketio
-	cd component/_common/src && uv run --no-dev --group test --package isardvdi-common pytest isardvdi_common -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml
+	SKIP_GATE_REPORT=component/_common/src/report.xml docker/lib/ci-with-redis.sh sh -c 'cd component/_common/src && uv run --no-dev --group test --package isardvdi-common pytest isardvdi_common -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml'
 
 .PHONY: ci-test-change-handler
 ci-test-change-handler:
 	uv sync --no-dev --group test --package isardvdi-change-handler
-	cd component/change-handler/src && uv run --no-dev --group test --package isardvdi-change-handler pytest isardvdi_change_handler/tests/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_change_handler --cov-report=term --cov-report=xml:coverage.xml
+	SKIP_GATE_REPORT=component/change-handler/src/report.xml docker/lib/ci-with-redis.sh sh -c 'cd component/change-handler/src && uv run --no-dev --group test --package isardvdi-change-handler pytest isardvdi_change_handler/tests/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_change_handler --cov-report=term --cov-report=xml:coverage.xml'
 
 .PHONY: ci-test-changefeed
 ci-test-changefeed:
