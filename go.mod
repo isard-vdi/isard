@@ -2,15 +2,12 @@ module gitlab.com/isard/isardvdi
 
 go 1.25.8
 
-// TODO: Remove this when merged: https://github.com/crewjam/saml/pull/549
-replace github.com/crewjam/saml => github.com/Daniel-Wachter/saml v0.0.0-20240124130410-b8ee52d250c2
-
 // TODO: Remove this when merged upstream — fixes mockConn.Close() for synctest compatibility
 replace gopkg.in/rethinkdb/rethinkdb-go.v6 => github.com/NefixEstrada/rethinkdb-go v0.0.0-20260327115155-35805b411ecb
 
 require (
 	github.com/bolkedebruin/rdpgw v1.0.4
-	github.com/crewjam/saml v0.4.14
+	github.com/crewjam/saml v0.5.2-0.20250509153807-346540312f72
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-faster/errors v0.7.1
 	github.com/go-faster/jx v1.2.0
@@ -69,7 +66,7 @@ require (
 	github.com/aws/aws-sdk-go v1.54.19 // indirect
 	github.com/axiomhq/hyperloglog v0.0.0-20240507144631-af9851f82b27 // indirect
 	github.com/bboreham/go-loser v0.0.0-20230920113527-fcc2c21820a3 // indirect
-	github.com/beevik/etree v1.6.0 // indirect
+	github.com/beevik/etree v1.7.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bool64/shared v0.1.5 // indirect
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500 // indirect
@@ -78,7 +75,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
-	github.com/crewjam/httperr v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dennwc/varint v1.0.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
@@ -114,7 +110,6 @@ require (
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gogo/status v1.1.1 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -185,7 +180,7 @@ require (
 	github.com/prometheus/exporter-toolkit v0.11.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/prometheus/prometheus v0.53.2-0.20240726125539-d4f098ae80fb // indirect
-	github.com/russellhaering/goxmldsig v1.6.0 // indirect
+	github.com/russellhaering/goxmldsig v1.6.1 // indirect
 	github.com/sagikazarmark/locafero v0.9.0 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
