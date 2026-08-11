@@ -2041,10 +2041,6 @@
             "text": "Starting",
             "action": "Starting"
           },
-          "creatingdiskfromscratch": {
-            "text": "Creating",
-            "action": "Creating"
-          },
           "deleting": {
             "text": "Deleting",
             "action": "Deleting"

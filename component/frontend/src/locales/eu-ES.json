@@ -1292,10 +1292,6 @@
             "text": "Abiarazten",
             "action": "Abiarazten"
           },
-          "creatingdiskfromscratch": {
-            "text": "Sortzen",
-            "action": "Sortzen"
-          },
           "deleting": {
             "text": "Ezabatzen",
             "action": "Ezabatzen"

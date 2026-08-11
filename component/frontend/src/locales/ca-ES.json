@@ -1486,10 +1486,6 @@
             "text": "Iniciant",
             "action": "Iniciant"
           },
-          "creatingdiskfromscratch": {
-            "text": "Creant",
-            "action": "Creant"
-          },
           "deleting": {
             "text": "Esborrant",
             "action": "Esborrant"

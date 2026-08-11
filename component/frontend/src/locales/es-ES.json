@@ -1486,10 +1486,6 @@
             "text": "Iniciando",
             "action": "Iniciando"
           },
-          "creatingdiskfromscratch": {
-            "text": "Creando",
-            "action": "Creando"
-          },
           "deleting": {
             "text": "Borrando",
             "action": "Borrando"
