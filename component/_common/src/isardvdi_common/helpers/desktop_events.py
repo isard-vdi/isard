@@ -588,7 +588,11 @@ class DesktopEvents(RethinkCustomBase):
         rcb = RecycleBinDesktop(user_id=agent_id)
         rcb.add(desktop_id)
 
-        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(agent_id)
+        # Owner's cutoff governs — the same owner the scheduler drains by
+        # (owner_category_status_accessed), not the deleting agent's.
+        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(
+            rcb.owner_id or agent_id
+        )
         # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
         if permanent or tag or max_time == 0:
             tasks = rcb.delete_storage(agent_id)
@@ -610,6 +614,12 @@ class DesktopEvents(RethinkCustomBase):
                 if i + batch_size < len(desktops_ids):
                     time.sleep(0.5)
 
+            # No single owner is in scope here: this collapses arbitrarily many
+            # desktops (possibly many owners) into agent-owned bulk entries
+            # (RecycleBinBulk.add is not threaded an owner_id), so the entry
+            # owner IS the agent and this already matches the scheduler's drain.
+            # Per-owner attribution would need per-owner bulk entries — a
+            # separate change, deliberately not made here.
             max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(agent_id)
             # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
             if max_time == 0 or permanent:
@@ -650,7 +660,10 @@ class DesktopEvents(RethinkCustomBase):
         rcb = RecycleBinDeployment(user_id=agent_id)
         rcb.add(deployment_id)
 
-        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(agent_id)
+        # Owner's cutoff governs, matching the scheduler's drain criterion.
+        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(
+            rcb.owner_id or agent_id
+        )
         if max_time == 0 or permanent:
             tasks = rcb.delete_storage(agent_id)
             return tasks
@@ -673,6 +686,11 @@ class DesktopEvents(RethinkCustomBase):
         rcb = RecycleBinUser(user_id=agent_id)
         rcb.add(user_id, delete_user)
 
+        # Exception to the owner rule: here the owner IS the user being deleted,
+        # and rcb.add has already removed its ``users`` row. Resolving the
+        # cutoff via the owner would query a gone row (get_user_recycle_bin_
+        # cutoff_time -> users.get(...).pluck -> ReqlNonExistenceError). The only
+        # surviving reference is the agent, so resolve via the agent.
         max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(agent_id)
         # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
         if max_time == 0:
@@ -683,7 +701,12 @@ class DesktopEvents(RethinkCustomBase):
         rcb = RecycleBinGroup(user_id=agent_id)
         rcb.add(group_id)
 
-        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(agent_id)
+        # Owner's cutoff governs, matching the scheduler's drain criterion.
+        # (Here the entry owner is the agent by construction, so this is a
+        # self-documenting no-op — kept uniform with the sibling deletes.)
+        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(
+            rcb.owner_id or agent_id
+        )
         # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
         if max_time == 0:
             rcb.delete_storage(agent_id)
@@ -693,7 +716,12 @@ class DesktopEvents(RethinkCustomBase):
         rcb = RecycleBinCategory(user_id=agent_id)
         rcb.add(category_id)
 
-        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(agent_id)
+        # Owner's cutoff governs, matching the scheduler's drain criterion.
+        # (Here the entry owner is the agent by construction, so this is a
+        # self-documenting no-op — kept uniform with the sibling deletes.)
+        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(
+            rcb.owner_id or agent_id
+        )
         # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
         if max_time == 0:
             rcb.delete_storage(agent_id)
@@ -703,7 +731,10 @@ class DesktopEvents(RethinkCustomBase):
         rcb = RecycleBinTemplate(user_id=agent_id)
         rcb.add(template_id=template_id)
 
-        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(agent_id)
+        # Owner's cutoff governs, matching the scheduler's drain criterion.
+        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(
+            rcb.owner_id or agent_id
+        )
         # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
         if max_time == 0:
             task = rcb.delete_storage(agent_id)
