@@ -68,6 +68,7 @@ default:
       paths:
         - .go-mod-cache
         - .go-build-cache
+        - .golangci-lint-cache
     - key:
         files:
           - component/frontend/bun.lock
