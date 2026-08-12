@@ -93,7 +93,8 @@ class MediaItemResponse(BaseModel):
     user: str
     category: str
     group: str
-    accessed: float
+    # Never accessed means no timestamp; one such row must not 500 the list.
+    accessed: Optional[float] = None
     icon: str
     editable: bool
 

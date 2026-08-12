@@ -503,7 +503,7 @@ async def list_priority_rules(request: Request):
 @token_router.get(
     "/item/booking/availability/{item_type}/{item_id}",
     tags=[tag],
-    response_model=AvailabilityResponse,
+    response_model=list[AvailabilityResponse],
     summary="Get item availability",
     description="Returns item availability by crossing info with the resource planner.",
     responses={
@@ -514,7 +514,7 @@ async def get_item_availability(
     request: Request,
     item_type: str = Path(..., description="Type of item (desktop or deployment)"),
     item_id: str = Path(..., description="ID of the item"),
-) -> AvailabilityResponse:
+) -> list[AvailabilityResponse]:
     try:
         result = await asyncio.to_thread(
             BookingsService.get_item_availability,
@@ -522,9 +522,10 @@ async def get_item_availability(
             item_type,
             item_id,
         )
-        if isinstance(result, dict):
-            return AvailabilityResponse(**result)
-        return AvailabilityResponse()
+        # The service returns a *list* of availability windows
+        # (start/end/event_type/units), one per free/overridable slot — not a
+        # single window. Model it as such instead of collapsing to one object.
+        return [AvailabilityResponse(**window) for window in result]
     except Error:
         raise
     except Exception as e:

@@ -191,6 +191,25 @@ class Alloweds(RethinkCustomBase):
 
         allowed = r.row["allowed"]
 
+        # ``is_allowed`` matches the groups axis through
+        # ``check_secondary_groups``, which expands the user's secondary
+        # groups AND every ``linked_groups`` entry. Matching only the
+        # primary group here made this filter strictly narrower than the
+        # Python path serving the same data, so a template shared with a
+        # group the user belongs to as a SECONDARY member stopped being
+        # listed. Expand once, in Python, and match against the set.
+        try:
+            secondary = cls.get_user(user_id).get("secondary_groups") or []
+        except Exception:
+            # ``get_user`` raises on a user that no longer exists. Both
+            # callers gate on ``RethinkUser.exists`` first, so this only
+            # fires on a deletion racing the listing — degrade to the
+            # primary group instead of 500-ing the whole page.
+            secondary = []
+        user_groups = cls.get_all_linked_groups(
+            [g for g in [user_group] + list(secondary) if g]
+        )
+
         shared_conditions += [
             r.and_(
                 allowed["roles"].type_of().eq("ARRAY"),
@@ -213,7 +232,7 @@ class Alloweds(RethinkCustomBase):
                         allowed["groups"].count().eq(0),
                         r.row["category"].eq(user_category),
                     ),
-                    allowed["groups"].contains(user_group),
+                    allowed["groups"].set_intersection(user_groups).count().gt(0),
                 ),
             ),
             r.and_(
@@ -410,19 +429,34 @@ class Alloweds(RethinkCustomBase):
 
             allowed = []
             for item in items:
+                # ``query_merge`` replaces ``user`` with a {id, name, photo}
+                # object for the client, but ownership is a comparison
+                # against a user id — against the merged object it is
+                # always false, which silently drops the caller's OWN rows
+                # from every merged listing.
+                owner_id = item.get("user")
+                if isinstance(owner_id, dict):
+                    owner_id = owner_id.get("id")
                 if (
                     payload["role_id"] == "admin"
                     or (
                         payload["role_id"] == "manager"
                         and payload["category_id"] == item.get("category")
                     )
-                    or item.get("user") == payload["user_id"]
+                    or owner_id == payload["user_id"]
                 ):
                     item["editable"] = True
                 else:
                     item["editable"] = False
                 if item["id"] in extra_ids_allowed or cls.is_allowed(
-                    payload, item, table, ignore_role=only_in_allowed
+                    payload,
+                    (
+                        item
+                        if owner_id is item.get("user")
+                        else {**item, "user": owner_id}
+                    ),
+                    table,
+                    ignore_role=only_in_allowed,
                 ):
                     allowed.append(item)
 

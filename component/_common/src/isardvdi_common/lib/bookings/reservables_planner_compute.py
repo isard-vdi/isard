@@ -849,29 +849,44 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
             "max_items": min(new_priority["max_items"], old_priority["max_items"]),
         }
 
+    @staticmethod
+    def _parse_booking_window_bound(value):
+        """Parse an optional ``%Y-%m-%dT%H:%M%z`` window bound to UTC.
+
+        ``fromDate``/``toDate`` are *optional* overlap bounds on the bookings
+        query ("only consider bookings overlapping this window"). A missing
+        bound (``None``) means **no restriction on that side** — unbounded —
+        not an error and not an empty result. The item-availability and
+        booking-provisioning routes carry no date range, so the correct answer
+        is the whole timeline; the planner side of ``booking_provisioning`` is
+        itself anchored at ``now`` and unbounded forward, so dropping the
+        filter on the unbounded side keeps both sides consistent and every
+        relevant booking is still subtracted.
+        """
+        if value is None:
+            return None
+        return datetime.strptime(value, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+
     ## OVERRIDABLES
     @classmethod
     def get_overridable_bookings(
         cls, priority, reservables, fromDate, toDate, skip_booking_id=None
     ):
         bookings = []
+        to_bound = cls._parse_booking_window_bound(toDate)
+        from_bound = cls._parse_booking_window_bound(fromDate)
         for k, v in reservables.items():
             for subitem in v:
                 query = r.table("bookings")
                 # This index should be multi I think, then will get the items that have all the v.
                 # Now I think it will get all the ones that have any v.
                 query = query.get_all([subitem], index="reservables_" + k)
-                query = query.filter(
-                    r.row["start"]
-                    <= datetime.strptime(toDate, "%Y-%m-%dT%H:%M%z").astimezone(
-                        pytz.UTC
-                    )
-                ).filter(
-                    r.row["end"]
-                    >= datetime.strptime(fromDate, "%Y-%m-%dT%H:%M%z").astimezone(
-                        pytz.UTC
-                    )
-                )
+                # Apply each overlap bound only when supplied; a None bound is
+                # unbounded on that side (see _parse_booking_window_bound).
+                if to_bound is not None:
+                    query = query.filter(r.row["start"] <= to_bound)
+                if from_bound is not None:
+                    query = query.filter(r.row["end"] >= from_bound)
                 if skip_booking_id:
                     query = query.filter(
                         lambda booking: booking["id"] != skip_booking_id
@@ -903,19 +918,20 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
         cls, priority, reservables, start, end, skip_booking_id=None
     ):
         bookings = []
+        end_bound = cls._parse_booking_window_bound(end)
+        start_bound = cls._parse_booking_window_bound(start)
         for k, v in reservables.items():
             for subitem in v:
                 query = r.table("bookings")
                 # This index should be multi I think, then will get the items that have all the v.
                 # Now I think it will get all the ones that have any v.
                 query = query.get_all([subitem], index="reservables_" + k)
-                query = query.filter(
-                    r.row["start"]
-                    <= datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-                ).filter(
-                    r.row["end"]
-                    >= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-                )
+                # Apply each overlap bound only when supplied; a None bound is
+                # unbounded on that side (see _parse_booking_window_bound).
+                if end_bound is not None:
+                    query = query.filter(r.row["start"] <= end_bound)
+                if start_bound is not None:
+                    query = query.filter(r.row["end"] >= start_bound)
                 if skip_booking_id:
                     query = query.filter(
                         lambda booking: booking["id"] != skip_booking_id

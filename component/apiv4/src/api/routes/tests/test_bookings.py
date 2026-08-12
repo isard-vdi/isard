@@ -209,6 +209,56 @@ def test_get_booking_priority_desktop(monkeypatch, test_client):
     assert body["forbid_time"] == 60
 
 
+def test_get_item_availability_returns_full_list(monkeypatch, test_client):
+    """GET /item/booking/availability/{item_type}/{item_id} returns the
+    *whole* list of availability windows.
+
+    The service returns a list of ``{start, end, event_type, units}``
+    windows. The route previously declared ``response_model=Availability
+    Response`` (a single window) and collapsed the result — so even once
+    the ``strptime(None)`` 500 was fixed, a two-window planning would be
+    silently truncated to an empty object. This pins the list contract:
+    every window the service produced must reach the caller.
+    """
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_availability(payload, item_type, item_id):
+        captured["item_type"] = item_type
+        captured["item_id"] = item_id
+        return [
+            {
+                "start": "2026-01-01T09:00+0000",
+                "end": "2026-01-01T12:00+0000",
+                "event_type": "available",
+                "units": 2,
+            },
+            {
+                "start": "2026-01-02T09:00+0000",
+                "end": "2026-01-02T12:00+0000",
+                "event_type": "overridable",
+                "units": "Enough",
+            },
+        ]
+
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.get_item_availability",
+        staticmethod(fake_availability),
+    )
+
+    response = test_client(url="/item/booking/availability/desktop/desktop-1", jwt=jwt)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    assert len(body) == 2
+    assert body[0]["event_type"] == "available"
+    assert body[0]["units"] == 2
+    assert body[1]["event_type"] == "overridable"
+    assert body[1]["units"] == "Enough"
+    assert captured == {"item_type": "desktop", "item_id": "desktop-1"}
+
+
 def test_get_max_booking_date(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}

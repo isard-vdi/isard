@@ -2203,4 +2203,183 @@
         },
         "xml": null
     }
+    ,
+    {
+        "id": "template-parity-own",
+        "kind": "template",
+        "name": "Parity own template",
+        "description": "e2e listing-parity fixture",
+        "status": "Stopped",
+        "enabled": true,
+        "category": "default",
+        "group": "default-default",
+        "user": "a3f7c1d9-4b62-4e08-9a15-7c3e8d2b6f40",
+        "username": "advanced_parity",
+        "persistent": true,
+        "server": false,
+        "icon": "fa-circle-o",
+        "os": "linux",
+        "accessed": 1758268070,
+        "booking_id": false,
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "hypervisors_pools": [
+            "default"
+        ],
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "image": {
+            "id": "1.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/1.jpg"
+        },
+        "guest_properties": {
+            "credentials": {
+                "username": "isard",
+                "password": "pirineus"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "create_dict": {
+            "hardware": {
+                "vcpus": 1,
+                "memory": 1048576,
+                "videos": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:00:00:01"
+                    }
+                ],
+                "graphics": [
+                    "default"
+                ],
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "qos_disk_id": false,
+                "virtualization_nested": false,
+                "isos": [],
+                "floppies": [],
+                "disks": [
+                    {
+                        "storage_id": "storage-template-test-001"
+                    }
+                ]
+            },
+            "personal_vlans": false,
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "xml": "<domain type=\"kvm\"><name>template-test-001</name><uuid>00000000-0000-0000-0000-000000000001</uuid><memory unit=\"KiB\">1048576</memory><vcpu placement=\"static\">1</vcpu><os><type arch=\"x86_64\" machine=\"pc-i440fx-2.11\">hvm</type></os><devices/></domain>"
+    },
+    {
+        "id": "template-parity-shared",
+        "kind": "template",
+        "name": "Parity shared template",
+        "description": "e2e listing-parity fixture",
+        "status": "Stopped",
+        "enabled": true,
+        "category": "default",
+        "group": "default-default",
+        "user": "a3f7c1d9-4b62-4e08-9a15-7c3e8d2b6f40",
+        "username": "advanced_parity",
+        "persistent": true,
+        "server": false,
+        "icon": "fa-circle-o",
+        "os": "linux",
+        "accessed": 1758268070,
+        "booking_id": false,
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "hypervisors_pools": [
+            "default"
+        ],
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": [
+                "a3f7c1d9-4b62-4e08-9a15-7c3e8d2b6f40"
+            ]
+        },
+        "image": {
+            "id": "1.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/1.jpg"
+        },
+        "guest_properties": {
+            "credentials": {
+                "username": "isard",
+                "password": "pirineus"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "create_dict": {
+            "hardware": {
+                "vcpus": 1,
+                "memory": 1048576,
+                "videos": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:00:00:01"
+                    }
+                ],
+                "graphics": [
+                    "default"
+                ],
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "qos_disk_id": false,
+                "virtualization_nested": false,
+                "isos": [],
+                "floppies": [],
+                "disks": [
+                    {
+                        "storage_id": "storage-template-test-001"
+                    }
+                ]
+            },
+            "personal_vlans": false,
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "xml": "<domain type=\"kvm\"><name>template-test-001</name><uuid>00000000-0000-0000-0000-000000000001</uuid><memory unit=\"KiB\">1048576</memory><vcpu placement=\"static\">1</vcpu><os><type arch=\"x86_64\" machine=\"pc-i440fx-2.11\">hvm</type></os><devices/></domain>"
+    }
 ]

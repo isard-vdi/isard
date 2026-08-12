@@ -9,9 +9,16 @@
 A read-only view of the storage worker fleet built from the same governor redis
 keys the admin backlog gauge uses, so the enqueue-time shed gate and the admin
 view share ONE ``has_consumer`` / ``stranded`` definition. Everything here is
-bounded (no ``KEYS`` glob, one pipelined pass over ``rq:workers``) and
-**fail-open**: any redis error, or a fleet we cannot see, yields "ok / do not
-shed" so a transient blip never rejects a user action.
+bounded (no ``KEYS`` glob, one pipelined pass over ``rq:workers``).
+
+Ignorance vs knowledge
+----------------------
+The bias is fail-open on **ignorance** only. Every read here RAISES on a redis
+error and returns an empty answer only when redis actually answered, so the two
+are distinguishable and get opposite treatment: unreadable (redis down, index
+unreachable) yields "ok / do not shed" so a blip never rejects a user action,
+while a readable index reporting zero live workers is a FACT about the fleet and
+sheds — otherwise a stopped fleet silently accepts work nothing can ever drain.
 
 Coverage model
 --------------
@@ -184,15 +191,15 @@ def served_coverage(conn):
     return covered, opaque_pools
 
 
-def lane_shed_decision(conn, queue):
+def lane_shed_decision(conn, queue, now=None):
     """Decide what to do with a task about to enqueue on ``queue``.
 
     Returns ``(decision, ctx)`` where ``decision`` is ``"reject"`` (no live
     consumer for the lane, any tier; or a foreground lane above its hard cap),
     ``"warn"`` (backed up but will run) or ``"ok"``. ``ctx`` carries ``pool``/
     ``category``/``tier``/``backlog``/``has_consumer``/``stranded``/``reason``
-    for the caller's error or notify. Never raises — any failure degrades to
-    ``("ok", ...)``.
+    for the caller's error or notify. Never raises — a read that FAILS degrades
+    to ``("ok", ...)``.
 
     The LIVE coverage index (:func:`pool_live_workers`) is the primary signal:
     a fresh heartbeat there means a governed worker serves the lane right now.
@@ -201,30 +208,49 @@ def lane_shed_decision(conn, queue):
     worker still counts. The index's 15s TTL is authoritative once it shows a
     worker, but an unclean full-pool death during the mixed-version window
     still falls back to the legacy ~90s governor-hash / rq-heartbeat signal —
-    the safe bias."""
+    the safe bias.
+
+    Both reads raise on a redis error, so reaching the end of that fallback with
+    nothing found means redis answered and the fleet is genuinely gone. That is
+    knowledge, and it sheds like any other empty lane: accepting work no worker
+    can drain gives the user neither an error nor progress."""
     parsed = queue_tiers.parse_storage_queue(queue)
     if not parsed:
         return "ok", {"reason": "non_storage_queue"}
     pool, category, tier = parsed
+    if now is None:
+        now = time.time()
     try:
         live = pool_live_workers(conn, pool, tier)
         if live > 0:
             has_consumer, opaque = True, False
+            note_fleet_seen(conn, now)
         else:
             covered, opaque_pools = served_coverage(conn)
-            if not covered and not opaque_pools:
-                # No worker visible anywhere — a full-fleet restart blip is far
-                # more likely than a deliberate zero-consumer state; fail open.
-                return "ok", {
-                    "reason": "no_coverage_data",
-                    "pool": pool,
-                    "category": category,
-                    "tier": tier,
-                }
+            if covered or opaque_pools:
+                note_fleet_seen(conn, now)
+            else:
+                # Redis answered and shows nothing anywhere. Before reading that
+                # as a stopped fleet, date it: a clean shutdown unpublishes its
+                # lanes at once, so a rolling restart looks exactly like this for
+                # as long as the replacements take to heartbeat.
+                # No sighting at all is not a gap: nothing has ever heartbeated
+                # here, so refusing is accurate and self-heals the moment a
+                # worker publishes.
+                seen = fleet_last_seen(conn)
+                if seen is not None and now - seen <= FLEET_GONE_GRACE_S:
+                    return "ok", {
+                        "reason": "fleet_gap",
+                        "pool": pool,
+                        "category": category,
+                        "tier": tier,
+                    }
             has_consumer = (pool, tier) in covered
             opaque = pool in opaque_pools
         backlog = conn.llen(_RQ_QUEUE_PREFIX + queue)
     except Exception:
+        # We could not READ the fleet (redis down, index unreachable). That is
+        # ignorance, not a zero-consumer verdict: fail open.
         return "ok", {
             "reason": "coverage_error",
             "pool": pool,
@@ -301,9 +327,9 @@ def check_no_consumer(conn, queue):
     """Raise a typed 429 when ``queue`` has NO live consumer for its
     (pool, category) — a task nothing can drain must never be enqueued, for any
     tier. Mandatory on every producer and category-scoped (a dead pool only
-    refuses the categories it serves); fail-open on any coverage uncertainty.
-    Distinct from :func:`check_shed`, the additional foreground backlog-overload
-    gate."""
+    refuses the categories it serves); fail-open only when the coverage index
+    cannot be read. Distinct from :func:`check_shed`, the additional foreground
+    backlog-overload gate."""
     decision, ctx = lane_shed_decision(conn, queue)
     if decision == "reject" and ctx.get("reason") == "no_consumer":
         _raise_lane_429(conn, ctx)
@@ -313,7 +339,7 @@ def check_shed(conn, queue):
     """Raise a typed 429 ``Error`` if a task must not enqueue on ``queue``
     (stranded for any tier, or a foreground lane above its hard backlog cap).
     Call this BEFORE any state mutation so a reject leaves nothing half-done.
-    Fail-open on any coverage uncertainty."""
+    Fail-open only when the coverage index cannot be read."""
     decision, ctx = lane_shed_decision(conn, queue)
     if decision == "reject":
         _raise_lane_429(conn, ctx)
@@ -336,9 +362,37 @@ COV_TTL_S = _env_int("STORAGE_COV_TTL_S", 15)
 COV_HEARTBEAT_S = _env_int("STORAGE_COV_HEARTBEAT_S", 5)
 
 
+# How long an empty index is read as a gap rather than as an absent fleet. A
+# governed worker unpublishes its lanes on a clean shutdown instead of letting
+# them expire, so every rolling restart empties the index for as long as it
+# takes the replacements to heartbeat. Without this window that instant reads as
+# "the fleet is gone" and refuses every storage action mid-upgrade.
+FLEET_GONE_GRACE_S = _env_int("STORAGE_FLEET_GONE_GRACE_S", 120)
+
+_FLEET_SEEN_KEY = f"{_COV_PREFIX}fleet_seen"
+
+
 def cov_key(pool, tier):
     """Redis key for the live (pool, tier) coverage zset."""
     return f"{_COV_PREFIX}{pool}:{tier}"
+
+
+def note_fleet_seen(conn, now):
+    """Record that consumers were visible, so a later gap can be dated."""
+    conn.set(_FLEET_SEEN_KEY, repr(float(now)))
+
+
+def fleet_last_seen(conn):
+    """When consumers were last visible, or ``None`` if never recorded."""
+    raw = conn.get(_FLEET_SEEN_KEY)
+    if raw is None:
+        return None
+    if isinstance(raw, bytes):
+        raw = raw.decode()
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 def publish_lane(conn, pool, tier, worker, now, ttl):
@@ -346,6 +400,10 @@ def publish_lane(conn, pool, tier, worker, now, ttl):
     key = cov_key(pool, tier)
     conn.zadd(key, {worker: now})
     conn.expire(key, ttl)
+    # Date the fleet from the worker side rather than from whoever happens to
+    # ask: the shed gate needs to tell a restart gap from an absent fleet, and a
+    # heartbeat is the one event that proves consumers exist.
+    note_fleet_seen(conn, now)
 
 
 def unpublish_worker(conn, pool, tier, worker):
@@ -378,7 +436,9 @@ def _lane_health(conn, pool, tier):
             "backlog": ctx.get("backlog", 0),
             "no_consumer": decision == "reject" and ctx.get("reason") == "no_consumer",
             "overloaded": decision == "reject" and ctx.get("reason") == "overloaded",
-            "degraded": ctx.get("reason") in ("coverage_error", "no_coverage_data"),
+            # Only an unreadable index is degraded; a readable one reporting an
+            # empty fleet is a real no-consumer, not a blind spot.
+            "degraded": ctx.get("reason") == "coverage_error",
         }
     except Exception:
         return {
