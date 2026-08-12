@@ -385,3 +385,64 @@ async def test_missing_job_status_defaults_to_finished():
         )
 
     root.job.set_status.assert_called_once_with(JobStatus.FINISHED)
+
+
+# --- _release_storage_dependents: the REAL function, not a mock of it ---------
+#
+# The reconcile tests patch _release_storage_dependents with an AsyncMock, so its
+# own gate (does this member have a storage-queue dependent?) and its core/storage
+# boundary were never exercised. These drive the real function and spy only on the
+# rq boundary (redis.from_url / Queue.enqueue_dependents).
+
+
+def _member(dependents):
+    return SimpleNamespace(id="m", job=MagicMock(name="job"), dependents=dependents)
+
+
+def _dep_on(queue):
+    return SimpleNamespace(queue=queue)
+
+
+@pytest.mark.asyncio
+async def test_release_storage_dependents_releases_a_member_with_a_storage_child():
+    """A member with a storage-queue dependent must reach
+    ``Queue.enqueue_dependents`` — that is the DEFERRED→QUEUED release the storage
+    worker needs after a core handler."""
+    from isardvdi_change_handler.streams import task_results_consumer as trc
+
+    member = _member([_dep_on("storage.pool.default")])
+    with (
+        patch.object(trc.redis, "from_url", return_value=MagicMock()),
+        patch.object(trc, "Queue") as queue_cls,
+    ):
+        await trc._release_storage_dependents(member)
+    queue_cls.return_value.enqueue_dependents.assert_called_once_with(member.job)
+
+
+@pytest.mark.asyncio
+async def test_release_storage_dependents_skips_a_member_with_no_storage_child():
+    """The gate: a member with no non-core dependent must NOT enqueue anything."""
+    from isardvdi_change_handler.streams import task_results_consumer as trc
+
+    member = _member([])
+    with (
+        patch.object(trc.redis, "from_url", return_value=MagicMock()),
+        patch.object(trc, "Queue") as queue_cls,
+    ):
+        await trc._release_storage_dependents(member)
+    queue_cls.return_value.enqueue_dependents.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_release_storage_dependents_ignores_a_core_only_dependent():
+    """The boundary: a ``core``-queue dependent is NOT a storage child, so a
+    member that has only core dependents releases nothing."""
+    from isardvdi_change_handler.streams import task_results_consumer as trc
+
+    member = _member([_dep_on("core")])
+    with (
+        patch.object(trc.redis, "from_url", return_value=MagicMock()),
+        patch.object(trc, "Queue") as queue_cls,
+    ):
+        await trc._release_storage_dependents(member)
+    queue_cls.return_value.enqueue_dependents.assert_not_called()
