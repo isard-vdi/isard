@@ -446,3 +446,84 @@ async def test_release_storage_dependents_ignores_a_core_only_dependent():
     ):
         await trc._release_storage_dependents(member)
     queue_cls.return_value.enqueue_dependents.assert_not_called()
+
+class TestReapDeadConsumers:
+    """Every start registers a fresh change-handler-<uuid4> and nothing removed
+    the old one, so the group grew by one per restart. Measured on hypgpu05
+    (09/08/2026): 14 registered, 2 alive, 12 idle for 39 to 55 days. No entry
+    is lost — XAUTOCLAIM reclaims what a dead consumer held — but XINFO GROUPS
+    reports a count that has nothing to do with reality, and a "nobody is
+    consuming" alert can never fire because the corpses keep it satisfied.
+    """
+
+    @staticmethod
+    def _redis(consumers):
+        redis = AsyncMock()
+        redis.xinfo_consumers = AsyncMock(return_value=consumers)
+        redis.xgroup_delconsumer = AsyncMock()
+        return redis
+
+    @pytest.mark.asyncio
+    async def test_a_long_idle_empty_consumer_is_dropped(self):
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        redis = self._redis(
+            [{"name": "change-handler-old", "pending": 0, "idle": 55 * 86400 * 1000}]
+        )
+        reaped = await task_results_consumer._reap_dead_consumers(
+            redis, "stream:task-results", "me"
+        )
+        assert reaped == 1
+        redis.xgroup_delconsumer.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_our_own_consumer_is_never_dropped(self):
+        """Idle is measured against the group, and our own entry is the one
+        thing we know is alive — dropping it would unregister the live reader."""
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        redis = self._redis([{"name": "me", "pending": 0, "idle": 99 * 86400 * 1000}])
+        reaped = await task_results_consumer._reap_dead_consumers(
+            redis, "stream:task-results", "me"
+        )
+        assert reaped == 0
+        redis.xgroup_delconsumer.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_consumer_holding_entries_is_left_alone(self):
+        """Deleting it would move its pending list instead of letting the
+        reclaim pass redeliver what it was holding."""
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        redis = self._redis(
+            [{"name": "change-handler-old", "pending": 3, "idle": 55 * 86400 * 1000}]
+        )
+        reaped = await task_results_consumer._reap_dead_consumers(
+            redis, "stream:task-results", "me"
+        )
+        assert reaped == 0
+        redis.xgroup_delconsumer.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_recently_active_consumer_is_left_alone(self):
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        redis = self._redis(
+            [{"name": "change-handler-live", "pending": 0, "idle": 2828}]
+        )
+        reaped = await task_results_consumer._reap_dead_consumers(
+            redis, "stream:task-results", "me"
+        )
+        assert reaped == 0
+        redis.xgroup_delconsumer.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_redis_failure_does_not_stop_the_consumer_starting(self):
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        redis = AsyncMock()
+        redis.xinfo_consumers = AsyncMock(side_effect=RuntimeError("redis blip"))
+        reaped = await task_results_consumer._reap_dead_consumers(
+            redis, "stream:task-results", "me"
+        )
+        assert reaped == 0
