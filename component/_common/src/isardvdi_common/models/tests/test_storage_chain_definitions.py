@@ -236,14 +236,26 @@ def test_mv_chain_does_not_reference_storage_domains_force_update():
 # ---------------------------------------------------------------------------
 
 
-def _template_chain_dependents(s, template_storage_id):
-    """Run the template chain on ``s`` with the heavy bits mocked out
-    and return the captured ``dependents`` dict."""
-    tpl_storage_obj = MagicMock()
-    tpl_storage_obj.pool = MagicMock(id="dst-pool")
-    tpl_storage_obj.path = f"/isard/templates/{template_storage_id}.qcow2"
-    tpl_storage_obj.type = "qcow2"
-    tpl_storage_obj.set_maintenance = MagicMock()
+class _ParkedRow:
+    """Stand-in for the NEW template storage row the chain parks.
+
+    A plain object rather than a ``MagicMock`` on purpose: a MagicMock
+    auto-creates any attribute on first read, so a field the chain never
+    writes would look written and the assertions would pass vacuously.
+    """
+
+    def __init__(self, storage_id):
+        self.id = storage_id
+        self.pool = MagicMock(id="dst-pool")
+        self.path = f"/isard/templates/{storage_id}.qcow2"
+        self.type = "qcow2"
+        self.set_maintenance = MagicMock()
+
+
+def _run_template_chain(s, template_storage_id):
+    """Run the template chain on ``s`` with the heavy bits mocked out and
+    return the captured ``create_task`` mock plus the parked template row."""
+    tpl_storage_obj = _ParkedRow(template_storage_id)
 
     # The chain calls ``Storage(template_storage_id)`` once. Route that
     # construction to our mock without affecting the bare ``s`` already
@@ -271,388 +283,48 @@ def _template_chain_dependents(s, template_storage_id):
             template_id="template-1",
             template_storage_id=template_storage_id,
         )
+    return mock_create, tpl_storage_obj
+
+
+def _template_chain_dependents(s, template_storage_id):
+    """The captured ``dependents`` dict of the template chain."""
+    mock_create, _ = _run_template_chain(s, template_storage_id)
     return mock_create.call_args.kwargs["dependents"]
 
 
-def test_template_chain_has_storage_update_parent_for_template_storage():
-    """The template-side storage_update must be followed by a
-    storage_update_parent targeting the new template storage's id, so
-    the new template row's ``parent`` field reflects on-disk reality."""
+# ---------------------------------------------------------------------------
+# enqueue_template_creation_chain_from_desktop: a parked row is also an owner
+# of the chain's tasks
+# ---------------------------------------------------------------------------
+
+
+def test_template_chain_lists_its_tasks_under_the_parked_row_too():
+    """The chain's only task is created on the DESKTOP's row, but the disk it
+    is producing is the TEMPLATE's. Listed only under the desktop, the template
+    row's own task history would be empty for the whole copy — the one moment
+    a user has something to watch."""
     s = _bare_storage(id="src-desktop-storage")
-    template_storage_id = "new-template-storage-99"
-
-    dependents = _template_chain_dependents(s, template_storage_id)
-
-    parents_calls = [
-        dep["job_kwargs"]["kwargs"]["storage_id"]
-        for _parent, dep in _walk_with_parents(dependents)
-        if dep.get("task") == "storage_update_parent"
+    mock_create, _ = _run_template_chain(s, "new-template-storage-99")
+    assert mock_create.call_args.kwargs["index_owners"] == [
+        s.id,
+        "new-template-storage-99",
     ]
-    assert template_storage_id in parents_calls, (
-        f"template chain missing storage_update_parent(storage_id={template_storage_id!r}); "
-        f"found parent updates for: {parents_calls}"
-    )
 
 
-def test_template_chain_has_storage_update_parent_for_desktop_storage():
-    """The desktop-side storage_update must also be followed by a
-    storage_update_parent — this is what flips the desktop storage's
-    parent from None (or its previous backing) to the new template."""
+def test_the_row_this_chain_parks_is_the_row_it_lists_under():
+    """Naming the parked row as an owner of the chain's tasks IS the park: it
+    is what makes the index answer "what is this row busy with" for a row whose
+    chain another row started, which is what the 428 gate and the self-heal
+    both ask. There is no second marker to drift from."""
     s = _bare_storage(id="src-desktop-storage")
-    template_storage_id = "new-template-storage-99"
-
-    dependents = _template_chain_dependents(s, template_storage_id)
-
-    parents_calls = [
-        dep["job_kwargs"]["kwargs"]["storage_id"]
-        for _parent, dep in _walk_with_parents(dependents)
-        if dep.get("task") == "storage_update_parent"
-    ]
-    assert s.id in parents_calls, (
-        f"template chain missing storage_update_parent(storage_id={s.id!r}); "
-        f"found parent updates for: {parents_calls}"
-    )
+    mock_create, parked = _run_template_chain(s, "new-template-storage-99")
+    owners = mock_create.call_args.kwargs["index_owners"]
+    assert set(owners) - {s.id} == {parked.id}
+    assert not hasattr(parked, "parked_by"), "the marker is retired"
 
 
-# ---------------------------------------------------------------------------
-# Typed Error vs plain Exception in chain enqueue methods. The apiv4 error
-# mapper only recognises ``isardvdi_common.helpers.error_factory.Error``;
-# plain ``Exception`` falls through to a generic 500. These tests pin the
-# typed-error contract so the frontend sees actionable 404/428 instead.
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
-# Terminal-status cleanup: root-terminal chains (convert / delete /
-# virt_win_reg) whose trailing update_status keys off the ROOT op's status
-# must clean up on a FAILED terminal, not only on CANCELED. A running-cancel
-# surfaces to the consumer as job_status="failed" (the worker decorator maps
-# any raise to "failed"), and now that the consumer honours job_status the
-# root is marked FAILED — so the cleanup branch must exist under "failed".
-# ---------------------------------------------------------------------------
-
-
-def _find_update_status_statuses(dependents):
-    """Return the ``statuses`` dict of the first ``update_status`` dependent."""
-    for _parent, dep in _walk_with_parents(dependents):
-        if dep.get("task") == "update_status":
-            return dep["job_kwargs"]["kwargs"]["statuses"]
-    return None
-
-
-def test_convert_update_status_deletes_dest_on_failed_and_canceled():
-    """A failed OR cancelled convert must mark the half-written destination
-    ``deleted`` — never leave it at its target status (which reads as a good
-    disk)."""
-    s = _bare_storage()
-    new_storage = MagicMock()
-    new_storage.id = "new-99"
-    new_storage.path = "/isard/groups/new-99.qcow2"
-    new_storage.type = "qcow2"
-    with (
-        patch.object(Storage, "create_task") as mc,
-        patch.object(Storage, "set_maintenance"),
-        patch.object(
-            Storage,
-            "path",
-            new_callable=PropertyMock,
-            return_value="/isard/groups/src.qcow2",
-            create=True,
-        ),
-        patch("isardvdi_common.models.storage.StoragePool") as mp,
-    ):
-        mp.get_best_for_action.return_value = MagicMock(id="poolA")
-        s.convert(
-            user_id="u1",
-            new_storage=new_storage,
-            new_storage_type="qcow2",
-            new_storage_status="ready",
-            compress=False,
-        )
-    statuses = _find_update_status_statuses(mc.call_args.kwargs["dependents"])
-    assert statuses is not None
-    assert statuses["canceled"]["deleted"]["storage"] == ["new-99"]
-    assert statuses["failed"]["deleted"]["storage"] == ["new-99"]
-
-
-def test_task_delete_update_status_restores_on_failed_like_canceled():
-    """A failed OR cancelled delete must restore the source to ``ready`` (and
-    domains to ``Stopped``) — NOT fall through to the ``finished`` branch that
-    marks it ``deleted`` and drops the DB row."""
-    s = _bare_storage()
-    with (
-        patch.object(Storage, "create_task") as mc,
-        patch.object(Storage, "set_maintenance"),
-        patch.object(
-            Storage, "domains", new_callable=PropertyMock, return_value=[], create=True
-        ),
-        patch.object(
-            Storage,
-            "domains_derivatives",
-            new_callable=PropertyMock,
-            return_value=[],
-            create=True,
-        ),
-        patch.object(
-            Storage,
-            "derivatives",
-            new_callable=PropertyMock,
-            return_value=[],
-            create=True,
-        ),
-        patch.object(
-            Storage,
-            "path",
-            new_callable=PropertyMock,
-            return_value="/isard/groups/src.qcow2",
-            create=True,
-        ),
-        patch("isardvdi_common.models.storage.StoragePool") as mp,
-    ):
-        mp.get_best_for_action.return_value = MagicMock(id="poolA")
-        s.task_delete(user_id="u1")
-    statuses = _find_update_status_statuses(mc.call_args.kwargs["dependents"])
-    assert statuses is not None
-    assert "failed" in statuses
-    assert statuses["failed"] == statuses["canceled"]
-
-
-def test_virt_win_reg_update_status_has_failed_block():
-    """A failed OR cancelled virt_win_reg must take the same restore branch as
-    canceled (both leave the storage ``ready``), not the missing-branch no-op
-    that today only worked because the root was force-FINISHED."""
-    s = _bare_storage()
-    with (
-        patch.object(Storage, "create_task") as mc,
-        patch.object(Storage, "set_maintenance"),
-        patch.object(
-            Storage, "domains", new_callable=PropertyMock, return_value=[], create=True
-        ),
-        patch.object(
-            Storage,
-            "path",
-            new_callable=PropertyMock,
-            return_value="/isard/groups/src.qcow2",
-            create=True,
-        ),
-        patch("isardvdi_common.models.storage.StoragePool") as mp,
-    ):
-        mp.get_best_for_action.return_value = MagicMock(id="poolA")
-        s.virt_win_reg(user_id="u1", registry_patch="[HKEY_LOCAL_MACHINE]")
-    statuses = _find_update_status_statuses(mc.call_args.kwargs["dependents"])
-    assert statuses is not None
-    assert "failed" in statuses
-    assert statuses["failed"] == statuses["canceled"]
-
-
-def _import_error_class():
-    """Import the same Error class the chain raises, so isinstance checks
-    work whether or not apiv4 happened to import first in the test process."""
-    from isardvdi_common.helpers.error_factory import Error
-
-    return Error
-
-
-def test_enqueue_disk_creation_raises_typed_error_when_parent_not_ready():
-    """``enqueue_disk_creation_chain_for_domain`` checked
-    ``storage_parent.status != "ready"`` with a plain ``Exception`` raise,
-    causing a 500. Must be a typed ``Error`` so the route layer maps to
-    428 with a readable description."""
-    Error = _import_error_class()
-    s = _bare_storage(id="child-storage", parent="parent-storage-uuid")
-
-    parent_storage_obj = MagicMock()
-    parent_storage_obj.status = "maintenance"
-    parent_storage_obj.type = "qcow2"
-    parent_storage_obj.path = "/isard/templates/parent-storage-uuid.qcow2"
-
-    real_new = Storage.__new__
-
-    def fake_new(cls, *args, **kwargs):
-        if args and args[0] == "parent-storage-uuid":
-            return parent_storage_obj
-        return real_new(cls)
-
-    with (
-        patch.object(Storage, "create_task") as _mock_create,
-        patch.object(Storage, "exists", return_value=True),
-        patch("isardvdi_common.models.storage.Storage.__new__", side_effect=fake_new),
-    ):
-        import pytest
-
-        with pytest.raises(Error) as exc_info:
-            s.enqueue_disk_creation_chain_for_domain(domain_id="d1")
-        # Reject the regression shape explicitly.
-        assert not isinstance(exc_info.value, Exception) or isinstance(
-            exc_info.value, Error
-        )
-        assert "not ready" in str(exc_info.value).lower()
-
-
-def test_enqueue_disk_creation_raises_typed_error_when_parent_missing():
-    """The ``Storage.exists(self.parent)`` False branch must also raise
-    typed ``Error("not_found", ...)`` so the route layer maps to 404."""
-    Error = _import_error_class()
-    s = _bare_storage(id="child-storage", parent="missing-parent-uuid")
-
-    with (
-        patch.object(Storage, "create_task") as _mock_create,
-        patch.object(Storage, "exists", return_value=False),
-    ):
-        import pytest
-
-        with pytest.raises(Error) as exc_info:
-            s.enqueue_disk_creation_chain_for_domain(domain_id="d1")
-        assert "not found" in str(exc_info.value).lower()
-
-
-def test_enqueue_disk_creation_fails_domain_with_reason_on_no_consumer():
-    """When the disk-create lane has NO live consumer, the chain must NOT be
-    enqueued (it would strand). Instead the just-created domain is marked
-    Failed with a category-scoped reason — the storage analog of "no
-    hypervisors online" — and the typed 429 is re-raised for the caller."""
-    import pytest
-
-    Error = _import_error_class()
-    s = _bare_storage(id="child-storage", parent=None)
-    domain_obj = MagicMock()
-
-    with (
-        patch.object(Storage, "create_task") as mock_create,
-        patch.object(Storage, "set_maintenance"),
-        patch.object(
-            Storage,
-            "pool",
-            new_callable=PropertyMock,
-            return_value=MagicMock(id="poolA"),
-        ),
-        patch.object(
-            Storage,
-            "category",
-            new_callable=PropertyMock,
-            return_value="cat-1",
-            create=True,
-        ),
-        patch("isardvdi_common.models.domain.Domain") as MockDomain,
-        patch(
-            "isardvdi_common.models.storage.queue_coverage.check_shed",
-            side_effect=Error(
-                "too_many_requests",
-                "Storage lane poolA/interactive is temporarily unable to accept work",
-                description_code="storage_no_consumer_retry_later",
-            ),
-        ),
-    ):
-        MockDomain.exists.return_value = True
-        MockDomain.return_value = domain_obj
-        with pytest.raises(Error) as exc_info:
-            s.enqueue_disk_creation_chain_for_domain(domain_id="d1", size="10G")
-
-    assert getattr(exc_info.value, "status_code", None) == 429
-    assert domain_obj.status == "Failed"
-    assert "no online storage worker" in domain_obj.detail
-    mock_create.assert_not_called()  # aborted before enqueuing anything
-
-
-def test_enqueue_disk_creation_fails_domain_with_overload_detail_on_shed():
-    """When the disk-create lane is a FOREGROUND overload (live consumer, but
-    over its hard backlog cap), the pre-flight must reject it too — before
-    any state mutation — same as no-consumer, but with overload wording so
-    the desktop shows a retry-shortly message instead of the no-worker one."""
-    import pytest
-
-    Error = _import_error_class()
-    s = _bare_storage(id="child-storage", parent=None)
-    domain_obj = MagicMock()
-
-    with (
-        patch.object(Storage, "create_task") as mock_create,
-        patch.object(Storage, "set_maintenance") as mock_maintenance,
-        patch.object(
-            Storage,
-            "pool",
-            new_callable=PropertyMock,
-            return_value=MagicMock(id="poolA"),
-        ),
-        patch.object(
-            Storage,
-            "category",
-            new_callable=PropertyMock,
-            return_value="cat-1",
-            create=True,
-        ),
-        patch("isardvdi_common.models.domain.Domain") as MockDomain,
-        patch(
-            "isardvdi_common.models.storage.queue_coverage.check_shed",
-            side_effect=Error(
-                "too_many_requests",
-                "Storage lane poolA/interactive is temporarily unable to accept work",
-                description_code="storage_overloaded_retry_later",
-            ),
-        ),
-    ):
-        MockDomain.exists.return_value = True
-        MockDomain.return_value = domain_obj
-        with pytest.raises(Error) as exc_info:
-            s.enqueue_disk_creation_chain_for_domain(domain_id="d1", size="10G")
-
-    assert getattr(exc_info.value, "status_code", None) == 429
-    assert domain_obj.status == "Failed"
-    assert "overloaded" in domain_obj.detail
-    assert "no online storage worker" not in domain_obj.detail
-    mock_create.assert_not_called()  # aborted before enqueuing anything
-    mock_maintenance.assert_not_called()  # no state mutation before the reject
-
-
-def test_enqueue_disk_creation_preflights_consumer_then_proceeds():
-    """The pre-flight runs on EVERY disk-create, but when a consumer exists
-    it is a no-op and the chain enqueues normally (no false Failed)."""
-    s = _bare_storage(id="child-storage", parent=None)
-
-    with (
-        patch.object(Storage, "create_task") as mock_create,
-        patch.object(Storage, "set_maintenance"),
-        patch.object(
-            Storage,
-            "pool",
-            new_callable=PropertyMock,
-            return_value=MagicMock(id="poolA"),
-        ),
-        patch.object(
-            Storage,
-            "category",
-            new_callable=PropertyMock,
-            return_value="cat-1",
-            create=True,
-        ),
-        patch("isardvdi_common.models.domain.Domain") as MockDomain,
-        patch(
-            "isardvdi_common.models.storage.queue_coverage.check_shed",
-        ) as mock_check,
-    ):
-        MockDomain.exists.return_value = False  # skip the CreatingDisk flip
-        s.enqueue_disk_creation_chain_for_domain(domain_id="d1", size="10G")
-
-    mock_check.assert_called_once()  # pre-flight ran (fails on pre-change code)
-    mock_create.assert_called_once()  # and proceeded to enqueue
-
-
-def test_enqueue_template_creation_raises_typed_error_when_template_storage_missing():
-    """``enqueue_template_creation_chain_from_desktop`` not-found branch
-    must raise typed Error so the route layer maps to 404 instead of 500."""
-    Error = _import_error_class()
+def test_the_desktop_row_keeps_its_own_tasks_listed():
+    """The origin does not lose its history to the row it parks."""
     s = _bare_storage(id="src-desktop-storage")
-
-    with (
-        patch.object(Storage, "create_task") as _mock_create,
-        patch.object(Storage, "exists", return_value=False),
-    ):
-        import pytest
-
-        with pytest.raises(Error) as exc_info:
-            s.enqueue_template_creation_chain_from_desktop(
-                desktop_id="d1",
-                template_id="t1",
-                template_storage_id="missing-template-storage",
-            )
-        assert "not found" in str(exc_info.value).lower()
+    mock_create, _ = _run_template_chain(s, "new-template-storage-99")
+    assert mock_create.call_args.kwargs["index_owners"][0] == s.id

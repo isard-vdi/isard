@@ -18,6 +18,106 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+// --------------------------------------------------------------------------- //
+// Lazy per-pool disk-item counts.
+//
+// The count is NOT in the /storage-pools payload (it needs a storage-tree walk,
+// which is why the migration pool-plan endpoint is uncached). So it is fetched
+// on demand — only when the admin toggles the "Disk items" column visible — and
+// cached in the browser (localStorage) so it survives re-toggles and reloads. A
+// Refresh button forces a re-fetch. Mirrors the migration panel's caching idea.
+// --------------------------------------------------------------------------- //
+const SP_DISKCOUNT_LS = "sp_diskcounts_v1";      // poolId -> {items_total, items_by_kind, bytes_total, ts}
+const SP_DISKCOL_VIS_LS = "sp_diskcount_visible_v1";
+let spDiskCounts = {};
+try { spDiskCounts = JSON.parse(localStorage.getItem(SP_DISKCOUNT_LS) || "{}") || {}; } catch (e) { spDiskCounts = {}; }
+const spDiskLoading = {};   // poolId -> true while its fetch is in flight
+
+function spPersistCounts() {
+  try { localStorage.setItem(SP_DISKCOUNT_LS, JSON.stringify(spDiskCounts)); } catch (e) { /* quota/full — ignore */ }
+}
+
+function spHumanBytes(n) {
+  n = Number(n) || 0;
+  const u = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
+}
+
+// Per-type disk kinds shown in the "Items" cell, with the same icons the pool
+// paths use for each usage.
+const SP_ITEM_KINDS = [
+  { key: "template", icon: "fa-cubes", label: "Templates" },
+  { key: "desktop", icon: "fa-desktop", label: "Desktops" },
+  { key: "media", icon: "fa-circle-o", label: "Media" }
+];
+
+// One cell's content for a pool id, off the client cache / loading state.
+// Shows a per-type breakdown (templates / desktops / media), each with its icon;
+// a zero type is dimmed so rows still line up. The cell tooltip carries the
+// total + size + fetch time.
+function spDiskCountCell(poolId) {
+  if (spDiskLoading[poolId]) return '<i class="fa fa-spinner fa-pulse" title="Loading…"></i>';
+  const c = spDiskCounts[poolId];
+  if (!c) return '<span class="text-muted" title="Click Refresh to load the disk-item counts.">—</span>';
+  if (c.items_total === "?") return '<span class="text-muted" title="Could not load — click Refresh to retry.">?</span>';
+  const k = c.items_by_kind || {};
+  const parts = SP_ITEM_KINDS.map(function (x) {
+    const n = k[x.key] || 0;
+    const dim = n ? "" : ' style="color:#ccc;"';
+    return `<span title="${x.label}: ${n}"${dim}><i class="fa ${x.icon}"></i>&nbsp;${n}</span>`;
+  }).join("&nbsp;&nbsp;&nbsp;");
+  const tip = `Total ${c.items_total} disks · ${spHumanBytes(c.bytes_total)}` +
+    (c.ts ? ` · as of ${new Date(c.ts).toLocaleString()}` : "");
+  return `<span title="${tip}" style="white-space:nowrap;font-size:12px;">${parts}</span>`;
+}
+
+// Re-render just the diskcount column cells (render reads the external cache).
+function spRedrawCounts() {
+  if (typeof storage_pools_table !== "undefined" && storage_pools_table) {
+    storage_pools_table.draw(false);
+  }
+}
+
+// Fetch counts for every pool row. `force` re-fetches even cached pools; else
+// only the ones missing from the cache. Concurrency-limited so a big install
+// does not fire dozens of tree-walk requests at once.
+function spLoadDiskCounts(force) {
+  if (typeof storage_pools_table === "undefined" || !storage_pools_table) return;
+  const pools = storage_pools_table.rows().data().toArray();
+  const targets = pools.filter(function (p) { return p && p.id && (force || !spDiskCounts[p.id]); });
+  if (!targets.length) { spRedrawCounts(); return; }
+  let idx = 0;
+  const MAX = 4;
+  function next() {
+    if (idx >= targets.length) return;
+    const p = targets[idx++];
+    spDiskLoading[p.id] = true;
+    spRedrawCounts();
+    $.ajax({ type: "GET", url: `/api/v4/admin/storage-pool/${p.id}/migration/plan` })
+      .done(function (data) {
+        const t = (data && data.totals) || {};
+        spDiskCounts[p.id] = {
+          items_total: t.items_total || 0,
+          items_by_kind: t.items_by_kind || {},
+          bytes_total: t.bytes_total || 0,
+          ts: Date.now()
+        };
+        spPersistCounts();
+      })
+      .fail(function () {
+        spDiskCounts[p.id] = { items_total: "?", items_by_kind: {}, bytes_total: 0 };
+      })
+      .always(function () {
+        spDiskLoading[p.id] = false;
+        spRedrawCounts();
+        next();
+      });
+  }
+  for (let c = 0; c < Math.min(MAX, targets.length); c++) next();
+}
+
 $(document).ready(function () {
   DEFAULT_STORAGE_POOL_ID = ""
   $.ajax({
@@ -50,13 +150,14 @@ $(document).ready(function () {
       },
       {
         "data": "enabled",
-        "title": "Enabled",
-        "width": '55px',
+        "title": '<span title="Storage pool enabled — its category disks use the pool paths">Enab.</span>',
+        "width": '46px',
+        "className": "text-center",
         render: function (enabled, type) {
           return renderEnabled(enabled, 'check');
         }
       },
-      { "data": "enabled_virt", "title": "Virtualization", "width": '55px', render: function (data, type, full, meta) { return renderEnabled(data, 'check'); } },
+      { "data": "enabled_virt", "title": '<span title="Virtualization enabled on this pool">Virt.</span>', "width": '42px', "className": "text-center", render: function (data, type, full, meta) { return renderEnabled(data, 'check'); } },
       { "data": "id", "title": "Pool ID" },
       { "data": "name", "title": "Name" },
       { "data": "mountpoint", "title": "Mountpoint" },
@@ -70,21 +171,40 @@ $(document).ready(function () {
         }
       },
       {
-        "data": "storages", "title": "Available Disk Op", "width": "130px", "render": function (data, type, full, meta) {
+        "data": "storages", "title": '<span title="Available disk operations — storage workers ready to serve this pool">Disk ops</span>', "width": "62px", "className": "text-center", "render": function (data, type, full, meta) {
           return (data == 0 && full.enabled) ?
             `<i title="No disk operations available for this pool. Disk operations will fail" class="fa fa-warning" style="color:red;"> ${data}</i> ` :
             data
         }
       },
       {
-        "data": "hypers", "title": "Available Virt Op", "width": "130px", "render": function (data, type, full, meta) {
+        "data": "hypers", "title": '<span title="Available virt operations — hypervisors serving this pool">Virt ops</span>', "width": "62px", "className": "text-center", "render": function (data, type, full, meta) {
           return (data == 0 && full.enabled) ?
             `<i title="No hypervisors virt operations available for this pool. Virt operations will fail" class="fa fa-warning" style="color:red;"> ${data}</i> ` :
             data
         }
       },
-      { "data": "qos_disk_id", "title": "QoS Disk ID", "render": function (data, type, full, meta) { return data ? data : "Ignore" } },
+      { "data": "qos_disk_id", "title": '<span title="QoS Disk ID applied to this pool">QoS</span>', "width": "64px", "render": function (data, type, full, meta) { return data ? data : '<span class="text-muted">Ignore</span>' } },
       { "data": "description", "title": "Description", 'defaultContent': '' },
+      {
+        // Lazy per-pool disk-item count. Hidden by default; toggling it visible
+        // (colvis) gathers the counts from the migration pool-plan endpoint and
+        // caches them in the browser (localStorage). Not part of the pool row
+        // payload, so `data:null` and render off the client-side cache.
+        "className": "group-diskcount text-center",
+        "data": null,
+        "title": '<span title="Disk items in this pool by type: templates, desktops, media. Lazy-loaded; hover a value for its type, or the row for the total + size."><i class="fa fa-hdd-o"></i> Items <small class="text-muted">(T/D/M)</small></span>',
+        "visible": false,
+        "orderable": true,
+        "width": "130px",
+        "render": function (data, type, full, meta) {
+          if (type === "sort" || type === "type") {
+            var c = spDiskCounts[full.id];
+            return c && typeof c.items_total === "number" ? c.items_total : -1;
+          }
+          return spDiskCountCell(full.id);
+        }
+      },
       // { 
       //   "data": "startable",
       //   "title": "Startable",
@@ -134,6 +254,42 @@ $(document).ready(function () {
       },
     ],
   })
+
+  // Column customiser (show/hide, incl. the lazy "Disk items" column) + a
+  // Refresh button to re-gather the cached counts. Standalone Buttons container
+  // appended above the table (same pattern as the hypervisors panel).
+  new $.fn.dataTable.Buttons(storage_pools_table, {
+    buttons: [
+      {
+        extend: 'colvis',
+        text: '<i class="fa fa-columns"></i> Columns',
+        titleAttr: 'Show or hide columns',
+        columns: ':not(.details-control):not(.actions-control)'
+      },
+      {
+        text: '<i class="fa fa-refresh"></i> Refresh disk counts',
+        titleAttr: 'Re-fetch the per-pool disk-item counts (otherwise cached in this browser)',
+        className: 'btn-sp-refresh-counts',
+        action: function () { spLoadDiskCounts(true); }
+      }
+    ]
+  }).container().appendTo($('.sp-buttons-row'));
+
+  // Lazy-load the counts the first time the "Disk items" column is shown, and
+  // remember the choice so a reload restores it (re-triggering the fetch).
+  storage_pools_table.on('column-visibility.dt', function (e, settings, colIdx, visible) {
+    var col = storage_pools_table.column(colIdx);
+    if ($(col.header()).hasClass('group-diskcount')) {
+      try { localStorage.setItem(SP_DISKCOL_VIS_LS, visible ? '1' : '0'); } catch (err) { /* ignore */ }
+      if (visible) spLoadDiskCounts(false);
+    }
+  });
+  // Restore the last visibility once the rows are in (fires the handler above).
+  storage_pools_table.on('init.dt', function () {
+    if (localStorage.getItem(SP_DISKCOL_VIS_LS) === '1') {
+      storage_pools_table.column('.group-diskcount').visible(true);
+    }
+  });
 
   $('.btn-add-new').on('click', function () {
     $("#modalAddStoragePool #modalAdd")[0].reset();

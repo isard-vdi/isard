@@ -18,6 +18,7 @@ in a plain dict, so no database is touched.
 
 import pytest
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.models import media as media_model
 from isardvdi_common.models.media import Media
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
@@ -143,6 +144,10 @@ def test_a_refused_enqueue_leaves_the_row_where_it_was(monkeypatch):
 
 def test_a_pending_task_is_refused_before_anything_is_written(monkeypatch):
     media = _FakeMedia("Downloaded", task="task-9")
+    # The gate resolves the pending task through the index, not the row's
+    # scalar: the field is never cleared, so a media whose job expired long
+    # ago would be refused a delete forever.
+    monkeypatch.setattr(media_model, "current_task_id", lambda *a, **k: "task-9")
     monkeypatch.setattr(Task, "exists", staticmethod(lambda task_id: True))
     monkeypatch.setattr(Task, "__init__", lambda self, task_id: None)
     monkeypatch.setattr(Task, "pending", property(lambda self: True))

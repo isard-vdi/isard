@@ -41,6 +41,11 @@ from flask_socketio import SocketIO
 debug = os.environ.get("LOG_LEVEL", "INFO") == "DEBUG"
 socketio = SocketIO(
     app,
+    # Pin the async runtime: the process is gevent monkey-patched (start.py), so
+    # auto-detection MUST land on 'gevent'. Making it explicit stops a future
+    # eventlet dependency from silently flipping the mode and mixing a non-gevent
+    # server into the patched hub (gevent-safety audit, latent hazard #3).
+    async_mode="gevent",
     path="/socket.io",
     cors_allowed_origins="*",
     logger=debug,

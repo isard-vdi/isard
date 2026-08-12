@@ -27,6 +27,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
@@ -99,12 +100,11 @@ class StorageProcessed(RethinkSharedConnection):
             if storage.status != "ready" or getattr(storage, "readonly", False):
                 continue
             # Idempotency: a refresh (or any task) already in flight for
-            # this storage — skip so repeated sweeps don't pile up.
-            if (
-                storage.task
-                and Task.exists(storage.task)
-                and Task(storage.task).pending
-            ):
+            # this storage — skip so repeated sweeps don't pile up. The index
+            # is the source of truth for a row's live task (it proves the job
+            # exists); the retired ``.task`` scalar is no longer written.
+            pending = current_task_id(Task._redis, storage.id)
+            if pending and Task(pending).pending:
                 continue
             storage.check_backing_chain(
                 user_id, blocking=False, retry=1, priority="background"
@@ -228,10 +228,11 @@ class StorageProcessed(RethinkSharedConnection):
 
         if status == "maintenance":
             for storage in storages:
-                if storage.get("task") and Task.exists(storage["task"]):
-                    storage["progress"] = Task(storage.get("task")).to_dict()[
-                        "progress"
-                    ]
+                # The row's live task comes from the index, not the retired
+                # ``.task`` scalar which nothing on the create path writes.
+                task_id = current_task_id(Task._redis, storage["id"])
+                if task_id:
+                    storage["progress"] = Task(task_id).to_dict()["progress"]
 
         return storages
 

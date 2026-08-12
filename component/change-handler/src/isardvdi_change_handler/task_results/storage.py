@@ -112,9 +112,18 @@ def _apply_storage_update(storage_dict):
         return None
     storage_object = Storage.init_document(**storage_dict)
     if storage_dict.get("status") in ("deleted", "orphan", "broken_chain"):
-        for domain in storage_object.domains + storage_object.domains_derivatives:
+        # Walk *through* the already-deleted rows: a purge run with ``move``
+        # renames the file into ``deleted/`` instead of unlinking it, so a
+        # live disk can sit behind one. Skipping those rows as the walk goes
+        # (which is what the default does) hid every descendant below them,
+        # and left the ``!= "deleted"`` test below unreachable. Both halves
+        # reach the same distance — a disk marked orphan whose desktop still
+        # reads Stopped is the failure this is here to prevent.
+        for domain in storage_object.domains + storage_object.domains_dependents(
+            include_deleted=True
+        ):
             domain.status = "Failed"
-        for child in storage_object.derivatives:
+        for child in storage_object.dependents(include_deleted=True):
             if child.status != "deleted":
                 child.status = "orphan"
     if storage_dict.get("status") == "ready":

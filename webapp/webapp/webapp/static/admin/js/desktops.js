@@ -1210,7 +1210,8 @@ function renderDesktopStorageItem(storage, desktop) {
     var sid = storage.id || '';
     var status = storage.status || 'unknown';
     var size = renderQemuSize(storage);
-    var canCancel = !!storage.task;
+    // Busy, not "a task row still exists": same field the Vue 3 twin gates on.
+    var canCancel = !!storage.has_pending_task;
     var desktopStopped = (desktop.status === 'Stopped');
     var canIncrease = desktopStopped && status === 'ready';
 

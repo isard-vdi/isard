@@ -14,6 +14,8 @@ failed. The bulk endpoint had the same hole and hid every outcome behind a bare
 """
 
 import logging
+import os
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -24,12 +26,19 @@ from rq.job import JobStatus
 LANE = "storage.default.default.maintenance"
 
 
-def _task(job_status=JobStatus.FAILED, status="failed", queue=LANE, task_id="t-1"):
+def _task(
+    job_status=JobStatus.FAILED,
+    status="failed",
+    queue=LANE,
+    task_id="t-1",
+    dependents=(),
+):
     task = MagicMock(name="task")
     task.id = task_id
     task.status = status
     task.job_status = job_status
     task.queue = queue
+    task.dependents = list(dependents)
     task.to_dict.return_value = {"id": task_id}
     return task
 
@@ -37,9 +46,7 @@ def _task(job_status=JobStatus.FAILED, status="failed", queue=LANE, task_id="t-1
 class TestRetryTask:
     def test_retries_a_task_whose_own_job_failed(self):
         task = _task()
-        with patch("api.services.tasks.Task") as Task:
-            Task.exists.return_value = True
-            Task.return_value = task
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
             assert TaskService.retry_task("t-1") == {"id": "t-1"}
         task.retry.assert_called_once_with()
 
@@ -48,25 +55,118 @@ class TestRetryTask:
         it raises inside rq (it is not a failed-registry member) and would also
         re-run work that succeeded — refuse with a precondition instead."""
         task = _task(job_status=JobStatus.FINISHED)
-        with patch("api.services.tasks.Task") as Task:
-            Task.exists.return_value = True
-            Task.return_value = task
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
             with pytest.raises(Error) as excinfo:
                 TaskService.retry_task("t-1")
         assert excinfo.value.status_code == 428
         task.retry.assert_not_called()
 
+    def test_retries_a_failed_root_whose_chain_reads_canceled(self):
+        """The two gates must not contradict each other.
+
+        Cancelling a chain whose root had already FAILED leaves the root job
+        FAILED and its dependents CANCELED, and ``global_status`` ranks
+        CANCELED above FAILED — so the chain reads ``canceled`` on a root that
+        is genuinely retryable. ``_retry_refusal`` (per-job, the predicate the
+        row's own display and the bulk path use) says yes; the chain-global
+        gate said 428. Retry must defer to the one predicate."""
+        task = _task(job_status=JobStatus.FAILED, status=JobStatus.CANCELED)
+        assert TaskService._retry_refusal(task) is None
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
+            assert TaskService.retry_task("t-1") == {"id": "t-1"}
+        task.retry.assert_called_once_with()
+
+    def test_refuses_when_a_direct_dependent_is_canceled(self):
+        """rq admits a dependent only when its status is not CANCELED (proved
+        in ``TestRqDependentAdmission``), so retrying this root would re-run
+        the disk operation while the cancelled dependents that finalise it stay
+        cancelled — the operation happens and nothing closes it out."""
+        dependent = _task(job_status=JobStatus.CANCELED, task_id="dep-1")
+        task = _task(dependents=[dependent])
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
+            with pytest.raises(Error) as excinfo:
+                TaskService.retry_task("t-1")
+        assert excinfo.value.status_code == 428
+        assert "dep-1" in str(excinfo.value)
+        task.retry.assert_not_called()
+
+    def test_allows_a_retry_whose_dependents_are_still_deferred(self):
+        """Only CANCELED dependents block: a DEFERRED one is exactly what rq
+        will promote once the root succeeds."""
+        dependent = _task(job_status=JobStatus.DEFERRED, task_id="dep-1")
+        task = _task(dependents=[dependent])
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
+            assert TaskService.retry_task("t-1") == {"id": "t-1"}
+        task.retry.assert_called_once_with()
+
     def test_refuses_a_job_on_a_lane_with_no_worker_fleet(self):
         """``core`` steps are executed in-process by the change-handler and no
         rq worker subscribes to that queue: re-enqueueing one strands it."""
         task = _task(queue="core")
-        with patch("api.services.tasks.Task") as Task:
-            Task.exists.return_value = True
-            Task.return_value = task
+        with patch("api.services.tasks.tasks_from_ids", return_value=[task]):
             with pytest.raises(Error) as excinfo:
                 TaskService.retry_task("t-1")
         assert excinfo.value.status_code == 428
         task.retry.assert_not_called()
+
+
+class TestRqDependentAdmission:
+    """The premise the CANCELED-dependent refusal rests on, proved against the
+    rq we actually ship instead of taken on trust.
+
+    This needs a real redis and does NOT skip without one: a guard whose
+    premise is only checked where someone happens to have a redis running is a
+    guard nobody can vouch for. ``unit-test-apiv4`` runs a redis service for
+    exactly this. Work happens in an unused db (15) under a per-run queue name,
+    and every key created is deleted again.
+    """
+
+    @staticmethod
+    def _queue():
+        import redis
+        from rq import Queue
+
+        host = os.environ.get("REDIS_HOST", "isard-redis")
+        connection = redis.Redis(
+            host=host,
+            port=int(os.environ.get("REDIS_PORT", 6379)),
+            password=os.environ.get("REDIS_PASSWORD") or None,
+            db=int(os.environ.get("RQ_PROOF_REDIS_DB", 15)),
+        )
+        try:
+            connection.ping()
+        except Exception as exc:
+            pytest.fail(
+                f"this proof requires a reachable redis (REDIS_HOST={host}); "
+                f"it must not be skipped into silence: {exc}"
+            )
+        return Queue(f"rq-proof-{uuid.uuid4().hex[:8]}", connection=connection)
+
+    def test_rq_skips_a_canceled_dependent_and_enqueues_a_deferred_one(self):
+        """``Queue.enqueue_dependents`` admits a dependent only when its status
+        is not CANCELED. So a root whose chain was cancelled re-runs its disk
+        operation while the dependents that would have finalised it never
+        re-run: the operation happens and nothing closes it out."""
+        queue = self._queue()
+        root = queue.enqueue(print, "root")
+        canceled = queue.enqueue(print, "canceled", depends_on=root)
+        deferred = queue.enqueue(print, "deferred", depends_on=root)
+        try:
+            canceled.cancel()
+            assert canceled.get_status(refresh=True) == JobStatus.CANCELED
+            assert deferred.get_status(refresh=True) == JobStatus.DEFERRED
+            root.set_status(JobStatus.FINISHED)
+
+            queue.enqueue_dependents(root)
+
+            queued = queue.job_ids
+            assert deferred.id in queued, "a DEFERRED dependent must be promoted"
+            assert canceled.id not in queued, "rq must not promote a CANCELED one"
+            assert canceled.get_status(refresh=True) == JobStatus.CANCELED
+        finally:
+            for job in (root, canceled, deferred):
+                job.delete()
+            queue.delete(delete_jobs=True)
 
 
 class TestRetryAllFailedTasks:

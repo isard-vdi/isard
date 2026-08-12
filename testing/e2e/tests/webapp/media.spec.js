@@ -556,11 +556,14 @@ test.describe('Admin Media — webapp', () => {
       (m) =>
         m.kind &&
         !m.kind.startsWith('qcow') &&
-        m.task &&
-        m.task !== 'None' &&
-        m.task !== 'null' &&
-        m.task !== 'undefined',
+        m.last_task_id &&
+        m.last_task_id !== 'None' &&
+        m.last_task_id !== 'null' &&
+        m.last_task_id !== 'undefined',
     )
+    // Reads last_task_id, not the retired row scalar: the scalar stopped being
+    // served, so this skip could no longer fire for a real reason and the case
+    // was silently inert while its message blamed the environment.
     test.skip(!isoWithTask, 'no Downloaded ISO media with a task id in the system')
 
     await gotoMedia(page)
@@ -571,7 +574,7 @@ test.describe('Admin Media — webapp', () => {
 
     const taskResp = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/task/${isoWithTask.task}`) &&
+        r.url().includes(`/api/v4/task/${isoWithTask.last_task_id}`) &&
         r.request().method() === 'GET',
       { timeout: 15000 },
     )

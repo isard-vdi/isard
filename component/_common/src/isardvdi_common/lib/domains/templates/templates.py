@@ -289,13 +289,13 @@ class TemplatesProcessed(RethinkSharedConnection):
         # every retry hits 409 on the orphan name and no chain ever runs.
         # Mirror the predicate here so we fail fast and leave nothing
         # behind.
+        from isardvdi_common.lib.task_index import current_task_id
         from isardvdi_common.models.task import Task
 
-        if (
-            desktop_storage.task
-            and Task.exists(desktop_storage.task)
-            and Task(desktop_storage.task).pending
-        ):
+        # Same source as ``Storage.create_task``'s own gate, so the mirror
+        # cannot drift from what it mirrors.
+        pending_task = current_task_id(Task._redis, desktop_storage.id)
+        if pending_task and Task.exists(pending_task) and Task(pending_task).pending:
             raise Error(
                 "precondition_required",
                 f"Desktop {desktop_id} has a pending storage task; "

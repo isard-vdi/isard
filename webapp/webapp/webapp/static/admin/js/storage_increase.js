@@ -64,7 +64,7 @@ $(document).on('click', '.btn-increase', function () {
     $.ajax({
       url: `/api/v4/item/storage/${storageId}/has-derivatives`,
     }).done(function (data) {
-      if (data.derivatives <= 1) {
+      if (data.derivatives === 0) {
         // ``virtual_size`` from the API is in bytes (from qemu-img-info).
         // Sub-GB disks (load-test fixtures at 20 MiB, 512 B empty disks)
         // used to render as "0 GB". Two changes:

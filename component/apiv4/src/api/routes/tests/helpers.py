@@ -161,3 +161,18 @@ def create_indexes(
                 r.table("deployments").index_create("user").run(conn)
                 r.table("deployments").index_create("co_owners", multi=True).run(conn)
                 r.table("deployments").index_wait().run(conn)
+
+            case "storage_migration":
+                r.table("storage_migration").index_create("status").run(conn)
+                r.table("storage_migration").index_wait().run(conn)
+
+            case "storage_migration_item":
+                r.table("storage_migration_item").index_create("migration_id").run(conn)
+                r.table("storage_migration_item").index_create("storage_id").run(conn)
+                r.table("storage_migration_item").index_create(
+                    "migration_tree", [r.row["migration_id"], r.row["tree_id"]]
+                ).run(conn)
+                r.table("storage_migration_item").index_create(
+                    "migration_storage", [r.row["migration_id"], r.row["storage_id"]]
+                ).run(conn)
+                r.table("storage_migration_item").index_wait().run(conn)

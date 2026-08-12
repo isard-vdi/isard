@@ -25,9 +25,10 @@ from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage import StorageProcessed
+from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
-from isardvdi_common.models.task import Task
+from isardvdi_common.models.task import Task, tasks_from_ids
 from isardvdi_common.models.user import User as RethinkUser
 
 
@@ -253,7 +254,26 @@ class StorageService:
         # Access-control side-effect (raises 404 if missing / not owned).
         get_storage(payload, storage_id)
         row = StorageProcessed.get_storage_row(storage_id)
-        return row or {}
+        if not row:
+            return {}
+        # The retired ``task`` pointer may still sit on the row; never serve it.
+        # What consumers asked of it was whether the row is busy, so answer that
+        # from the index instead — one lookup here rather than a request per row
+        # from whoever is rendering the list.
+        #
+        # ``current_task_id`` proves the job EXISTS, not that it is unfinished:
+        # rq keeps a finished job's hash for its result TTL, so the bare bool
+        # reported a ready disk as busy for minutes after its chain completed.
+        # Pair it with the pending check, as every other reader of the index does.
+        row.pop("task", None)
+        task_id = current_task_id(Task._redis, storage_id)
+        # ``tasks_from_ids`` and not ``Task(...)``: the index proves the job's
+        # hash is THERE, and a hash left with only a status field passes that
+        # and still cannot be loaded — which rq raises on, and this route turns
+        # into a 500. The two endpoints below resolve the same id the same way.
+        tasks = tasks_from_ids([task_id]) if task_id else []
+        row["has_pending_task"] = bool(tasks and tasks[0].pending)
+        return row
 
     @staticmethod
     def get_user_ready_storages(user_id: str) -> list[dict]:
@@ -369,11 +389,33 @@ class StorageService:
 
     @staticmethod
     def get_task(payload: dict, storage_id: str) -> dict | None:
-        """Get storage task as dict."""
+        """The task this storage is busy with, or ``None``.
+
+        Read from the index rather than the row: the row's scalar names one
+        chain, is never cleared, and cannot name a chain another row started.
+        Loaded through the fetch-tolerant helper because a key the index proves
+        present can still fail to load, and a task nobody can read is "no task",
+        not a 500.
+        """
         storage = get_storage(payload, storage_id)
-        if storage.task:
-            return Task(storage.task).to_dict()
-        return None
+        task_id = current_task_id(Task._redis, storage.id)
+        if not task_id:
+            return None
+        tasks = tasks_from_ids([task_id])
+        return tasks[0].to_dict() if tasks else None
+
+    @staticmethod
+    def get_tasks(payload: dict, storage_id: str) -> list:
+        """The tasks this storage has had, newest first.
+
+        ``get_storage`` is the access control: same ownership rules as every
+        other per-item storage route, so a user sees their own disk's history
+        and nobody else's. Reading is :meth:`TaskService.owner_tasks`.
+        """
+        from api.services.tasks import TaskService
+
+        get_storage(payload, storage_id)
+        return TaskService.owner_tasks(storage_id, kind="storage")
 
     @staticmethod
     def get_statuses(payload: dict, storage_id: str) -> dict:
@@ -383,9 +425,23 @@ class StorageService:
 
     @staticmethod
     def has_derivatives(payload: dict, storage_id: str) -> int:
-        """Return the number of derivatives (children) for a storage."""
+        """Return how many disks depend on this one as a backing file.
+
+        The whole subtree, not just the first level — which is what the
+        endpoint's name always claimed. It used to answer
+        ``len(storage.children)``, and callers read the "derivatives" name
+        as "the chain this disk is part of" and compared it with ``> 1``
+        to discount the disk itself; a disk with exactly one dependent
+        therefore passed every client-side gate and only failed later,
+        server-side, with ``storage_has_children``.
+
+        As a gate the count is equivalent to the server's precondition:
+        a disk has a descendant if and only if it has a direct child, so
+        ``> 0`` here and ``len(children) > 0`` in ``set_maintenance``
+        accept and reject exactly the same disks.
+        """
         storage = get_storage(payload, storage_id)
-        return len(storage.children)
+        return len(storage.dependents())
 
     # ── DISK OPERATIONS ────────────────────────────────────────────────
 
@@ -766,12 +822,16 @@ class StorageService:
         # Idempotent no-op when the storage has no active task — the
         # Vue 2 desktop-edit modal fans this call out per attached
         # storage when the user clicks "cancel", and most attached
-        # storages have nothing to abort. ``Task(None)`` would raise a
-        # bare exception that the route's ``except Exception`` would
-        # swallow as 500.
-        if not storage.task:
+        # storages have nothing to abort. A task the index names but that
+        # cannot be loaded is the same answer: there is nothing to abort and
+        # no initiator to own it.
+        task_id = current_task_id(Task._redis, storage.id)
+        if not task_id:
             return ""
-        task_agent_id = Task(storage.task).user_id
+        tasks = tasks_from_ids([task_id])
+        if not tasks:
+            return ""
+        task_agent_id = tasks[0].user_id
         # Check ownership: only the user who initiated the task or admin can abort
         if payload["role_id"] != "admin" and task_agent_id != payload["user_id"]:
             raise Error(

@@ -119,13 +119,16 @@ def _collect(conn):
     # One batched task_id -> storage_id lookup for the whole sweep.
     storage_by_task = {}
     if candidates:
-        try:
-            for row in Storage.get_storage_ids_from_task_ids(
-                [task_id for task_id, _, _ in candidates]
-            ):
-                storage_by_task[row["task_id"]] = row["storage_id"]
-        except Exception:
-            storage_by_task = {}
+        # Off the job's own meta: the producer stamps the row that created the
+        # chain there, which is the same answer the retired ``task`` secondary
+        # index gave, without a table read.
+        for task_id, _, _ in candidates:
+            try:
+                owner_id = Task(task_id).storage_id
+            except Exception:
+                continue
+            if owner_id:
+                storage_by_task[task_id] = owner_id
 
     out = []
     for task_id, user_id, est in candidates:

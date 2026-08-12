@@ -20,6 +20,7 @@
 import logging as log
 import os
 from time import sleep
+from types import SimpleNamespace
 
 from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
@@ -29,6 +30,7 @@ from isardvdi_common.helpers.task_streams import (
     result_stream_backpressured,
 )
 from isardvdi_common.helpers.task_timeouts import job_timeout_for
+from isardvdi_common.lib.task_index import index_task
 from rq import Queue, Retry
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import Job, JobStatus
@@ -112,6 +114,65 @@ if redis.call('EXISTS', KEYS[1]) == 1 then
 end
 return 0
 """
+
+
+# A cancel has to outlive the job's own status. rq runs a job a worker had
+# already dequeued even after it is cancelled, and the worker's success handler
+# then rewrites the status to ``finished`` — so by the time the completion is
+# published there is nothing left in the job to say it was ever cancelled, and
+# the chain is dispatched as if it were alive.
+#
+# The record lives as a field on the JOB'S OWN hash, deliberately. It is not a
+# second thing to expire: it shares the job's key, the job's expiry and the
+# job's deletion, so it can never outlive what it refers to and there is no
+# retention clock of its own to get wrong. rq's ``Job.save`` writes its own
+# fields with ``HSET mapping=...``, which leaves unrelated fields alone, so the
+# worker's success write does not clear it — verified against rq 2.3.2.
+CANCELED_FIELD = "isard_canceled_at"
+
+# Guarded by EXISTS so a cancel racing a delete can never recreate the hash as a
+# status-less ghost — the same trap ``_stamp_ended_at`` documents. Absence of
+# the field is therefore always readable as "not cancelled".
+_CANCELED_STAMP = """
+if redis.call('EXISTS', KEYS[1]) == 1 then
+  return redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
+end
+return 0
+"""
+
+
+def mark_canceled(connection, job_id):
+    """Record durably that this member was cancelled.
+
+    Written once, where the cancel is decided (:meth:`Task.cancel`), never by
+    the producers of result events — they only read it.
+    """
+    try:
+        connection.eval(
+            _CANCELED_STAMP,
+            1,
+            Job.key_for(job_id),
+            CANCELED_FIELD,
+            utcformat(rq_now()),
+        )
+    except Exception:
+        log.debug("task cancel: could not record the cancel of %s", job_id)
+
+
+def was_canceled(connection, job_id):
+    """True only when this member carries the cancel record.
+
+    Absence means "not cancelled" — an unreadable job, a job from before this
+    existed, and a job nobody ever cancelled all answer False, so a chain that
+    predates the record behaves exactly as it did. Failing this open is
+    deliberate: the cost of missing a cancel is the behaviour we have today,
+    while the cost of inventing one is running a chain's failure branch over
+    work that succeeded.
+    """
+    try:
+        return connection.hget(Job.key_for(job_id), CANCELED_FIELD) is not None
+    except Exception:
+        return False
 
 
 def _stamp_ended_at(connection, job_id):
@@ -250,6 +311,472 @@ def _await_result_stream_admission(connection, queue):
         waited += 1.0
 
 
+def knot_child_id(step_id, index):
+    """The rq job id of the ``index``-th storage child of finalize step
+    ``step_id`` — the storage-under-core knot.
+
+    Deterministic, so the id is known when the chain is BUILT even though the
+    job is created when the step runs: that is what lets the edge to the child
+    be declared up front instead of being patched in afterwards, and what makes
+    a redelivery address the same child instead of starting a second disk
+    operation. rq job ids forbid ``:`` and the metadata step ids carry it, so
+    the whole thing is flattened.
+
+    The single definition is load-bearing: whoever creates the child and
+    whoever looks for it must compute the same id, or the graph acquires two
+    names for one member.
+    """
+    return f"{step_id}:sd:{index}".replace(":", "-")
+
+
+def _serialize_finalize(
+    dep, parent_id, index, user_id, category_id, storage_id=None, media_id=None
+):
+    """One ``core`` dependent (and its subtree) as a finalize metadata node.
+
+    A ``core`` child becomes a nested finalize node; a storage child becomes a
+    ``storage_dependents`` entry the consumer enqueues fresh when this step runs
+    (the storage-under-core knot). Ids are deterministic, never uuid4, so a
+    redelivery addresses the same step.
+
+    Each knot child's future id is recorded on the node as
+    ``storage_dependent_ids`` at the same time. The child does not exist yet,
+    but its id does, so the graph can carry the edge to it from the moment the
+    chain is built rather than acquiring it later — if ever.
+
+    The owning row descends with the subtree for the same reason ``user_id``
+    does: a knot child becomes a real rq job doing that row's disk work, and
+    before the metadata path it inherited the owner by recursion through
+    ``Task.__init__``. The node itself does not carry it — a finalize step is
+    not an rq job and owns nothing.
+    """
+    step_user_id = dep.get("user_id", user_id)
+    step_category_id = dep.get("category_id", category_id)
+    step_storage_id = dep.get("storage_id", storage_id)
+    step_media_id = dep.get("media_id", media_id)
+    node = {
+        "id": f"{parent_id}:cf:{index}",
+        "task": dep.get("task"),
+        "queue": dep.get("queue", "core"),
+        "user_id": step_user_id,
+        "category_id": step_category_id,
+        "kwargs": (dep.get("job_kwargs") or {}).get("kwargs", {}) or {},
+        "args": (dep.get("job_kwargs") or {}).get("args", []) or [],
+        "core_finalize": [],
+        "storage_dependents": [],
+        "storage_dependent_ids": [],
+        "status": None,
+    }
+    for child_index, child in enumerate(dep.get("dependents", []) or []):
+        if str(child.get("queue", "")).startswith("core"):
+            node["core_finalize"].append(
+                _serialize_finalize(
+                    child,
+                    node["id"],
+                    child_index,
+                    step_user_id,
+                    step_category_id,
+                    step_storage_id,
+                    step_media_id,
+                )
+            )
+        else:
+            child.setdefault("user_id", step_user_id)
+            child.setdefault("category_id", step_category_id)
+            child.setdefault("storage_id", step_storage_id)
+            child.setdefault("media_id", step_media_id)
+            node["storage_dependent_ids"].append(
+                knot_child_id(node["id"], len(node["storage_dependents"]))
+            )
+            node["storage_dependents"].append(child)
+    return node
+
+
+def _knot_child_ids(node):
+    """Every knot child id declared anywhere in a finalize tree.
+
+    They all belong on the ANCHOR's ``dependent_ids``: the anchor is the only
+    real rq job in the tree, so it is the only place an id-based walk can pick
+    the edge up from.
+    """
+    ids = list(node.get("storage_dependent_ids") or [])
+    for child in node.get("core_finalize") or []:
+        ids.extend(_knot_child_ids(child))
+    return ids
+
+
+def finalize_has_unstamped(nodes):
+    """True if any metadata finalize step in this tree never ran.
+
+    ``status`` is ``None`` until the step's handler has been dispatched;
+    ``"finished"`` or ``"failed"`` both mean it RAN, so only ``None`` is
+    outstanding work.
+
+    Walks ``unbuilt_knot_finalize`` as well as ``core_finalize``. Those are the
+    steps of a knot child that will never be created — on a failed or cancelled
+    chain they are materialised onto the anchor instead, and they still run
+    (the terminal ``update_status`` that maps FAILED/CANCELED onto ``Failed``
+    is one of them), so an unstamped one is still work outstanding.
+    """
+    for node in nodes or []:
+        if node.get("status") is None:
+            return True
+        if finalize_has_unstamped(node.get("core_finalize")):
+            return True
+        for unbuilt in (node.get("unbuilt_knot_finalize") or {}).values():
+            if finalize_has_unstamped(unbuilt):
+                return True
+    return False
+
+
+def _job_has_unstamped_finalize(job):
+    """True if this rq job's meta carries a finalize step that never ran.
+
+    Only ``core_finalize`` is read here: ``unbuilt_knot_finalize`` is stored on
+    a finalize NODE (see :meth:`CoreStep.unbuilt_knot_steps`), never on a job's
+    meta, so the tree walk is what reaches it.
+    """
+    meta = getattr(job, "meta", None) or {}
+    return finalize_has_unstamped(meta.get("core_finalize"))
+
+
+class CoreStep:
+    """A ``meta["core_finalize"]`` node that quacks like a :class:`Task` for the
+    finalize consumer and the ``to_dict`` / ``pending`` contract.
+
+    No rq job. ``job_status`` is derived: ``FINISHED``/``FAILED`` once the
+    consumer stamps ``node["status"]``, else ``QUEUED`` when what it waits on has
+    settled (mirrors rq's DEFERRED->QUEUED promotion) and ``DEFERRED`` otherwise
+    — which gates ``Task.pending`` exactly as a real ``core`` dependent did,
+    without a leakable job. ``_parent`` is the member it waits on, read by
+    ``depending_status`` (the gate the handlers check).
+    """
+
+    # Only weights ``Task.progress``'s time-average; a finalize step has no
+    # partial progress, so any positive constant is fine.
+    _STEP_TIMEOUT = 30
+
+    def __init__(self, node, parent, redis):
+        self._node = node
+        self._parent = parent
+        self._redis = redis
+
+    @property
+    def job(self):
+        """Stand-in for the rq ``Job`` that ``Task.progress`` reads (``timeout``
+        + ``meta["progress"]``). No ``set_status`` / ``delete`` on purpose — the
+        metadata path uses :meth:`mark`; a stray legacy call must fail loudly."""
+        return SimpleNamespace(
+            timeout=self._STEP_TIMEOUT,
+            meta={"progress": 1.0 if self.job_status == JobStatus.FINISHED else 0},
+        )
+
+    @property
+    def id(self):
+        return self._node.get("id")
+
+    @property
+    def task(self):
+        return self._node.get("task")
+
+    @property
+    def queue(self):
+        return self._node.get("queue", "core")
+
+    @property
+    def user_id(self):
+        return self._node.get("user_id")
+
+    @property
+    def category_id(self):
+        return self._node.get("category_id")
+
+    @property
+    def kwargs(self):
+        return self._node.get("kwargs", {}) or {}
+
+    @property
+    def args(self):
+        return self._node.get("args", []) or []
+
+    @property
+    def result(self):
+        return None
+
+    @property
+    def exc_info(self):
+        return None
+
+    @property
+    def position(self):
+        return None
+
+    @property
+    def storage_dependents(self):
+        """Raw dependent dicts to enqueue as rq Tasks when this step runs."""
+        return self._node.get("storage_dependents", []) or []
+
+    @property
+    def knot_child_ids(self):
+        """The rq job ids of this step's storage children, in the same order.
+
+        Declared when the chain was built, so they name the children whether or
+        not they exist yet. A chain built before this existed has none, and the
+        ids are re-derived from the step id so such a chain still resolves.
+        """
+        declared = self._node.get("storage_dependent_ids")
+        if declared:
+            return list(declared)
+        children = self.storage_dependents
+        if children:
+            # Only a chain built before the edge existed reaches here, i.e. one
+            # that was already in flight when this version was deployed. The
+            # ids re-derive, so it still runs and settles — but its ROOT never
+            # recorded them, so a cancel of that chain cannot reach its knot
+            # child, exactly as it could not before the upgrade. Said out loud
+            # because it is invisible otherwise: the operator sees a cancel
+            # that appears to do nothing, on that chain only, once.
+            log.warning(
+                "task: chain step %s predates the knot edge (built before this "
+                "version); its knot children are reachable by derivation but "
+                "not from the chain root, so a cancel cannot reach them. "
+                "Pre-existing chains drain with the old behaviour; chains "
+                "started after this deploy are unaffected.",
+                self.id,
+            )
+        return [knot_child_id(self.id, index) for index in range(len(children))]
+
+    @property
+    def anchor(self):
+        """The rq job whose ``meta`` carries this step — where :meth:`mark`
+        becomes durable.
+
+        A finalize tree hangs off ONE real job and can be several levels deep,
+        so the anchor is the first non-``CoreStep`` ancestor, not the immediate
+        parent. It is also not necessarily the job an incoming result event is
+        keyed on: in the template chain the tree hangs off the third storage
+        job while the event names the root.
+
+        ``None`` when the step has no parent at all — the reconcile builds such
+        a step in its own heal path — which callers must read as "there is
+        nothing to save", never as an error.
+        """
+        node = self._parent
+        while isinstance(node, CoreStep):
+            node = node._parent
+        return node
+
+    def unbuilt_knot_steps(self, unbuilt_status=JobStatus.FAILED):
+        """This step's knot children's finalize steps, for children that will
+        never be built.
+
+        A knot child is created when this step runs — but only on a chain that
+        is still succeeding. On one that failed or was cancelled the child is
+        never created, and everything the chain declared BELOW it stays a raw
+        dict that no walk can reach: in a template creation that includes the
+        terminal ``update_status``, the one step that maps FAILED/CANCELED onto
+        ``Failed`` for the desktop, the template and both storage rows.
+
+        The subtree is already carried here in full — the raw child dict keeps
+        its own ``dependents`` — so nothing needs materialising in Redis to
+        reach it. It is serialised with the same deterministic ids the real
+        child would have produced, so a step has ONE identity whether it was
+        reached as metadata or as a job.
+
+        Only children that do not exist are returned, using the same existence
+        check that decides whether to create one, so the two can never both
+        claim the same member. Callers must ask only when the chain is dead: on
+        a live chain a missing child means "not created YET", and running its
+        finalizers would settle rows for work that is about to happen.
+
+        The nodes are kept ON this node the first time they are built, so a
+        step reached this way can be marked like any other and the mark lands
+        in the anchor's meta with the rest. Without that a step would run and
+        still read as never having run, which is the state the reconcile treats
+        as work in progress.
+
+        ``unbuilt_status`` is what the child's non-execution reports as. These
+        steps hang off the CHILD, not off this step, and every handler decides
+        what to do from its own dependency's status — so a step here must see
+        the child that will never run, not the step that carried it. Reporting
+        this step instead would answer "finished" whenever the first half of
+        the chain succeeded, and the step would run its success body for a disk
+        operation that never happened.
+        """
+        # Stands in for the knot child that will never exist: ``job_status``
+        # says "this member did not run", which is what the steps behind it
+        # read. It also carries this tree's anchor identity, because the child
+        # has no meta of its own — these nodes live in the anchor's, and that
+        # is where their marks have to be saved.
+        anchor = self.anchor
+        never_ran = SimpleNamespace(
+            job_status=unbuilt_status,
+            id=getattr(anchor, "id", None),
+            job=getattr(anchor, "job", None),
+        )
+        steps = []
+        child_ids = self.knot_child_ids
+        materialized = self._node.setdefault("unbuilt_knot_finalize", {})
+        for index, child in enumerate(self.storage_dependents):
+            child_id = child_ids[index]
+            try:
+                if Job.exists(child_id, connection=self._redis):
+                    # It is a real member with its own finalize tree; whoever
+                    # walks jobs reaches it. Drop any view built while it did
+                    # not exist so one member never has two representations.
+                    materialized.pop(child_id, None)
+                    continue
+            except Exception:
+                # Unreadable is not "absent": leave the child to the reader that
+                # can see it rather than inventing a second copy of it here.
+                continue
+            nodes = materialized.get(child_id)
+            if nodes is None:
+                nodes = []
+                for dependent in child.get("dependents") or []:
+                    if not str(dependent.get("queue", "")).startswith("core"):
+                        continue
+                    nodes.append(
+                        _serialize_finalize(
+                            dependent,
+                            child_id,
+                            len(nodes),
+                            child.get("user_id", self.user_id),
+                            child.get("category_id", self.category_id),
+                        )
+                    )
+                materialized[child_id] = nodes
+            steps.extend(CoreStep(node, never_ran, self._redis) for node in nodes)
+        return steps
+
+    def mark(self, ok):
+        """Record this step's outcome so a later sibling/child reads the right
+        ``depending_status`` and ``Task.pending`` stops counting it as active."""
+        self._node["status"] = "finished" if ok else "failed"
+
+    @property
+    def dependencies(self):
+        return [self._parent] if self._parent is not None else []
+
+    @property
+    def dependents(self):
+        return [
+            CoreStep(child, self, self._redis)
+            for child in self._node.get("core_finalize", []) or []
+        ]
+
+    @property
+    def job_status(self):
+        status = self._node.get("status")
+        if status == "finished":
+            return JobStatus.FINISHED
+        if status == "failed":
+            return JobStatus.FAILED
+        if self._parent is not None and self._parent.job_status in _TERMINAL_STATUSES:
+            return JobStatus.QUEUED
+        return JobStatus.DEFERRED
+
+    @property
+    def depending_status(self):
+        return global_status(self.dependencies)
+
+    @property
+    def status(self):
+        return global_status([self._parent, self] if self._parent else [self])
+
+    @property
+    def pending(self):
+        return self.job_status in (
+            JobStatus.STARTED,
+            JobStatus.SCHEDULED,
+            JobStatus.QUEUED,
+            JobStatus.DEFERRED,
+        )
+
+    @property
+    def progress(self):
+        return 1.0 if self.job_status == JobStatus.FINISHED else 0.0
+
+    def to_dict(self, filter=None):
+        """Mirror :meth:`Task.to_dict` for a finalize step so the admin Tasks
+        view renders a metadata chain identically to a legacy rq one."""
+        if not filter:
+            filter = []
+        filter.append(self.id)
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "category_id": self.category_id,
+            "queue": self.queue,
+            "position": self.position,
+            "task": self.task,
+            "kwargs": self.kwargs,
+            "result": self.result,
+            "exc_info": self.exc_info,
+            "depending_status": self.depending_status,
+            "status": self.status,
+            "pending": self.pending,
+            "job_status": self.job_status,
+            "progress": self.progress,
+            "args": list(self.args),
+            "dependencies": [],
+            "dependents": [
+                dependent.to_dict(filter=filter)
+                for dependent in self.dependents
+                if dependent.id not in filter
+            ],
+        }
+
+
+# What ``Task.to_dict`` puts on the wire. A SAFELIST, deliberately: this used
+# to be a denylist over ``dir(self)``, which meant a new ``@property`` joined
+# every task listing, every task GET and every SocketIO emit by merely existing.
+# That happened twice — ``storage_id``, then ``chain_pending`` — so the default
+# is now "not serialised" and adding a key is a decision someone makes.
+#
+# Before adding a name here, know what it costs. ``to_dict`` recurses into
+# dependents, so a property that walks the chain is O(N^2) over the whole
+# closure on EVERY progress tick (``emit_task_feedback``). And a property
+# returning a ``datetime`` makes ``json.dumps`` raise inside that emitter's
+# try/except, which silently stops every task SocketIO event everywhere.
+#
+# ``CoreStep.to_dict`` lists the same keys explicitly so a metadata chain and a
+# legacy rq one render identically in the admin Tasks view. Keep them in step.
+_TO_DICT_PROPERTIES = (
+    "category_id",
+    "depending_status",
+    "exc_info",
+    "id",
+    "job_status",
+    "kwargs",
+    "pending",
+    "position",
+    "progress",
+    "queue",
+    "result",
+    "status",
+    "task",
+    "user_id",
+)
+
+# Properties deliberately kept OFF the wire, with the reason. Listed rather
+# than merely absent so that ``test_every_task_property_has_a_recorded_decision``
+# can tell "decided against" from "nobody looked at it yet".
+_TO_DICT_OMITTED_PROPERTIES = {
+    # Internal traversal helpers, not part of the rendered task.
+    "_chain",
+    # Built explicitly by to_dict itself (they recurse with the filter).
+    "args",
+    "dependencies",
+    "dependents",
+    # A full closure walk with a cache-bypassing status read per member; see
+    # the cost note above. Callers that need it ask the Task directly.
+    "chain_pending",
+    # Resolved per row elsewhere; serialising it made every listing O(N^2).
+    "storage_id",
+}
+
+
 class Task(RedisBase):
     """
     Manage tasks with RQ backend.
@@ -287,6 +814,16 @@ class Task(RedisBase):
             # bulk/background throughput per category (Phase 2). None for a task
             # with no resolvable owner (system maintenance / deleted owner).
             meta.setdefault("category_id", kwargs.get("category_id"))
+            # The row that CREATED this chain, so a task can be traced back to
+            # it without the RethinkDB secondary index — the same semantics as
+            # the ``task`` index it replaces, which is built from
+            # ``storage.task``. NOT the row the chain locked: several chains
+            # park a different row than the one they were created from (a
+            # template creation is built from the desktop and locks the
+            # template), and that relationship belongs in the task index's
+            # owner list, never here.
+            meta.setdefault("storage_id", kwargs.get("storage_id"))
+            meta.setdefault("media_id", kwargs.get("media_id"))
             # Give every task an explicit, action-appropriate job_timeout so a
             # long-running op (download / convert / sparsify / move) is not
             # killed by RQ's 180 s Queue.DEFAULT_TIMEOUT mid-flight. A callsite
@@ -320,6 +857,39 @@ class Task(RedisBase):
             for dependent in kwargs.get("dependents", []):
                 dependent.setdefault("user_id", kwargs.get("user_id"))
                 dependent.setdefault("category_id", kwargs.get("category_id"))
+                dependent.setdefault("storage_id", kwargs.get("storage_id"))
+                dependent.setdefault("media_id", kwargs.get("media_id"))
+                # NOT index_owners: a chain's finalize steps are not
+                # operations the disk had, and indexing them would spend the
+                # cap several times over on one operation. A dependent that
+                # genuinely is a disk's own operation names its owners itself.
+                # A ``core`` finalize dependent is ALWAYS metadata, never a rq job
+                # on the consumerless ``core`` queue; storage dependents keep the rq
+                # path. The change-handler runs it off ``meta["core_finalize"]``.
+                if str(dependent.get("queue", "")).startswith("core"):
+                    finalize = self.job.meta.setdefault("core_finalize", [])
+                    node = _serialize_finalize(
+                        dependent,
+                        self.job.id,
+                        len(finalize),
+                        kwargs.get("user_id"),
+                        kwargs.get("category_id"),
+                        kwargs.get("storage_id"),
+                        kwargs.get("media_id"),
+                    )
+                    finalize.append(node)
+                    # Declare the edge to every knot child the tree carries, now,
+                    # while this job is the only real one that can hold it. The
+                    # children are created later (when their step runs) or never
+                    # (on a chain that fails or is cancelled), so linking them at
+                    # creation time would leave them unreachable in exactly the
+                    # states where reaching them matters most. A declared id that
+                    # cannot be fetched is skipped by every reader, so declaring
+                    # early costs nothing.
+                    self.job.meta.setdefault("dependent_ids", []).extend(
+                        _knot_child_ids(node)
+                    )
+                    continue
                 dependent.setdefault("retry", kwargs.get("retry", 0))
                 dependent.setdefault(
                     "retry_intervals", kwargs.get("retry_intervals", 0)
@@ -356,6 +926,21 @@ class Task(RedisBase):
             self._enqueued = False
             if kwargs.get("enqueue", True):
                 self.enqueue()
+            # Index AFTER the enqueue so the score is the job's ``enqueued_at``;
+            # a task created for deferred enqueue scores on ``created_at`` and
+            # is findable from the moment it exists. Written here rather than in
+            # each ``create_task`` because not every producer goes through one —
+            # ``RecycleBin.delete_storage`` builds a ``Task`` directly so it can
+            # register before enqueuing — and one write site means a new
+            # producer cannot silently bypass the index.
+            owners = kwargs.get("index_owners") or []
+            if owners:
+                index_task(
+                    self._redis,
+                    self.job,
+                    owners,
+                    kind=kwargs.get("index_kind", "storage"),
+                )
 
     def enqueue(self):
         """Place the (already created + saved) root job on its queue.
@@ -436,10 +1021,21 @@ class Task(RedisBase):
         """
         List of tasks that should be done after this Task.
 
+        Storage dependents are real rq jobs (``meta["dependent_ids"]``, e.g.
+        ``qemu_img_info_backing_chain``); ``core`` finalize steps are
+        :class:`CoreStep` views over ``meta["core_finalize"]`` — never rq jobs on
+        the consumerless ``core`` queue. The two coexist in a chain and never
+        overlap; returning both is the full dependent set.
+
         :return: Tasks that depends of this Task
         :rtype: list
         """
-        return tasks_from_ids(self.job.meta.get("dependent_ids", []))
+        storage_dependents = tasks_from_ids(self.job.meta.get("dependent_ids", []))
+        core_finalize = [
+            CoreStep(node, self, self._redis)
+            for node in (self.job.meta.get("core_finalize") or [])
+        ]
+        return storage_dependents + core_finalize
 
     @property
     def _chain(self):
@@ -470,6 +1066,80 @@ class Task(RedisBase):
         :rtype: str
         """
         return global_status(self._chain)
+
+    @property
+    def chain_pending(self):
+        """Like :attr:`pending`, but over the WHOLE chain rather than its
+        immediate neighbours.
+
+        ``pending`` walks ``dependencies + self + dependents``, which is one
+        level each way — ``dependents`` lists direct children only. A chain
+        deeper than that reads as settled from its root while later levels are
+        still running: the template chain is three rq jobs plus a knot child. A
+        caller asking "is this row's work finished?" needs the closure, or it
+        acts on a disk a worker is still writing.
+
+        Metadata finalize steps count too, even though they are not rq jobs and
+        an id walk cannot reach them. An unstamped step IS outstanding work:
+        the change-handler still has to run its handler, and that handler is
+        what releases the row. ``pending`` already counts one (an unstamped
+        ``CoreStep`` reads QUEUED once its parent is terminal), and two sibling
+        predicates over one graph must not answer this differently — measured
+        on the real template chain, asked on the anchor, ``pending`` said True
+        and this said False.
+
+        That makes a lost result event pin the chain pending indefinitely,
+        which is only safe because ``_metadata_finalize_orphaned`` is
+        closure-wide and can open for a knotted chain. Do not relax that
+        ordering.
+
+        An unreadable chain answers True: not being able to prove work is over
+        is not the same as it being over.
+
+        :return: True if anything in the closure is still real work
+        :rtype: bool
+        """
+        active = (
+            JobStatus.STARTED,
+            JobStatus.SCHEDULED,
+            JobStatus.QUEUED,
+        )
+        try:
+            closure = _chain_closure(self.job, self._redis)
+        except Exception:
+            return True
+        for job in closure.values():
+            # Checked before the status: a finalize step is outstanding
+            # regardless of what its anchor's rq job now reads as. On a settled
+            # chain the anchor is FINISHED and the step is exactly what has not
+            # happened yet.
+            if _job_has_unstamped_finalize(job):
+                return True
+            try:
+                status = job.get_status(refresh=True)
+            except Exception:
+                return True
+            if status in active:
+                return True
+            if status != JobStatus.DEFERRED:
+                continue
+            # Same rule as ``pending``: deferred is real work only while it
+            # legitimately waits on something unsettled. A deferred job whose
+            # dependencies have all settled was never re-enqueued and is an
+            # orphan, which Pass 1 heals — it must not block for ever.
+            for dependency_id in (getattr(job, "meta", None) or {}).get(
+                "dependency_ids"
+            ) or []:
+                dependency = closure.get(dependency_id)
+                if dependency is None:
+                    continue
+                try:
+                    dependency_status = dependency.get_status(refresh=True)
+                except Exception:
+                    return True
+                if dependency_status in active + (JobStatus.DEFERRED,):
+                    return True
+        return False
 
     @property
     def pending(self):
@@ -596,6 +1266,12 @@ class Task(RedisBase):
                 log.exception("task cancel: could not cancel %s", job.id)
                 continue
             _stamp_ended_at(self._redis, job.id)
+            # Record the cancel where it is decided, on the member itself. rq
+            # may still run this job if a worker had already dequeued it, and
+            # the worker will then rewrite its status to finished; the record
+            # is what lets the completion it publishes be recognised as a
+            # cancelled member's rather than a healthy one's.
+            mark_canceled(self._redis, job.id)
 
         # The change-handler runs the finalize handlers, and a cancelled job
         # publishes no result of its own — announce the chain so its cancelled
@@ -625,26 +1301,7 @@ class Task(RedisBase):
             filter = []
         filter.append(self.id)
         return {
-            **{
-                name: getattr(self, name)
-                for name in dir(self)
-                if name
-                not in [
-                    "dict",
-                    "args",
-                    "job",
-                    "_chain",
-                    "dependencies",
-                    "dependents",
-                    "storage_id",
-                ]
-                # getattr with a default: instance-only attributes (e.g.
-                # _enqueued / _queue_name set in __init__) appear in dir(self)
-                # but are NOT class attributes, so a bare getattr(self.__class__,
-                # name) raises AttributeError and breaks the whole dict. None is
-                # not a property, so they are simply skipped.
-                and isinstance(getattr(self.__class__, name, None), property)
-            },
+            **{name: getattr(self, name) for name in _TO_DICT_PROPERTIES},
             "args": [
                 arg.to_dict() if hasattr(arg, "to_dict") else arg for arg in self.args
             ],
@@ -854,35 +1511,39 @@ class Task(RedisBase):
     @property
     def storage_id(self):
         """
-        Check if any storage has this task.
+        The id of the row that CREATED this task's chain, or ``None``.
 
-        :return: True if the storage has any task, False otherwise
-        :rtype: bool
+        Read off the job's own meta, where the producer stamps it. It used to
+        resolve through RethinkDB's ``task`` secondary index, which answered
+        with a Storage OBJECT despite this docstring promising a bool — and
+        which is retired with the row field that fed it.
         """
-        try:
-            from .storage import Storage  # To avoid circular import
-
-            return Storage.get_from_task_id(self.id)
-        except Exception:
-            return None
+        return self.job.meta.get("storage_id")
 
     @classmethod
     def filter_last_tasks(cls, task_ids: list[str]) -> list["Task"]:
-        """
-        Get the tasks that are the last task of a storage from a list of task IDs.
+        """The given tasks that are still their owner row's current task.
+
+        Was a RethinkDB lookup through the ``task`` secondary index, which is
+        retired with the row field that fed it. Same question, asked of the
+        index: a task is its owner's current one when it is the newest live
+        member of that owner's set. Resolved through the job's own meta, so no
+        table is read at all.
 
         :param task_ids: List of task IDs to filter
         """
-        try:
-            from .storage import Storage  # To avoid circular import
+        from isardvdi_common.lib.task_index import current_task_id
 
-            tasks = []
-            for task in Storage.get_storage_ids_from_task_ids(task_ids):
-                tasks.append(cls(task["task_id"]))
-
-            return tasks
-        except Exception:
-            return []
+        tasks = []
+        for task_id in task_ids:
+            try:
+                task = cls(task_id)
+                owner_id = task.storage_id
+                if owner_id and current_task_id(cls._redis, owner_id) == task_id:
+                    tasks.append(task)
+            except Exception:
+                continue
+        return tasks
 
     @classmethod
     def get_failed_storage_tasks(cls) -> list["Task"]:

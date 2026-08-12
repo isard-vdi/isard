@@ -353,7 +353,7 @@ $(document).ready(function () {
       deferRender: true,
       createdRow: function (row, data, dataIndex) {
         if (status = "maintenance") {
-          $(row).attr('data-task', data.task);
+          $(row).attr('data-task', data.last_task_id);
         }
       },
       columns: [
@@ -745,7 +745,7 @@ $(document).on('click', '.btn-convert', function () {
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
-    if (data.derivatives > 1) {
+    if (data.derivatives > 0) {
       new PNotify({
         title: `ERROR`,
         text: "This storage has derivatives",
@@ -1311,7 +1311,7 @@ $(document).on('click', '.btn-virt_win_reg', function () {
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
-    if (data.derivatives > 1) {
+    if (data.derivatives > 0) {
       new PNotify({
         title: `ERROR`,
         text: "This storage has derivatives",
@@ -1393,6 +1393,18 @@ $(document).on('click', '.btn-sparsify', function () {
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
+    if (data.derivatives > 0) {
+      new PNotify({
+        title: `ERROR`,
+        text: "This storage has derivatives",
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+      return;
+    }
     $(modal + " #id").val(storageId);
     populatePrioritySelect(modal);
     $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
@@ -1437,7 +1449,7 @@ $(document).on('click', '.btn-move', function () {
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
-    if (data.derivatives > 1) {
+    if (data.derivatives > 0) {
       new PNotify({
         title: `ERROR`,
         text: "This storage has derivatives",
@@ -1718,7 +1730,7 @@ function createDatatable(tableId, status, initCompleteFn = null) {
     deferRender: true,
     createdRow: function (row, data, dataIndex) {
       if (status = "maintenance") {
-        $(row).attr('data-task', data.task);
+        $(row).attr('data-task', data.last_task_id);
       }
     },
     columns: [
@@ -1822,7 +1834,8 @@ function createDatatable(tableId, status, initCompleteFn = null) {
       },
       {
         title: 'Task',
-        data: 'task',
+        // Served from the task index; the retired row scalar is gone.
+        data: 'last_task_id',
         defaultContent: '-',
         visible: $('meta[id=user_data]').attr('data-role') === 'admin',
         render: function (data, type, row, meta) {
@@ -1846,8 +1859,8 @@ function createDatatable(tableId, status, initCompleteFn = null) {
           if (data.status === "ready") {
             buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>`);
           }
-          if (row.task) {
-            buttons.push(`<button type="button" data-id="${row.id}" data-task="${row.task}" class="btn btn-pill-right btn-warning btn-xs btn-retry-task" title="Retry task"><i class="fa fa-refresh"></i></button>`);
+          if (row.last_task_id) {
+            buttons.push(`<button type="button" data-id="${row.id}" data-task="${row.last_task_id}" class="btn btn-pill-right btn-warning btn-xs btn-retry-task" title="Retry task"><i class="fa fa-refresh"></i></button>`);
           }
           if (data.status === "orphan") {
             buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-orphan" title="Delete orphan storage"><i class="fa fa-trash"></i></button>`);

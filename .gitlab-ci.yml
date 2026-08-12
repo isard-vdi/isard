@@ -349,16 +349,56 @@ unit-test-vmalert:
       junit: ${COVERAGE_DIR}/report.xml
   coverage: '/TOTAL\s+\d+\s+\d+\s+\d+%/'
 
+# Python tests that need a REAL Redis, declared once for every job that does.
+#
+# THE CRITERION, in one place: a suite qualifies when what it asserts on is
+# Redis's own behaviour rather than our code's use of it — an rq job graph
+# (hashes, dependency links, registries, Job.cancel), or a Lua script whose
+# effect a mocked connection cannot report. For those, a fake Redis is a second
+# implementation of the very thing under test, so a divergence between it and
+# the real server surfaces as confidence instead of as a failure.
+#
+# This is never a service added to make a test pass. Those tests pass; without
+# a server they SKIP, which is worse — the suite goes green having asserted
+# nothing. Adding it is what makes them run at all.
+#
+# Jobs opt in by extending this. Anything extending .python-test-job keeps
+# exactly the environment it has today.
+#
+# Pinned to the same image and digest as the stack's own isard-redis, so CI
+# exercises the server version production runs. ISARD_TEST_REDIS carries the
+# same server to the suites that take a URL, so a job never has to invent its
+# own way of saying "there is a Redis here".
+.python-test-job-redis:
+  extends: .python-test-job
+  services:
+    - name: redis:7.4-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+      alias: redis
+  variables:
+    REDIS_HOST: redis
+    ISARD_TEST_REDIS: "redis://redis:6379/9"
+
 unit-test-apiv4:
   extends: .python-test-job
+  # A real redis, because the retry guard that refuses a task whose direct
+  # dependent is CANCELED rests on rq's own admission rule, and that premise is
+  # proved by running rq rather than by asserting it. The service is declared
+  # here and NOT on ``.python-test-base``: sixteen other python jobs extend that
+  # base and none of them wants a redis container. Same image and digest the
+  # stack runs, so the proof exercises the redis we ship.
+  services:
+    - name: redis:7.4-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+      alias: redis
   variables:
     COVERAGE_DIR: component/apiv4/src
     USAGE: "production"
+    REDIS_HOST: redis
   script:
     - make ci-test-apiv4
 
 unit-test-change-handler:
-  extends: .python-test-job
+  # Real rq graphs: which members of a chain can be reached from its root.
+  extends: .python-test-job-redis
   variables:
     COVERAGE_DIR: component/change-handler/src
   script:
@@ -381,7 +421,10 @@ unit-test-webapp:
     - make ci-test-webapp
 
 unit-test-common:
-  extends: .python-test-job
+  # The ended_at stamp is a Lua script: a mocked connection cannot say whether
+  # it wrote, and the empty-field trap it guards was found by running it for
+  # real. Those tests have been skipping since they were written.
+  extends: .python-test-job-redis
   variables:
     COVERAGE_DIR: component/_common/src
   script:

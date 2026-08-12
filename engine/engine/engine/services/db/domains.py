@@ -43,20 +43,26 @@ def delete_domain(id):
     return results
 
 
-def _storage_task_in_flight(task_id):
-    """True only while ``task_id`` is real work still running.
+def _storage_task_in_flight(storage_id):
+    """True only while ``storage_id`` has real work still running.
 
-    Stands in front of a DELETE, so it fails SAFE: a task that cannot be read
-    counts as in flight. Losing a sweep is a domain cleaned up on the next one;
-    inventing a settled task is a domain removed while its disk is being
-    written.
+    Asks the per-owner task index, the single source now that the row's scalar
+    is retired. Stands in front of a DELETE, so it fails SAFE: a task that
+    cannot be read counts as in flight. Losing a sweep is a domain cleaned up
+    on the next one; inventing a settled task is a domain removed while its
+    disk is being written.
     """
-    if not task_id:
+    if not storage_id:
         return False
+    from isardvdi_common.lib.task_index import current_task_id
     from isardvdi_common.models.task import Task
 
     try:
-        if not Task.exists(task_id):
+        # ``strict``: the index answers None on a redis blip by default, and
+        # None here would read as "no task" and let the sweep delete a domain
+        # whose disk is being written. Raising lands in the fail-safe below.
+        task_id = current_task_id(Task._redis, storage_id, strict=True)
+        if not task_id or not Task.exists(task_id):
             return False
         return bool(Task(task_id).pending)
     except Exception:
@@ -112,10 +118,9 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
             row["id"]
             for row in r.table("storage")
             .get_all(r.args(list(set(storage_ids))), index="id")
-            .filter(lambda s: s.has_fields("task") & (s["task"] != None))  # noqa: E711
-            .pluck("id", "task")
+            .pluck("id")
             .run(r_conn)
-            if _storage_task_in_flight(row.get("task"))
+            if _storage_task_in_flight(row.get("id"))
         )
 
     domains_to_delete = [
@@ -153,19 +158,10 @@ def fail_incomplete_creating_domains(
         "DeletingDomainDisk",
         "StartingDomainDisposable",
     ]
-    # ``CreatingDisk`` and ``CreatingTemplate`` are driven by the
-    # storage-worker RQ chain; the chain ends with a
-    # ``core.update_status`` task that flips the domain to Failed when
-    # any earlier step failed. If the chain succeeded, the desktop
-    # has already moved to Stopped. So a desktop that is *still* in
-    # one of these states by the time the engine reaches this cleanup
-    # — and whose first disk's storage row no longer carries an
-    # active task — is genuinely stuck (e.g. the storage worker
-    # crashed mid-chain, the redis registry was dropped, or the parent
-    # template file disappeared so qemu-img exited 1 and downstream
-    # update_status never got the chance). Mark them Failed instead of
-    # leaving them blocking the desktop list forever.
-    status_to_failed_if_no_task = ["CreatingDisk", "CreatingTemplate"]
+    # ``CreatingDisk`` / ``CreatingTemplate`` are NOT here: their work is
+    # executed by the storage-worker RQ chain, so the change-handler's
+    # self-heal owns their recovery. This sweep keeps only the statuses
+    # engine itself drives.
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     if only_domain_id:
@@ -181,92 +177,6 @@ def fail_incomplete_creating_domains(
         .update({"status": "Failed", "detail": detail})
         .run(r_conn)
     )
-
-    # Phase 2 — task-conditional sweep for ``CreatingDisk`` /
-    # ``CreatingTemplate``. Defer the actual classification to the
-    # storage ``find`` chain (``find → storage_update_pool →
-    # storage_domains_force_update``) which already does the right
-    # thing: when the disk file exists on the host the storage flips
-    # to ``ready`` and the linked domain converges to ``Stopped``;
-    # when the file is gone the storage flips to ``deleted`` /
-    # ``failed`` and the domain converges to ``Failed``. So we just
-    # need to (1) skip stuck domains whose original chain is still in
-    # flight, (2) re-enqueue ``find`` for the rest, (3) fall back to
-    # marking the domain ``Failed`` only when there is no storage row
-    # to find or the find re-enqueue itself raises.
-    candidates = list(
-        rtable.get_all(r.args(status_to_failed_if_no_task), index="status")
-        .filter({"kind": kind})
-        .pluck("id", "status", "create_dict", "user")
-        .run(r_conn)
-    )
-    if candidates:
-        # Lazy import — engine boot has these on the path but this
-        # function is also called from the pool-hypervisors path where
-        # the imports would otherwise fan out earlier than needed.
-        from isardvdi_common.models.storage import Storage
-        from isardvdi_common.models.task import Task
-
-        storage_by_domain = {}
-        all_storage_ids = []
-        for domain in candidates:
-            sid = (
-                (domain.get("create_dict") or {})
-                .get("hardware", {})
-                .get("disks", [{}])[0]
-                .get("storage_id")
-            )
-            storage_by_domain[domain["id"]] = sid
-            if sid:
-                all_storage_ids.append(sid)
-
-        storage_rows = (
-            {
-                row["id"]: row
-                for row in r.table("storage")
-                .get_all(r.args(list(set(all_storage_ids))), index="id")
-                .pluck("id", "status", "task")
-                .run(r_conn)
-            }
-            if all_storage_ids
-            else {}
-        )
-
-        domain_ids_to_fail = []
-        for domain in candidates:
-            sid = storage_by_domain[domain["id"]]
-            storage = storage_rows.get(sid) if sid else None
-
-            # No storage row → nothing the find chain could resolve;
-            # straight to Failed.
-            if storage is None:
-                domain_ids_to_fail.append(domain["id"])
-                continue
-
-            task_id = storage.get("task")
-            if task_id and Task.exists(task_id):
-                try:
-                    if Task(task_id).pending:
-                        # Chain is still in flight — leave alone.
-                        continue
-                except Exception:
-                    # Task model raised; fall through and try to
-                    # re-enqueue find so the desktop doesn't hang.
-                    pass
-
-            # Task is missing, terminal-failed, or unreadable → kick
-            # off a fresh ``find`` chain and trust it to converge the
-            # storage + linked domains. ``blocking=False`` because the
-            # old task pointer is dead by definition.
-            try:
-                Storage(sid).find(user_id=domain.get("user"), blocking=False, retry=0)
-            except Exception:
-                domain_ids_to_fail.append(domain["id"])
-
-        if domain_ids_to_fail:
-            rtable.get_all(r.args(domain_ids_to_fail), index="id").update(
-                {"status": "Failed", "detail": detail}
-            ).run(r_conn)
 
     close_rethink_connection(r_conn)
     return results

@@ -38,6 +38,7 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.xml_compression import decompress_xml
 from isardvdi_common.lib.downloads.downloads import DownloadsProcessed
+from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.config import Config
 from isardvdi_common.models.domain import Domain as RethinkDomain
 from isardvdi_common.models.task import Task
@@ -499,7 +500,14 @@ class AdminDownloadsService:
 
     @staticmethod
     def _domain_storage_task(domain) -> Optional[str]:
-        """The task of the storage this download writes into, if any."""
+        """The task of the storage this download writes into, if any.
+
+        Resolved through the per-owner index, not the row's ``task`` scalar:
+        that field is retired and no longer written, so reading it answers
+        ``None`` for every download and both callers' guards invert — abort
+        stops cancelling and buries the row as ``Failed`` with the chain still
+        running, and delete stops refusing while that chain runs.
+        """
         disks = (domain.create_dict or {}).get("hardware", {}).get("disks") or []
         for disk in disks:
             storage_id = disk.get("storage_id") if isinstance(disk, dict) else None
@@ -508,7 +516,7 @@ class AdminDownloadsService:
             from isardvdi_common.models.storage import Storage
 
             if Storage.exists(storage_id):
-                return Storage(storage_id).task
+                return current_task_id(Task._redis, storage_id)
         return None
 
     @staticmethod

@@ -26,6 +26,7 @@ from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
+from isardvdi_common.lib.task_index import MEDIA, current_task_id
 from isardvdi_common.models.storage_pool import StoragePool
 from pydantic import BaseModel, Field
 from rethinkdb import r
@@ -81,6 +82,9 @@ class Media(RethinkCustomBase):
         # ownerless media) resolves to the NULL_CATEGORY sentinel lane.
         category = self.category or queue_tiers.NULL_CATEGORY
         kwargs.setdefault("category_id", category)
+        kwargs.setdefault("media_id", self.id)
+        kwargs.setdefault("index_owners", [self.id])
+        kwargs.setdefault("index_kind", "media")
         if "queue" in kwargs:
             kwargs["queue"] = queue_tiers.retier_queue(
                 kwargs["queue"], kwargs.get("task"), category
@@ -93,18 +97,21 @@ class Media(RethinkCustomBase):
             blocking = kwargs.pop("blocking")
         else:
             blocking = True
+        # The index, not the row's scalar: the field is never cleared, so a
+        # media whose job expired long ago would be refused work forever.
+        pending_task = current_task_id(Task._redis, self.id, kind=MEDIA)
         if (
             blocking
-            and self.task
-            and Task.exists(self.task)
-            and Task(self.task).pending
+            and pending_task
+            and Task.exists(pending_task)
+            and Task(pending_task).pending
         ):
             raise Error(
                 "precondition_required",
-                f"Media {self.id} has the pending task {self.task}",
+                f"Media {self.id} has the pending task {pending_task}",
                 description_code="media_pending_task",
             )
-        self.task = Task(*args, **kwargs).id
+        return Task(*args, **kwargs).id
 
     def delete_file(self, user_id=None, keep_status=None):
         """Delete the media file and settle the row.
@@ -128,10 +135,11 @@ class Media(RethinkCustomBase):
             # would have written.
             self.status = "deleted"
             return None
-        if self.task and Task.exists(self.task) and Task(self.task).pending:
+        pending_task = current_task_id(Task._redis, self.id, kind=MEDIA)
+        if pending_task and Task.exists(pending_task) and Task(pending_task).pending:
             raise Error(
                 "precondition_required",
-                f"Media {self.id} has the pending task {self.task}",
+                f"Media {self.id} has the pending task {pending_task}",
                 description_code="media_pending_task",
             )
 
@@ -151,7 +159,7 @@ class Media(RethinkCustomBase):
         )
         self.status = "maintenance"
         try:
-            self.create_task(
+            task_id = self.create_task(
                 user_id=user_id,
                 queue=queue,
                 task="delete",
@@ -190,7 +198,7 @@ class Media(RethinkCustomBase):
         except Exception:
             self.status = previous_status
             raise
-        return self.task
+        return task_id
 
     @classmethod
     def resolve_download_path(cls, user_id, category_id, media_id, kind):
@@ -275,7 +283,7 @@ class Media(RethinkCustomBase):
             "google_drive_cookie": google_drive_cookie,
         }
 
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{pool.id}.{priority}",
             task="download_url",
@@ -300,7 +308,6 @@ class Media(RethinkCustomBase):
                 }
             ],
         )
-        return self.task
 
     def check_existence(self, user_id=None):
         """From api/libv2/api_media media_task_check()"""
@@ -308,7 +315,7 @@ class Media(RethinkCustomBase):
             self.status = "deleted"
             return
 
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('check_media_existence', path=self.path_downloaded.rsplit('/', 1)[0]).id}.default",
             task="check_media_existence",
@@ -325,8 +332,6 @@ class Media(RethinkCustomBase):
                 }
             ],
         )
-
-        return self.task
 
     @classmethod
     def get_user_allowed_media(

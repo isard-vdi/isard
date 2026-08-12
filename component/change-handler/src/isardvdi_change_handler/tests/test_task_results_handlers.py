@@ -482,3 +482,107 @@ async def test_send_status_socket_no_dedup_without_scope():
         c for c in rm.emit.await_args_list if c.kwargs.get("room") == "admins"
     ]
     assert len(admin_emits) == 2
+
+
+# ---------------------------------------------------------------------------
+# storage._apply_storage_update — the orphan/Failed propagation
+# ---------------------------------------------------------------------------
+
+
+def _propagation_storage(dependents, domains=(), domains_derivatives=()):
+    """A Storage stub for the deleted/orphan/broken_chain branch.
+
+    ``dependents`` is recorded with the flag it was asked with, because the
+    whole point is that this call site needs the deleted-inclusive walk.
+    """
+    storage_obj = MagicMock()
+    storage_obj.domains = list(domains)
+    storage_obj.asked_with = []
+
+    def _dependents(include_deleted=False):
+        storage_obj.asked_with.append(include_deleted)
+        return list(dependents)
+
+    storage_obj.dependents.side_effect = _dependents
+    # Stub it explicitly: a bare MagicMock is iterable and would let the
+    # domain half of the cascade pass without ever being exercised.
+    storage_obj.domains_dependents.side_effect = lambda include_deleted=False: list(
+        domains_derivatives
+    )
+    return storage_obj
+
+
+def test_orphan_propagation_walks_through_already_deleted_rows():
+    """A purge run with ``move`` renames the qcow2 into ``deleted/`` rather
+    than unlinking it, so a live disk can sit *behind* a row that already
+    reads ``deleted``. The default walk stops at such a row, which used to
+    hide every descendant below it — the disk kept reading ``ready`` with a
+    backing file that no longer resolved, and the desktop stayed startable
+    in the UI until qemu refused it."""
+    from isardvdi_change_handler.task_results import storage
+
+    bin_copy = MagicMock(status="deleted")
+    live_below = MagicMock(status="ready")
+    storage_obj = _propagation_storage([bin_copy, live_below])
+
+    with patch.object(storage, "Storage") as mock_storage_cls:
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.init_document.return_value = storage_obj
+        storage._apply_storage_update({"id": "s1", "status": "orphan"})
+
+    assert storage_obj.asked_with == [True]
+    # The row that is already gone is left alone; the live disk behind it
+    # is the one that has just lost its chain.
+    assert bin_copy.status == "deleted"
+    assert live_below.status == "orphan"
+
+
+def test_orphan_propagation_is_skipped_for_a_healthy_status():
+    from isardvdi_change_handler.task_results import storage
+
+    child = MagicMock(status="ready")
+    storage_obj = _propagation_storage([child])
+
+    with patch.object(storage, "Storage") as mock_storage_cls:
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.init_document.return_value = storage_obj
+        storage._apply_storage_update({"id": "s1", "status": "maintenance"})
+
+    assert storage_obj.asked_with == []
+    assert child.status == "ready"
+
+
+def test_orphan_propagation_fails_domains_behind_a_deleted_row():
+    """The disk half and the domain half must reach the same distance. When
+    only the disk half walked through already-deleted rows, a disk behind a
+    recycle-bin copy was marked ``orphan`` while the desktop on it kept
+    reading ``Stopped`` — the half-fix looks worse than no fix, because the
+    storage table says broken and the desktop list says startable."""
+    from isardvdi_change_handler.task_results import storage
+
+    live = MagicMock(status="ready")
+    dom_live = MagicMock()
+    storage_obj = MagicMock()
+    storage_obj.domains = []
+    storage_obj.asked_with = []
+
+    def _dependents(include_deleted=False):
+        storage_obj.asked_with.append(("storages", include_deleted))
+        return [MagicMock(status="deleted"), live]
+
+    def _domains(include_deleted=False):
+        storage_obj.asked_with.append(("domains", include_deleted))
+        return [dom_live]
+
+    storage_obj.dependents.side_effect = _dependents
+    storage_obj.domains_dependents.side_effect = _domains
+
+    with patch.object(storage, "Storage") as mock_storage_cls:
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.init_document.return_value = storage_obj
+        storage._apply_storage_update({"id": "s1", "status": "orphan"})
+
+    assert ("domains", True) in storage_obj.asked_with
+    assert ("storages", True) in storage_obj.asked_with
+    assert live.status == "orphan"
+    assert dom_live.status == "Failed"

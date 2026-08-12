@@ -44,10 +44,12 @@ from api.schemas.storage import (
     StorageRecreateRequest,
     StorageRsyncToPathRequest,
     StorageRsyncToStoragePoolRequest,
+    StorageStatusesResponse,
     StoragesWithUuidEntry,
     StorageVirtWinRegRequest,
     TaskIdResponse,
 )
+from api.schemas.tasks import OwnerTaskItem
 from api.services.error import Error
 from api.services.storage import StorageService
 from fastapi import Request
@@ -228,6 +230,46 @@ async def get_storage(request: Request, storage_id: str):
 
 
 @token_router.get(
+    "/item/storage/{storage_id}/tasks",
+    tags=[tag],
+    response_model=list[OwnerTaskItem],
+    summary="Get the tasks a storage has had",
+    description=(
+        "Returns the tasks this storage item has had, newest first, read from "
+        "the per-owner task index. Bounded: the index keeps the newest entries "
+        "per row, and an entry whose job has expired is dropped on read rather "
+        "than returned. Same ownership rules as every other per-item storage "
+        "route."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_storage_tasks(request: Request, storage_id: str):
+    try:
+        tasks = await asyncio.to_thread(
+            StorageService.get_tasks, request.token_payload, storage_id
+        )
+        return JSONResponse(
+            content=[
+                OwnerTaskItem(**task).model_dump(mode="json") for task in (tasks or [])
+            ],
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve storage tasks",
+            traceback.format_exc(),
+        )
+
+
+@token_router.get(
     "/items/storage/ready",
     tags=[tag],
     response_model=list[StorageItem],
@@ -403,7 +445,7 @@ async def get_storage_task(request: Request, storage_id: str):
 @admin_router.get(
     "/item/storage/{storage_id}/statuses",
     tags=[tag],
-    response_model=list[dict],
+    response_model=StorageStatusesResponse,
     summary="Get storage and domain statuses",
     description="Returns the status of a storage and its associated domains.",
     responses={
@@ -416,7 +458,7 @@ async def get_storage_statuses(request: Request, storage_id: str):
         statuses = await asyncio.to_thread(
             StorageService.get_statuses, request.token_payload, storage_id
         )
-        return JSONResponse(content=statuses or [], status_code=200)
+        return JSONResponse(content=statuses or {}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -433,7 +475,10 @@ async def get_storage_statuses(request: Request, storage_id: str):
     tags=[tag],
     response_model=StorageDerivativesResponse,
     summary="Check if storage has derivatives",
-    description="Returns the number of derivatives (children) for a storage item.",
+    description=(
+        "Returns how many disks depend on this one as a backing file, "
+        "counting the whole subtree and not just the direct children."
+    ),
     responses={
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},

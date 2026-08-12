@@ -19,6 +19,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from isardvdi_common.lib.media.media import MediaProcessed
+from isardvdi_common.lib.task_index import MEDIA, last_task_ids
+from isardvdi_common.models.task import Task
 
 
 class AdminMediaService:
@@ -37,4 +39,11 @@ class AdminMediaService:
         category_id = (
             payload["category_id"] if payload["role_id"] == "manager" else None
         )
-        return MediaProcessed.admin_get_media(status=status, category_id=category_id)
+        rows = MediaProcessed.admin_get_media(status=status, category_id=category_id)
+        # Same contract as the storage listing: the media table's "last task
+        # info" button read the retired scalar. Media tasks live under their own
+        # index namespace, hence ``kind=MEDIA``.
+        last = last_task_ids(Task._redis, [row.get("id") for row in rows], kind=MEDIA)
+        for row in rows:
+            row["last_task_id"] = last.get(row.get("id"))
+        return rows
