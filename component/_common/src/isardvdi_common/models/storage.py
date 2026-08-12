@@ -645,7 +645,12 @@ class Storage(RethinkCustomBase):
         # desktop row does without a back-reference to resolve. The retired
         # scalar is deliberately not consulted: it is never cleared, so a row
         # whose job expired long ago would be refused work forever.
-        pending_task = current_task_id(Task._redis, self.id)
+        # ``strict``: on the ADMISSION path the difference between "no task"
+        # and "could not ask" is the whole guard. The tolerant read answers
+        # ``None`` for both, so a redis blip reads as "row is free" and admits a
+        # second chain over a row that may already have one. Readers elsewhere
+        # keep the tolerant form, where degrading is right.
+        pending_task = current_task_id(Task._redis, self.id, strict=True)
         if (
             blocking
             and pending_task
