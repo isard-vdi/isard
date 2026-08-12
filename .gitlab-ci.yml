@@ -320,13 +320,17 @@ docker-compose-build:
       # Cache from the branch we are merging into (apiv4-integration today, main
       # after the apiv4->main cutover — self-adjusting), with :main as fallback.
       CACHE_REF="${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-${CI_COMMIT_REF_SLUG:-main}}"
+      # This job runs on ONE runner but the compose files it publishes are an
+      # artifact consumed by every `docker-image` job, on EVERY runner. Writing
+      # this runner's own BUILDKIT_CACHE_REGISTRY into cache_from therefore sent
+      # the other runner's builds to a registry it has no insecure entry for,
+      # which fails as `http: server gave HTTP response to HTTPS client` and
+      # drops them to pulling cache manifests over the internet. Emit a
+      # placeholder instead; each build resolves it to its OWN registry, which is
+      # also the one it pushes to at the end of the job.
       for file in docker-compose*.yml; do
         cp "$file" "no-cache-$file"
-        if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
-          yq -i '.services |= map_values(.build.cache_from = [ "'"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
-        else
-          yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
-        fi
+        yq -i '.services |= map_values(.build.cache_from = [ "LOCAL_BUILDKIT_CACHE/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
       done
   artifacts:
     paths:
@@ -726,6 +730,15 @@ docker-image:
         DOCKERCOMPOSE_FILE=docker-compose.$DOCKER_COMPOSE.yml
       else
         DOCKERCOMPOSE_FILE=no-cache-docker-compose.$DOCKER_COMPOSE.yml
+      fi
+    # Resolve the placeholder left by docker-compose-build to THIS runner's cache
+    # registry — the one this job also pushes to below. If this runner has none,
+    # drop the entry and fall back to the registry.gitlab.com refs.
+    - |
+      if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
+        sed -i "s#LOCAL_BUILDKIT_CACHE#$BUILDKIT_CACHE_REGISTRY#g" docker-compose*.yml
+      else
+        sed -i "/LOCAL_BUILDKIT_CACHE/d" docker-compose*.yml
       fi
     - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f $DOCKERCOMPOSE_FILE build
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
