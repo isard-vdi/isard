@@ -66,6 +66,27 @@ def read_pressure(path):
         return 0.0
 
 
+def pressure_available(path):
+    """True when ``path`` can actually be read as a PSI file.
+
+    :func:`read_pressure` deliberately reports a missing file as ``0.0`` so a
+    kernel without PSI can never starve a node of background work. The cost is
+    that "idle" and "unavailable" become the same number, which is invisible to
+    anyone reading the value. This tells the two apart so the difference can be
+    reported instead of silently changing how the governor behaves.
+
+    A kernel can also carry PSI compiled-but-disabled (``CONFIG_PSI_DEFAULT_
+    DISABLED=y`` with no ``psi=1``), in which case the files are absent exactly
+    as if it had no support at all — from here the two are indistinguishable and
+    both answer ``False``.
+    """
+    try:
+        with open(path, "r") as fh:
+            return bool(fh.read())
+    except OSError:
+        return False
+
+
 def should_defer_heavy(
     cpu_psi, io_psi, running_heavy, psi_limit, max_heavy, mem_psi=0.0
 ):

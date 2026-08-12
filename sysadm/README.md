@@ -10,6 +10,8 @@ This directory contains system administration tools and configuration files for 
 - `isardvdi.service` - Systemd service file for running IsardVDI as a system service
 - `INSTALL.md` - Installation guide for new deployments
 - `hypervisor/` - Hypervisor-specific configuration files
+- `hugepages/` - Detect and configure 1G hugepages for GPU desktops
+- `psi/` - Check kernel Pressure Stall Information, which the storage task governor uses to back off under load
 - `old/` - Legacy upgrade scripts (deprecated, kept for reference)
 
 ## Network Configuration
