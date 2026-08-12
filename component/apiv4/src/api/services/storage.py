@@ -828,6 +828,10 @@ class StorageService:
         task_id = current_task_id(Task._redis, storage.id)
         if not task_id:
             return ""
+        # A pointer whose job RQ has dropped is the same answer: there is no
+        # live job left to abort and no initiator to own it. Loaded through the
+        # fetch-tolerant helper so a dangling (or status-only, which
+        # ``Task.exists`` waves through) pointer is a no-op instead of a 500.
         tasks = tasks_from_ids([task_id])
         if not tasks:
             return ""
