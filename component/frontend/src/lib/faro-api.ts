@@ -22,6 +22,22 @@ export function instrumentClient(client: Client, name: FaroApiEvent['client']): 
     return request
   })
 
+  client.interceptors.response.use((response, _request, options) => {
+    const started = starts.get(options) ?? performance.now()
+    starts.delete(options)
+    setFaroApiEvent({
+      client: name,
+      method: (options.method ?? 'GET').toUpperCase(),
+      route_template: options.url,
+      duration_ms: Math.round(performance.now() - started),
+      outcome: 'completed',
+      status: response.status,
+      request_id: response.headers.get('x-request-id') ?? undefined,
+      response_size: Number(response.headers.get('content-length')) || undefined
+    })
+    return response
+  })
+
   client.interceptors.error.use((err, response, _request, options) => {
     const started = starts.get(options) ?? performance.now()
     setFaroApiEvent({
@@ -29,6 +45,7 @@ export function instrumentClient(client: Client, name: FaroApiEvent['client']): 
       method: (options.method ?? 'GET').toUpperCase(),
       route_template: options.url,
       duration_ms: Math.round(performance.now() - started),
+      outcome: 'failed',
       error_type: response ? 'http' : 'network',
       status: response?.status,
       request_id: response?.headers.get('x-request-id') ?? undefined,

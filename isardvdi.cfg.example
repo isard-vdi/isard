@@ -1,4 +1,4 @@
-# Isard main config v2.36.0
+# Isard main config v2.36.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -930,6 +930,11 @@ WG_GUESTS_RESERVED_HOSTS=20
 # external Faro receiver (e.g. Grafana Cloud).
 #FARO_ENABLED=false
 #FARO_URL=/faro/collect
+# Fraction of *successful* HTTP requests reported to Faro as `request_completed`
+# events, from 0.0 (none) to 1.0 (all). Anything unparseable or outside that
+# range falls back to 1.0. Failed requests are always reported, whatever this
+# is set to.
+#FARO_HTTP_SAMPLING=1.0
 
 # ------ OCI Collector -----------------------------------------------------
 #STATS_COLLECTORS_OCI_ENABLE=false

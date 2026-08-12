@@ -41,6 +41,7 @@ def user_config_env(monkeypatch):
         "FRONTEND_SHOW_TEMPORAL",
         "FRONTEND_MODE",
         "FARO_ENABLED",
+        "FARO_HTTP_SAMPLING",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -332,3 +333,38 @@ class TestUserConfigQuotaSync:
         # decorator-based guard would let every racing miss through. The
         # throttle claims its slot under the lock instead.
         assert user_config_env.quota_calls == [user_id]
+
+
+class TestUserConfigFaroSampling:
+    """A bad env var must not silence request_completed events."""
+
+    def test_defaults_to_reporting_every_request(self, user_config_env):
+        user_config_env.monkeypatch.setenv("FARO_ENABLED", "true")
+
+        config = user_config_env.Processed.user_config(_payload("u-faro-default"))
+
+        assert config["faro"]["http_sampling"] == 1.0
+
+    def test_reads_the_environment(self, user_config_env):
+        user_config_env.monkeypatch.setenv("FARO_ENABLED", "true")
+        user_config_env.monkeypatch.setenv("FARO_HTTP_SAMPLING", "0.25")
+
+        config = user_config_env.Processed.user_config(_payload("u-faro-quarter"))
+
+        assert config["faro"]["http_sampling"] == 0.25
+
+    def test_clamps_values_out_of_range(self, user_config_env):
+        user_config_env.monkeypatch.setenv("FARO_ENABLED", "true")
+        user_config_env.monkeypatch.setenv("FARO_HTTP_SAMPLING", "7")
+
+        config = user_config_env.Processed.user_config(_payload("u-faro-too-high"))
+
+        assert config["faro"]["http_sampling"] == 1.0
+
+    def test_falls_back_when_unparseable(self, user_config_env):
+        user_config_env.monkeypatch.setenv("FARO_ENABLED", "true")
+        user_config_env.monkeypatch.setenv("FARO_HTTP_SAMPLING", "molt")
+
+        config = user_config_env.Processed.user_config(_payload("u-faro-garbage"))
+
+        assert config["faro"]["http_sampling"] == 1.0

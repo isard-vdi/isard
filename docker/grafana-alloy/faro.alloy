@@ -37,6 +37,7 @@ faro.receiver "frontend" {
 		}
 	}
 
+	// TODO: Collect traces
 	output {
 		logs   = [loki.process.faro.receiver]
 		traces = []
