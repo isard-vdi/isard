@@ -47,35 +47,66 @@ variables:
   # AWS sample IDs, etc.) inside .go-mod-cache as critical findings. Those are
   # not project secrets — they ship inside dependency tarballs. Excluding the
   # dependency caches keeps the report focused on this repo's own code.
-  SECRET_DETECTION_EXCLUDED_PATHS: ".go-mod-cache,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
+  SECRET_DETECTION_EXCLUDED_PATHS: ".go-mod-cache,.go-build-cache,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
+  # GitLab only stores cache paths that live INSIDE the project directory: with
+  # Go's default GOMODCACHE (/go/pkg/mod) the runner logs `processPath: artifact
+  # path is not a subpath of project directory` and silently skips it, so the
+  # module cache was never actually stored. Point both Go caches into the tree.
+  GOMODCACHE: "$CI_PROJECT_DIR/.go-mod-cache"
+  GOCACHE: "$CI_PROJECT_DIR/.go-build-cache"
+  # Same reason, and it was only set on the python test template: the lint jobs
+  # and integration-real cached `.uv-cache` while uv wrote to its default
+  # location inside the container, so they re-resolved every dependency —
+  # including the two fetched straight from a git forge — on every run.
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
 
 default:
   retry: 1
-  cache: &global_cache
-    - key:
-        files:
-          - go.mod
-          - go.sum
-      paths:
-        - /go/pkg/mod
-        - .cache/go-build
-    - key:
-        files:
-          - component/frontend/bun.lockb
-          - old-frontend/bun.lock
-      paths:
-        - .bun-cache
-    - key:
-        files:
-          - testing/e2e/package.json
-          - testing/e2e/yarn.lock
-      paths:
-        - testing/e2e/node_modules
-    - key:
-        files:
-          - uv.lock
-      paths:
-        - .uv-cache
+
+# A cache declared under `default:` is downloaded AND re-uploaded by EVERY job in
+# the pipeline. With an S3 cache backend each entry costs a round trip both ways,
+# and the four entries together are ~216k files. Most jobs read none of them: the
+# `docker-image` builds only drive docker-compose and the `docker-tag` jobs run a
+# single `crane tag`. Measured on a saturated runner, `restore_cache` was 1260 s
+# of a 1412 s `docker-tag` job whose real work is 1.3 s. Each job now declares
+# only what it reads.
+#
+# The key files must be the lockfiles that actually exist: a `key: files:` entry
+# naming a missing file silently degrades to a constant, so the cache stops
+# tracking the dependencies it is meant to key on.
+# Each anchor is a single cache ENTRY, not a list, so a job that needs two of
+# them can compose both under one `cache:` key.
+.cache-go: &cache_go
+  key:
+    files:
+      - go.mod
+      - go.sum
+  paths:
+    - .go-mod-cache
+    - .go-build-cache
+
+.cache-bun: &cache_bun
+  key:
+    files:
+      - component/frontend/bun.lock
+      - old-frontend/bun.lock
+  paths:
+    - .bun-cache
+
+.cache-e2e: &cache_e2e
+  key:
+    files:
+      - testing/e2e/package.json
+      - testing/e2e/bun.lock
+  paths:
+    - testing/e2e/node_modules
+
+.cache-uv: &cache_uv
+  key:
+    files:
+      - uv.lock
+  paths:
+    - .uv-cache
 
 include:
   - template: Jobs/Dependency-Scanning.gitlab-ci.yml
@@ -96,6 +127,8 @@ stages:
 
 commit-lint:
   stage: lint
+  cache:
+    - *cache_bun
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
     - apk add --no-cache git
@@ -106,6 +139,8 @@ commit-lint:
 
 version:
   stage: lint
+  cache:
+    - *cache_bun
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   rules:
     # semantic-release checks repository write access and we cannot use
@@ -131,6 +166,8 @@ check-alloy-config:
 
 .lint-uv-job:
   stage: lint
+  cache:
+    - *cache_uv
   image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
   before_script:
     - apk add --no-cache make
@@ -148,12 +185,16 @@ check-system-deps:
 
 check-golang:
   stage: lint
+  cache:
+    - *cache_go
   image: golangci/golangci-lint@sha256:5cceeef04e53efe1470638d4b4b4f5ceefd574955ab3941b2d9a68a8c9ad5240
   script:
     - make lint-go
 
 check-frontend:
   stage: lint
+  cache:
+    - *cache_bun
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   parallel:
     matrix:
@@ -174,6 +215,8 @@ check-frontend:
 
 check-old-frontend:
   stage: lint
+  cache:
+    - *cache_bun
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
     - apk add --no-cache make
@@ -277,13 +320,17 @@ docker-compose-build:
       # Cache from the branch we are merging into (apiv4-integration today, main
       # after the apiv4->main cutover — self-adjusting), with :main as fallback.
       CACHE_REF="${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-${CI_COMMIT_REF_SLUG:-main}}"
+      # This job runs on ONE runner but the compose files it publishes are an
+      # artifact consumed by every `docker-image` job, on EVERY runner. Writing
+      # this runner's own BUILDKIT_CACHE_REGISTRY into cache_from therefore sent
+      # the other runner's builds to a registry it has no insecure entry for,
+      # which fails as `http: server gave HTTP response to HTTPS client` and
+      # drops them to pulling cache manifests over the internet. Emit a
+      # placeholder instead; each build resolves it to its OWN registry, which is
+      # also the one it pushes to at the end of the job.
       for file in docker-compose*.yml; do
         cp "$file" "no-cache-$file"
-        if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
-          yq -i '.services |= map_values(.build.cache_from = [ "'"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
-        else
-          yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
-        fi
+        yq -i '.services |= map_values(.build.cache_from = [ "LOCAL_BUILDKIT_CACHE/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
       done
   artifacts:
     paths:
@@ -294,8 +341,8 @@ unit-test-go:
   stage: unit-test
   needs: ["gen-protobuf"]
   image: golang:1.25.8@sha256:3ac2864710f25e84381bf5d4272261c7ba73ada0339d62034df4de20dabb33ca
-  variables:
-    GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
+  cache:
+    - *cache_go
   before_script:
     - apt-get update && apt-get install -y libvirt-dev make
   script:
@@ -331,10 +378,10 @@ unit-test-vmalert:
 # Shared Python test config — uv cache dir cached via default cache entry.
 .python-test-base:
   stage: unit-test
+  cache:
+    - *cache_uv
   needs: ["gen-protobuf"]
   image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
-  variables:
-    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   before_script:
     - apk add --no-cache git make
 
@@ -568,6 +615,8 @@ unit-test-frontend:
   # generated @/gen/oas/apiv4 client, but the alias must still resolve, so the
   # gen-protobuf-produced component/frontend/src/gen tree must be present.
   stage: unit-test
+  cache:
+    - *cache_bun
   needs: ["gen-protobuf"]
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
@@ -682,6 +731,15 @@ docker-image:
       else
         DOCKERCOMPOSE_FILE=no-cache-docker-compose.$DOCKER_COMPOSE.yml
       fi
+    # Resolve the placeholder left by docker-compose-build to THIS runner's cache
+    # registry — the one this job also pushes to below. If this runner has none,
+    # drop the entry and fall back to the registry.gitlab.com refs.
+    - |
+      if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
+        sed -i "s#LOCAL_BUILDKIT_CACHE#$BUILDKIT_CACHE_REGISTRY#g" docker-compose*.yml
+      else
+        sed -i "/LOCAL_BUILDKIT_CACHE/d" docker-compose*.yml
+      fi
     - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f $DOCKERCOMPOSE_FILE build
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
@@ -751,6 +809,9 @@ unit-test-engine:
 
 test-e2e:
   stage: test
+  cache:
+    - *cache_bun
+    - *cache_e2e
   when: manual
   tags:
     - gpu
@@ -825,6 +886,8 @@ integration-real:
   # allow_failure: we're still bedding in the TCG hypervisor path; any
   # intermittent archive.org outage shouldn't fail the pipeline.
   stage: test
+  cache:
+    - *cache_uv
   when: manual
   tags:
     - gpu
@@ -934,6 +997,8 @@ docker-tag:
 
 release:
   stage: release
+  cache:
+    - *cache_bun
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
