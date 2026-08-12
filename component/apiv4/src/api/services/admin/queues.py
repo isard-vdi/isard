@@ -24,7 +24,11 @@ from isardvdi_common.lib.governed_worker import (
     WORKER_STATUS_PREFIX,
     category_running_key,
 )
-from isardvdi_common.lib.queue_coverage import coverage_from_lane_sets, served_coverage
+from isardvdi_common.lib.queue_coverage import (
+    coverage_from_lane_sets,
+    served_coverage,
+    worker_lanes,
+)
 from isardvdi_common.lib.queue_tiers import (
     _FAIR_TIERS,
     NULL_CATEGORY,
@@ -360,18 +364,12 @@ def _build_worker_row(
             if pool is None:
                 pool = parsed[0]
 
-    # served_lanes / served_known / PSI / flags come from governor:worker:<name>
-    # (published in a later step). Until then, degrade: served_known=false and
-    # a best-effort served set = the birth storage lanes.
-    served_known = "served_lanes" in gov_hash
-    served_lanes = storage_lanes
-    if served_known:
-        try:
-            parsed_served = json.loads(gov_hash.get("served_lanes") or "[]")
-            if isinstance(parsed_served, list):
-                served_lanes = [str(x) for x in parsed_served]
-        except Exception:
-            served_known = False
+    # served_lanes / served_known come from the shared rule, so this row and the
+    # enqueue gate classify a worker the same way: a published set is exact, a
+    # governed worker that has not published yet is unknown, and a plain rq
+    # worker's birth subscription IS what it consumes.
+    served_lanes, served_known = worker_lanes(worker_hash, gov_hash)
+    served_lanes = [lane for lane in served_lanes if parse_storage_queue(lane)]
 
     def _gov_float(key):
         val = gov_hash.get(key)

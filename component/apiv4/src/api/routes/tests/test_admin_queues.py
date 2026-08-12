@@ -914,8 +914,9 @@ class TestHeartbeatTruth:
         row = gov._build_worker_row("w-fresh", wh, {}, self.now)
         assert row["up"] is True
         assert row["kind"] == "elastic"
-        # governor:worker:<name> not published yet -> served/PSI degrade.
-        assert row["served_known"] is False
+        # No governor hash at all: PSI and the flags have no source, but the RQ
+        # subscription of a worker that publishes nothing is what it consumes.
+        assert row["served_known"] is True
         assert row["psi_cpu"] is None
         assert row["multitenancy"] is None
 
@@ -1332,7 +1333,8 @@ class TestWorkerEnumeration:
                     b"queues": b"storage.default.maintenance",
                     b"state": b"busy",
                 },
-                # governor:worker:<name> is absent -> served/PSI degrade.
+                # governor:worker:<name> is absent -> PSI degrades, but the RQ
+                # subscription still says what this worker consumes.
             },
         )
         monkeypatch.setattr(gov, "_connect_redis", lambda: conn)
@@ -1341,7 +1343,8 @@ class TestWorkerEnumeration:
         assert len(rows) == 1
         assert rows[0]["name"] == "storage.default.maintenance.w1"
         assert rows[0]["up"] is True
-        assert rows[0]["served_known"] is False
+        assert rows[0]["served_known"] is True
+        assert rows[0]["psi_cpu"] is None
 
 
 # ── (j) auth + route shape: user AND manager -> 403 ────────────────────────
@@ -1914,10 +1917,14 @@ class TestStrandedLaneIsReachable:
                 "state": "idle",
             }
         }
-        if publishes_served_set:
-            hashes["governor:worker:w1"] = {
-                "served_lanes": json.dumps(["storage.default.bulk"])
-            }
+        # A governed worker either publishes its served set, or is mid rolling
+        # upgrade and only says it is governed. A worker with NO governor hash
+        # is a plain rq worker, which is a different case entirely.
+        hashes["governor:worker:w1"] = (
+            {"served_lanes": json.dumps(["storage.default.bulk"]), "kind": "elastic"}
+            if publishes_served_set
+            else {"kind": "elastic"}
+        )
         return FakeRedis(
             rq_queues=["storage.default.bulk", "storage.default.reclaim"],
             lists={"rq:queue:storage.default.reclaim": [b"job-1"]},
@@ -2105,3 +2112,77 @@ class TestDefaultCapCanBeCleared:
         )
         assert response.status_code == 200
         assert seen == {"category_default_max_inflight": 0}
+
+
+# ── a plain rq worker's subscription is exact, and the row must say so ─────
+class TestPlainWorkerRowKnowsItsLanes:
+    """``served_known`` drives the pool-opacity suppression, so a plain rq
+    worker reported as unknown blinds its whole pool. Two of them run on every
+    install (the reserved and standard-lane workers, started with the plain rq
+    class), which is enough to silence the stranded signal everywhere."""
+
+    now = datetime(2026, 8, 12, 12, 0, 0, tzinfo=timezone.utc)
+
+    def test_no_governor_hash_means_the_birth_queues_are_the_served_set(self):
+        wh = {
+            "last_heartbeat": _utc(self.now - timedelta(seconds=2)),
+            "queues": "storage.p1.interactive,storage.p1.standard",
+        }
+        row = gov._build_worker_row("w-plain", wh, {}, self.now)
+        assert row["served_known"] is True
+        assert row["served_lanes"] == ["storage.p1.interactive", "storage.p1.standard"]
+
+    def test_a_governor_hash_without_the_set_is_still_unknown(self):
+        wh = {
+            "last_heartbeat": _utc(self.now - timedelta(seconds=2)),
+            "queues": "storage.p1.bulk",
+        }
+        row = gov._build_worker_row("w-mid", wh, {"kind": "elastic"}, self.now)
+        assert row["served_known"] is False
+
+    def test_a_published_set_wins_over_the_birth_queues(self):
+        wh = {
+            "last_heartbeat": _utc(self.now - timedelta(seconds=2)),
+            "queues": "storage.p1.bulk,storage.p1.reclaim",
+        }
+        gh = {"served_lanes": json.dumps(["storage.p1.bulk"])}
+        row = gov._build_worker_row("w-gov", wh, gh, self.now)
+        assert row["served_known"] is True
+        assert row["served_lanes"] == ["storage.p1.bulk"]
+
+    def test_the_reserved_workers_no_longer_hide_a_fair_tier_lane(
+        self, monkeypatch, clean_gov_caches
+    ):
+        # The production shape: plain reserved workers on the pool plus a fair
+        # lane nothing serves. The pool must stay readable and the lane report.
+        now = datetime.now(timezone.utc)
+        hashes = {}
+        members = set()
+        for name, lanes in (
+            ("res1", "storage.p1.interactive"),
+            ("std1", "storage.p1.standard"),
+        ):
+            members.add(f"rq:worker:{name}".encode())
+            hashes[f"rq:worker:{name}"] = {
+                "last_heartbeat": _utc(now - timedelta(seconds=2)),
+                "queues": lanes,
+                "state": "idle",
+            }
+        conn = FakeRedis(
+            rq_queues=["storage.p1.interactive", "storage.p1.reclaim"],
+            lists={"rq:queue:storage.p1.reclaim": [b"j1"]},
+            sets={"rq:workers": members},
+            hashes=hashes,
+        )
+        monkeypatch.setattr(queues_service, "_connect_redis", lambda: conn)
+        monkeypatch.setattr(
+            queues_service.CommonCategories, "get_id_name_map", staticmethod(lambda: {})
+        )
+        monkeypatch.setattr(
+            queues_service.Config,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: {}),
+        )
+        data = queues_service.AdminQueuesService.get_governor()
+        stranded = [w for w in data["warnings"] if w["kind"] == "stranded_lane"]
+        assert [w["tier"] for w in stranded] == ["reclaim"]
