@@ -305,7 +305,6 @@ class AdminDomainHardwareDisk(BaseModel):
     storage_id: Optional[str] = None
     bus: Optional[Union[str, bool]] = None
     extension: Optional[str] = None
-    parent: Optional[str] = None
     file: Optional[str] = None
 
 

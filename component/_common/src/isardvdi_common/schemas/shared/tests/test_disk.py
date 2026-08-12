@@ -58,3 +58,28 @@ class TestDiskBusNormalisation:
         # accept arbitrary truthy values.
         with pytest.raises(Exception):
             Disk(storage_id="s1", bus=True)
+
+
+class TestDiskDoesNotPublishAParent:
+    """A disk's lineage is not on the disk entry.
+
+    ``create_dict.hardware.disks[].parent`` was a path-shaped lineage marker
+    that nothing writes: measured across three production databases going back
+    to 2021 — 13.896 domains — not one carries a value, and a single row carries
+    the key at all, empty. Serialising it meant six endpoints answered ``null``
+    for every disk, which reads as "this disk has no parent" and is false for
+    every derived desktop.
+
+    The chain lives on the storage row (``storage.parent``, a uuid, with its own
+    secondary index) and the qcow2 header is the ground truth on disk. A stored
+    leftover is ignored rather than echoed back.
+    """
+
+    def test_the_schema_declares_no_parent(self):
+        assert "parent" not in Disk.model_json_schema()["properties"]
+
+    def test_a_stored_parent_is_dropped_rather_than_echoed(self):
+        disk = Disk(**{"storage_id": "s1", "parent": "/isard/templates/p.qcow2"})
+
+        assert not hasattr(disk, "parent")
+        assert "parent" not in disk.model_dump()

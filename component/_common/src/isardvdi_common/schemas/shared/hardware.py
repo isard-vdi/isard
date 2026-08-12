@@ -26,10 +26,15 @@ from ..bookings import Reservables
 
 
 class Disk(BaseModel):
+    # No ``parent`` here. It was a path-shaped lineage marker that nothing has
+    # written for a long time, so the six endpoints that serialise this model
+    # answered ``null`` for every disk -- which reads as "this disk has no
+    # parent" and is false for every derived desktop. The chain lives on the
+    # storage row (``storage.parent``, a uuid, with its own index); the qcow2
+    # header is the on-disk ground truth.
     storage_id: Optional[str] = None
     bus: Optional[str] = None
     extension: Optional[str] = None
-    parent: Optional[str] = None
 
     @field_validator("bus", mode="before")
     @classmethod
