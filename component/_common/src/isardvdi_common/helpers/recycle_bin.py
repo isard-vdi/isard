@@ -1209,6 +1209,19 @@ class Helpers(RethinkSharedConnection):
 
         """
         if category_id:
+            # A category window can never exceed the global one. Setting the
+            # global value clamps categories above it down (see else-branch),
+            # but setting a category directly had no such guard and the request
+            # schema carries no bound, so a category could be pushed above the
+            # global. The webapp caps this on the client; enforce it here too.
+            system_cutoff = cls.get_system_recycle_bin_cutoff_time()
+            if system_cutoff is not None and cutoff_time > system_cutoff:
+                raise Error(
+                    "bad_request",
+                    f"Category recycle bin cutoff time ({cutoff_time}h) cannot exceed "
+                    f"the global cutoff time ({system_cutoff}h).",
+                    description_code="recycle_bin_cutoff_exceeds_global",
+                )
             with cls._rdb_context():
                 r.table("categories").get(category_id).update(
                     {"recycle_bin_cutoff_time": cutoff_time}
