@@ -1209,6 +1209,19 @@ class Helpers(RethinkSharedConnection):
 
         """
         if category_id:
+            # A category window can never exceed the global one. Setting the
+            # global value clamps categories above it down (see else-branch),
+            # but setting a category directly had no such guard and the request
+            # schema carries no bound, so a category could be pushed above the
+            # global. The webapp caps this on the client; enforce it here too.
+            system_cutoff = cls.get_system_recycle_bin_cutoff_time()
+            if system_cutoff is not None and cutoff_time > system_cutoff:
+                raise Error(
+                    "bad_request",
+                    f"Category recycle bin cutoff time ({cutoff_time}h) cannot exceed "
+                    f"the global cutoff time ({system_cutoff}h).",
+                    description_code="recycle_bin_cutoff_exceeds_global",
+                )
             with cls._rdb_context():
                 r.table("categories").get(category_id).update(
                     {"recycle_bin_cutoff_time": cutoff_time}
@@ -2316,10 +2329,15 @@ class RecycleBinDomain(RecycleBin):
             self._add_item_name(domain_name)
 
         self.add_domain(domain)
-        try:
-            self.add_target(Targets.get_domain_target(domain_id))
-        except Exception:
-            pass
+        # Read the target, then SAVE it into the recycle_bin entry, and only
+        # after that delete the row from ``targets``. The old code wrapped both
+        # the read and the write in ``try/except: pass`` and then deleted the
+        # target unconditionally, so a failed write lost the bastion config for
+        # good. ``find_domain_target`` never raises for a missing target, so a
+        # propagating error here means the write itself failed.
+        target = Targets.find_domain_target(domain_id)
+        if target:
+            self.add_target(target)
         super()._add_owner(domain["user"])
         with self._rdb_context():
             r.table("domains").get(domain_id).delete().run(self._rdb_connection)
@@ -2515,9 +2533,22 @@ class RecycleBinStorage(RecycleBin):
                 ).run(self._rdb_connection)
 
     def add_storages(self, storages):
+        # Sum the batch's actual-size and add it in the same update. The
+        # single-item ``add_storage`` already accounts for size; this bulk
+        # path (every mass delete) did not, so recycle-bin entries created
+        # via bulk deletes under-reported their reclaimable size. Do NOT call
+        # the dead ``_update_size`` — it increments over the stored value and
+        # would double-count what ``add_storage`` already added.
+        batch_size = sum(
+            storage.get("qemu-img-info", {}).get("actual-size", 0)
+            for storage in storages
+        )
         with self._rdb_context():
             r.table("recycle_bin").get(self.id).update(
-                {"storages": r.row["storages"].add(storages)}
+                {
+                    "storages": r.row["storages"].add(storages),
+                    "size": r.row["size"] + batch_size,
+                }
             ).run(self._rdb_connection)
 
 
