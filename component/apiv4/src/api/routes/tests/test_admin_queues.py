@@ -585,9 +585,10 @@ class TestStorageSchedulerConfig:
         assert response.status_code == 400
 
     def test_service_cleans_category_maps(self, monkeypatch):
-        # Direct service-layer defence: category maps floored at 1, default cap
-        # clamped, non-dict / non-numeric rejected, and the cleaned maps mirrored
-        # to the workers' governor:config.
+        # Direct service-layer defence: category maps floored at 1 (a per-category
+        # weight or cap of 0 would starve or wedge that category), the DEFAULT cap
+        # instead reading 0 as uncapped (the only way to clear it), non-dict /
+        # non-numeric rejected, and the cleaned maps mirrored to governor:config.
         from api.services.admin.queues import AdminQueuesService
         from api.services.error import Error
         from isardvdi_common.models.config import Config
@@ -618,7 +619,7 @@ class TestStorageSchedulerConfig:
         assert captured["written"] == {
             "category_weights": {"catA": 5, "catB": 1},
             "category_max_inflight": {"catC": 3},
-            "category_default_max_inflight": 1,
+            "category_default_max_inflight": None,
         }
         assert captured["published"]["category_weights"] == {"catA": 5, "catB": 1}
         with pytest.raises(Error):
@@ -1996,3 +1997,111 @@ class TestStrandedLaneIsReachable:
         bulk = next(r for r in rows if r["tier"] == "bulk")
         assert bulk["has_consumer"] is True
         assert bulk["stranded"] is False
+
+
+# ── an install with nothing configured has nothing to mirror ───────────────
+class TestConfigMirroredOnADefaultedInstall:
+    """``config_mirrored=false`` raises a banner and, after 10m, an alert whose
+    remedy is "re-save the config to republish it". On an install where nobody
+    has ever configured the governor there is nothing to re-save and the workers
+    are correctly running their defaults, so a permanent false positive there
+    buries the real drift it exists to catch."""
+
+    def _run(self, monkeypatch, *, redis_block, db_block):
+        strings = {}
+        if redis_block is not None:
+            strings[queues_service.GOVERNOR_CONFIG_KEY] = json.dumps(redis_block)
+        conn = FakeRedis(rq_queues=["storage.default.bulk"], strings=strings)
+        monkeypatch.setattr(queues_service, "_connect_redis", lambda: conn)
+        monkeypatch.setattr(
+            queues_service.CommonCategories, "get_id_name_map", staticmethod(lambda: {})
+        )
+        monkeypatch.setattr(
+            queues_service.Config,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: db_block),
+        )
+        return queues_service.AdminQueuesService.get_governor()
+
+    def test_nothing_stored_anywhere_is_mirrored(self, monkeypatch, clean_gov_caches):
+        data = self._run(monkeypatch, redis_block=None, db_block={})
+        assert data["config_mirrored"] is True
+
+    def test_a_stored_config_that_never_reached_redis_is_drift(
+        self, monkeypatch, clean_gov_caches
+    ):
+        data = self._run(monkeypatch, redis_block=None, db_block={"max_heavy": 4})
+        assert data["config_mirrored"] is False
+
+    def test_matching_blocks_are_mirrored(self, monkeypatch, clean_gov_caches):
+        data = self._run(
+            monkeypatch, redis_block={"max_heavy": 4}, db_block={"max_heavy": 4}
+        )
+        assert data["config_mirrored"] is True
+
+    def test_diverging_blocks_are_drift(self, monkeypatch, clean_gov_caches):
+        data = self._run(
+            monkeypatch, redis_block={"max_heavy": 2}, db_block={"max_heavy": 4}
+        )
+        assert data["config_mirrored"] is False
+
+
+# ── clearing the default per-category cap back to uncapped ─────────────────
+class TestDefaultCapCanBeCleared:
+    """Uncapped is a real, work-conserving state (weighted round-robin alone),
+    and an operator who has set a default cap must be able to return to it.
+    With no wire value meaning "unset", clearing the field reported success and
+    kept enforcing the old cap — a control that silently does nothing."""
+
+    URL = "/admin/item/queues/storage_scheduler/config"
+
+    def test_zero_is_persisted_as_uncapped(self, monkeypatch):
+        written = {}
+        monkeypatch.setattr(
+            queues_service.Config,
+            "update_storage_scheduler",
+            staticmethod(lambda clean: written.update(clean)),
+        )
+        monkeypatch.setattr(
+            queues_service.AdminQueuesService,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: {}),
+        )
+        queues_service.AdminQueuesService.set_storage_scheduler_config(
+            {"category_default_max_inflight": 0}
+        )
+        assert written == {"category_default_max_inflight": None}
+
+    def test_a_positive_cap_still_writes_the_number(self, monkeypatch):
+        written = {}
+        monkeypatch.setattr(
+            queues_service.Config,
+            "update_storage_scheduler",
+            staticmethod(lambda clean: written.update(clean)),
+        )
+        monkeypatch.setattr(
+            queues_service.AdminQueuesService,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: {}),
+        )
+        queues_service.AdminQueuesService.set_storage_scheduler_config(
+            {"category_default_max_inflight": 7}
+        )
+        assert written == {"category_default_max_inflight": 7}
+
+    def test_the_route_accepts_zero_and_does_not_strip_it(
+        self, monkeypatch, test_client
+    ):
+        seen = {}
+        monkeypatch.setattr(
+            "api.routes.admin.queues.AdminQueuesService.set_storage_scheduler_config",
+            staticmethod(lambda updates: seen.update(updates) or {}),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            body={"category_default_max_inflight": 0},
+            jwt=MockJWT(role_id="admin"),
+        )
+        assert response.status_code == 200
+        assert seen == {"category_default_max_inflight": 0}

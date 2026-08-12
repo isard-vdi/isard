@@ -228,13 +228,15 @@ groups:
             (isardvdi_storage_governor_worker_psi_cpu > on() group_left() isardvdi_storage_governor_psi_limit)
             or
             (isardvdi_storage_governor_worker_psi_io  > on() group_left() isardvdi_storage_governor_psi_limit)
+            or
+            (isardvdi_storage_governor_worker_psi_mem > on() group_left() isardvdi_storage_governor_psi_limit)
           )
         for: 15m
         labels:
           severity: warning
         annotations:
           summary: "Storage worker pinned by PSI pressure"
-          description: "Worker {{ $labels.worker }} has been deferring under CPU/IO pressure above psi_limit for 15m (held by host stall, not the cap). Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
+          description: "Worker {{ $labels.worker }} has been deferring under CPU/IO/memory pressure above psi_limit for 15m (held by host stall, not the cap). The worker defers on any of the three axes, so all three are admitted here. Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
 
       # --- Worker heartbeat loss (catalog #9) -------------------------------
       - alert: WorkerHeartbeatLost
@@ -377,6 +379,20 @@ groups:
         annotations:
           summary: "Storage governor lane scan truncated"
           description: "The bounded lane scan has been hitting its cap for 30m ({{ $value }} lanes truncated); the view is not seeing every lane. Narrow by pool/category or raise the cap deliberately; investigate a lane explosion."
+
+      # --- Bounded leak scan hit its cap (the leak gauges are partial) -------
+      # heavy_leak / category_leak are computed from the members the scan saw,
+      # so a truncated scan can under- or over-report a leak. Without this the
+      # panel says so and the alerting layer does not.
+      - alert: GovernorInflightScanTruncated
+        expr: isardvdi_storage_governor_truncated_inflight > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Governor in-flight leak scan is truncated"
+          description: "{{ $value }} in-flight members were dropped by the bounded leak-scan cap for 30m, so heavy_leak and category_leak are computed from a partial list. Reduce the in-flight backlog or raise the scan cap before trusting InflightLeak / CategoryInflightLeak."
+
 
       # Shed and defer are DECISIONS, not states: a rejection lasts microseconds
       # and a pressure defer flaps, so the gauges elsewhere in this file almost

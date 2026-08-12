@@ -667,3 +667,50 @@ func sortedKeys(in map[string]bool) []string {
 	sort.Strings(out)
 	return out
 }
+
+// The guard above catches a rule reading a metric nobody exports. This one
+// catches the converse, which is just as silent: a signal the governor acts on
+// that no rule ever reads. Both defects present identically in production —
+// nothing pages — and neither shows up in `promtool check rules`.
+func TestEveryGovernorSignalIsReadBySomeRule(t *testing.T) {
+	exported := exportedMetrics(t)
+	refs, _ := ruleReferences(t)
+
+	read := map[string]bool{}
+	for _, ref := range refs {
+		read[ref.name] = true
+	}
+
+	// Families whose every member must reach alerting. A gauge added to one of
+	// these is a decision input or an honesty flag, never decoration.
+	families := []struct{ prefix, why string }{
+		{
+			"isardvdi_storage_governor_worker_psi_",
+			"the worker defers on ANY PSI axis, so an axis no rule reads is a defer nothing can explain",
+		},
+		{
+			"isardvdi_storage_governor_truncated_",
+			"a truncated scan means the leak and backlog numbers are computed from a partial list",
+		},
+	}
+
+	problems := []string{}
+	for _, family := range families {
+		members := 0
+		for name := range exported {
+			if !strings.HasPrefix(name, family.prefix) {
+				continue
+			}
+			members++
+			if !read[name] {
+				problems = append(problems, fmt.Sprintf(
+					"%q is exported but no vmalert rule reads it — %s", name, family.why))
+			}
+		}
+		require.NotZero(t, members, "no metric matches %q; the prefix has moved", family.prefix)
+	}
+
+	sort.Strings(problems)
+	assert.Empty(t, problems, "exported governor signals that can never raise an alert:\n%s",
+		strings.Join(problems, "\n"))
+}

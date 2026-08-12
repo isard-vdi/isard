@@ -941,7 +941,12 @@ class AdminQueuesService:
             effective_max_heavy = effective["max_heavy"]
             try:
                 db_block = Config.get_storage_scheduler_config() or {}
-                config_mirrored = bool(raw) and (block == db_block)
+                # An absent Redis key with nothing stored to mirror is not
+                # drift: nobody has configured the governor and the workers are
+                # running their defaults correctly. Calling that unmirrored
+                # raises a permanent banner whose remedy ("re-save to
+                # republish") has nothing to save, and buries the real case.
+                config_mirrored = (block == db_block) if raw else not db_block
             except Exception:
                 config_mirrored = bool(raw)
 
@@ -1776,7 +1781,12 @@ class AdminQueuesService:
                 raise Error(
                     "bad_request", "category_default_max_inflight must be an integer"
                 )
-            clean["category_default_max_inflight"] = max(1, min(1000, value))
+            # 0 is the wire value for UNCAPPED. An omitted key keeps the stored
+            # cap, so without it there is no way back to the work-conserving
+            # weighted-RR-only state once a default has been set.
+            clean["category_default_max_inflight"] = (
+                None if value <= 0 else min(1000, value)
+            )
         if not clean:
             raise Error("bad_request", "No valid storage_scheduler fields provided")
         Config.update_storage_scheduler(clean)

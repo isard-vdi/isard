@@ -637,3 +637,30 @@ def test_cancel_descriptions_state_the_best_effort_contract(method, path):
     assert "cooperat" in description, "must say a running body must cooperate"
     assert "best effort" in description, "must say the endpoint is best effort"
     assert "re-read" in description, "must tell the caller to re-read the row"
+
+
+class TestDeclaredStatusesMatchTheOnesRaised:
+    """A declared status the route cannot emit, and an emitted one it does not
+    declare, both reach the generated clients: anyone writing against the spec
+    branches on a code that never arrives."""
+
+    @staticmethod
+    def _declared(path: str, method: str) -> set:
+        from api import app
+
+        for route in app.routes:
+            if getattr(route, "path", None) == path and method in getattr(
+                route, "methods", set()
+            ):
+                return set(route.responses or {})
+        raise AssertionError(f"route not found: {method} {path}")
+
+    def test_retry_declares_the_precondition_code_it_actually_returns(self):
+        declared = self._declared("/api/v4/admin/task/{task_id}/retry", "PUT")
+        assert 428 in declared
+        assert 412 not in declared
+
+    def test_cancel_declares_the_precondition_code_it_actually_returns(self):
+        declared = self._declared("/api/v4/task/{task_id}", "DELETE")
+        assert 428 in declared
+        assert 412 not in declared

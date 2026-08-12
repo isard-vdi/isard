@@ -71,6 +71,7 @@ type StorageGovernor struct {
 	descWorkerHeartbeatAge *prometheus.Desc
 	descWorkerPsiCPU       *prometheus.Desc
 	descWorkerPsiIo        *prometheus.Desc
+	descWorkerPsiMem       *prometheus.Desc
 	descWorkerDeferring    *prometheus.Desc
 
 	descEventsTotal      *prometheus.Desc
@@ -126,6 +127,7 @@ func NewStorageGovernor(ctx context.Context, log *zerolog.Logger, cli apiv4.Invo
 	s.descWorkerHeartbeatAge = d("worker_heartbeat_age_seconds", "Seconds since the worker's last heartbeat", "worker")
 	s.descWorkerPsiCPU = d("worker_psi_cpu", "Worker-reported CPU pressure (PSI some avg)", "worker")
 	s.descWorkerPsiIo = d("worker_psi_io", "Worker-reported IO pressure (PSI some avg)", "worker")
+	s.descWorkerPsiMem = d("worker_psi_mem", "Worker-reported memory pressure (PSI some avg)", "worker")
 	s.descWorkerDeferring = d("worker_deferring", "Worker is deferring background work under PSI (1)", "worker")
 
 	// Shed/defer EVENTS. The gauges above answer "is it happening right now",
@@ -333,6 +335,9 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 		}
 		if v, ok := w.PsiIo.Get(); ok {
 			gauge(s.descWorkerPsiIo, v, w.Name)
+		}
+		if v, ok := w.PsiMem.Get(); ok {
+			gauge(s.descWorkerPsiMem, v, w.Name)
 		}
 		gauge(s.descWorkerDeferring, boolToFloat(w.Deferring.Or(false)), w.Name)
 	}
