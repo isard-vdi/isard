@@ -390,6 +390,10 @@ class AdminDomainStorageItem(BaseModel):
     directory_path: Optional[str] = None
     actual_size: Optional[float] = None
     virtual_size: Optional[float] = None
+    # Whether the disk is busy right now, so the webapp's storage modal can
+    # gate its Cancel button the way the Vue 3 twin does. Derived from the task
+    # index by the service; the retired row scalar is never served.
+    has_pending_task: Optional[bool] = None
 
 
 class AdminDomainStoragePathResponse(BaseModel):

@@ -47,6 +47,7 @@ from isardvdi_apiv4_client.api.role_admin import (
     admin_logs_users_delete,
     admin_notify_desktop,
     admin_notify_user_desktop,
+    admin_storage_refresh_running_sizes,
     admin_usage_consolidate,
     convert_storage,
     delete_cutoff_time_surpassed,
@@ -77,12 +78,46 @@ from isardvdi_apiv4_client.models import (
 )
 from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 from isardvdi_common.lib.gpu_pool_policy import canonical_suffix, profile_suffix_from_id
+from isardvdi_common.lib.storage.migration_run import (
+    advance as storage_migration_advance,
+)
+from isardvdi_common.models.storage_migration import MigrationStatus, StorageMigration
 
 from .api_client import ApiClient
 from .exceptions import Error
 
 engine_client = ApiClient("engine")
 scheduler_client = ApiClient("scheduler")
+
+#: F2: bound the recurring storage-action retry so a desktop that never stops
+#: cannot keep a storage action (move/convert/...) pending forever. After this
+#: many `desktops_not_stopped` deferrals the action is abandoned and surfaced.
+STG_ACTION_MAX_ATTEMPTS = 60
+
+
+def _stg_action_should_abandon(attempts, max_attempts=STG_ACTION_MAX_ATTEMPTS):
+    """Whether a storage action has been deferred too many times to keep
+    retrying (pure)."""
+    return attempts is not None and attempts >= max_attempts
+
+
+def _bump_stg_action_attempts(job_id):
+    """Increment and return the desktops_not_stopped retry count stored on the
+    storage-action job row, or ``None`` if the job row is gone."""
+    with app.app_context():
+        updated = (
+            r.table("scheduler_jobs")
+            .get(job_id)
+            .update(
+                {"stg_attempts": r.row["stg_attempts"].default(0).add(1)},
+                return_changes=True,
+            )
+            .run(db.conn)
+        )
+    try:
+        return updated["changes"][0]["new_val"]["stg_attempts"]
+    except (KeyError, IndexError, TypeError):
+        return None
 
 
 class _SafeFormatter(string.Formatter):
@@ -125,6 +160,65 @@ class Actions:
     def consolidate_consumptions():
         with build_client("isard-scheduler") as client:
             resp = admin_usage_consolidate.sync_detailed(client=client)
+            raise_for_status(resp)
+
+    def storage_migration_tick_kwargs(**kwargs):
+        return []
+
+    def storage_migration_tick(**kwargs):
+        """Drive every RUNNING storage-disk migration one drain-cycle forward.
+
+        Registered as a recurring interval job (no leader lock — the scheduler
+        is the singleton orchestrator that owns this loop). Each invocation
+        advances every running job past all immediately-doable steps and stops
+        as soon as every tree is only waiting on an in-flight RQ task; the next
+        invocation resumes once those finish. The ledger is the source of truth,
+        so this is crash-safe and idempotent across invocations.
+
+        window_closed jobs are ticked too: the tick re-evaluates the window each
+        time and flips them back to running once the window reopens.
+        finishing_tree (canceling) jobs are ticked so the in-flight tree drains
+        and the job becomes canceled. scheduled (recurring, between occurrences)
+        jobs are ticked so the reconciler can detect the next occurrence, re-scan
+        and drain — a scheduled job never self-terminates, only Cancel ends it.
+        """
+        try:
+            running = (
+                StorageMigration.ids_by_status(MigrationStatus.RUNNING.value)
+                + StorageMigration.ids_by_status(MigrationStatus.WINDOW_CLOSED.value)
+                + StorageMigration.ids_by_status(MigrationStatus.FINISHING_TREE.value)
+                + StorageMigration.ids_by_status(MigrationStatus.SCHEDULED.value)
+                + StorageMigration.ids_by_status(MigrationStatus.BUDGET_REACHED.value)
+            )
+        except Exception:
+            log.error(
+                "storage_migration_tick: cannot list running migrations: "
+                + traceback.format_exc()
+            )
+            return
+        for mid in running:
+            try:
+                # The reconciler drain now lives in migration_run.advance(), which
+                # owns the per-migration lease + bounded drain and is the single
+                # serialized entry point. This periodic sweep is the crash-safety
+                # BACKSTOP, so it enables dead-worker resume detection
+                # (check_abandon=True).
+                storage_migration_advance(mid, check_abandon=True)
+            except Exception:
+                log.error(
+                    f"storage_migration_tick: migration {mid} failed: "
+                    + traceback.format_exc()
+                )
+
+    def refresh_running_storage_sizes_kwargs():
+        return []
+
+    def refresh_running_storage_sizes():
+        # Re-measure qemu-img-info for the disks of currently-running
+        # desktops, so a long-running desktop's stored actual-size does
+        # not stay frozen at its last stop. Best-effort, lowest priority.
+        with build_client("isard-scheduler") as client:
+            resp = admin_storage_refresh_running_sizes.sync_detailed(client=client)
             raise_for_status(resp)
 
     def desktop_notify(**kwargs):
@@ -680,13 +774,19 @@ class Actions:
             with build_client("isard-scheduler") as client:
                 if kwargs["action"] == "move":
                     if kwargs.get("rsync"):
+                        rsync_body = StorageRsyncToPathRequest(
+                            destination_path=kwargs["destination_path"],
+                            priority=kwargs["priority"],
+                        )
+                        # F3: forward the per-job bandwidth limit (KB/s) when
+                        # set. bwlimit is already threaded end-to-end through the
+                        # apiv4 rsync endpoint; this was the only missing hop.
+                        if kwargs.get("bwlimit"):
+                            rsync_body.bwlimit = kwargs["bwlimit"]
                         resp = rsync_storage_to_path.sync_detailed(
                             client=client,
                             storage_id=kwargs["storage_id"],
-                            body=StorageRsyncToPathRequest(
-                                destination_path=kwargs["destination_path"],
-                                priority=kwargs["priority"],
-                            ),
+                            body=rsync_body,
                         )
                     else:
                         resp = move_storage_by_path.sync_detailed(
@@ -746,7 +846,29 @@ class Actions:
                 scheduler_client.delete(f"/{kwargs['storage_id']}.stg_action")
         except ApiV4Error as e:
             if e.description_code == "desktops_not_stopped":
-                pass
+                # F2: bound + surface this retry instead of looping silently
+                # forever. Each deferral bumps a counter on the job row; once it
+                # crosses the cap the action is abandoned (job removed) and the
+                # give-up is logged so a stuck force-stop is visible.
+                job_id = f"{kwargs['storage_id']}.stg_action"
+                attempts = _bump_stg_action_attempts(job_id)
+                log.warning(
+                    "storage action '%s' for %s deferred: desktops not stopped "
+                    "(attempt %s/%s)",
+                    kwargs.get("action"),
+                    kwargs["storage_id"],
+                    attempts,
+                    STG_ACTION_MAX_ATTEMPTS,
+                )
+                if _stg_action_should_abandon(attempts):
+                    log.error(
+                        "storage action '%s' for %s abandoned after %s attempts: "
+                        "desktops never stopped",
+                        kwargs.get("action"),
+                        kwargs["storage_id"],
+                        attempts,
+                    )
+                    scheduler_client.delete(f"/{job_id}")
             elif (
                 e.description_code in ["storage_not_ready", "storage_not_found"]
                 or e.status_code == 400

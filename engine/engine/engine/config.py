@@ -51,7 +51,11 @@ POLLING_INTERVAL_TRANSITIONAL_STATES = rconfig["intervals"][
     "transitional_states_polling"
 ]
 
-TRANSITIONAL_STATUS = ("Starting", "Stopping", "Deleting", "Shutdown", "Shutting-down")
+# ``Deleting`` is deliberately absent: nothing writes it any more, now
+# that deleting a download performs the deletion instead of asking for
+# it by status. Sweeping it forced the rows an operator was trying to
+# remove into ``Unknown``, which is what made them impossible to delete.
+TRANSITIONAL_STATUS = ("Starting", "Stopping", "Shutdown", "Shutting-down")
 
 # CONFIG_DICT = {k: {l[0]:l[1] for l in c.items(k)} for k in c.sections()}
 

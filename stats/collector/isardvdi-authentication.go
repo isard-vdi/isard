@@ -72,7 +72,7 @@ func (a *IsardVDIAuthentication) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 	success := 1
 
-	rsp, err := a.cli.Query(`{container_name="isard-authentication"}`, 5000, a.lastQuery, logproto.FORWARD, true)
+	rsp, err := a.cli.QueryRange(`{container_name="isard-authentication"}`, 5000, a.lastQuery, start, logproto.FORWARD, 0, 0, true)
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("query loki")
 		success = 0
@@ -111,7 +111,7 @@ func (a *IsardVDIAuthentication) Collect(ch chan<- prometheus.Metric) {
 
 	}
 
-	a.lastQuery = time.Now()
+	a.lastQuery = start
 	duration := time.Since(start)
 
 	ch <- prometheus.MustNewConstMetric(a.descLoginFailed, prometheus.CounterValue, failed)

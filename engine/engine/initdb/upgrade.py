@@ -49,7 +49,18 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 203
+release_version = 205
+# release 205: seed the per-owner Redis task index from the storage/media row
+#              pointers, so the index answers for rows whose last chain
+#              predates it, and drop the now-unread storage "task" secondary
+#              index. Pointers whose rq job is gone are skipped.
+#              204 belongs to the downloads collection, which merges first
+#              (see the merge order on the umbrella ticket). The number is a
+#              position in a global sequence, not a property of this branch:
+#              a block at or below a database's stored version is never
+#              replayed on it, and that failure is silent.
+# release 204: bring downloaded domains with an unsupported kind back into the
+#              desktop/template taxonomy
 # release 203: drop null-valued guest_properties.viewers entries on domains and
 #              deployment (a disabled viewer is an absent key)
 # release 202: drop dead RethinkDB indexes and reconcile populate on hot tables
@@ -308,6 +319,7 @@ tables = [
     "targets",
     "vgpus",
     "redis_tasks_cleanup",
+    "task_index_backfill",
 ]
 
 
@@ -4003,6 +4015,54 @@ password:s:%s"""
                     )
             except Exception as e:
                 log.error(f"v203: domains null viewers cleanup failed: {e}")
+
+        if version == 204:
+            # A registry template published with an unsupported kind (a
+            # "server" kind instead of the desktop/template taxonomy plus
+            # server: true) produced a domain outside every kind-scoped
+            # query: absent from the owner's desktop list and from the
+            # admin tables, while still holding its disk. Nothing can
+            # reach those rows to repair or remove them, so bring them
+            # back as desktops, which is what the registry entries that
+            # created them are meant to declare.
+            # ``distinct`` on the kind index reads index keys only, and the
+            # repair then addresses the rows by that same index, so neither
+            # step scans the table. A row missing the field altogether is
+            # not in the index and is out of reach here; none exist, and
+            # the download ingest now refuses to create one.
+            try:
+                unsupported = [
+                    kind
+                    for kind in r.table(table).distinct(index="kind").run(self.conn)
+                    if kind not in ("desktop", "template")
+                ]
+                if unsupported:
+                    strays = list(
+                        r.table(table)
+                        .get_all(*unsupported, index="kind")
+                        .pluck("id", "kind", "name")
+                        .run(self.conn)
+                    )
+                    log.info(
+                        f"--- Domains kind repair: {len(strays)} rows with an "
+                        f"unsupported kind {unsupported} ---"
+                    )
+                    for stray in strays:
+                        log.info(
+                            f"--- Domains kind repair: {stray['id']} "
+                            f"({stray.get('name')}) had kind={stray.get('kind')!r} ---"
+                        )
+                    result = (
+                        r.table(table)
+                        .get_all(*unsupported, index="kind")
+                        .update({"kind": "desktop"})
+                        .run(self.conn)
+                    )
+                    log.info(
+                        f"--- Domains kind repair: complete ({result.get('replaced', 0)} rows) ---"
+                    )
+            except Exception as e:
+                log.error(f"v204: domains kind repair failed: {e}")
         return True
 
     """
@@ -6231,6 +6291,18 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 205:
+            # The row pointer and its index are retired: every reader resolves
+            # a row's current task through the per-owner Redis index, seeded by
+            # the backfill in this same version. Dropping the index is safe
+            # once nothing queries it; the field itself is left on the rows,
+            # since deleting data buys nothing and a rollback would want it.
+            try:
+                r.table(table).index_drop("task").run(self.conn)
+                log.info("v205: dropped the storage 'task' secondary index")
+            except Exception as e:
+                log.warning(f"v205: could not drop the storage 'task' index: {e}")
+
         if version == 186:
             try:
                 # Find storage records missing user_id
@@ -8373,6 +8445,187 @@ password:s:%s"""
                 log.error(f"v197 non-full-use GPU profile prune failed: {e}")
 
         return True
+
+    def task_index_backfill(self, version):
+        """Seed the per-owner task index from the row pointers (v205).
+
+        The scalar ``task`` on a storage/media row and the Redis index are two
+        sources of truth for the same question, and the row's is the one that
+        lies: it holds a single id, is never cleared, and cannot express a row
+        locked by a chain it did not create. The index replaces it, but it only
+        knows the tasks created since it shipped — so this carries each row's
+        last chain across before the readers switch over.
+
+        Idempotent by construction (ZADD of the same member is a no-op beyond
+        the score), so a run that dies halfway is resumed by running it again;
+        nothing is deleted and no row is written.
+
+        A pointer whose rq job is gone is deliberately NOT carried across:
+        every index member must name a job that exists, and the reader would
+        drop a dead one on its next pass anyway. That is a real difference in
+        what the two sources can express, and it is why the reader that depends
+        on the pointer's mere PRESENCE is migrated separately, ahead of this.
+
+        ⛔ Neither is one whose job merely EXISTS: it must still be LIVE. An
+        upgrade runs with no work in flight, so every pointer it finds names a
+        job that has already ended — and an rq job outlives its execution by
+        its result TTL (30 days here). ``current_task_id`` answers the newest
+        member whose job exists, so seeding a finished one makes the row read
+        as busy and the admission gate refuse every operation on it until that
+        TTL runs out. Measured on hypgpu05 (09/08/2026, 203 -> 205): all three
+        rows the seed carried across came out busy with jobs that had ended an
+        hour earlier, TTL 2.587.534 s. Three only because the install had been
+        idle for three weeks; on a live one it is every row whose last task
+        ended inside the TTL. So the seed keeps only non-terminal jobs — which
+        on a correct upgrade means it seeds nothing, and that is the right
+        answer, because there is no live state to carry.
+
+        The scalar is dropped from the rows once the index has what it needs.
+        Leaving it would keep a field that still looks like the answer to "what
+        owns this row" long after nothing reads it.
+
+        Batched end to end: one pipelined fetch of the candidate jobs and one
+        pipelined write per chunk. Per-member round trips measured an order of
+        magnitude slower on a full index, and this runs over every row in the
+        table at engine start.
+        """
+        if version != 205:
+            return
+
+        log.info("UPGRADING task_index_backfill TO VERSION " + str(version))
+        try:
+            from isardvdi_common.lib.task_index import (
+                MEDIA,
+                STORAGE,
+                index_cap,
+                index_key,
+                job_score,
+            )
+            from rq.job import Job
+
+            from .upgrade_helpers import live_job_scores, task_index_backfill_entries
+
+            conn = Redis(
+                host=os.environ.get("REDIS_HOST") or "isard-redis",
+                port=int(os.environ.get("REDIS_PORT") or 6379),
+                password=os.environ.get("REDIS_PASSWORD", ""),
+                db=0,
+            )
+            cap = index_cap(conn)
+            chunk_size = 500
+            seeded = 0
+            seeded_parked = 0
+            skipped = 0
+            terminal = 0
+
+            for table, kind in (("storage", STORAGE), ("media", MEDIA)):
+                rows = [
+                    (row["id"], row.get("task"))
+                    for row in r.table(table)
+                    .has_fields("task")
+                    .pluck("id", "task")
+                    .run(self.conn)
+                ]
+                for start in range(0, len(rows), chunk_size):
+                    chunk = [
+                        pair for pair in rows[start : start + chunk_size] if pair[1]
+                    ]
+                    if not chunk:
+                        continue
+                    jobs = Job.fetch_many(
+                        [task_id for _, task_id in chunk], connection=conn
+                    )
+                    job_scores, batch_terminal = live_job_scores(jobs, job_score)
+                    terminal += batch_terminal
+                    entries = task_index_backfill_entries(chunk, job_scores)
+                    skipped += len(chunk) - len(entries)
+                    if not entries:
+                        continue
+                    pipe = conn.pipeline(transaction=False)
+                    for owner_id, task_id, score in entries:
+                        key = index_key(kind, owner_id)
+                        pipe.zadd(key, {task_id: score})
+                        pipe.zremrangebyrank(key, 0, -(cap + 1))
+                    pipe.execute()
+                    seeded += len(entries)
+
+            # A parked row names no task of its own: template creation stamps
+            # the only task on the desktop it copies from and the new template
+            # row points back through ``parked_by``. The index expresses that
+            # relationship directly (the chain names both rows as owners), but
+            # a creation already in flight when this runs was built before that
+            # wiring existed, so its parked row would sit unprotected until the
+            # chain settles. Seed those from their parker's pointer too.
+            parked = [
+                (row["id"], row.get("parked_by"))
+                for row in r.table("storage")
+                .has_fields("parked_by")
+                .pluck("id", "parked_by")
+                .run(self.conn)
+            ]
+            parker_ids = sorted({parker for _, parker in parked if parker})
+            parker_tasks = {}
+            if parker_ids:
+                parker_tasks = {
+                    row["id"]: row.get("task")
+                    for row in r.table("storage")
+                    .get_all(r.args(parker_ids), index="id")
+                    .pluck("id", "task")
+                    .run(self.conn)
+                }
+            parked_pairs = [
+                (parked_id, parker_tasks.get(parker))
+                for parked_id, parker in parked
+                if parker and parker_tasks.get(parker)
+            ]
+            for start in range(0, len(parked_pairs), chunk_size):
+                chunk = parked_pairs[start : start + chunk_size]
+                jobs = Job.fetch_many(
+                    [task_id for _, task_id in chunk], connection=conn
+                )
+                job_scores, batch_terminal = live_job_scores(jobs, job_score)
+                terminal += batch_terminal
+                entries = task_index_backfill_entries(chunk, job_scores)
+                if not entries:
+                    continue
+                pipe = conn.pipeline(transaction=False)
+                for owner_id, task_id, score in entries:
+                    key = index_key(STORAGE, owner_id)
+                    pipe.zadd(key, {task_id: score})
+                    pipe.zremrangebyrank(key, 0, -(cap + 1))
+                pipe.execute()
+                seeded_parked += len(entries)
+
+            # The scalar has no readers left once this migration runs, and
+            # leaving it behind is not harmless bookkeeping: it still LOOKS
+            # like the answer to "what owns this row". Measured on hypgpu05
+            # before this cleanup existed: 151 of 184 rows kept one, and 148 of
+            # those named a job rq had already dropped.
+            dropped = 0
+            for table in ("storage", "media"):
+                result = (
+                    r.table(table)
+                    .has_fields("task")
+                    .replace(r.row.without("task"))
+                    .run(self.conn)
+                )
+                dropped += (result or {}).get("replaced", 0)
+
+            log.info(
+                "task_index_backfill v205: seeded %s row pointers and %s parked "
+                "rows into the task index, skipped %s whose job is gone and %s "
+                "already terminal, then dropped the scalar from %s rows",
+                seeded,
+                seeded_parked,
+                skipped,
+                terminal,
+                dropped,
+            )
+        except Exception as e:
+            # Non-fatal, like the other Redis-side migration: the index keeps
+            # working for everything created since it shipped, and re-running
+            # the upgrade re-attempts the seed.
+            log.error(f"task_index_backfill v205 failed (non-fatal): {e}")
 
     def redis_tasks_cleanup(self, version):
         """One-time purge of decommissioned ``core_worker`` RQ state (v199).

@@ -153,6 +153,24 @@ class Scheduler:
                 kwargs=None,
             )
 
+        ## DEFAULT STORAGE-DISK MIGRATION RECONCILER (drives MigrationRunner.tick)
+        ## Singleton orchestrator; interval job, no leader lock.
+        with app.app_context():
+            storage_migration_tick = (
+                r.table("scheduler_jobs")
+                .get("system.storage_migration_tick")
+                .run(db.conn)
+            )
+        if not storage_migration_tick:
+            self.add_job(
+                "system",
+                "interval",
+                "storage_migration_tick",
+                "0",
+                "1",
+                id="system.storage_migration_tick",
+            )
+
         ## DEFAULT LOG RETENTION JOBS
         ## If admin has configured log retention, ensure the scheduler jobs exist
         for log_table, hour, minute, job_name in [

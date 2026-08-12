@@ -16,7 +16,29 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from isardvdi_common.models.task import CoreStep
 from rq.job import JobStatus
+
+
+def _core_step(node_id, task_name="storage_update", kwargs=None):
+    """A real metadata finalize step (the only kind the consumer dispatches)."""
+    node = {
+        "id": node_id,
+        "task": task_name,
+        "queue": "core",
+        "kwargs": kwargs or {},
+        "args": [],
+        "core_finalize": [],
+        "storage_dependents": [],
+        "status": None,
+    }
+    # The parent stands in for the step's ANCHOR: the real rq job whose meta
+    # carries this node, and where the consumer makes the step's mark durable.
+    # It therefore needs an id and a job, like the Task it doubles for.
+    anchor = SimpleNamespace(
+        job_status=JobStatus.CANCELED, id=f"anchor-of-{node_id}", job=MagicMock()
+    )
+    return CoreStep(node, anchor, MagicMock())
 
 
 def _stub_task(
@@ -39,6 +61,10 @@ def _stub_task(
         kwargs=kwargs or {},
         dependents=dependents or [],
         job=job,
+        # No cancel record on this member. A bare MagicMock would answer
+        # every hget truthily, i.e. "cancelled", which is the one thing a
+        # default must never mean.
+        _redis=MagicMock(**{"hget.return_value": None}),
         job_status=job_status,
     )
 
@@ -66,7 +92,7 @@ async def test_canceled_kind_runs_core_finalizers():
     ``maintenance`` without waiting for a reconcile tick."""
     from isardvdi_change_handler.streams import task_results_consumer
 
-    dep = _stub_task("dep", task_name="update_status", kwargs={"id": "s1"})
+    dep = _core_step("dep", task_name="update_status", kwargs={"id": "s1"})
     root = _stub_task(
         "root", task_name="delete", queue="storage.pool.reclaim", dependents=[dep]
     )
@@ -128,65 +154,6 @@ async def test_non_canceled_member_status_is_still_written():
     await task_results_consumer._set_job_status(dep, JobStatus.FINISHED)
 
     dep.job.set_status.assert_called_once_with(JobStatus.FINISHED)
-
-
-@pytest.mark.asyncio
-async def test_canceled_chain_deletes_only_canceled_core_jobs():
-    """Cancelled core members are dropped, but a FINISHED core member is left
-    alone — it may still be the replay state of an earlier pending entry."""
-    from isardvdi_change_handler.streams import task_results_consumer
-
-    canceled_dep = _stub_task(
-        "dep-canceled", task_name="update_status", job_status=JobStatus.CANCELED
-    )
-    finished_dep = _stub_task(
-        "dep-finished", task_name="storage_update", job_status=JobStatus.FINISHED
-    )
-    root = _stub_task(
-        "root",
-        task_name="delete",
-        queue="storage.pool.reclaim",
-        dependents=[canceled_dep, finished_dep],
-    )
-    emit_p, task_p, handlers_p = _patch_dispatch(
-        root,
-        {"update_status": (AsyncMock(), True), "storage_update": (AsyncMock(), True)},
-    )
-
-    with emit_p, task_p, handlers_p:
-        await task_results_consumer._process_entry(
-            AsyncMock(),
-            {"kind": "canceled", "task_id": "root", "job_status": "canceled"},
-        )
-
-    canceled_dep.job.delete.assert_called_once()
-    finished_dep.job.delete.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_canceled_chain_does_not_release_storage_dependents():
-    """Releasing a cancelled member's deferred storage children would run work
-    for an operation the user cancelled."""
-    from isardvdi_change_handler.streams import task_results_consumer
-
-    dep = _stub_task("dep", task_name="update_status", job_status=JobStatus.CANCELED)
-    root = _stub_task(
-        "root", task_name="delete", queue="storage.pool.reclaim", dependents=[dep]
-    )
-    emit_p, task_p, handlers_p = _patch_dispatch(
-        root, {"update_status": (AsyncMock(), True)}
-    )
-
-    with emit_p, task_p, handlers_p, patch(
-        "isardvdi_change_handler.streams.task_results_consumer._release_storage_dependents",
-        new=AsyncMock(),
-    ) as release:
-        await task_results_consumer._process_entry(
-            AsyncMock(),
-            {"kind": "canceled", "task_id": "root", "job_status": "canceled"},
-        )
-
-    release.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -260,3 +227,119 @@ def test_walk_survives_a_cyclic_chain():
     found = [t.id for t in task_results_consumer._walk_core_dependents(root)]
 
     assert sorted(found) == ["a", "b"]
+
+
+def test_walk_passes_through_a_finished_storage_member_on_a_dead_chain():
+    """Traversal is not rewriting.
+
+    A chain cancelled half way has FINISHED members between the root and the
+    cancelled one. Refusing to walk past them leaves everything below the
+    cancel unreachable, so a cancelled template creation is announced and
+    nothing settles the rows. Passing THROUGH a finished member does not touch
+    its history — it only reaches steps that never ran.
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    behind = _core_step("behind")
+    canceled_stage = _stub_task(
+        "canceled-stage",
+        queue="storage.pool.template",
+        job_status=JobStatus.CANCELED,
+        dependents=[behind],
+    )
+    finished_stage = _stub_task(
+        "finished-stage",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[canceled_stage],
+    )
+    root = _stub_task(
+        "root",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[finished_stage],
+    )
+
+    found = list(
+        task_results_consumer._walk_core_dependents(
+            root, include_canceled_storage=True, dead_chain=True
+        )
+    )
+
+    assert [t.id for t in found] == ["behind"]
+
+
+def test_walk_does_not_pass_through_a_finished_storage_member_on_a_live_chain():
+    """On a chain still succeeding, each storage member publishes its own
+    result and drives its own dispatch. Walking past it here would run the
+    finalize steps behind it a second time — and before the work they
+    finalise has happened."""
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    behind = _core_step("behind")
+    finished_stage = _stub_task(
+        "finished-stage",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[behind],
+    )
+    root = _stub_task(
+        "root",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[finished_stage],
+    )
+
+    found = list(task_results_consumer._walk_core_dependents(root))
+
+    assert found == []
+
+
+@pytest.mark.asyncio
+async def test_a_step_that_already_ran_is_not_re_run_on_a_dead_chain():
+    """Passing through a completed step must not re-execute it.
+
+    Walking a cancelled chain reaches the steps behind the cancel by passing
+    through the ones that already succeeded. Re-dispatching those re-applies
+    their success bodies — and the walk yields them AFTER the failure branch
+    has run, so a template just marked Failed is promoted back to ready by a
+    step re-running work it had already done. Traversal is not re-execution.
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    done = _core_step("already-done", task_name="storage_update")
+    done.mark(True)
+    behind = _core_step("behind", task_name="update_status")
+    canceled_child = _stub_task(
+        "canceled-child",
+        queue="storage.pool.template",
+        job_status=JobStatus.CANCELED,
+        dependents=[behind],
+    )
+    anchor = _stub_task(
+        "anchor",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[canceled_child, done],
+    )
+    root = _stub_task(
+        "root",
+        queue="storage.pool.template",
+        job_status=JobStatus.FINISHED,
+        dependents=[anchor],
+    )
+
+    ran = []
+    handlers = {
+        "storage_update": (lambda t, **k: ran.append("storage_update"), False),
+        "update_status": (lambda t, **k: ran.append("update_status"), False),
+    }
+    emit_p, task_p, handlers_p = _patch_dispatch(root, handlers)
+    with emit_p, task_p, handlers_p:
+        await task_results_consumer._process_entry(
+            AsyncMock(),
+            {"kind": "canceled", "task_id": "root", "job_status": "canceled"},
+        )
+
+    assert ran == ["update_status"], f"a completed step was re-run: {ran}"
+    assert done._node["status"] == "finished"

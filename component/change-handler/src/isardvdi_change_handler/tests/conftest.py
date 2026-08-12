@@ -6,10 +6,20 @@ serialization behaviour: unknown fields are captured on parse and
 merged back into the output on model_dump / model_dump_json.
 """
 
+import os
+import time
 from typing import Any, Optional
 
 import pytest
 from pydantic import BaseModel, Field, model_serializer, model_validator
+
+# Guards exclusive use of a scratch Redis db by one xdist worker at a time.
+# The TTL is the crash hatch: a worker killed mid-test would otherwise wedge
+# every later run on that db. The timeout is generous because a contending
+# worker is waiting for a whole test, not a lock hold of a few milliseconds.
+_SCRATCH_LOCK_KEY = "isard:test:chain-harness-lock"
+_SCRATCH_LOCK_TTL_S = 300
+_SCRATCH_LOCK_TIMEOUT_S = 120
 
 
 class FakeRow(BaseModel):
@@ -184,6 +194,75 @@ def hypervisors_handler(fake_socketio):
     from isardvdi_change_handler.handlers.hypervisors import HypervisorsHandler
 
     return HypervisorsHandler(fake_socketio, "hypervisors")
+
+
+@pytest.fixture
+def scratch_redis():
+    """A real Redis on a scratch db, or skip.
+
+    rq's job graph (dependency sets, deferred registries, ``Job.cancel``, the
+    Lua ``ended_at`` stamp) is not something a stub can stand in for without
+    the stub becoming the thing under test — so the chain tests want a real
+    server, and say so by skipping when there is none.
+    """
+    from isardvdi_change_handler.tests._chain_harness import scratch_connection
+
+    connection = scratch_connection()
+    if connection is None:
+        from isardvdi_common.redis_test_gate import redis_required
+
+        redis_required("no Redis available for the real-chain harness")
+
+    # Exclusive use of this db for the duration of the test. Each xdist worker
+    # normally has a db to itself (see ``scratch_db``), so this lock is
+    # uncontended — it exists for the case of more workers than the 15
+    # available dbs, where two workers share one and would otherwise flush each
+    # other's rq graph mid-test. Contending workers serialise instead.
+    deadline = time.monotonic() + _SCRATCH_LOCK_TIMEOUT_S
+    while not connection.set(
+        _SCRATCH_LOCK_KEY, os.getpid(), nx=True, ex=_SCRATCH_LOCK_TTL_S
+    ):
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                f"scratch redis db busy for {_SCRATCH_LOCK_TIMEOUT_S}s; a "
+                "previous run may have died holding the lock (it expires "
+                f"after {_SCRATCH_LOCK_TTL_S}s)"
+            )
+        time.sleep(0.05)
+
+    # The clear is INSIDE the lock: it is the thing that must not land in
+    # another worker's test. It is NOT ``flushdb`` — that would delete the lock
+    # we are holding and let the next worker in while this test still runs.
+    lock_key = _SCRATCH_LOCK_KEY.encode()
+
+    def clear_but_keep_the_lock():
+        keys = [key for key in connection.scan_iter("*") if key != lock_key]
+        if keys:
+            connection.delete(*keys)
+
+    clear_but_keep_the_lock()
+    try:
+        yield connection
+    finally:
+        clear_but_keep_the_lock()
+        connection.delete(_SCRATCH_LOCK_KEY)
+
+
+@pytest.fixture
+def task_on_scratch_redis(scratch_redis):
+    """Point every ``Task`` (and the ``CoreStep`` views it hands out) at the
+    scratch db for the duration of the test."""
+    from isardvdi_common.models.task import Task
+
+    original = Task.__dict__.get("_redis")
+    Task._redis = scratch_redis
+    try:
+        yield scratch_redis
+    finally:
+        if original is None:
+            del Task._redis
+        else:
+            Task._redis = original
 
 
 @pytest.fixture(autouse=True)

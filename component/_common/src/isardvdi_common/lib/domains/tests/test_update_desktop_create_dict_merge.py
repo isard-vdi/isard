@@ -70,7 +70,7 @@ def mod_with_stubs(monkeypatch):
     # ``validate_reservables_vgpus`` (upstream !4521/!4527 port) hits the
     # reservables_vgpus table — stub it; this suite exercises only
     # ``update_desktop``'s payload construction.
-    monkeypatch.setattr(mod, "validate_reservables_vgpus", lambda vgpus: vgpus)
+    monkeypatch.setattr(mod, "validate_reservables_vgpus", lambda vgpus, *a, **k: vgpus)
 
     # ``with cls._rdb_context()`` short-circuit + capture the
     # ``r.table(...).update(...)`` payload via the rethinkdb table mock.

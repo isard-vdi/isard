@@ -147,6 +147,46 @@ class TestGetAllStoragesWithUuid:
         assert mock_get.call_args.kwargs["status"] == "ready"
 
 
+class TestHasDerivatives:
+    """The endpoint is named *derivatives* but returned
+    ``len(storage.children)`` — the first level only. Callers read the name
+    as "the chain this disk belongs to" and gated on ``> 1`` to discount
+    the disk itself, so a disk with exactly one dependent sailed through
+    every client-side check and only failed later, server-side, with
+    ``storage_has_children``.
+    """
+
+    @staticmethod
+    def _storage(dependents):
+        storage = MagicMock()
+        storage.dependents.return_value = dependents
+        return storage
+
+    @patch("api.services.storage.get_storage")
+    def test_counts_the_whole_subtree_not_just_the_first_level(self, mock_get):
+        mock_get.return_value = self._storage(
+            [MagicMock(id="child"), MagicMock(id="grandchild")]
+        )
+
+        assert StorageService.has_derivatives(JWT_PAYLOAD_ADMIN, "s1") == 2
+
+    @patch("api.services.storage.get_storage")
+    def test_one_dependent_is_reported_as_one_not_zero(self, mock_get):
+        """The case the ``> 1`` gates let through: a template with a single
+        derived desktop. As a gate the count is equivalent to the server's
+        ``len(children) > 0`` precondition — a disk has a descendant if and
+        only if it has a direct child."""
+        mock_get.return_value = self._storage([MagicMock(id="only-child")])
+
+        assert StorageService.has_derivatives(JWT_PAYLOAD_ADMIN, "s1") == 1
+
+    @patch("api.services.storage.get_storage")
+    def test_leaf_reports_zero(self, mock_get):
+        mock_get.return_value = self._storage([])
+
+        assert StorageService.has_derivatives(JWT_PAYLOAD_ADMIN, "s1") == 0
+
+
 class TestStaleTaskPointer:
     """A storage row can outlive the RQ job it points at (result TTL expiry, a
     redis restart mid-chain, a job deleted while something was still writing
@@ -157,7 +197,19 @@ class TestStaleTaskPointer:
     Both cases below leave the job hash *present but unloadable*, which is the
     documented shape a bare ``Task.exists`` key check waves through — so these
     pin the fetch-tolerant behaviour, not an existence check.
+
+    Which task is current comes from the per-owner index, not from a ``task``
+    field on the row, so these stub ``current_task_id`` — the seam between "who
+    is the task" (owned and tested by the index) and "what the service does
+    with it", which is what this class is about. Stating it as a row attribute
+    stubs nothing the service reads: the answer is then always "no task", and
+    the two no-op cases below pass without the tolerant path ever running.
     """
+
+    @staticmethod
+    def _current_task(task_id):
+        """The index names ``task_id`` as this row's current task."""
+        return patch("api.services.storage.current_task_id", return_value=task_id)
 
     @staticmethod
     def _unloadable_job():
@@ -172,29 +224,33 @@ class TestStaleTaskPointer:
 
     @patch("api.services.storage.get_storage")
     def test_get_task_answers_no_task_instead_of_raising(self, mock_get_storage):
-        mock_get_storage.return_value = MagicMock(task="t-gone")
+        mock_get_storage.return_value = MagicMock()
         exists, fetch = self._unloadable_job()
-        with exists, fetch:
+        with self._current_task("t-gone"), exists, fetch:
             assert StorageService.get_task(JWT_PAYLOAD_ADMIN, "s1") is None
 
     @patch("api.services.storage.get_storage")
     def test_get_task_still_serialises_a_live_task(self, mock_get_storage):
         """The tolerant path must not swallow the normal answer."""
-        mock_get_storage.return_value = MagicMock(task="t-live")
+        mock_get_storage.return_value = MagicMock()
         job = MagicMock(meta={}, origin="storage.default.default.default")
-        with patch("isardvdi_common.models.task.Job.exists", return_value=True), patch(
+        with self._current_task("t-live"), patch(
+            "isardvdi_common.models.task.Job.exists", return_value=True
+        ), patch(
             "isardvdi_common.models.task.Job.fetch", return_value=job
-        ), patch.object(Task, "to_dict", return_value={"id": "t-live"}):
+        ), patch.object(
+            Task, "to_dict", return_value={"id": "t-live"}
+        ):
             assert StorageService.get_task(JWT_PAYLOAD_ADMIN, "s1") == {"id": "t-live"}
 
     @patch("api.services.storage.get_storage")
     def test_abort_operations_is_a_no_op_instead_of_raising(self, mock_get_storage):
         """Same idempotent no-op the method already gives a storage with no
         task: there is no live job to abort and no initiator to own it."""
-        storage = MagicMock(task="t-gone")
+        storage = MagicMock()
         mock_get_storage.return_value = storage
         exists, fetch = self._unloadable_job()
-        with exists, fetch:
+        with self._current_task("t-gone"), exists, fetch:
             assert StorageService.abort_operations(JWT_PAYLOAD_MANAGER, "s1") == ""
         storage.abort_operations.assert_not_called()
 
@@ -203,11 +259,53 @@ class TestStaleTaskPointer:
         self, mock_get_storage
     ):
         """The tolerant path must not weaken the ownership gate."""
-        mock_get_storage.return_value = MagicMock(task="t-live")
+        mock_get_storage.return_value = MagicMock()
         job = MagicMock(meta={"user_id": "someone-else"}, origin="storage.p.d.default")
-        with patch("isardvdi_common.models.task.Job.exists", return_value=True), patch(
-            "isardvdi_common.models.task.Job.fetch", return_value=job
-        ):
+        with self._current_task("t-live"), patch(
+            "isardvdi_common.models.task.Job.exists", return_value=True
+        ), patch("isardvdi_common.models.task.Job.fetch", return_value=job):
             with pytest.raises(Error) as excinfo:
                 StorageService.abort_operations(JWT_PAYLOAD_MANAGER, "s1")
         assert excinfo.value.status_code == 403
+
+
+class TestConvertSetsMaintenanceOnce:
+    """``convert`` may only put the disk into maintenance once.
+
+    ``Storage.convert`` opens with ``self.set_maintenance("convert")`` -- every
+    action owns that transition in the model. The service was doing it too, and
+    ``set_maintenance`` refuses any action outside {create, delete, download}
+    unless the storage is ``ready``. So the first call flipped the disk to
+    maintenance and the second call raised ``precondition_required``: convert
+    could never succeed, and it left the disk stuck in maintenance, unusable.
+
+    Reproduced against a live install: every convert answered
+    ``428 ... must be Ready ... It's actual status is maintenance``.
+    """
+
+    def test_the_service_leaves_the_transition_to_the_model(self):
+        origin = MagicMock(name="origin_storage")
+        origin.user_id = "u-1"
+        origin.directory_path = "/isard/groups"
+        origin.id = "s-1"
+        origin.convert.return_value = "task-1"
+
+        with patch("api.services.storage.get_storage", return_value=origin), patch(
+            "api.services.storage.Storage"
+        ) as storage_cls:
+            storage_cls.init_document.return_value = MagicMock(id="s-2")
+            StorageService.convert(
+                JWT_PAYLOAD_ADMIN,
+                storage_id="s-1",
+                new_storage_type="qcow2",
+                new_storage_status="ready",
+                compress=False,
+                priority="default",
+            )
+
+        assert origin.set_maintenance.call_count == 0, (
+            "the service set maintenance itself; Storage.convert sets it too, and "
+            "the second call raises precondition_required because the disk is no "
+            "longer ready -- convert can never succeed and the disk is left stuck"
+        )
+        origin.convert.assert_called_once()

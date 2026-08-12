@@ -2004,6 +2004,12 @@ class RecycleBin(RethinkSharedConnection):
                                 user_id=rb.owner_id,
                                 queue=delete_queue,
                                 category_id=category,
+                                # Builds a Task directly (create -> register ->
+                                # enqueue closes the completion-before-registration
+                                # race), so it names its own row for the index and
+                                # the meta rather than inheriting them.
+                                storage_id=storage.id,
+                                index_owners=[storage.id],
                                 task=task_name,
                                 job_kwargs={
                                     "kwargs": {
@@ -2201,6 +2207,7 @@ class RecycleBin(RethinkSharedConnection):
             r.table("config").update(
                 {"recycle_bin": {"old_entries": {"max_time": max_time}}}
             ).run(cls._rdb_connection)
+        Helpers.clear_get_old_entries_config_cache()
 
     @classmethod
     def set_old_entries_action(cls, action):
@@ -2213,6 +2220,7 @@ class RecycleBin(RethinkSharedConnection):
                 r.table("config").update(
                     {"recycle_bin": {"old_entries": {"action": action}}}
                 ).run(cls._rdb_connection)
+        Helpers.clear_get_old_entries_config_cache()
 
     @classmethod
     def delete_old_entries(cls, rcb_list):
@@ -2242,6 +2250,7 @@ class RecycleBin(RethinkSharedConnection):
             r.table("config")[0].update(
                 {"recycle_bin": {"default_delete": set_default}}
             ).run(cls._rdb_connection)
+        Helpers.clear_get_default_delete_cache()
 
     @classmethod
     def set_delete_action(cls, action):
@@ -2249,6 +2258,7 @@ class RecycleBin(RethinkSharedConnection):
             r.table("config")[0].update({"recycle_bin": {"delete_action": action}}).run(
                 cls._rdb_connection
             )
+        Helpers.clear_get_delete_action_cache()
 
     @classmethod
     def get_all_unused_item_timeout(cls):

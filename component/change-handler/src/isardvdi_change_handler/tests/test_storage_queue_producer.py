@@ -28,9 +28,17 @@ class _Conn:
         return set(self._lanes)
 
 
-def _task(tid, user, tier="standard"):
+def _task(tid, user, tier="standard", storage_id=None):
+    """A Task double. ``storage_id`` is the row that created the chain, read off
+    the job's own meta now that the ``task`` secondary index is retired; ``None``
+    stands for a task no row owns."""
     return SimpleNamespace(
-        id=tid, user_id=user, queue=f"storage.{DEF}.{tier}", position=1, task="resize"
+        id=tid,
+        user_id=user,
+        queue=f"storage.{DEF}.{tier}",
+        position=1,
+        task="resize",
+        storage_id=storage_id if storage_id is not None else f"stg-{tid}",
     )
 
 
@@ -56,16 +64,9 @@ def _run_collect(conn, jobs, tasks, ests):
         def get_job_ids(self, start, end):
             return jobs.get(self.lane, [])
 
-    class _Storage:
-        @staticmethod
-        def get_storage_ids_from_task_ids(ids):
-            return [{"task_id": i, "storage_id": f"stg-{i}"} for i in ids]
-
     with patch.object(sqp, "Queue", _Queue), patch.object(
         sqp, "Task", lambda jid: tasks[jid]
-    ), patch.object(sqp, "Storage", _Storage), patch.object(
-        sqp.queue_estimate, "estimate_task", lambda t, c=None: ests[t.id]
-    ):
+    ), patch.object(sqp.queue_estimate, "estimate_task", lambda t, c=None: ests[t.id]):
         return sqp._collect(conn)
 
 
@@ -121,7 +122,9 @@ def test_collect_includes_stranded_without_position():
 def test_collect_drops_task_without_resolvable_storage_id():
     conn = _Conn({f"storage.{DEF}.standard"})
     jobs = {f"storage.{DEF}.standard": ["t1"]}
-    tasks = {"t1": _task("t1", "user-a")}
+    # a task whose job meta names no owner row: the frontend could not map it
+    # to a card, so it is dropped rather than emitted half-resolved
+    tasks = {"t1": _task("t1", "user-a", storage_id="")}
     ests = {
         "t1": {
             "effective_position": 2,
@@ -138,15 +141,8 @@ def test_collect_drops_task_without_resolvable_storage_id():
         def get_job_ids(self, start, end):
             return jobs.get(self.lane, [])
 
-    class _StorageNoMatch:
-        @staticmethod
-        def get_storage_ids_from_task_ids(ids):
-            return []  # no storage owns this task
-
     with patch.object(sqp, "Queue", _Queue), patch.object(
         sqp, "Task", lambda jid: tasks[jid]
-    ), patch.object(sqp, "Storage", _StorageNoMatch), patch.object(
-        sqp.queue_estimate, "estimate_task", lambda t, c=None: ests[t.id]
-    ):
+    ), patch.object(sqp.queue_estimate, "estimate_task", lambda t, c=None: ests[t.id]):
         out = sqp._collect(conn)
     assert out == []

@@ -74,6 +74,28 @@ class TaskIdResponse(BaseModel):
     task_id: str
 
 
+class StorageStatusDomain(BaseModel):
+    """A domain entry in a storage's statuses payload."""
+
+    id: str
+    status: str
+    kind: str
+
+
+class StorageStatusesResponse(BaseModel):
+    """Status of a storage and its associated domains.
+
+    Mirrors ``Storage.statuses``: a single object (not a list), holding the
+    storage's own status plus the status of every domain that uses it.
+    """
+
+    id: str
+    status: str
+    path: str
+    pool: str
+    domains: list[StorageStatusDomain]
+
+
 class StorageCreateResponse(BaseModel):
     """Response for storage creation"""
 
@@ -260,7 +282,10 @@ class StorageDetailResponse(BaseModel):
     user_id: Optional[str] = None
     perms: Optional[list[str]] = None
     status_logs: Optional[list[StorageStatusLog]] = None
-    task: Optional[str] = None
+    # Derived, not the retired row field: the only thing any consumer asked of
+    # it was "is this row busy". Resolved server-side so a modal listing N rows
+    # stays one request.
+    has_pending_task: Optional[bool] = None
     qemu_img_info: Optional[StorageQemuImgInfo] = Field(
         default=None, alias="qemu-img-info"
     )

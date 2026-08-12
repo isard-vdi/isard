@@ -1269,6 +1269,7 @@ class DesktopService:
             desktop_data=data,
             admin_or_manager=payload["role_id"] in ["admin", "manager"],
             bulk=False,
+            payload=payload,
         )
 
         if bastion_data is not None:
@@ -1318,6 +1319,10 @@ class DesktopService:
                     priority="default",
                     retry=0,
                 )
+            except Error:
+                # Already typed: re-raise untouched so its description_code
+                # survives instead of being flattened by the re-wrap below.
+                raise
             except Exception as e:
                 raise Error(*e.args)
 

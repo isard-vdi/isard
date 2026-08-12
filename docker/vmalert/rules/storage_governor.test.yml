@@ -30,6 +30,7 @@ tests:
         values: "299 299 299 299 299"
     alert_rule_test:
       - eval_time: 4m
+        groupname: storage_governor_alerts
         alertname: OldestQueuedAgeHigh
         exp_alerts: []
 
@@ -43,6 +44,7 @@ tests:
         values: "301 301 301 301 301"
     alert_rule_test:
       - eval_time: 4m
+        groupname: storage_governor_alerts
         alertname: OldestQueuedAgeHigh
         exp_alerts:
           - exp_labels:
@@ -65,6 +67,7 @@ tests:
         values: "301 301 301 301 301"
     alert_rule_test:
       - eval_time: 4m
+        groupname: storage_governor_alerts
         alertname: OldestQueuedAgeHigh
         exp_alerts: []
 
@@ -78,6 +81,7 @@ tests:
         values: "21601 21601 21601"
     alert_rule_test:
       - eval_time: 2m
+        groupname: storage_governor_alerts
         alertname: OldestQueuedAgeHigh
         exp_alerts:
           - exp_labels:
@@ -100,6 +104,7 @@ tests:
         values: "27x14"
     alert_rule_test:
       - eval_time: 12m
+        groupname: storage_governor_alerts
         alertname: StrandedLane
         exp_alerts: []
 
@@ -115,6 +120,7 @@ tests:
         values: "27x14"
     alert_rule_test:
       - eval_time: 12m
+        groupname: storage_governor_alerts
         alertname: StrandedLane
         exp_alerts:
           - exp_labels:
@@ -138,6 +144,7 @@ tests:
         values: "0x25"
     alert_rule_test:
       - eval_time: 24m
+        groupname: storage_governor_alerts
         alertname: CategoryAtCap
         exp_alerts: []
 
@@ -152,6 +159,7 @@ tests:
         values: "1x25"
     alert_rule_test:
       - eval_time: 24m
+        groupname: storage_governor_alerts
         alertname: CategoryAtCap
         exp_alerts: []
 
@@ -170,6 +178,7 @@ tests:
         values: "1x20"
     alert_rule_test:
       - eval_time: 16m
+        groupname: storage_governor_alerts
         alertname: CategoryStarved
         exp_alerts:
           - exp_labels:
@@ -195,6 +204,7 @@ tests:
         values: "30 30 30 30 30 30 30 30 30 30 30 30 30 0 0 0"
     alert_rule_test:
       - eval_time: 15m
+        groupname: storage_governor_alerts
         alertname: FailedSpike
         exp_alerts: []
 
@@ -218,6 +228,7 @@ tests:
         values: "40x20"
     alert_rule_test:
       - eval_time: 16m
+        groupname: storage_governor_alerts
         alertname: PSIPinned
         exp_alerts:
           - exp_labels:
@@ -237,6 +248,7 @@ tests:
         values: "0 0 0 0"
     alert_rule_test:
       - eval_time: 3m
+        groupname: storage_governor_alerts
         alertname: WorkerHeartbeatLost
         exp_alerts:
           - exp_labels:
@@ -262,6 +274,7 @@ tests:
         values: "0 0 0 0"
     alert_rule_test:
       - eval_time: 3m
+        groupname: storage_governor_alerts
         alertname: NoStorageWorkers
         exp_alerts:
           - exp_labels:

@@ -40,7 +40,9 @@ from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
 from isardvdi_common.lib.domains.domains import DomainsProcessed
 from isardvdi_common.lib.logs.logs import LogsProcessed
 from isardvdi_common.lib.storage.storage import StorageProcessed
+from isardvdi_common.lib.task_index import last_task_ids
 from isardvdi_common.models.storage import Storage
+from isardvdi_common.models.task import Task
 
 domains_field_cache = SynchronizedTTLCache(maxsize=50, ttl=5)
 
@@ -178,7 +180,15 @@ class AdminDomainsService:
     def get_domain_storage(payload: dict, domain_id: str) -> list[dict]:
         """Get storage information for a domain."""
         AdminDomainsService.owns_domain_id(payload, domain_id)
-        return ApiAdmin.get_domain_storage(domain_id)
+        rows = ApiAdmin.get_domain_storage(domain_id)
+        # The webapp's storage modal gates its Cancel button on this, exactly as
+        # the Vue 3 twin does. It is the busy question, so it pairs the index
+        # with the pending check rather than trusting mere existence.
+        last = last_task_ids(Task._redis, [row.get("id") for row in rows])
+        for row in rows:
+            task_id = last.get(row.get("id"))
+            row["has_pending_task"] = bool(task_id and Task(task_id).pending)
+        return rows
 
     # ── Domain XML ───────────────────────────────────────────────────────
 

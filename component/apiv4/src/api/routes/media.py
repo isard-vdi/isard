@@ -38,8 +38,10 @@ from api.schemas.media import (
     UserSharedMediaResponse,
     VirtInstallListResponse,
 )
+from api.schemas.tasks import OwnerTaskItem
 from api.services.error import Error
 from api.services.media import MediaService
+from api.services.tasks import TaskService
 from fastapi import Depends, Path, Query, Request
 from fastapi.responses import JSONResponse, Response
 from isardvdi_common.helpers.quotas import Quotas
@@ -72,6 +74,44 @@ async def get_media(request: Request, media_id=Depends(owns_media_id)):
             request,
             "internal_server",
             f"Failed to retrieve media",
+            traceback.format_exc(),
+        )
+
+
+@token_router.get(
+    "/item/media/{media_id}/tasks",
+    response_model=list[OwnerTaskItem],
+    tags=[tag],
+    summary="Get the tasks a media has had",
+    description=(
+        "Returns the tasks this media has had, newest first, read from the "
+        "per-owner task index. Bounded: the index keeps the newest entries per "
+        "row, and an entry whose job has expired is dropped on read rather than "
+        "returned. Access is the media ownership dependency this route family "
+        "already uses."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_media_tasks(request: Request, media_id=Depends(owns_media_id)):
+    try:
+        tasks = await asyncio.to_thread(TaskService.owner_tasks, media_id, "media")
+        return JSONResponse(
+            content=[
+                OwnerTaskItem(**task).model_dump(mode="json") for task in (tasks or [])
+            ],
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve media tasks",
             traceback.format_exc(),
         )
 

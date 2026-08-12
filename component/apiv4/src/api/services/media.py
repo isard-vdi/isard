@@ -32,6 +32,7 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.lib.domains.xml_sections import XmlSectionsProcessed
 from isardvdi_common.lib.media.media import MediaProcessed as CommonMedia
+from isardvdi_common.lib.task_index import MEDIA, current_task_id
 from isardvdi_common.models.media import Media as RethinkMedia
 from isardvdi_common.models.media import MediaModel
 from isardvdi_common.models.task import Task
@@ -476,6 +477,10 @@ class MediaService:
             MediaStatusEnum.downloading.value,
             MediaStatusEnum.download_starting.value,
             MediaStatusEnum.download.value,
+            # Re-pressing abort must settle a row whose task is already
+            # gone, otherwise it stays here with no way out.
+            MediaStatusEnum.download_aborting.value,
+            MediaStatusEnum.reset_downloading.value,
         ]
         if media.status not in allowed_statuses:
             raise Error(
@@ -490,14 +495,19 @@ class MediaService:
         # primary mechanism once the watcher is live.
         media.status = MediaStatusEnum.download_aborting.value
 
-        if media.task and Task.exists(media.task):
+        task_id = current_task_id(Task._redis, media.id, kind=MEDIA)
+        if task_id and Task.exists(task_id) and Task(task_id).pending:
             try:
-                Task(media.task).cancel()
+                Task(task_id).cancel()
             except Exception:
                 # cancel() best-effort: row flag still drives the
                 # initial_check on the worker side, and the dependent
                 # update_status will finalize the row when curl exits.
                 pass
+        else:
+            # Nothing is running, so no chain will ever finalize this
+            # row: settle it here instead of leaving it aborting forever.
+            media.status = MediaStatusEnum.download_failed.value
 
     @staticmethod
     def start_media_download(media_id: str) -> None:

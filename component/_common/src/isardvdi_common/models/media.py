@@ -26,6 +26,7 @@ from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
+from isardvdi_common.lib.task_index import MEDIA, current_task_id
 from isardvdi_common.models.storage_pool import StoragePool
 from pydantic import BaseModel, Field
 from rethinkdb import r
@@ -81,6 +82,9 @@ class Media(RethinkCustomBase):
         # ownerless media) resolves to the NULL_CATEGORY sentinel lane.
         category = self.category or queue_tiers.NULL_CATEGORY
         kwargs.setdefault("category_id", category)
+        kwargs.setdefault("media_id", self.id)
+        kwargs.setdefault("index_owners", [self.id])
+        kwargs.setdefault("index_kind", "media")
         if "queue" in kwargs:
             kwargs["queue"] = queue_tiers.retier_queue(
                 kwargs["queue"], kwargs.get("task"), category
@@ -93,79 +97,108 @@ class Media(RethinkCustomBase):
             blocking = kwargs.pop("blocking")
         else:
             blocking = True
+        # The index, not the row's scalar: the field is never cleared, so a
+        # media whose job expired long ago would be refused work forever.
+        pending_task = current_task_id(Task._redis, self.id, kind=MEDIA)
         if (
             blocking
-            and self.task
-            and Task.exists(self.task)
-            and Task(self.task).pending
+            and pending_task
+            and Task.exists(pending_task)
+            and Task(pending_task).pending
         ):
             raise Error(
                 "precondition_required",
-                f"Media {self.id} has the pending task {self.task}",
+                f"Media {self.id} has the pending task {pending_task}",
+                description_code="media_pending_task",
             )
-        self.task = Task(*args, **kwargs).id
+        return Task(*args, **kwargs).id
 
     def delete_file(self, user_id=None, keep_status=None):
+        """Delete the media file and settle the row.
+
+        Ordered so nothing is mutated before the last thing that can
+        raise: a refused delete used to leave the row at ``maintenance``
+        with no task behind it, which is a media nobody can delete
+        afterwards.
         """
-        Delete media physical file if it has been downloaded and update status.
-        """
-        if self.status not in [
-            "Downloaded",
-            "DownloadFailed",
-            "DownloadFailedInvalidFormat",
-        ]:
+        if self.status in ("DownloadStarting", "Downloading", "Download"):
             raise Error(
                 "precondition_required",
-                f"Unable to delete downloading media. Status: {self.status}",
-                description_code="unable_to_delete_downloading_media",
+                f"Media {self.id} is downloading; abort the download first.",
+                description_code="media_should_not_be_downloading",
+            )
+        if self.status == "deleted":
+            return None
+        if not self.path_downloaded:
+            # A row without a path never had a file: the download chain
+            # refuses to start without one, and the path is where curl
+            # would have written.
+            self.status = "deleted"
+            return None
+        pending_task = current_task_id(Task._redis, self.id, kind=MEDIA)
+        if pending_task and Task.exists(pending_task) and Task(pending_task).pending:
+            raise Error(
+                "precondition_required",
+                f"Media {self.id} has the pending task {pending_task}",
+                description_code="media_pending_task",
             )
 
-        actual_status = self.status
-        if self.status == "DownloadFailedInvalidFormat" and not keep_status:
-            self.status = "deleted"
-            return
-        finished_status = actual_status if keep_status else "deleted"
-        if actual_status == "DownloadFailed":
-            self.status = "deleted"
-            return
-        else:
-            self.status = "maintenance"
-        self.create_task(
-            user_id=user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('delete', path=self.path_downloaded.rsplit('/', 1)[0]).id}.default",
-            task="delete",
-            job_kwargs={
-                "kwargs": {
-                    "path": self.path_downloaded,
+        queue = (
+            f"storage.{StoragePool.get_best_for_action('delete', path=self.path_downloaded.rsplit('/', 1)[0]).id}"
+            ".default"
+        )
+        previous_status = self.status
+        # Every status that reaches here owns a file, so all of them get a
+        # real delete task. Short-circuiting the failed ones to "deleted"
+        # left their file on disk.
+        finished_status = previous_status if keep_status else "deleted"
+        recovery_status = (
+            previous_status
+            if previous_status in ("Downloaded", "DownloadFailed")
+            else "Downloaded"
+        )
+        self.status = "maintenance"
+        try:
+            task_id = self.create_task(
+                user_id=user_id,
+                queue=queue,
+                task="delete",
+                blocking=False,
+                job_kwargs={
+                    "kwargs": {
+                        "path": self.path_downloaded,
+                    },
                 },
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "update_status",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "statuses": {
-                                "finished": {
-                                    "deleted": {
-                                        "media": [self.id],
+                dependents=[
+                    {
+                        "queue": "core",
+                        "task": "update_status",
+                        "job_kwargs": {
+                            "kwargs": {
+                                "statuses": {
+                                    "finished": {
+                                        finished_status: {
+                                            "media": [self.id],
+                                        },
                                     },
-                                },
-                                "failed": {
-                                    "Downloaded": {"media": [self.id]},
-                                },
-                                "canceled": {
-                                    "Downloaded": {
-                                        "media": [self.id],
+                                    "failed": {
+                                        recovery_status: {"media": [self.id]},
+                                    },
+                                    "canceled": {
+                                        recovery_status: {
+                                            "media": [self.id],
+                                        },
                                     },
                                 },
                             },
                         },
-                    },
-                }
-            ],
-        )
-        return self.task
+                    }
+                ],
+            )
+        except Exception:
+            self.status = previous_status
+            raise
+        return task_id
 
     @classmethod
     def resolve_download_path(cls, user_id, category_id, media_id, kind):
@@ -250,7 +283,7 @@ class Media(RethinkCustomBase):
             "google_drive_cookie": google_drive_cookie,
         }
 
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{pool.id}.{priority}",
             task="download_url",
@@ -275,7 +308,6 @@ class Media(RethinkCustomBase):
                 }
             ],
         )
-        return self.task
 
     def check_existence(self, user_id=None):
         """From api/libv2/api_media media_task_check()"""
@@ -283,7 +315,7 @@ class Media(RethinkCustomBase):
             self.status = "deleted"
             return
 
-        self.create_task(
+        return self.create_task(
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('check_media_existence', path=self.path_downloaded.rsplit('/', 1)[0]).id}.default",
             task="check_media_existence",
@@ -300,8 +332,6 @@ class Media(RethinkCustomBase):
                 }
             ],
         )
-
-        return self.task
 
     @classmethod
     def get_user_allowed_media(

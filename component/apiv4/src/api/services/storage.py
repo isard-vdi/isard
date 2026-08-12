@@ -25,6 +25,7 @@ from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage import StorageProcessed
+from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task, tasks_from_ids
@@ -253,7 +254,26 @@ class StorageService:
         # Access-control side-effect (raises 404 if missing / not owned).
         get_storage(payload, storage_id)
         row = StorageProcessed.get_storage_row(storage_id)
-        return row or {}
+        if not row:
+            return {}
+        # The retired ``task`` pointer may still sit on the row; never serve it.
+        # What consumers asked of it was whether the row is busy, so answer that
+        # from the index instead — one lookup here rather than a request per row
+        # from whoever is rendering the list.
+        #
+        # ``current_task_id`` proves the job EXISTS, not that it is unfinished:
+        # rq keeps a finished job's hash for its result TTL, so the bare bool
+        # reported a ready disk as busy for minutes after its chain completed.
+        # Pair it with the pending check, as every other reader of the index does.
+        row.pop("task", None)
+        task_id = current_task_id(Task._redis, storage_id)
+        # ``tasks_from_ids`` and not ``Task(...)``: the index proves the job's
+        # hash is THERE, and a hash left with only a status field passes that
+        # and still cannot be loaded — which rq raises on, and this route turns
+        # into a 500. The two endpoints below resolve the same id the same way.
+        tasks = tasks_from_ids([task_id]) if task_id else []
+        row["has_pending_task"] = bool(tasks and tasks[0].pending)
+        return row
 
     @staticmethod
     def get_user_ready_storages(user_id: str) -> list[dict]:
@@ -330,6 +350,8 @@ class StorageService:
                 size=str(size),
                 priority=priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -341,6 +363,8 @@ class StorageService:
         storage = get_storage(payload, storage_id)
         try:
             return storage.task_delete(payload.get("user_id"))
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -365,23 +389,33 @@ class StorageService:
 
     @staticmethod
     def get_task(payload: dict, storage_id: str) -> dict | None:
-        """Get storage task as dict, or ``None`` when there is no readable one.
+        """The task this storage is busy with, or ``None``.
 
-        A storage row can outlive the RQ job it points at, and building
-        ``Task`` on a dangling pointer raises ``NoSuchJobError`` — which the
-        route turns into a 500 although "no task" is a perfectly good answer.
-        ``tasks_from_ids`` is the fetch-tolerant helper the rest of the
-        codebase already uses for this: it swallows the load failure rather
-        than pairing a check with a construct, so the pointer cannot go stale
-        between the two calls. A bare ``Task.exists`` would not do — a hash
-        left with only a status field passes that check and still cannot be
-        loaded.
+        Read from the index rather than the row: the row's scalar names one
+        chain, is never cleared, and cannot name a chain another row started.
+        Loaded through the fetch-tolerant helper because a key the index proves
+        present can still fail to load, and a task nobody can read is "no task",
+        not a 500.
         """
         storage = get_storage(payload, storage_id)
-        if not storage.task:
+        task_id = current_task_id(Task._redis, storage.id)
+        if not task_id:
             return None
-        tasks = tasks_from_ids([storage.task])
+        tasks = tasks_from_ids([task_id])
         return tasks[0].to_dict() if tasks else None
+
+    @staticmethod
+    def get_tasks(payload: dict, storage_id: str) -> list:
+        """The tasks this storage has had, newest first.
+
+        ``get_storage`` is the access control: same ownership rules as every
+        other per-item storage route, so a user sees their own disk's history
+        and nobody else's. Reading is :meth:`TaskService.owner_tasks`.
+        """
+        from api.services.tasks import TaskService
+
+        get_storage(payload, storage_id)
+        return TaskService.owner_tasks(storage_id, kind="storage")
 
     @staticmethod
     def get_statuses(payload: dict, storage_id: str) -> dict:
@@ -391,9 +425,23 @@ class StorageService:
 
     @staticmethod
     def has_derivatives(payload: dict, storage_id: str) -> int:
-        """Return the number of derivatives (children) for a storage."""
+        """Return how many disks depend on this one as a backing file.
+
+        The whole subtree, not just the first level — which is what the
+        endpoint's name always claimed. It used to answer
+        ``len(storage.children)``, and callers read the "derivatives" name
+        as "the chain this disk is part of" and compared it with ``> 1``
+        to discount the disk itself; a disk with exactly one dependent
+        therefore passed every client-side gate and only failed later,
+        server-side, with ``storage_has_children``.
+
+        As a gate the count is equivalent to the server's precondition:
+        a disk has a descendant if and only if it has a direct child, so
+        ``> 0`` here and ``len(children) > 0`` in ``set_maintenance``
+        accept and reject exactly the same disks.
+        """
         storage = get_storage(payload, storage_id)
-        return len(storage.children)
+        return len(storage.dependents())
 
     # ── DISK OPERATIONS ────────────────────────────────────────────────
 
@@ -450,6 +498,8 @@ class StorageService:
                 priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -472,6 +522,10 @@ class StorageService:
                 secondary_priority="high",
                 retry=retry,
             )
+        except Error:
+            # Already typed (e.g. set_maintenance's preconditions): re-raise
+            # it untouched so its description_code survives.
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -522,6 +576,8 @@ class StorageService:
                 priority=priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -552,7 +608,11 @@ class StorageService:
         """Convert a storage to a new format."""
         priority = check_task_priority(payload, priority)
         origin_storage = get_storage(payload, storage_id)
-        origin_storage.set_maintenance("convert")
+        # The transition belongs to Storage.convert, which opens with it like
+        # every other action. Doing it here too flipped the disk to maintenance
+        # and then let the model's call refuse it -- set_maintenance requires
+        # ready for anything outside {create, delete, download} -- so convert
+        # could never succeed and left the disk stuck in maintenance.
 
         new_storage = Storage.init_document(
             user_id=origin_storage.user_id,
@@ -572,6 +632,8 @@ class StorageService:
                 priority=priority,
             )
             return {"new_storage_id": new_storage.id, "task_id": task_id}
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -601,6 +663,8 @@ class StorageService:
                 priority=priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -628,6 +692,8 @@ class StorageService:
                 priority,
                 retry=retry,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -658,6 +724,8 @@ class StorageService:
                 dest_path,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -691,6 +759,8 @@ class StorageService:
                 remove_source_file,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -731,6 +801,8 @@ class StorageService:
                 remove_source_file,
                 priority,
             )
+        except Error:
+            raise
         except Exception as e:
             raise Error(*e.args)
 
@@ -750,16 +822,17 @@ class StorageService:
         # Idempotent no-op when the storage has no active task — the
         # Vue 2 desktop-edit modal fans this call out per attached
         # storage when the user clicks "cancel", and most attached
-        # storages have nothing to abort. ``Task(None)`` would raise a
-        # bare exception that the route's ``except Exception`` would
-        # swallow as 500.
-        if not storage.task:
+        # storages have nothing to abort. A task the index names but that
+        # cannot be loaded is the same answer: there is nothing to abort and
+        # no initiator to own it.
+        task_id = current_task_id(Task._redis, storage.id)
+        if not task_id:
             return ""
         # A pointer whose job RQ has dropped is the same answer: there is no
         # live job left to abort and no initiator to own it. Loaded through the
         # fetch-tolerant helper so a dangling (or status-only, which
         # ``Task.exists`` waves through) pointer is a no-op instead of a 500.
-        tasks = tasks_from_ids([storage.task])
+        tasks = tasks_from_ids([task_id])
         if not tasks:
             return ""
         task_agent_id = tasks[0].user_id

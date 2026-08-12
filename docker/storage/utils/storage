@@ -44,6 +44,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from time import time
 
+from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
 from storage_lib.api import (
     fetch_domains_accessed,
     fetch_medias,
@@ -68,6 +69,7 @@ from storage_lib.qcow import (
     diagnose_broken_chains,
     get_backing_chain,
     get_full_info,
+    is_file_in_use,
     qemu_img_check,
     qemu_img_info,
     rebase_file,
@@ -462,7 +464,9 @@ def cmd_integrity(args):
     log(f" - Analyzed qcow integrity + dependencies in {time()-t:.2f} seconds")
 
     volatile = get_volatile_storages()
-    deletable = set(qcow_deps["wo_derivatives"]) & storages_in_system_not_in_db
+    deletable = _with_stranded_bin_copies(
+        set(qcow_deps["wo_derivatives"]) & storages_in_system_not_in_db, qcow_deps
+    )
 
     # Classify non-qcow2 and duplicate files
     dead_artifacts, unknown_non_qcow = _classify_non_qcow2_files(
@@ -1024,14 +1028,12 @@ def cmd_cleanup(args):
     orphan_ratio = (
         len(storages_in_system_not_in_db) / len(qcow_storages) if qcow_storages else 0
     )
-    if orphan_ratio > 0.8 and len(storages_in_system_not_in_db) > 50:
-        log(
-            f"ERROR: {orphan_ratio:.0%} of filesystem files"
-            f" ({len(storages_in_system_not_in_db)}/{len(qcow_storages)})"
-            f" appear as orphans (API returned {len(db_storages)} records)."
-            " This is suspiciously high — possible API data issue."
-        )
-        log("ABORTING: no cleanup files written. Verify the API before retrying.")
+    if _orphan_ratio_refused(
+        len(storages_in_system_not_in_db),
+        len(qcow_storages),
+        len(db_storages),
+        accepted=getattr(args, "accept_orphan_ratio", False),
+    ):
         sys.exit(1)
 
     log("Analyzing qcow integrity + dependencies...")
@@ -1058,7 +1060,9 @@ def cmd_cleanup(args):
     #   files still used as backing). Only the dead artifacts go in the
     #   deletable bucket; the rest are reported for review.
     # - volatile: ephemeral files, always safe to remove
-    deletable = set(qcow_deps["wo_derivatives"]) & storages_in_system_not_in_db
+    deletable = _with_stranded_bin_copies(
+        set(qcow_deps["wo_derivatives"]) & storages_in_system_not_in_db, qcow_deps
+    )
     volatile = get_volatile_storages()
     dead_non_qcow, unknown_non_qcow = _classify_non_qcow2_files(
         non_qcow_storages, qcow_deps, db_storage_lookup=db_storage_lookup
@@ -1465,6 +1469,88 @@ def _classify_media_files(media_files, medias):
     }
 
 
+#: Above this share of unrecognised files the estate looks like an API failure
+#: rather than a dirty disk, and the cleanup refuses to act on it.
+ORPHAN_RATIO_CEILING = 0.8
+#: …but only once there are enough files for the ratio to mean anything.
+ORPHAN_RATIO_MIN_FILES = 50
+
+
+def _orphan_ratio_refused(orphans, total, db_rows, accepted=False):
+    """Refuse a cleanup whose input looks like the API lied, unless accepted.
+
+    A run where nearly every file on disk has no database row is far more often
+    a broken API read than a genuinely dirty estate, and acting on it would
+    generate deletion lists for the whole install. So the default is to stop.
+
+    But an estate really can be mostly orphans -- a rebuilt database over an old
+    filesystem is the obvious case -- and that is precisely the estate the tool
+    exists for. Refusing it with no way out makes the tool unusable exactly when
+    it is needed, so an operator who has checked the API can say so.
+    """
+    ratio = orphans / total if total else 0
+    if ratio <= ORPHAN_RATIO_CEILING or orphans <= ORPHAN_RATIO_MIN_FILES:
+        return False
+    if accepted:
+        log(
+            f"WARNING: {ratio:.0%} of filesystem files ({orphans}/{total}) have no"
+            f" database row (API returned {db_rows} records) — proceeding because"
+            " --accept-orphan-ratio was given."
+        )
+        return False
+    log(
+        f"ERROR: {ratio:.0%} of filesystem files ({orphans}/{total})"
+        f" appear as orphans (API returned {db_rows} records)."
+        " This is suspiciously high — possible API data issue."
+    )
+    log(
+        "ABORTING: no cleanup files written. Verify the API, then re-run with"
+        " --accept-orphan-ratio if the estate really is this dirty."
+    )
+    return True
+
+
+def _with_stranded_bin_copies(deletable, qcow_deps):
+    """Extend *deletable* with recycle-bin copies their parent leaves behind.
+
+    A soft-deleted disk keeps its backing reference. Once the parent is gone the
+    copy cannot be restored into anything, so leaving it is not caution -- it is
+    dead weight that the next run will report again forever. Measured on a live
+    share: a clean cleanup left 23 such copies pointing at a parent it had just
+    moved aside.
+
+    Only files already inside a bin cascade. A bin copy whose parent survives is
+    a restorable backup and is kept.
+
+    A LIVE child of a removed parent is never dragged in either -- but not
+    because it is an ordinary case to leave alone. ``set_maintenance`` refuses
+    any op on a disk with children (``storage_has_children``), so a live disk
+    whose backing file is gone should not be able to exist at all; measured on a
+    live share, none did. If one turns up it is an INCOHERENCE, not a category
+    of work, and sweeping it would destroy the evidence of how it happened.
+    """
+    dependency_map = qcow_deps.get("dependency_map", {})
+    # The scan IS the snapshot we are reasoning about: a parent it did not see
+    # is not on disk. Asking the filesystem again would be slower and could
+    # disagree with the classification everything else was built from.
+    present = set(dependency_map)
+    doomed = set(deletable)
+    binned = [f for f in dependency_map if RECYCLE_BIN_DIR in Path(f).parts]
+    changed = True
+    while changed:
+        changed = False
+        for f in binned:
+            if f in doomed:
+                continue
+            parent = dependency_map.get(f)
+            if not parent:
+                continue
+            if parent in doomed or parent not in present:
+                doomed.add(f)
+                changed = True
+    return doomed
+
+
 def _classify_non_qcow2_files(non_qcow_files, qcow_deps, db_storage_lookup=None):
     """Classify non-qcow2 files into dead artifacts vs unknown.
 
@@ -1480,6 +1566,11 @@ def _classify_non_qcow2_files(non_qcow_files, qcow_deps, db_storage_lookup=None)
     restore the canonical file if it ever turned out broken. We therefore
     only mark such a backup as "dead" when ALL of:
       - the canonical .qcow2 exists on disk
+      - the canonical is not currently locked/in-use (a locked image cannot be
+        proven at rest: qemu-img check -U would read straight through the lock
+        and call a half-written image clean — measured, a live-held image gives
+        rc 0 under -U — which is exactly how the in-flight backup of a running
+        sparsify/convert would get deleted)
       - qemu-img check on the canonical reports no errors
       - the canonical's UUID is in the API storage table with status=ready
         (or no API lookup was passed in, in which case we skip this check)
@@ -1506,6 +1597,13 @@ def _classify_non_qcow2_files(non_qcow_files, qcow_deps, db_storage_lookup=None)
         if f_str.endswith(".qcow2.sparsify-backup"):
             canonical = f_str[: -len(".sparsify-backup")]
             if not Path(canonical).is_file():
+                unknown.append(f_str)
+                continue
+            # A locked/in-use canonical is not provably at rest. is_file_in_use
+            # opens WITHOUT -U so a held lock surfaces (unlike qemu_img_check,
+            # which is -U by design and reads through it); keep the backup.
+            in_use, _lock_err = is_file_in_use(canonical)
+            if in_use:
                 unknown.append(f_str)
                 continue
             if not qemu_img_check(canonical):
@@ -2565,15 +2663,14 @@ def cmd_full_cleanup(args):
     )
     log(f"  {len(storages_in_system_not_in_db)} qcow2 files not in API")
 
-    # Sanity check
-    if len(qcow_storages) > 0:
-        orphan_ratio = len(storages_in_system_not_in_db) / len(qcow_storages)
-        if orphan_ratio > 0.8 and len(storages_in_system_not_in_db) > 50:
-            log(
-                f"ERROR: {orphan_ratio:.0%} orphan ratio is suspiciously high."
-                " Possible API data issue. Aborting."
-            )
-            sys.exit(1)
+    # Sanity check — same rule and same escape hatch as cmd_cleanup.
+    if _orphan_ratio_refused(
+        len(storages_in_system_not_in_db),
+        len(qcow_storages),
+        len(db_storages),
+        accepted=getattr(args, "accept_orphan_ratio", False),
+    ):
+        sys.exit(1)
 
     # ── Step 3: Check integrity + dependencies in one pass ────────────────
     log("\n[3/6] Checking backing chain integrity + dependencies...")
@@ -4528,6 +4625,15 @@ def build_parser():
         help="Generate deletion file lists for orphaned/broken storage",
     )
     p_cleanup.add_argument(
+        "--accept-orphan-ratio",
+        action="store_true",
+        help=(
+            "Proceed even when nearly every file on disk has no database row. "
+            "The default refusal assumes a bad API read; use this once you have "
+            "checked the API and the estate really is that dirty."
+        ),
+    )
+    p_cleanup.add_argument(
         "--move",
         action="store_true",
         help="Move deletable files to /isard/volatile/to_delete/ instead of just listing them",
@@ -4602,6 +4708,15 @@ def build_parser():
     p_full = subparsers.add_parser(
         "full-cleanup",
         help="Full maintenance: verify, repair chains, move unusable files",
+    )
+    p_full.add_argument(
+        "--accept-orphan-ratio",
+        action="store_true",
+        help=(
+            "Proceed even when nearly every file on disk has no database row. "
+            "The default refusal assumes a bad API read; use this once you have "
+            "checked the API and the estate really is that dirty."
+        ),
     )
     p_full.add_argument(
         "--include-templates",

@@ -19,50 +19,76 @@
 
 """Periodic self-heal for storage / download task chains.
 
-change-handler is the sole executor of the ``core``-queue tail of every
-storage chain (see :mod:`task_results_consumer`). If a core handler raises,
-the consumer logs it but the dependent storage-queue job is never released and
-the row never finalizes: the storage stays ``maintenance``, the domain stays
-``Downloading`` and the dependent RQ job stays **DEFERRED forever**.
-``Task.pending`` then reports the whole chain as pending indefinitely, so the
-``storage_pending_task`` 428 guard blocks template-creation / downloads /
-deletes on that storage with no recovery anywhere.
+Finalize is carried as ``meta["core_finalize"]`` and run by the change-handler
+stream consumer (see :mod:`task_results_consumer`). The **primary** recovery
+from a change-handler crash/restart is that consumer's at-least-once stream
+replay: the buffered ``kind=result`` events are re-delivered on reconnect and
+the chain simply RESUMES where it left off (nested knot storage-dependents are
+re-enqueued fresh). This module is the **backstop** for the cases replay cannot
+cover — a result event that was never published or was trimmed before the group
+read it — plus a one-shot legacy drain on upgrade.
 
-This module runs two idempotent passes on a timer (plus one eager pass on
-startup):
+Recovery principle (per task): reconcile every transitional item from **on-disk
+reality** to a stable status the user can re-trigger from, and **never destroy a
+present disk**. Reality means *asking the worker*, never reading a status or a
+size off the row: those are caches, written by whichever branch last succeeded,
+and they outlive what they described. So a stuck item is re-observed and its own
+transition decides — an intact disk returns to ``ready``, a create that never
+produced one settles ``deleted``, a delete whose file is gone completes and one
+whose file is still there resets to a re-triggerable state. Data is never lost
+because the reconcile only reads disks and sets statuses.
+
+**Startup drain (one-shot).** :func:`_drain_core_once` clears any residual legacy
+``core`` tombstones left by a system upgraded FROM rq-dependent finalize. Post
+upgrade the ``core`` queue stays empty, so it is a no-op on every later boot.
 
 **Pass 1 — orphaned DEFERRED jobs.** A DEFERRED job whose dependencies are all
-terminal (finished/failed/canceled) and have been terminal longer than a grace
-window is an orphan no worker will ever run. The grace window is what keeps the
-pass from racing the consumer's own release path. For a ``core``-queue orphan
-we re-run exactly what the consumer would have (run handler → mark FINISHED/
-FAILED → release storage dependents → delete the dead core job), which also
-drives its own core dependents. For a storage-queue orphan whose parents all
-finished we release it so the storage worker picks it up; if a parent
-failed/canceled we cancel it (releasing its dependents for failure handling).
+terminal (and have been longer than a grace window, so the pass never races the
+consumer's own release) is an orphan no worker will run: a storage-queue orphan
+is released if its parents finished, cancelled if a parent failed/canceled; a
+residual legacy ``core``-queue orphan (the DEFERRED counterpart to the QUEUED
+tombstones ``_drain_core_once`` sweeps) is healed via :func:`_heal_core_orphan`.
 
-**Pass 2 — storages stuck in ``maintenance`` whose backing task is dead.** When
-the orphan job is gone entirely (e.g. cleaned up) the row can be left stuck with
-no task to replay. Finalize from the row's own ``qemu-img-info``: a valid disk
-(``virtual-size > 0``) becomes ``ready`` via the canonical
-:func:`_apply_storage_update` (which only promotes the safe
-``_DOMAIN_PRE_READY_STATUSES`` set — a running VM is never yanked); otherwise we
-re-issue ``check_backing_chain`` for an authoritative recheck. A storage whose
-task is still alive is left untouched.
+**Pass 2 — storages stuck in a transitional status** (``maintenance``/``creating``)
+whose backing chain is dead. Re-issues ``check_backing_chain`` and lets the
+worker's answer drive the row through the normal path (which only promotes the
+safe pre-ready set, so a running VM is never yanked). A storage whose chain is
+still alive is left untouched.
+
+**Pass 3 — domains parked in a storage-lock status** (``Maintenance``/
+``CreatingTemplate``/``CreatingDisk``) whose storage settled but never promoted
+them. Re-observes the backing storages and lets their own transition drive the
+domain; → ``Failed`` directly only when a backing storage row is gone, since
+there is then nothing left to observe.
 """
 
 import asyncio
 import logging as log
 from datetime import datetime, timezone
 
+from isardvdi_common.lib.task_index import MEDIA, STORAGE, current_task_id
 from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.media import Media
 from isardvdi_common.models.storage import Storage
-from isardvdi_common.models.task import Task
+from isardvdi_common.models.task import (
+    CoreStep,
+    Task,
+    _chain_closure,
+    finalize_has_unstamped,
+    was_canceled,
+)
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
-from ..task_results.storage import _apply_storage_update, send_status_socket
+# Imported, never called: the pass no longer writes a storage row itself, and
+# the tests patch these to assert it stays that way. Deleting them as "unused"
+# breaks those tests with AttributeError, not at the deletion site.
+from ..task_results.storage import (  # noqa: F401
+    _apply_storage_update,
+    send_status_socket,
+)
 from .task_results_consumer import (
+    _is_canceled,
     _release_storage_dependents,
     _run_handler,
     _set_job_status,
@@ -72,15 +98,17 @@ from .task_results_consumer import (
 GRACE_S = 120
 RECONCILE_EVERY_S = 90
 
-# Nothing consumes the ``core`` queue since the core_worker retirement, so a
-# job that lands QUEUED on it never leaves by itself.
+# Metadata finalize never enqueues on ``core``, so post-migration the queue
+# stays empty. It can only hold residual legacy tombstones from before the
+# upgrade, drained once at startup by ``_drain_core_once``.
 _CORE_QUEUE_KEY = "rq:queue:core"
-# Only sweep jobs old enough that they cannot be a live entry's replay state:
-# the consumer's redelivery envelope is 5 reclaims of 60s, so 15 min is well
-# past it.
-REAP_MIN_AGE_S = 900
-# Bound the per-tick work — the rest waits for the next pass.
-_REAP_SCAN = 100
+# Batch size + pass cap for the one-shot startup drain.
+_DRAIN_SCAN = 100
+_DRAIN_MAX_BATCHES = 200
+# The finalize-orphan reconcile must not flag a just-settled chain the consumer
+# is about to finalize: treat a metadata finalize as orphaned only once it is
+# older than the consumer's redelivery envelope (5 reclaims of 60s → 15 min).
+FINALIZE_ORPHAN_MIN_AGE_S = 900
 
 _TERMINAL = (
     JobStatus.FINISHED,
@@ -109,13 +137,19 @@ def _dep_job_status(dep):
         return None
 
 
-# Domain statuses that are pure STORAGE locks (set by ``set_maintenance`` / the
-# template chain), never engine-driven runtime states — so they are safe to
-# finalise from the storage's own reality without racing the VM lifecycle. The
-# storage-keyed passes below cannot see a domain whose storage is already
-# ``ready`` (the ready-transition's promote missed it) or whose storage row is
-# gone; Pass 3 reconciles from the domain side to close that gap.
-_DOMAIN_LOCK_STATUSES = ("Maintenance", "CreatingTemplate")
+# Domain statuses whose work is EXECUTED by a storage task chain, so this
+# component owns reconciling them; engine keeps the statuses it drives itself
+# (``CreatingDomain`` onwards, and the libvirt runtime states). They are pure
+# storage locks, never runtime states, so re-observing them cannot race the VM
+# lifecycle.
+#
+# ``CreatingDisk`` is covered for the case that actually strands desktops: the
+# chain died before producing the disk, and the re-observation settles the row
+# ``deleted`` so the domain fails instead of hanging. A ``CreatingDisk`` domain
+# whose disk IS present is re-observed but not advanced — handing it to engine
+# needs a transition that survives the chain's later storage updates, since
+# ``CreatingDomain`` is itself in the promote-to-``Stopped`` set.
+_DOMAIN_LOCK_STATUSES = ("Maintenance", "CreatingTemplate", "CreatingDisk")
 
 
 def _as_aware_utc(dt):
@@ -211,10 +245,21 @@ async def _heal_core_orphan(redis_manager, task):
     """Re-run the missed core dispatch for ``task`` and its nested core
     dependents, mirroring :func:`_process_entry` in the consumer.
     """
+    # Cancellation is terminal, and here the durable record is the ONLY signal
+    # for it. ``Task.cancel`` stamps every member of the closure, but a member a
+    # worker had already dequeued runs to completion and its success handler
+    # rewrites the rq status to ``finished`` — so ``job_status`` (and the
+    # ``doomed`` scan below) reads finished for a cancelled member, and a
+    # metadata ``CoreStep`` never reports ``CANCELED`` at all. Only
+    # ``was_canceled`` on the real root sees the cancel. Without it, the heal
+    # flips a cancelled member to FINISHED and the next step reads its dependency
+    # as succeeded and runs its success body for an operation the user cancelled
+    # — the same defect the consumer guards at its own ``was_canceled`` gate.
+    canceled = await asyncio.to_thread(was_canceled, task._redis, task.id)
     # A chain whose parent failed or was cancelled is dead: run its finalize
     # handlers (they take their failure branch) but never release its deferred
     # storage children, which would run work for an operation that is over.
-    doomed = any(
+    doomed = canceled or any(
         getattr(dep, "job_status", None) in (JobStatus.FAILED, JobStatus.CANCELED)
         for dep in task.dependencies
     )
@@ -223,8 +268,28 @@ async def _heal_core_orphan(redis_manager, task):
     for dep_task in chain:
         ok = await _run_handler(redis_manager, dep_task)
         all_ok = all_ok and ok
-        await _set_job_status(dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED)
-        if ok and not doomed:
+        # A cancelled chain must not be advanced: leave each member's terminal
+        # CANCELED as it is rather than flipping it FINISHED.
+        if not canceled:
+            await _set_job_status(
+                dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED
+            )
+        # Per MEMBER, not just per chain: ``doomed`` is read off the ROOT's
+        # dependencies, so a member cancelled on its own passes that test and
+        # gets its deferred storage children released, running real disk work
+        # for an operation that is over.
+        #
+        # BOTH signals are needed, and neither alone is enough — measured
+        # against real rq chains. A member a worker had already dequeued runs to
+        # completion and its success handler rewrites the rq status to
+        # ``finished``, so ``job_status`` reads NOT cancelled and only the
+        # durable record shows it; a member cancelled through rq directly has
+        # the opposite shape, a CANCELED status and no record. ``_set_job_status``
+        # already trusts the record for exactly this reason.
+        member_canceled = _is_canceled(dep_task) or await asyncio.to_thread(
+            was_canceled, dep_task._redis, dep_task.id
+        )
+        if ok and not doomed and not member_canceled:
             await _release_storage_dependents(dep_task)
     # Same rule as the consumer: the Jobs ARE the replay state, so they are
     # only dropped once the whole heal succeeded. Deleting them after a failed
@@ -305,7 +370,7 @@ async def _reconcile_orphan_deferred(redis_manager, now=None, grace_s=GRACE_S):
     return healed
 
 
-def _reap_connection():
+def _drain_connection():
     """Plain redis connection for the tombstone sweep (raw list surgery)."""
     import redis
     from isardvdi_common.connections.redis_urls import rq_url
@@ -313,99 +378,228 @@ def _reap_connection():
     return redis.from_url(rq_url())
 
 
-async def _reap_core_tombstones(redis_manager, now=None, min_age_s=REAP_MIN_AGE_S):
-    """Pass 1c: clear the ``core`` queue of jobs nothing will ever consume.
+async def _drain_core_once(redis_manager):
+    """One-shot upgrade drain, run on the eager startup pass only.
 
-    Since the core_worker retirement no worker pops ``core``, so anything that
-    lands QUEUED there stays there — and ``Task.pending`` counts it as active
-    work, which makes ``Storage.create_task`` reject every later operation on
-    that storage. Cancelling used to put them there; a dead-lettered entry
-    still can. This sweep is what clears the debt already on disk, on the
-    eager pass at startup as well as on every tick.
+    Metadata finalize never enqueues on ``core``, so once migrated the queue
+    stays empty and this is a no-op on every subsequent boot. It exists solely
+    to clear the debt of a system upgraded FROM the legacy rq-dependent finalize:
+    any job left QUEUED on ``core`` there is a tombstone that ``Task.pending``
+    counts as active work, wedging every later operation on that storage.
 
-    Only jobs that cannot be anybody's live work are touched: the id must be
-    older than ``min_age_s`` (comfortably past the consumer's redelivery
-    envelope) and every dependency of its chain must be terminal or gone.
+    Each residual job is HEALED (its finalize re-run via :func:`_heal_core_orphan`)
+    before its queue entry is removed, so a delivery lost across the upgrade still
+    finalizes from reality; a dangling id (task already gone) is just dropped.
+    Upgrades run on a stable, no-in-flight system, so nothing races this drain —
+    hence no age gate. A non-empty ``core`` here is a migration remnant (or, once
+    migrated, a regression) and is logged loudly.
+
+    Redis connectivity failures PROPAGATE (the ``lrange`` is unguarded): the
+    caller runs this once behind a flag and retries on the next tick until it
+    succeeds, so a change-handler that outraced redis still drains. Only per-job
+    errors are swallowed, so one bad job never aborts the whole sweep.
     """
-    now = now or datetime.now(timezone.utc)
-    try:
-        conn = _reap_connection()
-        ids = await asyncio.to_thread(conn.lrange, _CORE_QUEUE_KEY, 0, _REAP_SCAN - 1)
-    except Exception:
-        log.exception("reconcile: could not scan the core queue")
-        return 0
-    reaped = 0
-    for raw_id in ids:
-        job_id = raw_id.decode() if isinstance(raw_id, bytes) else raw_id
-        try:
-            if not Task.exists(job_id):
-                # Nothing left to heal — just stop it keeping the queue alive
-                # (and poisoning every chain walk that meets it).
+    conn = _drain_connection()
+    drained = 0
+    for _ in range(_DRAIN_MAX_BATCHES):
+        ids = await asyncio.to_thread(conn.lrange, _CORE_QUEUE_KEY, 0, _DRAIN_SCAN - 1)
+        if not ids:
+            break
+        progressed = 0
+        for raw_id in ids:
+            job_id = raw_id.decode() if isinstance(raw_id, bytes) else raw_id
+            try:
+                if not Task.exists(job_id):
+                    await asyncio.to_thread(conn.lrem, _CORE_QUEUE_KEY, 0, raw_id)
+                    log.warning("reconcile: dropped dangling core queue id %s", job_id)
+                    drained += 1
+                    progressed += 1
+                    continue
+                task = await asyncio.to_thread(Task, job_id)
+                if task.job.get_status() != JobStatus.QUEUED:
+                    await asyncio.to_thread(conn.lrem, _CORE_QUEUE_KEY, 0, raw_id)
+                    progressed += 1
+                    continue
+                if not all(
+                    getattr(dep, "job_status", None) in _TERMINAL
+                    for dep in task.dependencies
+                ):
+                    # Upstream not settled — a quiesced upgrade never hits this;
+                    # leave it rather than heal a chain whose inputs are pending.
+                    continue
+                log.warning(
+                    "reconcile: draining core tombstone %s (%s, user=%s)",
+                    job_id,
+                    getattr(task, "task", "?"),
+                    getattr(task, "user_id", "?"),
+                )
+                drained += await _heal_core_orphan(redis_manager, task)
                 await asyncio.to_thread(conn.lrem, _CORE_QUEUE_KEY, 0, raw_id)
-                log.warning("reconcile: dropped dangling core queue id %s", job_id)
-                reaped += 1
-                continue
-            task = await asyncio.to_thread(Task, job_id)
-            if task.job.get_status() != JobStatus.QUEUED:
-                continue
-            enqueued = _as_aware_utc(
-                getattr(task.job, "enqueued_at", None)
-                or getattr(task.job, "created_at", None)
-            )
-            if enqueued is None or (now - enqueued).total_seconds() < min_age_s:
-                continue
-            if not all(
-                getattr(dep, "job_status", None) in _TERMINAL
-                for dep in task.dependencies
-            ):
-                continue
-            log.warning(
-                "reconcile: healing core tombstone %s (%s, user=%s)",
-                job_id,
-                getattr(task, "task", "?"),
-                getattr(task, "user_id", "?"),
-            )
-            reaped += await _heal_core_orphan(redis_manager, task)
+                progressed += 1
+            except Exception:
+                log.exception("reconcile: core drain failed for %s", job_id)
+        if progressed == 0:
+            break
+    if drained:
+        log.warning(
+            "reconcile: core drain healed/removed %s residual tombstone(s) on "
+            "startup — expected only on a legacy→metadata upgrade",
+            drained,
+        )
+    return drained
+
+
+# The same predicate ``chain_pending`` uses, deliberately shared rather than
+# reimplemented: the hatch and the pending check must agree about what "this
+# finalize step has not run" means, or the hatch opens for chains the predicate
+# still calls busy (or worse, never opens for ones it does).
+_finalize_has_unstamped = finalize_has_unstamped
+
+
+def _job_settled_at(job, status):
+    """:func:`_settled_at` for a raw rq job rather than a :class:`Task`.
+
+    Same rule, and the same deliberate blind spot: a FINISHED/FAILED job with
+    no ``ended_at`` reads as unknown, because that is a job the consumer marked
+    mid-flight and it may still be the replay state of an entry being
+    redelivered.
+    """
+    ended = _as_aware_utc(getattr(job, "ended_at", None))
+    if ended is not None:
+        return ended
+    if status == JobStatus.CANCELED:
+        return _as_aware_utc(getattr(job, "created_at", None))
+    return None
+
+
+def _metadata_finalize_orphaned(task, now, min_age_s):
+    """A metadata chain whose real (storage) work all settled but whose finalize
+    never applied and is older than the redelivery envelope: the result event
+    was lost (worker died before publishing). Not live work — Pass 2 heals it
+    from the storage's own reality.
+
+    Asked over the whole CLOSURE, not the task it was handed. ``_task_alive``
+    resolves a row's chain through the task index, which answers with the id of
+    the chain's ROOT — but the job carrying ``core_finalize`` is not the root. In
+    the real template chain the anchor is the third storage job
+    (``move → create → qemu_img_info_backing_chain``), so a hatch that reads
+    ``core_finalize`` off the root alone can never open for the one chain shape
+    that has a knot. Measured on this base: from the root it answered False,
+    from the anchor True, for the very same settled chain.
+
+    That is only latent while ``chain_pending`` is blind to finalize steps and
+    answers False here anyway. The moment an unstamped step counts as pending,
+    a lost result event pins the chain pending for ever and the reconcile can
+    never heal that row again — the "428 forever" class this stack exists to
+    kill, re-entered backwards. Hence closure-wide first, stricter predicate
+    after.
+
+    Conservative in both directions: a member that cannot be read, or that is
+    terminal without a readable settle time, means we cannot prove the chain is
+    dead, so the hatch stays shut.
+    """
+    try:
+        closure = _chain_closure(task.job, task._redis)
+    except Exception:
+        return False
+
+    if not any(
+        _finalize_has_unstamped((getattr(job, "meta", None) or {}).get("core_finalize"))
+        for job in closure.values()
+    ):
+        return False
+
+    settled = []
+    for job in closure.values():
+        try:
+            status = job.get_status(refresh=True)
+        except _JOB_GONE:
+            # Hash evicted after its result TTL: necessarily terminal and long
+            # settled, so it neither blocks the hatch nor dates it.
+            continue
         except Exception:
-            log.exception("reconcile: core tombstone sweep failed for %s", job_id)
-    return reaped
+            return False
+        if status not in _TERMINAL:
+            return False
+        when = _job_settled_at(job, status)
+        if when is None:
+            return False
+        settled.append(when)
+
+    if not settled:
+        return False
+    # The chain settled when its LAST member did.
+    return (now - max(settled)).total_seconds() >= min_age_s
 
 
-def _task_alive(storage):
-    """True if the storage's backing task still exists and is pending — in
-    which case Pass 1 / the consumer will finalize it and Pass 2 must not
-    interfere."""
-    task_id = storage.task
-    if not task_id or not Task.exists(task_id):
+def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S, kind=STORAGE):
+    """True if the row's backing task is still live work — Pass 1 / the
+    consumer will finalize it and Pass 2 must not interfere. A metadata chain
+    with an orphaned finalize is pending but NOT live, so Pass 2 may heal it.
+
+    ``kind`` selects the index namespace and MUST match how the producer wrote
+    it: ``Media.create_task`` indexes under ``media``, ``Storage.create_task``
+    under ``storage``. Pass 4 reuses this for media, and the two namespaces are
+    disjoint — reading a media id out of the storage namespace finds nothing,
+    which is indistinguishable here from "the task is dead".
+    """
+    task_id = current_task_id(Task._redis, getattr(storage, "id", None), kind=kind)
+    if not task_id:
+        # A ``creating`` target (a convert destination) carries no task of its
+        # own and is not named as an owner of the chain either — the producing
+        # task lives on the origin (``converted_from``). It is live until that
+        # origin task settles, so a still-running convert's half-written disk is
+        # never finalized ``ready``. With nothing resolvable a ``creating`` row
+        # cannot be proven dead, so leave it to its parent op.
+        #
+        # A parked row needs no such fallback: the chain that parks it names it
+        # as an owner of its tasks, so the row answers for itself. That also
+        # retires the "consult the marker only while parked" rule the
+        # back-reference needed — the index names THAT chain's task, never
+        # whatever the parker happens to be doing months later.
+        origin_id = getattr(storage, "converted_from", None)
+        if origin_id:
+            task_id = current_task_id(Task._redis, origin_id, kind=kind)
+        if not task_id:
+            return getattr(storage, "status", None) == "creating"
+    if not Task.exists(task_id):
         return False
     try:
-        return Task(task_id).pending
+        task = Task(task_id)
+        # The WHOLE chain, not its neighbours: a deeper chain reads as settled
+        # from its root while later levels are still writing the disk.
+        if not task.chain_pending:
+            return False
+        return not _metadata_finalize_orphaned(
+            task, now or datetime.now(timezone.utc), min_age_s
+        )
     except Exception:
         return False
 
 
 async def _finalize_stuck_storage(redis_manager, storage):
-    """Finalize one stuck ``maintenance`` storage from its on-disk reality.
+    """Finalize one stuck transitional storage by re-observing the disk.
 
-    Valid disk (``qemu-img-info.virtual-size > 0``) → ``ready`` via the
-    canonical handler; otherwise re-issue ``check_backing_chain`` for an
-    authoritative recheck (which drives the row to ready/deleted through the
-    normal path). Returns 1 only when finalized in place.
+    Always re-issues ``check_backing_chain`` and lets the storage worker say
+    what is really there: the row is driven to ``ready`` (a present disk), or
+    ``deleted`` (a create that never produced one, or a delete whose file is
+    already gone). The recheck reads the disk and never removes a present
+    file, so a not-yet-run delete resets to a re-triggerable state rather
+    than losing data.
+
+    It used to short-circuit to ``ready`` whenever the row's stored
+    ``qemu-img-info`` showed a positive ``virtual-size``. That field is
+    written only when an info task SUCCEEDS, and the branch that concludes
+    ``deleted`` does not write it at all — and the row update merges rather
+    than replaces, so the size of a file that has since been deleted survives
+    on the row. A delete whose chain died therefore matched the shortcut
+    exactly, and the pass asserted a disk that was gone: a ``ready`` storage
+    and a bootable-looking desktop that fails at libvirt. Reading the row was
+    never an observation; only the worker can make one.
+
+    Returns 0: nothing is finalized in place any more.
     """
-    qemu_img_info = getattr(storage, "qemu-img-info", None)
-    virtual_size = 0
-    if isinstance(qemu_img_info, dict):
-        virtual_size = qemu_img_info.get("virtual-size", 0) or 0
-    if virtual_size > 0:
-        _apply_storage_update({"id": storage.id, "status": "ready"})
-        await send_status_socket(
-            redis_manager, storage.id, "ready", getattr(storage, "user_id", None)
-        )
-        log.warning(
-            "reconcile: finalized stuck storage %s (maintenance → ready)",
-            storage.id,
-        )
-        return 1
+    prev = getattr(storage, "status", "?")
     try:
         # A self-heal recheck of a STUCK storage: recover it soon rather than on
         # the idle ``background`` lane (the method default), but off the reserved
@@ -415,9 +609,10 @@ async def _finalize_stuck_storage(redis_manager, storage):
             user_id=getattr(storage, "user_id", None), priority="standard"
         )
         log.warning(
-            "reconcile: stuck storage %s has no valid disk info; re-issued "
-            "check_backing_chain",
+            "reconcile: stuck storage %s (%s); re-issued check_backing_chain to "
+            "observe the disk",
             storage.id,
+            prev,
         )
     except Exception:
         log.exception(
@@ -427,13 +622,24 @@ async def _finalize_stuck_storage(redis_manager, storage):
     return 0
 
 
+# Transitional storage statuses whose backing task can die mid-op and leave the
+# row stuck: an in-place op (``maintenance``) or a fresh disk being built
+# (``creating``, e.g. a convert target). Both recover from disk reality above.
+_TRANSITIONAL_STORAGE_STATUSES = ["maintenance", "creating"]
+
+
 async def _reconcile_stuck_storage(redis_manager):
-    """Pass 2: finalize storages stuck in ``maintenance`` whose task is dead.
+    """Pass 2: finalize storages stuck in a transitional status
+    (``maintenance``/``creating``) whose backing task is dead. The primary
+    mid-op recovery is the consumer's at-least-once stream replay (the chain
+    simply resumes); this is the backstop for a genuinely lost result event.
     Returns the count finalized."""
     try:
-        stuck = await asyncio.to_thread(Storage.get_index, ["maintenance"], "status")
+        stuck = await asyncio.to_thread(
+            Storage.get_index, _TRANSITIONAL_STORAGE_STATUSES, "status"
+        )
     except Exception:
-        log.exception("reconcile: could not list maintenance storages")
+        log.exception("reconcile: could not list transitional storages")
         return 0
     healed = 0
     for storage in stuck:
@@ -451,14 +657,22 @@ async def _reconcile_stuck_storage(redis_manager):
 
 def _finalize_stuck_domain(domain):
     """Finalise one domain parked in a storage-lock status from its storage
-    reality. Returns 1 if finalised, else 0.
+    reality. Returns 1 if finalised in place, else 0.
 
     - it declares disks but none of their storage rows still exist -> ``Failed``
-      (the disk is gone).
-    - every backing storage is ``ready`` and settled (no live task) ->
-      ``Stopped`` (the ready-transition's promote missed this domain).
-    A domain whose storage is still in flight (``maintenance`` / a live task) is
-    left to Pass 2 / the consumer.
+      (the disk is gone; there is nothing left to observe).
+    - otherwise the backing storages are re-observed and the storage's own
+      ready/deleted transition drives the domain, exactly as the original chain
+      would have. ``ready`` promotes the domain (to ``Stopped``, or to
+      ``CreatingDomain`` for a ``CreatingDisk`` hand-off); ``deleted`` fails it.
+
+    It used to promote to ``Stopped`` itself whenever every storage read
+    ``ready`` with no live task. That is an inference from two row fields, and
+    a status is a cache: it says what some earlier write concluded, not what is
+    on disk now. Asking the worker costs one task and cannot be wrong.
+
+    A domain whose storage is still in flight (a live chain) is left alone —
+    Pass 2 and the consumer own it.
     """
     declared_ids = [
         disk["storage_id"]
@@ -479,15 +693,30 @@ def _finalize_stuck_domain(domain):
             domain.id,
         )
         return 1
-    if storages and all(
-        storage.status == "ready" and not _task_alive(storage) for storage in storages
-    ):
-        domain.status = "Stopped"
-        domain.current_action = None
-        log.warning(
-            "reconcile: promoted stuck domain %s (storage ready -> Stopped)", domain.id
-        )
-        return 1
+    if not storages:
+        return 0
+    if any(_task_alive(storage) for storage in storages):
+        return 0
+    for storage in storages:
+        try:
+            # ``find`` is the observation that converges a DOMAIN: the disk is
+            # there -> storage ``ready`` -> the promote advances the domain; it
+            # is gone -> ``deleted`` -> the domain fails. Non-blocking and no
+            # retries, so a storage that is busy again by now is simply skipped
+            # rather than queued behind itself.
+            storage.find(user_id=getattr(domain, "user", None), blocking=False, retry=0)
+        except Exception:
+            log.exception(
+                "reconcile: could not re-observe storage %s of stuck domain %s",
+                getattr(storage, "id", "?"),
+                domain.id,
+            )
+    log.warning(
+        "reconcile: stuck domain %s (%s); re-observing %s backing storage(s)",
+        domain.id,
+        getattr(domain, "status", "?"),
+        len(storages),
+    )
     return 0
 
 
@@ -518,6 +747,97 @@ async def _reconcile_stuck_domains(redis_manager):
     return healed
 
 
+# A media parked here is mid-delete: ``maintenance`` means a task was
+# enqueued and never settled the row. ``Deleting`` is the older shape the
+# downloads page wrote for a consumer that never existed; the delete does
+# the work now, so no new row can land here and the arm only drains what
+# an upgrade inherited — those rows never had a task at all.
+#
+# LOAD-BEARING: ``delete_file`` is the only thing that writes
+# ``maintenance`` on a media, which is what makes it safe to answer by
+# re-issuing a delete. The storage pass deliberately re-issues a *check*
+# instead, because a storage reaches ``maintenance`` through many
+# operations and repeating the original could destroy something nobody
+# asked to remove. Give media another operation that parks a row here and
+# this pass has to grow the same indirection.
+#
+# Both statuses clear every precondition in ``delete_file``: neither is a
+# download in flight, neither is ``deleted``, and the pending-task refusal
+# cannot fire on a row ``_task_alive`` has already called dead. That is
+# what makes the pass act rather than log — an earlier revision of it was
+# written against a ``delete_file`` that accepted only the three download
+# statuses, so every row it selected was a row the delete refused.
+_MEDIA_STUCK_STATUSES = ("maintenance", "Deleting")
+
+
+def _finalize_stuck_media(media):
+    """Settle a stuck media by handing it back to the delete.
+
+    This process has no volumes mounted, so unlike Pass 2 — which can read
+    the disk information the row already carries — it cannot see whether
+    the file survived. So it asks the only component that can: the delete
+    task is authoritative either way, since removing a file that is
+    already gone is a no-op and the chain settles the row in both cases.
+    A row that never had a path is settled without a task at all, inside
+    ``delete_file`` — which is why the two outcomes are logged apart.
+    Returns 1 when the row was handed back or settled.
+    """
+    try:
+        task_id = media.delete_file()
+    except Exception:
+        log.exception("reconcile: could not re-issue the delete of media %s", media.id)
+        return 0
+    if task_id:
+        log.warning(
+            "reconcile: re-issued the delete of stuck media %s as task %s",
+            media.id,
+            task_id,
+        )
+    else:
+        log.warning(
+            "reconcile: settled stuck media %s in place, it had no file", media.id
+        )
+    return 1
+
+
+async def _reconcile_stuck_media(redis_manager):
+    """Pass 4: finish the deletes of media left mid-flight with a dead task.
+
+    Passes 2 and 3 are keyed on storage and domains, so nothing was
+    watching media: a worker lost between the enqueue and the settle left
+    the row at ``maintenance`` for good, with no way out but the admin
+    pressing delete again. Returns the count re-issued.
+
+    ``_task_alive`` is reused, but it must be told ``kind=MEDIA``: it resolves
+    the task through the per-owner index, whose keys are namespaced by kind,
+    and ``Media.create_task`` writes under ``media``. Asked for the storage
+    namespace a media id simply is not there, which reads exactly like a dead
+    task — so this pass would select every media that has live work. Apart from
+    the namespace it touches nothing storage-shaped, so a media answers it as
+    well as a storage does. It is also the exact negation of the pending-task
+    precondition inside ``delete_file``, which is why a row this pass selects
+    is never a row the delete then refuses.
+    """
+    healed = 0
+    for status in _MEDIA_STUCK_STATUSES:
+        try:
+            stuck = await asyncio.to_thread(Media.get_index, [status], "status")
+        except Exception:
+            log.exception("reconcile: could not list %s media", status)
+            continue
+        for media in stuck:
+            try:
+                if _task_alive(media, kind=MEDIA):
+                    continue
+                healed += await asyncio.to_thread(_finalize_stuck_media, media)
+            except Exception:
+                log.exception(
+                    "reconcile: finalize failed for media %s",
+                    getattr(media, "id", "?"),
+                )
+    return healed
+
+
 async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
     """Long-running reconcile loop: an eager pass on startup, then all passes
     every ``interval_s`` seconds. Started alongside the changefeed listener and
@@ -529,12 +849,34 @@ async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
     log.warning(
         "reconcile: self-heal starting (every %ss, grace %ss)", interval_s, grace_s
     )
+    # One-shot legacy-tombstone drain, gated by ``drained`` so a redis hiccup
+    # retries next tick instead of silently skipping. No-op post-migration.
+    drained = False
     while True:
         try:
+            if not drained:
+                await _drain_core_once(redis_manager)
+                drained = True
             await _reconcile_orphan_deferred(redis_manager, grace_s=grace_s)
-            await _reap_core_tombstones(redis_manager)
             await _reconcile_stuck_storage(redis_manager)
             await _reconcile_stuck_domains(redis_manager)
+            await _reconcile_stuck_media(redis_manager)
+            await _assert_core_empty()
         except Exception:
             log.exception("reconcile: pass raised")
         await asyncio.sleep(interval_s)
+
+
+async def _assert_core_empty():
+    """Tripwire: metadata finalize never enqueues on ``core``, so post-migration
+    the queue must stay empty. If the "impossible" ever happens it is a real
+    regression — surface it loudly so alerting (``ConsumerlessQueueBacklog``)
+    fires off the change-handler logs. Best-effort; a transient redis hiccup is
+    swallowed by the caller's except."""
+    depth = await asyncio.to_thread(_drain_connection().llen, _CORE_QUEUE_KEY)
+    if depth:
+        log.warning(
+            "ConsumerlessQueueBacklog: rq:queue:core depth=%s — metadata finalize "
+            "must never enqueue on core; this is a regression",
+            depth,
+        )

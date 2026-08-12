@@ -101,7 +101,7 @@ commit-lint:
     - apk add --no-cache git
     - bun install --frozen-lockfile
   script:
-    - git fetch https://gitlab.com/isard/isardvdi.git main
+    - git fetch https://gitlab.com/isard/isardvdi.git "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
     - bunx commitlint --from=$(git merge-base HEAD FETCH_HEAD)
 
 version:
@@ -309,6 +309,25 @@ unit-test-go:
       junit: report.xml
   coverage: /total:\s+\(statements\)\s+\d+.\d+%/
 
+# Behavioural unit tests for the storage-governor alert rules, run under the SAME
+# engine the stack runs (vmalert / MetricsQL) — promtool green is not vmalert
+# green, and the Go test above only checks that the rules NAME real metrics, not
+# what they DO. Pinned to the vmalert-tool matching the runtime vmalert in
+# docker-compose-parts/monitor.yml; the guard fails CI if the two ever drift, so
+# this pin cannot silently diverge from what the stack actually runs.
+unit-test-vmalert:
+  stage: unit-test
+  needs: []
+  image:
+    name: victoriametrics/vmalert-tool:v1.147.0
+    entrypoint: [""]
+  script:
+    - runtime=$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://')
+    - tool=$(/vmalert-tool-prod --version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    - '[ -n "$runtime" ] || { echo "FAIL: cannot read the runtime vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }'
+    - '[ "$runtime" = "$tool" ] || { echo "FAIL: vmalert-tool $tool != runtime vmalert $runtime (docker-compose-parts/monitor.yml) — bump this job image and monitor.yml together"; exit 1; }'
+    - /vmalert-tool-prod unittest --files docker/vmalert/rules/storage_governor.test.yml
+
 # Shared Python test config — uv cache dir cached via default cache entry.
 .python-test-base:
   stage: unit-test
@@ -330,6 +349,35 @@ unit-test-go:
       junit: ${COVERAGE_DIR}/report.xml
   coverage: '/TOTAL\s+\d+\s+\d+\s+\d+%/'
 
+# Python tests that need a REAL Redis, declared once for every job that does.
+#
+# THE CRITERION, in one place: a suite qualifies when what it asserts on is
+# Redis's own behaviour rather than our code's use of it — an rq job graph
+# (hashes, dependency links, registries, Job.cancel), or a Lua script whose
+# effect a mocked connection cannot report. For those, a fake Redis is a second
+# implementation of the very thing under test, so a divergence between it and
+# the real server surfaces as confidence instead of as a failure.
+#
+# This is never a service added to make a test pass. Those tests pass; without
+# a server they SKIP, which is worse — the suite goes green having asserted
+# nothing. Adding it is what makes them run at all.
+#
+# Jobs opt in by extending this. Anything extending .python-test-job keeps
+# exactly the environment it has today.
+#
+# Pinned to the same image and digest as the stack's own isard-redis, so CI
+# exercises the server version production runs. ISARD_TEST_REDIS carries the
+# same server to the suites that take a URL, so a job never has to invent its
+# own way of saying "there is a Redis here".
+.python-test-job-redis:
+  extends: .python-test-job
+  services:
+    - name: redis:7.4-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+      alias: redis
+  variables:
+    REDIS_HOST: redis
+    ISARD_TEST_REDIS: "redis://redis:6379/9"
+
 unit-test-apiv4:
   extends: .python-test-job
   # A real redis, because the retry guard that refuses a task whose direct
@@ -349,7 +397,8 @@ unit-test-apiv4:
     - make ci-test-apiv4
 
 unit-test-change-handler:
-  extends: .python-test-job
+  # Real rq graphs: which members of a chain can be reached from its root.
+  extends: .python-test-job-redis
   variables:
     COVERAGE_DIR: component/change-handler/src
   script:
@@ -372,7 +421,10 @@ unit-test-webapp:
     - make ci-test-webapp
 
 unit-test-common:
-  extends: .python-test-job
+  # The ended_at stamp is a Lua script: a mocked connection cannot say whether
+  # it wrote, and the empty-field trap it guards was found by running it for
+  # real. Those tests have been skipping since they were written.
+  extends: .python-test-job-redis
   variables:
     COVERAGE_DIR: component/_common/src
   script:
@@ -526,6 +578,32 @@ unit-test-frontend:
     when: always
     reports:
       junit: component/frontend/report.xml
+
+unit-test-sparsify:
+  # Recovery-trap suite for the sparsify utility (docker/storage/utils/tests).
+  # Plain bash, no python and no generated code, but it drives real qcow2 files
+  # and a live lock holder, so it needs qemu-img and qemu-io.
+  stage: unit-test
+  needs: []
+  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+  before_script:
+    - apk add --no-cache bash make qemu-img
+  script:
+    - make test-sparsify
+
+unit-test-storage-utils:
+  # Sparsify-backup classifier in the `storage` cleanup CLI
+  # (docker/storage/utils/tests). Pure-stdlib pytest: the CLI is loaded via
+  # importlib (it has no .py suffix) and the qemu-img calls its helpers share
+  # are replaced, so no qemu binaries, no lock holder and no root are needed.
+  extends: .python-test-base
+  stage: unit-test
+  script:
+    - make ci-test-storage-utils
+  artifacts:
+    when: always
+    reports:
+      junit: docker/storage/utils/report.xml
 
 unit-test-storage:
   # isard-storage worker failure-path suite (docker/storage/task/tests): the

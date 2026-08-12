@@ -105,6 +105,17 @@ test: test-go test-python test-e2e
 test-go:
 	go test -race -cover ./...
 
+# Behavioural unit tests for the vmalert storage-governor rules, under the same
+# vmalert engine (MetricsQL) the stack runs. The vmalert-tool version is DERIVED
+# from the runtime vmalert pin in docker-compose-parts/monitor.yml, so it cannot
+# drift from what the stack runs.
+.PHONY: test-vmalert
+test-vmalert:
+	@VER=$$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://'); \
+	[ -n "$$VER" ] || { echo "cannot read vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }; \
+	docker run --rm -v "$$(pwd)/docker/vmalert/rules:/rules" -w /rules \
+	  victoriametrics/vmalert-tool:$$VER unittest --files /rules/storage_governor.test.yml
+
 .PHONY: test-python
 test-python: test-apiv4 test-common test-change-handler test-changefeed test-socketio test-openapi test-notifier test-scheduler test-webapp
 
@@ -192,6 +203,22 @@ test-change-handler:
 test-storage:
 	uv run --group test --package isardvdi-storage pytest docker/storage/task/tests -q
 
+# Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, but it needs
+# real qcow2 images and a live lock holder, so qemu-img and qemu-io must exist.
+.PHONY: test-sparsify
+test-sparsify:
+	bash docker/storage/utils/tests/test_sparsify_recover_backup.sh
+
+# Regression test for the `storage` cleanup CLI's sparsify-backup classifier:
+# a locked/in-use canonical must keep its backup, because the lock-bypassing
+# check reads through the lock and calls a half-written image clean. The CLI is
+# loaded by path (no .py suffix) and its qemu-img calls are replaced, so this
+# needs no qemu binaries and no lock holder.
+.PHONY: ci-test-storage-utils
+ci-test-storage-utils:
+	uv sync --no-dev --group test --package isardvdi-storage
+	cd docker/storage/utils && uv run --no-dev --group test --package isardvdi-storage pytest tests/test_classify_sparsify_backup.py -q --tb=short --junitxml=report.xml
+
 .PHONY: test-changefeed
 test-changefeed:
 	uv run --group test --package isardvdi-changefeed pytest component/changefeed/src/isardvdi_changefeed/tests -n auto $(_cfeed_cov)
@@ -234,12 +261,12 @@ ci-test-apiv4:
 .PHONY: ci-test-common
 ci-test-common:
 	uv sync --no-dev --group test --package isardvdi-common --package isardvdi-apiv4 --package isardvdi-change-handler --package isardvdi-socketio
-	cd component/_common/src && uv run --no-dev --group test --package isardvdi-common pytest isardvdi_common -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml
+	SKIP_GATE_REPORT=component/_common/src/report.xml docker/lib/ci-with-redis.sh sh -c 'cd component/_common/src && uv run --no-dev --group test --package isardvdi-common pytest isardvdi_common -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml'
 
 .PHONY: ci-test-change-handler
 ci-test-change-handler:
 	uv sync --no-dev --group test --package isardvdi-change-handler
-	cd component/change-handler/src && uv run --no-dev --group test --package isardvdi-change-handler pytest isardvdi_change_handler/tests/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_change_handler --cov-report=term --cov-report=xml:coverage.xml
+	SKIP_GATE_REPORT=component/change-handler/src/report.xml docker/lib/ci-with-redis.sh sh -c 'cd component/change-handler/src && uv run --no-dev --group test --package isardvdi-change-handler pytest isardvdi_change_handler/tests/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_change_handler --cov-report=term --cov-report=xml:coverage.xml'
 
 .PHONY: ci-test-changefeed
 ci-test-changefeed:
@@ -311,7 +338,7 @@ ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-chan
 .PHONY: ci-test-storage
 ci-test-storage:
 	uv sync --no-dev --group test --package isardvdi-storage
-	cd docker/storage && uv run --no-dev --group test --package isardvdi-storage pytest task/tests -q --tb=short --junitxml=report.xml
+	cd docker/storage && uv run --no-dev --group test --package isardvdi-storage pytest task/tests utils/tests -q --tb=short --junitxml=report.xml
 
 .PHONY: setup-hooks
 setup-hooks:
