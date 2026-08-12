@@ -102,6 +102,13 @@ def _in_flight(task_id, storage_id="disk-1"):
     ):
         return mod._storage_task_in_flight(storage_id)
 
+def _in_flight(task_id):
+    with patch.dict(
+        _sys.modules,
+        {"isardvdi_common.models.task": _types.SimpleNamespace(Task=_Task)},
+    ):
+        return mod._storage_task_in_flight(task_id)
+
 
 class TestWhatProtectsADomainFromTheSweep:
     def test_a_running_task_protects(self):
@@ -126,6 +133,10 @@ class TestWhatProtectsADomainFromTheSweep:
     def test_no_storage_at_all_does_not_protect(self):
         assert _in_flight("t-1", storage_id=None) is False
 
+    def test_a_row_with_no_task_does_not_protect(self):
+        assert _in_flight(None) is False
+        assert _in_flight("") is False
+
     def test_an_unreadable_task_protects(self):
         """Fail SAFE. This gate stands in front of a delete: uncertainty must
         keep the domain, never remove it."""
@@ -144,3 +155,9 @@ class TestWhatProtectsADomainFromTheSweep:
             },
         ):
             assert mod._storage_task_in_flight("disk-1") is True
+
+        with patch.dict(
+            _sys.modules,
+            {"isardvdi_common.models.task": _types.SimpleNamespace(Task=_Boom)},
+        ):
+            assert mod._storage_task_in_flight("t-1") is True

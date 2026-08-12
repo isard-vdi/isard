@@ -40,6 +40,8 @@ class _Domain:
     # double has to carry one or the filter raises AttributeError instead.
     def __init__(self, status="Stopped", domain_id="domain-1"):
         self.id = domain_id
+
+    def __init__(self, status="Stopped"):
         self.status = status
         self.current_action = None
 

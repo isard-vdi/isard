@@ -59,6 +59,8 @@ release_version = 205
 #              position in a global sequence, not a property of this branch:
 #              a block at or below a database's stored version is never
 #              replayed on it, and that failure is silent.
+# release 204: bring downloaded domains with an unsupported kind back into the
+#              desktop/template taxonomy
 # release 203: drop null-valued guest_properties.viewers entries on domains and
 #              deployment (a disabled viewer is an absent key)
 # release 202: drop dead RethinkDB indexes and reconcile populate on hot tables
@@ -4014,6 +4016,53 @@ password:s:%s"""
             except Exception as e:
                 log.error(f"v203: domains null viewers cleanup failed: {e}")
 
+        if version == 204:
+            # A registry template published with an unsupported kind (a
+            # "server" kind instead of the desktop/template taxonomy plus
+            # server: true) produced a domain outside every kind-scoped
+            # query: absent from the owner's desktop list and from the
+            # admin tables, while still holding its disk. Nothing can
+            # reach those rows to repair or remove them, so bring them
+            # back as desktops, which is what the registry entries that
+            # created them are meant to declare.
+            # ``distinct`` on the kind index reads index keys only, and the
+            # repair then addresses the rows by that same index, so neither
+            # step scans the table. A row missing the field altogether is
+            # not in the index and is out of reach here; none exist, and
+            # the download ingest now refuses to create one.
+            try:
+                unsupported = [
+                    kind
+                    for kind in r.table(table).distinct(index="kind").run(self.conn)
+                    if kind not in ("desktop", "template")
+                ]
+                if unsupported:
+                    strays = list(
+                        r.table(table)
+                        .get_all(*unsupported, index="kind")
+                        .pluck("id", "kind", "name")
+                        .run(self.conn)
+                    )
+                    log.info(
+                        f"--- Domains kind repair: {len(strays)} rows with an "
+                        f"unsupported kind {unsupported} ---"
+                    )
+                    for stray in strays:
+                        log.info(
+                            f"--- Domains kind repair: {stray['id']} "
+                            f"({stray.get('name')}) had kind={stray.get('kind')!r} ---"
+                        )
+                    result = (
+                        r.table(table)
+                        .get_all(*unsupported, index="kind")
+                        .update({"kind": "desktop"})
+                        .run(self.conn)
+                    )
+                    log.info(
+                        f"--- Domains kind repair: complete ({result.get('replaced', 0)} rows) ---"
+                    )
+            except Exception as e:
+                log.error(f"v204: domains kind repair failed: {e}")
         return True
 
     """
