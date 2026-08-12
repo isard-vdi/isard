@@ -1347,6 +1347,50 @@ class Helpers(RethinkSharedConnection):
                 ).delete().run(cls._rdb_connection)
 
 
+def uncovered_storage_children(covered_storage_ids, children):
+    """Children in the STORAGE graph that a recycle-bin entry would not take with it.
+
+    The recycle bin decides what a deletion drags along by walking the DOMAIN
+    graph -- a template's derived templates and desktops. What it then destroys
+    are storage files. The two graphs are written independently, so a disk can
+    have a child in the storage graph with no domain of its own: an admin can
+    create one from the disks page, which posts to the storage-create route with
+    a parent and no domain. That child is invisible to a domain walk, and the
+    purge unlinks the file it reads through.
+
+    Returns the ids of the children that are not covered, so the caller can
+    refuse instead of silently breaking them. Rows already recycled or deleted
+    are not children for this purpose -- they are going away too.
+
+    :param covered_storage_ids: storage ids the entry will recycle
+    :type covered_storage_ids: iterable of str
+    :param children: rows describing the direct children of those storages, each
+        with an ``id`` and a ``status``
+    :type children: iterable of dict
+    :return: ids of the uncovered children, sorted, without duplicates
+    :rtype: list
+    """
+    covered = set(covered_storage_ids or ())
+    # Block on a child that is LIVE, not on everything that is not obviously
+    # gone. The difference is not academic: an install accumulates disks in
+    # states outside StorageStatusEnum -- ``Failed`` is written by the engine
+    # and is not in the enum at all -- and a real install measured while
+    # verifying this had 32 of them against 31 ready. Excluding only the
+    # obviously-gone states made every one of those 32 block a legitimate
+    # template deletion.
+    live = {
+        StorageStatusEnum.ready.value,
+        StorageStatusEnum.maintenance.value,
+    }
+    return sorted(
+        {
+            child["id"]
+            for child in children or ()
+            if child.get("id") not in covered and child.get("status") in live
+        }
+    )
+
+
 class RecycleBin(RethinkSharedConnection):
     id = None
     status = None
@@ -2643,6 +2687,14 @@ class RecycleBinBulk(RecycleBin):
         super().__init__(id, item_type=item_type, user_id=user_id)
 
     def add(self, desktops_ids, owner_id=None, name=None):
+        # Desktops only, as the parameter name says. Nothing enforced it, and a
+        # template id sails through: this path has no derivative cascade, so the
+        # template would be recycled ALONE and every desktop derived from it
+        # left reading a backing file the purge then unlinks. The admin bulk
+        # action reaches here with whatever ids it is given, and its per-id
+        # check returns True for an admin before it has even read the row, so
+        # it cannot filter by kind even in principle.
+        self._refuse_non_desktops(desktops_ids)
         super()._add_owner(owner_id or self.agent_id)
         if name:
             super()._add_item_name(name)
@@ -2671,6 +2723,33 @@ class RecycleBinBulk(RecycleBin):
                 time.sleep(0.5)
         rcb_desktop.add_desktops(desktops)
         return self._set_data(self.id)
+
+    def _refuse_non_desktops(self, domain_ids):
+        """Refuse anything that is not a desktop, naming what was wrong.
+
+        Templates have a cascade of their own (``RecycleBinTemplate.add``) that
+        takes the whole derived tree; sending one through the bulk path would
+        skip it. Refusing is deliberate rather than cascading here: a bulk
+        action must not quietly recycle far more than the operator selected.
+        """
+        if not domain_ids:
+            return
+        with self._rdb_context():
+            rows = list(
+                r.table("domains")
+                .get_all(r.args(list(domain_ids)))
+                .pluck("id", "kind")
+                .run(self._rdb_connection)
+            )
+        offenders = sorted(row["id"] for row in rows if row.get("kind") != "desktop")
+        if offenders:
+            raise Error(
+                "precondition_required",
+                "Only desktops can be deleted in bulk; "
+                f"these are not: {offenders}. Delete a template through the "
+                "template path, which also takes its derivatives.",
+                description_code="not_a_desktop",
+            )
 
 
 class RecycleBinDeploymentDesktops(RecycleBinBulk):
