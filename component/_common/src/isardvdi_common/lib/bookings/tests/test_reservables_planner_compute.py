@@ -541,3 +541,122 @@ class TestPayloadPriority:
         payload = _make_payload()
         result = priority_stub["Cls"].payload_priority(payload, {"vgpus": []})
         assert result == {"priority": {}}
+
+
+class TestBookingWindowBounds:
+    """The ``get_overridable_bookings`` / ``get_nonoverridable_bookings``
+    helpers take ``fromDate``/``toDate`` (resp. ``start``/``end``) as the
+    optional overlap window used to decide which existing bookings to
+    subtract from availability.
+
+    ``GET /item/booking/availability/{item_type}/{item_id}`` and
+    ``POST /item/reservables-planner/booking-provisioning`` carry NO date
+    range, so their service passes ``None`` down. Before the fix these
+    helpers unconditionally ran ``datetime.strptime(None, ...)`` and the
+    whole endpoint answered **500** (``TypeError: strptime() argument 1 must
+    be str, not None``) for any item with a GPU reservable. A ``None`` bound
+    now means *unbounded on that side* (the correct meaning of "no window
+    given"), not a crash and not an empty result.
+    """
+
+    class _BookingsChain:
+        """Chainable ReQL stand-in that records ``.filter`` calls so a test
+        can assert which bounds were applied, and returns fixed rows from
+        ``.run``.
+        """
+
+        def __init__(self, rows, filter_calls):
+            self._rows = rows
+            self._filter_calls = filter_calls
+
+        def get_all(self, *a, **k):
+            return self
+
+        def filter(self, *a, **k):
+            self._filter_calls.append((a, k))
+            return self
+
+        def run(self, conn):
+            return list(self._rows)
+
+    @pytest.fixture
+    def bookings_stub(self, compute_stub):
+        rows = []
+        filter_calls = []
+
+        def table_router(name):
+            if name == "bookings":
+                return TestBookingWindowBounds._BookingsChain(rows, filter_calls)
+            return MagicMock(name=f"unmocked-{name}")
+
+        compute_stub["mock_table"].side_effect = table_router
+        return {
+            "rows": rows,
+            "filter_calls": filter_calls,
+            "Cls": compute_stub["Cls"],
+        }
+
+    # --- the bound parser -------------------------------------------------
+
+    def test_parse_bound_none_is_unbounded(self, compute_stub):
+        assert compute_stub["Cls"]._parse_booking_window_bound(None) is None
+
+    def test_parse_bound_string_is_utc_datetime(self, compute_stub):
+        parsed = compute_stub["Cls"]._parse_booking_window_bound(
+            "2026-01-02T03:04+0000"
+        )
+        assert parsed is not None
+        assert parsed.year == 2026 and parsed.hour == 3 and parsed.minute == 4
+
+    # --- overridable ------------------------------------------------------
+
+    def test_overridable_none_dates_does_not_raise(self, bookings_stub):
+        """The reported bug: fromDate=toDate=None must NOT raise strptime."""
+        priority = {"priority": {"NVIDIA-TEST-1Q": 50}}
+        result = bookings_stub["Cls"].get_overridable_bookings(
+            priority, {"vgpus": ["NVIDIA-TEST-1Q"]}, None, None
+        )
+        assert result == []
+        # Only the plans/priority filter is applied — neither date bound.
+        assert len(bookings_stub["filter_calls"]) == 1
+
+    def test_overridable_with_dates_applies_both_bounds(self, bookings_stub):
+        priority = {"priority": {"NVIDIA-TEST-1Q": 50}}
+        bookings_stub["Cls"].get_overridable_bookings(
+            priority,
+            {"vgpus": ["NVIDIA-TEST-1Q"]},
+            "2026-01-01T00:00+0000",
+            "2026-01-31T00:00+0000",
+        )
+        # start<=toDate, end>=fromDate, plus the plans/priority filter.
+        assert len(bookings_stub["filter_calls"]) == 3
+
+    def test_overridable_returns_rows_and_sums_units(self, bookings_stub):
+        bookings_stub["rows"].extend(
+            [{"id": "b1", "units": 2}, {"id": "b2", "units": 3}]
+        )
+        priority = {"priority": {"NVIDIA-TEST-1Q": 50}}
+        result = bookings_stub["Cls"].get_overridable_bookings(
+            priority, {"vgpus": ["NVIDIA-TEST-1Q"]}, None, None
+        )
+        assert [b["id"] for b in result] == ["b1", "b2"]
+
+    # --- nonoverridable ---------------------------------------------------
+
+    def test_nonoverridable_none_dates_does_not_raise(self, bookings_stub):
+        priority = {"priority": {"NVIDIA-TEST-1Q": 50}}
+        result = bookings_stub["Cls"].get_nonoverridable_bookings(
+            priority, {"vgpus": ["NVIDIA-TEST-1Q"]}, None, None
+        )
+        assert result == []
+        assert len(bookings_stub["filter_calls"]) == 1
+
+    def test_nonoverridable_with_dates_applies_both_bounds(self, bookings_stub):
+        priority = {"priority": {"NVIDIA-TEST-1Q": 50}}
+        bookings_stub["Cls"].get_nonoverridable_bookings(
+            priority,
+            {"vgpus": ["NVIDIA-TEST-1Q"]},
+            "2026-01-01T00:00+0000",
+            "2026-01-31T00:00+0000",
+        )
+        assert len(bookings_stub["filter_calls"]) == 3

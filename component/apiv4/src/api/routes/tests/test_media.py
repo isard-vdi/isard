@@ -251,6 +251,31 @@ def test_get_user_media_partial_progress(test_client, media_db_factory):
     }
 
 
+def test_get_user_media_without_accessed(test_client, media_db_factory):
+    """A media row that carries no `accessed` must not 500 the whole list.
+
+    Measured on a live install: one legacy row out of sixteen had no
+    `accessed`, and `GET /items/media` answered 500 for every user — the Media
+    page was unreachable in both interfaces. Never having been accessed is
+    data, not an error, and one row must not take the list down; this is the
+    same reasoning that already made every `MediaProgress` field optional.
+    """
+    jwt = MockJWT()
+
+    db_data = media_db_factory(jwt)
+    del db_data["media"][0]["accessed"]
+
+    response = test_client(
+        db_tables_data=db_data,
+        method="GET",
+        url="/items/media",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["media"][0]["accessed"] is None
+
+
 def test_get_media_allowed(test_client, media_db_factory):
     response = test_client(
         db_tables_data=media_db_factory(MockJWT()),
