@@ -1169,6 +1169,13 @@ $(document).on('click', '.btn-add-storage', function () {
   $(modal + " #storage_id-wrapper").hide();
   $(modal + " #storage_pool").attr("disabled", false).empty();
   $(modal + " #owner-wrapper").show();
+  // The owner is only required on the path that asks for one. Derive mode
+  // hides the field and takes the owner from the parent disk, and parsley
+  // validates display:none fields all the same, so the attribute has to
+  // follow the mode. destroy() forces parsley to re-read it on the next
+  // validate instead of reusing the constraints it bound on first use.
+  $(modal + " #user").attr("required", "required");
+  $(modal + "Form").parsley().destroy();
   $(modal + " .modal-body h4").text("Add new unattached storage disk");
 
   resetCreateDiskForm();
@@ -1246,6 +1253,8 @@ $(document).on('click', '.btn-create', function () {
         $(modal + " .modal-body h4").text("Create derived storage disk");
         $(modal + " #storage_id-wrapper").show();
         $(modal + " #owner-wrapper").hide();
+        $(modal + " #user").removeAttr("required");
+        $(modal + "Form").parsley().destroy();
         $(modal + " #storage_pool").attr("disabled", true);
         $(modal + " #storage_id").text(id);
         $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');

@@ -841,10 +841,27 @@ test.describe('Admin Storage — webapp', () => {
     // User search field (Select2 with min 2 chars)
     await expect(modal.locator('#user')).toBeVisible()
 
-    // Click Send without filling in required fields — Parsley blocks it
-    await modal.locator('#send').click()
-    // No API call: Parsley prevents submission; modal stays open
-    await expect(modal).toBeVisible()
+    // Click Send without filling in required fields — Parsley must block it.
+    // Assert on the ABSENCE of the POST, not on the modal still being visible:
+    // storage.js closes the modal asynchronously on success, so a submission
+    // that went through leaves it visible at this instant too, and the weaker
+    // assertion passed while an empty form was creating a real 10 GB disk
+    // owned by whoever clicked.
+    let posted = false
+    const watchCreate = (request) => {
+      if (request.method() === 'POST' && /\/api\/v4\/item\/storage\//.test(request.url())) {
+        posted = true
+      }
+    }
+    page.on('request', watchCreate)
+    try {
+      await modal.locator('#send').click()
+      await page.waitForTimeout(1500)
+      expect(posted, 'an empty create-storage form must not reach the API').toBe(false)
+      await expect(modal).toBeVisible()
+    } finally {
+      page.off('request', watchCreate)
+    }
 
     // Close modal
     await modal.locator('[data-dismiss="modal"]').first().click()
