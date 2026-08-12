@@ -236,7 +236,79 @@ tests:
               worker: workerA
             exp_annotations:
               summary: "Storage worker pinned by PSI pressure"
-              description: "Worker workerA has been deferring under CPU/IO pressure above psi_limit for 15m (held by host stall, not the cap). Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
+              description: "Worker workerA has been deferring under CPU/IO/memory pressure above psi_limit for 15m (held by host stall, not the cap). The worker defers on any of the three axes, so all three are admitted here. Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
+
+  # ---------------------------------------------------------------------------
+  # A memory-PSI defer pins the deferrable tiers exactly like a CPU or IO one,
+  # so the alert has to admit that axis too: cpu and io below the limit, mem
+  # above it, worker deferring.
+  # ---------------------------------------------------------------------------
+  - name: psi_pinned_fires_on_memory_pressure_alone
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_deferring{worker="workerM"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_worker_psi_cpu{worker="workerM"}'
+        values: "5x20"
+      - series: 'isardvdi_storage_governor_worker_psi_io{worker="workerM"}'
+        values: "5x20"
+      - series: 'isardvdi_storage_governor_worker_psi_mem{worker="workerM"}'
+        values: "90x20"
+      - series: 'isardvdi_storage_governor_psi_limit'
+        values: "40x20"
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: storage_governor_alerts
+        alertname: PSIPinned
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              worker: workerM
+            exp_annotations:
+              summary: "Storage worker pinned by PSI pressure"
+              description: "Worker workerM has been deferring under CPU/IO/memory pressure above psi_limit for 15m (held by host stall, not the cap). The worker defers on any of the three axes, so all three are admitted here. Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
+
+  # ---------------------------------------------------------------------------
+  # A worker under the limit on every axis is not pinned, memory included.
+  # ---------------------------------------------------------------------------
+  - name: psi_pinned_silent_when_every_axis_is_under_the_limit
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_deferring{worker="workerQ"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_worker_psi_cpu{worker="workerQ"}'
+        values: "5x20"
+      - series: 'isardvdi_storage_governor_worker_psi_io{worker="workerQ"}'
+        values: "5x20"
+      - series: 'isardvdi_storage_governor_worker_psi_mem{worker="workerQ"}'
+        values: "5x20"
+      - series: 'isardvdi_storage_governor_psi_limit'
+        values: "40x20"
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: storage_governor_alerts
+        alertname: PSIPinned
+        exp_alerts: []
+
+  # ---------------------------------------------------------------------------
+  # A truncated in-flight scan makes the leak gauges partial, so it has to reach
+  # alerting rather than only the panel banner.
+  # ---------------------------------------------------------------------------
+  - name: inflight_scan_truncation_fires_after_30m
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_truncated_inflight'
+        values: "12x40"
+    alert_rule_test:
+      - eval_time: 31m
+        groupname: storage_governor_alerts
+        alertname: GovernorInflightScanTruncated
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "Governor in-flight leak scan is truncated"
+              description: "12 in-flight members were dropped by the bounded leak-scan cap for 30m, so heavy_leak and category_leak are computed from a partial list. Reduce the in-flight backlog or raise the scan cap before trusting InflightLeak / CategoryInflightLeak."
 
   # ---------------------------------------------------------------------------
   # WorkerHeartbeatLost fires within its for: 2m window (up==0 held 3m).

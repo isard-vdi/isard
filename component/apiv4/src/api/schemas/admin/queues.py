@@ -158,7 +158,9 @@ class StorageSchedulerConfigRequest(BaseModel):
     category_max_inflight: Optional[Dict[str, Annotated[int, Field(ge=1, le=1000)]]] = (
         None
     )
-    category_default_max_inflight: Optional[int] = Field(default=None, ge=1, le=1000)
+    # ``0`` means UNCAPPED and is the only wire value that can clear the cap:
+    # an omitted key keeps the stored one.
+    category_default_max_inflight: Optional[int] = Field(default=None, ge=0, le=1000)
 
 
 # =============================================================================

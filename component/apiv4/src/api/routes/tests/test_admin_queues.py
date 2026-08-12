@@ -585,9 +585,10 @@ class TestStorageSchedulerConfig:
         assert response.status_code == 400
 
     def test_service_cleans_category_maps(self, monkeypatch):
-        # Direct service-layer defence: category maps floored at 1, default cap
-        # clamped, non-dict / non-numeric rejected, and the cleaned maps mirrored
-        # to the workers' governor:config.
+        # Direct service-layer defence: category maps floored at 1 (a per-category
+        # weight or cap of 0 would starve or wedge that category), the DEFAULT cap
+        # instead reading 0 as uncapped (the only way to clear it), non-dict /
+        # non-numeric rejected, and the cleaned maps mirrored to governor:config.
         from api.services.admin.queues import AdminQueuesService
         from api.services.error import Error
         from isardvdi_common.models.config import Config
@@ -618,7 +619,7 @@ class TestStorageSchedulerConfig:
         assert captured["written"] == {
             "category_weights": {"catA": 5, "catB": 1},
             "category_max_inflight": {"catC": 3},
-            "category_default_max_inflight": 1,
+            "category_default_max_inflight": None,
         }
         assert captured["published"]["category_weights"] == {"catA": 5, "catB": 1}
         with pytest.raises(Error):
@@ -913,8 +914,9 @@ class TestHeartbeatTruth:
         row = gov._build_worker_row("w-fresh", wh, {}, self.now)
         assert row["up"] is True
         assert row["kind"] == "elastic"
-        # governor:worker:<name> not published yet -> served/PSI degrade.
-        assert row["served_known"] is False
+        # No governor hash at all: PSI and the flags have no source, but the RQ
+        # subscription of a worker that publishes nothing is what it consumes.
+        assert row["served_known"] is True
         assert row["psi_cpu"] is None
         assert row["multitenancy"] is None
 
@@ -1331,7 +1333,8 @@ class TestWorkerEnumeration:
                     b"queues": b"storage.default.maintenance",
                     b"state": b"busy",
                 },
-                # governor:worker:<name> is absent -> served/PSI degrade.
+                # governor:worker:<name> is absent -> PSI degrades, but the RQ
+                # subscription still says what this worker consumes.
             },
         )
         monkeypatch.setattr(gov, "_connect_redis", lambda: conn)
@@ -1340,7 +1343,8 @@ class TestWorkerEnumeration:
         assert len(rows) == 1
         assert rows[0]["name"] == "storage.default.maintenance.w1"
         assert rows[0]["up"] is True
-        assert rows[0]["served_known"] is False
+        assert rows[0]["served_known"] is True
+        assert rows[0]["psi_cpu"] is None
 
 
 # ── (j) auth + route shape: user AND manager -> 403 ────────────────────────
@@ -1886,3 +1890,299 @@ class TestWorkerHashReadFailureIsDistinguishable:
         # future change that swallows the read again cannot pass this vacuously.
         assert data["redis"]["up"] is False
         assert data["workers"] == []
+
+
+# ── a lane nothing consumes must be REPORTED, not suppressed ───────────────
+class TestStrandedLaneIsReachable:
+    """A lane holding backlog that no live worker serves is the one failure the
+    panel and its critical vmalert rule exist for. ``queue_coverage`` already
+    refuses to enqueue on such a lane, and its module docstring promises the
+    shed gate and the admin view share ONE ``has_consumer`` / ``stranded``
+    definition — so the admin read has to reach the same verdict.
+
+    The suppression that must SURVIVE is the rolling-upgrade one: a live worker
+    whose served set is not published could be draining the lane invisibly, so
+    its pool stays unknown rather than being alarmed.
+    """
+
+    def _conn(self, *, publishes_served_set: bool):
+        # Real clock: worker liveness is judged against datetime.now(), so a
+        # frozen timestamp would make every worker read dead and pass the
+        # suppression assertions vacuously.
+        now = datetime.now(timezone.utc)
+        hashes = {
+            "rq:worker:w1": {
+                "last_heartbeat": _utc(now - timedelta(seconds=2)),
+                "queues": "storage.default.bulk",
+                "state": "idle",
+            }
+        }
+        # A governed worker either publishes its served set, or is mid rolling
+        # upgrade and only says it is governed. A worker with NO governor hash
+        # is a plain rq worker, which is a different case entirely.
+        hashes["governor:worker:w1"] = (
+            {"served_lanes": json.dumps(["storage.default.bulk"]), "kind": "elastic"}
+            if publishes_served_set
+            else {"kind": "elastic"}
+        )
+        return FakeRedis(
+            rq_queues=["storage.default.bulk", "storage.default.reclaim"],
+            lists={"rq:queue:storage.default.reclaim": [b"job-1"]},
+            sets={"rq:workers": {b"rq:worker:w1"}},
+            hashes=hashes,
+        )
+
+    def _patch(self, monkeypatch, conn):
+        monkeypatch.setattr(queues_service, "_connect_redis", lambda: conn)
+        monkeypatch.setattr(
+            queues_service.CommonCategories, "get_id_name_map", staticmethod(lambda: {})
+        )
+        monkeypatch.setattr(
+            queues_service.Config,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: {}),
+        )
+
+    def _reclaim_row(self, rows):
+        return next(r for r in rows if r["tier"] == "reclaim")
+
+    def test_backlog_row_is_stranded_when_the_whole_fleet_is_visible(
+        self, monkeypatch, clean_gov_caches
+    ):
+        self._patch(monkeypatch, self._conn(publishes_served_set=True))
+        row = self._reclaim_row(queues_service.AdminQueuesService.get_backlog_rollup())
+        assert row["queued"] == 1
+        assert row["has_consumer"] is False
+        assert row["coverage_known"] is True
+        assert row["stranded"] is True
+
+    def test_governor_emits_the_stranded_lane_warning(
+        self, monkeypatch, clean_gov_caches
+    ):
+        self._patch(monkeypatch, self._conn(publishes_served_set=True))
+        data = queues_service.AdminQueuesService.get_governor()
+        stranded = [w for w in data["warnings"] if w["kind"] == "stranded_lane"]
+        assert len(stranded) == 1
+        assert stranded[0]["tier"] == "reclaim"
+        assert stranded[0]["backlog"] == 1
+        assert stranded[0]["coverage_known"] is True
+
+    def test_the_warning_names_the_category_its_backlog_is_filed_under(
+        self, monkeypatch, clean_gov_caches
+    ):
+        # The alert joins this warning to the backlog series on
+        # (pool, category, tier), so a warning without the category can never
+        # match a fair-tier lane, whose backlog is only ever filed per category.
+        self._patch(monkeypatch, self._conn(publishes_served_set=True))
+        data = queues_service.AdminQueuesService.get_governor()
+        warning = next(w for w in data["warnings"] if w["kind"] == "stranded_lane")
+        pool = next(p for p in data["pools"] if p["pool"] == warning["pool"])
+        filed_under = {
+            c["category_id"]
+            for c in pool["categories"]
+            if warning["tier"] in c["backlog"]
+        }
+        assert warning["category_id"] in filed_under
+
+    def test_rolling_upgrade_still_suppresses_the_alarm(
+        self, monkeypatch, clean_gov_caches
+    ):
+        # w1 is alive but does not publish its served set: it might be draining
+        # the reclaim lane invisibly, so the pool's coverage stays UNKNOWN.
+        self._patch(monkeypatch, self._conn(publishes_served_set=False))
+        row = self._reclaim_row(queues_service.AdminQueuesService.get_backlog_rollup())
+        assert row["coverage_known"] is False
+        assert row["stranded"] is False
+        data = queues_service.AdminQueuesService.get_governor()
+        assert [w for w in data["warnings"] if w["kind"] == "stranded_lane"] == []
+
+    def test_a_served_lane_is_never_stranded(self, monkeypatch, clean_gov_caches):
+        conn = self._conn(publishes_served_set=True)
+        conn._lists["rq:queue:storage.default.bulk"] = [b"job-2"]
+        self._patch(monkeypatch, conn)
+        rows = queues_service.AdminQueuesService.get_backlog_rollup()
+        bulk = next(r for r in rows if r["tier"] == "bulk")
+        assert bulk["has_consumer"] is True
+        assert bulk["stranded"] is False
+
+
+# ── an install with nothing configured has nothing to mirror ───────────────
+class TestConfigMirroredOnADefaultedInstall:
+    """``config_mirrored=false`` raises a banner and, after 10m, an alert whose
+    remedy is "re-save the config to republish it". On an install where nobody
+    has ever configured the governor there is nothing to re-save and the workers
+    are correctly running their defaults, so a permanent false positive there
+    buries the real drift it exists to catch."""
+
+    def _run(self, monkeypatch, *, redis_block, db_block):
+        strings = {}
+        if redis_block is not None:
+            strings[queues_service.GOVERNOR_CONFIG_KEY] = json.dumps(redis_block)
+        conn = FakeRedis(rq_queues=["storage.default.bulk"], strings=strings)
+        monkeypatch.setattr(queues_service, "_connect_redis", lambda: conn)
+        monkeypatch.setattr(
+            queues_service.CommonCategories, "get_id_name_map", staticmethod(lambda: {})
+        )
+        monkeypatch.setattr(
+            queues_service.Config,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: db_block),
+        )
+        return queues_service.AdminQueuesService.get_governor()
+
+    def test_nothing_stored_anywhere_is_mirrored(self, monkeypatch, clean_gov_caches):
+        data = self._run(monkeypatch, redis_block=None, db_block={})
+        assert data["config_mirrored"] is True
+
+    def test_a_stored_config_that_never_reached_redis_is_drift(
+        self, monkeypatch, clean_gov_caches
+    ):
+        data = self._run(monkeypatch, redis_block=None, db_block={"max_heavy": 4})
+        assert data["config_mirrored"] is False
+
+    def test_matching_blocks_are_mirrored(self, monkeypatch, clean_gov_caches):
+        data = self._run(
+            monkeypatch, redis_block={"max_heavy": 4}, db_block={"max_heavy": 4}
+        )
+        assert data["config_mirrored"] is True
+
+    def test_diverging_blocks_are_drift(self, monkeypatch, clean_gov_caches):
+        data = self._run(
+            monkeypatch, redis_block={"max_heavy": 2}, db_block={"max_heavy": 4}
+        )
+        assert data["config_mirrored"] is False
+
+
+# ── clearing the default per-category cap back to uncapped ─────────────────
+class TestDefaultCapCanBeCleared:
+    """Uncapped is a real, work-conserving state (weighted round-robin alone),
+    and an operator who has set a default cap must be able to return to it.
+    With no wire value meaning "unset", clearing the field reported success and
+    kept enforcing the old cap — a control that silently does nothing."""
+
+    URL = "/admin/item/queues/storage_scheduler/config"
+
+    def test_zero_is_persisted_as_uncapped(self, monkeypatch):
+        written = {}
+        monkeypatch.setattr(
+            queues_service.Config,
+            "update_storage_scheduler",
+            staticmethod(lambda clean: written.update(clean)),
+        )
+        monkeypatch.setattr(
+            queues_service.AdminQueuesService,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: {}),
+        )
+        queues_service.AdminQueuesService.set_storage_scheduler_config(
+            {"category_default_max_inflight": 0}
+        )
+        assert written == {"category_default_max_inflight": None}
+
+    def test_a_positive_cap_still_writes_the_number(self, monkeypatch):
+        written = {}
+        monkeypatch.setattr(
+            queues_service.Config,
+            "update_storage_scheduler",
+            staticmethod(lambda clean: written.update(clean)),
+        )
+        monkeypatch.setattr(
+            queues_service.AdminQueuesService,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: {}),
+        )
+        queues_service.AdminQueuesService.set_storage_scheduler_config(
+            {"category_default_max_inflight": 7}
+        )
+        assert written == {"category_default_max_inflight": 7}
+
+    def test_the_route_accepts_zero_and_does_not_strip_it(
+        self, monkeypatch, test_client
+    ):
+        seen = {}
+        monkeypatch.setattr(
+            "api.routes.admin.queues.AdminQueuesService.set_storage_scheduler_config",
+            staticmethod(lambda updates: seen.update(updates) or {}),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            body={"category_default_max_inflight": 0},
+            jwt=MockJWT(role_id="admin"),
+        )
+        assert response.status_code == 200
+        assert seen == {"category_default_max_inflight": 0}
+
+
+# ── a plain rq worker's subscription is exact, and the row must say so ─────
+class TestPlainWorkerRowKnowsItsLanes:
+    """``served_known`` drives the pool-opacity suppression, so a plain rq
+    worker reported as unknown blinds its whole pool. Two of them run on every
+    install (the reserved and standard-lane workers, started with the plain rq
+    class), which is enough to silence the stranded signal everywhere."""
+
+    now = datetime(2026, 8, 12, 12, 0, 0, tzinfo=timezone.utc)
+
+    def test_no_governor_hash_means_the_birth_queues_are_the_served_set(self):
+        wh = {
+            "last_heartbeat": _utc(self.now - timedelta(seconds=2)),
+            "queues": "storage.p1.interactive,storage.p1.standard",
+        }
+        row = gov._build_worker_row("w-plain", wh, {}, self.now)
+        assert row["served_known"] is True
+        assert row["served_lanes"] == ["storage.p1.interactive", "storage.p1.standard"]
+
+    def test_a_governor_hash_without_the_set_is_still_unknown(self):
+        wh = {
+            "last_heartbeat": _utc(self.now - timedelta(seconds=2)),
+            "queues": "storage.p1.bulk",
+        }
+        row = gov._build_worker_row("w-mid", wh, {"kind": "elastic"}, self.now)
+        assert row["served_known"] is False
+
+    def test_a_published_set_wins_over_the_birth_queues(self):
+        wh = {
+            "last_heartbeat": _utc(self.now - timedelta(seconds=2)),
+            "queues": "storage.p1.bulk,storage.p1.reclaim",
+        }
+        gh = {"served_lanes": json.dumps(["storage.p1.bulk"])}
+        row = gov._build_worker_row("w-gov", wh, gh, self.now)
+        assert row["served_known"] is True
+        assert row["served_lanes"] == ["storage.p1.bulk"]
+
+    def test_the_reserved_workers_no_longer_hide_a_fair_tier_lane(
+        self, monkeypatch, clean_gov_caches
+    ):
+        # The production shape: plain reserved workers on the pool plus a fair
+        # lane nothing serves. The pool must stay readable and the lane report.
+        now = datetime.now(timezone.utc)
+        hashes = {}
+        members = set()
+        for name, lanes in (
+            ("res1", "storage.p1.interactive"),
+            ("std1", "storage.p1.standard"),
+        ):
+            members.add(f"rq:worker:{name}".encode())
+            hashes[f"rq:worker:{name}"] = {
+                "last_heartbeat": _utc(now - timedelta(seconds=2)),
+                "queues": lanes,
+                "state": "idle",
+            }
+        conn = FakeRedis(
+            rq_queues=["storage.p1.interactive", "storage.p1.reclaim"],
+            lists={"rq:queue:storage.p1.reclaim": [b"j1"]},
+            sets={"rq:workers": members},
+            hashes=hashes,
+        )
+        monkeypatch.setattr(queues_service, "_connect_redis", lambda: conn)
+        monkeypatch.setattr(
+            queues_service.CommonCategories, "get_id_name_map", staticmethod(lambda: {})
+        )
+        monkeypatch.setattr(
+            queues_service.Config,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: {}),
+        )
+        data = queues_service.AdminQueuesService.get_governor()
+        stranded = [w for w in data["warnings"] if w["kind"] == "stranded_lane"]
+        assert [w["tier"] for w in stranded] == ["reclaim"]

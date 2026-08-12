@@ -71,6 +71,7 @@ type StorageGovernor struct {
 	descWorkerHeartbeatAge *prometheus.Desc
 	descWorkerPsiCPU       *prometheus.Desc
 	descWorkerPsiIo        *prometheus.Desc
+	descWorkerPsiMem       *prometheus.Desc
 	descWorkerDeferring    *prometheus.Desc
 
 	descEventsTotal      *prometheus.Desc
@@ -126,6 +127,7 @@ func NewStorageGovernor(ctx context.Context, log *zerolog.Logger, cli apiv4.Invo
 	s.descWorkerHeartbeatAge = d("worker_heartbeat_age_seconds", "Seconds since the worker's last heartbeat", "worker")
 	s.descWorkerPsiCPU = d("worker_psi_cpu", "Worker-reported CPU pressure (PSI some avg)", "worker")
 	s.descWorkerPsiIo = d("worker_psi_io", "Worker-reported IO pressure (PSI some avg)", "worker")
+	s.descWorkerPsiMem = d("worker_psi_mem", "Worker-reported memory pressure (PSI some avg)", "worker")
 	s.descWorkerDeferring = d("worker_deferring", "Worker is deferring background work under PSI (1)", "worker")
 
 	// Shed/defer EVENTS. The gauges above answer "is it happening right now",
@@ -334,6 +336,9 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 		if v, ok := w.PsiIo.Get(); ok {
 			gauge(s.descWorkerPsiIo, v, w.Name)
 		}
+		if v, ok := w.PsiMem.Get(); ok {
+			gauge(s.descWorkerPsiMem, v, w.Name)
+		}
 		gauge(s.descWorkerDeferring, boolToFloat(w.Deferring.Or(false)), w.Name)
 	}
 
@@ -346,21 +351,27 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	// --- warnings -> derived gauges -------------------------------------
-	// stranded_lane warnings carry no category_id and there can be several per
-	// (pool, tier) — one per stranded fair-tier category — which would all map
-	// to the same {pool, _pool, tier} series and make MustNewConstMetric emit a
-	// duplicate. Sum them per (pool, tier) into one series. Only coverage-known
-	// warnings are counted, so a rolling-upgrade unknown-coverage lane never
-	// false-fires StrandedLane.
-	type strandedKey struct{ pool, tier string }
+	// The StrandedLane rule joins this series to the backlog one on
+	// (pool, category, tier), so the category label has to be the one that
+	// lane's backlog was filed under: the warning's own category for a fair
+	// tier, the pool-aggregate sentinel for a reserved one. Several warnings
+	// can still share a key — one lane per tier — so they are summed rather
+	// than emitted twice. Only coverage-known warnings count, so a
+	// rolling-upgrade unknown-coverage lane never false-fires.
+	type strandedKey struct{ pool, category, tier string }
 	stranded := map[strandedKey]int{}
 	for _, wn := range gov.Warnings {
-		if wn.Kind == "stranded_lane" && wn.CoverageKnown.Or(false) {
-			stranded[strandedKey{wn.Pool.Or(""), wn.Tier.Or("")}] += wn.Backlog.Or(0)
+		if wn.Kind != "stranded_lane" || !wn.CoverageKnown.Or(false) {
+			continue
 		}
+		category := wn.CategoryID.Or("")
+		if category == "" {
+			category = poolCategory
+		}
+		stranded[strandedKey{wn.Pool.Or(""), category, wn.Tier.Or("")}] += wn.Backlog.Or(0)
 	}
 	for pt, backlog := range stranded {
-		gauge(s.descStrandedLane, float64(backlog), pt.pool, poolCategory, pt.tier)
+		gauge(s.descStrandedLane, float64(backlog), pt.pool, pt.category, pt.tier)
 	}
 
 	emitScrape(1)
