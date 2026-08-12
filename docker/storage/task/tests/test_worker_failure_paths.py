@@ -10,6 +10,13 @@ was published as ``finished`` — the change-handler then took the success branc
 of the terminal ``update_status`` and marked a broken disk ready (the
 worker-side half of bug #2306). These tests pin the raise-on-failure contract
 and the convert partial-destination cleanup. (#2308)
+
+``min_free_bytes=0`` on the convert/disconnect calls below is deliberate and
+must stay: these cases drive fake ``/isard/...`` paths, where ``statvfs``
+cannot answer, and the destination free-space floor now REFUSES rather than
+proceeding blind. Without the opt-out every one of them would fail on
+the gate before reaching the cleanup path it exists to test. The floor itself
+is covered in ``test_task_free_space_gate.py``.
 """
 
 import contextlib
@@ -35,7 +42,9 @@ def test_convert_raises_and_unlinks_on_nonzero_rc(monkeypatch):
     monkeypatch.setattr(task, "remove", lambda p: removed.append(p))
 
     with pytest.raises(task.CalledProcessError):
-        task.convert("/isard/src.qcow2", "/isard/dst.qcow2", "qcow2", False)
+        task.convert(
+            "/isard/src.qcow2", "/isard/dst.qcow2", "qcow2", False, min_free_bytes=0
+        )
     assert removed == ["/isard/dst.qcow2"]
 
 
@@ -51,7 +60,9 @@ def test_convert_raises_and_unlinks_on_abort(monkeypatch):
     monkeypatch.setattr(task, "remove", lambda p: removed.append(p))
 
     with pytest.raises(task.CalledProcessError):
-        task.convert("/isard/src.qcow2", "/isard/dst.qcow2", "qcow2", False)
+        task.convert(
+            "/isard/src.qcow2", "/isard/dst.qcow2", "qcow2", False, min_free_bytes=0
+        )
     assert removed == ["/isard/dst.qcow2"]
 
 
@@ -63,7 +74,12 @@ def test_convert_returns_zero_and_keeps_dest_on_success(monkeypatch):
     monkeypatch.setattr(task, "isfile", lambda p: True)
     monkeypatch.setattr(task, "remove", lambda p: removed.append(p))
 
-    assert task.convert("/isard/src.qcow2", "/isard/dst.qcow2", "qcow2", False) == 0
+    assert (
+        task.convert(
+            "/isard/src.qcow2", "/isard/dst.qcow2", "qcow2", False, min_free_bytes=0
+        )
+        == 0
+    )
     assert removed == []
 
 
@@ -120,7 +136,7 @@ def test_disconnect_raises_on_failure(monkeypatch):
     monkeypatch.setattr(task, "isfile", lambda p: True)
     monkeypatch.setattr(task, "remove", lambda p: None)
     with pytest.raises(Exception):
-        task.disconnect("/isard/d.qcow2")
+        task.disconnect("/isard/d.qcow2", min_free_bytes=0)
 
 
 # ---------------------------------------------------------------------------
@@ -278,7 +294,7 @@ def test_disconnect_swaps_with_single_atomic_rename(monkeypatch):
     monkeypatch.setattr(task, "rename", lambda s, d: calls.append(("rename", s, d)))
     monkeypatch.setattr(task, "_safe_unlink", lambda p: calls.append(("unlink", p)))
 
-    task.disconnect("/isard/g/d.qcow2")
+    task.disconnect("/isard/g/d.qcow2", min_free_bytes=0)
 
     # the original is replaced by ONE atomic rename of the flattened sibling
     assert ("rename", "/isard/g/d.qcow2.wo_chain", "/isard/g/d.qcow2") in calls
@@ -294,7 +310,7 @@ def test_disconnect_cleans_stale_sibling_before_convert(monkeypatch):
     monkeypatch.setattr(task, "run", lambda *a, **k: order.append(("run",)))
     monkeypatch.setattr(task, "rename", lambda s, d: order.append(("rename",)))
 
-    task.disconnect("/isard/g/d.qcow2")
+    task.disconnect("/isard/g/d.qcow2", min_free_bytes=0)
     # stale .wo_chain is unlinked BEFORE the convert runs
     assert order[0] == ("unlink", "/isard/g/d.qcow2.wo_chain")
     assert order.index(("run",)) > 0
