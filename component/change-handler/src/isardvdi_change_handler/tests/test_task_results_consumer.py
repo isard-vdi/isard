@@ -447,6 +447,7 @@ async def test_release_storage_dependents_ignores_a_core_only_dependent():
         await trc._release_storage_dependents(member)
     queue_cls.return_value.enqueue_dependents.assert_not_called()
 
+
 class TestReapDeadConsumers:
     """Every start registers a fresh change-handler-<uuid4> and nothing removed
     the old one, so the group grew by one per restart. Measured on hypgpu05
