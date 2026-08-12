@@ -83,6 +83,15 @@ class _FakeRedis:
         self._boom()
         return set(self.sets.get(key, ()))
 
+    def set(self, key, value):
+        self._boom()
+        self.strings[key] = value
+        return True
+
+    def get(self, key):
+        self._boom()
+        return self.strings.get(key)
+
     def hgetall(self, key):
         self._boom()
         return dict(self.hashes.get(key, {}))
@@ -323,10 +332,12 @@ def test_opaque_pool_suppresses_stranding_for_uncovered_tier():
 # --- fail-open --------------------------------------------------------------
 
 
-def test_fail_open_on_empty_fleet():
+def test_empty_fleet_rejects_because_it_is_knowledge():
+    # redis answered every read and reported no worker at all: that is a fact
+    # about the fleet, not an inability to see it.
     decision, ctx = qc.lane_shed_decision(_FakeRedis(), f"storage.{DEF}.interactive")
-    assert decision == "ok"
-    assert ctx["reason"] == "no_coverage_data"
+    assert decision == "reject"
+    assert ctx["reason"] == "no_consumer"
 
 
 def test_fail_open_on_redis_error():
@@ -347,12 +358,13 @@ def test_non_storage_queue_is_ok():
 # --- enforce_shed (the create_task gate) -----------------------------------
 
 
-def test_enforce_shed_pops_legacy_shed_key_on_empty_fleet():
+def test_enforce_shed_pops_legacy_shed_key_even_when_it_rejects():
     # ``shed`` is a deprecated/legacy kwarg now (overload is mandatory, not
-    # opt-in); an empty fleet still fails open regardless of its value.
-    r = _FakeRedis()  # no workers -> would be no_coverage_data anyway
+    # opt-in): it is popped regardless of its value AND of the outcome.
+    r = _FakeRedis()  # no workers at all -> no_consumer
     kwargs = {"queue": "storage.ghost.standard", "shed": False, "task": "resize"}
-    qc.enforce_shed(r, kwargs)  # must not raise
+    with pytest.raises(Exception):
+        qc.enforce_shed(r, kwargs)
     assert "shed" not in kwargs  # popped so it never reaches Task(**kwargs)
 
 
@@ -588,11 +600,11 @@ def test_decision_reject_no_consumer_index_empty_fleet_up():
     assert ctx["reason"] == "no_consumer"
 
 
-def test_decision_fail_open_no_coverage_data_when_fleet_invisible():
-    r = _FakeRedis()  # index empty AND no rq:workers at all
+def test_decision_rejects_when_index_and_registry_are_both_empty():
+    r = _FakeRedis()  # index empty AND no rq:workers at all, both readable
     decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
-    assert decision == "ok"
-    assert ctx["reason"] == "no_coverage_data"
+    assert decision == "reject"
+    assert ctx["reason"] == "no_consumer"
 
 
 def test_decision_fail_open_on_redis_error():
@@ -669,6 +681,115 @@ def test_health_degraded_on_redis_error(monkeypatch):
     assert health["available"] is False
 
 
+# --- a dead fleet is knowledge; an unreadable one is ignorance --------------
+#
+# The whole storage worker set being stopped used to read as "no coverage data"
+# and fail OPEN, so creation kept succeeding and every task piled up on a lane
+# nothing could drain. The two states must get opposite biases, and the code can
+# tell them apart: ``pool_live_workers`` and ``served_coverage`` both RAISE on a
+# redis error and only return empty when redis answered.
+
+
+class _RegistryBoomRedis(_FakeRedis):
+    """The live index reads fine (and is empty) but the RQ worker registry is
+    unreadable: we cannot SEE the fleet, so the gate must stay open."""
+
+    def smembers(self, key):
+        raise RuntimeError("registry unreadable")
+
+
+def test_whole_fleet_stopped_rejects_every_tier():
+    r = _FakeRedis()  # readable, and it says there is no worker anywhere
+    for tier in ALL_TIERS:
+        decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.{tier}")
+        assert (decision, ctx["reason"]) == ("reject", "no_consumer"), tier
+        assert ctx["has_consumer"] is False and ctx["stranded"] is True
+
+
+def test_unreadable_redis_still_fails_open():
+    r = _FakeRedis()
+    r.fail = True
+    decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.interactive")
+    assert decision == "ok"
+    assert ctx["reason"] == "coverage_error"
+
+
+def test_unreadable_worker_registry_fails_open_not_closed():
+    decision, ctx = qc.lane_shed_decision(
+        _RegistryBoomRedis(), f"storage.{DEF}.standard"
+    )
+    assert decision == "ok"
+    assert ctx["reason"] == "coverage_error"
+
+
+def test_stale_registry_entry_is_not_a_live_consumer():
+    r = _FakeRedis()
+    # a worker that died uncleanly: still a member of rq:workers, heartbeat long
+    # expired and no governor hash -> the fleet is visible AND down
+    r.sets.setdefault("rq:workers", set()).add("rq:worker:dead")
+    r.hashes["rq:worker:dead"] = {
+        "queues": f"storage.{DEF}.interactive",
+        "last_heartbeat": "2020-01-01T00:00:00.000000Z",
+    }
+    decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.interactive")
+    assert decision == "reject"
+    assert ctx["reason"] == "no_consumer"
+
+
+def test_worker_for_another_pool_leaves_both_pools_unchanged():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", "p-served")
+    served, served_ctx = qc.lane_shed_decision(r, "storage.p-served.standard")
+    assert served == "ok" and served_ctx["has_consumer"] is True
+    dead, dead_ctx = qc.lane_shed_decision(r, "storage.p-dead.standard")
+    assert dead == "reject" and dead_ctx["reason"] == "no_consumer"
+
+
+def test_opaque_pool_immunity_holds_when_it_is_the_whole_fleet():
+    r = _FakeRedis()
+    # the only live worker is opaque and was born on one lane: it might serve
+    # overflow we cannot see, so no lane of ITS pool may be declared stranded
+    _opaque_worker(r, "res1", DEF, tiers=("interactive",))
+    for tier in ALL_TIERS:
+        decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.{tier}")
+        assert decision == "ok" and ctx["stranded"] is False, tier
+    # ...and that immunity does not leak to a pool it was not born on
+    decision, ctx = qc.lane_shed_decision(r, "storage.other.background")
+    assert decision == "reject" and ctx["reason"] == "no_consumer"
+
+
+def test_enforce_shed_rejects_with_429_when_whole_fleet_is_down():
+    r = _FakeRedis()
+    try:
+        qc.enforce_shed(r, {"queue": f"storage.{DEF}.standard"})
+        raised = None
+    except Exception as exc:
+        raised = exc
+    assert raised is not None
+    assert getattr(raised, "status_code", None) == 429
+    assert getattr(raised, "error", {}).get("description_code") == (
+        "storage_no_consumer_retry_later"
+    )
+
+
+def test_fleet_down_shed_is_counted_under_no_consumer():
+    r = _FakeRedis()
+    with pytest.raises(Exception):
+        qc.check_no_consumer(r, f"storage.{DEF}.background")
+    doc = gcnt.read_shed(r)
+    assert doc["by_reason"] == {"no_consumer": 1}
+    assert doc["by_tier"] == {"background": 1}
+
+
+def test_health_says_no_consumer_not_degraded_when_fleet_down(monkeypatch):
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
+    health = qc.category_storage_health(_FakeRedis(), "cat-a")
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["no_consumer"] is True
+    assert interactive["degraded"] is False
+    assert health["available"] is False
+
+
 def test_counter_failure_never_swallows_the_429():
     """The counter is observability, not a gate: a redis blip between the shed
     decision and the INCR must still leave the caller with the typed 429."""
@@ -679,3 +800,88 @@ def test_counter_failure_never_swallows_the_429():
     with pytest.raises(Exception) as excinfo:
         qc._raise_lane_429(r, ctx)
     assert getattr(excinfo.value, "status_code", None) == 429
+
+
+# --- the fleet gap: a restart is not the same as a stopped fleet -------------
+#
+# A clean worker shutdown unpublishes its lanes right away rather than letting
+# the TTL expire, so a rolling restart makes the index read empty for a few
+# seconds. Treating that instant as "the fleet is gone" turns the normal upgrade
+# path into a fleet-wide refusal, which is worse than the fail-open it replaced.
+
+
+def test_a_brief_gap_after_the_fleet_was_seen_still_admits():
+    r = _FakeRedis()
+    qc.note_fleet_seen(r, now=1000.0)
+    decision, ctx = qc.lane_shed_decision(
+        r, f"storage.{DEF}.standard", now=1000.0 + qc.FLEET_GONE_GRACE_S / 2
+    )
+    assert decision == "ok"
+    assert ctx["reason"] == "fleet_gap"
+
+
+def test_a_gap_longer_than_the_grace_sheds():
+    r = _FakeRedis()
+    qc.note_fleet_seen(r, now=1000.0)
+    decision, ctx = qc.lane_shed_decision(
+        r, f"storage.{DEF}.standard", now=1000.0 + qc.FLEET_GONE_GRACE_S + 1
+    )
+    assert decision == "reject"
+    assert ctx["reason"] == "no_consumer"
+
+
+def test_a_fleet_never_seen_sheds_rather_than_queueing_into_the_void():
+    """No sighting at all is not a restart gap: nothing has ever heartbeated, so
+    refusing is accurate, and it self-heals as soon as a worker publishes."""
+    r = _FakeRedis()
+    decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.standard", now=1000.0)
+    assert decision == "reject"
+    assert ctx["reason"] == "no_consumer"
+
+
+def test_seeing_a_live_worker_records_the_sighting():
+    r = _FakeRedis()
+    qc.publish_lane(r, DEF, "standard", "w1", now=500.0, ttl=qc.COV_TTL_S)
+    qc.lane_shed_decision(r, f"storage.{DEF}.standard", now=500.0)
+    assert qc.fleet_last_seen(r) == 500.0
+
+
+# --- exact boundaries of the reject/warn/grace thresholds (off-by-one guards) --
+
+
+def test_reject_at_exactly_the_hard_cap():
+    """A foreground lane AT its hard cap is already refused: the cap is the first
+    backlog that must not be exceeded, so the test is ``>=``, not ``>``."""
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    r.lists[f"rq:queue:storage.{DEF}.interactive"] = qc.hard_cap("interactive")
+    decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.interactive")
+    assert decision == "reject"
+    assert ctx["reason"] == "overloaded"
+
+
+def test_warn_at_exactly_the_warn_backlog():
+    """A lane AT its warn threshold is already backed up: the boundary belongs to
+    ``warn``, not to ``ok``."""
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    assert qc.warn_backlog("interactive") < qc.hard_cap(
+        "interactive"
+    )  # else it'd reject
+    r.lists[f"rq:queue:storage.{DEF}.interactive"] = qc.warn_backlog("interactive")
+    decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.interactive")
+    assert decision == "warn"
+
+
+def test_grace_window_includes_its_exact_edge():
+    """A lane whose fleet was seen EXACTLY ``FLEET_GONE_GRACE_S`` ago is still
+    inside the grace window and admits: the edge belongs to the window (``<=``),
+    so a rolling restart at the boundary is not misread as a dead fleet."""
+    r = _FakeRedis()  # empty fleet -> would be no_consumer without the grace
+    seen = 1000.0
+    qc.note_fleet_seen(r, seen)
+    decision, ctx = qc.lane_shed_decision(
+        r, f"storage.{DEF}.interactive", now=seen + qc.FLEET_GONE_GRACE_S
+    )
+    assert decision == "ok"
+    assert ctx["reason"] == "fleet_gap"
