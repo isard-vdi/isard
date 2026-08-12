@@ -166,7 +166,8 @@
                                     <div class="col-md-12" id="owner-wrapper">
                                         <label class="control-label">Owner: </label>
                                         <select name="user_id" id="user" style="width:100%;"
-                                            class="roundbox form-control tags-select">
+                                            class="roundbox form-control tags-select"
+                                            data-parsley-trigger="change" required>
                                         </select>
                                     </div>
                                 </div>
@@ -206,7 +207,8 @@
                                         <label class="control-label">Size: <br></label>
                                         <div>
                                             <input style="width:66%;" value="10" name="size" id="size" type="number"
-                                                class="roundbox form-control" data-parsley-trigger="change">
+                                                min="1" class="roundbox form-control" data-parsley-trigger="change"
+                                                required>
                                             <select disabled name="size_unit" style="width:32%;display:inline!important;"
                                                 id="size_unit" class="roundbox form-control">
                                                 <option value="M">MB</option>

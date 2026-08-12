@@ -19,6 +19,7 @@
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 
 from api.services.error import Error
@@ -252,8 +253,11 @@ class RecycleBinService:
         )
 
         notification_data: list[dict] = []
-        for desktop in desktops:
+        for i, desktop in enumerate(desktops):
             DesktopEvents.desktop_delete(desktop["id"], "isard-scheduler")
+            # Pace every 50 items so the .changes() handlers can drain.
+            if (i + 1) % 50 == 0:
+                time.sleep(0.5)
             if desktop_notification and desktop_action:
                 notification_data.append(
                     {
@@ -294,8 +298,10 @@ class RecycleBinService:
         )
 
         notification_data = []
-        for deployment in deployments:
+        for i, deployment in enumerate(deployments):
             DesktopEvents.deployment_delete(deployment["id"], "isard-scheduler")
+            if (i + 1) % 50 == 0:
+                time.sleep(0.5)
             if deployment_notification and deployment_action:
                 common_data = {
                     "item_id": deployment["id"],
@@ -353,6 +359,7 @@ class RecycleBinService:
             return user_name_cache[user_id]
 
         notification_data = []
+        reaped = 0
         for group in deployment_desktop_groups:
             desktop_ids = [d["id"] for d in group["desktops"]]
             try:
@@ -368,6 +375,11 @@ class RecycleBinService:
                 owner_id=group["creator"],
                 name=deployment_name,
             )
+            # Groups carry a variable number of desktops, so pace whenever the
+            # running total crosses a multiple of 50 rather than per group.
+            reaped += len(desktop_ids)
+            if reaped // 50 > (reaped - len(desktop_ids)) // 50:
+                time.sleep(0.5)
 
             if not (owner_notification or user_notification):
                 continue

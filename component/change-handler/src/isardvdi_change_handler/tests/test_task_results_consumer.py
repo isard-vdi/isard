@@ -385,3 +385,146 @@ async def test_missing_job_status_defaults_to_finished():
         )
 
     root.job.set_status.assert_called_once_with(JobStatus.FINISHED)
+
+
+# --- _release_storage_dependents: the REAL function, not a mock of it ---------
+#
+# The reconcile tests patch _release_storage_dependents with an AsyncMock, so its
+# own gate (does this member have a storage-queue dependent?) and its core/storage
+# boundary were never exercised. These drive the real function and spy only on the
+# rq boundary (redis.from_url / Queue.enqueue_dependents).
+
+
+def _member(dependents):
+    return SimpleNamespace(id="m", job=MagicMock(name="job"), dependents=dependents)
+
+
+def _dep_on(queue):
+    return SimpleNamespace(queue=queue)
+
+
+@pytest.mark.asyncio
+async def test_release_storage_dependents_releases_a_member_with_a_storage_child():
+    """A member with a storage-queue dependent must reach
+    ``Queue.enqueue_dependents`` — that is the DEFERRED→QUEUED release the storage
+    worker needs after a core handler."""
+    from isardvdi_change_handler.streams import task_results_consumer as trc
+
+    member = _member([_dep_on("storage.pool.default")])
+    with (
+        patch.object(trc.redis, "from_url", return_value=MagicMock()),
+        patch.object(trc, "Queue") as queue_cls,
+    ):
+        await trc._release_storage_dependents(member)
+    queue_cls.return_value.enqueue_dependents.assert_called_once_with(member.job)
+
+
+@pytest.mark.asyncio
+async def test_release_storage_dependents_skips_a_member_with_no_storage_child():
+    """The gate: a member with no non-core dependent must NOT enqueue anything."""
+    from isardvdi_change_handler.streams import task_results_consumer as trc
+
+    member = _member([])
+    with (
+        patch.object(trc.redis, "from_url", return_value=MagicMock()),
+        patch.object(trc, "Queue") as queue_cls,
+    ):
+        await trc._release_storage_dependents(member)
+    queue_cls.return_value.enqueue_dependents.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_release_storage_dependents_ignores_a_core_only_dependent():
+    """The boundary: a ``core``-queue dependent is NOT a storage child, so a
+    member that has only core dependents releases nothing."""
+    from isardvdi_change_handler.streams import task_results_consumer as trc
+
+    member = _member([_dep_on("core")])
+    with (
+        patch.object(trc.redis, "from_url", return_value=MagicMock()),
+        patch.object(trc, "Queue") as queue_cls,
+    ):
+        await trc._release_storage_dependents(member)
+    queue_cls.return_value.enqueue_dependents.assert_not_called()
+
+
+class TestReapDeadConsumers:
+    """Every start registers a fresh change-handler-<uuid4> and nothing removed
+    the old one, so the group grew by one per restart. Measured on hypgpu05
+    (09/08/2026): 14 registered, 2 alive, 12 idle for 39 to 55 days. No entry
+    is lost — XAUTOCLAIM reclaims what a dead consumer held — but XINFO GROUPS
+    reports a count that has nothing to do with reality, and a "nobody is
+    consuming" alert can never fire because the corpses keep it satisfied.
+    """
+
+    @staticmethod
+    def _redis(consumers):
+        redis = AsyncMock()
+        redis.xinfo_consumers = AsyncMock(return_value=consumers)
+        redis.xgroup_delconsumer = AsyncMock()
+        return redis
+
+    @pytest.mark.asyncio
+    async def test_a_long_idle_empty_consumer_is_dropped(self):
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        redis = self._redis(
+            [{"name": "change-handler-old", "pending": 0, "idle": 55 * 86400 * 1000}]
+        )
+        reaped = await task_results_consumer._reap_dead_consumers(
+            redis, "stream:task-results", "me"
+        )
+        assert reaped == 1
+        redis.xgroup_delconsumer.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_our_own_consumer_is_never_dropped(self):
+        """Idle is measured against the group, and our own entry is the one
+        thing we know is alive — dropping it would unregister the live reader."""
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        redis = self._redis([{"name": "me", "pending": 0, "idle": 99 * 86400 * 1000}])
+        reaped = await task_results_consumer._reap_dead_consumers(
+            redis, "stream:task-results", "me"
+        )
+        assert reaped == 0
+        redis.xgroup_delconsumer.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_consumer_holding_entries_is_left_alone(self):
+        """Deleting it would move its pending list instead of letting the
+        reclaim pass redeliver what it was holding."""
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        redis = self._redis(
+            [{"name": "change-handler-old", "pending": 3, "idle": 55 * 86400 * 1000}]
+        )
+        reaped = await task_results_consumer._reap_dead_consumers(
+            redis, "stream:task-results", "me"
+        )
+        assert reaped == 0
+        redis.xgroup_delconsumer.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_recently_active_consumer_is_left_alone(self):
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        redis = self._redis(
+            [{"name": "change-handler-live", "pending": 0, "idle": 2828}]
+        )
+        reaped = await task_results_consumer._reap_dead_consumers(
+            redis, "stream:task-results", "me"
+        )
+        assert reaped == 0
+        redis.xgroup_delconsumer.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_redis_failure_does_not_stop_the_consumer_starting(self):
+        from isardvdi_change_handler.streams import task_results_consumer
+
+        redis = AsyncMock()
+        redis.xinfo_consumers = AsyncMock(side_effect=RuntimeError("redis blip"))
+        reaped = await task_results_consumer._reap_dead_consumers(
+            redis, "stream:task-results", "me"
+        )
+        assert reaped == 0

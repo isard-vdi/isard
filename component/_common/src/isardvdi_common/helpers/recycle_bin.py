@@ -2223,14 +2223,22 @@ class RecycleBin(RethinkSharedConnection):
         Helpers.clear_get_old_entries_config_cache()
 
     @classmethod
-    def delete_old_entries(cls, rcb_list):
-        with cls._rdb_context():
-            results = (
-                r.table("recycle_bin")
-                .get_all(r.args(rcb_list))
-                .delete()
-                .run(cls._rdb_connection, array_limit=500000)
-            )
+    def delete_old_entries(cls, rcb_list, chunk_size=500):
+        # ``r.args`` expands the list into query arguments, so ``array_limit``
+        # bounds the request itself: a single call over the limit raises
+        # ReqlResourceLimitError and the whole purge aborts without deleting
+        # anything, leaving the table to grow until the next run fails too.
+        if not rcb_list:
+            return
+        rcb_list = list(rcb_list)
+        for i in range(0, len(rcb_list), chunk_size):
+            chunk = rcb_list[i : i + chunk_size]
+            with cls._rdb_context():
+                r.table("recycle_bin").get_all(r.args(chunk)).delete().run(
+                    cls._rdb_connection, array_limit=200000
+                )
+            if i + chunk_size < len(rcb_list):
+                time.sleep(0.5)
 
     # @classmethod
     # def archive_old_entries(cls, rcb_list):
@@ -2603,8 +2611,9 @@ class RecycleBinBulk(RecycleBin):
         rcb_desktop = RecycleBinDesktop(id=self.id, user_id=self.agent_id)
         desktops = []
 
-        for i in range(0, len(desktops_ids), 200):
-            batch_ids = desktops_ids[i : i + 200]
+        batch_size = 50
+        for i in range(0, len(desktops_ids), batch_size):
+            batch_ids = desktops_ids[i : i + batch_size]
             CommonHelpers.desktops_stop(batch_ids, 5)
             # Move desktops to recycle_bin
             with self._rdb_context():
@@ -2617,6 +2626,11 @@ class RecycleBinBulk(RecycleBin):
                 r.table("domains").get_all(r.args(batch_ids)).delete().run(
                     self._rdb_connection
                 )
+            # Callers may hand over a whole deployment group at once, so this
+            # loop needs its own pacing: the outer per-caller batching does not
+            # bound it.
+            if i + batch_size < len(desktops_ids):
+                time.sleep(0.5)
         rcb_desktop.add_desktops(desktops)
         return self._set_data(self.id)
 
