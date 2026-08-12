@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { overlayIconButtonClass } from '..'
+import { CARD_SIZE_INJECTION_KEY, overlayIconButtonClass } from '..'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
@@ -25,6 +26,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 defineEmits<{ click: [] }>()
+
+const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 </script>
 
 <template>
@@ -33,7 +36,7 @@ defineEmits<{ click: [] }>()
       <Button
         hierarchy="link-gray"
         size="sm"
-        :class="overlayIconButtonClass(props.active)"
+        :class="overlayIconButtonClass(props.active, size)"
         :icon="props.icon"
         icon-stroke-color="base-white"
         :aria-label="props.ariaLabel ? t(props.ariaLabel) : undefined"

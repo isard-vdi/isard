@@ -168,7 +168,9 @@ vi.mock('@/components/desktop-card', () => ({
     emits: ['click'],
     template:
       '<button data-test="overlay-btn" :data-icon="icon" :aria-label="ariaLabel" @click="$emit(\'click\')" />'
-  }
+  },
+  cardOverlayPaddingVariants: () => '',
+  cardOverlayLabelVariants: () => ''
 }))
 
 vi.mock('@/components/desktops', () => ({
@@ -265,6 +267,12 @@ vi.mock('@/components/ui/button-group', () => ({
 }))
 vi.mock('@/components/ui/separator/Separator.vue', () => ({
   default: { template: '<hr data-test="separator" />' }
+}))
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: { template: '<div data-test="tooltip"><slot /></div>' },
+  TooltipTrigger: { props: ['asChild'], template: '<div><slot /></div>' },
+  TooltipContent: { props: ['title'], template: '<div :data-title="title" />' },
+  TooltipProvider: { template: '<div><slot /></div>' }
 }))
 vi.mock('@/components/icon', () => ({
   Icon: { template: '<span data-test="icon" />' }

@@ -1952,7 +1952,14 @@
           }
         },
         "info": {
-          "boot": "Boot"
+          "boot": "Boot",
+          "disk-bus": "Bus",
+          "video": "Video",
+          "reservables": "GPU",
+          "iso": "ISO",
+          "floppy": "Floppy",
+          "status": "Status",
+          "show-more": "Show {count} more: {items}"
         },
         "networks": {
           "more": "more"

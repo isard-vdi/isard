@@ -1520,7 +1520,14 @@
           }
         },
         "info": {
-          "boot": "Arranque"
+          "boot": "Arranque",
+          "disk-bus": "Bus",
+          "video": "Vídeo",
+          "reservables": "GPU",
+          "iso": "ISO",
+          "floppy": "Floppy",
+          "status": "Estado",
+          "show-more": "Mostrar {count} más: {items}"
         },
         "networks": {
           "more": "más"

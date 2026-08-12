@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 
@@ -14,8 +14,11 @@ import { Icon } from '@/components/icon'
 import { CopyIcon } from '@/components/icon'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CARD_SIZE_INJECTION_KEY, cardOverlayTextVariants, cardOverlayDetailVariants } from '..'
 
 const { t } = useI18n()
+
+const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 
 interface Props {
   desktopId: string
@@ -97,21 +100,28 @@ defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
 
   <div v-else-if="networksIsError" class="flex items-center gap-2 py-2 text-base-white/90">
     <Icon name="alert-circle" size="sm" stroke-color="error-300" />
-    <span class="text-xs">
+    <span :class="cardOverlayTextVariants({ size })">
       {{ networksError?.message || t('components.desktop-networks-modal.error') }}
     </span>
   </div>
 
   <div v-else-if="!sortedNetworks.length" class="flex items-center gap-2 py-2 text-base-white/80">
     <Icon name="alert-circle" size="sm" stroke-color="warning-300" />
-    <span class="text-xs">{{ t('components.desktop-networks-modal.empty') }}</span>
+    <span :class="cardOverlayTextVariants({ size })">{{
+      t('components.desktop-networks-modal.empty')
+    }}</span>
   </div>
 
   <div v-else class="flex gap-3 text-start text-base-white">
     <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 flex-1 min-w-0">
       <div v-for="network in visibleNetworks" :key="network.id" class="flex flex-col min-w-0">
-        <div class="text-xs font-semibold truncate">{{ network.name }}</div>
-        <div class="text-[11px] text-base-white/80 truncate flex items-center gap-1.5 font-mono">
+        <div class="font-semibold truncate" :class="cardOverlayTextVariants({ size })">
+          {{ network.name }}
+        </div>
+        <div
+          class="text-base-white/80 truncate flex items-center gap-1.5 font-mono"
+          :class="cardOverlayDetailVariants({ size })"
+        >
           {{ network.mac
           }}<CopyIcon :value="network.mac" class="opacity-80" size="xs" stroke-color="base-white" />
         </div>
@@ -120,7 +130,8 @@ defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
              field that's easy to miss. -->
         <div
           v-if="network.id === 'wireguard'"
-          class="text-[11px] text-base-white/80 truncate flex items-center gap-1.5 font-mono"
+          class="text-base-white/80 truncate flex items-center gap-1.5 font-mono"
+          :class="cardOverlayDetailVariants({ size })"
         >
           <template v-if="props.desktopStatus === DesktopStatusEnum.WAITING_IP">
             <Icon name="loading-02" size="xs" class="animate-spin" stroke-color="base-white" />
@@ -148,7 +159,8 @@ defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
     <div v-if="overflowCount > 0" class="self-stretch shrink-0 flex items-end">
       <Button
         variant="ghost"
-        class="h-auto flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-base-white/15 hover:bg-base-white/30 text-[11px] font-semibold whitespace-nowrap text-base-white"
+        class="h-auto flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-base-white/15 hover:bg-base-white/30 font-semibold whitespace-nowrap text-base-white"
+        :class="cardOverlayDetailVariants({ size })"
         @click="emit('showNetworksModal')"
       >
         +{{ overflowCount }} {{ t('components.desktops.desktop-card.networks.more')
