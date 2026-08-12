@@ -34,6 +34,7 @@ from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.api_notify import notify_admins, send_socket_user
 from isardvdi_common.helpers.bookings import Bookings
 from isardvdi_common.helpers.bookings import Bookings as BookingsHelpers
@@ -84,12 +85,24 @@ _get_domain_enrichment_cache: SynchronizedTTLCache = SynchronizedTTLCache(
 MAX_VGPU_PROFILES_PER_DESKTOP = 4
 
 
-def validate_reservables_vgpus(vgpus):
+def validate_reservables_vgpus(vgpus, payload=None, existing_vgpus=None):
     """Validate a desktop's list of vGPU reservable ids.
 
     Rejects duplicate profiles, more than MAX_VGPU_PROFILES_PER_DESKTOP, and
     unknown reservable ids. Tolerates None / the ``["None"]`` "no GPU" sentinel
     and returns the value unchanged so callers can keep their normalization.
+
+    When ``payload`` (the caller's token payload) is given, also enforces the
+    reservable's ``allowed`` field: a caller may only newly *attach* a vGPU
+    profile they are allowed to use, using the same ``allowed`` semantics as the
+    reservable listing (``Alloweds.get_items_allowed`` — admin sees all, manager
+    in-category, owner, plus the roles/categories/groups/users allowlists).
+    Profiles already present on the desktop (``existing_vgpus``) are exempt so an
+    unrelated edit never strips a profile a user legitimately held before a
+    permission change. The create path enforces the same allowlist via
+    ``Quotas.limit_user_hardware_allowed``; centralising the attach check here
+    closes the edit path (and, transitively, booking/start, which only ever see
+    what is attached), instead of duplicating the check per route.
     """
     if not vgpus:
         return vgpus
@@ -120,6 +133,29 @@ def validate_reservables_vgpus(vgpus):
                 "One or more vGPU profiles do not exist",
                 description_code="vgpu_profile_not_found",
             )
+        if payload is not None:
+            # Authorization: a caller may only newly attach a vGPU profile they
+            # are allowed to use. Profiles already on the desktop are exempt.
+            existing = set(existing_vgpus or [])
+            newly_added = [v for v in real if v not in existing]
+            if newly_added:
+                allowed_ids = {
+                    row["id"]
+                    for row in Alloweds.get_items_allowed(
+                        payload,
+                        "reservables_vgpus",
+                        query_pluck=["id"],
+                        query_merge=False,
+                    )
+                }
+                forbidden = [v for v in newly_added if v not in allowed_ids]
+                if forbidden:
+                    raise Error(
+                        "forbidden",
+                        "User not allowed to use vGPU profile(s): "
+                        + ", ".join(forbidden),
+                        description_code="reservable_not_allowed",
+                    )
         if len(real) > 1:
             # A guest runs on a single hypervisor and can only attach that host's
             # cards, so every profile must be hostable on one common hypervisor.
@@ -1687,7 +1723,7 @@ class DesktopsProcessed(RethinkSharedConnection):
 
     @classmethod
     def update_desktop(
-        cls, desktop_id, desktop_data, admin_or_manager=False, bulk=False
+        cls, desktop_id, desktop_data, admin_or_manager=False, bulk=False, payload=None
     ):
         """_From api/libv2/api_desktops_persistent.py ApiDesktopsPersistent.Update()_"""
         desktops = desktop_id if bulk else [desktop_id]
@@ -1707,10 +1743,12 @@ class DesktopsProcessed(RethinkSharedConnection):
             # Only when the edit actually changes reservables
             if "reservables" in desktop_data:
                 new_vgpus = (desktop_data.get("reservables") or {}).get("vgpus") or []
-                validate_reservables_vgpus(new_vgpus)
                 old_vgpus = (
                     domain.get("create_dict", {}).get("reservables") or {}
                 ).get("vgpus") or []
+                validate_reservables_vgpus(
+                    new_vgpus, payload=payload, existing_vgpus=old_vgpus
+                )
                 if set(new_vgpus) != set(old_vgpus):
                     # Delete booking when the SET of vGPU profiles changes (reordering
                     # the same profiles must not drop a still-valid booking).
