@@ -406,3 +406,81 @@ class TestCreateUnusedItemTimeoutRule:
         )
         forwarded = mock_create.call_args.args[0]
         assert forwarded["allowed"] == custom_allowed
+
+
+class TestRecycleUnusedItemsPacing:
+    """Pin the inter-batch pacing of the nightly unused-items sweep.
+
+    All three passes hand work to the ``.changes()`` handlers. Unpaced,
+    a cold-desktop sweep floods them in a single burst, which is the load
+    spike the recycle-bin batching delays exist to prevent.
+    """
+
+    @staticmethod
+    def _run(desktops=(), deployments=(), groups=()):
+        """Drive the sweep with notifications and rdb access stubbed out."""
+        with (
+            patch(
+                "api.services.recycle_bin.RecycleBinHelpers.get_recycle_bin_cuttoff_time",
+                return_value=24,
+            ),
+            patch(
+                "api.services.recycle_bin.DesktopsProcessed.get_unused_desktops",
+                return_value=list(desktops),
+            ),
+            patch(
+                "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployments",
+                return_value=list(deployments),
+            ),
+            patch(
+                "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployment_desktops",
+                return_value=list(groups),
+            ),
+            patch(
+                "api.services.recycle_bin.NotificationsProcessed.get_notifications_by_action_id",
+                return_value=[],
+            ),
+            patch(
+                "api.services.recycle_bin.NotificationsDataProcessed.add_notification_data"
+            ),
+            patch("api.services.recycle_bin.Caches.get_document", return_value="name"),
+            patch("api.services.recycle_bin.DesktopEvents.desktop_delete"),
+            patch("api.services.recycle_bin.DesktopEvents.deployment_delete"),
+            patch("api.services.recycle_bin.DesktopEvents.deployment_delete_desktops"),
+            patch("api.services.recycle_bin.time.sleep") as mock_sleep,
+        ):
+            RecycleBinService.recycle_unused_items()
+            return mock_sleep
+
+    def test_desktop_pass_pauses_every_50(self):
+        desktops = [{"id": f"d-{i}", "user": "u", "name": "n"} for i in range(120)]
+        mock_sleep = self._run(desktops=desktops)
+        # Crossings at 50 and 100; never a trailing pause.
+        assert mock_sleep.call_count == 2
+        assert {call.args[0] for call in mock_sleep.call_args_list} == {0.5}
+
+    def test_no_pause_below_the_threshold(self):
+        desktops = [{"id": f"d-{i}", "user": "u", "name": "n"} for i in range(49)]
+        assert self._run(desktops=desktops).call_count == 0
+
+    def test_deployment_pass_pauses_every_50(self):
+        deployments = [
+            {"id": f"dep-{i}", "user": "u", "co_owners": []} for i in range(100)
+        ]
+        assert self._run(deployments=deployments).call_count == 2
+
+    def test_group_pass_paces_on_desktop_count_not_group_count(self):
+        # 4 groups x 30 desktops = 120 reaped, so the running total crosses
+        # 50 and 100 -> 2 pauses, even though there are only 4 groups.
+        groups = [
+            {
+                "deployment_id": f"dep-{g}",
+                "creator": "owner",
+                "desktops": [
+                    {"id": f"d-{g}-{i}", "user": "u", "name": "n", "accessed": 0}
+                    for i in range(30)
+                ],
+            }
+            for g in range(4)
+        ]
+        assert self._run(groups=groups).call_count == 2

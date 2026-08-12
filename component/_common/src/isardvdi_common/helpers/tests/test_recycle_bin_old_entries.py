@@ -110,3 +110,106 @@ class TestGetOldDeletedEntryIds:
         )
         assert mod.Helpers.get_old_deleted_entry_ids() == []
         assert captured_calls == []
+
+
+@pytest.fixture
+def delete_module(monkeypatch):
+    """Stub the rdb chain behind ``RecycleBin.delete_old_entries``."""
+    from isardvdi_common.helpers import recycle_bin as mod
+
+    class _Ctx:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(mod.RecycleBin, "_rdb_context", classmethod(lambda cls: _Ctx()))
+    monkeypatch.setattr(
+        type(mod.RecycleBin),
+        "_rdb_connection",
+        property(lambda self: MagicMock(name="conn")),
+    )
+
+    runs = []
+
+    def fake_table(name):
+        table = MagicMock(name="table-" + name)
+
+        def fake_get_all(args):
+            chain = MagicMock(name="get_all")
+
+            def fake_delete():
+                deleted = MagicMock(name="delete")
+
+                def fake_run(conn, array_limit=None):
+                    runs.append({"ids": list(args), "array_limit": array_limit})
+                    return {"deleted": len(args)}
+
+                deleted.run = fake_run
+                return deleted
+
+            chain.delete = fake_delete
+            return chain
+
+        table.get_all = fake_get_all
+        return table
+
+    monkeypatch.setattr(mod.r, "table", fake_table)
+    monkeypatch.setattr(mod.r, "args", lambda ids: list(ids))
+
+    sleeps = []
+    monkeypatch.setattr(mod.time, "sleep", lambda s: sleeps.append(s))
+
+    yield mod, runs, sleeps
+
+
+class TestDeleteOldEntries:
+    """Pin the chunked purge.
+
+    A single ``get_all(r.args(...))`` over ``array_limit`` raises
+    ReqlResourceLimitError and aborts the whole purge without deleting
+    anything, so the backlog grows and every later run fails the same way.
+    """
+
+    def test_splits_into_chunks_and_paces_between_them(self, delete_module):
+        mod, runs, sleeps = delete_module
+        ids = [f"rb-{i}" for i in range(1200)]
+
+        mod.RecycleBin.delete_old_entries(ids, chunk_size=500)
+
+        assert [len(run["ids"]) for run in runs] == [500, 500, 200]
+        # Every id is deleted exactly once, order preserved.
+        assert [i for run in runs for i in run["ids"]] == ids
+        # Paced between chunks, never after the last one.
+        assert sleeps == [0.5, 0.5]
+
+    def test_array_limit_stays_under_the_rethinkdb_ceiling(self, delete_module):
+        mod, runs, _ = delete_module
+
+        mod.RecycleBin.delete_old_entries([f"rb-{i}" for i in range(10)])
+
+        assert runs and all(run["array_limit"] == 200000 for run in runs)
+
+    def test_single_chunk_does_not_sleep(self, delete_module):
+        mod, runs, sleeps = delete_module
+
+        mod.RecycleBin.delete_old_entries(["rb-1", "rb-2"])
+
+        assert len(runs) == 1
+        assert sleeps == []
+
+    def test_empty_list_never_touches_rdb(self, delete_module):
+        mod, runs, sleeps = delete_module
+
+        mod.RecycleBin.delete_old_entries([])
+
+        assert runs == []
+        assert sleeps == []
+
+    def test_accepts_a_non_list_sequence(self, delete_module):
+        mod, runs, _ = delete_module
+
+        mod.RecycleBin.delete_old_entries(iter(["rb-1", "rb-2"]), chunk_size=1)
+
+        assert [run["ids"] for run in runs] == [["rb-1"], ["rb-2"]]
