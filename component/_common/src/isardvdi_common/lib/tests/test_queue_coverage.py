@@ -340,13 +340,17 @@ def test_empty_fleet_rejects_because_it_is_knowledge():
     assert ctx["reason"] == "no_consumer"
 
 
-def test_fail_open_on_redis_error():
+def test_an_unreadable_index_rejects_rather_than_admitting_blind():
+    """Was ``test_fail_open_on_redis_error``, asserting the opposite. Admitting
+    on a read failure is the guard yielding exactly where it is needed: the
+    caller now gets the same 429 a consumerless lane gives. Genuine emptiness
+    that redis DID answer keeps its own paths (fleet gap, no_consumer)."""
     r = _FakeRedis()
     _governed_worker(r, "w1", DEF)
     r.fail = True
     decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.interactive")
-    assert decision == "ok"
-    assert ctx["reason"] == "coverage_error"
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
 
 
 def test_non_storage_queue_is_ok():
@@ -607,12 +611,14 @@ def test_decision_rejects_when_index_and_registry_are_both_empty():
     assert ctx["reason"] == "no_consumer"
 
 
-def test_decision_fail_open_on_redis_error():
+def test_decision_rejects_when_the_index_cannot_be_read():
+    """Was ``test_decision_fail_open_on_redis_error``. Same reason as above:
+    the index blowing up is ignorance, not a verdict about the fleet."""
     r = _IndexBoomRedis()
     _governed_worker(r, "w1", "p1")
     decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
-    assert decision == "ok"
-    assert ctx["reason"] == "coverage_error"
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
 
 
 def test_decision_reject_overloaded_foreground_over_cap():
@@ -706,20 +712,25 @@ def test_whole_fleet_stopped_rejects_every_tier():
         assert ctx["has_consumer"] is False and ctx["stranded"] is True
 
 
-def test_unreadable_redis_still_fails_open():
+def test_unreadable_redis_refuses_instead_of_admitting_blind():
+    """Renamed from ``test_unreadable_redis_still_fails_open``. Redis being
+    unreachable is the absence of an answer, and the gate no longer reads it as
+    a good one."""
     r = _FakeRedis()
     r.fail = True
     decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.interactive")
-    assert decision == "ok"
-    assert ctx["reason"] == "coverage_error"
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
 
 
-def test_unreadable_worker_registry_fails_open_not_closed():
+def test_unreadable_worker_registry_refuses_too():
+    """The registry is one of the reads the coverage answer is built from, so
+    it cannot be read is the same ignorance as the index being unreadable."""
     decision, ctx = qc.lane_shed_decision(
         _RegistryBoomRedis(), f"storage.{DEF}.standard"
     )
-    assert decision == "ok"
-    assert ctx["reason"] == "coverage_error"
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
 
 
 def test_stale_registry_entry_is_not_a_live_consumer():
