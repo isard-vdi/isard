@@ -13,12 +13,18 @@ bounded (no ``KEYS`` glob, one pipelined pass over ``rq:workers``).
 
 Ignorance vs knowledge
 ----------------------
-The bias is fail-open on **ignorance** only. Every read here RAISES on a redis
-error and returns an empty answer only when redis actually answered, so the two
-are distinguishable and get opposite treatment: unreadable (redis down, index
-unreachable) yields "ok / do not shed" so a blip never rejects a user action,
-while a readable index reporting zero live workers is a FACT about the fleet and
-sheds — otherwise a stopped fleet silently accepts work nothing can ever drain.
+Every read here RAISES on a redis error and returns an empty answer only when
+redis actually answered, so the two are distinguishable — and **both refuse**,
+for different reasons:
+
+* a readable index reporting zero live workers is a FACT about the fleet, and
+  admitting there would accept work nothing can ever drain;
+* redis being unreadable is the ABSENCE of an answer, and admitting on it is the
+  guard permitting exactly what it exists to prevent.
+
+The one case that still admits is a lane redis ANSWERS is momentarily empty
+while the fleet was seen recently — a rolling worker restart. That is knowledge,
+and it is graced, not ignored.
 
 Coverage model
 --------------
@@ -26,15 +32,19 @@ Each live worker contributes the ``(pool, tier)`` pairs it serves:
 
 * a **governor** worker publishes ``governor:worker:<name>.served_lanes`` (a
   JSON list, hash TTL 90s) — an exact served set;
-* an **opaque** worker (a plain reserved / std-lane / notifier worker, or a
-  not-yet-upgraded governed worker) has no governor hash, so we fall back to its
-  RQ birth ``queues`` and record its pool as *opaque* — a lane in an opaque pool
-  can never be declared stranded, because such a worker might serve overflow we
-  cannot see.
+* a **plain** worker (reserved / std-lane / notifier) has no governor hash at
+  all. It cannot rotate its subscription, so its RQ birth ``queues`` are exactly
+  what it consumes: known coverage, and its pool stays readable;
+* a **mid-upgrade** worker has the governor hash but no ``served_lanes`` yet.
+  Only this one is *opaque*: the governor may hand it lanes its birth set does
+  not name, so we fall back to ``queues`` and record its pool as unreadable.
 
 ``stranded(pool, tier)`` is therefore true only when NO live worker serves the
 pair AND no opaque worker sits in that pool — i.e. we are confident the lane has
 no consumer, which is exactly when a foreground task there would hang forever.
+
+Reading a plain worker as opaque is what kept the signal unreachable: one such
+worker anywhere in a pool suppressed every stranded lane in it, permanently.
 """
 
 import json
@@ -133,9 +143,20 @@ def _worker_up(worker_hash, gov_hash, now_ts):
         return False
 
 
-def _worker_lanes(worker_hash, gov_hash):
-    """Return ``(served_lanes, known)``: the governor served set when published
-    (``known=True``), else the RQ birth ``queues`` (``known=False``)."""
+def worker_lanes(worker_hash, gov_hash):
+    """Return ``(served_lanes, known)`` for one live worker.
+
+    Three cases, and only the middle one is unknown:
+
+    * a governor hash carrying ``served_lanes`` — the exact set, known;
+    * a governor hash WITHOUT it — a governed worker mid rolling upgrade. The
+      governor rotates its lanes, so the birth subscription no longer says what
+      it is draining: best-effort, not known;
+    * no governor hash at all — not a governed worker. Its RQ ``queues`` field
+      IS the set it consumes, by construction, so it is known. Treating it as
+      unknown blinds its whole pool, and ``init.sh`` starts the reserved and
+      standard-lane workers this way on every install.
+    """
     if "served_lanes" in gov_hash:
         try:
             parsed = json.loads(gov_hash.get("served_lanes") or "[]")
@@ -143,8 +164,31 @@ def _worker_lanes(worker_hash, gov_hash):
                 return [str(x) for x in parsed], True
         except Exception:
             pass
-    birth = worker_hash.get("queues") or ""
-    return [lane for lane in birth.split(",") if lane], False
+    birth = [lane for lane in (worker_hash.get("queues") or "").split(",") if lane]
+    return birth, not gov_hash
+
+
+def coverage_from_lane_sets(entries):
+    """``(covered, opaque_pools)`` from ``(served_lanes, served_known)`` pairs.
+
+    The pure core of :func:`served_coverage`, so a caller that has already
+    loaded the worker rows — the admin governor/backlog read — reaches the same
+    verdict as the enqueue-time shed gate without a second pass over redis.
+    ``entries`` must already be filtered to LIVE workers.
+    """
+    covered = Counter()
+    opaque_pools = set()
+    for lanes, known in entries:
+        birth_pool = None
+        for lane in lanes or []:
+            parsed = queue_tiers.parse_storage_queue(lane)
+            if parsed:
+                covered[(parsed[0], parsed[2])] += 1
+                if birth_pool is None:
+                    birth_pool = parsed[0]
+        if not known and birth_pool:
+            opaque_pools.add(birth_pool)
+    return covered, opaque_pools
 
 
 def served_coverage(conn):
@@ -153,8 +197,8 @@ def served_coverage(conn):
     ``covered`` is a ``Counter`` of ``(pool, tier)`` -> number of live workers
     serving that lane (membership still answers "has a consumer?", and the count
     feeds the ETA's effective concurrency); ``opaque_pools`` is the set of pools
-    holding a live worker whose served set we cannot see. Raises on redis error
-    (callers treat that as fail-open)."""
+    holding a live worker whose served set we cannot see. Raises on redis error,
+    which the shed decision turns into a refusal rather than an admission."""
     covered = Counter()
     opaque_pools = set()
     members = conn.smembers(_RQ_WORKERS_KEY)
@@ -173,22 +217,14 @@ def served_coverage(conn):
         results = pipe.execute()
 
     now_ts = time.time()
+    entries = []
     for idx in range(len(worker_keys)):
         worker_hash = _dec_hash(results[idx * 2])
         gov_hash = _dec_hash(results[idx * 2 + 1])
         if not _worker_up(worker_hash, gov_hash, now_ts):
             continue
-        lanes, known = _worker_lanes(worker_hash, gov_hash)
-        birth_pool = None
-        for lane in lanes:
-            parsed = queue_tiers.parse_storage_queue(lane)
-            if parsed:
-                covered[(parsed[0], parsed[2])] += 1
-                if birth_pool is None:
-                    birth_pool = parsed[0]
-        if not known and birth_pool:
-            opaque_pools.add(birth_pool)
-    return covered, opaque_pools
+        entries.append(worker_lanes(worker_hash, gov_hash))
+    return coverage_from_lane_sets(entries)
 
 
 def lane_shed_decision(conn, queue, now=None):
@@ -198,8 +234,9 @@ def lane_shed_decision(conn, queue, now=None):
     consumer for the lane, any tier; or a foreground lane above its hard cap),
     ``"warn"`` (backed up but will run) or ``"ok"``. ``ctx`` carries ``pool``/
     ``category``/``tier``/``backlog``/``has_consumer``/``stranded``/``reason``
-    for the caller's error or notify. Never raises — a read that FAILS degrades
-    to ``("ok", ...)``.
+    for the caller's error or notify. Never raises — a read that FAILS becomes
+    ``("reject", {"reason": "coverage_unreadable"})``, which the callers turn
+    into the same 429 a consumerless lane gives.
 
     The LIVE coverage index (:func:`pool_live_workers`) is the primary signal:
     a fresh heartbeat there means a governed worker serves the lane right now.
@@ -213,7 +250,8 @@ def lane_shed_decision(conn, queue, now=None):
     Both reads raise on a redis error, so reaching the end of that fallback with
     nothing found means redis answered and the fleet is genuinely gone. That is
     knowledge, and it sheds like any other empty lane: accepting work no worker
-    can drain gives the user neither an error nor progress."""
+    can drain gives the user neither an error nor progress. A read that could not
+    answer at all sheds too, but under its own reason."""
     parsed = queue_tiers.parse_storage_queue(queue)
     if not parsed:
         return "ok", {"reason": "non_storage_queue"}
@@ -250,9 +288,16 @@ def lane_shed_decision(conn, queue, now=None):
         backlog = conn.llen(_RQ_QUEUE_PREFIX + queue)
     except Exception:
         # We could not READ the fleet (redis down, index unreachable). That is
-        # ignorance, not a zero-consumer verdict: fail open.
-        return "ok", {
-            "reason": "coverage_error",
+        # ignorance, and admitting on it is the guard permitting exactly what it
+        # exists to prevent: work nothing may ever drain, and a second chain over
+        # a row whose current task we also could not look up.
+        #
+        # NOT the same fact as a lane redis ANSWERS is momentarily empty — a
+        # rolling worker restart — which keeps its own fleet-gap grace above.
+        # Both used to land in this except, which is what made the bias look
+        # deliberate for a case nobody had decided.
+        return "reject", {
+            "reason": "coverage_unreadable",
             "pool": pool,
             "category": category,
             "tier": tier,
@@ -305,9 +350,12 @@ def _raise_lane_429(conn, ctx):
         tier=ctx.get("tier"),
     )
 
+    # An unreadable index is, for the user, the same situation as a lane with
+    # no consumer: the work cannot be placed and retrying later is the answer.
+    # Same code, so nothing downstream has to learn a new one.
     code = (
         "storage_no_consumer_retry_later"
-        if ctx.get("reason") == "no_consumer"
+        if ctx.get("reason") in ("no_consumer", "coverage_unreadable")
         else "storage_overloaded_retry_later"
     )
     raise Error(
@@ -327,11 +375,16 @@ def check_no_consumer(conn, queue):
     """Raise a typed 429 when ``queue`` has NO live consumer for its
     (pool, category) — a task nothing can drain must never be enqueued, for any
     tier. Mandatory on every producer and category-scoped (a dead pool only
-    refuses the categories it serves); fail-open only when the coverage index
-    cannot be read. Distinct from :func:`check_shed`, the additional foreground
-    backlog-overload gate."""
+    refuses the categories it serves). An index that cannot be READ refuses here
+    too, under ``coverage_unreadable``: this gate is mandatory on every producer,
+    so leaving it open on ignorance leaves the whole admission path open.
+    Distinct from :func:`check_shed`, the additional foreground backlog-overload
+    gate."""
     decision, ctx = lane_shed_decision(conn, queue)
-    if decision == "reject" and ctx.get("reason") == "no_consumer":
+    if decision == "reject" and ctx.get("reason") in (
+        "no_consumer",
+        "coverage_unreadable",
+    ):
         _raise_lane_429(conn, ctx)
 
 
@@ -339,7 +392,7 @@ def check_shed(conn, queue):
     """Raise a typed 429 ``Error`` if a task must not enqueue on ``queue``
     (stranded for any tier, or a foreground lane above its hard backlog cap).
     Call this BEFORE any state mutation so a reject leaves nothing half-done.
-    Fail-open only when the coverage index cannot be read."""
+    An unreadable coverage index rejects as well."""
     decision, ctx = lane_shed_decision(conn, queue)
     if decision == "reject":
         _raise_lane_429(conn, ctx)
@@ -414,7 +467,7 @@ def unpublish_worker(conn, pool, tier, worker):
 def pool_live_workers(conn, pool, tier, now=None, ttl=None):
     """Live worker count for (pool, tier), pruning stale members first so a
     dead worker's absence is immediate rather than waiting on the key TTL.
-    Raises on redis error — callers already treat that as fail-open."""
+    Raises on redis error, which the shed decision turns into a refusal."""
     now = time.time() if now is None else now
     ttl = COV_TTL_S if ttl is None else ttl
     key = cov_key(pool, tier)

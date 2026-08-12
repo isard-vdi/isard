@@ -20,7 +20,6 @@
 
 
 import time
-import traceback
 import uuid
 from uuid import uuid4
 
@@ -58,25 +57,33 @@ class TargetModel(BaseModel):
 class Targets(RethinkCustomBase):
 
     @classmethod
-    def get_domain_target(cls, domain_id, conn_type=None):
+    def find_domain_target(cls, domain_id):
+        """Return the target row for ``domain_id`` or ``None`` — never raises.
+
+        Callers that must react to a missing target (the recycle-bin add
+        paths) use this; only ``get_domain_target`` raises, for the HTTP
+        endpoints where a 404 is the correct response.
+        """
         with cls._rdb_context():
             target = list(
                 r.table("targets")
                 .get_all(domain_id, index="desktop_id")
                 .run(cls._rdb_connection)
             )
+        return target[0] if target else None
 
+    @classmethod
+    def get_domain_target(cls, domain_id, conn_type=None):
+        target = cls.find_domain_target(domain_id)
         if not target:
             raise Error(
                 "not_found",
                 "Target not found",
-                traceback.format_exc(),
+                description_code="target_not_found",
             )
-
         if conn_type:
-            return target[0][conn_type]
-
-        return target[0]
+            return target[conn_type]
+        return target
 
     @classmethod
     def update_domain_target(cls, domain_id, data={}):

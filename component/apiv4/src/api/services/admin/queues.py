@@ -24,7 +24,11 @@ from isardvdi_common.lib.governed_worker import (
     WORKER_STATUS_PREFIX,
     category_running_key,
 )
-from isardvdi_common.lib.queue_coverage import served_coverage
+from isardvdi_common.lib.queue_coverage import (
+    coverage_from_lane_sets,
+    served_coverage,
+    worker_lanes,
+)
 from isardvdi_common.lib.queue_tiers import (
     _FAIR_TIERS,
     NULL_CATEGORY,
@@ -360,18 +364,12 @@ def _build_worker_row(
             if pool is None:
                 pool = parsed[0]
 
-    # served_lanes / served_known / PSI / flags come from governor:worker:<name>
-    # (published in a later step). Until then, degrade: served_known=false and
-    # a best-effort served set = the birth storage lanes.
-    served_known = "served_lanes" in gov_hash
-    served_lanes = storage_lanes
-    if served_known:
-        try:
-            parsed_served = json.loads(gov_hash.get("served_lanes") or "[]")
-            if isinstance(parsed_served, list):
-                served_lanes = [str(x) for x in parsed_served]
-        except Exception:
-            served_known = False
+    # served_lanes / served_known come from the shared rule, so this row and the
+    # enqueue gate classify a worker the same way: a published set is exact, a
+    # governed worker that has not published yet is unknown, and a plain rq
+    # worker's birth subscription IS what it consumes.
+    served_lanes, served_known = worker_lanes(worker_hash, gov_hash)
+    served_lanes = [lane for lane in served_lanes if parse_storage_queue(lane)]
 
     def _gov_float(key):
         val = gov_hash.get(key)
@@ -941,7 +939,12 @@ class AdminQueuesService:
             effective_max_heavy = effective["max_heavy"]
             try:
                 db_block = Config.get_storage_scheduler_config() or {}
-                config_mirrored = bool(raw) and (block == db_block)
+                # An absent Redis key with nothing stored to mirror is not
+                # drift: nobody has configured the governor and the workers are
+                # running their defaults correctly. Calling that unmirrored
+                # raises a permanent banner whose remedy ("re-save to
+                # republish") has nothing to save, and buries the real case.
+                config_mirrored = (block == db_block) if raw else not db_block
             except Exception:
                 config_mirrored = bool(raw)
 
@@ -973,9 +976,9 @@ class AdminQueuesService:
         caps = effective.get("category_max_inflight") or {}
         default_cap = effective.get("category_default_max_inflight")
 
-        # Coverage: (pool, tier) served by any live worker (best-effort — degrades
-        # to 'unknown' when a worker's served set is not known).
-        covered_pairs, coverage_known = AdminQueuesService._served_coverage(worker_rows)
+        # Coverage: (pool, tier) served by any live worker, plus the pools whose
+        # coverage cannot be read because a live worker there hides its served set.
+        covered_pairs, opaque_pools = AdminQueuesService._served_coverage(worker_rows)
 
         pools = {}
         for pool, category, tier, lane in lanes:
@@ -1099,14 +1102,22 @@ class AdminQueuesService:
             stats = lane_stats.get(lane, {})
             if not (stats.get("queued", 0) or 0):
                 continue
-            pair = (pool, tier)
-            if not coverage_known.get(pair, False):
+            if pool in opaque_pools:
                 continue  # suppress rather than false-fire (rolling upgrade)
-            if pair not in covered_pairs:
+            if (pool, tier) not in covered_pairs:
                 warnings.append(
                     {
                         "kind": "stranded_lane",
                         "pool": pool,
+                        # The alert joins this warning to the lane's backlog on
+                        # (pool, category, tier), and a fair-tier backlog is only
+                        # ever filed under a category — so the same id has to
+                        # travel here or the join can never match.
+                        "category_id": (
+                            category
+                            if category is not None
+                            else (NULL_CATEGORY if tier in _FAIR_TIERS else None)
+                        ),
                         "tier": tier,
                         "lane": lane,
                         "backlog": stats.get("queued", 0),
@@ -1196,30 +1207,18 @@ class AdminQueuesService:
 
     @staticmethod
     def _served_coverage(worker_rows: list) -> tuple:
-        """(pool, tier) pairs served by a live worker, and whether coverage for a
-        pair is KNOWN (a live worker with a known served set covers it; a live
-        worker whose served set is unknown makes its birth pools' coverage
-        unknown -> StrandedLane is suppressed for those, never false-fired)."""
-        covered = set()
-        known = {}
-        for row in worker_rows:
-            if not row.get("up"):
-                continue
-            for lane in row.get("served_lanes") or []:
-                parsed = parse_storage_queue(lane)
-                if parsed:
-                    pair = (parsed[0], parsed[2])
-                    covered.add(pair)
-                    known[pair] = True
-            if not row.get("served_known"):
-                # This live worker might serve a lane we cannot see; mark its
-                # pool/tier coverage unknown unless another worker proves it.
-                for lane in row.get("served_lanes") or []:
-                    parsed = parse_storage_queue(lane)
-                    if parsed:
-                        pair = (parsed[0], parsed[2])
-                        known.setdefault(pair, False)
-        return covered, known
+        """``(covered, opaque_pools)`` over the live workers already loaded.
+
+        Delegates to ``queue_coverage`` so this read and the enqueue-time shed
+        gate share one ``has_consumer`` / ``stranded`` definition, which is what
+        that module exists for. Coverage of a pool is UNKNOWN while any live
+        worker there hides its served set (a rolling upgrade), and only then.
+        """
+        return coverage_from_lane_sets(
+            (row.get("served_lanes") or [], bool(row.get("served_known")))
+            for row in worker_rows
+            if row.get("up")
+        )
 
     @staticmethod
     @cached(backlog_cache)
@@ -1245,14 +1244,13 @@ class AdminQueuesService:
                 lane: _lane_stats(conn, lane, now_ts) for (_, _, _, lane) in lanes
             }
             worker_rows, _mt = AdminQueuesService._worker_health_rows(conn)
-        covered_pairs, coverage_known = AdminQueuesService._served_coverage(worker_rows)
+        covered_pairs, opaque_pools = AdminQueuesService._served_coverage(worker_rows)
 
         rows = []
         for pool, category, tier, lane in lanes:
             stats = lane_stats.get(lane, {})
-            pair = (pool, tier)
-            has_consumer = pair in covered_pairs
-            cov_known = coverage_known.get(pair, False)
+            has_consumer = (pool, tier) in covered_pairs
+            cov_known = pool not in opaque_pools
             queued = stats.get("queued", 0) or 0
             stranded = bool(queued and cov_known and not has_consumer)
             rows.append(
@@ -1781,7 +1779,12 @@ class AdminQueuesService:
                 raise Error(
                     "bad_request", "category_default_max_inflight must be an integer"
                 )
-            clean["category_default_max_inflight"] = max(1, min(1000, value))
+            # 0 is the wire value for UNCAPPED. An omitted key keeps the stored
+            # cap, so without it there is no way back to the work-conserving
+            # weighted-RR-only state once a default has been set.
+            clean["category_default_max_inflight"] = (
+                None if value <= 0 else min(1000, value)
+            )
         if not clean:
             raise Error("bad_request", "No valid storage_scheduler fields provided")
         Config.update_storage_scheduler(clean)

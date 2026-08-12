@@ -180,6 +180,62 @@ def _free_space(path):
         return None
 
 
+# Headroom every whole-copy action leaves on the destination filesystem, unless
+# the caller names its own. A floor that only applies when an operator has
+# configured one protects nobody by default, and the damage is not proportional
+# to the operation: a storage node with a full filesystem fails EVERY write on
+# it, not just the copy that filled it, and leaves rows mid-flight for someone
+# to reconcile. Pass ``min_free_bytes=0`` to switch it off deliberately.
+DEFAULT_MIN_FREE_BYTES = int(environ.get("STORAGE_MIN_FREE_BYTES") or 1 << 30)
+
+
+def _require_free_space(target_dir, source_path, min_free_bytes, action, verb):
+    """Refuse ``action`` unless ``target_dir`` keeps ``min_free_bytes`` free
+    after landing a full copy of ``source_path``.
+
+    Fails CLOSED on both unknowns. Neither probe failing is a neutral event:
+    ``statvfs`` failing and a source that cannot be stat'd are symptoms of the
+    filesystem this guard exists to protect already being unhappy, so that is
+    the worst moment to wave a whole-disk copy through. The previous behaviour
+    — proceed when free space was unknown, reserve zero when the size was —
+    removed the guard exactly where it mattered.
+
+    ``min_free_bytes=0`` disables the check; ``None`` means "use the default".
+
+    :raises RuntimeError: when the floor would be breached, or when either
+        figure cannot be read.
+    """
+    if min_free_bytes is None:
+        min_free_bytes = DEFAULT_MIN_FREE_BYTES
+    if not min_free_bytes:
+        return
+
+    free = _free_space(target_dir)
+    if free is None:
+        raise RuntimeError(
+            f"{action}: refusing to {verb} {source_path}: cannot read the free "
+            f"space at {target_dir} (statvfs failed), so the {min_free_bytes} "
+            "byte floor cannot be honoured"
+        )
+    try:
+        # APPARENT size, not st_blocks: neither the rsync argv nor qemu-img
+        # carries --sparse here, so a sparse qcow2 lands fully allocated at the
+        # destination. Reserving only the allocated size would let the copy
+        # breach the very floor this gate exists to hold.
+        needed = os_stat(source_path).st_size
+    except OSError as exc:
+        raise RuntimeError(
+            f"{action}: refusing to {verb} {source_path}: cannot size the "
+            "source, so the space the copy needs is unknown"
+        ) from exc
+    if free - needed < min_free_bytes:
+        raise RuntimeError(
+            f"{action}: refusing to {verb} {source_path}: destination "
+            f"{target_dir} would be left with {free - needed} bytes free, below "
+            f"the {min_free_bytes} byte floor (filesystem-level figure)"
+        )
+
+
 STDERR_TAIL_BYTES = 64 * 1024  # what we keep of a failed child's stderr
 
 
@@ -1214,7 +1270,7 @@ def move(
     bwlimit=0,
     remove_source_file=True,
     progress_domain_id=None,
-    min_free_bytes=0,
+    min_free_bytes=None,
 ):
     """
     Move disk.
@@ -1242,6 +1298,11 @@ def move(
     :return: Exit code of rsync command or 0 if rsync is False
     :rtype: int
     """
+    # Before any filesystem probing: an unknown method is a caller error, and
+    # reporting it as "cannot read the free space" hides it.
+    if method not in ("mv", "rsync", "auto"):
+        raise ValueError(f"Invalid move method: {method}")
+
     if not isfile(origin_path):
         raise ValueError(f"Path {origin_path} not found")
 
@@ -1275,24 +1336,10 @@ def move(
     # and the real constraint is the pool's PHYSICAL fill, which can be ~5x
     # smaller. On such pools this floor gives no protection and must not be
     # relied on until the probe learns to read the physical figure.
-    if min_free_bytes and method != "mv":
-        free = _free_space(dirname(destination_path))
-        if free is not None:  # a probe that cannot answer must not block a move
-            try:
-                # APPARENT size, not st_blocks: the rsync argv carries no
-                # --sparse, so a sparse qcow2 lands fully allocated at the
-                # destination. Reserving only the allocated size would let the
-                # copy breach the very floor this gate exists to hold.
-                needed = os_stat(origin_path).st_size
-            except OSError:
-                needed = 0
-            if free - needed < min_free_bytes:
-                raise RuntimeError(
-                    f"move: refusing to copy {origin_path}: destination "
-                    f"{dirname(destination_path)} would be left with "
-                    f"{free - needed} bytes free, below the {min_free_bytes} "
-                    "byte floor (filesystem-level figure)"
-                )
+    if method != "mv":
+        _require_free_space(
+            dirname(destination_path), origin_path, min_free_bytes, "move", "copy"
+        )
 
     on_progress = None
     if progress_domain_id is not None:
@@ -1470,7 +1517,7 @@ def migration_verify_destination(dst_path, expect_backing=None):
 
 
 @_publishes_result
-def convert(source_disk_path, dest_disk_path, format, compression):
+def convert(source_disk_path, dest_disk_path, format, compression, min_free_bytes=None):
     """
     Convert disk.
 
@@ -1483,6 +1530,9 @@ def convert(source_disk_path, dest_disk_path, format, compression):
     :type format: str
     :param compression: True to compress the destination file. Only supported for qcow and qcow2 formats.
     :type compression: bool
+    :param min_free_bytes: Headroom to leave on the destination filesystem.
+        ``None`` uses :data:`DEFAULT_MIN_FREE_BYTES`, ``0`` disables the check.
+    :type min_free_bytes: int | None
     :return: Exit code of qemu-img command
     :rtype: int
     """
@@ -1490,6 +1540,18 @@ def convert(source_disk_path, dest_disk_path, format, compression):
 
     if format not in ["qcow2", "vmdk"]:
         raise ValueError(f"{format} is not a valid disk format.")
+
+    # A convert writes a whole second copy of the disk, so on a tight pool it
+    # fills the destination filesystem. Checked BEFORE qemu-img starts: letting
+    # it run into ENOSPC costs the whole copy and leaves a partial destination
+    # for the failure branch to unlink.
+    _require_free_space(
+        dirname(dest_disk_path),
+        source_disk_path,
+        min_free_bytes,
+        "convert",
+        "convert",
+    )
 
     if compression and format == "qcow2":
         compress = ["-c"]
@@ -1878,12 +1940,15 @@ def sparsify(storage_path):
 
 
 @_publishes_result
-def disconnect(storage_path):
+def disconnect(storage_path, min_free_bytes=None):
     """
     Disconnect storage_id from backing file
 
     :param storage_id: Storage ID
     :type storage_id: str
+    :param min_free_bytes: Headroom to leave on the filesystem holding the disk.
+        ``None`` uses :data:`DEFAULT_MIN_FREE_BYTES`, ``0`` disables the check.
+    :type min_free_bytes: int | None
     :return: Exit code of qemu-img command
     :rtype: int
     """
@@ -1892,6 +1957,18 @@ def disconnect(storage_path):
     # short and the temp-file cleanup on cancel would need its own logic.
     disconnected_path = storage_path + ".wo_chain"
     _safe_unlink(disconnected_path)  # clear a stale sibling from a prior crashed run
+
+    # The flattened sibling is written next to the live disk, so the filesystem
+    # this can fill is the one already holding it. Measured AFTER the unlink
+    # above: a stale sibling holds a whole disk image of the very space being
+    # measured, so probing first would refuse on space about to be released.
+    _require_free_space(
+        dirname(storage_path),
+        storage_path,
+        min_free_bytes,
+        "disconnect",
+        "disconnect",
+    )
 
     try:
         run(

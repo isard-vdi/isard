@@ -195,14 +195,22 @@ def _governed_worker(r, name, pool, tiers=ALL_TIERS):
     }
 
 
-def _opaque_worker(r, name, pool, tiers=("interactive", "standard")):
-    """A plain reserved/std-lane worker: no governor hash -> opaque pool."""
+def _plain_worker(r, name, pool, tiers=("interactive", "standard")):
+    """A plain reserved/std-lane worker: no governor hash, so its RQ birth
+    ``queues`` are exactly what it consumes -> known coverage, pool stays read."""
     lanes = [f"storage.{pool}.{t}" for t in tiers]
     r.sets.setdefault("rq:workers", set()).add(f"rq:worker:{name}")
     r.hashes[f"rq:worker:{name}"] = {
         "queues": ",".join(lanes),
         "last_heartbeat": _fresh_heartbeat(),
     }
+
+
+def _mid_upgrade_worker(r, name, pool, tiers=("interactive", "standard")):
+    """A governed worker that has not published yet: the governor hash exists,
+    so the lanes it is handed may differ from its birth set -> opaque pool."""
+    _plain_worker(r, name, pool, tiers=tiers)
+    r.hashes[f"governor:worker:{name}"] = {"kind": "elastic"}
 
 
 # --- served_coverage --------------------------------------------------------
@@ -217,12 +225,22 @@ def test_served_coverage_governed_worker_is_known():
     assert opaque == set()
 
 
-def test_served_coverage_opaque_worker_marks_pool_opaque():
+def test_plain_worker_covers_its_birth_lanes_without_blinding_the_pool():
+    # A plain rq worker cannot rotate its subscription, so `queues` is exactly
+    # what it consumes and there is nothing hidden to be conservative about.
     r = _FakeRedis()
-    _opaque_worker(r, "res1", DEF)
+    _plain_worker(r, "res1", DEF)
     covered, opaque = qc.served_coverage(r)
-    # its birth lanes still count as covered, but the pool is opaque
     assert (DEF, "interactive") in covered
+    assert opaque == set()
+
+
+def test_governed_worker_without_a_served_set_marks_pool_opaque():
+    # The rolling-upgrade case the suppression exists for: the governor hash is
+    # present, so the lanes it hands this worker may differ from its birth set.
+    r = _FakeRedis()
+    _mid_upgrade_worker(r, "mid", DEF)
+    _covered, opaque = qc.served_coverage(r)
     assert opaque == {DEF}
 
 
@@ -318,15 +336,25 @@ def test_ok_healthy_lane():
 # --- opacity suppresses false stranding ------------------------------------
 
 
-def test_opaque_pool_suppresses_stranding_for_uncovered_tier():
+def test_a_governed_worker_mid_upgrade_suppresses_stranding_in_its_pool():
+    # The suppression is scoped to what it is for: a worker whose served set the
+    # governor may have rotated. Its pool stays unjudged until it publishes.
     r = _FakeRedis()
-    # an opaque worker in DEF serving only interactive/standard; a maintenance
-    # task in DEF is not directly covered, but the opaque worker might serve it
-    _opaque_worker(r, "res1", DEF, tiers=("interactive",))
+    _mid_upgrade_worker(r, "mid", DEF, tiers=("interactive",))
     decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.standard")
-    # standard is foreground + uncovered, but DEF is opaque -> not stranded
     assert ctx["stranded"] is False
     assert decision in ("ok", "warn")
+
+
+def test_a_plain_worker_on_another_tier_does_not_excuse_an_undrained_lane():
+    # res1 is subscribed to interactive ONLY, and being a plain rq worker that
+    # subscription is final: a standard job here would never be picked up.
+    # Admitting it is the same silent-accept the whole-fleet-gone case closed.
+    r = _FakeRedis()
+    _plain_worker(r, "res1", DEF, tiers=("interactive",))
+    decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.standard")
+    assert ctx["stranded"] is True
+    assert decision == "reject"
 
 
 # --- fail-open --------------------------------------------------------------
@@ -340,13 +368,17 @@ def test_empty_fleet_rejects_because_it_is_knowledge():
     assert ctx["reason"] == "no_consumer"
 
 
-def test_fail_open_on_redis_error():
+def test_an_unreadable_index_rejects_rather_than_admitting_blind():
+    """Was ``test_fail_open_on_redis_error``, asserting the opposite. Admitting
+    on a read failure is the guard yielding exactly where it is needed: the
+    caller now gets the same 429 a consumerless lane gives. Genuine emptiness
+    that redis DID answer keeps its own paths (fleet gap, no_consumer)."""
     r = _FakeRedis()
     _governed_worker(r, "w1", DEF)
     r.fail = True
     decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.interactive")
-    assert decision == "ok"
-    assert ctx["reason"] == "coverage_error"
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
 
 
 def test_non_storage_queue_is_ok():
@@ -607,12 +639,14 @@ def test_decision_rejects_when_index_and_registry_are_both_empty():
     assert ctx["reason"] == "no_consumer"
 
 
-def test_decision_fail_open_on_redis_error():
+def test_decision_rejects_when_the_index_cannot_be_read():
+    """Was ``test_decision_fail_open_on_redis_error``. Same reason as above:
+    the index blowing up is ignorance, not a verdict about the fleet."""
     r = _IndexBoomRedis()
     _governed_worker(r, "w1", "p1")
     decision, ctx = qc.lane_shed_decision(r, "storage.p1.interactive")
-    assert decision == "ok"
-    assert ctx["reason"] == "coverage_error"
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
 
 
 def test_decision_reject_overloaded_foreground_over_cap():
@@ -706,20 +740,25 @@ def test_whole_fleet_stopped_rejects_every_tier():
         assert ctx["has_consumer"] is False and ctx["stranded"] is True
 
 
-def test_unreadable_redis_still_fails_open():
+def test_unreadable_redis_refuses_instead_of_admitting_blind():
+    """Renamed from ``test_unreadable_redis_still_fails_open``. Redis being
+    unreachable is the absence of an answer, and the gate no longer reads it as
+    a good one."""
     r = _FakeRedis()
     r.fail = True
     decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.interactive")
-    assert decision == "ok"
-    assert ctx["reason"] == "coverage_error"
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
 
 
-def test_unreadable_worker_registry_fails_open_not_closed():
+def test_unreadable_worker_registry_refuses_too():
+    """The registry is one of the reads the coverage answer is built from, so
+    it cannot be read is the same ignorance as the index being unreadable."""
     decision, ctx = qc.lane_shed_decision(
         _RegistryBoomRedis(), f"storage.{DEF}.standard"
     )
-    assert decision == "ok"
-    assert ctx["reason"] == "coverage_error"
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
 
 
 def test_stale_registry_entry_is_not_a_live_consumer():
@@ -747,9 +786,9 @@ def test_worker_for_another_pool_leaves_both_pools_unchanged():
 
 def test_opaque_pool_immunity_holds_when_it_is_the_whole_fleet():
     r = _FakeRedis()
-    # the only live worker is opaque and was born on one lane: it might serve
-    # overflow we cannot see, so no lane of ITS pool may be declared stranded
-    _opaque_worker(r, "res1", DEF, tiers=("interactive",))
+    # the only live worker cannot say what it serves, so it might take overflow
+    # we cannot see and no lane of ITS pool may be declared stranded
+    _mid_upgrade_worker(r, "res1", DEF, tiers=("interactive",))
     for tier in ALL_TIERS:
         decision, ctx = qc.lane_shed_decision(r, f"storage.{DEF}.{tier}")
         assert decision == "ok" and ctx["stranded"] is False, tier
@@ -885,3 +924,115 @@ def test_grace_window_includes_its_exact_edge():
     )
     assert decision == "ok"
     assert ctx["reason"] == "fleet_gap"
+
+
+class TestCoverageFromLaneSets:
+    """The pure core of ``served_coverage``. It exists so the admin read layer,
+    which has already loaded the worker rows, can reach the SAME verdict as the
+    enqueue-time shed gate without a second pass over redis — the one
+    definition this module's docstring promises."""
+
+    def test_a_published_served_set_covers_its_lanes_and_hides_nothing(self):
+        covered, opaque = qc.coverage_from_lane_sets(
+            [(["storage.default.bulk", "storage.default.template"], True)]
+        )
+        assert covered[("default", "bulk")] == 1
+        assert covered[("default", "template")] == 1
+        assert opaque == set()
+
+    def test_an_unpublished_served_set_makes_its_pool_opaque(self):
+        covered, opaque = qc.coverage_from_lane_sets(
+            [(["storage.default.bulk"], False)]
+        )
+        assert covered[("default", "bulk")] == 1
+        assert opaque == {"default"}
+
+    def test_a_lane_nobody_serves_is_uncovered_without_making_its_pool_opaque(self):
+        covered, opaque = qc.coverage_from_lane_sets([(["storage.default.bulk"], True)])
+        assert ("default", "reclaim") not in covered
+        assert opaque == set()
+
+    def test_counts_workers_per_lane_for_the_effective_concurrency(self):
+        covered, _ = qc.coverage_from_lane_sets(
+            [(["storage.default.bulk"], True), (["storage.default.bulk"], True)]
+        )
+        assert covered[("default", "bulk")] == 2
+
+    def test_ignores_non_storage_lanes_and_an_empty_set(self):
+        covered, opaque = qc.coverage_from_lane_sets([(["default"], True), ([], False)])
+        assert dict(covered) == {}
+        assert opaque == set()
+
+    def test_served_coverage_agrees_with_the_pure_core(self):
+        r = _FakeRedis()
+        _governed_worker(r, "w1", DEF, tiers=("bulk",))
+        _plain_worker(r, "res1", "pool2", tiers=("reclaim",))
+        covered, opaque = qc.served_coverage(r)
+        # res1 is plain, so its lanes are known — same as the governed one.
+        pure_covered, pure_opaque = qc.coverage_from_lane_sets(
+            [([f"storage.{DEF}.bulk"], True), (["storage.pool2.reclaim"], True)]
+        )
+        assert dict(covered) == dict(pure_covered)
+        assert opaque == pure_opaque
+
+
+class TestPlainWorkerDoesNotBlindItsPool:
+    """Opacity exists for a GOVERNED worker that has not published its served
+    set: the governor rotates its lanes, so the birth subscription no longer
+    says what it is draining. A plain rq worker has no such rotation — its
+    ``queues`` field IS the set it consumes, by construction — so treating it as
+    opaque blinds the pool for no reason.
+
+    It is not a corner case: ``init.sh`` starts the reserved and standard-lane
+    workers with the plain rq class on every install, so every pool would hold
+    one forever and no stranded lane could ever be reported in it.
+    """
+
+    def test_a_plain_worker_is_known_and_leaves_its_pool_readable(self):
+        r = _FakeRedis()
+        _plain_worker(r, "res1", DEF, tiers=("interactive",))
+        covered, opaque = qc.served_coverage(r)
+        assert covered[(DEF, "interactive")] == 1
+        assert opaque == set()
+
+    def test_a_governed_worker_without_a_served_set_still_blinds_its_pool(self):
+        # The rolling-upgrade case the suppression is for: the hash is there, so
+        # this is a governed worker, and its birth queues may not be what the
+        # governor currently hands it.
+        r = _FakeRedis()
+        lanes = [f"storage.{DEF}.bulk"]
+        r.sets.setdefault("rq:workers", set()).add("rq:worker:mid")
+        r.hashes["rq:worker:mid"] = {
+            "queues": ",".join(lanes),
+            "last_heartbeat": _fresh_heartbeat(),
+        }
+        r.hashes["governor:worker:mid"] = {"kind": "elastic"}  # no served_lanes yet
+        covered, opaque = qc.served_coverage(r)
+        assert covered[(DEF, "bulk")] == 1
+        assert opaque == {DEF}
+
+    def test_a_reserved_worker_does_not_cover_the_fair_tiers_it_never_serves(self):
+        # The whole point: the pool stays readable, so a fair-tier lane with no
+        # consumer is still visibly uncovered.
+        r = _FakeRedis()
+        _plain_worker(r, "res1", DEF, tiers=("interactive", "standard"))
+        covered, opaque = qc.served_coverage(r)
+        assert (DEF, "reclaim") not in covered
+        assert opaque == set()
+
+    def test_one_governed_worker_mid_upgrade_still_blinds_a_shared_pool(self):
+        r = _FakeRedis()
+        _plain_worker(r, "res1", DEF, tiers=("interactive",))
+        _mid_upgrade_worker(r, "mid", DEF, tiers=("bulk",))
+        _covered, opaque = qc.served_coverage(r)
+        assert opaque == {DEF}
+
+    def test_the_pure_core_takes_the_same_three_way_decision(self):
+        covered, opaque = qc.coverage_from_lane_sets(
+            [
+                ([f"storage.{DEF}.interactive"], True),  # published, or plain
+                ([f"storage.{DEF}.bulk"], False),  # governed, not published
+            ]
+        )
+        assert covered[(DEF, "interactive")] == 1
+        assert opaque == {DEF}

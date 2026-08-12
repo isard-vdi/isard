@@ -1209,6 +1209,19 @@ class Helpers(RethinkSharedConnection):
 
         """
         if category_id:
+            # A category window can never exceed the global one. Setting the
+            # global value clamps categories above it down (see else-branch),
+            # but setting a category directly had no such guard and the request
+            # schema carries no bound, so a category could be pushed above the
+            # global. The webapp caps this on the client; enforce it here too.
+            system_cutoff = cls.get_system_recycle_bin_cutoff_time()
+            if system_cutoff is not None and cutoff_time > system_cutoff:
+                raise Error(
+                    "bad_request",
+                    f"Category recycle bin cutoff time ({cutoff_time}h) cannot exceed "
+                    f"the global cutoff time ({system_cutoff}h).",
+                    description_code="recycle_bin_cutoff_exceeds_global",
+                )
             with cls._rdb_context():
                 r.table("categories").get(category_id).update(
                     {"recycle_bin_cutoff_time": cutoff_time}
@@ -1332,6 +1345,50 @@ class Helpers(RethinkSharedConnection):
                 r.table("users_migrations_exceptions").get_all(
                     r.args(group_ids), index="item_id"
                 ).delete().run(cls._rdb_connection)
+
+
+def uncovered_storage_children(covered_storage_ids, children):
+    """Children in the STORAGE graph that a recycle-bin entry would not take with it.
+
+    The recycle bin decides what a deletion drags along by walking the DOMAIN
+    graph -- a template's derived templates and desktops. What it then destroys
+    are storage files. The two graphs are written independently, so a disk can
+    have a child in the storage graph with no domain of its own: an admin can
+    create one from the disks page, which posts to the storage-create route with
+    a parent and no domain. That child is invisible to a domain walk, and the
+    purge unlinks the file it reads through.
+
+    Returns the ids of the children that are not covered, so the caller can
+    refuse instead of silently breaking them. Rows already recycled or deleted
+    are not children for this purpose -- they are going away too.
+
+    :param covered_storage_ids: storage ids the entry will recycle
+    :type covered_storage_ids: iterable of str
+    :param children: rows describing the direct children of those storages, each
+        with an ``id`` and a ``status``
+    :type children: iterable of dict
+    :return: ids of the uncovered children, sorted, without duplicates
+    :rtype: list
+    """
+    covered = set(covered_storage_ids or ())
+    # Block on a child that is LIVE, not on everything that is not obviously
+    # gone. The difference is not academic: an install accumulates disks in
+    # states outside StorageStatusEnum -- ``Failed`` is written by the engine
+    # and is not in the enum at all -- and a real install measured while
+    # verifying this had 32 of them against 31 ready. Excluding only the
+    # obviously-gone states made every one of those 32 block a legitimate
+    # template deletion.
+    live = {
+        StorageStatusEnum.ready.value,
+        StorageStatusEnum.maintenance.value,
+    }
+    return sorted(
+        {
+            child["id"]
+            for child in children or ()
+            if child.get("id") not in covered and child.get("status") in live
+        }
+    )
 
 
 class RecycleBin(RethinkSharedConnection):
@@ -2316,10 +2373,15 @@ class RecycleBinDomain(RecycleBin):
             self._add_item_name(domain_name)
 
         self.add_domain(domain)
-        try:
-            self.add_target(Targets.get_domain_target(domain_id))
-        except Exception:
-            pass
+        # Read the target, then SAVE it into the recycle_bin entry, and only
+        # after that delete the row from ``targets``. The old code wrapped both
+        # the read and the write in ``try/except: pass`` and then deleted the
+        # target unconditionally, so a failed write lost the bastion config for
+        # good. ``find_domain_target`` never raises for a missing target, so a
+        # propagating error here means the write itself failed.
+        target = Targets.find_domain_target(domain_id)
+        if target:
+            self.add_target(target)
         super()._add_owner(domain["user"])
         with self._rdb_context():
             r.table("domains").get(domain_id).delete().run(self._rdb_connection)
@@ -2415,7 +2477,29 @@ class RecycleBinTemplate(RecycleBinDomain):
         :type template_id: str, None
         """
 
-        # First recycle deployments to avoid overlapping desktops deletions
+        # Validate everything that can abort BEFORE mutating anything: once a
+        # deployment is recycled its rows are gone from ``deployments`` and
+        # ``domains`` and RethinkDB has no rollback. The existence check and the
+        # cross-category ``forbidden`` gate (``get_template_with_all_derivatives``)
+        # must therefore run before the destructive loop, not after it.
+        if template_id:
+            with self._rdb_context():
+                template = r.table("domains").get(template_id).run(self._rdb_connection)
+            if template is None:
+                raise Error(
+                    "not_found",
+                    f"Template {template_id} not found",
+                    description_code="template_not_found",
+                )
+            # Get template ids tree. Raises ``forbidden`` when a derivative
+            # lives in another category (manager path).
+            data = CommonHelpers.get_template_with_all_derivatives(
+                template_id, user_id=self.agent_id
+            )
+            self._add_item_name(template["name"])
+
+        # Only now start mutating. Recycle deployments first to avoid
+        # overlapping desktop deletions.
         deployments = CommonHelpers.get_template_derivated_deployments(template_id)
         failed_deployments = []
         for deployment in deployments:
@@ -2434,21 +2518,6 @@ class RecycleBinTemplate(RecycleBinDomain):
                 f"Failed to recycle some deployments: {failed_deployments}. Template deletion aborted.",
                 traceback.format_exc(),
                 description_code="deployment_recycle_failed",
-            )
-
-        if template_id:
-            with self._rdb_context():
-                template = r.table("domains").get(template_id).run(self._rdb_connection)
-            if template is None:
-                raise Error(
-                    "not_found",
-                    f"Template {template_id} not found",
-                    description_code="template_not_found",
-                )
-            self._add_item_name(template["name"])
-            # Get template ids tree
-            data = CommonHelpers.get_template_with_all_derivatives(
-                template_id, user_id=self.agent_id
             )
 
         domains = [
@@ -2508,9 +2577,22 @@ class RecycleBinStorage(RecycleBin):
                 ).run(self._rdb_connection)
 
     def add_storages(self, storages):
+        # Sum the batch's actual-size and add it in the same update. The
+        # single-item ``add_storage`` already accounts for size; this bulk
+        # path (every mass delete) did not, so recycle-bin entries created
+        # via bulk deletes under-reported their reclaimable size. Do NOT call
+        # the dead ``_update_size`` — it increments over the stored value and
+        # would double-count what ``add_storage`` already added.
+        batch_size = sum(
+            storage.get("qemu-img-info", {}).get("actual-size", 0)
+            for storage in storages
+        )
         with self._rdb_context():
             r.table("recycle_bin").get(self.id).update(
-                {"storages": r.row["storages"].add(storages)}
+                {
+                    "storages": r.row["storages"].add(storages),
+                    "size": r.row["size"] + batch_size,
+                }
             ).run(self._rdb_connection)
 
 
@@ -2605,6 +2687,14 @@ class RecycleBinBulk(RecycleBin):
         super().__init__(id, item_type=item_type, user_id=user_id)
 
     def add(self, desktops_ids, owner_id=None, name=None):
+        # Desktops only, as the parameter name says. Nothing enforced it, and a
+        # template id sails through: this path has no derivative cascade, so the
+        # template would be recycled ALONE and every desktop derived from it
+        # left reading a backing file the purge then unlinks. The admin bulk
+        # action reaches here with whatever ids it is given, and its per-id
+        # check returns True for an admin before it has even read the row, so
+        # it cannot filter by kind even in principle.
+        self._refuse_non_desktops(desktops_ids)
         super()._add_owner(owner_id or self.agent_id)
         if name:
             super()._add_item_name(name)
@@ -2633,6 +2723,33 @@ class RecycleBinBulk(RecycleBin):
                 time.sleep(0.5)
         rcb_desktop.add_desktops(desktops)
         return self._set_data(self.id)
+
+    def _refuse_non_desktops(self, domain_ids):
+        """Refuse anything that is not a desktop, naming what was wrong.
+
+        Templates have a cascade of their own (``RecycleBinTemplate.add``) that
+        takes the whole derived tree; sending one through the bulk path would
+        skip it. Refusing is deliberate rather than cascading here: a bulk
+        action must not quietly recycle far more than the operator selected.
+        """
+        if not domain_ids:
+            return
+        with self._rdb_context():
+            rows = list(
+                r.table("domains")
+                .get_all(r.args(list(domain_ids)))
+                .pluck("id", "kind")
+                .run(self._rdb_connection)
+            )
+        offenders = sorted(row["id"] for row in rows if row.get("kind") != "desktop")
+        if offenders:
+            raise Error(
+                "precondition_required",
+                "Only desktops can be deleted in bulk; "
+                f"these are not: {offenders}. Delete a template through the "
+                "template path, which also takes its derivatives.",
+                description_code="not_a_desktop",
+            )
 
 
 class RecycleBinDeploymentDesktops(RecycleBinBulk):
