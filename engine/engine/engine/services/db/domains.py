@@ -58,7 +58,10 @@ def _storage_task_in_flight(storage_id):
     from isardvdi_common.models.task import Task
 
     try:
-        task_id = current_task_id(Task._redis, storage_id)
+        # ``strict``: the index answers None on a redis blip by default, and
+        # None here would read as "no task" and let the sweep delete a domain
+        # whose disk is being written. Raising lands in the fail-safe below.
+        task_id = current_task_id(Task._redis, storage_id, strict=True)
         if not task_id or not Task.exists(task_id):
             return False
         return bool(Task(task_id).pending)

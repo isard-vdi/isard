@@ -535,10 +535,6 @@ class TestRefreshRunningSizes:
         class _FakeTask:
             _redis = None
 
-        # so repeated sweeps don't dogpile the task queue. Replace the
-        # ``Task`` used by the sweep with a fake whose task is pending,
-        # so the guard fires without touching redis.
-        class _FakeTask:
             def __init__(self, task_id):
                 self.pending = True
 
@@ -568,7 +564,6 @@ class TestRefreshRunningSizes:
                     "user_id": "u1",
                     "directory_path": "/p",
                     "type": "qcow2",
-                    "task": "task-in-flight",
                 }
             ],
         }

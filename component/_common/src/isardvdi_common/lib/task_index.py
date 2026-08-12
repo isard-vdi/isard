@@ -140,7 +140,7 @@ def index_task(connection, job, owner_ids, kind=STORAGE):
         )
 
 
-def current_task_id(connection, owner_id, kind=STORAGE):
+def current_task_id(connection, owner_id, kind=STORAGE, strict=False):
     """The task ``owner_id`` is busy with right now, or ``None``.
 
     The primitive that replaces the row's scalar ``task`` field. It answers the
@@ -156,6 +156,11 @@ def current_task_id(connection, owner_id, kind=STORAGE):
 
     Answers ``None`` on any redis failure rather than raising: a reader asking
     "is this row busy" must not turn a blip into a failed operation.
+
+    ``strict=True`` re-raises instead. A caller that stands in front of a
+    destructive action needs the difference between "no task" and "could not
+    ask": swallowing the second answers the first, and the guard then permits
+    exactly what it exists to prevent.
     """
     key = index_key(kind, owner_id)
     try:
@@ -174,6 +179,8 @@ def current_task_id(connection, owner_id, kind=STORAGE):
         return None
     except Exception:
         log.warning("task index: could not read %s", key, exc_info=True)
+        if strict:
+            raise
         return None
 
 
