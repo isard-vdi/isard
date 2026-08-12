@@ -346,21 +346,27 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	// --- warnings -> derived gauges -------------------------------------
-	// stranded_lane warnings carry no category_id and there can be several per
-	// (pool, tier) — one per stranded fair-tier category — which would all map
-	// to the same {pool, _pool, tier} series and make MustNewConstMetric emit a
-	// duplicate. Sum them per (pool, tier) into one series. Only coverage-known
-	// warnings are counted, so a rolling-upgrade unknown-coverage lane never
-	// false-fires StrandedLane.
-	type strandedKey struct{ pool, tier string }
+	// The StrandedLane rule joins this series to the backlog one on
+	// (pool, category, tier), so the category label has to be the one that
+	// lane's backlog was filed under: the warning's own category for a fair
+	// tier, the pool-aggregate sentinel for a reserved one. Several warnings
+	// can still share a key — one lane per tier — so they are summed rather
+	// than emitted twice. Only coverage-known warnings count, so a
+	// rolling-upgrade unknown-coverage lane never false-fires.
+	type strandedKey struct{ pool, category, tier string }
 	stranded := map[strandedKey]int{}
 	for _, wn := range gov.Warnings {
-		if wn.Kind == "stranded_lane" && wn.CoverageKnown.Or(false) {
-			stranded[strandedKey{wn.Pool.Or(""), wn.Tier.Or("")}] += wn.Backlog.Or(0)
+		if wn.Kind != "stranded_lane" || !wn.CoverageKnown.Or(false) {
+			continue
 		}
+		category := wn.CategoryID.Or("")
+		if category == "" {
+			category = poolCategory
+		}
+		stranded[strandedKey{wn.Pool.Or(""), category, wn.Tier.Or("")}] += wn.Backlog.Or(0)
 	}
 	for pt, backlog := range stranded {
-		gauge(s.descStrandedLane, float64(backlog), pt.pool, poolCategory, pt.tier)
+		gauge(s.descStrandedLane, float64(backlog), pt.pool, pt.category, pt.tier)
 	}
 
 	emitScrape(1)

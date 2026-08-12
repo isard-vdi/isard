@@ -1106,6 +1106,15 @@ class AdminQueuesService:
                     {
                         "kind": "stranded_lane",
                         "pool": pool,
+                        # The alert joins this warning to the lane's backlog on
+                        # (pool, category, tier), and a fair-tier backlog is only
+                        # ever filed under a category — so the same id has to
+                        # travel here or the join can never match.
+                        "category_id": (
+                            category
+                            if category is not None
+                            else (NULL_CATEGORY if tier in _FAIR_TIERS else None)
+                        ),
                         "tier": tier,
                         "lane": lane,
                         "backlog": stats.get("queued", 0),

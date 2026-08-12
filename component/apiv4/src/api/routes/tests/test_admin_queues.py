@@ -1959,6 +1959,23 @@ class TestStrandedLaneIsReachable:
         assert stranded[0]["backlog"] == 1
         assert stranded[0]["coverage_known"] is True
 
+    def test_the_warning_names_the_category_its_backlog_is_filed_under(
+        self, monkeypatch, clean_gov_caches
+    ):
+        # The alert joins this warning to the backlog series on
+        # (pool, category, tier), so a warning without the category can never
+        # match a fair-tier lane, whose backlog is only ever filed per category.
+        self._patch(monkeypatch, self._conn(publishes_served_set=True))
+        data = queues_service.AdminQueuesService.get_governor()
+        warning = next(w for w in data["warnings"] if w["kind"] == "stranded_lane")
+        pool = next(p for p in data["pools"] if p["pool"] == warning["pool"])
+        filed_under = {
+            c["category_id"]
+            for c in pool["categories"]
+            if warning["tier"] in c["backlog"]
+        }
+        assert warning["category_id"] in filed_under
+
     def test_rolling_upgrade_still_suppresses_the_alarm(
         self, monkeypatch, clean_gov_caches
     ):
