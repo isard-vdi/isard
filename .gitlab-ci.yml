@@ -164,10 +164,54 @@ check-alloy-config:
   script:
     - make lint-alloy
 
+# The uv cache is keyed on uv.lock, so whenever that changes — or whenever the
+# cache configuration itself changes, which alters the key's index prefix — every
+# python job starts with an empty cache and they all resolve the dependency set at
+# the same moment. Two of those dependencies are source tarballs fetched straight
+# from a git forge, and twenty simultaneous fetches of the same tarball is what
+# that forge refuses, with `http2: refused stream`. The jobs then retry, in
+# parallel, and hit the same wall.
+#
+# This job populates the cache once, and every consumer below only reads it. On a
+# cold key one job fetches instead of twenty; on a warm key it resolves from the
+# cache in seconds and costs nothing. Verified offline (`--network none`,
+# `--offline`): with this cache present, `uv sync` for the consumer packages and
+# for the dev group completes without touching the network at all.
+#
+# It syncs the packages the uv-image jobs actually name rather than
+# `--all-packages`: the latter pulls in isardvdi-engine, whose libvirt-python
+# needs headers this image does not carry, and whose suite runs in a different
+# image anyway.
+warm-uv-cache:
+  stage: lint
+  needs: []
+  # Only this job writes the cache. If it fails the consumers still run, they just
+  # resolve from the network as they did before.
+  allow_failure: true
+  retry: 2
+  cache:
+    - <<: *cache_uv
+      policy: pull-push
+  image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
+  before_script:
+    - apk add --no-cache git make
+  script:
+    - uv sync --frozen --no-dev --group test
+      --package isard-anonymize-db --package isardvdi-apiv4
+      --package isardvdi-changefeed --package isardvdi-change-handler
+      --package isardvdi-codegen --package isardvdi-common
+      --package isardvdi-notifier --package isardvdi-openapi
+      --package isardvdi-scheduler --package isardvdi-socketio
+      --package isardvdi-storage --package isardvdi-vpn
+      --package isardvdi-webapp
+    - uv sync --frozen --only-group dev
+
 .lint-uv-job:
   stage: lint
+  needs: ["warm-uv-cache"]
   cache:
-    - *cache_uv
+    - <<: *cache_uv
+      policy: pull
   image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
   before_script:
     - apk add --no-cache make
@@ -379,8 +423,9 @@ unit-test-vmalert:
 .python-test-base:
   stage: unit-test
   cache:
-    - *cache_uv
-  needs: ["gen-protobuf"]
+    - <<: *cache_uv
+      policy: pull
+  needs: ["gen-protobuf", "warm-uv-cache"]
   image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
   before_script:
     - apk add --no-cache git make
@@ -887,7 +932,8 @@ integration-real:
   # intermittent archive.org outage shouldn't fail the pipeline.
   stage: test
   cache:
-    - *cache_uv
+    - <<: *cache_uv
+      policy: pull
   when: manual
   tags:
     - gpu
