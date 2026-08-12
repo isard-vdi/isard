@@ -102,12 +102,6 @@ def _in_flight(task_id, storage_id="disk-1"):
     ):
         return mod._storage_task_in_flight(storage_id)
 
-def _in_flight(task_id):
-    with patch.dict(
-        _sys.modules,
-        {"isardvdi_common.models.task": _types.SimpleNamespace(Task=_Task)},
-    ):
-        return mod._storage_task_in_flight(task_id)
 
 
 class TestWhatProtectsADomainFromTheSweep:

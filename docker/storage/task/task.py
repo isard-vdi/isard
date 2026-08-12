@@ -857,20 +857,6 @@ def _curl_header_config(headers):
     return config
 
 
-def _curl_header_config(headers):
-    """Render ``headers`` as a curl config for ``-K -``.
-
-    Kept out of the argv on purpose: a registry download carries the
-    registration code in an ``Authorization`` header, and in the argv that is
-    readable through ``ps`` for the whole transfer and is rendered verbatim
-    into every ``CalledProcessError`` raised below, which reaches the worker
-    log and Loki.
-    """
-    config = ""
-    for header in headers or []:
-        escaped = str(header).replace("\\", "\\\\").replace('"', '\\"')
-        config += f'header = "{escaped}"\n'
-    return config
 
 
 def _run_curl_download(

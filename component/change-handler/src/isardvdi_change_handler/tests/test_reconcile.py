@@ -1056,17 +1056,6 @@ async def test_pass4_leaves_media_whose_task_is_alive(
     monkeypatch.setattr(Task, "chain_pending", property(lambda self: True))
     monkeypatch.setattr(reconcile, "_metadata_finalize_orphaned", lambda *a, **k: False)
 
-async def test_pass4_leaves_media_whose_task_is_alive(monkeypatch, _media_queue):
-    """Pass 1 and the consumer own it while the task is still running."""
-    media = _StuckMedia("maintenance", task="task-9")
-    _index_returns(monkeypatch, [media])
-    monkeypatch.setattr(Task, "exists", staticmethod(lambda task_id: True))
-    monkeypatch.setattr(Task, "__init__", lambda self, task_id: None)
-    monkeypatch.setattr(Task, "pending", property(lambda self: True))
-
-    assert await reconcile._reconcile_stuck_media(None) == 0
-    assert media.created_tasks == []
-    assert media.status == "maintenance"
 
 
 @pytest.mark.asyncio
