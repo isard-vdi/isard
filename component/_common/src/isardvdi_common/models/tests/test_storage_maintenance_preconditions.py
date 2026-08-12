@@ -44,7 +44,6 @@ class _Domain:
         self.current_action = None
 
 
-
 def _code(excinfo):
     """The description_code, wherever this Error flavour keeps it."""
     err = excinfo.value

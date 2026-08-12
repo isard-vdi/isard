@@ -535,7 +535,6 @@ class TestRefreshRunningSizes:
         class _FakeTask:
             _redis = None
 
-
         # so repeated sweeps don't dogpile the task queue. Replace the
         # ``Task`` used by the sweep with a fake whose task is pending,
         # so the guard fires without touching redis.

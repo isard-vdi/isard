@@ -103,7 +103,6 @@ def _in_flight(task_id, storage_id="disk-1"):
         return mod._storage_task_in_flight(storage_id)
 
 
-
 class TestWhatProtectsADomainFromTheSweep:
     def test_a_running_task_protects(self):
         _Task.registry["t-1"] = True

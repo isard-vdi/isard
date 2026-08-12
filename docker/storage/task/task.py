@@ -857,8 +857,6 @@ def _curl_header_config(headers):
     return config
 
 
-
-
 def _run_curl_download(
     *,
     url,

@@ -1057,7 +1057,6 @@ async def test_pass4_leaves_media_whose_task_is_alive(
     monkeypatch.setattr(reconcile, "_metadata_finalize_orphaned", lambda *a, **k: False)
 
 
-
 @pytest.mark.asyncio
 async def test_pass4_survives_a_media_that_cannot_be_re_issued(
     monkeypatch, _media_queue
