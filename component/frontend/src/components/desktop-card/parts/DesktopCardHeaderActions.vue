@@ -67,7 +67,7 @@ const bastionEnabled =
       <Button
         hierarchy="link-gray"
         size="sm"
-        class="w-9! h-9! flex align-center justify-center bg-base-black/30 hover:bg-base-black/50 p-0! backdrop-blur-[4px]"
+        class="w-9! h-9! flex align-center justify-center bg-base-black/55 hover:bg-base-black/70 p-0!"
         icon="dots-vertical"
         icon-stroke-color="base-white"
       >
