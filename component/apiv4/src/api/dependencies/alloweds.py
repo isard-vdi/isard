@@ -20,8 +20,10 @@
 
 
 import traceback
+from typing import Literal
 
 from api.dependencies.jwt_token import has_token, is_not_user
+from api.schemas.bookings import CreateBookingEventRequest
 from api.services.error import Error
 from fastapi import Depends, Path, Request
 from isardvdi_common.helpers.alloweds import Alloweds
@@ -293,6 +295,60 @@ async def owns_media_id(
 
 
 ## Booking
+
+
+def _owns_booking_item(payload: dict, item_type: str, item_id: str):
+    """Dispatch a booked item to the ownership check for its kind."""
+    if item_type == "desktop":
+        return Helpers.owns_domain_id(payload=payload, domain_id=item_id)
+    if item_type == "deployment":
+        return Helpers.owns_deployment_id(payload=payload, deployment_id=item_id)
+    raise Error(
+        "forbidden",
+        f"Unknown booking item type {item_type}.",
+        traceback.format_exc(),
+        description_code="not_enough_rights_booking",
+    )
+
+
+def owns_booking_item_id(
+    item_type_param: str = "item_type", item_id_param: str = "item_id"
+):
+    """
+    Get the booked item from route path and check if the user has access to it.
+    """
+
+    async def checker(
+        payload: str = Depends(has_token),
+        item_type: Literal["desktop", "deployment"] = Path(..., alias=item_type_param),
+        item_id: str = Path(..., alias=item_id_param),
+    ):
+        return _owns_booking_item(payload, item_type, item_id)
+
+    return checker
+
+
+async def booking_event_body(
+    new_event: CreateBookingEventRequest,
+) -> CreateBookingEventRequest:
+    """Parse the create-booking body once.
+
+    Both the route and ``owns_booking_item_body`` must depend on THIS
+    function rather than declaring the model themselves: two separate
+    body params would make FastAPI embed the body under a field name and
+    break the wire contract with both frontends.
+    """
+    return new_event
+
+
+async def owns_booking_item_body(
+    new_event: CreateBookingEventRequest = Depends(booking_event_body),
+    payload: str = Depends(has_token),
+):
+    """
+    Get the booked item from request body and check if the user has access to it.
+    """
+    return _owns_booking_item(payload, new_event.item_type, new_event.item_id)
 
 
 async def owns_booking_id(

@@ -424,6 +424,11 @@ class Helpers(RethinkSharedConnection):
         """
         with cls._rdb_context():
             result = r.table("recycle_bin").get(recycle_bin_id).run(cls._rdb_connection)
+        # apiv4 pre-checks with ``RethinkRecycleBin.exists``, but that is a
+        # TOCTOU window and this package is framework-agnostic: the scheduler
+        # and the change-handler reach here with no such guard.
+        if result is None:
+            raise Error("not_found", f"recycle_bin not found: {recycle_bin_id}")
 
         if all_data:
             from collections import defaultdict
@@ -1077,12 +1082,19 @@ class Helpers(RethinkSharedConnection):
         if user_id in ["isard-scheduler", "system"] or user_id.startswith("external_"):
             return cls.get_system_recycle_bin_cutoff_time()
         with cls._rdb_context():
+            # default(None) when the user row is gone — callers pass an owner
+            # that may be a deleted user, and plucking off a null row is a
+            # server-side ReqlNonExistenceError. Not a 404: the question is how
+            # long to keep the entry, so the answer is the system-wide window.
             user_category = (
                 r.table("users")
                 .get(user_id)
                 .pluck("category")["category"]
+                .default(None)
                 .run(cls._rdb_connection)
             )
+            if user_category is None:
+                return cls.get_system_recycle_bin_cutoff_time()
             # default(None) when the legacy category row lacks the field, so the fallback below fires
             cutoff_time = (
                 r.table("categories")
@@ -2366,9 +2378,18 @@ class RecycleBinDomain(RecycleBin):
         # Move desktop to recycle_bin
         with self._rdb_context():
             domain = r.table("domains").get(domain_id).run(self._rdb_connection)
+        # Guard goes here, not before the stop: the stored row must carry the
+        # post-stop status (as in ``add_user``), and stopping an id that is not
+        # there is a no-op, so nothing is mutated ahead of it.
+        if domain is None:
+            raise Error(
+                "not_found",
+                f"Domain {domain_id} not found",
+                description_code="domain_not_found",
+            )
 
         # Set item_name BEFORE add_domain to ensure it's set even if operations fail
-        if not self.item_name and domain:
+        if not self.item_name:
             domain_name = domain.get("name", f"Desktop {domain_id}")
             self._add_item_name(domain_name)
 
@@ -2549,6 +2570,12 @@ class RecycleBinStorage(RecycleBin):
     def add(self, storage_id):
         with self._rdb_context():
             storage = r.table("storage").get(storage_id).run(self._rdb_connection)
+        if storage is None:
+            raise Error(
+                "not_found",
+                f"Storage {storage_id} not found",
+                description_code="storage_not_found",
+            )
         self.add_storage(storage)
         super()._add_owner(storage["user_id"])
         with self._rdb_context():
@@ -2766,6 +2793,12 @@ class RecycleBinUser(RecycleBin):
         # Delete user
         with self._rdb_context():
             user = r.table("users").get(user_id).run(self._rdb_connection)
+        if user is None:
+            raise Error(
+                "not_found",
+                f"User {user_id} not found",
+                description_code="user_not_found",
+            )
         self.add_user(user, delete_user)
         if not self.item_name:
             self._add_item_name(user["name"])
@@ -2866,6 +2899,12 @@ class RecycleBinGroup(RecycleBin):
         # Delete group
         with self._rdb_context():
             group = r.table("groups").get(group_id).run(self._rdb_connection)
+        if group is None:
+            raise Error(
+                "not_found",
+                f"Group {group_id} not found",
+                description_code="group_not_found",
+            )
         self.add_group(group)
         if not self.item_name:
             self._add_item_name(group["name"])
@@ -2968,6 +3007,12 @@ class RecycleBinCategory(RecycleBin):
         # Delete group
         with self._rdb_context():
             category = r.table("categories").get(category_id).run(self._rdb_connection)
+        if category is None:
+            raise Error(
+                "not_found",
+                f"Category {category_id} not found",
+                description_code="category_not_found",
+            )
         self.add_category(category)
         if not self.item_name:
             self._add_item_name(category["name"])

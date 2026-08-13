@@ -19,7 +19,15 @@ RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
     bun install --frozen-lockfile
 
 FROM ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b AS py-build
-ENV UV_COMPILE_BYTECODE=1 \
+# UV_COMPILE_BYTECODE=0: uv fans its bytecode compiler out over every core, and
+# on a 192-core host that exhausts file descriptors mid-walk —
+#   error: Failed to bytecode-compile Python file in /venv/.../site-packages
+#     Caused by: No file descriptors available (os error 24)
+# which aborts build.sh (set -e) before a single service image is built.
+# Reproduced on a 192-core host: =1 fails at 2.0s, =0 completes in 1.5s.
+# This is a build-time generator image; precompiled bytecode only saves a few
+# ms of interpreter startup, so dropping it costs nothing measurable.
+ENV UV_COMPILE_BYTECODE=0 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
     UV_NO_PROGRESS=1 \

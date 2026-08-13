@@ -26,6 +26,7 @@ on the default ``MockJWT()`` for ``has_token`` so no DB fixtures are
 required.
 """
 
+import pytest
 from api.routes.tests.helpers import MockJWT
 
 
@@ -661,3 +662,377 @@ def test_get_users_priorities(monkeypatch, test_client):
     assert len(body) == 1
     assert body[0]["id"] == "user-1"
     assert calls == ["default"]
+
+
+# ── Ownership of the booked item ──────────────────────────────────────
+#
+# Every route below runs the REAL ``Helpers.owns_*`` against the mock DB:
+# nothing is monkeypatched away, so a missing guard shows up as a 2xx.
+# Each forbidden case is paired with the owner's own request on the same
+# route and the same fixture, so a 403 can never come from broken
+# plumbing.
+
+_OWNER = "local-cursia-alice-alice"
+_OWNER_CATEGORY = "curs_ia_1"
+
+
+def _owner_jwt():
+    return MockJWT(
+        user_id=_OWNER,
+        role_id="user",
+        category_id=_OWNER_CATEGORY,
+        group_id="curs_ia_1-default",
+        name="Alice",
+    )
+
+
+def _stranger_jwt():
+    return MockJWT(
+        user_id="local-default-bob-bob",
+        role_id="user",
+        category_id="default",
+        group_id="default-default",
+        name="Bob",
+    )
+
+
+def _foreign_items_db():
+    return {
+        # ``has_token`` reads the caller's category for the maintenance
+        # gate, so both categories must exist or every request 500s
+        # before any ownership check runs.
+        "categories": [
+            {"id": "default", "maintenance": False},
+            {"id": _OWNER_CATEGORY, "maintenance": False},
+        ],
+        "users": [
+            {
+                "id": _OWNER,
+                "category": _OWNER_CATEGORY,
+                "role": "user",
+                "group": "curs_ia_1-default",
+                "username": "alice",
+                "name": "Alice",
+                "active": True,
+                "provider": "local",
+                "uid": "alice",
+                "secondary_groups": [],
+            }
+        ],
+        "domains": [
+            {
+                "id": "desktop-foreign",
+                "user": _OWNER,
+                "category": _OWNER_CATEGORY,
+                "kind": "desktop",
+                "tag": None,
+                "status": "Stopped",
+                "name": "alice-desktop",
+            }
+        ],
+        "deployments": [
+            {
+                "id": "deployment-foreign",
+                "user": _OWNER,
+                "co_owners": [],
+                "tag_visible": True,
+                "name": "alice-deployment",
+            }
+        ],
+        "bookings": [
+            {
+                "id": "booking-foreign",
+                "user_id": _OWNER,
+                "item_id": "desktop-foreign",
+                "item_type": "desktop",
+                "title": "alice lab",
+            }
+        ],
+    }
+
+
+def _service_must_not_run(*args, **kwargs):
+    raise AssertionError("the ownership guard let the request through")
+
+
+def _create_body(item_id="desktop-foreign", item_type="desktop"):
+    return {
+        "item_id": item_id,
+        "item_type": item_type,
+        "start": "2026-09-01T10:00:00Z",
+        "end": "2026-09-01T11:00:00Z",
+        "title": "stolen slot",
+    }
+
+
+@pytest.mark.clear_cache
+def test_create_booking_event_on_foreign_desktop_is_forbidden(monkeypatch, test_client):
+    """POST /item/booking/event booking someone else's desktop.
+
+    Reproduces the reported hole: a Default-category user got 201 on a
+    curs_ia_1 desktop because the route carried no ownership guard.
+    """
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.create_booking_event",
+        staticmethod(_service_must_not_run),
+    )
+
+    response = test_client(
+        url="/item/booking/event",
+        method="POST",
+        body=_create_body(),
+        jwt=_stranger_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.clear_cache
+def test_create_booking_event_on_foreign_deployment_is_forbidden(
+    monkeypatch, test_client
+):
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.create_booking_event",
+        staticmethod(_service_must_not_run),
+    )
+
+    response = test_client(
+        url="/item/booking/event",
+        method="POST",
+        body=_create_body(item_id="deployment-foreign", item_type="deployment"),
+        jwt=_stranger_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.clear_cache
+def test_create_booking_event_by_the_owner_still_works(monkeypatch, test_client):
+    """The guard must not cost the owner their own booking, and the
+    request body must still arrive un-embedded at the handler."""
+    captured = {}
+
+    def fake_create(payload, new_event):
+        captured["user_id"] = payload["user_id"]
+        captured["item_id"] = new_event.item_id
+        captured["title"] = new_event.title
+        return {
+            "id": "booking-new",
+            "item_id": new_event.item_id,
+            "item_type": new_event.item_type,
+            "units": 1,
+            "reservables": {"vgpus": ["NVIDIA-2Q"]},
+            "start": "2026-09-01T10:00:00+00:00",
+            "end": "2026-09-01T11:00:00+00:00",
+            "title": new_event.title,
+            "user_id": payload["user_id"],
+            "editable": True,
+        }
+
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.create_booking_event",
+        staticmethod(fake_create),
+    )
+
+    response = test_client(
+        url="/item/booking/event",
+        method="POST",
+        body=_create_body(),
+        jwt=_owner_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 201
+    assert captured == {
+        "user_id": _OWNER,
+        "item_id": "desktop-foreign",
+        "title": "stolen slot",
+    }
+
+
+@pytest.mark.clear_cache
+def test_update_foreign_booking_event_is_forbidden(monkeypatch, test_client):
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.update_booking_event",
+        staticmethod(_service_must_not_run),
+    )
+
+    response = test_client(
+        url="/item/booking/event/booking-foreign/edit",
+        method="PUT",
+        body={
+            "title": "stolen slot",
+            "start": "2026-09-01T10:00:00+00:00",
+            "end": "2026-09-01T11:00:00+00:00",
+        },
+        jwt=_stranger_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.clear_cache
+def test_delete_foreign_booking_event_is_forbidden(monkeypatch, test_client):
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.delete_booking_event",
+        staticmethod(_service_must_not_run),
+    )
+
+    response = test_client(
+        url="/item/booking/event/booking-foreign",
+        method="DELETE",
+        jwt=_stranger_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.clear_cache
+def test_max_booking_date_of_foreign_desktop_is_forbidden(monkeypatch, test_client):
+    """``max-booking-date`` feeds the start-now booking flow, so it
+    leaks another category's planner window without this guard."""
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.get_max_booking_date",
+        staticmethod(_service_must_not_run),
+    )
+
+    response = test_client(
+        url="/item/booking/max-booking-date/desktop-foreign",
+        jwt=_stranger_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.clear_cache
+def test_max_booking_date_of_own_desktop_is_allowed(monkeypatch, test_client):
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.get_max_booking_date",
+        staticmethod(lambda payload, desktop_id: "2026-12-31T23:59:59+00:00"),
+    )
+
+    response = test_client(
+        url="/item/booking/max-booking-date/desktop-foreign",
+        jwt=_owner_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["max_booking_date"] == "2026-12-31T23:59:59+00:00"
+
+
+@pytest.mark.clear_cache
+def test_item_availability_of_foreign_desktop_is_forbidden(monkeypatch, test_client):
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.get_item_availability",
+        staticmethod(_service_must_not_run),
+    )
+
+    response = test_client(
+        url="/item/booking/availability/desktop/desktop-foreign",
+        jwt=_stranger_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.clear_cache
+def test_item_availability_of_foreign_deployment_is_forbidden(monkeypatch, test_client):
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.get_item_availability",
+        staticmethod(_service_must_not_run),
+    )
+
+    response = test_client(
+        url="/item/booking/availability/deployment/deployment-foreign",
+        jwt=_stranger_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.clear_cache
+def test_item_availability_of_own_desktop_is_allowed(monkeypatch, test_client):
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.get_item_availability",
+        staticmethod(
+            lambda payload, item_type, item_id: [
+                {
+                    "start": "2026-09-01T09:00+0000",
+                    "end": "2026-09-01T12:00+0000",
+                    "event_type": "available",
+                    "units": 2,
+                }
+            ]
+        ),
+    )
+
+    response = test_client(
+        url="/item/booking/availability/desktop/desktop-foreign",
+        jwt=_owner_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
+@pytest.mark.clear_cache
+def test_item_availability_rejects_unknown_item_type(monkeypatch, test_client):
+    """The guard dispatches on ``item_type``; an unrecognised value must
+    never reach the handler with the check skipped.
+
+    Which 4xx it is depends on whether the Literal (400) or the guard's
+    own fail-closed branch (403) rejects first — the invariant is that
+    one of them does, so the stub service never runs and turns it 500.
+    """
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.get_item_availability",
+        staticmethod(_service_must_not_run),
+    )
+
+    response = test_client(
+        url="/item/booking/availability/bogus/desktop-foreign",
+        jwt=_stranger_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert 400 <= response.status_code < 500
+
+
+@pytest.mark.clear_cache
+def test_create_booking_event_guard_reads_the_legacy_wire_names(
+    monkeypatch, test_client
+):
+    """Vue 2 posts ``element_id``/``element_type``.
+
+    The guard resolves the same validated model as the handler, so the
+    legacy spelling must not be a way past it.
+    """
+    monkeypatch.setattr(
+        "api.services.bookings.BookingsService.create_booking_event",
+        staticmethod(_service_must_not_run),
+    )
+
+    response = test_client(
+        url="/item/booking/event",
+        method="POST",
+        body={
+            "element_id": "desktop-foreign",
+            "element_type": "desktop",
+            "start": "2026-09-01T10:00:00Z",
+            "end": "2026-09-01T11:00:00Z",
+            "title": "stolen slot",
+        },
+        jwt=_stranger_jwt(),
+        db_tables_data=_foreign_items_db(),
+    )
+
+    assert response.status_code == 403

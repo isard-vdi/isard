@@ -149,11 +149,25 @@ test.describe('Recycle bin — Config page (admin)', () => {
       a => a.type === 'original-max-time',
     )?.description
     if (origMaxTime !== undefined) {
-      const val = origMaxTime === 'null' ? null : origMaxTime
-      await setOldEntriesMaxTime({
-        client: apiv4Admin,
-        path: { max_time: val },
-      }).catch(() => {})
+      // A null path param leaves the {max_time} placeholder unsubstituted in the
+      // generated client, so the request lands on the literal URL
+      // .../old-entries/max-time/{max_time}. Until the route typed it as int, that
+      // stored the string '{max_time}' into the shared config row and every
+      // later GET /old-entries/config answered 500 — for the whole install, not
+      // just this spec. Skip the restore when there was nothing to restore, and
+      // do not swallow the failure silently.
+      if (origMaxTime !== 'null' && origMaxTime !== 'undefined') {
+        const restored = await setOldEntriesMaxTime({
+          client: apiv4Admin,
+          path: { max_time: Number(origMaxTime) },
+        })
+        if (restored.response?.status >= 400) {
+          throw new Error(
+            `could not restore old-entries max_time to ${origMaxTime}: ` +
+              `HTTP ${restored.response.status}`,
+          )
+        }
+      }
     }
 
     // Restore old-entries action if mutated.

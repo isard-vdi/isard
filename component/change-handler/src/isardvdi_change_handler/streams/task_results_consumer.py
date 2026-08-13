@@ -137,7 +137,7 @@ async def _reap_dead_consumers(redis, stream, keep):
 
     Each start registers a fresh ``change-handler-<uuid4>`` and nothing ever
     removed the old one, so the group accumulates one member per restart,
-    forever. Measured on hypgpu05 (09/08/2026): **14 registered, 2 alive**, the
+    forever. Measured on a live install (09/08/2026): **14 registered, 2 alive**, the
     other 12 idle between 39 and 55 days.
 
     No entry is lost either way — ``_reclaim_pending`` XAUTOCLAIMs whatever a
