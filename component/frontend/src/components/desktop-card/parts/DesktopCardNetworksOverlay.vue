@@ -12,6 +12,7 @@ import type { Client } from '@/gen/oas/apiv4/client'
 
 import { Icon } from '@/components/icon'
 import { CopyIcon } from '@/components/icon'
+import { TruncatedText } from '@/components/truncated-text'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CARD_SIZE_INJECTION_KEY, cardOverlayTextVariants, cardOverlayDetailVariants } from '..'
@@ -115,15 +116,17 @@ defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
   <div v-else class="flex gap-3 text-start text-base-white">
     <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 flex-1 min-w-0">
       <div v-for="network in visibleNetworks" :key="network.id" class="flex flex-col min-w-0">
-        <div class="font-semibold truncate" :class="cardOverlayTextVariants({ size })">
-          {{ network.name }}
-        </div>
+        <TruncatedText
+          :title="network.name"
+          class="font-semibold"
+          :class="cardOverlayTextVariants({ size })"
+        />
         <div
-          class="text-base-white/80 truncate flex items-center gap-1.5 font-mono"
+          class="text-base-white/80 flex items-center gap-1.5 font-mono min-w-0"
           :class="cardOverlayDetailVariants({ size })"
         >
-          {{ network.mac
-          }}<CopyIcon :value="network.mac" class="opacity-80" size="xs" stroke-color="base-white" />
+          <TruncatedText :title="network.mac" class="min-w-0" />
+          <CopyIcon :value="network.mac" class="opacity-80" size="xs" stroke-color="base-white" />
         </div>
         <!-- Wireguard-only: IP attached as a sub-row so it's clearly the IP
              you reach this interface on — not a free-floating top-of-card

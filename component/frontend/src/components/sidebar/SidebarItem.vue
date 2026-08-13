@@ -101,7 +101,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
               size="lg"
               :stroke-color="subItem.selected ? 'secondary-2-500' : 'gray-warm-500'"
             />
-            <span class="leading-6 text-base truncate">{{ subItem.label }}</span>
+            <TruncatedText :title="subItem.label" side="right" class="leading-6 text-base" />
           </RouterLink>
           <a v-else :href="subItem.href" class="flex items-center gap-2">
             <Icon
@@ -110,7 +110,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
               size="lg"
               :stroke-color="subItem.selected ? 'secondary-2-500' : 'gray-warm-500'"
             />
-            <span class="leading-6 text-base truncate">{{ subItem.label }}</span>
+            <TruncatedText :title="subItem.label" side="right" class="leading-6 text-base" />
           </a>
         </DropdownMenuItem>
       </DropdownMenuContent>

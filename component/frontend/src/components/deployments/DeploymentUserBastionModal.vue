@@ -158,7 +158,7 @@ const closeModal = () => {
             class="bg-base-white p-4 rounded-lg border border-gray-warm-300 flex items-center justify-between gap-3"
           >
             <div class="flex flex-col min-w-0">
-              <span class="font-semibold text-gray-warm-700 truncate">{{ desktop.name }}</span>
+              <TruncatedText :title="desktop.name" class="font-semibold text-gray-warm-700" />
               <span class="text-xs text-gray-warm-500">{{ desktop.status }}</span>
             </div>
             <Button

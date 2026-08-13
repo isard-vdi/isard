@@ -15,6 +15,7 @@ import { Badge } from '@/components/badge'
 import { Icon, CopyIcon } from '@/components/icon'
 import { TooltipTrigger, TooltipContent, Tooltip } from '@/components/ui/tooltip'
 import { Label } from '@/components/ui/label'
+import { TruncatedText } from '@/components/truncated-text'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
@@ -493,9 +494,7 @@ const entryErrorKey = computed(
           :cell-class="''"
         >
           <template #cell-name="{ row }">
-            <p class="text-sm font-semibold text-gray-warm-900 truncate">
-              {{ row.name }}
-            </p>
+            <TruncatedText :title="row.name" class="text-sm font-semibold text-gray-warm-900" />
           </template>
           <template #cell-owner="{ row }">
             <AvatarLabel
