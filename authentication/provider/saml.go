@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"maps"
@@ -662,11 +663,37 @@ func (s *SAML) Logout(ctx context.Context, _ string) (string, error) {
 		return cfg.LogoutRedirectURL, nil
 	}
 
-	logoutURL, err := sp.MakeRedirectLogoutRequest(jwtSess.Subject, "")
+	req, err := sp.MakeLogoutRequest(sloLocation, jwtSess.Subject)
 	if err != nil {
 		s.log.Warn().Err(err).Msg("failed to create SAML logout request, falling back to redirect URL")
 		return cfg.LogoutRedirectURL, nil
 	}
+
+	// TODO: Remove this when merged: https://github.com/crewjam/saml/pull/621
+	req.Signature = nil
+
+	logoutURL := req.Redirect("")
+
+	if sp.SignatureMethod == "" {
+		return logoutURL.String(), nil
+	}
+
+	query := "SAMLRequest=" + url.QueryEscape(logoutURL.Query().Get("SAMLRequest")) +
+		"&SigAlg=" + url.QueryEscape(sp.SignatureMethod)
+
+	signingCtx, err := saml.GetSigningContext(sp)
+	if err != nil {
+		s.log.Warn().Err(err).Msg("failed to get the SAML signing context, falling back to redirect URL")
+		return cfg.LogoutRedirectURL, nil
+	}
+
+	sig, err := signingCtx.SignString(query)
+	if err != nil {
+		s.log.Warn().Err(err).Msg("failed to sign the SAML logout request, falling back to redirect URL")
+		return cfg.LogoutRedirectURL, nil
+	}
+
+	logoutURL.RawQuery = query + "&Signature=" + url.QueryEscape(base64.StdEncoding.EncodeToString(sig))
 
 	return logoutURL.String(), nil
 }

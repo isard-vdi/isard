@@ -1,15 +1,22 @@
 package provider
 
 import (
+	"bytes"
+	"compress/flate"
 	"context"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/pem"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,7 +26,9 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/pkg/db"
+	"gitlab.com/isard/isardvdi/pkg/log"
 
+	"github.com/crewjam/saml"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,6 +72,13 @@ func generateTestCert(t *testing.T, dir string) (certPath, keyPath string) {
 const testSAMLMetadata = `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
   <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
     <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
+
+const testSAMLMetadataWithSLO = `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/slo"/>
   </md:IDPSSODescriptor>
 </md:EntityDescriptor>`
 
@@ -912,9 +928,99 @@ func TestSAMLLogout(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Cfg         SAMLConfig
-		ExpectedURL string
+		Cfg            SAMLConfig
+		PrepareSAML    func(*testing.T) *SAML
+		PrepareContext func(*testing.T, *SAML) context.Context
+		CheckURL       func(*testing.T, *SAML, string)
+		ExpectedURL    string
 	}{
+		"should work as expected": {
+			PrepareSAML: func(t *testing.T) *SAML {
+				dir := t.TempDir()
+				certPath, keyPath := generateTestCert(t, dir)
+
+				metadataPath := filepath.Join(dir, "metadata.xml")
+				require.NoError(t, os.WriteFile(metadataPath, []byte(testSAMLMetadataWithSLO), 0644))
+
+				s := &SAML{
+					cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+					host:          "sp.example.com",
+					log:           log.New("test", "debug"),
+					validateURL:   func(string) error { return nil },
+					brandingHosts: map[string]string{},
+				}
+
+				cfg := model.SAMLConfig{
+					MetadataFile:      metadataPath,
+					EntityID:          "https://sp.example.com",
+					SignatureMethod:   "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+					KeyFile:           keyPath,
+					CertFile:          certPath,
+					MaxIssueDelay:     db.Duration(5 * time.Minute),
+					LogoutRedirectURL: "https://sp.example.com/fallback",
+				}
+
+				require.NoError(t, s.LoadConfig(t.Context(), cfg))
+
+				return s
+			},
+			PrepareContext: func(t *testing.T, s *SAML) context.Context {
+				mw := s.Middleware("sp.example.com")
+				require.NotNil(t, mw)
+
+				req := httptest.NewRequest(http.MethodGet, "https://sp.example.com/authentication/logout", nil)
+				rec := httptest.NewRecorder()
+
+				assertion := &saml.Assertion{
+					Subject: &saml.Subject{
+						NameID: &saml.NameID{
+							Value: "test-name-id",
+						},
+					},
+				}
+
+				require.NoError(t, mw.Session.CreateSession(rec, req, assertion))
+
+				for _, c := range rec.Result().Cookies() {
+					req.AddCookie(c)
+				}
+
+				return context.WithValue(t.Context(), HTTPRequest, req)
+			},
+			CheckURL: func(t *testing.T, s *SAML, rawURL string) {
+				logoutURL, err := url.Parse(rawURL)
+				require.NoError(t, err)
+
+				assert.Equal("https://idp.example.com/slo", logoutURL.Scheme+"://"+logoutURL.Host+logoutURL.Path)
+
+				query := logoutURL.Query()
+
+				require.NotEmpty(t, query.Get("SAMLRequest"))
+				assert.Equal("http://www.w3.org/2001/04/xmldsig-more#rsa-sha256", query.Get("SigAlg"))
+				require.NotEmpty(t, query.Get("Signature"))
+
+				deflated, err := base64.StdEncoding.DecodeString(query.Get("SAMLRequest"))
+				require.NoError(t, err)
+
+				logoutReq, err := io.ReadAll(flate.NewReader(bytes.NewReader(deflated)))
+				require.NoError(t, err)
+
+				assert.Contains(string(logoutReq), "test-name-id")
+				assert.NotContains(string(logoutReq), "Signature")
+
+				signed := "SAMLRequest=" + url.QueryEscape(query.Get("SAMLRequest")) + "&SigAlg=" + url.QueryEscape(query.Get("SigAlg"))
+
+				signature, err := base64.StdEncoding.DecodeString(query.Get("Signature"))
+				require.NoError(t, err)
+
+				hashed := sha256.Sum256([]byte(signed))
+
+				pub, ok := s.Middleware("sp.example.com").ServiceProvider.Certificate.PublicKey.(*rsa.PublicKey)
+				require.True(t, ok)
+
+				assert.NoError(rsa.VerifyPKCS1v15(pub, crypto.SHA256, hashed[:], signature))
+			},
+		},
 		"should return the configured logout redirect URL": {
 			Cfg: SAMLConfig{
 				LogoutRedirectURL: "https://idp.example.com/logout",
@@ -934,11 +1040,26 @@ func TestSAMLLogout(t *testing.T) {
 			s := &SAML{
 				cfg: &cfgManager[SAMLConfig]{cfg: &tc.Cfg},
 			}
+			if tc.PrepareSAML != nil {
+				s = tc.PrepareSAML(t)
+			}
 
-			url, err := s.Logout(context.Background(), "")
+			ctx := t.Context()
+			if tc.PrepareContext != nil {
+				ctx = tc.PrepareContext(t, s)
+			}
+
+			logoutURL, err := s.Logout(ctx, "")
 
 			assert.NoError(err)
-			assert.Equal(tc.ExpectedURL, url)
+
+			if tc.CheckURL != nil {
+				tc.CheckURL(t, s, logoutURL)
+
+				return
+			}
+
+			assert.Equal(tc.ExpectedURL, logoutURL)
 		})
 	}
 }
