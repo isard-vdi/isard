@@ -450,7 +450,7 @@ async def test_release_storage_dependents_ignores_a_core_only_dependent():
 
 class TestReapDeadConsumers:
     """Every start registers a fresh change-handler-<uuid4> and nothing removed
-    the old one, so the group grew by one per restart. Measured on hypgpu05
+    the old one, so the group grew by one per restart. Measured on a live install
     (09/08/2026): 14 registered, 2 alive, 12 idle for 39 to 55 days. No entry
     is lost — XAUTOCLAIM reclaims what a dead consumer held — but XINFO GROUPS
     reports a count that has nothing to do with reality, and a "nobody is

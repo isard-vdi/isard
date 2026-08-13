@@ -101,7 +101,7 @@ class TestOnlyLiveJobsAreCarriedAcross:
     a job that already ended — and an rq job survives its execution by its
     result TTL. ``current_task_id`` answers the newest member whose job
     EXISTS, so a finished one seeded here reads as busy and the admission gate
-    refuses the row until that TTL runs out. Measured on hypgpu05 before this
+    refuses the row until that TTL runs out. Measured on a live install before this
     filter: three rows seeded, three rows busy, TTL 2.587.534 s.
     """
 

@@ -8472,7 +8472,7 @@ password:s:%s"""
         its result TTL (30 days here). ``current_task_id`` answers the newest
         member whose job exists, so seeding a finished one makes the row read
         as busy and the admission gate refuse every operation on it until that
-        TTL runs out. Measured on hypgpu05 (09/08/2026, 203 -> 205): all three
+        TTL runs out. Measured on a live install (09/08/2026, 203 -> 205): all three
         rows the seed carried across came out busy with jobs that had ended an
         hour earlier, TTL 2.587.534 s. Three only because the install had been
         idle for three weeks; on a live one it is every row whose last task
@@ -8598,7 +8598,7 @@ password:s:%s"""
 
             # The scalar has no readers left once this migration runs, and
             # leaving it behind is not harmless bookkeeping: it still LOOKS
-            # like the answer to "what owns this row". Measured on hypgpu05
+            # like the answer to "what owns this row". Measured on a live install
             # before this cleanup existed: 151 of 184 rows kept one, and 148 of
             # those named a job rq had already dropped.
             dropped = 0

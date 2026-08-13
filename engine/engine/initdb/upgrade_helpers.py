@@ -726,7 +726,7 @@ def live_job_scores(jobs, score_of):
     finished one and the row reads as BUSY until that TTL runs out, so the
     admission gate refuses every new operation on it.
 
-    Measured on hypgpu05 (09/08/2026, upgrading 203 -> 205 before this filter
+    Measured on a live install (09/08/2026, upgrading 203 -> 205 before this filter
     existed): all three rows the seed carried across came out busy with jobs
     that had ended an hour before the upgrade, TTL 2.587.534 s.
 
