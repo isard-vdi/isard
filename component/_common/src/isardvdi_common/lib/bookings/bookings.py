@@ -32,6 +32,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 from isardvdi_common.helpers.bookings import Bookings as BookingsHelper
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.resource_lock import resource_lock
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib.api_admin import ApiAdmin
@@ -233,71 +234,94 @@ class BookingsProcessed(RethinkSharedConnection):
             item_type, item_id
         )
 
-        # Has enough quota to do another booking?
-        priorities = cls.get_user_priority(payload, item_type, item_id)
-        if priorities["max_items"] <= cls.get_total_user_bookings_count(
-            payload["user_id"]
-        ):
-            raise Error(
-                "precondition_required",
-                "The user " + payload["user_id"] + " has reached max_items bookings.",
-                description_code="booking_max_items_exceeded",
-            )
-
-        # Parse the client-supplied dates defensively: a malformed value must be
-        # a 400, not an unhandled strptime ValueError surfacing as a 500.
-        try:
-            start_dt = datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-            end_dt = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-        except (ValueError, TypeError):
-            raise Error(
-                "bad_request",
-                "Invalid booking start/end date format.",
-                description_code="invalid_booking_date",
-            )
-
-        booking = {
-            "id": str(uuid.uuid4()),
-            "item_id": item_id,
-            "item_type": item_type,
-            "units": units,
-            "reservables": reservables,
-            "start": start_dt,
-            "end": end_dt,
-            "title": title if title else item_name,
-            "user_id": payload["user_id"],
-        }
-
-        # Overlap this plan with existing ones and check which ones have room from the new booking
-        plans = ReservablesPlannerProccess.new_booking_plans(payload, booking)
-        # new_booking_plans returns {} (or a dict with an empty list) when any
-        # requested profile cannot fit, or when two profiles collide on one card.
-        if not plans or any(not v for v in plans.values()):
-            raise Error(
-                "conflict",
-                "The booking does not fit in requested date",
-                description_code="booking_does_not_fit_date",
-            )
-
-        # We are adding all the plans for each item.
-        # TODO: Check if we really need to append them. I think it's not checked/used anywhere
-        priorities = priorities["priority"]
-        new_planning = []
-        for k, v in plans.items():
-            for item in v:
-                new_planning.append(
-                    {
-                        "plan_id": item["id"],
-                        "item_id": item["item_id"],
-                        "subitem_id": item["subitem_id"],
-                        "priority": priorities[item["subitem_id"]],
-                        "units_booked": item["units_booked"],
-                    }
+        # Everything from the quota count to the insert is ONE critical section,
+        # for the same reason add_plan's is: both checks below read rows the
+        # insert then adds to, so two simultaneous bookings each measure a world
+        # without the other, both find room, and both commit. That overshoots
+        # `total_units` for a profile (the capacity check) and `max_items` for a
+        # user (the quota check) by exactly the number of racing requests.
+        #
+        # Keys are the resources actually contended, never the subsystem:
+        # availability is summed per PROFILE across every card (the subitem_id
+        # index in booking_provisioning), so one key per requested profile; the
+        # quota is per USER, so one key for them. Two users booking two different
+        # profiles never meet. `resource_lock` orders the keys, so a booking for
+        # {A,B} and one for {B,A} cannot deadlock against each other.
+        lock_keys = [f"bookings:quota:{payload['user_id']}"] + [
+            f"bookings:capacity:{kind}:{subitem}"
+            for kind, subitems in (reservables or {}).items()
+            for subitem in (subitems or [])
+        ]
+        with resource_lock(*lock_keys):
+            # Has enough quota to do another booking?
+            priorities = cls.get_user_priority(payload, item_type, item_id)
+            if priorities["max_items"] <= cls.get_total_user_bookings_count(
+                payload["user_id"]
+            ):
+                raise Error(
+                    "precondition_required",
+                    "The user "
+                    + payload["user_id"]
+                    + " has reached max_items bookings.",
+                    description_code="booking_max_items_exceeded",
                 )
 
-        booking["plans"] = new_planning
-        with cls._rdb_context():
-            r.table("bookings").insert(booking).run(cls._rdb_connection)
+            # Parse the client-supplied dates defensively: a malformed value must
+            # be a 400, not an unhandled strptime ValueError surfacing as a 500.
+            try:
+                start_dt = datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
+                    pytz.UTC
+                )
+                end_dt = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            except (ValueError, TypeError):
+                raise Error(
+                    "bad_request",
+                    "Invalid booking start/end date format.",
+                    description_code="invalid_booking_date",
+                )
+
+            booking = {
+                "id": str(uuid.uuid4()),
+                "item_id": item_id,
+                "item_type": item_type,
+                "units": units,
+                "reservables": reservables,
+                "start": start_dt,
+                "end": end_dt,
+                "title": title if title else item_name,
+                "user_id": payload["user_id"],
+            }
+
+            # Overlap this plan with existing ones and check which ones have room from the new booking
+            plans = ReservablesPlannerProccess.new_booking_plans(payload, booking)
+            # new_booking_plans returns {} (or a dict with an empty list) when any
+            # requested profile cannot fit, or when two profiles collide on one card.
+            if not plans or any(not v for v in plans.values()):
+                raise Error(
+                    "conflict",
+                    "The booking does not fit in requested date",
+                    description_code="booking_does_not_fit_date",
+                )
+
+            # We are adding all the plans for each item.
+            # TODO: Check if we really need to append them. I think it's not checked/used anywhere
+            priorities = priorities["priority"]
+            new_planning = []
+            for k, v in plans.items():
+                for item in v:
+                    new_planning.append(
+                        {
+                            "plan_id": item["id"],
+                            "item_id": item["item_id"],
+                            "subitem_id": item["subitem_id"],
+                            "priority": priorities[item["subitem_id"]],
+                            "units_booked": item["units_booked"],
+                        }
+                    )
+
+            booking["plans"] = new_planning
+            with cls._rdb_context():
+                r.table("bookings").insert(booking).run(cls._rdb_connection)
         if now:
             if item_type == "desktop":
                 with cls._rdb_context():
@@ -339,23 +363,34 @@ class BookingsProcessed(RethinkSharedConnection):
             )
         new_start = datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
         new_end = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-        if not ReservablesPlannerProccess.existing_booking_update_fits(
-            payload, booking, new_start, new_end
-        ):
-            raise Error(
-                "conflict",
-                "The booking update does not fit in requested date",
-                description_code="booking_does_not_fit_date",
-            )
+        # Same check-then-write as add(), just moving an existing booking instead
+        # of creating one: the fit is measured against the other bookings, so two
+        # simultaneous moves into the same window both see room that only one of
+        # them can have. Locked on the profiles whose capacity is at stake -- the
+        # same keys add() uses, so a create and a move contend correctly too.
+        lock_keys = [
+            f"bookings:capacity:{kind}:{subitem}"
+            for kind, subitems in (booking.get("reservables") or {}).items()
+            for subitem in (subitems or [])
+        ]
+        with resource_lock(*lock_keys):
+            if not ReservablesPlannerProccess.existing_booking_update_fits(
+                payload, booking, new_start, new_end
+            ):
+                raise Error(
+                    "conflict",
+                    "The booking update does not fit in requested date",
+                    description_code="booking_does_not_fit_date",
+                )
 
-        with cls._rdb_context():
-            r.table("bookings").get(booking_id).update(
-                {
-                    "title": title,
-                    "start": new_start,
-                    "end": new_end,
-                }
-            ).run(cls._rdb_connection)
+            with cls._rdb_context():
+                r.table("bookings").get(booking_id).update(
+                    {
+                        "title": title,
+                        "start": new_start,
+                        "end": new_end,
+                    }
+                ).run(cls._rdb_connection)
 
     @classmethod
     def delete(

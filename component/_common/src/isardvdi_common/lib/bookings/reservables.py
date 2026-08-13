@@ -16,6 +16,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.resource_lock import resource_lock
 from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.bookings.gpu_realizability import bare_suffix, split_qualifier
 from pydantic import BaseModel, Field
@@ -615,59 +616,78 @@ class ResourceItemsGpus(RethinkSharedConnection):
                         % (variant, res["id"]),
                         description_code="bad_request",
                     )
-        with cls._rdb_context():
-            item = r.table("gpus").get(item_id).run(cls._rdb_connection)
-        if not item:
-            raise Error(
-                "not_found",
-                "Gpu id not found in gpu table",
-                description_code="not_found",
-            )
-        # Idempotent: a repeated enable must not duplicate the id in
-        # profiles_enabled (a double-click / retried PUT otherwise leaves a
-        # dangling copy that only an equal number of disables can clear), and a
-        # disable strips every occurrence so the reservable is fully released.
-        enabled_profiles = item["profiles_enabled"]
-        if enabled:
-            if subitem_id not in enabled_profiles:
-                enabled_profiles.append(subitem_id)
-        else:
-            enabled_profiles = [p for p in enabled_profiles if p != subitem_id]
-        with cls._rdb_context():
-            if not Helpers._check(
-                r.table("gpus")
-                .get(item_id)
-                .update({"profiles_enabled": enabled_profiles})
-                .run(cls._rdb_connection),
-                "replaced",
-            ):
+        # Two contended resources, so two keys. `profiles_enabled` is read here
+        # and written back three lines later: two enables of DIFFERENT profiles
+        # on the SAME card race, and the second write silently drops the first
+        # profile (classic lost update) -- that is the card key. `total_units` is
+        # then recomputed by counting the cards enabling this profile: two enables
+        # of the SAME profile on DIFFERENT cards each count a world without the
+        # other, so both write 1 x units where the answer is 2 x units, and the
+        # profile ends up advertising half its real capacity -- that is the
+        # profile key, shared with recompute_total_units() so the hypervisor
+        # reconcile path (which recomputes on registration, concurrently with the
+        # admin) contends on it too.
+        with resource_lock(f"gpus:card:{item_id}", f"bookings:reservable:{subitem_id}"):
+            with cls._rdb_context():
+                item = r.table("gpus").get(item_id).run(cls._rdb_connection)
+            if not item:
                 raise Error(
-                    "internal_server",
-                    "Unable to update bookable in database.",
-                    description_code="unable_to_update_bookable",
+                    "not_found",
+                    "Gpu id not found in gpu table",
+                    description_code="not_found",
                 )
-        with cls._rdb_context():
-            gpus_enabled_subitem = list(
-                r.table("gpus")
-                .filter(lambda gpu: gpu["profiles_enabled"].contains(subitem_id))
-                .run(cls._rdb_connection)
-            )
-        if enabled:
-            cls.add_reservable_vgpu(item_id, subitem_id)
-        # if it's the last profile of this kind, delete it
-        elif len(gpus_enabled_subitem) == 0:
-            cls.delete_reservable_vgpu(subitem_id)
-        else:
-            # Non-last disable: a realizing card went away but the reservable
-            # survives. enable_subitem is the single choke point every disable
-            # caller goes through (admin PUT, delete_item loop, GPU reconcile),
-            # so recompute the total_units invariant HERE rather than in each
-            # caller (it was previously left stale -> capacity overcount).
-            cls.recompute_total_units(subitem_id)
-        return item
+            # Idempotent: a repeated enable must not duplicate the id in
+            # profiles_enabled (a double-click / retried PUT otherwise leaves a
+            # dangling copy that only an equal number of disables can clear), and a
+            # disable strips every occurrence so the reservable is fully released.
+            enabled_profiles = item["profiles_enabled"]
+            if enabled:
+                if subitem_id not in enabled_profiles:
+                    enabled_profiles.append(subitem_id)
+            else:
+                enabled_profiles = [p for p in enabled_profiles if p != subitem_id]
+            with cls._rdb_context():
+                if not Helpers._check(
+                    r.table("gpus")
+                    .get(item_id)
+                    .update({"profiles_enabled": enabled_profiles})
+                    .run(cls._rdb_connection),
+                    "replaced",
+                ):
+                    raise Error(
+                        "internal_server",
+                        "Unable to update bookable in database.",
+                        description_code="unable_to_update_bookable",
+                    )
+            with cls._rdb_context():
+                gpus_enabled_subitem = list(
+                    r.table("gpus")
+                    .filter(lambda gpu: gpu["profiles_enabled"].contains(subitem_id))
+                    .run(cls._rdb_connection)
+                )
+            if enabled:
+                cls.add_reservable_vgpu(item_id, subitem_id)
+            # if it's the last profile of this kind, delete it
+            elif len(gpus_enabled_subitem) == 0:
+                cls.delete_reservable_vgpu(subitem_id)
+            else:
+                # Non-last disable: a realizing card went away but the reservable
+                # survives. enable_subitem is the single choke point every disable
+                # caller goes through (admin PUT, delete_item loop, GPU reconcile),
+                # so recompute the total_units invariant HERE rather than in each
+                # caller (it was previously left stale -> capacity overcount).
+                cls.recompute_total_units(subitem_id)
+            return item
 
     @classmethod
     def add_reservable_vgpu(cls, item_id, subitem_id):
+        # Its total_units recompute is the same count-then-write as
+        # recompute_total_units. It takes no lock of its own on purpose: its only
+        # caller is enable_subitem, which already holds the card AND profile keys
+        # for the whole body. Locking here on the locally-derived reservable_id
+        # (which carries the variant qualifier and so need not equal subitem_id)
+        # would be a second key taken while holding the first, i.e. an ordering
+        # hazard, for no gain. If a second caller ever appears, lock THERE.
         with cls._rdb_context():
             item = r.table("gpus").get(item_id).run(cls._rdb_connection)
         subitem = cls.get_subitem(item_id, subitem_id)
@@ -771,28 +791,37 @@ class ResourceItemsGpus(RethinkSharedConnection):
         :meth:`add_reservable_vgpu` so that DISABLING a non-last card (via
         :meth:`enable_subitem`, which does not recompute) keeps the invariant
         correct. No-op when the reservable no longer exists (it was the last
-        card and the row was already deleted)."""
-        with cls._rdb_context():
-            reservable = (
-                r.table("reservables_vgpus").get(subitem_id).run(cls._rdb_connection)
-            )
-        if not reservable:
-            return
-        with cls._rdb_context():
-            total_profiles = (
-                r.table("gpus")
-                .filter(
-                    lambda gpu: gpu["profiles_enabled"].contains(subitem_id)
-                    & gpu["physical_device"].default(None).ne(None)
+        card and the row was already deleted).
+
+        Count-then-write, so it is locked on the profile: the admin path and the
+        hypervisor-registration reconcile both recompute, and interleaved they
+        each count the cards as they were BEFORE the other's enable landed, then
+        both write their stale product. Re-entrant, so the call from inside
+        :meth:`enable_subitem` (which already holds this key) is a no-op."""
+        with resource_lock(f"bookings:reservable:{subitem_id}"):
+            with cls._rdb_context():
+                reservable = (
+                    r.table("reservables_vgpus")
+                    .get(subitem_id)
+                    .run(cls._rdb_connection)
                 )
-                .count()
-                .run(cls._rdb_connection)
-            )
-        total_units = total_profiles * reservable.get("units", 0)
-        with cls._rdb_context():
-            r.table("reservables_vgpus").get(subitem_id).update(
-                {"total_units": total_units}
-            ).run(cls._rdb_connection)
+            if not reservable:
+                return
+            with cls._rdb_context():
+                total_profiles = (
+                    r.table("gpus")
+                    .filter(
+                        lambda gpu: gpu["profiles_enabled"].contains(subitem_id)
+                        & gpu["physical_device"].default(None).ne(None)
+                    )
+                    .count()
+                    .run(cls._rdb_connection)
+                )
+            total_units = total_profiles * reservable.get("units", 0)
+            with cls._rdb_context():
+                r.table("reservables_vgpus").get(subitem_id).update(
+                    {"total_units": total_units}
+                ).run(cls._rdb_connection)
         # apiv4-integration: bypass the ApiAdmin 5 s TTL cache so the Bookables
         # admin listing reflects the corrected capacity immediately.
         ApiAdmin.clear_admin_table_list_cache("reservables_vgpus")
