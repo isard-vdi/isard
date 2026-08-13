@@ -619,6 +619,36 @@ def sparsify_file(file_path):
         return False, 0, "timeout (>10min)"
 
 
+def has_backing_file(file_path):
+    """Whether this qcow2 reads through another file.
+
+    ``-U`` on purpose: this reads metadata only, and refusing to answer for a
+    file some guest holds open would turn the guard off exactly where it is
+    needed.
+
+    :return: ``(has_backing, error)``; ``error`` is set when the question could
+        not be answered, and callers must treat that as "do not touch it".
+    """
+    try:
+        out = subprocess.run(
+            ["qemu-img", "info", "-U", "--output=json", str(file_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+    except subprocess.CalledProcessError as e:
+        return False, f"cannot read image info: {e.stderr.strip()[:120]}"
+    except subprocess.TimeoutExpired:
+        return False, "cannot read image info: timeout"
+    try:
+        info = json.loads(out.stdout)
+    except ValueError:
+        return False, "cannot read image info: unparseable output"
+    return bool(info.get("full-backing-filename") or info.get("backing-filename")), None
+
+
 def compress_file(file_path):
     """Compress a qcow2 file in-place using qemu-img convert -c.
 
@@ -636,6 +666,21 @@ def compress_file(file_path):
         before = Path(file_path).stat().st_size
     except OSError as e:
         return False, 0, str(e)
+
+    # `qemu-img convert -O qcow2` without -B writes a FLAT image, and the move
+    # below then replaces the original with it. On a disk that has a backing
+    # file that silently severs the chain: the file stops referencing its
+    # parent while the stored parent still claims it does. Refuse instead --
+    # compressing a chained disk is never what the caller meant.
+    has_backing, backing_err = has_backing_file(file_path)
+    if backing_err:
+        return False, 0, backing_err
+    if has_backing:
+        return (
+            False,
+            0,
+            "file has a backing file; compressing it would flatten the chain",
+        )
 
     tmp_path = file_path + ".compress-tmp"
     try:

@@ -59,6 +59,7 @@ from storage_lib.api import (
     update_storage_path,
 )
 from storage_lib.cache import load_qcow_cache, save_qcow_cache
+from storage_lib.deps import split_backing_files
 from storage_lib.formatting import format_size, format_time_remaining, log, size_gb
 from storage_lib.qcow import (
     analyze_dependencies,
@@ -2844,6 +2845,36 @@ def cmd_full_cleanup(args):
         healthy_qcow = [f for f in qcow_storages if f not in all_unusable]
         if not args.include_templates:
             healthy_qcow = [f for f in healthy_qcow if "/isard/templates" not in f]
+
+        # NEVER optimize a file that something else uses as a backing file.
+        #
+        # sparsify runs virt-sparsify --in-place, which mounts the guest
+        # filesystems read-write and discards everything they call free; compress
+        # rewrites the file through qemu-img convert. An overlay reads from its
+        # backing file every cluster it has not written itself, so either one
+        # silently changes what the children see -- and nothing reports it: the
+        # virtual size, the path and the children's backing pointers are all
+        # unchanged, and qemu-img check on a child still passes.
+        #
+        # The path filter above is not this check and cannot stand in for it: it
+        # matches one literal directory, so a template held in a per-category
+        # storage pool (<mountpoint>/<category>/templates/...) sails through it.
+        # reverse_map keys are exactly the files something backs onto, and it is
+        # already computed here for other checks.
+        #
+        # There is no flag to override this. The safe way to optimize a disk that
+        # has descendants is to flatten them off it first.
+        healthy_qcow, protected = split_backing_files(
+            healthy_qcow, qcow_deps.get("reverse_map", {})
+        )
+        if protected:
+            log(
+                f"\n  Skipping {len(protected)} file(s) used as a backing file"
+                " by another disk (optimizing them would corrupt the disks that"
+                " read through them)"
+            )
+            for f in protected:
+                log(f"    protected: {Path(f).name}")
 
         if dry_run:
             ops = []
