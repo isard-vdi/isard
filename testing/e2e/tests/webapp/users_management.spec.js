@@ -148,6 +148,34 @@ async function filterUsersByUsername(page, term) {
 }
 
 /**
+ * Wait until the Management page is usable.
+ *
+ * This replaces `page.waitForLoadState("networkidle", { timeout: 30000 })`,
+ * which every test in this file used to call before doing anything.
+ *
+ * Why it had to go. The admin Management page holds a live socket.io
+ * connection, so the network NEVER goes idle: the wait always ran to its full
+ * timeout. Measured on a live install with the branch deployed — every
+ * failing test in this file burned exactly 30.0 s and then died on its first
+ * action, and every passing one took 1.0-1.2 min. This file was the only spec
+ * in the suite using networkidle (64 call sites; every other webapp spec: 0),
+ * which is exactly why it was the only one degraded: 24 of its 55 tests failed
+ * while the endpoints they exercise answered 200 in ~10 ms.
+ *
+ * What to wait for instead: the thing the tests actually need, which is the
+ * users DataTable having drawn its first row. That is deterministic, it is
+ * what "the page is ready" means here, and it costs a fraction of a second
+ * instead of thirty.
+ */
+async function waitForManagementReady(page) {
+  await page
+    .locator("#users tbody tr")
+    .first()
+    .waitFor({ state: "visible", timeout: 20000 })
+    .catch(() => { });
+}
+
+/**
  * Open the detail panel for the row whose data-id matches `userId`.
  * Falls back to clicking the first expand button if userId is not given.
  */
@@ -471,9 +499,7 @@ test.describe("Users Management — admin role", () => {
   }) => {
     const xhr = captureXhr(page, (u) => u.includes("/api/v4/admin/item/user"));
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const ts = Date.now();
     const username = `e2e_a1_${ts}`;
@@ -551,9 +577,7 @@ test.describe("Users Management — admin role", () => {
   }) => {
     const xhr = captureXhr(page, (u) => u.includes("/api/v4/admin/item/user"));
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await page.locator(".btn-new-user").click();
     await page.locator("#modalAddUser").waitFor({ state: "visible" });
@@ -581,9 +605,7 @@ test.describe("Users Management — admin role", () => {
       u.includes("/api/v4/admin/items/users/management/users"),
     );
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
     // Wait for a real data row before checking the XHR log — under load the
     // networkidle timeout can expire before the DataTables ajax response lands.
     await expect(page.locator("#users tbody tr").first()).toBeVisible({
@@ -610,17 +632,13 @@ test.describe("Users Management — admin role", () => {
   }) => {
     test.slow();
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
     const username = `e2e_a4_${Date.now()}`;
     const userId = await createTestUser(page, "_a4", { username });
     registerCleanup((p) => deleteUser(p, userId));
 
     await page.reload();
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await expandUserRow(page, userId);
     // The edit modal populates its fields from an async GET /item/user/{id}
@@ -674,16 +692,12 @@ test.describe("Users Management — admin role", () => {
   }) => {
     test.slow();
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
     const userId = await createTestUser(page, "_a5");
     registerCleanup((p) => deleteUser(p, userId));
 
     await page.reload();
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await expandUserRow(page, userId);
     const checkPromise = page.waitForResponse(
@@ -750,16 +764,12 @@ test.describe("Users Management — admin role", () => {
   }) => {
     test.slow();
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
     const userId = await createTestUser(page, "_a6");
     registerCleanup((p) => deleteUser(p, userId));
 
     await page.reload();
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
     await expandUserRow(page, userId);
 
     await page.locator(".template-detail-users .btn-passwd").first().click();
@@ -795,9 +805,7 @@ test.describe("Users Management — admin role", () => {
   }) => {
     test.slow();
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     // Explicit usernames so the post-deletion check can search the datatable
     // by a visible column (the id column is hidden) and assert the row is gone.
@@ -810,9 +818,7 @@ test.describe("Users Management — admin role", () => {
     registerCleanup((p) => deleteUser(p, u2));
 
     await page.reload();
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     // Filter the table to just these two users (they share `ts`) so both rows
     // render into the DOM — bulk selection reads only rendered rows, and with
@@ -886,9 +892,7 @@ test.describe("Users Management — admin role", () => {
   }) => {
     test.slow();
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     // Shared `ts` in explicit usernames so both rows can be filtered in together.
     const ts = Date.now();
@@ -898,9 +902,7 @@ test.describe("Users Management — admin role", () => {
     registerCleanup((p) => deleteUser(p, u2));
 
     await page.reload();
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     // Filter the table to just these two users (they share `ts`) so both rows
     // render into the DOM — bulk selection reads only rendered rows, and with
@@ -969,16 +971,12 @@ test.describe("Users Management — admin role", () => {
     authenticatedPage: page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => {});
+    await waitForManagementReady(page);
 
     const userId = await createTestUser(page, "_a9");
     registerCleanup((p) => deleteUser(p, userId));
     await page.reload();
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => {});
+    await waitForManagementReady(page);
 
     await expandUserRow(page, userId);
 
@@ -1004,16 +1002,12 @@ test.describe("Users Management — admin role", () => {
     authenticatedPage: page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const userId = await createTestUser(page, "_a10");
     registerCleanup((p) => deleteUser(p, userId));
     await page.reload();
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const before = await getUser(page, userId);
 
@@ -1054,9 +1048,7 @@ test.describe("Users Management — admin role", () => {
     authenticatedPage: page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const catTab = page
       .locator('[href="#categories"], button:has-text("Categories")')
@@ -1115,9 +1107,7 @@ test.describe("Users Management — admin role", () => {
       u.includes("/api/v4/admin/items/users/management/categories"),
     );
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const catTab = page
       .locator('[href="#categories"], button:has-text("Categories")')
@@ -1148,9 +1138,7 @@ test.describe("Users Management — admin role", () => {
     registerCleanup((p) => deleteCategory(p, cat.id));
 
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await activateTabTable(page, '[href="#categories"], button:has-text("Categories")', "categories");
     await expandRowByText(page, "categories", cat.name);
@@ -1230,9 +1218,7 @@ test.describe("Users Management — admin role", () => {
     if (childId) registerCleanup((p) => deleteUser(p, childId));
 
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await activateTabTable(page, '[href="#categories"], button:has-text("Categories")', "categories");
     await expandRowByText(page, "categories", cat.name);
@@ -1289,9 +1275,7 @@ test.describe("Users Management — admin role", () => {
     authenticatedPage: page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const groupTab = page
       .locator('[href="#groups"], button:has-text("Groups")')
@@ -1363,9 +1347,7 @@ test.describe("Users Management — admin role", () => {
       u.includes("/api/v4/admin/items/users/management/groups"),
     );
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const groupTab = page
       .locator('[href="#groups"], button:has-text("Groups")')
@@ -1395,9 +1377,7 @@ test.describe("Users Management — admin role", () => {
     registerCleanup((p) => deleteGroup(p, grp.id));
 
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await expandRowByText(page, "groups", grp.name);
 
@@ -1462,9 +1442,7 @@ test.describe("Users Management — admin role", () => {
     if (childId) registerCleanup((p) => deleteUser(p, childId));
 
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await expandRowByText(page, "groups", grp.name);
 
@@ -1527,9 +1505,7 @@ test.describe("Users Management — admin role", () => {
       if (a19ChildId) registerCleanup((p) => deleteUser(p, a19ChildId));
 
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       await expandRowByText(page, "groups", grp.name);
 
@@ -1582,9 +1558,7 @@ test.describe("Users Management — admin role", () => {
     async ({ authenticatedPage: page }) => {
       test.slow();
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       await expandFirstRow(page, "groups");
       const enrollBtn = page
@@ -1714,9 +1688,7 @@ test.describe("Users Management — admin role", () => {
       u.includes("/api/v4/admin/items/secrets"),
     );
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const appsTab = page
       .locator('[href="#external-apps"], button:has-text("External apps")')
@@ -1742,9 +1714,7 @@ test.describe("Users Management — admin role", () => {
     "A22 — Add external app creates a secret",
     async ({ authenticatedPage: page }) => {
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       // `.btn-new-secret` lives in the External apps panel toolbox (visible even
       // while the panel body is collapsed).
@@ -1804,9 +1774,7 @@ test.describe("Users Management — admin role", () => {
     authenticatedPage: page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => {});
+    await waitForManagementReady(page);
 
     // Admin sees the details-control column for roles (managers do not — see M13).
     await expandFirstRow(page, "roles");
@@ -1833,9 +1801,7 @@ test.describe("Users Management — admin role", () => {
     authenticatedPage: page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const csvBtn = page
       .locator(
@@ -1874,9 +1840,7 @@ test.describe("Users Management — admin role", () => {
       registerCleanup((p) => deleteUser(p, csvUserId));
 
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       await page.locator(".btn-update-from-csv").click();
       await page.locator("#modalUpdateFromCSV").waitFor({ state: "visible" });
@@ -1982,9 +1946,7 @@ test.describe("Users Management — admin role", () => {
     });
 
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await page.locator(".btn-new-bulkusers").click();
     await page.locator("#modalAddBulkUsers").waitFor({ state: "visible" });
@@ -2076,9 +2038,7 @@ test.describe("Users Management — admin role", () => {
       await bridgeAdminSession(page);
 
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
       await expandUserRow(page, userId);
 
       const jwtPromise = page.waitForResponse(
@@ -2113,16 +2073,12 @@ test.describe("Users Management — admin role", () => {
   }) => {
     test.slow();
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const userId = await createTestUser(page, "_a28");
     registerCleanup((p) => deleteUser(p, userId));
     await page.reload();
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await expandUserRow(page, userId);
 
@@ -2219,9 +2175,7 @@ test.describe("Users Management — admin role", () => {
 
     // Navigate to management, expand the source user row and open the migrate modal.
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
     await expandUserRow(page, sourceId);
     await page.locator(".template-detail-users .btn-migrate").first().click();
     await page
@@ -2327,16 +2281,12 @@ test.describe("Users Management — admin role", () => {
     "A30 — Logs endpoint returns the user's logs",
     async ({ authenticatedPage: page }) => {
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       const userId = await createTestUser(page, "_a30");
       registerCleanup((p) => deleteUser(p, userId));
       await page.reload();
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       await expandUserRow(page, userId);
 
@@ -2364,9 +2314,7 @@ test.describe("Users Management — admin role", () => {
     authenticatedPage: page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await activateTabTable(page, '[href="#categories"], button:has-text("Categories")', "categories");
     await expandFirstRow(page, "categories");
@@ -2388,9 +2336,7 @@ test.describe("Users Management — admin role", () => {
     authenticatedPage: page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await activateTabTable(page, '[href="#categories"], button:has-text("Categories")', "categories");
     await expandFirstRow(page, "categories");
@@ -2414,9 +2360,7 @@ test.describe("Users Management — admin role", () => {
     authenticatedPage: page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await activateTabTable(page, '[href="#categories"], button:has-text("Categories")', "categories");
     await expandFirstRow(page, "categories");
@@ -2443,9 +2387,7 @@ test.describe("Users Management — admin role", () => {
   }) => {
     test.slow(); // categories tab + AJAX + bastion API can exceed the 30 s default under parallel load
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await activateTabTable(page, '[href="#categories"], button:has-text("Categories")', "categories");
     await expandFirstRow(page, "categories");
@@ -2589,9 +2531,7 @@ test.describe("Users Management — admin role", () => {
     'A39 — No management table cell renders the literal string "undefined"',
     async ({ authenticatedPage: page }) => {
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       // Wait for at least one data row in the users table before checking.
       await page
@@ -2674,9 +2614,7 @@ test.describe("Users Management — admin role", () => {
     try {
       userId = await createTestUser(page, "_a38", { resetVpn: false });
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
       await showAllUsers(page);
       const tbodyText = await page
         .locator("#users tbody")
@@ -2711,9 +2649,7 @@ test.describe("Users Management — admin role", () => {
     registerCleanup((p) => deleteCategory(p, cat.id));
 
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await activateTabTable(page, '[href="#categories"], button:has-text("Categories")', "categories");
     await expandRowByText(page, "categories", cat.name);
@@ -2848,9 +2784,7 @@ test.describe("Users Management — manager role", () => {
   // -------------------------------------------------------------------------
   test("M2 — Manager can add users only in own category", async ({ page }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await page.locator(".btn-new-user").click();
     await page.locator("#modalAddUser").waitFor({ state: "visible" });
@@ -2876,9 +2810,7 @@ test.describe("Users Management — manager role", () => {
     "M3 — Manager cannot edit an admin user (denied with 4xx)",
     async ({ page }) => {
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       const adminRow = page
         .locator("#users tbody tr")
@@ -2909,9 +2841,7 @@ test.describe("Users Management — manager role", () => {
     "M4 — Manager cannot reset an admin's password (denied with 4xx)",
     async ({ page }) => {
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       const adminRow = page
         .locator("#users tbody tr")
@@ -2943,9 +2873,7 @@ test.describe("Users Management — manager role", () => {
     "M5 — Manager cannot impersonate an admin (denied with 4xx)",
     async ({ page }) => {
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       const adminRow = page
         .locator("#users tbody tr")
@@ -2979,9 +2907,7 @@ test.describe("Users Management — manager role", () => {
     "M6 — Manager cannot delete an admin (denied with 4xx)",
     async ({ page }) => {
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
 
       const adminRow = page
         .locator("#users tbody tr")
@@ -3014,9 +2940,7 @@ test.describe("Users Management — manager role", () => {
   test("M7 — Manager cannot reset VPN of an admin user", async ({ page }) => {
     test.skip(!disposableAdminId, "disposable admin target not available");
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const resp = await adminResetVpn({
       client: sdk(page),
@@ -3034,9 +2958,7 @@ test.describe("Users Management — manager role", () => {
   test("M8 — Manager cannot bulk-delete an admin target", async ({ page }) => {
     test.skip(!disposableAdminId, "disposable admin target not available");
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const resp = await adminDeleteUsers({
       client: sdk(page),
@@ -3059,9 +2981,7 @@ test.describe("Users Management — manager role", () => {
     page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const DEFAULT_ADMIN = "local-default-admin-admin";
     const targets = [DEFAULT_ADMIN];
@@ -3100,9 +3020,7 @@ test.describe("Users Management — manager role", () => {
     );
 
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const catTab = page
       .locator('[href="#categories"], button:has-text("Categories")')
@@ -3129,9 +3047,7 @@ test.describe("Users Management — manager role", () => {
   // -------------------------------------------------------------------------
   test("M12 — Manager Bastion domain modal opens", async ({ page }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 10000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await activateTabTable(page, '[href="#categories"], button:has-text("Categories")', "categories");
     await expandFirstRow(page, "categories");
@@ -3159,9 +3075,7 @@ test.describe("Users Management — manager role", () => {
     // unreachable. We assert both: rows render, but the expand button is
     // not visible and no edit-role control is present.
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     await expect(page.locator("#roles tbody tr").first()).toBeVisible();
 
@@ -3182,9 +3096,7 @@ test.describe("Users Management — manager role", () => {
   // -------------------------------------------------------------------------
   test("M14 — Manager cannot see External apps panel", async ({ page }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     const appsPanel = page
       .locator(
@@ -3211,9 +3123,7 @@ test.describe("Users Management — manager role", () => {
     async ({ page }) => {
       test.fail();
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => {});
+    await waitForManagementReady(page);
 
       await expect(page.locator("#users tbody tr").first()).toBeVisible();
 
@@ -3260,9 +3170,7 @@ test.describe("Users Management — manager category permission gating (M11)", (
     page,
   }) => {
     await page.goto(MGMT_URL);
-    await page
-      .waitForLoadState("networkidle", { timeout: 30000 })
-      .catch(() => { });
+    await waitForManagementReady(page);
 
     // A manager sees only their own category — expand it.
     await activateTabTable(page, '[href="#categories"], button:has-text("Categories")', "categories");
@@ -3335,9 +3243,7 @@ test.describe("Users Management — manager category permission gating (M11)", (
     // each gated button is visible IFF its permission is enabled.
     async function assertButtons(expected) {
       await page.goto(MGMT_URL);
-      await page
-        .waitForLoadState("networkidle", { timeout: 30000 })
-        .catch(() => { });
+    await waitForManagementReady(page);
       await activateTabTable(page, '[href="#categories"], button:has-text("Categories")', "categories");
       await expandFirstRow(page, "categories");
       const detail = page.locator(".template-detail-categories").first();

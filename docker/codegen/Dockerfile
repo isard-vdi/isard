@@ -24,7 +24,7 @@ FROM ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0
 #   error: Failed to bytecode-compile Python file in /venv/.../site-packages
 #     Caused by: No file descriptors available (os error 24)
 # which aborts build.sh (set -e) before a single service image is built.
-# Reproduced on hypgpu05 2026-08-13: =1 fails at 2.0s, =0 completes in 1.5s.
+# Reproduced on a 192-core host: =1 fails at 2.0s, =0 completes in 1.5s.
 # This is a build-time generator image; precompiled bytecode only saves a few
 # ms of interpreter startup, so dropping it costs nothing measurable.
 ENV UV_COMPILE_BYTECODE=0 \
