@@ -122,10 +122,19 @@ if [ $? -eq 0 ]; then
                 fi
             fi
             
-            # Check minimum size
+            # Check minimum size. An empty archive is only acceptable where the
+            # repo is allowed to be empty (MIN_FILES=0, e.g. stats); anywhere
+            # else it is precisely the failure we are looking for. Deciding it
+            # on NFILES alone used to overwrite the ✗ FAILED that the file-count
+            # check above had just set, so a 0-file db archive was reported as a
+            # warning and the night finished "0 fatal".
             if [ "$DEDUPLICATED_SIZE" -lt "$MIN_SIZE" ]; then
                 if [ "$NFILES" -eq 0 ]; then
-                    VALIDATION_STATUS="⚠ WARNING"
+                    if [ "$MIN_FILES" -eq 0 ]; then
+                        VALIDATION_STATUS="⚠ WARNING"
+                    else
+                        VALIDATION_STATUS="✗ FAILED"
+                    fi
                     VALIDATION_ISSUES="$VALIDATION_ISSUES Empty backup; "
                 else
                     VALIDATION_STATUS="✗ FAILED"

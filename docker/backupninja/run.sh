@@ -557,6 +557,20 @@ case "$1" in
         ;;
 
     "")
+        # No arguments is the container entrypoint (Dockerfile CMD is empty),
+        # so it must keep starting crond. But it is also what an operator
+        # types to discover the CLI, and `docker exec ... run.sh` then starts
+        # a SECOND crond in a live container: every schedule fires twice, the
+        # two sessions race over /dbdump, one dump fails and its borg action
+        # archives the empty directory anyway — a 0-byte archive stamped with
+        # tonight's date, which passes every freshness check.
+        if [ -n "$(pidof crond)" ]; then
+            echo "crond is already running in this container: refusing to start a" >&2
+            echo "second one, which would run every backup twice. Run a subcommand" >&2
+            echo "instead ('$0 help' lists them)." >&2
+            exit 1
+        fi
+
         # Detect an orphaned session from a previous run (container was
         # killed or restarted mid-backup) and report it as CRITICAL before
         # we start serving the next cron tick. Non-fatal: any failure here
