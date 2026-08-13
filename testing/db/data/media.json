@@ -61,7 +61,7 @@
         "kind": "iso",
         "name": "E2E Delete Target",
         "path": "default/default-default/local/admin-admin/e2e-delete-target",
-        "path_downloaded": "/isard/media/empty.iso",
+        "path_downloaded": "/isard/media/e2e-delete-target.iso",
         "progress": {
             "received": "0B",
             "received_percent": 100,
