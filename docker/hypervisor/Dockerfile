@@ -39,6 +39,9 @@ COPY --chown=builder:builder docker/hypervisor/spice-dev/ /home/builder/spice/
 WORKDIR /home/builder/spice
 # apk update is required: the layers above use --no-cache, so no index is left
 # on disk and abuild's own `apk add` of the makedepends would find nothing.
+# abuild refuses to run as root, which is what the USER above is for, so this
+# one command has to reach for privilege.
+# hadolint ignore=DL3004
 RUN sudo apk update && abuild -r
 
 FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS builder
