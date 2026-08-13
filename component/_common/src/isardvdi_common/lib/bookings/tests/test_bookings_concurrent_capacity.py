@@ -183,6 +183,21 @@ def store(monkeypatch):
         "bookings_schedule",
         staticmethod(lambda *a, **kw: None),
     )
+    # The item ids below are invented, so an ownership check on `add` would
+    # reject every request before it reaches the capacity section this file is
+    # about, and the whole race would read as a capacity failure.
+    monkeypatch.setattr(
+        mod.Helpers,
+        "owns_domain_id",
+        classmethod(lambda cls, payload, domain_id: None),
+    )
+    monkeypatch.setattr(
+        mod.Helpers,
+        "owns_deployment_id",
+        classmethod(
+            lambda cls, payload, deployment_id, check_co_owner=True: None,
+        ),
+    )
     return state
 
 
