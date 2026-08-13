@@ -96,7 +96,7 @@ include:
       # AWS sample IDs, etc.) inside .go-mod-cache as critical findings. Those are
       # not project secrets — they ship inside dependency tarballs. Excluding the
       # dependency caches keeps the report focused on this repo's own code.
-      secret-detection-excluded-paths: ".go-mod-cache,.go-build-cache,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
+      secret-detection-excluded-paths: ".go-mod-cache,.go-build-cache,.codegen-go,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
       enable-static-reachability: true
   - component: $CI_SERVER_FQDN/isard/ci-cd-components/commits@v1.11.0
   - component: $CI_SERVER_FQDN/isard/ci-cd-components/release@v1.11.0
@@ -205,16 +205,21 @@ check-system-deps:
 codegen:
   stage: generate
   needs: ["build-codegen:docker-build"]
-  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
-  services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
+  image: "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
+  variables:
+    GOPATH: "$CI_PROJECT_DIR/.codegen-go"
+  cache:
+    - key:
+        files:
+          - "**/go.sum"
+          - docker/codegen/Dockerfile
+        prefix: codegen-go-mod
+      paths:
+        - .codegen-go/pkg/mod
   before_script:
-    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    # under rootless dind the codegen container is not host root, and needs a writable tree
-    - chmod -R a+rwX .
+    - apk add --no-cache git
   script:
-    - docker run -u $(id -u) -v "$(pwd):/build" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
+    - /gen.sh
     # gen.sh resolves node deps via NODE_PATH and must not touch the tracked
     # root package.json (older versions symlinked /deps manifests over it).
     - |-

@@ -129,6 +129,9 @@ test-results/
 # Local CI results
 ci-results/
 
+# Go module cache of the codegen job
+/.codegen-go/
+
 # npm lockfile (project uses yarn)
 testing/e2e/package-lock.json
 node_modules/

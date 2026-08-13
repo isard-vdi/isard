@@ -133,9 +133,9 @@ JOB_PIDS="$JOB_PIDS $!"
 
 wait_jobs
 
-# The image only ships codegen tools in the venv; apiv4 + its workspace
-# deps (now with real Phase-1 source) install here against the offline uv
-# cache shipped in the image.
+# The image only ships codegen tools in the venv; apiv4 + its workspace deps
+# (now with real Phase-1 source) install here. No uv cache is shipped in the
+# image, so this downloads unless a volume is mounted at UV_CACHE_DIR.
 run_quietly uv sync --frozen --no-dev \
 	--package isardvdi-codegen \
 	--package isardvdi-apiv4 \
