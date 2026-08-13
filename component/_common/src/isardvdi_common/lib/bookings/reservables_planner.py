@@ -32,6 +32,7 @@ from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.bookings import Bookings as BookingsHelpers
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.resource_lock import resource_lock
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
 from isardvdi_common.lib.bookings.reservables import Reservables as ReservablesProccess
 from isardvdi_common.lib.bookings.reservables import attach_vgpu_hypervisor_groups
@@ -239,46 +240,82 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
             data["item_type"], data["item_id"], data["subitem_id"]
         )
         ## Execute item behaviours
-        if not item_can_overlap:
-            cls.check_plan_item_id_overlapped(plan)
-        if not subitem_can_overlap:
-            cls.check_plan_subitem_id_overlapped(plan)
-
-        replanned = False
-        if subitem_join_before:
-            joined_plan = (
-                ReservablesPlannerCompute.join_existing_plan_after_new_plan_start(plan)
+        #
+        # From here to the insert is ONE critical section. The overlap checks
+        # below read `resource_planner` and the insert at the bottom writes to
+        # it: run two of these concurrently and both read a table that does not
+        # yet contain the other's row, both conclude "no overlap", and both
+        # insert. Measured on a live install: 4 simultaneous POSTs -> 4x200 and four
+        # live plans on one card summing units=4 against total_units=1, while the
+        # same four sent sequentially correctly get one 200 and three 409s.
+        #
+        # There is no conditional write that closes this: the decision is "does
+        # any OTHER row overlap me", which spans rows, and RethinkDB is atomic
+        # only per document. So the section is serialised by a lease on the
+        # contended resource -- and only on it.
+        #
+        # The key is the CARD (`item_id`) whenever the card-wide check runs,
+        # because that check is deliberately profile-agnostic ("we can't overlap
+        # in gpu"): a lease per card+profile would let a 1_24Q and a 2_24Q plan
+        # race into the same window on the same card, which is precisely the
+        # overlap the check exists to reject. Where only the per-profile check
+        # applies, the profile is the contended resource and the key narrows to
+        # it. Either way plans on different cards never wait for each other.
+        lock_keys = (
+            [f"bookings:planner:{data['item_type']}:{data['item_id']}"]
+            if not item_can_overlap
+            else []
+        )
+        if not subitem_can_overlap and not lock_keys:
+            lock_keys.append(
+                "bookings:planner:"
+                f"{data['item_type']}:{data['item_id']}:{data['subitem_id']}"
             )
-            if joined_plan:
-                print(
-                    "Existing plan "
-                    + joined_plan["id"]
-                    + " moved start time to new plan "
-                    + plan["id"]
-                )
-                if subitem_shedule:
-                    cls.reschedule_existing_plan_start(plan, joined_plan)
-                replanned = joined_plan["id"]
+        with resource_lock(*lock_keys):
+            if not item_can_overlap:
+                cls.check_plan_item_id_overlapped(plan)
+            if not subitem_can_overlap:
+                cls.check_plan_subitem_id_overlapped(plan)
 
-        if subitem_join_after:
-            joined_plan = (
-                ReservablesPlannerCompute.join_existing_plan_before_new_plan_end(plan)
-            )
-            if joined_plan:
-                print(
-                    "Existing plan "
-                    + joined_plan["id"]
-                    + " moved end time to new plan "
-                    + plan["id"]
+            replanned = False
+            if subitem_join_before:
+                joined_plan = (
+                    ReservablesPlannerCompute.join_existing_plan_after_new_plan_start(
+                        plan
+                    )
                 )
-                if subitem_shedule:
-                    cls.reschedule_existing_plan_end(plan, joined_plan)
-                replanned = joined_plan["id"]
+                if joined_plan:
+                    print(
+                        "Existing plan "
+                        + joined_plan["id"]
+                        + " moved start time to new plan "
+                        + plan["id"]
+                    )
+                    if subitem_shedule:
+                        cls.reschedule_existing_plan_start(plan, joined_plan)
+                    replanned = joined_plan["id"]
 
-        if replanned:
-            # It has been already updated at scheduler and db
-            return replanned
-        else:
+            if subitem_join_after:
+                joined_plan = (
+                    ReservablesPlannerCompute.join_existing_plan_before_new_plan_end(
+                        plan
+                    )
+                )
+                if joined_plan:
+                    print(
+                        "Existing plan "
+                        + joined_plan["id"]
+                        + " moved end time to new plan "
+                        + plan["id"]
+                    )
+                    if subitem_shedule:
+                        cls.reschedule_existing_plan_end(plan, joined_plan)
+                    replanned = joined_plan["id"]
+
+            if replanned:
+                # It has been already updated at scheduler and db
+                return replanned
+
             if subitem_shedule:
                 cls.new_subitem_schedule(plan)
 
