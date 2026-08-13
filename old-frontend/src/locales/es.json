@@ -167,7 +167,9 @@
           "https-port": "Puerto HTTPS",
           "domain-name": "Nombre de dominio personalizado (opcional)",
           "domain-names": "Nombres de dominio personalizados (opcional)",
-          "add-domain": "Añadir dominio"
+          "add-domain": "Añadir dominio",
+          "proxy-protocol": "Proxy Protocol v2",
+          "proxy-protocol-tooltip": "Habilítalo para reenviar la IP real del cliente al escritorio. Actívalo solo si el servidor web del escritorio admite Proxy Protocol v2."
         },
         "ssh": {
           "checkbox": "SSH",
@@ -257,7 +259,7 @@
     },
     "filter-placeholder": "Escribe para buscar",
     "clear": "Limpia",
-    "cancel": "Cancela",
+    "cancel": "Cancelar",
     "submit": "Envía",
     "create": "Crea",
     "duplicate": "Duplicar",
@@ -288,6 +290,18 @@
             "expire": "Caducar",
             "expire-tooltip": "Caducar la llave API existente"
           }
+        }
+      }
+    },
+    "ssh-key": {
+      "modal": {
+        "title": "Clave SSH de bastión",
+        "description": "Añade una sola clave pública SSH a tu perfil. Se añade automáticamente al acceso SSH del bastión de cualquier escritorio que arranques (cuando el SSH del bastión esté habilitado en ese escritorio), así que no tienes que añadirla manualmente a cada escritorio.",
+        "label": "Tu clave pública SSH",
+        "invalid": "La clave pública SSH proporcionada no es válida.",
+        "buttons": {
+          "save": "Guardar clave",
+          "remove": "Eliminar clave"
         }
       }
     }
@@ -357,6 +371,12 @@
           },
           "download-direct-viewer": {
             "title": "Descargar fichero de visores directos"
+          },
+          "bastion": {
+            "title": "Configuración de bastión"
+          },
+          "download-bastion-csv": {
+            "title": "Descargar fichero de acceso de bastión"
           },
           "delete": {
             "title": "Eliminar despliegue"
@@ -446,7 +466,8 @@
       "actions": {
         "delete": "Borrar",
         "hide": "Hacer invisible",
-        "show": "Hacer visible"
+        "show": "Hacer visible",
+        "bastion": "Información de bastión"
       },
       "table-header": {
         "user": "Usuario",
@@ -612,7 +633,8 @@
       "reset-vpn": "Restaurar VPN",
       "export": "Exportar usuario",
       "import": "Importar usuario",
-      "api-key": "Llave API"
+      "api-key": "Llave API",
+      "ssh-key": "Clave SSH de bastión"
     },
     "start-now-modal": {
       "title": "Iniciar ahora",
@@ -935,7 +957,8 @@
           "make-invisible": "Hacer que el despliegue '{name}' sea invisible",
           "download-csv": "Descargar CSV de visores directos de '{name}'",
           "delete": "Eliminar despliegue",
-          "co-owners": "Editar copropietarios de '{name}'"
+          "co-owners": "Editar copropietarios de '{name}'",
+          "bastion": "Configuración de bastión de '{name}'"
         },
         "body": {
           "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
@@ -946,7 +969,8 @@
           "warning-co-owner": "Como copropietario no estás autorizado para realizar esta acción. Por favor, contacta con el propietario de este despliegue.",
           "co-owners-warning": "AVISO! Los usuarios establecidos como copropietarios tendrán los mismos permisos que el propietario, excepto para cambiar los propietarios y borrar el despliegue.",
           "co-owners-label": "Copropietarios:",
-          "owner-label": "Propietario: {owner}"
+          "owner-label": "Propietario: {owner}",
+          "bastion-info": "Se aplica a todos los escritorios de este despliegue. Los escritorios en ejecución se actualizan de inmediato; los escritorios nuevos y recreados heredan esta configuración cuando arrancan por primera vez."
         },
         "option": {
           "dont-stop-desktops": "Hacer invisible este despliegue para los usuarios y permitir el uso de los escritorios hasta que se paren",
@@ -962,7 +986,8 @@
           "keep-csv": "Mantener URLs y descargar CSV",
           "reset-csv": "Reestablecer URLs y descargar CSV",
           "delete": "Eliminar",
-          "co-owners": "Actualizar copropietarios"
+          "co-owners": "Actualizar copropietarios",
+          "bastion": "Guardar"
         }
       },
       "alloweds-warning": "AVISO! Eliminar usuarios de este despliegue también eliminará sus escritorios asociados.",
@@ -1363,6 +1388,7 @@
           "http": "URL HTTP:",
           "https": "URL HTTPS:",
           "authorized-keys-ssh": "Claves SSH autorizadas",
+          "authorized-keys-others": "Claves autorizadas para otros usuarios",
           "domain-name": "Nombre de dominio personalizado:",
           "domain-names": "Nombres de dominio personalizados:"
         },
@@ -1376,6 +1402,7 @@
           "https_port": "HTTPS: {https_port}",
           "https_copy": "Copiar URL HTTPS",
           "authorized-keys-ssh": "Claves SSH autorizadas",
+          "authorized-keys-others": "Claves públicas de otras personas a las que quieras dar acceso SSH a este escritorio",
           "domain-info": "Información de DNS"
         },
         "domain-info": {
@@ -1386,6 +1413,11 @@
           "verified": "Dominio verificado y activo",
           "verified-pending-save": "Dominio verificado (guarda para aplicar)",
           "not-verified": "Dominio no verificado - haz clic en el escudo para verificar"
+        },
+        "own-key": {
+          "managed": "Tu propia clave se añade automáticamente desde tu perfil al arrancar este escritorio. Este campo es solo para las claves públicas de otras personas.",
+          "missing": "Todavía no tienes una clave SSH de bastión en tu perfil, así que no obtendrás acceso SSH automáticamente.",
+          "add-link": "Añádela en tu perfil"
         },
         "buttons": {
           "update-authorized-keys": "Actualizar claves SSH autorizadas",
@@ -1478,6 +1510,8 @@
       "creating-deployment": "Creando despliegue",
       "recreating-deployment": "Recreando despliegue",
       "deployment-desktops-created": "Escritorios del despliegue creados",
+      "deployment-bastion-updated": "Configuración de bastión del despliegue actualizada",
+      "bastion-not-configured": "El bastión no está habilitado para este escritorio",
       "deleting-deployment": "Eliminando despliegue",
       "deployment-deleted": "Despliegue eliminado",
       "making-visible-deployment": "Haciendo el despliegue visible",
@@ -1527,7 +1561,9 @@
       "authorized-ssh-keys-updated": "Claves SSH autorizadas actualizadas",
       "bastion-domain-updated": "Dominio del bastión actualizado",
       "bastion-domains-updated": "Dominios del bastión actualizados",
-      "bastion-domain-verified": "DNS del dominio verificado correctamente"
+      "bastion-domain-verified": "DNS del dominio verificado correctamente",
+      "bastion-ssh-key-updated": "Clave SSH del bastión guardada",
+      "bastion-ssh-key-removed": "Clave SSH del bastión eliminada"
     },
     "loading": "Cargando"
   },
@@ -1693,9 +1729,9 @@
     "unable_to_restore_group": "No se puede restaurar. El grupo eliminado {group} está asociado a elementos de esta entrada",
     "unable_to_restore_category": "No se puede restaurar. La categoría eliminada {category} está asociada a elementos de esta entrada",
     "operation_not_owned": "No estás autorizado a cancelar esta operación ya que no ha sido iniciada por ti",
-    "bastion_domain_not_found": "El dominio no existe. Por favor, comprueba el nombre del dominio e inténtalo de nuevo.",
-    "bastion_domain_error": "Se ha producido un error al comprobar el dominio. Por favor, inténtalo de nuevo más tarde.",
-    "bastion_domain_mismatch": "El dominio no coincide con el valor esperado. Por favor, comprueba el nombre del dominio e inténtalo de nuevo.",
+    "bastion_domain_dns_not_found": "El registro DNS del dominio no se ha encontrado. Por favor, compruébalo e inténtalo de nuevo.",
+    "bastion_domain_dns_error": "Se ha producido un error al comprobar el DNS del dominio. Por favor, inténtalo de nuevo más tarde.",
+    "bastion_domain_dns_mismatch": "El registro DNS del dominio no coincide con el valor esperado. Por favor, compruébalo e inténtalo de nuevo.",
     "bastion_domain_exists": "El dominio ya existe. Por favor, elige un nombre de dominio diferente.",
     "parent_template_not_found": "El elemento no se puede restaurar ya que la plantilla padre no existe.",
     "desktop_reservable_not_found": "El perfil de GPU del escritorio ya no existe y se ha eliminado. Edita el escritorio para seleccionar un perfil de GPU disponible antes de arrancarlo."
