@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 
 interface Props {
   title: string
+  as?: string
   side?: TooltipContentProps['side']
   class?: HTMLAttributes['class']
 }
@@ -20,7 +21,9 @@ const { isTruncated } = useIsTextTruncated(textRef, () => props.title)
 <template>
   <Tooltip>
     <TooltipTrigger as-child>
-      <p ref="textRef" :class="cn('truncate', props.class)">{{ props.title }}</p>
+      <component :is="props.as ?? 'p'" ref="textRef" :class="cn('truncate', props.class)">
+        {{ props.title }}
+      </component>
     </TooltipTrigger>
     <TooltipContent v-if="isTruncated" :title="props.title" :side="props.side" />
   </Tooltip>

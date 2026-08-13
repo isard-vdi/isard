@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Icon, CopyIcon } from '@/components/icon'
 import { Modal } from '@/components/modal'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TruncatedText } from '@/components/truncated-text'
 
 const { t } = useI18n()
 
@@ -165,7 +166,6 @@ const closeModal = () => {
               size="sm"
               icon="globe-04"
               icon-size="md"
-              :title="t('components.deployment-user-bastion-modal.view-bastion')"
               @click="selectedDesktop = { id: desktop.id, name: desktop.name }"
             >
               {{ t('components.deployment-user-bastion-modal.view-bastion') }}
@@ -220,11 +220,11 @@ const closeModal = () => {
               </h3>
             </div>
             <div class="flex items-center gap-3">
-              <code
-                class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
-              >
-                {{ bastionData!.id }}
-              </code>
+              <TruncatedText
+                as="code"
+                :title="bastionData!.id"
+                class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
+              />
               <CopyIcon :value="bastionData!.id ?? ''" stroke-color="gray-warm-600" />
             </div>
           </section>
@@ -243,12 +243,12 @@ const closeModal = () => {
 
             <div class="flex flex-col gap-2">
               <div class="flex items-center gap-3">
-                <code
-                  class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
-                >
-                  {{ httpUrl }}
-                </code>
-                <a :href="httpUrl" target="_blank" :title="httpUrl">
+                <TruncatedText
+                  as="code"
+                  :title="httpUrl"
+                  class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
+                />
+                <a :href="httpUrl" target="_blank">
                   <Icon
                     class="select-none cursor-pointer"
                     name="link-external-01"
@@ -259,12 +259,12 @@ const closeModal = () => {
                 <CopyIcon :value="httpUrl" stroke-color="gray-warm-600" />
               </div>
               <div class="flex items-center gap-3">
-                <code
-                  class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
-                >
-                  {{ httpsUrl }}
-                </code>
-                <a :href="httpsUrl" target="_blank" :title="httpsUrl">
+                <TruncatedText
+                  as="code"
+                  :title="httpsUrl"
+                  class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
+                />
+                <a :href="httpsUrl" target="_blank">
                   <Icon
                     class="select-none cursor-pointer"
                     name="link-external-01"
@@ -290,11 +290,11 @@ const closeModal = () => {
             </div>
 
             <div class="flex items-center gap-3">
-              <code
-                class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
-              >
-                {{ sshUrl }}
-              </code>
+              <TruncatedText
+                as="code"
+                :title="sshUrl"
+                class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
+              />
               <CopyIcon :value="sshUrl" stroke-color="gray-warm-600" />
             </div>
           </section>

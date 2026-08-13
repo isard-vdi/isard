@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
+import { TruncatedText } from '@/components/truncated-text'
 
 const { t } = useI18n()
 
@@ -292,11 +293,11 @@ const authorizedKeysForm = useForm({
             </h3>
           </div>
           <div class="flex items-center gap-3">
-            <code
-              class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
-            >
-              {{ targetId }}
-            </code>
+            <TruncatedText
+              as="code"
+              :title="targetId"
+              class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
+            />
             <CopyIcon :value="targetId" stroke-color="gray-warm-600" />
           </div>
         </section>
@@ -315,12 +316,12 @@ const authorizedKeysForm = useForm({
 
           <div class="flex flex-col gap-2">
             <div class="flex items-center gap-3">
-              <code
-                class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
-              >
-                {{ httpUrl }}
-              </code>
-              <a :href="httpUrl" target="_blank" :title="httpUrl">
+              <TruncatedText
+                as="code"
+                :title="httpUrl"
+                class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
+              />
+              <a :href="httpUrl" target="_blank">
                 <Icon
                   class="select-none cursor-pointer"
                   name="link-external-01"
@@ -331,12 +332,12 @@ const authorizedKeysForm = useForm({
               <CopyIcon :value="httpUrl" stroke-color="gray-warm-600" />
             </div>
             <div class="flex items-center gap-3">
-              <code
-                class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
-              >
-                {{ httpsUrl }}
-              </code>
-              <a :href="httpsUrl" target="_blank" :title="httpsUrl">
+              <TruncatedText
+                as="code"
+                :title="httpsUrl"
+                class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
+              />
+              <a :href="httpsUrl" target="_blank">
                 <Icon
                   class="select-none cursor-pointer"
                   name="link-external-01"
@@ -451,11 +452,11 @@ const authorizedKeysForm = useForm({
           </div>
 
           <div class="flex items-center gap-3">
-            <code
-              class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
-            >
-              {{ sshUrl }}
-            </code>
+            <TruncatedText
+              as="code"
+              :title="sshUrl"
+              class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
+            />
             <CopyIcon :value="sshUrl" stroke-color="gray-warm-600" />
           </div>
 
