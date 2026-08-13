@@ -40,7 +40,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       :class="
         cn(
           `
-      rounded-md bg-gray-warm-900 max-w-[320px] p-[12px]
+      rounded-md bg-brand-700 max-w-[320px] p-[12px]
       z-50 overflow-hidden
       shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out 
       data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 
