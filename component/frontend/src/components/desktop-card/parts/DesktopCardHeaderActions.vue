@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
 
 import { DesktopCardHeaderActionsDropdownContent, DesktopCardOverlayButton } from '..'
@@ -8,6 +10,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+const { t } = useI18n()
 
 interface Props {
   desktop: UserDesktop
@@ -62,28 +67,35 @@ const bastionEnabled =
     @click="emit('bastionClick')"
   />
 
-  <DropdownMenu>
-    <DropdownMenuTrigger>
-      <Button
-        hierarchy="link-gray"
-        size="sm"
-        class="w-9! h-9! flex align-center justify-center bg-base-black/55 hover:bg-base-black/70 p-0!"
-        icon="dots-vertical"
-        icon-stroke-color="base-white"
-      >
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent class="bg-white border border-gray-warm-300 rounded-lg" align="end">
-      <DesktopCardHeaderActionsDropdownContent
-        :desktop="props.desktop"
-        @edit-desktop="emit('editDesktop')"
-        @show-delete-modal="emit('showDeleteModal')"
-        @show-direct-link-modal="emit('showDirectLinkModal')"
-        @show-recreate-modal="emit('showRecreateModal')"
-        @create-template="emit('createTemplate')"
-        @book-desktop="emit('bookDesktop')"
-        @show-storage-modal="emit('showStorageModal')"
-      />
-    </DropdownMenuContent>
-  </DropdownMenu>
+  <Tooltip>
+    <TooltipTrigger as-child>
+      <span class="inline-flex">
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <Button
+              hierarchy="link-gray"
+              size="sm"
+              class="w-9! h-9! flex align-center justify-center bg-base-black/55 hover:bg-base-black/70 p-0!"
+              icon="dots-vertical"
+              icon-stroke-color="base-white"
+            >
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent class="bg-white border border-gray-warm-300 rounded-lg" align="end">
+            <DesktopCardHeaderActionsDropdownContent
+              :desktop="props.desktop"
+              @edit-desktop="emit('editDesktop')"
+              @show-delete-modal="emit('showDeleteModal')"
+              @show-direct-link-modal="emit('showDirectLinkModal')"
+              @show-recreate-modal="emit('showRecreateModal')"
+              @create-template="emit('createTemplate')"
+              @book-desktop="emit('bookDesktop')"
+              @show-storage-modal="emit('showStorageModal')"
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </span>
+    </TooltipTrigger>
+    <TooltipContent :title="t('common.actions.more')" />
+  </Tooltip>
 </template>

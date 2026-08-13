@@ -17,6 +17,7 @@ import { toggleVariants } from '@/components/ui/toggle'
 import { computed, watch } from 'vue'
 import { ref } from 'vue'
 import { TruncatedText } from '@/components/truncated-text'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const { t } = useI18n()
 
@@ -228,14 +229,19 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 
       <template #cell-actions="{ row }">
         <div class="flex gap-2">
-          <Button
-            hierarchy="secondary-gray"
-            icon="info-circle"
-            class="aspect-square p-[10px]"
-            @click.stop="emit('showInfoModal', row.id)"
-            @keydown.enter.stop
-            @keydown.space.stop
-          />
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                hierarchy="secondary-gray"
+                icon="info-circle"
+                class="aspect-square p-[10px]"
+                @click.stop="emit('showInfoModal', row.id)"
+                @keydown.enter.stop
+                @keydown.space.stop
+              />
+            </TooltipTrigger>
+            <TooltipContent :title="t('views.templates.table.actions.info')" />
+          </Tooltip>
         </div>
       </template>
     </TemplateDataTable>

@@ -30,6 +30,7 @@ import {
 import NewTemplateForm from '@/components/templates/new-template-form/NewTemplateForm.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 import DatatablePagination from '@/components/ui/data-table-pagination/DatatablePagination.vue'
 import {
@@ -478,14 +479,21 @@ const table = useVueTable({
 
                   <DataTableCell>
                     <div class="flex flex-row items-center justify-end gap-2">
-                      <Button
-                        hierarchy="secondary-gray"
-                        icon="info-circle"
-                        class="aspect-square p-[10px]"
-                        @click.stop="openDesktopInfoModal(row.original.id)"
-                        @keydown.space.stop
-                        @keydown.enter.stop
-                      />
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button
+                            hierarchy="secondary-gray"
+                            icon="info-circle"
+                            class="aspect-square p-[10px]"
+                            @click.stop="openDesktopInfoModal(row.original.id)"
+                            @keydown.space.stop
+                            @keydown.enter.stop
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent
+                          :title="t('components.desktops.desktop-card.actions.info')"
+                        />
+                      </Tooltip>
                     </div>
                   </DataTableCell>
                 </DataTableRow>

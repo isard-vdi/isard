@@ -2810,6 +2810,9 @@
     "units": {
       "mb": "MB",
       "gb": "GB"
+    },
+    "actions": {
+      "more": "More actions"
     }
   }
 }

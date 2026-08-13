@@ -1625,6 +1625,9 @@
     "units": {
       "mb": "MB",
       "gb": "GB"
+    },
+    "actions": {
+      "more": "Ekintza gehiago"
     }
   }
 }
