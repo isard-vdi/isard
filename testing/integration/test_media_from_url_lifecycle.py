@@ -45,6 +45,9 @@ from isardvdi_apiv4_client.models.guest_properties_viewers_input import (
     GuestPropertiesViewersInput,
 )
 from isardvdi_apiv4_client.models.media_hardware import MediaHardware
+from isardvdi_apiv4_client.models.media_hardware_boot_order_item import (
+    MediaHardwareBootOrderItem,
+)
 from isardvdi_apiv4_client.models.media_kind_enum import MediaKindEnum
 from isardvdi_apiv4_client.models.new_template_request import NewTemplateRequest
 from isardvdi_apiv4_client.models.viewer_config import ViewerConfig
@@ -60,7 +63,9 @@ DEFAULT_MEDIA_URL = os.environ.get(
 
 # TCG emulation budgets — generous enough for CI, not idle.
 BOOT_TIMEOUT = 180
-STOP_TIMEOUT = 90
+# A guest under nested virtualisation can sit in Shutting-down well past 90s,
+# so the stop budget is the larger one.
+STOP_TIMEOUT = 180
 DOWNLOAD_TIMEOUT = 240
 TEMPLATE_TIMEOUT = 180
 
@@ -94,7 +99,7 @@ def _desktop_from_media_payload(media_id: str, name: str) -> CreateDesktopFromMe
             viewers=GuestPropertiesViewersInput(browser_vnc=ViewerConfig()),
         ),
         hardware=MediaHardware(
-            boot_order=["disk"],
+            boot_order=[MediaHardwareBootOrderItem.DISK],
             disk_bus="default",
             disk_size=1,
             interfaces=["default"],

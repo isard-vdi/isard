@@ -53,7 +53,10 @@ REGISTRY_IMAGE_NAME = os.environ.get("E2E_REGISTRY_IMAGE", "TetrOS")
 
 DOWNLOAD_TIMEOUT = 300  # registry + disk write; generous for small runners.
 BOOT_TIMEOUT = 180
-STOP_TIMEOUT = 90
+# The engine's broom only escalates Shutting-down to Stopping once the stop is
+# more than BROOM_SHUTDOWN_TIMEOUT (90s) old, and it polls every 10s, so a
+# 90s budget here expires before the engine is allowed to act.
+STOP_TIMEOUT = int(os.environ.get("E2E_STOP_TIMEOUT", "180"))
 TEMPLATE_TIMEOUT = 180
 
 

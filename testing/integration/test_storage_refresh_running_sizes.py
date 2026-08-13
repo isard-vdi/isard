@@ -117,11 +117,18 @@ def test_refresh_running_sizes_selects_only_running_ready_nonreadonly_disks(
                     "name": dom_started,
                     "status": "Started",
                     "user": user_id,
-                    "hardware": {
-                        "disks": [
-                            {"storage_id": sid_ready},
-                            {"storage_id": sid_readonly},
-                        ]
+                    # A domain keeps its attached disks under
+                    # ``create_dict.hardware.disks`` -- that is where
+                    # ``Domain.storages``, the engine's on-stop refresh and this
+                    # sweep read them. The top-level ``hardware`` is the
+                    # XML-derived one and carries no ``storage_id`` at all.
+                    "create_dict": {
+                        "hardware": {
+                            "disks": [
+                                {"storage_id": sid_ready},
+                                {"storage_id": sid_readonly},
+                            ]
+                        }
                     },
                 },
                 {
@@ -130,7 +137,9 @@ def test_refresh_running_sizes_selects_only_running_ready_nonreadonly_disks(
                     "name": dom_stopped,
                     "status": "Stopped",
                     "user": user_id,
-                    "hardware": {"disks": [{"storage_id": sid_stopped}]},
+                    "create_dict": {
+                        "hardware": {"disks": [{"storage_id": sid_stopped}]}
+                    },
                 },
             ],
             conflict="replace",

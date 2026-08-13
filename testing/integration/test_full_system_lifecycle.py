@@ -15,9 +15,8 @@ the supporting infrastructure is healthy:
        ``Storage.enqueue_registry_download_chain_for_domain`` chain.
        Skip if the registration code seeded by ``populate_test_db.py``
        hasn't propagated yet.
-    3. Start the downloaded desktop, assert viewer ports are populated
-       (the qcow2 has spice + vnc + html5 + ws-tunnel viewers configured
-       by upstream isardvdi-registry).
+    3. Start the downloaded desktop, assert its viewer config is
+       populated (``viewers`` on the apiv4 detail response).
     4. Stop, snapshot a template from the downloaded desktop, then
        derive a fresh persistent desktop from that template with
        overridden hardware. Pins Bug B (downloaded shape, no top-level
@@ -49,7 +48,7 @@ from typing import Optional
 
 import pytest
 from isardvdi_apiv4_client.api.role_admin import (
-    admin_domain_xml_get,
+    admin_domain_live_xml,
     admin_downloads_action_id,
     admin_downloads_kind,
     admin_hypervisors_list,
@@ -62,14 +61,13 @@ from isardvdi_apiv4_client.api.role_user import (
     create_desktop,
     create_desktop_from_media,
     edit_desktop,
-    get_desktop,
     get_desktop_details,
     start_desktop,
     stop_desktop,
 )
 from isardvdi_apiv4_client.models.admin_domain_list_item import AdminDomainListItem
-from isardvdi_apiv4_client.models.admin_domain_xml_response import (
-    AdminDomainXmlResponse,
+from isardvdi_apiv4_client.models.admin_domain_live_xml_response import (
+    AdminDomainLiveXmlResponse,
 )
 from isardvdi_apiv4_client.models.admin_downloads_kind_kind import (
     AdminDownloadsKindKind,
@@ -85,7 +83,6 @@ from isardvdi_apiv4_client.models.create_desktop_from_media import (
 )
 from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopRequest
 from isardvdi_apiv4_client.models.create_media_request import CreateMediaRequest
-from isardvdi_apiv4_client.models.desktop import Desktop
 from isardvdi_apiv4_client.models.desktop_details_response import DesktopDetailsResponse
 from isardvdi_apiv4_client.models.desktop_edit_request import DesktopEditRequest
 from isardvdi_apiv4_client.models.domain_guest_properties_input import (
@@ -100,6 +97,9 @@ from isardvdi_apiv4_client.models.guest_properties_viewers_input import (
     GuestPropertiesViewersInput,
 )
 from isardvdi_apiv4_client.models.media_hardware import MediaHardware
+from isardvdi_apiv4_client.models.media_hardware_boot_order_item import (
+    MediaHardwareBootOrderItem,
+)
 from isardvdi_apiv4_client.models.media_kind_enum import MediaKindEnum
 from isardvdi_apiv4_client.models.new_template_request import NewTemplateRequest
 from isardvdi_apiv4_client.models.viewer_config import ViewerConfig
@@ -121,14 +121,19 @@ OS_TEMPLATE = os.environ.get("E2E_OS_TEMPLATE", "win7Virtio")
 
 DOWNLOAD_TIMEOUT = int(os.environ.get("E2E_DOWNLOAD_TIMEOUT", "300"))
 BOOT_TIMEOUT = int(os.environ.get("E2E_BOOT_TIMEOUT", "180"))
-STOP_TIMEOUT = int(os.environ.get("E2E_STOP_TIMEOUT", "90"))
+# A guest under nested virtualisation can sit in Shutting-down well past 90s.
+STOP_TIMEOUT = int(os.environ.get("E2E_STOP_TIMEOUT", "180"))
 TEMPLATE_TIMEOUT = int(os.environ.get("E2E_TEMPLATE_TIMEOUT", "180"))
 EDIT_TIMEOUT = int(os.environ.get("E2E_EDIT_TIMEOUT", "120"))
 CREATE_TIMEOUT = int(os.environ.get("E2E_CREATE_TIMEOUT", "180"))
 
 
 _VCPU_RE = re.compile(r"<vcpu[^>]*>\s*(\d+)\s*</vcpu>")
-_MEMORY_KIB_RE = re.compile(r'<memory[^>]*unit\s*=\s*"KiB"[^>]*>\s*(\d+)\s*</memory>')
+# The live XML comes from virsh, which single-quotes attributes; the DB XML is
+# lxml-serialised and double-quotes them. Accept either.
+_MEMORY_KIB_RE = re.compile(
+    r"<memory[^>]*unit\s*=\s*['\"]KiB['\"][^>]*>\s*(\d+)\s*</memory>"
+)
 
 
 def _media_hardware(
@@ -139,7 +144,7 @@ def _media_hardware(
     interfaces: list[str] | None = None,
 ) -> MediaHardware:
     return MediaHardware(
-        boot_order=["disk"],
+        boot_order=[MediaHardwareBootOrderItem.DISK],
         disk_bus="default",
         disk_size=disk_size_gb,
         interfaces=interfaces if interfaces is not None else ["default"],
@@ -199,11 +204,17 @@ def _media_payload(url: str, name: str) -> CreateMediaRequest:
 
 
 def _xml(admin_client: IsardClient, domain_id: str) -> str:
-    resp = admin_domain_xml_get.sync_detailed(
+    """Return the engine's resolved live XML for a started domain.
+
+    The DB ``xml`` field only holds the base template XML; the per-desktop
+    hardware override is applied at start time and kept in the engine's RAM.
+    Non-200 means not ready yet, so callers poll.
+    """
+    resp = admin_domain_live_xml.sync_detailed(
         domain_id=domain_id, client=admin_client.apiv4()
     )
     parsed = resp.parsed
-    if isinstance(parsed, AdminDomainXmlResponse) and isinstance(parsed.xml, str):
+    if isinstance(parsed, AdminDomainLiveXmlResponse) and isinstance(parsed.xml, str):
         return parsed.xml
     return ""
 
@@ -233,6 +244,31 @@ def _wait_xml_matches(
         f"engine xml never converged: wanted vcpus={vcpus} memory_kib={memory_kib}, "
         f"last vcpu={last_v} memory={last_m}"
     )
+
+
+def _recover_unbootable(
+    admin_client: IsardClient, desktop_id: str, status: str
+) -> bool:
+    """True when the host CPU, not the code, refused the start: the image
+    pins its own ``<cpu>`` and the engine keeps that section verbatim.
+    ``stop`` is a no-op from ``Failed``, so reset through ``update-status``
+    (what the UI retry uses) — the steps that follow only need Stopped."""
+    if status != "Failed":
+        return False
+    # ``detail`` rides only on the admin details read.
+    resp = admin_client.raw("GET", f"/api/v4/admin/item/domain/{desktop_id}/details")
+    detail = ""
+    if resp.status_code == 200:
+        detail = (resp.json() or {}).get("detail") or ""
+    if "is incompatible with host CPU" not in detail:
+        raise AssertionError(
+            f"registry desktop {desktop_id} ended in Failed; detail={detail!r}"
+        )
+    admin_client.put(f"/api/v4/item/desktop/{desktop_id}/update-status")
+    admin_client.poll_desktop_status(
+        desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
+    )
+    return True
 
 
 def _desktop_rows(admin_client: IsardClient) -> list[AdminDomainListItem]:
@@ -414,36 +450,29 @@ def test_registry_full_lifecycle(
         desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
     )
 
-    # --- Step 1: start, assert viewer ports populated, stop -----------
+    # --- Step 1: start, assert viewer config populated, stop ----------
+    unbootable = False
     if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
         start_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             desktop_id, want={"Started", "WaitingIP", "Failed"}, max_wait=BOOT_TIMEOUT
         )
-        # Pin: viewer config is populated. registry images come pre-set
-        # with full viewer config (spice + vnc + html5 + ws-tunnel); we
-        # only assert that the apiv4 detail response surfaces a non-empty
-        # list of base/extra ports because the actual presence depends
-        # on the registry image version and we don't want to over-pin.
+        # apiv4 never surfaces the runtime viewer ports; the only viewer
+        # surface on a desktop read is ``viewers`` on ``get-details``.
         details = expect(
-            get_desktop.sync_detailed(
+            get_desktop_details.sync_detailed(
                 desktop_id=desktop_id, client=admin_client.apiv4()
             )
         )
-        assert isinstance(details, Desktop)
-        # ``viewer`` isn't in the Desktop schema; it rides along in
-        # additional_properties.
-        viewer = details.additional_properties.get("viewer") or {}
-        ports = viewer.get("ports") or []
-        # On a Failed start (no KVM) the engine still wires viewer
-        # config so the assertion is meaningful in both cases.
-        assert ports, (
-            "registry desktop has no viewer ports populated; " f"viewer={viewer!r}"
-        )
+        assert isinstance(details, DesktopDetailsResponse)
+        assert (
+            details.viewers
+        ), f"registry desktop has no viewers configured; viewers={details.viewers!r}"
         stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
-        admin_client.poll_desktop_status(
+        stopped = admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
+        unbootable = _recover_unbootable(admin_client, desktop_id, stopped)
 
     # --- Step 2: template from downloaded desktop (Bug B) -------------
     template_name = f"{test_namespace}registry_tmpl"
@@ -515,7 +544,8 @@ def test_registry_full_lifecycle(
     admin_client.poll_desktop_status(
         derived_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
     )
-    if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
+    # The derived desktop inherits the same protected ``<cpu>``.
+    if os.environ.get("E2E_SKIP_VM_BOOT") != "1" and not unbootable:
         start_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             derived_id,

@@ -55,7 +55,7 @@ from typing import Optional
 
 import pytest
 from isardvdi_apiv4_client.api.role_admin import (
-    admin_domain_xml_get,
+    admin_domain_live_xml,
     admin_downloads_action_id,
     admin_downloads_kind,
     admin_hypervisors_list,
@@ -77,8 +77,8 @@ from isardvdi_apiv4_client.api.role_user import (
     stop_desktop,
 )
 from isardvdi_apiv4_client.models.admin_domain_list_item import AdminDomainListItem
-from isardvdi_apiv4_client.models.admin_domain_xml_response import (
-    AdminDomainXmlResponse,
+from isardvdi_apiv4_client.models.admin_domain_live_xml_response import (
+    AdminDomainLiveXmlResponse,
 )
 from isardvdi_apiv4_client.models.admin_downloads_kind_kind import (
     AdminDownloadsKindKind,
@@ -114,6 +114,9 @@ from isardvdi_apiv4_client.models.guest_properties_viewers_input import (
     GuestPropertiesViewersInput,
 )
 from isardvdi_apiv4_client.models.media_hardware import MediaHardware
+from isardvdi_apiv4_client.models.media_hardware_boot_order_item import (
+    MediaHardwareBootOrderItem,
+)
 from isardvdi_apiv4_client.models.media_kind_enum import MediaKindEnum
 from isardvdi_apiv4_client.models.new_nonpersistent_desktop_request import (
     NewNonpersistentDesktopRequest,
@@ -142,7 +145,8 @@ DOWNLOAD_TIMEOUT = int(os.environ.get("E2E_DOWNLOAD_TIMEOUT", "300"))
 CREATE_TIMEOUT = int(os.environ.get("E2E_CREATE_TIMEOUT", "180"))
 TEMPLATE_TIMEOUT = int(os.environ.get("E2E_TEMPLATE_TIMEOUT", "180"))
 BOOT_TIMEOUT = int(os.environ.get("E2E_BOOT_TIMEOUT", "180"))
-STOP_TIMEOUT = int(os.environ.get("E2E_STOP_TIMEOUT", "90"))
+# A guest under nested virtualisation can sit in Shutting-down well past 90s.
+STOP_TIMEOUT = int(os.environ.get("E2E_STOP_TIMEOUT", "180"))
 EDIT_TIMEOUT = int(os.environ.get("E2E_EDIT_TIMEOUT", "120"))
 
 OS_TEMPLATE = os.environ.get("E2E_OS_TEMPLATE", "win7Virtio")
@@ -169,14 +173,16 @@ def _media_hardware(
     vcpus: int,
     memory_gb: float,
     disk_size_gb: int,
-    boot_order: list[str] | None = None,
+    boot_order: list[MediaHardwareBootOrderItem] | None = None,
 ) -> MediaHardware:
     """The hardware shape the apiv4 ``MediaHardware`` schema accepts on a
     from-media POST. Memory is in GB at the apiv4 boundary
     (``DesktopService.create_from_media`` converts to KiB before writing
     ``create_dict``)."""
     return MediaHardware(
-        boot_order=boot_order if boot_order is not None else ["disk"],
+        boot_order=(
+            boot_order if boot_order is not None else [MediaHardwareBootOrderItem.DISK]
+        ),
         disk_bus="default",
         disk_size=disk_size_gb,
         interfaces=["default"],
@@ -248,21 +254,31 @@ def _detail_vcpu_memory(details: DesktopDetailsResponse) -> tuple[float, float]:
 
 
 def _xml(admin_client: IsardClient, domain_id: str) -> str:
-    """Return engine's XML for the domain — the source of truth that
-    isard-hypervisor's libvirtd will define on next start. Tolerates a
-    not-yet-rendered XML (returns "") so callers can poll."""
-    resp = admin_domain_xml_get.sync_detailed(
+    """Return the engine's resolved live XML for a started domain.
+
+    The DB ``xml`` field only ever holds the base template XML: the
+    per-desktop hardware override is applied at start time and the result
+    lives in the engine's RAM, never persisted. This endpoint returns that
+    resolved XML. It 409s while the desktop is not running and 404s until
+    the live XML has been captured, so treat any non-200 as "not ready yet"
+    and return "" for callers to poll on.
+    """
+    resp = admin_domain_live_xml.sync_detailed(
         domain_id=domain_id, client=admin_client.apiv4()
     )
     parsed = resp.parsed
-    if isinstance(parsed, AdminDomainXmlResponse) and isinstance(parsed.xml, str):
+    if isinstance(parsed, AdminDomainLiveXmlResponse) and isinstance(parsed.xml, str):
         return parsed.xml
     return ""
 
 
 _VCPU_RE = re.compile(r"<vcpu[^>]*>\s*(\d+)\s*</vcpu>")
 # memory may appear as <memory unit="KiB">N</memory> or <currentMemory ...>.
-_MEMORY_KIB_RE = re.compile(r'<memory[^>]*unit\s*=\s*"KiB"[^>]*>\s*(\d+)\s*</memory>')
+# The live XML comes from virsh, which single-quotes attributes; the DB XML is
+# lxml-serialised and double-quotes them. Accept either.
+_MEMORY_KIB_RE = re.compile(
+    r"<memory[^>]*unit\s*=\s*['\"]KiB['\"][^>]*>\s*(\d+)\s*</memory>"
+)
 
 
 def _extract_vcpu(xml: str) -> Optional[int]:
@@ -712,7 +728,9 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
 # ---------------------------------------------------------------------------
 
 
-_CDROM_RE = re.compile(r"<disk[^>]*type=\"file\"[^>]*device=\"cdrom\"[^>]*>", re.DOTALL)
+_CDROM_RE = re.compile(
+    r"<disk[^>]*type=['\"]file['\"][^>]*device=['\"]cdrom['\"][^>]*>", re.DOTALL
+)
 
 
 @pytest.mark.real
@@ -836,7 +854,10 @@ def test_from_media_attaches_iso_with_boot_order_and_persists_reservables_shape(
                 media_id,
                 desktop_name,
                 _media_hardware(
-                    vcpus=1, memory_gb=0.5, disk_size_gb=1, boot_order=["iso"]
+                    vcpus=1,
+                    memory_gb=0.5,
+                    disk_size_gb=1,
+                    boot_order=[MediaHardwareBootOrderItem.ISO],
                 ),
             ),
         )
@@ -1035,8 +1056,8 @@ def test_deployment_desktops_inherit_hardware_from_request(
     # one that has reached ``Stopped``. The apiv4 ``/items/desktops``
     # response model strips the ``tag`` field, but
     # ``/item/deployment/<id>/videowall`` returns the deployment with
-    # the embedded ``desktops`` array (id + status), which is what
-    # the videowall and recreate flows already consume.
+    # the embedded ``desktops`` array, which is what the videowall and
+    # recreate flows already consume.
     stopped_id = None
     deadline = time.monotonic() + CREATE_TIMEOUT
     while time.monotonic() < deadline:
@@ -1045,12 +1066,9 @@ def test_deployment_desktops_inherit_hardware_from_request(
                 deployment_id=deployment_id, client=admin_client.apiv4()
             )
         )
-        # ``desktops`` isn't in the videowall schema; it rides in
-        # additional_properties as an embedded id + status array.
-        desktops = videowall.additional_properties.get("desktops") or []
-        candidates = [d for d in desktops if d.get("status") == "Stopped"]
+        candidates = [d for d in videowall.desktops or [] if d.status == "Stopped"]
         if candidates:
-            stopped_id = candidates[0]["id"]
+            stopped_id = candidates[0].id
             break
         time.sleep(2.0)
 

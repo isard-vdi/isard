@@ -11,6 +11,8 @@ developer does the same via `docker compose run --rm integration-test`.
 
 from __future__ import annotations
 
+import base64
+import json
 import os
 import time
 from typing import Any, Optional, cast
@@ -66,6 +68,26 @@ def auth_login(
     return token.strip()
 
 
+def token_expiry(token: str) -> float:
+    """``exp`` (unix seconds) of a login JWT, read without verifying it.
+
+    authentication signs the login token with the *session's*
+    ``expiration_time`` (``authentication/authentication/login.go``:
+    ``SignLoginToken(..., sess.Time.ExpirationTime, ...)``), which the
+    sessions service sets to ``SESSIONS_SESSIONS_EXPIRATION_TIME`` — 5
+    minutes in ``docker-compose.yml``. Nothing renews it on its own, so
+    the token tells us exactly when the session behind it dies.
+
+    Returns 0.0 for anything unparseable, which disables the proactive
+    refresh and leaves the reactive 401 retry as the only net."""
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        return float(json.loads(base64.urlsafe_b64decode(payload))["exp"])
+    except Exception:
+        return 0.0
+
+
 def apiv4_client(apiv4_url: str, token: str) -> AuthenticatedClient:
     """Bearer-authenticated apiv4 client. Never raises on non-2xx — call
     sites assert on ``status_code`` themselves so status-contract tests can
@@ -98,6 +120,7 @@ class IsardClient:
         self.user_id: Optional[str] = None
         self._session = requests.Session()
         self._login_args: Optional[tuple] = None
+        self._token_exp: float = 0.0
 
     def login(
         self,
@@ -114,6 +137,7 @@ class IsardClient:
         self.token = auth_login(
             self.auth_url, username, password, category_id, provider
         )
+        self._token_exp = token_expiry(self.token)
         details = self.get("/api/v4/item/user/get-details")
         self.user_id = details["id"]
         return self.token
@@ -126,10 +150,38 @@ class IsardClient:
         self.token = auth_login(
             self.auth_url, username, password, category_id, provider
         )
+        self._token_exp = token_expiry(self.token)
+
+    # Seconds before ``exp`` at which the token is replaced. The suite
+    # outlives the 5-minute session TTL, and apiv4 answers the first
+    # request past it with 401 ``Session expired``. ``request`` / ``raw``
+    # recover by relogging in and resending, but the generated SDK has no
+    # such hook: every ``apiv4()`` call site (``expect(...)``) turns that
+    # 401 into a test failure. So refresh *before* the session dies rather
+    # than after, on both paths.
+    _REFRESH_MARGIN = 30.0
+
+    def _ensure_fresh_token(self) -> None:
+        if not self._login_args or not self._token_exp:
+            return
+        if time.time() < self._token_exp - self._REFRESH_MARGIN:
+            return
+        # Swallowed like the reactive retry below: sessions.New takes a
+        # per-user Redis lock and answers ErrUserLockBusy under
+        # contention, so a refresh can fail transiently. Raising here
+        # would escape through _headers() into raw(), whose callers
+        # (_poll_status, poll_media_status, ...) expect a Response, and
+        # turn a recoverable blip into a suite error. Keep the old token
+        # and let the 401 retry deal with it.
+        try:
+            self._relogin()
+        except Exception:
+            pass
 
     def apiv4(self) -> AuthenticatedClient:
         """A generated apiv4 client bound to the *current* token. Built fresh
         per call so a mid-test ``_relogin`` is picked up by the SDK."""
+        self._ensure_fresh_token()
         return apiv4_client(self.apiv4_url, self.token or "")
 
     # --- REST primitives -------------------------------------------------
@@ -137,6 +189,7 @@ class IsardClient:
     def _headers(self) -> dict:
         if not self.token:
             raise RuntimeError("call login() before issuing requests")
+        self._ensure_fresh_token()
         # apiv4's get_remote_addr reads X-Forwarded-For and the session was
         # created with it, so every request carries the same loopback IP to
         # stay consistent (and to pass a RemoteAddrControl-enabled sessions

@@ -183,7 +183,7 @@ test-e2e-seed:
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-e UV_CACHE_DIR=/tmp/uv-cache \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
-	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine \
+	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
 	sh -c 'apk add --no-cache git && uv run --group test --package isardvdi-testing isardvdi-populate-test-db'
 
 .PHONY: test-e2e
@@ -205,7 +205,7 @@ test-e2e: test-e2e-seed
 	-e E2E_BROWSER \
 	-v "${ISARDVDI_SRC}/testing/e2e:/e2e" \
 	-w "/e2e" \
-	mcr.microsoft.com/playwright:v1.57.0-jammy yarn playwright test $(E2E_ARGS)
+	mcr.microsoft.com/playwright:v1.57.0-jammy@sha256:6aca677c27a967caf7673d108ac67ffaf8fed134f27e17b27a05464ca0ace831 yarn playwright test $(E2E_ARGS)
 
 # Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, but it needs
 # real qcow2 images and a live lock holder, so qemu-img and qemu-io must exist.
@@ -226,17 +226,17 @@ ci-test-storage-utils:
 .PHONY: test-integration
 test-integration: test-e2e-seed
 	docker run $(_e2e_tty) --rm --network=isard-network \
-	-e E2E_SKIP_VM_BOOT=1 -e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
+	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
-	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine \
+	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
 	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -v -m real
 
 .PHONY: ci-test-integration
 ci-test-integration: test-e2e-seed
 	docker run $(_e2e_tty) --rm --network=isard-network \
-	-e E2E_SKIP_VM_BOOT=1 -e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
+	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
-	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine \
+	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
 	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -m real --tb=short --junitxml=testing/integration/report.xml
 
 # CI test targets: emit JUnit + Cobertura XML so GitLab CI can consume them
@@ -361,7 +361,7 @@ test-e2e-stack:
 		-e E2E_BASE_URL=https://host.docker.internal \
 		-e E2E_RATE_LIMITS_ENABLED=false \
 		-v "${ISARDVDI_SRC}testing/e2e:/e2e" -w "/e2e" \
-		mcr.microsoft.com/playwright:v1.57.0-jammy \
+		mcr.microsoft.com/playwright:v1.57.0-jammy@sha256:6aca677c27a967caf7673d108ac67ffaf8fed134f27e17b27a05464ca0ace831 \
 		yarn playwright test $(E2E_ARGS)
 
 .PHONY: test-e2e-stack-down
