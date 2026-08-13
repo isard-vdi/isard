@@ -202,7 +202,7 @@ test-change-handler:
 
 .PHONY: test-storage
 test-storage:
-	uv run --group test --package isardvdi-storage pytest docker/storage/task/tests -q
+	uv run --group test --package isardvdi-storage pytest docker/storage/task/tests docker/storage/utils/tests -q
 
 # Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, but it needs
 # real qcow2 images and a live lock holder, so qemu-img and qemu-io must exist.

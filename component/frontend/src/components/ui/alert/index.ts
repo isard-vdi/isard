@@ -16,7 +16,8 @@ export const alertVariants = cva(
     variants: {
       variant: {
         default: 'bg-base-white text-foreground',
-        destructive: 'border-error-300 bg-error-25'
+        destructive: 'border-error-300 bg-error-25',
+        warning: 'border-warning-300 bg-warning-25'
       }
     },
     defaultVariants: {

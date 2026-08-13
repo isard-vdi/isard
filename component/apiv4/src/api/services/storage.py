@@ -203,7 +203,7 @@ class StorageService:
     def set_maintenance(payload: dict, storage_id: str, action: str) -> str:
         """Set a storage to maintenance status."""
         storage = get_storage(payload, storage_id)
-        storage.set_maintenance(storage_id, action)
+        storage.set_maintenance(action)
         return storage.id
 
     @staticmethod

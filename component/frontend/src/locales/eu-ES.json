@@ -713,13 +713,10 @@
       },
       "delete-confirmation-modal": {
         "title": "Ezabatu '{name}' txantiloia",
-        "subtitle": "Ekintza hau ezin da desegin eta hari lotutako datu guztiak galduko dira.",
         "fields": {
           "dependency": {
             "alert": {
-              "title": "Mendekotasun-abisua",
-              "description": "Hurrengo mahaigainak eta txantiloiak txantiloi honen menpekoak dira eta ezabatuko dira. Ekintza hau ezin da desegin eta hari lotutako datu guztiak galduko dira.",
-              "pending": "Txantiloi honen menpeko zure jabetzakoak ez diren elementu batzuk daude. Mesedez, jarri administratzaile batekin harremanetan txantiloi hau ezabatzeko."
+              "title": "Mendekotasun-abisua"
             },
             "datatable": {
               "headers": {

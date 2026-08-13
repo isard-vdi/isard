@@ -1868,13 +1868,10 @@
       },
       "delete-confirmation-modal": {
         "title": "Eliminar la plantilla '{name}'",
-        "subtitle": "Esta acción no se puede deshacer y se perderán todos los datos asociados.",
         "fields": {
           "dependency": {
             "alert": {
-              "title": "Aviso de dependencia",
-              "description": "Los siguientes escritorios y plantillas dependen de esta plantilla y serán eliminados. Esta acción no se puede deshacer y se perderán todos sus datos asociados.",
-              "pending": "Hay algunos elementos que dependen de esta plantilla que no son tuyos. Por favor, contacta con un administrador para eliminar esta plantilla."
+              "title": "Aviso de dependencia"
             },
             "datatable": {
               "headers": {

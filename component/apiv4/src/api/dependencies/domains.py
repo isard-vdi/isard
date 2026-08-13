@@ -50,7 +50,7 @@ async def template_has_no_children(derivates=Depends(owns_template_children)):
     """
     Check that the template has no children
     """
-    if len(derivates["domains"]) > 1:
+    if len(derivates["domains"]) > 1 or derivates["deployments"]:
         raise Error(
             "precondition_required",
             "Template has children",

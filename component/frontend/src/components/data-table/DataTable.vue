@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { HTMLAttributes } from 'vue'
 
@@ -97,6 +97,10 @@ const table = useVueTable({
     }
   },
   autoResetAll: false
+})
+
+watch(pageSize, (value) => {
+  table.setPageSize(value)
 })
 
 const handleRowClick = (rowData: Record<string, unknown>) => {
