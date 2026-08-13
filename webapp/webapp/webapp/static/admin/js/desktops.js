@@ -2467,8 +2467,10 @@ function renderStorageActionsButton(data) {
                         contentType: 'application/json',
                         success: function (data) {
                             $.each(data.field, function(pos, field) {
-                                if (elem.find('option[value="' + field + 'GB"]').length === 0) {
-                                    elem.append('<option value="' + field+ '">' + field + 'GB</option>');
+                                // Must match the RAM(GB) column render
+                                const value = Number(field).toFixed(2) + 'GB'
+                                if (elem.find('option[value="' + value + '"]').length === 0) {
+                                    elem.append('<option value="' + value + '">' + value + '</option>');
                                 }
                             });
                         }
