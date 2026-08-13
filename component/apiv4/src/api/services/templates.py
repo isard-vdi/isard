@@ -427,11 +427,20 @@ class TemplateService:
         derivates = CommonTemplates.check_children(payload, tree)
         derivates["is_duplicated"] = CommonTemplates.is_duplicate(template_id)
 
-        deployments = CommonTemplates.get_deployments_with_template(
+        # ``check_children`` has already walked the whole tree, so its
+        # ``deployments`` list covers deployments hanging off DERIVED templates.
+        # Merge the per-root index into it, never overwrite it: indexing
+        # ``deployments`` only by the deleted template hides every deployment of
+        # a derivative, which is exactly what the confirmation modal must show
+        # (regression from cea1f0ff1c). The per-root query is kept as a
+        # robustness backstop, deduplicated against what the tree already found.
+        seen = set(derivates.pop("deployment_ids", []))
+        for dp in CommonTemplates.get_deployments_with_template(
             template_id, return_username=True
-        )
-        derivates["deployments"] = []
-        for dp in deployments:
+        ):
+            if dp["id"] in seen:
+                continue
+            seen.add(dp["id"])
             try:
                 Helpers.owns_deployment_id(payload, dp["id"])
                 derivates["deployments"].append(

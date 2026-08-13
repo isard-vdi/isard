@@ -1856,13 +1856,10 @@
       },
       "delete-confirmation-modal": {
         "title": "Esborra la plantilla '{name}'",
-        "subtitle": "Aquesta acció no es pot desfer i es perdran totes les dades associades.",
         "fields": {
           "dependency": {
             "alert": {
-              "title": "Avís de dependència",
-              "description": "Els següents escriptoris i plantilles depenen d'aquesta plantilla i seran eliminats. Aquesta acció no es pot desfer i es perdran totes les dades associades.",
-              "pending": "Hi ha alguns elements que depenen d'aquesta plantilla que no són teus. Si us plau, contacta amb un administrador per esborrar aquesta plantilla."
+              "title": "Avís de dependència"
             },
             "datatable": {
               "headers": {

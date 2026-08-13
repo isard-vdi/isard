@@ -447,6 +447,69 @@ def test_delete_template_sends_to_recycle_bin(monkeypatch, test_client):
     assert captured == {"template_id": "template-1"}
 
 
+def test_convert_to_desktop_refuses_template_with_deployments(monkeypatch, test_client):
+    """A template with a deployment but ZERO live desktops still has
+    len(domains) == 1, so the old ``template_has_no_children`` guard let
+    convert-to-desktop through, orphaning deployment rows on a domain that is
+    no longer kind=template. The guard must also refuse on deployments → 428.
+
+    This drives the REAL dependency chain (no override of the guard itself);
+    only its data sources are stubbed."""
+    from api import app
+    from api.dependencies.storage_pools import check_create_storage_pool_availability
+
+    jwt = MockJWT(role_id="advanced")
+
+    # owns_template_children → check_children: only domain is the root, but a
+    # deployment hangs off it. pending=False so the pending-guard does not fire
+    # first — we want to reach the deployment guard specifically.
+    monkeypatch.setattr(
+        "api.dependencies.alloweds.ApiAdmin.get_template_tree_list",
+        staticmethod(lambda template_id, user_id: [{"id": template_id}]),
+    )
+    monkeypatch.setattr(
+        "api.dependencies.alloweds.TemplatesProcessed.check_children",
+        staticmethod(
+            lambda payload, tree: {
+                "domains": [{"id": "root"}],
+                "deployments": [{"id": "dep-1", "kind": "deployment"}],
+                "pending": False,
+                "deployment_ids": ["dep-1"],
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.helpers.Helpers.owns_domain_id",
+        staticmethod(lambda payload, domain_id: domain_id),
+    )
+    monkeypatch.setattr(
+        "api.dependencies.domains.Domain",
+        _FakeDomainTemplate,
+    )
+    # If the guard (wrongly) passes, the happy path returns 200 — that is the
+    # exact RED before the fix (200 instead of 428).
+    monkeypatch.setattr(
+        "api.services.templates.TemplateService.convert_to_desktop",
+        staticmethod(lambda payload, template_id, name: None),
+    )
+
+    async def _noop():
+        return None
+
+    app.dependency_overrides[check_create_storage_pool_availability] = _noop
+    try:
+        response = test_client(
+            url="/item/template/template-1/convert-to-desktop",
+            method="POST",
+            body={"name": "Converted"},
+            jwt=jwt,
+        )
+    finally:
+        app.dependency_overrides.pop(check_create_storage_pool_availability, None)
+
+    assert response.status_code == 428
+
+
 def test_get_template_tree(monkeypatch, test_client):
     jwt = MockJWT(role_id="advanced")
     stub = {
@@ -455,6 +518,17 @@ def test_get_template_tree(monkeypatch, test_client):
                 "id": "desktop-1",
                 "kind": "desktop",
                 "name": "Child Desktop",
+                "user": "local-default-admin-admin",
+            }
+        ],
+        # A deployment MUST survive to the response body. Without this
+        # element the field defaults to [] via the schema and an empty-out
+        # regression (like cea1f0ff1c) would pass unnoticed.
+        "deployments": [
+            {
+                "id": "deployment-1",
+                "kind": "deployment",
+                "name": "Child Deployment",
                 "user": "local-default-admin-admin",
             }
         ],
@@ -482,6 +556,7 @@ def test_get_template_tree(monkeypatch, test_client):
     assert response.status_code == 200
     body = response.json()
     assert body["domains"][0]["id"] == "desktop-1"
+    assert body["deployments"][0]["id"] == "deployment-1"
     assert body["pending"] is False
 
 
