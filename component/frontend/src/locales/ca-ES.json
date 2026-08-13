@@ -693,6 +693,9 @@
       },
       "empty": {
         "subtitle": "Crea un desplegament per començar a proporcionar escriptoris als teus usuaris"
+      },
+      "actions": {
+        "go-to-direct-viewer": "Ves al visor directe"
       }
     },
     "deployment": {

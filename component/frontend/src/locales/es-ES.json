@@ -693,6 +693,9 @@
       },
       "empty": {
         "subtitle": "Crea un despliegue para empezar a proporcionar escritorios a tus usuarios"
+      },
+      "actions": {
+        "go-to-direct-viewer": "Ir al visor directo"
       }
     },
     "deployment": {

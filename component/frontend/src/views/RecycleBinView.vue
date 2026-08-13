@@ -25,6 +25,7 @@ import { DropdownButton } from '@/components/dropdown-button'
 import { InputField } from '@/components/input-field'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { AvatarLabel } from '@/components/avatar-label'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertModal } from '@/components/modal'
 import { DeleteModal } from '@/components/recycle-bin'
 import { RestoreModal } from '@/components/recycle-bin'
@@ -315,12 +316,14 @@ const goToEntry = (row: any) => {
           {{ formatBytes(row.size) }}
         </template>
         <template #cell-last_time_sort="{ row }">
-          <span
-            v-if="getRowTimestamp(row)"
-            :title="formatRelativeTime(getRowTimestamp(row), locale)"
-          >
-            {{ d(getRowTimestamp(row) * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
-          </span>
+          <Tooltip v-if="getRowTimestamp(row)">
+            <TooltipTrigger as-child>
+              <span>
+                {{ d(getRowTimestamp(row) * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent :title="formatRelativeTime(getRowTimestamp(row), locale)" />
+          </Tooltip>
           <span v-else>—</span>
         </template>
         <template #cell-content="{ row }">

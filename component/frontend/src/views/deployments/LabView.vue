@@ -124,14 +124,18 @@ const filteredRows = computed(() => {
             />
           </template>
           <template #cell-action="{ row }">
-            <Button
-              title="Go to direct viewer"
-              hierarchy="link-gray"
-              size="sm"
-              icon="tv-03"
-              icon-size="md"
-              @click.stop="goToDesktopDirectViewer(row.id)"
-            />
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="link-gray"
+                  size="sm"
+                  icon="tv-03"
+                  icon-size="md"
+                  @click.stop="goToDesktopDirectViewer(row.id)"
+                />
+              </TooltipTrigger>
+              <TooltipContent :title="t('views.deployments.actions.go-to-direct-viewer')" />
+            </Tooltip>
           </template>
         </DataTable>
       </div>

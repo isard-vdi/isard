@@ -352,19 +352,26 @@ window.addEventListener('beforeunload', (e) => {
         >
           {{ t('components.stepper.navigation.previous') }}
         </Button>
-        <Button
-          hierarchy="primary"
-          :disabled="isSubmitting || !canProceedToNextStep"
-          :loading="isSubmitting"
-          :title="getNextButtonTooltip"
-          @click="handleNextOrSubmit"
-        >
-          {{
-            currentStep >= steps.length
-              ? t('views.new-lab.submit')
-              : t('components.stepper.navigation.next')
-          }}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <!-- Wrapper: a disabled button emits no pointer events -->
+            <span class="inline-flex">
+              <Button
+                hierarchy="primary"
+                :disabled="isSubmitting || !canProceedToNextStep"
+                :loading="isSubmitting"
+                @click="handleNextOrSubmit"
+              >
+                {{
+                  currentStep >= steps.length
+                    ? t('views.new-lab.submit')
+                    : t('components.stepper.navigation.next')
+                }}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent v-if="getNextButtonTooltip" :title="getNextButtonTooltip" />
+        </Tooltip>
       </div>
     </div>
 

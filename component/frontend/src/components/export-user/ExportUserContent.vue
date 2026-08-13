@@ -8,6 +8,7 @@ import { useSessionStore } from '@/stores/session'
 import { useAuthStore } from '@/stores/auth'
 import { TokenType } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { InputField } from '@/components/input-field'
 import { CopyIcon } from '@/components/icon'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -152,17 +153,20 @@ const showLogout = computed(
       <span v-if="isGenerating" role="status" class="sr-only">
         {{ t('views.export-user.generating') }}
       </span>
-      <Button
-        v-if="showLogout"
-        hierarchy="destructive"
-        size="md"
-        icon="log-out-01"
-        icon-size="md"
-        :title="t('views.export-user.logout-tooltip')"
-        @click="handleLogout"
-      >
-        {{ logoutLabel }}
-      </Button>
+      <Tooltip v-if="showLogout">
+        <TooltipTrigger as-child>
+          <Button
+            hierarchy="destructive"
+            size="md"
+            icon="log-out-01"
+            icon-size="md"
+            @click="handleLogout"
+          >
+            {{ logoutLabel }}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent :title="t('views.export-user.logout-tooltip')" />
+      </Tooltip>
     </div>
   </div>
 </template>

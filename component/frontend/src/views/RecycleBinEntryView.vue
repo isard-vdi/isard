@@ -554,9 +554,14 @@ const entryErrorKey = computed(
             <span v-else>—</span>
           </template>
           <template #cell-accessed="{ row }">
-            <span v-if="row.accessed" :title="formatRelativeTime(row.accessed, locale)">
-              {{ d(row.accessed * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
-            </span>
+            <Tooltip v-if="row.accessed">
+              <TooltipTrigger as-child>
+                <span>
+                  {{ d(row.accessed * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent :title="formatRelativeTime(row.accessed, locale)" />
+            </Tooltip>
             <span v-else>—</span>
           </template>
           <template #cell-size="{ row }">
