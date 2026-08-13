@@ -355,6 +355,8 @@ defineExpose({
             kind="featured-icon"
             type="single"
             check-type="radio"
+            direction="flex-row"
+            :hide-description="true"
           />
         </div>
       </div>
