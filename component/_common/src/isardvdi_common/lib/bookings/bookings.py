@@ -219,6 +219,14 @@ class BookingsProcessed(RethinkSharedConnection):
         title=None,
         now=False,
     ):
+        # The booking is created for payload's user, so refuse to reserve an
+        # item that user cannot access. Callers are expected to gate this at
+        # their own boundary too; this is the last line that always runs.
+        if item_type == "deployment":
+            Helpers.owns_deployment_id(payload=payload, deployment_id=item_id)
+        else:
+            Helpers.owns_domain_id(payload=payload, domain_id=item_id)
+
         # CHECK: There is still empty room for this desktop resources.
 
         reservables, units, item_name = BookingsHelper._get_reservables(

@@ -27,7 +27,10 @@ from typing import Annotated, Literal, Optional
 
 from api import admin_router, advanced_router, open_router, token_router
 from api.dependencies.alloweds import (
+    booking_event_body,
     owns_booking_id,
+    owns_booking_item_body,
+    owns_booking_item_id,
     owns_deployment_id,
     owns_domain_id,
 )
@@ -339,12 +342,20 @@ async def update_booking_event(
     response_model=BookingEventResponse,
     status_code=201,
     summary="Create booking event",
-    description="Creates a new booking event.",
+    description=(
+        "Creates a new booking event. ``@has_token`` + ``ownsDomainId``/"
+        "``ownsDeploymentId`` on the booked item."
+    ),
     responses={
+        403: {"model": ErrorResponse},
         428: {"model": ErrorResponse},
     },
+    dependencies=[Depends(owns_booking_item_body)],
 )
-async def create_booking_event(request: Request, new_event: CreateBookingEventRequest):
+async def create_booking_event(
+    request: Request,
+    new_event: Annotated[CreateBookingEventRequest, Depends(booking_event_body)],
+):
     try:
         return BookingEventResponse(
             **await asyncio.to_thread(
@@ -367,7 +378,14 @@ async def create_booking_event(request: Request, new_event: CreateBookingEventRe
     tags=[tag],
     response_model=MaxBookingDateResponse,
     summary="Get max booking date",
-    description="Returns the maximum booking date for a desktop.",
+    description=(
+        "Returns the maximum booking date for a desktop. ``@has_token`` + "
+        "``ownsDomainId``."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+    },
+    dependencies=[Depends(owns_domain_id("desktop_id"))],
 )
 async def get_max_booking_date(request: Request, desktop_id: str):
     try:
@@ -505,14 +523,21 @@ async def list_priority_rules(request: Request):
     tags=[tag],
     response_model=list[AvailabilityResponse],
     summary="Get item availability",
-    description="Returns item availability by crossing info with the resource planner.",
+    description=(
+        "Returns item availability by crossing info with the resource "
+        "planner. ``@has_token`` + ``ownsDomainId``/``ownsDeploymentId``."
+    ),
     responses={
+        403: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
+    dependencies=[Depends(owns_booking_item_id())],
 )
 async def get_item_availability(
     request: Request,
-    item_type: str = Path(..., description="Type of item (desktop or deployment)"),
+    item_type: Literal["desktop", "deployment"] = Path(
+        ..., description="Type of item (desktop or deployment)"
+    ),
     item_id: str = Path(..., description="ID of the item"),
 ) -> list[AvailabilityResponse]:
     try:
