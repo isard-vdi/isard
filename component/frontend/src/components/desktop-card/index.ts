@@ -36,12 +36,13 @@ export const CARD_SIZE_INJECTION_KEY = Symbol('cardSize') as InjectionKey<CardSi
 // time, never during module evaluation).
 export const overlayIconButtonClass = (active: boolean, size: CardSize = 'lg') =>
   [
-    'h-9! flex items-center justify-center backdrop-blur-[4px]',
+    // No backdrop-blur: repainting it on :hover stalls Firefox
+    'h-9! flex items-center justify-center',
     active
-      ? `w-auto! px-2.5! gap-1.5 bg-base-white/30 hover:bg-base-white/40 ${cardOverlayLabelVariants(
+      ? `w-auto! px-2.5! gap-1.5 bg-base-white/45 hover:bg-base-white/60 ${cardOverlayLabelVariants(
           { size }
         )} font-bold uppercase tracking-wide text-base-white`
-      : 'w-9! p-0! bg-base-black/30 hover:bg-base-black/50'
+      : 'w-9! p-0! bg-base-black/55 hover:bg-base-black/70'
   ].join(' ')
 
 export const cardBaseVariants = cva('overflow-hidden p-0', {
