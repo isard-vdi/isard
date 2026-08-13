@@ -98,6 +98,7 @@ class TestGetUserAllowedTemplatesSortField:
                 sort_field="name",
             )
 
+
 class TestGetTemplateTree:
     """``get_template_tree`` must MERGE the per-root deployment index
     into the tree-wide list that ``check_children`` already computed, never
