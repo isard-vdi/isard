@@ -292,6 +292,16 @@ ci-test-webapp-js:
 .PHONY: ci-test-python
 ci-test-python: $(addprefix ci-test-,$(PY_PKG_NAMES))
 
+# Every package the ci-test-* rows need, minus the ones whose dependencies do
+# not build in the uv image: engine pulls libvirt-python and libpci, which want
+# headers it does not carry, and its suite runs in a different image anyway.
+UV_WARM_PKGS := $(filter-out engine,$(PY_PKG_NAMES))
+
+.PHONY: ci-warm-uv-cache
+ci-warm-uv-cache:
+	uv sync --frozen --no-dev --group test $(addprefix --package isardvdi-,$(UV_WARM_PKGS))
+	uv sync --frozen --only-group dev
+
 .PHONY: setup-hooks
 setup-hooks:
 	git config core.hooksPath .githooks

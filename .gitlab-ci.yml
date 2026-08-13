@@ -39,100 +39,73 @@ variables:
   DOCKER_VERSION: "28"
   DOCKER_TLS_CERTDIR: "/certs"
   MAX_UNVERIFIED_CORES: "16"
-  GOMODCACHE: "${CI_PROJECT_DIR}/.go-mod-cache"
-  GOCACHE: "${CI_PROJECT_DIR}/.go-build-cache"
-  # Same reason, and global rather than on the python template alone: the lint
-  # jobs and test-integration cache `.uv-cache` too, and uv writing to its
-  # default location inside the container made them re-resolve every dependency
-  # — including the two fetched straight from a git forge — on every run.
+  # The warm-uv-cache job below fills this path once; without it uv
+  # writes inside the container and the cache entry holds nothing.
   UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
-  # Cache bun's content-addressed global install store (hash-verified, self-healing)
-  # instead of the derived node_modules tree. A corrupt or truncated file inside a
-  # cached node_modules (e.g. a 0-byte dependency file) otherwise persists across
-  # pipelines forever, because the cache key is the lockfile hash and
-  # `bun install --frozen-lockfile` reuses the restored tree without per-file
-  # integrity checks. Caching the global store lets bun detect a bad entry by hash
-  # and refetch it, rebuilding node_modules fresh each run.
-  BUN_INSTALL_CACHE_DIR: "$CI_PROJECT_DIR/.bun-cache"
 
 default:
   # Every job only reads the tree or pushes SHA-tagged images, so cancelling one
   # mid-flight leaves nothing half-applied. Required by `auto_cancel` above.
   interruptible: true
   retry: 1
-  cache: &global_cache
-    - key:
-        files:
-          - go.mod
-          - go.sum
-      paths:
-        - .go-mod-cache
-        - .go-build-cache
-        - .golangci-lint-cache
-    - key:
-        files:
-          - component/frontend/bun.lock
-          - old-frontend/bun.lock
-      paths:
-        - .bun-cache
-    - key:
-        files:
-          - testing/e2e/package.json
-          - testing/e2e/bun.lock
-      paths:
-        - testing/e2e/node_modules
-    - key:
-        files:
-          - uv.lock
-      paths:
-        - .uv-cache
 
 include:
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/security@v1.11.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/security@v1.13.0
     inputs:
       max-scan-depth: -1
       include-dev-dependencies: false
+      # pip-compile resolves every manifest against the index, so the workspace
+      # members that depend on each other by name never resolve. uv.lock is a
+      # file the analyzer scans on its own and covers the whole workspace.
+      disabled-resolution-jobs: python
       # Secret Detection scans third-party Go module testdata fixtures (RSA/SSH keys,
       # AWS sample IDs, etc.) inside .go-mod-cache as critical findings. Those are
       # not project secrets — they ship inside dependency tarballs. Excluding the
       # dependency caches keeps the report focused on this repo's own code.
       secret-detection-excluded-paths: ".go-mod-cache,.go-build-cache,.codegen-go,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
       enable-static-reachability: true
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/commits@v1.11.0
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/release@v1.11.0
+      stage: unit-test
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/commits@v1.13.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/release@v1.13.0
     inputs:
       extra-command: 'sed -i "s/^\(\s*DOCKER_IMAGE_TAG: \)$CI_DEFAULT_BRANCH$/\1v$(cat .VERSION | tr "." "-")/" docker-compose*.yml'
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/alloy@v1.11.0
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/python@v1.11.0
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/go@v1.11.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/alloy@v1.13.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/python@v1.13.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/go@v1.13.0
     inputs:
       unit-test: false
       dependencies: "libvirt-dev"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/protobuf@v1.11.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/protobuf@v1.13.0
     inputs:
       allow-failure: $[[ inputs.allow-protobuf-lint-failure ]]
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.11.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.13.0
     inputs:
       job-prefix: "old-frontend:"
       project-directory: "old-frontend"
       bun-script: "lint --no-fix --max-warnings 0"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.11.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.13.0
     inputs:
       job-prefix: "frontend:lint-"
       project-directory: "component/frontend"
       bun-script: "lint --format gitlab"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.11.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.13.0
     inputs:
       job-prefix: "frontend:format-"
       project-directory: "component/frontend"
       bun-script: "format --write=false --check"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.11.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.13.0
     inputs:
       job-prefix: "frontend:type-check-"
       project-directory: "component/frontend"
       bun-script: "type-check"
       allow-failure: true
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/docker@v1.11.0
+  # Included only for the bun cache mixin that test-e2e extends.
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.13.0
+    inputs:
+      job-prefix: "e2e:"
+      project-directory: "testing/e2e"
+      lint: false
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/docker@v1.13.0
     inputs:
       job-prefix: "build-codegen:"
       build-stage: build-codegen
@@ -150,24 +123,9 @@ stages:
   - release
   - container-scan
 
-# The uv cache is keyed on uv.lock, so whenever that changes — or whenever the
-# cache configuration itself changes, which alters the key's index prefix — every
-# python job starts with an empty cache and they all resolve the dependency set at
-# the same moment. Two of those dependencies are source tarballs fetched straight
-# from a git forge, and twenty simultaneous fetches of the same tarball is what
-# that forge refuses, with `http2: refused stream`. The jobs then retry, in
-# parallel, and hit the same wall.
-#
-# This job populates the cache once, and every consumer below only reads it. On a
-# cold key one job fetches instead of twenty; on a warm key it resolves from the
-# cache in seconds and costs nothing. Verified offline (`--network none`,
-# `--offline`): with this cache present, `uv sync` for the consumer packages and
-# for the dev group completes without touching the network at all.
-#
-# It syncs the packages the uv-image jobs actually name rather than
-# `--all-packages`: the latter pulls in isardvdi-engine, whose libvirt-python
-# needs headers this image does not carry, and whose suite runs in a different
-# image anyway.
+# Every python job resolving at once means twenty simultaneous fetches of the
+# same git-forge tarball, which the forge refuses with `http2: refused stream`.
+# This job populates the cache once; every consumer below only reads it.
 warm-uv-cache:
   stage: lint
   needs: []
@@ -179,20 +137,14 @@ warm-uv-cache:
   before_script:
     - apk add --no-cache git make
   script:
-    - uv sync --frozen --no-dev --group test
-      --package isardvdi-anonymize-db --package isardvdi-apiv4
-      --package isardvdi-changefeed --package isardvdi-change-handler
-      --package isardvdi-codegen --package isardvdi-common
-      --package isardvdi-notifier --package isardvdi-openapi
-      --package isardvdi-scheduler --package isardvdi-socketio
-      --package isardvdi-storage --package isardvdi-vpn
-      --package isardvdi-webapp
-    - uv sync --frozen --only-group dev
+    - make ci-warm-uv-cache
 
 check-system-deps:
+  extends:
+    - .uv-cache
+    - .base-uv
   stage: lint
   needs: ["warm-uv-cache"]
-  image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
   before_script:
     - apk add --no-cache make
     - uv sync --frozen --only-group dev
@@ -297,6 +249,7 @@ docker-compose-build:
       - no-cache-docker-compose*.yml
 
 unit-test-go:
+  extends: .go-cache
   stage: unit-test
   needs: ["codegen"]
   image: golang:1.25.8@sha256:3ac2864710f25e84381bf5d4272261c7ba73ada0339d62034df4de20dabb33ca
@@ -332,11 +285,13 @@ unit-test-vmalert:
     - '[ "$runtime" = "$tool" ] || { echo "FAIL: vmalert-tool $tool != runtime vmalert $runtime (docker-compose-parts/monitor.yml) — bump this job image and monitor.yml together"; exit 1; }'
     - /vmalert-tool-prod unittest --files docker/vmalert/rules/storage_governor.test.yml
 
-# Shared Python test config — uv cache dir cached via default cache entry.
+# Shared Python test config.
 .python-test-template:
+  extends:
+    - .uv-cache
+    - .base-uv
   stage: unit-test
   needs: ["codegen", "warm-uv-cache"]
-  image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
   before_script:
     - apk add --no-cache git make $EXTRA_APK_PACKAGES
   artifacts:
@@ -460,9 +415,11 @@ unit-test-frontend:
   # Vue 3 (component/frontend) vitest unit suites. The specs vi.mock the
   # generated @/gen/oas/apiv4 client, but the alias must still resolve, so the
   # codegen-produced component/frontend/src/gen tree must be present.
+  extends:
+    - ".bun-cache:component/frontend"
+    - .base-bun
   stage: unit-test
   needs: ["codegen"]
-  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
     - apk add --no-cache make
   script:
@@ -627,11 +584,15 @@ docker-image:
     - docker-compose -f docker-compose.e2e.yml logs &> docker-compose.log
 
 test-e2e:
-  extends: .real-deployment
+  extends:
+    - .real-deployment
+    - ".bun-cache:testing/e2e"
+  variables:
+    E2E_BUN_IMAGE: !reference [.base-bun, image]
   before_script:
     - !reference [.real-deployment, before_script]
     ## Download bun
-    - docker create --name bun-bin oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
+    - docker create --name bun-bin $E2E_BUN_IMAGE
     - docker cp bun-bin:/usr/local/bin/bun /usr/local/bin/bun
     - docker rm bun-bin
   script:
@@ -706,6 +667,8 @@ container_scanning:
   stage: container-scan
   needs:
     - job: docker-image
+      artifacts: false
+    - job: "build-codegen:docker-build"
       artifacts: false
   variables:
     CS_IMAGE: $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
