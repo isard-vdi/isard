@@ -519,7 +519,11 @@ $(document).ready(function() {
 
     $template = $(".template-detail-domain");
 
-    const filter_list = ['category', 'favourite_hyp', 'forced_hyp', 'group', 'hyp_started', 'memory', 'name', 'server', 'status', 'user', 'vcpus'];
+    // Their columns are admin-only too
+    const admin_only_filters = ['forced_hyp', 'hyp_started'];
+    const is_admin = $('meta[id=user_data]').attr('data-role') == 'admin';
+    const filter_list = ['category', 'favourite_hyp', 'forced_hyp', 'group', 'hyp_started', 'memory', 'name', 'server', 'status', 'user', 'vcpus']
+        .filter(item => is_admin || !admin_only_filters.includes(item));
     const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
     $('#filter-select').append(options.join(''));
 

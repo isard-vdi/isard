@@ -72,18 +72,23 @@ class AdminDomainsService:
         filters: Optional[dict] = None,
     ) -> list[dict]:
         """List desktops, optionally filtered by categories and indexed filters."""
+        filters = filters or {}
+        placement = payload["role_id"] == "admin"
         if payload["role_id"] == "manager":
             categories = [payload["category_id"]]
+            # Hypervisor placement is an admin-only column, hide it from managers
+            if filters:
+                filters.pop("hyp_started", None)
+                filters.pop("forced_hyp", None)
         elif categories:
             categories = (
                 json.loads(categories) if isinstance(categories, str) else categories
             )
-        filters = filters or {}
         if filters or categories:
             return ApiAdmin.list_desktops_with_filters(
-                categories=categories, filters=filters
+                categories=categories, filters=filters, placement=placement
             )
-        return ApiAdmin.list_desktops(categories)
+        return ApiAdmin.list_desktops(categories, placement=placement)
 
     @staticmethod
     def get_domains_by_ids(payload: dict, domain_ids: list[str]) -> list[dict]:
@@ -96,7 +101,9 @@ class AdminDomainsService:
         category = (
             payload["category_id"] if payload.get("role_id") == "manager" else None
         )
-        return ApiAdmin.list_templates(category)
+        return ApiAdmin.list_templates(
+            category, placement=payload.get("role_id") == "admin"
+        )
 
     # ── Domain Details ───────────────────────────────────────────────────
 

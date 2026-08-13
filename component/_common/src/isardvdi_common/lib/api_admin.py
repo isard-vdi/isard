@@ -91,6 +91,15 @@ def _pluck_field_names(pluck) -> list[str]:
     return [str(pluck)]
 
 
+_MANAGER_VISIBLE_FIELDS_BY_TABLE: dict[str, tuple] = {
+    # Managers have no hypervisor views of their own: all they read is the
+    # favourite hypervisor picker, so don't hand them the ssh user and
+    # port, the viewer proxies and the rest of the node document.
+    # Widening this needs the counters merge back in manager_table_list.
+    "hypervisors": ("id", "hostname"),
+}
+
+
 def _validate_pluck_safe(table: str, pluck) -> None:
     """Raise Error('forbidden') if pluck targets blocklisted fields."""
     if pluck is None:
@@ -583,6 +592,7 @@ class ApiAdmin(RethinkSharedConnection):
 
         # Reject pluck requests for sensitive fields
         _validate_pluck_safe(table, pluck)
+        visible_fields = _MANAGER_VISIBLE_FIELDS_BY_TABLE.get(table)
         CATEGORY_LIMITED_TABLES = cls.get_category_limited_tables()
         query = r.table(table)
 
@@ -627,9 +637,6 @@ class ApiAdmin(RethinkSharedConnection):
         if table == "media":
             query = query.merge(cls.parse_media_data_merge())
 
-        if table == "hypervisors":
-            query = query.merge(cls.parse_hypervisor_data_merge())
-
         if table == "deployments":
             query = (
                 query.merge(cls.parse_deployment_data_merge())
@@ -639,8 +646,26 @@ class ApiAdmin(RethinkSharedConnection):
 
         # Apply pluck, order_by or without
 
+        check_item_category = id and not index and table in CATEGORY_LIMITED_TABLES
+        requested_fields = set(_pluck_field_names(pluck))
+        if visible_fields:
+            pluck = [f for f in visible_fields if f in requested_fields] or list(
+                visible_fields
+            )
+
+        added_fields = []
         if pluck:
-            query = query.pluck(pluck)
+            if check_item_category:
+                # The check below reads the category off the item, so ask
+                # for it even when the caller didn't
+                added_fields = [
+                    f
+                    for f in ("category", "parent_category")
+                    if f not in requested_fields
+                ]
+                query = query.pluck(pluck, *added_fields)
+            else:
+                query = query.pluck(pluck)
 
         if order_by:
             query = query.order_by(order_by)
@@ -655,7 +680,7 @@ class ApiAdmin(RethinkSharedConnection):
 
             with cls._rdb_context():
                 item = query.run(cls._rdb_connection)
-            if table in CATEGORY_LIMITED_TABLES:
+            if check_item_category:
                 item_category = item.get("category") or item.get("parent_category")
                 if item_category != category:
                     raise Error(
@@ -663,6 +688,8 @@ class ApiAdmin(RethinkSharedConnection):
                         "Not enough access rights to access this item",
                         traceback.format_exc(),
                     )
+                for field in added_fields:
+                    item.pop(field, None)
 
             return item
         else:
@@ -730,8 +757,12 @@ class ApiAdmin(RethinkSharedConnection):
         }
 
     @classmethod
-    def list_desktops(cls, categories=None, bastion=True):
-        """_From api/libv2/api_admin.py ApiAdmin.ListDesktops()_"""
+    def list_desktops(cls, categories=None, bastion=True, placement=True):
+        """_From api/libv2/api_admin.py ApiAdmin.ListDesktops()_
+
+        ``placement`` pulls the hypervisor the desktop runs on and the one
+        it is pinned to; callers serving non-admin roles leave it out.
+        """
         query = r.table("categories")
         if categories:
             query = query.get_all(r.args(categories))
@@ -770,19 +801,18 @@ class ApiAdmin(RethinkSharedConnection):
                     {"image": {"url": True}},
                     "kind",
                     "server",
-                    "hyp_started",
                     "name",
                     "status",
                     "user_name",
                     "accessed",
-                    "forced_hyp",
                     "favourite_hyp",
                     "booking_id",
                     "role",
                     "persistent",
                     "current_action",
                     "server_autostart",
-                ],
+                ]
+                + (["hyp_started", "forced_hyp"] if placement else []),
                 "left": ["group_name", "category_name"],
             }
         ).zip()
@@ -807,7 +837,9 @@ class ApiAdmin(RethinkSharedConnection):
             return list(query.run(cls._rdb_connection))
 
     @classmethod
-    def list_desktops_with_filters(cls, categories=None, filters=None, bastion=True):
+    def list_desktops_with_filters(
+        cls, categories=None, filters=None, bastion=True, placement=True
+    ):
         """
         Smart index selection based on provided filters.
 
@@ -831,7 +863,7 @@ class ApiAdmin(RethinkSharedConnection):
         domain_ids = filters.get("domain_ids")
         if domain_ids:
             query = r.table("domains").get_all(r.args(domain_ids))
-            return cls._apply_domain_joins_and_pluck(query, bastion)
+            return cls._apply_domain_joins_and_pluck(query, bastion, placement)
 
         query = r.table("domains")
         used_filters = set()
@@ -903,10 +935,10 @@ class ApiAdmin(RethinkSharedConnection):
             names = [names] if isinstance(names, str) else names
             query = query.filter(lambda d: r.expr(names).contains(d["name"]))
 
-        return cls._apply_domain_joins_and_pluck(query, bastion)
+        return cls._apply_domain_joins_and_pluck(query, bastion, placement)
 
     @classmethod
-    def _apply_domain_joins_and_pluck(cls, query, bastion=True):
+    def _apply_domain_joins_and_pluck(cls, query, bastion=True, placement=True):
         """Apply the standard joins + pluck (and optional bastion merge), then run.
 
         _From api/libv2/api_admin.py ApiAdmin._apply_domain_joins_and_pluck()_
@@ -940,13 +972,11 @@ class ApiAdmin(RethinkSharedConnection):
                 {"image": {"url": True}},
                 "kind",
                 "server",
-                "hyp_started",
                 "name",
                 "status",
                 "user",
                 "user_name",
                 "accessed",
-                "forced_hyp",
                 "favourite_hyp",
                 "booking_id",
                 "role",
@@ -957,6 +987,7 @@ class ApiAdmin(RethinkSharedConnection):
                 "group_name",
                 "category_name",
             ]
+            + (["hyp_started", "forced_hyp"] if placement else [])
         )
 
         if bastion:
@@ -1054,8 +1085,12 @@ class ApiAdmin(RethinkSharedConnection):
             )
 
     @classmethod
-    def list_templates(cls, category=None):
-        """_From api/libv2/api_admin.py ApiAdmin.ListTemplates()_"""
+    def list_templates(cls, category=None, placement=True):
+        """_From api/libv2/api_admin.py ApiAdmin.ListTemplates()_
+
+        ``placement`` pulls the hypervisor the template is pinned to;
+        callers serving non-admin roles leave it out.
+        """
         if not category:
             query = r.table("domains").get_all("template", index="kind")
         else:
@@ -1110,12 +1145,12 @@ class ApiAdmin(RethinkSharedConnection):
                             "reservables": True,
                         }
                     },
-                    "forced_hyp",
                     "favourite_hyp",
                     "category",
                     "group_name",
                     "category_name",
                 ]
+                + (["forced_hyp"] if placement else [])
             )
             .merge(
                 lambda domain: {

@@ -57,7 +57,8 @@ class DomainService:
 
         # hyp_started persists as False (not None) when never scheduled.
         hyp_started = domain_def.get("hyp_started")
-        if not hyp_started:
+        if not hyp_started or payload.get("role_id") != "admin":
+            # Where a domain runs is only shown in the admin info modal
             hyp_started = None
 
         viewer = domain_def.get("viewer") or {}
