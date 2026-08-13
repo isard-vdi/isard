@@ -755,7 +755,7 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-    def set_maintenance(self, action="system maintenance"):
+    def set_maintenance(self, action="system maintenance", exclude_domains=None):
         """
         Set storage and it's domains to maintenance status.
 
@@ -763,6 +763,11 @@ class Storage(RethinkCustomBase):
         :type storage: isardvdi_common.models.storage.Storage
         :param action: Action
         :type action: str
+        :param exclude_domains: Domain ids the "all stopped" precondition must
+            not consider. The caller passes the domain the operation is FOR --
+            deleting a running desktop's disk cannot require that desktop to be
+            stopped, since the engine stops it without writing the status.
+        :type exclude_domains: list
         """
         # Typed ``Error`` so apiv4's exception mapper answers 428 with the
         # reason, instead of a generic 500 from a plain ``Exception``: every
@@ -771,6 +776,7 @@ class Storage(RethinkCustomBase):
         # documented in ``reference_apiv4_error_factory_race.md``.
         from isardvdi_common.helpers.error_factory import Error
 
+        excluded = set(exclude_domains or [])
         if action == "move":
             if self.status not in ["ready", "recycled"]:
                 raise Error(
@@ -794,7 +800,7 @@ class Storage(RethinkCustomBase):
         # state) and the storage has no children. Skip the two
         # invariants that only apply to pre-existing storage.
         if action not in ("create", "download"):
-            domains = self.domains
+            domains = [domain for domain in self.domains if domain.id not in excluded]
             if any(domain.status != "Stopped" for domain in domains):
                 raise Error(
                     "precondition_required",
@@ -1025,6 +1031,7 @@ class Storage(RethinkCustomBase):
         user_id,
         priority="default",
         retry: int = 0,
+        exclude_domains=None,
     ):
         """
         Create a task to delete the storage.
@@ -1039,7 +1046,7 @@ class Storage(RethinkCustomBase):
         """
         domains_to_failed = [domain.id for domain in self.domains]
         domains_to_failed.extend([domain.id for domain in self.domains_derivatives])
-        self.set_maintenance("delete")
+        self.set_maintenance("delete", exclude_domains=exclude_domains)
         return self.create_task(
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('delete', path=self.directory_path).id}.{priority}",
