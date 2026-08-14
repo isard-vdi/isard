@@ -1130,20 +1130,28 @@ if [ "$ACTION" = "upgrade" ]; then
       compose_file="docker-compose.${suffix}.yml"
     fi
     
-    # Check if docker-compose-open-ports.yml exists and build compose command accordingly
-    if [ -f "docker-compose-open-ports.yml" ]; then
-      echo "    Found docker-compose-open-ports.yml, including it in the deployment..."
+    # Check if an open-ports overlay exists and build compose command accordingly.
+    # A suffixed config gets a suffixed overlay: looking only for the bare name
+    # brought a multi-cfg host back up with the hypervisor's ssh and tunnel ports
+    # unpublished, which reads as "the host stopped registering" rather than as a
+    # file this loop did not chain.
+    open_ports_file="docker-compose-open-ports.yml"
+    if [ -n "${suffix:-}" ] && [ -f "docker-compose-open-ports.${suffix}.yml" ]; then
+      open_ports_file="docker-compose-open-ports.${suffix}.yml"
+    fi
+    if [ -f "$open_ports_file" ]; then
+      echo "    Found $open_ports_file, including it in the deployment..."
 
       # Bring the currently-running stack down before bringing the new one up,
       # so containers from the previous flavour/cfg are removed cleanly instead
       # of being left as orphans alongside the recreated ones.
       echo "  Bringing down current services for $cfg_basename using $compose_file..."
-      docker compose -f "$compose_file" -f docker-compose-open-ports.yml down --remove-orphans
+      docker compose -f "$compose_file" -f "$open_ports_file" down --remove-orphans
 
       echo "  Starting services for $cfg_basename using $compose_file..."
-      docker compose -f "$compose_file" -f docker-compose-open-ports.yml up -d --remove-orphans
+      docker compose -f "$compose_file" -f "$open_ports_file" up -d --remove-orphans
     else
-      echo "    docker-compose-open-ports.yml not found, using only $compose_file..."
+      echo "    no open-ports overlay found, using only $compose_file..."
 
       echo "  Bringing down current services for $cfg_basename using $compose_file..."
       docker compose -f "$compose_file" down --remove-orphans
