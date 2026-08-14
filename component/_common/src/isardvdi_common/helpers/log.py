@@ -48,7 +48,14 @@ class RequestFormatter(JsonFormatter):
 
 # Get log level
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
-LOG_LEVEL_NUM = logging.getLevelName(LOG_LEVEL)
+# getLevelName only knows UPPERCASE names, and for anything else it does not
+# fail: it returns the string "Level <whatever>", which setLevel then rejects
+# with ValueError. That happens at import, so a LOG_LEVEL of "info" does not
+# mis-set the level -- it takes down every process that imports this module.
+LOG_LEVEL_NUM = logging.getLevelName(LOG_LEVEL.strip().upper())
+if not isinstance(LOG_LEVEL_NUM, int):
+    print(f"LOG_LEVEL={LOG_LEVEL!r} is not a log level; falling back to INFO")
+    LOG_LEVEL_NUM = logging.INFO
 
 # Configure log formatter
 formatter = RequestFormatter(

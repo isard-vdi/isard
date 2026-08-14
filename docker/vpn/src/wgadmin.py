@@ -13,7 +13,12 @@ r = RethinkDB()
 import logging as log
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
-LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
+# getLevelName returns the string "Level <x>" for an unknown name, and
+# basicConfig then raises ValueError at import. Normalise and fall back.
+LOG_LEVEL_NUM = log.getLevelName(str(LOG_LEVEL).strip().upper())
+if not isinstance(LOG_LEVEL_NUM, int):
+    print(f"LOG_LEVEL={LOG_LEVEL!r} is not a log level; falling back to INFO")
+    LOG_LEVEL_NUM = log.INFO
 log.basicConfig(
     level=LOG_LEVEL_NUM, format="%(asctime)s - %(levelname)-8s - %(message)s"
 )
