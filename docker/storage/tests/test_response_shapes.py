@@ -24,7 +24,7 @@ def _load_move_disks():
     only root may create. These tests want its pure helpers, so those creations
     are dropped for the duration of the load rather than requiring root.
     """
-    path = Path(__file__).resolve().parents[1] / "move_disks"
+    path = Path(__file__).resolve().parents[1] / "utils" / "move_disks"
     spec = importlib.util.spec_from_loader(
         "move_disks", importlib.machinery.SourceFileLoader("move_disks", str(path))
     )

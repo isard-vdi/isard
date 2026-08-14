@@ -17,7 +17,7 @@ share after a real ``cleanup --move``: 364 files moved, no chain broken, and
 import sys
 from pathlib import Path
 
-_UTILS = Path(__file__).resolve().parents[1]
+_UTILS = Path(__file__).resolve().parents[1] / "utils"
 if str(_UTILS) not in sys.path:
     sys.path.insert(0, str(_UTILS))
 

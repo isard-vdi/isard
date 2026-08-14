@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-INIT = Path(__file__).resolve().parents[3] / "storage" / "init.sh"
+INIT = Path(__file__).resolve().parents[2] / "storage" / "init.sh"
 PUBLISHER = "/utils/storage-pool-physical"
 CAPABILITY = "_cap_disk=$(printf"
 MARKER = "# --- Storage pool space"

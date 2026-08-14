@@ -128,7 +128,7 @@ class TestTheGuardReachesTheWorkerShells:
     the definition is what makes the guard survive that.
     """
 
-    SCRIPT = Path(__file__).resolve().parent.parent / "sparsify"
+    SCRIPT = Path(__file__).resolve().parent.parent / "utils" / "sparsify"
 
     def _lines(self):
         return self.SCRIPT.read_text().splitlines()

@@ -430,9 +430,9 @@ unit-test-frontend:
       junit: component/frontend/report.xml
 
 unit-test-sparsify:
-  # Recovery-trap suite for the sparsify utility (docker/storage/utils/tests).
-  # Plain bash, no python and no generated code, but it drives real qcow2 files
-  # and a live lock holder, so it needs qemu-img and qemu-io.
+  # Recovery-trap suite for the sparsify utility (docker/storage/tests). Plain
+  # bash, so the storage matrix row's pytest never collects it, and it drives
+  # real qcow2 files and a live lock holder: it needs qemu-img and qemu-io.
   stage: unit-test
   needs: []
   image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
@@ -440,17 +440,6 @@ unit-test-sparsify:
     - apk add --no-cache bash make qemu-img
   script:
     - make test-sparsify
-
-unit-test-storage-utils:
-  # Sparsify-backup classifier in the `storage` cleanup CLI
-  # (docker/storage/utils/tests). Pure-stdlib pytest: the CLI is loaded via
-  # importlib (it has no .py suffix) and the qemu-img calls its helpers share
-  # are replaced, so no qemu binaries, no lock holder and no root are needed.
-  extends: .python-test-template
-  variables:
-    COVERAGE_DIR: docker/storage/utils
-  script:
-    - make ci-test-storage-utils
 
 docker-image:
   image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"

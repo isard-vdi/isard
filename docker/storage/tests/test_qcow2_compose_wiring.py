@@ -14,7 +14,7 @@ defaults with a green suite. Pin the shape here.
 import re
 from pathlib import Path
 
-_PARTS = Path(__file__).resolve().parents[4] / "docker-compose-parts"
+_PARTS = Path(__file__).resolve().parents[3] / "docker-compose-parts"
 _VARS = (
     "QCOW2_CLUSTER_SIZE",
     "QCOW2_EXTENDED_L2",

@@ -130,10 +130,11 @@ test-vmalert:
 # identically for the dev and the CI run. No member is nested inside another,
 # so uv discovers the workspace root from any of them.
 # Dev targets run with the dev group; CI targets run --no-dev (prod + test).
-# Every Python workspace suite is generated from this table. The suites that
-# are not workspace packages keep their own targets: test-go/ci-test-go,
-# ci-test-frontend (bun), test-e2e, test-vmalert, test-sparsify and
-# ci-test-storage-utils.
+# Every Python suite is generated from this table — the operator CLIs under
+# docker/storage/utils are tested from docker/storage/tests like the rest of
+# the package, so storage needs no row of its own. What stays outside is what
+# pytest does not run: test-go/ci-test-go, ci-test-frontend (bun), test-e2e,
+# test-vmalert and test-sparsify (bash, and it needs qemu-img).
 PY_PKGS := \
 	apiv4:api:component/apiv4 \
 	common:isardvdi_common:component/_common \
@@ -207,21 +208,12 @@ test-e2e: test-e2e-seed
 	-w "/e2e" \
 	mcr.microsoft.com/playwright:v1.57.0-jammy@sha256:6aca677c27a967caf7673d108ac67ffaf8fed134f27e17b27a05464ca0ace831 yarn playwright test $(E2E_ARGS)
 
-# Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, but it needs
-# real qcow2 images and a live lock holder, so qemu-img and qemu-io must exist.
+# Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, so pytest
+# never sees it, and it needs real qcow2 images and a live lock holder: qemu-img
+# and qemu-io must exist.
 .PHONY: test-sparsify
 test-sparsify:
-	bash docker/storage/utils/tests/test_sparsify_recover_backup.sh
-
-# docker/storage/utils holds standalone operator CLIs (storage, sparsify,
-# storage_lib), not part of the isardvdi_storage package, so its suite is not
-# reachable from the matrix row's docker/storage/tests and gets its own target.
-# The CLIs are loaded by path (no .py suffix) and their qemu-img calls are
-# replaced, so this needs no qemu binaries and no lock holder.
-.PHONY: ci-test-storage-utils
-ci-test-storage-utils:
-	uv sync --frozen --no-dev --group test --package isardvdi-storage
-	cd docker/storage/utils && uv run --no-dev --group test --package isardvdi-storage pytest tests -q --tb=short --junitxml=report.xml --cov=storage_lib --cov-report=term --cov-report=xml:coverage.xml
+	bash docker/storage/tests/test_sparsify_recover_backup.sh
 
 .PHONY: test-integration
 test-integration: test-e2e-seed

@@ -23,7 +23,9 @@ from importlib.machinery import SourceFileLoader
 
 import pytest
 
-_UTILS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_UTILS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "utils"
+)
 _STORAGE_CLI = os.path.join(_UTILS_DIR, "storage")
 
 

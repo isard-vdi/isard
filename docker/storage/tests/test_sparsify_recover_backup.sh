@@ -13,7 +13,7 @@
 set -u -o pipefail
 
 TESTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-SPARSIFY="$TESTS_DIR/../sparsify"
+SPARSIFY="$TESTS_DIR/../utils/sparsify"
 
 for cmd in qemu-img qemu-io; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -23,7 +23,7 @@ for cmd in qemu-img qemu-io; do
 done
 
 # Sourcing must define the helpers without running the tool
-# shellcheck source=../sparsify
+# shellcheck source=../utils/sparsify
 source "$SPARSIFY"
 
 if ! declare -F _sparsify_recover_backup >/dev/null; then

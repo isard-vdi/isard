@@ -29,7 +29,7 @@ pytest.importorskip(
 
 def _load():
     """The tool ships without a .py suffix, so it is loaded by path."""
-    path = Path(__file__).resolve().parents[1] / "storage-pool-physical"
+    path = Path(__file__).resolve().parents[1] / "utils" / "storage-pool-physical"
     spec = importlib.util.spec_from_loader(
         "storage_pool_physical",
         importlib.machinery.SourceFileLoader("storage_pool_physical", str(path)),
@@ -161,7 +161,9 @@ def test_the_reporter_never_reaches_a_database():
     and would reintroduce a dependency the container must not have, so it is
     asserted against the source rather than left to review.
     """
-    source = (Path(__file__).resolve().parents[1] / "storage-pool-physical").read_text()
+    source = (
+        Path(__file__).resolve().parents[1] / "utils" / "storage-pool-physical"
+    ).read_text()
     for forbidden in ("rethinkdb", "RethinkDB", "Processed", "models.storage"):
         assert (
             forbidden not in source.split('"""')[2]

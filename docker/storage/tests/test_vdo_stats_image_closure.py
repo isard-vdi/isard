@@ -14,7 +14,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[3]
 DOCKERFILE = ROOT / "docker" / "storage-vdo-stats" / "Dockerfile"
 
 #: What the image installs beyond the standard library.

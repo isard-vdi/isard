@@ -28,7 +28,7 @@ import pytest
 
 def _load_move_disks():
     """Load the suffix-less CLI by path, neutralising its start-up mkdirs."""
-    path = Path(__file__).resolve().parents[1] / "move_disks"
+    path = Path(__file__).resolve().parents[1] / "utils" / "move_disks"
     spec = importlib.util.spec_from_loader(
         "move_disks", importlib.machinery.SourceFileLoader("move_disks", str(path))
     )

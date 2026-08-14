@@ -259,10 +259,11 @@ make test-hypervisor          # hypervisor lib + ovs only
 ```
 
 The `test-*` and `ci-test-*` targets are generated from the `PY_PKGS`
-matrix in the `Makefile`; adding a workspace package with a suite means
-adding one row there, not writing two targets by hand. The only exceptions
-are the suites that are not workspace packages at all (`test-vmalert`,
-`test-sparsify`, `ci-test-storage-utils`).
+matrix in the `Makefile`, and the `unit-test-python` matrix in
+`.gitlab-ci.yml` carries the same rows; adding a workspace package with a
+suite means adding one row to each, not writing targets by hand. The only
+exceptions are the suites pytest does not run at all: `test-vmalert` and
+`test-sparsify`, both of which drive a container or a shell script.
 
 None of these needs a running service. A suite that asserts on Redis's own
 behaviour — an rq job graph (hashes, dependency links, registries,

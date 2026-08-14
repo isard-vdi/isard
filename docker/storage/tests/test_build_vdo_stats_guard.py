@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-BUILD = Path(__file__).resolve().parents[4] / "build.sh"
+BUILD = Path(__file__).resolve().parents[3] / "build.sh"
 MARKER = "# Normalised the way init.sh normalises it"
 END = "# Add openapi container"
 
