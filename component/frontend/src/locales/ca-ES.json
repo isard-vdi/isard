@@ -2781,7 +2781,9 @@
       "gb": "GB"
     },
     "actions": {
-      "more": "Més accions"
+      "more": "Més accions",
+      "copy": "Copia",
+      "copied": "Copiat"
     }
   }
 }

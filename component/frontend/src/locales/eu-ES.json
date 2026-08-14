@@ -1627,7 +1627,9 @@
       "gb": "GB"
     },
     "actions": {
-      "more": "Ekintza gehiago"
+      "more": "Ekintza gehiago",
+      "copy": "Kopiatu",
+      "copied": "Kopiatuta"
     }
   }
 }

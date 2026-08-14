@@ -2812,7 +2812,9 @@
       "gb": "GB"
     },
     "actions": {
-      "more": "More actions"
+      "more": "More actions",
+      "copy": "Copy",
+      "copied": "Copied"
     }
   }
 }
