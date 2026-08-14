@@ -204,3 +204,32 @@ entrada, però, es queda a **36,42 ms** — dins del soroll: una lectura per cla
 que domina són les escriptures. O sigui que això és una **descàrrega de la base de dades**, no una
 millora de latència; a una instal·lació carregada, on la contenció d'escriptura és el que fa pujar
 els 7,55 ms a 16, treure 12.000 lectures de la barreja hi hauria d'ajudar indirectament.
+
+## (b) Concurrència — VERIFICAT, i és el salt
+
+El lot d'entrades es processa **concurrentment** (`SETTLE_CONCURRENCY`, per defecte 8) en comptes
+d'una a una. El que no pot solapar-se és que dues entrades marquin **la mateixa àncora de
+finalize** — les marques d'una cadena viuen al `meta` d'un sol job d'rq i `save_meta` reescriu el
+blob sencer, o sigui que dues alhora són una cursa de llegir-modificar-escriure que perd marques en
+silenci. Es resol amb un **bloqueig per àncora** (adquirit en ordre d'id, de manera que dos
+despatxos que se solapin en dues àncores no es poden encreuar) al voltant **només** de la secció
+que muta; la caminada, que només llegeix, queda fora. Entrades de cadenes diferents no comparteixen
+àncora i no s'esperen mai.
+
+L'ACK segueix lligat al resultat de la seva pròpia entrada: un gestor que falla deixa exactament
+aquella entrada al PEL.
+
+| | main | (a) escombrats | **+ concurrència** |
+|---|---|---|---|
+| **retard màxim del grup** | 858 | ~850 | **233** (**−73%**) |
+| **p95 de creació interactiva** | 34,21 s | ~34,2 s | **20,38 s** (**−40%**) |
+| objectiu del perfil | 30 s ✗ | 30 s ✗ | **30 s ✓** |
+| `http_req_failed` | 0% | 0% | 0% |
+
+**És la primera vegada que l'objectiu de latència es compleix.**
+
+El temps de paret *per entrada* puja (223 ms) i això és el comportament correcte, no una
+regressió: amb vuit entrades en vol, cada una inclou l'espera del seu torn. El que mesura el
+servei és el **cabal**, i el retard del grup cau a menys d'un terç.
+
+Proves: change-handler **350 passen / 0 fallen**.
