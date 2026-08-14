@@ -1549,6 +1549,37 @@ class Helpers(RethinkSharedConnection):
             "username": user["username"],
         }
 
+    @staticmethod
+    def _bytes_from_human_size(value):
+        """Bytes for a curl-style size string, or ``None`` when it cannot be read.
+
+        The hypervisor reports a media's size the way curl prints it —
+        ``"3408k"``, ``"1.2G"``, sometimes bare digits — and the row's
+        ``total_bytes`` has to be a number, because that is what quota,
+        analytics and the usage pipeline sum.
+
+        Returns ``None`` rather than a guess on anything it does not recognise.
+        A media with no ``total_bytes`` is counted as zero, which is what
+        happens today; a media with a WRONG one silently moves a quota, and
+        that is worse than the gap it would be papering over.
+        """
+        if isinstance(value, (int, float)):
+            return int(value)
+        if not isinstance(value, str):
+            return None
+        text = value.strip()
+        if not text:
+            return None
+        units = {"": 1, "b": 1, "k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4}
+        suffix = text[-1].lower()
+        number, unit = (
+            (text[:-1], suffix) if suffix in units and suffix != "" else (text, "")
+        )
+        try:
+            return int(float(number) * units[unit])
+        except (TypeError, ValueError):
+            return None
+
     @classmethod
     def generate_db_media(cls, path_downloaded, filesize):
         media_id = str(uuid.uuid4())
@@ -1617,6 +1648,15 @@ class Helpers(RethinkSharedConnection):
                 "time_total": "0:00:05",
                 "total": filesize,
                 "total_percent": 100,
+                # Without this the media is counted as ZERO by quota, analytics
+                # and the usage pipeline, which all read ``progress.total_bytes``
+                # — so every media discovered by a storage scan was invisible to
+                # the accounting that decides whether a user may create more.
+                **(
+                    {"total_bytes": total_bytes}
+                    if (total_bytes := cls._bytes_from_human_size(filesize)) is not None
+                    else {}
+                ),
                 "xferd": "0",
                 "xferd_percent": "0",
             },
