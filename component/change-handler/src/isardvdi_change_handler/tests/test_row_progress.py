@@ -58,7 +58,8 @@ def wire(monkeypatch):
     [
         ("download_url", {"media_id": "m1"}, "media"),
         ("download_url_for_domain", {"domain_id": "m1"}, "domain"),
-        ("move", {"progress_domain_id": "m1"}, "domain"),
+        # ``move`` is NOT here: it stores nothing even on its final tick, which
+        # test_a_move_stores_nothing_even_on_its_final_tick asserts.
     ],
 )
 def test_the_final_flush_reaches_the_row(wire, name, kwargs, item_class):
@@ -206,3 +207,34 @@ def test_an_unloadable_task_does_not_raise(monkeypatch):
     monkeypatch.setattr(row_progress, "Task", _boom)
 
     assert apply_row_progress("t1") is False
+
+
+def test_a_move_stores_nothing_even_on_its_final_tick(wire):
+    """``move``'s payload is only ``{total_percent, received_percent}``, so a
+    final write would leave every template row carrying a permanent
+    ``{100, 100}`` that nothing reads: every consumer of template progress is
+    guarded on ``status == CreatingTemplate``, which is false by then."""
+    row = wire(
+        "move",
+        {"progress_domain_id": "m1"},
+        {ROW_PROGRESS_META_KEY: {"total_percent": 100, "received_percent": 100}},
+        "domain",
+        _Row("m1", status="CreatingTemplate"),
+    )
+
+    assert apply_row_progress("t1", final=True) is False
+    assert row.progress is None
+
+
+def test_a_download_still_stores_its_final_tick(wire):
+    """The counterpart: the key this whole path exists for still lands."""
+    row = wire(
+        "download_url",
+        {"media_id": "m1"},
+        {ROW_PROGRESS_META_KEY: {"total_bytes": 123, "total": "123"}},
+        "media",
+        _Row("m1"),
+    )
+
+    assert apply_row_progress("t1", final=True) is True
+    assert row.progress["total_bytes"] == 123

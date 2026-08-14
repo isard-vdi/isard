@@ -53,6 +53,18 @@ _ROW_OF_TASK = {
     "move": ("domain", "progress_domain_id"),
 }
 
+#: Tasks whose FINAL payload is worth persisting. Only a download's is: it
+#: carries ``total_bytes``, the measured on-disk size that quota, analytics and
+#: the usage pipeline sum.
+#:
+#: ``move`` is deliberately absent. Its payload is only
+#: ``{total_percent, received_percent}`` (docker/storage/task/task.py), so once
+#: the transfer is over the final write would leave every template row carrying
+#: a permanent ``{100, 100}`` that no reader ever looks at — every consumer of
+#: template progress is guarded on ``status == CreatingTemplate``, which by then
+#: is false. It still moves the row's status on; it just stores nothing.
+_PERSISTS_FINAL = ("download_url", "download_url_for_domain")
+
 #: Statuses a row may be in while its download is queued but not yet running.
 #: Seeing progress proves curl is running, so the row is moved on. Anything
 #: else is left alone — an abort or a failure must not be overwritten by a
@@ -127,7 +139,8 @@ def apply_row_progress(task_id, final=False):
         if row is None:
             return False
         starting = row.status in _STARTING_STATUSES
-        if not (starting or final):
+        persists = final and task.task in _PERSISTS_FINAL
+        if not (starting or persists):
             # An intermediate tick on a row that has already moved on: nothing
             # to write, which is the steady state of a running transfer.
             return False
@@ -135,7 +148,7 @@ def apply_row_progress(task_id, final=False):
         # a tick already in flight must not resurrect a cancelled download.
         if starting:
             row.status = _RUNNING_STATUS
-        if final:
+        if final and task.task in _PERSISTS_FINAL:
             row.progress = progress
     except Exception:
         log.exception("row_progress: failed to write %s %s", item_class, item_id)
