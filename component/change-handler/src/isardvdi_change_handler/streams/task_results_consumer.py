@@ -53,7 +53,7 @@ import uuid
 import redis
 import redis.asyncio as aioredis
 from isardvdi_common.connections.redis_urls import rq_url
-from isardvdi_common.helpers.task_streams import CANCELED_KIND
+from isardvdi_common.helpers.task_streams import CANCELED_KIND, DEAD_STREAM
 from isardvdi_common.models.task import (
     _TERMINAL_STATUSES,
     CoreStep,
@@ -89,8 +89,9 @@ RECONNECT_DELAY_S = 5
 # consumer group's Pending Entries List instead of being ACKed, so a later
 # ``XAUTOCLAIM`` re-delivers it. A poison entry (one that fails every time —
 # e.g. a malformed payload) is dead-lettered after ``MAX_DELIVERIES`` so it
-# can never loop forever.
-DEAD_STREAM = "stream:task-results:dead"
+# can never loop forever. The name lives with its sibling streams in
+# ``task_streams`` so the writer here and the admin gauge that counts it
+# cannot drift apart.
 # Nothing consumes the dead-letter stream, so an uncapped XADD grows for ever.
 # It is a forensic record, not a queue: keep a bounded, recent window.
 DEAD_STREAM_MAXLEN = 10000
