@@ -37,7 +37,7 @@ from contextlib import contextmanager
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, StoragePool
-from isardvdi_common.models.user import User
+from isardvdi_common.models.user import category_of
 
 # Per-stream-entry de-duplication of the fire-and-forget ``storage`` status
 # sockets. A single chain often touches the same storage row twice in one
@@ -132,12 +132,8 @@ def _apply_storage_update(storage_dict):
 
 
 def _resolve_user_category(user_id):
-    if not user_id:
-        return None
-    try:
-        return User(user_id).category
-    except Exception:
-        return None
+    """Same question, same shared cache — see ``models.user.category_of``."""
+    return category_of(user_id)
 
 
 async def send_status_socket(redis_manager, storage_id, status, user_id=None):
