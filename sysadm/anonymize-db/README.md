@@ -26,6 +26,20 @@ appears in another table (user email / name / username / uid, category & group u
 media path) is registered in a remap and rewritten **consistently** across every table
 by a final cross-table pass.
 
+Every field the scrubber touches falls into exactly one bucket:
+
+| Bucket | Definition | Treatment |
+| --- | --- | --- |
+| Identity | Identifies a person or the customer organisation | Stable pseudonym, propagated to every denormalized copy |
+| Dimension / FK | An id or grouping key; identifies nobody on its own | Preserved verbatim. A stable alias (`hyp-01`, …) only where the literal value names real infrastructure |
+| Human free text | `description`, titles, admin notes | Blanked |
+
+Blanking a field that is a foreign key or a grouping dimension is a bug, not a
+precaution: it breaks the guarantee above. Denormalized display names are
+rebuilt from their foreign key (`desktop-<id8>`, `deployment-<id8>`,
+`user-<id8>`, `group-<id12>`, `category-<id>`) rather than emptied, so
+grouping still works on an anonymized dump.
+
 ## Install
 
 ```

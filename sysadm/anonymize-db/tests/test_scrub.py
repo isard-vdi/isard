@@ -10,6 +10,7 @@ IsardVDI rethinkdb dump, and asserts that:
 from __future__ import annotations
 
 import json
+import re
 
 from anonymize_db.scrub import Scrubber, get_scrubbers
 from anonymize_db.xml_scrub import scrub_libvirt_xml
@@ -278,6 +279,421 @@ def test_ssh_authorized_keys_blanked():
     assert out["domains"][0]["ssh"]["authorized_keys"] == []
     assert out["domains"][0]["ssh"]["enabled"] is True  # non-PII flag kept
     assert out["recycle_bin"][0]["item"]["ssh"]["authorized_keys"] == []
+
+
+REAL_MAC = "52:54:00:aa:bb:cc"
+OTHER_MAC = "52:54:00:dd:ee:ff"
+
+
+def test_macs_replaced_consistently_in_every_place_they_appear():
+    tables = {
+        "domains": [
+            {
+                "id": "d1234567-aaaa",
+                "user": "u1234567-bbbb",
+                "hardware": {"interfaces": [{"id": "default", "mac": REAL_MAC}]},
+                "create_dict": {
+                    "hardware": {"interfaces": [{"id": "default", "mac": REAL_MAC}]}
+                },
+                "xml": (
+                    "<domain><devices><interface type='bridge'>"
+                    f"<mac address='{REAL_MAC}'/></interface></devices></domain>"
+                ),
+            },
+            {
+                "id": "d7654321-cccc",
+                "user": "u1234567-bbbb",
+                "hardware": {"interfaces": [{"mac": OTHER_MAC}]},
+            },
+        ]
+    }
+    out = _run(tables)
+
+    blob = json.dumps(out)
+    assert REAL_MAC not in blob, "real MAC survived"
+    assert OTHER_MAC not in blob, "real MAC survived"
+
+    d1 = out["domains"][0]
+    hw_mac = d1["hardware"]["interfaces"][0]["mac"]
+    cd_mac = d1["create_dict"]["hardware"]["interfaces"][0]["mac"]
+    xml_mac = re.search(r"<mac address='([^']+)'", d1["xml"]).group(1)
+
+    assert hw_mac.startswith("02:")
+    # one interface described in three places must get ONE replacement, or a
+    # restored dev database contradicts itself
+    assert hw_mac == cd_mac == xml_mac
+
+    assert out["domains"][1]["hardware"]["interfaces"][0]["mac"] != hw_mac
+
+
+def test_macs_stay_unique_when_scrubbed_one_document_at_a_time():
+    """The cli streams each table document by document (`fn([doc])`), so a
+    scrubber must never derive a value from the row's index within its batch —
+    that index is always 0 there."""
+    s = Scrubber(seed=0)
+    fn = get_scrubbers(s)["domains"]
+    docs = [
+        {
+            "id": f"d{i}aaaaaa-0000",
+            "user": "u1234567-bbbb",
+            "create_dict": {
+                "hardware": {"interfaces": [{"mac": f"52:54:00:00:00:{i:02x}"}]}
+            },
+        }
+        for i in range(5)
+    ]
+    scrubbed = [fn([d])[0] for d in docs]
+    macs = {d["create_dict"]["hardware"]["interfaces"][0]["mac"] for d in scrubbed}
+    assert len(macs) == 5, f"domains collided onto the same MAC: {sorted(macs)}"
+
+
+def test_targets_bastion_domains_scrubbed():
+    tables = {
+        "targets": [
+            {
+                "id": "t1234567-aaaa",
+                "desktop_id": "d1234567-bbbb",
+                "user_id": "u1234567-cccc",
+                "domains": [
+                    "maria-desktop.bastion.realcorp.example",
+                    "finance-lab.bastion.realcorp.example",
+                ],
+                "http": {"enabled": True, "http_port": 80, "https_port": 443},
+                "ssh": {"authorized_keys": ["ssh-ed25519 AAAA t@realcorp.example"]},
+            }
+        ]
+    }
+    out = _run(tables)
+    t = out["targets"][0]
+
+    assert "realcorp.example" not in json.dumps(out)
+    assert len(t["domains"]) == 2
+    for d in t["domains"]:
+        assert d.endswith(".example.test")
+    # FKs and non-identity config untouched
+    assert t["desktop_id"] == "d1234567-bbbb"
+    assert t["user_id"] == "u1234567-cccc"
+    assert t["http"] == {"enabled": True, "http_port": 80, "https_port": 443}
+    assert t["ssh"]["authorized_keys"] == []
+
+
+def test_user_storage_provider_table_scrubbed():
+    tables = {
+        "user_storage": [
+            {
+                "id": "prov1234-aaaa",
+                "provider": "nextcloud",
+                "urlprefix": "https://nextcloud.realcorp.example",
+                "user": "isard-admin",
+                "password": "real-provider-secret",
+                "verify_cert": True,
+            }
+        ]
+    }
+    out = _run(tables)
+    p = out["user_storage"][0]
+
+    blob = json.dumps(out)
+    assert "nextcloud.realcorp.example" not in blob
+    assert "real-provider-secret" not in blob
+    assert "isard-admin" not in blob
+
+    assert p["urlprefix"] == "https://storage-prov1234.example.test"
+    assert p["user"] == "storage-admin"
+    assert p["provider"] == "nextcloud"  # product name, not identity
+    assert p["verify_cert"] is True
+
+
+def _integrity_fixture() -> dict[str, list[dict]]:
+    """A dump shaped so every documented relation has at least one live edge."""
+    user_id = "u1234567-aaaa-bbbb-cccc-000000000001"
+    dep_id = "p1234567-aaaa-bbbb-cccc-000000000002"
+    dom_a = "d1234567-aaaa-bbbb-cccc-000000000003"
+    dom_b = "d7654321-aaaa-bbbb-cccc-000000000004"
+    return {
+        "users": [
+            {
+                "id": user_id,
+                "name": "Real Person",
+                "username": "real.person@realcorp.example",
+                "email": "real.person@realcorp.example",
+                "password": "$2b$realhash",
+            }
+        ],
+        "deployments": [
+            {"id": dep_id, "name": "Real Lab", "tag": dep_id, "tag_name": "Real Lab"}
+        ],
+        "domains": [
+            {
+                "id": dom_a,
+                "user": user_id,
+                "username": "real.person@realcorp.example",
+                "name": "Real Desktop A",
+                "tag": dep_id,
+                "tag_name": "Real Lab",
+            },
+            {
+                "id": dom_b,
+                "user": user_id,
+                "username": "real.person@realcorp.example",
+                "name": "Real Desktop B",
+                "tag": dep_id,
+                "tag_name": "Real Lab",
+            },
+        ],
+        "logs_desktops": [
+            {
+                "id": "ld1",
+                "desktop_id": dom_a,
+                "desktop_name": "Real Desktop A",
+                "deployment_id": dep_id,
+                "deployment_name": "Real Lab",
+                "owner_user_id": user_id,
+                "owner_user_name": "real.person@realcorp.example",
+                "hyp_started": "isard-hypervisor-real-hyp01",
+            },
+            {
+                "id": "ld2",
+                "desktop_id": dom_b,
+                "desktop_name": "Real Desktop B",
+                "deployment_id": dep_id,
+                "deployment_name": "Real Lab",
+                "owner_user_id": user_id,
+                "owner_user_name": "real.person@realcorp.example",
+                "hyp_started": "isard-hypervisor-real-hyp02",
+            },
+        ],
+    }
+
+
+def test_referential_integrity_preserved():
+    before = _integrity_fixture()
+    hyp_cardinality_before = len(
+        {r["hyp_started"] for r in before["logs_desktops"] if r["hyp_started"]}
+    )
+    out = _run(_integrity_fixture())
+
+    user_ids = {u["id"] for u in out["users"]}
+    deployment_ids = {d["id"] for d in out["deployments"]}
+    domain_ids = {d["id"] for d in out["domains"]}
+
+    assert len(out["domains"]) == 2
+    for d in out["domains"]:
+        assert d["user"] in user_ids, "domains.user no longer resolves"
+        assert d["tag"] in deployment_ids, "domains.tag no longer resolves"
+
+    for row in out["logs_desktops"]:
+        assert row["desktop_id"] in domain_ids
+        assert row["deployment_id"] in deployment_ids
+        assert row["owner_user_id"] in user_ids
+
+    hyp_cardinality_after = len(
+        {r["hyp_started"] for r in out["logs_desktops"] if r["hyp_started"]}
+    )
+    assert hyp_cardinality_after == hyp_cardinality_before
+
+
+def test_integrity_fixture_has_no_surviving_pii():
+    out = _run(_integrity_fixture())
+    blob = json.dumps(out)
+    for needle in (
+        "Real Person",
+        "real.person@realcorp.example",
+        "Real Lab",
+        "Real Desktop A",
+        "Real Desktop B",
+        "isard-hypervisor-real-hyp01",
+        "isard-hypervisor-real-hyp02",
+    ):
+        assert needle not in blob, f"PII leaked: {needle!r}"
+
+
+def test_recycle_bin_matcher_is_anchored():
+    tables = {
+        "recycle_bin": [
+            {
+                "id": "rb1",
+                "item": {
+                    "name": "Real Desktop",
+                    "owner_user_name": "mgonzalez@realcorp.example",
+                    "guest_ip": "10.9.8.7",
+                    "uid": "jdoe@school.example",
+                    # non-identity keys that the substring matcher destroyed
+                    "chipset": "q35",
+                    "clipboard": "enabled",
+                    "description": "a note",
+                    "interface_names": ["default", "wireguard"],
+                    "authorized_keys": ["ssh-ed25519 AAAA teacher@school.example"],
+                },
+            }
+        ]
+    }
+    out = _run(tables)
+    item = out["recycle_bin"][0]["item"]
+
+    blob = json.dumps(out)
+    for needle in (
+        "Real Desktop",
+        "mgonzalez@realcorp.example",
+        "10.9.8.7",
+        "jdoe@school.example",
+        "teacher@school.example",
+    ):
+        assert needle not in blob, f"leaked: {needle!r}"
+
+    assert item["name"] == ""
+    assert item["owner_user_name"] == ""
+    assert item["guest_ip"] == ""
+    assert item["uid"] == ""
+    assert item["description"] == ""
+    assert item["authorized_keys"] == []
+    # structure that carries no identity survives
+    assert item["chipset"] == "q35"
+    assert item["clipboard"] == "enabled"
+    assert item["interface_names"] == ["default", "wireguard"]
+
+
+def test_hypervisor_ids_aliased_not_blanked():
+    tables = {
+        "logs_desktops": [
+            {"id": "l1", "hyp_started": "isard-hypervisor-gencat-hyp03"},
+            {"id": "l2", "hyp_started": "isard-hypervisor-gencat-hyp03"},
+            {"id": "l3", "hyp_started": "isard-hypervisor-gencat-hyp07"},
+            {"id": "l4", "hyp_started": False, "hyp_forced": "bastion-hyp01"},
+        ]
+    }
+    out = _run(tables)
+
+    blob = json.dumps(out)
+    assert "isard-hypervisor-gencat-hyp03" not in blob
+    assert "isard-hypervisor-gencat-hyp07" not in blob
+    assert "bastion-hyp01" not in blob
+
+    rows = out["logs_desktops"]
+    # same source hypervisor -> same alias; grouping survives
+    assert rows[0]["hyp_started"] == rows[1]["hyp_started"]
+    assert rows[0]["hyp_started"] != rows[2]["hyp_started"]
+    assert rows[0]["hyp_started"].startswith("hyp-")
+    # cardinality of the dimension is unchanged
+    assert len({r["hyp_started"] for r in rows if r["hyp_started"]}) == 2
+    # non-string values pass through untouched
+    assert rows[3]["hyp_started"] is False
+    assert rows[3]["hyp_forced"].startswith("hyp-")
+
+
+def test_log_names_rebuilt_from_fks():
+    tables = {
+        "logs_users": [
+            {
+                "id": "lu1",
+                "owner_user_id": "u1234567-aaaa-bbbb",
+                "owner_user_name": "mgonzalez@realcorp.example",
+                "owner_category_id": "acme",
+                "owner_category_name": "Acme Corporation",
+                "owner_group_id": "g1234567890abcdef",
+                "owner_group_name": "Finance Department",
+                "request_ip": "10.1.2.3",
+            }
+        ],
+        "logs_desktops": [
+            {
+                "id": "ld1",
+                "desktop_id": "d1234567-cccc-dddd",
+                "desktop_name": "Maria's Finance Desktop",
+                "deployment_id": "p1234567-eeee-ffff",
+                "deployment_name": "Finance Lab 2026",
+                "owner_user_id": "u1234567-aaaa-bbbb",
+                "owner_user_name": "mgonzalez@realcorp.example",
+            }
+        ],
+    }
+    out = _run(tables)
+
+    blob = json.dumps(out)
+    for needle in (
+        "mgonzalez@realcorp.example",
+        "Acme Corporation",
+        "Finance Department",
+        "Maria's Finance Desktop",
+        "Finance Lab 2026",
+        "10.1.2.3",
+    ):
+        assert needle not in blob, f"leaked: {needle!r}"
+
+    lu = out["logs_users"][0]
+    assert lu["owner_user_name"] == "user-u1234567"
+    assert lu["owner_category_name"] == "category-acme"
+    assert lu["owner_group_name"] == "group-g1234567890a"
+    assert lu["owner_user_id"] == "u1234567-aaaa-bbbb"
+    assert lu["request_ip"] == ""
+
+    ld = out["logs_desktops"][0]
+    assert ld["desktop_name"] == "desktop-d1234567"
+    assert ld["deployment_name"] == "deployment-p1234567"
+    assert ld["owner_user_name"] == "user-u1234567"
+
+
+def test_log_names_blank_when_fk_missing():
+    tables = {
+        "logs_desktops": [
+            {"id": "ld1", "desktop_name": "Orphan Desktop", "desktop_id": None}
+        ]
+    }
+    out = _run(tables)
+    assert out["logs_desktops"][0]["desktop_name"] == ""
+
+
+DEPLOYMENT_ID = "eeeeeeee-1111-2222-3333-555555555555"
+
+
+def test_deployment_tag_fk_preserved():
+    tables = {
+        "deployments": [
+            {
+                "id": DEPLOYMENT_ID,
+                "name": "Finance Lab 2026",
+                "description": "for the finance dept",
+                "tag": DEPLOYMENT_ID,
+                "tag_name": "Finance Lab 2026",
+                "create_dict": {
+                    "name": "Finance Lab 2026",
+                    "description": "for the finance dept",
+                    "tag": DEPLOYMENT_ID,
+                },
+            }
+        ],
+        "domains": [
+            {
+                "id": "d1aaaaaa-0000",
+                "user": "u1aaaaaa-0000",
+                "tag": DEPLOYMENT_ID,
+                "tag_name": "Finance Lab 2026",
+            },
+            {
+                "id": "d2bbbbbb-0000",
+                "user": "u1aaaaaa-0000",
+                "tag": DEPLOYMENT_ID,
+                "tag_name": "Finance Lab 2026",
+            },
+            {"id": "d3cccccc-0000", "user": "u1aaaaaa-0000", "tag": False},
+        ],
+    }
+    out = _run(tables)
+
+    assert "Finance Lab 2026" not in json.dumps(out)
+
+    dep = out["deployments"][0]
+    assert dep["tag"] == DEPLOYMENT_ID
+    assert dep["create_dict"]["tag"] == DEPLOYMENT_ID
+    assert dep["name"] == f"deployment-{DEPLOYMENT_ID[:8]}"
+    assert dep["tag_name"] == dep["name"]
+
+    grouped = [d for d in out["domains"] if d["tag"]]
+    assert len(grouped) == 2
+    for d in grouped:
+        assert d["tag"] == DEPLOYMENT_ID
+        assert d["tag_name"] == f"deployment-{DEPLOYMENT_ID[:8]}"
+    assert out["domains"][2]["tag"] is False
 
 
 def test_category_email_domain_restriction_scrubbed():

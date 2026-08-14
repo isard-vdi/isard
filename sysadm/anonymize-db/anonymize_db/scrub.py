@@ -8,6 +8,7 @@ fields touched (for `--dry-run` reporting).
 from __future__ import annotations
 
 import base64
+import hashlib
 import logging
 import re
 import secrets
@@ -89,6 +90,10 @@ class Scrubber:
         self._bcrypt_cache: dict[str, str] = {}
         self.counts: dict[str, int] = {}
         self.remap = IdRemap()
+        self._hyp_aliases: dict[str, str] = {}
+        self._mac_aliases: dict[str, str] = {}
+        # Per-run key so the mapping cannot be reversed from the output alone.
+        self._mac_key = secrets.token_bytes(16)
 
     # ---- helpers ----
     def _bump(self, table: str, n: int = 1) -> None:
@@ -111,15 +116,30 @@ class Scrubber:
             base64.b64encode(pub_raw).decode(),
         )
 
-    @staticmethod
-    def _fake_mac(idx: int) -> str:
-        # locally-administered, unicast (02:..); deterministic per idx
-        rng = secrets.token_bytes(5) if idx < 0 else None
-        if rng is None:
-            b = idx.to_bytes(5, "big", signed=False)
-        else:
-            b = rng
-        return "02:" + ":".join(f"{x:02x}" for x in b)
+    def _mac_alias(self, mac: str) -> str:
+        """Replacement for one real MAC, in the locally-administered `02:` range.
+
+        Keyed on the address itself rather than on the row's position: the cli
+        streams each table one document at a time, so a position-derived value
+        collides across every row. One interface is described in the hardware
+        block, in create_dict and in the libvirt xml, and all three must land on
+        the same replacement or a restored database contradicts itself.
+        """
+        alias = self._mac_aliases.get(mac)
+        if alias is None:
+            digest = hashlib.blake2b(
+                mac.encode(), digest_size=5, key=self._mac_key
+            ).digest()
+            alias = "02:" + ":".join(f"{b:02x}" for b in digest)
+            self._mac_aliases[mac] = alias
+        return alias
+
+    def _scrub_interface_macs(self, hardware: Any) -> None:
+        if not isinstance(hardware, dict):
+            return
+        for ifc in hardware.get("interfaces") or []:
+            if isinstance(ifc, dict) and isinstance(ifc.get("mac"), str):
+                ifc["mac"] = self._mac_alias(ifc["mac"])
 
     # ---- defensive sweep ----
     def defensive_sweep(self, table: str, obj: Any, _path: tuple[str, ...] = ()) -> Any:
@@ -255,10 +275,14 @@ class Scrubber:
             owner = r.get("user")
             owner8 = owner[:8] if isinstance(owner, str) and owner else short
             r["username"] = f"user-{owner8}"
+        # `tag` is deployments.id, read through the domains `tag` secondary
+        # index — a uuid, not identity. Preserve it; rebuild the denormalized
+        # `tag_name` from it so it matches the scrubbed deployments.name.
         if isinstance(r.get("tag_name"), str):
-            r["tag_name"] = ""
-        if isinstance(r.get("tag"), str):
-            r["tag"] = ""
+            tag = r.get("tag")
+            r["tag_name"] = (
+                f"deployment-{tag[:8]}" if isinstance(tag, str) and tag else ""
+            )
         if isinstance(r.get("jumperurl"), str):
             r["jumperurl"] = secrets.token_urlsafe(16)
         cd = r.get("create_dict")
@@ -322,16 +346,17 @@ class Scrubber:
         ssh = r.get("ssh")
         if isinstance(ssh, dict) and isinstance(ssh.get("authorized_keys"), list):
             ssh["authorized_keys"] = []
-        cd = r.get("create_dict") or {}
-        hw = cd.get("hardware") or {}
-        ifs = hw.get("interfaces")
-        if isinstance(ifs, list):
-            for j, ifc in enumerate(ifs):
-                if isinstance(ifc, dict) and "mac" in ifc:
-                    ifc["mac"] = self._fake_mac(i * 100 + j)
+        # The same interface is described in the top-level hardware block, in
+        # create_dict and in the libvirt xml; `_mac_alias` keeps all three in
+        # agreement.
+        self._scrub_interface_macs(r.get("hardware"))
+        cd = r.get("create_dict")
+        for sub in cd if isinstance(cd, list) else [cd]:
+            if isinstance(sub, dict):
+                self._scrub_interface_macs(sub.get("hardware"))
         xml = r.get("xml")
         if isinstance(xml, str) and xml:
-            r["xml"] = scrub_libvirt_xml(xml)
+            r["xml"] = scrub_libvirt_xml(xml, self._mac_alias)
 
     def domains(self, rows: list[dict]) -> list[dict]:
         for i, r in enumerate(rows):
@@ -401,11 +426,33 @@ class Scrubber:
         return rows
 
     def targets(self, rows: list[dict]) -> list[dict]:
-        for r in rows:
+        for i, r in enumerate(rows):
+            tid = r.get("id", "") or f"{i}"
             ssh = r.get("ssh")
             if isinstance(ssh, dict) and "authorized_keys" in ssh:
                 ssh["authorized_keys"] = []
+            # Public bastion hostnames: a user-chosen label on the install's
+            # own domain. `desktop_id` / `user_id` are FKs and stay.
+            doms = r.get("domains")
+            if isinstance(doms, list):
+                r["domains"] = [
+                    f"target-{tid[:8]}-{j}.example.test" for j in range(len(doms))
+                ]
             self._bump("targets")
+        return rows
+
+    def user_storage(self, rows: list[dict]) -> list[dict]:
+        # Storage-provider rows (Nextcloud/WebDAV), not per-user data — the
+        # users.user_storage sub-doc is handled in users(). `password` is
+        # already covered by the defensive sweep; the URL names the customer's
+        # server and `user` is an admin account.
+        for i, r in enumerate(rows):
+            pid = r.get("id", "") or f"{i}"
+            if isinstance(r.get("urlprefix"), str):
+                r["urlprefix"] = f"https://storage-{pid[:8]}.example.test"
+            if isinstance(r.get("user"), str):
+                r["user"] = "storage-admin"
+            self._bump("user_storage")
         return rows
 
     def secrets(self, rows: list[dict]) -> list[dict]:
@@ -516,9 +563,7 @@ class Scrubber:
             if isinstance(r.get("description"), str):
                 r["description"] = ""
             if isinstance(r.get("tag_name"), str):
-                r["tag_name"] = ""
-            if isinstance(r.get("tag"), str):
-                r["tag"] = ""
+                r["tag_name"] = f"deployment-{short}"
             cd = r.get("create_dict")
             for sub in cd if isinstance(cd, list) else [cd]:
                 if not isinstance(sub, dict):
@@ -527,8 +572,6 @@ class Scrubber:
                     sub["name"] = f"deployment-{short}"
                 if isinstance(sub.get("description"), str):
                     sub["description"] = ""
-                if isinstance(sub.get("tag"), str):
-                    sub["tag"] = ""
                 gp = sub.get("guest_properties")
                 if isinstance(gp, dict) and isinstance(gp.get("credentials"), dict):
                     gp["credentials"] = {
@@ -584,14 +627,34 @@ class Scrubber:
         return rows
 
     # Keys whose string values get blanked anywhere in recycle_bin nested trees.
-    # `(?:^|_)uid$` catches the SSO `uid` (== email for many installs) in deleted
-    # user/domain snapshots without matching `uuid`.
-    _RB_BLANK_RE = re.compile(
-        r"name|description|email|username|ip|hostname|jumperurl|"
-        r"title|comment|certificate|server-cert|host-subject|password_history|"
-        r"authorized_keys|(?:^|_)uid$",
+    # Exact names first, then anchored suffixes for the `owner_user_name` /
+    # `guest_ip` family. Anchoring matters: an unanchored `ip` alternative also
+    # matches `chipset` and `clipboard`, which carry no identity.
+    _RB_BLANK_KEYS = frozenset(
+        {
+            "authorized_keys",
+            "certificate",
+            "description",
+            "host-subject",
+            "jumperurl",
+            "password_history",
+            "server-cert",
+        }
+    )
+    # `(?:^|_)uid$` catches the SSO `uid` (== email for many installs) without
+    # matching `uuid`.
+    _RB_BLANK_SUFFIX_RE = re.compile(
+        r"(?:^|_)(?:name|email|username|ip|hostname|title|comment|uid)$",
         re.I,
     )
+    # Only these two are list-valued; every other match blanks a string.
+    _RB_BLANK_LISTS = frozenset({"authorized_keys", "password_history"})
+
+    @classmethod
+    def _rb_should_blank(cls, key: str) -> bool:
+        return key.lower() in cls._RB_BLANK_KEYS or bool(
+            cls._RB_BLANK_SUFFIX_RE.search(key)
+        )
 
     def _recycle_walk(self, obj: Any, path: tuple[str, ...] = ()) -> Any:
         if isinstance(obj, dict):
@@ -609,14 +672,14 @@ class Scrubber:
                 obj["password"] = GUEST_DEFAULT_PASSWORD
                 return obj
             for k, v in list(obj.items()):
-                if (
-                    isinstance(k, str)
-                    and self._RB_BLANK_RE.search(k)
-                    and isinstance(v, (str, list))
-                ):
-                    obj[k] = "" if isinstance(v, str) else []
-                else:
-                    obj[k] = self._recycle_walk(v, path + (k,))
+                if isinstance(k, str) and self._rb_should_blank(k):
+                    if isinstance(v, str):
+                        obj[k] = ""
+                        continue
+                    if isinstance(v, list) and k.lower() in self._RB_BLANK_LISTS:
+                        obj[k] = []
+                        continue
+                obj[k] = self._recycle_walk(v, path + (k,))
         elif isinstance(obj, list):
             for i, v in enumerate(obj):
                 obj[i] = self._recycle_walk(v, path)
@@ -628,15 +691,46 @@ class Scrubber:
             self._bump("recycle_bin")
         return rows
 
+    # The logs_* tables denormalize a display name next to its FK. Rebuilding
+    # each name from the FK keeps the grouping dimension usable after
+    # anonymization, the same way usage_consumption.item_name is rebuilt.
+    # (field to rebuild) -> (FK field, prefix, id truncation)
+    _LOG_NAME_FROM_FK: dict[str, tuple[str, str, int | None]] = {
+        "owner_user_name": ("owner_user_id", "user-", 8),
+        "owner_category_name": ("owner_category_id", "category-", None),
+        "owner_group_name": ("owner_group_id", "group-", 12),
+        "desktop_name": ("desktop_id", "desktop-", 8),
+        "deployment_name": ("deployment_id", "deployment-", 8),
+    }
+
+    def _hyp_alias(self, value: Any) -> Any:
+        """Stable per-dump alias for a hypervisor id. The literal id names a
+        real host, but the field is the placement dimension — an alias keeps
+        rows groupable without leaking the topology."""
+        if not isinstance(value, str) or not value:
+            return value
+        alias = self._hyp_aliases.get(value)
+        if alias is None:
+            alias = f"hyp-{len(self._hyp_aliases) + 1:02d}"
+            self._hyp_aliases[value] = alias
+        return alias
+
+    def _rebuild_log_names(self, r: dict) -> None:
+        for name_key, (fk_key, prefix, cut) in self._LOG_NAME_FROM_FK.items():
+            if not isinstance(r.get(name_key), str):
+                continue
+            fk = r.get(fk_key)
+            if isinstance(fk, str) and fk:
+                r[name_key] = f"{prefix}{fk[:cut] if cut else fk}"
+            else:
+                r[name_key] = ""
+
     def logs_users(self, rows: list[dict]) -> list[dict]:
-        # Keep rows for realistic dev/analytics volume; blank PII fields.
-        # FK-like *_id fields stay so joins still work; the cross-table
-        # rewrite pass picks them up if any get remapped.
+        # Keep rows for realistic dev/analytics volume. Owner names are
+        # rebuilt from their FKs; the request fingerprint is dropped.
         for r in rows:
+            self._rebuild_log_names(r)
             for k in (
-                "owner_category_name",
-                "owner_group_name",
-                "owner_user_name",
                 "request_ip",
                 "request_agent_browser",
                 "request_agent_platform",
@@ -649,12 +743,11 @@ class Scrubber:
 
     def logs_desktops(self, rows: list[dict]) -> list[dict]:
         for r in rows:
+            self._rebuild_log_names(r)
+            for k in ("hyp_started", "hyp_forced"):
+                if isinstance(r.get(k), str):
+                    r[k] = self._hyp_alias(r[k])
             for k in (
-                "owner_category_name",
-                "owner_group_name",
-                "owner_user_name",
-                "desktop_name",
-                "deployment_name",
                 "request_ip",
                 "stopping_ip",
                 "request_agent_browser",
@@ -662,8 +755,6 @@ class Scrubber:
                 "request_agent_version",
                 "stopping_agent_browser",
                 "stopping_agent_platform",
-                "hyp_started",
-                "hyp_forced",
             ):
                 if isinstance(r.get(k), str):
                     r[k] = ""
@@ -828,6 +919,7 @@ def get_scrubbers(s: Scrubber) -> dict[str, Callable[[list[dict]], list[dict]]]:
         "hypervisors": s.hypervisors,
         "hypervisors_pools": s.hypervisors_pools,
         "targets": s.targets,
+        "user_storage": s.user_storage,
         "secrets": s.secrets,
         "remotevpn": s.remotevpn,
         "media": s.media,
