@@ -110,7 +110,26 @@ TRIM_EVERY_S = 5
 # keyed read 0.21 ms — so the loop was idle almost all of the time it took.
 # Bounded because the process shares one rethinkdb pool: past its width the
 # extra entries queue on a connection instead of on the database.
-SETTLE_CONCURRENCY = int(os.environ.get("SETTLE_CONCURRENCY") or 8)
+SETTLE_CONCURRENCY_DEFAULT = 8
+
+
+def settle_concurrency():
+    """How many entries to settle at once, read per batch rather than at import.
+
+    Per batch so the value can later come from somewhere that changes while the
+    process runs — the storage scheduler's config already does exactly that
+    (``Config.get_storage_scheduler_config`` mirrored into ``governor:config``,
+    with a per-key DB -> env -> hardcoded merge), and this knob is the same kind
+    of thing: an operator may want to trade interactive latency for drain speed
+    on a backlog without a redeploy.
+    """
+    try:
+        return max(
+            1, int(os.environ.get("SETTLE_CONCURRENCY") or SETTLE_CONCURRENCY_DEFAULT)
+        )
+    except (TypeError, ValueError):
+        return SETTLE_CONCURRENCY_DEFAULT
+
 
 # Serialise ONLY where entries share mutable state, which is the finalize
 # anchor: a chain's marks live in one rq job's meta, several entries of the same
@@ -823,7 +842,7 @@ async def _read_and_dispatch(redis, redis_manager, consumer_name):
         #
         # The ACK stays tied to its own entry's outcome, so a handler that failed
         # still leaves exactly that entry in the PEL for redelivery.
-        semaphore = asyncio.Semaphore(SETTLE_CONCURRENCY)
+        semaphore = asyncio.Semaphore(settle_concurrency())
 
         async def _settle(entry_id, fields):
             async with semaphore:
