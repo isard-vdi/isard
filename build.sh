@@ -440,11 +440,12 @@ flavour(){
 			parts="$parts redis.infrastructure-ports"
 			echo "      - Redis port 6379 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
-		# Check for monitor service (contains loki and victoriametrics)
+		# Check for monitor service (contains loki, victoriametrics and grafana)
 		if echo "$parts" | grep -q "\(^\|\s\)monitor\(\s\|$\)"; then
 			parts="$parts monitor.infrastructure-ports"
 			echo "      - Loki port 3100 exposed on $INFRASTRUCTURE_HOST_IP"
 			echo "      - VictoriaMetrics port 9090 exposed on $INFRASTRUCTURE_HOST_IP"
+			echo "      - Grafana port 3000 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
 		# Pyroscope (only present on monitor/all-in-one when PYROSCOPE_EBPF=true)
 		# needs its ingest port reachable so remote flavours can ship eBPF profiles.

@@ -8,3 +8,11 @@ services:
       # Publish on 9090 (the legacy Prometheus port) mapped to VictoriaMetrics' 8428,
       # so existing remote-write clients and firewall rules keep working across the upgrade.
       - "${INFRASTRUCTURE_HOST_IP:?INFRASTRUCTURE_HOST_IP must be a literal IP present on this host}:9090:8428"
+
+  isard-grafana:
+    ports:
+      # A web node's portal proxies /monitor to grafana. When monitor runs on its own
+      # node that proxy is a cross-host hop, so grafana has to be reachable on the
+      # infrastructure IP. On a combined web+monitor node the proxy resolves grafana
+      # over the compose network instead and this publish is simply unused.
+      - "${INFRASTRUCTURE_HOST_IP:?INFRASTRUCTURE_HOST_IP must be a literal IP present on this host}:3000:3000"

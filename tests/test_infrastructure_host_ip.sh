@@ -179,6 +179,24 @@ else
         ko "hypervisor part exists" "$PARTS/$hyp or $PARTS/$hypbase is missing"
     fi
 
+    # grafana rides the monitor part: on a monitor-only node the web node's
+    # portal proxies /monitor across hosts, so it has to be reachable there.
+    mon="monitor.infrastructure-ports.yml"
+    if [ -f "$PARTS/$mon" ]; then
+        out=$(INFRASTRUCTURE_HOST_IP="10.11.12.13" render "monitor.yml" "$mon")
+        for svc in isard-loki isard-victoriametrics isard-grafana; do
+            # Slice the service's own block: a fixed -A window is a coin toss,
+            # since how far `ports:` sits below the service key depends on how
+            # much environment the service declares.
+            block=$(echo "$out" | awk -v s="  $svc:" '$0==s{p=1;next} p&&/^  [a-z]/{exit} p')
+            if echo "$block" | grep -q 'host_ip: 10\.11\.12\.13'; then
+                ok "monitor part binds $svc"
+            else
+                ko "monitor part binds $svc" "no host_ip in its block"
+            fi
+        done
+    fi
+
     # The public ports must NOT gain a binding: the viewer ports are announced
     # to the client and the user's browser dials them directly.
     for pair in "video.yml:VIEWER" "portal.yml:portal" "bastion-open-port.yml:bastion"; do
