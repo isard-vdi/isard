@@ -693,6 +693,19 @@ unit-test-sparsify:
   script:
     - make test-sparsify
 
+unit-test-infrastructure-host-ip:
+  # build.sh's INFRASTRUCTURE_HOST_IP validator and the *.infrastructure-ports
+  # parts. `docker compose config` interpolates and validates locally, so this
+  # needs the compose CLI but NO daemon and no dind service; iproute2 is for the
+  # validator's "is this address on a local interface" check.
+  stage: unit-test
+  needs: []
+  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+  before_script:
+    - apk add --no-cache bash make iproute2 docker-cli-compose
+  script:
+    - make test-infrastructure-host-ip
+
 unit-test-storage-utils:
   # Sparsify-backup classifier in the `storage` cleanup CLI
   # (docker/storage/utils/tests). Pure-stdlib pytest: the CLI is loaded via

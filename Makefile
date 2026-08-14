@@ -211,6 +211,13 @@ test-storage:
 test-sparsify:
 	bash docker/storage/utils/tests/test_sparsify_recover_backup.sh
 
+# INFRASTRUCTURE_HOST_IP: build.sh's validator and the *.infrastructure-ports
+# parts. Pure bash; the part-rendering half needs `docker compose` and skips
+# loudly without it.
+.PHONY: test-infrastructure-host-ip
+test-infrastructure-host-ip:
+	bash tests/test_infrastructure_host_ip.sh
+
 # Regression test for the `storage` cleanup CLI's sparsify-backup classifier:
 # a locked/in-use canonical must keep its backup, because the lock-bypassing
 # check reads through the lock and calls a half-written image clean. The CLI is
