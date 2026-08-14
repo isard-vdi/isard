@@ -233,3 +233,29 @@ regressió: amb vuit entrades en vol, cada una inclou l'espera del seu torn. El 
 servei és el **cabal**, i el retard del grup cau a menys d'un terç.
 
 Proves: change-handler **350 passen / 0 fallen**.
+
+## Escombrat de `SETTLE_CONCURRENCY` (25 VUs, 3 min cadascun)
+
+| concurrència | pool | retard màxim | p95 interactiu | objectiu 30 s |
+|---|---|---|---|---|
+| 1 (main) | 5 | 858 | 34,21 s | ✗ |
+| 4 | 32 | 347 | 30,46 s | **✗** |
+| **8** | 5 | 233 | **20,38 s** | ✓ |
+| 16 | 32 | 232 | 20,61 s | ✓ |
+| 24 | 32 | 165 | 22,43 s | ✓ |
+
+**El genoll és entre 4 i 8, i 8 és el valor correcte.** Per sota, la SLO no es compleix; per
+damunt, el p95 ja no millora.
+
+Dues coses que això ensenya i que no s'endevinen:
+
+1. **Passar de 8 a 16 no aporta res** (232 contra 233). El límit a partir d'aquí no és quantes
+   entrades hi ha en vol.
+2. **24 drena més de pressa però serveix pitjor**: el retard màxim baixa a 165 —un 29% menys que
+   amb 8— i en canvi el p95 puja a 22,43 s. Amb més feina en vol el backlog s'esgota abans, però
+   cada creació interactiva espera més el seu torn. Si el que es vol protegir és la latència que
+   nota l'usuari, el número a mirar és el p95, no el retard.
+
+⚠️ El **8 va donar 233 amb el pool a 5**, o sigui que a aquesta concurrència el pool no era la
+restricció. El pool només compta a partir de 16-24, i per això la pujada a 32 s'entrega igualment:
+és el que fa que el knob es pugui apujar sense topar amb una paret nova.
