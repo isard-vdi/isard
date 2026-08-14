@@ -39,9 +39,9 @@ export const overlayIconButtonClass = (active: boolean, size: CardSize = 'lg') =
     // No backdrop-blur: repainting it on :hover stalls Firefox
     'h-9! flex items-center justify-center',
     active
-      ? `w-auto! px-2.5! gap-1.5 bg-base-white/45 hover:bg-base-white/60 ${cardOverlayLabelVariants(
-          { size }
-        )} font-bold uppercase tracking-wide text-base-white`
+      ? `w-auto! px-2.5! gap-1.5 bg-base-white/45 ${cardOverlayLabelVariants({
+          size
+        })} font-bold uppercase tracking-wide text-base-white`
       : 'w-9! p-0! bg-base-black/55 hover:bg-base-black/70'
   ].join(' ')
 

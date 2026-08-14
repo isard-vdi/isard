@@ -31,7 +31,8 @@ const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 </script>
 
 <template>
-  <Tooltip>
+  <!-- No tooltip when active: the button already shows its label. -->
+  <Tooltip :disabled="props.active">
     <TooltipTrigger as-child>
       <Button
         hierarchy="link-gray"
