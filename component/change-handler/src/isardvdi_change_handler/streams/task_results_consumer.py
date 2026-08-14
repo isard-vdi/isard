@@ -623,7 +623,11 @@ async def _process_entry(redis_manager, fields):
     # ``result`` carries it too: the final flush that closes the bar at 100 is
     # followed by no progress event of its own.
     if kind in ("progress", "result"):
-        await asyncio.to_thread(apply_row_progress, task_id)
+        # ``result`` IS the final flush — the closing tick is folded into it and
+        # is followed by no progress event of its own — so it is the entry that
+        # persists the measured size. An intermediate tick only moves the row
+        # out of its starting status.
+        await asyncio.to_thread(apply_row_progress, task_id, kind == "result")
     if kind == "progress":
         return True
 

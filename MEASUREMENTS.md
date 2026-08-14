@@ -259,3 +259,35 @@ Dues coses que això ensenya i que no s'endevinen:
 ⚠️ El **8 va donar 233 amb el pool a 5**, o sigui que a aquesta concurrència el pool no era la
 restricció. El pool només compta a partir de 16-24, i per això la pujada a 32 s'entrega igualment:
 és el que fa que el knob es pugui apujar sense topar amb una paret nova.
+
+## (d) El progrés surt de la base de dades, però l'estat final NO
+
+Decisió del propietari del producte: el progrés no ha d'anar mai a la BD ni quedar-se a Redis,
+només l'estat final.
+
+**Avaluació prèvia, favorable**: el frontend hi degrada net. `DesktopCard.vue:226-229` passa
+`undefined` quan la fila no porta `progress` i llavors **no pinta barra**, sense error. Qui carrega
+la pàgina enmig d'una operació veu l'estat real i guanya la barra al primer esdeveniment del feed.
+
+⚠️ **I una trampa que va estar a punt de trencar la integritat disc↔BD.** El tic **final** porta
+`total_bytes`, la mida exacta que ha mesurat el worker, i **és la xifra que sumen tots els lectors
+d'espai**: quota (`lib/usage/media.py:43`), analítiques (`lib/analytics/analytics.py:56,89`) i el
+llistat de media (`lib/media/media.py:265`) la pluquegen directament de `progress`. Una primera
+versió el treia tot i hauria deixat la BD discrepant del disc — exactament el que l'avís de la (a)
+adverteix. La instrucció «només l'estat final» era literal i correcta.
+
+Implementat així:
+
+| | abans | ara |
+|---|---|---|
+| tic intermedi | 3 lectures + 2 escriptures | **1 lectura, 0 escriptures** (després de la primera) |
+| primer tic (fila encara a l'estat inicial) | igual | 1 lectura + 1 escriptura (la transició d'estat) |
+| tic **final** (entra amb el `result`) | igual | 1 lectura + 1 escriptura (**la mida mesurada**) |
+
+La transició `DownloadStarting → Downloading` es queda als dos camins: **això és estat, no
+progrés**, i sense ella una descàrrega es quedaria a `DownloadStarting` per sempre.
+
+**Verificat en viu**: descàrrega nova i completa → `Downloaded`, `total_bytes` 18.616.320,
+`percent` 100 a la fila. Proves: change-handler **356 passen / 0 fallen** (eren 350). Set proves
+fixaven el contracte antic i s'han reescrit al nou, i se n'han **afegit** per al que abans no
+cobria ningú: que un tic intermedi **no** arribi mai a la fila.
