@@ -447,6 +447,14 @@
                 "responses": {
                     "200": {
                         "description": "",
+                        "headers": {
+                            "Set-Cookie": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": true
+                            }
+                        },
                         "content": {
                             "application/json": {
                                 "schema": {

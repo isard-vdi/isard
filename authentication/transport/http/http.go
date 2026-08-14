@@ -418,11 +418,18 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		return nil, provider.ErrInternal
 	}
 
+	exp, err := token.GetTokenExpiration(tkn)
+	if err != nil {
+		log.Error().Err(err).Msg("get the token expiration to set the cookie lifetime")
+
+		return nil, provider.ErrInternal
+	}
+
 	c := &http.Cookie{
 		Name:     "authorization",
 		Path:     "/",
 		Value:    tkn,
-		Expires:  time.Now().Add(5 * time.Minute),
+		Expires:  exp,
 		SameSite: http.SameSiteStrictMode,
 		Secure:   true,
 	}
@@ -510,11 +517,18 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 		return nil, provider.ErrInternal
 	}
 
+	exp, err := token.GetTokenExpiration(tkn)
+	if err != nil {
+		a.Log.Error().Err(err).Msg("get the token expiration to set the cookie lifetime")
+
+		return nil, provider.ErrInternal
+	}
+
 	c := &http.Cookie{
 		Name:     "authorization",
 		Path:     "/",
 		Value:    tkn,
-		Expires:  time.Now().Add(5 * time.Minute),
+		Expires:  exp,
 		SameSite: http.SameSiteStrictMode,
 		Secure:   true,
 	}
@@ -550,6 +564,13 @@ func (a *AuthenticationServer) Renew(ctx context.Context, req *oasAuthentication
 
 	tkn, err := a.Authentication.Renew(ctx, ss, remoteAddr)
 	if err != nil {
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.RenewUnauthorized{
+				Error: oasAuthentication.RenewErrorErrorInvalidSession,
+				Msg:   err.Error(),
+			}, nil
+		}
+
 		if status, ok := status.FromError(err); ok {
 			switch status.Code() {
 			case codes.NotFound, codes.Unauthenticated:
@@ -576,8 +597,32 @@ func (a *AuthenticationServer) Renew(ctx context.Context, req *oasAuthentication
 		}, nil
 	}
 
-	return &oasAuthentication.RenewResponse{
-		Token: tkn,
+	exp, err := token.GetTokenExpiration(tkn)
+	if err != nil {
+		a.Log.Error().Err(err).Msg("get the token expiration to set the cookie lifetime")
+
+		return &oasAuthentication.RenewInternalServerError{
+			Error: oasAuthentication.RenewErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	c := &http.Cookie{
+		Name:     "authorization",
+		Path:     "/",
+		Value:    tkn,
+		Expires:  exp,
+		SameSite: http.SameSiteStrictMode,
+		Secure:   true,
+	}
+
+	cookie := c.String()
+
+	return &oasAuthentication.RenewResponseHeaders{
+		SetCookie: cookie,
+		Response: oasAuthentication.RenewResponse{
+			Token: tkn,
+		},
 	}, nil
 }
 
@@ -596,6 +641,13 @@ func (a *AuthenticationServer) Logout(ctx context.Context, req *oasAuthenticatio
 			return &oasAuthentication.LogoutUnauthorized{
 				Error: oasAuthentication.LogoutErrorErrorInvalidSession,
 				Msg:   "session has expired",
+			}, nil
+		}
+
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.LogoutUnauthorized{
+				Error: oasAuthentication.LogoutErrorErrorInvalidSession,
+				Msg:   err.Error(),
 			}, nil
 		}
 
@@ -659,8 +711,11 @@ func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.Che
 	}
 
 	if err := a.Authentication.Check(ctx, tkn, remoteAddr); err != nil {
-		if !errors.Is(err, token.ErrInvalidToken) && !errors.Is(err, token.ErrInvalidTokenType) {
-			return nil, fmt.Errorf("check JWT: %w", err)
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.CheckForbidden{
+				Error: oasAuthentication.CheckErrorErrorInvalidToken,
+				Msg:   err.Error(),
+			}, nil
 		}
 
 		if status, ok := status.FromError(err); ok {
@@ -681,10 +736,7 @@ func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.Che
 			}
 		}
 
-		return &oasAuthentication.CheckForbidden{
-			Error: oasAuthentication.CheckErrorErrorInvalidToken,
-			Msg:   err.Error(),
-		}, nil
+		return nil, fmt.Errorf("check JWT: %w", err)
 	}
 
 	return &oasAuthentication.CheckResponse{}, nil

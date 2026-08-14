@@ -32,7 +32,7 @@ func parseAuthenticationToken[T jwt.Claims](secret, ss string, claims jwt.Claims
 			}
 		}
 
-		return ret, fmt.Errorf("error parsing the JWT token: %w", err)
+		return ret, fmt.Errorf("%w: %w", ErrInvalidToken, err)
 	}
 
 	if !tkn.Valid {

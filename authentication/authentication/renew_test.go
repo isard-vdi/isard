@@ -36,6 +36,7 @@ func TestRenew(t *testing.T) {
 		CheckToken      func(string)
 		RemoteAddr      string
 		ExpectedErr     string
+		ExpectedErrs    []error
 	}{
 		"should work as expected": {
 			PrepareDB: func(m *r.Mock) {
@@ -102,6 +103,54 @@ func TestRenew(t *testing.T) {
 				}, claims)
 			},
 		},
+		"should return an invalid token error if the token is not a login token": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			PrepareToken: func() string {
+				ss, err := token.SignDisclaimerAcknowledgementRequiredToken("", "08fff46e-cbd3-40d2-9d8e-e2de7a8da654")
+				require.NoError(err)
+
+				return ss
+			},
+			RemoteAddr:   "127.0.0.1",
+			ExpectedErr:  "invalid JWT token: token has invalid claims: invalid token type",
+			ExpectedErrs: []error{token.ErrInvalidToken, token.ErrInvalidTokenType},
+		},
+		"should return an invalid token error if the token is malformed": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			PrepareToken: func() string {
+				return "HOLA MELINA :D"
+			},
+			RemoteAddr:   "127.0.0.1",
+			ExpectedErr:  "invalid JWT token: token is malformed: token contains an invalid number of segments",
+			ExpectedErrs: []error{token.ErrInvalidToken, jwt.ErrTokenMalformed},
+		},
+		"should return an invalid token error if the token is expired and not a login token": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			PrepareToken: func() string {
+				ss, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &token.LoginClaims{
+					RegisteredClaims: &jwt.RegisteredClaims{
+						ExpiresAt: jwt.NewNumericDate(time.Now().Add(-time.Hour)),
+					},
+					Type:      token.TypeRegister,
+					SessionID: "ThoJuroQueEsUnID",
+				}).SignedString([]byte(""))
+				require.NoError(err)
+
+				return ss
+			},
+			RemoteAddr:   "127.0.0.1",
+			ExpectedErr:  "invalid JWT token: token has invalid claims: token is expired, invalid token type",
+			ExpectedErrs: []error{token.ErrInvalidToken, token.ErrInvalidTokenType},
+		},
 	}
 
 	for name, tc := range cases {
@@ -143,6 +192,10 @@ func TestRenew(t *testing.T) {
 				assert.EqualError(err, tc.ExpectedErr)
 			} else {
 				assert.NoError(err)
+			}
+
+			for _, expectedErr := range tc.ExpectedErrs {
+				assert.ErrorIs(err, expectedErr)
 			}
 
 			if tc.CheckToken != nil {

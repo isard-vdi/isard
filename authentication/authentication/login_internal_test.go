@@ -4297,7 +4297,7 @@ func TestCallback(t *testing.T) {
 				return "invalid-token"
 			},
 
-			ExpectedErr: "parse callback state: error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+			ExpectedErr: "parse callback state: invalid JWT token: token is malformed: token contains an invalid number of segments",
 		},
 		"should return an error if the provider callback fails": {
 			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
@@ -4429,7 +4429,7 @@ func TestFinishRegister(t *testing.T) {
 				return "invalid-token"
 			},
 
-			ExpectedErr: "error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+			ExpectedErr: "invalid JWT token: token is malformed: token contains an invalid number of segments",
 		},
 		"should return an error if the user is not registered": {
 			PrepareDB: func(m *r.Mock) {
@@ -4703,7 +4703,7 @@ func TestFinishReRegister(t *testing.T) {
 				return "invalid-token"
 			},
 
-			ExpectedErr: "error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+			ExpectedErr: "invalid JWT token: token is malformed: token contains an invalid number of segments",
 		},
 		"should return an error if the user is not registered": {
 			PrepareDB: func(m *r.Mock) {
@@ -5183,7 +5183,7 @@ func TestFinishCategorySelect(t *testing.T) {
 				return "invalid-token"
 			},
 
-			ExpectedErr: "error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+			ExpectedErr: "invalid JWT token: token is malformed: token contains an invalid number of segments",
 		},
 	}
 

@@ -9,7 +9,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/token"
-	apiJWT "gitlab.com/isard/isardvdi/pkg/jwt"
+	pkgJWT "gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -30,7 +30,7 @@ func TestMigrateUser(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareToken: func() string {
-				tkn, err := apiJWT.SignAPIJWT("")
+				tkn, err := pkgJWT.SignAPIJWT("")
 
 				require.NoError(err)
 
@@ -63,7 +63,7 @@ func TestMigrateUser(t *testing.T) {
 			PrepareToken: func() string {
 				return ""
 			},
-			ExpectedErr: "error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+			ExpectedErr: "invalid JWT token: token is malformed: token contains an invalid number of segments",
 			CheckToken: func(ss string) {
 				assert.Equal("", ss)
 			},
@@ -77,7 +77,7 @@ func TestMigrateUser(t *testing.T) {
 				return tkn
 			},
 			UserID:      "néfix",
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 			CheckToken: func(ss string) {
 				assert.Equal("", ss)
 			},

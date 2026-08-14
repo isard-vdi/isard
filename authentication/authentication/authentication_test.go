@@ -91,7 +91,7 @@ func TestCheck(t *testing.T) {
 				return ss
 			},
 			RemoteAddr:  "127.0.0.1",
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: token is expired",
+			ExpectedErr: "invalid JWT token: token has invalid claims: token is expired",
 		},
 		"should return an error if the token is not of type login": {
 			PrepareDB: func(m *r.Mock) {
@@ -105,7 +105,7 @@ func TestCheck(t *testing.T) {
 				return ss
 			},
 			RemoteAddr:  "127.0.0.1",
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 		},
 	}
 

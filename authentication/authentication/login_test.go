@@ -1618,7 +1618,7 @@ func TestLogin(t *testing.T) {
 					Token: &ss,
 				}
 			},
-			ExpectedErr: "error parsing the JWT token: token signature is invalid: signature is invalid",
+			ExpectedErr: "invalid JWT token: token signature is invalid: signature is invalid",
 		},
 		"should return an error if loading the user fails when finishing the disclaimer acknowledgement": {
 			PrepareDB: func(m *r.Mock) {
@@ -1655,7 +1655,7 @@ func TestLogin(t *testing.T) {
 					Token: &ss,
 				}
 			},
-			ExpectedErr: "error parsing the JWT token: token signature is invalid: signature is invalid",
+			ExpectedErr: "invalid JWT token: token signature is invalid: signature is invalid",
 		},
 		"should return an error if loading the user fails when finishing the password reset": {
 			PrepareDB: func(m *r.Mock) {

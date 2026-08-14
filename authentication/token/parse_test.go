@@ -21,6 +21,7 @@ func TestParseLoginToken(t *testing.T) {
 	cases := map[string]struct {
 		PrepareToken func() string
 		ExpectedErr  string
+		ExpectedErrs []error
 		CheckToken   func(jwt.Claims)
 	}{
 		"should work if the token is a valid login token": {
@@ -71,13 +72,26 @@ func TestParseLoginToken(t *testing.T) {
 				}, claims)
 			},
 		},
-		"should return an error if the token is invalid #1": {
+		"should return an invalid token error if the token is malformed": {
 			PrepareToken: func() string {
 				return "HOLA MELINA :D"
 			},
-			ExpectedErr: "error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+			ExpectedErr:  "invalid JWT token: token is malformed: token contains an invalid number of segments",
+			ExpectedErrs: []error{token.ErrInvalidToken, jwt.ErrTokenMalformed},
 		},
-		"should return an error if the token is invalid #2": {
+		"should return an invalid token error if the token is signed with another secret": {
+			PrepareToken: func() string {
+				ss, err := token.SignLoginToken("melina's secret", time.Now().Add(time.Hour), "ThoJuroQueEsUnID", &model.User{
+					ID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				})
+				require.NoError(err)
+
+				return ss
+			},
+			ExpectedErr:  "invalid JWT token: token signature is invalid: signature is invalid",
+			ExpectedErrs: []error{token.ErrInvalidToken, jwt.ErrTokenSignatureInvalid},
+		},
+		"should return an invalid token error if the token is expired": {
 			PrepareToken: func() string {
 				ss, err := token.SignLoginToken("", time.Now().Add(-time.Hour), "ThoJuroQueEsUnID", &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
@@ -98,16 +112,18 @@ func TestParseLoginToken(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: token is expired",
+			ExpectedErr:  "invalid JWT token: token has invalid claims: token is expired",
+			ExpectedErrs: []error{token.ErrInvalidToken, jwt.ErrTokenExpired},
 		},
-		"should return an error if the token is not of type login": {
+		"should return an invalid token error if the token is not of type login": {
 			PrepareToken: func() string {
 				ss, err := token.SignDisclaimerAcknowledgementRequiredToken("", "néfix :D")
 				require.NoError(err)
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr:  "invalid JWT token: token has invalid claims: invalid token type",
+			ExpectedErrs: []error{token.ErrInvalidToken, token.ErrInvalidTokenType},
 		},
 	}
 
@@ -119,6 +135,10 @@ func TestParseLoginToken(t *testing.T) {
 				assert.EqualError(err, tc.ExpectedErr)
 			} else {
 				assert.NoError(err)
+			}
+
+			for _, expectedErr := range tc.ExpectedErrs {
+				assert.ErrorIs(err, expectedErr)
 			}
 
 			if tc.CheckToken != nil {
@@ -174,7 +194,7 @@ func TestParseCallbackToken(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 		},
 	}
 
@@ -239,7 +259,7 @@ func TestParsePasswordResetToken(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 		},
 	}
 
@@ -326,7 +346,7 @@ func TestParseCategorySelectToken(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 		},
 	}
 
@@ -391,7 +411,7 @@ func TestParseUserMigrationRequiredToken(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 		},
 	}
 
@@ -468,7 +488,7 @@ func TestParseReRegisterToken(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 		},
 	}
 
@@ -533,7 +553,7 @@ func TestParseUserMigrationToken(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 		},
 	}
 
