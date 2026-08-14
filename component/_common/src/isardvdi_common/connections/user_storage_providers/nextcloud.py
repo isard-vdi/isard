@@ -145,13 +145,10 @@ class Helpers(RethinkSharedConnection):
         return resp.text
 
     ### Login auth v2
-    login_thread = None
 
     @classmethod
     def start_login_auth(cls, provider_id):
-        global login_thread
-        if login_thread:
-            login_thread.kill()
+        # helpers/user_storage.py owns the watcher thread and stops the previous one
         with cls._rdb_context():
             provider = r.table("user_storage").get(provider_id).run(cls._rdb_connection)
         login_url = "https://" + provider["url"] + provider["urlprefix"]
