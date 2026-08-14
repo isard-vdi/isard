@@ -133,3 +133,36 @@ compose i el contenidor ja corria amb `POOL=5`. O sigui que aquesta xifra és no
 
 **Conclusió:** el `to_thread` i el pool són **prerequisits** del despatx concurrent, no millores
 per si soles. No s'han de fusionar sols — o van amb la concurrència, o no van.
+
+## (a bis) Escombrat de viatges redundants — VERIFICAT
+
+`RethinkBase.build(doc_id)`: **un sol viatge**, retorna `None` si la fila no hi és. Substitueix el
+parell `if not X.exists(i): return` + `X(i)`, que costava **tres lectures per respondre una
+pregunta** (l'`exists`, i després el constructor que torna a fer `exists` + `get`).
+
+⚠️ **Per què calia un accessor nou i no es podia treure l'`exists` a seques.** El constructor
+**aixeca** `Error("not_found")` quan la fila no hi és. Al camí d'assentament, una fila esborrada
+mentrestant és una condició **normal**: una excepció deixaria l'entrada sense ACK, redelivered
+`MAX_DELIVERIES` cops i finalment a la carta morta (#2307). L'`exists` previ hi era per sortir
+sense excepció, no per redundància.
+
+**Comprovació històrica** (i confirma la sospita): abans del port d'apiv3, el constructor **sí que
+creava la fila** — `component/_common/src/rethink_base.py` feia
+`r.table(t).insert(kwargs, conflict="update")` dins de `__init__`, o sigui que `Model(id)` amb una
+id inexistent inseria un document amb només l'id. El commit **`edbdb0711d`** (24/04/2026,
+«restructure isardvdi_common package + port business logic from apiv3») ho va canviar a
+`exists` → `raise not_found` → `get`, i va moure el comportament antic a `init_document`, amb el
+docstring *«Old init method kept for compatibility»*. Verificat a les **tres** implementacions que
+el factory pot triar (`_common`, `engine`, i apiv4 que fa servir la de `_common`): cap
+sobreescriu `__init__` ni torna a inserir. **`build` no reviu res.**
+
+Efecte al gestor convertit (`handle_domain_change_storage`, 6 viatges → 2):
+
+| | main | (a) | (a bis) amb `build` |
+|---|---|---|---|
+| `domain_change_storage` | 11,43 ms | 9,67 ms | **8,85 ms** |
+| acumulat des de main | — | −15,4% | **−22,6%** |
+
+El total per entrada es queda a **36,68 ms**, dins del soroll entre execucions (35,6-36,7 en
+mesures equivalents): a aquest nivell els viatges de lectura ja no són el que domina — ho són les
+escriptures i el despatx en sèrie.

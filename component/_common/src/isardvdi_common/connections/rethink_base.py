@@ -268,6 +268,30 @@ class RethinkBase(ABC):
         self._update_cache(**doc)
 
     @classmethod
+    def build(cls, doc_id):
+        """The object for ``doc_id``, or ``None`` — in ONE round trip.
+
+        ``Model(id)`` costs two: it probes ``exists`` and then ``get``, and the
+        ``get`` already answers "absent" by returning ``None``, so the probe
+        carries no information the read does not. It then RAISES on absence,
+        which is right for a route that owes a 404 but wrong for the settle
+        path, where a row that has since been deleted is an ordinary outcome —
+        hence the ``if not Model.exists(i): return`` / ``Model(i)`` pairs that
+        cost three reads to answer one question.
+
+        This is that pair, done once. It does NOT insert: the create-on-miss
+        upsert that ``__init__`` performed before the apiv3 port lives on only
+        in :meth:`init_document`, and nothing here revives it.
+        """
+        doc = cls.get(doc_id)
+        if not doc:
+            return None
+        obj = cls.__new__(cls)
+        obj.__dict__["id"] = doc.get("id")
+        obj._update_cache(**doc)
+        return obj
+
+    @classmethod
     def init_document(cls, *args, **kwargs):
         """
         Old init method kept for compatibility.

@@ -73,12 +73,19 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     condition (#2307). Returning lets the consumer ACK the entry and
     finalise the chain cleanly.
     """
-    if not Domain.exists(domain_id):
+    # Two reads, not six: the pair of ``exists`` probes plus the pair of
+    # constructors (each of which probes again) asked the same two questions
+    # three times each. ``build`` answers both in one read apiece and still
+    # returns early on a row that has since gone — which must stay an ordinary
+    # outcome here, never a raise: an exception leaves the stream entry
+    # unACKed, redelivered MAX_DELIVERIES times and finally dead-lettered for a
+    # normal condition (#2307).
+    domain = Domain.build(domain_id)
+    if domain is None:
         return
-    if not Storage.exists(storage_id):
+    storage = Storage.build(storage_id)
+    if storage is None:
         return
-    domain = Domain(domain_id)
-    storage = Storage(storage_id)
 
     if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN and storage.status != "ready":
         domain.status = "Failed"
