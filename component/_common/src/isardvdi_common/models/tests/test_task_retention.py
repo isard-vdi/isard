@@ -57,8 +57,12 @@ def test_failure_and_result_share_one_retention():
 
 
 def test_the_installation_setting_governs_both():
+    """The value is normalised to an int. It used to be passed through as the
+    raw string when the variable was set, while the default was an int — so the
+    type of one retention depended on whether the deployment had overridden it,
+    and a cancel now reads the same setting to expire its own keys."""
     kwargs = _job_kwargs_of_a_new_task({"REDIS_TASK_RESULT_TTL": "600"})
-    assert kwargs["failure_ttl"] == kwargs["result_ttl"] == "600"
+    assert kwargs["failure_ttl"] == kwargs["result_ttl"] == 600
 
 
 def test_an_explicit_failure_ttl_is_respected():

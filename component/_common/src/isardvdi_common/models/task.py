@@ -116,6 +116,34 @@ return 0
 """
 
 
+# Give a cancelled job the retention every other terminal job gets. RQ expires a
+# job's keys from exactly one place, ``Job.cleanup(ttl=...)``, and the only
+# callers are the worker's success and failure handlers plus enqueue-time — none
+# of which a cancel goes through. ``Job.cancel`` moves the job into
+# ``CanceledJobRegistry`` and stops, so a member cancelled BEFORE a worker
+# dequeued it keeps its hash with no expiry, and nothing sweeps it afterwards:
+# ``CanceledJobRegistry`` inherits the no-op ``BaseRegistry.cleanup``, and the
+# operator reaper is opt-in (a fresh ``populate`` writes no ``old_tasks`` config)
+# and defaults to the ``finished`` registry only.
+#
+# Measured on a clean install, cancelling through the admin endpoint: a member a
+# worker had already dequeued ends ``failed`` with a 30-day TTL, while a member
+# still QUEUED ends ``canceled`` with TTL -1 — same registry, same operation, and
+# only the second one is immortal.
+#
+# Only stamps a key that exists and has NO expiry yet, so it can never shorten
+# the clock RQ itself set on a member the worker went on to finish, and a second
+# cancel of the same chain is a no-op. Expiring the hash leaves the registry's
+# zset member dangling, which is the state ``_tasks_from_source_ids`` already
+# purges on the next listing pass.
+_EXPIRE_IF_UNSET = """
+if redis.call('EXISTS', KEYS[1]) == 1 and redis.call('TTL', KEYS[1]) == -1 then
+  return redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return 0
+"""
+
+
 # A cancel has to outlive the job's own status. rq runs a job a worker had
 # already dequeued even after it is cancelled, and the worker's success handler
 # then rewrites the status to ``finished`` — so by the time the completion is
@@ -187,6 +215,43 @@ def _stamp_ended_at(connection, job_id):
         connection.eval(_ENDED_AT_STAMP, 1, Job.key_for(job_id), utcformat(rq_now()))
     except Exception:
         log.debug("task cancel: could not stamp ended_at on %s", job_id)
+
+
+_DEFAULT_RETENTION = 2592000  # 30 days
+
+
+def task_retention_seconds():
+    """The one retention clock every key of a task lives by.
+
+    Read from the environment on each call rather than captured at import, so a
+    cancel and a creation in the same process cannot disagree.
+    """
+    try:
+        return int(os.environ.get("REDIS_TASK_RESULT_TTL") or _DEFAULT_RETENTION)
+    except (TypeError, ValueError):
+        return _DEFAULT_RETENTION
+
+
+def _stamp_expiry(connection, job_id):
+    """Put a cancelled job's keys on the same clock a finished one gets.
+
+    Mirrors what RQ's ``Job.cleanup`` expires — the hash and both edge keys — so
+    a cancelled chain leaves no key behind that a successful one would not.
+    """
+    retention = task_retention_seconds()
+    # RQ exposes a classmethod for the hash and the dependents set but not for
+    # the dependencies one, so that last key is built from RQ's own prefix
+    # rather than a literal — it spells itself with a double colon
+    # (``rq:job::<id>:dependencies``) and a hand-written copy would drift.
+    for key in (
+        Job.key_for(job_id),
+        Job.dependents_key_for(job_id),
+        f"{Job.redis_job_namespace_prefix}:{job_id}:dependencies",
+    ):
+        try:
+            connection.eval(_EXPIRE_IF_UNSET, 1, key, retention)
+        except Exception:
+            log.debug("task cancel: could not stamp expiry on %s", key)
 
 
 def _chain_closure(job, connection):
@@ -801,10 +866,7 @@ class Task(RedisBase):
                     "Provide task to create a new task or id keyword to get an existing one"
                 )
             kwargs.setdefault("job_kwargs", {}).setdefault("connection", self._redis)
-            retention = os.environ.get(
-                "REDIS_TASK_RESULT_TTL",
-                2592000,  # 30 days
-            )
+            retention = task_retention_seconds()
             kwargs["job_kwargs"].setdefault("result_ttl", retention)
             # rq only EXPIREs the result stream when a ttl is given, and it takes
             # ``failure_ttl`` for the failed branch. Left unset, a failed job's
@@ -1270,6 +1332,8 @@ class Task(RedisBase):
                 log.exception("task cancel: could not cancel %s", job.id)
                 continue
             _stamp_ended_at(self._redis, job.id)
+            # A cancel is the one terminal outcome RQ leaves without a clock.
+            _stamp_expiry(self._redis, job.id)
             # Record the cancel where it is decided, on the member itself. rq
             # may still run this job if a worker had already dequeued it, and
             # the worker will then rewrite its status to finished; the record
