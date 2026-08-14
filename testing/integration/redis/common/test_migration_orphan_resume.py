@@ -10,8 +10,8 @@ score stops being refreshed. Without detection the saga wedges for 12h.
 These exercise the REAL ``job_status`` / ``decide_item_action`` /
 ``verify_gate_state`` against a REAL redis and real rq ``Job`` /
 ``StartedJobRegistry`` (no ``_RqLikeTask`` mock). A dead worker is simulated by
-writing an already-expired heartbeat score into the registry. Skipped when no
-redis is reachable (plain CI image); run live on ``isard-network``.
+writing an already-expired heartbeat score into the registry. Needs the stack's
+redis on ``isard-network``; it fails rather than skips when there is none.
 """
 
 from time import time
@@ -25,19 +25,19 @@ from isardvdi_common.models.task import Task
 from rq.job import Job, JobStatus
 from rq.registry import StartedJobRegistry
 
+pytestmark = pytest.mark.contract
+
 # a queue NO worker consumes, so the real storage worker never runs our probe job
 QUEUE = "storage.orphan-resume-test.default"
 
 
-def _conn_or_skip():
+def _conn():
     try:
         conn = redis_lib.from_url(rq_url())
         conn.ping()
         return conn
     except Exception as error:
-        from isardvdi_common.redis_test_gate import redis_required
-
-        redis_required(f"no redis reachable (run on isard-network): {error}")
+        pytest.fail(f"no redis reachable (run on isard-network): {error}")
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def started_job():
     """Enqueue a real ``task.move`` and force it ``STARTED`` the way a worker
     would, returning ``(task_id, conn, registry)``. The score is set per-test to
     simulate a live / abandoned / within-grace worker. Cleans up after."""
-    conn = _conn_or_skip()
+    conn = _conn()
     t = Task(
         task="move",
         queue=QUEUE,

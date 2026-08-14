@@ -34,6 +34,7 @@ members = [
 
 [tool.uv.sources]
 isardvdi-common = { workspace = true }
+isardvdi-change-handler = { workspace = true }
 isardvdi-protobuf = { workspace = true }
 isardvdi-changefeed-asyncapi = { workspace = true }
 isardvdi-apiv4-client = { workspace = true }

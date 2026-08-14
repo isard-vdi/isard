@@ -1535,7 +1535,10 @@ dependencies = [
 
 [package.dev-dependencies]
 test = [
+    { name = "isardvdi-change-handler" },
+    { name = "isardvdi-common" },
     { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "python-socketio", extra = ["client"] },
     { name = "redis" },
     { name = "requests" },
@@ -1548,7 +1551,10 @@ requires-dist = [{ name = "rethinkdb", specifier = "==2.4.10.post1" }]
 
 [package.metadata.requires-dev]
 test = [
+    { name = "isardvdi-change-handler", editable = "component/change-handler" },
+    { name = "isardvdi-common", editable = "component/_common" },
     { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "python-socketio", extras = ["client"], specifier = "==5.16.3" },
     { name = "redis" },
     { name = "requests", specifier = "==2.34.2" },

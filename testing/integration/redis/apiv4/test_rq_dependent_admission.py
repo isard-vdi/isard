@@ -2,11 +2,20 @@
 #   Copyright © 2026 IsardVDI
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""What rq does with a CANCELED dependent, proved against the rq we ship.
 
-The retry guard refuses a task whose direct dependent is CANCELED. That refusal
-is only correct if rq really does skip such a dependent while promoting a
-deferred one, and a premise about rq is settled by running rq.
+"""The premise ``TaskService``'s CANCELED-dependent refusal rests on.
+
+``api.services.tasks`` refuses to retry a task whose direct dependent is
+CANCELED, because rq would re-run the root's disk operation while the
+dependents that would have finalised it never re-run: the operation happens and
+nothing closes it out. That refusal is only as good as its premise about rq's
+own admission rule, so the premise is proved against the rq we actually ship
+rather than taken on trust.
+
+Proving it means running rq, which is why this lives here and not beside the
+rest of ``TaskService``'s unit tests: what it asserts on is rq's behaviour, not
+our use of it. Work happens in an unused db (15) under a per-run queue name,
+and every key created is deleted again.
 """
 
 import os
@@ -15,17 +24,10 @@ import uuid
 import pytest
 from rq.job import JobStatus
 
+pytestmark = pytest.mark.contract
+
 
 class TestRqDependentAdmission:
-    """The premise the CANCELED-dependent refusal rests on, proved against the
-    rq we actually ship instead of taken on trust.
-
-    It needs a real redis and does NOT skip without one: a guard whose premise
-    is only checked where somebody happens to have a redis running is a guard
-    nobody can vouch for. Work happens in an unused db (15) under a per-run
-    queue name, and every key it creates is deleted again.
-    """
-
     @staticmethod
     def _queue():
         import redis

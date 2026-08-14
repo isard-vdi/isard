@@ -42,8 +42,8 @@ import pytest
 from isardvdi_common.models.task import Task
 from rq.job import Job, JobStatus
 
-from ._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
-from ._chain_harness import (
+from .._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
+from .._chain_harness import (
     DESKTOP_ID,
     DESKTOP_STORAGE_ID,
     TEMPLATE_ID,
@@ -53,6 +53,8 @@ from ._chain_harness import (
     recording_handlers,
     template_chain_kwargs,
 )
+
+pytestmark = pytest.mark.contract
 
 
 async def _dispatch_cancel_event(connection, ran=None):

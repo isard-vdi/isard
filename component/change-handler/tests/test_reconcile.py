@@ -1038,30 +1038,6 @@ async def test_pass4_settles_a_media_that_never_had_a_file(monkeypatch, _media_q
 
 
 @pytest.mark.asyncio
-async def test_pass4_leaves_media_whose_task_is_alive(
-    monkeypatch, _media_queue, task_on_scratch_redis
-):
-    """Pass 1 and the consumer own it while the task is still running.
-
-    Liveness is declared the way the producer declares it — an entry in the
-    MEDIA namespace of the per-owner index — not by setting the row's retired
-    ``task`` field. The two namespaces are disjoint, so a media indexed here
-    and read as a storage reads as dead; that is the whole point of the check
-    and it has to be exercised through the real key.
-    """
-    media = _StuckMedia("maintenance")
-    _index_returns(monkeypatch, [media])
-    task_on_scratch_redis.hset("rq:job:task-9", "status", "started")
-    task_on_scratch_redis.zadd(index_key(MEDIA, media.id), {"task-9": 1.0})
-    # ``_media_queue`` pins ``exists`` False for the passes that want a dead
-    # task; this one wants a live one, so say so after it.
-    monkeypatch.setattr(Task, "exists", staticmethod(lambda task_id: True))
-    monkeypatch.setattr(Task, "__init__", lambda self, task_id: None)
-    monkeypatch.setattr(Task, "chain_pending", property(lambda self: True))
-    monkeypatch.setattr(reconcile, "_metadata_finalize_orphaned", lambda *a, **k: False)
-
-
-@pytest.mark.asyncio
 async def test_pass4_survives_a_media_that_cannot_be_re_issued(
     monkeypatch, _media_queue
 ):

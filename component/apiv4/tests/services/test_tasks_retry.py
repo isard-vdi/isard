@@ -14,8 +14,6 @@ failed. The bulk endpoint had the same hole and hid every outcome behind a bare
 """
 
 import logging
-import os
-import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest

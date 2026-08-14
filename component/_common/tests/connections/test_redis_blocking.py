@@ -164,7 +164,14 @@ class TestRqWorkerDequeue:
 
     @staticmethod
     def _worker(connection, name):
-        return Worker(["invariant-probe"], connection=connection, name=name)
+        # No CLIENT SETNAME: RedisRetry retries for ever, so an absent
+        # server would hang this instead of failing it.
+        return Worker(
+            ["invariant-probe"],
+            connection=connection,
+            name=name,
+            prepare_for_work=False,
+        )
 
     def test_the_worker_connection_outlives_its_dequeue(self):
         connection = RedisRetry.from_url(rq_url())

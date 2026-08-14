@@ -20,14 +20,16 @@ import pytest
 from isardvdi_common.models.task import Task
 from rq.job import Job
 
-from ._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
-from ._chain_harness import (
+from .._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
+from .._chain_harness import (
     canceled_event,
     finalize_nodes,
     recording_handlers,
     storage_jobs,
     template_chain_kwargs,
 )
+
+pytestmark = pytest.mark.contract
 
 
 @pytest.mark.asyncio

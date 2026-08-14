@@ -34,6 +34,8 @@ import redis as redis_lib
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.lib.bookings import reservables as mod
 
+pytestmark = pytest.mark.contract
+
 PROFILE_ID = "NVIDIA-L40S-8Q"
 UNITS_PER_CARD = 4
 CARDS = 6
@@ -45,9 +47,7 @@ def _redis_or_fail():
     try:
         conn.ping()
     except Exception as error:
-        from isardvdi_common.redis_test_gate import redis_required
-
-        redis_required(f"no Redis for the reservables concurrency test: {error}")
+        pytest.fail(f"no Redis for the reservables concurrency test: {error}")
     return conn
 
 

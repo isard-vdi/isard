@@ -26,8 +26,10 @@ from isardvdi_common.lib.task_index import current_task_id, index_key
 from isardvdi_common.models.task import Task
 from rq import Queue
 
+pytestmark = pytest.mark.contract
 
-def _redis_or_skip():
+
+def _redis():
     url = os.environ.get("ISARD_TEST_REDIS")
     if url:
         connection = redis_lib.from_url(url, socket_connect_timeout=5, socket_timeout=5)
@@ -46,9 +48,7 @@ def _redis_or_skip():
     try:
         connection.ping()
     except Exception as error:
-        from isardvdi_common.redis_test_gate import redis_required
-
-        redis_required(f"no Redis for the migration-claim index test: {error}")
+        pytest.fail(f"no Redis for the migration-claim index test: {error}")
     return connection
 
 
@@ -58,7 +58,7 @@ def test_claim_records_the_task_in_the_owner_index():
     Fails when the claim writes only ``.task`` (``current_task_id`` reads the
     index, so it answers ``None``); passes when the claim writes the index.
     """
-    conn = _redis_or_skip()
+    conn = _redis()
     storage_id = "s-migration-claim-index-regression"
     idx = index_key("storage", storage_id)
     original = Task.__dict__.get("_redis")

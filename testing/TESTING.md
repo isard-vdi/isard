@@ -33,8 +33,9 @@ Classical pyramid: many unit, some integration, a thin contract net (only the ty
 ### Where each kind lives
 
 ```
-component/<pkg>/src/<module>/tests/   # unit — co-located with the code
+component/<pkg>/tests/                # unit — beside the package, outside it
 testing/integration/                  # integration — needs a live stack
+testing/integration/redis/            # integration — needs only the stack's redis
 testing/contract/                     # contract — planned; only pipeline blind-spot endpoints
 testing/e2e/                          # e2e — Playwright UI flows
 testing/src/isardvdi_testing/         # shared seed (used by e2e today;
@@ -258,11 +259,16 @@ make test-hypervisor          # hypervisor lib + ovs only
 
 The `test-*` and `ci-test-*` targets are generated from the `PY_PKGS`
 matrix in the `Makefile`; adding a workspace package with a suite means
-adding one row there, not writing two targets by hand. The exceptions are
-`ci-test-common` and `ci-test-change-handler`, which run under
-`docker/lib/ci-with-redis.sh` with a skip-count gate and so stay written
-out, and the suites that are not workspace packages at all
-(`test-vmalert`, `test-sparsify`, `ci-test-storage-utils`).
+adding one row there, not writing two targets by hand. The only exceptions
+are the suites that are not workspace packages at all (`test-vmalert`,
+`test-sparsify`, `ci-test-storage-utils`).
+
+None of these needs a running service. A suite that asserts on Redis's own
+behaviour — an rq job graph (hashes, dependency links, registries,
+`Job.cancel`), or a Lua script whose effect a mocked connection cannot
+report — is an integration test by the table above, and lives in
+`testing/integration/redis/` instead. A fake Redis there would be a second
+implementation of the very thing under test.
 
 Tests live at `component/<pkg>/src/<module>/tests/`. They use:
 

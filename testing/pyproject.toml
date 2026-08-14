@@ -24,4 +24,9 @@ test = [
   "python-socketio[client]==5.16.3",
   "requests==2.34.2",
   "websocket-client==1.9.0",
+  # integration/redis/ drives the real rq job graph and the Lua ended_at stamp
+  # through the code that owns them, so it imports those two packages.
+  "isardvdi-change-handler",
+  "isardvdi-common",
+  "pytest-asyncio",
 ]

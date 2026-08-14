@@ -23,13 +23,15 @@ import pytest
 from isardvdi_common.models.task import Task
 from rq.job import Job, JobStatus
 
-from ._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
-from ._chain_harness import (
+from .._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
+from .._chain_harness import (
     finalize_nodes,
     recording_handlers,
     storage_jobs,
     template_chain_kwargs,
 )
+
+pytestmark = pytest.mark.contract
 
 # A ContextVar because ``asyncio.to_thread`` carries the calling task's
 # context, so each dispatch's own delay reaches its own save.

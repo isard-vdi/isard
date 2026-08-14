@@ -233,41 +233,28 @@ ci-test-go:
 	go tool cover -func coverage.out
 	go tool -modfile=tools/go.mod gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
 
-# ci-test-* targets generated from PY_PKGS (the matrix above), except the two
-# whose suites assert on a real Redis: they run under docker/lib/ci-with-redis.sh
-# and declare a skip-count gate, which the generated recipe cannot express, so
-# they stay written out below.
+# ci-test-* targets generated entirely from PY_PKGS (the matrix above). No
+# suite here needs a running service: the ones that assert on a real Redis live
+# in testing/integration/redis/ and run against the stack.
 # apiv4 needs USAGE=production at runtime; that comes from the CI job's
 # `variables:` block (.gitlab-ci.yml unit-test-apiv4), not inline here.
-CI_TEST_GENERATED := $(filter-out common change-handler,$(PY_PKG_NAMES))
-
 define CI_TEST_RULE
 .PHONY: ci-test-$(word 1,$1)
 ci-test-$(word 1,$1):
 	uv sync --no-dev --group test --package isardvdi-$(word 1,$1)
 	cd $(word 3,$1) && uv run --no-dev --group test --package isardvdi-$(word 1,$1) pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=$(word 2,$1) --cov-report=term --cov-report=xml:coverage.xml
 endef
-$(foreach r,$(PY_PKGS),\
-  $(if $(filter $(word 1,$(subst :, ,$(r))),$(CI_TEST_GENERATED)),\
-    $(eval $(call CI_TEST_RULE,$(subst :, ,$(r))))))
+$(foreach r,$(PY_PKGS),$(eval $(call CI_TEST_RULE,$(subst :, ,$(r)))))
 
 # Contract suites: what a third-party dependency really does, proved against it.
 # Needs only that dependency, never the stack, so it does not belong in a unit
 # job and does not need the compose file the rest of testing/integration wants.
+# The suites live under testing/integration/redis/, whose conftest shadows the
+# parent's stack login, and the job that runs this declares the redis itself.
 .PHONY: ci-test-contracts
 ci-test-contracts:
-	uv sync --no-dev --group test --package isardvdi-testing
-	docker/lib/ci-with-redis.sh sh -c 'uv run --no-dev --group test --package isardvdi-testing pytest testing/integration/contracts -q --tb=short --junitxml=testing/integration/contracts/report.xml'
-
-.PHONY: ci-test-common
-ci-test-common:
-	uv sync --no-dev --group test --package isardvdi-common --package isardvdi-apiv4 --package isardvdi-change-handler --package isardvdi-socketio
-	SKIP_GATE_REPORT=component/_common/report.xml docker/lib/ci-with-redis.sh sh -c 'cd component/_common && uv run --no-dev --group test --package isardvdi-common pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml'
-
-.PHONY: ci-test-change-handler
-ci-test-change-handler:
-	uv sync --no-dev --group test --package isardvdi-change-handler
-	SKIP_GATE_REPORT=component/change-handler/report.xml docker/lib/ci-with-redis.sh sh -c 'cd component/change-handler && uv run --no-dev --group test --package isardvdi-change-handler pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_change_handler --cov-report=term --cov-report=xml:coverage.xml'
+	uv sync --frozen --no-dev --group test --package isardvdi-testing
+	uv run --no-dev --group test --package isardvdi-testing pytest testing/integration/redis -q --tb=short --junitxml=testing/integration/redis/report.xml
 
 .PHONY: ci-test-frontend
 ci-test-frontend:
