@@ -1,0 +1,13 @@
+services:
+  isard-hypervisor:
+    ports:
+      # Tunnel data plane: start.sh terminates wireguard+geneve (or plain geneve) on
+      # this UDP port, and a hypervisor published with only 2022 registers and is
+      # reachable while carrying no desktop traffic.
+      #
+      # Split out of hypervisor.infrastructure-ports on purpose. On a flavour that also
+      # runs isard-vpn (all-in-one) that container already publishes the very same host
+      # port, and two services cannot bind one ip:port -- the second to start dies with
+      # "address already in use". build.sh therefore chains this part only where the vpn
+      # part is absent, i.e. exactly the hypervisor-only flavours that need it.
+      - "${INFRASTRUCTURE_HOST_IP:?INFRASTRUCTURE_HOST_IP must be a literal IP present on this host}:${WG_HYPERS_PORT:-4443}:${WG_HYPERS_PORT:-4443}/udp"

@@ -131,6 +131,9 @@ else
     for part in "$PARTS"/*.infrastructure-ports.yml; do
         name=$(basename "$part")
         base="${name%.infrastructure-ports.yml}.yml"
+        # The tunnel overlay rides the hypervisor service, so it has no base
+        # part of its own.
+        [ "$name" = "hypervisor-tunnel.infrastructure-ports.yml" ] && base="hypervisor.yml"
         if [ ! -f "$PARTS/$base" ]; then
             ko "$name has a base part" "expected $PARTS/$base"
             continue
@@ -155,10 +158,10 @@ else
         # host_ip must be the infrastructure address on BOTH entries: a publish
         # that renders without it is the 0.0.0.0 case this part exists to avoid.
         binds=$(echo "$out" | grep -c 'host_ip: 10\.11\.12\.13')
-        if [ "$binds" -eq 2 ]; then
-            ok "hypervisor part binds both ports to the infrastructure IP"
+        if [ "$binds" -eq 1 ]; then
+            ok "hypervisor ssh part binds to the infrastructure IP"
         else
-            ko "hypervisor part binds both ports to the infrastructure IP" "found $binds host_ip lines, expected 2"
+            ko "hypervisor ssh part binds to the infrastructure IP" "found $binds host_ip lines, expected 1"
         fi
         # compose renders `target:` before `published:`, hence -B and not -A.
         if echo "$out" | grep -B3 'published: "2022"' | grep -q 'target: 2022'; then
@@ -166,17 +169,51 @@ else
         else
             ko "hypervisor part publishes ssh 2022" "$(echo "$out" | grep -A4 ports: | head -12)"
         fi
-        if echo "$out" | grep -B2 -A2 'protocol: udp' | grep -q '4443'; then
-            ok "hypervisor part publishes the tunnel port as udp"
+        tun=$(INFRASTRUCTURE_HOST_IP="10.11.12.13" WG_HYPERS_PORT="4443" render "$hypbase" "hypervisor-tunnel.infrastructure-ports.yml")
+        if echo "$tun" | grep -B2 -A2 'protocol: udp' | grep -q '4443'; then
+            ok "tunnel part publishes the tunnel port as udp"
         else
-            ko "hypervisor part publishes the tunnel port as udp" "$(echo "$out" | grep -A12 ports: | head -14)"
+            ko "tunnel part publishes the tunnel port as udp" "$(echo "$tun" | grep -A12 ports: | head -14)"
         fi
         # WG_HYPERS_PORT is configurable; a hardcoded 4443 would silently ignore it.
-        out=$(INFRASTRUCTURE_HOST_IP="10.11.12.13" WG_HYPERS_PORT="5555" render "$hypbase" "$hyp")
-        if echo "$out" | grep -q '5555'; then ok "hypervisor part honours WG_HYPERS_PORT"
-        else ko "hypervisor part honours WG_HYPERS_PORT" "$(echo "$out" | grep -A12 ports: | head -14)"; fi
+        tun=$(INFRASTRUCTURE_HOST_IP="10.11.12.13" WG_HYPERS_PORT="5555" render "$hypbase" "hypervisor-tunnel.infrastructure-ports.yml")
+        if echo "$tun" | grep -q '5555'; then ok "tunnel part honours WG_HYPERS_PORT"
+        else ko "tunnel part honours WG_HYPERS_PORT" "$(echo "$tun" | grep -A12 ports: | head -14)"; fi
     else
         ko "hypervisor part exists" "$PARTS/$hyp or $PARTS/$hypbase is missing"
+    fi
+
+    # The tunnel port lives in its own part because isard-vpn publishes the same
+    # host port on the flavours that run it. Two services cannot bind one
+    # ip:port, so shipping both from one file breaks all-in-one at `up`.
+    if grep -q 'WG_HYPERS_PORT' "$PARTS/hypervisor.infrastructure-ports.yml"; then
+        ko "the tunnel port is not in the ssh part" "hypervisor.infrastructure-ports.yml publishes it; all-in-one would collide with isard-vpn"
+    else
+        ok "the tunnel port is not in the ssh part"
+    fi
+    if [ -f "$PARTS/hypervisor-tunnel.infrastructure-ports.yml" ] &&
+       grep -q 'WG_HYPERS_PORT' "$PARTS/hypervisor-tunnel.infrastructure-ports.yml"; then
+        ok "the tunnel port has its own part"
+    else
+        ko "the tunnel port has its own part" "hypervisor-tunnel.infrastructure-ports.yml missing or empty"
+    fi
+    # ...and build.sh must only chain it where vpn is absent.
+    if awk '/hypervisor-tunnel.infrastructure-ports/{found=1} /grep -q .*vpn/{gate=1} END{exit !(found&&gate)}' "$BUILD_SH"; then
+        ok "build.sh gates the tunnel part on the absence of vpn"
+    else
+        ko "build.sh gates the tunnel part on the absence of vpn" "no vpn guard found around the tunnel part"
+    fi
+    # Prove the collision is real rather than assumed: rendering both parts next
+    # to vpn.yml must yield the same host port twice.
+    coll=$(INFRASTRUCTURE_HOST_IP="10.11.12.13" WG_HYPERS_PORT="4443" \
+        docker compose -f "$WORK/network.yml" -f "$WORK/redis.yml" -f "$WORK/vpn.yml" \
+                       -f "$WORK/hypervisor.yml" \
+                       -f "$WORK/hypervisor-tunnel.infrastructure-ports.yml" config 2>/dev/null |
+        grep -c 'published: "4443"')
+    if [ "${coll:-0}" -ge 2 ]; then
+        ok "the collision the gate avoids is real (4443 published twice)"
+    else
+        ko "the collision the gate avoids is real" "expected 2+ publishes of 4443, found ${coll:-0}"
     fi
 
     # grafana rides the monitor part: on a monitor-only node the web node's

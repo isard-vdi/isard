@@ -455,12 +455,19 @@ flavour(){
 		fi
 		# A hypervisor publishes nothing on its own: apiv4 cannot register it
 		# without 2022, and it carries no desktop traffic without the tunnel
-		# port. Until this part existed both had to be added out of band, and a
-		# plain 'docker compose up -d' then silently dropped them.
+		# port. Until these parts existed both had to be added out of band, and
+		# a plain 'docker compose up -d' then silently dropped them.
 		if echo "$parts" | grep -q "\(^\|\s\)hypervisor\(\s\|$\)"; then
 			parts="$parts hypervisor.infrastructure-ports"
 			echo "      - Hypervisor SSH port 2022 exposed on $INFRASTRUCTURE_HOST_IP"
-			echo "      - Hypervisor tunnel port ${WG_HYPERS_PORT:-4443}/udp exposed on $INFRASTRUCTURE_HOST_IP"
+			# The tunnel port only where isard-vpn is absent: on a flavour that
+			# runs both (all-in-one) the vpn container already publishes this very
+			# host port, and two services cannot bind one ip:port -- the second to
+			# start dies with "address already in use".
+			if ! echo "$parts" | grep -q "\(^\|\s\)vpn\(\s\|$\)"; then
+				parts="$parts hypervisor-tunnel.infrastructure-ports"
+				echo "      - Hypervisor tunnel port ${WG_HYPERS_PORT:-4443}/udp exposed on $INFRASTRUCTURE_HOST_IP"
+			fi
 		fi
 		echo ""
 	fi
