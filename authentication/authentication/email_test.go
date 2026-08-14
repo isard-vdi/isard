@@ -95,7 +95,7 @@ func TestRequestEmailVerification(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: token is expired",
+			ExpectedErr: "invalid JWT token: token has invalid claims: token is expired",
 		},
 		"should return an error if the token isn't of type email-verification-required": {
 			PrepareDB: func(m *r.Mock) {
@@ -108,7 +108,7 @@ func TestRequestEmailVerification(t *testing.T) {
 
 				return tkn
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 		},
 		"should return an error if the email is invalid": {
 			PrepareDB: func(m *r.Mock) {
@@ -287,7 +287,7 @@ func TestVerifyEmail(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: token is expired",
+			ExpectedErr: "invalid JWT token: token has invalid claims: token is expired",
 		},
 		"should return an error if the token isn't of type email-verification": {
 			PrepareDB: func(m *r.Mock) {
@@ -300,7 +300,7 @@ func TestVerifyEmail(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 		},
 		"should return an error if there's an error loading the user from the DB": {
 			PrepareToken: func() string {

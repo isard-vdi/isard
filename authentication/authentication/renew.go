@@ -14,8 +14,9 @@ import (
 func (a *Authentication) Renew(ctx context.Context, ss, remoteAddr string) (string, error) {
 	claims, err := token.ParseLoginToken(a.Secret, ss)
 	if err != nil {
-		// When the token is expired, it might be able to be renewed
-		if !errors.Is(err, jwt.ErrTokenExpired) {
+		// When the token is expired, it might be able to be renewed, unless
+		// it's not a login token
+		if !errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, token.ErrInvalidTokenType) {
 			return "", err
 		}
 	}

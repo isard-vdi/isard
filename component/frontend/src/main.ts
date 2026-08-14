@@ -78,7 +78,11 @@ apiv4Client.interceptors.request.use(async (config) => {
   const tokenValid = await checkTokenBeforeRequest()
 
   if (!tokenValid) {
-    throw new Error('Authentication required')
+    // The token is dead and could not be renewed (checkTokenBeforeRequest already
+    // logged out). Fall back to an anonymous request so public endpoints keep
+    // working — otherwise a stale cookie breaks the login page itself.
+    config.headers?.delete('Authorization')
+    return config
   }
 
   // Update config with current token directly

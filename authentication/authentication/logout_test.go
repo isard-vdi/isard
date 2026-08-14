@@ -112,13 +112,13 @@ func TestLogout(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "parse the login token: error parsing the JWT token: token has invalid claims: token is expired",
+			ExpectedErr: "parse the login token: invalid JWT token: token has invalid claims: token is expired",
 		},
 		"should return an error if the token is invalid": {
 			PrepareToken: func() string {
 				return "BON DIA MELINA"
 			},
-			ExpectedErr: "parse the login token: error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+			ExpectedErr: "parse the login token: invalid JWT token: token is malformed: token contains an invalid number of segments",
 		},
 		"should return an error if there's an error revoking the session": {
 			PrepareSessions: func(s *grpcmock.Server) {

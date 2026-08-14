@@ -70,7 +70,7 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: token is expired",
+			ExpectedErr: "invalid JWT token: token has invalid claims: token is expired",
 		},
 		"should return an error if the JWT is not of disclaimer-acknowledgementrequired": {
 			PrepareDB: func(m *r.Mock) {
@@ -83,7 +83,7 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 
 				return ss
 			},
-			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+			ExpectedErr: "invalid JWT token: token has invalid claims: invalid token type",
 		},
 		"should return an error if there's an error updating the DB": {
 			PrepareToken: func() string {

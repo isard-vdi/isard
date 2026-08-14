@@ -3,6 +3,7 @@ package token
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 
@@ -12,6 +13,7 @@ import (
 var ErrInvalidTokenType = errors.New("invalid token type")
 var ErrInvalidTokenRole = errors.New("invalid token role")
 var ErrInvalidTokenCategory = errors.New("invalid token category")
+var ErrTokenWithoutExpiration = errors.New("token without expiration")
 
 type Type string
 
@@ -307,6 +309,21 @@ func GetTokenType(ss string) (Type, error) {
 	default:
 		return TypeUnknown, errors.New("unknown token type")
 	}
+}
+
+// GetTokenExpiration returns the expiration time of a token without verifying its signature.
+func GetTokenExpiration(ss string) (time.Time, error) {
+	tkn, _, err := new(jwt.Parser).ParseUnverified(ss, &jwt.RegisteredClaims{})
+	if err != nil {
+		return time.Time{}, fmt.Errorf("parse the JWT token: %w", err)
+	}
+
+	claims := tkn.Claims.(*jwt.RegisteredClaims)
+	if claims.ExpiresAt == nil {
+		return time.Time{}, ErrTokenWithoutExpiration
+	}
+
+	return claims.ExpiresAt.Time, nil
 }
 
 func TokenIsIsardvdiService(secret, ss string) error {
