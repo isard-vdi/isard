@@ -31,8 +31,3 @@ def update_status_table(table, status, id_table, detail=""):
         logs.main.error(
             f"Error when updated status in table: {table}, status: {status}, id: {id_table}, detail: {detail}"
         )
-
-
-def update_download_percent(done, table, id):
-    with rethink_conn() as conn:
-        r.table(table).get(id).update({"progress": done}).run(conn)
