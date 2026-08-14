@@ -179,3 +179,28 @@ escriptures i el despatx en sèrie.
 Proves: change-handler **350 passen / 0 fallen** (base 350/0), `_common` **289/3** (base 282/3,
 les mateixes tres). Deu proves fixaven la forma de la crida (`Model()` i `init_document`) i s'han
 apuntat a la nova; cap afirmació de comportament s'ha afluixat.
+
+## (a quater) La cau d'atributs estava saturada — VERIFICAT
+
+`_cache = SynchronizedTTLCache(maxsize=2048, ttl=5)`, **global de tot el procés** i compartida
+entre ~25 tipus d'entitat. La unitat **no és la fila, és el CAMP**: construir un objecte hi
+insereix una entrada per clau del document, i una fila de `domains` en té **31**.
+
+Mesurat: un sol `Domain.get_all()` sobre 190 files necessita **~5.890 entrades — gairebé 3× la
+capacitat sencera**. La cau s'expulsava a si mateixa dins del seu propi TTL de 5 s, i les lectures
+d'atribut que existeix per fer gratuïtes tornaven a costar un viatge cadascuna.
+
+Pujada a **32.768** (configurable amb `RETHINKDB_ATTR_CACHE_SIZE`); les entrades són camps
+escalars, o sigui que la memòria és petita al costat del que estalvia.
+
+| query | cau 2.048 | cau 32.768 | canvi |
+|---|---|---|---|
+| `domains get` | 15.752 crides (2,46/entrada) | **3.785** (0,68/entrada) | **−72%** |
+| `storage get` | 23.770 crides (3,71/entrada) | **14.853** (2,65/entrada) | **−28%** |
+| `domains pluck` | 0,78/entrada | 0,68/entrada | −13% |
+
+**Unes 12.000 anades a la base de dades menys per cada 5.600 entrades.** El temps total per
+entrada, però, es queda a **36,42 ms** — dins del soroll: una lectura per clau costa 0,21 ms i el
+que domina són les escriptures. O sigui que això és una **descàrrega de la base de dades**, no una
+millora de latència; a una instal·lació carregada, on la contenció d'escriptura és el que fa pujar
+els 7,55 ms a 16, treure 12.000 lectures de la barreja hi hauria d'ajudar indirectament.

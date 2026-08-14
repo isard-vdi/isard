@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import inspect
+import os
 import re
 from abc import ABC, abstractmethod
 from time import time
@@ -36,8 +37,20 @@ from rethinkdb.errors import ReqlNonExistenceError
 # written from two paths — the @cached __getattr__ read path and _update_cache.
 # SynchronizedTTLCache makes those mutations thread-safe under apiv4's threadpool
 # and engine threads (#1096). maxsize=10 was far too small for ~25 entity types
-# (constant eviction, ~0 hit rate); 2048 gives real headroom.
-_cache = SynchronizedTTLCache(maxsize=2048, ttl=5)
+# (constant eviction, ~0 hit rate).
+#
+# 2048 was still too small, because the unit is a FIELD, not a row: constructing
+# one object inserts one entry per key of its document, and a ``domains`` row has
+# 31. Measured on staging: a single ``Domain.get_all()`` over 190 rows needs
+# ~5890 entries — nearly 3x the whole cache — so a burst evicted its own reads
+# inside the 5 s TTL and the attribute reads that this cache exists to make free
+# went back to costing a round trip each.
+#
+# Entries are scalar fields, so the memory is small next to what it saves;
+# overridable for a deployment that wants to trade it back.
+_cache = SynchronizedTTLCache(
+    maxsize=int(os.environ.get("RETHINKDB_ATTR_CACHE_SIZE") or 32768), ttl=5
+)
 
 
 def pydantic_optional(*fields, except_fields: list[str] = []):
