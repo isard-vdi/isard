@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import DOMPurify from 'dompurify'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { apiV4DisclaimerOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
@@ -28,6 +29,14 @@ const error = ref<string | undefined>(undefined)
 const isAccepting = ref(false)
 
 const { data: disclaimer, isPending } = useQuery(apiV4DisclaimerOptions())
+
+// Admin-authored HTML painted with v-html: sanitize to prevent stored-XSS.
+const sanitizedBody = computed(() =>
+  disclaimer.value?.body ? DOMPurify.sanitize(disclaimer.value.body) : ''
+)
+const sanitizedFooter = computed(() =>
+  disclaimer.value?.footer ? DOMPurify.sanitize(disclaimer.value.footer) : ''
+)
 
 const accept = async () => {
   error.value = undefined
@@ -154,13 +163,15 @@ const handleLogoError = () => (logoSrc.value = LogoSvg)
             <h2 class="text-[30px] font-bold text-gray-warm-800 mb-2 leading-9">
               {{ disclaimer.title }}
             </h2>
-            <div class="disclaimer-body text-md text-gray-warm-600" v-html="disclaimer.body" />
+            <!-- eslint-disable vue/no-v-html -- content sanitized via DOMPurify -->
+            <div class="disclaimer-body text-md text-gray-warm-600" v-html="sanitizedBody" />
             <Separator />
             <div
-              v-if="disclaimer.footer"
+              v-if="sanitizedFooter"
               class="text-sm text-gray-warm-500"
-              v-html="disclaimer.footer"
+              v-html="sanitizedFooter"
             />
+            <!-- eslint-enable vue/no-v-html -->
             <Alert v-if="error" variant="destructive">
               <AlertDescription>
                 {{ t('views.disclaimer.error') }}

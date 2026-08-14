@@ -84,6 +84,7 @@ format-frontend:
 .PHONY: lint-old-frontend
 lint-old-frontend:
 	cd old-frontend && bun install --frozen-lockfile && bun run lint --no-fix --max-warnings 0
+	sh old-frontend/tests/no-unsanitized-v-html.sh
 
 .PHONY: format-old-frontend
 format-old-frontend:

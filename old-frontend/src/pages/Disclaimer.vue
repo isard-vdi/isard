@@ -24,13 +24,13 @@
           <!-- eslint-disable -->
           <div
             class="p-2 mb-2 mt-2 ml-3"
-            v-html="messageTemplate.body"
+            v-html="$sanitize(messageTemplate.body)"
           />
           <hr>
           <div
             v-if="messageTemplate.footer"
             class="p-2 mb-2 mt-2 ml-3"
-            v-html="messageTemplate.footer"
+            v-html="$sanitize(messageTemplate.footer)"
           />
           <!-- eslint-enable -->
           <b-button
