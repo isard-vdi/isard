@@ -1,10 +1,10 @@
 services:
   isard-loki:
     ports:
-      - "${INFRASTRUCTURE_HOST_IP}:3100:3100"
+      - "${INFRASTRUCTURE_HOST_IP:?INFRASTRUCTURE_HOST_IP must be a literal IP present on this host}:3100:3100"
 
   isard-victoriametrics:
     ports:
       # Publish on 9090 (the legacy Prometheus port) mapped to VictoriaMetrics' 8428,
       # so existing remote-write clients and firewall rules keep working across the upgrade.
-      - "${INFRASTRUCTURE_HOST_IP}:9090:8428"
+      - "${INFRASTRUCTURE_HOST_IP:?INFRASTRUCTURE_HOST_IP must be a literal IP present on this host}:9090:8428"

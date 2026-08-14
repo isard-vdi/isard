@@ -1,4 +1,4 @@
 services:
   isard-db:
     ports:
-      - "${INFRASTRUCTURE_HOST_IP}:28015:28015"
+      - "${INFRASTRUCTURE_HOST_IP:?INFRASTRUCTURE_HOST_IP must be a literal IP present on this host}:28015:28015"

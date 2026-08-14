@@ -1,4 +1,4 @@
 services:
   isard-redis:
     ports:
-      - "${INFRASTRUCTURE_HOST_IP}:6379:6379"
+      - "${INFRASTRUCTURE_HOST_IP:?INFRASTRUCTURE_HOST_IP must be a literal IP present on this host}:6379:6379"

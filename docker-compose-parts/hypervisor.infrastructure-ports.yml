@@ -1,0 +1,12 @@
+services:
+  isard-hypervisor:
+    ports:
+      # SSH. apiv4 ssh-keyscans the hypervisor to register it, and the port it
+      # dials is the one setup.py writes to the database ("port": "2022"), not
+      # this published one -- so the container's sshd stays on 2022 and only the
+      # host side is bound. Without this the host never registers.
+      - "${INFRASTRUCTURE_HOST_IP:?INFRASTRUCTURE_HOST_IP must be a literal IP present on this host}:2022:2022"
+      # Tunnel data plane. start.sh terminates wireguard+geneve (or plain
+      # geneve) on this UDP port; a hypervisor that registers without it is
+      # reachable but carries no desktop traffic.
+      - "${INFRASTRUCTURE_HOST_IP:?INFRASTRUCTURE_HOST_IP must be a literal IP present on this host}:${WG_HYPERS_PORT:-4443}:${WG_HYPERS_PORT:-4443}/udp"

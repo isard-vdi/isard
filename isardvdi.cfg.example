@@ -959,14 +959,39 @@ WG_GUESTS_RESERVED_HOSTS=20
 # Set this to true if you want to test the infrastructure management. It won't run the actions
 #INFRASTRUCTURE_DRY_RUN=false
 
-# Set this to the internal network IP address of THIS HOST to expose core infrastructure services
-# for access from other infrastructure servers (hypervisor nodes, monitoring servers, etc.)
-# ONLY SET THIS on hosts that run central services (web, all-in-one, web+monitor flavours) that need
-# to be accessible from remote infrastructure nodes. This exposes:
-# - Database (RethinkDB) port 28015
-# - Redis port 6379
-# - Loki port 3100 (if monitoring enabled)
-# - VictoriaMetrics port 9090 (if monitoring enabled)
+# Set this to the internal network IP address of THIS HOST to expose the ports that other
+# IsardVDI hosts dial. Set it on any host that another host must reach: central services
+# (web, all-in-one, web+monitor) AND hypervisor nodes. This exposes:
+# - Database (RethinkDB) port 28015              (flavours with db)
+# - Redis port 6379                              (flavours with redis)
+# - Loki port 3100                               (if monitoring enabled)
+# - VictoriaMetrics port 9090                    (if monitoring enabled)
+# - Pyroscope port 4040                          (if PYROSCOPE_EBPF is enabled)
+# - Hypervisor SSH port 2022                     (flavours with hypervisor)
+# - Hypervisor tunnel port WG_HYPERS_PORT/udp    (flavours with hypervisor)
+#
+# The last two are what lets apiv4 register a hypervisor (2022) and what carries its desktop
+# traffic (the tunnel port). A hypervisor with neither published is invisible to the platform;
+# with only 2022 it registers and then has no data plane.
+#
+# WHAT IS DELIBERATELY *NOT* BOUND, because it is dialled by end users and not by other hosts:
+# - The portal / monitor-proxy HTTP_PORT and HTTPS_PORT
+# - WG_USERS_PORT (end-user WireGuard clients dial it from anywhere)
+# - VIEWER_SPICE / VIEWER_BROWSER: these are ANNOUNCED to the client at registration and the
+#   viewer connects to them directly, so binding them to an internal address breaks every viewer
+# - BASTION_SSH_PORT (users SSH to their own desktops through it)
+#
+# It must be a LITERAL IP ADDRESS that THIS host currently holds. A hostname resolves fine and
+# then fails inside docker as "invalid ip address"; an address no interface holds fails as
+# "cannot assign requested address" and leaves the container Created. build.sh checks both and
+# refuses to build rather than letting either surface at 'up'.
+#
+# ON AN HA PAIR, DO NOT POINT THIS AT A FLOATING VIP: it only exists on the node that currently
+# holds it, so the other node cannot start the containers that bind to it. Use each node's own
+# address.
+#
+# Binding also removes the loopback path: with this set, "curl http://localhost:9090" on the host
+# no longer reaches VictoriaMetrics. Use the bound address in runbooks.
 #
 # ALTERNATIVE: If you don't set this variable, you'll need to configure firewall rules to allow
 # remote infrastructure nodes to reach the internal Docker container IPs (refer to documentation).

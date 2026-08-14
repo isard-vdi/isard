@@ -338,6 +338,47 @@ variants(){
 			;;
 	esac
 }
+validate_infrastructure_host_ip(){
+	# A hostname passes the [ -n ] test and then dies inside docker as
+	# "invalid ip address", and an address no interface holds dies as
+	# "cannot assign requested address" -- both at 'up', both naming a port
+	# instead of the variable. Fail here, where we can still say which one.
+	if ! echo "$INFRASTRUCTURE_HOST_IP" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$|^[0-9a-fA-F:]+:[0-9a-fA-F:]*$'; then
+		cat >&2 <<EOF
+
+ERROR: INFRASTRUCTURE_HOST_IP='$INFRASTRUCTURE_HOST_IP' is not a literal IP address.
+
+  It is used as the bind address of published ports, so docker needs an
+  address, not a name -- a hostname fails at 'up' with "invalid ip address"
+  even when it resolves. Put the address itself here.
+
+EOF
+		exit 1
+	fi
+
+	# A floating cluster VIP is a legitimate value on the node that holds it and
+	# a boot failure on the node that does not, so this is worth checking on
+	# every build rather than trusting the config.
+	if command -v ip >/dev/null 2>&1; then
+		if ! ip -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | grep -qxF "$INFRASTRUCTURE_HOST_IP"; then
+			cat >&2 <<EOF
+
+ERROR: INFRASTRUCTURE_HOST_IP='$INFRASTRUCTURE_HOST_IP' is not on any interface of this host.
+
+  Published ports are bound to it when the container starts, so this would
+  fail as "cannot assign requested address" and leave the container Created.
+
+  If it is a floating cluster VIP, it belongs on the node that currently holds
+  it: either set the node's own address, or build on the active node.
+
+  Addresses on this host:
+$(ip -o addr show 2>/dev/null | awk '{printf "    %-10s %s\n", $2, $4}')
+
+EOF
+			exit 1
+		fi
+	fi
+}
 flavour(){
 ## Usage of flavour function
 #
@@ -381,9 +422,15 @@ flavour(){
 
 	# Handle INFRASTRUCTURE_HOST_IP port opening logic
 	if [ -n "$INFRASTRUCTURE_HOST_IP" ]; then
+		# Docker binds the socket to this address at container start: a value that
+		# is not a literal IP, or one no interface holds, fails there and not here
+		# -- as "invalid ip address" or "cannot assign requested address", after
+		# the build looked fine. Both are worth catching while we can still name
+		# the variable that caused them.
+		validate_infrastructure_host_ip
 		echo "INFO: INFRASTRUCTURE_HOST_IP is set to $INFRASTRUCTURE_HOST_IP"
 		echo "      Opening core infrastructure service ports on this IP"
-		
+
 		# Check which core infrastructure services are present and add their infrastructure-ports parts
 		if echo "$parts" | grep -q "\(^\|\s\)db\(\s\|$\)"; then
 			parts="$parts db.infrastructure-ports"
@@ -404,6 +451,15 @@ flavour(){
 		if echo "$parts" | grep -q "\(^\|\s\)monitor-pyroscope\(\s\|$\)"; then
 			parts="$parts monitor-pyroscope.infrastructure-ports"
 			echo "      - Pyroscope port 4040 exposed on $INFRASTRUCTURE_HOST_IP"
+		fi
+		# A hypervisor publishes nothing on its own: apiv4 cannot register it
+		# without 2022, and it carries no desktop traffic without the tunnel
+		# port. Until this part existed both had to be added out of band, and a
+		# plain 'docker compose up -d' then silently dropped them.
+		if echo "$parts" | grep -q "\(^\|\s\)hypervisor\(\s\|$\)"; then
+			parts="$parts hypervisor.infrastructure-ports"
+			echo "      - Hypervisor SSH port 2022 exposed on $INFRASTRUCTURE_HOST_IP"
+			echo "      - Hypervisor tunnel port ${WG_HYPERS_PORT:-4443}/udp exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
 		echo ""
 	fi
