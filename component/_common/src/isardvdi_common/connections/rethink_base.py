@@ -286,9 +286,18 @@ class RethinkBase(ABC):
         doc = cls.get(doc_id)
         if not doc:
             return None
+        return cls.build_from(doc)
+
+    @classmethod
+    def build_from(cls, document):
+        """The object for a document already read — no round trip at all.
+
+        A query that returned whole rows has already paid for them; rebuilding
+        each one through the constructor would read the same row twice more.
+        """
         obj = cls.__new__(cls)
-        obj.__dict__["id"] = doc.get("id")
-        obj._update_cache(**doc)
+        obj.__dict__["id"] = document.get("id")
+        obj._update_cache(**document)
         return obj
 
     @classmethod
@@ -393,12 +402,11 @@ class RethinkBase(ABC):
         :return: List of objects.
         :rtype: list
         """
+        # Documents, not ids — see :meth:`get_index`.
         with cls._rdb_context():
             return [
-                cls(document_id)
-                for document_id in r.table(cls._rdb_table)["id"].run(
-                    cls._rdb_connection
-                )
+                cls.build_from(document)
+                for document in r.table(cls._rdb_table).run(cls._rdb_connection)
             ]
 
     @classmethod
@@ -417,9 +425,16 @@ class RethinkBase(ABC):
         """
         query = r.table(cls._rdb_table).get_all(r.args(values), index=index)
         query = query.filter(filter) if filter else query
+        # Take the DOCUMENTS, not the ids. Projecting ``["id"]`` and then
+        # constructing ``cls(document_id)`` per row made this ``1 + 2N`` round
+        # trips — the server had already read every document, and each
+        # constructor threw that away to probe ``exists`` and read it again.
+        # The rows are what every caller wants anyway: the constructor's only
+        # other job is to seed the attribute cache, which ``build_from`` does
+        # from the document in hand.
         with cls._rdb_context():
             return [
-                cls(document_id) for document_id in query["id"].run(cls._rdb_connection)
+                cls.build_from(document) for document in query.run(cls._rdb_connection)
             ]
 
     @classmethod
@@ -438,9 +453,10 @@ class RethinkBase(ABC):
         """
         query = r.table(cls._rdb_table).get_all(r.args(values), index=index)
         query = query.filter(filter) if filter else query
+        # Documents, not ids — see :meth:`get_index`.
         with cls._rdb_context():
             return [
-                cls(document_id) for document_id in query["id"].run(cls._rdb_connection)
+                cls.build_from(document) for document in query.run(cls._rdb_connection)
             ]
 
     @classmethod

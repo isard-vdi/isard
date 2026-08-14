@@ -105,7 +105,9 @@ async def test_update_status_applies_all_branch_and_storage_socket():
     ):
         await storage.handle_update_status(redis_manager, task, statuses=statuses)
 
-    fake_storage_model.init_document.assert_called_once_with("s1", status="ready")
+    fake_storage_model.insert_document.assert_called_once_with(
+        {"id": "s1", "status": "ready"}, conflict="update"
+    )
     mock_send.assert_awaited_once_with(redis_manager, "s1", "ready")
 
 
@@ -126,7 +128,9 @@ async def test_update_status_dispatches_per_depending_status():
         patch.object(storage, "send_status_socket", new=AsyncMock()),
     ):
         await storage.handle_update_status(redis_manager, task, statuses=statuses)
-    fake_storage_model.init_document.assert_called_once_with("s2", status="maintenance")
+    fake_storage_model.insert_document.assert_called_once_with(
+        {"id": "s2", "status": "maintenance"}, conflict="update"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +144,7 @@ def test_media_update_skips_when_depending_status_not_finished():
     task = _task(depending_status="failed")
     with patch.object(media, "Media") as mock_media_cls:
         media.handle_media_update(task, id="m1", status="ready")
-    mock_media_cls.init_document.assert_not_called()
+    mock_media_cls.insert_document.assert_not_called()
 
 
 def test_media_update_direct_writes_payload():
@@ -149,7 +153,9 @@ def test_media_update_direct_writes_payload():
     task = _task()
     with patch.object(media, "Media") as mock_media_cls:
         media.handle_media_update(task, id="m1", status="ready")
-    mock_media_cls.init_document.assert_called_once_with(id="m1", status="ready")
+    mock_media_cls.insert_document.assert_called_once_with(
+        {"id": "m1", "status": "ready"}, conflict="update"
+    )
 
 
 def test_media_update_indirect_walks_check_media_existence():
@@ -162,7 +168,9 @@ def test_media_update_indirect_walks_check_media_existence():
     task = _task(dependencies=[dep])
     with patch.object(media, "Media") as mock_media_cls:
         media.handle_media_update(task, **{})
-    mock_media_cls.init_document.assert_called_once_with(id="m1", status="ready")
+    mock_media_cls.insert_document.assert_called_once_with(
+        {"id": "m1", "status": "ready"}, conflict="update"
+    )
 
 
 def test_media_update_indirect_skips_empty_dependency_result_without_recursing():
@@ -183,7 +191,9 @@ def test_media_update_indirect_skips_empty_dependency_result_without_recursing()
     with patch.object(media, "Media") as mock_media_cls:
         media.handle_media_update(task, **{})
     # only the populated dependency is applied; the empty one is skipped
-    mock_media_cls.init_document.assert_called_once_with(id="m2", status="ready")
+    mock_media_cls.insert_document.assert_called_once_with(
+        {"id": "m2", "status": "ready"}, conflict="update"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -293,6 +303,7 @@ def test_domain_creating_disk_only_advances_allow_listed_statuses():
     with patch.object(domain, "Domain") as mock_domain_cls:
         mock_domain_cls.exists.return_value = True
         mock_domain_cls.return_value = fake_domain
+        mock_domain_cls.build.return_value = fake_domain
         domain.handle_domain_creating_disk(task, domain_id="d1")
     # Started is NOT in the allow set → status stays put.
     assert fake_domain.status == "Started"
@@ -307,6 +318,7 @@ def test_domain_creating_disk_flips_creating_to_creating_disk():
     with patch.object(domain, "Domain") as mock_domain_cls:
         mock_domain_cls.exists.return_value = True
         mock_domain_cls.return_value = fake_domain
+        mock_domain_cls.build.return_value = fake_domain
         domain.handle_domain_creating_disk(task, domain_id="d1")
     assert fake_domain.status == "CreatingDisk"
 
@@ -333,7 +345,9 @@ def test_domain_change_storage_fails_rows_in_place_when_storage_not_ready():
         mock_domain_cls.exists.return_value = True
         mock_storage_cls.exists.return_value = True
         mock_domain_cls.return_value = fake_domain
+        mock_domain_cls.build.return_value = fake_domain
         mock_storage_cls.return_value = fake_storage
+        mock_storage_cls.build.return_value = fake_storage
         # Must NOT raise.
         domain.handle_domain_change_storage(task, domain_id="d1", storage_id="s1")
 
@@ -384,7 +398,9 @@ def test_domain_change_storage_writes_storage_id_and_file_only():
         mock_domain_cls.exists.return_value = True
         mock_storage_cls.exists.return_value = True
         mock_storage_cls.return_value = fake_storage
+        mock_storage_cls.build.return_value = fake_storage
         mock_domain_cls.return_value = fake_domain
+        mock_domain_cls.build.return_value = fake_domain
 
         domain.handle_domain_change_storage(
             task, domain_id="d1", storage_id="new-storage"
@@ -429,7 +445,9 @@ def test_domain_change_storage_does_not_call_storage_parent_resolution():
         # check (if any) — see below.
         mock_storage_cls.exists.return_value = True
         mock_storage_cls.return_value = fake_storage
+        mock_storage_cls.build.return_value = fake_storage
         mock_domain_cls.return_value = fake_domain
+        mock_domain_cls.build.return_value = fake_domain
 
         domain.handle_domain_change_storage(
             task, domain_id="d1", storage_id="new-storage"
@@ -438,8 +456,10 @@ def test_domain_change_storage_does_not_call_storage_parent_resolution():
     # Storage(...) constructor should be called EXACTLY ONCE (for the
     # new storage). The old behaviour also called it a second time to
     # resolve storage.parent into a path.
-    assert mock_storage_cls.call_count == 1
-    mock_storage_cls.assert_called_once_with("new-storage")
+    # The handler reads the row through ``build`` now: one read instead of the
+    # exists-probe-plus-constructor pair.
+    assert mock_storage_cls.build.call_count == 1
+    mock_storage_cls.build.assert_called_once_with("new-storage")
 
 
 # ---------------------------------------------------------------------------

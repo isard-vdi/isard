@@ -166,3 +166,16 @@ Efecte al gestor convertit (`handle_domain_change_storage`, 6 viatges → 2):
 El total per entrada es queda a **36,68 ms**, dins del soroll entre execucions (35,6-36,7 en
 mesures equivalents): a aquest nivell els viatges de lectura ja no són el que domina — ho són les
 escriptures i el despatx en sèrie.
+
+## (a ter) La resta de viatges redundants
+
+- **`get_index`, `get_compound_index` i `get_all`: `1+2N` → `1`.** Projectaven `["id"]` i després
+  construïen `cls(document_id)` per fila, que tornava a llegir cada document **dues vegades**. El
+  servidor ja les havia llegit: ara es prenen els documents i s'hidraten en memòria amb
+  `build_from`. És el multiplicador que creixia amb la llargada de la cadena.
+- **`init_document` → `insert_document` als quatre llocs que llencen el resultat** (3 viatges → 1):
+  `task_results/storage.py` ×2 i `task_results/media.py` ×2.
+
+Proves: change-handler **350 passen / 0 fallen** (base 350/0), `_common` **289/3** (base 282/3,
+les mateixes tres). Deu proves fixaven la forma de la crida (`Model()` i `init_document`) i s'han
+apuntat a la nova; cap afirmació de comportament s'ha afluixat.

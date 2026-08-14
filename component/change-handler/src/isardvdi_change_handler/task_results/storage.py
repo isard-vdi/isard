@@ -282,7 +282,9 @@ async def handle_storage_update_dict(redis_manager, task, **storage_dict):
 
 def handle_storage_add(task, **storage_dict):
     """Port of core_worker.task.storage_add."""
-    Storage.init_document(**storage_dict)
+    # The rebuilt object is unused here, and rebuilding it costs two more
+    # reads: insert and stop.
+    Storage.insert_document(storage_dict, conflict="update")
 
 
 def handle_storage_delete(task, storage_id):
@@ -323,7 +325,10 @@ async def handle_update_status(redis_manager, task, statuses=None):
                         # status here would re-create it as a zombie with
                         # nothing but an id and a status.
                         continue
-                    model.init_document(item_id, status=item_status)
+                    model.insert_document(
+                        {"id": item_id, "status": item_status},
+                        conflict="update",
+                    )
                     if item_class.lower() == "storage":
                         await send_status_socket(redis_manager, item_id, item_status)
 
