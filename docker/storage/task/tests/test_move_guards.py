@@ -17,8 +17,9 @@ import pytest
 
 
 class _Stat:
-    def __init__(self, dev):
+    def __init__(self, dev, size=1):
         self.st_dev = dev
+        self.st_size = size
 
 
 def _fs(monkeypatch, task, *, origin=True, dest=False, same=False):
@@ -96,9 +97,19 @@ class TestMoveGuards:
         _fs(monkeypatch, task, origin=True, dest=False)
 
         def _boom(p):
+            # Only the DIRECTORY probe is what this test breaks. The same
+            # os_stat is also how the free-space guard sizes the source, so
+            # failing it everywhere stops the fallback before it runs and the
+            # test would be asserting the guard, not the fallback.
+            if p.endswith(".qcow2"):
+                return _Stat(1)
             raise OSError("cross-fs")
 
         monkeypatch.setattr(task, "os_stat", _boom)
+        # The destination is a path that does not exist here, so statvfs fails
+        # and the guard refuses -- correctly, but for a reason this test is not
+        # about.
+        monkeypatch.setattr(task, "_free_space", lambda d: 1 << 40)
         rsync = []
         monkeypatch.setattr(
             task, "run_with_progress", lambda *a, **k: rsync.append(a[0]) or 0
