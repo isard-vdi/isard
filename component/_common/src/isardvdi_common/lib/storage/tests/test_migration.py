@@ -411,6 +411,172 @@ def test_build_plan_still_rebases_onto_a_parent_that_does_move(monkeypatch):
     assert child["parent_dst_dir"] == root["dst_dir"]
 
 
+# item_kinds — move only some disk kinds, leave the rest of the chain in place
+def _tpl_with_desktops():
+    return {
+        "tpl": {
+            "type": "qcow2",
+            "parent": None,
+            "perms": ["r"],
+            "pool_usage": "template",
+            "children": ["d1", "d2", "d3"],
+        },
+        **{
+            d: {
+                "type": "qcow2",
+                "parent": "tpl",
+                "perms": ["r", "w"],
+                "pool_usage": "desktop",
+                "children": [],
+            }
+            for d in ("d1", "d2", "d3")
+        },
+    }
+
+
+def _patch_storage(monkeypatch, registry):
+    _FakeStorage.registry = registry
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+
+
+def test_split_moving_subtrees_reroots_each_surviving_branch():
+    """Dropping a node splits its tree into the sub-trees that survive, each
+    rooted at its own topmost mover — so no ledger row ever claims a tree_id the
+    ledger does not hold."""
+    order = ["r", "a", "b", "a1", "b1"]
+    parents = {"a": "r", "b": "r", "a1": "a", "b1": "b"}
+    groups = dict(
+        mig.split_moving_subtrees(
+            order, lambda n: parents.get(n), lambda n: n != "r"  # the root stays
+        )
+    )
+    assert groups == {"a": ["a", "a1"], "b": ["b", "b1"]}
+
+
+def test_split_moving_subtrees_keeps_one_tree_when_the_root_moves():
+    order = ["r", "a", "a1"]
+    parents = {"a": "r", "a1": "a"}
+    groups = dict(
+        mig.split_moving_subtrees(order, lambda n: parents.get(n), lambda n: True)
+    )
+    assert groups == {"r": ["r", "a", "a1"]}
+
+
+def test_item_kinds_empty_is_exactly_todays_plan(monkeypatch):
+    """Backward compatibility is the contract: absent or empty must build the
+    identical plan, item for item."""
+    _patch_storage(monkeypatch, _tpl_with_desktops())
+    baseline, totals_b = mig.build_plan_for_roots("m", ["tpl"], _MultiPathPool())
+
+    _patch_storage(monkeypatch, _tpl_with_desktops())
+    with_empty, totals_e = mig.build_plan_for_roots(
+        "m", ["tpl"], _MultiPathPool(), item_kinds=[]
+    )
+
+    assert baseline == with_empty
+    assert totals_b == totals_e
+    assert totals_b["not_moving_total"] == 0
+
+
+def test_item_kinds_desktop_moves_the_desktops_and_leaves_the_template(monkeypatch):
+    """ "Move the desktops out of this pool, leave the base template where it is."
+
+    The template is walked (the chain has to be understood) but does not move,
+    so it gets no ledger row and — decisively — its destination is never
+    resolved: this pool has no 'template' path at all, which is the shape that
+    made the whole plan fail before kinds could be chosen.
+    """
+    _patch_storage(monkeypatch, _tpl_with_desktops())
+    pool = _UsageLimitedPool()
+
+    items, totals = mig.build_plan_for_roots("m", ["tpl"], pool, item_kinds=["desktop"])
+
+    assert sorted(it["storage_id"] for it in items) == ["d1", "d2", "d3"]
+    assert all(it["kind"] == "desktop" for it in items)
+    assert "template" not in pool.asked_usages
+    assert totals["items_total"] == 3
+    assert totals["not_moving_by_kind"] == {"template": 1}
+    assert totals["not_moving_total"] == 1
+    for it in items:
+        # each desktop is its own sub-tree root now: the template it backs onto
+        # stays exactly where it is, so nothing rebases
+        assert it["tree_id"] == it["storage_id"]
+        assert it["topo_index"] == 0
+        assert it["parent_storage_id"] == "tpl"
+        assert it["parent_dst_path"] is None
+
+
+def test_item_kinds_refuses_to_move_a_template_and_strand_its_desktops(monkeypatch):
+    """The inverse selection would leave three desktops backing onto a path
+    that no longer exists. Refuse, naming the pair and the way out — never
+    build it silently."""
+    _patch_storage(monkeypatch, _tpl_with_desktops())
+
+    with pytest.raises(Exception) as raised:
+        mig.build_plan_for_roots(
+            "m", ["tpl"], _MultiPathPool(), item_kinds=["template"]
+        )
+
+    description = raised.value.error["description"]
+    assert "tpl" in description
+    assert "d1" in description or "d2" in description or "d3" in description
+    assert (
+        raised.value.error["description_code"]
+        == "storage_migration_would_strand_derivative"
+    )
+
+
+def test_item_kinds_desktop_reaches_desktops_below_a_two_template_chain(monkeypatch):
+    """The walk must keep going PAST the disks that stay, or the desktops under
+    a derived template would never be found. Two templates deep, still only the
+    desktops move — and the destination pool is never asked for the 'template'
+    path it does not have."""
+    _patch_storage(
+        monkeypatch,
+        {
+            "base": {
+                "type": "qcow2",
+                "parent": None,
+                "perms": ["r"],
+                "pool_usage": "template",
+                "children": ["mid"],
+            },
+            "mid": {
+                "type": "qcow2",
+                "parent": "base",
+                "perms": ["r"],
+                "pool_usage": "template",
+                "children": ["d1", "d2"],
+            },
+            **{
+                d: {
+                    "type": "qcow2",
+                    "parent": "mid",
+                    "perms": ["r", "w"],
+                    "pool_usage": "desktop",
+                    "children": [],
+                }
+                for d in ("d1", "d2")
+            },
+        },
+    )
+    pool = _UsageLimitedPool()
+
+    items, totals = mig.build_plan_for_roots(
+        "m", ["base"], pool, item_kinds=["desktop"]
+    )
+
+    assert sorted(it["storage_id"] for it in items) == ["d1", "d2"]
+    assert "template" not in pool.asked_usages
+    assert totals["not_moving_by_kind"] == {"template": 2}
+    for it in items:
+        assert it["parent_storage_id"] == "mid"
+        assert it["parent_dst_path"] is None  # 'mid' stays where it is
+
+
 def test_build_plan_refuses_a_disk_with_no_resolvable_destination(monkeypatch):
     """An unresolvable destination must fail the PLAN, not the disk at run time.
 

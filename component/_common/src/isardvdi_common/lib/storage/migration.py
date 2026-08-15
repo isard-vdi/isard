@@ -75,6 +75,49 @@ def classify_kind(has_children, perms):
     return "desktop" if "w" in (perms or []) else "template"
 
 
+def split_moving_subtrees(order, parent_of, moves):
+    """Split ONE tree's topo ``order`` into the sub-trees that actually move.
+
+    ``item_kinds`` lets a selection move only some disk types, so a tree can
+    come out as several independent sub-trees of moving disks hanging off
+    disks that stay (typically desktops under a base template left behind).
+    Each survivor is grouped under its topmost MOVING ancestor, which becomes
+    that sub-tree's root — so every ``tree_id`` in the ledger is a disk the
+    ledger actually holds, and the topo order inside a group is preserved.
+
+    ``parent_of(node_id)`` returns the parent id when it is inside this tree,
+    else ``None``; ``moves(node_id)`` says whether the disk is being migrated.
+    Returns ``[(sub_root_id, [ids in topo order]), ...]``.
+    """
+    sub_root = {}
+    groups = {}
+    for nid in order:
+        if not moves(nid):
+            continue
+        parent = parent_of(nid)
+        # sub_root only ever holds MOVING nodes, so a hit means the parent moves
+        root = sub_root[parent] if parent in sub_root else nid
+        sub_root[nid] = root
+        groups.setdefault(root, []).append(nid)
+    return list(groups.items())
+
+
+def stranded_by_selection(order, parent_of, moves):
+    """Disks that would be left backing onto a moved parent: ``(parent, child)``
+    pairs where the parent moves and the child does not.
+
+    Moving a disk while leaving a derivative behind breaks that derivative's
+    backing chain unless the derivative is rebased in place, which this planner
+    does not do. The caller refuses such a selection rather than building a plan
+    that silently strands disks.
+    """
+    return [
+        (parent_of(nid), nid)
+        for nid in order
+        if not moves(nid) and parent_of(nid) is not None and moves(parent_of(nid))
+    ]
+
+
 def build_tree_items(migration_id, root_id, get_children, node_info, order=None):
     """Build the ``storage_migration_item`` dicts (state ``pending``) for ONE
     tree, in topo order.
@@ -144,12 +187,17 @@ def _count_by_kind(item_dicts):
     return out
 
 
-def summarize_plan(item_dicts):
+def summarize_plan(item_dicts, not_moving=None):
     """Aggregate per-job totals from the built item dicts.
 
     Computed from the data (never incremented), matching the at-least-once
     ledger invariant. ``derivative_templates`` are template items that are not
     a tree root (``storage_id != tree_id``).
+
+    ``not_moving`` counts, per kind, the disks the selection walked but does not
+    move (``item_kinds`` filtered them out). They carry no ledger row — they are
+    chain context, not work — so the plan preview is the only place an admin can
+    see them, and "1.301 move, 7 stay" is the whole point of choosing kinds.
     """
     kinds = Counter(it.get("kind") for it in item_dicts)
     derivative_templates = sum(
@@ -172,6 +220,8 @@ def summarize_plan(item_dicts):
         "bytes_by_kind": bytes_by_kind,
         "bytes_done": 0,
         "state_counts": {"pending": len(item_dicts)} if item_dicts else {},
+        "not_moving_by_kind": dict(not_moving or {}),
+        "not_moving_total": sum((not_moving or {}).values()),
     }
 
 
@@ -1405,13 +1455,21 @@ def pool_plan_summary(pool_id, *, size_fn=None):
 # --------------------------------------------------------------------------- #
 # DB-driven layer (live)
 # --------------------------------------------------------------------------- #
-def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
+def build_plan_for_roots(
+    migration_id, root_ids, dst_pool, *, size_fn=None, item_kinds=None
+):
     """Build pending ``storage_migration_item`` dicts for every tree rooted at
     ``root_ids``, migrating into ``dst_pool`` (a ``StoragePool``).
 
     ``size_fn(src_path) -> int|None`` optionally supplies a fresh size (e.g.
     :func:`probe_actual_size` run on the storage worker); when it returns
     ``None`` (or is not given) the DB's ``qemu-img-info.actual-size`` is used.
+
+    ``item_kinds`` restricts WHICH disk kinds move (``desktop`` / ``template`` /
+    ``media``); empty or ``None`` moves everything, which is the historical
+    behaviour. The subtree is still walked in full — the backing chain has to be
+    understood whether or not every link of it travels — but a disk of an
+    unselected kind stays put and gets no ledger row.
 
     Returns ``(items, totals)``.
     """
@@ -1433,18 +1491,49 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
     def get_children(sid):
         return [c.id for c in st(sid).children]
 
-    #: The disks this plan MOVES: every root plus its full subtree closure. A
-    #: parent OUTSIDE this set stays where it is, which is not an edge case:
-    #: compute_roots roots a tree precisely BECAUSE its parent lives outside the
-    #: selection ("the parent lives outside the selection so it will not move").
-    #: Its destination must therefore never be resolved -- on an estate whose
-    #: chains cross pools, that parent is typically a read-only base template in
-    #: another pool, and asking a destination pool that serves no 'template' path
-    #: for its directory raised and took the WHOLE plan down. Measured on a
-    #: production estate: 1.880 of the 1.900 parented disks in the source pool
-    #: back onto a parent outside it, so every plan for that pool answered 500.
+    #: The disks this plan MOVES. A disk outside this set stays put, and its
+    #: destination must never be resolved: its pool may serve no such path.
     tree_orders = {rid: walk_tree_topo(rid, get_children) for rid in root_ids}
-    moving = {nid for order in tree_orders.values() for nid in order}
+    walked = {nid for order in tree_orders.values() for nid in order}
+    selected_kinds = set(item_kinds or ())
+
+    kind_cache = {}
+
+    def kind_of(sid):
+        if sid not in kind_cache:
+            s = st(sid)
+            kind_cache[sid] = classify_kind(
+                len(s.children) > 0, getattr(s, "perms", None)
+            )
+        return kind_cache[sid]
+
+    def moves(sid):
+        return not selected_kinds or kind_of(sid) in selected_kinds
+
+    moving = {nid for nid in walked if moves(nid)}
+
+    def parent_within(sid):
+        """The disk's parent when it is part of THIS plan's walk, else None."""
+        parent_id = st(sid).parent
+        return parent_id if parent_id in walked else None
+
+    # Refuse rather than strand: moving a disk while leaving a derivative behind
+    # breaks that derivative's backing chain.
+    for order in tree_orders.values():
+        stranded = stranded_by_selection(order, parent_within, moves)
+        if stranded:
+            parent_id, child_id = stranded[0]
+            from isardvdi_common.helpers import error_factory
+
+            raise error_factory.Error(
+                "bad_request",
+                f"Storage {parent_id} would move while its derivative "
+                f"{child_id} ({kind_of(child_id)}) stays behind, which would "
+                f"break the derivative's backing chain. Add '{kind_of(child_id)}'"
+                " to the selected item kinds, or leave the parent out of the "
+                "selection.",
+                description_code="storage_migration_would_strand_derivative",
+            )
 
     def dst_dir_of(s):
         if s.id not in dst_dir_cache:
@@ -1491,7 +1580,6 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
 
     def node_info(sid):
         s = st(sid)
-        has_children = len(s.children) > 0
         src_path = s.path
         size_bytes = None
         if size_fn is not None:
@@ -1499,7 +1587,7 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
         if size_bytes is None:
             size_bytes = StorageProcessed.get_storage_actual_size(sid)
         info = {
-            "kind": classify_kind(has_children, getattr(s, "perms", None)),
+            "kind": kind_of(sid),
             "src_path": src_path,
             "dst_path": dst_path_of(s),
             "dst_dir": dst_dir_of(s),
@@ -1523,14 +1611,22 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
         return info
 
     items = []
+    not_moving = Counter()
     for root_id in root_ids:
-        items.extend(
-            build_tree_items(
-                migration_id,
-                root_id,
-                get_children,
-                node_info,
-                order=tree_orders[root_id],
+        order = tree_orders[root_id]
+        for sub_root, sub_order in split_moving_subtrees(order, parent_within, moves):
+            items.extend(
+                build_tree_items(
+                    migration_id,
+                    sub_root,
+                    get_children,
+                    node_info,
+                    order=sub_order,
+                )
             )
-        )
-    return items, summarize_plan(items)
+    # counted over the walked SET, not per tree: two explicit tree_ids can
+    # overlap, and a disk that stays is one disk however many walks reach it
+    for nid in walked:
+        if not moves(nid):
+            not_moving[kind_of(nid)] += 1
+    return items, summarize_plan(items, not_moving=not_moving)

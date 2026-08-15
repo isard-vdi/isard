@@ -39,12 +39,19 @@ class MigrationWindowData(BaseModel):
 class MigrationSelectionData(BaseModel):
     """What a migration job moves and where to."""
 
+    #: HOW the source disks are selected, not what type they are — see
+    #: `item_kinds` for that.
     kind: Literal["pool", "path", "category"] = "pool"
     src_pool_id: Optional[str] = None
     dst_pool_id: Optional[str] = None
     category_id: Optional[str] = None
     path_prefix: Optional[str] = None
     tree_ids: list[str] = Field(default_factory=list)
+    #: Which disk KINDS actually move. Empty or absent == all of them. The rest
+    #: of the chain is still walked, to know what backs what, but stays put.
+    item_kinds: list[Literal["desktop", "template", "media"]] = Field(
+        default_factory=list
+    )
 
 
 class MigrationConfigData(BaseModel):
@@ -141,6 +148,10 @@ class MigrationTotalsResponse(BaseModel):
     #: aggregate progress bar; 0 on the dry-run plan totals.
     done: int = 0
     state_counts: dict = Field(default_factory=dict)
+    #: disks the selection walks but leaves in place. They carry no ledger row,
+    #: so the plan preview is the only place they are ever visible.
+    not_moving_total: int = 0
+    not_moving_by_kind: dict = Field(default_factory=dict)
 
 
 class MigrationPlanResponse(BaseModel):

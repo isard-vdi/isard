@@ -554,19 +554,30 @@ function migSetDays ($scope, days) {
   });
 }
 
+// Which disk types the admin ticked. None ticked == all of them, which is what
+// the API means by an empty list, so the two agree without a special case.
+function migItemKinds () {
+  return $("#mig_item_kinds .mig-item-kind:checked")
+    .map(function () { return $(this).val(); })
+    .get();
+}
+
 // The migration selection for the currently-chosen kind (every field a
 // dropdown value — no free text).
 function migSelection () {
   const kind = $("#mig_kind").val();
   const dst = $("#mig_dst_pool").val();
+  const item_kinds = migItemKinds();
   if (kind === "path") {
     return { kind: "path", src_pool_id: $("#mig_src_pool").val(),
-      path_prefix: $("#mig_path_prefix").val(), dst_pool_id: dst };
+      path_prefix: $("#mig_path_prefix").val(), dst_pool_id: dst, item_kinds: item_kinds };
   }
   if (kind === "category") {
-    return { kind: "category", category_id: $("#mig_category").val(), dst_pool_id: dst };
+    return { kind: "category", category_id: $("#mig_category").val(),
+      dst_pool_id: dst, item_kinds: item_kinds };
   }
-  return { kind: "pool", src_pool_id: $("#mig_src_pool").val(), dst_pool_id: dst };
+  return { kind: "pool", src_pool_id: $("#mig_src_pool").val(),
+    dst_pool_id: dst, item_kinds: item_kinds };
 }
 
 // True only when the selection has every field the plan query needs — a real
@@ -663,6 +674,17 @@ function migRenderSummary (totals) {
   $("#mig_sum_media_sz").text(migBytes(bbk.media || 0));
   $("#mig_sum_total").text(totals.items_total || 0);
   $("#mig_sum_total_sz").text(migBytes(totals.bytes_total || 0));
+  // Disks the selection walked but leaves in place (a disk type that was not
+  // ticked). They carry no ledger row, so this preview is the only place they
+  // are ever shown -- and "N move, M stay" is the answer the admin came for.
+  const nm = totals.not_moving_by_kind || {};
+  const nmTotal = totals.not_moving_total || 0;
+  if (nmTotal) {
+    const parts = Object.keys(nm).sort().map(function (k) { return nm[k] + " " + k; });
+    $("#mig_sum_stay").html(nmTotal + " <small>(" + parts.join(", ") + ")</small>").parent().show();
+  } else {
+    $("#mig_sum_stay").parent().hide();
+  }
   migLastPlanBytes = totals.bytes_total || 0;
   migLastPlanItems = totals.items_total || 0;
   $("#mig_summary").show();
@@ -760,6 +782,9 @@ $(document).ready(function () {
 
   // any other selection change -> re-estimate the summary (debounced)
   $("#mig_path_prefix, #mig_category, #mig_dst_pool").on("change", function () { migLoadSummary(); });
+  // iCheck replaces the native checkbox, so listen for its events too or the
+  // summary silently keeps showing the plan for the previous type selection.
+  $("#mig_item_kinds").on("change ifChanged", ".mig-item-kind", function () { migLoadSummary(); });
 
   // parallel / bwlimit -> recompute ETA only (no API call needed)
   $("#mig_parallel, #mig_bwlimit").on("input change", migRecalcEta);

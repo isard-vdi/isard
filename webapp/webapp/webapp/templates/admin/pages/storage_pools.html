@@ -99,6 +99,16 @@
         <label style="margin-left:8px;"><i class="fa fa-arrow-right text-muted" style="margin-right:4px;"></i>Destination&nbsp;pool
           <select id="mig_dst_pool" class="form-control input-sm" title="The pool disks are moved TO. Disks already in this pool are skipped."></select>
         </label>
+        <div style="margin-top:6px;">
+          <span>Disk types
+            <span id="mig_item_kinds">
+              <label style="font-weight:normal;"><input type="checkbox" class="mig-item-kind" value="desktop"> desktops</label>
+              <label style="font-weight:normal;margin-left:6px;"><input type="checkbox" class="mig-item-kind" value="template"> templates</label>
+              <label style="font-weight:normal;margin-left:6px;"><input type="checkbox" class="mig-item-kind" value="media"> media</label>
+            </span>
+            <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Which disk types actually move. None selected = all of them. The rest of each backing chain is still read, but stays where it is — so &ldquo;desktops only&rdquo; moves the desktops and leaves the templates they are built on in place. A template cannot move while its derivatives stay behind."></i>
+          </span>
+        </div>
       </fieldset>
 
       <!-- ── Schedule: when it is allowed to run ───────────────────────────── -->
@@ -208,6 +218,11 @@
           <span class="mig-sum-num" id="mig_sum_total">–</span>
           <span class="mig-sum-lbl"><i class="fa fa-database"></i> Total files</span>
           <span class="mig-sum-sz" id="mig_sum_total_sz">&nbsp;</span>
+        </div>
+        <div class="mig-sum-cell" style="display:none;" title="Disks in the same backing chains that are read but left where they are, because their type was not selected." data-toggle="tooltip">
+          <span class="mig-sum-num" id="mig_sum_stay">–</span>
+          <span class="mig-sum-lbl"><i class="fa fa-anchor"></i> Stay in place</span>
+          <span class="mig-sum-sz">&nbsp;</span>
         </div>
       </div>
       <div class="mig-sum-eta">

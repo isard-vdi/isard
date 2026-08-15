@@ -223,7 +223,9 @@ class AdminStorageMigrationService:
             return cached
         dst_pool = cls._dst_pool(selection)
         roots = mig.roots_for_selection(selection)
-        items, totals = mig.build_plan_for_roots("__preview__", roots, dst_pool)
+        items, totals = mig.build_plan_for_roots(
+            "__preview__", roots, dst_pool, item_kinds=selection.get("item_kinds")
+        )
         result = {"trees": _tree_summaries(items), "totals": totals}
         _PLAN_CACHE[key] = result
         return result
@@ -279,7 +281,9 @@ class AdminStorageMigrationService:
         # origin != destination for path/category: a plan that resolves entirely
         # in-place (every disk's dst == src) would move nothing while the release
         # move_deletes the live source. (Pool src==dst is rejected in _dst_pool.)
-        preview, _ = mig.build_plan_for_roots("__preview__", roots, dst_pool)
+        preview, _ = mig.build_plan_for_roots(
+            "__preview__", roots, dst_pool, item_kinds=selection.get("item_kinds")
+        )
         if mig.all_in_place(preview):
             raise Error(
                 "bad_request",
@@ -297,7 +301,9 @@ class AdminStorageMigrationService:
             created_at=now,
             updated_at=now,
         )
-        items, totals = mig.build_plan_for_roots(migration.id, roots, dst_pool)
+        items, totals = mig.build_plan_for_roots(
+            migration.id, roots, dst_pool, item_kinds=selection.get("item_kinds")
+        )
         for item in items:
             StorageMigrationItem.upsert(item)
         migration.totals = totals

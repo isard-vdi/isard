@@ -405,7 +405,12 @@ class MigrationRunner:
         it, so a re-scan only ever ADDS newly-matching disks."""
         selection = self.migration.selection or {}
         roots = mig.roots_for_selection(selection)
-        items, _ = mig.build_plan_for_roots(self.migration_id, roots, self.dst_pool)
+        items, _ = mig.build_plan_for_roots(
+            self.migration_id,
+            roots,
+            self.dst_pool,
+            item_kinds=selection.get("item_kinds"),
+        )
         existing = {it["storage_id"] for it in self._items()}
         for item in items:
             if item["storage_id"] not in existing:
@@ -420,7 +425,12 @@ class MigrationRunner:
         scope and never reappear; in-flight disks are left untouched."""
         selection = self.migration.selection or {}
         roots = mig.roots_for_selection(selection)
-        planned, _ = mig.build_plan_for_roots(self.migration_id, roots, self.dst_pool)
+        planned, _ = mig.build_plan_for_roots(
+            self.migration_id,
+            roots,
+            self.dst_pool,
+            item_kinds=selection.get("item_kinds"),
+        )
         existing = {it["storage_id"]: it for it in self._items()}
         policy = self.config.get("failure_policy") or "retry_quarantine"
         qafter = int(self.config.get("quarantine_after") or 3)
