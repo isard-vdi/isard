@@ -410,6 +410,7 @@ class MigrationRunner:
             roots,
             self.dst_pool,
             item_kinds=selection.get("item_kinds"),
+            order=self.config.get("order"),
         )
         existing = {it["storage_id"] for it in self._items()}
         for item in items:
@@ -430,6 +431,7 @@ class MigrationRunner:
             roots,
             self.dst_pool,
             item_kinds=selection.get("item_kinds"),
+            order=self.config.get("order"),
         )
         existing = {it["storage_id"]: it for it in self._items()}
         policy = self.config.get("failure_policy") or "retry_quarantine"
@@ -1052,6 +1054,15 @@ class MigrationRunner:
         trees = {}
         for it in items:
             trees.setdefault(it["tree_id"], []).append(it)
+        # The order the PLAN froze, not the ledger's: under a byte budget the
+        # tail does not move, so it must be the order the admin approved.
+        trees = {
+            tid: trees[tid]
+            for tid in mig.sort_tree_ids(
+                {tid: tis[0].get("tree_order_key") for tid, tis in trees.items()},
+                self.config.get("order"),
+            )
+        }
 
         # Parallelism gate (P2.3): bound concurrent trees to config.parallelism
         # so the storage worker is not oversubscribed. In-flight trees keep

@@ -577,6 +577,123 @@ def test_item_kinds_desktop_reaches_desktops_below_a_two_template_chain(monkeypa
         assert it["parent_dst_path"] is None  # 'mid' stays where it is
 
 
+# order — which trees start first, and therefore which ones a budget reaches
+def test_sort_tree_ids_none_preserves_the_callers_order():
+    keys = {"c": 3, "a": 1, "b": 2}
+    assert mig.sort_tree_ids(keys, None) == ["c", "a", "b"]
+    assert mig.sort_tree_ids(keys, "none") == ["c", "a", "b"]
+
+
+def test_sort_tree_ids_directions_are_exact_inverses():
+    keys = {"cold": 100, "warm": 200, "hot": 300}
+    oldest = mig.sort_tree_ids(keys, "oldest_first")
+    newest = mig.sort_tree_ids(keys, "newest_first")
+    assert oldest == ["cold", "warm", "hot"]
+    assert newest == list(reversed(oldest))
+
+
+def test_sort_tree_ids_ties_break_on_the_id_so_plan_and_run_agree():
+    keys = {"zzz": 100, "aaa": 100}
+    assert mig.sort_tree_ids(keys, "oldest_first") == ["aaa", "zzz"]
+    # deterministic in both directions -- the summary and the execution must
+    # walk the trees in exactly the same order or the preview is a lie
+    assert mig.sort_tree_ids(keys, "newest_first") == ["zzz", "aaa"]
+
+
+def test_sort_tree_ids_puts_trees_without_usage_data_last_in_both_directions():
+    """No usage date is NOT evidence of being cold. Sorting those first would
+    spend the whole budget on disks nobody can reason about."""
+    keys = {"known_old": 100, "unknown": None, "known_new": 300}
+    assert mig.sort_tree_ids(keys, "oldest_first") == [
+        "known_old",
+        "known_new",
+        "unknown",
+    ]
+    assert mig.sort_tree_ids(keys, "newest_first") == [
+        "known_new",
+        "known_old",
+        "unknown",
+    ]
+
+
+def test_tree_order_key_is_the_hottest_disk_that_moves():
+    """max, not min: a tree holding one actively-used desktop is not cold just
+    because it also holds a forgotten one."""
+    accessed = {"cold": 100, "hot": 900}.get
+    assert mig.tree_order_key(["cold", "hot"], lambda s: [], accessed) == 900
+
+
+def test_tree_order_key_ignores_the_disks_that_stay():
+    """A base template left behind as chain context carries a stale date that
+    must not decide when the desktops under it move."""
+    accessed = {"tpl": 100, "d1": 900}.get
+    # only d1 moves; tpl is context and is not passed in
+    assert mig.tree_order_key(["d1"], lambda s: [], accessed) == 900
+
+
+def test_tree_order_key_of_a_mover_includes_its_derivatives(monkeypatch):
+    """Deriving a desktop stamps the NEW desktop, never the template it came
+    from, so a template's own date understates it by up to years. A mover is as
+    hot as its hottest descendant, moving or not."""
+    descendants = {"tpl": ["d1", "d2"]}
+    accessed = {"tpl": 100, "d1": 500, "d2": 900}.get
+    assert (
+        mig.tree_order_key(["tpl"], lambda s: descendants.get(s, []), accessed) == 900
+    )
+
+
+def test_tree_order_key_is_none_when_nothing_that_moves_was_ever_used():
+    assert mig.tree_order_key(["a", "b"], lambda s: [], {}.get) is None
+
+
+def test_budget_prefix_is_what_the_runner_would_admit():
+    sizes = {"a": 40, "b": 40, "c": 40}
+    # a tree in flight always finishes, so the last admitted one may overshoot:
+    # a+b spend 80 of 100, c is still admitted because the budget was not spent
+    assert mig.budget_prefix(["a", "b", "c"], sizes.get, 100) == ["a", "b", "c"]
+    assert mig.budget_prefix(["a", "b", "c"], sizes.get, 80) == ["a", "b"]
+    assert mig.budget_prefix(["a", "b", "c"], sizes.get, 0) == ["a", "b", "c"]
+
+
+def test_build_plan_without_an_order_stamps_no_key_and_asks_no_usage(monkeypatch):
+    """Backward compatibility AND cost: the default path must not pay for the
+    usage lookup a plan over a whole pool would make thousands of times."""
+    _patch_storage(monkeypatch, _tpl_with_desktops())
+
+    def _boom(*a, **k):
+        raise AssertionError("the usage lookup ran without an order being asked for")
+
+    monkeypatch.setattr(
+        "isardvdi_common.models.domain.Domain.accessed_by_storage", _boom
+    )
+
+    items, totals = mig.build_plan_for_roots("m", ["tpl"], _MultiPathPool())
+
+    assert all("tree_order_key" not in it for it in items)
+    assert totals["order"] == "none"
+    assert totals["order_trees_without_usage"] == 0
+
+
+def test_build_plan_with_an_order_freezes_the_key_on_every_item(monkeypatch):
+    _patch_storage(monkeypatch, _tpl_with_desktops())
+    monkeypatch.setattr(
+        "isardvdi_common.models.domain.Domain.accessed_by_storage",
+        classmethod(lambda cls, ids: {"d1": 100, "d3": 900}),
+    )
+
+    items, totals = mig.build_plan_for_roots(
+        "m", ["tpl"], _UsageLimitedPool(), item_kinds=["desktop"], order="oldest_first"
+    )
+
+    keys = {it["storage_id"]: it["tree_order_key"] for it in items}
+    # each desktop is its own tree here, so each carries its own key -- and the
+    # one nobody ever used carries None rather than a 0 that would sort first
+    assert keys == {"d1": 100, "d2": None, "d3": 900}
+    assert totals["order"] == "oldest_first"
+    assert totals["order_trees_without_usage"] == 1
+    assert mig.sort_tree_ids(keys, "oldest_first") == ["d1", "d3", "d2"]
+
+
 def test_build_plan_refuses_a_disk_with_no_resolvable_destination(monkeypatch):
     """An unresolvable destination must fail the PLAN, not the disk at run time.
 

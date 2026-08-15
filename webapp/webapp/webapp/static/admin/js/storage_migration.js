@@ -616,13 +616,15 @@ function migCreateConfig () {
     failure_policy: $("#mig_failure_policy").val(),
     quarantine_after: parseInt($("#mig_quarantine_after").val(), 10) || 3,
     max_bytes_per_occurrence: migGbToBytes($("#mig_budget_gb").val()),
-    min_free_bytes: migGbToBytes($("#mig_min_free_gb").val())
+    min_free_bytes: migGbToBytes($("#mig_min_free_gb").val()),
+    order: $("#mig_order").val() || "none"
   };
 }
 
 // ── Live plan summary (dry-run counts/sizes) + ETA ──────────────────────────
 // bytes_total / items_total from the last successful plan (drive the ETA recompute)
 let migLastPlanBytes = null;
+let migLastPlanTrees = 0;
 let migLastPlanItems = 0;
 // per-disk throughput assumed for the ETA when no bwlimit cap is set (~100 MB/s)
 const MIG_DEFAULT_KBPS = 102400;
@@ -635,7 +637,18 @@ let migSummaryTimer = null;
 // back and forth re-shows a previous estimate instantly without re-querying.
 const migPlanCache = {};
 
-function migSelectionKey () { return JSON.stringify(migSelection()); }
+// The two config knobs belong in the cache key, or switching the order re-serves
+// the previous ordering and the admin approves the wrong picture.
+function migPreviewConfig () {
+  return {
+    order: $("#mig_order").val() || "none",
+    max_bytes_per_occurrence: migGbToBytes($("#mig_budget_gb").val())
+  };
+}
+
+function migSelectionKey () {
+  return JSON.stringify([migSelection(), migPreviewConfig()]);
+}
 
 function migSetSummaryState (txt, color) {
   $("#mig_sum_state").text(txt || "").css("color", color || "#aaa");
@@ -674,9 +687,23 @@ function migRenderSummary (totals) {
   $("#mig_sum_media_sz").text(migBytes(bbk.media || 0));
   $("#mig_sum_total").text(totals.items_total || 0);
   $("#mig_sum_total_sz").text(migBytes(totals.bytes_total || 0));
-  // Disks the selection walked but leaves in place (a disk type that was not
-  // ticked). They carry no ledger row, so this preview is the only place they
-  // are ever shown -- and "N move, M stay" is the answer the admin came for.
+  // Disks the selection walked but leaves in place. They carry no ledger row, so
+  // this preview is the only place they are ever shown.
+  const ord = totals.order || "none";
+  if (ord === "none") {
+    $("#mig_sum_order").parent().hide();
+  } else {
+    const label = ord === "oldest_first" ? "least-used first" : "most-used first";
+    const nodata = totals.order_trees_without_usage || 0;
+    let txt = label;
+    if (totals.trees_within_budget != null && migLastPlanTrees &&
+        totals.trees_within_budget < migLastPlanTrees) {
+      txt += ` — ${totals.trees_within_budget} of ${migLastPlanTrees} trees fit this run` +
+             ` (${migBytes(totals.bytes_within_budget || 0)})`;
+    }
+    if (nodata) txt += ` · ${nodata} with no usage data, moved last`;
+    $("#mig_sum_order").text(txt).parent().show();
+  }
   const nm = totals.not_moving_by_kind || {};
   const nmTotal = totals.not_moving_total || 0;
   if (nmTotal) {
@@ -687,6 +714,7 @@ function migRenderSummary (totals) {
   }
   migLastPlanBytes = totals.bytes_total || 0;
   migLastPlanItems = totals.items_total || 0;
+  migLastPlanTrees = totals.trees || 0;
   $("#mig_summary").show();
   $("#mig_sum_loading").hide();
   $("#mig_sum_content").show();
@@ -737,7 +765,7 @@ function migLoadSummary (immediate) {
     migSetSummaryState("estimating…");
     $.ajax({
       type: "POST", url: `${MIG_API}/plan`, contentType: "application/json",
-      data: JSON.stringify({ selection: migSelection() })
+      data: JSON.stringify({ selection: migSelection(), config: migPreviewConfig() })
     }).done(function (plan) {
       const totals = plan.totals || {};
       migPlanCache[key] = totals;   // retain for re-show without re-querying
@@ -785,6 +813,8 @@ $(document).ready(function () {
   // iCheck replaces the native checkbox, so listen for its events too or the
   // summary silently keeps showing the plan for the previous type selection.
   $("#mig_item_kinds").on("change ifChanged", ".mig-item-kind", function () { migLoadSummary(); });
+  // both of these change WHAT would move, not just how it is displayed
+  $("#mig_order, #mig_budget_gb").on("change", function () { migLoadSummary(); });
 
   // parallel / bwlimit -> recompute ETA only (no API call needed)
   $("#mig_parallel, #mig_bwlimit").on("input change", migRecalcEta);

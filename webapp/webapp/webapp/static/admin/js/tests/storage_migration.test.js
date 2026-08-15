@@ -158,4 +158,11 @@ a = api({ vals: {}, checks: {}, days: [] });
 assert.strictEqual(a.migCreateConfig().window, null);
 console.log("migCreateConfig days + recurring: PASS");
 
+// order: absent -> "none" (today's behaviour), and a chosen value travels
+a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0" } });
+assert.strictEqual(a.migCreateConfig().order, "none");
+a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_order": "oldest_first" } });
+assert.strictEqual(a.migCreateConfig().order, "oldest_first");
+console.log("migCreateConfig order: PASS");
+
 console.log("ALL PASS");

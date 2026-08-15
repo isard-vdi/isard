@@ -81,6 +81,9 @@ class MigrationConfigData(BaseModel):
     #: free space while the real limit is physical fill, so no probe can size
     #: this safely. Gates only the START of a tree, so the last one may overshoot.
     max_bytes_per_occurrence: int = Field(default=0, ge=0)
+    #: Order in which trees are STARTED. Only observable under a byte budget,
+    #: where the tail of the list does not move this occurrence.
+    order: Literal["none", "oldest_first", "newest_first"] = "none"
     #: Filesystem-level free-space floor on the destination, in bytes; 0 = off.
     #: Enforced by the worker immediately before each copy (the only place the
     #: number is true, and the only process that can see the pool mounts).
@@ -89,9 +92,17 @@ class MigrationConfigData(BaseModel):
 
 
 class MigrationPlanData(BaseModel):
-    """Dry-run plan preview request — selection only, nothing is persisted."""
+    """Dry-run plan preview request — nothing is persisted.
+
+    The config is optional and only two of its knobs change the preview
+    (`order` and `max_bytes_per_occurrence`), but they change it decisively:
+    without them the preview cannot say which trees would fall outside this
+    occurrence's budget, and an admin would be approving a job whose actual
+    effect is invisible until it runs.
+    """
 
     selection: MigrationSelectionData
+    config: MigrationConfigData = Field(default_factory=MigrationConfigData)
 
 
 class MigrationCreateData(BaseModel):
@@ -105,6 +116,11 @@ class MigrationCreateData(BaseModel):
 class MigrationTreeSummary(BaseModel):
     tree_id: str
     root_storage_id: str
+    #: usage key this tree was ordered by (epoch seconds); None == no usage data
+    order_key: Optional[int] = None
+    #: whether this tree fits inside `max_bytes_per_occurrence` in plan order.
+    #: True everywhere when no budget is set.
+    within_budget: bool = True
     derivative_templates: int = 0
     desktops: int = 0
     media: int = 0
@@ -152,6 +168,15 @@ class MigrationTotalsResponse(BaseModel):
     #: so the plan preview is the only place they are ever visible.
     not_moving_total: int = 0
     not_moving_by_kind: dict = Field(default_factory=dict)
+    #: the tree-start order this plan was built with (`none` unless asked for).
+    order: str = "none"
+    #: trees whose moving disks carry no usage date. They sort LAST in both
+    #: directions, so a budget reaches them last either way.
+    order_trees_without_usage: int = 0
+    #: bytes/trees that fit in `max_bytes_per_occurrence`; equal to the totals
+    #: when there is no budget.
+    bytes_within_budget: int = 0
+    trees_within_budget: int = 0
 
 
 class MigrationPlanResponse(BaseModel):
