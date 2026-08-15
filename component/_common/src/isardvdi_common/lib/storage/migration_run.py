@@ -497,6 +497,31 @@ class MigrationRunner:
         audit.append(record)
         self._set(item, audit=audit)
 
+    def _failure_reason(self, item):
+        """What the disk's failing task actually said, or None.
+
+        The three task slots are checked newest-phase-first because that is the
+        one that just failed; a task that raised keeps its traceback in
+        ``exc_info``, whose last line is the actionable sentence (e.g. a move
+        refused because the destination would drop below its free-space floor).
+        Best-effort by design: a missing or expired task must not stop the tree
+        from terminalizing, so anything unreadable falls back to the generic
+        wording rather than raising here.
+        """
+        for slot in ("verify_task_id", "rebase_task_id", "move_task_id"):
+            task_id = item.get(slot)
+            if not task_id:
+                continue
+            try:
+                if not Task.exists(task_id):
+                    continue
+                exc_info = Task(task_id).exc_info
+            except Exception:
+                continue
+            if exc_info:
+                return mig.task_error_line(exc_info, None)
+        return None
+
     def _tree_key(self, tree_items):
         """EWMA throughput key for a tree: ``<src_pool>:<dst_pool>`` using the
         tree root's source pool."""
@@ -986,7 +1011,9 @@ class MigrationRunner:
         # exception handler), which plan_tree_failure leaves untouched — reset
         # its storage explicitly so it never stays stuck in maintenance.
         self._restore_storage_status(item)
-        changes = mig.plan_tree_failure(tree_items, item["storage_id"])
+        changes = mig.plan_tree_failure(
+            tree_items, item["storage_id"], reason=self._failure_reason(item)
+        )
         changed_ids = {it["id"] for it, _s, _r in changes}
         # The triggering disk may already be ``failed`` (generic exception
         # handler), so plan_tree_failure leaves it untouched and out of ``changes``

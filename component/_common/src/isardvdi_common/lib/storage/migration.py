@@ -1150,7 +1150,20 @@ def cancel_skips_tree(tree_items, action, finishing):
     )
 
 
-def plan_tree_failure(tree_items, failed_storage_id):
+def task_error_line(exc_info, fallback):
+    """The last line of a worker traceback — the sentence that says WHY (pure).
+
+    A storage task that refuses its work raises with everything an admin needs
+    on that final line: which file, which destination, how much space was left
+    and what the floor was. Reporting the disk as "move/rebase task failed"
+    keeps all of it in the worker's log, which is not where the person reading
+    the migration panel is looking.
+    """
+    lines = [line.strip() for line in (exc_info or "").splitlines() if line.strip()]
+    return lines[-1] if lines else fallback
+
+
+def plan_tree_failure(tree_items, failed_storage_id, reason=None):
     """Terminalize a whole tree after one of its disks fails, so the job reaches
     a terminal state (and autostart is restored) instead of wedging on a
     permanently-``blocked`` tree.
@@ -1162,6 +1175,9 @@ def plan_tree_failure(tree_items, failed_storage_id):
     deleted, so it stays bootable via its new location and any abandoned child
     stays bootable via the retained source.
 
+    ``reason`` is what the failing task actually said; without it the disk is
+    marked with a generic sentence that tells the admin nothing they can act on.
+
     Returns ``[(item, new_state, reason)]`` for the items that must change
     (already-terminal disks are left untouched).
     """
@@ -1171,7 +1187,7 @@ def plan_tree_failure(tree_items, failed_storage_id):
         if str(it["state"]) in _TERMINAL_STATES:
             continue
         if it["storage_id"] == failed_storage_id:
-            out.append((it, "failed", "move/rebase task failed"))
+            out.append((it, "failed", reason or "move/rebase task failed"))
         elif it["id"] in descendants:
             out.append((it, "skipped", "ancestor disk failed"))
         else:

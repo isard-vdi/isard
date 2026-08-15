@@ -724,3 +724,44 @@ def test_build_plan_refuses_a_disk_with_no_resolvable_destination(monkeypatch):
     message = str(raised.value)
     assert "root" in message, message
     assert "TypeError" not in message, message
+
+
+# a failed disk must say WHY, not just that it failed
+def test_task_error_line_is_the_exception_sentence():
+    """The last line of a worker traceback carries the whole answer: which
+    file, which destination, how much space was left and what the floor was."""
+    exc = (
+        "Traceback (most recent call last):\n"
+        '  File "/opt/isardvdi/isardvdi_task/task.py", line 232, in _require_free_space\n'
+        "    raise RuntimeError(\n"
+        "RuntimeError: move: refusing to copy /pool/a/d1.qcow2: destination "
+        "/pool/b would be left with 22157058048 bytes free, below the "
+        "42949672960 byte floor (filesystem-level figure)\n"
+    )
+    line = mig.task_error_line(exc, "move/rebase task failed")
+    assert line.startswith("RuntimeError: move: refusing to copy")
+    assert "42949672960 byte floor" in line
+
+
+def test_task_error_line_falls_back_when_there_is_no_traceback():
+    assert mig.task_error_line("", "generic") == "generic"
+    assert mig.task_error_line(None, "generic") == "generic"
+
+
+def test_plan_tree_failure_reports_the_reason_it_was_given():
+    items = [
+        {
+            "id": "i1",
+            "storage_id": "d1",
+            "tree_id": "d1",
+            "topo_index": 0,
+            "state": "moving",
+            "parent_storage_id": None,
+        },
+    ]
+    ((_it, state, reason),) = mig.plan_tree_failure(items, "d1", reason="no space left")
+    assert state == "failed"
+    assert reason == "no space left"
+    # and without one, the historical wording is kept rather than an empty cell
+    ((_it, _s, fallback),) = mig.plan_tree_failure(items, "d1")
+    assert fallback == "move/rebase task failed"
