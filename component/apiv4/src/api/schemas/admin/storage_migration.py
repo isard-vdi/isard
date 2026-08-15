@@ -84,10 +84,8 @@ class MigrationConfigData(BaseModel):
     #: Order in which trees are STARTED. Only observable under a byte budget,
     #: where the tail of the list does not move this occurrence.
     order: Literal["none", "oldest_first", "newest_first"] = "none"
-    #: Filesystem-level free-space floor on the destination, in bytes; 0 = off.
-    #: Enforced by the worker immediately before each copy (the only place the
-    #: number is true, and the only process that can see the pool mounts).
-    #: NOT valid on thin-provisioned (VDO) pools -- see max_bytes_per_occurrence.
+    #: Free-space floor on the destination in bytes, 0 = off. Held against the
+    #: PHYSICAL fill where known; on statvfs alone it protects nothing.
     min_free_bytes: int = Field(default=0, ge=0)
 
 

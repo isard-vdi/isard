@@ -180,6 +180,65 @@ def _free_space(path):
         return None
 
 
+def _physical_free_space(path):
+    """Physical free bytes behind ``path``, or ``None`` when statvfs is right.
+
+    Answers only for a thin-provisioned destination, the one case where the
+    filesystem figure is not the constraint: it reports the pool's logical size
+    and was 5x to 17x optimistic in the field. Everywhere else ``None`` means
+    "the caller's statvfs is already the truth".
+
+    Two sources, freshest first: measured here when this node owns the backing
+    store and holds the device-mapper ioctl, else the figure a node that does
+    published into redis -- the only source a worker mounting the pool over the
+    network can have. Redis, never a database: this container must not reach
+    RethinkDB. Staleness needs no handling because the published key expires on
+    its own; an absent key is simply no measurement.
+
+    Never raises: a probe that fails must not take the copy with it. A thin
+    destination that yields nothing says so and lets the caller fall back,
+    because refusing every move onto a thin pool the moment this ships would be
+    a regression nobody asked for -- but doing that silently would hide that
+    the guard is not guarding.
+    """
+    try:
+        from isardvdi_common.lib.storage.physical_usage import (
+            pool_physical_usage,
+            read_usage_for_path,
+        )
+
+        usage = pool_physical_usage(path)
+        if not usage.get("thin"):
+            return None
+        if usage.get("physical_free_bytes") is not None:
+            return usage["physical_free_bytes"]
+
+        published = read_usage_for_path(_redis_connection(), path)
+        if published and published.get("physical_free_bytes") is not None:
+            return published["physical_free_bytes"]
+        log.warning(
+            "%s is thin-provisioned and nobody publishes its physical usage, so "
+            "the free-space floor falls back to the filesystem figure, which "
+            "reports the LOGICAL size and does not protect this pool. Set "
+            "STORAGE_POOL_PHYSICAL_STATS on the node holding its physical mounts.",
+            path,
+        )
+    except Exception:
+        log.exception("could not read the physical free space at %s", path)
+    return None
+
+
+def _redis_connection():
+    """The worker's own redis connection, or a fresh one outside a job."""
+    job = get_current_job()
+    if job is not None and getattr(job, "connection", None) is not None:
+        return job.connection
+    from isardvdi_common.connections.redis_urls import rq_url
+    from redis import Redis
+
+    return Redis.from_url(rq_url())
+
+
 # Headroom every whole-copy action leaves on the destination filesystem, unless
 # the caller names its own. A floor that only applies when an operator has
 # configured one protects nobody by default, and the damage is not proportional
@@ -210,7 +269,13 @@ def _require_free_space(target_dir, source_path, min_free_bytes, action, verb):
     if not min_free_bytes:
         return
 
-    free = _free_space(target_dir)
+    # Physical first: on a thin destination the filesystem figure is the pool's
+    # LOGICAL size and enforcing the floor against it protects nothing.
+    free = _physical_free_space(target_dir)
+    basis = "physical"
+    if free is None:
+        free = _free_space(target_dir)
+        basis = "filesystem-level"
     if free is None:
         raise RuntimeError(
             f"{action}: refusing to {verb} {source_path}: cannot read the free "
@@ -232,7 +297,7 @@ def _require_free_space(target_dir, source_path, min_free_bytes, action, verb):
         raise RuntimeError(
             f"{action}: refusing to {verb} {source_path}: destination "
             f"{target_dir} would be left with {free - needed} bytes free, below "
-            f"the {min_free_bytes} byte floor (filesystem-level figure)"
+            f"the {min_free_bytes} byte floor ({basis} figure)"
         )
 
 
@@ -1331,11 +1396,8 @@ def move(
     # refused. Basis is the source's ALLOCATED size (st_blocks), which is what a
     # copy actually lands, not the qcow2 virtual size.
     #
-    # WARNING: this is a FILESYSTEM-level figure (statvfs f_bavail). On a
-    # thin-provisioned backing store (VDO) the filesystem reports LOGICAL space
-    # and the real constraint is the pool's PHYSICAL fill, which can be ~5x
-    # smaller. On such pools this floor gives no protection and must not be
-    # relied on until the probe learns to read the physical figure.
+    # On a thin backing store statvfs reports LOGICAL space, so the floor is held
+    # against the PHYSICAL fill where that is known; otherwise it protects nothing.
     if method != "mv":
         _require_free_space(
             dirname(destination_path), origin_path, min_free_bytes, "move", "copy"
