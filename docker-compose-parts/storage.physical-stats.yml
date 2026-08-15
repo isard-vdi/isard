@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Added by build.sh only when STORAGE_POOL_PHYSICAL_STATS is a positive
+# number of seconds (0 = off).
+#
+# Reading a thin pool's real fill needs the device-mapper ioctl: BOTH the
+# control node and CAP_SYS_ADMIN. A read-only device does not work --
+# libdevmapper opens the node O_RDWR, so `:r` fails at open. That ioctl does
+# not separate query from mutation, so this also permits removing or suspending
+# any volume on the node. Enable only where a pool is local AND thin;
+# `storage-pool-physical --json` says which case each pool is in.
+services:
+  isard-storage:
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/mapper/control:/dev/mapper/control:rw

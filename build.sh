@@ -580,6 +580,25 @@ create_docker_compose_file(){
 		parts="$parts redis.passwd"
 	fi
 
+	# Physical (thin-aware) pool usage: seconds between measurements, 0 = off.
+	# The part it chains grants the storage container device-mapper access.
+	case "${STORAGE_POOL_PHYSICAL_STATS:-0}" in
+		''|*[!0-9]*) _pool_stats_seconds=0 ;;
+		*) _pool_stats_seconds="$STORAGE_POOL_PHYSICAL_STATS" ;;
+	esac
+	if [ "$_pool_stats_seconds" -gt 0 ]
+	then
+		case " $(echo $parts) " in
+			*" storage "*)
+				echo "STORAGE_POOL_PHYSICAL_STATS=$_pool_stats_seconds, adding storage.physical-stats part"
+				parts="$parts storage.physical-stats"
+				;;
+			*)
+				echo "WARNING: STORAGE_POOL_PHYSICAL_STATS is set but flavour $FLAVOUR has no storage part; ignoring it"
+				;;
+		esac
+	fi
+
 	# Add openapi container
 	if [ "$ENABLE_OPENAPI" = "true" ]
 	then

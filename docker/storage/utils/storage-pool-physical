@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""Publish the PHYSICAL space behind each storage pool mounted on this node.
+
+Run by ``init.sh`` as a background loop when ``STORAGE_POOL_PHYSICAL_STATS`` is
+a positive number of seconds, and by hand for diagnosis:
+
+    storage-pool-physical --json     # show what this node sees, publish nothing
+    storage-pool-physical --once     # measure and publish one cycle
+    storage-pool-physical            # loop forever (the container's mode)
+
+A thin pool's filesystem reports its LOGICAL size, so statvfs is wrong by 5x to
+17x on such a pool. The real figure only exists on the node holding the physical
+mounts; publishing it is what makes it reachable from the workers that mount the
+pool over the network.
+
+It goes to REDIS and nowhere else. This container must never reach RethinkDB,
+by REST or otherwise, so the node neither reads the pool list from a database
+nor writes a row into one: it enumerates the mounts it actually has and keys the
+measurement by MOUNTPOINT, the one identifier it can be sure of on its own.
+Resolving a mountpoint to a pool is the reader's job.
+
+The key self-expires, so a node that stops measuring simply stops answering --
+which is correct, because a pool goes on filling precisely while nobody watches
+it. There is no staleness comparison anywhere, and no timestamp to get wrong.
+"""
+
+import argparse
+import json
+import logging
+import os
+import socket
+import sys
+import time
+
+from isardvdi_common.connections.redis_urls import rq_url
+from isardvdi_common.lib.storage.physical_usage import (
+    pool_paths,
+    pool_physical_usage,
+    pool_root,
+    publish_usage,
+    tightest,
+    vdo_status,
+)
+from redis import Redis
+
+#: Default cycle. A pool's fill moves slowly and the measurement is cheap -- one
+#: device-mapper ioctl for every VDO on the node, a handful of small sysfs reads
+#: and one statvfs per mount -- so this is paced for the data, not the cost.
+DEFAULT_INTERVAL_SECONDS = 300
+
+#: Expiry, as a multiple of the cycle. Generous on purpose: a cycle that runs
+#: late must not make a live pool look unmeasured, while a node that has really
+#: stopped still falls silent within a few cycles.
+TTL_CYCLES = 3
+
+log = logging.getLogger("storage-pool-physical")
+
+
+def _env_interval():
+    """Seconds from ``STORAGE_POOL_PHYSICAL_STATS``; the default when it is
+    unset, 0 or not a number. A manual run still works on a node where the
+    reporter is switched off, which is exactly when an operator wants to ask
+    what it can see."""
+    raw = (os.environ.get("STORAGE_POOL_PHYSICAL_STATS") or "").strip()
+    return int(raw) if raw.isdigit() and int(raw) > 0 else DEFAULT_INTERVAL_SECONDS
+
+
+def node_name():
+    return os.environ.get("STORAGE_DOMAIN") or socket.gethostname()
+
+
+def describe(usage):
+    """One human line, so the reason is visible without reading the JSON."""
+    gib = 1024**3
+    if usage["kind"] not in ("local-thick", "local-thin"):
+        return f"{usage['kind']} ({usage['fstype']}): {usage.get('reason', '')}"
+    label = usage.get("backend") or usage["fstype"]
+    if usage["physical_free_bytes"] is None:
+        return f"{usage['kind']} ({label}): fill UNKNOWN -- {usage.get('reason', '')}"
+    line = (
+        f"{usage['kind']} ({label}): "
+        f"{usage['physical_used_bytes'] / gib:.1f} GiB used of "
+        f"{usage['physical_total_bytes'] / gib:.1f} GiB, "
+        f"{usage['physical_free_bytes'] / gib:.1f} GiB free"
+    )
+    if usage["thin"] and usage["filesystem_free_bytes"]:
+        line += (
+            f" (the filesystem claims {usage['filesystem_free_bytes'] / gib:.1f} GiB)"
+        )
+    return line
+
+
+def cycle(connection=None, ttl=None):
+    """Measure every pool mount once, publishing what this node can measure."""
+    vdo = vdo_status()
+    results = {}
+    mine = {}
+    for path in pool_paths():
+        usage = pool_physical_usage(path, vdo=vdo)
+        usage["node"] = node_name()
+        results[path] = usage
+        log.info("%s: %s", path, describe(usage))
+        if usage["kind"] == "local-thin" and usage["physical_used_bytes"] is None:
+            log.warning(
+                "%s is thin-provisioned and its fill cannot be read here; set "
+                "STORAGE_POOL_PHYSICAL_STATS on the node holding its physical "
+                "mounts so this container gets the device-mapper control node",
+                path,
+            )
+        if connection is None:
+            continue
+        if usage["kind"] not in ("local-thick", "local-thin"):
+            # Not ours to report. Staying quiet is the point: publishing this
+            # node's "cannot tell" would erase the measurement of the node that
+            # holds the backing store, and the answer would come down to who
+            # wrote last.
+            continue
+        publish_usage(connection, usage, ttl)
+        mine.setdefault(pool_root(path), []).append(usage)
+
+    # One figure per pool as well, so a reader holding only a pool's mountpoint
+    # gets an answer. It is the pool's most constrained path, because a pool
+    # spanning several filesystems is as full as its fullest one.
+    for root, measurements in mine.items():
+        summary = tightest(measurements)
+        if summary and connection is not None:
+            publish_usage(connection, dict(summary, path=root), ttl)
+    return results
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--json", action="store_true", help="print the measurement, publish nothing"
+    )
+    parser.add_argument("--once", action="store_true", help="one cycle, then exit")
+    parser.add_argument(
+        "--interval",
+        type=int,
+        default=_env_interval(),
+        help="seconds between cycles in loop mode",
+    )
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(
+        level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+
+    if args.json:
+        json.dump(cycle(), sys.stdout, indent=2, sort_keys=True)
+        sys.stdout.write("\n")
+        return 0
+
+    interval = max(args.interval, 30)
+    ttl = interval * TTL_CYCLES
+    connection = Redis.from_url(rq_url())
+
+    if args.once:
+        cycle(connection, ttl)
+        return 0
+
+    log.info(
+        "publishing physical pool usage every %ss (expiring after %ss)", interval, ttl
+    )
+    while True:
+        try:
+            cycle(connection, ttl)
+        except Exception:
+            # A reporter that dies stops publishing, the keys expire and every
+            # reader correctly sees "unmeasured". Log and keep the loop alive;
+            # the next cycle is one interval away.
+            log.exception("physical usage cycle failed; retrying next cycle")
+        time.sleep(interval)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

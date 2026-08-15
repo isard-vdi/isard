@@ -120,6 +120,18 @@ case "${_cap_disk}" in
     *) _cap_disk_enabled=1 ;;
 esac
 
+# --- Physical (thin-aware) storage pool usage --------------------------------
+# Seconds between measurements, 0 = off. Started BEFORE the fleet: a node with
+# REDIS_WORKERS=0 still owns its mounts.
+case "${STORAGE_POOL_PHYSICAL_STATS:-0}" in
+    ''|*[!0-9]*) _pool_stats_seconds=0 ;;
+    *) _pool_stats_seconds="${STORAGE_POOL_PHYSICAL_STATS}" ;;
+esac
+if [ "${_pool_stats_seconds}" -gt 0 ]; then
+    echo "storage: reporting physical pool usage every ${_pool_stats_seconds}s"
+    /utils/storage-pool-physical --interval "${_pool_stats_seconds}" &
+fi
+
 if [ "${REDIS_WORKERS:-1}" -ne 0 ] && [ "${_cap_disk_enabled}" -eq 1 ]
 then
     # Wait for Redis to be ready before starting workers
