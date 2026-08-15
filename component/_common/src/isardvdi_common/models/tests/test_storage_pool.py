@@ -54,11 +54,18 @@ def test_get_usage_path_weighted_returns_configured_path():
 
 
 def test_get_usage_path_empty_list_raises():
-    """A configured-but-empty usage list must not IndexError (F1)."""
+    """A configured-but-empty usage list must not IndexError (F1), and must
+    raise the project's TYPED error so the 400 and its message survive the trip
+    out. A bare ``Exception(("bad_request", msg))`` did not: apiv4 saw an
+    unrecognised exception, re-wrapped it as internal_server, and the admin got
+    a 500 with the actionable text left behind in the log."""
     pool = make_pool(id="p", paths={"template": []})
     with pytest.raises(Exception) as exc:
         pool.get_usage_path("template")
-    assert exc.value.args[0] == "bad_request"
+    assert exc.value.error["error"] == "bad_request"
+    assert exc.value.status_code == 400
+    assert exc.value.error["description_code"] == "storage_pool_usage_without_path"
+    assert "no 'template' path configured" in exc.value.error["description"]
 
 
 def test_get_usage_path_missing_usage_raises():
@@ -66,7 +73,8 @@ def test_get_usage_path_missing_usage_raises():
     pool = make_pool(id="p", paths={"desktop": [{"path": "g", "weight": 100}]})
     with pytest.raises(Exception) as exc:
         pool.get_usage_path("media")
-    assert exc.value.args[0] == "bad_request"
+    assert exc.value.error["error"] == "bad_request"
+    assert exc.value.error["description_code"] == "storage_pool_usage_without_path"
 
 
 # --------------------------------------------------------------------------- #

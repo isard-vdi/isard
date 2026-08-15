@@ -317,6 +317,100 @@ def test_build_plan_survives_a_dangling_parent(monkeypatch):
     assert not items[0].get("parent_dst_path")
 
 
+class _UsageLimitedPool:
+    """Destination pool that serves ONLY the ``desktop`` usage — the shape seen
+    in the field, where a pool has ``desktop: ['groups']`` and the other three
+    usages present but with an EMPTY path list."""
+
+    id = "dstpool"
+    mountpoint = "/dst"
+
+    def __init__(self):
+        self.asked_usages = []
+
+    def get_usage_path(self, usage):
+        self.asked_usages.append(usage)
+        if usage != "desktop":
+            from isardvdi_common.helpers import error_factory
+
+            raise error_factory.Error(
+                "bad_request",
+                f"Storage pool {self.id} has no '{usage}' path configured",
+            )
+        return "groups"
+
+
+def test_build_plan_never_resolves_the_destination_of_a_parent_that_stays(monkeypatch):
+    """A parent OUTSIDE the migrated set does not move, so its destination must
+    never be resolved.
+
+    ``compute_roots`` roots a tree precisely because its parent lives outside the
+    selection, so this is the normal case: resolving that parent's destination
+    asks the target pool for a path it does not serve and takes the whole plan
+    down as a 500.
+    """
+    _FakeStorage.registry = {
+        "tpl": {
+            "type": "qcow2",
+            "parent": None,
+            "perms": ["r"],  # read-only base template, lives in another pool
+            "pool_usage": "template",
+            "children": ["d1", "d2", "d3"],
+        },
+        **{
+            d: {
+                "type": "qcow2",
+                "parent": "tpl",
+                "perms": ["r", "w"],
+                "pool_usage": "desktop",
+                "children": [],
+            }
+            for d in ("d1", "d2", "d3")
+        },
+    }
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+    pool = _UsageLimitedPool()
+
+    # the desktops are the roots: their parent is outside the selection
+    items, totals = mig.build_plan_for_roots("m", ["d1", "d2", "d3"], pool)
+
+    assert [it["storage_id"] for it in items] == ["d1", "d2", "d3"]
+    assert totals["items_total"] == 3
+    # the template's usage was never asked for — that ask IS the bug
+    assert "template" not in pool.asked_usages
+    for it in items:
+        # the parent is still recorded (it is the disk's real backing owner)...
+        assert it["parent_storage_id"] == "tpl"
+        # ...but there is nothing to rebase onto: it stays exactly where it is,
+        # so the disk's existing backing pointer still resolves.
+        assert it["parent_dst_path"] is None
+        assert it["parent_dst_dir"] is None
+
+
+def test_build_plan_still_rebases_onto_a_parent_that_does_move(monkeypatch):
+    """The other side of the same rule: a parent INSIDE the migrated set moves,
+    so its child must still be rebased onto the parent's NEW path."""
+    _FakeStorage.registry = {
+        "root": {"type": "qcow2", "parent": None, "perms": ["r"], "children": ["c"]},
+        "c": {"type": "qcow2", "parent": "root", "perms": ["r", "w"], "children": []},
+    }
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+
+    items, _ = mig.build_plan_for_roots("m", ["root"], _UsageLimitedPool())
+    child = {it["storage_id"]: it for it in items}["c"]
+    root = {it["storage_id"]: it for it in items}["root"]
+
+    assert child["parent_storage_id"] == "root"
+    assert child["parent_dst_path"] == root["dst_path"]
+    assert child["parent_dst_dir"] == root["dst_dir"]
+
+
 def test_build_plan_refuses_a_disk_with_no_resolvable_destination(monkeypatch):
     """An unresolvable destination must fail the PLAN, not the disk at run time.
 

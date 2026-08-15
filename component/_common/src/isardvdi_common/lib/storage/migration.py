@@ -75,7 +75,7 @@ def classify_kind(has_children, perms):
     return "desktop" if "w" in (perms or []) else "template"
 
 
-def build_tree_items(migration_id, root_id, get_children, node_info):
+def build_tree_items(migration_id, root_id, get_children, node_info, order=None):
     """Build the ``storage_migration_item`` dicts (state ``pending``) for ONE
     tree, in topo order.
 
@@ -83,11 +83,15 @@ def build_tree_items(migration_id, root_id, get_children, node_info):
     ``src_path``, ``dst_path``, ``dst_dir``, ``size_bytes`` and (for non-root
     nodes) ``parent_storage_id`` / ``parent_dst_path`` / ``parent_dst_dir``.
 
+    ``order`` is the pre-walked topo order for this tree; the caller passes the
+    walk it already had to do to know which disks move, so the subtree is not
+    traversed twice (every step is a DB read of the node's children).
+
     The root (topo_index 0) never rebases — its backing points at a parent
     OUTSIDE the migrated tree, which does not move — so its rebase target is
     cleared here regardless of what ``node_info`` returns.
     """
-    order = walk_tree_topo(root_id, get_children)
+    order = walk_tree_topo(root_id, get_children) if order is None else order
     items = []
     for idx, nid in enumerate(order):
         info = node_info(nid)
@@ -1429,6 +1433,19 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
     def get_children(sid):
         return [c.id for c in st(sid).children]
 
+    #: The disks this plan MOVES: every root plus its full subtree closure. A
+    #: parent OUTSIDE this set stays where it is, which is not an edge case:
+    #: compute_roots roots a tree precisely BECAUSE its parent lives outside the
+    #: selection ("the parent lives outside the selection so it will not move").
+    #: Its destination must therefore never be resolved -- on an estate whose
+    #: chains cross pools, that parent is typically a read-only base template in
+    #: another pool, and asking a destination pool that serves no 'template' path
+    #: for its directory raised and took the WHOLE plan down. Measured on a
+    #: production estate: 1.880 of the 1.900 parented disks in the source pool
+    #: back onto a parent outside it, so every plan for that pool answered 500.
+    tree_orders = {rid: walk_tree_topo(rid, get_children) for rid in root_ids}
+    moving = {nid for order in tree_orders.values() for nid in order}
+
     def dst_dir_of(s):
         if s.id not in dst_dir_cache:
             try:
@@ -1441,9 +1458,9 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
                 # aborts the whole plan with nothing to act on. Note this still
                 # fails the plan -- skipping just the disk would strand its
                 # children, so skipping its whole tree is separate work.
-                from isardvdi_common.helpers.error_base import ErrorBase
+                from isardvdi_common.helpers import error_factory
 
-                raise ErrorBase(
+                raise error_factory.Error(
                     "bad_request",
                     f"Storage {s.id} cannot be placed in pool {dst_pool.id}: "
                     f"{exc}. Give the disk a resolvable owner category, exclude "
@@ -1457,9 +1474,9 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
                 # dst_path and task.move dies inside os.path.isfile(None) with a
                 # TypeError, which the admin only sees as "move or rebase task
                 # failed" -- with the disk's whole subtree skipped behind it.
-                from isardvdi_common.helpers.error_base import ErrorBase
+                from isardvdi_common.helpers import error_factory
 
-                raise ErrorBase(
+                raise error_factory.Error(
                     "bad_request",
                     f"Storage {s.id} cannot be placed in pool {dst_pool.id}: its "
                     f"directory {getattr(s, 'directory_path', '?')} does not match "
@@ -1494,15 +1511,26 @@ def build_plan_for_roots(migration_id, root_ids, dst_pool, *, size_fn=None):
         # backing parent: plan it as a root rather than raising not_found and
         # taking every other tree in the migration down with it.
         if parent_id and Storage.exists(parent_id):
-            p = st(parent_id)
             info["parent_storage_id"] = parent_id
-            # Reuse the parent's single resolved directory (cached by id) so the
-            # child rebases onto exactly where the parent's file actually landed.
-            info["parent_dst_path"] = dst_path_of(p)
-            info["parent_dst_dir"] = dst_dir_of(p)
+            if parent_id in moving:
+                p = st(parent_id)
+                # Reuse the parent's single resolved directory (cached by id) so
+                # the child rebases onto exactly where the parent's file landed.
+                info["parent_dst_path"] = dst_path_of(p)
+                info["parent_dst_dir"] = dst_dir_of(p)
+            # else: the parent stays put, so an unset rebase target is correct --
+            # that is what the runner reads as "no rebase".
         return info
 
     items = []
     for root_id in root_ids:
-        items.extend(build_tree_items(migration_id, root_id, get_children, node_info))
+        items.extend(
+            build_tree_items(
+                migration_id,
+                root_id,
+                get_children,
+                node_info,
+                order=tree_orders[root_id],
+            )
+        )
     return items, summarize_plan(items)
