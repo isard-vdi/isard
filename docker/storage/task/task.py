@@ -1393,8 +1393,8 @@ def move(
 
     # Destination free-space floor. Only a COPY can fill the destination: a
     # same-filesystem move is a rename, so it consumes nothing and must never be
-    # refused. Basis is the source's ALLOCATED size (st_blocks), which is what a
-    # copy actually lands, not the qcow2 virtual size.
+    # refused. Basis is the source's APPARENT size, not its allocated one: no
+    # copier here passes --sparse, so a sparse qcow2 lands fully allocated.
     #
     # On a thin backing store statvfs reports LOGICAL space, so the floor is held
     # against the PHYSICAL fill where that is known; otherwise it protects nothing.
