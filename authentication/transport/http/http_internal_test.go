@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	nethttp "net/http"
 	"testing"
 	"time"
 
@@ -18,6 +19,8 @@ import (
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
+	"github.com/crewjam/saml"
+	"github.com/crewjam/saml/samlsp"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,6 +35,7 @@ func TestLogin(t *testing.T) {
 	require := require.New(t)
 
 	cases := map[string]struct {
+		Provider              oasAuthentication.Providers
 		PrepareToken          func() string
 		PrepareAuthentication func(context.Context, *authentication.MockAuthentication, string)
 		CheckResponse         func(string, oasAuthentication.LoginRes)
@@ -171,6 +175,23 @@ func TestLogin(t *testing.T) {
 			},
 			ExpectedErr: provider.ErrInternal.Error(),
 		},
+		"should redirect without setting the authorization cookie if the provider forces a redirect without a token": {
+			PrepareAuthentication: func(ctx context.Context, m *authentication.MockAuthentication, _ string) {
+				m.On("Login", ctx, types.ProviderForm, "default", provider.LoginArgs{Host: "isard.example.org"}, "127.0.0.1").Return("", "/authentication/callback?state=eyJhbGciOiJIUzI1NiJ9", nil)
+			},
+			Expected: &oasAuthentication.LoginFound{
+				Location: "/authentication/callback?state=eyJhbGciOiJIUzI1NiJ9",
+			},
+		},
+		"should redirect without setting the authorization cookie if google forces a redirect": {
+			Provider: oasAuthentication.ProvidersGoogle,
+			PrepareAuthentication: func(ctx context.Context, m *authentication.MockAuthentication, _ string) {
+				m.On("Login", ctx, types.ProviderGoogle, "default", provider.LoginArgs{Host: "isard.example.org"}, "127.0.0.1").Return("", "https://accounts.google.com/o/oauth2/auth?client_id=isard&state=abc", nil)
+			},
+			Expected: &oasAuthentication.LoginFound{
+				Location: "https://accounts.google.com/o/oauth2/auth?client_id=isard&state=abc",
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -182,11 +203,16 @@ func TestLogin(t *testing.T) {
 				tkn = tc.PrepareToken()
 			}
 
+			prv := tc.Provider
+			if prv == "" {
+				prv = oasAuthentication.ProvidersForm
+			}
+
 			prvMock := provider.NewMockProvider(t)
-			prvMock.On("String").Return(types.ProviderForm)
+			prvMock.On("String").Return(string(prv))
 
 			authMock := authentication.NewMockAuthentication(t)
-			authMock.On("Provider", types.ProviderForm, "default").Return(prvMock)
+			authMock.On("Provider", string(prv), "default").Return(prvMock)
 
 			a := &AuthenticationServer{
 				Authentication: authMock,
@@ -199,7 +225,7 @@ func TestLogin(t *testing.T) {
 			tc.PrepareAuthentication(ctx, authMock, tkn)
 
 			res, err := a.Login(ctx, oasAuthentication.OptLoginRequestMultipart{}, oasAuthentication.LoginParams{
-				Provider:   oasAuthentication.ProvidersForm,
+				Provider:   prv,
 				CategoryID: "default",
 			})
 
@@ -219,6 +245,61 @@ func TestLogin(t *testing.T) {
 			prvMock.AssertExpectations(t)
 		})
 	}
+}
+
+type establishedSAMLSession struct{}
+
+func (establishedSAMLSession) CreateSession(_ nethttp.ResponseWriter, _ *nethttp.Request, _ *saml.Assertion) error {
+	return nil
+}
+
+func (establishedSAMLSession) DeleteSession(_ nethttp.ResponseWriter, _ *nethttp.Request) error {
+	return nil
+}
+
+func (establishedSAMLSession) GetSession(_ *nethttp.Request) (samlsp.Session, error) {
+	return samlsp.JWTSessionClaims{}, nil
+}
+
+func TestLoginSAML(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	redirect := "/authentication/callback?state=eyJhbGciOiJIUzI1NiJ9"
+
+	prvMock := provider.NewMockProvider(t)
+	prvMock.On("String").Return(types.ProviderSAML)
+
+	authMock := authentication.NewMockAuthentication(t)
+	authMock.On("Provider", types.ProviderSAML, "default").Return(prvMock)
+	authMock.On("SAML", "default", "isard.example.org").Return(&samlsp.Middleware{
+		Session: establishedSAMLSession{},
+	})
+
+	a := &AuthenticationServer{
+		Authentication: authMock,
+		Log:            log.New("test", "debug"),
+	}
+
+	ctx := context.WithValue(t.Context(), requestMetadataRemoteAddrCtxKey, "127.0.0.1")
+	ctx = context.WithValue(ctx, requestMetadataHostCtxKey, "isard.example.org")
+
+	authMock.On("Login", ctx, types.ProviderSAML, "default", provider.LoginArgs{Host: "isard.example.org"}, "127.0.0.1").Return("", redirect, nil)
+
+	res, err := a.Login(ctx, oasAuthentication.OptLoginRequestMultipart{}, oasAuthentication.LoginParams{
+		Provider:   oasAuthentication.ProvidersSaml,
+		CategoryID: "default",
+		Token:      oasAuthentication.NewOptString("saml-session-cookie"),
+	})
+
+	assert.NoError(err)
+	assert.Equal(&oasAuthentication.LoginFound{
+		Location: redirect,
+	}, res)
+
+	authMock.AssertExpectations(t)
+	prvMock.AssertExpectations(t)
 }
 
 func TestCallback(t *testing.T) {
