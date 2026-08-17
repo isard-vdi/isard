@@ -1045,7 +1045,6 @@
             "stopping-download": "Zatrzymywanie pobierania",
             "counting-desktops": "Liczenie, ile pulpitów zostanie utworzonych",
             "new-template-server": "Nie można utworzyć szablonu z serwera",
-            "wireguard-viewers-removed": "Dostępy przez Pulpit Zdalny (RDP) zostały usunięte, ponieważ wymagana jest sieć wireguard",
             "file-downloaded": "Plik pobrany",
             "making-invisible-deployment": "Uczynienie floty niewidoczną",
             "opening-desktop": "Otwieranie pulpitu",

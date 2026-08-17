@@ -134,7 +134,8 @@ export default {
         // removeWireguardViewers would still reset the guest credentials.
         if (!dropped.length) return
         removedViewers.value = dropped
-        ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.wireguard-viewers-removed'), '', true, 5000)
+        // Same text as the notice below the viewers, which may be out of view
+        ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('forms.domain.viewers.wireguard-removed', { viewers: removedViewerNames.value.join(', ') }), '', true, 5000)
         $store.dispatch('removeWireguardViewers')
       } else if (newVal === true) {
         removedViewers.value = []
