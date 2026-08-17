@@ -3,17 +3,20 @@
     id="content"
     fluid
   >
-    <b-tabs>
+    <!-- Out of the tabs: a lazy pane destroys its content, and both tabs open these modals -->
+    <DirectLinkModal />
+    <StartNowModal />
+    <CantStartNowModal />
+    <DesktopModal />
+    <BastionModal />
+    <IncreaseModal />
+
+    <!-- lazy: the volatile tab mounts one card per allowed template, freezing the main thread while hidden -->
+    <b-tabs lazy>
       <b-tab
         :active="currentTab === 'desktops'"
         @click="updateCurrentTab('desktops')"
       >
-        <DirectLinkModal />
-        <StartNowModal />
-        <CantStartNowModal />
-        <DesktopModal />
-        <BastionModal />
-        <IncreaseModal />
         <template #title>
           <b-spinner
             v-if="!getDesktopsLoaded"
