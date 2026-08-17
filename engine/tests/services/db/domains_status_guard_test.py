@@ -61,6 +61,7 @@ from unittest.mock import patch  # noqa: E402
 
 import pytest  # noqa: E402
 
+REQL_NULL_ERROR = object()
 
 
 class _Val:
@@ -68,12 +69,52 @@ class _Val:
         self.value = value
 
     def eq(self, other):
+        # Comparing a field read off a null row is itself a server error, not
+        # a false: the error has to propagate to whatever branch consumes it.
+        if self.value is REQL_NULL_ERROR:
+            return REQL_NULL_ERROR
         return self.value == other
+
+
+class _PoisonedRow:
+    """Result of operating on a null row, which the server rejects with errors: 1."""
+
+    document = REQL_NULL_ERROR
+
+    def __getitem__(self, _key):
+        return _Val(REQL_NULL_ERROR)
+
+    def without(self, *_fields):
+        return self
+
+    def merge(self, _other):
+        return self
+
+
+class _MissingRow:
+    """What ``get`` hands the lambda when the row is gone: a null, not a {}."""
+
+    document = None
+
+    def eq(self, other):
+        return other is None
+
+    def __getitem__(self, _key):
+        return _Val(REQL_NULL_ERROR)
+
+    def without(self, *_fields):
+        return _PoisonedRow()
+
+    def merge(self, _other):
+        return _PoisonedRow()
 
 
 class _RowProxy:
     def __init__(self, document):
         self.document = document
+
+    def eq(self, other):
+        return self.document == other
 
     def __getitem__(self, key):
         return _Val(self.document.get(key))
@@ -92,7 +133,9 @@ class _Doc:
         self.doc_id = doc_id
 
     def _row(self):
-        return _RowProxy(self.store.get(self.doc_id, {}))
+        if self.doc_id not in self.store:
+            return _MissingRow()
+        return _RowProxy(self.store[self.doc_id])
 
     def update(self, payload, return_changes=False):
         if callable(payload):
@@ -103,8 +146,20 @@ class _Doc:
         return {"replaced": 1, "unchanged": 0, "skipped": 0}
 
     def replace(self, payload, return_changes=False):
-        before = self.store.get(self.doc_id, {})
+        before = self.store.get(self.doc_id)
         after = payload(self._row()).document
+        if after is REQL_NULL_ERROR:
+            return {
+                "replaced": 0,
+                "unchanged": 0,
+                "skipped": 0,
+                "errors": 1,
+                "first_error": (
+                    "Cannot perform without on a non-object non-sequence `null`."
+                ),
+            }
+        if after is None:
+            return {"replaced": 0, "unchanged": 0, "skipped": 1, "errors": 0}
         self.store[self.doc_id] = after
         return {"replaced": 0 if after == before else 1, "unchanged": 0, "skipped": 0}
 
@@ -127,6 +182,8 @@ class _FakeR:
 
     @staticmethod
     def branch(condition, on_true, on_false):
+        if condition is REQL_NULL_ERROR:
+            return _PoisonedRow()
         return on_true if condition else on_false
 
 
@@ -246,3 +303,22 @@ def test_a_guarded_failed_that_is_skipped_does_not_strip_the_row(store):
         mod.update_domain_status("Failed", "d1", expected_status="Resetting")
 
     assert stripped == [], "a row the guard protected was stripped anyway"
+
+
+def test_a_stop_against_a_row_that_is_gone_neither_errors_nor_recreates_it(store):
+    """The deleted-row guard must wrap the expected-status one."""
+    assert "d1" not in store
+
+    result = mod.update_domain_status("Stopped", "d1")
+
+    assert "d1" not in store, "a write recreated a domain that had been deleted"
+    assert not result.get("errors"), result.get("first_error")
+
+
+def test_a_guarded_stop_against_a_row_that_is_gone_is_also_safe(store):
+    assert "d1" not in store
+
+    result = mod.update_domain_status("Stopped", "d1", expected_status="Stopping")
+
+    assert "d1" not in store
+    assert not result.get("errors"), result.get("first_error")
