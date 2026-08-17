@@ -270,9 +270,8 @@ const hasRdpViewer = computed(() => hasWireguardRequiringViewer(selectedViewers.
 const removedViewers = ref<string[]>([])
 
 watch(
-  () => (templateData.value ?? desktopData.value)?.limited_hardware,
-  (lh) => {
-    const dropped = (lh as { viewers?: { old_value?: string[] } } | undefined)?.viewers?.old_value
+  () => (templateData.value ?? desktopData.value)?.removed_viewers,
+  (dropped) => {
     if (dropped?.length) removedViewers.value = dropped
   },
   { immediate: true }

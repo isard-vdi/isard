@@ -653,6 +653,8 @@ class DomainInfoResponse(BaseModel):
     hardware: DomainInfoHardware | None = None
     reservables: Reservables | None = None
     limited_hardware: dict | None = None  # TODO: check type
+    # RDP viewers dropped from guest_properties because there's no wireguard network
+    removed_viewers: list[str] | None = None
     bastion_target: DomainInfoBastionResponse | None = None
     status: str | None = None
     hyp_started: str | None = None
