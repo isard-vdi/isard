@@ -480,10 +480,11 @@ export default {
       return this.desktop.state && this.desktop.type === 'nonpersistent' && this.desktopState === desktopStates.stopped
     },
     template () {
-      return (this.desktop.template && this.templates.filter(template => template.id === this.desktop.template)[0]) || null
+      // find, not filter: this runs once per card over the full template list
+      return (this.desktop.template && this.templates.find(template => template.id === this.desktop.template)) || null
     },
     bastion () {
-      const bastion = this.$store.getters.getBastionTargets.filter(b => b.desktop_id === this.desktop.id)[0]
+      const bastion = this.$store.getters.getBastionTargets.find(b => b.desktop_id === this.desktop.id)
       return bastion || null
     },
     bastionVisible () {
