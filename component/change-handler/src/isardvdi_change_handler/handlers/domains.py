@@ -70,7 +70,12 @@ class DomainsHandler(BaseHandler):
         if isinstance(image, dict) and image.get("type") == "user":
             try:
                 await asyncio.to_thread(Cards.delete_card, image["id"])
-            except (OSError, KeyError):
+            except Exception:
+                # Anything this raises must stay contained: the deployment
+                # cleanup and the delegate below are what tell the client the
+                # desktop is gone, and a card that could not be removed is not
+                # a reason to skip them. Narrowing this to OSError/KeyError let
+                # a NameError from the helper abort the rest of on_delete.
                 log.exception("Failed to delete card image for domain %s", old_val.id)
 
         # Clean up empty deployments in "deleting" status. The rdb
