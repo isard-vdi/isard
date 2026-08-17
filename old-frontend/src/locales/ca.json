@@ -1308,7 +1308,8 @@
       "viewers": {
         "title": "Visors",
         "fullscreen-disabled": "Pantalla completa desactivada",
-        "fullscreen-enabled": "Pantalla completa activada"
+        "fullscreen-enabled": "Pantalla completa activada",
+        "wireguard-removed": "Aquests visors RDP s'han eliminat perquè no hi ha interfície de xarxa wireguard: {viewers}"
       },
       "bastion": {
         "disabled": "Bastió deshabilitat",

@@ -155,7 +155,8 @@
             "viewers": {
                 "title": "Viewers",
                 "fullscreen-disabled": "Fullscreen disabled",
-                "fullscreen-enabled": "Fullscreen enabled"
+                "fullscreen-enabled": "Fullscreen enabled",
+                "wireguard-removed": "These RDP viewers were removed because there is no wireguard network interface: {viewers}"
             },
             "bastion": {
                 "disabled": "Bastion disabled",

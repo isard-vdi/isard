@@ -66,11 +66,23 @@
         </b-row>
       </b-form-checkbox-group>
     </b-form-group>
+    <!-- Viewers dropped for a missing wireguard network -->
+    <p
+      v-if="removedViewerNames.length"
+      class="text-danger font-weight-bold"
+    >
+      <b-icon
+        class="mr-2"
+        variant="danger"
+        icon="exclamation-triangle-fill"
+      />
+      {{ $t('forms.domain.viewers.wireguard-removed', { viewers: removedViewerNames.join(', ') }) }}
+    </p>
   </div>
 </template>
 
 <script>
-import { computed, watch } from '@vue/composition-api'
+import { computed, ref, watch } from '@vue/composition-api'
 import { availableViewers } from '@/shared/constants'
 import { orderBy } from 'lodash'
 import i18n from '@/i18n'
@@ -96,23 +108,39 @@ export default {
     })
     const wireguard = computed(() => domain.value.hardware.interfaces.includes('wireguard'))
     const availableHardware = computed(() => $store.getters.getHardware)
+    const wireguardViewerKeys = availableViewers.filter(viewer => viewer.needsWireguard).map(viewer => viewer.key)
+
+    // The toast only covers the removal happening now; this keeps the reason
+    // visible for a domain that already arrived without the network.
+    const removedViewers = ref([])
+    watch(() => domain.value.removedViewers, (dropped) => {
+      removedViewers.value = [...(dropped || [])]
+    }, { immediate: true })
+    const removedViewerNames = computed(() => removedViewers.value.map((key) => {
+      const viewer = availableViewers.find(v => v.key === key)
+      return viewer ? i18n.t(`views.select-template.viewer-name.${viewer.type}-${viewer.id}`) : key
+    }))
+
     watch(wireguard, (newVal, prevVal) => {
       // Only on a real removal. Reading the current value instead of the
       // transition also fired when the form was simply handed a domain that
       // never had the network, announcing a removal that never happened and
       // stripping the RDP viewers on plain navigation.
       if (prevVal === true && newVal === false) {
+        removedViewers.value = viewers.value
+          .map((viewer) => Object.keys(viewer)[0])
+          .filter((key) => wireguardViewerKeys.includes(key))
         ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.wireguard-viewers-removed'), '', true, 5000)
         $store.dispatch('removeWireguardViewers')
+      } else if (newVal === true) {
+        removedViewers.value = []
       }
     })
 
     watch(viewers, (newVal, prevVal) => {
-      // Get viewers that require the wireguard network and the currently selected viewers
-      const wireguardViewers = availableViewers.filter(viewer => viewer.needsWireguard).map((viewer) => viewer.key)
       const currentViewers = newVal.map((viewer) => Object.keys(viewer)[0])
       // If has selected any wireguard viewer
-      if (currentViewers.some(viewer => wireguardViewers.includes(viewer))) {
+      if (currentViewers.some(viewer => wireguardViewerKeys.includes(viewer))) {
         context.emit('rdpViewersSelected', true)
         // Add the wireguard network
         if (!wireguard.value) {
@@ -135,7 +163,8 @@ export default {
       orderBy,
       wireguard,
       fullscreen,
-      availableViewers
+      availableViewers,
+      removedViewerNames
     }
   }
 }

@@ -54,6 +54,7 @@ const getDefaultState = () => {
       reservables: {
         vgpus: ['None']
       },
+      removedViewers: [],
       image: {
       },
       OSTemplateId: '',

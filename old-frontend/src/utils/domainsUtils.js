@@ -64,7 +64,7 @@ function roundToNearestTier (value, tiers, quotaMax) {
 
 export class DomainsUtils {
   static parseDomain (item) {
-    const { id, kind, name, description, guest_properties: guestProperties, hardware, reservables, image, limited_hardware: limitedHardware } = item
+    const { id, kind, name, description, guest_properties: guestProperties, hardware, reservables, image, limited_hardware: limitedHardware, removed_viewers: removedViewers } = item
     // Unlimited (quota=false) falls back to the tier maxima, not a low cap, so
     // large desktops aren't snapped down on edit.
     const rawQuota = hardware.quota
@@ -104,6 +104,8 @@ export class DomainsUtils {
         quota: !hardware.quota ? { memory: 1024, vcpus: 128, desktopDiskSizes: 2048 } : hardware.quota
       },
       limitedHardware,
+      // Viewers the API dropped because the domain has no wireguard network
+      removedViewers: removedViewers || [],
       reservables: {
         vgpus: reservables && reservables.vgpus && reservables.vgpus.length > 0 ? [...reservables.vgpus] : ['None']
       },
