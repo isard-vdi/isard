@@ -36,6 +36,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from PIL import Image, ImageOps
 from rethinkdb import r
 
@@ -299,21 +300,48 @@ class Cards(RethinkSharedConnection):
                     {"image": cls.get_domain_stock_card(domain_id)}
                 ).run(cls._rdb_connection)
 
+    #: Every bin status a restore can still come back from. ``deleted`` is the only
+    #: one that cannot, so its cards are free.
+    _RESTORABLE_BIN_STATUSES = tuple(
+        s.value for s in RecycleBinStatusEnum if s is not RecycleBinStatusEnum.deleted
+    )
+
+    @classmethod
+    def _referenced_card_files(cls):
+        """Every card file a live or restorable domain still lays claim to."""
+        referenced = []
+        with cls._rdb_context():
+            referenced += [
+                d["image"]["id"] if d.get("image") else d["id"] + ".jpg"
+                for d in r.table("domains")
+                .pluck("id", {"image": {"id", "type"}})
+                .run(cls._rdb_connection)
+                if d.get("image", {}).get("type") == "user"
+            ]
+        with cls._rdb_context():
+            entries = list(
+                r.table("recycle_bin")
+                .get_all(r.args(list(cls._RESTORABLE_BIN_STATUSES)), index="status")
+                .pluck(
+                    {
+                        "desktops": ["id", {"image": ["id", "type"]}],
+                        "templates": ["id", {"image": ["id", "type"]}],
+                    }
+                )
+                .run(cls._rdb_connection)
+            )
+        for entry in entries:
+            # restore() re-inserts desktops AND templates, so both keep their card.
+            for d in (entry.get("desktops") or []) + (entry.get("templates") or []):
+                if (d.get("image") or {}).get("type") != "user":
+                    continue
+                referenced.append(d["image"]["id"])
+        return list(dict.fromkeys(referenced))
+
     @classmethod
     def cleanup_missing(cls):
         files = [p.name for p in Path(USERS_CARDS).rglob("*") if not p.is_dir()]
-        with cls._rdb_context():
-            db_files = list(
-                dict.fromkeys(
-                    [
-                        d["image"]["id"] if d.get("image") else d["id"] + ".jpg"
-                        for d in r.table("domains")
-                        .pluck("id", {"image": {"id", "type"}})
-                        .run(cls._rdb_connection)
-                        if d.get("image", {}).get("type") == "user"
-                    ]
-                )
-            )
+        db_files = cls._referenced_card_files()
 
         for f in files:
             if f not in db_files:
