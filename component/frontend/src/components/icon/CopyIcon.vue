@@ -26,22 +26,27 @@ const props = withDefaults(defineProps<Props>(), {
 const iconName = ref(props.name)
 
 const disabled = ref(false)
+
+const resetLater = () => {
+  setTimeout(() => {
+    iconName.value = props.name
+    disabled.value = false
+  }, 1000)
+}
+
 const copyText = (text: string) => {
   navigator.clipboard.writeText(text).then(
     () => {
       iconName.value = Math.random() < 0.001 ? 'face-smile' : props.successName
       disabled.value = true
+      resetLater()
     },
     (err) => {
       iconName.value = props.errorName
       console.error('Could not copy text: ', err)
+      resetLater()
     }
   )
-
-  setTimeout(() => {
-    iconName.value = props.name
-    disabled.value = false
-  }, 1000)
 }
 
 const tooltip = computed(() =>
@@ -50,7 +55,8 @@ const tooltip = computed(() =>
 </script>
 
 <template>
-  <Tooltip>
+  <!-- disable-closing-trigger: keep the tooltip open on click so the "copied" text is visible -->
+  <Tooltip disable-closing-trigger>
     <TooltipTrigger as-child>
       <div :class="cn(iconVariants({ size }))">
         <Icon
