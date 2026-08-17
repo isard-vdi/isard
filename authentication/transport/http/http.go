@@ -418,6 +418,18 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		return nil, provider.ErrInternal
 	}
 
+	if tkn == "" {
+		if redirect == "" {
+			log.Error().Msg("the login returned neither a token nor a redirect")
+
+			return nil, provider.ErrInternal
+		}
+
+		return &oasAuthentication.LoginFound{
+			Location: redirect,
+		}, nil
+	}
+
 	exp, err := token.GetTokenExpiration(tkn)
 	if err != nil {
 		log.Error().Err(err).Msg("get the token expiration to set the cookie lifetime")
