@@ -133,3 +133,43 @@ class TestTheBinStillClaimsItsCards:
         )
 
         assert claimed == []
+
+
+class TestPathsDoNotDependOnWhoImports:
+    """The names must exist in every process, and importing must not create
+    directories in one that never touches cards."""
+
+    def test_the_paths_are_defined_without_an_api_module(self):
+        assert mod.USERS_CARDS and mod.STOCK_CARDS
+
+    def test_they_sit_under_one_configurable_root(self):
+        assert mod.USERS_CARDS.startswith(mod.CARDS_ROOT)
+        assert mod.STOCK_CARDS.startswith(mod.CARDS_ROOT)
+
+    def test_importing_creates_nothing(self, tmp_path, monkeypatch):
+        """Re-import with a root that does not exist: it must stay that way."""
+        import importlib
+
+        arrel = tmp_path / "no-existeix"
+        monkeypatch.setenv("CARDS_ROOT", str(arrel))
+        importlib.reload(mod)
+        try:
+            assert not arrel.exists(), "importing cards.py created its directories"
+        finally:
+            monkeypatch.delenv("CARDS_ROOT", raising=False)
+            importlib.reload(mod)
+
+    def test_the_directories_are_created_at_the_point_of_use(
+        self, tmp_path, monkeypatch
+    ):
+        import importlib
+
+        arrel = tmp_path / "cards"
+        monkeypatch.setenv("CARDS_ROOT", str(arrel))
+        importlib.reload(mod)
+        try:
+            mod._ensure_card_dirs()
+            assert (arrel / "user").is_dir() and (arrel / "stock").is_dir()
+        finally:
+            monkeypatch.delenv("CARDS_ROOT", raising=False)
+            importlib.reload(mod)

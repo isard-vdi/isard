@@ -19,8 +19,6 @@
 
 
 import base64
-import importlib
-import importlib.util
 import logging as log
 import mimetypes
 import os
@@ -44,32 +42,21 @@ from .gen_image import gen_img_from_name
 
 _get_stock_cards_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=1, ttl=3600)
 
-api_spec = importlib.util.find_spec("api")
-if api_spec and api_spec.origin == "/api/api/__init__.py":
-    """APIv3"""
-    from api import app as _
+# Where the card files live: a deployment fact, not something inferred from where
+# a module happens to sit. The defaults are apiv4's layout.
+CARDS_ROOT = os.environ.get("CARDS_ROOT", "/app/api/static/assets/img/desktops")
+STOCK_CARDS = os.path.join(CARDS_ROOT, "stock")
+USERS_CARDS = os.path.join(CARDS_ROOT, "user")
+# Seed images live alongside ``api/``, not inside it, so the service tree carries
+# no bundled binary data; they are copied into ``STOCK_CARDS`` at startup.
+STOCK_ASSETS_SEED = os.environ.get("CARDS_SEED_ASSETS", "/app/seed_assets")
 
-    USERS_CARDS = _.USERS_CARDS
-    STOCK_CARDS = _.STOCK_CARDS
 
-
-elif api_spec and api_spec.origin == "/app/api/__init__.py":
-    """APIv4"""
-    APP_ROOT = "/app/api/"
-
-    STOCK_CARDS = os.path.join(APP_ROOT, "static/assets/img/desktops/stock")
-    if not os.path.exists(STOCK_CARDS):
-        os.makedirs(STOCK_CARDS, exist_ok=True)
-    USERS_CARDS = os.path.join(APP_ROOT, "static/assets/img/desktops/user")
-    if not os.path.exists(USERS_CARDS):
-        os.makedirs(USERS_CARDS, exist_ok=True)
-    # Seed images live alongside ``api/`` (sibling), not inside it, so
-    # the apiv4 service tree carries no bundled binary data — the images
-    # are copied into ``STOCK_CARDS`` once at startup and served from
-    # the host bind-mount via nginx after that.
-    STOCK_ASSETS_SEED = os.path.join(
-        os.path.dirname(APP_ROOT.rstrip("/")), "seed_assets"
-    )
+def _ensure_card_dirs():
+    """Create the card directories at the point of use, never at import time:
+    ``_common`` is imported by services that have no business owning them."""
+    os.makedirs(STOCK_CARDS, exist_ok=True)
+    os.makedirs(USERS_CARDS, exist_ok=True)
 
 
 def _safe_card_path(base_dir, filename):
@@ -89,7 +76,8 @@ class Cards(RethinkSharedConnection):
         # on main / apiv4-and-websockets): copy bundled stock images into
         # STOCK_CARDS so isard-static (nginx) serves them via the shared
         # host bind-mount on fresh installs.
-        seed_dir = globals().get("STOCK_ASSETS_SEED")
+        _ensure_card_dirs()
+        seed_dir = STOCK_ASSETS_SEED
         if not seed_dir or not os.path.isdir(seed_dir):
             return
         for filename in os.listdir(seed_dir):
@@ -156,6 +144,7 @@ class Cards(RethinkSharedConnection):
                         .run(cls._rdb_connection)["name"]
                     )
                 img = gen_img_from_name(domain_name)
+                _ensure_card_dirs()
                 img.save(_safe_card_path(USERS_CARDS, domain_id + ".jpg"))
         else:
             proposed_img = []
@@ -185,6 +174,7 @@ class Cards(RethinkSharedConnection):
                 img, (480, 248), method=0, bleed=0.0, centering=(0.5, 0.5)
             )
             ## Check if file not exists?
+            _ensure_card_dirs()
             img_resized.save(_safe_card_path(USERS_CARDS, filename))
 
             with cls._rdb_context():
@@ -249,6 +239,7 @@ class Cards(RethinkSharedConnection):
     @classmethod
     def generate_default_card(cls, domain_id, domain_name):
         img = gen_img_from_name(domain_name)
+        _ensure_card_dirs()
         img.save(_safe_card_path(USERS_CARDS, domain_id + ".jpg"))
         return cls.get_card(domain_id + ".jpg", "user")
 
