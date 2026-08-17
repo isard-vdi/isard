@@ -127,9 +127,13 @@ export default {
       // never had the network, announcing a removal that never happened and
       // stripping the RDP viewers on plain navigation.
       if (prevVal === true && newVal === false) {
-        removedViewers.value = viewers.value
+        const dropped = viewers.value
           .map((viewer) => Object.keys(viewer)[0])
           .filter((key) => wireguardViewerKeys.includes(key))
+        // No viewer needed the network: nothing was removed to announce, and
+        // removeWireguardViewers would still reset the guest credentials.
+        if (!dropped.length) return
+        removedViewers.value = dropped
         ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.wireguard-viewers-removed'), '', true, 5000)
         $store.dispatch('removeWireguardViewers')
       } else if (newVal === true) {
