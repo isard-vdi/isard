@@ -212,7 +212,8 @@
         },
         "preview": {
           "title": "Previsualització",
-          "description": "Així és com es veurà el teu escriptori. Aquestes dades es poden editar"
+          "description": "Així és com es veurà el teu escriptori. Aquestes dades es poden editar",
+          "start-disabled": "Podràs iniciar l'escriptori un cop creat"
         },
         "desktop-information": {
           "title": "Informació de l'escriptori",
@@ -243,6 +244,13 @@
         "hardware-limited": {
           "title": "Maquinari limitat",
           "description": "Els valors de maquinari següents han estat limitats per permisos d'usuari:"
+        },
+        "desktop-configuration": {
+          "title": "Configuració de l'escriptori",
+          "description": "Aquests valors provenen de la plantilla. Canvia'ls a sota o més endavant, amb l'escriptori ja creat.",
+          "show": "Canvia la configuració",
+          "restore": "Restaura els valors inicials",
+          "restore-disabled": "Encara no hi ha canvis per restaurar"
         },
         "hardware-summary": {
           "title": "Resum del maquinari",
@@ -2033,13 +2041,14 @@
           "label": "Visors"
         },
         "bastion": {
-          "label": "Bastió activat",
+          "enable": "Activa el bastió",
           "description": "Permet l'accés a l'escriptori a través d'un host bastió.",
           "custom-domains": {
             "label": "Dominis personalitzats"
           },
           "http-https": {
             "label": "HTTP / HTTPS",
+            "enable": "Activa l'accés HTTP / HTTPS",
             "description": "Accedeix a l'escriptori amb un navegador web o un visor RDP compatible amb connexions HTTP/HTTPS.",
             "http-port": {
               "label": "Port HTTP",
@@ -2069,6 +2078,7 @@
           },
           "ssh": {
             "label": "SSH",
+            "enable": "Activa l'accés SSH",
             "description": "Fes servir un client SSH per connectar-te a l'escriptori a través de l'host bastió.",
             "port": {
               "label": "Port SSH",

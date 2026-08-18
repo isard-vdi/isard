@@ -14,6 +14,7 @@ import {
   FieldLabel
 } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Separator } from '@/components/ui/separator'
 import { useQuery } from '@tanstack/vue-query'
 import {
   getTemplateInfoOptions,
@@ -404,76 +405,21 @@ const showPassword = ref(false)
   </template>
   <template v-else>
     <FieldGroup>
-      <section
-        v-if="showCredentials"
-        class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:grid-cols-[280px_1FR] md:gap-0"
-      >
-        <div class="flex flex-row-reverse justify-end items-center gap-2.5">
-          <h4 class="text-lg font-semibold text-gray-warm-900">
-            {{ t('components.domain.access.sections.credentials') }}
-          </h4>
-          <Icon name="key-01" />
-        </div>
-        <div class="grid grid-cols-1 gap-2.5 md:gap-5 md:w-auto md:grid-cols-2">
-          <form.Field v-slot="{ field }" name="credentials.username">
-            <div class="flex flex-col gap-2">
-              <FieldLabel>{{
-                t('components.domain.access.credentials.username.label')
-              }}</FieldLabel>
-              <FieldContent>
-                <InputField
-                  :id="field.name"
-                  :name="field.name"
-                  :model-value="field.state.value"
-                  type="text"
-                  :placeholder="t('components.domain.access.credentials.username.placeholder')"
-                  @update:model-value="(value) => field.handleChange(String(value))"
-                />
-              </FieldContent>
-              <FieldError :errors="field.state.meta.errors" />
-            </div>
-          </form.Field>
-          <form.Field v-slot="{ field }" name="credentials.password">
-            <div class="flex flex-col gap-2">
-              <FieldLabel>{{
-                t('components.domain.access.credentials.password.label')
-              }}</FieldLabel>
-              <FieldContent>
-                <div class="relative">
-                  <InputField
-                    :id="field.name"
-                    :name="field.name"
-                    :model-value="field.state.value"
-                    :type="showPassword ? 'text' : 'password'"
-                    autocomplete="new-password"
-                    :placeholder="t('components.domain.access.credentials.password.placeholder')"
-                    @update:model-value="(value) => field.handleChange(String(value))"
-                  />
-                  <Button
-                    hierarchy="link-color"
-                    class="absolute right-3 top-1/2 -translate-y-1/2"
-                    @click="showPassword = !showPassword"
-                  >
-                    <Icon :name="showPassword ? 'eye-off' : 'eye'" />
-                  </Button>
-                </div>
-                <FieldDescription class="text-brand-600">
-                  {{ t('components.domain.access.credentials.password.help') }}
-                </FieldDescription>
-              </FieldContent>
-              <FieldError :errors="field.state.meta.errors" />
-            </div>
-          </form.Field>
-        </div>
-      </section>
-      <section
-        class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:m-0 md:grid-cols-[280px_1FR] md:gap-0"
-      >
-        <div class="flex flex-row-reverse items-center gap-2.5 justify-end">
-          <h4 class="text-lg font-semibold text-gray-warm-900">
+      <section class="group/hw-section grid gap-4 items-start">
+        <div class="flex items-center gap-2">
+          <Icon
+            name="monitor"
+            size="sm"
+            stroke-color=""
+            aria-hidden="true"
+            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          />
+          <h4
+            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          >
             {{ t('components.domain.access.sections.viewers') }}
           </h4>
-          <Icon name="monitor" />
+          <Separator class="flex-1" />
         </div>
         <div class="flex flex-col gap-2.5 md:gap-5 md:w-auto">
           <form.Field v-slot="{ field }" name="fullscreen">
@@ -529,6 +475,76 @@ const showPassword = ref(false)
               </ul>
             </AlertDescription>
           </Alert>
+        </div>
+      </section>
+      <section v-if="showCredentials" class="group/hw-section grid gap-4 items-start">
+        <div class="flex items-center gap-2">
+          <!-- Empty stroke-color clears Icon's inline color so the class below can drive
+               currentColor and pick up the focus-within highlight. -->
+          <Icon
+            name="key-01"
+            size="sm"
+            stroke-color=""
+            aria-hidden="true"
+            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          />
+          <h4
+            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          >
+            {{ t('components.domain.access.sections.credentials') }}
+          </h4>
+          <Separator class="flex-1" />
+        </div>
+        <div class="grid grid-cols-1 gap-2.5 md:gap-5 md:w-auto md:grid-cols-2">
+          <form.Field v-slot="{ field }" name="credentials.username">
+            <div class="flex flex-col gap-2">
+              <FieldLabel>{{
+                t('components.domain.access.credentials.username.label')
+              }}</FieldLabel>
+              <FieldContent>
+                <InputField
+                  :id="field.name"
+                  :name="field.name"
+                  :model-value="field.state.value"
+                  type="text"
+                  :placeholder="t('components.domain.access.credentials.username.placeholder')"
+                  @update:model-value="(value) => field.handleChange(String(value))"
+                />
+              </FieldContent>
+              <FieldError :errors="field.state.meta.errors" />
+            </div>
+          </form.Field>
+          <form.Field v-slot="{ field }" name="credentials.password">
+            <div class="flex flex-col gap-2">
+              <FieldLabel>{{
+                t('components.domain.access.credentials.password.label')
+              }}</FieldLabel>
+              <FieldContent>
+                <div class="relative">
+                  <InputField
+                    :id="field.name"
+                    :name="field.name"
+                    :model-value="field.state.value"
+                    :type="showPassword ? 'text' : 'password'"
+                    autocomplete="new-password"
+                    :placeholder="t('components.domain.access.credentials.password.placeholder')"
+                    @update:model-value="(value) => field.handleChange(String(value))"
+                  />
+                  <Button
+                    hierarchy="link-color"
+                    class="absolute right-3 top-1/2 -translate-y-1/2"
+                    @click="showPassword = !showPassword"
+                  >
+                    <Icon :name="showPassword ? 'eye-off' : 'eye'" />
+                  </Button>
+                </div>
+                <FieldDescription class="text-brand-600">
+                  {{ t('components.domain.access.credentials.password.help') }}
+                </FieldDescription>
+              </FieldContent>
+              <FieldError :errors="field.state.meta.errors" />
+            </div>
+          </form.Field>
         </div>
       </section>
       <BastionConfigForm

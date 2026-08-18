@@ -47,6 +47,12 @@ export const buttonVariants = cva(
           hover:underline
           disabled:text-gray-warm-400
         `,
+        'link-destructive': `
+          text-error-700
+          hover:underline
+          focus-visible:bg-error-50 focus-visible:ring-3 focus-visible:ring-error
+          disabled:bg-transparent disabled:text-gray-warm-400
+        `,
         destructive: `
           bg-error-600 text-base-white border-error-600 border
           hover:bg-error-700 :hover:text-base-white

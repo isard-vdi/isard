@@ -212,7 +212,8 @@
         "description": "You can edit the desktop name, image and hardware",
         "preview": {
           "title": "Preview",
-          "description": "This is how your desktop will look like. This data can be edited"
+          "description": "This is how your desktop will look like. This data can be edited",
+          "start-disabled": "You can start the desktop once it is created"
         },
         "desktop-information": {
           "title": "@:domains.capitalized.desktops Information",
@@ -243,6 +244,13 @@
         "hardware-limited": {
           "title": "Hardware limited",
           "description": "The following hardware values have been limited due to user permissions:"
+        },
+        "desktop-configuration": {
+          "title": "Desktop configuration",
+          "description": "These values come from the template. Change them below, or later once the desktop is created.",
+          "show": "Change configuration",
+          "restore": "Restore initial values",
+          "restore-disabled": "No changes to restore yet"
         },
         "hardware-summary": {
           "title": "Hardware summary",
@@ -1420,13 +1428,14 @@
           "label": "Viewers"
         },
         "bastion": {
-          "label": "Bastion enabled",
+          "enable": "Enable bastion",
           "description": "Enable access to the desktop via a bastion host.",
           "custom-domains": {
             "label": "Custom domains"
           },
           "http-https": {
             "label": "HTTP / HTTPS",
+            "enable": "Enable HTTP / HTTPS access",
             "description": "Access the desktop using a web browser or an RDP viewer that supports HTTP/HTTPS connections.",
             "http-port": {
               "label": "HTTP Port",
@@ -1456,6 +1465,7 @@
           },
           "ssh": {
             "label": "SSH",
+            "enable": "Enable SSH access",
             "description": "Use an SSH client to connect to the desktop via the bastion host.",
             "port": {
               "label": "SSH Port",

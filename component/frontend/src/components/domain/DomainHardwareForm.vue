@@ -13,6 +13,7 @@ import {
   FieldLabel
 } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Separator } from '@/components/ui/separator'
 import { useQuery } from '@tanstack/vue-query'
 import {
   getAllowedHardwareOptions,
@@ -487,14 +488,21 @@ defineExpose({
   </template>
   <form v-else>
     <FieldGroup>
-      <section
-        class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:grid-cols-[280px_1FR] md:gap-0"
-      >
-        <div class="flex flex-row-reverse justify-end items-center gap-2.5">
-          <h4 class="text-lg font-semibold text-gray-warm-900">
+      <section class="group/hw-section grid gap-4 items-start">
+        <div class="flex items-center gap-2">
+          <Icon
+            name="hdd-02"
+            size="sm"
+            stroke-color=""
+            aria-hidden="true"
+            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          />
+          <h4
+            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          >
             {{ t('components.domain.hardware.hardwareGroups.system') }}
           </h4>
-          <Icon name="hdd-02" />
+          <Separator class="flex-1" />
         </div>
         <div
           :class="[
@@ -751,212 +759,244 @@ defineExpose({
           </form.Field>
         </div>
       </section>
-      <section
-        v-if="props.showPeripherals"
-        class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:grid-cols-[280px_1FR] md:gap-0"
-      >
-        <div class="flex flex-row-reverse justify-end items-center gap-2.5">
-          <h4 class="text-lg font-semibold text-gray-warm-900">
-            {{ t('components.domain.hardware.hardwareGroups.peripherals') }}
-          </h4>
-          <Icon name="hdd" />
-        </div>
-        <div class="grid grid-cols-1 gap-2.5 md:gap-5 md:grid-cols-2">
-          <form.Field v-slot="{ field }" name="isos">
-            <!-- Borrows part of the column floppies would use, for the chips. -->
-            <Field class="md:col-span-2 md:max-w-[70%]">
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.isos.label') }}
-              </FieldLabel>
-              <SearchableTags
-                :tags="isosOptions.map((iso) => ({ label: iso.name, value: iso.id }))"
-                :placeholder="t('components.domain.hardware.isos.placeholder')"
-                :model-value="field.state.value"
-                tagsDisplay="wrap"
-                :invalid="isInvalid(field)"
-                @update:model-value="field.handleChange($event)"
-              />
-              <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              <FieldDescription
-                v-if="isLimited('isos')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('isos') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
-            </Field>
-          </form.Field>
-          <!-- TODO: Test how to add floppies to the system -->
-          <!-- <form.Field name="floppies" #default="{ field }">
-            <Field>
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.floppies.label') }}
-              </FieldLabel>
-              <SearchableTags
-                :selected="field.state.value"
-                :tags="floppiesOptions.map((floppy) => ({ label: floppy.name, value: floppy.id }))"
-                :placeholder="t('components.domain.hardware.floppies.placeholder')"
-                @update:modelValue="field.handleChange"
-              />
-              <FieldDescription
-                v-if="isLimited('floppies')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon name="alert-circle" class="inline" size="sm" stroke-color="destructive" />
-                        {{ getLimitedMessage('floppies') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
-            </Field>
-          </form.Field> -->
-        </div>
-      </section>
-      <section
-        class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:grid-cols-[280px_1FR] md:gap-0"
-      >
-        <div class="flex flex-row-reverse justify-end items-center gap-2.5">
-          <h4 class="text-lg font-semibold text-gray-warm-900">
-            {{ t('components.domain.hardware.hardwareGroups.reservables') }}
-          </h4>
-          <Icon name="gpu" />
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2">
-          <form.Field v-slot="{ field }" name="reservables.vgpus">
-            <!-- Only field in the section: borrows part of the empty column. -->
-            <Field class="md:col-span-2 md:max-w-[70%]">
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.vgpus.label') }}
-              </FieldLabel>
-              <Select
-                name="reservables.vgpus"
-                multiple
-                :model-value="field.state.value ?? []"
-                @update:model-value="field.handleChange"
-              >
-                <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
-                  <SelectValue :placeholder="t('components.domain.hardware.vgpus.placeholder')" />
-                </SelectTrigger>
-                <SelectContent position="item-aligned">
-                  <SelectGroup v-for="(grp, gi) in groupedVgpus" :key="gi">
-                    <SelectLabel v-if="grp.label">{{ grp.label }}</SelectLabel>
-                    <SelectItem
-                      v-for="vgpu in grp.items"
-                      :key="vgpu.id"
-                      :value="vgpu.id"
-                      :disabled="vgpuDisabled(vgpu, field.state.value)"
-                    >
-                      {{ vgpu.name }}
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <FieldDescription
-                v-if="isLimited('reservables.vgpus')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('vgpus') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
-            </Field>
-          </form.Field>
-        </div>
-      </section>
-      <form.Field v-slot="{ field }" name="interfaces">
-        <Field>
-          <FieldLabel :for="field.name">
-            {{ $t('components.domain.hardware.networks.label') }}
-          </FieldLabel>
-          <FieldDescription
-            v-if="isLimited('interfaces')"
-            class="text-destructive flex items-center gap-1"
-          >
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <div class="flex items-center gap-1">
-                    <Icon name="alert-circle" class="inline" size="sm" stroke-color="destructive" />
-                    {{ getLimitedMessage('interfaces') }}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent
-                  :title="$t('components.domain.hardware.limited.warning.title')"
-                  :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                  side="top"
-                />
-              </Tooltip>
-            </TooltipProvider>
-          </FieldDescription>
-          <div class="flex flex-col gap-2">
-            <!-- Add button to open modal -->
-            <Button
-              type="button"
-              hierarchy="link-color"
-              size="md"
-              class="cursor-pointer"
-              icon="edit-02"
-              @click="showNetworksModal = true"
-            >
-              {{ t('components.domain.hardware.networks.label') }}
-            </Button>
-
-            <!-- Add modal -->
-            <SelectNetworksModal
-              :open="showNetworksModal"
-              :selected-networks="field.state.value as string[]"
-              :available-networks="networksOptions"
-              @close="showNetworksModal = false"
-              @save="handleSaveNetworks"
+      <section class="grid grid-cols-1 gap-y-7 md:grid-cols-2 md:gap-x-10 items-start">
+        <div v-if="props.showPeripherals" class="group/hw-section grid gap-4 items-start">
+          <div class="flex items-center gap-2">
+            <Icon
+              name="hdd"
+              size="sm"
+              stroke-color=""
+              aria-hidden="true"
+              class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
             />
+            <h4
+              class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+            >
+              {{ t('components.domain.hardware.hardwareGroups.peripherals') }}
+            </h4>
+            <Separator class="flex-1" />
           </div>
-        </Field>
-      </form.Field>
+          <div class="grid grid-cols-1 gap-2.5 md:gap-5">
+            <form.Field v-slot="{ field }" name="isos">
+              <Field>
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.isos.label') }}
+                </FieldLabel>
+                <SearchableTags
+                  :tags="isosOptions.map((iso) => ({ label: iso.name, value: iso.id }))"
+                  :placeholder="t('components.domain.hardware.isos.placeholder')"
+                  :model-value="field.state.value"
+                  tagsDisplay="wrap"
+                  :invalid="isInvalid(field)"
+                  @update:model-value="field.handleChange($event)"
+                />
+                <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
+                <FieldDescription
+                  v-if="isLimited('isos')"
+                  class="text-destructive flex items-center gap-1"
+                >
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <div class="flex items-center gap-1">
+                          <Icon
+                            name="alert-circle"
+                            class="inline"
+                            size="sm"
+                            stroke-color="destructive"
+                          />
+                          {{ getLimitedMessage('isos') }}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        :title="$t('components.domain.hardware.limited.warning.title')"
+                        :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
+                        side="top"
+                      />
+                    </Tooltip>
+                  </TooltipProvider>
+                </FieldDescription>
+              </Field>
+            </form.Field>
+            <!-- TODO: Test how to add floppies to the system -->
+            <!-- <form.Field name="floppies" #default="{ field }">
+              <Field>
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.floppies.label') }}
+                </FieldLabel>
+                <SearchableTags
+                  :selected="field.state.value"
+                  :tags="floppiesOptions.map((floppy) => ({ label: floppy.name, value: floppy.id }))"
+                  :placeholder="t('components.domain.hardware.floppies.placeholder')"
+                  @update:modelValue="field.handleChange"
+                />
+                <FieldDescription
+                  v-if="isLimited('floppies')"
+                  class="text-destructive flex items-center gap-1"
+                >
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <div class="flex items-center gap-1">
+                          <Icon name="alert-circle" class="inline" size="sm" stroke-color="destructive" />
+                          {{ getLimitedMessage('floppies') }}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        :title="$t('components.domain.hardware.limited.warning.title')"
+                        :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
+                        side="top"
+                      />
+                    </Tooltip>
+                  </TooltipProvider>
+                </FieldDescription>
+              </Field>
+            </form.Field> -->
+          </div>
+        </div>
+        <div class="group/hw-section grid gap-4 items-start">
+          <div class="flex items-center gap-2">
+            <Icon
+              name="gpu"
+              size="sm"
+              stroke-color=""
+              aria-hidden="true"
+              class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+            />
+            <h4
+              class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+            >
+              {{ t('components.domain.hardware.hardwareGroups.reservables') }}
+            </h4>
+            <Separator class="flex-1" />
+          </div>
+          <div class="grid grid-cols-1">
+            <form.Field v-slot="{ field }" name="reservables.vgpus">
+              <Field>
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.vgpus.label') }}
+                </FieldLabel>
+                <Select
+                  name="reservables.vgpus"
+                  multiple
+                  :model-value="field.state.value ?? []"
+                  @update:model-value="field.handleChange"
+                >
+                  <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
+                    <SelectValue :placeholder="t('components.domain.hardware.vgpus.placeholder')" />
+                  </SelectTrigger>
+                  <SelectContent position="item-aligned">
+                    <SelectGroup v-for="(grp, gi) in groupedVgpus" :key="gi">
+                      <SelectLabel v-if="grp.label">{{ grp.label }}</SelectLabel>
+                      <SelectItem
+                        v-for="vgpu in grp.items"
+                        :key="vgpu.id"
+                        :value="vgpu.id"
+                        :disabled="vgpuDisabled(vgpu, field.state.value)"
+                      >
+                        {{ vgpu.name }}
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription
+                  v-if="isLimited('reservables.vgpus')"
+                  class="text-destructive flex items-center gap-1"
+                >
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <div class="flex items-center gap-1">
+                          <Icon
+                            name="alert-circle"
+                            class="inline"
+                            size="sm"
+                            stroke-color="destructive"
+                          />
+                          {{ getLimitedMessage('vgpus') }}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        :title="$t('components.domain.hardware.limited.warning.title')"
+                        :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
+                        side="top"
+                      />
+                    </Tooltip>
+                  </TooltipProvider>
+                </FieldDescription>
+              </Field>
+            </form.Field>
+          </div>
+        </div>
+      </section>
+      <section class="group/hw-section grid gap-4 items-start">
+        <div class="flex items-center gap-2">
+          <Icon
+            name="modem-02"
+            size="sm"
+            stroke-color=""
+            aria-hidden="true"
+            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          />
+          <h4
+            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          >
+            {{ t('components.domain.hardware.networks.label') }}
+          </h4>
+          <Separator class="flex-1" />
+        </div>
+        <form.Field v-slot="{ field }" name="interfaces">
+          <Field>
+            <FieldDescription
+              v-if="isLimited('interfaces')"
+              class="text-destructive flex items-center gap-1"
+            >
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <div class="flex items-center gap-1">
+                      <Icon
+                        name="alert-circle"
+                        class="inline"
+                        size="sm"
+                        stroke-color="destructive"
+                      />
+                      {{ getLimitedMessage('interfaces') }}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    :title="$t('components.domain.hardware.limited.warning.title')"
+                    :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
+                    side="top"
+                  />
+                </Tooltip>
+              </TooltipProvider>
+            </FieldDescription>
+            <div class="flex flex-col gap-2 items-start">
+              <!-- Add button to open modal -->
+              <Button
+                type="button"
+                hierarchy="link-color"
+                size="md"
+                class="cursor-pointer"
+                icon="edit-02"
+                @click="showNetworksModal = true"
+              >
+                {{ t('components.domain.hardware.networks.modal.title') }}
+              </Button>
+
+              <!-- Add modal -->
+              <SelectNetworksModal
+                :open="showNetworksModal"
+                :selected-networks="field.state.value as string[]"
+                :available-networks="networksOptions"
+                @close="showNetworksModal = false"
+                @save="handleSaveNetworks"
+              />
+            </div>
+          </Field>
+        </form.Field>
+      </section>
     </FieldGroup>
   </form>
 </template>
