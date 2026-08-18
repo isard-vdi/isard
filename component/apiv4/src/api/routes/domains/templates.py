@@ -48,6 +48,7 @@ from ...schemas.domains.templates import (
     NewTemplateRequest,
     TemplateDetailsResponse,
     TemplateEditRequest,
+    TemplateNonpersistentDesktopResponse,
     TemplateSetEnabledRequest,
     TemplateToDesktopRequest,
     TemplateTreeResponse,
@@ -131,6 +132,50 @@ async def get_template_details(
             request,
             "internal_server",
             f"Failed to retrieve template details",
+            traceback.format_exc(),
+        )
+
+
+# TODO(old-frontend-removal): drop this endpoint, its schema and its service method.
+@token_router.get(
+    "/item/template/{template_id}/get-nonpersistent-desktop",
+    response_model=TemplateNonpersistentDesktopResponse,
+    summary="Get the non-persistent desktop this template would reuse",
+    tags=[tag],
+    description=(
+        "Returns the user's non-persistent desktop derived from this template "
+        "when creating another temporal desktop would reuse it instead of "
+        "creating a new one, and ``null`` otherwise. Only installations still "
+        "exposing the old frontend reuse, so this endpoint goes away with it."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[
+        Depends(is_allowed_template_id),
+    ],
+)
+async def get_template_nonpersistent_desktop(
+    request: Request,
+    template_id: str = Path(..., description="The ID of the template"),
+):
+    try:
+        return TemplateNonpersistentDesktopResponse(
+            desktop_id=await asyncio.to_thread(
+                DesktopService.get_reused_nonpersistent_desktop,
+                request.token_payload["user_id"],
+                template_id,
+            )
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve the template non-persistent desktop",
             traceback.format_exc(),
         )
 

@@ -64,7 +64,7 @@ def stub(monkeypatch):
 def _existing(stub, *desktops):
     """Stub the (user, template) lookup the one-slot path does."""
     query = stub["rethink"].db.return_value.table.return_value.get_all.return_value
-    query.filter.return_value.run.return_value = list(desktops)
+    query.filter.return_value.pluck.return_value.run.return_value = list(desktops)
 
 
 def test_same_template_twice_creates_two_desktops(stub):

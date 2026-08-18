@@ -907,7 +907,8 @@
         },
         "single-temporal": {
           "title": "Txantiloi bakoitzeko aldi baterako mahaigain bat",
-          "description": "Interfaze zaharra erabilgarri dagoen bitartean, txantiloi bakoitzeko aldi baterako mahaigain bakarra izan dezakezu. Txantiloi honetatik bat baduzu jada, berrerabili egingo da berri bat sortu beharrean."
+          "description": "Interfaze zaharra erabilgarri dagoen bitartean, txantiloi bakoitzeko aldi baterako mahaigain bakarra izan dezakezu.",
+          "existing": "Jada baduzu txantiloi honetako aldi baterako mahaigain bat. Ezabatu beste bat sortzeko."
         },
         "hardware": {
           "title": "Hardware guztia",

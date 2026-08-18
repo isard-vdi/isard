@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useQuery } from '@tanstack/vue-query'
 import type * as z from 'zod'
+import { getTemplateNonpersistentDesktopOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { useUserStore } from '@/stores/user'
 import { useDomainInfoForm, type DomainInfoSource } from '@/composables/useDomainInfoForm'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { CheckboxGroup } from '@/components/checkbox-group'
-import { FeaturedIconOutline } from '@/components/icon/featured-outline'
+import type { FeaturedIconItem } from '@/components/checkbox-group/featured-icon'
 import { DesktopCardBase, DesktopCardHeader, DesktopCardSkeleton } from '@/components/desktop-card'
 import { InputField } from '@/components/input-field'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,7 @@ const props = withDefaults(
     extraDefaults?: Record<string, string>
     extraSchema?: z.ZodRawShape
     imageUrl?: string
+    templateId?: string
     showKindSelector?: boolean
     kind?: DomainKind
     entity?: 'desktops' | 'templates'
@@ -36,6 +38,7 @@ const props = withDefaults(
     extraDefaults: undefined,
     extraSchema: undefined,
     imageUrl: '',
+    templateId: undefined,
     showKindSelector: false,
     kind: 'persistent',
     entity: 'desktops',
@@ -62,8 +65,32 @@ const kindModel = computed({
   set: (value: 'persistent' | 'nonpersistent') => emit('update:kind', value)
 })
 
-const kindOptions = computed(() => {
-  const options = [
+// TODO(old-frontend-removal): this block, the temporal option's note/disabled/
+// tooltip and the `single-temporal` locale keys go with the old frontend, whose
+// one-desktop-per-template card is the only reason the backend reuses.
+const singleTemporalPerTemplate = computed(
+  () => props.showKindSelector && !userStore.config?.multiple_temporal_desktops
+)
+
+// Only asked where that limit applies: elsewhere the endpoint always answers null.
+const { data: reusedTemporalDesktop } = useQuery({
+  ...getTemplateNonpersistentDesktopOptions({
+    path: { template_id: props.templateId || '' }
+  }),
+  enabled: computed(() => singleTemporalPerTemplate.value && !!props.templateId)
+})
+
+const temporalDisabled = computed(() => !!reusedTemporalDesktop.value?.desktop_id)
+
+// The query can resolve after the kind was already picked.
+watch(temporalDisabled, (disabled) => {
+  if (disabled && props.kind === 'nonpersistent') {
+    emit('update:kind', 'persistent')
+  }
+})
+
+const kindOptions = computed<FeaturedIconItem[]>(() => {
+  const options: FeaturedIconItem[] = [
     {
       color: 'persistent',
       title: t('components.domain.configuration.kind.persistent.title'),
@@ -77,21 +104,24 @@ const kindOptions = computed(() => {
       color: 'temporary',
       title: t('components.domain.configuration.kind.nonpersistent.title'),
       description: t('components.domain.configuration.kind.nonpersistent.description'),
-      value: 'nonpersistent'
+      value: 'nonpersistent',
+      // TODO(old-frontend-removal): note, disabled and tooltip, with their
+      // `components.domain.configuration.single-temporal.*` locale keys.
+      note: singleTemporalPerTemplate.value
+        ? t('components.domain.configuration.single-temporal.description')
+        : undefined,
+      disabled: temporalDisabled.value,
+      tooltip: temporalDisabled.value
+        ? {
+            title: t('components.domain.configuration.single-temporal.title'),
+            description: t('components.domain.configuration.single-temporal.existing')
+          }
+        : undefined
     })
   }
 
   return options
 })
-
-// The backend reuses the existing one instead of creating a second: warn rather
-// than hand back a desktop the user did not ask for.
-const singleTemporalPerTemplate = computed(
-  () =>
-    props.showKindSelector &&
-    props.kind === 'nonpersistent' &&
-    !userStore.config?.multiple_temporal_desktops
-)
 
 const isInvalid = (field: { state: { meta: { isTouched: boolean; isValid: boolean } } }) =>
   field.state.meta.isTouched && !field.state.meta.isValid
@@ -281,13 +311,6 @@ defineExpose({
           direction="flex-row"
           :hide-description="true"
         />
-        <Alert v-if="singleTemporalPerTemplate" variant="default" class="mt-6">
-          <FeaturedIconOutline kind="outline" color="warning" />
-          <AlertTitle>{{ t('components.domain.configuration.single-temporal.title') }}</AlertTitle>
-          <AlertDescription>
-            {{ t('components.domain.configuration.single-temporal.description') }}
-          </AlertDescription>
-        </Alert>
       </div>
       <div>
         <h3 class="text-lg font-semibold text-gray-warm-900">

@@ -2222,7 +2222,8 @@
         },
         "single-temporal": {
           "title": "Un escriptori temporal per plantilla",
-          "description": "Mentre la interfície antiga continuï disponible, només pots tenir un escriptori temporal per plantilla. Si ja en tens un d'aquesta plantilla, es reutilitzarà en comptes de crear-ne un de nou."
+          "description": "Mentre la interfície antiga continuï disponible, només pots tenir un escriptori temporal per plantilla.",
+          "existing": "Ja tens un escriptori temporal d'aquesta plantilla. Elimina'l per crear-ne un altre."
         },
         "section": {
           "title": {

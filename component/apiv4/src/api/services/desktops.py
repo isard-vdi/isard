@@ -217,6 +217,19 @@ class DesktopService:
         )
 
     @staticmethod
+    def get_reused_nonpersistent_desktop(
+        user_id: str, template_id: str
+    ) -> Optional[str]:
+        """The desktop ``new-nonpersistent`` would reuse instead of creating one.
+        TODO(old-frontend-removal): only its one-per-template rule reuses."""
+        if Helpers.frontend_mode() == "actual":
+            return None
+        desktops = CommonDesktopsNonpersistent.user_template_desktops(
+            user_id, template_id
+        )
+        return desktops[0]["id"] if len(desktops) == 1 else None
+
+    @staticmethod
     def create_from_media(user_id: str, data: CreateDesktopFromMedia) -> str:
         """Create a desktop from media"""
 

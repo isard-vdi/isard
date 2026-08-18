@@ -2234,7 +2234,8 @@
         },
         "single-temporal": {
           "title": "Un escritorio temporal por plantilla",
-          "description": "Mientras la interfaz antigua siga disponible, solo puedes tener un escritorio temporal por plantilla. Si ya tienes uno de esta plantilla, se reutilizará en lugar de crear uno nuevo."
+          "description": "Mientras la interfaz antigua siga disponible, solo puedes tener un escritorio temporal por plantilla.",
+          "existing": "Ya tienes un escritorio temporal de esta plantilla. Elimínalo para crear otro."
         },
         "section": {
           "title": {

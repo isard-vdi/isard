@@ -1557,7 +1557,8 @@
         },
         "single-temporal": {
           "title": "One temporary desktop per template",
-          "description": "While the old interface is still available, you can only have one temporary desktop per template. If you already have one from this template, it will be reused instead of creating a new one."
+          "description": "While the old interface is still available, you can only have one temporary desktop per template.",
+          "existing": "You already have a temporary desktop from this template. Delete it to create another one."
         },
         "section": {
           "title": {

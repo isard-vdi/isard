@@ -58,6 +58,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             if r.table("users").get(user_id).run(cls._rdb_connection) is None:
                 raise Error("not_found", "User not found", traceback.format_exc())
 
+        # TODO(old-frontend-removal): drop this branch and _single_desktop_per_template.
         if Helpers.frontend_mode() != "actual":
             return cls._single_desktop_per_template(
                 user_id, template_id, name, description
@@ -68,16 +69,24 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         )
 
     @classmethod
-    def _single_desktop_per_template(cls, user_id, template_id, name, description):
-        """v3 ``New()``: reuse this template's desktop instead of creating a second one."""
+    def user_template_desktops(cls, user_id, template_id):
+        """Non-persistent desktops this user already holds from a template.
+        TODO(old-frontend-removal): only the one-per-template rule reads this."""
         with cls._rdb_context():
-            desktops = list(
+            return list(
                 r.db("isard")
                 .table("domains")
                 .get_all(user_id, index="user")
                 .filter({"from_template": template_id, "persistent": False})
+                .pluck("id", "status")
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def _single_desktop_per_template(cls, user_id, template_id, name, description):
+        """v3 ``New()``: reuse this template's desktop instead of creating a second one.
+        TODO(old-frontend-removal): the whole method goes with that frontend."""
+        desktops = cls.user_template_desktops(user_id, template_id)
         if len(desktops) == 1:
             if desktops[0]["status"] == "Started":
                 return desktops[0]["id"]

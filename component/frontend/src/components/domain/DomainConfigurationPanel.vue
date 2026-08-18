@@ -178,6 +178,7 @@ defineExpose({
       :extra-defaults="infoExtraDefaults"
       :extra-schema="infoExtraSchema"
       :image-url="selectedImage?.url || ''"
+      :template-id="templateId"
       :show-kind-selector="showKindSelector"
       :kind="kind"
       :entity="entity"
