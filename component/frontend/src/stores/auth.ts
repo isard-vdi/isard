@@ -5,7 +5,7 @@ import {
   removeToken,
   getToken,
   getBearer,
-  setToken,
+  setToken as setTokenCookie,
   parseToken,
   isLoginClaims,
   TokenType,
@@ -110,6 +110,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Each useCookies() call builds its own universal-cookie instance, so a token
+  // written from a view never reaches the watcher above until universal-cookie's
+  // 300ms poll notices it. Callers that navigate in-app straight after would hit
+  // the router guard with a stale token type, so refresh eagerly here instead.
+  const setToken = (bearer: string) => {
+    setTokenCookie(cookies, bearer)
+    initialize()
+  }
+
   let renewInFlight: Promise<void> | null = null
 
   const renewSession = async (): Promise<void> => {
@@ -131,8 +140,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       console.debug('✅ Token renewed, updating cookie')
-      setToken(cookies, response.data.token)
-      // Cookie watcher will handle reinitializing the auth state
+      setToken(response.data.token)
     })().finally(() => {
       renewInFlight = null
     })
@@ -216,6 +224,7 @@ export const useAuthStore = defineStore('auth', () => {
     lastLoginIdentity,
     isAuthenticated,
     initialize,
+    setToken,
     renewSession,
     logout,
     cleanup,

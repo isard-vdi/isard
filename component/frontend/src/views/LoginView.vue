@@ -27,12 +27,12 @@ import {
   isReRegisterClaims,
   useCookies as useAuthCookies,
   isLoginClaims,
-  setToken as setAuthToken,
   getBearer as getAuthBearer,
   removeToken as removeAuthToken,
   checkLoginRegister as checkAuthLoginRegister,
   TokenType
 } from '@/lib/auth'
+import { useAuthStore } from '@/stores/auth'
 import { dateIsToday } from '@/lib/utils'
 import { Locale, setLocale } from '@/lib/i18n'
 import { LoginLayout } from '@/layouts/login'
@@ -53,6 +53,7 @@ const { t, te, d } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const cookies = useAuthCookies()
+const authStore = useAuthStore()
 const queryClient = useQueryClient()
 
 /*
@@ -483,7 +484,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
 
   // Handle non-login token types that need redirects (email verification, etc.)
   if (jwt.type && jwt.type !== TokenType.Login) {
-    setAuthToken(cookies, bearer)
+    authStore.setToken(bearer)
     // Use router-based redirect for token types handled by Vue3 routes
     if (jwt.type === TokenType.EmailVerificationRequired) {
       router.push({ name: 'verify-email' })
@@ -520,7 +521,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     // Set the auth cookie before any awaits so downstream consumers (e.g.
     // the e2e fixture polling for the JWT cookie) see it immediately,
     // even if the webapp bridge below stalls under heavy parallel load.
-    setAuthToken(cookies, bearer)
+    authStore.setToken(bearer)
 
     // Login to Webapp
     if (['admin', 'manager'].includes(jwt.data.role_id)) {
@@ -538,7 +539,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
       }
     }
   } else {
-    setAuthToken(cookies, bearer)
+    authStore.setToken(bearer)
   }
 
   const location = response.headers.get('location')

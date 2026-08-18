@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
@@ -14,22 +14,39 @@ vi.mock('vue-i18n', async (importOriginal) => ({
   useI18n: () => ({ t: (k: string) => k })
 }))
 
+// Shared spies so a test can assert the ORDER of the calls the accept flow
+// makes: the store has to learn the new token before the router navigates, or
+// the guard reads a stale token type and bounces back here.
+const mocks = vi.hoisted(() => ({
+  order: [] as string[],
+  push: vi.fn(),
+  storeSetToken: vi.fn(),
+  parseToken: vi.fn(),
+  isLoginClaims: vi.fn(),
+  checkLoginRegister: vi.fn()
+}))
+
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() })
+  useRouter: () => ({ push: mocks.push, replace: vi.fn() })
 }))
 
 vi.mock('@/lib/auth', () => ({
-  parseToken: () => undefined,
-  isLoginClaims: () => false,
+  parseToken: mocks.parseToken,
+  isLoginClaims: mocks.isLoginClaims,
   useCookies: () => ({}),
   setToken: vi.fn(),
-  checkLoginRegister: vi.fn(),
+  checkLoginRegister: mocks.checkLoginRegister,
   getToken: () => undefined,
   getBearer: () => ''
 }))
 
 vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({ setUser: vi.fn(), user: undefined })
+  useAuthStore: () => ({
+    setToken: mocks.storeSetToken,
+    logout: vi.fn(),
+    setUser: vi.fn(),
+    user: undefined
+  })
 }))
 
 vi.mock('@/gen/oas/authentication', () => ({
@@ -47,6 +64,8 @@ vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
   })
 }))
 
+import { acknowledgeDisclaimer, login } from '@/gen/oas/authentication'
+
 import DisclaimerView from './DisclaimerView.vue'
 
 const mountView = async () => {
@@ -61,6 +80,19 @@ const mountView = async () => {
 }
 
 describe('DisclaimerView', () => {
+  beforeEach(() => {
+    mocks.order.length = 0
+    mocks.push.mockImplementation(() => {
+      mocks.order.push('router.push')
+    })
+    mocks.storeSetToken.mockImplementation(() => {
+      mocks.order.push('store.setToken')
+    })
+    mocks.parseToken.mockReturnValue(undefined)
+    mocks.isLoginClaims.mockReturnValue(false)
+    mocks.checkLoginRegister.mockReturnValue(undefined)
+  })
+
   afterEach(() => {
     vi.clearAllMocks()
   })
@@ -77,5 +109,37 @@ describe('DisclaimerView', () => {
     const html = (await mountView()).html()
     expect(html).not.toContain('onerror')
     expect(html).toContain('<span>footer</span>')
+  })
+
+  it('hands the new token to the auth store before navigating to the notifications page', async () => {
+    const bearer = 'the.login.token'
+    mocks.parseToken.mockReturnValue({
+      type: 'login',
+      iat: Math.floor(Date.now() / 1000),
+      session_id: 'session-1',
+      data: { role_id: 'user' }
+    })
+    mocks.isLoginClaims.mockReturnValue(true)
+
+    vi.mocked(acknowledgeDisclaimer).mockResolvedValue({ error: undefined } as never)
+    vi.mocked(login).mockResolvedValue({
+      error: undefined,
+      response: {
+        headers: new Headers({
+          authorization: `Bearer ${bearer}`,
+          location: '/notifications/login'
+        })
+      }
+    } as never)
+
+    const wrapper = await mountView()
+    await wrapper.find('button[data-slot="button"]:last-of-type').trigger('click')
+    await flushPromises()
+
+    // A stale store here is what sent the user back to the disclaimer, so the
+    // token has to land before the navigation, not merely alongside it.
+    expect(mocks.order).toEqual(['store.setToken', 'router.push'])
+    expect(mocks.storeSetToken).toHaveBeenCalledWith(bearer)
+    expect(mocks.push).toHaveBeenCalledWith('/notifications/login')
   })
 })
