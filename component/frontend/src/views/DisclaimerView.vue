@@ -9,8 +9,6 @@ import { acknowledgeDisclaimer, login } from '@/gen/oas/authentication'
 import {
   parseToken as parseAuthToken,
   isLoginClaims,
-  useCookies as useAuthCookies,
-  setToken as setAuthToken,
   checkLoginRegister as checkAuthLoginRegister
 } from '@/lib/auth'
 import { useAuthStore } from '@/stores/auth'
@@ -22,7 +20,6 @@ import LogoSvg from '@/assets/logo.svg?url'
 
 const { t } = useI18n()
 const router = useRouter()
-const cookies = useAuthCookies()
 const authStore = useAuthStore()
 
 const error = ref<string | undefined>(undefined)
@@ -109,7 +106,7 @@ const accept = async () => {
       }
     }
 
-    setAuthToken(cookies, bearer)
+    authStore.setToken(bearer)
 
     const location = response.headers.get('location')
     if (location) {

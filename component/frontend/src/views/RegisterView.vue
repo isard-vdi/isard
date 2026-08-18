@@ -14,13 +14,13 @@ import {
   isCategorySelectClaims,
   useCookies as useAuthCookies,
   isLoginClaims,
-  setToken as setAuthToken,
   getBearer as getAuthBearer,
   removeToken as removeAuthToken,
   isRegisterClaims,
   isReRegisterClaims,
   checkLoginRegister as checkAuthLoginRegister
 } from '@/lib/auth'
+import { useAuthStore } from '@/stores/auth'
 import { dateIsToday } from '@/lib/utils'
 import { Locale, setLocale } from '@/lib/i18n'
 import { LoginLayout } from '@/layouts/login'
@@ -33,6 +33,7 @@ const { t, te, d } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const cookies = useAuthCookies()
+const authStore = useAuthStore()
 
 /*
  * Data loading
@@ -208,7 +209,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
 
   if (isReRegisterClaims(jwt)) {
     registerError.value = 're_register_not_resolved'
-    setAuthToken(cookies, bearer)
+    authStore.setToken(bearer)
     return
   }
 
@@ -236,7 +237,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     return
   }
 
-  setAuthToken(cookies, bearer)
+  authStore.setToken(bearer)
   window.location.pathname = '/'
 }
 

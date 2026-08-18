@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { createPinia } from 'pinia'
 import enUS from '@/locales/en-US.json'
 
 const reRegisterBearer = 'header.rr.sig'
@@ -93,7 +94,7 @@ const mountView = () => {
   const i18n = createI18n({ legacy: false, locale: 'en-US', messages: { 'en-US': enUS } })
   return mount(RegisterView, {
     global: {
-      plugins: [[VueQueryPlugin, { queryClient }], i18n],
+      plugins: [[VueQueryPlugin, { queryClient }], i18n, createPinia()],
       stubs: { RouterLink: true }
     }
   })
