@@ -2225,6 +2225,11 @@
           "description": "Mentre la interfície antiga continuï disponible, només pots tenir un escriptori temporal per plantilla.",
           "existing": "Ja tens un escriptori temporal d'aquesta plantilla. Elimina'l per crear-ne un altre."
         },
+        "quota-exceeded": {
+          "title": "Quota superada",
+          "persistent": "Has arribat al límit d'escriptoris persistents. N'has d'eliminar un per crear-ne un altre.",
+          "temporal": "Has arribat al límit d'escriptoris temporals. N'has d'eliminar un per crear-ne un altre."
+        },
         "section": {
           "title": {
             "desktops": "Configuració de l'escriptori",

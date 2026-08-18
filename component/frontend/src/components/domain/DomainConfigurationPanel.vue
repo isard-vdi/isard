@@ -39,6 +39,8 @@ const props = withDefaults(
     infoExtraSchema?: z.ZodRawShape
     showKindSelector?: boolean
     kind?: DomainKind
+    persistentQuotaExceeded?: boolean
+    temporalQuotaExceeded?: boolean
     entity?: 'desktops' | 'templates'
     preview?: DomainInfoPreview
     context?: DomainConfigurationContext
@@ -65,6 +67,8 @@ const props = withDefaults(
     infoExtraSchema: undefined,
     showKindSelector: false,
     kind: 'persistent',
+    persistentQuotaExceeded: false,
+    temporalQuotaExceeded: false,
     entity: 'desktops',
     preview: 'desktop-card',
     context: 'new-desktop',
@@ -181,6 +185,8 @@ defineExpose({
       :template-id="templateId"
       :show-kind-selector="showKindSelector"
       :kind="kind"
+      :persistent-quota-exceeded="persistentQuotaExceeded"
+      :temporal-quota-exceeded="temporalQuotaExceeded"
       :entity="entity"
       :preview="preview"
       @change-image="showChangeImageModal = true"

@@ -2237,6 +2237,11 @@
           "description": "Mientras la interfaz antigua siga disponible, solo puedes tener un escritorio temporal por plantilla.",
           "existing": "Ya tienes un escritorio temporal de esta plantilla. Elimínalo para crear otro."
         },
+        "quota-exceeded": {
+          "title": "Cuota superada",
+          "persistent": "Has alcanzado el límite de escritorios persistentes. Elimina uno para crear otro.",
+          "temporal": "Has alcanzado el límite de escritorios temporales. Elimina uno para crear otro."
+        },
         "section": {
           "title": {
             "desktops": "Configuración del escritorio",

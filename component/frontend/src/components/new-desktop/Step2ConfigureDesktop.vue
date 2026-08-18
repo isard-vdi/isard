@@ -14,6 +14,8 @@ interface Template {
 
 const props = defineProps<{
   selectedTemplate: Template
+  persistentQuotaExceeded?: boolean
+  temporalQuotaExceeded?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -78,6 +80,8 @@ defineExpose({
     :info="templateData"
     show-kind-selector
     :kind="desktopKind"
+    :persistent-quota-exceeded="persistentQuotaExceeded"
+    :temporal-quota-exceeded="temporalQuotaExceeded"
     :image="selectedTemplate?.image"
     :summary="summary"
     context="new-desktop"

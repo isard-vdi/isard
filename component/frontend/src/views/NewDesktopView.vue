@@ -5,6 +5,7 @@ import { useQuery, useMutation } from '@tanstack/vue-query'
 import {
   createDesktopMutation,
   checkQuotaNewDesktopOptions,
+  checkQuotaNewVolatileDesktopOptions,
   checkStoragePoolCreationAvailabilityOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
@@ -19,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertModal, QuotaExceededModal } from '@/components/modal'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
+import { useUserStore } from '@/stores/user'
 import router from '@/router'
 import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
 import Step1SelectTemplate from '@/components/new-desktop/Step1SelectTemplate.vue'
@@ -35,17 +37,36 @@ const { t } = useI18n()
 // Quota and storage checks
 // --------------------------------------------------
 
+const userStore = useUserStore()
+const temporalAvailable = computed(() => userStore.config?.show_temporal_tab !== false)
+
+// Temporal desktops count against the volatile quota, so a full desktops quota
+// must not close the wizard on its own.
 const quotaQuery = useQuery({
   ...checkQuotaNewDesktopOptions(),
   staleTime: QUOTA_STALE_TIME,
   retry: false
 })
 
+const volatileQuotaQuery = useQuery({
+  ...checkQuotaNewVolatileDesktopOptions(),
+  staleTime: QUOTA_STALE_TIME,
+  retry: false,
+  enabled: temporalAvailable
+})
+
+const anyQuotaLeft = computed(
+  () => quotaQuery.isSuccess.value || volatileQuotaQuery.isSuccess.value
+)
+const noQuotaLeft = computed(
+  () => quotaQuery.isError.value && (!temporalAvailable.value || volatileQuotaQuery.isError.value)
+)
+
 const storageQuery = useQuery({
   ...checkStoragePoolCreationAvailabilityOptions(),
   staleTime: QUOTA_STALE_TIME,
   retry: false,
-  enabled: quotaQuery.isSuccess
+  enabled: anyQuotaLeft
 })
 
 const quotaCheckPassed = computed(() => storageQuery.isSuccess.value)
@@ -172,7 +193,7 @@ const steps = computed<StepperFormStep[]>(() => {
 <template>
   <!-- Quota Exceeded Modal -->
   <QuotaExceededModal
-    :open="quotaQuery.isError.value"
+    :open="noQuotaLeft"
     :title="t('components.desktops.quota-exceeded-modal.title')"
     :description="t('components.desktops.quota-exceeded-modal.description')"
     :cancel-label="t('components.desktops.quota-exceeded-modal.cancel')"
@@ -243,6 +264,8 @@ const steps = computed<StepperFormStep[]>(() => {
             ref="step2Ref"
             :key="selectedTemplate?.id"
             :selected-template="selectedTemplate!"
+            :persistent-quota-exceeded="quotaQuery.isError.value"
+            :temporal-quota-exceeded="volatileQuotaQuery.isError.value"
             @submit="handleStep2Submit"
           />
         </div>

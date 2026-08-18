@@ -1560,6 +1560,11 @@
           "description": "While the old interface is still available, you can only have one temporary desktop per template.",
           "existing": "You already have a temporary desktop from this template. Delete it to create another one."
         },
+        "quota-exceeded": {
+          "title": "Quota exceeded",
+          "persistent": "You have reached your persistent desktops limit. Delete one to create another.",
+          "temporal": "You have reached your temporary desktops limit. Delete one to create another."
+        },
         "section": {
           "title": {
             "desktops": "Desktop configuration",

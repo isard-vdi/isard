@@ -44,7 +44,6 @@ import {
   createBookingEventMutation,
   startDesktopMutation,
   stopDesktopMutation,
-  checkQuotaNewDesktopOptions,
   checkQuotaNewTemplateOptions,
   checkStoragePoolCreationAvailabilityOptions,
   getDesktopDetailsOptions
@@ -78,6 +77,8 @@ import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optim
 import { describeApiError } from '@/lib/api-errors'
 import { resolveDesktopKind } from '@/lib/desktops'
 import { useNotificationModalStore } from '@/stores/notification-modal'
+import { useUserStore } from '@/stores/user'
+import { canCreateAnyDesktop } from '@/lib/quotas'
 
 import { SinglePageLayout } from '@/layouts/single-page'
 
@@ -150,6 +151,7 @@ const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const notificationModalStore = useNotificationModalStore()
+const userStore = useUserStore()
 
 const { mutate: fetchAndOpenViewer, preferedViewers } = useFetchAndOpenViewer()
 
@@ -786,12 +788,7 @@ const desktopCreationCheckIsPending = ref(false)
 
 const goToNewDesktop = async () => {
   desktopCreationCheckIsPending.value = true
-  try {
-    await queryClient.fetchQuery({
-      ...checkQuotaNewDesktopOptions(),
-      staleTime: QUOTA_STALE_TIME
-    })
-  } catch {
+  if (!(await canCreateAnyDesktop(queryClient, userStore.config?.show_temporal_tab !== false))) {
     desktopCreationCheckIsPending.value = false
     quotaExceededModalData.value = {
       title: t('components.desktops.quota-exceeded-modal.title'),
