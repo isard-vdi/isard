@@ -151,11 +151,8 @@ class DomainService:
                 for viewer in removed:
                     # Drop the key, don't null it: unavailable means absent.
                     del viewers[viewer]
-                limited = result.get("limited_hardware") or {}
-                limited["viewers"] = {
-                    "old_value": removed,
-                    "new_value": [key for key, value in viewers.items() if value],
-                }
-                result["limited_hardware"] = limited
+                # Not limited_hardware: viewers aren't hardware and the cause is the
+                # missing network, not the user hardware permissions
+                result["removed_viewers"] = removed
 
         return result
