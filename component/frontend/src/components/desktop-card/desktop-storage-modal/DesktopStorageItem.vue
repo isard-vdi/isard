@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import Badge from '@/components/badge/Badge.vue'
+import { TruncatedText } from '@/components/truncated-text'
 
 import CancelStorageOperationModal from './CancelStorageOperationModal.vue'
 import IncreaseStorageSizeModal from './IncreaseStorageSizeModal.vue'
@@ -147,9 +148,7 @@ const formatBytes = (n?: number): string => {
     <template v-else-if="storage">
       <div class="flex items-start justify-between gap-3">
         <div class="flex flex-col gap-1 min-w-0">
-          <div class="text-xs text-gray-warm-500 font-mono truncate" :title="storage.id">
-            {{ storage.id }}
-          </div>
+          <TruncatedText :title="storage.id" class="text-xs text-gray-warm-500 font-mono" />
           <div class="flex items-center gap-2">
             <Badge :color="statusBadgeColor">{{ statusLabel }}</Badge>
             <span v-if="storage.type" class="text-xs text-gray-warm-600 uppercase">{{

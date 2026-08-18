@@ -702,6 +702,9 @@
       },
       "empty": {
         "subtitle": "Create a deployment to start providing desktops to your users"
+      },
+      "actions": {
+        "go-to-direct-viewer": "Go to direct viewer"
       }
     },
     "deployment": {
@@ -2807,6 +2810,11 @@
     "units": {
       "mb": "MB",
       "gb": "GB"
+    },
+    "actions": {
+      "more": "More actions",
+      "copy": "Copy",
+      "copied": "Copied"
     }
   }
 }

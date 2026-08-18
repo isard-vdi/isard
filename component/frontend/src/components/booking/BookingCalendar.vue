@@ -9,6 +9,7 @@ import 'vue-cal/dist/i18n/de.es.js'
 import 'vue-cal/dist/i18n/fr.es.js'
 import 'vue-cal/dist/i18n/ru.es.js'
 import type { CalendarEvent } from '@/lib/booking/adapter'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export interface CalendarSplit {
   id: number
@@ -115,21 +116,26 @@ const scrollToCurrentTime = () => {
       <strong :style="`color: ${split.color}`">{{ split.label }}</strong>
     </template>
     <template #event="{ event, view: slotView }">
-      <div :title="event.title">
-        <div v-if="slotView.id === 'month'">
-          <span>
-            {{ event.start.formatTime('HH:mm') }} - {{ event.end.formatTime('HH:mm') }}
-            {{ event.title }}
-          </span>
-        </div>
-        <div v-else>
-          <small>
-            {{ event.start.formatTime('HH:mm') }} - {{ event.end.formatTime('HH:mm') }}
-          </small>
-          <h6>{{ event.title }}</h6>
-          <small v-if="event.subtitle">{{ event.subtitle }}</small>
-        </div>
-      </div>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <div>
+            <div v-if="slotView.id === 'month'">
+              <span>
+                {{ event.start.formatTime('HH:mm') }} - {{ event.end.formatTime('HH:mm') }}
+                {{ event.title }}
+              </span>
+            </div>
+            <div v-else>
+              <small>
+                {{ event.start.formatTime('HH:mm') }} - {{ event.end.formatTime('HH:mm') }}
+              </small>
+              <h6>{{ event.title }}</h6>
+              <small v-if="event.subtitle">{{ event.subtitle }}</small>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent :title="event.title" :subtitle="event.subtitle" />
+      </Tooltip>
     </template>
   </vue-cal>
 </template>

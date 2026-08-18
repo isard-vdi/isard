@@ -1625,6 +1625,11 @@
     "units": {
       "mb": "MB",
       "gb": "GB"
+    },
+    "actions": {
+      "more": "Ekintza gehiago",
+      "copy": "Kopiatu",
+      "copied": "Kopiatuta"
     }
   }
 }

@@ -22,6 +22,7 @@ import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
 import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DomainInfoModal } from '@/components/desktops'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const { t } = useI18n()
 
@@ -185,20 +186,25 @@ const handleNotImplemented = () => alert('not implemented yet')
             fill
           >
             <template #header-actions>
-              <Button
-                hierarchy="link-gray"
-                size="sm"
-                class="w-9! h-9! flex align-center justify-center bg-base-black/30 hover:bg-base-black/50 p-0! backdrop-blur-[4px]"
-                icon="info-circle"
-                icon-stroke-color="base-white"
-                @click="
-                  user?.id &&
-                  fetchAndOpenDeploymentDesktopsModal({
-                    deploymentId: deployment.id,
-                    userId: user.id
-                  })
-                "
-              />
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    hierarchy="link-gray"
+                    size="sm"
+                    class="w-9! h-9! flex align-center justify-center bg-base-black/30 hover:bg-base-black/50 p-0! backdrop-blur-[4px]"
+                    icon="info-circle"
+                    icon-stroke-color="base-white"
+                    @click="
+                      user?.id &&
+                      fetchAndOpenDeploymentDesktopsModal({
+                        deploymentId: deployment.id,
+                        userId: user.id
+                      })
+                    "
+                  />
+                </TooltipTrigger>
+                <TooltipContent :title="t('components.desktops.desktop-card.actions.info')" />
+              </Tooltip>
             </template>
             <template #header>
               <div class="truncate">

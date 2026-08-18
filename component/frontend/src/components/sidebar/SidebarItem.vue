@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { type SidebarItem, type Badge, formatCompactBadgeLabel } from '@/lib/navigation'
 import { sidebarItemVariants } from '@/components/sidebar'
-import SidebarItemLabel from '@/components/sidebar/SidebarItemLabel.vue'
+import { TruncatedText } from '@/components/truncated-text'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -101,7 +101,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
               size="lg"
               :stroke-color="subItem.selected ? 'secondary-2-500' : 'gray-warm-500'"
             />
-            <span class="leading-6 text-base truncate">{{ subItem.label }}</span>
+            <TruncatedText :title="subItem.label" side="right" class="leading-6 text-base" />
           </RouterLink>
           <a v-else :href="subItem.href" class="flex items-center gap-2">
             <Icon
@@ -110,7 +110,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
               size="lg"
               :stroke-color="subItem.selected ? 'secondary-2-500' : 'gray-warm-500'"
             />
-            <span class="leading-6 text-base truncate">{{ subItem.label }}</span>
+            <TruncatedText :title="subItem.label" side="right" class="leading-6 text-base" />
           </a>
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -133,11 +133,12 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
           "
         >
           <Icon :name="props.icon" size="lg" :stroke-color="iconStrokeColor" />
-          <SidebarItemLabel
+          <TruncatedText
             v-if="label"
-            :label="props.label"
+            :title="props.label"
+            side="right"
             :class="[
-              'leading-6 text-base flex-1 truncate',
+              'leading-6 text-base flex-1',
               isActive
                 ? '!font-extrabold !text-gray-warm-800'
                 : '!font-semibold !text-gray-warm-600'
@@ -188,7 +189,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
                 :to="{ name: subItem.route }"
                 class="flex items-center gap-2"
               >
-                <SidebarItemLabel :label="subItem.label" class="leading-6 text-base truncate" />
+                <TruncatedText :title="subItem.label" side="right" class="leading-6 text-base" />
               </RouterLink>
             </SidebarMenuSubButton>
             <SidebarMenuSubButton
@@ -197,7 +198,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
               class="gap-2"
               :is-active="subItem.selected"
             >
-              <SidebarItemLabel :label="subItem.label" class="leading-6 text-base truncate" />
+              <TruncatedText :title="subItem.label" side="right" class="leading-6 text-base" />
             </SidebarMenuSubButton>
           </SidebarMenuSubItem>
         </SidebarMenuSub>
@@ -239,11 +240,12 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
             </div>
           </div>
         </div>
-        <SidebarItemLabel
+        <TruncatedText
           v-if="label && !props.collapsed"
-          :label="props.label"
+          :title="props.label"
+          side="right"
           :class="[
-            'leading-6 text-base flex-1 truncate',
+            'leading-6 text-base flex-1',
             isActive ? '!font-extrabold !text-gray-warm-800' : '!font-semibold !text-gray-warm-600'
           ]"
         />
@@ -271,11 +273,12 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
             </div>
           </div>
         </div>
-        <SidebarItemLabel
+        <TruncatedText
           v-if="label && !props.collapsed"
-          :label="props.label"
+          :title="props.label"
+          side="right"
           :class="[
-            'leading-6 text-base flex-1 truncate',
+            'leading-6 text-base flex-1',
             isActive ? '!font-extrabold !text-gray-warm-800' : '!font-semibold !text-gray-warm-600'
           ]"
         />

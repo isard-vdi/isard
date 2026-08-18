@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import type { DesktopTemplate } from '@/gen/oas/apiv4'
 import Badge from '@/components/badge/Badge.vue'
+import { TruncatedText } from '@/components/truncated-text'
 import { hasWireguardRequiringViewer } from '@/lib/viewers'
 
 const { t } = useI18n()
@@ -208,7 +209,7 @@ const gridSectionOrder = (key: GridSectionKey): number => {
                     class="flex items-center gap-2.5 shadow-xs px-2 py-1 rounded-lg border border-gray-warm-200 min-w-0"
                     :class="tintBgClass"
                   >
-                    <span class="text-sm truncate min-w-0">{{ props.credentials.username }}</span>
+                    <TruncatedText :title="props.credentials.username" class="text-sm min-w-0" />
                     <CopyIcon
                       :value="props.credentials.username"
                       size="md"

@@ -15,6 +15,7 @@ import { Badge } from '@/components/badge'
 import { Icon, CopyIcon } from '@/components/icon'
 import { TooltipTrigger, TooltipContent, Tooltip } from '@/components/ui/tooltip'
 import { Label } from '@/components/ui/label'
+import { TruncatedText } from '@/components/truncated-text'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
@@ -493,9 +494,7 @@ const entryErrorKey = computed(
           :cell-class="''"
         >
           <template #cell-name="{ row }">
-            <p class="text-sm font-semibold text-gray-warm-900 truncate">
-              {{ row.name }}
-            </p>
+            <TruncatedText :title="row.name" class="text-sm font-semibold text-gray-warm-900" />
           </template>
           <template #cell-owner="{ row }">
             <AvatarLabel
@@ -554,9 +553,14 @@ const entryErrorKey = computed(
             <span v-else>—</span>
           </template>
           <template #cell-accessed="{ row }">
-            <span v-if="row.accessed" :title="formatRelativeTime(row.accessed, locale)">
-              {{ d(row.accessed * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
-            </span>
+            <Tooltip v-if="row.accessed">
+              <TooltipTrigger as-child>
+                <span>
+                  {{ d(row.accessed * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent :title="formatRelativeTime(row.accessed, locale)" />
+            </Tooltip>
             <span v-else>—</span>
           </template>
           <template #cell-size="{ row }">

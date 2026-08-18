@@ -204,76 +204,88 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
         @open-viewer="(viewer) => $emit('openViewer', viewer)"
       /> -->
 
-      <DropdownMenu>
-        <DropdownMenuTrigger @click.stop>
-          <Button hierarchy="secondary-gray" class="p-[10px]" icon="dots-vertical" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent class="bg-white border border-gray-warm-300 rounded-lg" align="end">
-          <template v-if="mainButtonData.viewers">
-            <DropdownMenuGroup>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Button size="sm" class="mr-2 w-full justify-start" hierarchy="link-gray">
-                    {{ t('components.deployments.desktop-card.viewers') }}
-                  </Button>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent class="bg-white border border-gray-warm-300 rounded-lg">
-                    <!-- <DropdownMenuItem v-for="viewer in props.desktop.viewers" :key="viewer">
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <span class="inline-flex">
+            <DropdownMenu>
+              <DropdownMenuTrigger @click.stop>
+                <Button hierarchy="secondary-gray" class="p-[10px]" icon="dots-vertical" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                class="bg-white border border-gray-warm-300 rounded-lg"
+                align="end"
+              >
+                <template v-if="mainButtonData.viewers">
+                  <DropdownMenuGroup>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Button size="sm" class="mr-2 w-full justify-start" hierarchy="link-gray">
+                          {{ t('components.deployments.desktop-card.viewers') }}
+                        </Button>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent
+                          class="bg-white border border-gray-warm-300 rounded-lg"
+                        >
+                          <!-- <DropdownMenuItem v-for="viewer in props.desktop.viewers" :key="viewer">
                       <Button size="sm" class="mr-2 w-full justify-start" hierarchy="link-gray">
                         {{ viewer }}
                       </Button>
                     </DropdownMenuItem> -->
-                    <ViewerSelectDropdownItem
-                      v-for="viewer in desktopViewers"
-                      :key="viewer"
-                      :viewer="{
-                        id: viewer,
-                        loading: viewer.includes('rdp') && !props.desktop.ip
-                      }"
-                      :tooltip-dismissed="viewerTooltipDismissed"
-                      @select="emit('openViewer', viewer.replace(/_/g, '-'))"
-                      @dismiss-tooltip="viewerTooltipDismissed = true"
-                    />
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
-            </DropdownMenuGroup>
+                          <ViewerSelectDropdownItem
+                            v-for="viewer in desktopViewers"
+                            :key="viewer"
+                            :viewer="{
+                              id: viewer,
+                              loading: viewer.includes('rdp') && !props.desktop.ip
+                            }"
+                            :tooltip-dismissed="viewerTooltipDismissed"
+                            @select="emit('openViewer', viewer.replace(/_/g, '-'))"
+                            @dismiss-tooltip="viewerTooltipDismissed = true"
+                          />
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  </DropdownMenuGroup>
 
-            <DropdownMenuSeparator class="bg-gray-warm-300" />
-          </template>
+                  <DropdownMenuSeparator class="bg-gray-warm-300" />
+                </template>
 
-          <DropdownMenuGroup>
-            <DropdownMenuItem @click="emit('showInfoModal')">
-              <Button
-                size="sm"
-                class="mr-2 w-full justify-start"
-                hierarchy="link-gray"
-                icon="info-circle"
-                icon-size="md"
-              >
-                {{ t('components.desktops.desktop-card.actions.info') }}
-              </Button>
-            </DropdownMenuItem>
+                <DropdownMenuGroup>
+                  <DropdownMenuItem @click="emit('showInfoModal')">
+                    <Button
+                      size="sm"
+                      class="mr-2 w-full justify-start"
+                      hierarchy="link-gray"
+                      icon="info-circle"
+                      icon-size="md"
+                    >
+                      {{ t('components.desktops.desktop-card.actions.info') }}
+                    </Button>
+                  </DropdownMenuItem>
 
-            <DropdownMenuItem
-              v-if="props.desktop.permissions?.includes('recreate')"
-              @click="emit('showRecreateModal')"
-            >
-              <Button
-                size="sm"
-                class="mr-2 w-full justify-start"
-                hierarchy="link-gray"
-                icon="refresh-cw-01"
-                icon-size="md"
-                icon-classa="motion-safe:animate-[spin_2s_linear_infinite]"
-              >
-                {{ t('components.desktops.desktop-card.actions.recreate') }}
-              </Button>
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+                  <DropdownMenuItem
+                    v-if="props.desktop.permissions?.includes('recreate')"
+                    @click="emit('showRecreateModal')"
+                  >
+                    <Button
+                      size="sm"
+                      class="mr-2 w-full justify-start"
+                      hierarchy="link-gray"
+                      icon="refresh-cw-01"
+                      icon-size="md"
+                      icon-classa="motion-safe:animate-[spin_2s_linear_infinite]"
+                    >
+                      {{ t('components.desktops.desktop-card.actions.recreate') }}
+                    </Button>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent :title="t('common.actions.more')" side="left" />
+      </Tooltip>
     </div>
   </div>
 </template>

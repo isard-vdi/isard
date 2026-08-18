@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import Modal from '@/components/modal/Modal.vue'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Spinner } from '@/components/ui/spinner'
 import { InputField } from '@/components/input-field'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -307,13 +308,19 @@ const expireButtonLabel = computed(() =>
               class="flex-1"
             />
 
-            <Icon
-              :name="showApiKey ? 'eye-off' : 'eye'"
-              size="md"
-              class="cursor-pointer text-gray-warm-700 hover:text-gray-warm-900"
-              :title="$t('components.profile.api-key-modal.new-key.buttons.show')"
-              @click="toggleShowApiKey"
-            />
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Icon
+                  :name="showApiKey ? 'eye-off' : 'eye'"
+                  size="md"
+                  class="cursor-pointer text-gray-warm-700 hover:text-gray-warm-900"
+                  @click="toggleShowApiKey"
+                />
+              </TooltipTrigger>
+              <TooltipContent
+                :title="$t('components.profile.api-key-modal.new-key.buttons.show')"
+              />
+            </Tooltip>
 
             <CopyIcon :value="generatedApiKey ?? ''" size="md" />
           </div>
@@ -324,16 +331,25 @@ const expireButtonLabel = computed(() =>
     <template #footer>
       <div v-if="hasKey" class="w-full flex justify-center px-6">
         <div class="flex items-center gap-2">
-          <Button
-            hierarchy="destructive"
-            size="md"
-            class="min-w-[140px]"
-            :title="$t('components.profile.api-key-modal.existing-key.buttons.expire-tooltip')"
-            :disabled="isActionDisabled"
-            @click="handleExpireKey"
-          >
-            {{ expireButtonLabel }}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <!-- Wrapper: a disabled button emits no pointer events -->
+              <span class="inline-flex">
+                <Button
+                  hierarchy="destructive"
+                  size="md"
+                  class="min-w-[140px]"
+                  :disabled="isActionDisabled"
+                  @click="handleExpireKey"
+                >
+                  {{ expireButtonLabel }}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              :title="$t('components.profile.api-key-modal.existing-key.buttons.expire-tooltip')"
+            />
+          </Tooltip>
           <Spinner v-if="isExpiringApiKey" size="sm" color="red" />
         </div>
       </div>

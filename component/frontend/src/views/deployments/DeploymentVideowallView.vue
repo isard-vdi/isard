@@ -19,6 +19,7 @@ import {
   type VideowallDeployment,
   type VideowallDesktop
 } from '@/components/deployment-videowall/types'
+import { TruncatedText } from '@/components/truncated-text'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,9 +84,7 @@ function backToDeployment() {
 <template>
   <div class="container mx-auto p-4 space-y-4">
     <div class="flex items-center justify-between gap-4">
-      <h1 class="text-xl font-semibold truncate">
-        {{ deployment?.name ?? '' }}
-      </h1>
+      <TruncatedText as="h1" :title="deployment?.name ?? ''" class="text-xl font-semibold" />
       <div class="flex items-center gap-2">
         <Input
           v-model="filterText"

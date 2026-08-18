@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/vue-query'
 
 import Button from '@/components/ui/button/Button.vue'
 import Separator from '@/components/ui/separator/Separator.vue'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import DesktopListItem from '@/components/desktop-list-item/DesktopListItem.vue'
 
 import { getAllTemplatesOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
@@ -117,15 +118,25 @@ const deleteDesktop = (id: number) => {
 
     <div v-if="!disabled" class="m-6 flex justify-center items-center">
       <Separator class="w-full mr-6" />
-      <Button
-        type="button"
-        hierarchy="secondary-gray"
-        :disabled="!canAddNewDesktop"
-        :title="!canAddNewDesktop ? t('views.form-lab.desktops.complete-templates-first') : ''"
-        @click="addDesktop"
-      >
-        {{ t('views.form-lab.desktops.add') }}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <!-- Wrapper: a disabled button emits no pointer events -->
+          <span class="inline-flex">
+            <Button
+              type="button"
+              hierarchy="secondary-gray"
+              :disabled="!canAddNewDesktop"
+              @click="addDesktop"
+            >
+              {{ t('views.form-lab.desktops.add') }}
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent
+          v-if="!canAddNewDesktop"
+          :title="t('views.form-lab.desktops.complete-templates-first')"
+        />
+      </Tooltip>
       <Separator class="w-full ml-6" />
     </div>
   </div>

@@ -2,6 +2,7 @@
 import { defineProps } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icon/Icon.vue'
+import { TruncatedText } from '@/components/truncated-text'
 
 const { t } = useI18n()
 
@@ -38,10 +39,9 @@ const props = defineProps<Props>()
       <li
         v-for="item in props.items"
         :key="item.id"
-        class="truncate px-4 py-2 text-sm text-gray-warm-800 transition-colors hover:bg-gray-warm-50"
-        :title="item.name"
+        class="px-4 py-2 text-sm text-gray-warm-800 transition-colors hover:bg-gray-warm-50"
       >
-        {{ item.name }}
+        <TruncatedText :title="item.name" />
       </li>
     </ul>
   </div>
