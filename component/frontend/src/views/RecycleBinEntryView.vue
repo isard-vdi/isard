@@ -15,6 +15,7 @@ import { Badge } from '@/components/badge'
 import { Icon, CopyIcon } from '@/components/icon'
 import { TooltipTrigger, TooltipContent, Tooltip } from '@/components/ui/tooltip'
 import { Label } from '@/components/ui/label'
+import { TruncatedText } from '@/components/truncated-text'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
@@ -217,6 +218,8 @@ const activeRows = computed(() => {
       return []
   }
 })
+
+const isSearching = computed(() => searchQuery.value.trim().length > 0)
 
 const filteredRows = computed(() => {
   if (!searchQuery.value.trim()) return activeRows.value
@@ -472,7 +475,9 @@ const entryErrorKey = computed(
           </EmptyHeader>
           <div class="flex flex-col items-start text-left rounded bg-base-background/75">
             <EmptyTitle class="text-[30px] leading-16 font-bold text-gray-warm-950">{{
-              t('views.recycle-bin.entry.empty.title')
+              isSearching
+                ? t('components.empty-search.title')
+                : t('views.recycle-bin.entry.empty.title')
             }}</EmptyTitle>
             <EmptyDescription class="text-4! text-gray-warm-900">{{
               t('views.recycle-bin.entry.empty.description')
@@ -489,9 +494,7 @@ const entryErrorKey = computed(
           :cell-class="''"
         >
           <template #cell-name="{ row }">
-            <p class="text-sm font-semibold text-gray-warm-900 truncate">
-              {{ row.name }}
-            </p>
+            <TruncatedText :title="row.name" class="text-sm font-semibold text-gray-warm-900" />
           </template>
           <template #cell-owner="{ row }">
             <AvatarLabel
@@ -550,9 +553,14 @@ const entryErrorKey = computed(
             <span v-else>—</span>
           </template>
           <template #cell-accessed="{ row }">
-            <span v-if="row.accessed" :title="formatRelativeTime(row.accessed, locale)">
-              {{ d(row.accessed * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
-            </span>
+            <Tooltip v-if="row.accessed">
+              <TooltipTrigger as-child>
+                <span>
+                  {{ d(row.accessed * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent :title="formatRelativeTime(row.accessed, locale)" />
+            </Tooltip>
             <span v-else>—</span>
           </template>
           <template #cell-size="{ row }">

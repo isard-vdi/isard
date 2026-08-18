@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import {
   getAllSharedDeploymentsOptions,
   getUserDetailsOptions
@@ -21,6 +22,7 @@ import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
 import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DomainInfoModal } from '@/components/desktops'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const { t } = useI18n()
 
@@ -126,8 +128,10 @@ const deploymentDesktopItems = computed<DomainInfoItem[]>(() => {
     isos: d.isos?.map((iso) => iso.name),
     floppies: d.floppies?.map((f) => f.name),
     reservables: d.reservables?.vgpus,
+    credentials: d.credentials,
     kind: 'desktop' as const,
-    template: d.template
+    template: d.template,
+    desktopKind: 'deployment' as const
   }))
 })
 
@@ -182,20 +186,25 @@ const handleNotImplemented = () => alert('not implemented yet')
             fill
           >
             <template #header-actions>
-              <Button
-                hierarchy="link-gray"
-                size="sm"
-                class="w-9! h-9! flex align-center justify-center bg-base-black/30 hover:bg-base-black/50 p-0! backdrop-blur-[4px]"
-                icon="info-circle"
-                icon-stroke-color="base-white"
-                @click="
-                  user?.id &&
-                  fetchAndOpenDeploymentDesktopsModal({
-                    deploymentId: deployment.id,
-                    userId: user.id
-                  })
-                "
-              />
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    hierarchy="link-gray"
+                    size="sm"
+                    class="w-9! h-9! flex align-center justify-center bg-base-black/30 hover:bg-base-black/50 p-0! backdrop-blur-[4px]"
+                    icon="info-circle"
+                    icon-stroke-color="base-white"
+                    @click="
+                      user?.id &&
+                      fetchAndOpenDeploymentDesktopsModal({
+                        deploymentId: deployment.id,
+                        userId: user.id
+                      })
+                    "
+                  />
+                </TooltipTrigger>
+                <TooltipContent :title="t('components.desktops.desktop-card.actions.info')" />
+              </Tooltip>
             </template>
             <template #header>
               <div class="truncate">
@@ -216,7 +225,11 @@ const handleNotImplemented = () => alert('not implemented yet')
                 hierarchy="secondary-color"
                 size="sm"
                 class="shrink-0"
-                @click="handleNotImplemented"
+                :as="RouterLink"
+                :to="{
+                  name: 'view-deployment',
+                  params: { deploymentId: deployment.id }
+                }"
               >
                 {{ t('views.deployment.buttons.enter') }}
               </Button>

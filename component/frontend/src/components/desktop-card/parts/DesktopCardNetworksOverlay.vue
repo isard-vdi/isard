@@ -1,19 +1,25 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 
-import { getDesktopNetworksOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import {
+  getDesktopNetworksOptions,
+  getNetworksFromTokenOptions
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import type { Client } from '@/gen/oas/apiv4/client'
-import type { DesktopNetworksResponse } from '@/gen/oas/apiv4'
 
 import { Icon } from '@/components/icon'
 import { CopyIcon } from '@/components/icon'
+import { TruncatedText } from '@/components/truncated-text'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CARD_SIZE_INJECTION_KEY, cardOverlayTextVariants, cardOverlayDetailVariants } from '..'
 
 const { t } = useI18n()
+
+const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 
 interface Props {
   desktopId: string
@@ -43,17 +49,10 @@ const emit = defineEmits<{
 }>()
 
 const tokenNetworksQueryOptions = {
-  queryKey: ['getDesktopNetworksFromToken', props.directViewerToken] as const,
-  queryFn: async () => {
-    const client = props.directViewerClient
-    const token = props.directViewerToken
-    if (!client || !token) throw new Error('Missing direct viewer client/token')
-    const { data, error } = await client.get<DesktopNetworksResponse>({
-      url: `/api/v4/item/desktop/token/${encodeURIComponent(token)}/get-networks`
-    })
-    if (error) throw error
-    return data as DesktopNetworksResponse
-  },
+  ...getNetworksFromTokenOptions({
+    path: { token: props.directViewerToken ?? '' },
+    client: props.directViewerClient
+  }),
   enabled: !!props.directViewerToken && !!props.directViewerClient
 }
 
@@ -102,30 +101,40 @@ defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
 
   <div v-else-if="networksIsError" class="flex items-center gap-2 py-2 text-base-white/90">
     <Icon name="alert-circle" size="sm" stroke-color="error-300" />
-    <span class="text-xs">
+    <span :class="cardOverlayTextVariants({ size })">
       {{ networksError?.message || t('components.desktop-networks-modal.error') }}
     </span>
   </div>
 
   <div v-else-if="!sortedNetworks.length" class="flex items-center gap-2 py-2 text-base-white/80">
     <Icon name="alert-circle" size="sm" stroke-color="warning-300" />
-    <span class="text-xs">{{ t('components.desktop-networks-modal.empty') }}</span>
+    <span :class="cardOverlayTextVariants({ size })">{{
+      t('components.desktop-networks-modal.empty')
+    }}</span>
   </div>
 
   <div v-else class="flex gap-3 text-start text-base-white">
     <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 flex-1 min-w-0">
       <div v-for="network in visibleNetworks" :key="network.id" class="flex flex-col min-w-0">
-        <div class="text-xs font-semibold truncate">{{ network.name }}</div>
-        <div class="text-[11px] text-base-white/80 truncate flex items-center gap-1.5 font-mono">
-          {{ network.mac
-          }}<CopyIcon :value="network.mac" class="opacity-80" size="xs" stroke-color="base-white" />
+        <TruncatedText
+          :title="network.name"
+          class="font-semibold"
+          :class="cardOverlayTextVariants({ size })"
+        />
+        <div
+          class="text-base-white/80 flex items-center gap-1.5 font-mono min-w-0"
+          :class="cardOverlayDetailVariants({ size })"
+        >
+          <TruncatedText :title="network.mac" class="min-w-0" />
+          <CopyIcon :value="network.mac" class="opacity-80" size="xs" stroke-color="base-white" />
         </div>
         <!-- Wireguard-only: IP attached as a sub-row so it's clearly the IP
              you reach this interface on — not a free-floating top-of-card
              field that's easy to miss. -->
         <div
           v-if="network.id === 'wireguard'"
-          class="text-[11px] text-base-white/80 truncate flex items-center gap-1.5 font-mono"
+          class="text-base-white/80 truncate flex items-center gap-1.5 font-mono"
+          :class="cardOverlayDetailVariants({ size })"
         >
           <template v-if="props.desktopStatus === DesktopStatusEnum.WAITING_IP">
             <Icon name="loading-02" size="xs" class="animate-spin" stroke-color="base-white" />
@@ -153,7 +162,8 @@ defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
     <div v-if="overflowCount > 0" class="self-stretch shrink-0 flex items-end">
       <Button
         variant="ghost"
-        class="h-auto flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-base-white/15 hover:bg-base-white/30 text-[11px] font-semibold whitespace-nowrap text-base-white"
+        class="h-auto flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-base-white/15 hover:bg-base-white/30 font-semibold whitespace-nowrap text-base-white"
+        :class="cardOverlayDetailVariants({ size })"
         @click="emit('showNetworksModal')"
       >
         +{{ overflowCount }} {{ t('components.desktops.desktop-card.networks.more')

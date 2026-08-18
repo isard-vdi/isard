@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ViewerSelect } from '@/components/viewer-select'
 
 interface Props {
@@ -54,7 +55,6 @@ const emit = defineEmits<{
   // --- Redirects ---
   editDesktop: [ApiSchemasDomainsDesktopsUserDesktop]
   createTemplate: [ApiSchemasDomainsDesktopsUserDesktop]
-  changeImage: [ApiSchemasDomainsDesktopsUserDesktop]
   showStorageModal: [ApiSchemasDomainsDesktopsUserDesktop]
   // goTo*: [ApiSchemasDomainsDesktopsUserDesktop]
 }>()
@@ -165,50 +165,73 @@ const headers = [
 
     <template #cell-actions="{ row }">
       <div class="flex flex-row items-center justify-end gap-2 w-full">
-        <Button
-          hierarchy="secondary-gray"
-          icon="info-circle"
-          class="aspect-square p-[10px]"
-          @click="emit('showInfoModal', row)"
-        />
-
-        <Button
-          hierarchy="secondary-gray"
-          icon="modem-02"
-          class="aspect-square p-[10px]"
-          @click="emit('showNetworksModal', row)"
-        />
-
-        <Button
-          v-if="row.bastion_target?.http?.enabled || row.bastion_target?.ssh?.enabled"
-          hierarchy="secondary-gray"
-          icon="globe-04"
-          class="aspect-square p-[10px]"
-          @click="emit('showBastionModal', row)"
-        />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger>
+        <Tooltip>
+          <TooltipTrigger as-child>
             <Button
               hierarchy="secondary-gray"
-              icon="dots-vertical"
+              icon="info-circle"
               class="aspect-square p-[10px]"
+              @click="emit('showInfoModal', row)"
             />
-          </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent :title="t('components.desktops.desktop-card.actions.info')" />
+        </Tooltip>
 
-          <DropdownMenuContent class="bg-white border border-gray-warm-300 rounded-lg" align="end">
-            <DesktopCardHeaderActionsDropdownContent
-              :desktop="row"
-              @edit-desktop="emit('editDesktop', row)"
-              @show-delete-modal="emit('showDeleteModal', row)"
-              @show-direct-link-modal="emit('showDirectLinkModal', row)"
-              @show-recreate-modal="emit('showRecreateModal', row)"
-              @create-template="emit('createTemplate', row)"
-              @change-image="emit('changeImage', row)"
-              @show-storage-modal="emit('showStorageModal', row)"
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              hierarchy="secondary-gray"
+              icon="modem-02"
+              class="aspect-square p-[10px]"
+              @click="emit('showNetworksModal', row)"
             />
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </TooltipTrigger>
+          <TooltipContent :title="t('components.desktops.desktop-card.actions.networks')" />
+        </Tooltip>
+
+        <Tooltip v-if="row.bastion_target?.http?.enabled || row.bastion_target?.ssh?.enabled">
+          <TooltipTrigger as-child>
+            <Button
+              hierarchy="secondary-gray"
+              icon="globe-04"
+              class="aspect-square p-[10px]"
+              @click="emit('showBastionModal', row)"
+            />
+          </TooltipTrigger>
+          <TooltipContent :title="t('components.desktops.desktop-card.actions.bastion-access')" />
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <span class="inline-flex">
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <Button
+                    hierarchy="secondary-gray"
+                    icon="dots-vertical"
+                    class="aspect-square p-[10px]"
+                  />
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent
+                  class="bg-white border border-gray-warm-300 rounded-lg"
+                  align="end"
+                >
+                  <DesktopCardHeaderActionsDropdownContent
+                    :desktop="row"
+                    @edit-desktop="emit('editDesktop', row)"
+                    @show-delete-modal="emit('showDeleteModal', row)"
+                    @show-direct-link-modal="emit('showDirectLinkModal', row)"
+                    @show-recreate-modal="emit('showRecreateModal', row)"
+                    @create-template="emit('createTemplate', row)"
+                    @show-storage-modal="emit('showStorageModal', row)"
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent :title="t('common.actions.more')" />
+        </Tooltip>
       </div>
     </template>
   </DataTable>

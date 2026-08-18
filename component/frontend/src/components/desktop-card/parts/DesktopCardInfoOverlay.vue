@@ -1,33 +1,92 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
+import { useIsTextTruncated } from '@/composables/useIsTextTruncated'
+
 import { getDesktopInfoOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import type { UserDesktop } from '@/gen/oas/apiv4/'
+import type { DesktopDetailsResponse } from '@/gen/oas/apiv4/'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
 import { Icon, CopyIcon } from '@/components/icon'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CARD_SIZE_INJECTION_KEY, cardOverlayPaddingVariants } from '..'
+import {
+  CARD_SIZE_INJECTION_KEY,
+  cardOverlayPaddingVariants,
+  cardOverlayTextVariants,
+  cardOverlayLabelVariants
+} from '..'
 
 const { t } = useI18n()
 
-interface Props {
-  desktop: UserDesktop
+interface DesktopInfoTarget {
+  id: string
+  status: DesktopStatusEnum
+  ip?: string | null
 }
 
-const props = defineProps<Props>()
+interface Props {
+  desktop: DesktopInfoTarget
+  directViewer?: boolean
+  directViewerDetails?: DesktopDetailsResponse | null
+  directViewerDetailsPending?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  directViewer: false,
+  directViewerDetails: undefined,
+  directViewerDetailsPending: false
+})
 const emit = defineEmits<{ showInfoModal: [] }>()
 
 const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 
-const { data: info, isPending } = useQuery(
-  getDesktopInfoOptions({
+const isDirectViewer = computed(() => props.directViewer)
+
+const { data: info, isPending: isInfoPending } = useQuery({
+  ...getDesktopInfoOptions({
     path: { desktop_id: props.desktop.id }
-  })
+  }),
+  enabled: computed(() => !isDirectViewer.value)
+})
+
+const hardware = computed(() => {
+  if (isDirectViewer.value) {
+    const details = props.directViewerDetails
+    return {
+      vcpus: details?.vcpu,
+      memory: details?.memory,
+      diskBus: details?.disk_bus ?? '',
+      bootOrder: details?.boot_order?.map((b) => b.id) ?? [],
+      videos: details?.videos?.map((v) => v.id) ?? [],
+      isos: details?.isos ?? [],
+      floppies: details?.floppies ?? [],
+      vgpus: details?.reservables?.vgpus ?? []
+    }
+  }
+  return {
+    vcpus: info.value?.hardware?.vcpus,
+    memory: info.value?.hardware?.memory,
+    diskBus: info.value?.hardware?.disk_bus ?? '',
+    bootOrder: info.value?.hardware?.boot_order ?? [],
+    videos: info.value?.hardware?.videos ?? [],
+    isos: info.value?.hardware?.isos ?? [],
+    floppies: info.value?.hardware?.floppies ?? [],
+    vgpus: info.value?.reservables?.vgpus ?? []
+  }
+})
+
+const isPending = computed(() =>
+  isDirectViewer.value ? !!props.directViewerDetailsPending : isInfoPending.value
+)
+
+// get-info (non-direct-viewer) doesn't expose the desktop's live IP on
+// `desktop`, but the direct-viewer's separately-fetched details do.
+const desktopIp = computed(() =>
+  isDirectViewer.value ? props.directViewerDetails?.ip : props.desktop.ip
 )
 
 const statusBadge = computed(() => {
@@ -38,114 +97,327 @@ const statusBadge = computed(() => {
   return 'bg-warning-500/70'
 })
 
-// Boot device labels — short, lowercase, comma-joined for the card. The
-// modal shows the full per-device names; here we only need a glance.
-const bootOrderLabel = computed(() => {
-  const order = info.value?.hardware?.boot_order
-  if (!order || !order.length) return ''
-  return order.join(' → ')
-})
+const diskBusLabel = computed(() => hardware.value.diskBus)
 
-// Attached media — combine ISOs and floppies into one list of (icon, name)
-// rows. apiv4 returns enriched {id, name?} objects; fall back to id when
-// name is missing so we don't render blanks.
+// Video adapters
+const videoLabel = computed(() => hardware.value.videos.join(', '))
+
+const bootOrderLabel = computed(() => hardware.value.bootOrder.join(', '))
+
+// Reservables
+const reservables = computed(() => hardware.value.vgpus)
+const firstReservable = computed(() => reservables.value[0])
+const hiddenReservables = computed(() => reservables.value.slice(1))
+const hiddenReservablesLabel = computed(() => hiddenReservables.value.join(', '))
+
+// Attached media
 interface AttachedMedia {
   kind: 'iso' | 'floppy'
   label: string
 }
 const attachedMedia = computed<AttachedMedia[]>(() => {
-  const isos = info.value?.hardware?.isos ?? []
-  const floppies = info.value?.hardware?.floppies ?? []
+  const isos = hardware.value.isos
+  const floppies = hardware.value.floppies
   return [
     ...isos.map((m) => ({ kind: 'iso' as const, label: m.name || m.id })),
     ...floppies.map((m) => ({ kind: 'floppy' as const, label: m.name || m.id }))
   ]
 })
+const firstMedia = computed(() => attachedMedia.value[0])
+const hiddenMedia = computed(() => attachedMedia.value.slice(1))
+const hiddenMediaLabel = computed(() => hiddenMedia.value.map((m) => m.label).join(', '))
+
+const mediaLabelRef = ref<HTMLElement | null>(null)
+const { isTruncated: isMediaLabelTruncated } = useIsTextTruncated(
+  mediaLabelRef,
+  () => firstMedia.value?.label
+)
+
+const gpuLabelRef = ref<HTMLElement | null>(null)
+const { isTruncated: isGpuLabelTruncated } = useIsTextTruncated(
+  gpuLabelRef,
+  () => firstReservable.value
+)
+
+const bootOrderLabelRef = ref<HTMLElement | null>(null)
+const { isTruncated: isBootOrderLabelTruncated } = useIsTextTruncated(
+  bootOrderLabelRef,
+  () => bootOrderLabel.value
+)
+
+const diskBusLabelRef = ref<HTMLElement | null>(null)
+const { isTruncated: isDiskBusLabelTruncated } = useIsTextTruncated(
+  diskBusLabelRef,
+  () => diskBusLabel.value
+)
+
+const desktopIpRef = ref<HTMLElement | null>(null)
+const { isTruncated: isDesktopIpTruncated } = useIsTextTruncated(
+  desktopIpRef,
+  () => desktopIp.value
+)
+
+const videoLabelRef = ref<HTMLElement | null>(null)
+const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
+  videoLabelRef,
+  () => videoLabel.value
+)
 </script>
 
 <template>
-  <div :class="cardOverlayPaddingVariants({ size })" class="text-base-white text-start">
-    <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-      <div class="col-span-2">
-        <span
-          class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide"
-          :class="statusBadge"
-        >
-          {{ desktop.status }}
-        </span>
+  <div
+    :class="cardOverlayPaddingVariants({ size })"
+    class="text-base-white text-start relative min-h-full flex flex-col justify-between"
+  >
+    <div class="flex items-center justify-between gap-2">
+      <span
+        class="inline-flex items-center px-1.5 py-0.5 rounded font-bold uppercase tracking-wide w-fit"
+        :class="[statusBadge, cardOverlayLabelVariants({ size })]"
+      >
+        <span class="sr-only">{{ t('components.desktops.desktop-card.info.status') }}: </span>
+        {{ desktop.status }}
+      </span>
+
+      <div
+        v-if="isPending || desktopIp"
+        class="flex items-center gap-1.5 min-w-0"
+        :class="cardOverlayTextVariants({ size })"
+      >
+        <Icon
+          name="signal-01"
+          size="xs"
+          stroke-color="base-white"
+          class="shrink-0"
+          aria-hidden="true"
+        />
+        <Skeleton v-if="isPending && !desktopIp" class="bg-base-white/20 h-3 w-24" />
+        <template v-else-if="desktopIp">
+          <span class="sr-only">
+            {{ t('components.desktops.desktop-card.ip-address', { ip: desktopIp }) }}
+          </span>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <code ref="desktopIpRef" aria-hidden="true" class="font-mono truncate">{{
+                desktopIp
+              }}</code>
+            </TooltipTrigger>
+            <TooltipContent v-if="isDesktopIpTruncated" :title="desktopIp" />
+          </Tooltip>
+          <CopyIcon :value="desktopIp" size="xs" stroke-color="base-white" class="shrink-0" />
+        </template>
       </div>
-      <div class="flex items-center gap-1.5 min-w-0">
-        <Icon name="cpu" size="xs" stroke-color="base-white" class="shrink-0" />
+    </div>
+
+    <div
+      class="flex flex-wrap items-center gap-x-4 gap-y-1"
+      :class="cardOverlayTextVariants({ size })"
+    >
+      <div class="flex items-center gap-1.5 min-w-0 max-w-[47%]">
+        <Icon name="cpu" size="xs" stroke-color="base-white" class="shrink-0" aria-hidden="true" />
         <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-12" />
         <span v-else class="font-semibold truncate">
           {{
-            info?.hardware?.vcpus
+            hardware.vcpus
               ? t('components.domain-info-modal.fields.hardware.vcpu', {
-                  vcpu: info.hardware.vcpus
+                  vcpu: hardware.vcpus
                 })
               : '—'
           }}
         </span>
       </div>
-      <div class="flex items-center gap-1.5 min-w-0">
-        <Icon name="memory" size="xs" stroke-color="base-white" class="shrink-0" />
+
+      <div class="flex items-center gap-1.5 min-w-0 max-w-[47%]">
+        <Icon
+          name="memory"
+          size="xs"
+          stroke-color="base-white"
+          class="shrink-0"
+          aria-hidden="true"
+        />
         <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-16" />
         <span v-else class="font-semibold truncate">
           {{
-            info?.hardware?.memory != null
+            hardware.memory != null
               ? t('components.domain-info-modal.fields.hardware.ram', {
-                  ram: Number(info.hardware.memory).toFixed(2)
+                  ram: Number(hardware.memory)
                 })
               : '—'
           }}
         </span>
       </div>
-      <div v-if="desktop.ip" class="flex items-center gap-1.5 w-fit">
-        <Icon name="signal-01" size="xs" stroke-color="base-white" class="shrink-0" />
-        <code class="font-mono truncate flex-1 min-w-0">{{ desktop.ip }}</code>
-        <CopyIcon :value="desktop.ip" size="xs" stroke-color="base-white" class="shrink-0 ml-2" />
+
+      <!-- Reservables (vGPU) -->
+      <div
+        v-if="isPending || firstReservable"
+        class="flex items-center gap-1.5 min-w-0 max-w-[47%]"
+      >
+        <Icon name="gpu" size="xs" stroke-color="base-white" class="shrink-0" aria-hidden="true" />
+        <span
+          class="uppercase tracking-wide text-base-white/70 shrink-0"
+          :class="cardOverlayLabelVariants({ size })"
+        >
+          {{ t('components.desktops.desktop-card.info.reservables') }}
+        </span>
+        <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-16" />
+        <template v-else>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span ref="gpuLabelRef" class="font-semibold truncate">{{ firstReservable }}</span>
+            </TooltipTrigger>
+            <TooltipContent v-if="isGpuLabelTruncated" :title="firstReservable" />
+          </Tooltip>
+          <Tooltip v-if="hiddenReservables.length">
+            <TooltipTrigger as-child>
+              <button
+                type="button"
+                class="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded bg-base-white/15 font-semibold"
+                :class="cardOverlayLabelVariants({ size })"
+                :aria-label="
+                  t('components.desktops.desktop-card.info.show-more', {
+                    count: hiddenReservables.length,
+                    items: hiddenReservablesLabel
+                  })
+                "
+                @click="emit('showInfoModal')"
+              >
+                +{{ hiddenReservables.length }}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent :title="hiddenReservablesLabel" />
+          </Tooltip>
+        </template>
       </div>
 
-      <!-- Boot order (always shown; falls back to em-dash while loading or if absent) -->
-      <div class="flex items-center gap-1.5 min-w-0 col-span-2">
-        <Icon name="hdd" size="xs" stroke-color="base-white" class="shrink-0" />
-        <span class="text-[10px] uppercase tracking-wide text-base-white/70 shrink-0">
+      <!-- Attached media (ISO / floppy) -->
+      <div v-if="isPending || firstMedia" class="flex items-center gap-1.5 min-w-0 max-w-[47%]">
+        <Icon
+          :name="firstMedia?.kind === 'floppy' ? 'save-01' : 'disc-02'"
+          size="xs"
+          stroke-color="base-white"
+          class="shrink-0"
+          aria-hidden="true"
+        />
+        <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-20" />
+        <template v-else-if="firstMedia">
+          <span
+            class="uppercase tracking-wide text-base-white/70 shrink-0"
+            :class="cardOverlayLabelVariants({ size })"
+          >
+            {{
+              firstMedia.kind === 'iso'
+                ? t('components.desktops.desktop-card.info.iso')
+                : t('components.desktops.desktop-card.info.floppy')
+            }}
+          </span>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span ref="mediaLabelRef" class="font-semibold truncate">{{ firstMedia.label }}</span>
+            </TooltipTrigger>
+            <TooltipContent v-if="isMediaLabelTruncated" :title="firstMedia.label" />
+          </Tooltip>
+          <Tooltip v-if="hiddenMedia.length">
+            <TooltipTrigger as-child>
+              <button
+                type="button"
+                class="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded bg-base-white/15 font-semibold"
+                :class="cardOverlayLabelVariants({ size })"
+                :aria-label="
+                  t('components.desktops.desktop-card.info.show-more', {
+                    count: hiddenMedia.length,
+                    items: hiddenMediaLabel
+                  })
+                "
+                @click="emit('showInfoModal')"
+              >
+                +{{ hiddenMedia.length }}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent :title="hiddenMediaLabel" />
+          </Tooltip>
+        </template>
+      </div>
+
+      <!-- Boot order -->
+      <div class="flex items-center gap-1.5 min-w-0 max-w-[47%]">
+        <Icon name="hdd" size="xs" stroke-color="base-white" class="shrink-0" aria-hidden="true" />
+        <span
+          class="uppercase tracking-wide text-base-white/70 shrink-0"
+          :class="cardOverlayLabelVariants({ size })"
+        >
           {{ t('components.desktops.desktop-card.info.boot') }}
         </span>
         <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-20" />
-        <span v-else class="font-semibold truncate">{{ bootOrderLabel || '—' }}</span>
+        <Tooltip v-else>
+          <TooltipTrigger as-child>
+            <span ref="bootOrderLabelRef" class="font-semibold truncate">
+              {{ bootOrderLabel || '—' }}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent v-if="isBootOrderLabelTruncated" :title="bootOrderLabel" />
+        </Tooltip>
       </div>
 
-      <!-- Attached media — only renders when at least one is attached so
-           the overlay stays compact for the common no-media case. -->
-      <template v-if="attachedMedia.length">
-        <div
-          v-for="m in attachedMedia"
-          :key="`${m.kind}:${m.label}`"
-          class="flex items-center gap-1.5 min-w-0 col-span-2"
+      <!-- Disk bus -->
+      <div v-if="isPending || diskBusLabel" class="flex items-center gap-1.5 min-w-0 max-w-[47%]">
+        <Icon
+          name="hdd-02"
+          size="xs"
+          stroke-color="base-white"
+          class="shrink-0"
+          aria-hidden="true"
+        />
+        <span
+          class="uppercase tracking-wide text-base-white/70 shrink-0"
+          :class="cardOverlayLabelVariants({ size })"
         >
-          <Icon
-            :name="m.kind === 'iso' ? 'disc-02' : 'save-01'"
-            size="xs"
-            stroke-color="base-white"
-            class="shrink-0"
-          />
-          <span class="font-semibold truncate">{{ m.label }}</span>
-        </div>
-      </template>
+          {{ t('components.desktops.desktop-card.info.disk-bus') }}
+        </span>
+        <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-12" />
+        <Tooltip v-else>
+          <TooltipTrigger as-child>
+            <span ref="diskBusLabelRef" class="font-semibold truncate">{{ diskBusLabel }}</span>
+          </TooltipTrigger>
+          <TooltipContent v-if="isDiskBusLabelTruncated" :title="diskBusLabel" />
+        </Tooltip>
+      </div>
+
+      <!-- Video adapters -->
+      <div v-if="isPending || videoLabel" class="flex items-center gap-1.5 min-w-0 max-w-[47%]">
+        <Icon
+          name="wires"
+          size="xs"
+          stroke-color="base-white"
+          class="shrink-0"
+          aria-hidden="true"
+        />
+        <span
+          class="uppercase tracking-wide text-base-white/70 shrink-0"
+          :class="cardOverlayLabelVariants({ size })"
+        >
+          {{ t('components.desktops.desktop-card.info.video') }}
+        </span>
+        <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-16" />
+        <Tooltip v-else>
+          <TooltipTrigger as-child>
+            <span ref="videoLabelRef" class="font-semibold truncate">{{ videoLabel }}</span>
+          </TooltipTrigger>
+          <TooltipContent v-if="isVideoLabelTruncated" :title="videoLabel" />
+        </Tooltip>
+      </div>
     </div>
 
-    <div class="flex justify-end mt-1.5">
+    <div class="flex justify-end">
       <Tooltip>
         <TooltipTrigger as-child>
           <Button
             hierarchy="link-gray"
             size="sm"
-            class="h-6! px-2! gap-1 bg-base-white/15 hover:bg-base-white/30 text-[10px] font-semibold text-base-white"
+            class="h-6! px-2! gap-1 bg-base-white/15 hover:bg-base-white/30 font-semibold text-base-white"
+            :class="cardOverlayLabelVariants({ size })"
             @click="emit('showInfoModal')"
           >
             {{ t('components.desktops.desktop-card.overlay.expand') }}
-            <Icon name="expand-04" size="xs" stroke-color="base-white" />
+            <Icon name="expand-04" size="xs" stroke-color="base-white" aria-hidden="true" />
           </Button>
         </TooltipTrigger>
         <TooltipContent :title="t('components.desktops.desktop-card.overlay.expand-tooltip')" />

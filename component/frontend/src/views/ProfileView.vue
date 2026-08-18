@@ -19,6 +19,7 @@ import { LocaleSwitch } from '@/components/locale-switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertModal } from '@/components/modal'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { TruncatedText } from '@/components/truncated-text'
 import { toast } from '@/components/ui/toast'
 import ApiKeyModal from '@/components/profile/ApiKeyModal.vue'
 import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
@@ -131,6 +132,12 @@ const hasUserStorage = computed(() => {
 })
 
 const userStorageLink = computed(() => userDetails.value?.user_storage?.token_web || '')
+
+const groupName = computed(() => userDetails.value?.group_name || 'N/A')
+
+const secondaryGroups = computed(
+  () => userDetails.value?.secondary_groups_data?.map((group) => group.name).join(', ') || '–'
+)
 
 const showResetVpnModal = ref(false)
 const resetVpnError = ref('')
@@ -463,28 +470,19 @@ watch(
               <p class="text-sm leading-5 font-medium text-gray-warm-700">
                 {{ t('views.profile.information.fields.group') }}
               </p>
-              <p
-                class="text-sm leading-5 font-semibold text-gray-warm-900 mt-1 max-w-40 truncate"
-                :title="userDetails?.group_name"
-              >
-                {{ userDetails?.group_name || 'N/A' }}
-              </p>
+              <TruncatedText
+                :title="groupName"
+                class="text-sm leading-5 font-semibold text-gray-warm-900 mt-1 max-w-40"
+              />
             </div>
             <div>
               <p class="text-sm leading-5 font-medium text-gray-warm-700">
                 {{ t('views.profile.information.fields.secondary-groups') }}
               </p>
-              <p
-                class="text-sm leading-5 font-semibold text-gray-warm-900 mt-1 max-w-40 overflow-x-hidden text-ellipsis"
-                :title="userDetails?.secondary_groups_data?.map((group) => group.name).join(', ')"
-              >
-                {{
-                  userDetails?.secondary_groups_data?.map((group) => group.name).join(', ') ||
-                  (userDetails?.secondary_groups_data?.length
-                    ? `${userDetails.secondary_groups_data.length} groups`
-                    : '–')
-                }}
-              </p>
+              <TruncatedText
+                :title="secondaryGroups"
+                class="text-sm leading-5 font-semibold text-gray-warm-900 mt-1 max-w-40"
+              />
             </div>
             <div>
               <p class="text-sm leading-5 font-medium text-gray-warm-700">

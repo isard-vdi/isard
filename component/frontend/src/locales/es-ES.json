@@ -80,7 +80,11 @@
     },
     "deployment": {
       "title": "Gestión de despliegues",
-      "subtitle": "Consulta los detalles del despliegue y revisa el estado de los usuarios"
+      "subtitle": "Consulta los detalles del despliegue y revisa el estado de los usuarios",
+      "view": {
+        "title": "Despliegue",
+        "subtitle": "Interactúa rápidamente con los escritorios del despliegue"
+      }
     },
     "deployment-videowall": {
       "title": "Videowall",
@@ -689,6 +693,9 @@
       },
       "empty": {
         "subtitle": "Crea un despliegue para empezar a proporcionar escritorios a tus usuarios"
+      },
+      "actions": {
+        "go-to-direct-viewer": "Ir al visor directo"
       }
     },
     "deployment": {
@@ -793,6 +800,36 @@
         "title-invisible": "Hacer invisibles los escritorios del usuario",
         "description-visible": "El usuario verá y podrá utilizar sus escritorios del despliegue.",
         "description-invisible": "El usuario dejará de ver sus escritorios del despliegue."
+      }
+    },
+    "view-deployment": {
+      "sections": {
+        "desktops": {
+          "title": "Escritorios",
+          "actions": {
+            "stop-all": {
+              "label": "Parar todos",
+              "tooltip": "Parar todos los escritorios en el despliegue"
+            },
+            "book": {
+              "tooltip": "Reservar despliegue"
+            },
+            "collapse": "Colapsar el panel de escritorios",
+            "expand": "Expandir el panel de escritorios"
+          }
+        },
+        "viewer": {
+          "actions": {
+            "close": "Cerrar visor",
+            "maximize": "Maximizar visor",
+            "minimize": "Restaurar el tamaño del visor"
+          },
+          "empty": {
+            "title": "Ningún escritorio seleccionado",
+            "description": "Inicia y selecciona un escritorio desde la barra lateral para verlo aquí",
+            "not-available": "Visor no disponible"
+          }
+        }
       }
     },
     "new-deployment": {
@@ -1358,7 +1395,6 @@
           "info": "Información",
           "recreate": "Recrear",
           "template": "Convertir en plantilla",
-          "change-image": "Cambiar imagen",
           "storage": "Almacenamiento",
           "reset": "Reiniciar",
           "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",
@@ -1437,8 +1473,28 @@
             "text": "Pausado",
             "action": "Parar"
           },
-          "reset": {
-            "text": "Reiniciar",
+          "suspended": {
+            "text": "Suspendido",
+            "action": "Parar"
+          },
+          "crashed": {
+            "text": "Ha fallado",
+            "action": "Reintentar"
+          },
+          "startingpaused": {
+            "text": "Iniciando",
+            "action": "Iniciando"
+          },
+          "startingdomaindisposable": {
+            "text": "Iniciando",
+            "action": "Iniciando"
+          },
+          "deleting": {
+            "text": "Borrando",
+            "action": "Borrando"
+          },
+          "resetting": {
+            "text": "Reiniciando",
             "action": "Reiniciando"
           },
           "updating": {
@@ -1467,7 +1523,14 @@
           }
         },
         "info": {
-          "boot": "Arranque"
+          "boot": "Arranque",
+          "disk-bus": "Bus",
+          "video": "Vídeo",
+          "reservables": "GPU",
+          "iso": "ISO",
+          "floppy": "Floppy",
+          "status": "Estado",
+          "show-more": "Mostrar {count} más: {items}"
         },
         "networks": {
           "more": "más"
@@ -1599,6 +1662,7 @@
       "title": "No hay {kind} disponibles"
     },
     "empty-search": {
+      "clear": "Limpiar búsqueda",
       "title": "No se encontraron resultados"
     },
     "recreate-desktop-confirmation-modal": {
@@ -1644,9 +1708,18 @@
         }
       },
       "title": "Información",
+      "loading": "Cargando detalles del escritorio…",
+      "kind": {
+        "persistent": "Escritorio persistente",
+        "nonpersistent": "Escritorio temporal",
+        "deployment": "Escritorio de despliegue"
+      },
       "fields": {
         "description": {
           "title": "Descripción"
+        },
+        "credentials": {
+          "title": "Credenciales"
         },
         "hardware": {
           "ram": "{ram} GB RAM",
@@ -2290,6 +2363,17 @@
         },
         "cancel": "Cancelar",
         "confirm": "Confirmar"
+      },
+      "desktop-card": {
+        "view": "Ver",
+        "viewing": "Viendo",
+        "viewers": "Visores",
+        "not-available": "El escritorio debe estar iniciado para poder verlo",
+        "tooltips": {
+          "view": "Haz clic para ver este escritorio en esta página",
+          "viewing": "Estás viendo este escritorio",
+          "no-web-viewer": "Este escritorio no tiene visor web; ábrelo desde el menú de visores"
+        }
       }
     },
     "change-image-modal": {
@@ -2695,6 +2779,11 @@
     "units": {
       "mb": "MB",
       "gb": "GB"
+    },
+    "actions": {
+      "more": "Más acciones",
+      "copy": "Copiar",
+      "copied": "Copiado"
     }
   }
 }

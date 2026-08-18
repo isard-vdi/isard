@@ -127,6 +127,9 @@
     --base-border: hsla(23, 7%, 83%, 1);
     --brand-100: hsl(189, 41%, 93%, 1);
     --brand-200: hsl(192, 48%, 88%, 1);
+    --brand-300: hsl(191, 48%, 82%, 1);
+    --brand-400: hsl(191, 48%, 72%, 1);
+    --brand-500: hsl(190, 48%, 52%, 1);
     --brand-600: hsl(190, 29%, 36%, 1);
     --brand-700: hsl(190, 66%, 20%, 1);
     --brand-800: hsl(189, 67%, 12%, 1);
@@ -196,14 +199,17 @@
     --secondary-1-400: hsl(67, 53%, 73%, 1);
     --secondary-1-500: hsl(67, 58%, 59%, 1);
     --secondary-1-600: hsl(68, 100%, 18%, 1);
+    --secondary-1-700: hsl(68, 90%, 12%, 1);
     --secondary-2-400: hsl(16, 72%, 72%, 1);
     --secondary-2-500: hsl(16, 81%, 60%, 1);
     --secondary-2-600: hsl(21, 100%, 23%, 1);
     --secondary-2-700: hsl(22, 29%, 54%, 1);
     --secondary-2-800: hsl(21, 18%, 75%, 1);
+    --secondary-2-900: hsl(21, 100%, 15%, 1);
     --secondary-3-400: hsl(174, 47%, 73%, 1);
     --secondary-3-500: hsl(173, 41%, 56%, 1);
     --secondary-3-600: hsl(173, 63%, 19%, 1);
+    --secondary-3-700: hsl(173, 63%, 12%, 1);
     --secondary-4-400: hsla(174, 47%, 73%, 1);
     --secondary-4-500: hsla(173, 41%, 56%, 1);
     --badges-purple-200: hsl(245, 97%, 92%, 1);

@@ -5,6 +5,7 @@ import NoVNC from '@/components/noVNC/NoVNC.vue'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 import type { VideowallDesktop } from './types'
+import { TruncatedText } from '@/components/truncated-text'
 
 defineProps<{ desktop: VideowallDesktop }>()
 defineEmits<{ select: [] }>()
@@ -22,9 +23,7 @@ defineEmits<{ select: [] }>()
           {{ (desktop.userName ?? '').slice(0, 2).toUpperCase() }}
         </AvatarFallback>
       </Avatar>
-      <span class="text-sm text-muted-foreground truncate flex-1">
-        {{ desktop.userName }}
-      </span>
+      <TruncatedText :title="desktop.userName ?? ''" class="text-sm text-muted-foreground flex-1" />
       <Maximize2 class="h-4 w-4 shrink-0" />
     </div>
 

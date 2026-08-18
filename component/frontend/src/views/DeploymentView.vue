@@ -404,13 +404,18 @@ const enterVideowall = () => {
           <Switch @update:model-value="handleNotImplemented" />
         </template>
         <template #cell-last_access="{ row }">
-          <span v-if="row.last_access" :title="formatRelativeTime(row.last_access, locale)">
-            {{
-              d(row.last_access * 1000, { dateStyle: 'short' }) +
-              ', ' +
-              d(row.last_access * 1000, { timeStyle: 'medium' })
-            }}
-          </span>
+          <Tooltip v-if="row.last_access">
+            <TooltipTrigger as-child>
+              <span>
+                {{
+                  d(row.last_access * 1000, { dateStyle: 'short' }) +
+                  ', ' +
+                  d(row.last_access * 1000, { timeStyle: 'medium' })
+                }}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent :title="formatRelativeTime(row.last_access, locale)" />
+          </Tooltip>
           <span v-else>—</span>
         </template>
         <template #cell-name="{ row }">
@@ -432,7 +437,14 @@ const enterVideowall = () => {
               <Button
                 icon="arrow-circle-broken-right"
                 hierarchy="secondary-color"
-                @click="handleNotImplemented"
+                :as="RouterLink"
+                :to="{
+                  name: 'view-deployment',
+                  params: {
+                    deploymentId: row.deployment_id,
+                    userId: row.id
+                  }
+                }"
               >
                 {{ t('views.deployment.buttons.enter') }}
               </Button>

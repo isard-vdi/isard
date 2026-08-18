@@ -294,6 +294,12 @@ const sharedHeaders = computed(() => [
     sortable: true
   },
   {
+    key: 'size',
+    name: t('views.media.data-table.headers.size'),
+    sortable: true,
+    width: 'minmax(max-content, 150px)'
+  },
+  {
     key: 'kind',
     name: t('views.media.data-table.headers.kind'),
     sortable: true,

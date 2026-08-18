@@ -47,6 +47,15 @@ class FaroConfig(BaseModel):
             "absolute URLs point to an external Faro receiver."
         ),
     )
+    http_sampling: float = Field(
+        1.0,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Fraction of successful HTTP requests reported as request_completed "
+            "events. 1.0 reports them all."
+        ),
+    )
 
 
 class UserVpnWireguardKeys(BaseModel):

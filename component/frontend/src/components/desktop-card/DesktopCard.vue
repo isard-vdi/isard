@@ -22,7 +22,8 @@ import {
   DesktopCardInfoOverlay,
   DesktopCardBastionOverlay,
   DesktopCardPreview,
-  cardOverlayPaddingVariants
+  cardOverlayPaddingVariants,
+  cardOverlayLabelVariants
 } from '.'
 import { Icon } from '@/components/icon'
 import { Button } from '@/components/ui/button'
@@ -71,7 +72,6 @@ const emit = defineEmits<{
   editDesktop: []
   bookDesktop: []
   createTemplate: []
-  changeImage: []
   showStorageModal: []
   // goTo*: []
 }>()
@@ -133,6 +133,7 @@ const desktopKind = computed(() => {
   <DesktopCardBase
     v-bind="props"
     :show-overlay="activeOverlay !== null"
+    :fill-overlay="activeOverlay === 'info'"
     :desktop-kind="desktopKind"
     :image-url="props.desktop.image?.url ?? ''"
   >
@@ -165,7 +166,6 @@ const desktopKind = computed(() => {
         @show-recreate-modal="emit('showRecreateModal')"
         @create-template="emit('createTemplate')"
         @book-desktop="emit('bookDesktop')"
-        @change-image="emit('changeImage')"
         @show-storage-modal="emit('showStorageModal')"
       />
     </template>
@@ -196,7 +196,8 @@ const desktopKind = computed(() => {
               <Button
                 hierarchy="link-gray"
                 size="sm"
-                class="h-6! px-2! gap-1 bg-base-white/15 hover:bg-base-white/30 text-[10px] font-semibold text-base-white"
+                class="h-6! px-2! gap-1 bg-base-white/15 hover:bg-base-white/30 font-semibold text-base-white"
+                :class="cardOverlayLabelVariants({ size: props.size })"
                 @click="emit('showNetworksModal')"
               >
                 {{ t('components.desktops.desktop-card.overlay.expand') }}

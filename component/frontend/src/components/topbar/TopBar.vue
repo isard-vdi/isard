@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { type HTMLAttributes } from 'vue'
 import { Icon } from '@/components/icon'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useRoute, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -124,13 +125,7 @@ const { t } = useI18n()
     <NavigationMenu>
       <NavigationMenuList>
         <NavigationMenuItem>
-          <NavigationMenuTrigger
-            :title="
-              isConnected
-                ? t('components.sidebar.websockets-on')
-                : t('components.sidebar.websockets-off')
-            "
-          >
+          <NavigationMenuTrigger>
             <div class="flex items-center gap-2">
               <Avatar>
                 <AvatarImage :src="user.img" :alt="user.name" />
@@ -147,11 +142,22 @@ const { t } = useI18n()
                 <span>{{ user.name }}</span>
                 <span class="text-gray-warm-400 text-sm ml-1"> [{{ user.role }}] </span>
               </div>
-              <Icon
-                :name="isConnected ? 'zap-circle' : 'x-circle'"
-                :stroke-color="isConnected ? 'success-600' : 'error-600'"
-                size="md"
-              />
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Icon
+                    :name="isConnected ? 'zap-circle' : 'x-circle'"
+                    :stroke-color="isConnected ? 'success-600' : 'error-600'"
+                    size="md"
+                  />
+                </TooltipTrigger>
+                <TooltipContent
+                  :title="
+                    isConnected
+                      ? t('components.sidebar.websockets-on')
+                      : t('components.sidebar.websockets-off')
+                  "
+                />
+              </Tooltip>
             </div>
           </NavigationMenuTrigger>
           <NavigationMenuContent>

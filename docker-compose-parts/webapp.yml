@@ -23,6 +23,7 @@ services:
       OPERATIONS_API_ENABLED:
       FARO_ENABLED:
       FARO_URL:
+      FARO_HTTP_SAMPLING:
       # webapp's per-request rdb pattern doesn't currently use the
       # shared pool; flagged for migration in
       # RETHINKDB_DRIVER_ADAPTATION.md (Tier 3). Once migrated, the

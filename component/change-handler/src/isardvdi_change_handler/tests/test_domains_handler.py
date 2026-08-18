@@ -527,3 +527,94 @@ class TestWireguardMacCacheInvalidation:
 
         assert self.WG_MAC not in Caches.wg_mac_domain_cache
         assert Caches.wg_mac_domain_cache[other_mac] == "d2"
+
+
+class TestDirectViewerStatusNormalisation:
+    """The direct viewer room must carry the same parsed status desktop_update does."""
+
+    @staticmethod
+    def _parse_desktop_stub(desktop):
+        from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
+
+        return {
+            **desktop,
+            "status": DesktopsProcessed.parse_frontend_desktop_status(dict(desktop))[
+                "status"
+            ],
+        }
+
+    @staticmethod
+    def _viewer_statuses(fake_socketio):
+        import json
+
+        return [
+            json.loads(payload)["status"]
+            for event, payload, _ns, _room in fake_socketio.emitted
+            if event == "directviewer_update"
+        ]
+
+    @pytest.mark.asyncio
+    @patch("isardvdi_change_handler.handlers.domains.Logging")
+    @patch("isardvdi_change_handler.handlers.domains.Scheduler")
+    async def test_collapses_engine_internal_status(
+        self,
+        _scheduler,
+        _logging,
+        desktop_handler,
+        fake_socketio,
+        domain_row_factory,
+    ):
+        with patch(
+            "isardvdi_change_handler.handlers.domains.DesktopsProcessed._parse_desktop",
+            side_effect=self._parse_desktop_stub,
+        ):
+            await desktop_handler.on_update(
+                domain_row_factory(
+                    id="d1", status="Stopped", additional_properties={"jumperurl": "tk"}
+                ),
+                domain_row_factory(
+                    id="d1",
+                    status="CreatingDisk",
+                    additional_properties={"jumperurl": "tk"},
+                ),
+            )
+
+        assert self._viewer_statuses(fake_socketio) == ["Creating"]
+
+    @pytest.mark.asyncio
+    @patch("isardvdi_change_handler.handlers.domains.Logging")
+    @patch("isardvdi_change_handler.handlers.domains.Scheduler")
+    async def test_emits_when_only_the_parsed_status_changes(
+        self,
+        _scheduler,
+        _logging,
+        desktop_handler,
+        fake_socketio,
+        domain_row_factory,
+    ):
+        """Started without a viewer password parses as Starting; when the password
+        lands the raw status is unchanged, so only the parsed comparison fires."""
+        no_passwd = domain_row_factory(
+            id="d1",
+            status="Started",
+            additional_properties={"jumperurl": "tk", "viewer": {}},
+        )
+        with_passwd = domain_row_factory(
+            id="d1",
+            status="Started",
+            additional_properties={"jumperurl": "tk", "viewer": {"passwd": "p"}},
+        )
+
+        with patch(
+            "isardvdi_change_handler.handlers.domains.DesktopsProcessed._parse_desktop",
+            side_effect=self._parse_desktop_stub,
+        ):
+            await desktop_handler.on_update(
+                domain_row_factory(
+                    id="d1", status="Stopped", additional_properties={"jumperurl": "tk"}
+                ),
+                no_passwd,
+            )
+            await desktop_handler.on_update(no_passwd, with_passwd)
+
+        assert self._viewer_statuses(fake_socketio) == ["Starting", "Started"]

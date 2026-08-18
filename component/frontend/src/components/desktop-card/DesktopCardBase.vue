@@ -14,6 +14,7 @@ import {
   cardGradientVariants,
   cardHeaderActionsVariants,
   cardHeaderSlotVariants,
+  cardOverlaySlotVariants,
   cardFooterVariants,
   cardIconTriggerVariants
 } from '.'
@@ -25,12 +26,14 @@ interface Props {
   // Generic overlay panel toggle — content (info / networks / bastion / ...)
   // is supplied by the parent through the `overlay` slot.
   showOverlay?: boolean
+  fillOverlay?: boolean
   size?: CardSize
   fill?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showOverlay: false,
+  fillOverlay: false,
   size: 'lg',
   fill: false
 })
@@ -90,8 +93,7 @@ const desktopKindStyle = computed(() => {
     }"
   >
     <div class="relative flex flex-col h-full w-full">
-      <!-- SVG decoration + icon trigger (shown for xs and above) -->
-      <div v-if="showSvgDecoration" class="absolute top-0 left-0 z-10">
+      <div v-if="showSvgDecoration" class="absolute top-0 left-0 z-20">
         <div class="flex flex-row">
           <div
             class="select-none origin-top-left"
@@ -125,7 +127,7 @@ const desktopKindStyle = computed(() => {
       </div>
 
       <!-- Simplified icon for 2xs (no SVG decoration) -->
-      <div v-else class="absolute top-0 left-0 z-10">
+      <div v-else class="absolute top-0 left-0 z-20">
         <ContextMenu>
           <ContextMenuTrigger class="flex items-center justify-center w-[20px] h-5">
             <Icon
@@ -156,11 +158,7 @@ const desktopKindStyle = computed(() => {
 
         <template v-if="showOverlay">
           <div class="absolute inset-0 bg-base-black/75 transition-opacity duration-300 z-0" />
-          <!-- Overlay flows into the parent's flex column (parent has
-               `justify-end`), so content lands above the name/desc footer.
-               The white border below visually separates the overlay panel
-               from the desktop name area. -->
-          <div class="z-10 w-full">
+          <div :class="cardOverlaySlotVariants({ fill: fillOverlay })">
             <slot name="overlay" />
           </div>
           <div class="border-b border-white pb-2 mb-2 z-10" />

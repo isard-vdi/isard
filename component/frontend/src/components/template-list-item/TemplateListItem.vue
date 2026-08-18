@@ -5,6 +5,7 @@ import Avatar from '@/components/ui/avatar/Avatar.vue'
 
 import mountains from '@/assets/img/mountains.svg'
 import { useI18n } from 'vue-i18n'
+import { TruncatedText } from '@/components/truncated-text'
 
 interface Props {
   image?: string
@@ -51,7 +52,7 @@ const canSelect = computed(() => !props.hasReservables)
 
     <!-- Template name -->
     <div class="px-3 flex items-center min-w-0 w-48 shrink-0">
-      <p class="text-sm font-semibold text-gray-warm-900 truncate">{{ props.name }}</p>
+      <TruncatedText :title="props.name" class="text-sm font-semibold text-gray-warm-900" />
     </div>
 
     <!-- Template description -->

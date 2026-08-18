@@ -9,6 +9,7 @@ import {
 } from '@/shared/constants'
 import { getCookie, setCookie, removeCookie } from 'tiny-cookie'
 import { DateUtils } from '../../utils/dateUtils'
+import { setFaroUser } from '@/lib/faro'
 
 const webapp = axios.create({
   baseURL: apiAdminSegment
@@ -18,6 +19,36 @@ webapp.interceptors.request.use(function (config) {
   config.headers.Authorization = 'Bearer ' + getCookie(sessionCookieName)
   return config
 })
+
+// Keep Faro's identity in sync with the session from the single mutation
+// every auth path goes through, instead of remembering to call setFaroUser
+// on each of login, renew, category-select, logout and expiry.
+// Intermediate tokens (category-select, password-reset…) carry a `type` and
+// no user data, so they count as anonymous — same rule `loginSuccess` uses.
+function syncFaroUser (session) {
+  if (!session) {
+    setFaroUser(null)
+    return
+  }
+  try {
+    const claims = jwtDecode(session)
+    if (claims.type || !claims.data) {
+      setFaroUser(null)
+      return
+    }
+    setFaroUser({
+      id: claims.data.user_id,
+      role: claims.data.role_id,
+      sessionId: claims.session_id
+    })
+  } catch (err) {
+    setFaroUser(null)
+  }
+}
+
+// A plain reload seeds `state.session` straight from the cookie below without
+// ever going through `setSession`, so resolve the identity once here too.
+syncFaroUser(getCookie(sessionCookieName) || false)
 
 export default {
   state: {
@@ -76,6 +107,7 @@ export default {
         removeCookie('session')
       }
       state.session = session
+      syncFaroUser(session)
     },
     setTimeDrift (state, drift) {
       state.timeDrift = drift

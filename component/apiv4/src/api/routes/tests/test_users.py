@@ -343,7 +343,7 @@ def _stub_user_config() -> dict:
         "migrations_block": False,
         "session": {},
         "frontend_mode": "deprecated",
-        "faro": {"enabled": False, "url": None},
+        "faro": {"enabled": False, "url": None, "http_sampling": 1.0},
     }
 
 
@@ -367,7 +367,7 @@ def test_get_user_config(monkeypatch, test_client):
     body = response.json()
     assert body["documentation_url"] == "https://docs.example"
     assert body["frontend_mode"] == "deprecated"
-    assert body["faro"] == {"enabled": False, "url": None}
+    assert body["faro"] == {"enabled": False, "url": None, "http_sampling": 1.0}
     assert captured["user_id"] == jwt.payload["user_id"]
 
 
@@ -413,14 +413,22 @@ def test_user_config_frontend_mode_values(
 @pytest.mark.parametrize(
     "faro_enabled,faro_url,expected",
     [
-        ("true", None, {"enabled": True, "url": "/faro/collect"}),
+        (
+            "true",
+            None,
+            {"enabled": True, "url": "/faro/collect", "http_sampling": 1.0},
+        ),
         (
             "true",
             "https://faro.example/collect",
-            {"enabled": True, "url": "https://faro.example/collect"},
+            {
+                "enabled": True,
+                "url": "https://faro.example/collect",
+                "http_sampling": 1.0,
+            },
         ),
-        ("false", None, {"enabled": False, "url": None}),
-        (None, None, {"enabled": False, "url": None}),
+        ("false", None, {"enabled": False, "url": None, "http_sampling": 1.0}),
+        (None, None, {"enabled": False, "url": None, "http_sampling": 1.0}),
     ],
 )
 def test_user_config_faro_values(

@@ -29,6 +29,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Switch from '@/components/ui/switch/Switch.vue'
 import { useRouter } from 'vue-router'
+import { TruncatedText } from '@/components/truncated-text'
 
 const router = useRouter()
 
@@ -551,9 +552,11 @@ function confirmToggleUserVisibility() {
 
           <div class="flex items-center gap-1">
             <Icon :name="data?.kind === 'desktops' ? 'tv-03' : 'beaker-02'" />
-            <h2 class="font-bold text-lg text-gray-warm-800 truncate max-w-140">
-              {{ data?.name }}
-            </h2>
+            <TruncatedText
+              as="h2"
+              :title="data?.name ?? ''"
+              class="font-bold text-lg text-gray-warm-800 max-w-140"
+            />
           </div>
         </div>
       </div>
@@ -618,15 +621,19 @@ function confirmToggleUserVisibility() {
             icon-stroke-color="gray-warm-400"
             >{{ t('views.deployment.buttons.users-and-groups') }}</Button
           > -->
-          <Button
-            :title="t('common.to-be-implemented')"
-            hierarchy="secondary-gray"
-            size="sm"
-            icon="tv-03"
-            icon-size="md"
-            @click="enterVideowall({ path: { deployment_id: labId } })"
-            >{{ t('views.deployment.buttons.videowall') }}</Button
-          >
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                hierarchy="secondary-gray"
+                size="sm"
+                icon="tv-03"
+                icon-size="md"
+                @click="enterVideowall({ path: { deployment_id: labId } })"
+                >{{ t('views.deployment.buttons.videowall') }}</Button
+              >
+            </TooltipTrigger>
+            <TooltipContent :title="t('common.to-be-implemented')" />
+          </Tooltip>
           <Button
             hierarchy="destructive"
             size="sm"
@@ -704,27 +711,34 @@ function confirmToggleUserVisibility() {
                 icon-stroke-color="gray-warm-300"
                 @click="enterUserVideowall({ path: { deployment_id: labId, user_id: row.user } })"
               /> -->
-              <Button
-                v-if="canUseBastion"
-                hierarchy="link-gray"
-                size="md"
-                icon="globe-04"
-                icon-size="md"
-                :title="t('views.deployment.user-bastion.title')"
-                @click="bastionUserModalData = { userId: row.user_id, username: row.user }"
-              />
-              <Button
-                hierarchy="link-gray"
-                size="md"
-                icon="trash-04"
-                icon-size="md"
-                :title="t('views.deployment.delete-user.title')"
-                @click="
-                  showDeleteUserConfirmation({
-                    path: { deployment_id: labId, user_id: row.user_id }
-                  })
-                "
-              />
+              <Tooltip v-if="canUseBastion">
+                <TooltipTrigger as-child>
+                  <Button
+                    hierarchy="link-gray"
+                    size="md"
+                    icon="globe-04"
+                    icon-size="md"
+                    @click="bastionUserModalData = { userId: row.user_id, username: row.user }"
+                  />
+                </TooltipTrigger>
+                <TooltipContent :title="t('views.deployment.user-bastion.title')" />
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    hierarchy="link-gray"
+                    size="md"
+                    icon="trash-04"
+                    icon-size="md"
+                    @click="
+                      showDeleteUserConfirmation({
+                        path: { deployment_id: labId, user_id: row.user_id }
+                      })
+                    "
+                  />
+                </TooltipTrigger>
+                <TooltipContent :title="t('views.deployment.delete-user.title')" />
+              </Tooltip>
             </div>
           </template>
         </DataTable>

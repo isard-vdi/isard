@@ -1,0 +1,17 @@
+<svg width="900" height="520" viewBox="0 0 900 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="dvDots" width="17" height="17" patternUnits="userSpaceOnUse">
+      <circle cx="1.6" cy="1.6" r="1.6" fill="hsl(174, 47%, 73%)" />
+    </pattern>
+    <radialGradient id="dvDotsFade" cx="50%" cy="50%" r="52%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.95" />
+      <stop offset="45%" stop-color="#fff" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#fff" stop-opacity="0" />
+    </radialGradient>
+    <mask id="dvDotsMask">
+      <rect width="900" height="520" fill="url(#dvDotsFade)" />
+    </mask>
+  </defs>
+
+  <rect width="900" height="520" fill="url(#dvDots)" mask="url(#dvDotsMask)" />
+</svg>

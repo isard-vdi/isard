@@ -381,15 +381,22 @@ window.addEventListener('beforeunload', (e) => {
           <Button hierarchy="secondary-gray" :disabled="isSubmitting" @click="handleCancel">
             {{ t('views.edit-lab.cancel') }}
           </Button>
-          <Button
-            hierarchy="primary"
-            :disabled="isSubmitting || !canSave"
-            :loading="isSubmitting"
-            :title="getSaveButtonTooltip"
-            @click="handleSave"
-          >
-            {{ t('views.edit-lab.save') }}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <!-- Wrapper: a disabled button emits no pointer events -->
+              <span class="inline-flex">
+                <Button
+                  hierarchy="primary"
+                  :disabled="isSubmitting || !canSave"
+                  :loading="isSubmitting"
+                  @click="handleSave"
+                >
+                  {{ t('views.edit-lab.save') }}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent v-if="getSaveButtonTooltip" :title="getSaveButtonTooltip" />
+          </Tooltip>
         </div>
       </div>
 

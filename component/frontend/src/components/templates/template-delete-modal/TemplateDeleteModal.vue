@@ -32,6 +32,7 @@ import { Icon } from '@/components/icon'
 import { Modal } from '@/components/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
+import { TruncatedText } from '@/components/truncated-text'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -288,9 +289,11 @@ const {
             </template>
 
             <template #cell-name="{ row }">
-              <p v-if="row.name" class="text-sm font-semibold text-gray-warm-900 truncate">
-                {{ row.name }}
-              </p>
+              <TruncatedText
+                v-if="row.name"
+                :title="row.name"
+                class="text-sm font-semibold text-gray-warm-900"
+              />
               <p v-else class="text-sm font-semibold text-gray-warm-900 truncate font-mono">
                 *****
               </p>

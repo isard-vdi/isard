@@ -17,9 +17,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { type SidebarItem, type Badge } from '@/lib/navigation'
+import { type SidebarItem, type Badge, formatCompactBadgeLabel } from '@/lib/navigation'
 import { sidebarItemVariants } from '@/components/sidebar'
-import SidebarItemLabel from '@/components/sidebar/SidebarItemLabel.vue'
+import { TruncatedText } from '@/components/truncated-text'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -101,7 +101,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
               size="lg"
               :stroke-color="subItem.selected ? 'secondary-2-500' : 'gray-warm-500'"
             />
-            <span class="leading-6 text-base truncate">{{ subItem.label }}</span>
+            <TruncatedText :title="subItem.label" side="right" class="leading-6 text-base" />
           </RouterLink>
           <a v-else :href="subItem.href" class="flex items-center gap-2">
             <Icon
@@ -110,7 +110,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
               size="lg"
               :stroke-color="subItem.selected ? 'secondary-2-500' : 'gray-warm-500'"
             />
-            <span class="leading-6 text-base truncate">{{ subItem.label }}</span>
+            <TruncatedText :title="subItem.label" side="right" class="leading-6 text-base" />
           </a>
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -133,11 +133,12 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
           "
         >
           <Icon :name="props.icon" size="lg" :stroke-color="iconStrokeColor" />
-          <SidebarItemLabel
+          <TruncatedText
             v-if="label"
-            :label="props.label"
+            :title="props.label"
+            side="right"
             :class="[
-              'leading-6 text-base flex-1 truncate',
+              'leading-6 text-base flex-1',
               isActive
                 ? '!font-extrabold !text-gray-warm-800'
                 : '!font-semibold !text-gray-warm-600'
@@ -188,7 +189,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
                 :to="{ name: subItem.route }"
                 class="flex items-center gap-2"
               >
-                <SidebarItemLabel :label="subItem.label" class="leading-6 text-base truncate" />
+                <TruncatedText :title="subItem.label" side="right" class="leading-6 text-base" />
               </RouterLink>
             </SidebarMenuSubButton>
             <SidebarMenuSubButton
@@ -197,7 +198,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
               class="gap-2"
               :is-active="subItem.selected"
             >
-              <SidebarItemLabel :label="subItem.label" class="leading-6 text-base truncate" />
+              <TruncatedText :title="subItem.label" side="right" class="leading-6 text-base" />
             </SidebarMenuSubButton>
           </SidebarMenuSubItem>
         </SidebarMenuSub>
@@ -235,15 +236,16 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
             <div
               :class="`'text-center text-xs font-medium leading-4 cursor-pointer ${badge.textColor}`"
             >
-              {{ badge.label }}
+              {{ formatCompactBadgeLabel(badge.label) }}
             </div>
           </div>
         </div>
-        <SidebarItemLabel
+        <TruncatedText
           v-if="label && !props.collapsed"
-          :label="props.label"
+          :title="props.label"
+          side="right"
           :class="[
-            'leading-6 text-base flex-1 truncate',
+            'leading-6 text-base flex-1',
             isActive ? '!font-extrabold !text-gray-warm-800' : '!font-semibold !text-gray-warm-600'
           ]"
         />
@@ -252,6 +254,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
           class="px-2 py-0.5 bg-gray-50 rounded-2xl outline outline-2 outline-sidebar flex justify-start items-center"
         >
           <div class="text-center text-slate-700 text-xs font-medium leading-4 cursor-pointer">
+            <!-- we display the full number when sidebar is expanded -->
             {{ badge.label }}
           </div>
         </div>
@@ -266,15 +269,16 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
             <div
               :class="`'text-center text-xs font-medium leading-4 cursor-pointer ${badge.textColor}`"
             >
-              {{ badge.label }}
+              {{ formatCompactBadgeLabel(badge.label) }}
             </div>
           </div>
         </div>
-        <SidebarItemLabel
+        <TruncatedText
           v-if="label && !props.collapsed"
-          :label="props.label"
+          :title="props.label"
+          side="right"
           :class="[
-            'leading-6 text-base flex-1 truncate',
+            'leading-6 text-base flex-1',
             isActive ? '!font-extrabold !text-gray-warm-800' : '!font-semibold !text-gray-warm-600'
           ]"
         />
@@ -285,6 +289,7 @@ const iconStrokeColor = computed(() => (isActive.value ? 'secondary-2-500' : 'gr
           <div
             :class="`'text-center text-xs font-medium leading-4 cursor-pointer ${badge.textColor}`"
           >
+            <!-- we display the full number when sidebar is expanded -->
             {{ badge.label }}
           </div>
         </div>

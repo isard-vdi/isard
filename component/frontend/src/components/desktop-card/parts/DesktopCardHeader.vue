@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
 
+import { cn } from '@/lib/utils'
+
 import { Icon } from '@/components/icon'
 import { Progress } from '@/components/ui/progress'
 
@@ -11,6 +13,7 @@ import { useIsTextTruncated } from '@/composables/useIsTextTruncated'
 import {
   CARD_SIZE_INJECTION_KEY,
   cardHeaderNameVariants,
+  cardHeaderNameCompactVariants,
   cardHeaderDescriptionVariants,
   cardHeaderNotificationVariants
 } from '..'
@@ -67,7 +70,15 @@ const { isTruncated: isDescriptionTruncated } = useIsTextTruncated(
 
   <Tooltip>
     <TooltipTrigger as-child>
-      <div ref="nameRef" :class="cardHeaderNameVariants({ size })">
+      <div
+        ref="nameRef"
+        :class="
+          cn(
+            cardHeaderNameVariants({ size }),
+            props.hideDescription ? cardHeaderNameCompactVariants({ size }) : undefined
+          )
+        "
+      >
         <span>{{ props.name }}</span>
       </div>
     </TooltipTrigger>

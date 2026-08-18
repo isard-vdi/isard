@@ -12,7 +12,7 @@ import {
 
 import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { formatHoursToHumanReadable, formatBytes, formatRelativeTime } from '@/lib/utils'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { DataTable } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,7 @@ import { DropdownButton } from '@/components/dropdown-button'
 import { InputField } from '@/components/input-field'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { AvatarLabel } from '@/components/avatar-label'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertModal } from '@/components/modal'
 import { DeleteModal } from '@/components/recycle-bin'
 import { RestoreModal } from '@/components/recycle-bin'
@@ -174,6 +175,16 @@ const enrichedItems = computed(() => {
   )
 })
 
+const hasItems = computed(() => (items.value?.entries.length ?? 0) > 0)
+
+const isSearching = computed(() => searchQuery.value.trim().length > 0)
+
+// the bin can empty under the user (ws events, another tab), unmounting the
+// search field while its query would still be filtering
+watch(hasItems, (value) => {
+  if (!value) searchQuery.value = ''
+})
+
 const getItemTypeIcon = (itemType: string): string => {
   switch (itemType) {
     case 'desktop':
@@ -227,16 +238,22 @@ const goToEntry = (row: any) => {
           </AlertDescription>
           <AlertDescription v-else>...</AlertDescription>
         </div>
-        <Button hierarchy="destructive" icon="trash-01" @click="handleOpenEmptyBinModal">
+        <Button
+          v-if="hasItems"
+          hierarchy="destructive"
+          icon="trash-01"
+          @click="handleOpenEmptyBinModal"
+        >
           {{ t('views.recycle-bin.empty-recycle-bin') }}
         </Button>
       </Alert>
 
-      <h2 class="text-3xl font-bold">
+      <h2 v-if="hasItems" class="text-3xl font-bold">
         {{ t('views.recycle-bin.table-title') }}
       </h2>
 
       <InputField
+        v-if="hasItems"
         v-model="searchQuery"
         :placeholder="t('views.recycle-bin.filters.search.placeholder')"
         icon="search-lg"
@@ -261,7 +278,7 @@ const goToEntry = (row: any) => {
         }}</AlertDescription>
       </Alert>
 
-      <Empty v-if="enrichedItems.length === 0" class="md:flex-row-reverse mt-16">
+      <Empty v-else-if="enrichedItems.length === 0" class="md:flex-row-reverse mt-16">
         <EmptyHeader>
           <EmptyMedia variant="default" class="select-none pointer-events-none hidden md:block">
             <img :src="templatesEmptyImg" />
@@ -270,11 +287,14 @@ const goToEntry = (row: any) => {
 
         <div class="flex flex-col items-start text-left gap-4 rounded bg-base-background/75">
           <EmptyTitle class="text-[60px] leading-[72px] font-bold text-gray-warm-950">{{
-            t('views.recycle-bin.empty.title')
+            isSearching ? t('components.empty-search.title') : t('views.recycle-bin.empty.title')
           }}</EmptyTitle>
-          <EmptyDescription class="text-[18px]! text-gray-warm-900">{{
+          <EmptyDescription v-if="!isSearching" class="text-[18px]! text-gray-warm-900">{{
             t('views.recycle-bin.empty.description')
           }}</EmptyDescription>
+          <Button v-else hierarchy="secondary-color" @click="searchQuery = ''">
+            {{ t('components.empty-search.clear') }}
+          </Button>
         </div>
       </Empty>
 
@@ -296,12 +316,14 @@ const goToEntry = (row: any) => {
           {{ formatBytes(row.size) }}
         </template>
         <template #cell-last_time_sort="{ row }">
-          <span
-            v-if="getRowTimestamp(row)"
-            :title="formatRelativeTime(getRowTimestamp(row), locale)"
-          >
-            {{ d(getRowTimestamp(row) * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
-          </span>
+          <Tooltip v-if="getRowTimestamp(row)">
+            <TooltipTrigger as-child>
+              <span>
+                {{ d(getRowTimestamp(row) * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent :title="formatRelativeTime(getRowTimestamp(row), locale)" />
+          </Tooltip>
           <span v-else>—</span>
         </template>
         <template #cell-content="{ row }">

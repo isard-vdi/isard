@@ -165,7 +165,7 @@ const handleWithDesktopQuotaCheck = async (callback: () => void) => {
 // Template Info Modal
 const showTemplateInfoModal = ref(false)
 const {
-  mutate: fetchAndOpenTemplateInfoModal,
+  mutate: fetchTemplateDetails,
   isPending: fetchTemplateDetailsIsPending,
   isError: fetchTemplateDetailsIsError,
   error: fetchTemplateDetailsError,
@@ -181,11 +181,13 @@ const {
       throwOnError: true
     })
     return data
-  },
-  onSuccess: () => {
-    showTemplateInfoModal.value = true
   }
 })
+
+const openTemplateInfoModal = (templateId: string) => {
+  fetchTemplateDetails(templateId)
+  showTemplateInfoModal.value = true
+}
 
 const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 </script>
@@ -227,6 +229,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 
   <DomainInfoModal
     :open="showTemplateInfoModal"
+    :is-loading="fetchTemplateDetailsIsPending"
     :domain-id="templateDetailsDesktopId"
     :name="templateDetails?.name || ''"
     :description="templateDetails?.description"
@@ -238,6 +241,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
     :viewers="templateDetails?.viewers"
     :isos="templateDetails?.isos?.map((iso) => iso.name)"
     :reservables="templateDetails?.reservables?.vgpus"
+    :credentials="templateDetails?.credentials"
     :kind="'template'"
     @close="
       () => {
@@ -366,7 +370,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 
         <template v-if="activeTab === 'user'" #cell-actions="{ row }">
           <div class="flex gap-4">
-            <Tooltip :delay-duration="700">
+            <Tooltip>
               <TooltipTrigger as-child>
                 <Button
                   hierarchy="secondary-gray"
@@ -378,7 +382,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
               <TooltipContent :title="t('views.templates.table.actions.edit')" />
             </Tooltip>
 
-            <Tooltip :delay-duration="700">
+            <Tooltip>
               <TooltipTrigger as-child>
                 <Button
                   hierarchy="secondary-gray"
@@ -398,93 +402,105 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
               />
             </Tooltip>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button
-                  hierarchy="secondary-gray"
-                  icon="dots-vertical"
-                  class="aspect-square p-[10px]"
-                />
-              </DropdownMenuTrigger>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <span class="inline-flex">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger>
+                      <Button
+                        hierarchy="secondary-gray"
+                        icon="dots-vertical"
+                        class="aspect-square p-[10px]"
+                      />
+                    </DropdownMenuTrigger>
 
-              <DropdownMenuContent
-                class="bg-white border border-gray-warm-300 rounded-lg"
-                align="end"
-              >
-                <DropdownMenuGroup>
-                  <DropdownMenuItem @click="fetchAndOpenTemplateInfoModal(row.id)">
-                    <Button
-                      size="sm"
-                      class="mr-2 w-full justify-start"
-                      hierarchy="link-gray"
-                      icon="info-circle"
-                      icon-size="md"
+                    <DropdownMenuContent
+                      class="bg-white border border-gray-warm-300 rounded-lg"
+                      align="end"
                     >
-                      {{ t('views.templates.table.actions.info') }}
-                    </Button>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Button
-                      size="sm"
-                      class="mr-2 w-full justify-start"
-                      hierarchy="link-gray"
-                      icon="users-01"
-                      icon-size="md"
-                    >
-                      {{ t('views.templates.table.actions.update-alloweds') }}
-                    </Button>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    :disabled="isFailed(row)"
-                    @click="
-                      handleWithDesktopQuotaCheck(
-                        () => (convertModalData = { id: row.id, name: row.name })
-                      )
-                    "
-                  >
-                    <Button
-                      size="sm"
-                      class="mr-2 w-full justify-start"
-                      hierarchy="link-gray"
-                      icon="monitor-02"
-                      icon-size="md"
-                    >
-                      {{ t('views.templates.table.actions.template-to-desktop') }}
-                    </Button>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    class="hover:bg-error-50 focus:bg-error-50"
-                    @click="deleteModalData = { id: row.id, name: row.name }"
-                  >
-                    <Button
-                      size="sm"
-                      class="mr-2 w-full justify-start text-error-700"
-                      hierarchy="link-gray"
-                      icon="trash-04"
-                      icon-size="md"
-                    >
-                      {{ t('views.templates.table.actions.delete') }}
-                    </Button>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem @click="openTemplateInfoModal(row.id)">
+                          <Button
+                            size="sm"
+                            class="mr-2 w-full justify-start"
+                            hierarchy="link-gray"
+                            icon="info-circle"
+                            icon-size="md"
+                          >
+                            {{ t('views.templates.table.actions.info') }}
+                          </Button>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Button
+                            size="sm"
+                            class="mr-2 w-full justify-start"
+                            hierarchy="link-gray"
+                            icon="users-01"
+                            icon-size="md"
+                          >
+                            {{ t('views.templates.table.actions.update-alloweds') }}
+                          </Button>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          :disabled="isFailed(row)"
+                          @click="
+                            handleWithDesktopQuotaCheck(
+                              () => (convertModalData = { id: row.id, name: row.name })
+                            )
+                          "
+                        >
+                          <Button
+                            size="sm"
+                            class="mr-2 w-full justify-start"
+                            hierarchy="link-gray"
+                            icon="monitor-02"
+                            icon-size="md"
+                          >
+                            {{ t('views.templates.table.actions.template-to-desktop') }}
+                          </Button>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          class="hover:bg-error-50 focus:bg-error-50"
+                          @click="deleteModalData = { id: row.id, name: row.name }"
+                        >
+                          <Button
+                            size="sm"
+                            class="mr-2 w-full justify-start text-error-700"
+                            hierarchy="link-gray"
+                            icon="trash-04"
+                            icon-size="md"
+                          >
+                            {{ t('views.templates.table.actions.delete') }}
+                          </Button>
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent :title="t('common.actions.more')" />
+            </Tooltip>
           </div>
         </template>
 
         <template v-else #cell-actions="{ row }">
           <div class="flex gap-2">
-            <Button
-              hierarchy="secondary-gray"
-              icon="copy-07"
-              class="aspect-square p-[10px]"
-              :disabled="templateCreationCheckIsPending || isFailed(row)"
-              @click="
-                handleWithTemplateQuotaCheck(() =>
-                  router.push({ name: 'duplicate-template', params: { templateId: row.id } })
-                )
-              "
-            />
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="copy-07"
+                  class="aspect-square p-[10px]"
+                  :disabled="templateCreationCheckIsPending || isFailed(row)"
+                  @click="
+                    handleWithTemplateQuotaCheck(() =>
+                      router.push({ name: 'duplicate-template', params: { templateId: row.id } })
+                    )
+                  "
+                />
+              </TooltipTrigger>
+              <TooltipContent :title="t('views.templates.table.actions.duplicate')" />
+            </Tooltip>
           </div>
         </template>
       </TemplateDataTable>

@@ -51,18 +51,25 @@ vi.mock('@tanstack/vue-query', () => {
 vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
   getDesktopViewerByTokenOptions: () => ({ queryKey: { _id: 'viewer' } }),
   getDesktopViewerByTokenQueryKey: () => ({ _id: 'viewer' }),
+  getDesktopDetailsFromTokenOptions: () => ({ queryKey: { _id: 'details' } }),
+  startDesktopFromTokenMutation: () => ({ mutationFn: vi.fn() }),
+  resetDesktopMutation: () => ({ mutationFn: vi.fn() }),
   apiV4LoginConfigOptions: () => ({ queryKey: { _id: 'login' } })
 }))
 
-vi.mock('@/gen/oas/apiv4', () => ({
-  resetDesktop: vi.fn(async () => ({ data: {}, error: null }))
-}))
+vi.mock('@/gen/oas/apiv4', () => ({}))
 
 vi.mock('@/gen/oas/apiv4/types.gen', () => ({
   DesktopStatusEnum: {
     UNKNOWN: 'Unknown',
     STARTED: 'Started',
     STARTING: 'Starting',
+    STOPPED: 'Stopped',
+    STOPPING: 'Stopping',
+    SHUTTING_DOWN: 'Shutting-down',
+    SUSPENDED: 'Suspended',
+    RESETTING: 'Resetting',
+    FAILED: 'Failed',
     WAITING_IP: 'WaitingIP'
   }
 }))
@@ -151,13 +158,19 @@ vi.mock('@/components/desktop-card', () => ({
     template: '<div data-test="card-networks" @click="$emit(\'showNetworksModal\')" />'
   },
   DesktopCardBastionOverlay: { template: '<div data-test="card-bastion" />' },
+  DesktopCardInfoOverlay: {
+    emits: ['showInfoModal'],
+    template: '<div data-test="card-info" @click="$emit(\'showInfoModal\')" />'
+  },
   DesktopCardSkeleton: { template: '<div data-test="desktop-card-skeleton" />' },
   DesktopCardOverlayButton: {
     props: ['icon', 'title', 'active', 'activeLabel', 'ariaLabel'],
     emits: ['click'],
     template:
       '<button data-test="overlay-btn" :data-icon="icon" :aria-label="ariaLabel" @click="$emit(\'click\')" />'
-  }
+  },
+  cardOverlayPaddingVariants: () => '',
+  cardOverlayLabelVariants: () => ''
 }))
 
 vi.mock('@/components/desktops', () => ({
@@ -177,6 +190,34 @@ vi.mock('@/components/desktops', () => ({
     ],
     emits: ['close'],
     template: '<div data-test="networks-modal" :data-open="String(open)" />'
+  },
+  DomainInfoModal: {
+    props: [
+      'open',
+      'isLoading',
+      'domainId',
+      'name',
+      'description',
+      'status',
+      'ip',
+      'vcpu',
+      'ram',
+      'bootOrder',
+      'diskBus',
+      'vga',
+      'viewers',
+      'fullscreen',
+      'isos',
+      'floppies',
+      'reservables',
+      'credentials',
+      'kind',
+      'template',
+      'desktopKind',
+      'items'
+    ],
+    emits: ['close'],
+    template: '<div data-test="info-modal" :data-open="String(open)" />'
   }
 }))
 
@@ -226,6 +267,12 @@ vi.mock('@/components/ui/button-group', () => ({
 }))
 vi.mock('@/components/ui/separator/Separator.vue', () => ({
   default: { template: '<hr data-test="separator" />' }
+}))
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: { template: '<div data-test="tooltip"><slot /></div>' },
+  TooltipTrigger: { props: ['asChild'], template: '<div><slot /></div>' },
+  TooltipContent: { props: ['title'], template: '<div :data-title="title" />' },
+  TooltipProvider: { template: '<div><slot /></div>' }
 }))
 vi.mock('@/components/icon', () => ({
   Icon: { template: '<span data-test="icon" />' }
@@ -421,6 +468,27 @@ describe('DirectViewerView', () => {
     await overlay.trigger('click')
 
     expect(wrapper.find('[data-test="networks-modal"]').attributes('data-open')).toBe('true')
+  })
+
+  it('opens the info domain modal from the info overlay', async () => {
+    viewerData.value = startedDesktop()
+    const wrapper = mountView()
+    await flushPromises()
+
+    // Modal is rendered (no v-if) but closed.
+    expect(wrapper.find('[data-test="info-modal"]').attributes('data-open')).toBe('false')
+
+    // Toggle the info overlay via its header button (info-circle icon).
+    const infoBtn = wrapper.find('[data-test="overlay-btn"][data-icon="info-circle"]')
+    expect(infoBtn.exists()).toBe(true)
+    await infoBtn.trigger('click')
+
+    // The overlay's "details" action emits show-info-modal
+    const overlay = wrapper.find('[data-test="card-info"]')
+    expect(overlay.exists()).toBe(true)
+    await overlay.trigger('click')
+
+    expect(wrapper.find('[data-test="info-modal"]').attributes('data-open')).toBe('true')
   })
 
   it('refetches the desktop details when the viewer status changes', async () => {

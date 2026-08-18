@@ -5,15 +5,18 @@ import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { AlertModal } from '@/components/modal'
+import { DomainInfoModal } from '@/components/desktops'
 
 import {
   getDesktopViewerByTokenOptions,
   getDesktopViewerByTokenQueryKey,
+  getDesktopDetailsFromTokenOptions,
+  startDesktopFromTokenMutation,
+  resetDesktopMutation,
   apiV4LoginConfigOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
-  resetDesktop as resetDesktopRequest,
-  type DesktopDirectViewerDetailsResponse,
+  type DesktopViewerResponse,
   type ViewersModel,
   type BrowserVncValues
 } from '@/gen/oas/apiv4'
@@ -26,6 +29,8 @@ import {
   DesktopActionsEnum
 } from '@/lib/desktops'
 
+import { withOptimisticStatus } from '@/lib/optimistic'
+
 import { useDirectViewerSocket } from '@/services/directViewerSocket'
 
 import {
@@ -35,20 +40,22 @@ import {
   DesktopCardIp,
   DesktopCardNetworksOverlay,
   DesktopCardBastionOverlay,
-  DesktopCardOverlayButton
+  DesktopCardOverlayButton,
+  DesktopCardInfoOverlay,
+  cardOverlayPaddingVariants,
+  cardOverlayLabelVariants
 } from '@/components/desktop-card'
+import type { CardSize } from '@/components/desktop-card'
 import DirectViewerCardPreview from '@/components/desktop-card/parts/DirectViewerCardPreview.vue'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Icon } from '@/components/icon'
 import { LoginNotification } from '@/components/login'
 import { ChangeViewerModal } from '@/components/modal'
 import { DesktopBastionInfoModal, DesktopNetworksModal } from '@/components/desktops'
 import { DesktopCardSkeleton } from '@/components/desktop-card'
-import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
 import LogoSvg from '@/assets/logo.svg?url'
-import Separator from '@/components/ui/separator/Separator.vue'
-import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
 
 const { t, d } = useI18n()
 const route = useRoute()
@@ -57,6 +64,10 @@ const cookies = vueuseCookies(['browser_viewer', 'viewerToken'])
 
 // Path / sameSite are required so /viewer/noVNC/ can read both cookies; without path:/ the cookie is scoped to /direct/<token>.
 const VIEWER_COOKIE_OPTS = { path: '/', sameSite: 'strict' } as const
+
+const CARD_SIZE: CardSize = 'xl'
+
+const networksOverlayRef = ref<InstanceType<typeof DesktopCardNetworksOverlay> | null>(null)
 
 const token = computed(() => route.params.token as string)
 
@@ -98,33 +109,15 @@ const {
   data: desktopDetails,
   isPending: isDetailsPending,
   refetch: refetchDesktopDetails
-} = useQuery<DesktopDirectViewerDetailsResponse>({
-  queryKey: ['direct-viewer-details', token],
-  enabled: computed(() => !!viewerJwt.value),
-  queryFn: async () => {
-    const { data, error } = await directViewerClient.get<DesktopDirectViewerDetailsResponse>({
-      url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/get-details`
-    })
-    if (error) throw error
-    return data as DesktopDirectViewerDetailsResponse
-  }
+} = useQuery({
+  ...getDesktopDetailsFromTokenOptions({
+    path: { token: token.value },
+    client: directViewerClient
+  }),
+  enabled: computed(() => !!viewerJwt.value)
 })
 
 const bastion = computed(() => desktopDetails.value?.bastion)
-
-const hardwareBootOrder = computed(() => desktopDetails.value?.boot_order?.map((b) => b.name))
-const hardwareVideos = computed(() => desktopDetails.value?.videos?.map((v) => v.name))
-const hardwareIsos = computed(() => desktopDetails.value?.isos?.map((m) => m.name))
-const hardwareFloppies = computed(() => desktopDetails.value?.floppies?.map((m) => m.name))
-const hardwareInterfaces = computed(() => desktopDetails.value?.interfaces?.map((n) => n.name))
-const hardwareDiskSize = computed(() => desktopDetails.value?.disks?.[0]?.size)
-const hardwareVgpus = computed(() => desktopDetails.value?.reservables?.vgpus ?? null)
-const hardwareViewers = computed(() => desktopDetails.value?.viewers ?? [])
-const hardwareFullscreen = computed(() => desktopDetails.value?.fullscreen ?? false)
-const hardwareCredentials = computed(() => ({
-  username: desktopDetails.value?.credentials?.username ?? 'isard',
-  password: desktopDetails.value?.credentials?.password ?? 'pirineus'
-}))
 
 watch(
   () => desktopViewer.value?.jwt,
@@ -247,7 +240,7 @@ const notificationText = computed<string | null>(() => {
 
 // One overlay at a time, same as the desktop cards: clicking the same icon
 // toggles it off, clicking another swaps.
-type OverlayKind = 'networks' | 'bastion'
+type OverlayKind = 'networks' | 'bastion' | 'info'
 const activeOverlay = ref<OverlayKind | null>(null)
 
 const toggleOverlay = (kind: OverlayKind) => {
@@ -265,32 +258,47 @@ const handleLogoError = () => {
 
 const showResetModal = ref(false)
 
-const { mutate: resetDesktop, isPending: isResetting } = useMutation({
-  mutationFn: async () => {
-    const { data, error } = await resetDesktopRequest({
-      path: { token: token.value },
-      client: directViewerClient
-    })
-    if (error) throw error
-    return data
-  },
-  onSuccess: () => {
-    showResetModal.value = false
-  }
-})
+// Both direct-viewer mutations are addressed by the share token, not a desktop id.
+interface DirectViewerVars {
+  path: { token: string }
+}
+const directViewerVars = computed<DirectViewerVars>(() => ({ path: { token: token.value } }))
+
+const { mutate: resetDesktop, isPending: isResetting } = useMutation(
+  withOptimisticStatus<DesktopViewerResponse, DirectViewerVars>({
+    queryClient,
+    queryKey,
+    nextStatus: DesktopStatusEnum.RESETTING,
+    // Mirror DesktopEvents.desktop_reset: any other state is rejected server-side.
+    nextStatusGuard: (current) =>
+      current === DesktopStatusEnum.STARTED ||
+      current === DesktopStatusEnum.SHUTTING_DOWN ||
+      current === DesktopStatusEnum.SUSPENDED ||
+      current === DesktopStatusEnum.STOPPING,
+    baseMutation: resetDesktopMutation({ client: directViewerClient }),
+    onSuccess: () => {
+      showResetModal.value = false
+    }
+  })
+)
+
+const showDesktopInfoModal = ref(false)
 
 // Start desktop (authenticated via the direct-viewer JWT). Used for
 // explicit user clicks after the owner has stopped the desktop from
 // elsewhere; initial auto-start is handled server-side by get-viewer.
-const { mutate: startDesktop } = useMutation({
-  mutationFn: async () => {
-    const { data, error } = await directViewerClient.put<{ id: string }>({
-      url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/start-desktop`
-    })
-    if (error) throw error
-    return data
-  }
-})
+const { mutate: startDesktop } = useMutation(
+  withOptimisticStatus<DesktopViewerResponse, DirectViewerVars>({
+    queryClient,
+    queryKey,
+    nextStatus: DesktopStatusEnum.STARTING,
+    // Mirror DesktopDirectViewer.start_desktop: only Stopped/Failed trigger an
+    // engine start, so a flicker can't re-fire it and regenerate the SPICE password.
+    nextStatusGuard: (current) =>
+      current === DesktopStatusEnum.STOPPED || current === DesktopStatusEnum.FAILED,
+    baseMutation: startDesktopFromTokenMutation({ client: directViewerClient })
+  })
+)
 
 const handleDesktopAction = (action: DesktopActionsEnum) => {
   switch (action) {
@@ -299,7 +307,7 @@ const handleDesktopAction = (action: DesktopActionsEnum) => {
       showResetModal.value = true
       break
     case DesktopActionsEnum.Start:
-      startDesktop()
+      startDesktop(directViewerVars.value)
       break
     default:
       break
@@ -349,47 +357,12 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
     <main class="flex-1 flex flex-col items-center justify-center px-2">
       <div class="w-full grid place-items-center">
         <template v-if="isPending">
-          <div class="flex flex-col">
-            <div class="flex flex-col gap-2.5 items-center animate-pulse">
-              <div class="h-5 w-48 rounded-md bg-gray-warm-200"></div>
-              <div class="h-9 w-72 rounded-md bg-gray-warm-200"></div>
+          <div class="flex flex-col items-center gap-10 animate-pulse">
+            <div class="flex flex-col gap-1.5 items-center">
+              <div class="h-3.5 w-40 rounded-md bg-gray-warm-200"></div>
+              <div class="h-6 w-64 rounded-md bg-gray-warm-200"></div>
             </div>
-            <Separator class="pt-4 pb-5" />
-            <div class="flex gap-10 items-start">
-              <div>
-                <DesktopCardSkeleton variant="started" class="shadow-md h-[310px] w-[433px]" />
-              </div>
-              <div class="flex flex-col gap-10 max-w-[700px]">
-                <section
-                  class="p-5 rounded-md border border-gray-warm-200 shadow-md flex flex-col gap-7"
-                >
-                  <div>
-                    <div class="flex items-center gap-3 mb-3.5">
-                      <div class="w-1.5 h-4 rounded-full bg-brand-700"></div>
-                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
-                        {{ t('views.direct-viewer.access-summary') }}
-                      </h3>
-                    </div>
-                    <DomainAccessSummary
-                      :loading="true"
-                      :credentials="{ username: '', password: '' }"
-                      :fullscreen="false"
-                      :viewers="[]"
-                    />
-                  </div>
-                  <Separator />
-                  <div>
-                    <div class="flex items-center gap-3 mb-3.5">
-                      <div class="w-1.5 h-4 rounded-full bg-brand-700"></div>
-                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
-                        {{ t('views.direct-viewer.hardware-summary') }}
-                      </h3>
-                    </div>
-                    <DomainHardwareSummary :loading="true" />
-                  </div>
-                </section>
-              </div>
-            </div>
+            <DesktopCardSkeleton variant="started" class="shadow-lg h-[370px] w-[520px]" />
           </div>
         </template>
         <template v-else-if="isError">
@@ -416,28 +389,37 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
           </div>
         </template>
         <template v-else-if="desktopViewer">
-          <div class="flex flex-col">
+          <div class="flex flex-col items-center gap-10">
             <div class="flex flex-col gap-1.5 items-center">
-              <p class="text-display-sm text-left font-light text-brand-700">
+              <p class="text-md text-left font-light text-gray-warm-800">
                 {{ t('views.direct-viewer.connecting-to') }}
               </p>
-              <h2 class="text-display-md text-left font-semibold text-brand-700">
+              <h2 class="text-xl text-left font-semibold text-brand-700">
                 {{ desktopViewer.name }}
               </h2>
             </div>
-            <Separator class="pt-4 pb-5" />
             <div class="flex gap-10 items-start">
               <div>
                 <LoginNotification
                   v-if="loginConfig?.notification_cover?.enabled"
                   :config="loginConfig.notification_cover"
                 />
-                <div class="self-center">
+                <div class="self-center relative">
+                  <!-- Sized in % of the card so the dot field keeps the same bleed
+                       around it at any breakpoint (viewBox is 900x520 for a 433x310 card). -->
+                  <img
+                    src="@/assets/img/bg-blue-dots.svg"
+                    alt=""
+                    aria-hidden="true"
+                    class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[208%] h-[168%] max-w-none z-0 select-none pointer-events-none"
+                  />
                   <DesktopCardBase
                     :desktop-kind="desktopCardKind"
                     :image-url="desktopViewer.image?.url ?? ''"
                     :show-overlay="activeOverlay !== null"
-                    class="shadow-md"
+                    :fill-overlay="activeOverlay === 'info'"
+                    class="shadow-lg relative z-10"
+                    :size="CARD_SIZE"
                   >
                     <template #image>
                       <DirectViewerCardPreview
@@ -447,6 +429,12 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       />
                     </template>
                     <template #header-actions>
+                      <DesktopCardOverlayButton
+                        icon="info-circle"
+                        title="components.desktops.desktop-card.actions.info"
+                        :active="activeOverlay === 'info'"
+                        @click="toggleOverlay('info')"
+                      />
                       <DesktopCardOverlayButton
                         icon="modem-02"
                         title="components.desktops.desktop-card.actions.networks"
@@ -467,8 +455,13 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       <DesktopCardIp :desktop-status="desktopViewer.status" :desktop-ip="null" />
                     </template>
                     <template #overlay>
-                      <div v-if="activeOverlay === 'networks'" class="z-10 pl-3 pr-3 pb-2">
+                      <div
+                        v-if="activeOverlay === 'networks'"
+                        :class="cardOverlayPaddingVariants({ size: CARD_SIZE })"
+                        class="text-base-white text-start"
+                      >
                         <DesktopCardNetworksOverlay
+                          ref="networksOverlayRef"
                           :desktop-id="desktopViewer.id"
                           :desktop-status="desktopViewer.status"
                           :desktop-ip="desktopDetails?.ip"
@@ -479,11 +472,41 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                           "
                           @show-networks-modal="showNetworksModal = true"
                         />
+                        <div
+                          v-if="!networksOverlayRef?.hasOverflow"
+                          class="flex justify-end mt-1.5"
+                        >
+                          <Tooltip>
+                            <TooltipTrigger as-child>
+                              <Button
+                                hierarchy="link-gray"
+                                size="sm"
+                                class="h-6! px-2! gap-1 bg-base-white/15 hover:bg-base-white/30 font-semibold text-base-white"
+                                :class="cardOverlayLabelVariants({ size: CARD_SIZE })"
+                                @click="showNetworksModal = true"
+                              >
+                                {{ t('components.desktops.desktop-card.overlay.expand') }}
+                                <Icon name="expand-04" size="xs" stroke-color="base-white" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              :title="t('components.desktops.desktop-card.overlay.expand-tooltip')"
+                            />
+                          </Tooltip>
+                        </div>
                       </div>
                       <DesktopCardBastionOverlay
                         v-else-if="activeOverlay === 'bastion'"
                         :bastion="bastion"
                         @show-bastion-modal="showBastionModal = true"
+                      />
+                      <DesktopCardInfoOverlay
+                        v-else-if="activeOverlay === 'info'"
+                        :desktop="desktopViewer"
+                        direct-viewer
+                        :direct-viewer-details="desktopDetails"
+                        :direct-viewer-details-pending="isDetailsPending"
+                        @show-info-modal="showDesktopInfoModal = true"
                       />
                     </template>
                     <template #header>
@@ -534,48 +557,6 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                   </DesktopCardBase>
                 </div>
               </div>
-              <div class="flex flex-col gap-10 max-w-[700px]">
-                <section
-                  class="bg-gray-warm-50 p-5 rounded-md border border-gray-warm-200 shadow-md flex flex-col gap-7"
-                >
-                  <div>
-                    <div class="flex items-center gap-3 mb-3.5">
-                      <div class="w-1.5 h-4 rounded-full bg-brand-700 self-stretch"></div>
-                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
-                        {{ t('views.direct-viewer.access-summary') }}
-                      </h3>
-                    </div>
-                    <DomainAccessSummary
-                      :credentials="hardwareCredentials"
-                      :fullscreen="hardwareFullscreen"
-                      :viewers="hardwareViewers"
-                      :loading="isDetailsPending"
-                    />
-                  </div>
-                  <Separator />
-                  <div>
-                    <div class="flex items-center gap-3 mb-3.5">
-                      <div class="w-1.5 h-4 rounded-full bg-brand-700 self-stretch"></div>
-                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
-                        {{ t('views.direct-viewer.hardware-summary') }}
-                      </h3>
-                    </div>
-                    <DomainHardwareSummary
-                      :vcpu="desktopDetails?.vcpu"
-                      :memory="desktopDetails?.memory"
-                      :disk-bus="desktopDetails?.disk_bus"
-                      :disk-size="hardwareDiskSize"
-                      :boot-order="hardwareBootOrder"
-                      :videos="hardwareVideos"
-                      :isos="hardwareIsos"
-                      :floppies="hardwareFloppies"
-                      :vgpus="hardwareVgpus"
-                      :interfaces="hardwareInterfaces"
-                      :loading="isDetailsPending"
-                    />
-                  </div>
-                </section>
-              </div>
             </div>
           </div>
         </template>
@@ -608,12 +589,38 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       @close="isViewerChangeModalOpen = false"
       @change="(id) => (selectedViewerId = id)"
     />
+    <DomainInfoModal
+      :open="showDesktopInfoModal"
+      :domain-id="desktopViewer?.id"
+      :name="desktopDetails?.name || desktopViewer?.name || ''"
+      :description="desktopDetails?.description || ''"
+      :status="desktopDetails?.status"
+      :ip="desktopDetails?.ip"
+      :vcpu="desktopDetails?.vcpu"
+      :ram="desktopDetails?.memory"
+      :boot-order="desktopDetails?.boot_order?.map((bo) => bo.name)"
+      :disk-bus="desktopDetails?.disk_bus"
+      :vga="desktopDetails?.videos?.map((v) => v.name)"
+      :viewers="desktopDetails?.viewers"
+      :isos="desktopDetails?.isos?.map((iso) => iso.name)"
+      :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"
+      :reservables="desktopDetails?.reservables?.vgpus"
+      :template="desktopDetails?.template"
+      kind="desktop"
+      :desktop-kind="desktopCardKind"
+      :credentials="desktopDetails?.credentials"
+      @close="showDesktopInfoModal = false"
+    />
     <img
       src="@/assets/img/mountains.svg"
+      alt=""
+      aria-hidden="true"
       class="fixed bottom-0 right-0 -z-10 select-none pointer-events-none"
     />
     <img
       src="@/assets/img/clouds.svg"
+      alt=""
+      aria-hidden="true"
       class="absolute hidden lg:block top-20 lg:left-0 xl:left-10 -z-10 select-none pointer-events-none"
     />
 
@@ -635,7 +642,12 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
         >
           {{ t('views.direct-viewer.reset-modal.cancel') }}
         </Button>
-        <Button hierarchy="primary" size="lg" :disabled="isResetting" @click="resetDesktop()">
+        <Button
+          hierarchy="primary"
+          size="lg"
+          :disabled="isResetting"
+          @click="resetDesktop(directViewerVars)"
+        >
           {{ t('views.direct-viewer.reset-modal.confirm') }}
         </Button>
       </template>

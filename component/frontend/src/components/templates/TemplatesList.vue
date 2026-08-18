@@ -16,6 +16,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
 import { computed, watch } from 'vue'
 import { ref } from 'vue'
+import { TruncatedText } from '@/components/truncated-text'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const { t } = useI18n()
 
@@ -191,9 +193,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 
       <template #cell-name="{ row }">
         <div class="flex flex-col">
-          <p class="text-sm font-semibold text-gray-warm-900 truncate">
-            {{ row.name }}
-          </p>
+          <TruncatedText :title="row.name" class="text-sm font-semibold text-gray-warm-900" />
           <div
             v-if="isFailed(row)"
             class="inline-flex items-center gap-1.5 font-semibold max-w-full w-max text-xs text-error-600"
@@ -229,14 +229,19 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 
       <template #cell-actions="{ row }">
         <div class="flex gap-2">
-          <Button
-            hierarchy="secondary-gray"
-            icon="info-circle"
-            class="aspect-square p-[10px]"
-            @click.stop="emit('showInfoModal', row.id)"
-            @keydown.enter.stop
-            @keydown.space.stop
-          />
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                hierarchy="secondary-gray"
+                icon="info-circle"
+                class="aspect-square p-[10px]"
+                @click.stop="emit('showInfoModal', row.id)"
+                @keydown.enter.stop
+                @keydown.space.stop
+              />
+            </TooltipTrigger>
+            <TooltipContent :title="t('views.templates.table.actions.info')" />
+          </Tooltip>
         </div>
       </template>
     </TemplateDataTable>

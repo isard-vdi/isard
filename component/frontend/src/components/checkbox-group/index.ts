@@ -4,7 +4,7 @@ export { default as CheckboxGroup } from './CheckboxGroup.vue'
 
 export const checkboxGroupItemVariants = cva(
   `
-    flex bg-base-white rounded-xl p-4 border border-gray-warm-300 cursor-pointer transition-colors
+    flex bg-base-white rounded-xl p-2.5 border border-gray-warm-300 cursor-pointer transition-colors
     flex-col justify-center hover:border-brand-700 hover:ring-xs hover:ring-brand
   `,
 

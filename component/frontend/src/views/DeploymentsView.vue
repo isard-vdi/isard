@@ -23,6 +23,7 @@ import {
   DropdownMenuItem
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
 import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -338,41 +339,46 @@ const goToDeployment = (row: any) => {
           <BadgeInfo icon="user-03" :content="row.total_users" />
         </template>
         <template #cell-dropdown_menu="{ row }">
-          <DropdownMenu>
-            <span @click.stop @keydown.enter.stop @keydown.space.stop>
-              <DropdownMenuTrigger>
-                <Button
-                  hierarchy="secondary-gray"
-                  icon="dots-vertical"
-                  class="aspect-square p-[10px]"
-                />
-              </DropdownMenuTrigger>
-            </span>
-            <DropdownMenuContent
-              class="bg-white border border-gray-warm-300 rounded-lg"
-              align="end"
-            >
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  v-for="action in dropdownActions"
-                  :key="action.key"
-                  :class="{ 'hover:bg-error-50 focus:bg-error-50': action.destructive }"
-                  @click="action.fn(row)"
-                >
-                  <Button
-                    size="sm"
-                    class="mr-2 w-full justify-start"
-                    :class="{ 'text-error-700': action.destructive }"
-                    hierarchy="link-gray"
-                    :icon="action.icon"
-                    icon-size="md"
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span class="inline-flex" @click.stop @keydown.enter.stop @keydown.space.stop>
+                <DropdownMenu>
+                  <DropdownMenuTrigger>
+                    <Button
+                      hierarchy="secondary-gray"
+                      icon="dots-vertical"
+                      class="aspect-square p-[10px]"
+                    />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    class="bg-white border border-gray-warm-300 rounded-lg"
+                    align="end"
                   >
-                    {{ action.label }}
-                  </Button>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        v-for="action in dropdownActions"
+                        :key="action.key"
+                        :class="{ 'hover:bg-error-50 focus:bg-error-50': action.destructive }"
+                        @click="action.fn(row)"
+                      >
+                        <Button
+                          size="sm"
+                          class="mr-2 w-full justify-start"
+                          :class="{ 'text-error-700': action.destructive }"
+                          hierarchy="link-gray"
+                          :icon="action.icon"
+                          icon-size="md"
+                        >
+                          {{ action.label }}
+                        </Button>
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent :title="t('common.actions.more')" />
+          </Tooltip>
         </template>
       </DataTable>
     </template>

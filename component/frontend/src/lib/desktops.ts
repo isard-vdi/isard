@@ -7,6 +7,13 @@ import {
 
 export type UserDesktopWithQueue = UserDesktop & { queue?: number }
 
+export type DesktopKind = 'persistent' | 'nonpersistent' | 'deployment'
+
+export const resolveDesktopKind = (desktop: Pick<UserDesktop, 'tag' | 'type'>): DesktopKind => {
+  if (desktop.tag) return 'deployment'
+  return desktop.type === 'persistent' ? 'persistent' : 'nonpersistent'
+}
+
 export enum DesktopActionsEnum {
   Start = 'desktopStart',
   Stop = 'desktopStop',

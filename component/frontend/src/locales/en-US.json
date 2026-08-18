@@ -88,7 +88,11 @@
     },
     "deployment": {
       "title": "Deployment management",
-      "subtitle": "View deployment details and review user status"
+      "subtitle": "View deployment details and review user status",
+      "view": {
+        "title": "Deployment",
+        "subtitle": "Quickly interact with the desktops of the deployment"
+      }
     },
     "deployment-videowall": {
       "title": "Videowall",
@@ -698,6 +702,9 @@
       },
       "empty": {
         "subtitle": "Create a deployment to start providing desktops to your users"
+      },
+      "actions": {
+        "go-to-direct-viewer": "Go to direct viewer"
       }
     },
     "deployment": {
@@ -802,6 +809,36 @@
         "title-invisible": "Make the user's desktops invisible",
         "description-visible": "The user will see and be able to use their deployment desktops.",
         "description-invisible": "The user will no longer see their deployment desktops."
+      }
+    },
+    "view-deployment": {
+      "sections": {
+        "desktops": {
+          "title": "Desktops",
+          "actions": {
+            "stop-all": {
+              "label": "Stop all",
+              "tooltip": "Stop all desktops in the deployment"
+            },
+            "book": {
+              "tooltip": "Book deployment"
+            },
+            "collapse": "Collapse desktops panel",
+            "expand": "Expand desktops panel"
+          }
+        },
+        "viewer": {
+          "actions": {
+            "close": "Close viewer",
+            "maximize": "Maximize viewer",
+            "minimize": "Restore viewer size"
+          },
+          "empty": {
+            "title": "No desktop selected",
+            "description": "Start and select a desktop from the sidebar to view it here",
+            "not-available": "Viewer not available"
+          }
+        }
       }
     },
     "new-deployment": {
@@ -1673,9 +1710,18 @@
         }
       },
       "title": "Information",
+      "loading": "Loading desktop details…",
+      "kind": {
+        "persistent": "Persistent desktop",
+        "nonpersistent": "Temporary desktop",
+        "deployment": "Deployment desktop"
+      },
       "fields": {
         "description": {
           "title": "Description"
+        },
+        "credentials": {
+          "title": "Credentials"
         },
         "status": {
           "title": "Status"
@@ -1813,7 +1859,8 @@
       "clear-filters": "Clear filters"
     },
     "empty-search": {
-      "title": "No results found"
+      "title": "No results found",
+      "clear": "Clear search"
     },
     "not-enough-advanced-time-modal": {
       "title": "Not enough advanced time",
@@ -1895,7 +1942,6 @@
           "networks": "Networks",
           "direct-link": "Direct Link",
           "recreate": "Recreate",
-          "change-image": "Change image",
           "storage": "Storage",
           "reset": "Reset"
         },
@@ -1909,7 +1955,14 @@
           }
         },
         "info": {
-          "boot": "Boot"
+          "boot": "Boot",
+          "disk-bus": "Bus",
+          "video": "Video",
+          "reservables": "GPU",
+          "iso": "ISO",
+          "floppy": "Floppy",
+          "status": "Status",
+          "show-more": "Show {count} more: {items}"
         },
         "networks": {
           "more": "more"
@@ -1982,8 +2035,28 @@
             "text": "Paused",
             "action": "Stop"
           },
-          "reset": {
-            "text": "Reset",
+          "suspended": {
+            "text": "Suspended",
+            "action": "Stop"
+          },
+          "crashed": {
+            "text": "Crashed",
+            "action": "Retry"
+          },
+          "startingpaused": {
+            "text": "Starting",
+            "action": "Starting"
+          },
+          "startingdomaindisposable": {
+            "text": "Starting",
+            "action": "Starting"
+          },
+          "deleting": {
+            "text": "Deleting",
+            "action": "Deleting"
+          },
+          "resetting": {
+            "text": "Resetting",
             "action": "Resetting"
           },
           "updating": {
@@ -2396,6 +2469,17 @@
         },
         "cancel": "Cancel",
         "confirm": "Confirm"
+      },
+      "desktop-card": {
+        "view": "View",
+        "viewing": "Viewing",
+        "viewers": "Viewers",
+        "not-available": "The desktop must be started in order to view it",
+        "tooltips": {
+          "view": "Click to view this desktop on this page",
+          "viewing": "You are viewing this desktop",
+          "no-web-viewer": "This desktop has no web viewer; open it from the viewers menu"
+        }
       }
     },
     "bookings": {
@@ -2726,6 +2810,11 @@
     "units": {
       "mb": "MB",
       "gb": "GB"
+    },
+    "actions": {
+      "more": "More actions",
+      "copy": "Copy",
+      "copied": "Copied"
     }
   }
 }

@@ -3,15 +3,18 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
-import { getDesktopNetworksOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import {
+  getDesktopNetworksOptions,
+  getNetworksFromTokenOptions
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import type { Client } from '@/gen/oas/apiv4/client'
-import type { DesktopNetworksResponse } from '@/gen/oas/apiv4'
 
 import { Modal } from '@/components/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Icon, CopyIcon } from '@/components/icon'
 import { Label } from '@/components/ui/label'
+import { TruncatedText } from '@/components/truncated-text'
 
 const { t } = useI18n()
 
@@ -40,17 +43,10 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{ close: [] }>()
 
 const tokenNetworksQueryOptions = {
-  queryKey: ['getDesktopNetworksFromToken', props.directViewerToken] as const,
-  queryFn: async () => {
-    const client = props.directViewerClient
-    const token = props.directViewerToken
-    if (!client || !token) throw new Error('Missing direct viewer client/token')
-    const { data, error } = await client.get<DesktopNetworksResponse>({
-      url: `/api/v4/item/desktop/token/${encodeURIComponent(token)}/get-networks`
-    })
-    if (error) throw error
-    return data as DesktopNetworksResponse
-  },
+  ...getNetworksFromTokenOptions({
+    path: { token: props.directViewerToken ?? '' },
+    client: props.directViewerClient
+  }),
   enabled: !!props.directViewerToken && !!props.directViewerClient
 }
 
@@ -141,7 +137,7 @@ const interfaceIcon = (id: string) => {
       >
         <div class="flex items-center gap-2">
           <Icon :name="interfaceIcon(network.id)" size="md" stroke-color="gray-warm-700" />
-          <h3 class="font-semibold text-gray-warm-700 truncate">{{ network.name }}</h3>
+          <TruncatedText as="h3" :title="network.name" class="font-semibold text-gray-warm-700" />
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
@@ -150,11 +146,11 @@ const interfaceIcon = (id: string) => {
               {{ t('components.desktop-networks-modal.fields.id') }}
             </Label>
             <div class="flex items-center gap-2 min-w-0">
-              <code
-                class="font-mono text-xs bg-gray-warm-50 border border-gray-warm-200 rounded px-2 py-1 truncate flex-1"
-              >
-                {{ network.id }}
-              </code>
+              <TruncatedText
+                as="code"
+                :title="network.id"
+                class="font-mono text-xs bg-gray-warm-50 border border-gray-warm-200 rounded px-2 py-1 flex-1"
+              />
               <CopyIcon :value="network.id" size="sm" stroke-color="gray-warm-600" />
             </div>
           </div>
@@ -164,11 +160,11 @@ const interfaceIcon = (id: string) => {
               {{ t('components.desktop-networks-modal.fields.mac') }}
             </Label>
             <div class="flex items-center gap-2 min-w-0">
-              <code
-                class="font-mono text-xs bg-gray-warm-50 border border-gray-warm-200 rounded px-2 py-1 truncate flex-1"
-              >
-                {{ network.mac }}
-              </code>
+              <TruncatedText
+                as="code"
+                :title="network.mac"
+                class="font-mono text-xs bg-gray-warm-50 border border-gray-warm-200 rounded px-2 py-1 flex-1"
+              />
               <CopyIcon :value="network.mac" size="sm" stroke-color="gray-warm-600" />
             </div>
           </div>
@@ -190,11 +186,11 @@ const interfaceIcon = (id: string) => {
                 </span>
               </template>
               <template v-else-if="props.desktopIp">
-                <code
-                  class="font-mono text-xs bg-gray-warm-50 border border-gray-warm-200 rounded px-2 py-1 truncate flex-1"
-                >
-                  {{ props.desktopIp }}
-                </code>
+                <TruncatedText
+                  as="code"
+                  :title="props.desktopIp"
+                  class="font-mono text-xs bg-gray-warm-50 border border-gray-warm-200 rounded px-2 py-1 flex-1"
+                />
                 <CopyIcon :value="props.desktopIp" size="sm" stroke-color="gray-warm-600" />
               </template>
               <span v-else class="text-xs italic text-gray-warm-500">
