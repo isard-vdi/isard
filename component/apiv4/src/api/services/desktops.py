@@ -103,20 +103,14 @@ def _get_desktop_viewer_cache_key(
 class DesktopService:
     @staticmethod
     def get_user_allowed_reservables(payload: dict) -> list[dict]:
-        """Return reservable vGPUs visible to the calling user.
+        """Return reservable vGPUs the caller can actually use.
 
-        Calls ``allowed.get_items_allowed(payload, "reservables_vgpus",
-        ...)``. Filtering is performed against
-        ``categories``/``groups``/``roles``/``users`` allowlists in the
-        ``reservables_vgpus`` table.
+        Same source creation enforces: the allowlist alone also lists profiles
+        that no visible GPU card enables, which creation then strips.
         """
-        return Alloweds.get_items_allowed(
-            payload,
-            "reservables_vgpus",
-            query_pluck=["id", "name", "description"],
-            order="name",
-            query_merge=False,
-        )
+        return Quotas.get_hardware_kind_allowed(payload, "reservables")["reservables"][
+            "vgpus"
+        ]
 
     @staticmethod
     def create_desktop(user_id: str, data: CreateDesktopRequest) -> str:
