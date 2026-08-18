@@ -13,8 +13,9 @@ moves these to admin_router would break the manager UI silently.
 
 Update + get-allowed-table additionally enforce per-item ownership
 inside the service (``_authorize_table_item``): admin → full; domains
-/ media → owner / manager-in-category / advanced-via-deployment /
-shared; every other (resource) table → admin only. This restores the
+/ media / deployments → owner / co-owner / manager-in-category /
+advanced-via-deployment / shared; every other (resource) table →
+admin only. This restores the
 v3 ``@owns_table_item_id`` guard the apiv4 port had dropped (an IDOR
 that let any authenticated user rewrite any item's ACL by id).
 """
@@ -477,7 +478,12 @@ class TestAlloweds_AuthorizeTableItem:
         )
         self.svc._authorize_table_item("reservables_vgpus", "x", {"role_id": "admin"})
         self.svc._authorize_table_item("domains", "d-1", {"role_id": "admin"})
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Helpers.owns_deployment_id",
+            staticmethod(lambda p, i: calls.append("deployment") or True),
+        )
         self.svc._authorize_table_item("media", "m-1", {"role_id": "admin"})
+        self.svc._authorize_table_item("deployments", "dp-1", {"role_id": "admin"})
         assert calls == []
 
     def test_domains_delegates_to_owns_domain_id(self, monkeypatch):
@@ -501,6 +507,35 @@ class TestAlloweds_AuthorizeTableItem:
             "media", "m-1", {"role_id": "manager", "category_id": "c1"}
         )
         assert seen == {"id": "m-1"}
+
+    def test_deployments_delegates_to_owns_deployment_id(self, monkeypatch):
+        """The old-frontend deployment "allowed users" modal reads the ACL
+        through ``/item/allowed/table/deployments``; an advanced user owning
+        the deployment must pass, like the co-owner/manager-in-category cases
+        that ``/edit-users`` already accepts."""
+        seen = {}
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Helpers.owns_deployment_id",
+            staticmethod(lambda p, i: seen.update(id=i, role=p["role_id"]) or True),
+        )
+        self.svc._authorize_table_item(
+            "deployments", "dp-1", {"role_id": "advanced", "user_id": "u-1"}
+        )
+        assert seen == {"id": "dp-1", "role": "advanced"}
+
+    def test_deployments_non_owner_propagates_403(self, monkeypatch):
+        def deny(p, i):
+            raise CommonError("forbidden", "not yours", "")
+
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Helpers.owns_deployment_id",
+            staticmethod(deny),
+        )
+        with pytest.raises(ErrorBase) as exc:
+            self.svc._authorize_table_item(
+                "deployments", "dp-x", {"role_id": "advanced", "user_id": "u-1"}
+            )
+        assert exc.value.status_code == 403
 
     def test_domains_non_owner_propagates_403(self, monkeypatch):
         def deny(p, i):

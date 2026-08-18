@@ -229,10 +229,10 @@ class AdminAllowedsService:
         id (IDOR / privilege escalation).
 
         - admin: full access.
-        - ``domains`` / ``media``: delegated to the shared
-          ``Helpers.owns_*`` checks (owner, manager-in-category,
-          advanced-via-deployment, shared-template); they raise the
-          typed 403/404 themselves.
+        - ``domains`` / ``media`` / ``deployments``: delegated to the
+          shared ``Helpers.owns_*`` checks (owner, co-owner,
+          manager-in-category, advanced-via-deployment, shared-template);
+          they raise the typed 403/404 themselves.
         - every other table is an admin-managed resource (bastion,
           reservables_vgpus, storage_pool, videos, …): admin only.
         """
@@ -243,6 +243,9 @@ class AdminAllowedsService:
             return
         if table == "media":
             Helpers.owns_media_id(payload, item_id)
+            return
+        if table == "deployments":
+            Helpers.owns_deployment_id(payload, item_id)
             return
         raise Error(
             "forbidden",
