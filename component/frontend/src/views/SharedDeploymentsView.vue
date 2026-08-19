@@ -23,6 +23,8 @@ import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DomainInfoModal } from '@/components/desktops'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
 const { t } = useI18n()
 
@@ -136,17 +138,26 @@ const deploymentDesktopItems = computed<DomainInfoItem[]>(() => {
 })
 
 const handleNotImplemented = () => alert('not implemented yet')
+
+const SHARED_DEPLOYMENTS_SEARCH_INPUT_ID = 'shared-deployments-search'
+
+useSearchShortcuts(SHARED_DEPLOYMENTS_SEARCH_INPUT_ID)
 </script>
 
 <template>
   <main class="flex flex-col gap-6 p-3 w-full">
     <div class="flex flex-row gap-5 items-center flex-wrap">
       <InputField
+        :id="SHARED_DEPLOYMENTS_SEARCH_INPUT_ID"
         v-model="inputSearch"
         :placeholder="t('views.deployments.filters.search.placeholder')"
         icon="search-lg"
         class="h-full w-full max-w-120 mr-auto"
-      />
+      >
+        <template #inline-end>
+          <Kbd class="max-sm:hidden">/</Kbd>
+        </template>
+      </InputField>
       <ToggleGroup
         v-model="deploymentFilters.status"
         :spacing="1"

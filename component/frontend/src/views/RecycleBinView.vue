@@ -29,6 +29,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { AlertModal } from '@/components/modal'
 import { DeleteModal } from '@/components/recycle-bin'
 import { RestoreModal } from '@/components/recycle-bin'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
 const { t, locale, d } = useI18n()
 
@@ -200,6 +202,10 @@ const goToEntry = (row: any) => {
   if (!row?.id) return
   router.push({ name: 'recycle-bin-entry', params: { recycleBinId: row.id } })
 }
+
+const RECYCLE_BIN_SEARCH_INPUT_ID = 'recycle-bin-search'
+
+useSearchShortcuts(RECYCLE_BIN_SEARCH_INPUT_ID)
 </script>
 
 <template>
@@ -254,11 +260,16 @@ const goToEntry = (row: any) => {
 
       <InputField
         v-if="hasItems"
+        :id="RECYCLE_BIN_SEARCH_INPUT_ID"
         v-model="searchQuery"
         :placeholder="t('views.recycle-bin.filters.search.placeholder')"
         icon="search-lg"
         class="w-full max-w-120"
-      />
+      >
+        <template #inline-end>
+          <Kbd class="max-sm:hidden">/</Kbd>
+        </template>
+      </InputField>
 
       <Alert v-if="emptyBinError" variant="destructive">
         <AlertTitle>{{ t('views.recycle-bin.error.title') }}</AlertTitle>

@@ -24,6 +24,8 @@ import { getRecycleBinOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import bannerImg from '@/assets/img/rcb-entry-banner.svg'
 import { RestoreModal } from '@/components/recycle-bin'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
 const { t, locale, d } = useI18n()
 const route = useRoute()
@@ -366,6 +368,10 @@ const totalSizeLabel = computed(() => {
 const entryErrorKey = computed(
   () => (entryError as { description_code?: string })?.description_code
 )
+
+const RECYCLE_BIN_ENTRY_SEARCH_INPUT_ID = 'recycle-bin-entry-search'
+
+useSearchShortcuts(RECYCLE_BIN_ENTRY_SEARCH_INPUT_ID)
 </script>
 
 <template>
@@ -459,11 +465,16 @@ const entryErrorKey = computed(
             </TabsList>
           </Tabs>
           <InputField
+            :id="RECYCLE_BIN_ENTRY_SEARCH_INPUT_ID"
             v-model="searchQuery"
             :placeholder="t('views.recycle-bin.entry.filters.search.placeholder')"
             icon="search-lg"
             class="w-full max-w-120 md:ml-auto"
-          />
+          >
+            <template #inline-end>
+              <Kbd class="max-sm:hidden">/</Kbd>
+            </template>
+          </InputField>
         </div>
 
         <!-- Empty component -->

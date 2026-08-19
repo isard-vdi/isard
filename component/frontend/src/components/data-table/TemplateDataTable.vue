@@ -21,6 +21,8 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { InputField } from '@/components/input-field'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
 const { t } = useI18n()
 
@@ -91,6 +93,10 @@ const table = useVueTable({
 const handleRowClick = (rowData: Record<string, unknown>) => {
   emit('rowClick', rowData)
 }
+
+const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
+
+useSearchShortcuts(TEMPLATES_SEARCH_INPUT_ID)
 </script>
 
 <template>
@@ -98,13 +104,18 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
     <slot name="filters-left" />
 
     <InputField
+      :id="TEMPLATES_SEARCH_INPUT_ID"
       ref="searchRef"
       class="h-min w-full max-w-120 ml-auto"
       :placeholder="t('views.templates.filters.search.placeholder')"
       icon="search-lg"
       :model-value="globalFilter ?? ''"
       @update:model-value="(value: string) => (globalFilter = String(value))"
-    />
+    >
+      <template #inline-end>
+        <Kbd class="max-sm:hidden">/</Kbd>
+      </template>
+    </InputField>
     <slot name="filters-right" />
   </div>
 
