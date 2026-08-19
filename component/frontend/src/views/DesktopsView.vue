@@ -2,12 +2,7 @@
 import { computed, readonly, ref, toValue, reactive, watch } from 'vue'
 
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import {
-  useLocalStorage as vueuseLocalStorage,
-  useWindowSize,
-  useWindowScroll,
-  onKeyStroke
-} from '@vueuse/core'
+import { useLocalStorage as vueuseLocalStorage, useWindowSize, useWindowScroll } from '@vueuse/core'
 import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
@@ -132,6 +127,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ViewerSelect } from '@/components/viewer-select'
 
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
 const { t, d } = useI18n()
 const route = useRoute()
@@ -813,45 +810,7 @@ const viewMode = ref<'cards' | 'table'>('cards')
 
 const DESKTOP_SEARCH_INPUT_ID = 'desktops-search'
 
-const focusDesktopSearch = () => {
-  document.getElementById(DESKTOP_SEARCH_INPUT_ID)?.focus()
-}
-
-// `/` jumps to the search box, unless the user is already typing somewhere
-onKeyStroke('/', (event) => {
-  if (event.ctrlKey || event.metaKey || event.altKey) {
-    return
-  }
-
-  const target = event.target as HTMLElement | null
-  if (
-    target?.isContentEditable ||
-    ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')
-  ) {
-    return
-  }
-
-  event.preventDefault()
-  focusDesktopSearch()
-})
-
-// ctrl/cmd + k is what most people reach for, so it works from anywhere
-onKeyStroke('k', (event) => {
-  if (!event.ctrlKey && !event.metaKey) {
-    return
-  }
-
-  event.preventDefault()
-  focusDesktopSearch()
-})
-
-// Esc leaves the search box, without touching the Esc handling of any open modal
-onKeyStroke('Escape', () => {
-  const searchInput = document.getElementById(DESKTOP_SEARCH_INPUT_ID)
-  if (searchInput && document.activeElement === searchInput) {
-    searchInput.blur()
-  }
-})
+useSearchShortcuts(DESKTOP_SEARCH_INPUT_ID)
 
 const DESKTOP_FILTERS_COOKIE_NAME = 'desktops_filters_state'
 const DESKTOP_FILTERS_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -1375,10 +1334,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
             class="h-full w-full max-w-120 min-w-0"
           >
             <template #inline-end>
-              <kbd
-                class="max-sm:hidden rounded border border-gray-warm-300 px-1.5 py-0.5 text-xs font-medium text-gray-warm-500"
-                >/</kbd
-              >
+              <Kbd class="max-sm:hidden">/</Kbd>
             </template>
           </InputField>
 
