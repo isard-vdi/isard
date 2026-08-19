@@ -1416,6 +1416,86 @@ $(document).ready(function () {
 
 
 
+    // ── Main-domain certificate (admin only) ─────────────────────────────
+    //
+    // The API stores an ordered list of names and this release edits only the
+    // first one, so any further names are held here across the round trip. A
+    // save that posted just the single input would silently shorten a
+    // certificate that carries more.
+    var certExtraNames = [];
+
+    function loadCertificatesStatus() {
+        $.ajax({
+            type: "GET",
+            url: "/api/v4/admin/config/certificates",
+            contentType: "application/json",
+            success: function (data) {
+                var main = (data && data.main_domain) || {};
+                var names = main.names || [];
+                if (!main.certificate_source) {
+                    $("#certificatesStatusLabel").text("not configured (self-signed)");
+                    return;
+                }
+                var label = names.length ? names.join(", ") : "no domain set";
+                $("#certificatesStatusLabel").text(label + " — ACME HTTP-01");
+            }
+        });
+    }
+
+    if ($("#CertificatesConfig").length) {
+        loadCertificatesStatus();
+    }
+
+    $("#btn-edit-certificates").on("click", function () {
+        $("#modalEditCertificatesForm")[0].reset();
+        certExtraNames = [];
+        $('#modalEditCertificates').modal({ backdrop: 'static', keyboard: false }).modal('show');
+        $.ajax({
+            type: "GET",
+            url: "/api/v4/admin/config/certificates",
+            contentType: "application/json",
+            success: function (data) {
+                var main = (data && data.main_domain) || {};
+                var names = main.names || [];
+                certExtraNames = names.slice(1);
+                $("#cert-name").val(names[0] || "");
+                $("#cert-source").val(main.certificate_source || "acme");
+                $("#cert-email").val(main.email || "");
+                $("#cert-acme-server").val(main.acme_server || "");
+            }
+        });
+    });
+
+    $("#modalEditCertificates #send").on("click", function () {
+        var primary = $("#cert-name").val();
+        if (!primary) {
+            new PNotify({ title: "Missing domain", text: "Set the domain the certificate is issued for", type: "error", hide: true, delay: 3000, icon: 'fa fa-warning', opacity: 1 });
+            return;
+        }
+        $.ajax({
+            type: "PUT",
+            url: "/api/v4/admin/config/certificates",
+            data: JSON.stringify({
+                main_domain: {
+                    names: [primary].concat(certExtraNames),
+                    certificate_source: $("#cert-source").val(),
+                    email: $("#cert-email").val(),
+                    acme_server: $("#cert-acme-server").val()
+                }
+            }),
+            contentType: "application/json",
+            success: function () {
+                new PNotify({ title: "Certificate config updated", text: "Main-domain certificate configuration saved", type: "success", hide: true, delay: 2000, icon: 'fa fa-check', opacity: 1 });
+                $('#modalEditCertificates').modal('hide');
+                loadCertificatesStatus();
+            },
+            error: function (data) {
+                new PNotify({ title: "ERROR updating certificate config", text: data.responseJSON ? data.responseJSON.description : 'Something went wrong', type: "error", hide: true, delay: 5000, icon: 'fa fa-warning', opacity: 1 });
+            }
+        });
+    });
+
+
     // virt_install table
     virtinstall_table = $('#table-virt-install').DataTable({
         "ajax": {

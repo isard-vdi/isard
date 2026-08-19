@@ -278,6 +278,43 @@
   <div class="clearfix"></div>
 </div>
 
+{% if current_user.role == 'admin' %}
+<div class="row">
+  <div class="col-md-6 col-sm-12 col-xs-12" id="CertificatesConfig">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3>
+          <i class="fa fa-lock"></i> Certificates
+          <small id="certificatesStatusLabel"></small>
+        </h3>
+        <ul class="nav navbar-right panel_toolbox">
+            <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+            </li>
+            <li><a class="close-link"><i class="fa fa-close"></i></a>
+            </li>
+         </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <span id="certificatesStatusDescription" class="col-md-12 col-sm-12 col-xs-12">
+          The domain this deployment is served on, and the ACME account its
+          certificate is issued with. This replaces the values that used to be
+          fixed in isardvdi.cfg at install time.
+        </span>
+
+        <div class="col-md-12 col-sm-12 col-xs-12">
+          <button type="button" id="btn-edit-certificates" class="btn btn-info">
+            <i class="fa fa-cogs"></i> Edit main-domain certificate
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="clearfix"></div>
+</div>
+{% endif %}
+
 <div class="row">
    <div class="col-md-12 col-sm-12 col-xs-12">
       <div class="x_panel">
