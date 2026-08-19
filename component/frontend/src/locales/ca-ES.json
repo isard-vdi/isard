@@ -444,6 +444,10 @@
           "placeholder": "Cerca"
         }
       },
+      "alloweds": {
+        "success": "Usuaris i grups permesos actualitzats",
+        "error": "No s'han pogut actualitzar els usuaris i grups permesos"
+      },
       "table": {
         "headers": {
           "name": "Nom",

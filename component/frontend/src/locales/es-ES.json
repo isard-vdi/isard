@@ -444,6 +444,10 @@
           "placeholder": "Buscar"
         }
       },
+      "alloweds": {
+        "success": "Usuarios y grupos permitidos actualizados",
+        "error": "No se han podido actualizar los usuarios y grupos permitidos"
+      },
       "table": {
         "headers": {
           "name": "Nombre",

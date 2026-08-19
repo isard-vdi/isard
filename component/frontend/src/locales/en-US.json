@@ -453,6 +453,10 @@
           "placeholder": "Search"
         }
       },
+      "alloweds": {
+        "success": "Allowed users and groups updated",
+        "error": "Could not update the allowed users and groups"
+      },
       "table": {
         "headers": {
           "name": "Name",
