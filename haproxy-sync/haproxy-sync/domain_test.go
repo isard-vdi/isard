@@ -623,3 +623,250 @@ func TestDomainSync(t *testing.T) {
 		})
 	}
 }
+
+// newReissueService builds a service whose certs live in a temp dir, plus the
+// two mocks, for the re-issue tests below.
+func newReissueService(t *testing.T) (*haproxysync.HAproxySync, *haproxy.MockHaproxy, *acme.MockAcme, string) {
+	t.Helper()
+
+	certsPath := t.TempDir()
+	haproxyMock := &haproxy.MockHaproxy{}
+	acmeMock := &acme.MockAcme{}
+
+	svc := haproxysync.Init(log.New("test", "debug"), cfg.HAProxy{
+		Domains: cfg.HAProxyDomains{
+			DomainsMap:  "virt@domains",
+			CrtListPath: "/certs/crt-list.cfg",
+			CertsPath:   certsPath,
+		},
+	}, haproxyMock, acmeMock)
+
+	return svc, haproxyMock, acmeMock, certsPath
+}
+
+// TestDomainSyncReissueOnSourceChange pins that a domain already present in
+// HAProxy is re-issued when its certificate source changes, instead of being
+// skipped because its name is already in the map.
+//
+// Without this, the per-category branding UI that main already ships is a form
+// that does nothing: switching a domain between an ACME certificate and an
+// uploaded one is saved to the database, pushed to haproxy-sync, and silently
+// ignored, because the only thing DomainSync ever looked at was whether the
+// NAME was present.
+//
+// The re-issue happens in place: the certificate is swapped with SetSslCert +
+// CommitSslCert and the domain is NOT re-added to the crt-list or the domain
+// map, so the switch takes effect without a reload.
+func TestDomainSyncReissueOnSourceChange(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+	assert := assert.New(t)
+
+	svc, haproxyMock, acmeMock, certsPath := newReissueService(t)
+	certFile := filepath.Join(certsPath, "branding.example.com.pem")
+	customPEM := []byte("-----BEGIN CERTIFICATE-----\ncustom\n-----END CERTIFICATE-----\n")
+
+	// Phase 1 adds the domain; the ACME issuance writes the file it then reads.
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{}, nil).Once()
+	haproxyMock.On("NewSslCert", certFile).Return(nil).Once()
+	haproxyMock.On("AddSslCrtList", "/certs/crt-list.cfg", certFile).Return(nil).Once()
+	haproxyMock.On("AddMap", "virt@domains", "branding.example.com").Return(nil).Once()
+	acmeMock.On("IssueCert", mock.Anything, "branding.example.com", "branding.example.com.pem").
+		Run(func(mock.Arguments) {
+			require.NoError(os.WriteFile(certFile, testPEMData, 0644))
+		}).Return(nil).Once()
+	haproxyMock.On("SetSslCert", certFile, testPEMData).Return(nil).Once()
+	haproxyMock.On("CommitSslCert", certFile).Return(nil).Once()
+
+	res, err := svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "branding.example.com"},
+	})
+	require.NoError(err)
+	assert.Equal(1, res.DomainsAdded)
+	assert.Equal(1, res.CertsIssued)
+
+	// Phase 2: same name, now carrying an uploaded certificate.
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"branding.example.com"}, nil).Once()
+	haproxyMock.On("SetSslCert", certFile, customPEM).Return(nil).Once()
+	haproxyMock.On("CommitSslCert", certFile).Return(nil).Once()
+
+	res, err = svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "branding.example.com", Certificate: customPEM},
+	})
+	require.NoError(err)
+	assert.Equal(0, res.DomainsAdded, "already present, must not be re-added")
+	assert.Equal(0, res.CertsIssued, "an uploaded certificate is not an issuance")
+
+	// Phase 3: back to ACME. The switch must be noticed in this direction too.
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"branding.example.com"}, nil).Once()
+	acmeMock.On("IssueCert", mock.Anything, "branding.example.com", "branding.example.com.pem").
+		Run(func(mock.Arguments) {
+			require.NoError(os.WriteFile(certFile, testPEMData, 0644))
+		}).Return(nil).Once()
+	haproxyMock.On("SetSslCert", certFile, testPEMData).Return(nil).Once()
+	haproxyMock.On("CommitSslCert", certFile).Return(nil).Once()
+
+	res, err = svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "branding.example.com"},
+	})
+	require.NoError(err)
+	assert.Equal(0, res.DomainsAdded)
+	assert.Equal(1, res.CertsIssued, "switching back to ACME re-issues")
+
+	// Phase 4: nothing changed. A sync that re-issues on every pass would storm
+	// the CA, so an unchanged spec must be a no-op.
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"branding.example.com"}, nil).Once()
+
+	res, err = svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "branding.example.com"},
+	})
+	require.NoError(err)
+	assert.Equal(0, res.DomainsAdded)
+	assert.Equal(0, res.CertsIssued, "an unchanged spec must not re-issue")
+
+	haproxyMock.AssertExpectations(t)
+	acmeMock.AssertExpectations(t)
+	// NewSslCert / AddSslCrtList / AddMap were each declared .Once(): asserting
+	// the expectations above proves the re-issues did not repeat them.
+}
+
+// TestDomainSyncAdoptsAlreadyServedDomain pins the startup path: the fingerprint
+// cache lives in memory, so after a restart every already-served domain is
+// unknown. Re-issuing them all on the first sync would hit the CA once per
+// branding domain on every restart, so an unknown-but-present domain is adopted
+// as-is instead.
+func TestDomainSyncAdoptsAlreadyServedDomain(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+	assert := assert.New(t)
+
+	svc, haproxyMock, acmeMock, _ := newReissueService(t)
+
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"served.example.com"}, nil).Once()
+
+	res, err := svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "served.example.com"},
+	})
+	require.NoError(err)
+	assert.Equal(0, res.DomainsAdded)
+	assert.Equal(0, res.CertsIssued, "adoption must not issue")
+
+	// Adoption records the spec, so a later change is still caught.
+	certFile := filepath.Join(svc.Domains.CertsPath, "served.example.com.pem")
+	customPEM := []byte("-----BEGIN CERTIFICATE-----\nafter\n-----END CERTIFICATE-----\n")
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"served.example.com"}, nil).Once()
+	haproxyMock.On("SetSslCert", certFile, customPEM).Return(nil).Once()
+	haproxyMock.On("CommitSslCert", certFile).Return(nil).Once()
+
+	res, err = svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "served.example.com", Certificate: customPEM},
+	})
+	require.NoError(err)
+	assert.Equal(0, res.DomainsAdded)
+
+	haproxyMock.AssertExpectations(t)
+	acmeMock.AssertExpectations(t)
+}
+
+// TestDomainSyncReAddsARemovedDomainInFull pins that a domain removed and then
+// wanted again goes through the whole add path -- new cert storage, crt-list
+// and map entry -- rather than being mistaken for one already in place.
+//
+// The companion assertion, that the remembered fingerprint is actually dropped,
+// is in domain_internal_test.go: the map is unexported and this path overwrites
+// the entry either way, so from out here the two are indistinguishable.
+func TestDomainSyncReAddsARemovedDomainInFull(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+	assert := assert.New(t)
+
+	svc, haproxyMock, acmeMock, certsPath := newReissueService(t)
+	certFile := filepath.Join(certsPath, "gone.example.com.pem")
+
+	// Present and remembered.
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"gone.example.com"}, nil).Once()
+	_, err := svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "gone.example.com"},
+	})
+	require.NoError(err)
+
+	// Removed.
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"gone.example.com"}, nil).Once()
+	haproxyMock.On("DelMap", "virt@domains", "gone.example.com").Return(nil).Once()
+	haproxyMock.On("DelSslCrtList", "/certs/crt-list.cfg", certFile).Return(nil).Once()
+	haproxyMock.On("DelSslCert", certFile).Return(nil).Once()
+	acmeMock.On("RemoveCert", mock.Anything, "gone.example.com", "gone.example.com.pem").Return(nil).Once()
+
+	res, err := svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{})
+	require.NoError(err)
+	assert.Equal(1, res.DomainsRemoved)
+
+	// Re-added: a full add, not an adoption of a stale fingerprint.
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{}, nil).Once()
+	haproxyMock.On("NewSslCert", certFile).Return(nil).Once()
+	haproxyMock.On("AddSslCrtList", "/certs/crt-list.cfg", certFile).Return(nil).Once()
+	haproxyMock.On("AddMap", "virt@domains", "gone.example.com").Return(nil).Once()
+	acmeMock.On("IssueCert", mock.Anything, "gone.example.com", "gone.example.com.pem").
+		Run(func(mock.Arguments) {
+			require.NoError(os.WriteFile(certFile, testPEMData, 0644))
+		}).Return(nil).Once()
+	haproxyMock.On("SetSslCert", certFile, testPEMData).Return(nil).Once()
+	haproxyMock.On("CommitSslCert", certFile).Return(nil).Once()
+
+	res, err = svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "gone.example.com"},
+	})
+	require.NoError(err)
+	assert.Equal(1, res.DomainsAdded)
+	assert.Equal(1, res.CertsIssued)
+
+	haproxyMock.AssertExpectations(t)
+	acmeMock.AssertExpectations(t)
+}
+
+// TestDomainSyncReportsFailedReissue pins that a re-issue that fails is
+// reported per-domain and does not abort the whole sync.
+func TestDomainSyncReportsFailedReissue(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+	assert := assert.New(t)
+
+	svc, haproxyMock, acmeMock, certsPath := newReissueService(t)
+	certFile := filepath.Join(certsPath, "flaky.example.com.pem")
+
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"flaky.example.com"}, nil).Once()
+	_, err := svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "flaky.example.com"},
+	})
+	require.NoError(err)
+
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"flaky.example.com"}, nil).Once()
+	haproxyMock.On("SetSslCert", certFile, mock.Anything).Return(errors.New("socket is gone")).Once()
+
+	res, err := svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "flaky.example.com", Certificate: testPEMData},
+	})
+	require.NoError(err, "a failed re-issue must not fail the whole sync")
+	require.Len(res.FailedDomains, 1)
+	assert.Equal("flaky.example.com", res.FailedDomains[0].Domain)
+	assert.Contains(res.FailedDomains[0].Error, "socket is gone")
+
+	// The failed fingerprint must not be recorded, or the next sync would think
+	// the domain is already up to date and never retry.
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"flaky.example.com"}, nil).Once()
+	haproxyMock.On("SetSslCert", certFile, testPEMData).Return(nil).Once()
+	haproxyMock.On("CommitSslCert", certFile).Return(nil).Once()
+
+	res, err = svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "flaky.example.com", Certificate: testPEMData},
+	})
+	require.NoError(err)
+	assert.Empty(res.FailedDomains, "the retry must succeed")
+
+	haproxyMock.AssertExpectations(t)
+	acmeMock.AssertExpectations(t)
+}

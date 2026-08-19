@@ -2,6 +2,8 @@ package haproxysync
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -95,10 +97,13 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 		desiredDomains[d.Name] = true
 	}
 
-	// Add the missing domains
+	// Add the missing domains, and re-issue the ones whose certificate source
+	// changed since they were last materialized.
 	for _, d := range wanted {
-		if _, ok := h.Domains.domains[d.Name]; !ok {
-			if err := h.addDomain(ctx, d.Name, d.Certificate); err != nil {
+		fingerprint := domainFingerprint(d)
+
+		if _, present := h.Domains.domains[d.Name]; !present {
+			if err := h.addDomain(ctx, d); err != nil {
 				h.log.Warn().Err(err).Str("domain", d.Name).Msg("failed to add domain, skipping")
 				failedDomains = append(failedDomains, DomainSyncError{
 					Domain: d.Name,
@@ -107,10 +112,41 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 				continue
 			}
 
+			h.Domains.specs[d.Name] = fingerprint
 			domainsAdded += 1
 			if len(d.Certificate) == 0 {
 				certsIssued += 1
 			}
+			continue
+		}
+
+		previous, known := h.Domains.specs[d.Name]
+		if !known {
+			// First time this process sees an already-served domain, e.g. right
+			// after a restart. Adopt its current state instead of re-issuing,
+			// so a restart does not hit the CA once per branding domain.
+			h.Domains.specs[d.Name] = fingerprint
+			continue
+		}
+		if previous == fingerprint {
+			continue
+		}
+
+		if err := h.reissueDomain(ctx, d); err != nil {
+			h.log.Warn().Err(err).Str("domain", d.Name).Msg("failed to re-issue domain, skipping")
+			failedDomains = append(failedDomains, DomainSyncError{
+				Domain: d.Name,
+				Error:  err.Error(),
+			})
+			// Leave the remembered fingerprint alone: recording the one we
+			// failed to reach would make the next sync believe the domain is
+			// already up to date and never retry.
+			continue
+		}
+
+		h.Domains.specs[d.Name] = fingerprint
+		if len(d.Certificate) == 0 {
+			certsIssued += 1
 		}
 	}
 
@@ -148,6 +184,7 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 		certsRemoved += 1
 
 		delete(h.Domains.domains, d)
+		delete(h.Domains.specs, d)
 		domainsRemoved += 1
 	}
 
@@ -186,26 +223,74 @@ func (h *HAproxySync) isBaseDomain(d string) bool {
 	return h.Domains.BaseDomain != "" && strings.EqualFold(d, h.Domains.BaseDomain)
 }
 
-func (h *HAproxySync) addDomain(ctx context.Context, d string, certData []byte) error {
-	pemName := domainPemName(d)
+// domainFingerprint is a stable signature of what certificate a domain is
+// asking for. When it differs from the one last materialized, the desired
+// certificate is not the one on disk and the domain must be re-issued even
+// though HAProxy is already serving that name.
+func domainFingerprint(d DomainSyncDomain) string {
+	if len(d.Certificate) > 0 {
+		sum := sha256.Sum256(d.Certificate)
+		return "custom:" + hex.EncodeToString(sum[:])
+	}
+
+	return "http01"
+}
+
+// materializeCert produces the PEM bytes for a domain: writing the uploaded
+// certificate, or issuing one over ACME and reading the result back.
+func (h *HAproxySync) materializeCert(ctx context.Context, d DomainSyncDomain) ([]byte, error) {
+	pemName := domainPemName(d.Name)
 	certPath := domainCertPath(h.Domains.CertsPath, pemName)
 
-	var pemData []byte
-	if len(certData) > 0 {
-		if err := os.WriteFile(certPath, certData, 0600); err != nil {
-			return fmt.Errorf("write provided certificate: %w", err)
+	if len(d.Certificate) > 0 {
+		if err := os.WriteFile(certPath, d.Certificate, 0600); err != nil {
+			return nil, fmt.Errorf("write provided certificate: %w", err)
 		}
-		pemData = certData
-	} else {
-		if err := h.acme.IssueCert(ctx, d, pemName); err != nil {
-			return fmt.Errorf("issue certificate: %w", err)
-		}
+		return d.Certificate, nil
+	}
 
-		var err error
-		pemData, err = os.ReadFile(certPath)
-		if err != nil {
-			return fmt.Errorf("read certificate file: %w", err)
-		}
+	if err := h.acme.IssueCert(ctx, d.Name, pemName); err != nil {
+		return nil, fmt.Errorf("issue certificate: %w", err)
+	}
+
+	pemData, err := os.ReadFile(certPath)
+	if err != nil {
+		return nil, fmt.Errorf("read certificate file: %w", err)
+	}
+
+	return pemData, nil
+}
+
+// reissueDomain swaps the certificate of a domain HAProxy already serves. It
+// deliberately does not touch the crt-list or the domain map, which already
+// contain the domain: that is what lets a certificate source change take effect
+// in place, without a reload.
+func (h *HAproxySync) reissueDomain(ctx context.Context, d DomainSyncDomain) error {
+	certPath := domainCertPath(h.Domains.CertsPath, domainPemName(d.Name))
+
+	pemData, err := h.materializeCert(ctx, d)
+	if err != nil {
+		return err
+	}
+
+	if err := h.haproxy.SetSslCert(certPath, pemData); err != nil {
+		return fmt.Errorf("set ssl cert content: %w", err)
+	}
+
+	if err := h.haproxy.CommitSslCert(certPath); err != nil {
+		return fmt.Errorf("commit ssl cert: %w", err)
+	}
+
+	return nil
+}
+
+func (h *HAproxySync) addDomain(ctx context.Context, d DomainSyncDomain) error {
+	pemName := domainPemName(d.Name)
+	certPath := domainCertPath(h.Domains.CertsPath, pemName)
+
+	pemData, err := h.materializeCert(ctx, d)
+	if err != nil {
+		return err
 	}
 
 	if err := h.haproxy.NewSslCert(certPath); err != nil {
@@ -224,10 +309,10 @@ func (h *HAproxySync) addDomain(ctx context.Context, d string, certData []byte) 
 		return fmt.Errorf("add ssl crt-list: %w", err)
 	}
 
-	if err := h.haproxy.AddMap(h.Domains.DomainsMapName, d); err != nil {
+	if err := h.haproxy.AddMap(h.Domains.DomainsMapName, d.Name); err != nil {
 		return fmt.Errorf("add domain to map: %w", err)
 	}
 
-	h.Domains.domains[d] = true
+	h.Domains.domains[d.Name] = true
 	return nil
 }
