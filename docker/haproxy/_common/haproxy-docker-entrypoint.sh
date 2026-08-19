@@ -149,16 +149,20 @@ fi
 # Start ACME certificate management AFTER haproxy starts (in background)
 # This ensures the admin socket exists before the program tries to connect
 # This also ensures the frontend is listening
-if [ -n "$ACME_EMAIL" ]; then
-    (
-        # Wait a moment for HAProxy to start and create the socket
-        sleep 3
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting ACME certificate management..."
-        if ! acme-management.sh generate; then
-            echo "WARNING: ACME certificate acquisition failed for $ACME_DOMAIN"
-        fi
-    ) &
-fi
+#
+# Run this UNCONDITIONALLY. It used to be guarded by ACME_EMAIL, but the script
+# it calls is also what arms the `acme.sh --cron` renewal timer, and that timer
+# renews the per-category branding certificates haproxy-sync issues over
+# HTTP-01 — which exist whether or not the MAIN domain uses ACME. Main-domain
+# issuance inside acme-management.sh still only runs with ACME_EMAIL/ACME_DOMAIN.
+(
+    # Wait a moment for HAProxy to start and create the socket
+    sleep 3
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting ACME certificate management..."
+    if ! acme-management.sh generate; then
+        echo "WARNING: ACME certificate management reported an error"
+    fi
+) &
 
 for part in $FLAVOUR; do
   if [ "$part" = "web" ]; then

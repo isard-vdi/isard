@@ -211,6 +211,13 @@ test-storage:
 test-sparsify:
 	bash docker/storage/utils/tests/test_sparsify_recover_backup.sh
 
+# Suite for the haproxy ACME shell scripts (docker/haproxy/_common/tests). Pure
+# bash: acme.sh, crond and curl are stubbed on PATH and the scripts' filesystem
+# locations are redirected, so it needs no container and no ACME account.
+.PHONY: test-haproxy-acme
+test-haproxy-acme:
+	bash docker/haproxy/_common/tests/test_acme_management.sh
+
 # Regression test for the `storage` cleanup CLI's sparsify-backup classifier:
 # a locked/in-use canonical must keep its backup, because the lock-bypassing
 # check reads through the lock and calls a half-written image clean. The CLI is
