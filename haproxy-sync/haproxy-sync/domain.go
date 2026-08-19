@@ -150,14 +150,17 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 		}
 	}
 
-	// Remove the extra domains
+	// Remove the extra domains, reporting failures per domain the way the add
+	// path does. Aborting the sync instead would be unrecoverable rather than
+	// transient: the entry stays in HAProxy's map, so the next sync rebuilds
+	// the same desired set, reaches the same domain and fails at the same
+	// point, leaving DomainSync wedged for the whole installation.
 	for d := range h.Domains.domains {
 		if desiredDomains[d] {
 			continue
 		}
 
-		pemName := domainPemName(d)
-		certPath := domainCertPath(h.Domains.CertsPath, pemName)
+		certPath := domainCertPath(h.Domains.CertsPath, domainPemName(d))
 
 		if h.isBaseDomain(d) {
 			h.dropBaseDomain(d, certPath)
@@ -168,19 +171,15 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 			continue
 		}
 
-		if err := h.haproxy.DelMap(h.Domains.DomainsMapName, d); err != nil {
-			return DomainSyncResult{}, fmt.Errorf("delete domain from HAProxy: %w", err)
+		if err := h.removeDomain(ctx, d); err != nil {
+			h.log.Warn().Err(err).Str("domain", d).Msg("failed to remove domain, skipping")
+			failedDomains = append(failedDomains, DomainSyncError{
+				Domain: d,
+				Error:  err.Error(),
+			})
+			continue
 		}
 
-		if err := h.haproxy.DelSslCrtList(h.Domains.CrtListPath, certPath); err != nil {
-			return DomainSyncResult{}, fmt.Errorf("delete ssl crt-list for domain '%s': %w", d, err)
-		}
-
-		if err := h.haproxy.DelSslCert(certPath); err != nil {
-			return DomainSyncResult{}, fmt.Errorf("delete ssl cert for domain '%s': %w", d, err)
-		}
-
-		h.acme.RemoveCert(ctx, d, pemName)
 		certsRemoved += 1
 
 		delete(h.Domains.domains, d)
@@ -279,6 +278,39 @@ func (h *HAproxySync) reissueDomain(ctx context.Context, d DomainSyncDomain) err
 
 	if err := h.haproxy.CommitSslCert(certPath); err != nil {
 		return fmt.Errorf("commit ssl cert: %w", err)
+	}
+
+	return nil
+}
+
+// removeDomain stops HAProxy serving a domain and deregisters its certificate
+// from acme.sh.
+//
+// The acme.sh deregistration is deliberately tolerant. By the time it runs,
+// HAProxy has already stopped serving the domain, so the removal has succeeded
+// in the way the caller cares about; reporting a failure here would make the
+// domain look un-removed and invite a retry of work that is already done. It
+// is worth knowing about, though -- acme.sh will keep renewing a certificate
+// nothing serves -- so it is logged rather than dropped.
+func (h *HAproxySync) removeDomain(ctx context.Context, d string) error {
+	pemName := domainPemName(d)
+	certPath := domainCertPath(h.Domains.CertsPath, pemName)
+
+	if err := h.haproxy.DelMap(h.Domains.DomainsMapName, d); err != nil {
+		return fmt.Errorf("delete domain from HAProxy: %w", err)
+	}
+
+	if err := h.haproxy.DelSslCrtList(h.Domains.CrtListPath, certPath); err != nil {
+		return fmt.Errorf("delete ssl crt-list for domain '%s': %w", d, err)
+	}
+
+	if err := h.haproxy.DelSslCert(certPath); err != nil {
+		return fmt.Errorf("delete ssl cert for domain '%s': %w", d, err)
+	}
+
+	if err := h.acme.RemoveCert(ctx, d, pemName); err != nil {
+		h.log.Warn().Err(err).Str("domain", d).
+			Msg("could not deregister the certificate from acme.sh; it will keep renewing a certificate nothing serves")
 	}
 
 	return nil

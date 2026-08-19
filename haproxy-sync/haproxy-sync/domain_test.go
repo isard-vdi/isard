@@ -421,16 +421,22 @@ func TestDomainSync(t *testing.T) {
 				{Domain: "fail2.com", Error: "issue certificate: error 2"},
 			},
 		},
-		"should return an error if deleting domain fails": {
+		// The three removal steps below used to abort the whole sync. They are
+		// reported per domain instead, like every step of the add path: the
+		// entry stays in HAProxy's map when removal fails, so a hard error
+		// makes the next sync fail at the same domain, forever.
+		"should report a failed domain when deleting it from the map fails": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {
 				m.On("ShowMap", "virt@domains").Return([]string{"old.com"}, nil)
 				m.On("DelMap", "virt@domains", "old.com").Return(errors.New("delete failed"))
 			},
 			PrepareACME: func(m *acme.MockAcme) {},
 			Domains:     []haproxysync.DomainSyncDomain{},
-			ExpectedErr: "delete domain from HAProxy: delete failed",
+			ExpectedFailedDomains: []haproxysync.DomainSyncError{
+				{Domain: "old.com", Error: "delete domain from HAProxy: delete failed"},
+			},
 		},
-		"should return an error if deleting ssl crt-list fails": {
+		"should report a failed domain when deleting the ssl crt-list fails": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy, certsPath string) {
 				m.On("ShowMap", "virt@domains").Return([]string{"old.com"}, nil)
 				m.On("DelMap", "virt@domains", "old.com").Return(nil)
@@ -438,7 +444,22 @@ func TestDomainSync(t *testing.T) {
 			},
 			PrepareACME: func(m *acme.MockAcme) {},
 			Domains:     []haproxysync.DomainSyncDomain{},
-			ExpectedErr: "delete ssl crt-list for domain 'old.com': crt-list error",
+			ExpectedFailedDomains: []haproxysync.DomainSyncError{
+				{Domain: "old.com", Error: "delete ssl crt-list for domain 'old.com': crt-list error"},
+			},
+		},
+		"should report a failed domain when deleting the ssl cert fails": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, certsPath string) {
+				m.On("ShowMap", "virt@domains").Return([]string{"old.com"}, nil)
+				m.On("DelMap", "virt@domains", "old.com").Return(nil)
+				m.On("DelSslCrtList", "/certs/crt-list.cfg", filepath.Join(certsPath, "old.com.pem")).Return(nil)
+				m.On("DelSslCert", filepath.Join(certsPath, "old.com.pem")).Return(errors.New("cert error"))
+			},
+			PrepareACME: func(m *acme.MockAcme) {},
+			Domains:     []haproxysync.DomainSyncDomain{},
+			ExpectedFailedDomains: []haproxysync.DomainSyncError{
+				{Domain: "old.com", Error: "delete ssl cert for domain 'old.com': cert error"},
+			},
 		},
 		"should refuse the deployment's own domain and keep syncing the rest": {
 			PrepareCerts: func(certsPath string) {
@@ -866,6 +887,121 @@ func TestDomainSyncReportsFailedReissue(t *testing.T) {
 	})
 	require.NoError(err)
 	assert.Empty(res.FailedDomains, "the retry must succeed")
+
+	haproxyMock.AssertExpectations(t)
+	acmeMock.AssertExpectations(t)
+}
+
+// TestDomainSyncOneFailedRemovalDoesNotBlockTheRest pins that a domain that
+// cannot be removed is reported and skipped, not turned into a hard error for
+// the whole sync.
+//
+// A hard error here is unrecoverable rather than transient: the entry stays in
+// HAProxy's map, so the next sync rebuilds the same desired set, reaches the
+// same domain and fails at the same point. DomainSync is then wedged for the
+// entire installation -- no domain can be added or removed by anyone -- until
+// somebody edits HAProxy's map by hand.
+func TestDomainSyncOneFailedRemovalDoesNotBlockTheRest(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+	assert := assert.New(t)
+
+	svc, haproxyMock, acmeMock, certsPath := newReissueService(t)
+
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"bad.com", "good.com"}, nil).Once()
+
+	// Mock expectations are keyed by argument, so the random map iteration
+	// order of the removal loop does not matter here.
+	haproxyMock.On("DelMap", "virt@domains", "bad.com").Return(errors.New("map is locked")).Once()
+
+	goodPem := filepath.Join(certsPath, "good.com.pem")
+	haproxyMock.On("DelMap", "virt@domains", "good.com").Return(nil).Once()
+	haproxyMock.On("DelSslCrtList", "/certs/crt-list.cfg", goodPem).Return(nil).Once()
+	haproxyMock.On("DelSslCert", goodPem).Return(nil).Once()
+	acmeMock.On("RemoveCert", mock.Anything, "good.com", "good.com.pem").Return(nil).Once()
+
+	res, err := svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{})
+	require.NoError(err, "one bad domain must not fail the whole sync")
+
+	assert.Equal(1, res.DomainsRemoved, "the healthy domain is still removed")
+	assert.Equal(1, res.CertsRemoved)
+	require.Len(res.FailedDomains, 1)
+	assert.Equal("bad.com", res.FailedDomains[0].Domain)
+	assert.Contains(res.FailedDomains[0].Error, "map is locked")
+
+	haproxyMock.AssertExpectations(t)
+	acmeMock.AssertExpectations(t)
+}
+
+// TestDomainSyncFailedRemovalKeepsAdditions pins that work already done in the
+// same pass is still reported when a later removal fails. Returning a zeroed
+// result would tell the caller nothing happened when a domain had in fact been
+// added and its certificate issued.
+func TestDomainSyncFailedRemovalKeepsAdditions(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+	assert := assert.New(t)
+
+	svc, haproxyMock, acmeMock, certsPath := newReissueService(t)
+	newPem := filepath.Join(certsPath, "new.com.pem")
+
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"stale.com"}, nil).Once()
+	haproxyMock.On("NewSslCert", newPem).Return(nil).Once()
+	haproxyMock.On("SetSslCert", newPem, testPEMData).Return(nil).Once()
+	haproxyMock.On("CommitSslCert", newPem).Return(nil).Once()
+	haproxyMock.On("AddSslCrtList", "/certs/crt-list.cfg", newPem).Return(nil).Once()
+	haproxyMock.On("AddMap", "virt@domains", "new.com").Return(nil).Once()
+	acmeMock.On("IssueCert", mock.Anything, "new.com", "new.com.pem").
+		Run(func(mock.Arguments) {
+			require.NoError(os.WriteFile(newPem, testPEMData, 0644))
+		}).Return(nil).Once()
+
+	haproxyMock.On("DelMap", "virt@domains", "stale.com").Return(errors.New("nope")).Once()
+
+	res, err := svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{
+		{Name: "new.com"},
+	})
+	require.NoError(err)
+
+	assert.Equal(1, res.DomainsAdded, "the addition must still be reported")
+	assert.Equal(1, res.CertsIssued)
+	assert.Equal(0, res.DomainsRemoved)
+	require.Len(res.FailedDomains, 1)
+	assert.Equal("stale.com", res.FailedDomains[0].Domain)
+
+	haproxyMock.AssertExpectations(t)
+	acmeMock.AssertExpectations(t)
+}
+
+// TestDomainSyncAcmeRemovalStaysTolerant pins the existing choice that a failure
+// to deregister the certificate from acme.sh does not hold up the removal: by
+// that point HAProxy has already stopped serving the domain, so the operation
+// succeeded in the way that matters. It is worth knowing about -- acme.sh will
+// keep renewing a certificate nobody serves -- but it is not a reason to report
+// the domain as failed, and this test exists so the rewrite of the loop's error
+// handling does not silently change that.
+func TestDomainSyncAcmeRemovalStaysTolerant(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+	assert := assert.New(t)
+
+	svc, haproxyMock, acmeMock, certsPath := newReissueService(t)
+	pem := filepath.Join(certsPath, "stale.com.pem")
+
+	haproxyMock.On("ShowMap", "virt@domains").Return([]string{"stale.com"}, nil).Once()
+	haproxyMock.On("DelMap", "virt@domains", "stale.com").Return(nil).Once()
+	haproxyMock.On("DelSslCrtList", "/certs/crt-list.cfg", pem).Return(nil).Once()
+	haproxyMock.On("DelSslCert", pem).Return(nil).Once()
+	acmeMock.On("RemoveCert", mock.Anything, "stale.com", "stale.com.pem").
+		Return(errors.New("acme.sh is unhappy")).Once()
+
+	res, err := svc.DomainSync(t.Context(), []haproxysync.DomainSyncDomain{})
+	require.NoError(err)
+	assert.Equal(1, res.DomainsRemoved, "the domain is no longer served, so it is removed")
+	assert.Empty(res.FailedDomains, "acme.sh deregistration is not a removal failure")
 
 	haproxyMock.AssertExpectations(t)
 	acmeMock.AssertExpectations(t)
