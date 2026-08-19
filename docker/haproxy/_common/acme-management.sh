@@ -88,16 +88,20 @@ case "$1" in
                     echo "Main-domain certificate issuance attempt $attempts failed"
                 fi
 
-                # This probe answers "is 443 up", NOT "is the ACME certificate
-                # being served": -k skips chain and hostname checks, so it also
-                # succeeds against the boot self-signed certificate or one
-                # issued for another name. Hence the loop almost always leaves
-                # on the first pass. Making it meaningful changes the portal's
-                # boot condition and is out of scope here.
-                # `> /dev/null 2>&1` rather than `&>` for portability: busybox
-                # ash accepts `&>`, a plain POSIX shell reads it as a background
-                # operator.
-                if curl -k --resolve "$ACME_DOMAIN:$HTTPS_PORT:127.0.0.1" "https://$ACME_DOMAIN:$HTTPS_PORT" > /dev/null 2>&1; then
+                # Ask whether the certificate HAProxy is serving actually
+                # covers the domain we just asked for. Checking only that TLS
+                # answers is useless here: auto-generate-certs.sh has already
+                # put a locally-signed *.localdomain certificate in place, so
+                # something always answers.
+                #
+                # -checkhost does the full name match, SANs included, and reads
+                # the certificate the server presents without validating its
+                # chain. That last part is deliberate: chain validation would
+                # break every install issuing from a non-public CA -- a
+                # letsencrypt_test deployment, or a client's internal CA --
+                # which would then burn the whole retry budget on every boot.
+                if echo | openssl s_client -connect "127.0.0.1:$HTTPS_PORT" -servername "$ACME_DOMAIN" 2>/dev/null \
+                    | openssl x509 -noout -checkhost "$ACME_DOMAIN" > /dev/null 2>&1; then
                     echo "Main-domain certificate is being served"
                     served=true
                     break
