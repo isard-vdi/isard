@@ -96,7 +96,22 @@ type HAProxySyncDomains struct {
 	CertsPath      string
 	BaseDomain     string
 
+	// domains is the presence set, rebuilt from HAProxy's map on every sync.
 	domains map[string]bool
+
+	// specs remembers the certificate fingerprint last materialized for each
+	// domain, so a sync can tell "already served" apart from "already served
+	// with the certificate we want". Without it, DomainSync only ever compared
+	// names and a change of certificate source was silently dropped.
+	//
+	// It lives in memory for the process lifetime and is deliberately NOT
+	// persisted: on startup every already-served domain is unknown and gets
+	// adopted as-is, because re-issuing all of them would hit the CA once per
+	// branding domain on every restart. The cost is that a change made while
+	// this process was down is adopted rather than applied — the next real
+	// change is picked up normally. Deriving the fingerprint from the
+	// certificate HAProxy actually serves would remove that gap.
+	specs map[string]string
 }
 
 type HAProxySyncBastion struct {
@@ -116,6 +131,7 @@ func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface, acme 
 			CrtListPath:    cfg.Domains.CrtListPath,
 			CertsPath:      cfg.Domains.CertsPath,
 			BaseDomain:     cfg.Domains.BaseDomain,
+			specs:          map[string]string{},
 		},
 
 		Bastion: &HAProxySyncBastion{
