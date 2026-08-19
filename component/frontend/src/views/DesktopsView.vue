@@ -1356,12 +1356,12 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     </Empty>
   </main>
 
-  <main v-else class="-mt-5 flex flex-col w-full">
+  <main v-else class="-mt-4 flex flex-col w-full">
     <div
       :class="
         cn(
-          'sticky top-16 z-40 -mx-5 flex flex-col gap-3 bg-base-background px-5 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-8 before:bg-base-background',
-          windowScrollY > 0 && 'shadow-lg mb-4'
+          'sticky top-16 z-40 -mx-5 mb-1 flex flex-col gap-3 bg-base-background px-5 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-8 before:bg-base-background',
+          windowScrollY > 0 && 'shadow-lg'
         )
       "
     >
