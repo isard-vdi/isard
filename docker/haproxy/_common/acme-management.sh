@@ -70,29 +70,47 @@ case "$1" in
         # below only covers the MAIN domain, and it is skipped entirely on the
         # installs that configure no ACME account.
         if [ -n "$ACME_DOMAIN" ] && [ -n "$ACME_EMAIL" ]; then
-            acme-generate-cert.sh "$ACME_DOMAIN"
+            # Generate the main domain certificate, retrying until HAProxy
+            # serves it. Bounded: the exit-code-2 fast path already makes an
+            # already-valid certificate a no-op, so the retry only exists to
+            # ride out a slow start, and a persistent failure must fall back to
+            # the self-signed certificate and let the renewal cron try later
+            # rather than spin here forever holding the boot sequence.
+            attempts=0
+            max_attempts=30
+            served=false
+            while [ "$attempts" -lt "$max_attempts" ]; do
+                attempts=$((attempts + 1))
 
-            # chain.pem always holds a certificate (the self-signed one), so only the
-            # fingerprint tells whether HAProxy answers with the one just deployed
-            deployed="$(openssl x509 -in /certs/chain.pem -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')"
+                # A failed attempt must not abort the loop: `set -e` would
+                # otherwise kill the whole script on the first CA hiccup.
+                if ! acme-generate-cert.sh "$ACME_DOMAIN"; then
+                    echo "Main-domain certificate issuance attempt $attempts failed"
+                fi
 
-            attempt=1
-            while [ "$attempt" -le 30 ]; do
+                # HAProxy is asked directly, not over HTTPS: `curl -k` only
+                # proves 443 answers, and succeeds against the boot self-signed
+                # certificate too. chain.pem always holds a certificate, so the
+                # fingerprint is the only thing that says HAProxy took the one
+                # just deployed. `socat` exits 0 even when the certificate is
+                # missing, so the condition reads the answer, not the status.
+                deployed="$(openssl x509 -in /certs/chain.pem -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')"
                 loaded="$(echo "show ssl cert /certs/chain.pem" \
                     | socat -T2 - UNIX-CONNECT:/var/run/haproxy.sock \
                     | awk '/^SHA1 FingerPrint:/ { print $3 }')"
-
                 if [ -n "$loaded" ] && [ "$loaded" = "$deployed" ]; then
                     echo "HAProxy has loaded the certificate for $ACME_DOMAIN"
-                    exit 0
+                    served=true
+                    break
                 fi
 
                 attempt=$((attempt + 1))
                 sleep 2
             done
 
-            echo "ERROR: HAProxy has not loaded the certificate deployed to /certs/chain.pem after 60 seconds, it is still answering with the previous one" >&2
-            exit 1
+            if [ "$served" != "true" ]; then
+                echo "Giving up main-domain issuance after $attempts attempts; the renewal cron will retry"
+            fi
         fi
         ;;
 

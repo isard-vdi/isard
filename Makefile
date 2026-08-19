@@ -335,6 +335,13 @@ build: build-cfg build-compose
 build-cfg:
 	bash build.sh
 
+# Suite for the haproxy ACME shell scripts (docker/haproxy/_common/tests). Pure
+# bash: acme.sh, crond and curl are stubbed on PATH and the scripts' filesystem
+# locations are redirected, so it needs no container and no ACME account.
+.PHONY: test-haproxy-acme
+test-haproxy-acme:
+	bash docker/haproxy/_common/tests/test_acme_management.sh
+	bash docker/haproxy/_common/tests/test_acme_generate_cert.sh
 .PHONY: build-compose
 build-compose:
 	docker compose build

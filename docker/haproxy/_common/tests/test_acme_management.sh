@@ -108,8 +108,18 @@ echo "\$@" >> "$WORK_DIR/log/curl.log"
 exit $curl_rc
 EOF
 
+    # The boot retry sleeps between attempts; make that instant so a suite that
+    # deliberately exhausts the retry budget stays fast.
+    cat >"$BIN_DIR/sleep" <<EOF
+#!/bin/sh
+exit 0
+EOF
+
     chmod +x "$BIN_DIR"/*
 }
+
+# attempts_made — how many times the issuance script was invoked
+attempts_made() { wc -l <"$WORK_DIR/log/acme-generate-cert.sh.log" 2>/dev/null | tr -d ' '; }
 
 # run_acme <command> [VAR=VAL ...]
 #
@@ -127,10 +137,14 @@ run_acme() {
             HTTPS_PORT=443 \
             ACME_SERVER=letsencrypt \
             "$@" \
-            sh "$SCRIPT" "$command" 2>&1
+            timeout 30 sh "$SCRIPT" "$command" 2>&1
     )
     RUN_RC=$?
 }
+
+# The bound the boot retry must respect. Kept in step with acme-management.sh.
+# shellcheck disable=SC2034  # used inside the single-quoted conditions check() evals later
+MAX_BOOT_ATTEMPTS=30
 
 log_has() { [ -f "$WORK_DIR/log/$1" ]; }
 
@@ -201,6 +215,52 @@ check "generate with full ACME config issues the main-domain certificate" \
 new_fixture
 run_acme bogus-subcommand
 check "an unknown subcommand is rejected" '[ "$RUN_RC" -ne 0 ]' "rc=$RUN_RC out=$RUN_OUT"
+
+#-------------------------------------------------------------------------------
+# The boot retry must be bounded, and must actually consult the probe
+#-------------------------------------------------------------------------------
+#
+# The loop used to be `while true`. Nobody noticed because its exit probe is
+# `curl -k`, which skips chain and hostname verification and so succeeds as
+# soon as HAProxy answers TLS with anything at all: the loop left on the first
+# pass whether or not ACME had issued a thing. These checks drive the probe
+# from the stub instead, so the retry budget is exercised for real.
+
+new_fixture 1   # probe always fails
+run_acme generate ACME_EMAIL=ops@example.com ACME_DOMAIN=vdi.example.com
+check "a failing probe does not end the retry loop after one attempt" \
+    '[ "$(attempts_made)" -gt 1 ]' "attempts=$(attempts_made) out=$RUN_OUT"
+check "a failing probe exhausts exactly the documented retry budget" \
+    '[ "$(attempts_made)" -eq "$MAX_BOOT_ATTEMPTS" ]' "attempts=$(attempts_made)"
+check "exhausting the retry budget terminates instead of looping forever" \
+    '[ "$RUN_RC" -ne 124 ]' "rc=$RUN_RC (124 means the timeout killed it)"
+check "exhausting the retry budget is not a fatal error" \
+    '[ "$RUN_RC" -eq 0 ]' "rc=$RUN_RC out=$RUN_OUT"
+check "giving up is announced so the log explains the fallback" \
+    'echo "$RUN_OUT" | grep -qi "giving up"' "out=$RUN_OUT"
+
+new_fixture 0   # probe succeeds immediately
+run_acme generate ACME_EMAIL=ops@example.com ACME_DOMAIN=vdi.example.com
+check "a succeeding probe stops after a single attempt" \
+    '[ "$(attempts_made)" -eq 1 ]' "attempts=$(attempts_made) out=$RUN_OUT"
+check "a succeeding probe does not claim it gave up" \
+    '! echo "$RUN_OUT" | grep -qi "giving up"' "out=$RUN_OUT"
+
+# A transient issuance failure must not abort the loop: `set -e` used to kill
+# the whole script on the first non-zero exit from acme-generate-cert.sh, so a
+# CA hiccup during boot meant no further attempts at all.
+new_fixture 1
+cat >"$BIN_DIR/acme-generate-cert.sh" <<EOF
+#!/bin/sh
+echo "\$@" >> "$WORK_DIR/log/acme-generate-cert.sh.log"
+exit 1
+EOF
+chmod +x "$BIN_DIR/acme-generate-cert.sh"
+run_acme generate ACME_EMAIL=ops@example.com ACME_DOMAIN=vdi.example.com
+check "a failing issuance attempt does not abort the retry loop" \
+    '[ "$(attempts_made)" -eq "$MAX_BOOT_ATTEMPTS" ]' "attempts=$(attempts_made) out=$RUN_OUT"
+check "a failing issuance attempt leaves the script exiting cleanly" \
+    '[ "$RUN_RC" -eq 0 ]' "rc=$RUN_RC out=$RUN_OUT"
 
 #-------------------------------------------------------------------------------
 # The ACME home holds account keys: it must not be world-readable
