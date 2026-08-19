@@ -222,6 +222,41 @@ func (h *HAproxySync) isBaseDomain(d string) bool {
 	return h.Domains.BaseDomain != "" && strings.EqualFold(d, h.Domains.BaseDomain)
 }
 
+// defaultAccountThumbprintPath is where acme.sh stores the HTTP-01 account
+// thumbprint. Init copies it onto the service so a test can point one instance
+// somewhere else without reaching for a package-level variable, which parallel
+// tests in this package would share.
+const defaultAccountThumbprintPath = "/etc/acme/account-thumbprint"
+
+// pushAccountThumbprint puts the HTTP-01 account thumbprint into the running
+// HAProxy's process variable, so the challenge responder answers with the
+// account we are about to issue under.
+//
+// HAProxy seeds that variable from the environment, and the environment is read
+// at PARSE time: a reload resets it to whatever it said when the container
+// started, which on an install that had no ACME account then is the empty
+// string. Doing this before each issuance is what makes it self-correcting --
+// whatever happened in between, the responder is put back in step immediately
+// before the certificate authority is asked to validate.
+//
+// Never fatal. The account file not existing is the normal state of an install
+// that does not use ACME for its main domain, and a push that fails leaves an
+// issuance that may still succeed; refusing to try guarantees it cannot.
+func (h *HAproxySync) pushAccountThumbprint() {
+	raw, err := os.ReadFile(h.Domains.accountThumbprintPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			h.log.Warn().Err(err).Msg("could not read the ACME account thumbprint")
+		}
+		return
+	}
+
+	if err := h.haproxy.SetProcVar("proc.acme_thumbprint", strings.TrimSpace(string(raw))); err != nil {
+		h.log.Warn().Err(err).
+			Msg("could not push the ACME account thumbprint; HTTP-01 challenges may not validate")
+	}
+}
+
 // domainFingerprint is a stable signature of what certificate a domain is
 // asking for. When it differs from the one last materialized, the desired
 // certificate is not the one on disk and the domain must be re-issued even
@@ -247,6 +282,8 @@ func (h *HAproxySync) materializeCert(ctx context.Context, d DomainSyncDomain) (
 		}
 		return d.Certificate, nil
 	}
+
+	h.pushAccountThumbprint()
 
 	if err := h.acme.IssueCert(ctx, d.Name, pemName); err != nil {
 		return nil, fmt.Errorf("issue certificate: %w", err)

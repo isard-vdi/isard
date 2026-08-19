@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +29,7 @@ type Interface interface {
 	AddSslCrtList(crtListPath, certPath string) error
 	DelSslCrtList(crtListPath, certPath string) error
 	DelSslCert(certPath string) error
+	SetProcVar(name, value string) error
 }
 
 var _ Interface = &HAProxy{}
@@ -389,6 +391,52 @@ func (h *HAProxy) DelSslCert(certPath string) error {
 	h.log.Debug().
 		Str("cert", certPath).
 		Msg("deleted ssl cert")
+
+	return nil
+}
+
+// procVarValueRe bounds what may be interpolated into a control-socket command.
+// The only value this is used for is an ACME account thumbprint, which is
+// base64url, and it is read from a file written by acme.sh from certificate
+// authority output rather than from anything this process controls.
+var procVarValueRe = regexp.MustCompile(`^[A-Za-z0-9_-]*$`)
+
+// SetProcVar sets a process-wide HAProxy variable over the admin socket.
+//
+// Two things about the command are not obvious and were verified against a
+// running HAProxy 3.3 rather than taken from a design note:
+//
+//   - `set var` is gated behind experimental mode, and that mode applies to the
+//     CONNECTION. Sending "experimental-mode on" as a separate command leaves
+//     the next connection back in normal mode, and the set is rejected with
+//     "This command is restricted to experimental mode only." So both ride on
+//     one command string.
+//   - the value must be `str(<v>)`. `str <v>` is refused with "arg type must be
+//     either 'expr' or 'fmt'".
+//
+// Unlike a config-file value, this survives only until HAProxy re-reads its
+// configuration: a reload resets process variables to what the environment
+// said at parse time, so callers must be able to re-apply it.
+func (h *HAProxy) SetProcVar(name, value string) error {
+	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-set%20var
+	if !strings.HasPrefix(name, "proc.") {
+		return fmt.Errorf("set var '%s': only proc. variables can be set at runtime", name)
+	}
+
+	if !procVarValueRe.MatchString(value) {
+		return fmt.Errorf("set var '%s': value is not safe to send on the control socket", name)
+	}
+
+	raw, err := h.exec(fmt.Sprintf("experimental-mode on; set var %s str(%s)", name, value))
+	if err != nil {
+		return fmt.Errorf("set var '%s': %w", name, err)
+	}
+
+	if err := checkResponse(raw); err != nil {
+		return fmt.Errorf("set var '%s': %w", name, err)
+	}
+
+	h.log.Debug().Str("var", name).Msg("set process variable")
 
 	return nil
 }
