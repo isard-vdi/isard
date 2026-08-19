@@ -19,6 +19,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import re
+
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
@@ -34,7 +36,6 @@ from ....models.storage_pool import StoragePool
 
 
 class CategoriesProcessed(RethinkSharedConnection):
-
     _rdb_table = "categories"
 
     @classmethod
@@ -168,18 +169,31 @@ class CategoriesProcessed(RethinkSharedConnection):
                 ).run(cls._rdb_connection)
 
     @classmethod
-    def search_users_in_category(cls, category_id: str, search: str):
+    def search_users_in_category(
+        cls, category_id: str, search: str, limit: int = 50
+    ) -> dict:
+        pattern = "(?i)" + re.escape(search)
+        matches = (
+            r.table("users")
+            .get_all(category_id, index="category")
+            .filter(lambda user: user["active"].default(False).eq(True))
+            .filter(
+                lambda user: user["name"].match(pattern)
+                | user["username"].match(pattern)
+            )
+        )
+
         with cls._rdb_context():
-            return (
-                r.table("users")
-                .get_all(category_id, index="category")
-                .filter(
-                    lambda user: user["name"].downcase().match(search.lower())
-                    | user["username"].downcase().match(search.lower())
-                )
-                .pluck("id", "name", "username")
+            total = matches.count().run(cls._rdb_connection)
+
+        with cls._rdb_context():
+            users = list(
+                matches.pluck("id", "name", "username", "photo")
+                .limit(limit)
                 .run(cls._rdb_connection)
             )
+
+        return {"users": users, "total": total}
 
     @classmethod
     def get_id_by_name(cls, category_name: str) -> str:

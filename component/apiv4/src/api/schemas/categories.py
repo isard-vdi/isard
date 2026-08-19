@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 
 class CategoriesUsersSearchResponse(BaseModel):
     users: list[AvailableUser]
+    total: int
 
 
 class AvailableGroup(BaseModel):

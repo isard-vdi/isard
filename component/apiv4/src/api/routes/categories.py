@@ -50,20 +50,22 @@ tag = "categories"
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
-    deprecated=True,
 )
 async def search_users_in_category(
     request: Request,
     search: str = Query(..., description="String to search for users"),
+    limit: int = Query(
+        50, ge=1, le=200, description="Maximum number of users to return."
+    ),
 ):
-    # TODO@: probably not in use
     try:
         return JSONResponse(
             content=CategoriesUsersSearchResponse(
-                users=await asyncio.to_thread(
+                **await asyncio.to_thread(
                     CategoryService.search_users_in_category,
                     request.token_payload["category_id"],
                     search,
+                    limit,
                 )
             ).model_dump(mode="json"),
             status_code=200,
@@ -74,7 +76,7 @@ async def search_users_in_category(
         raise await Error.create(
             request,
             "internal_server",
-            f"Failed to retrieve group users",
+            "Failed to search users in category",
             traceback.format_exc(),
         )
 
