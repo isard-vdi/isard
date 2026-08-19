@@ -17,6 +17,7 @@ log resolve.
 """
 
 import json
+import os
 import re
 
 try:  # pragma: no cover - present in the initdb runtime, absent in unit tests
@@ -621,6 +622,63 @@ def v189_prune_non_full_use_gpu_profiles(upgrade):
 """
 Upgrade general actions
 """
+
+
+# ── v207: main-domain certificate seed ──────────────────────────────────────
+
+# A variable declared in docker-compose but unset in isardvdi.cfg reaches the
+# container as one of these rather than as an absent name, and seeding the four
+# characters n-u-l-l as a domain would be worse than seeding nothing.
+_UNSET_ENV_VALUES = frozenset(("", "null", "none"))
+
+
+def _env_value(env, key):
+    """Return env[key] stripped, or None when it is absent or a placeholder."""
+    value = (env.get(key) or "").strip()
+    if value.lower() in _UNSET_ENV_VALUES:
+        return None
+    return value
+
+
+def v207_main_domain_certificate_seed(env=None, existing=None):
+    """Build ``config[1].certificates.main_domain`` from the deployment env.
+
+    Returns the document to write, or None when there is nothing to do.
+
+    This is what makes moving the certificate configuration into the database a
+    migration rather than a second source of truth beside isardvdi.cfg: every
+    install already has a working main domain and it has to show up in the new
+    admin UI without anyone retyping it.
+
+    Never overwrites a block that already exists. ``_system_upgrades()`` runs on
+    every boot and restoring a backup can replay an older version number over a
+    configured deployment, so re-running this must not undo an operator's edit.
+
+    The domain is seeded even when no ACME account is configured, leaving
+    ``certificate_source`` unset. That is the designed inert state: issuance
+    no-ops without it, so an install that never used ACME gets its domain shown
+    and nothing else changes.
+    """
+    if env is None:
+        env = os.environ
+    if existing:
+        return None
+
+    domain = _env_value(env, "DOMAIN") or _env_value(env, "VIDEO_DOMAIN")
+    if not domain:
+        return None
+
+    # Normalised the way the API validator would store it, so a seeded value and
+    # a value saved from the UI cannot differ only by case or padding.
+    seed = {"names": [domain.lower()]}
+
+    email = _env_value(env, "ACME_EMAIL")
+    if email:
+        seed["certificate_source"] = "acme"
+        seed["email"] = email
+        seed["acme_server"] = _env_value(env, "ACME_SERVER") or "letsencrypt"
+
+    return seed
 
 
 def add_keys(self, table, keys, id=False):

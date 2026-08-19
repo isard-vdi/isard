@@ -27,7 +27,14 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       API_ISARDVDI_SECRET:
+      # ACME_* and VIDEO_DOMAIN are read once, by the initdb migration that
+      # seeds the main-domain certificate configuration into the database from
+      # what the deployment already has. Without them here the seed reads None
+      # on every install and silently stores nothing.
+      ACME_EMAIL:
+      ACME_SERVER:
       DOMAIN:
+      VIDEO_DOMAIN:
       ENGINE_DISK_BALANCER:
       ENGINE_HYPER_BALANCER: ${ENGINE_HYPER_BALANCER:-available_ram_percent}
       GPU_FAKE:

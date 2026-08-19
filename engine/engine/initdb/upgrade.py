@@ -45,15 +45,20 @@ from .upgrade_helpers import (
     v189_backfill_and_canon_vgpus,
     v189_canonicalize_vgpu_ids,
     v189_prune_non_full_use_gpu_profiles,
+    v207_main_domain_certificate_seed,
 )
 
 """
 Update to new database release version when new code version release
 """
-release_version = 206
+release_version = 207
 # release 206: drop the profile keys the bastion used to copy into targets;
 #              they are resolved live now, so a stored copy is an access
 #              that survives losing the permission it came from
+# release 207: seed config[1].certificates.main_domain from the deployment
+#              environment, so the certificate configuration an install
+#              already has appears in the new admin panel without anyone
+#              retyping it. Skipped when the block already exists.
 # release 205: seed the per-owner Redis task index from the storage/media row
 #              pointers, so the index answers for rows whose last chain
 #              predates it, and drop the now-unread storage "task" secondary
@@ -1074,6 +1079,29 @@ password:s:%s"""
                     }
                 }
             ).run(self.conn)
+
+        if version == 207:
+            # Move the main-domain certificate configuration out of
+            # isardvdi.cfg and into the database, where the admin UI can read
+            # and change it. Same shape as the v175 SMTP seed: take what the
+            # deployment already has from the environment so nobody has to
+            # retype a working configuration.
+            #
+            # Deliberately skipped when the block already exists, because this
+            # runs on every boot and a restore can replay an older version
+            # number over a configured deployment.
+            seed = v207_main_domain_certificate_seed(
+                existing=((d or {}).get("certificates") or {}).get("main_domain")
+            )
+            if seed:
+                r.table(table).get(1).update(
+                    {"certificates": {"main_domain": seed}}
+                ).run(self.conn)
+                log.info(
+                    "v207: seeded the main-domain certificate config from the environment"
+                )
+            else:
+                log.info("v207: main-domain certificate config already set, left alone")
 
         if version == 179:
             r.table(table).replace(
