@@ -205,6 +205,13 @@ test-vmalert:
 # Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, so pytest
 # never sees it, and it needs real qcow2 images and a live lock holder: qemu-img
 # and qemu-io must exist.
+# Suite for the haproxy ACME shell scripts (docker/haproxy/_common/tests). Pure
+# bash: acme.sh, crond and curl are stubbed on PATH and the scripts' filesystem
+# locations are redirected, so it needs no container and no ACME account.
+.PHONY: test-haproxy-acme
+test-haproxy-acme:
+	bash docker/haproxy/_common/tests/test_acme_management.sh
+
 .PHONY: test-sparsify
 test-sparsify:
 	bash docker/storage/tests/test_sparsify_recover_backup.sh

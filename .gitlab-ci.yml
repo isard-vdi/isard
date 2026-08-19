@@ -341,6 +341,18 @@ unit-test-sparsify:
   script:
     - make test-sparsify
 
+unit-test-haproxy-acme:
+  # Suite for the haproxy ACME shell scripts (docker/haproxy/_common/tests).
+  # Plain bash with acme.sh, crond and curl stubbed on PATH, so it needs no
+  # container, no ACME account and no network.
+  stage: unit-test
+  needs: []
+  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+  before_script:
+    - apk add --no-cache bash make procps
+  script:
+    - make test-haproxy-acme
+
 unit-test-frontend:
   extends:
     - ".bun-cache:component/frontend"
