@@ -180,7 +180,18 @@ const isPending = computed(() => {
   )
 })
 
-defineExpose({ form, isPending })
+const formIsDirty = form.useStore((state) => !state.isDefaultValue)
+
+// The card and the allowed selection live outside the form.
+const isDirty = computed(
+  () =>
+    formIsDirty.value ||
+    !!selectedImage.value ||
+    allowed.value.groups !== false ||
+    allowed.value.users !== false
+)
+
+defineExpose({ form, isPending, isDirty })
 
 // Allowed
 const handleSaveAllowed = (selection: AllowedSelection) => {

@@ -280,10 +280,8 @@
     },
     "new-template": {
       "header": {
-        "cancel": "Utzi",
         "create-template": "Sortu txantiloia",
-        "next": "Hurrengoa",
-        "previous": "Aurrekoa"
+        "next": "Hurrengoa"
       },
       "stepper-steps": {
         "select-desktop": "Hautatu mahaigaina",
@@ -294,8 +292,6 @@
         "desktop-not-stopped": "Mahaigaina geldituta egon behar da txantiloia sortzeko."
       },
       "form": {
-        "title": "Konfiguratu zure txantiloia",
-        "subtitle": "Txantiloiaren izena, irudia eta nork erabil dezakeen editatu ditzakezu.",
         "sections": {
           "preview": {
             "title": "Aurrebista",
@@ -1480,6 +1476,18 @@
       },
       "summary": {
         "title": "Zure erreserba guztiak"
+      }
+    },
+    "form-header": {
+      "cancel-creation": "Utzi sorkuntza",
+      "cancel-edit": "Utzi edizioa",
+      "previous": "Aurreko urratsa",
+      "next": "Hurrengoa",
+      "discard-modal": {
+        "title": "Baztertu eta irten?",
+        "description": "Sartu duzun informazioa galduko da.",
+        "cancel": "Jarraitu editatzen",
+        "confirm": "Baztertu eta irten"
       }
     }
   },

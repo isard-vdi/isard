@@ -191,10 +191,6 @@
           }
         }
       },
-      "header": {
-        "cancel": "Cancel·la",
-        "previous": "Anterior"
-      },
       "step-2": {
         "title": "Configura el teu escriptori",
         "description": "Pots editar el nom, la imatge i el maquinari de l'escriptori",
@@ -432,10 +428,8 @@
     },
     "new-template": {
       "header": {
-        "cancel": "Cancel·la",
         "create-template": "Crea la plantilla",
-        "next": "Següent",
-        "previous": "Anterior"
+        "next": "Següent"
       },
       "stepper-steps": {
         "select-desktop": "Selecciona l'escriptori",
@@ -446,8 +440,6 @@
         "desktop-not-stopped": "L'escriptori ha d'estar aturat per crear una plantilla."
       },
       "form": {
-        "title": "Configura la teva plantilla",
-        "subtitle": "Pots editar el nom de la plantilla, la imatge i qui la pot utilitzar.",
         "sections": {
           "preview": {
             "title": "Previsualització",
@@ -817,8 +809,6 @@
         }
       },
       "header": {
-        "cancel": "Cancel·la",
-        "previous": "Anterior",
         "next": "Següent",
         "create-deployment": "Crea el desplegament"
       }
@@ -867,7 +857,6 @@
       "title": "Edita l’escriptori",
       "subtitle": "Editant «{name}»",
       "header": {
-        "cancel": "Cancel·la",
         "save": "Desa els canvis"
       },
       "errors": {
@@ -889,7 +878,6 @@
     },
     "edit-template": {
       "header": {
-        "cancel": "Cancel·la",
         "save": "Desa els canvis"
       },
       "errors": {
@@ -2606,6 +2594,18 @@
       },
       "cancel": "Cancel·la",
       "save": "Accepta els canvis"
+    },
+    "form-header": {
+      "cancel-creation": "Cancel·la la creació",
+      "cancel-edit": "Cancel·la l'edició",
+      "previous": "Pas anterior",
+      "next": "Següent",
+      "discard-modal": {
+        "title": "Vols descartar i sortir?",
+        "description": "Es perdrà la informació que has introduït.",
+        "cancel": "Continua editant",
+        "confirm": "Descarta i surt"
+      }
     }
   },
   "authentication": {

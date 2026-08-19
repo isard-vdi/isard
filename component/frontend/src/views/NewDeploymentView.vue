@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import { isInvalid } from '@/lib/utils'
@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { NewDeploymentForm } from '@/components/deployments/new-deployment-form'
 import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
+import { FormHeader } from '@/components/form-header'
 import { DomainInfoModal } from '@/components/desktops'
 
 import { NewDeploymentDesktopFormCard } from '@/components/deployments/new-deployment-desktop-from-card'
@@ -66,6 +67,8 @@ const {
   error: userQuotasError
 } = useQuery(getUserQuotasOptions())
 
+const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
+
 const {
   mutate: createDeployment,
   mutateAsync: createDeploymentAsync,
@@ -77,6 +80,7 @@ const {
 } = useMutation({
   ...createDeploymentMutation(),
   onSuccess: (data) => {
+    formHeaderRef.value?.allowLeave()
     router.push({
       name: 'deployments',
       params: { deploymentId: data.id }
@@ -292,6 +296,7 @@ const form = useForm({
 // Reactively get field metadata from the form to track errors per step
 const formFieldMeta = form.useStore((state) => state.fieldMeta)
 const formValues = form.useStore((state) => state.values)
+const formIsTouched = form.useStore((state) => !state.isPristine)
 
 // Define which form fields belong to each step
 const step1Fields = ['name', 'description', 'visible']
@@ -341,6 +346,18 @@ const steps = computed<StepperFormStep[]>(() => {
     }
   ]
 })
+
+const goToPreviousStep = () => {
+  if (currentStep.value > 1) {
+    currentStep.value -= 1
+  }
+}
+
+const goToNextStep = () => {
+  if (currentStep.value < steps.value.length) {
+    currentStep.value += 1
+  }
+}
 
 const toMediaResources = (media?: DomainInfoMedia[]) =>
   media?.map(({ id, name }) => ({ id, name: name ?? id }))
@@ -611,43 +628,24 @@ const updateHardware = (
       "
     />
 
-    <div
-      class="flex flex-col md:flex-row items-start justify-center max-w-480 w-full mx-auto mb-8 gap-4"
+    <FormHeader
+      ref="formHeaderRef"
+      :cancel-to="{ name: 'deployments' }"
+      :confirm-cancel="formIsTouched || currentStep > 1"
+      :show-previous="currentStep > 1"
+      @previous="goToPreviousStep"
     >
-      <div class="flex flex-row items-center gap-4 w-full">
-        <Button
-          :as="RouterLink"
-          :to="{ name: 'deployments' }"
-          hierarchy="link-color"
-          icon="arrow-left"
-        >
-          {{ t('views.new-deployment.header.cancel') }}
-        </Button>
-      </div>
+      <template #stepper>
+        <div class="shrink-0 _w-160 w-80">
+          <StepperForm
+            v-model="currentStep"
+            :steps="steps"
+            :disable-future-steps="!isStepFieldsValid(currentStep)"
+          />
+        </div>
+      </template>
 
-      <div class="shrink-0 _w-160 w-80">
-        <StepperForm
-          v-model="currentStep"
-          :steps="steps"
-          :disable-future-steps="!isStepFieldsValid(currentStep)"
-        />
-      </div>
-
-      <div class="flex flex-row items-center justify-end gap-4 w-full">
-        <Button
-          hierarchy="link-color"
-          :disabled="currentStep <= 1"
-          @click="
-            () => {
-              if (currentStep > 1) {
-                currentStep -= 1
-              }
-            }
-          "
-        >
-          {{ t('views.new-deployment.header.previous') }}
-        </Button>
-
+      <template #next>
         <form.Subscribe v-slot="{ isValid, isSubmitting, isTouched }">
           <Button
             v-if="currentStep === steps.length"
@@ -663,18 +661,12 @@ const updateHardware = (
             v-else
             class="min-w-32"
             :disabled="!isStepFieldsValid(currentStep)"
-            @click="
-              () => {
-                if (currentStep < steps.length) {
-                  currentStep += 1
-                }
-              }
-            "
+            @click="goToNextStep"
             >{{ t('views.new-deployment.header.next') }}</Button
           >
         </form.Subscribe>
-      </div>
-    </div>
+      </template>
+    </FormHeader>
     <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
       <!-- TODO: try to deduplicate `createDeploymentError as DesktopNameExistsErrorResponse` -->
       <Alert

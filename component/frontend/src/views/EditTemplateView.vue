@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
@@ -12,8 +12,8 @@ import {
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
+import { FormHeader } from '@/components/form-header'
 import { describeApiError } from '@/lib/api-errors'
 import DomainConfigurationPanel from '@/components/domain/DomainConfigurationPanel.vue'
 import {
@@ -38,8 +38,10 @@ const { data: templateDetails, isPending: templateDetailsIsPending } = useQuery(
   refetchOnMount: 'always'
 })
 
+const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
 const panelRef = ref<InstanceType<typeof DomainConfigurationPanel> | null>(null)
 const areFormsValid = computed(() => panelRef.value?.areFormsValid ?? false)
+const isTouched = computed(() => panelRef.value?.isDirty ?? false)
 
 const submitError = ref<string | null>(null)
 
@@ -54,6 +56,7 @@ const { mutate: submitEdit, isPending: submitPending } = useMutation({
       queryKey: getTemplateInfoQueryKey({ path: { template_id: templateId.value } }),
       exact: true
     })
+    formHeaderRef.value?.allowLeave()
     router.push({ name: 'templates' })
   },
   onError: (error) => {
@@ -83,25 +86,16 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <div
-    class="flex flex-col-reverse md:flex-row items-start justify-between max-w-480 w-full mx-auto mb-8 gap-4"
-  >
-    <div class="flex flex-col gap-1"></div>
-
-    <div class="flex gap-4 md:w-auto w-full justify-end">
-      <Button :as="RouterLink" :to="{ name: 'templates' }" hierarchy="link-color">{{
-        t('views.edit-template.header.cancel')
-      }}</Button>
-
-      <Button
-        :disabled="!areFormsValid || submitPending || templateDetailsIsPending"
-        :icon="submitPending ? 'loading-02' : ''"
-        icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
-        @click="handleSubmit"
-        >{{ t('views.edit-template.header.save') }}</Button
-      >
-    </div>
-  </div>
+  <FormHeader
+    ref="formHeaderRef"
+    :cancel-to="{ name: 'templates' }"
+    :cancel-label="t('components.form-header.cancel-edit')"
+    :confirm-cancel="isTouched"
+    :next-label="t('views.edit-template.header.save')"
+    :next-disabled="!areFormsValid || templateDetailsIsPending"
+    :next-pending="submitPending"
+    @next="handleSubmit"
+  />
 
   <main class="max-w-320 w-full mx-auto flex flex-col gap-6">
     <Alert v-if="submitError" variant="destructive" class="max-w-256 w-full mx-auto">

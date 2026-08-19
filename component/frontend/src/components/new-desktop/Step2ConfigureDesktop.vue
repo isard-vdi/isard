@@ -54,6 +54,9 @@ const summary = computed(() => ({
 
 const areFormsValid = computed(() => panelRef.value?.areFormsValid ?? false)
 
+// The kind selector lives here, so the panel alone does not tell the whole story.
+const isDirty = computed(() => !!panelRef.value?.isDirty || desktopKind.value !== 'persistent')
+
 const handleSubmit = () => {
   if (!areFormsValid.value || !panelRef.value) return
 
@@ -62,7 +65,8 @@ const handleSubmit = () => {
 
 defineExpose({
   handleSubmit,
-  areFormsValid
+  areFormsValid,
+  isDirty
 })
 </script>
 

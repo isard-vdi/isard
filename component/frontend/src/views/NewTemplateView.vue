@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
@@ -17,16 +17,8 @@ import { copyToClipboard } from '@/lib/utils'
 import { resolveDesktopKind } from '@/lib/desktops'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { DomainInfoModal } from '@/components/desktops'
-import { StepperForm } from '@/components/stepper-form'
-import {
-  Stepper,
-  StepperDescription,
-  StepperIndicator,
-  StepperItem,
-  StepperSeparator,
-  StepperTitle,
-  StepperTrigger
-} from '@/components/ui/stepper'
+import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
+import { FormHeader } from '@/components/form-header'
 import NewTemplateForm from '@/components/templates/new-template-form/NewTemplateForm.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -153,6 +145,29 @@ const headers = [
 
 const currentStep = ref(route.params.desktopId ? 2 : 1)
 
+const steps = computed<StepperFormStep[]>(() => [
+  {
+    step: 1,
+    title: t('views.new-template.stepper-steps.select-desktop')
+  },
+  {
+    step: 2,
+    title: t('views.new-template.stepper-steps.configure-template')
+  }
+])
+
+const goToPreviousStep = () => {
+  if (currentStep.value > 1) {
+    currentStep.value -= 1
+  }
+}
+
+const goToNextStep = () => {
+  if (currentStep.value < steps.value.length) {
+    currentStep.value += 1
+  }
+}
+
 // if step changes to 2 and no selectedDesktopId, go back to step 1
 watch(currentStep, (newStep) => {
   if (newStep === 2 && !selectedDesktopId.value) {
@@ -168,7 +183,13 @@ const handleRowClick = (row: any) => {
   }
 }
 
+const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
 const newTemplateFormRef = ref<InstanceType<typeof NewTemplateForm> | null>(null)
+
+const handleTemplateCreated = (templateId: string) => {
+  formHeaderRef.value?.allowLeave()
+  router.push({ name: 'templates', params: { templateId } })
+}
 
 const pageSize = computed(() => 10)
 
@@ -261,117 +282,20 @@ useSearchShortcuts(NEW_TEMPLATE_SEARCH_INPUT_ID)
       "
     />
 
-    <header
-      v-if="route.params.desktopId"
-      class="flex flex-col-reverse md:flex-row items-start justify-between max-w-480 w-full mx-auto mb-8 gap-4"
+    <FormHeader
+      ref="formHeaderRef"
+      :cancel-to="route.params.desktopId ? { name: 'desktops' } : { name: 'templates' }"
+      :confirm-cancel="!!newTemplateFormRef?.isDirty"
+      :show-previous="!route.params.desktopId && currentStep > 1"
+      @previous="goToPreviousStep"
     >
-      <div class="flex flex-col gap-1">
-        <h1 class="text-lg font-bold text-gray-warm-900">
-          {{ t('views.new-template.form.title') }}
-        </h1>
-        <h2 class="text-sm font-regular text-gray-warm-700">
-          {{ t('views.new-template.form.subtitle') }}
-        </h2>
-      </div>
+      <template v-if="!route.params.desktopId" #stepper>
+        <div class="shrink-0 w-80">
+          <StepperForm v-model="currentStep" :steps="steps" />
+        </div>
+      </template>
 
-      <div class="flex gap-4 md:w-auto w-full justify-end">
-        <Button hierarchy="link-color" :as="RouterLink" :to="{ name: 'desktops' }">{{
-          t('views.new-template.header.cancel')
-        }}</Button>
-
-        <template v-if="newTemplateFormRef">
-          <newTemplateFormRef.form.Subscribe v-slot="{ isValid, isSubmitting }">
-            <Button
-              type="submit"
-              :disabled="!isValid || newTemplateFormRef.isPending"
-              :icon="isSubmitting || newTemplateFormRef.isPending ? 'loading-02' : ''"
-              icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
-              @click="newTemplateFormRef.form.handleSubmit"
-              >{{ t('views.new-template.header.create-template') }}</Button
-            >
-          </newTemplateFormRef.form.Subscribe>
-        </template>
-        <Skeleton v-else class="w-32" />
-      </div>
-    </header>
-    <header
-      v-else
-      class="flex flex-col md:flex-row items-start justify-center max-w-480 w-full mx-auto mb-8 gap-4"
-    >
-      <div class="flex flex-row items-center gap-4 w-full">
-        <Button
-          hierarchy="link-color"
-          icon="arrow-left"
-          :as="RouterLink"
-          :to="{ name: 'templates' }"
-        >
-          {{ t('views.new-template.header.cancel') }}
-        </Button>
-      </div>
-
-      <div class="shrink-0 w-80">
-        <Stepper v-model="currentStep">
-          <StepperItem :step="1">
-            <div class="flex flex-col items-center gap-1.5 w-full" :class="''">
-              <div class="flex items-center w-full">
-                <div class="w-12 flex justify-center shrink-0">
-                  <StepperTrigger>
-                    <StepperIndicator>1</StepperIndicator>
-                  </StepperTrigger>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <StepperSeparator />
-                </div>
-              </div>
-              <div class="flex items-center mt-1 w-full">
-                <div class="w-12 flex items-center justify-center text-center shrink-0">
-                  <div class="flex flex-col items-center">
-                    <StepperTitle class="text-sm font-bold whitespace-nowrap">
-                      {{ t('views.new-template.stepper-steps.select-desktop') }}
-                    </StepperTitle>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </StepperItem>
-          <StepperItem :step="2" class="flex-[0_0_auto]!">
-            <div class="flex flex-col items-center gap-1.5 w-auto" :class="''">
-              <div class="flex items-center w-auto">
-                <div class="w-12 flex justify-center shrink-0">
-                  <StepperTrigger>
-                    <StepperIndicator>2</StepperIndicator>
-                  </StepperTrigger>
-                </div>
-              </div>
-              <div class="flex items-center mt-1 w-auto">
-                <div class="w-12 flex items-center justify-center text-center shrink-0">
-                  <div class="flex flex-col items-center">
-                    <StepperTitle class="text-sm font-bold whitespace-nowrap">
-                      {{ t('views.new-template.stepper-steps.configure-template') }}
-                    </StepperTitle>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </StepperItem>
-        </Stepper>
-      </div>
-
-      <div class="flex flex-row items-center justify-end gap-4 w-full">
-        <Button
-          hierarchy="link-color"
-          :disabled="currentStep <= 1"
-          @click="
-            () => {
-              if (currentStep > 1) {
-                currentStep -= 1
-              }
-            }
-          "
-        >
-          {{ t('views.new-template.header.previous') }}
-        </Button>
-
+      <template #next>
         <template v-if="currentStep === 2">
           <template v-if="newTemplateFormRef">
             <newTemplateFormRef.form.Subscribe v-slot="{ isValid, isSubmitting }">
@@ -388,22 +312,11 @@ useSearchShortcuts(NEW_TEMPLATE_SEARCH_INPUT_ID)
           </template>
           <Skeleton v-else class="h-10 w-32" />
         </template>
-        <Button
-          v-else
-          class="min-w-32"
-          :disabled="!selectedDesktopId"
-          @click="
-            () => {
-              if (currentStep < 2) {
-                currentStep += 1
-              }
-            }
-          "
-        >
+        <Button v-else class="min-w-32" :disabled="!selectedDesktopId" @click="goToNextStep">
           {{ t('views.new-template.header.next') }}
         </Button>
-      </div>
-    </header>
+      </template>
+    </FormHeader>
 
     <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
       <template v-if="currentStep === 1">
@@ -537,9 +450,7 @@ useSearchShortcuts(NEW_TEMPLATE_SEARCH_INPUT_ID)
           v-else
           ref="newTemplateFormRef"
           :desktop-id="selectedDesktopId"
-          @template-created="
-            (templateId: string) => router.push({ name: 'templates', params: { templateId } })
-          "
+          @template-created="handleTemplateCreated"
         />
       </template>
     </main>

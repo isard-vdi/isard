@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
-import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import { useQuery, useMutation } from '@tanstack/vue-query'
@@ -26,6 +26,7 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 import { InputField } from '@/components/input-field'
 import { Skeleton } from '@/components/ui/skeleton'
+import { FormHeader } from '@/components/form-header'
 import { Switch } from '@/components/ui/switch'
 
 const route = useRoute()
@@ -73,6 +74,8 @@ function handleImageSelected(image: DomainImageOutput) {
   selectedImage.value = image
 }
 
+const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
+
 const duplicateTemplateErrorCode = ref<string | undefined>(undefined)
 const {
   mutate: duplicateTemplate,
@@ -84,6 +87,7 @@ const {
 } = useMutation({
   ...duplicateTemplateMutation(),
   onSuccess: (data) => {
+    formHeaderRef.value?.allowLeave()
     router.push({ name: 'templates', params: { templateId: data.id } })
   },
   onError: (error: any) => {
@@ -147,6 +151,10 @@ const form = useForm({
   }
 })
 
+const formIsTouched = form.useStore((state) => !state.isPristine)
+const formIsValid = form.useStore((state) => state.isValid)
+const formIsSubmitting = form.useStore((state) => state.isSubmitting)
+
 function isInvalid(field) {
   return field.state.meta.isTouched && !field.state.meta.isValid
 }
@@ -178,35 +186,15 @@ const isPending = computed(() => {
   />
 
   <template v-if="quotaCheckPassed">
-    <div
-      class="flex flex-col-reverse md:flex-row items-start justify-between max-w-480 w-full mx-auto mb-8 gap-4"
-    >
-      <div class="flex flex-col gap-1">
-        <h1 class="text-lg font-bold text-gray-warm-900">
-          {{ t('views.new-template.form.title') }}
-        </h1>
-        <h2 class="text-sm font-regular text-gray-warm-700">
-          {{ t('views.new-template.form.subtitle') }}
-        </h2>
-      </div>
-
-      <div class="flex gap-4 md:w-auto w-full justify-end">
-        <Button :as="RouterLink" :to="{ name: 'templates' }" hierarchy="link-color">{{
-          t('views.new-template.header.cancel')
-        }}</Button>
-
-        <form.Subscribe v-slot="{ isValid, isSubmitting }">
-          <Button
-            type="submit"
-            :disabled="!isValid || isPending"
-            :icon="isSubmitting || isPending ? 'loading-02' : ''"
-            icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
-            @click="form.handleSubmit"
-            >{{ t('views.new-template.header.create-template') }}</Button
-          >
-        </form.Subscribe>
-      </div>
-    </div>
+    <FormHeader
+      ref="formHeaderRef"
+      :cancel-to="{ name: 'templates' }"
+      :confirm-cancel="formIsTouched"
+      :next-label="t('views.new-template.header.create-template')"
+      :next-disabled="!formIsValid"
+      :next-pending="formIsSubmitting || isPending"
+      @next="form.handleSubmit"
+    />
 
     <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
       <div class="w-full flex flex-col gap-[24px]">
