@@ -117,6 +117,13 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ## Or you can let isard generate ACME certs for your domain.
 ## For this option to work be sure the DOMAIN points to this IP.
 ## To avoid using ACME certs, let this variable commented.
+##
+## This is now a SEED rather than the source of truth. On upgrade its value is
+## copied once into the database, and from then on Admin > Domains & Resources
+## > Certificates is what decides: editing this file again changes nothing
+## while the database already holds a certificate configuration. It is still
+## what a fresh install starts from, and what the portal boot path falls back
+## to while that configuration is empty.
 #ACME_EMAIL=
 ## The following variable lets you configure the ACME CA that will be used
 ## for certificate generation. Some values can be
@@ -124,6 +131,8 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ## - letsencrypt_test
 ## - zerossl
 ## Full list is in the CA_NAMES variable: https://github.com/acmesh-official/acme.sh/blob/master/acme.sh#L40
+## Seeded into the database on upgrade, exactly like ACME_EMAIL above; change
+## it in Admin > Domains & Resources > Certificates afterwards.
 #ACME_SERVER="letsencrypt"
 ## Additional names to put on this installation's certificate, comma separated
 ## and without spaces. Use it when DOMAIN is a "www." name and the bare name
