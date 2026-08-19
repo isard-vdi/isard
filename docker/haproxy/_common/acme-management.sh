@@ -88,18 +88,21 @@ case "$1" in
                     echo "Main-domain certificate issuance attempt $attempts failed"
                 fi
 
-                # HAProxy is asked directly, not over HTTPS: `curl -k` only
-                # proves 443 answers, and succeeds against the boot self-signed
-                # certificate too. chain.pem always holds a certificate, so the
-                # fingerprint is the only thing that says HAProxy took the one
-                # just deployed. `socat` exits 0 even when the certificate is
-                # missing, so the condition reads the answer, not the status.
-                deployed="$(openssl x509 -in /certs/chain.pem -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')"
-                loaded="$(echo "show ssl cert /certs/chain.pem" \
-                    | socat -T2 - UNIX-CONNECT:/var/run/haproxy.sock \
-                    | awk '/^SHA1 FingerPrint:/ { print $3 }')"
-                if [ -n "$loaded" ] && [ "$loaded" = "$deployed" ]; then
-                    echo "HAProxy has loaded the certificate for $ACME_DOMAIN"
+                # Ask whether the certificate HAProxy is serving actually
+                # covers the domain we just asked for. Checking only that TLS
+                # answers is useless here: auto-generate-certs.sh has already
+                # put a locally-signed *.localdomain certificate in place, so
+                # something always answers.
+                #
+                # -checkhost does the full name match, SANs included, and reads
+                # the certificate the server presents without validating its
+                # chain. That last part is deliberate: chain validation would
+                # break every install issuing from a non-public CA -- a
+                # letsencrypt_test deployment, or a client's internal CA --
+                # which would then burn the whole retry budget on every boot.
+                if echo | openssl s_client -connect "127.0.0.1:$HTTPS_PORT" -servername "$ACME_DOMAIN" 2>/dev/null \
+                    | openssl x509 -noout -checkhost "$ACME_DOMAIN" > /dev/null 2>&1; then
+                    echo "Main-domain certificate is being served"
                     served=true
                     break
                 fi
