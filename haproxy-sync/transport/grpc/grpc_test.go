@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync"
 	"gitlab.com/isard/isardvdi/haproxy-sync/transport/grpc"
 	"gitlab.com/isard/isardvdi/pkg/cfg"
@@ -589,6 +590,83 @@ func TestCheck(t *testing.T) {
 			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			err := srv.Check(context.Background())
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			serviceMock.AssertExpectations(t)
+		})
+	}
+}
+
+// TestIssueMainDomain covers the transport layer's whole job for this call:
+// unpack the request into the service's types, and turn a rejected name into a
+// status the caller can act on rather than an opaque Internal.
+func TestIssueMainDomain(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		PrepareService func(*haproxysync.MockHaproxysync)
+		Req            *haproxysyncv1.IssueMainDomainRequest
+		ExpectedErr    string
+	}{
+		"should map the names and the account": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("IssueMainDomain", mock.AnythingOfType("context.backgroundCtx"),
+					[]string{"vdi.example.com", "alt.example.com"},
+					acme.ACMEAccount{Server: "letsencrypt", Email: "ops@example.com"},
+				).Return(nil)
+			},
+			Req: &haproxysyncv1.IssueMainDomainRequest{
+				Names:      []string{"vdi.example.com", "alt.example.com"},
+				AcmeEmail:  "ops@example.com",
+				AcmeServer: "letsencrypt",
+			},
+		},
+		"should pass an empty account through untouched": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("IssueMainDomain", mock.AnythingOfType("context.backgroundCtx"),
+					[]string{"vdi.example.com"}, acme.ACMEAccount{}).Return(nil)
+			},
+			Req: &haproxysyncv1.IssueMainDomainRequest{Names: []string{"vdi.example.com"}},
+		},
+		"should return InvalidArgument for a rejected name": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("IssueMainDomain", mock.AnythingOfType("context.backgroundCtx"),
+					[]string{"*.example.com"}, mock.Anything).
+					Return(fmt.Errorf("%w: %q", haproxysync.ErrInvalidDomain, "*.example.com"))
+			},
+			Req: &haproxysyncv1.IssueMainDomainRequest{Names: []string{"*.example.com"}},
+			ExpectedErr: status.Error(codes.InvalidArgument,
+				fmt.Errorf("%w: %q", haproxysync.ErrInvalidDomain, "*.example.com").Error()).Error(),
+		},
+		"should return Internal on any other failure": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("IssueMainDomain", mock.AnythingOfType("context.backgroundCtx"),
+					[]string{"vdi.example.com"}, mock.Anything).
+					Return(errors.New("boom"))
+			},
+			Req: &haproxysyncv1.IssueMainDomainRequest{Names: []string{"vdi.example.com"}},
+			ExpectedErr: status.Error(codes.Internal,
+				fmt.Errorf("issue main domain: %w", errors.New("boom")).Error()).Error(),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			serviceMock := &haproxysync.MockHaproxysync{}
+			tc.PrepareService(serviceMock)
+
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
+
+			_, err := srv.IssueMainDomain(context.Background(), tc.Req)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

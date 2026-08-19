@@ -15,8 +15,18 @@ const (
 	removeScriptPath = "/usr/local/bin/acme-remove-cert.sh"
 )
 
+// ACMEAccount identifies the certificate authority and the account to issue
+// under. Per-category branding domains inherit whatever account the container
+// was started with; the main domain carries its own, because it is configured
+// in the database and can be changed without restarting anything.
+type ACMEAccount struct {
+	Server string
+	Email  string
+}
+
 type Interface interface {
 	IssueCert(ctx context.Context, domain, pemName string) error
+	IssueMainDomain(ctx context.Context, names []string, pemName string, account ACMEAccount) error
 	RemoveCert(ctx context.Context, domain, pemName string) error
 }
 
@@ -79,6 +89,46 @@ func (a *ACME) RemoveCert(ctx context.Context, domain, pemName string) error {
 		Str("domain", domain).
 		Str("pem_name", pemName).
 		Msg("ACME certificate removed")
+
+	return nil
+}
+
+// IssueMainDomain issues the certificate the deployment is served with, under
+// the account it names rather than the one baked into the container's
+// environment.
+//
+// Every name is passed as its own argument. Joining them would make a name
+// containing whitespace an argument-injection vector into acme.sh, and the
+// names come from the database.
+func (a *ACME) IssueMainDomain(ctx context.Context, names []string, pemName string, account ACMEAccount) error {
+	if len(names) == 0 {
+		return fmt.Errorf("issue main domain certificate: no names given")
+	}
+
+	a.log.Info().
+		Strs("names", names).
+		Str("primary", names[0]).
+		Str("pem_name", pemName).
+		Str("acme_server", account.Server).
+		Msg("issuing main domain certificate")
+
+	// acme-generate-cert.sh <primary> <pem> <server> <email> [extra names...]
+	args := append([]string{names[0], pemName, account.Server, account.Email}, names[1:]...)
+
+	out, err := exec.CommandContext(ctx, issueScriptPath, args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("issue main domain certificate for '%s': %w: %s", names[0], err, out)
+	}
+
+	certPath := filepath.Join(a.certsPath, pemName)
+	if _, err := os.Stat(certPath); err != nil {
+		return fmt.Errorf("verify certificate file '%s': %w", certPath, err)
+	}
+
+	a.log.Info().
+		Strs("names", names).
+		Str("pem_name", pemName).
+		Msg("main domain certificate issued")
 
 	return nil
 }

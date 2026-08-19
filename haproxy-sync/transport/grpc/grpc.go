@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync"
 	"gitlab.com/isard/isardvdi/pkg/cfg"
 	haproxysyncv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/haproxy_sync/v1"
@@ -82,6 +83,22 @@ func (h *HAProxySyncServer) DomainSync(ctx context.Context, req *haproxysyncv1.D
 		CertsRemoved:   int32(result.CertsRemoved),
 		FailedDomains:  failedDomains,
 	}, nil
+}
+
+func (h *HAProxySyncServer) IssueMainDomain(ctx context.Context, req *haproxysyncv1.IssueMainDomainRequest) (*haproxysyncv1.IssueMainDomainResponse, error) {
+	err := h.haproxysync.IssueMainDomain(ctx, req.GetNames(), acme.ACMEAccount{
+		Server: req.GetAcmeServer(),
+		Email:  req.GetAcmeEmail(),
+	})
+	if err != nil {
+		if errors.Is(err, haproxysync.ErrInvalidDomain) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
+		return nil, status.Error(codes.Internal, fmt.Errorf("issue main domain: %w", err).Error())
+	}
+
+	return &haproxysyncv1.IssueMainDomainResponse{}, nil
 }
 
 func (h *HAProxySyncServer) BastionAddSubdomain(ctx context.Context, req *haproxysyncv1.BastionAddSubdomainRequest) (*haproxysyncv1.BastionAddSubdomainResponse, error) {

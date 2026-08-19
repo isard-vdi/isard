@@ -1006,3 +1006,119 @@ func TestDomainSyncAcmeRemovalStaysTolerant(t *testing.T) {
 	haproxyMock.AssertExpectations(t)
 	acmeMock.AssertExpectations(t)
 }
+
+// TestIssueMainDomain pins how the deployment's own certificate is issued, which
+// is deliberately unlike every other domain this service handles.
+//
+// The main domain is not in the domain map and its certificate is not a crt-list
+// entry: it IS the crt-list default, and the domain is routed by the base ACL.
+// So issuing it must deploy to that default PEM and touch nothing else. Adding
+// it to the map would make the same name arrive through two paths, and adding a
+// crt-list entry would put a second certificate ahead of the default.
+func TestIssueMainDomain(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	svc, haproxyMock, acmeMock, _ := newReissueService(t)
+	account := acme.ACMEAccount{Server: "letsencrypt", Email: "ops@example.com"}
+
+	acmeMock.On("IssueMainDomain", mock.Anything,
+		[]string{"vdi.example.com"}, "chain.pem", account).Return(nil).Once()
+
+	require.NoError(svc.IssueMainDomain(t.Context(), []string{"vdi.example.com"}, account))
+
+	// Nothing else was declared on the haproxy mock, so any map or crt-list call
+	// would have failed this test outright.
+	haproxyMock.AssertExpectations(t)
+	acmeMock.AssertExpectations(t)
+	haproxyMock.AssertNotCalled(t, "AddMap", mock.Anything, mock.Anything)
+	haproxyMock.AssertNotCalled(t, "AddSslCrtList", mock.Anything, mock.Anything)
+	haproxyMock.AssertNotCalled(t, "NewSslCert", mock.Anything)
+}
+
+func TestIssueMainDomainCarriesEveryName(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	svc, _, acmeMock, _ := newReissueService(t)
+	account := acme.ACMEAccount{Server: "letsencrypt", Email: "ops@example.com"}
+	names := []string{"vdi.example.com", "alt.example.com"}
+
+	acmeMock.On("IssueMainDomain", mock.Anything, names, "chain.pem", account).
+		Return(nil).Once()
+
+	require.NoError(svc.IssueMainDomain(t.Context(), names, account))
+	acmeMock.AssertExpectations(t)
+}
+
+func TestIssueMainDomainValidatesNames(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string][]string{
+		"no names at all":         {},
+		"an empty name":           {""},
+		"a wildcard":              {"*.example.com"},
+		"a path traversal":        {"../../etc/passwd"},
+		"a valid then an invalid": {"vdi.example.com", "*.example.com"},
+	}
+
+	for name, names := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			svc, _, acmeMock, _ := newReissueService(t)
+			err := svc.IssueMainDomain(t.Context(), names, acme.ACMEAccount{})
+			assert.ErrorIs(err, haproxysync.ErrInvalidDomain)
+			// Nothing was declared on the acme mock: reaching it would fail.
+			acmeMock.AssertExpectations(t)
+		})
+	}
+}
+
+// TestIssueMainDomainRefusesWhenTheDefaultPemIsShadowed pins the failure that
+// would otherwise look like success.
+//
+// The crt-list is rebuilt on every boot and prefers a custom certificate the
+// operator dropped in, falling back to the ACME one only when it is absent. So
+// when that file exists, everything issued to the ACME default is written,
+// deployed, logged as fine -- and never served. Refusing loudly is the only
+// honest answer: the alternative is an operator watching a certificate they
+// just configured have no effect at all, with every log line saying success.
+func TestIssueMainDomainRefusesWhenTheDefaultPemIsShadowed(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+	assert := assert.New(t)
+
+	svc, _, acmeMock, certsPath := newReissueService(t)
+	require.NoError(os.WriteFile(
+		filepath.Join(certsPath, "custom-portal-chain.pem"), testPEMData, 0644))
+
+	err := svc.IssueMainDomain(t.Context(), []string{"vdi.example.com"}, acme.ACMEAccount{})
+	require.Error(err)
+	assert.Contains(err.Error(), "custom-portal-chain.pem")
+	// It must not have issued: the certificate would never be served.
+	acmeMock.AssertExpectations(t)
+	acmeMock.AssertNotCalled(t, "IssueMainDomain",
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestIssueMainDomainReportsAnIssuanceFailure(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+	assert := assert.New(t)
+
+	svc, _, acmeMock, _ := newReissueService(t)
+	acmeMock.On("IssueMainDomain", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(errors.New("the CA said no")).Once()
+
+	err := svc.IssueMainDomain(t.Context(), []string{"vdi.example.com"}, acme.ACMEAccount{})
+	require.Error(err)
+	assert.Contains(err.Error(), "the CA said no")
+	acmeMock.AssertExpectations(t)
+}
