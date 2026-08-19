@@ -218,6 +218,7 @@ test-sparsify:
 test-haproxy-acme:
 	bash docker/haproxy/_common/tests/test_acme_management.sh
 	bash docker/haproxy/_common/tests/test_acme_generate_cert.sh
+	bash docker/haproxy/_common/tests/test_acme_remove_cert.sh
 
 # Regression test for the `storage` cleanup CLI's sparsify-backup classifier:
 # a locked/in-use canonical must keep its backup, because the lock-bypassing
