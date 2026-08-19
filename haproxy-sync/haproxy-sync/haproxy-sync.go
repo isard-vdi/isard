@@ -112,6 +112,10 @@ type HAProxySyncDomains struct {
 	// change is picked up normally. Deriving the fingerprint from the
 	// certificate HAProxy actually serves would remove that gap.
 	specs map[string]string
+
+	// accountThumbprintPath is where acme.sh keeps the HTTP-01 account
+	// thumbprint that the challenge responder answers with.
+	accountThumbprintPath string
 }
 
 type HAProxySyncBastion struct {
@@ -132,6 +136,8 @@ func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface, acme 
 			CertsPath:      cfg.Domains.CertsPath,
 			BaseDomain:     cfg.Domains.BaseDomain,
 			specs:          map[string]string{},
+
+			accountThumbprintPath: defaultAccountThumbprintPath,
 		},
 
 		Bastion: &HAProxySyncBastion{
