@@ -296,7 +296,7 @@ const handleLogoCollapsedError = () => {
     <!-- Header, trigger (only on mobile) and page content -->
     <SidebarInset class="w-1">
       <header
-        class="flex-row z-50 sticky top-0 items-center px-8 py-6 bg-base-background border-b border-gray-warm-300 transition-[width,height] ease-in-out duration-75"
+        class="z-50 sticky top-0 px-8 py-5.5 bg-base-background border-b border-gray-warm-300 transition-[width,height] ease-in-out duration-75"
       >
         <div class="flex items-center gap-2 w-full">
           <SidebarTrigger class="cursor-pointer md:hidden" />
