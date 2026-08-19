@@ -1,4 +1,4 @@
-# Isard main config v3.0.8
+# Isard main config v3.0.9
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -142,6 +142,19 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ## name serves the same site, while links the webapp builds still use DOMAIN.
 ## Changing this list makes the certificate be reissued on the next start.
 #ACME_EXTRA_DOMAINS=example.com,alias.example.com
+## When a certificate is issued through acme-dns (DNS-01), the admin panel can
+## check that the _acme-challenge delegation is in place before trying to
+## issue. That check uses this deployment's own resolvers by default, and only
+## falls back to public ones when they cannot see the record -- a resolver
+## serving a private view of the zone will not hold what the certificate
+## authority is going to ask a public one for.
+##
+## Set this to a comma-separated list of resolver addresses to use those and
+## only those, with no fallback. Worth doing when this deployment cannot reach
+## public resolvers at all, since otherwise the check spends its timeout on
+## them at every attempt, or when one specific resolver holds the view that
+## matters.
+#ACMEDNS_VERIFY_NAMESERVERS="1.1.1.1,8.8.8.8"
 
 # ------ Sessions ------------------------------------------------------------
 # Maximum valid session time. If this duration is exceeded, the user won't be able to renew

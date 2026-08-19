@@ -36,10 +36,22 @@ TXT record under a random subdomain of our own acme-dns server. They are not a
 key to the customer's DNS.
 """
 
+import os
+
+import dns.name
+import dns.resolver
 import requests
 
 _REGISTER_TIMEOUT = 15
 _REQUIRED = ("username", "password", "subdomain", "fulldomain")
+
+_CHALLENGE_PREFIX = "_acme-challenge"
+_VERIFY_TIMEOUT = 5.0
+_NAMESERVERS_ENV = "ACMEDNS_VERIFY_NAMESERVERS"
+# Tried only when the system resolver cannot see the delegation, and only
+# because a resolver serving a private view of the zone will not have the
+# record the certificate authority is going to ask a public one for.
+_PUBLIC_FALLBACK = ("1.1.1.1", "8.8.8.8")
 
 
 class AcmeDnsError(Exception):
@@ -109,4 +121,117 @@ def register(base_url: str) -> dict:
         "password": data["password"],
         "subdomain": data["subdomain"],
         "fulldomain": data["fulldomain"],
+    }
+
+
+def _configured_nameservers() -> list:
+    """Nameservers the operator named, if any."""
+    raw = os.environ.get(_NAMESERVERS_ENV, "")
+    return [entry.strip() for entry in raw.split(",") if entry.strip()]
+
+
+def _resolve_cname(record: str, nameservers) -> str:
+    """Return the CNAME target seen by one resolver, or None.
+
+    ``nameservers`` of None means the system resolver: dns.resolver.Resolver()
+    reads /etc/resolv.conf, which is the behaviour this deployment is
+    configured for and the only one that works when egress is filtered.
+    """
+    resolver = dns.resolver.Resolver()
+    if nameservers:
+        resolver.nameservers = list(nameservers)
+    resolver.timeout = _VERIFY_TIMEOUT
+    resolver.lifetime = _VERIFY_TIMEOUT
+
+    try:
+        answer = resolver.resolve(record, "CNAME")
+    except Exception:
+        # Every failure here means the same thing to the caller: this resolver
+        # could not tell us. Missing, refused, timed out and misconfigured all
+        # end up as "not visible from here", which is what gets reported.
+        return None
+
+    for value in answer:
+        return value.to_text().rstrip(".")
+    return None
+
+
+def verify_cname(domain: str, fulldomain: str) -> dict:
+    """Report whether the challenge delegation for ``domain`` is in place.
+
+    The answer that actually matters is the one a certificate authority will
+    get from the public internet, and we are not sitting there. So this reports
+    what it saw and which resolver saw it, and never presents a negative as
+    authoritative.
+
+    The system resolver is asked first, deliberately. Pinning a public resolver
+    and skipping /etc/resolv.conf reports "not visible" forever on any
+    deployment with filtered egress -- indistinguishable, from the operator's
+    side, from a CNAME nobody has created yet. A public resolver is tried only
+    afterwards and only on a negative, because a resolver serving a private
+    view of the zone will not hold the record the authority is going to ask
+    for. Naming resolvers explicitly turns both of those off: an operator who
+    names one means that one.
+
+    A record aimed at the wrong target is reported as such rather than as a
+    missing one. Both block issuance, but waiting fixes a missing record and
+    never fixes a delegation pointing at a registration that has been replaced.
+    """
+    if not domain:
+        raise AcmeDnsError("a domain is required to check the delegation")
+    if not fulldomain:
+        # Without it there is nothing to compare against, and a check that
+        # cannot fail would report every domain as ready to issue.
+        raise AcmeDnsError(
+            "there are no acme-dns credentials to check this delegation against"
+        )
+
+    record = f"{_CHALLENGE_PREFIX}.{domain}"
+    expected = dns.name.from_text(fulldomain).canonicalize()
+
+    configured = _configured_nameservers()
+    attempts = (
+        [(configured, ",".join(configured))] if configured else [(None, "system")]
+    )
+    if not configured:
+        attempts.append((_PUBLIC_FALLBACK, ",".join(_PUBLIC_FALLBACK)))
+
+    observed = None
+    resolver_used = attempts[0][1]
+    for nameservers, label in attempts:
+        resolver_used = label
+        seen = _resolve_cname(record, nameservers)
+        if seen is None:
+            continue
+        observed = seen
+        if dns.name.from_text(seen).canonicalize() == expected:
+            return {
+                "verified": True,
+                "observed": seen,
+                "expected": fulldomain.rstrip("."),
+                "resolver": label,
+                "message": f"{record} points at {seen}",
+            }
+
+    expected_text = fulldomain.rstrip(".")
+    if observed is not None:
+        message = (
+            f"{record} points at {observed}, not at {expected_text}. "
+            "This usually means the delegation was created for an earlier "
+            "acme-dns registration; it has to be changed, waiting will not "
+            "fix it."
+        )
+    else:
+        message = (
+            f"{record} is not visible from {resolver_used} yet. Create it as a "
+            f"CNAME pointing at {expected_text} and check again in a few "
+            "minutes; DNS propagation can take a while."
+        )
+
+    return {
+        "verified": False,
+        "observed": observed,
+        "expected": expected_text,
+        "resolver": resolver_used,
+        "message": message,
     }

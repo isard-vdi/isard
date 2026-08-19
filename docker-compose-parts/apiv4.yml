@@ -96,6 +96,7 @@ services:
       APIV4_POOL_SAMPLE_INTERVAL_S: ${APIV4_POOL_SAMPLE_INTERVAL_S:-1.0}
       API_ISARDVDI_SECRET:
       API_HYPERVISORS_SECRET:
+      ACMEDNS_VERIFY_NAMESERVERS:
       BACKUP_RETENTION: ${BACKUP_RETENTION:-30}
       # Container-side path the apiv4 background task reads. Always
       # /backups - the bind-mount above is what makes the cfg
