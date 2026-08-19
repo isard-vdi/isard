@@ -420,11 +420,16 @@
         "search": {
           "placeholder": "Cerca els escriptoris"
         },
+        "toggle": "Filtres",
         "status": {
           "all": "Tots",
           "started": "Iniciats",
           "stopped": "Aturats"
         }
+      },
+      "view-mode": {
+        "table": "Veure com a taula",
+        "cards": "Veure com a targetes"
       },
       "go-to-desktops": "Ves als escriptoris",
       "go-to-media": "Ves als mitjans",
