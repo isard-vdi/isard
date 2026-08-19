@@ -557,6 +557,7 @@ from .routes.admin import analytics as admin_analytics
 from .routes.admin import authentication as admin_authentication
 from .routes.admin import backups as admin_backups
 from .routes.admin import categories as admin_categories
+from .routes.admin import certificates as admin_certificates
 from .routes.admin import domains as admin_domains
 from .routes.admin import downloads as admin_downloads
 from .routes.admin import hypervisors as admin_hypervisors
