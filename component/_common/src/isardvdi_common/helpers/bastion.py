@@ -329,6 +329,45 @@ class Bastion(RethinkSharedConnection):
             haproxy_sync_pb2.DomainSyncRequest(domains=domains),
         )
 
+    @classmethod
+    def issue_main_domain_certificate(cls):
+        """Issue the certificate the whole deployment is served with, if configured.
+
+        Reads ``config[1].certificates.main_domain`` and drives haproxy-sync's
+        ``IssueMainDomain``, which deploys to the certificate the crt-list serves
+        by default. Returns ``None`` without touching the network when there is
+        nothing to issue, which is the state of every install that has not
+        configured one -- including every install the moment this ships.
+
+        The source is matched exactly rather than defaulted. Treating an
+        unrecognised value as HTTP-01 would quietly issue the wrong kind of
+        certificate for a configuration that asked for something else.
+
+        Safe to call repeatedly: the far side exits early when a valid
+        certificate is already in place. It is NOT quick, though -- a
+        certificate authority round trip outlives the per-call timeout of the
+        retry helper -- so callers must not run this where something is waiting.
+        """
+        with cls._rdb_context():
+            config_row = r.table("config").get(1).default({}).run(cls._rdb_connection)
+
+        main = ((config_row or {}).get("certificates") or {}).get("main_domain") or {}
+        if main.get("certificate_source") != "acme":
+            return None
+
+        names = [name for name in (main.get("names") or []) if name]
+        if not names:
+            return None
+
+        return cls._call_grpc_with_infinite_retry(
+            _haproxy_bastion_client().IssueMainDomain,
+            haproxy_sync_pb2.IssueMainDomainRequest(
+                names=names,
+                acme_email=main.get("email") or "",
+                acme_server=main.get("acme_server") or "",
+            ),
+        )
+
     @staticmethod
     def readable_sync_error(raw: str) -> str:
         """Extract ACME's human-readable ``detail`` from a wrapped sync error.

@@ -25,7 +25,11 @@ issuance is driven elsewhere.
 """
 
 import copy
+import logging as log
+import threading
+import traceback
 
+from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.certificates_config import CertificatesConfig
 
 # Derived on read from certificate_source, never stored: it is a function of
@@ -77,6 +81,38 @@ def _merge_main_domain(new_certs: dict, existing_certs: dict) -> dict:
     return merged
 
 
+def _issue_main_domain_now() -> None:
+    """Run the issuance and swallow whatever it does.
+
+    By the time this runs the configuration is already saved, so a failure here
+    is not a failed save and must not be reported as one. It is also running
+    with nobody to return an error to.
+    """
+    try:
+        Bastion.issue_main_domain_certificate()
+    except Exception:
+        log.warning(
+            "Main-domain certificate issuance failed:\n" + traceback.format_exc()
+        )
+
+
+def _dispatch_main_domain_issuance() -> None:
+    """Start the issuance without waiting for it.
+
+    A certificate authority round trip regularly outlives the 30s per-call
+    timeout of the gRPC retry helper, which then retries up to 60 times with
+    delays capped at 30s. Inline, that is a browser waiting on an admin save, or
+    apiv4's startup stalled behind a slow or absent haproxy-sync. The work is
+    idempotent and its result is observable through the GET, so nothing is lost
+    by letting the caller go.
+    """
+    threading.Thread(
+        target=_issue_main_domain_now,
+        name="issue-main-domain-certificate",
+        daemon=True,
+    ).start()
+
+
 class AdminCertificatesService:
     """Global (admin-only) main-domain certificate configuration."""
 
@@ -94,3 +130,5 @@ class AdminCertificatesService:
         CertificatesConfig.replace_certificates_config(
             _merge_main_domain(data, existing)
         )
+        # Off the request path on purpose: see _dispatch_main_domain_issuance.
+        _dispatch_main_domain_issuance()

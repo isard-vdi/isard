@@ -42,6 +42,7 @@ from api.dependencies.jwt_token import (
     is_not_user,
 )
 from api.dependencies.log_config import RequestContextMiddleware
+from api.services.admin.certificates import _dispatch_main_domain_issuance
 from api.services.error import Error
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -60,9 +61,16 @@ from .schemas.common import ErrorResponse
 
 
 def _sync_haproxy_maps():
-    """Sync bastion maps and category branding domains to HAProxy (blocking)."""
+    """Sync bastion maps and category branding domains to HAProxy (blocking).
+
+    The main-domain certificate is dispatched rather than issued here: this runs
+    inside lifespan startup and again on every haproxy-sync reconnection, and a
+    certificate authority round trip behind the gRPC retry budget would stall
+    both.
+    """
     Bastion.update_bastion_haproxy_map()
     Bastion.sync_category_branding_domains()
+    _dispatch_main_domain_issuance()
 
 
 def _wire_grpc_providers():
