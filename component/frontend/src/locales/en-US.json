@@ -424,6 +424,7 @@
           "placeholder": "Search desktops"
         },
         "toggle": "Filters",
+        "toggle-active": "Filters ({count} active)",
         "kind": {
           "all": "All",
           "persistent": "Persistent | Persistents",

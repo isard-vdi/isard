@@ -266,6 +266,7 @@
           "placeholder": "Bilatu mahaigainak"
         },
         "toggle": "Iragazkiak",
+        "toggle-active": "Iragazkiak ({count} aktibo)",
         "kind": {
           "all": "Guztiak",
           "persistent": "Iraunkorra | Iraunkorrak",

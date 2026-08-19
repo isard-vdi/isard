@@ -421,6 +421,7 @@
           "placeholder": "Cerca els escriptoris"
         },
         "toggle": "Filtres",
+        "toggle-active": "Filtres ({count} actius)",
         "status": {
           "all": "Tots",
           "started": "Iniciats",

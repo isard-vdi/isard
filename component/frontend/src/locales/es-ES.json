@@ -421,6 +421,7 @@
           "placeholder": "Busca los escritorios"
         },
         "toggle": "Filtros",
+        "toggle-active": "Filtros ({count} activos)",
         "status": {
           "all": "Todos",
           "started": "Iniciados",

@@ -484,6 +484,18 @@ const areDesktopFiltersActive = computed(() => {
   return JSON.stringify(desktopFilters.value) !== JSON.stringify(defaultDesktopFilters)
 })
 
+// Search has its own always-visible input; only the ones the panel hides count.
+const activeDesktopFilterCount = computed(() => {
+  const kinds = Object.values(desktopFilters.value.kind).filter(Boolean).length
+  return kinds + (desktopFilters.value.status === 'all' ? 0 : 1)
+})
+
+const desktopFiltersToggleLabel = computed(() =>
+  activeDesktopFilterCount.value
+    ? t('views.desktops.filters.toggle-active', { count: activeDesktopFilterCount.value })
+    : t('views.desktops.filters.toggle')
+)
+
 const clearDesktopFilters = () => {
   desktopFilters.value = JSON.parse(JSON.stringify(defaultDesktopFilters))
 }
@@ -1376,16 +1388,28 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
                 <Button
                   hierarchy="secondary-gray"
                   icon="filter-funnel-02"
-                  :aria-label="t('views.desktops.filters.toggle')"
-                  :class="cn('shrink-0 max-sm:px-[10px]', showDesktopFilters && 'bg-gray-warm-50')"
+                  :aria-label="desktopFiltersToggleLabel"
+                  :class="
+                    cn(
+                      'relative shrink-0 max-sm:px-[10px]',
+                      showDesktopFilters && 'bg-gray-warm-50'
+                    )
+                  "
                   @click="showDesktopFilters = !showDesktopFilters"
                 >
                   <span class="max-sm:hidden">{{ t('views.desktops.filters.toggle') }}</span>
+                  <!-- Stays visible with the panel collapsed, and on small screens
+                       where the label is hidden. -->
+                  <span
+                    v-if="activeDesktopFilterCount"
+                    aria-hidden="true"
+                    class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-base-background"
+                  />
                 </Button>
               </TooltipTrigger>
               <TooltipContent
-                v-if="isSmallScreen"
-                :title="t('views.desktops.filters.toggle')"
+                v-if="isSmallScreen || activeDesktopFilterCount"
+                :title="desktopFiltersToggleLabel"
                 side="top"
               />
             </Tooltip>
