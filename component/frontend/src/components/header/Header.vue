@@ -20,10 +20,10 @@ const props = withDefaults(defineProps<Props>(), {
   <!-- TODO: Use figma variables -->
   <div :class="cn('flex gap-4 items-center', props.class)">
     <div class="flex gap-4 items-center min-w-0">
-      <h1 class="text-gray-warm-700 text-xl sm:text-[24px] font-bold leading-8">
+      <h1 class="text-gray-warm-700 text-base sm:text-lg font-bold leading-6">
         {{ props.title }}
       </h1>
-      <img v-if="props.img" :src="thingsUrl" alt="things" class="h-4 sm:h-6 shrink-0" />
+      <img v-if="props.img" :src="thingsUrl" alt="things" class="h-4 shrink-0" />
     </div>
     <p
       v-if="props.subtitle"
