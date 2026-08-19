@@ -26,7 +26,6 @@ _get_allowed_groups_cache: SynchronizedTTLCache = SynchronizedTTLCache(
 
 
 class Alloweds(RethinkCustomBase):
-
     @classmethod
     @cached(cache=_get_user_cache)
     def get_user(cls, user_id):
@@ -707,7 +706,7 @@ class Alloweds(RethinkCustomBase):
 
     @classmethod
     @cached(cache=_get_allowed_groups_cache)
-    def get_allowed_groups(cls, category_id: str) -> dict:
+    def get_allowed_groups(cls, category_id: str) -> list:
         with cls._rdb_context():
             groups = (
                 r.table(Group._rdb_table)
@@ -719,11 +718,18 @@ class Alloweds(RethinkCustomBase):
                         .default({"name": "[deleted]"})["name"],
                     }
                 )
-                .pluck("id", "name", "uid", "parent_category", "category_name")
+                .pluck(
+                    "id",
+                    "name",
+                    "uid",
+                    "parent_category",
+                    "category_name",
+                    "description",
+                )
                 .run(cls._rdb_connection)
             )
 
-        return groups
+        return list(groups)
 
     @classmethod
     def clear_get_allowed_groups_cache(cls):

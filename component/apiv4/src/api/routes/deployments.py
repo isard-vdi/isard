@@ -36,6 +36,7 @@ from api.dependencies.domains import (
 )
 from api.dependencies.quotas import can_create_deployment
 from api.dependencies.storage_pools import check_create_storage_pool_availability
+from api.schemas.allowed import AllowedResponse
 from api.schemas.bastion import BastionActiveResponse
 from api.schemas.common import (
     DeleteResponse,
@@ -1180,6 +1181,42 @@ async def update_deployment_co_owners(
             request,
             "internal_server",
             f"Failed to update deployment co-owners",
+            traceback.format_exc(),
+        )
+
+
+@advanced_router.get(
+    "/item/deployment/{deployment_id}/get-allowed",
+    tags=[tag],
+    response_model=AllowedResponse,
+    summary="Get allowed users and groups for a deployment",
+    description="Returns the users and groups that currently have access to the specified deployment.",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[Depends(owns_deployment_id())],
+)
+async def get_deployment_allowed(request: Request, deployment_id: str):
+    try:
+        return JSONResponse(
+            content=AllowedResponse(
+                **await asyncio.to_thread(
+                    DeploymentService.get_deployment_allowed,
+                    deployment_id,
+                    request.token_payload["category_id"],
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve deployment alloweds",
             traceback.format_exc(),
         )
 

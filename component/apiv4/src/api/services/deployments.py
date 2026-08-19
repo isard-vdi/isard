@@ -31,6 +31,7 @@ from api.services.desktops import DesktopService
 from api.services.error import Error
 from cachetools import cached
 from fastapi import Request
+from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
@@ -495,6 +496,31 @@ class DeploymentService:
                 f"Deployment with ID {deployment_id} does not exist.",
             )
         return RethinkDeployment(deployment_id).get_deployment_permissions()
+
+    @staticmethod
+    def get_deployment_allowed(deployment_id: str, category_id: str) -> dict:
+        """
+        Get the allowed users/groups of a deployment
+        """
+        if not RethinkDeployment.exists(deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+
+        item_allowed = RethinkDeployment.get(deployment_id).get("allowed") or {}
+        selected = {
+            "groups": item_allowed.get("groups", False),
+            "users": item_allowed.get("users", False),
+        }
+
+        return {
+            "selected": selected,
+            "available_groups": Alloweds.get_allowed_groups(category_id),
+            "indeterminate_groups": Alloweds.get_indeterminate_groups(
+                allowed_users=selected["users"],
+            ),
+        }
 
     @staticmethod
     def edit_deployment_users(payload: dict, deployment_id: str, allowed: dict) -> None:

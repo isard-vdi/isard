@@ -55,6 +55,7 @@ class AvailableUser(BaseModel):
 class BaseGroup(BaseModel):
     id: str = Field(description="Group ID")
     name: str = Field(description="Group name")
+    description: Optional[str] = Field(default=None, description="Group description")
 
 
 class AvailableGroup(BaseGroup):
