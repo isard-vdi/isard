@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
 	"golang.org/x/net/idna"
 )
 
@@ -348,6 +349,56 @@ func (h *HAproxySync) removeDomain(ctx context.Context, d string) error {
 	if err := h.acme.RemoveCert(ctx, d, pemName); err != nil {
 		h.log.Warn().Err(err).Str("domain", d).
 			Msg("could not deregister the certificate from acme.sh; it will keep renewing a certificate nothing serves")
+	}
+
+	return nil
+}
+
+// mainDomainPemName is the certificate the crt-list points at by default, and
+// therefore the one the deployment is served with.
+const mainDomainPemName = "chain.pem"
+
+// customPortalPemName is an operator-supplied certificate that, when present,
+// the boot-time crt-list prefers over the ACME one.
+const customPortalPemName = "custom-portal-chain.pem"
+
+// IssueMainDomain issues the certificate the whole deployment is served with.
+//
+// Deliberately unlike every other domain here: the main domain is routed by the
+// base ACL rather than the domain map, and its certificate is the crt-list
+// default rather than a crt-list entry, so this deploys to that default and
+// touches nothing else.
+func (h *HAproxySync) IssueMainDomain(ctx context.Context, names []string, account acme.ACMEAccount) error {
+	if len(names) == 0 {
+		return fmt.Errorf("%w: no names given for the main domain", ErrInvalidDomain)
+	}
+
+	for _, name := range names {
+		if err := validateDomain(name); err != nil {
+			return err
+		}
+	}
+
+	h.mux.Lock()
+	defer h.mux.Unlock()
+
+	// The crt-list is rebuilt on every boot and prefers an operator-supplied
+	// certificate, falling back to the ACME one only when that file is absent.
+	// While it exists, anything issued here is written, deployed and logged as
+	// successful, and never served. Refuse instead: an operator watching a
+	// certificate they just configured do nothing, with every log line saying
+	// it worked, is the worst outcome available.
+	shadow := domainCertPath(h.Domains.CertsPath, customPortalPemName)
+	if _, err := os.Stat(shadow); err == nil {
+		return fmt.Errorf(
+			"refusing to issue the main domain certificate: %s takes precedence in the crt-list, so %s would never be served; remove it to let the configured certificate take over",
+			customPortalPemName, mainDomainPemName)
+	}
+
+	h.pushAccountThumbprint()
+
+	if err := h.acme.IssueMainDomain(ctx, names, mainDomainPemName, account); err != nil {
+		return fmt.Errorf("issue main domain certificate: %w", err)
 	}
 
 	return nil

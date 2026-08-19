@@ -24,6 +24,10 @@ type Interface interface {
 	//
 	DomainSync(ctx context.Context, domains []DomainSyncDomain) (DomainSyncResult, error)
 
+	// IssueMainDomain issues the certificate the whole deployment is served with and
+	// deploys it to the crt-list default, touching neither the domain map nor the crt-list.
+	IssueMainDomain(ctx context.Context, names []string, account acme.ACMEAccount) error
+
 	//
 	// Bastion
 	//
