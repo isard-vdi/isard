@@ -31,6 +31,8 @@ import { useMutation } from '@tanstack/vue-query'
 import NewMediaModal from '@/components/media/NewMediaModal.vue'
 import { AlertModal, QuotaExceededModal } from '@/components/modal'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
 const { t, d, te } = useI18n()
 const router = useRouter()
@@ -382,6 +384,10 @@ const handleDeleteClick = (mediaId: string, mediaName: string) => {
 const closeDeleteModal = () => {
   deleteModalMediaData.value = null
 }
+
+const MEDIA_SEARCH_INPUT_ID = 'media-search'
+
+useSearchShortcuts(MEDIA_SEARCH_INPUT_ID)
 </script>
 
 <template>
@@ -415,11 +421,16 @@ const closeDeleteModal = () => {
       </Button>
     </div>
     <InputField
+      :id="MEDIA_SEARCH_INPUT_ID"
       v-model="inputSearch"
       :placeholder="t('views.media.filters.search.placeholder')"
       icon="search-lg"
       class="h-min w-full max-w-120 mr-auto"
-    />
+    >
+      <template #inline-end>
+        <Kbd class="max-sm:hidden">/</Kbd>
+      </template>
+    </InputField>
 
     <div v-if="userMediaIsPending || sharedMediaIsFetching" class="flex flex-col gap-4 mt-8">
       <div v-for="n in 4" :key="'skeleton-row-' + n">

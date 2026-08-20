@@ -34,6 +34,8 @@ import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-
 import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
 import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
 import { useBulkSpawnStore } from '@/stores/bulk-spawn'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
 const { t, d, locale } = useI18n()
 
@@ -230,6 +232,10 @@ const handleNotImplemented = () => alert('not implemented yet')
 const enterVideowall = () => {
   router.push({ name: 'deployment-videowall', params: { deploymentId: deploymentId.value } })
 }
+
+const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
+
+useSearchShortcuts(DEPLOYMENT_SEARCH_INPUT_ID)
 </script>
 
 <template>
@@ -337,11 +343,16 @@ const enterVideowall = () => {
     </div>
     <div class="flex flex-col gap-6 lg:flex-row justify-between">
       <InputField
+        :id="DEPLOYMENT_SEARCH_INPUT_ID"
         v-model="inputSearch"
         :placeholder="t('views.deployment.search-placeholder')"
         icon="search-lg"
         class="h-min w-full md:max-w-120 mr-auto"
-      />
+      >
+        <template #inline-end>
+          <Kbd class="max-sm:hidden">/</Kbd>
+        </template>
+      </InputField>
       <div class="flex flex-wrap gap-4">
         <Button icon="users-01" hierarchy="secondary-gray" @click="handleNotImplemented">
           {{ t('views.deployment.buttons.users-and-groups') }}

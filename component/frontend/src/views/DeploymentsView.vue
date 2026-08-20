@@ -33,6 +33,8 @@ import { QUOTA_STALE_TIME } from '@/lib/constants'
 import Icon from '@/components/icon/Icon.vue'
 import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -234,6 +236,10 @@ const goToDeployment = (row: any) => {
   if (!row?.id) return
   router.push({ name: 'deployment', params: { deploymentId: row.id } })
 }
+
+const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
+
+useSearchShortcuts(DEPLOYMENTS_SEARCH_INPUT_ID)
 </script>
 
 <template>
@@ -274,11 +280,16 @@ const goToDeployment = (row: any) => {
     </div>
     <div class="flex justify-between w-full items-center">
       <InputField
+        :id="DEPLOYMENTS_SEARCH_INPUT_ID"
         v-model="inputSearch"
         :placeholder="t('views.deployments.filters.search.placeholder')"
         icon="search-lg"
         class="h-min w-full max-w-120 mr-auto"
-      />
+      >
+        <template #inline-end>
+          <Kbd class="max-sm:hidden">/</Kbd>
+        </template>
+      </InputField>
       <div class="flex flex-row gap-5 items-center flex-wrap">
         <ToggleGroup
           v-model="deploymentFilters.status"

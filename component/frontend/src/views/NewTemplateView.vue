@@ -55,6 +55,8 @@ import {
 
 import { cn, valueUpdater } from '@/lib/utils'
 import InputField from '@/components/input-field/InputField.vue'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
 const route = useRoute()
 const router = useRouter()
@@ -213,6 +215,10 @@ const table = useVueTable({
   },
   autoResetAll: false
 })
+
+const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
+
+useSearchShortcuts(NEW_TEMPLATE_SEARCH_INPUT_ID)
 </script>
 
 <template>
@@ -407,11 +413,16 @@ const table = useVueTable({
           </h1>
 
           <InputField
+            :id="NEW_TEMPLATE_SEARCH_INPUT_ID"
             v-model="globalFilter"
             class="w-full max-w-120 min-w-48"
             icon="search-lg"
             :placeholder="t('views.desktops.filters.search.placeholder')"
-          />
+          >
+            <template #inline-end>
+              <Kbd class="max-sm:hidden">/</Kbd>
+            </template>
+          </InputField>
         </div>
 
         <DataTableBackground>
