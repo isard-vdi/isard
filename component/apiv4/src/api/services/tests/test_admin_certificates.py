@@ -41,19 +41,25 @@ class TestMainDomainCertificateSchema:
         )
         assert cert.names == ["vdi.example.com"]
 
-    def test_acme_is_the_only_source_this_release_offers(self):
+    def test_custom_is_not_a_source_this_release_offers(self):
         from api.schemas.admin.certificates import MainDomainCertificate
 
-        # "custom" and "acme_dns" are deliberately absent: widening a Literal
-        # later is additive, narrowing one is a breaking change.
+        # "custom" is deliberately absent: widening a Literal later is
+        # additive, narrowing one is a breaking change. "acme_dns" was absent
+        # for the same reason until the release that could act on it, which is
+        # this one -- see test_acme_dns_is_accepted below.
         with pytest.raises(ValidationError):
             MainDomainCertificate(
                 names=["vdi.example.com"], certificate_source="custom"
             )
-        with pytest.raises(ValidationError):
-            MainDomainCertificate(
-                names=["vdi.example.com"], certificate_source="acme_dns"
-            )
+
+    def test_acme_dns_is_accepted(self):
+        from api.schemas.admin.certificates import MainDomainCertificate
+
+        cert = MainDomainCertificate(
+            names=["vdi.example.com"], certificate_source="acme_dns"
+        )
+        assert cert.certificate_source == "acme_dns"
 
     def test_rejects_an_empty_name_list(self):
         from api.schemas.admin.certificates import MainDomainCertificate

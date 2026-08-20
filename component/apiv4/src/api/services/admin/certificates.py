@@ -24,11 +24,12 @@ import logging as log
 import threading
 import traceback
 
+from api.services.error import Error
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.certificates_config import CertificatesConfig
 
 # Derived on read from certificate_source, never stored (single source of truth).
-_CHALLENGE_BY_SOURCE = {"acme": "http-01"}
+_CHALLENGE_BY_SOURCE = {"acme": "http-01", "acme_dns": "dns-01"}
 
 
 def _derive_main_domain_challenge(certs: dict) -> dict:
@@ -40,6 +41,88 @@ def _derive_main_domain_challenge(certs: dict) -> dict:
     if challenge:
         main["acme_challenge"] = challenge
     return certs
+
+
+def _strip_main_domain_secret(certs: dict) -> dict:
+    """Replace the stored acme-dns password with a flag saying one exists.
+
+    The credentials live in the database in the clear, like the rest of this
+    product's. Returning one in a GET is a different exposure: it lands in the
+    browser's history and in the logs of whatever proxies the call, which are
+    places the others do not reach. The form is told whether a password is
+    stored so it can say "leave blank to keep it" rather than guessing.
+
+    Operates on a copy. The document this is handed comes from a cache, and
+    emptying the password in place would take it away from the issuance path
+    that reads the same entry.
+    """
+    main = (certs or {}).get("main_domain")
+    if not isinstance(main, dict):
+        return certs
+
+    acmedns = main.get("acmedns")
+    if not isinstance(acmedns, dict):
+        return certs
+
+    acmedns = dict(acmedns)
+    acmedns["password_set"] = bool(acmedns.pop("password", None))
+    main = dict(main)
+    main["acmedns"] = acmedns
+    certs = dict(certs)
+    certs["main_domain"] = main
+    return certs
+
+
+def _preserve_main_domain_secret(new_certs: dict, existing_certs: dict) -> None:
+    """Keep the stored acme-dns password when the payload leaves it blank.
+
+    The other half of never returning it: the form cannot resend a value it was
+    never given, and the write replaces the whole subtree, so a blank would
+    destroy the credential on any save that touched anything else.
+
+    Blank with nothing stored is the case the two existing helpers for
+    authentication secrets disagree about -- one raises as required, the other
+    drops the key and says nothing. This field is the required kind: without a
+    password there is no issuance at all, so accepting the save would store a
+    configuration that cannot work and report success. Only when the source is
+    actually acme_dns, so a deployment on HTTP-01 is never asked for one.
+    """
+    new_main = (new_certs or {}).get("main_domain")
+    if not isinstance(new_main, dict):
+        return
+
+    acmedns = new_main.get("acmedns")
+    if not isinstance(acmedns, dict):
+        return
+
+    if "password" not in acmedns:
+        return
+    if acmedns["password"]:
+        return
+
+    existing_main = (existing_certs or {}).get("main_domain")
+    stored = None
+    if isinstance(existing_main, dict) and isinstance(
+        existing_main.get("acmedns"), dict
+    ):
+        stored = existing_main["acmedns"].get("password")
+
+    if stored:
+        acmedns["password"] = stored
+        return
+
+    source = new_main.get("certificate_source")
+    if source is None and isinstance(existing_main, dict):
+        source = existing_main.get("certificate_source")
+
+    if source == "acme_dns":
+        raise Error(
+            "bad_request",
+            "an acme-dns password is required",
+            description_code="acmedns_password_required",
+        )
+
+    acmedns.pop("password")
 
 
 def _merge_main_domain(new_certs: dict, existing_certs: dict) -> dict:
@@ -64,6 +147,23 @@ def _merge_main_domain(new_certs: dict, existing_certs: dict) -> dict:
     main = merged.get("main_domain")
     if isinstance(main, dict):
         main.pop("acme_challenge", None)
+
+        # The acme-dns block merges field by field for the same reason the
+        # main-domain block does: the form does not render all of it, and the
+        # write drops every key it is not handed.
+        incoming_main = (new_certs or {}).get("main_domain")
+        if isinstance(incoming_main, dict) and isinstance(
+            incoming_main.get("acmedns"), dict
+        ):
+            existing_main = (existing_certs or {}).get("main_domain")
+            base = {}
+            if isinstance(existing_main, dict) and isinstance(
+                existing_main.get("acmedns"), dict
+            ):
+                base = dict(existing_main["acmedns"])
+            base.update(incoming_main["acmedns"])
+            base.pop("password_set", None)
+            main["acmedns"] = base
 
     return merged
 
@@ -98,6 +198,7 @@ class AdminCertificatesService:
     def get_certificates() -> dict:
         """Return ``config[1].certificates`` with the challenge derived."""
         certs = CertificatesConfig.get_certificates_config()
+        certs = _strip_main_domain_secret(certs)
         _derive_main_domain_challenge(certs)
         return certs
 
@@ -105,6 +206,7 @@ class AdminCertificatesService:
     def update_certificates(data: dict) -> None:
         """Persist the main-domain certificate config over what is stored."""
         existing = CertificatesConfig.get_certificates_config()
+        _preserve_main_domain_secret(data, existing)
         CertificatesConfig.replace_certificates_config(
             _merge_main_domain(data, existing)
         )

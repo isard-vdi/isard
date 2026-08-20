@@ -27,16 +27,42 @@ from pydantic import BaseModel, field_validator
 _MAX_NAMES = 100
 
 
+class AcmeDnsCredentials(BaseModel):
+    """One acme-dns registration.
+
+    Every field is optional because the operator fills this in stages: the
+    auto-register flow writes the account it was handed before any password is
+    typed, and a manual save may touch one field. Whether a set is complete
+    enough to issue with is decided where issuance happens, not here.
+
+    ``password`` is write-only and ``password_set`` is read-only. The stored
+    value is never returned -- it would end up in the browser's history and in
+    the logs of anything in between, which is not where the rest of this
+    product's credentials go -- so the form is told whether one exists instead.
+    """
+
+    base_url: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    subdomain: Optional[str] = None
+    fulldomain: Optional[str] = None
+    auto_register: Optional[bool] = None
+    verified: Optional[bool] = None
+    # Derived on read, never stored.
+    password_set: Optional[bool] = None
+
+
 class MainDomainCertificate(BaseModel):
     """The deployment main-domain certificate config (names ordered, names[0]
     primary; see certificates_config)."""
 
     names: Optional[List[str]] = None
-    certificate_source: Optional[Literal["acme"]] = None
+    certificate_source: Optional[Literal["acme", "acme_dns"]] = None
     email: Optional[str] = None
     acme_server: Optional[str] = None
     # Derived from certificate_source for display; never stored.
-    acme_challenge: Optional[Literal["http-01"]] = None
+    acme_challenge: Optional[Literal["http-01", "dns-01"]] = None
+    acmedns: Optional[AcmeDnsCredentials] = None
 
     @field_validator("names")
     @classmethod
