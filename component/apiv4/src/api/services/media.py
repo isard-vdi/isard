@@ -112,9 +112,18 @@ class MediaService:
                 "not_found",
                 f"Media with ID {media_id} not found.",
             )
+        item_allowed = RethinkMedia.get(media_id).get("allowed") or {}
+        selected = {
+            "groups": item_allowed.get("groups", False),
+            "users": item_allowed.get("users", False),
+        }
+
         return {
-            "selected": RethinkMedia.get(media_id)["allowed"],
+            "selected": selected,
             "available_groups": Alloweds.get_allowed_groups(category_id),
+            "indeterminate_groups": Alloweds.get_indeterminate_groups(
+                allowed_users=selected["users"],
+            ),
         }
 
     @staticmethod

@@ -8,3 +8,11 @@ export interface MultiSelectTagItemType {
   avatar?: string
   icon?: string
 }
+
+export interface Option {
+  label: string
+  subLabel?: string
+  avatar?: string
+  icon?: string
+  value: string
+}

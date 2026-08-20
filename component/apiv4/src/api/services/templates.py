@@ -401,9 +401,18 @@ class TemplateService:
                 f"Template with ID {template_id} not found.",
             )
 
+        item_allowed = RethinkDomain.get(template_id).get("allowed") or {}
+        selected = {
+            "groups": item_allowed.get("groups", False),
+            "users": item_allowed.get("users", False),
+        }
+
         return {
-            "selected": RethinkDomain.get(template_id)["allowed"],
+            "selected": selected,
             "available_groups": Alloweds.get_allowed_groups(category_id),
+            "indeterminate_groups": Alloweds.get_indeterminate_groups(
+                allowed_users=selected["users"],
+            ),
         }
 
     @staticmethod

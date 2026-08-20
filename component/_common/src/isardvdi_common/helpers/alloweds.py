@@ -7,6 +7,7 @@
 
 import re
 import traceback
+from typing import Union
 
 from cachetools import cached
 from cachetools.keys import hashkey
@@ -25,7 +26,6 @@ _get_allowed_groups_cache: SynchronizedTTLCache = SynchronizedTTLCache(
 
 
 class Alloweds(RethinkCustomBase):
-
     @classmethod
     @cached(cache=_get_user_cache)
     def get_user(cls, user_id):
@@ -706,7 +706,7 @@ class Alloweds(RethinkCustomBase):
 
     @classmethod
     @cached(cache=_get_allowed_groups_cache)
-    def get_allowed_groups(cls, category_id: str) -> dict:
+    def get_allowed_groups(cls, category_id: str) -> list:
         with cls._rdb_context():
             groups = (
                 r.table(Group._rdb_table)
@@ -718,11 +718,18 @@ class Alloweds(RethinkCustomBase):
                         .default({"name": "[deleted]"})["name"],
                     }
                 )
-                .pluck("id", "name", "uid", "parent_category", "category_name")
+                .pluck(
+                    "id",
+                    "name",
+                    "uid",
+                    "parent_category",
+                    "category_name",
+                    "description",
+                )
                 .run(cls._rdb_connection)
             )
 
-        return groups
+        return list(groups)
 
     @classmethod
     def clear_get_allowed_groups_cache(cls):
@@ -787,3 +794,33 @@ class Alloweds(RethinkCustomBase):
         return (
             config.get("bastion", {}).get("individual_domains", {}).get("allowed", {})
         )
+
+    @classmethod
+    def get_indeterminate_groups(cls, allowed_users: Union[bool, list]) -> list:
+        if not isinstance(allowed_users, list) or not allowed_users:
+            return []
+
+        with cls._rdb_context():
+            users = list(
+                r.table("users")
+                .get_all(r.args(allowed_users), index="id")
+                .pluck("group", "secondary_groups")
+                .run(cls._rdb_connection)
+            )
+
+        group_ids = set()
+        for user in users:
+            if user.get("group"):
+                group_ids.add(user["group"])
+            group_ids.update(user.get("secondary_groups") or [])
+
+        if not group_ids:
+            return []
+
+        with cls._rdb_context():
+            return list(
+                r.table(Group._rdb_table)
+                .get_all(r.args(list(group_ids)))
+                .pluck("id", "name")
+                .run(cls._rdb_connection)
+            )

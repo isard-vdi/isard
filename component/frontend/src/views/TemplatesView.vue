@@ -8,7 +8,9 @@ import {
   getUserTemplatesOptions,
   getUserSharedTemplatesOptions,
   checkQuotaNewTemplateOptions,
-  checkQuotaNewDesktopOptions
+  checkQuotaNewDesktopOptions,
+  updateTemplateAllowedMutation,
+  getTemplateAllowedQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { copyToClipboard } from '@/lib/utils'
@@ -32,12 +34,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Icon } from '@/components/icon'
 import { QuotaExceededModal } from '@/components/modal'
+import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import { TemplateDeleteModal } from '@/components/templates/template-delete-modal'
 import { TemplateToDesktopModal } from '@/components/templates/template-to-desktop-modal'
 import { TemplateToggleVisibilityModal } from '@/components/template-toggle-visibility'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { toast } from '@/components/ui/toast'
 import { DomainInfoModal } from '@/components/desktops'
 import { getTemplateDetails } from '@/gen/oas/apiv4/'
 
@@ -114,6 +118,8 @@ interface ModalData {
 const deleteModalData = ref<ModalData | null>(null)
 const convertModalData = ref<ModalData | null>(null)
 const visibilityModalData = ref<(ModalData & { action: 'hide' | 'show' }) | null>(null)
+const allowedModalData = ref<ModalData | null>(null)
+const allowedError = ref('')
 
 // Quota check
 const quotaExceededModalData = ref<{
@@ -189,6 +195,39 @@ const openTemplateInfoModal = (templateId: string) => {
   showTemplateInfoModal.value = true
 }
 
+const { mutate: updateTemplateAllowed, isPending: updateAllowedIsPending } = useMutation({
+  ...updateTemplateAllowedMutation(),
+  onSuccess: (_data, variables) => {
+    queryClient.removeQueries({
+      queryKey: getTemplateAllowedQueryKey({
+        path: { template_id: variables.path.template_id }
+      })
+    })
+    closeAllowedModal()
+    toast.success(t('views.templates.alloweds.success'))
+  },
+  onError: () => {
+    allowedError.value = t('views.templates.alloweds.error')
+  }
+})
+
+const openAllowedModal = (data: ModalData) => {
+  allowedError.value = ''
+  allowedModalData.value = data
+}
+
+const closeAllowedModal = () => {
+  allowedModalData.value = null
+  allowedError.value = ''
+}
+
+const handleSaveAllowed = (selection: AllowedSelection) => {
+  const templateId = allowedModalData.value?.id
+  if (!templateId) return
+  allowedError.value = ''
+  updateTemplateAllowed({ path: { template_id: templateId }, body: selection })
+}
+
 const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 </script>
 
@@ -201,6 +240,17 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
     :cancel-label="quotaExceededModalData?.cancelLabel ?? ''"
     :cancel-to="{ name: 'templates' }"
     @close="quotaExceededModalData = null"
+  />
+
+  <AllowedModal
+    v-if="allowedModalData"
+    open
+    item-type="template"
+    :item-id="allowedModalData.id"
+    :loading="updateAllowedIsPending"
+    :error="allowedError"
+    @save="handleSaveAllowed"
+    @close="closeAllowedModal"
   />
 
   <TemplateDeleteModal
@@ -430,7 +480,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
                             {{ t('views.templates.table.actions.info') }}
                           </Button>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem @click="openAllowedModal({ id: row.id, name: row.name })">
                           <Button
                             size="sm"
                             class="mr-2 w-full justify-start"

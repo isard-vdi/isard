@@ -48,7 +48,6 @@ tag = "groups"
 async def get_users_in_group(
     request: Request,
     group_id: str = Path(..., description="The ID of the group"),
-    owns_group_id=Depends(owns_domain_id("group_id")),
 ):
     # TODO@: probably not in use
     try:

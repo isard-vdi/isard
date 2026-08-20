@@ -444,6 +444,10 @@
           "placeholder": "Cerca"
         }
       },
+      "alloweds": {
+        "success": "Usuaris i grups permesos actualitzats",
+        "error": "No s'han pogut actualitzar els usuaris i grups permesos"
+      },
       "table": {
         "headers": {
           "name": "Nom",
@@ -506,6 +510,8 @@
           "alloweds": {
             "title": "Grups i Usuaris permesos",
             "subtitle": "Aquesta plantilla es compartirà amb {groups} i {users}.",
+            "subtitle-everyone": "Aquesta plantilla es compartirà amb tots els usuaris de la seva categoria.",
+            "subtitle-nobody": "Aquesta plantilla no es compartirà amb ningú.",
             "button": "Gestiona usuaris i grups"
           },
           "access": {
@@ -2528,6 +2534,61 @@
       "not-found": "No s'ha trobat cap resultat",
       "more-results": "{count} resultats més, afineu la cerca",
       "remove": "Traieu {name}"
+    },
+    "allowed-modal": {
+      "title": "Gestiona els usuaris",
+      "description": {
+        "generic": "Edita els grups i els usuaris que hi poden accedir",
+        "template": "Edita els grups i els usuaris que poden accedir a aquesta plantilla",
+        "deployment": "Edita els grups i els usuaris que poden accedir a aquest desplegament",
+        "media": "Edita els grups i els usuaris que poden accedir a aquest mitjà"
+      },
+      "columns": {
+        "groups": "Grups",
+        "users": "Usuaris",
+        "users-in-group": "Usuaris del grup '{group_name}'"
+      },
+      "empty": {
+        "groups": "No hi ha grups disponibles",
+        "users": "Aquest grup no té usuaris",
+        "no-group": "Selecciona un grup o cerca usuaris",
+        "no-group-short-term": "Escriu com a mínim 2 caràcters per cercar usuaris"
+      },
+      "share-everyone": {
+        "unchecked": {
+          "title": "Comparteix amb tothom",
+          "description": "Dona accés a tots els usuaris d'aquesta categoria"
+        },
+        "checked": {
+          "title": "Compartit amb tothom",
+          "description": "Tots els usuaris d'aquesta categoria hi tindran accés"
+        }
+      },
+      "view-group": "Mostra els usuaris del grup '{group_name}'",
+      "unview-group": "Deixa de mostrar els usuaris del grup '{group_name}'",
+      "require-selection": "Selecciona com a mínim un grup o un usuari",
+      "no-changes": "Fes algun canvi per desar",
+      "select-all": {
+        "groups": "Selecciona tots els grups",
+        "count": "{selected} de {total} seleccionats"
+      },
+      "search": {
+        "user-in-group": {
+          "placeholder": "Cercar un usuari al grup '{group_name}'",
+          "empty": "No s'ha trobat cap usuari"
+        },
+        "user": {
+          "placeholder": "Cerca tots els usuaris",
+          "empty": "No s'ha trobat cap usuari",
+          "truncated": "Es mostren {shown} de {total} resultats, afina la cerca"
+        },
+        "group": {
+          "placeholder": "Cercar grup",
+          "empty": "No s'ha trobat cap grup"
+        }
+      },
+      "cancel": "Cancel·la",
+      "save": "Accepta els canvis"
     }
   },
   "authentication": {
