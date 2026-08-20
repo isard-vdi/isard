@@ -20,6 +20,8 @@ import Step2ConfigureDesktop from '@/components/new-desktop/Step2ConfigureDeskto
 import Step3Creating from '@/components/new-desktop/Step3Creating.vue'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
+import { cn } from '@/lib/utils'
+
 const { t } = useI18n()
 
 // --------------------------------------------------
@@ -197,7 +199,7 @@ const steps = computed<StepperFormStep[]>(() => {
     </template>
   </AlertModal>
 
-  <template v-if="quotaCheckPassed">
+  <div v-if="quotaCheckPassed" class="h-full flex flex-col">
     <!-- Header -->
     <header
       v-if="showStepsControls"
@@ -240,9 +242,12 @@ const steps = computed<StepperFormStep[]>(() => {
         </TooltipProvider>
       </div>
     </header>
-    <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
+    <main
+      :class="cn(currentStep !== 2 ? 'max-w-320' : undefined)"
+      class="w-full mx-auto flex flex-1 flex-col gap-[24px]"
+    >
       <!-- Content -->
-      <div>
+      <div class="flex flex-1 flex-col">
         <!-- Step 1 -->
         <div v-if="currentStep === 1">
           <Step1SelectTemplate
@@ -251,7 +256,7 @@ const steps = computed<StepperFormStep[]>(() => {
           />
         </div>
         <!-- Step 2 -->
-        <div v-if="currentStep >= 2" v-show="currentStep === 2">
+        <div v-if="currentStep >= 2" v-show="currentStep === 2" class="max-w-320 m-auto">
           <Alert v-if="creationError" variant="destructive" class="mb-6">
             <AlertTitle>{{ t(`api.new-desktop.errors.${creationError}.title`) }}</AlertTitle>
             <AlertDescription>{{
@@ -271,5 +276,5 @@ const steps = computed<StepperFormStep[]>(() => {
         </div>
       </div>
     </main>
-  </template>
+  </div>
 </template>

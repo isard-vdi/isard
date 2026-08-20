@@ -212,7 +212,8 @@
         },
         "preview": {
           "title": "Vista previa",
-          "description": "Así es como se verá tu escritorio. Estos datos se pueden editar"
+          "description": "Así es como se verá tu escritorio. Estos datos se pueden editar",
+          "start-disabled": "Podrás iniciar el escritorio una vez creado"
         },
         "desktop-information": {
           "title": "Información del escritorio",
@@ -243,6 +244,13 @@
         "hardware-limited": {
           "title": "Hardware limitado",
           "description": "Los siguientes valores de hardware han sido limitados por permisos de usuario:"
+        },
+        "desktop-configuration": {
+          "title": "Configuración del escritorio",
+          "description": "Estos valores vienen de la plantilla. Cámbialos abajo o más adelante, con el escritorio ya creado.",
+          "show": "Cambiar configuración",
+          "restore": "Restaurar valores iniciales",
+          "restore-disabled": "Todavía no hay cambios que restaurar"
         },
         "hardware-summary": {
           "title": "Resumen de hardware",
@@ -2045,13 +2053,14 @@
           "label": "Visores"
         },
         "bastion": {
-          "label": "Bastión activado",
+          "enable": "Activar el bastión",
           "description": "Permite el acceso al escritorio a través de un host bastión.",
           "custom-domains": {
             "label": "Dominios personalizados"
           },
           "http-https": {
             "label": "HTTP / HTTPS",
+            "enable": "Activar el acceso HTTP / HTTPS",
             "description": "Accede al escritorio usando un navegador web o un visor RDP compatible con conexiones HTTP/HTTPS.",
             "http-port": {
               "label": "Puerto HTTP",
@@ -2081,6 +2090,7 @@
           },
           "ssh": {
             "label": "SSH",
+            "enable": "Activar el acceso SSH",
             "description": "Usa un cliente SSH para conectarte al escritorio a través del host bastión.",
             "port": {
               "label": "Puerto SSH",
