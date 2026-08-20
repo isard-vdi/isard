@@ -122,7 +122,7 @@ def _mock_log_user(monkeypatch):
     rethinkdb connect still fires from the worker thread. Patch the
     subclass directly.
     """
-    noop = classmethod(lambda cls, payload: None)
+    noop = classmethod(lambda cls, payload, user_request=None: None)
     monkeypatch.setattr("isardvdi_common.helpers.token.Token.log_user", noop)
     monkeypatch.setattr("api.dependencies.jwt_token.TokenFastAPI.log_user", noop)
 

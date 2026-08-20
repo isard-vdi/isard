@@ -78,7 +78,7 @@ class TokenFastAPI(Token):
         return {}
 
     @classmethod
-    def log_user(cls, payload):
+    def log_user(cls, payload, user_request=None):
         """apiv4 override of ``Token.log_user``.
 
         The base implementation calls ``LogsUsers(payload)`` synchronously,
@@ -100,10 +100,13 @@ class TokenFastAPI(Token):
             # Not inside an event loop (e.g. service-layer caller from a
             # sync context, or a unit test without a running loop). Fall
             # through to the synchronous base path.
-            super().log_user(payload)
+            super().log_user(payload, user_request=user_request)
             return
 
-        task = loop.create_task(asyncio.to_thread(LogsUsers, payload))
+        request_ip, request_user_agent = cls.request_identity(user_request)
+        task = loop.create_task(
+            asyncio.to_thread(LogsUsers, payload, request_ip, request_user_agent)
+        )
         _LOG_USER_TASKS.add(task)
         task.add_done_callback(_LOG_USER_TASKS.discard)
 
@@ -130,7 +133,7 @@ async def has_token(
     token: dict = Depends(HTTPBearer()), request: Request = None
 ) -> TokenPayload:
     token = token.credentials
-    payload: TokenPayload = TokenFastAPI.get_token_payload(token)
+    payload: TokenPayload = TokenFastAPI.get_token_payload(token, user_request=request)
     if payload.get("type", "") not in ["login", ""]:
         raise Error(
             "forbidden",
@@ -201,7 +204,7 @@ async def has_token_maintenance(
     token: dict = Depends(HTTPBearer()), request: Request = None
 ) -> TokenPayload:
     token = token.credentials
-    payload: TokenPayload = TokenFastAPI.get_token_payload(token)
+    payload: TokenPayload = TokenFastAPI.get_token_payload(token, user_request=request)
     if payload.get("type", "") not in ["login", ""]:
         raise Error(
             "forbidden",
@@ -226,7 +229,7 @@ async def has_token_register(
     token: dict = Depends(HTTPBearer()), request: Request = None
 ) -> TokenPayload:
     token = token.credentials
-    payload: TokenPayload = TokenFastAPI.get_token_payload(token)
+    payload: TokenPayload = TokenFastAPI.get_token_payload(token, user_request=request)
     if payload.get("type", "") != "register":
         raise Error(
             "forbidden",
@@ -262,7 +265,7 @@ async def has_token_password_reset_login(
     token: dict = Depends(HTTPBearer()), request: Request = None
 ) -> TokenPayload:
     token = token.credentials
-    payload: TokenPayload = TokenFastAPI.get_token_payload(token)
+    payload: TokenPayload = TokenFastAPI.get_token_payload(token, user_request=request)
     token_type = payload.get("type", "")
     if token_type not in [
         "password-reset-required",
@@ -294,7 +297,7 @@ async def has_token_disclaimer(
     token: dict = Depends(HTTPBearer()), request: Request = None
 ) -> TokenPayload:
     token = token.credentials
-    payload: TokenPayload = TokenFastAPI.get_token_payload(token)
+    payload: TokenPayload = TokenFastAPI.get_token_payload(token, user_request=request)
     if payload.get("type", "") not in ["disclaimer-acknowledgement-required"]:
         raise Error(
             "forbidden",
@@ -311,7 +314,7 @@ async def has_token_direct_viewer(
     token: dict = Depends(HTTPBearer()), request: Request = None
 ):
     token = token.credentials
-    payload = TokenFastAPI.get_token_payload(token)
+    payload = TokenFastAPI.get_token_payload(token, user_request=request)
     token_type = payload.get("type", "")
     if token_type not in ["direct-viewer", "login", ""]:
         raise Error(
@@ -338,7 +341,7 @@ async def has_migration_required_or_login_token(
     token: dict = Depends(HTTPBearer()), request: Request = None
 ):
     token = token.credentials
-    payload = TokenFastAPI.get_token_payload(token)
+    payload = TokenFastAPI.get_token_payload(token, user_request=request)
     if payload.get("type", "") not in ["user-migration-required", "login", ""]:
         raise Error(
             "forbidden",
@@ -368,7 +371,7 @@ async def has_email_verification_required_or_login_token(
     token: dict = Depends(HTTPBearer()), request: Request = None
 ) -> TokenPayload:
     token = token.credentials
-    payload: TokenPayload = TokenFastAPI.get_token_payload(token)
+    payload: TokenPayload = TokenFastAPI.get_token_payload(token, user_request=request)
     token_type = payload.get("type", "")
     if token_type not in ["email-verification-required", "login", ""]:
         raise Error(

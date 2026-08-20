@@ -694,7 +694,6 @@ dependencies = [
     { name = "rethinkdb" },
     { name = "rq" },
     { name = "specktre" },
-    { name = "user-agents" },
     { name = "uvicorn" },
     { name = "watchfiles" },
     { name = "websockets" },
@@ -734,7 +733,6 @@ requires-dist = [
     { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
     { name = "rq", specifier = "==2.3.2" },
     { name = "specktre", specifier = "==0.3.0" },
-    { name = "user-agents", specifier = "==2.2.0" },
     { name = "uvicorn", specifier = "==0.34.2" },
     { name = "watchfiles", specifier = "==1.0.4" },
     { name = "websockets", specifier = "==15.0.1" },
@@ -968,6 +966,7 @@ dependencies = [
     { name = "rq" },
     { name = "simple-colors" },
     { name = "specktre" },
+    { name = "user-agents" },
     { name = "zstandard" },
 ]
 
@@ -1004,6 +1003,7 @@ requires-dist = [
     { name = "rq", specifier = "==2.3.2" },
     { name = "simple-colors", specifier = "==0.1.5" },
     { name = "specktre", specifier = "==0.3.0" },
+    { name = "user-agents", specifier = "==2.2.0" },
     { name = "zstandard", specifier = "==0.25.0" },
 ]
 
