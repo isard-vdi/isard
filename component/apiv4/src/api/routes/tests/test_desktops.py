@@ -685,48 +685,39 @@ def test_create_desktop_from_media_accepts_payload_without_reservables(
     assert response.json() == {"id": "desktop-from-media-no-reservables"}
 
 
-def test_get_allowed_reservables_calls_alloweds_with_user_payload(
+def test_get_allowed_reservables_uses_the_creation_hardware_source(
     monkeypatch, test_client
 ):
-    """``GET /items/domains/get-allowed-reservables`` was a hard-coded
-    mock returning a single fake "No GPU" entry under ``open_router``
-    (no auth, no permission filtering). v3
-    ``CommonView.api_v3_domains_allowed_hardware_reservables`` calls
-    ``allowed.get_items_allowed(payload, "reservables_vgpus", ...)`` to
-    filter against the caller's role/category/group. This test pins
-    that v4 now (a) requires auth (``token_router``) and (b) forwards
-    the payload + table name to ``Alloweds.get_items_allowed``.
-    """
+    """The route feeding the GPU picker must list what creation accepts."""
     jwt = MockJWT()
     captured = {}
 
-    def fake_get_items_allowed(payload, table, **kwargs):
+    def fake_hardware_kind_allowed(payload, kind):
         captured["user_id"] = payload["user_id"]
-        captured["table"] = table
-        captured["query_pluck"] = kwargs.get("query_pluck")
-        captured["order"] = kwargs.get("order")
-        captured["query_merge"] = kwargs.get("query_merge")
-        return [
-            {
-                "id": "vgpu-1",
-                "name": "Tesla",
-                "description": "8GB",
-                "editable": True,
-                "allowed": {
-                    "categories": False,
-                    "groups": False,
-                    "roles": False,
-                    "users": False,
-                },
+        captured["kind"] = kind
+        return {
+            "reservables": {
+                "vgpus": [
+                    {
+                        "id": "vgpu-1",
+                        "name": "Tesla",
+                        "description": "8GB",
+                        "editable": True,
+                        "allowed": {
+                            "categories": False,
+                            "groups": False,
+                            "roles": False,
+                            "users": False,
+                        },
+                    }
+                ]
             }
-        ]
+        }
 
     monkeypatch.setattr(
-        "isardvdi_common.helpers.alloweds.Alloweds.get_items_allowed",
+        "isardvdi_common.helpers.quotas.Quotas.get_hardware_kind_allowed",
         classmethod(
-            lambda cls, payload, table, **kwargs: fake_get_items_allowed(
-                payload, table, **kwargs
-            )
+            lambda cls, payload, kind: fake_hardware_kind_allowed(payload, kind)
         ),
     )
 
@@ -741,10 +732,7 @@ def test_get_allowed_reservables_calls_alloweds_with_user_payload(
     assert body["vgpus"][0]["id"] == "vgpu-1"
     assert captured == {
         "user_id": jwt.payload["user_id"],
-        "table": "reservables_vgpus",
-        "query_pluck": ["id", "name", "description"],
-        "order": "name",
-        "query_merge": False,
+        "kind": "reservables",
     }
 
 

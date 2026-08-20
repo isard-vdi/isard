@@ -21,17 +21,17 @@ JWT_PAYLOAD = {
 
 
 class TestGetUserAllowedReservables:
+    """The picker must list exactly what creation accepts."""
+
     @patch(
-        "api.services.desktops.Alloweds.get_items_allowed",
-        return_value=[{"id": "vgpu-1", "name": "T4"}],
+        "api.services.desktops.Quotas.get_hardware_kind_allowed",
+        return_value={"reservables": {"vgpus": [{"id": "vgpu-1", "name": "T4"}]}},
     )
-    def test_uses_reservables_vgpus_table_with_pluck(self, mock_alloweds):
-        DesktopService.get_user_allowed_reservables(JWT_PAYLOAD)
-        args, kwargs = mock_alloweds.call_args
-        assert args[1] == "reservables_vgpus"
-        assert kwargs["query_pluck"] == ["id", "name", "description"]
-        assert kwargs["order"] == "name"
-        assert kwargs["query_merge"] is False
+    def test_uses_the_same_source_as_creation(self, mock_quotas):
+        vgpus = DesktopService.get_user_allowed_reservables(JWT_PAYLOAD)
+
+        mock_quotas.assert_called_once_with(JWT_PAYLOAD, "reservables")
+        assert vgpus == [{"id": "vgpu-1", "name": "T4"}]
 
 
 class TestCreateDesktopGuards:
