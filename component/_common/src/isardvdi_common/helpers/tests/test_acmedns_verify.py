@@ -171,6 +171,34 @@ class TestFallback:
         acmedns.verify_cname("vdi.example.com", FULLDOMAIN)
         assert len(resolver.instances) == 1
 
+    def test_a_negative_names_the_resolver_that_made_the_observation(
+        self, acmedns, resolver
+    ):
+        """Not merely the last one tried. Attributing the system resolver's
+        answer to the public ones destroys the only thing the two-resolver
+        design buys: an operator told the public resolvers see a wrong target
+        goes to change public DNS, when what actually happened is that their
+        own resolver holds a private view and the public ones never answered."""
+        resolver.answers = {
+            "203.0.113.53": "somewhere-else.example.com.",
+            ",".join(acmedns._PUBLIC_FALLBACK): dns.resolver.LifetimeTimeout(),
+        }
+        result = acmedns.verify_cname("vdi.example.com", FULLDOMAIN)
+
+        assert result["observed"] == "somewhere-else.example.com"
+        assert result["resolver"] == "system"
+
+    def test_a_negative_with_no_answer_at_all_names_what_was_tried(
+        self, acmedns, resolver
+    ):
+        """Nothing observed it, so the honest thing is to say where it was
+        looked for."""
+        resolver.answers = {"*": None}
+        result = acmedns.verify_cname("vdi.example.com", FULLDOMAIN)
+
+        assert result["observed"] is None
+        assert acmedns._PUBLIC_FALLBACK[0] in result["resolver"]
+
     def test_it_says_which_resolver_answered(self, acmedns, resolver):
         """So the operator can tell "my resolver cannot see it" from "the
         record is not there", which need different things done about them."""

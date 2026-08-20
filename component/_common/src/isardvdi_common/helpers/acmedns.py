@@ -197,13 +197,19 @@ def verify_cname(domain: str, fulldomain: str) -> dict:
         attempts.append((_PUBLIC_FALLBACK, ",".join(_PUBLIC_FALLBACK)))
 
     observed = None
-    resolver_used = attempts[0][1]
+    # Two labels, because they answer different questions. observed_by names
+    # the resolver whose answer is being reported, and only a resolver that
+    # actually answered can be it: attributing one resolver's observation to
+    # another destroys the only thing having two of them buys. tried is where
+    # it was looked for, which is what to report when nobody saw anything.
+    observed_by = None
+    tried = attempts[-1][1]
     for nameservers, label in attempts:
-        resolver_used = label
         seen = _resolve_cname(record, nameservers)
         if seen is None:
             continue
         observed = seen
+        observed_by = label
         if dns.name.from_text(seen).canonicalize() == expected:
             return {
                 "verified": True,
@@ -214,6 +220,7 @@ def verify_cname(domain: str, fulldomain: str) -> dict:
             }
 
     expected_text = fulldomain.rstrip(".")
+    resolver_used = observed_by or tried
     if observed is not None:
         message = (
             f"{record} points at {observed}, not at {expected_text}. "
