@@ -89,3 +89,34 @@ class CertificatesConfigUpdate(BaseModel):
     """Request body for ``PUT /admin/config/certificates``."""
 
     main_domain: Optional[MainDomainCertificate] = None
+
+
+class AcmeDnsRegisterRequest(BaseModel):
+    """Request body for ``POST /admin/config/certificates/acmedns/register``."""
+
+    base_url: str
+    # acme-dns cannot delete or update an account, so registering a second one
+    # abandons the first and invalidates any CNAME already created for it.
+    # Saying so explicitly is what separates that from a double click.
+    replace: bool = False
+
+
+class AcmeDnsRegisterResponse(BaseModel):
+    """What the operator has to act on: the delegation to ask their customer for."""
+
+    cname_record: str
+    cname_target: str
+    username: str
+    subdomain: str
+    fulldomain: str
+    password_set: bool
+
+
+class AcmeDnsVerifyResponse(BaseModel):
+    """The state of the delegation, as seen from here."""
+
+    verified: bool
+    message: str
+    observed: Optional[str] = None
+    expected: Optional[str] = None
+    resolver: Optional[str] = None

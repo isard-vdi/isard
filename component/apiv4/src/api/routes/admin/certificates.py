@@ -23,6 +23,9 @@ import traceback
 
 from api import admin_router
 from api.schemas.admin.certificates import (
+    AcmeDnsRegisterRequest,
+    AcmeDnsRegisterResponse,
+    AcmeDnsVerifyResponse,
     CertificatesConfigResponse,
     CertificatesConfigUpdate,
 )
@@ -87,5 +90,66 @@ async def update_certificates_config(request: Request, data: CertificatesConfigU
             request,
             "internal_server",
             "Failed to update the certificate configuration",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/config/certificates/acmedns/register",
+    tags=[tag],
+    response_model=AcmeDnsRegisterResponse,
+    summary="Register an acme-dns account for the main domain",
+    description="Registers a fresh account with the acme-dns server and stores "
+    "its credentials, returning the CNAME record the domain owner has to create "
+    "for DNS-01 issuance to work. Refuses when an account is already registered "
+    "unless replace is set: acme-dns cannot delete accounts, so registering "
+    "another one abandons the first and any CNAME created for it.",
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def register_acmedns_account(request: Request, data: AcmeDnsRegisterRequest):
+    try:
+        result = await asyncio.to_thread(
+            AdminCertificatesService.register_acmedns, data.base_url, data.replace
+        )
+        return JSONResponse(
+            content=AcmeDnsRegisterResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to register the acme-dns account",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/config/certificates/acmedns/verify",
+    tags=[tag],
+    response_model=AcmeDnsVerifyResponse,
+    summary="Check the acme-dns delegation for the main domain",
+    description="Resolves the challenge name and reports whether it points at "
+    "the registered acme-dns subdomain yet, recording the result. A delegation "
+    "that is not visible is reported, not raised: this is expected to be polled "
+    "while DNS propagates.",
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def verify_acmedns_delegation(request: Request):
+    try:
+        result = await asyncio.to_thread(AdminCertificatesService.verify_acmedns)
+        return JSONResponse(
+            content=AcmeDnsVerifyResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to check the acme-dns delegation",
             traceback.format_exc(),
         )

@@ -25,6 +25,7 @@ import threading
 import traceback
 
 from api.services.error import Error
+from isardvdi_common.helpers import acmedns
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.certificates_config import CertificatesConfig
 
@@ -191,6 +192,13 @@ def _dispatch_main_domain_issuance() -> None:
     ).start()
 
 
+def _main_domain_name(certs: dict) -> str:
+    """The name the delegation has to be created for."""
+    main = (certs or {}).get("main_domain") or {}
+    names = main.get("names") or []
+    return names[0] if names else ""
+
+
 class AdminCertificatesService:
     """Global (admin-only) main-domain certificate configuration."""
 
@@ -212,3 +220,98 @@ class AdminCertificatesService:
         )
         # Off the request path on purpose: see _dispatch_main_domain_issuance.
         _dispatch_main_domain_issuance()
+
+    @staticmethod
+    def register_acmedns(base_url: str, replace: bool = False) -> dict:
+        """Register a fresh acme-dns account for the main domain.
+
+        Refuses to overwrite credentials that are already stored unless told
+        to. acme-dns has no update and no delete, so a second registration does
+        not replace the first: it strands it and returns a different subdomain.
+        If the customer has already created the CNAME, it now points at an
+        account this deployment no longer holds credentials for, and what
+        surfaces later is an issuance failing on DNS -- nowhere near a button
+        that got pressed twice. Making the caller say it means to replace turns
+        that from an accident into a decision.
+        """
+        certs = CertificatesConfig.get_certificates_config()
+        name = _main_domain_name(certs)
+        if not name:
+            raise Error(
+                "bad_request",
+                "configure the certificate name before registering an acme-dns account",
+                description_code="acmedns_name_required",
+            )
+
+        main = (certs or {}).get("main_domain") or {}
+        stored = main.get("acmedns") or {}
+        if stored.get("username") and not replace:
+            raise Error(
+                "bad_request",
+                "an acme-dns account is already registered for this domain. "
+                "Registering another one abandons it, and any CNAME already "
+                "created for it stops working.",
+                description_code="acmedns_already_registered",
+            )
+
+        try:
+            credentials = acmedns.register(base_url)
+        except acmedns.AcmeDnsError as exc:
+            raise Error(
+                "internal_server",
+                str(exc),
+                description_code="acmedns_register_failed",
+            )
+
+        # verified is false whatever it was: the account is seconds old and
+        # nobody has delegated anything to it yet. Carrying the previous value
+        # over would let issuance run against a delegation that is not there.
+        AdminCertificatesService.update_certificates(
+            {
+                "main_domain": {
+                    "certificate_source": "acme_dns",
+                    "acmedns": dict(credentials, auto_register=True, verified=False),
+                }
+            }
+        )
+
+        return {
+            "cname_record": f"_acme-challenge.{name}",
+            "cname_target": credentials["fulldomain"],
+            "username": credentials["username"],
+            "subdomain": credentials["subdomain"],
+            "fulldomain": credentials["fulldomain"],
+            "password_set": True,
+        }
+
+    @staticmethod
+    def verify_acmedns() -> dict:
+        """Check the delegation and record whether it is in place.
+
+        The result is returned rather than raised even when negative: this is
+        pressed repeatedly while DNS propagates, and "not visible yet" is the
+        answer, not a failure.
+
+        The flag is written in both directions. One that only ever goes true
+        records that something was once the case, which is not what a caller
+        deciding whether to attempt issuance is asking.
+        """
+        certs = CertificatesConfig.get_certificates_config()
+        name = _main_domain_name(certs)
+        main = (certs or {}).get("main_domain") or {}
+        fulldomain = (main.get("acmedns") or {}).get("fulldomain")
+
+        if not name or not fulldomain:
+            raise Error(
+                "bad_request",
+                "there is no acme-dns registration to check a delegation against",
+                description_code="acmedns_not_registered",
+            )
+
+        result = acmedns.verify_cname(name, fulldomain)
+
+        AdminCertificatesService.update_certificates(
+            {"main_domain": {"acmedns": {"verified": bool(result["verified"])}}}
+        )
+
+        return result
