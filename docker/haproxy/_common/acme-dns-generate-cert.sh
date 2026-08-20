@@ -78,6 +78,21 @@ fi
 
 mkdir -p "$ACME_HOME"
 
+# acme.sh's own output has to be captured rather than inherited. The
+# dns_acmedns plugin logs the update request it sends to acme-dns, and the
+# password is a header on it -- so anything that captures this process's output
+# captures the password. haproxy-sync does exactly that: it runs this script
+# with CombinedOutput and puts the result in the error it returns, which
+# travels up through gRPC into an apiv4 log line and from there into whatever
+# an operator pastes when asking for help.
+#
+# Kept on disk instead of discarded, because a DNS-01 failure is genuinely hard
+# to diagnose without it, and readable only by its owner because of what is in
+# it.
+acme_log="$ACME_HOME/acme-dns-last-run.log"
+: > "$acme_log"
+chmod 600 "$acme_log"
+
 # Generate the certificate.
 #
 # Serialized on the same lock the HTTP-01 script uses, and that shared lock is
@@ -95,7 +110,8 @@ set +e
         ACMEDNS_USERNAME="$ACMEDNS_USERNAME" \
         ACMEDNS_PASSWORD="$acmedns_password" \
         ACMEDNS_SUBDOMAIN="$ACMEDNS_SUBDOMAIN" \
-        acme.sh --issue --dns dns_acmedns --server "$acme_server" -d "$acme_domain"
+        acme.sh --issue --dns dns_acmedns --server "$acme_server" -d "$acme_domain" \
+        >>"$acme_log" 2>&1
 ) 9>"$ACME_HOME/.acme-issue.lock"
 ACME_EXIT_CODE="$?"
 set -e
@@ -108,9 +124,9 @@ elif [ "$ACME_EXIT_CODE" = 2 ]; then
     # mean this container has it in place yet.
     echo "Skipping certificate renewal, there's a valid one already"
 else
-    # Deliberately only the code. acme.sh's output on a DNS-01 failure quotes
-    # the request it made, and the password is in it.
+    # The code and where to look, never the output itself.
     echo "ACME DNS-01 certificate generation failed with exit code $ACME_EXIT_CODE" >&2
+    echo "acme.sh output kept at $acme_log -- it quotes the acme-dns request, password included, so read it in place rather than pasting it anywhere" >&2
     exit "$ACME_EXIT_CODE"
 fi
 

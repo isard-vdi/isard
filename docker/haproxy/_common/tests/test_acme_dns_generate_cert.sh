@@ -100,6 +100,10 @@ log_argv() {
 case " \$* " in
     *" --issue "*)
         echo "ENTER" >> "$WORK_DIR/log/trace.log"
+        # What the real dns_acmedns plugin prints: it quotes the update
+        # request it sends to acme-dns, and the password is a header on it.
+        echo "POST \$ACMEDNS_BASE_URL/update"
+        echo "headers: X-Api-User: \$ACMEDNS_USERNAME X-Api-Key: \$ACMEDNS_PASSWORD"
         [ "$hold" -gt 0 ] && sleep $hold
         echo "EXIT" >> "$WORK_DIR/log/trace.log"
         log_argv issue.argv "\$@"
@@ -216,6 +220,14 @@ new_fixture 1
 run_issue vdi.example.com
 check "a failure does not echo the password either" \
     '! grep -qF -- "$PASSWORD" <<<"$RUN_OUT"' "out=$RUN_OUT"
+check "a failure says where acme.sh's own output was kept" \
+    'grep -qF -- "$ACME_HOME_DIR/acme-dns-last-run.log" <<<"$RUN_OUT"' "out=$RUN_OUT"
+check "acme.sh's output is kept on disk, not thrown away" \
+    'grep -qF -- "$PASSWORD" "$ACME_HOME_DIR/acme-dns-last-run.log"' \
+    "the operator still needs to be able to diagnose the failure"
+check "the kept output is readable only by its owner" \
+    '[ "$(stat -c %a "$ACME_HOME_DIR/acme-dns-last-run.log")" = "600" ]' \
+    "perms=$(stat -c %a "$ACME_HOME_DIR/acme-dns-last-run.log" 2>/dev/null)"
 
 #-------------------------------------------------------------------------------
 # Incomplete credentials
