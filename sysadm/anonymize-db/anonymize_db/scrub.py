@@ -961,8 +961,34 @@ class Scrubber:
                     mt["title"] = ""
                 if isinstance(mt.get("body"), str):
                     mt["body"] = ""
+            # The login screen is entirely operator-authored: the service
+            # title, the two notification banners and the per-provider
+            # descriptions. In the field they name the organisation and link
+            # to its own portal. Same treatment as maintenance_text.
+            self._blank_login_free_text(r.get("login"))
+            self._blank_login_free_text(r.get("notification_form"))
             self._bump("config")
         return rows
+
+    # Operator-authored copy inside config.login and the top-level
+    # notification_form. Everything else there — `enabled`, `icon`, the
+    # `extra_styles` CSS, `locale`, `display_providers` — is presentation or a
+    # flag and carries no identity, so it stays.
+    _LOGIN_FREE_TEXT_KEYS = frozenset(
+        {"title", "description", "text", "url", "submit_text", "body"}
+    )
+
+    @classmethod
+    def _blank_login_free_text(cls, obj: Any) -> None:
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k in cls._LOGIN_FREE_TEXT_KEYS and isinstance(v, str):
+                    obj[k] = ""
+                else:
+                    cls._blank_login_free_text(v)
+        elif isinstance(obj, list):
+            for v in obj:
+                cls._blank_login_free_text(v)
 
     # Catalog / resource tables whose `name`/`description` are admin- or
     # user-authored free text. Verified against the IsardVDI schema: every one

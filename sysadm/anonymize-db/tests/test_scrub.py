@@ -967,3 +967,59 @@ def test_defensive_sweep_matches_composite_secret_names():
     assert row["status_code"] == 404
     assert row["description_code"] == "smtp_host_internal"
     assert row["tokens_used"] == 12
+
+
+def test_config_login_free_text_blanked():
+    # The login screen is operator-authored copy: in the field the service
+    # title, the notification banners and the provider descriptions name the
+    # organisation and link to its own portal.
+    tables = {
+        "config": [
+            {
+                "id": 1,
+                "login": {
+                    "info": {"title": "RealOrg virtual desktops"},
+                    "locale": {"default": "ca-ES", "hide": True},
+                    "notification_form": {
+                        "enabled": True,
+                        "icon": "info-circle",
+                        "extra_styles": "background-color: #ffffff;",
+                        "title": "Sign in with your realorg.example account",
+                        "description": "",
+                        "button": {
+                            "text": "Sign in with another account",
+                            "url": "https://desktops.realorg.example/login/all",
+                            "extra_styles": "color: #bf0000;",
+                        },
+                    },
+                    "providers": {
+                        "saml": {
+                            "description": "Sign in with your realorg.example account",
+                            "submit_text": "Identify",
+                            "hide_categories_dropdown": False,
+                        }
+                    },
+                },
+                "notification_form": {
+                    "title": "From 13 January only realorg.example accounts work",
+                    "description": "Click Enter to migrate them.",
+                },
+            }
+        ]
+    }
+    out = _run(tables)
+    dumped = json.dumps(out)
+    for needle in ("realorg", "RealOrg", "Identify", "another account", "migrate"):
+        assert needle not in dumped, needle
+    login = out["config"][0]["login"]
+    assert login["info"]["title"] == ""
+    assert login["notification_form"]["button"]["url"] == ""
+    assert login["providers"]["saml"]["description"] == ""
+    assert login["providers"]["saml"]["submit_text"] == ""
+    assert out["config"][0]["notification_form"]["title"] == ""
+    # presentation and flags are not identity and stay
+    assert login["locale"] == {"default": "ca-ES", "hide": True}
+    assert login["notification_form"]["enabled"] is True
+    assert login["notification_form"]["icon"] == "info-circle"
+    assert login["notification_form"]["button"]["extra_styles"] == "color: #bf0000;"
+    assert login["providers"]["saml"]["hide_categories_dropdown"] is False
