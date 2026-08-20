@@ -211,7 +211,7 @@ const steps = computed<StepperFormStep[]>(() => {
       @next="handleNextClick"
     >
       <template #stepper>
-        <div class="shrink-0 w-95">
+        <div class="shrink-0 w-80">
           <StepperForm v-model="currentStep" :steps="steps" />
         </div>
       </template>
