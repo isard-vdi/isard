@@ -619,6 +619,71 @@
                                         placeholder="Comma-separated nets" data-parsley-trigger="change" type="text">
                                 </div>
                             </div>
+                            <div id="cert-acmedns-form" style="display: none;">
+                                <div class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                    <label>acme-dns Mode</label>
+                                    <select id="cert-acmedns-mode" class="form-control">
+                                        <option value="auto">Register an account automatically</option>
+                                        <option value="manual">Enter existing credentials</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                    <label>acme-dns Server</label>
+                                    <input id="cert-acmedns-base-url" class="form-control"
+                                        placeholder="https://auth.example.com" type="text" />
+                                </div>
+                                <div id="cert-acmedns-auto-actions"
+                                    class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                    <button id="cert-acmedns-register" type="button"
+                                        class="btn btn-primary">Register account</button>
+                                    <span class="help-block">
+                                        Creates a new account on that server. Registering a
+                                        second one abandons the first: acme-dns cannot delete
+                                        accounts, so any CNAME already created for it stops
+                                        working.
+                                    </span>
+                                </div>
+                                <div class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                    <label>acme-dns Username</label>
+                                    <input id="cert-acmedns-username" class="form-control" type="text" />
+                                </div>
+                                <div class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                    <label>acme-dns Password</label>
+                                    <input id="cert-acmedns-password" class="form-control"
+                                        type="password" autocomplete="new-password" />
+                                    <span id="cert-acmedns-password-hint" class="help-block"></span>
+                                </div>
+                                <div class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                    <label>acme-dns Subdomain</label>
+                                    <input id="cert-acmedns-subdomain" class="form-control" type="text" />
+                                </div>
+                                <div class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                    <label>acme-dns Full Domain</label>
+                                    <input id="cert-acmedns-fulldomain" class="form-control" type="text" />
+                                    <span class="help-block">
+                                        What the challenge name has to be delegated to.
+                                    </span>
+                                </div>
+                                <div id="cert-acmedns-cname-alert" class="col-md-12 col-sm-12 col-xs-12 alert alert-info"
+                                    style="display: none;">
+                                    Ask the owner of this domain to create this DNS
+                                    <strong>CNAME</strong> record, then check it below.
+                                    Issuance cannot work until it exists.
+                                    <br />
+                                    <code id="cert-acmedns-cname-record"></code>
+                                    &nbsp;&rarr;&nbsp;
+                                    <code id="cert-acmedns-cname-target"></code>
+                                </div>
+                                <div class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                    <button id="cert-acmedns-verify" type="button"
+                                        class="btn btn-default">Check delegation</button>
+                                    <span id="cert-acmedns-verify-status"></span>
+                                    <span class="help-block">
+                                        DNS propagation can take a while; checking again
+                                        later is expected.
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -723,7 +788,13 @@
                                 <label>Certificate Source</label>
                                 <select id="cert-source" name="cert-source" class="form-control">
                                     <option value="acme">ACME HTTP-01 (Let's Encrypt)</option>
+                                    <option value="acme_dns">ACME DNS-01 (acme-dns)</option>
                                 </select>
+                                <span class="help-block">
+                                    HTTP-01 needs this domain to already point here and
+                                    answer on port 80. DNS-01 does not, which is the only
+                                    way to certify a name served from somewhere else.
+                                </span>
                             </div>
                             <div class="col-md-12 col-sm-12 col-xs-12 form-group">
                                 <label>ACME Account E-mail</label>

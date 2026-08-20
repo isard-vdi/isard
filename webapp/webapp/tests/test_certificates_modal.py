@@ -110,16 +110,17 @@ class TestCertificatesModal:
         ):
             assert field in domains_modals, field
 
-    def test_offers_only_the_source_the_api_accepts(self, domains_modals):
+    def test_offers_only_the_sources_the_api_accepts(self, domains_modals):
         source = domains_modals.split('id="cert-source"', 1)[1].split("</select>", 1)[0]
         assert 'value="acme"' in source
-        # The schema is Literal["acme"]; offering anything else would produce a
-        # form that fails validation on save.
-        assert 'value="acme_dns"' not in source
+        assert 'value="acme_dns"' in source
+        # The schema is Literal["acme", "acme_dns"]; offering anything else
+        # would produce a form that fails validation on save. "custom" is the
+        # one that is still out.
         assert 'value="custom"' not in source
 
-    def test_has_no_acme_dns_form(self, domains_modals):
-        assert "cert-acmedns" not in domains_modals
+    def test_has_the_acme_dns_form(self, domains_modals):
+        assert "cert-acmedns" in domains_modals
 
 
 # ──────────────────────────────────────────────────────────────────────

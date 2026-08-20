@@ -1437,6 +1437,17 @@ $(document).ready(function () {
                     return;
                 }
                 var label = names.length ? names.join(", ") : "no domain set";
+                if (main.certificate_source === "acme_dns") {
+                    // Whether the delegation is in place decides whether
+                    // issuance can work at all, so it belongs in the one line
+                    // the operator sees without opening anything.
+                    var acmedns = main.acmedns || {};
+                    $("#certificatesStatusLabel").text(
+                        label + " — ACME DNS-01 (acme-dns), " +
+                        (acmedns.verified ? "delegation verified" : "delegation not verified")
+                    );
+                    return;
+                }
                 $("#certificatesStatusLabel").text(label + " — ACME HTTP-01");
             }
         });
@@ -1445,6 +1456,87 @@ $(document).ready(function () {
     if ($("#CertificatesConfig").length) {
         loadCertificatesStatus();
     }
+
+    // The password is never sent down, so the form starts blank and the hint
+    // has to say which of the two situations that is: leaving it blank keeps a
+    // stored password, or there is nothing stored to keep.
+    function certShowPasswordHint(passwordSet) {
+        $("#cert-acmedns-password").attr(
+            "placeholder", passwordSet ? "(stored — leave blank to keep it)" : ""
+        );
+        $("#cert-acmedns-password-hint").text(
+            passwordSet
+                ? "A password is stored. Leave this blank to keep it."
+                : "No password stored yet. Issuance cannot work without one."
+        );
+    }
+
+    function certShowCname(record, target) {
+        $("#cert-acmedns-cname-record").text(record);
+        $("#cert-acmedns-cname-target").text(target);
+        $("#cert-acmedns-cname-alert").toggle(!!record);
+    }
+
+    function certToggleAcmeDns() {
+        $("#cert-acmedns-form").toggle($("#cert-source").val() === "acme_dns");
+        $("#cert-acmedns-auto-actions").toggle($("#cert-acmedns-mode").val() === "auto");
+    }
+
+    $("#cert-source, #cert-acmedns-mode").on("change", certToggleAcmeDns);
+
+    $("#cert-acmedns-register").on("click", function () {
+        var baseUrl = $("#cert-acmedns-base-url").val();
+        if (!baseUrl) {
+            new PNotify({ title: "Missing acme-dns server", text: "Set the acme-dns server URL first", type: "error", hide: true, delay: 3000, icon: 'fa fa-warning', opacity: 1 });
+            return;
+        }
+        // Only sent when the operator confirms: registering a second account
+        // abandons the first, and acme-dns cannot delete it, so any CNAME
+        // already created for it stops working.
+        var replace = !!$("#cert-acmedns-username").val() && window.confirm(
+            "An acme-dns account is already registered. Registering another one " +
+            "abandons it, and any CNAME already created for it stops working. Continue?"
+        );
+        if ($("#cert-acmedns-username").val() && !replace) {
+            return;
+        }
+        $.ajax({
+            type: "POST",
+            url: "/api/v4/admin/config/certificates/acmedns/register",
+            data: JSON.stringify({ base_url: baseUrl, replace: replace }),
+            contentType: "application/json",
+            success: function (data) {
+                $("#cert-acmedns-username").val(data.username);
+                $("#cert-acmedns-subdomain").val(data.subdomain);
+                $("#cert-acmedns-fulldomain").val(data.fulldomain);
+                $("#cert-acmedns-password").val("");
+                certShowPasswordHint(data.password_set);
+                certShowCname(data.cname_record, data.cname_target);
+                $("#cert-acmedns-verify-status").text("").css("color", "");
+            },
+            error: function (data) {
+                new PNotify({ title: "ERROR registering acme-dns account", text: data.responseJSON ? data.responseJSON.description : 'Something went wrong', type: "error", hide: true, delay: 5000, icon: 'fa fa-warning', opacity: 1 });
+            }
+        });
+    });
+
+    $("#cert-acmedns-verify").on("click", function () {
+        $.ajax({
+            type: "POST",
+            url: "/api/v4/admin/config/certificates/acmedns/verify",
+            contentType: "application/json",
+            success: function (data) {
+                // A delegation that is not there yet is an answer, not an
+                // error: this gets pressed repeatedly while DNS propagates.
+                $("#cert-acmedns-verify-status")
+                    .text(data.verified ? "✔ " + data.message : "✖ " + data.message)
+                    .css("color", data.verified ? "green" : "darkorange");
+            },
+            error: function (data) {
+                new PNotify({ title: "ERROR checking the delegation", text: data.responseJSON ? data.responseJSON.description : 'Something went wrong', type: "error", hide: true, delay: 5000, icon: 'fa fa-warning', opacity: 1 });
+            }
+        });
+    });
 
     $("#btn-edit-certificates").on("click", function () {
         $("#modalEditCertificatesForm")[0].reset();
@@ -1462,9 +1554,44 @@ $(document).ready(function () {
                 $("#cert-source").val(main.certificate_source || "acme");
                 $("#cert-email").val(main.email || "");
                 $("#cert-acme-server").val(main.acme_server || "");
+
+                var acmedns = main.acmedns || {};
+                $("#cert-acmedns-base-url").val(acmedns.base_url || "");
+                $("#cert-acmedns-username").val(acmedns.username || "");
+                $("#cert-acmedns-subdomain").val(acmedns.subdomain || "");
+                $("#cert-acmedns-fulldomain").val(acmedns.fulldomain || "");
+                // Credentials that are already there were not registered from
+                // this screen just now, so the manual side is what to show.
+                $("#cert-acmedns-mode").val(acmedns.username ? "manual" : "auto");
+                certShowPasswordHint(!!acmedns.password_set);
+                certShowCname(
+                    acmedns.fulldomain ? "_acme-challenge." + (names[0] || "") : "",
+                    acmedns.fulldomain || ""
+                );
+                $("#cert-acmedns-verify-status").text("").css("color", "");
+                certToggleAcmeDns();
             }
         });
     });
+
+    // The password is only sent when the operator typed one. Sending the empty
+    // field would be read as "keep the stored one" by the API, which is the
+    // right reading -- but sending the key at all when there is nothing stored
+    // turns a save into a required-field error on a form the operator never
+    // meant to fill in.
+    function certAcmeDnsPayload() {
+        var payload = {
+            base_url: $("#cert-acmedns-base-url").val(),
+            username: $("#cert-acmedns-username").val(),
+            subdomain: $("#cert-acmedns-subdomain").val(),
+            fulldomain: $("#cert-acmedns-fulldomain").val()
+        };
+        var password = $("#cert-acmedns-password").val();
+        if (password) {
+            payload.password = password;
+        }
+        return payload;
+    }
 
     $("#modalEditCertificates #send").on("click", function () {
         var primary = $("#cert-name").val();
@@ -1480,7 +1607,8 @@ $(document).ready(function () {
                     names: [primary].concat(certExtraNames),
                     certificate_source: $("#cert-source").val(),
                     email: $("#cert-email").val(),
-                    acme_server: $("#cert-acme-server").val()
+                    acme_server: $("#cert-acme-server").val(),
+                    acmedns: certAcmeDnsPayload()
                 }
             }),
             contentType: "application/json",
