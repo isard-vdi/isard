@@ -91,10 +91,28 @@ func (h *HAProxySyncServer) DomainSync(ctx context.Context, req *haproxysyncv1.D
 }
 
 func (h *HAProxySyncServer) IssueMainDomain(ctx context.Context, req *haproxysyncv1.IssueMainDomainRequest) (*haproxysyncv1.IssueMainDomainResponse, error) {
-	err := h.haproxysync.IssueMainDomain(ctx, req.GetNames(), acme.ACMEAccount{
+	account := acme.ACMEAccount{
 		Server: req.GetAcmeServer(),
 		Email:  req.GetAcmeEmail(),
-	})
+	}
+	creds := acme.ACMEDNSCredentials{
+		BaseURL:   req.GetAcmeDnsBaseUrl(),
+		Username:  req.GetAcmeDnsUsername(),
+		Password:  req.GetAcmeDnsPassword(),
+		Subdomain: req.GetAcmeDnsSubdomain(),
+	}
+
+	// Which challenge to use is decided by what the request carries, so a
+	// deployment that has never configured acme-dns keeps taking exactly the
+	// path it took before. A partial credential set is passed on rather than
+	// silently treated as HTTP-01: the layer below refuses it with a message
+	// naming what is missing, which HTTP-01's failure would not.
+	var err error
+	if creds != (acme.ACMEDNSCredentials{}) {
+		err = h.haproxysync.IssueMainDomainDNS(ctx, req.GetNames(), account, creds)
+	} else {
+		err = h.haproxysync.IssueMainDomain(ctx, req.GetNames(), account)
+	}
 	if err != nil {
 		if errors.Is(err, haproxysync.ErrInvalidDomain) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())

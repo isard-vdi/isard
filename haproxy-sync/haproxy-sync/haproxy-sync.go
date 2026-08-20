@@ -27,6 +27,10 @@ type Interface interface {
 	// IssueMainDomain issues the deployment's main certificate (see domain.go).
 	IssueMainDomain(ctx context.Context, names []string, account acme.ACMEAccount) error
 
+	// IssueMainDomainDNS does the same over DNS-01, for a deployment whose name
+	// does not resolve here and so cannot answer an HTTP-01 challenge.
+	IssueMainDomainDNS(ctx context.Context, names []string, account acme.ACMEAccount, creds acme.ACMEDNSCredentials) error
+
 	//
 	// Bastion
 	//

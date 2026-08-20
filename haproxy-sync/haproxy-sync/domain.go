@@ -360,10 +360,8 @@ const mainDomainPemName = "chain.pem"
 // customPortalPemName, when present, is preferred by the boot-time crt-list over the ACME one.
 const customPortalPemName = "custom-portal-chain.pem"
 
-// IssueMainDomain issues the deployment's main certificate. Unlike other domains
-// it is routed by the base ACL and its cert is the crt-list default, so this
-// deploys to that default and touches neither the domain map nor the crt-list.
-func (h *HAproxySync) IssueMainDomain(ctx context.Context, names []string, account acme.ACMEAccount) error {
+// checkMainDomainNames rejects a name set the main domain cannot be issued for.
+func checkMainDomainNames(names []string) error {
 	if len(names) == 0 {
 		return fmt.Errorf("%w: no names given for the main domain", ErrInvalidDomain)
 	}
@@ -374,16 +372,41 @@ func (h *HAproxySync) IssueMainDomain(ctx context.Context, names []string, accou
 		}
 	}
 
-	h.mux.Lock()
-	defer h.mux.Unlock()
+	return nil
+}
 
-	// Refuse if the operator-supplied cert exists: the boot-time crt-list prefers
-	// it, so anything issued here would be logged as successful but never served.
+// refuseIfShadowed refuses while an operator-supplied certificate outranks the one
+// we would issue: the crt-list prefers that file, so anything issued here would be
+// deployed and logged as successful, and never served.
+//
+// The caller holds h.mux.
+func (h *HAproxySync) refuseIfShadowed() error {
 	shadow := domainCertPath(h.Domains.CertsPath, customPortalPemName)
 	if _, err := os.Stat(shadow); err == nil {
 		return fmt.Errorf(
 			"refusing to issue the main domain certificate: %s takes precedence in the crt-list, so %s would never be served; remove it to let the configured certificate take over",
 			customPortalPemName, mainDomainPemName)
+	}
+
+	return nil
+}
+
+// IssueMainDomain issues the certificate the whole deployment is served with.
+//
+// Deliberately unlike every other domain here: the main domain is routed by the
+// base ACL rather than the domain map, and its certificate is the crt-list
+// default rather than a crt-list entry, so this deploys to that default and
+// touches nothing else.
+func (h *HAproxySync) IssueMainDomain(ctx context.Context, names []string, account acme.ACMEAccount) error {
+	if err := checkMainDomainNames(names); err != nil {
+		return err
+	}
+
+	h.mux.Lock()
+	defer h.mux.Unlock()
+
+	if err := h.refuseIfShadowed(); err != nil {
+		return err
 	}
 
 	h.pushAccountThumbprint()
@@ -425,5 +448,35 @@ func (h *HAproxySync) addDomain(ctx context.Context, d DomainSyncDomain) error {
 	}
 
 	h.Domains.domains[d.Name] = true
+	return nil
+}
+
+// IssueMainDomainDNS issues the deployment's certificate over DNS-01.
+//
+// Same guards as the HTTP-01 path, and one thing left out: the account
+// thumbprint is not pushed. That thumbprint is what HAProxy answers a
+// stateless HTTP-01 challenge from, and a DNS-01 challenge is answered by
+// acme-dns without ever reaching HAProxy.
+func (h *HAproxySync) IssueMainDomainDNS(ctx context.Context, names []string, account acme.ACMEAccount, creds acme.ACMEDNSCredentials) error {
+	if err := checkMainDomainNames(names); err != nil {
+		return err
+	}
+
+	if !creds.Complete() {
+		return fmt.Errorf(
+			"issue main domain certificate: incomplete acme-dns credentials: all of base url, username, password and subdomain are required")
+	}
+
+	h.mux.Lock()
+	defer h.mux.Unlock()
+
+	if err := h.refuseIfShadowed(); err != nil {
+		return err
+	}
+
+	if err := h.acme.IssueMainDomainDNS(ctx, names, mainDomainPemName, account, creds); err != nil {
+		return fmt.Errorf("issue main domain certificate: %w", err)
+	}
+
 	return nil
 }

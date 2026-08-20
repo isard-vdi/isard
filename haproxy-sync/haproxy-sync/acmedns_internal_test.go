@@ -249,3 +249,134 @@ func TestMaterializeDoesNotLeakThePasswordInItsError(t *testing.T) {
 	assert.NotContains(t, err.Error(), d.ACMEDNSPassword,
 		"this error becomes a failed_domains entry and an apiv4 log line")
 }
+
+// ── The main domain ──────────────────────────────────────────────────────
+
+func newMainDomainSync(t *testing.T) (*HAproxySync, *acme.MockAcme, *haproxy.MockHaproxy, string) {
+	t.Helper()
+
+	certsPath := t.TempDir()
+	acmeMock := &acme.MockAcme{}
+	haproxyMock := &haproxy.MockHaproxy{}
+	svc := Init(log.New("test", "debug"), cfg.HAProxy{
+		Domains: cfg.HAProxyDomains{
+			DomainsMap:  "virt@domains",
+			CrtListPath: "/certs/crt-list.cfg",
+			CertsPath:   certsPath,
+		},
+	}, haproxyMock, acmeMock)
+
+	return svc, acmeMock, haproxyMock, certsPath
+}
+
+func testDNSCreds() acme.ACMEDNSCredentials {
+	return testDNSDomain().acmeDNSCredentials()
+}
+
+func TestIssueMainDomainDNSUsesTheDNSIssuance(t *testing.T) {
+	t.Parallel()
+
+	svc, acmeMock, _, _ := newMainDomainSync(t)
+	acmeMock.On("IssueMainDomainDNS", mock.Anything, []string{"vdi.example.com"},
+		mainDomainPemName, acme.ACMEAccount{Server: "letsencrypt"}, testDNSCreds()).Return(nil).Once()
+
+	require.NoError(t, svc.IssueMainDomainDNS(t.Context(), []string{"vdi.example.com"},
+		acme.ACMEAccount{Server: "letsencrypt"}, testDNSCreds()))
+
+	acmeMock.AssertExpectations(t)
+	acmeMock.AssertNotCalled(t, "IssueMainDomain", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestIssueMainDomainDNSDoesNotPushTheThumbprint(t *testing.T) {
+	t.Parallel()
+
+	// The thumbprint is what HAProxy answers a stateless HTTP-01 challenge
+	// from. A DNS-01 challenge is answered by acme-dns and never reaches
+	// HAProxy, so pushing it here would be a write to the running proxy that
+	// nothing in this flow needs.
+	svc, acmeMock, haproxyMock, certsPath := newMainDomainSync(t)
+	require.NoError(t, os.WriteFile(
+		domainCertPath(certsPath, "account-thumbprint"), []byte("a-thumbprint"), 0600))
+	svc.Domains.accountThumbprintPath = domainCertPath(certsPath, "account-thumbprint")
+
+	acmeMock.On("IssueMainDomainDNS", mock.Anything, mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything).Return(nil).Once()
+
+	require.NoError(t, svc.IssueMainDomainDNS(t.Context(), []string{"vdi.example.com"},
+		acme.ACMEAccount{}, testDNSCreds()))
+
+	haproxyMock.AssertNotCalled(t, "SetProcVar", mock.Anything, mock.Anything)
+}
+
+func TestIssueMainDomainDNSStillRefusesAShadowedCertificate(t *testing.T) {
+	t.Parallel()
+
+	// The same trap as the HTTP-01 path: while the operator-supplied PEM
+	// exists it wins in the crt-list, so anything issued here is written,
+	// logged as successful and never served. The challenge used to obtain it
+	// makes no difference to that.
+	svc, acmeMock, _, certsPath := newMainDomainSync(t)
+	require.NoError(t, os.WriteFile(
+		domainCertPath(certsPath, customPortalPemName), testPEMData, 0600))
+
+	err := svc.IssueMainDomainDNS(t.Context(), []string{"vdi.example.com"},
+		acme.ACMEAccount{}, testDNSCreds())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), customPortalPemName)
+	acmeMock.AssertNotCalled(t, "IssueMainDomainDNS", mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestIssueMainDomainDNSValidatesTheNames(t *testing.T) {
+	t.Parallel()
+
+	svc, acmeMock, _, _ := newMainDomainSync(t)
+
+	err := svc.IssueMainDomainDNS(t.Context(), []string{"*.example.com"},
+		acme.ACMEAccount{}, testDNSCreds())
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrInvalidDomain)
+	acmeMock.AssertNotCalled(t, "IssueMainDomainDNS", mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestIssueMainDomainDNSRefusesNoNames(t *testing.T) {
+	t.Parallel()
+
+	svc, _, _, _ := newMainDomainSync(t)
+
+	err := svc.IssueMainDomainDNS(t.Context(), nil, acme.ACMEAccount{}, testDNSCreds())
+	assert.ErrorIs(t, err, ErrInvalidDomain)
+}
+
+func TestIssueMainDomainDNSRefusesIncompleteCredentials(t *testing.T) {
+	t.Parallel()
+
+	svc, acmeMock, _, _ := newMainDomainSync(t)
+	creds := testDNSCreds()
+	creds.Subdomain = ""
+
+	err := svc.IssueMainDomainDNS(t.Context(), []string{"vdi.example.com"},
+		acme.ACMEAccount{}, creds)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "acme-dns")
+	acmeMock.AssertNotCalled(t, "IssueMainDomainDNS", mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestIssueMainDomainDNSDoesNotLeakThePassword(t *testing.T) {
+	t.Parallel()
+
+	svc, acmeMock, _, _ := newMainDomainSync(t)
+	acmeMock.On("IssueMainDomainDNS", mock.Anything, mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything).Return(errors.New("exit status 1")).Once()
+
+	err := svc.IssueMainDomainDNS(t.Context(), []string{"vdi.example.com"},
+		acme.ACMEAccount{}, testDNSCreds())
+
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), testDNSCreds().Password)
+}

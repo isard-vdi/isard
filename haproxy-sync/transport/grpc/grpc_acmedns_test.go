@@ -2,11 +2,13 @@ package grpc_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync"
 	"gitlab.com/isard/isardvdi/haproxy-sync/transport/grpc"
 	"gitlab.com/isard/isardvdi/pkg/cfg"
@@ -73,4 +75,84 @@ func TestDomainSyncLeavesTheCredentialsEmptyWhenAbsent(t *testing.T) {
 
 	assert.NoError(t, err)
 	serviceMock.AssertExpectations(t)
+}
+
+// Which challenge the main domain uses is decided by what the request carries.
+// A deployment that has never configured acme-dns must keep taking exactly the
+// path it took before, so this pins both directions rather than only the new
+// one.
+func TestIssueMainDomainUsesDNS01WhenCredentialsAreSent(t *testing.T) {
+	t.Parallel()
+
+	serviceMock := &haproxysync.MockHaproxysync{}
+	serviceMock.On("IssueMainDomainDNS", mock.AnythingOfType("context.backgroundCtx"),
+		[]string{"vdi.example.com"},
+		acme.ACMEAccount{Server: "letsencrypt", Email: "admin@example.com"},
+		acme.ACMEDNSCredentials{
+			BaseURL:   "https://auth.example.com",
+			Username:  "the-username",
+			Password:  "the-password",
+			Subdomain: "the-subdomain",
+		}).Return(nil)
+
+	srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
+
+	_, err := srv.IssueMainDomain(context.Background(), &haproxysyncv1.IssueMainDomainRequest{
+		Names:            []string{"vdi.example.com"},
+		AcmeServer:       "letsencrypt",
+		AcmeEmail:        "admin@example.com",
+		AcmeDnsBaseUrl:   "https://auth.example.com",
+		AcmeDnsUsername:  "the-username",
+		AcmeDnsPassword:  "the-password",
+		AcmeDnsSubdomain: "the-subdomain",
+	})
+
+	assert.NoError(t, err)
+	serviceMock.AssertExpectations(t)
+	serviceMock.AssertNotCalled(t, "IssueMainDomain", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestIssueMainDomainStaysOnHTTP01WithoutCredentials(t *testing.T) {
+	t.Parallel()
+
+	serviceMock := &haproxysync.MockHaproxysync{}
+	serviceMock.On("IssueMainDomain", mock.AnythingOfType("context.backgroundCtx"),
+		[]string{"vdi.example.com"},
+		acme.ACMEAccount{Server: "letsencrypt"}).Return(nil)
+
+	srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
+
+	_, err := srv.IssueMainDomain(context.Background(), &haproxysyncv1.IssueMainDomainRequest{
+		Names:      []string{"vdi.example.com"},
+		AcmeServer: "letsencrypt",
+	})
+
+	assert.NoError(t, err)
+	serviceMock.AssertExpectations(t)
+	serviceMock.AssertNotCalled(t, "IssueMainDomainDNS", mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything)
+}
+
+// Three of four goes to the DNS-01 path so the operator gets a message naming
+// what is missing. Routing it to HTTP-01 instead would attempt the challenge
+// they moved away from and report its failure, which says nothing about the
+// field they left blank.
+func TestIssueMainDomainSendsPartialCredentialsToTheDNSPath(t *testing.T) {
+	t.Parallel()
+
+	serviceMock := &haproxysync.MockHaproxysync{}
+	serviceMock.On("IssueMainDomainDNS", mock.AnythingOfType("context.backgroundCtx"),
+		[]string{"vdi.example.com"}, acme.ACMEAccount{},
+		acme.ACMEDNSCredentials{BaseURL: "https://auth.example.com"}).
+		Return(errors.New("incomplete acme-dns credentials"))
+
+	srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
+
+	_, err := srv.IssueMainDomain(context.Background(), &haproxysyncv1.IssueMainDomainRequest{
+		Names:          []string{"vdi.example.com"},
+		AcmeDnsBaseUrl: "https://auth.example.com",
+	})
+
+	assert.Error(t, err)
+	serviceMock.AssertNotCalled(t, "IssueMainDomain", mock.Anything, mock.Anything, mock.Anything)
 }
