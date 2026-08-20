@@ -423,6 +423,8 @@
         "search": {
           "placeholder": "Search desktops"
         },
+        "toggle": "Filters",
+        "toggle-active": "Filters ({count} active)",
         "kind": {
           "all": "All",
           "persistent": "Persistent | Persistents",
@@ -434,6 +436,10 @@
           "started": "Started",
           "stopped": "Stopped"
         }
+      },
+      "view-mode": {
+        "table": "View as table",
+        "cards": "View as cards"
       },
       "go-to-desktops": "Go to desktops",
       "go-to-media": "Go to media",

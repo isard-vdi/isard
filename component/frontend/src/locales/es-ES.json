@@ -420,11 +420,17 @@
         "search": {
           "placeholder": "Busca los escritorios"
         },
+        "toggle": "Filtros",
+        "toggle-active": "Filtros ({count} activos)",
         "status": {
           "all": "Todos",
           "started": "Iniciados",
           "stopped": "Parados"
         }
+      },
+      "view-mode": {
+        "table": "Ver como tabla",
+        "cards": "Ver como tarjetas"
       },
       "go-to-desktops": "Ir a mis escritorios",
       "go-to-media": "Ir a mis medios",

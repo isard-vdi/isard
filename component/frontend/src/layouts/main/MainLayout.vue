@@ -121,7 +121,7 @@ onUnmounted(() => {
       <Header :title="t(route.meta.title)" :subtitle="t(route.meta.subtitle)" />
     </template>
     <template #container>
-      <div class="bg-base-background w-full h-full p-8 z-0 relative">
+      <div class="bg-base-background w-full h-full p-5 z-0 relative">
         <RouterView />
         <div
           v-if="route.meta.showDotsBg"

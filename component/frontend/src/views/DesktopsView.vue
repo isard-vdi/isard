@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, readonly, ref, toValue, reactive } from 'vue'
+import { computed, readonly, ref, toValue, reactive, watch } from 'vue'
 
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { useLocalStorage as vueuseLocalStorage, useWindowSize } from '@vueuse/core'
+import { useLocalStorage as vueuseLocalStorage, useWindowSize, useWindowScroll } from '@vueuse/core'
 import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
@@ -127,6 +127,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ViewerSelect } from '@/components/viewer-select'
 
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
 const { t, d } = useI18n()
 const route = useRoute()
@@ -479,6 +481,18 @@ const areDesktopFiltersActive = computed(() => {
   return JSON.stringify(desktopFilters.value) !== JSON.stringify(defaultDesktopFilters)
 })
 
+// Search has its own always-visible input; only the ones the panel hides count.
+const activeDesktopFilterCount = computed(() => {
+  const kinds = Object.values(desktopFilters.value.kind).filter(Boolean).length
+  return kinds + (desktopFilters.value.status === 'all' ? 0 : 1)
+})
+
+const desktopFiltersToggleLabel = computed(() =>
+  activeDesktopFilterCount.value
+    ? t('views.desktops.filters.toggle-active', { count: activeDesktopFilterCount.value })
+    : t('views.desktops.filters.toggle')
+)
+
 const clearDesktopFilters = () => {
   desktopFilters.value = JSON.parse(JSON.stringify(defaultDesktopFilters))
 }
@@ -794,7 +808,31 @@ const goToNewTemplate = async (desktopId: string) => {
 
 const viewMode = ref<'cards' | 'table'>('cards')
 
+const DESKTOP_SEARCH_INPUT_ID = 'desktops-search'
+
+useSearchShortcuts(DESKTOP_SEARCH_INPUT_ID)
+
+const DESKTOP_FILTERS_COOKIE_NAME = 'desktops_filters_state'
+const DESKTOP_FILTERS_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
+
+const cookies = vueuseCookies([DESKTOP_FILTERS_COOKIE_NAME])
+
+// useCookies auto-parses "true"/"false" to boolean, so check both types
+const desktopFiltersCookie = cookies.get(DESKTOP_FILTERS_COOKIE_NAME)
+const showDesktopFilters = ref(desktopFiltersCookie === true || desktopFiltersCookie === 'true')
+
+watch(showDesktopFilters, (newValue) => {
+  cookies.set(DESKTOP_FILTERS_COOKIE_NAME, String(newValue), {
+    path: '/',
+    maxAge: DESKTOP_FILTERS_COOKIE_MAX_AGE
+  })
+})
+
 const { width: windowWidth } = useWindowSize()
+const { y: windowScrollY } = useWindowScroll()
+
+// Below `sm` the toolbar buttons drop their label, so a tooltip takes over
+const isSmallScreen = computed(() => windowWidth.value < 640)
 
 const cardSize = computed<CardSize>(() => {
   if (windowWidth.value < 1280) return 'md'
@@ -1277,138 +1315,229 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     </Empty>
   </main>
 
-  <main v-else class="flex flex-col gap-3 p-3 w-full">
-    <div class="flex flex-row w-full gap-4 items-center flex-wrap">
-      <div class="flex flex-row gap-2 mr-auto">
-        <Toggle v-model="desktopFiltersKindAll" size="desktop" variant="desktops-all">
-          <template #default="slotProps">
-            {{ t('views.desktops.filters.kind.all') }}
-            <BadgeMini
-              name="all"
-              :value="desktops?.desktops.length || 0"
-              :selected="slotProps.pressed"
-            />
-          </template>
-        </Toggle>
-        <Toggle
-          v-model="desktopFilters.kind.persistent"
-          size="desktop"
-          variant="desktops-persistent"
-        >
-          <template #default="slotProps">
-            {{
-              t(
-                'views.desktops.filters.kind.persistent',
-                desktops?.desktops.filter((d) => d.type === 'persistent' && !d.tag).length || 0
-              )
-            }}
-            <BadgeMini
-              name="persistent"
-              :value="
-                desktops?.desktops.filter((d) => d.type === 'persistent' && !d.tag).length || 0
-              "
-              :selected="slotProps.pressed"
-            />
-          </template>
-        </Toggle>
-        <Toggle v-model="desktopFilters.kind.volatile" size="desktop" variant="desktops-temporary">
-          <template #default="slotProps">
-            {{
-              t(
-                'views.desktops.filters.kind.nonpersistent',
-                desktops?.desktops.filter((d) => d.type === 'nonpersistent').length || 0
-              )
-            }}
-            <BadgeMini
-              name="temporary"
-              :value="desktops?.desktops.filter((d) => d.type === 'nonpersistent').length || 0"
-              :selected="slotProps.pressed"
-            />
-          </template>
-        </Toggle>
-        <Toggle
-          v-model="desktopFilters.kind.deployment"
-          size="desktop"
-          variant="desktops-deployment"
-        >
-          <template #default="slotProps">
-            {{
-              t(
-                'views.desktops.filters.kind.deployment',
-                desktops?.desktops.filter((d) => d.tag).length || 0
-              )
-            }}
-            <BadgeMini
-              name="deployment"
-              :value="desktops?.desktops.filter((d) => d.tag).length || 0"
-              :selected="slotProps.pressed"
-            />
-          </template>
-        </Toggle>
+  <main v-else class="-mt-4 flex flex-col w-full">
+    <div
+      :class="
+        cn(
+          'sticky top-16 z-40 -mx-5 mb-1 flex flex-col gap-3 bg-base-background px-5 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-8 before:bg-base-background',
+          windowScrollY > 0 && 'shadow-lg'
+        )
+      "
+    >
+      <div class="flex flex-row w-full gap-2 sm:gap-4 items-start flex-wrap">
+        <div class="flex flex-row gap-2 items-start flex-1 min-w-30 mr-auto">
+          <InputField
+            :id="DESKTOP_SEARCH_INPUT_ID"
+            v-model="desktopFilters.search"
+            :placeholder="t('views.desktops.filters.search.placeholder')"
+            icon="search-lg"
+            class="h-full w-full max-w-120 min-w-0"
+          >
+            <template #inline-end>
+              <Kbd class="max-sm:hidden">/</Kbd>
+            </template>
+          </InputField>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="filter-funnel-02"
+                  :aria-label="desktopFiltersToggleLabel"
+                  :class="
+                    cn(
+                      'relative shrink-0 max-sm:px-[10px]',
+                      showDesktopFilters && 'bg-gray-warm-50'
+                    )
+                  "
+                  @click="showDesktopFilters = !showDesktopFilters"
+                >
+                  <span class="max-sm:hidden">{{ t('views.desktops.filters.toggle') }}</span>
+                  <!-- Stays visible with the panel collapsed, and on small screens
+                       where the label is hidden. -->
+                  <span
+                    v-if="activeDesktopFilterCount"
+                    aria-hidden="true"
+                    class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-base-background"
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                v-if="isSmallScreen || activeDesktopFilterCount"
+                :title="desktopFiltersToggleLabel"
+                side="top"
+              />
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  :icon="viewMode === 'cards' ? 'rows-01' : 'grid-01'"
+                  class="p-[10px] shrink-0"
+                  @click="viewMode = viewMode === 'cards' ? 'table' : 'cards'"
+                />
+              </TooltipTrigger>
+              <TooltipContent
+                :title="
+                  viewMode === 'cards'
+                    ? t('views.desktops.view-mode.table')
+                    : t('views.desktops.view-mode.cards')
+                "
+                side="top"
+              />
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+
+        <div class="flex flex-row gap-2 sm:gap-4 items-start shrink-0">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="destructive"
+                  icon="stop"
+                  :aria-label="t('views.desktops.stop-all')"
+                  class="max-sm:px-[10px]"
+                  :disabled="!anyDesktopStarted"
+                  @click="showStopAllDesktopsModal = true"
+                >
+                  <span class="max-sm:hidden">{{ t('views.desktops.stop-all') }}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                v-if="!anyDesktopStarted || isSmallScreen"
+                :title="
+                  anyDesktopStarted
+                    ? t('views.desktops.stop-all')
+                    : t('views.desktops.stop-all-tooltip.title')
+                "
+                side="top"
+              />
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  :icon="desktopCreationCheckIsPending ? 'loading-02' : 'plus'"
+                  :icon-class="
+                    cn(
+                      desktopCreationCheckIsPending &&
+                        'motion-safe:animate-[spin_2s_linear_infinite]'
+                    )
+                  "
+                  :aria-label="t('views.desktops.new-desktop')"
+                  class="max-sm:px-[10px]"
+                  :disabled="desktopCreationCheckIsPending"
+                  @click="goToNewDesktop"
+                >
+                  <span class="max-sm:hidden">{{ t('views.desktops.new-desktop') }}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                v-if="isSmallScreen"
+                :title="t('views.desktops.new-desktop')"
+                side="top"
+              />
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
+      <div v-show="showDesktopFilters" class="flex flex-row w-full gap-4 items-center flex-wrap">
+        <div class="flex flex-row gap-2 mr-auto">
+          <Toggle v-model="desktopFiltersKindAll" size="desktop" variant="desktops-all">
+            <template #default="slotProps">
+              {{ t('views.desktops.filters.kind.all') }}
+              <BadgeMini
+                name="all"
+                :value="desktops?.desktops.length || 0"
+                :selected="slotProps.pressed"
+              />
+            </template>
+          </Toggle>
+          <Toggle
+            v-model="desktopFilters.kind.persistent"
+            size="desktop"
+            variant="desktops-persistent"
+          >
+            <template #default="slotProps">
+              {{
+                t(
+                  'views.desktops.filters.kind.persistent',
+                  desktops?.desktops.filter((d) => d.type === 'persistent' && !d.tag).length || 0
+                )
+              }}
+              <BadgeMini
+                name="persistent"
+                :value="
+                  desktops?.desktops.filter((d) => d.type === 'persistent' && !d.tag).length || 0
+                "
+                :selected="slotProps.pressed"
+              />
+            </template>
+          </Toggle>
+          <Toggle
+            v-model="desktopFilters.kind.volatile"
+            size="desktop"
+            variant="desktops-temporary"
+          >
+            <template #default="slotProps">
+              {{
+                t(
+                  'views.desktops.filters.kind.nonpersistent',
+                  desktops?.desktops.filter((d) => d.type === 'nonpersistent').length || 0
+                )
+              }}
+              <BadgeMini
+                name="temporary"
+                :value="desktops?.desktops.filter((d) => d.type === 'nonpersistent').length || 0"
+                :selected="slotProps.pressed"
+              />
+            </template>
+          </Toggle>
+          <Toggle
+            v-model="desktopFilters.kind.deployment"
+            size="desktop"
+            variant="desktops-deployment"
+          >
+            <template #default="slotProps">
+              {{
+                t(
+                  'views.desktops.filters.kind.deployment',
+                  desktops?.desktops.filter((d) => d.tag).length || 0
+                )
+              }}
+              <BadgeMini
+                name="deployment"
+                :value="desktops?.desktops.filter((d) => d.tag).length || 0"
+                :selected="slotProps.pressed"
+              />
+            </template>
+          </Toggle>
+        </div>
 
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Button
-              hierarchy="destructive"
-              icon="stop"
-              :disabled="!anyDesktopStarted"
-              @click="showStopAllDesktopsModal = true"
-              >{{ t('views.desktops.stop-all') }}</Button
-            >
-          </TooltipTrigger>
-          <TooltipContent
-            v-if="!anyDesktopStarted"
-            :title="t('views.desktops.stop-all-tooltip.title')"
-            side="top"
-          />
-        </Tooltip>
-      </TooltipProvider>
-      <Button
-        :icon="desktopCreationCheckIsPending ? 'loading-02' : 'plus'"
-        :icon-class="
-          cn(desktopCreationCheckIsPending && 'motion-safe:animate-[spin_2s_linear_infinite]')
-        "
-        :disabled="desktopCreationCheckIsPending"
-        @click="goToNewDesktop"
-      >
-        {{ t('views.desktops.new-desktop') }}
-      </Button>
-    </div>
-    <div class="flex flex-row w-full gap-4 items-start flex-wrap">
-      <InputField
-        v-model="desktopFilters.search"
-        :placeholder="t('views.desktops.filters.search.placeholder')"
-        icon="search-lg"
-        class="h-full w-full max-w-120 mr-auto"
-      />
-      <!-- <Input class="max-w-120 mr-auto" placeholder="Search Desktop" /> -->
-
-      <Button
-        hierarchy="secondary-gray"
-        :icon="viewMode === 'cards' ? 'rows-01' : 'grid-01'"
-        class="p-[10px]"
-        @click="viewMode = viewMode === 'cards' ? 'table' : 'cards'"
-      />
-
-      <ToggleGroup
-        v-model="desktopFilters.status"
-        :spacing="1"
-        type="single"
-        size="default"
-        class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
-      >
-        <ToggleGroupItem value="all" variant="gray-warm">{{
-          t('views.desktops.filters.status.all')
-        }}</ToggleGroupItem>
-        <ToggleGroupItem value="started" variant="success">{{
-          t('views.desktops.filters.status.started')
-        }}</ToggleGroupItem>
-        <ToggleGroupItem value="stopped" variant="error">{{
-          t('views.desktops.filters.status.stopped')
-        }}</ToggleGroupItem>
-      </ToggleGroup>
+        <ToggleGroup
+          v-model="desktopFilters.status"
+          :spacing="1"
+          type="single"
+          size="default"
+          class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
+        >
+          <ToggleGroupItem value="all" variant="gray-warm">{{
+            t('views.desktops.filters.status.all')
+          }}</ToggleGroupItem>
+          <ToggleGroupItem value="started" variant="success">{{
+            t('views.desktops.filters.status.started')
+          }}</ToggleGroupItem>
+          <ToggleGroupItem value="stopped" variant="error">{{
+            t('views.desktops.filters.status.stopped')
+          }}</ToggleGroupItem>
+        </ToggleGroup>
+      </div>
     </div>
 
     <div class="flex flex-col gap-2 flex-wrap w-full">

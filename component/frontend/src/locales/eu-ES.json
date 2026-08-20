@@ -265,6 +265,8 @@
         "search": {
           "placeholder": "Bilatu mahaigainak"
         },
+        "toggle": "Iragazkiak",
+        "toggle-active": "Iragazkiak ({count} aktibo)",
         "kind": {
           "all": "Guztiak",
           "persistent": "Iraunkorra | Iraunkorrak",
@@ -276,6 +278,10 @@
           "started": "Abiarazita",
           "stopped": "Geldituta"
         }
+      },
+      "view-mode": {
+        "table": "Ikusi taula gisa",
+        "cards": "Ikusi txartel gisa"
       },
       "go-to-desktops": "Joan mahaigainetara",
       "desktop-created": {
