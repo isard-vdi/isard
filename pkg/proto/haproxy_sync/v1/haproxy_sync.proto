@@ -32,9 +32,28 @@ service HaproxySyncService {
   rpc BastionGetCurrentMaps(BastionGetCurrentMapsRequest) returns (BastionGetCurrentMapsResponse) {}
 }
 
+// DomainSyncDomain describes one per-category branding domain and how its certificate
+// is obtained.
+//
+// The three sources are distinguished by which fields are set. A certificate means the
+// operator supplied the PEM. All four acme_dns fields together mean DNS-01 through an
+// acme-dns account, which is the only way to certify a name that does not point at this
+// deployment. Neither means HTTP-01, which stays the default.
+//
+// The acme-dns fields are all-or-nothing on purpose: three of four cannot issue anything,
+// and treating a partial set as "use DNS-01" turns a half-filled form into a failure deep
+// inside acme.sh that talks about DNS rather than about configuration.
 message DomainSyncDomain {
   string name = 1;
-  bytes certificate = 2; // PEM. If empty, issued via ACME.
+  bytes certificate = 2; // PEM. If empty and no acme_dns fields, issued via ACME HTTP-01.
+
+  // acme-dns (DNS-01) credentials. Each domain carries its own registration: an acme-dns
+  // account holds a bounded number of TXT records, so sharing one across domains would
+  // have them evict each other's challenges.
+  string acme_dns_base_url = 3;
+  string acme_dns_username = 4;
+  string acme_dns_password = 5;
+  string acme_dns_subdomain = 6;
 }
 
 message DomainSyncRequest {
@@ -43,11 +62,17 @@ message DomainSyncRequest {
 
 // IssueMainDomainRequest describes the certificate the deployment is served with.
 // names is ordered; names[0] is the primary acme.sh indexes the certificate by.
-// Field numbers 4-7 are intentionally left free for forthcoming acme-dns (DNS-01) fields.
+// The four acme_dns fields are all-or-nothing: set together they route the challenge
+// through acme-dns instead of HTTP.
 message IssueMainDomainRequest {
   repeated string names = 1;
   string acme_email = 2;
   string acme_server = 3;
+
+  string acme_dns_base_url = 4;
+  string acme_dns_username = 5;
+  string acme_dns_password = 6;
+  string acme_dns_subdomain = 7;
 }
 
 message IssueMainDomainResponse {}
