@@ -256,12 +256,11 @@ function handleBastionEnabled(enabled: boolean) {
   bastionEnabled.value = enabled
   emit('bastion-enabled', enabled)
 }
-// Sync form fields when source data changes (e.g. stale cache replaced by fresh fetch)
-watch([templateData, desktopData], () => {
-  form.setFieldValue('credentials', credentials.value)
-  form.setFieldValue('fullscreen', fullscreen.value)
-  form.setFieldValue('viewers', viewers.value)
-})
+// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch)
+watch([templateData, desktopData], () => form.reset())
+
+const ownFieldsAreDirty = form.useStore((state) => !state.isDefaultValue)
+
 // --- Viewer / wireguard coordination ---
 
 const selectedViewers = form.useStore((state) => state.values.viewers)
@@ -384,9 +383,21 @@ const isValid = computed(() => {
   return isFormValid.value && (bastionFormRef.value?.isValid ?? true)
 })
 
+const isDirty = computed(() => {
+  if (!props.showBastionConfig) return ownFieldsAreDirty.value
+  return ownFieldsAreDirty.value || (bastionFormRef.value?.isDirty ?? false)
+})
+
+const reset = () => {
+  form.reset()
+  bastionFormRef.value?.reset()
+}
+
 defineExpose({
   getFormData,
   isValid,
+  isDirty,
+  reset,
   removedViewers,
   removedViewerLabels
 })

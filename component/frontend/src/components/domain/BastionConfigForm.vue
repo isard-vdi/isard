@@ -118,18 +118,27 @@ const getFormData = () => {
 
 const isFormValid = form.useStore((state) => state.isValid)
 
-defineExpose({
-  getFormData,
-  isValid: isFormValid
-})
+const isDirty = form.useStore((state) => !state.isDefaultValue)
 
 const bastionEnabled = ref(!!(props.bastion?.http?.enabled || props.bastion?.ssh?.enabled))
+
+const reset = () => {
+  bastionEnabled.value = !!(props.bastion?.http?.enabled || props.bastion?.ssh?.enabled)
+  form.reset(props.bastion)
+}
+
+defineExpose({
+  getFormData,
+  isValid: isFormValid,
+  isDirty,
+  reset
+})
+
 const bastionModalDnsAlertOpen = ref(false)
 const stopBastionHydration = watch(
   () => props.bastion,
-  (bastion) => {
-    bastionEnabled.value = !!(bastion?.http?.enabled || bastion?.ssh?.enabled)
-    form.reset(bastion)
+  () => {
+    reset()
     stopBastionHydration()
   }
 )

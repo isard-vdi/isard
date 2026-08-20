@@ -92,6 +92,8 @@ const accessCredentials = computed(() => ({
 const accessFormRef = ref<{
   getFormData: () => Record<string, unknown>
   isValid: boolean
+  isDirty: boolean
+  reset: () => void
   removedViewers: string[]
   removedViewerLabels: string[]
 } | null>(null)
@@ -107,6 +109,8 @@ const summaryViewers = computed(() =>
 const hardwareFormRef = ref<{
   getFormData: () => Record<string, unknown>
   isValid: boolean
+  isDirty: boolean
+  reset: () => void
   limitedFields: Record<string, unknown> | null
   getInterfaces: () => string[]
   addInterface: (ifaceId: string) => boolean | undefined
@@ -262,7 +266,19 @@ const openConfiguration = async () => {
   window.scrollTo({ top, behavior: scrollBehavior() })
 }
 
-const handleNotImplemented = () => alert('not implemented yet')
+const configurationIsDirty = computed(
+  () => !!accessFormRef.value?.isDirty || !!hardwareFormRef.value?.isDirty
+)
+
+const handleRestoreConfiguration = () => {
+  accessFormRef.value?.reset()
+  hardwareFormRef.value?.reset()
+}
+
+// A disabled button is not focusable, so the wrapper stands in as the trigger.
+const restoreTriggerAttrs = computed(() =>
+  configurationIsDirty.value ? {} : { role: 'button', 'aria-disabled': 'true', tabindex: 0 }
+)
 
 const handleSubmit = () => {
   if (!areFormsValid.value) {
@@ -485,24 +501,22 @@ defineExpose({
             <Tooltip>
               <TooltipTrigger as-child>
                 <span
-                  role="button"
-                  aria-disabled="true"
-                  tabindex="0"
-                  :aria-label="t('views.new-desktop.step-2.desktop-configuration.restore')"
+                  v-bind="restoreTriggerAttrs"
                   class="inline-flex shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-error"
                 >
                   <Button
                     hierarchy="link-destructive"
                     size="sm"
                     icon="refresh-ccw-01"
-                    disabled
-                    @click="handleNotImplemented"
+                    :disabled="!configurationIsDirty"
+                    @click="handleRestoreConfiguration"
                   >
                     {{ t('views.new-desktop.step-2.desktop-configuration.restore') }}
                   </Button>
                 </span>
               </TooltipTrigger>
               <TooltipContent
+                v-if="!configurationIsDirty"
                 :title="t('views.new-desktop.step-2.desktop-configuration.restore-disabled')"
                 side="top"
               />
