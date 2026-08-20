@@ -9,7 +9,7 @@ import {
   providersQueryKey
 } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 import { login, type LoginData, type LoginError as AuthLoginError } from '@/gen/oas/authentication'
-import type { CategoryResponseList } from '@/gen/oas/apiv4'
+import { getMaintenance, type CategoryResponseList } from '@/gen/oas/apiv4'
 import {
   apiV4CategoriesOptions,
   apiV4CategoriesQueryKey,
@@ -537,6 +537,15 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
         // It probably is a 503, because is in maintenance
         console.error(error)
       }
+    }
+
+    // Resolve maintenance here: sending the user to `/` first would boot the
+    // old frontend, flash its expired-session modal and only then bounce to
+    // /maintenance once its own API calls got a 503.
+    const { data: maintenance } = await getMaintenance()
+    if (maintenance?.enabled) {
+      router.push({ name: 'maintenance' })
+      return
     }
   } else {
     authStore.setToken(bearer)
