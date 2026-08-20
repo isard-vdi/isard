@@ -90,12 +90,17 @@ class TestNothingToIssue:
     def test_an_unknown_source_is_not_guessed_at(self, bastion, stored_config):
         """A value this release does not implement must not fall through to
         HTTP-01: issuing the wrong kind of certificate silently is worse than
-        issuing none."""
+        issuing none.
+
+        The example used to be acme_dns, which this release now implements --
+        see the acme-dns tests for what it does instead. custom is the value
+        that is still unimplemented here, and the property is about any of
+        them."""
         state, mock_call, _ = stored_config
         state["config"] = {
             "certificates": {
                 "main_domain": {
-                    "certificate_source": "acme_dns",
+                    "certificate_source": "custom",
                     "names": ["vdi.example.com"],
                 }
             }

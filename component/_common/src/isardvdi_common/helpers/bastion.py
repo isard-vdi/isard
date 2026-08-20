@@ -335,20 +335,49 @@ class Bastion(RethinkSharedConnection):
 
         Returns ``None`` without touching the network when nothing is configured.
         The source is matched exactly, not defaulted, or a wrong-kind certificate
-        would be issued. Safe to call repeatedly but NOT quick (a CA round trip
-        outlives the retry helper's per-call timeout), so callers must not run it
-        where something is waiting.
+        would be issued. An acme-dns source waits for its delegation first: a
+        challenge record that is not there yet spends a per-account rate limit
+        that refills slowly. Safe to call repeatedly but NOT quick (a CA round
+        trip outlives the retry helper's per-call timeout), so callers must not
+        run it where something is waiting.
         """
         with cls._rdb_context():
             config_row = r.table("config").get(1).default({}).run(cls._rdb_connection)
 
         main = ((config_row or {}).get("certificates") or {}).get("main_domain") or {}
-        if main.get("certificate_source") != "acme":
+        source = main.get("certificate_source")
+        if source not in ("acme", "acme_dns"):
             return None
 
         names = [name for name in (main.get("names") or []) if name]
         if not names:
             return None
+
+        acme_dns_fields = {}
+        if source == "acme_dns":
+            acmedns = main.get("acmedns") or {}
+            credentials = {
+                "acme_dns_base_url": acmedns.get("base_url") or "",
+                "acme_dns_username": acmedns.get("username") or "",
+                "acme_dns_password": acmedns.get("password") or "",
+                "acme_dns_subdomain": acmedns.get("subdomain") or "",
+            }
+            if not all(credentials.values()):
+                log.info(
+                    "Main-domain certificate not issued: the acme-dns "
+                    "credentials are incomplete"
+                )
+                return None
+            if not acmedns.get("verified"):
+                # Absent counts as not verified: a block written by a manual
+                # save carries no flag, and nobody has looked at that
+                # delegation.
+                log.info(
+                    "Main-domain certificate not issued: the acme-dns "
+                    "delegation is not verified"
+                )
+                return None
+            acme_dns_fields = credentials
 
         return cls._call_grpc_with_infinite_retry(
             _haproxy_bastion_client().IssueMainDomain,
@@ -356,6 +385,7 @@ class Bastion(RethinkSharedConnection):
                 names=names,
                 acme_email=main.get("email") or "",
                 acme_server=main.get("acme_server") or "",
+                **acme_dns_fields,
             ),
         )
 
