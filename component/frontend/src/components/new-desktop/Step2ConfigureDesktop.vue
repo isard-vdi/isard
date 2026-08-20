@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { useUserStore } from '@/stores/user'
@@ -18,7 +18,7 @@ import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
 import { CheckboxGroup } from '@/components/checkbox-group'
 import { DesktopCardBase } from '@/components/desktop-card'
 import { DesktopCardHeader } from '@/components/desktop-card'
-import { useDomainInfoForm } from '@/composables/useDomainInfoForm'
+import { domainInfoFormSchema, useDomainInfoForm } from '@/composables/useDomainInfoForm'
 import { DesktopCardSkeleton } from '@/components/desktop-card'
 import { FieldError } from '@/components/ui/field'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -183,9 +183,23 @@ const restrictedFieldsDetails = computed(() => {
   )
 })
 
-// Desktop inherited info form (description seeded from template)
-const desktopInfoForm = useDomainInfoForm({
-  description: () => templateData.value?.description
+// Desktop inherited info form (name and description seeded from template)
+const desktopInfoForm = useDomainInfoForm()
+
+// Seeded on mount: the form store is a Derived that recomputes silently until it
+// is mounted, so writes made during setup never reach the fields.
+onMounted(() => {
+  watch(
+    templateData,
+    (template) => {
+      if (!template || !desktopInfoForm.state.isPristine) return
+      desktopInfoForm.setFieldValue('name', template.name, { dontUpdateMeta: true })
+      desktopInfoForm.setFieldValue('description', template.description ?? '', {
+        dontUpdateMeta: true
+      })
+    },
+    { immediate: true }
+  )
 })
 
 const infoFormValues = desktopInfoForm.useStore((state) => state.values)
@@ -214,15 +228,13 @@ const desktopKindOptions = computed(() => {
   return options
 })
 
-const infoValid = desktopInfoForm.useStore((state) => state.isValid)
-const infoIsTouched = desktopInfoForm.useStore((state) => !state.isPristine)
+// Checked against the schema instead of the form store: seeded values are valid
+// but untouched, so the form reports itself valid before its validators ever run.
+const infoValid = computed(() => domainInfoFormSchema.safeParse(infoFormValues.value).success)
 
 const areFormsValid = computed(() => {
   return (
-    infoIsTouched.value &&
-    infoValid.value &&
-    (hardwareFormIsValid.value ?? true) &&
-    (accessFormRef.value?.isValid ?? true)
+    infoValid.value && (hardwareFormIsValid.value ?? true) && (accessFormRef.value?.isValid ?? true)
   )
 })
 
