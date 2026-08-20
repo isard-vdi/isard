@@ -247,6 +247,19 @@ func domainFingerprint(d DomainSyncDomain) string {
 		return "custom:" + hex.EncodeToString(sum[:])
 	}
 
+	if d.IsACMEDNS() {
+		// The account that answers the challenge, deliberately not the
+		// password that reaches it. Rotating a credential does not change what
+		// certificate the domain is asking for, so re-issuing on one would
+		// spend certificate-authority rate limit to install a byte-identical
+		// certificate -- and rate limit is the resource that runs out quietly
+		// and takes a week to come back. Leaving the secret out also keeps a
+		// hash of it from sitting in memory keyed by domain.
+		sum := sha256.Sum256([]byte(strings.Join(
+			[]string{d.ACMEDNSBaseURL, d.ACMEDNSUsername, d.ACMEDNSSubdomain}, "\x00")))
+		return "acmedns:" + hex.EncodeToString(sum[:])
+	}
+
 	return "http01"
 }
 
@@ -263,10 +276,25 @@ func (h *HAproxySync) materializeCert(ctx context.Context, d DomainSyncDomain) (
 		return d.Certificate, nil
 	}
 
-	h.pushAccountThumbprint()
+	if d.hasPartialACMEDNS() {
+		return nil, fmt.Errorf(
+			"issue certificate: incomplete acme-dns credentials for '%s': all of base url, username, password and subdomain are required",
+			d.Name,
+		)
+	}
 
-	if err := h.acme.IssueCert(ctx, d.Name, pemName); err != nil {
-		return nil, fmt.Errorf("issue certificate: %w", err)
+	if d.IsACMEDNS() {
+		// No account thumbprint: that is what HAProxy answers a stateless
+		// HTTP-01 challenge from, and a DNS-01 challenge never reaches HAProxy.
+		if err := h.acme.IssueCertDNS(ctx, d.Name, pemName, d.acmeDNSCredentials()); err != nil {
+			return nil, fmt.Errorf("issue certificate: %w", err)
+		}
+	} else {
+		h.pushAccountThumbprint()
+
+		if err := h.acme.IssueCert(ctx, d.Name, pemName); err != nil {
+			return nil, fmt.Errorf("issue certificate: %w", err)
+		}
 	}
 
 	pemData, err := os.ReadFile(certPath)

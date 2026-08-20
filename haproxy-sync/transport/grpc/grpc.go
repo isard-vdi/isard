@@ -56,6 +56,11 @@ func (h *HAProxySyncServer) DomainSync(ctx context.Context, req *haproxysyncv1.D
 		domains = append(domains, haproxysync.DomainSyncDomain{
 			Name:        d.GetName(),
 			Certificate: d.GetCertificate(),
+
+			ACMEDNSBaseURL:   d.GetAcmeDnsBaseUrl(),
+			ACMEDNSUsername:  d.GetAcmeDnsUsername(),
+			ACMEDNSPassword:  d.GetAcmeDnsPassword(),
+			ACMEDNSSubdomain: d.GetAcmeDnsSubdomain(),
 		})
 	}
 

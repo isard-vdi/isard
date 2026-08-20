@@ -48,6 +48,41 @@ type Interface interface {
 type DomainSyncDomain struct {
 	Name        string
 	Certificate []byte // PEM. If empty, issued via ACME.
+
+	// acme-dns (DNS-01) credentials, all four or none. One registration per
+	// domain: an acme-dns account holds a bounded number of TXT records, so
+	// domains sharing one would evict each other's challenges.
+	ACMEDNSBaseURL   string
+	ACMEDNSUsername  string
+	ACMEDNSPassword  string
+	ACMEDNSSubdomain string
+}
+
+// IsACMEDNS reports whether this domain is to be certified over DNS-01.
+func (d DomainSyncDomain) IsACMEDNS() bool {
+	return d.acmeDNSCredentials().Complete()
+}
+
+// hasPartialACMEDNS reports a credential set that is started but not finished.
+//
+// Worth distinguishing from both of the other two states. Nothing set is a
+// plain HTTP-01 domain; all four set is a DNS-01 one; some set is a
+// configuration that cannot work, and quietly treating it as HTTP-01 would
+// attempt the very challenge the operator moved away from and report its
+// failure, which says nothing about the field they left blank.
+func (d DomainSyncDomain) hasPartialACMEDNS() bool {
+	c := d.acmeDNSCredentials()
+	any := c.BaseURL != "" || c.Username != "" || c.Password != "" || c.Subdomain != ""
+	return any && !c.Complete()
+}
+
+func (d DomainSyncDomain) acmeDNSCredentials() acme.ACMEDNSCredentials {
+	return acme.ACMEDNSCredentials{
+		BaseURL:   d.ACMEDNSBaseURL,
+		Username:  d.ACMEDNSUsername,
+		Password:  d.ACMEDNSPassword,
+		Subdomain: d.ACMEDNSSubdomain,
+	}
 }
 
 type DomainSyncError struct {
