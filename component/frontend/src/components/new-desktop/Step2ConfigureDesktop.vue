@@ -89,8 +89,20 @@ const accessCredentials = computed(() => ({
   password: templateData.value?.credentials?.password ?? undefined
 }))
 
-const accessFormRef = ref<{ getFormData: () => Record<string, unknown>; isValid: boolean } | null>(
-  null
+const accessFormRef = ref<{
+  getFormData: () => Record<string, unknown>
+  isValid: boolean
+  removedViewers: string[]
+  removedViewerLabels: string[]
+} | null>(null)
+
+const removedViewers = computed<string[]>(() => accessFormRef.value?.removedViewers ?? [])
+const removedViewerLabels = computed<string[]>(() => accessFormRef.value?.removedViewerLabels ?? [])
+
+// Template details don't apply the wireguard filter the access form does, so
+// the summary would still offer viewers that won't be created.
+const summaryViewers = computed(() =>
+  (templateData.value?.viewers ?? []).filter((viewer) => !removedViewers.value.includes(viewer))
 )
 const hardwareFormRef = ref<{
   getFormData: () => Record<string, unknown>
@@ -391,6 +403,26 @@ defineExpose({
       </div>
     </div>
     <div>
+      <Alert
+        v-if="removedViewerLabels.length && !showConfiguration"
+        variant="default"
+        class="mb-6 border-error-600"
+      >
+        <FeaturedIconOutline kind="outline" color="error" />
+        <AlertTitle>{{ t('components.domain.access.viewers-removed.title') }}</AlertTitle>
+        <AlertDescription>
+          {{ t('components.domain.access.viewers-removed.description') }}
+          <ul class="mt-3 space-y-1">
+            <li
+              v-for="label in removedViewerLabels"
+              :key="label"
+              class="text-sm font-semibold text-error-600"
+            >
+              {{ label }}
+            </li>
+          </ul>
+        </AlertDescription>
+      </Alert>
       <Alert v-if="hasLimitedFields" variant="default" class="mb-6 border-error-600">
         <FeaturedIconOutline kind="outline" color="error" />
         <AlertTitle>{{ t('views.new-desktop.step-2.hardware-limited.title') }}</AlertTitle>
@@ -472,7 +504,7 @@ defineExpose({
             <DomainAccessSummary
               class="border-0 bg-transparent rounded-none px-0 py-0"
               :credentials="accessCredentials"
-              :viewers="templateData?.viewers"
+              :viewers="summaryViewers"
               :fullscreen="templateData?.fullscreen"
             />
             <!-- No floppies: template details does not report them, unlike the

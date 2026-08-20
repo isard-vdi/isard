@@ -387,6 +387,7 @@ const isValid = computed(() => {
 defineExpose({
   getFormData,
   isValid,
+  removedViewers,
   removedViewerLabels
 })
 
