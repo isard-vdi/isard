@@ -309,12 +309,12 @@ class QuotasProcess(RethinkCustomBase):
             starteds = (
                 r.table("domains")
                 .get_all(["Started", category["id"]], index="status_category")
-                .pluck("create_dict")
+                .map(lambda domain: domain["create_dict"]["hardware"].default({}))
                 .map(
-                    lambda domain: {
+                    lambda hardware: {
                         "count": 1,
-                        "memory": domain["create_dict"]["hardware"]["memory"],
-                        "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                        "memory": hardware["memory"].default(0),
+                        "vcpus": hardware["vcpus"].default(0),
                     }
                 )
                 .reduce(
@@ -388,10 +388,10 @@ class QuotasProcess(RethinkCustomBase):
             vq = category["limits"]["vcpus"]
 
             qpmemory = (
-                memory / category["limits"]["memory"]
+                memory * 100 / category["limits"]["memory"]
                 if category["limits"]["memory"]
                 else 100
-            )  # convert GB to KB (domains are in KB by default)
+            )
             mq = category["limits"]["memory"]
 
             qpusers = (
@@ -477,12 +477,12 @@ class QuotasProcess(RethinkCustomBase):
             starteds = (
                 r.table("domains")
                 .get_all(["Started", group["id"]], index="status_group")
-                .pluck("create_dict")
+                .map(lambda domain: domain["create_dict"]["hardware"].default({}))
                 .map(
-                    lambda domain: {
+                    lambda hardware: {
                         "count": 1,
-                        "memory": domain["create_dict"]["hardware"]["memory"],
-                        "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                        "memory": hardware["memory"].default(0),
+                        "vcpus": hardware["vcpus"].default(0),
                     }
                 )
                 .reduce(
@@ -553,8 +553,10 @@ class QuotasProcess(RethinkCustomBase):
             vq = group["limits"]["vcpus"]
 
             qpmemory = (
-                memory / group["limits"]["memory"] if group["limits"]["memory"] else 100
-            )  # convert GB to KB (domains are in KB by default)
+                memory * 100 / group["limits"]["memory"]
+                if group["limits"]["memory"]
+                else 100
+            )
             mq = group["limits"]["memory"]
 
             qpusers = (
@@ -630,12 +632,12 @@ class QuotasProcess(RethinkCustomBase):
             starteds = (
                 r.table("domains")
                 .get_all(["Started", category_id], index="status_category")
-                .pluck("create_dict")
+                .map(lambda domain: domain["create_dict"]["hardware"].default({}))
                 .map(
-                    lambda domain: {
+                    lambda hardware: {
                         "count": 1,
-                        "memory": domain["create_dict"]["hardware"]["memory"],
-                        "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                        "memory": hardware["memory"].default(0),
+                        "vcpus": hardware["vcpus"].default(0),
                     }
                 )
                 .reduce(
@@ -701,12 +703,12 @@ class QuotasProcess(RethinkCustomBase):
             starteds = (
                 r.table("domains")
                 .get_all("Started", index="status")
-                .pluck("create_dict")
+                .map(lambda domain: domain["create_dict"]["hardware"].default({}))
                 .map(
-                    lambda domain: {
+                    lambda hardware: {
                         "count": 1,
-                        "memory": domain["create_dict"]["hardware"]["memory"],
-                        "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                        "memory": hardware["memory"].default(0),
+                        "vcpus": hardware["vcpus"].default(0),
                     }
                 )
                 .reduce(
