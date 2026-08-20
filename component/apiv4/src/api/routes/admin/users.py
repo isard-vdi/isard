@@ -2287,10 +2287,10 @@ async def admin_get_quotas(request: Request):
         result = await asyncio.to_thread(
             AdminUsersService.get_admin_quotas, request.token_payload
         )
+        quotas = AdminQuotasResponse(**result).model_dump(mode="json", by_alias=True)
         return JSONResponse(
-            content=AdminQuotasResponse(**result).model_dump(
-                mode="json", by_alias=True
-            ),
+            # webapp checks key presence to tell managers from admins apart
+            content={key: value for key, value in quotas.items() if value is not None},
             status_code=200,
         )
     except Error:
