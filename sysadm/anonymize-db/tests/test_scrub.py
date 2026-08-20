@@ -738,3 +738,232 @@ def test_category_email_domain_restriction_scrubbed():
     assert a["ldap"]["email_domain_restriction"]["enabled"] is True  # flag kept
     d = out["categories"][1]["authentication"]["ldap"]["email_domain_restriction"]
     assert d["allowed"] == ["example.test"]
+
+
+# --- authentication provider configs -------------------------------------
+# The same three blocks live twice: globally under config.auth.<provider> and
+# per category under categories[].authentication.<provider>. Field names are
+# those of authentication/model/config.go, which is the authoritative shape.
+
+REAL_LDAP_CONFIG = {
+    "name": "AD Corporatiu",
+    "protocol": "ldaps",
+    "host": "dc01.realorg.example",
+    "port": 636,
+    "bind_dn": "cn=svc-isard,ou=Services,dc=realorg,dc=example",
+    "password": "TheRealBindPassword",
+    "base_search": "ou=Students,dc=realorg,dc=example",
+    "filter": "(&(objectClass=person)(sAMAccountName=%s))",
+    "field_uid": "sAMAccountName",
+    "regex_category": "^(REALORG-.*)$",
+    "role_list_search_base": "ou=Groups,dc=realorg,dc=example",
+    "role_list_filter": "(&(objectClass=group)(member=%s))",
+    "role_admin_ids": "CN=IsardAdmins,OU=Groups,DC=realorg,DC=example",
+    "role_manager_ids": "CN=Teachers,OU=Groups,DC=realorg,DC=example",
+    "role_advanced_ids": "",
+    "role_user_ids": "CN=Students,OU=Groups,DC=realorg,DC=example",
+    "role_default": "user",
+    "auto_register": True,
+    "save_email": True,
+}
+REAL_SAML_CONFIG = {
+    "name": "RealOrg IdP",
+    "metadata_url": "https://idp.realorg.example/idp/shibboleth",
+    "metadata_file": "/keys/realorg-idp-metadata.xml",
+    "entity_id": "https://isard.realorg.example/saml",
+    "key_file": "/keys/realorg.key",
+    "cert_file": "/keys/realorg.cert",
+    "regex_category": "^realorg\\.example$",
+    "role_admin_ids": "isard-admins@realorg.example",
+    "logout_redirect_url": "https://realorg.example/logout",
+    "field_uid": "uid",
+    "role_default": "user",
+}
+REAL_GOOGLE_CONFIG = {
+    "name": "RealOrg Workspace",
+    "client_id": "1234567890-realorg.apps.googleusercontent.com",
+    "client_secret": "GOCSPX-TheRealClientSecret",
+}
+AUTH_NEEDLES = [
+    "realorg",
+    "RealOrg",
+    "REALORG",
+    "AD Corporatiu",
+    "TheRealBindPassword",
+    "GOCSPX-TheRealClientSecret",
+    "svc-isard",
+    "IsardAdmins",
+    "Teachers",
+    "Students",
+]
+
+
+def _auth_block(source: str = "custom") -> dict:
+    return {
+        "ldap": {
+            "disabled": False,
+            "config_source": source,
+            "ldap_config": json.loads(json.dumps(REAL_LDAP_CONFIG)),
+        },
+        "saml": {
+            "disabled": False,
+            "config_source": source,
+            "saml_config": json.loads(json.dumps(REAL_SAML_CONFIG)),
+        },
+        "google": {
+            "disabled": False,
+            "config_source": source,
+            "google_config": json.loads(json.dumps(REAL_GOOGLE_CONFIG)),
+        },
+    }
+
+
+def _assert_provider_config_scrubbed(auth: dict) -> None:
+    ldap = auth["ldap"]["ldap_config"]
+    assert ldap["host"] == "ldap.example.test"
+    assert ldap["bind_dn"] == "cn=anon,dc=example,dc=test"
+    assert ldap["base_search"] == "dc=example,dc=test"
+    assert ldap["role_list_search_base"] == "dc=example,dc=test"
+    assert ldap["password"].startswith("anon-")
+    assert ldap["role_admin_ids"] == ""
+    assert ldap["role_manager_ids"] == ""
+    assert ldap["role_user_ids"] == ""
+    assert ldap["regex_category"] == ".*"
+    # schema shape, not identity: kept so a dev restore exercises the same paths
+    assert ldap["field_uid"] == "sAMAccountName"
+    assert ldap["role_default"] == "user"
+    assert ldap["auto_register"] is True
+    assert ldap["port"] == 636
+
+    saml = auth["saml"]["saml_config"]
+    assert saml["metadata_url"] == "https://idp.example.test/metadata"
+    assert saml["metadata_file"] == ""
+    assert saml["entity_id"] == "https://isard.example.test/saml"
+    assert saml["key_file"] == ""
+    assert saml["cert_file"] == ""
+    assert saml["logout_redirect_url"] == ""
+    assert saml["role_admin_ids"] == ""
+    assert saml["regex_category"] == ".*"
+    assert saml["field_uid"] == "uid"
+
+    google = auth["google"]["google_config"]
+    assert "realorg" not in google["client_id"]
+    assert google["client_secret"].startswith("anon-")
+
+
+def test_global_auth_provider_configs_scrubbed():
+    tables = {"config": [{"id": 1, "auth": _auth_block()}]}
+    out = _run(tables)
+    dumped = json.dumps(out)
+    for needle in AUTH_NEEDLES:
+        assert needle not in dumped, needle
+    _assert_provider_config_scrubbed(out["config"][0]["auth"])
+
+
+def test_per_category_auth_provider_configs_scrubbed():
+    # A category with config_source "custom" carries its own copy of the same
+    # three blocks. It must be scrubbed exactly like the global one.
+    tables = {
+        "categories": [
+            {"id": "realorg-fp", "name": "RealOrg FP", "authentication": _auth_block()},
+            # the default category early-continues; it must still be scrubbed
+            {"id": "default", "authentication": _auth_block()},
+        ]
+    }
+    out = _run(tables)
+    dumped = json.dumps(out)
+    for needle in AUTH_NEEDLES:
+        if needle == "realorg":
+            continue  # categories.id is the primary key and is preserved
+        assert needle not in dumped, needle
+    _assert_provider_config_scrubbed(out["categories"][0]["authentication"])
+    _assert_provider_config_scrubbed(out["categories"][1]["authentication"])
+
+
+def test_config_smtp_and_shared_tokens_scrubbed():
+    tables = {
+        "config": [
+            {
+                "id": 1,
+                "smtp": {
+                    "enabled": True,
+                    "host": "smtp.realorg.example",
+                    "port": 587,
+                    "username": "isard@realorg.example",
+                    "password": "TheRealMailPassword",
+                    "from": "no-reply@realorg.example",
+                    # pre-v175 names that survive the migration's deep merge
+                    "server": "smtp.realorg.example",
+                    "sender_address": "no-reply@realorg.example",
+                    "sender_name": "RealOrg VDI",
+                },
+                "resources": {
+                    "url": "https://repository.isardvdi.com",
+                    "code": "REALCODE1234567890",
+                    "private_code": "REALPRIVATECODE",
+                },
+                "engine": {
+                    "api": {"token": "TheRealEngineToken", "web_port": 5555},
+                    "grafana": {
+                        "hostname": "grafana.realorg.example",
+                        "url": "https://grafana.realorg.example",
+                    },
+                },
+            }
+        ]
+    }
+    out = _run(tables)
+    dumped = json.dumps(out)
+    for needle in ("realorg", "RealOrg", "TheReal", "REALCODE", "REALPRIVATECODE"):
+        assert needle not in dumped, needle
+    c = out["config"][0]
+    assert c["smtp"]["enabled"] is False
+    assert c["smtp"]["port"] == 587  # not identity
+    assert c["smtp"]["server"] == "smtp.example.test"
+    assert c["smtp"]["sender_address"] == "noreply@example.test"
+    assert c["resources"]["code"].startswith("anon-")
+    assert c["resources"]["private_code"].startswith("anon-")
+    assert c["engine"]["api"]["token"].startswith("anon-")
+    assert c["engine"]["api"]["web_port"] == 5555  # not identity
+    assert c["engine"]["grafana"]["hostname"] == "isard-grafana"
+
+
+def test_defensive_sweep_matches_composite_secret_names():
+    # The sweep is the only net a newly-added field gets. A fully anchored
+    # alternation misses every composite name, which is how config.engine.api.
+    # token used to ship verbatim.
+    tables = {
+        "some_new_table": [
+            {
+                "id": "x",
+                "smtp_password": "real",
+                "bind_password": "real",
+                "refresh_token": "real",
+                "api_token": "real",
+                "token": "real",
+                "passphrase": "real",
+                "ssh-private_key": "real",
+                # not secrets: must survive untouched
+                "password_last_updated": "2026-08-20",
+                "status_code": 404,
+                "description_code": "smtp_host_internal",
+                "tokens_used": 12,
+            }
+        ]
+    }
+    out = _run(tables)
+    row = out["some_new_table"][0]
+    for k in (
+        "smtp_password",
+        "bind_password",
+        "refresh_token",
+        "api_token",
+        "token",
+        "passphrase",
+        "ssh-private_key",
+    ):
+        assert row[k].startswith("anon-"), k
+    assert row["password_last_updated"] == "2026-08-20"
+    assert row["status_code"] == 404
+    assert row["description_code"] == "smtp_host_internal"
+    assert row["tokens_used"] == 12

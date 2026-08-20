@@ -18,8 +18,27 @@ Anonymize an IsardVDI `rethinkdb-dump` archive so it can be safely used in devel
 | `users_migrations` | token |
 | `recycle_bin` | owner/agent names, nested name/email/ip/description fields |
 | `logs_users`, `logs_desktops` | PII fields blanked (owner names, IPs, agents); **rows kept** for realistic dev volume |
-| `config` | `auth.ldap` / `auth.saml` / `auth.google` credentials, top-level `smtp.*` (disabled), server wireguard, grafana hostname, resources url, maintenance text |
-| **all tables** | defensive recursive sweep clears any unhandled key matching `password\|passwd\|secret\|client_secret\|api_key\|api-key\|private_key\|access_key\|secret_key\|bearer\|auth_token\|access_token` |
+| `config` | the three `auth.{ldap,saml,google}.*_config` blocks (see below), top-level `smtp.*` including the pre-v175 `server`/`sender_address`/`sender_name` names (and SMTP disabled), `resources.url` + the `code` / `private_code` repository tokens, `engine.api.token`, server wireguard, grafana hostname + url, maintenance text |
+| `categories` | name, description, custom_url_name, uid, branding domain, `email_domain_restriction.allowed`, **and its own copy of the `authentication.{ldap,saml,google}.*_config` blocks** (a category with `config_source: "custom"` carries the customer's directory host, service-account DN and IdP endpoints) |
+| **all tables** | defensive recursive sweep clears any unhandled key matching `[<word>_]password\|passwd\|passphrase\|secret\|client_secret\|api_key\|api-key\|private_key\|private_code\|access_key\|secret_key\|bearer\|token\|auth_token\|access_token`. The optional `<word>_` / `<word>-` prefix is what makes it a net rather than a list — a fully anchored alternation misses every composite name a new field can be given (`smtp_password`, `bind_password`, `refresh_token`, `api_token`) |
+
+### Authentication providers
+
+The `{ldap,saml,google}_config` blocks appear **twice** — globally under `config.auth.<provider>`
+and per category under `categories[].authentication.<provider>` — and one routine
+(`Scrubber._scrub_provider_config`) handles both, walking the whole document so a future nesting
+change cannot silently drop coverage. Field names come from `authentication/model/config.go`
+(`LDAPConfig`, `SAMLConfig`, `GoogleConfig`), which is the authoritative shape; the pydantic
+schemas and the frontend name some of them differently.
+
+Replaced: `name`, LDAP `host` / `bind_dn` / `base_search` / `password` / `filter` /
+`role_list_search_base` / `role_list_filter`, SAML `metadata_url` / `metadata_file` / `entity_id` /
+`key_file` / `cert_file` / `logout_redirect_url`, Google `client_id` / `client_secret`, every
+`role_*_ids` list (real AD group DNs) and every `regex_*` (reset to `.*` — the one place org
+patterns get pasted).
+
+Kept: booleans, ports, enums, the `field_*` directory-attribute mappings and `role_default`. Those
+are schema shape rather than identity, so a dev restore still exercises the same code paths.
 
 Primary keys and FK relationships are preserved. Any value that is replaced and also
 appears in another table (user email / name / username / uid, category & group uid,

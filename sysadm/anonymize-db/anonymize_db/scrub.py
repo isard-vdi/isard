@@ -33,10 +33,15 @@ GUEST_DEFAULT_USERNAME = "isard"
 GUEST_DEFAULT_PASSWORD = "pirineus"
 
 # Keys whose value is sensitive when found anywhere in the tree.
+# The optional `<word>_` / `<word>-` prefix is what makes this a net rather than
+# a list: a fully anchored alternation misses every composite name a new field
+# can be given (`smtp_password`, `bind_password`, `refresh_token`, `api_token`).
 # Excluded names are FK-like ids and a few known non-sensitive keys.
 _SENSITIVE_KEY_RE = re.compile(
-    r"^(?:password|passwd|secret|client_secret|api_key|api-key|"
-    r"private_key|access_key|secret_key|bearer|auth_token|access_token)$",
+    r"^(?:[a-z0-9]+[_-])?"
+    r"(?:password|passwd|passphrase|secret|client_secret|api_key|api-key|"
+    r"private_key|private_code|access_key|secret_key|bearer|token|"
+    r"auth_token|access_token)$",
     re.IGNORECASE,
 )
 _EXCLUDED_TOKEN_KEYS = {
@@ -495,6 +500,91 @@ class Scrubber:
             self._bump("media")
         return rows
 
+    # ---- authentication provider configs ----
+    # Field names come from `authentication/model/config.go` (LDAPConfig,
+    # SAMLConfig, GoogleConfig) — the authoritative shape. The pydantic
+    # schemas and the frontend name some of these differently; writing this
+    # against those is how `idp_url` / `x509cert` ended up here scrubbing keys
+    # the database never had.
+    #
+    # The SAME three blocks appear twice: globally under `config.auth.<p>` and
+    # per category under `categories[].authentication.<p>`. `_scrub_provider_configs`
+    # walks the whole tree so both are covered by one rule, and so a future
+    # nesting change cannot silently drop coverage.
+    #
+    # Only free strings a customer fills in are replaced. Booleans, enums, the
+    # `field_*` directory-attribute mappings and `role_default` are schema
+    # shape, not identity, and stay — a dev restore should still exercise the
+    # same code paths.
+    _PROVIDER_CONFIG_FIXED: dict[str, dict[str, str]] = {
+        "ldap_config": {
+            "name": "ldap",
+            "host": "ldap.example.test",
+            "bind_dn": "cn=anon,dc=example,dc=test",
+            "base_search": "dc=example,dc=test",
+            "filter": "(&(objectClass=person)(uid=%s))",
+            "role_list_search_base": "dc=example,dc=test",
+            "role_list_filter": "(&(objectClass=posixGroup)(memberUid=%s))",
+        },
+        "saml_config": {
+            "name": "saml",
+            "metadata_url": "https://idp.example.test/metadata",
+            "metadata_file": "",
+            "entity_id": "https://isard.example.test/saml",
+            "key_file": "",
+            "cert_file": "",
+            "logout_redirect_url": "",
+        },
+        "google_config": {
+            "name": "google",
+            "client_id": "000000000000-anonymized.apps.googleusercontent.com",
+        },
+    }
+    # Group/role identifiers a customer pastes in: real AD group DNs or SSO
+    # role names. Emptied — the auth provider is unusable in dev anyway, and
+    # nothing else in the database joins on them.
+    _PROVIDER_CONFIG_BLANK = (
+        "role_admin_ids",
+        "role_manager_ids",
+        "role_advanced_ids",
+        "role_user_ids",
+    )
+    # Customer-authored regexes are the one place org patterns get pasted
+    # (`^(ACME-.*)$`, `^acme-corp\.cat$`). Reset to the schema default.
+    _PROVIDER_CONFIG_REGEX_DEFAULT = ".*"
+
+    def _scrub_provider_config(self, kind: str, cfg: dict) -> None:
+        for key, value in self._PROVIDER_CONFIG_FIXED[kind].items():
+            if key in cfg and cfg[key]:
+                cfg[key] = value
+        for key in self._PROVIDER_CONFIG_BLANK:
+            if isinstance(cfg.get(key), str) and cfg[key]:
+                cfg[key] = ""
+            elif isinstance(cfg.get(key), list) and cfg[key]:
+                cfg[key] = []
+        for key, value in list(cfg.items()):
+            if key.startswith("regex_") and isinstance(value, str) and value:
+                cfg[key] = self._PROVIDER_CONFIG_REGEX_DEFAULT
+        # `password` / `client_secret` are already gone via the defensive
+        # sweep; re-assert them here so this function is correct on its own.
+        for key in ("password", "client_secret"):
+            if isinstance(cfg.get(key), str) and cfg[key]:
+                cfg[key] = f"anon-{secrets.token_urlsafe(12)}"
+
+    def _scrub_provider_configs(self, obj: Any) -> None:
+        """Scrub every `{ldap,saml,google}_config` block found anywhere in the
+        tree — the global `config.auth.*` copy and the per-category
+        `categories[].authentication.*` copy alike."""
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k in self._PROVIDER_CONFIG_FIXED and isinstance(v, dict):
+                    self._scrub_provider_config(k, v)
+                else:
+                    self._scrub_provider_configs(v)
+        elif isinstance(obj, list):
+            for v in obj:
+                self._scrub_provider_configs(v)
+
     @staticmethod
     def _blank_email_domain_restrictions(obj: Any) -> None:
         """Rewrite every `email_domain_restriction.allowed` list found anywhere
@@ -521,6 +611,11 @@ class Scrubber:
             # Allowed SSO/registration email domains identify the customer org.
             # Applies to the default category too (before the early-continue).
             self._blank_email_domain_restrictions(r)
+            # A category may carry its own copy of the LDAP/SAML/Google config
+            # (`config_source: "custom"`), holding the customer's directory
+            # host, the service account DN and the IdP endpoints. Same rule as
+            # the global block, and likewise before the early-continue.
+            self._scrub_provider_configs(r.get("authentication"))
             if cid == "default":
                 # built-in default category: names public, but its uid may
                 # still hold an SSO-mapped value (e.g. `Isard_Admins`).
@@ -814,34 +909,10 @@ class Scrubber:
     def config(self, rows: list[dict]) -> list[dict]:
         anon = lambda: f"anon-{secrets.token_urlsafe(12)}"
         for r in rows:
-            auth = r.get("auth") or {}
-            ldap = (auth.get("ldap") or {}).get("ldap_config")
-            if isinstance(ldap, dict):
-                if "bind_dn" in ldap and ldap["bind_dn"]:
-                    ldap["bind_dn"] = "cn=anon,dc=example,dc=test"
-                if "password" in ldap and ldap["password"]:
-                    ldap["password"] = anon()
-                if "host" in ldap and ldap["host"]:
-                    ldap["host"] = "ldap.example.test"
-                if "base_search" in ldap and ldap["base_search"]:
-                    ldap["base_search"] = "dc=example,dc=test"
-            saml = (auth.get("saml") or {}).get("saml_config")
-            if isinstance(saml, dict):
-                for k in (
-                    "cert",
-                    "key",
-                    "idp_url",
-                    "entity_id",
-                    "x509cert",
-                    "private_key",
-                ):
-                    if k in saml and saml[k]:
-                        saml[k] = anon()
-            google = auth.get("google") or {}
-            if isinstance(google, dict):
-                for k in ("client_id", "client_secret"):
-                    if k in google and google[k]:
-                        google[k] = anon()
+            # Global authentication providers. Same routine as the per-category
+            # copy in categories(); the field list lives with it.
+            self._scrub_provider_configs(r.get("auth"))
+            self._blank_email_domain_restrictions(r.get("auth"))
             # `smtp` block lives at the top of config in IsardVDI
             smtp = r.get("smtp")
             if isinstance(smtp, dict):
@@ -852,17 +923,38 @@ class Scrubber:
                 smtp["from"] = "noreply@example.test"
                 smtp["username"] = "noreply@example.test"
                 smtp["password"] = anon()
+                # Pre-v175 key names. The v175 migration writes the new shape
+                # with a rethinkdb update(), which deep-merges, so an install
+                # upgraded from an older schema keeps these alongside.
+                for legacy, value in (
+                    ("server", "smtp.example.test"),
+                    ("sender_address", "noreply@example.test"),
+                    ("sender_name", "IsardVDI"),
+                ):
+                    if isinstance(smtp.get(legacy), str) and smtp[legacy]:
+                        smtp[legacy] = value
             # server-wide WireGuard blocks (keys + Address/endpoint)
             for blob_key in ("vpn_hypers", "vpn_users"):
                 self._scrub_wireguard(r.get(blob_key))
             # site-custom strings
             eng = r.get("engine") or {}
             graf = eng.get("grafana") if isinstance(eng, dict) else None
-            if isinstance(graf, dict) and isinstance(graf.get("hostname"), str):
-                graf["hostname"] = "isard-grafana"
+            if isinstance(graf, dict):
+                if isinstance(graf.get("hostname"), str):
+                    graf["hostname"] = "isard-grafana"
+                # The Grafana URL names the customer's own monitoring host.
+                if isinstance(graf.get("url"), str) and graf["url"]:
+                    graf["url"] = "https://grafana.example.test"
             res = r.get("resources")
-            if isinstance(res, dict) and isinstance(res.get("url"), str):
-                res["url"] = "https://repository.example.test"
+            if isinstance(res, dict):
+                if isinstance(res.get("url"), str):
+                    res["url"] = "https://repository.example.test"
+                # Shared repository tokens. `code` is too generic a name to put
+                # in the defensive sweep (`status_code`, `description_code`),
+                # so it is named here.
+                for k in ("code", "private_code"):
+                    if isinstance(res.get(k), str) and res[k]:
+                        res[k] = anon()
             mt = r.get("maintenance_text")
             if isinstance(mt, dict):
                 if isinstance(mt.get("title"), str):
