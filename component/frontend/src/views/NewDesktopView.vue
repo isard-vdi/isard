@@ -263,8 +263,11 @@ const steps = computed<StepperFormStep[]>(() => {
               t(`api.new-desktop.errors.${creationError}.description`)
             }}</AlertDescription>
           </Alert>
+          <!-- Keyed: the step stays mounted across steps and its template queries
+               are built once, so a new template needs a new instance. -->
           <Step2ConfigureDesktop
             ref="step2Ref"
+            :key="selectedTemplate?.id"
             :selected-template="selectedTemplate!"
             :on-go-back="goToPreviousStep"
             @submit="handleStep2Submit"

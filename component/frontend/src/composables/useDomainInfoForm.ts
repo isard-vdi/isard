@@ -1,4 +1,3 @@
-import { reactive, type MaybeRefOrGetter, toValue, computed } from 'vue'
 import { useForm } from '@tanstack/vue-form'
 import * as z from 'zod'
 
@@ -12,19 +11,9 @@ export const domainInfoFormSchema = z.object({
   description: z.string().trim().max(255)
 })
 
-interface UseDomainInfoFormOptions {
-  name?: MaybeRefOrGetter<string | undefined>
-  description?: MaybeRefOrGetter<string | undefined>
-}
-
-export function useDomainInfoForm(options: UseDomainInfoFormOptions = {}) {
-  const defaultValues = reactive({
-    name: computed(() => toValue(options.name) ?? ''),
-    description: computed(() => toValue(options.description) ?? '')
-  })
-
+export function useDomainInfoForm() {
   return useForm({
-    defaultValues,
+    defaultValues: { name: '', description: '' } as DomainInfoFormValues,
     validators: {
       onChange: domainInfoFormSchema
     }
