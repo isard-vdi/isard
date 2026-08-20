@@ -145,13 +145,18 @@ function scrollBehavior(): ScrollBehavior {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 }
 
-/** Breathing room between the app header and whatever we scroll to. */
+/** Breathing room between the sticky headers and whatever we scroll to. */
 const SCROLL_GAP = 25
 
-function stickyHeaderHeight(): number {
-  const header = document.querySelector('main > header')
-  if (!(header instanceof HTMLElement)) return 0
-  return getComputedStyle(header).position === 'sticky' ? header.offsetHeight : 0
+// The app header and the form header both stick to the top, so the target has to clear both.
+const STICKY_HEADER_SELECTORS = ['main > header', '[data-sticky-header]']
+
+function stickyHeadersHeight(): number {
+  return STICKY_HEADER_SELECTORS.reduce((total, selector) => {
+    const header = document.querySelector(selector)
+    if (!(header instanceof HTMLElement)) return total
+    return getComputedStyle(header).position === 'sticky' ? total + header.offsetHeight : total
+  }, 0)
 }
 
 const open = async () => {
@@ -161,7 +166,7 @@ const open = async () => {
   const target = disclosureRef.value
   if (!target) return
   const top =
-    target.getBoundingClientRect().top + window.scrollY - stickyHeaderHeight() - SCROLL_GAP
+    target.getBoundingClientRect().top + window.scrollY - stickyHeadersHeight() - SCROLL_GAP
   window.scrollTo({ top, behavior: scrollBehavior() })
 }
 

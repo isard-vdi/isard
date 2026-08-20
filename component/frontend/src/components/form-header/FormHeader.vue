@@ -59,6 +59,7 @@ defineExpose({ allowLeave })
 <template>
   <!-- Sticky under the page header, so the step controls stay reachable while the form scrolls -->
   <header
+    data-sticky-header
     :class="
       cn(
         'sticky top-16 z-40 -mx-5 -mt-5 mb-6 p-5 bg-base-background',
