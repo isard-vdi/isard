@@ -226,7 +226,7 @@ const deploymentDesktopItems = computed<DomainInfoItem[]>(() => {
     vcpu: d.vcpu,
     ram: d.memory,
     bootOrder: d.boot_order.map((bo) => bo.name),
-    diskBus: d.disk_bus,
+    diskBus: d.disk_bus?.name,
     vga: d.videos.map((v) => v.name),
     viewers: d.viewers,
     fullscreen: d.fullscreen,
@@ -257,7 +257,7 @@ const openDeploymentInfoModal = () => {
     :vcpu="modalDesktopDetails?.vcpu"
     :ram="modalDesktopDetails?.memory"
     :boot-order="modalDesktopDetails?.boot_order.map((bo) => bo.name)"
-    :disk-bus="modalDesktopDetails?.disk_bus"
+    :disk-bus="modalDesktopDetails?.disk_bus?.name"
     :vga="modalDesktopDetails?.videos.map((vga) => vga.name)"
     :viewers="modalDesktopDetails?.viewers"
     :isos="modalDesktopDetails?.isos?.map((iso) => iso.name)"
@@ -398,7 +398,7 @@ const openDeploymentInfoModal = () => {
           :fullscreen="desktopDetails?.fullscreen"
           :vcpu="desktopDetails?.vcpu"
           :memory="desktopDetails?.memory"
-          :disk-bus="desktopDetails?.disk_bus"
+          :disk-bus="desktopDetails?.disk_bus?.name"
           :videos="desktopDetails?.videos?.map((video) => video.name)"
           :interfaces="desktopDetails?.interfaces?.map((iface) => iface.name)"
           :boot-order="desktopDetails?.boot_order?.map((boot) => boot.name)"

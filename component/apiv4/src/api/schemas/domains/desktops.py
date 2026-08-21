@@ -160,8 +160,8 @@ class DesktopDetailsResponse(BaseModel):
         default=0,
         description="Amount of memory (RAM) allocated to the desktop in GiB.",
     )
-    disk_bus: str = Field(
-        description="Type of disk bus used by the desktop, e.g., 'virtio', 'scsi'.",
+    disk_bus: DesktopNamedResource = Field(
+        description="ID and name of the disk bus used by the desktop, e.g., 'virtio', 'scsi'.",
     )
     boot_order: list[DesktopNamedResource] = Field(
         description="List of IDs and names with the boot order that will be followed when booting the domain. Each ID will be a valid boot id.",

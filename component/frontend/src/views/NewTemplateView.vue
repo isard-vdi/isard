@@ -263,7 +263,7 @@ useSearchShortcuts(NEW_TEMPLATE_SEARCH_INPUT_ID)
       :vcpu="desktopDetails?.vcpu"
       :ram="desktopDetails?.memory"
       :boot-order="desktopDetails?.boot_order.map((bo) => bo.name)"
-      :disk-bus="desktopDetails?.disk_bus"
+      :disk-bus="desktopDetails?.disk_bus?.name"
       :vga="desktopDetails?.videos.map((vga) => vga.name)"
       :viewers="desktopDetails?.viewers"
       :isos="desktopDetails?.isos?.map((iso) => iso.name)"

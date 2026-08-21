@@ -85,7 +85,7 @@ const summary = computed(() => ({
   fullscreen: templateDetails.value?.fullscreen,
   vcpu: templateDetails.value?.vcpu,
   memory: templateDetails.value?.memory,
-  diskBus: templateDetails.value?.disk_bus,
+  diskBus: templateDetails.value?.disk_bus?.name,
   videos: templateDetails.value?.videos.map((video) => video.name),
   interfaces: templateDetails.value?.interfaces.map((iface) => iface.name),
   bootOrder: templateDetails.value?.boot_order.map((boot) => boot.name),
