@@ -38,24 +38,6 @@ const { data: templateDetails, isPending: templateDetailsIsPending } = useQuery(
   refetchOnMount: 'always'
 })
 
-// No floppies: template details does not report them, unlike the desktop endpoint.
-const summary = computed(() => ({
-  credentials: {
-    username: templateDetails.value?.credentials?.username ?? undefined,
-    password: templateDetails.value?.credentials?.password ?? undefined
-  },
-  viewers: templateDetails.value?.viewers ?? [],
-  fullscreen: templateDetails.value?.fullscreen,
-  vcpu: templateDetails.value?.vcpu,
-  memory: templateDetails.value?.memory,
-  diskBus: templateDetails.value?.disk_bus,
-  videos: templateDetails.value?.videos?.map((video) => video.name),
-  interfaces: templateDetails.value?.interfaces?.map((iface) => iface.name),
-  bootOrder: templateDetails.value?.boot_order?.map((boot) => boot.name),
-  isos: templateDetails.value?.isos?.map((iso) => iso.name),
-  vgpus: templateDetails.value?.reservables?.vgpus
-}))
-
 const panelRef = ref<InstanceType<typeof DomainConfigurationPanel> | null>(null)
 const areFormsValid = computed(() => panelRef.value?.areFormsValid ?? false)
 
@@ -142,7 +124,6 @@ const handleSubmit = () => {
       :image-persist-on-save="false"
       :image-allow-upload="false"
       always-show-configuration
-      :summary="summary"
       context="edit-template"
     />
   </main>

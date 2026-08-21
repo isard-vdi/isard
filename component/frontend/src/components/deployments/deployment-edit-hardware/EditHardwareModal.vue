@@ -35,21 +35,6 @@ const selectedViewers = computed<string[]>(() =>
   selectedViewerKeys(desktopData.value.guest_properties?.viewers)
 )
 
-const summary = computed(() => ({
-  credentials: desktopData.value.guest_properties?.credentials ?? undefined,
-  viewers: selectedViewers.value,
-  fullscreen: desktopData.value.guest_properties?.fullscreen,
-  vcpu: desktopData.value.hardware?.vcpus ?? undefined,
-  memory: desktopData.value.hardware?.memory ?? undefined,
-  diskBus: desktopData.value.hardware?.disk_bus ?? undefined,
-  videos: desktopData.value.hardware?.videos ?? undefined,
-  interfaces: desktopData.value.hardware?.interfaces ?? undefined,
-  bootOrder: desktopData.value.hardware?.boot_order ?? undefined,
-  isos: desktopData.value.hardware?.isos?.map((iso) => iso.name),
-  floppies: desktopData.value.hardware?.floppies?.map((floppy) => floppy.name),
-  vgpus: desktopData.value.reservables?.vgpus
-}))
-
 // There is no desktop or template to read from yet, so the sub-forms are seeded
 // from the deployment entry the parent is building.
 const defaults = computed<DomainConfigurationDefaults>(() => ({
@@ -112,7 +97,6 @@ const handleSubmit = () => {
           ref="configurationRef"
           always-open
           context="deployment-desktop"
-          :summary="summary"
           :defaults="defaults"
           :limited-hardware="desktopData.limited_hardware"
         />

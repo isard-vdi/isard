@@ -306,8 +306,11 @@ defineExpose({
             />
           </Tooltip>
         </div>
+        <!-- The summary previews what the collapsed forms hold; where they are
+             open from the start it would only repeat them. -->
         <!-- `viewers` last: it overrides the ones the summary came with. -->
         <DomainSummary
+          v-if="!alwaysOpen"
           class="shadow-xs"
           :loading="loading"
           v-bind="summary"

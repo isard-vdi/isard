@@ -21,7 +21,6 @@ import {
   toImageInput,
   toReservables
 } from '@/lib/domainPayload'
-import { selectedViewerKeys } from '@/lib/viewers'
 import router from '@/router'
 
 const { t } = useI18n()
@@ -51,30 +50,6 @@ const canUseBastion = computed(() => userConfig.value?.can_use_bastion === true)
 const desktopKind = computed<'persistent' | 'nonpersistent' | 'deployment'>(() =>
   desktopData.value?.deployment_name ? 'deployment' : 'persistent'
 )
-
-// Interfaces are named on the top-level list; `hardware.interfaces` is ids only.
-const summary = computed(() => {
-  const guest = desktopData.value?.guest_properties
-  const hardware = desktopData.value?.hardware
-
-  return {
-    credentials: {
-      username: guest?.credentials?.username ?? undefined,
-      password: guest?.credentials?.password ?? undefined
-    },
-    viewers: selectedViewerKeys(guest?.viewers),
-    fullscreen: guest?.fullscreen,
-    vcpu: hardware?.vcpus,
-    memory: hardware?.memory,
-    diskBus: hardware?.disk_bus,
-    videos: hardware?.videos,
-    interfaces: desktopData.value?.interfaces?.map((iface) => iface.name ?? iface.id),
-    bootOrder: hardware?.boot_order ?? undefined,
-    isos: hardware?.isos?.map((iso) => iso.name ?? iso.id),
-    floppies: hardware?.floppies?.map((floppy) => floppy.name ?? floppy.id),
-    vgpus: desktopData.value?.reservables?.vgpus
-  }
-})
 
 const panelRef = ref<InstanceType<typeof DomainConfigurationPanel> | null>(null)
 const areFormsValid = computed(() => panelRef.value?.areFormsValid ?? false)
@@ -157,7 +132,6 @@ const handleSubmit = () => {
       :image-persist-on-save="false"
       always-show-configuration
       :show-bastion-config="canUseBastion"
-      :summary="summary"
       context="edit-desktop"
     />
   </main>
