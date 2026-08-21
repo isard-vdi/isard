@@ -404,7 +404,7 @@ const optionNames = (ids: string[] | undefined, options: { id: string; name: str
 const summary = computed(() => ({
   vcpu: formValues.value.vcpus,
   memory: formValues.value.memory,
-  diskBus: formValues.value.diskBus,
+  diskBus: optionName(formValues.value.diskBus, diskBusOptions.value),
   diskSize: props.showDiskSize ? formValues.value.diskSize : undefined,
   videos: formValues.value.videos
     ? [optionName(formValues.value.videos, videosOptions.value) as string]
