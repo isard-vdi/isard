@@ -13,11 +13,17 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { AccessFormData, HardwareFormData } from '@/lib/domainPayload'
 import type { DomainKind } from '@/components/domain/DomainInfoSection.vue'
 
+export interface LimitedHardwareValue {
+  old_value: unknown
+  new_value: unknown
+}
+
 export type DomainConfigurationContext =
   | 'new-desktop'
   | 'new-desktop-from-media'
   | 'edit-desktop'
   | 'edit-template'
+  | 'deployment-desktop'
 
 /** Seeds for the sub-forms when there is no template or desktop to read from. */
 export interface DomainConfigurationDefaults {
@@ -53,6 +59,8 @@ const props = withDefaults(
     showPeripherals?: boolean
     summary?: DomainSummaryData
     defaults?: DomainConfigurationDefaults
+    /** Quota restrictions when there is no template or desktop to read them from. */
+    limitedHardware?: Record<string, LimitedHardwareValue> | null
     kind?: DomainKind
     entity?: 'desktops' | 'templates'
     /** Picks the blurb that explains where these values come from. */
@@ -69,6 +77,7 @@ const props = withDefaults(
     showPeripherals: true,
     summary: undefined,
     defaults: undefined,
+    limitedHardware: undefined,
     kind: 'persistent',
     entity: 'desktops',
     context: 'new-desktop'
@@ -111,11 +120,6 @@ const formatValue = (value: unknown) => {
     return obj.name || obj.id || value || 'None'
   }
   return value || 'None'
-}
-
-interface LimitedHardwareValue {
-  old_value: unknown
-  new_value: unknown
 }
 
 const restrictedFieldsDetails = computed(() => {
@@ -369,6 +373,7 @@ defineExpose({
               :desktop-id="desktopId"
               :show-disk-size="showDiskSize"
               :show-peripherals="showPeripherals"
+              :limited-hardware="limitedHardware"
               :vcpus="defaults?.hardware?.vcpus"
               :memory="defaults?.hardware?.memory"
               :disk-bus="defaults?.hardware?.diskBus"

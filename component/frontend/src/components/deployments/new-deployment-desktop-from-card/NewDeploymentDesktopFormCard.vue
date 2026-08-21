@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<Props>(), {})
 const emit = defineEmits<{
   changeTemplate: []
   deleteDesktop: []
-  updateHardware: [restrictedFieldsDetails?: any]
+  updateHardware: []
 }>()
 
 const open = ref<boolean>(props.open || false)
@@ -262,12 +262,9 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
           </div>
 
           <div class="flex flex-col gap-4 items-start">
-            <Button
-              hierarchy="secondary-gray"
-              icon="settings-02"
-              @click="emit('updateHardware', restrictedFieldsDetails)"
-              >{{ t('components.deployments.form-desktop-card.sections.hardware.button') }}</Button
-            >
+            <Button hierarchy="secondary-gray" icon="settings-02" @click="emit('updateHardware')">{{
+              t('components.deployments.form-desktop-card.sections.hardware.button')
+            }}</Button>
 
             <!-- Informational alert for limited hardware fields -->
             <Alert

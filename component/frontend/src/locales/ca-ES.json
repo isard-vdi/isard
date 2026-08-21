@@ -210,25 +210,9 @@
             }
           }
         },
-        "access": {
-          "title": "Resum d'accés",
-          "description": "Aquest és un resum dels mètodes d'accés disponibles per al teu escriptori",
-          "show-access-customization": "Canvia l'accés",
-          "hide-access-customization": "Amaga l'accés"
-        },
         "hardware-limited": {
           "title": "@:components.domain.configuration.hardware-limited.title",
           "description": "@:components.domain.configuration.hardware-limited.description"
-        },
-        "hardware-summary": {
-          "title": "Resum del maquinari",
-          "description": "Aquest és un resum del maquinari heretat de la plantilla. S'utilitzarà per al teu escriptori",
-          "show-hardware-customization": "Canvia el maquinari",
-          "hide-hardware-customization": "Amaga el maquinari"
-        },
-        "all-hardware": {
-          "title": "@:components.domain.configuration.hardware.title",
-          "description": "@:components.domain.configuration.hardware.description"
         }
       },
       "creating": {
@@ -2176,7 +2160,8 @@
             "new-desktop": "Aquests valors provenen de la plantilla. Canvia'ls a sota o més endavant, amb l'escriptori ja creat.",
             "new-desktop-from-media": "Aquests són els valors per defecte de la instal·lació. Canvia'ls a sota o més endavant, amb l'escriptori ja creat.",
             "edit-desktop": "Accés i maquinari d'aquest escriptori. Els canvis s'apliquen el proper cop que s'iniciï.",
-            "edit-template": "Accés i maquinari que heretarà cada escriptori creat a partir d'aquesta plantilla."
+            "edit-template": "Accés i maquinari que heretarà cada escriptori creat a partir d'aquesta plantilla.",
+            "deployment-desktop": "Accés i maquinari heretats de la plantilla. Els canvis només afecten aquest escriptori del desplegament."
           },
           "show": "Canvia la configuració",
           "restore": "Restaura els valors inicials",

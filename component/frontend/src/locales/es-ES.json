@@ -210,25 +210,9 @@
             }
           }
         },
-        "access": {
-          "title": "Resumen de acceso",
-          "description": "Este es un resumen de los métodos de acceso disponibles para tu escritorio",
-          "show-access-customization": "Cambiar acceso",
-          "hide-access-customization": "Ocultar acceso"
-        },
         "hardware-limited": {
           "title": "@:components.domain.configuration.hardware-limited.title",
           "description": "@:components.domain.configuration.hardware-limited.description"
-        },
-        "hardware-summary": {
-          "title": "Resumen de hardware",
-          "description": "Este es un resumen del hardware heredado de la plantilla. Se utilizará para tu escritorio",
-          "show-hardware-customization": "Cambiar hardware",
-          "hide-hardware-customization": "Ocultar hardware"
-        },
-        "all-hardware": {
-          "title": "@:components.domain.configuration.hardware.title",
-          "description": "@:components.domain.configuration.hardware.description"
         }
       },
       "creating": {
@@ -2188,7 +2172,8 @@
             "new-desktop": "Estos valores vienen de la plantilla. Cámbialos abajo o más adelante, con el escritorio ya creado.",
             "new-desktop-from-media": "Estos son los valores por defecto de la instalación. Cámbialos abajo o más adelante, con el escritorio ya creado.",
             "edit-desktop": "Acceso y hardware de este escritorio. Los cambios se aplican la próxima vez que se inicie.",
-            "edit-template": "Acceso y hardware que heredará cada escritorio creado a partir de esta plantilla."
+            "edit-template": "Acceso y hardware que heredará cada escritorio creado a partir de esta plantilla.",
+            "deployment-desktop": "Acceso y hardware heredados de la plantilla. Los cambios solo afectan a este escritorio del despliegue."
           },
           "show": "Cambiar configuración",
           "restore": "Restaurar valores iniciales",

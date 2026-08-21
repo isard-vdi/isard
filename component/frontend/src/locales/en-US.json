@@ -210,25 +210,9 @@
           }
         },
         "description": "You can edit the desktop name, image and hardware",
-        "access": {
-          "title": "Access summary",
-          "description": "This is a sumary of the access methods available for your desktop",
-          "show-access-customization": "Change access",
-          "hide-access-customization": "Hide access"
-        },
         "hardware-limited": {
           "title": "@:components.domain.configuration.hardware-limited.title",
           "description": "@:components.domain.configuration.hardware-limited.description"
-        },
-        "hardware-summary": {
-          "title": "Hardware summary",
-          "description": "This is a sumary of the template inherited hardware. It will be used for your desktop",
-          "show-hardware-customization": "Change hardware",
-          "hide-hardware-customization": "Hide hardware"
-        },
-        "all-hardware": {
-          "title": "@:components.domain.configuration.hardware.title",
-          "description": "@:components.domain.configuration.hardware.description"
         }
       },
       "creating": {
@@ -1563,7 +1547,8 @@
             "new-desktop": "These values come from the template. Change them below, or later once the desktop is created.",
             "new-desktop-from-media": "These are the default values for the installation. Change them below, or later once the desktop is created.",
             "edit-desktop": "Access and hardware of this desktop. Changes apply the next time it starts.",
-            "edit-template": "Access and hardware every desktop created from this template will inherit."
+            "edit-template": "Access and hardware every desktop created from this template will inherit.",
+            "deployment-desktop": "Access and hardware inherited from the template. Changes apply to this deployment desktop only."
           },
           "show": "Change configuration",
           "restore": "Restore initial values",

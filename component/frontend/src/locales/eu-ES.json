@@ -123,25 +123,9 @@
           }
         },
         "description": "Mahaigainaren izena, irudia eta hardwarea editatu ditzakezu",
-        "access": {
-          "title": "Sarbide-laburpena",
-          "description": "Hau zure mahaigainerako erabilgarri dauden sarbide-metodoen laburpena da",
-          "show-access-customization": "Aldatu sarbidea",
-          "hide-access-customization": "Ezkutatu sarbidea"
-        },
         "hardware-limited": {
           "title": "@:components.domain.configuration.hardware-limited.title",
           "description": "@:components.domain.configuration.hardware-limited.description"
-        },
-        "hardware-summary": {
-          "title": "Hardware-laburpena",
-          "description": "Hau txantiloiaren heredatutako hardwarearen laburpena da. Zure mahaigainerako erabiliko da",
-          "show-hardware-customization": "Aldatu hardwarea",
-          "hide-hardware-customization": "Ezkutatu hardwarea"
-        },
-        "all-hardware": {
-          "title": "@:components.domain.configuration.hardware.title",
-          "description": "@:components.domain.configuration.hardware.description"
         }
       },
       "creating": {
