@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { DesktopCardBase, DesktopCardHeader } from '@/components/desktop-card'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 import AdjustmentStrip from '@/components/domain/AdjustmentStrip.vue'
+import { viewerLabels } from '@/lib/viewers'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -81,6 +82,15 @@ const restrictedFieldNames = computed(() => {
 
   return Object.keys(limitedFields).map((key) => fieldNameMap[key] || key)
 })
+
+// Viewers the API dropped for this template; the modal spells them out too.
+const removedViewers = props.form.useStore(
+  (state: any) => state.values.desktops?.[props.index]?.removed_viewers
+)
+
+const removedViewerLabels = computed(() =>
+  Array.isArray(removedViewers.value) ? viewerLabels(removedViewers.value, t) : []
+)
 
 const formPrefix = computed(() => `desktops[${props.index}]`)
 </script>
@@ -262,6 +272,17 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
                 })
               "
               :items="restrictedFieldNames"
+            />
+
+            <AdjustmentStrip
+              v-if="removedViewerLabels.length"
+              class="w-full"
+              :label="
+                t('components.domain.access.viewers-removed.summary', {
+                  count: removedViewerLabels.length
+                })
+              "
+              :items="removedViewerLabels"
             />
           </div>
         </div>

@@ -56,6 +56,8 @@ const props = withDefaults(
     defaults?: DomainConfigurationDefaults
     /** Quota restrictions when there is no template or desktop to read them from. */
     limitedHardware?: LimitedHardware | null
+    /** Viewers the API dropped, when there is no template or desktop to read them from. */
+    initialRemovedViewers?: string[]
     kind?: DomainKind
     entity?: 'desktops' | 'templates'
     /** Picks the blurb that explains where these values come from. */
@@ -73,6 +75,7 @@ const props = withDefaults(
     summary: undefined,
     defaults: undefined,
     limitedHardware: undefined,
+    initialRemovedViewers: undefined,
     kind: 'persistent',
     entity: 'desktops',
     context: 'new-desktop'
@@ -84,6 +87,7 @@ const { t } = useI18n()
 const accessFormRef = ref<InstanceType<typeof DomainAccessForm> | null>(null)
 const hardwareFormRef = ref<InstanceType<typeof DomainHardwareForm> | null>(null)
 
+// What the access form ended up dropping: the seeded removals plus any live one.
 const removedViewers = computed<string[]>(() => accessFormRef.value?.removedViewers ?? [])
 const removedViewerLabels = computed<string[]>(() => accessFormRef.value?.removedViewerLabels ?? [])
 
@@ -320,6 +324,7 @@ defineExpose({
               :credentials="defaults?.access?.credentials"
               :fullscreen="defaults?.access?.fullscreen"
               :viewers="defaults?.access?.viewers"
+              :initial-removed-viewers="props.initialRemovedViewers"
               :hardware-interfaces="hardwareInterfaces"
               :on-request-add-interface="handleAddInterfaceFromAccessForm"
               class="p-6"

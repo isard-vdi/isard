@@ -31,7 +31,8 @@ import { toast } from '@/components/ui/toast'
 import {
   hasWireguardRequiringViewer,
   stripWireguardRequiringViewers,
-  getWireguardRequiringViewers
+  getWireguardRequiringViewers,
+  viewerLabels
 } from '@/lib/viewers'
 
 interface Credentials {
@@ -69,6 +70,8 @@ interface Props {
   showCustomDomains?: boolean // Whether to show custom domains in bastion config
   bastion?: Bastion
   viewers?: string[]
+  // Viewers the API already dropped, when there is no domain to read them from
+  initialRemovedViewers?: string[]
   hardwareInterfaces?: string[]
   onRequestAddInterface?: (ifaceId: string) => boolean | undefined
 }
@@ -100,6 +103,7 @@ const props = withDefaults(defineProps<Props>(), {
     customDomains: []
   }),
   viewers: () => [],
+  initialRemovedViewers: () => [],
   hardwareInterfaces: () => [],
   onRequestAddInterface: undefined
 })
@@ -274,26 +278,14 @@ const hasRdpViewer = computed(() => hasWireguardRequiringViewer(selectedViewers.
 const removedViewers = ref<string[]>([])
 
 watch(
-  () => (templateData.value ?? desktopData.value)?.removed_viewers,
+  () => (templateData.value ?? desktopData.value)?.removed_viewers ?? props.initialRemovedViewers,
   (dropped) => {
     if (dropped?.length) removedViewers.value = dropped
   },
   { immediate: true }
 )
 
-const viewerLabelKeys: Record<string, string> = {
-  browser_rdp: 'components.viewers-selector.browser-viewers.rdp-browser',
-  browser_vnc: 'components.viewers-selector.browser-viewers.vnc-browser',
-  file_rdpgw: 'components.viewers-selector.file-viewers.rdp',
-  file_spice: 'components.viewers-selector.file-viewers.spice',
-  file_rdpvpn: 'components.viewers-selector.file-viewers.rdp-vpn'
-}
-
-const removedViewerLabels = computed<string[]>(() =>
-  removedViewers.value.map((viewer) =>
-    viewerLabelKeys[viewer] ? t(viewerLabelKeys[viewer]) : viewer
-  )
-)
+const removedViewerLabels = computed<string[]>(() => viewerLabels(removedViewers.value, t))
 
 watch(
   hasRdpViewer,

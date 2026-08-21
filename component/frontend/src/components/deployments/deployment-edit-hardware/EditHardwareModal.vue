@@ -17,7 +17,10 @@ const { t } = useI18n()
 
 interface Props {
   open?: boolean
-  data: CreateDesktopRequest & { limited_hardware?: LimitedHardware | null }
+  data: CreateDesktopRequest & {
+    limited_hardware?: LimitedHardware | null
+    removed_viewers?: string[] | null
+  }
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -100,6 +103,7 @@ const handleSubmit = () => {
           context="deployment-desktop"
           :defaults="defaults"
           :limited-hardware="desktopData.limited_hardware"
+          :initial-removed-viewers="desktopData.removed_viewers ?? undefined"
         />
       </div>
     </template>

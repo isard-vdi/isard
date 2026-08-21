@@ -448,8 +448,14 @@ const updateHardware = (
 ) => {
   const currentDesktops = form.getFieldValue('desktops') || []
 
+  const restoredViewers = access?.viewers ?? {}
+
   const updatedDesktop = {
     ...currentDesktops[index],
+    // A viewer the user got back (by adding wireguard) is no longer removed.
+    removed_viewers: (currentDesktops[index].removed_viewers ?? []).filter(
+      (viewer: string) => !(viewer in restoredViewers)
+    ),
     guest_properties: {
       ...currentDesktops[index].guest_properties,
       ...toGuestProperties(access)

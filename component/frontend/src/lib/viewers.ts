@@ -19,3 +19,17 @@ export function selectedViewerKeys(viewers: Record<string, unknown> | null | und
     .filter(([, value]) => value != null)
     .map(([key]) => key)
 }
+
+export const VIEWER_LABEL_KEYS: Record<string, string> = {
+  browser_rdp: 'components.viewers-selector.browser-viewers.rdp-browser',
+  browser_vnc: 'components.viewers-selector.browser-viewers.vnc-browser',
+  file_rdpgw: 'components.viewers-selector.file-viewers.rdp',
+  file_spice: 'components.viewers-selector.file-viewers.spice',
+  file_rdpvpn: 'components.viewers-selector.file-viewers.rdp-vpn'
+}
+
+export function viewerLabels(viewers: readonly string[], t: (key: string) => string): string[] {
+  return viewers.map((viewer) =>
+    VIEWER_LABEL_KEYS[viewer] ? t(VIEWER_LABEL_KEYS[viewer]) : viewer
+  )
+}
