@@ -2146,18 +2146,14 @@
         },
         "networks": {
           "label": "Redes",
-          "placeholder": "Selecciona redes",
-          "modal": {
-            "title": "Configurar redes",
-            "description": "Añade, elimina o reordena las redes asignadas a este dominio",
-            "selected": "Redes seleccionadas",
-            "drop-here": "Arrastra redes aquí",
-            "available": "Redes disponibles",
-            "empty-selected": "Arrastra redes aquí o pulsa + para añadir",
-            "empty-available": "Todas las redes están seleccionadas",
-            "cancel": "Cancelar",
-            "save": "Guardar"
-          }
+          "interfaces-label": "Interfaces",
+          "placeholder": "Añade una red",
+          "empty": "Todavía no hay ninguna red. Elige una con el selector de arriba.",
+          "order-hint": "Arrastra las redes o pulsa ← / → para definir el orden de las interfaces dentro del escritorio",
+          "chip-label": "{name}, posición {position}",
+          "chip-label-required": "{name}, posición {position}, necesaria",
+          "required": "Necesaria",
+          "remove": "Quitar {name}"
         },
         "limited": {
           "warning": {

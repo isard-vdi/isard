@@ -17,6 +17,7 @@ import { Icon, CopyIcon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { toast } from '@/components/ui/toast'
 import { ref, watch } from 'vue'
+import { WIREGUARD_INTERFACE_ID } from '@/lib/viewers'
 
 interface BastionHttpHttps {
   enabled?: boolean
@@ -159,10 +160,10 @@ watch(
 
 watch(bastionEnabled, (enabled, wasEnabled) => {
   if (!enabled || wasEnabled) return
-  if ((props.hardwareInterfaces ?? []).includes('wireguard')) return
+  if ((props.hardwareInterfaces ?? []).includes(WIREGUARD_INTERFACE_ID)) return
   if (!props.onRequestAddInterface) return
 
-  const added = props.onRequestAddInterface('wireguard')
+  const added = props.onRequestAddInterface(WIREGUARD_INTERFACE_ID)
 
   if (added === true) {
     toast.info(t('components.domain.access.wireguard-added.title'), {
@@ -181,8 +182,8 @@ const bastionDisabled = ref(false)
 watch(
   () => props.hardwareInterfaces,
   (newInterfaces, oldInterfaces) => {
-    const had = (oldInterfaces ?? []).includes('wireguard')
-    const has = (newInterfaces ?? []).includes('wireguard')
+    const had = (oldInterfaces ?? []).includes(WIREGUARD_INTERFACE_ID)
+    const has = (newInterfaces ?? []).includes(WIREGUARD_INTERFACE_ID)
     if (had && !has && bastionEnabled.value) {
       bastionEnabled.value = false
       bastionDisabled.value = true

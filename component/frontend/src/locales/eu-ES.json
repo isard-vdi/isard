@@ -851,18 +851,14 @@
         },
         "networks": {
           "label": "Sareak",
-          "placeholder": "Hautatu sareak",
-          "modal": {
-            "title": "Konfiguratu sareak",
-            "description": "Gehitu, ezabatu edo berrordenatu domeinu honi esleitutako sareak",
-            "selected": "Hautatutako sareak",
-            "drop-here": "Jaregin sareak hemen",
-            "available": "Sare erabilgarriak",
-            "empty-selected": "Arrastatu sareak hona edo sakatu + gehitzeko",
-            "empty-available": "Sare guztiak hautatuta daude",
-            "cancel": "Utzi",
-            "save": "Gorde"
-          }
+          "interfaces-label": "Interfazeak",
+          "placeholder": "Gehitu sare bat",
+          "empty": "Oraindik ez dago sarerik. Hautatu bat goiko hautatzailearekin.",
+          "order-hint": "Arrastatu sareak edo sakatu ← / → mahaigaineko interfazeen ordena zehazteko",
+          "chip-label": "{name}, {position}. postua",
+          "chip-label-required": "{name}, {position}. postua, beharrezkoa",
+          "required": "Beharrezkoa",
+          "remove": "Kendu {name}"
         },
         "limited": {
           "warning": {

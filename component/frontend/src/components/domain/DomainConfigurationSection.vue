@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { AccessFormData, HardwareFormData } from '@/lib/domainPayload'
 import type { LimitedHardware, LimitedHardwareValue } from '@/lib/hardwareLimits'
+import { WIREGUARD_INTERFACE_ID } from '@/lib/viewers'
 import type { DomainKind } from '@/components/domain/DomainInfoSection.vue'
 
 export type DomainConfigurationContext =
@@ -122,6 +123,14 @@ const baseSummary = computed<DomainSummaryData>(() => ({
 }))
 
 const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces ?? [])
+
+// The access form owns the viewer selection; the hardware form only needs to
+// know which interfaces that selection depends on, to flag them in the list.
+const rdpViewersEnabled = ref(false)
+const bastionEnabled = ref(false)
+const requiredInterfaces = computed<string[]>(() =>
+  rdpViewersEnabled.value || bastionEnabled.value ? [WIREGUARD_INTERFACE_ID] : []
+)
 
 function handleAddInterfaceFromAccessForm(ifaceId: string) {
   return hardwareFormRef.value?.addInterface(ifaceId)
@@ -356,6 +365,8 @@ defineExpose({
               :hardware-interfaces="hardwareInterfaces"
               :on-request-add-interface="handleAddInterfaceFromAccessForm"
               class="p-6"
+              @rdp-viewers-enabled="rdpViewersEnabled = $event"
+              @bastion-enabled="bastionEnabled = $event"
             />
           </div>
           <div>
@@ -392,6 +403,7 @@ defineExpose({
               :isos="defaults?.hardware?.isos"
               :floppies="defaults?.hardware?.floppies"
               :interfaces="defaults?.hardware?.interfaces"
+              :required-interfaces="requiredInterfaces"
               :reservables="defaults?.hardware?.reservables"
               class="p-6"
             />
