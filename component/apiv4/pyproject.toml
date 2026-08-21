@@ -21,7 +21,7 @@ dependencies = [
   "pytz==2026.2",
   "redis==8.0.1",
   "requests==2.34.2",
-  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/7de05d9a0d758e4b7fb7453849003a1e545446fe.tar.gz",
+  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/de0aa01a894bc08c3d8ecb9333bec2eafe9fd504.tar.gz",
   "rq==2.10.0",
   "specktre==0.3.0",
   "uvicorn==0.51.0",
