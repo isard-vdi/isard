@@ -9,7 +9,7 @@ dependencies = [
   "isardvdi-apiv4-client",
   "isardvdi-common",
   "requests==2.34.2",
-  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz",
+  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz",
   "waitress==3.0.2",
   "werkzeug==3.1.8",
 ]

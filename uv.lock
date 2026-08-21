@@ -844,7 +844,7 @@ requires-dist = [
     { name = "pytz", specifier = "==2026.2" },
     { name = "redis", specifier = "==8.0.1" },
     { name = "requests", specifier = "==2.34.2" },
-    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" },
     { name = "rq", specifier = "==2.10.0" },
     { name = "specktre", specifier = "==0.3.0" },
     { name = "user-agents", specifier = "==2.2.0" },
@@ -932,7 +932,7 @@ requires-dist = [
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "pyjwt", specifier = "==2.13.0" },
     { name = "requests", specifier = "==2.34.2" },
-    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" },
 ]
 
 [[package]]
@@ -961,7 +961,7 @@ requires-dist = [
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "python-socketio", specifier = "==5.16.3" },
     { name = "redis", specifier = "==8.0.1" },
-    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" },
 ]
 
 [package.metadata.requires-dev]
@@ -996,7 +996,7 @@ requires-dist = [
     { name = "isardvdi-changefeed-asyncapi", editable = "pkg/gen/asyncapi/changefeed" },
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "redis", specifier = "==8.0.1" },
-    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" },
 ]
 
 [package.metadata.requires-dev]
@@ -1113,7 +1113,7 @@ requires-dist = [
     { name = "pytz", specifier = "==2026.2" },
     { name = "redis", specifier = "==8.0.1" },
     { name = "requests", specifier = "==2.34.2" },
-    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" },
     { name = "rq", specifier = "==2.10.0" },
     { name = "simple-colors", specifier = "==0.1.5" },
     { name = "specktre", specifier = "==0.3.0" },
@@ -1137,7 +1137,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" }]
+requires-dist = [{ name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" }]
 
 [[package]]
 name = "isardvdi-engine"
@@ -1194,7 +1194,7 @@ requires-dist = [
     { name = "pytz", specifier = "==2026.2" },
     { name = "redis", specifier = "==8.0.1" },
     { name = "requests", specifier = "==2.34.2" },
-    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" },
     { name = "schema", specifier = "==0.7.8" },
     { name = "tabulate", specifier = "==0.10.0" },
     { name = "werkzeug", specifier = "==3.1.8" },
@@ -1373,7 +1373,7 @@ requires-dist = [
     { name = "pyjwt", specifier = "==2.13.0" },
     { name = "pytz", specifier = "==2026.2" },
     { name = "requests", specifier = "==2.34.2" },
-    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" },
     { name = "werkzeug", specifier = "==3.1.8" },
 ]
 
@@ -1521,7 +1521,7 @@ requires-dist = [
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "pyjwt", specifier = "==2.13.0" },
     { name = "requests", specifier = "==2.34.2" },
-    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" },
 ]
 
 [package.metadata.requires-dev]
@@ -1559,7 +1559,7 @@ requires-dist = [
     { name = "isardvdi-apiv4-client", editable = "component/_common/isardvdi_apiv4_client" },
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "requests", specifier = "==2.34.2" },
-    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" },
     { name = "waitress", specifier = "==3.0.2" },
     { name = "werkzeug", specifier = "==3.1.8" },
 ]
@@ -2246,11 +2246,11 @@ wheels = [
 [[package]]
 name = "rethinkdb"
 version = "2.4.10.post1+source"
-source = { url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" }
+source = { url = "https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz" }
 dependencies = [
     { name = "packaging" },
 ]
-sdist = { hash = "sha256:63e3c0cbb182ae873e8e66af6c157e93e6808413de0349d1ce92d4aff9b79ebd" }
+sdist = { hash = "sha256:bc21ffa81d735b2c532ec57c2192338fac8c1a797276b454c3678c6572d46e95" }
 
 [package.metadata]
 requires-dist = [
