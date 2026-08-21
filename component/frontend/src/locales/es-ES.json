@@ -209,10 +209,6 @@
               "description": "Por favor, revisa el formulario en busca de errores"
             }
           }
-        },
-        "hardware-limited": {
-          "title": "@:components.domain.configuration.hardware-limited.title",
-          "description": "@:components.domain.configuration.hardware-limited.description"
         }
       },
       "creating": {
@@ -1990,7 +1986,8 @@
           "description": "Si se activa, el visor se abrirá en pantalla completa."
         },
         "viewers": {
-          "label": "Visores"
+          "label": "Visores",
+          "required": "Elige al menos un visor para acceder al escritorio"
         },
         "bastion": {
           "enable": "Activar el bastión",
@@ -2064,8 +2061,8 @@
         },
         "viewers-removed": {
           "title": "Visores RDP eliminados",
-          "description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard:",
-          "toast-description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard: {viewers}"
+          "toast-description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard: {viewers}",
+          "summary": "{count} visores retirados: este escritorio no tiene red wireguard"
         }
       },
       "hardware": {
@@ -2128,11 +2125,18 @@
         },
         "limited": {
           "warning": {
-            "title": "Restricciones aplicadas",
-            "subtitle": "Este valor ha sido limitado por permisos de usuario."
+            "title": "Restricciones aplicadas"
           },
-          "restricted": "Valor restringido: {old_value} → Establecido a: {new_value}",
-          "quota": "Este valor supera tu cuota"
+          "quota": "Este valor supera tu cuota",
+          "chip": {
+            "replaced": "antes: {old_value}",
+            "removed": "quitado: {old_value}",
+            "removed-count": "{count} quitados"
+          },
+          "detail": {
+            "replaced": "{old_value} supera lo que permiten tus permisos, así que se ha guardado {new_value}.",
+            "removed": "{old_value} no está dentro de tus permisos, así que se ha retirado."
+          }
         }
       },
       "configuration": {
@@ -2188,8 +2192,8 @@
           "description": "El hardware se puede editar mediante el siguiente formulario"
         },
         "hardware-limited": {
-          "title": "Hardware limitado",
-          "description": "Los siguientes valores de hardware han sido limitados por permisos de usuario:"
+          "summary": "{count} valores ajustados por tus permisos",
+          "review": "Revisarlo"
         }
       }
     },

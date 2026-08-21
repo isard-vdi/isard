@@ -209,11 +209,7 @@
             }
           }
         },
-        "description": "You can edit the desktop name, image and hardware",
-        "hardware-limited": {
-          "title": "@:components.domain.configuration.hardware-limited.title",
-          "description": "@:components.domain.configuration.hardware-limited.description"
-        }
+        "description": "You can edit the desktop name, image and hardware"
       },
       "creating": {
         "title": "Creating desktop",
@@ -1365,7 +1361,8 @@
           "description": "If enabled, the viewer will start in fullscreen mode."
         },
         "viewers": {
-          "label": "Viewers"
+          "label": "Viewers",
+          "required": "Pick at least one viewer to reach the desktop with"
         },
         "bastion": {
           "enable": "Enable bastion",
@@ -1439,8 +1436,8 @@
         },
         "viewers-removed": {
           "title": "RDP viewers removed",
-          "description": "These RDP viewers were removed because this desktop has no wireguard network interface:",
-          "toast-description": "These RDP viewers were removed because this desktop has no wireguard network interface: {viewers}"
+          "toast-description": "These RDP viewers were removed because this desktop has no wireguard network interface: {viewers}",
+          "summary": "{count} viewers removed: this desktop has no wireguard network"
         }
       },
       "hardware": {
@@ -1503,11 +1500,18 @@
         },
         "limited": {
           "warning": {
-            "title": "Restrictions applied",
-            "subtitle": "This value has been limited due to user permissions."
+            "title": "Restrictions applied"
           },
-          "restricted": "Restricted value: {old_value} → Set to: {new_value}",
-          "quota": "This value exceeds your quota"
+          "quota": "This value exceeds your quota",
+          "chip": {
+            "replaced": "was {old_value}",
+            "removed": "removed: {old_value}",
+            "removed-count": "{count} removed"
+          },
+          "detail": {
+            "replaced": "{old_value} is above what your permissions allow, so {new_value} was kept instead.",
+            "removed": "{old_value} is not within your permissions, so it was removed."
+          }
         }
       },
       "configuration": {
@@ -1563,8 +1567,8 @@
           "description": "The hardware can be edited through the following form"
         },
         "hardware-limited": {
-          "title": "Hardware limited",
-          "description": "The following hardware values have been limited due to user permissions:"
+          "summary": "{count} values adjusted by your permissions",
+          "review": "Review them"
         }
       }
     },

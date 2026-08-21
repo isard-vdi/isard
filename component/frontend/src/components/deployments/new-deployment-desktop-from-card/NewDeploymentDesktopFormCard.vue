@@ -4,15 +4,14 @@ import { useI18n } from 'vue-i18n'
 
 import { isInvalid } from '@/lib/utils'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { InputField } from '@/components/input-field'
 import { Button } from '@/components/ui/button'
-import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Textarea } from '@/components/ui/textarea'
 
 import { DesktopCardBase, DesktopCardHeader } from '@/components/desktop-card'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
+import AdjustmentStrip from '@/components/domain/AdjustmentStrip.vue'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -61,16 +60,8 @@ onMounted(() => {
   }
 })
 
-// Format value for display (helper function)
-const formatValue = (value: any) => {
-  if (Array.isArray(value)) {
-    return value.map((v) => v.name || v.id || v).join(', ') || 'None'
-  }
-  return value?.name || value?.id || value || 'None'
-}
-
-// Get list of restricted fields with their restrictions for display
-const restrictedFieldsDetails = computed(() => {
+// An index of what the API adjusted; the modal spells each value out per field.
+const restrictedFieldNames = computed(() => {
   const limitedFields = props.form.useStore(
     (state: any) => state.values.desktops?.[props.index]?.limited_hardware
   ).value
@@ -88,11 +79,7 @@ const restrictedFieldsDetails = computed(() => {
     interfaces: t('components.domain.hardware.networks.label')
   }
 
-  return Object.entries(limitedFields).map(([key, value]: [string, any]) => ({
-    name: fieldNameMap[key] || key,
-    oldValue: formatValue(value.old_value),
-    newValue: formatValue(value.new_value)
-  }))
+  return Object.keys(limitedFields).map((key) => fieldNameMap[key] || key)
 })
 
 const formPrefix = computed(() => `desktops[${props.index}]`)
@@ -266,24 +253,16 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
               t('components.deployments.form-desktop-card.sections.hardware.button')
             }}</Button>
 
-            <!-- Informational alert for limited hardware fields -->
-            <Alert
-              v-if="restrictedFieldsDetails.length > 0"
-              variant="default"
-              class="w-full border-error-600"
-            >
-              <FeaturedIconOutline kind="outline" color="gray" />
-              <AlertTitle>{{ t('views.new-desktop.step-2.hardware-limited.title') }}</AlertTitle>
-              <AlertDescription>
-                {{ t('views.new-desktop.step-2.hardware-limited.description') }}
-                <ul v-if="restrictedFieldsDetails.length" class="mt-3 space-y-2">
-                  <li v-for="field in restrictedFieldsDetails" :key="field.name" class="text-sm">
-                    <span class="font-semibold text-error-600">{{ field.name }}: </span>
-                    <span class="text-error-600">{{ field.oldValue }} → {{ field.newValue }}</span>
-                  </li>
-                </ul>
-              </AlertDescription>
-            </Alert>
+            <AdjustmentStrip
+              v-if="restrictedFieldNames.length"
+              class="w-full"
+              :label="
+                t('components.domain.configuration.hardware-limited.summary', {
+                  count: restrictedFieldNames.length
+                })
+              "
+              :items="restrictedFieldNames"
+            />
           </div>
         </div>
       </div>

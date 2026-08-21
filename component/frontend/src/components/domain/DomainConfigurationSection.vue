@@ -4,19 +4,14 @@ import { useI18n } from 'vue-i18n'
 import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
 import DomainSummary, { type DomainSummaryData } from '@/components/domain/DomainSummary.vue'
+import AdjustmentStrip from '@/components/domain/AdjustmentStrip.vue'
 import { Icon } from '@/components/icon'
-import { FeaturedIconOutline } from '@/components/icon/featured-outline'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { AccessFormData, HardwareFormData } from '@/lib/domainPayload'
+import type { LimitedHardware, LimitedHardwareValue } from '@/lib/hardwareLimits'
 import type { DomainKind } from '@/components/domain/DomainInfoSection.vue'
-
-export interface LimitedHardwareValue {
-  old_value: unknown
-  new_value: unknown
-}
 
 export type DomainConfigurationContext =
   | 'new-desktop'
@@ -60,7 +55,7 @@ const props = withDefaults(
     summary?: DomainSummaryData
     defaults?: DomainConfigurationDefaults
     /** Quota restrictions when there is no template or desktop to read them from. */
-    limitedHardware?: Record<string, LimitedHardwareValue> | null
+    limitedHardware?: LimitedHardware | null
     kind?: DomainKind
     entity?: 'desktops' | 'templates'
     /** Picks the blurb that explains where these values come from. */
@@ -106,25 +101,9 @@ function handleAddInterfaceFromAccessForm(ifaceId: string) {
 
 const limitedFields = computed(() => hardwareFormRef.value?.limitedFields ?? null)
 
-const hasLimitedFields = computed(() => {
-  const fields = limitedFields.value
-  return !!(fields && typeof fields === 'object' && Object.keys(fields).length > 0)
-})
-
-const formatValue = (value: unknown) => {
-  if (Array.isArray(value)) {
-    return value.map((v: Record<string, unknown>) => v.name || v.id || v).join(', ') || 'None'
-  }
-  if (value && typeof value === 'object') {
-    const obj = value as Record<string, unknown>
-    return obj.name || obj.id || value || 'None'
-  }
-  return value || 'None'
-}
-
-const restrictedFieldsDetails = computed(() => {
-  const fields = limitedFields.value as Record<string, LimitedHardwareValue> | null
-  if (!fields || typeof fields !== 'object') return []
+const restrictedFieldNames = computed(() => {
+  const fields = limitedFields.value as LimitedHardware | null
+  if (!fields) return []
 
   const fieldNameMap: Record<string, string> = {
     vcpus: t('components.domain.hardware.vcpus.label'),
@@ -138,11 +117,7 @@ const restrictedFieldsDetails = computed(() => {
     interfaces: t('components.domain.hardware.networks.label')
   }
 
-  return Object.entries(fields).map(([key, value]) => ({
-    name: fieldNameMap[key] || key,
-    oldValue: formatValue(value.old_value),
-    newValue: formatValue(value.new_value)
-  }))
+  return Object.keys(fields).map((key) => fieldNameMap[key] || key)
 })
 
 // The section headers take the accent of the selected kind, the same pairing
@@ -220,39 +195,37 @@ defineExpose({
 
 <template>
   <div>
-    <Alert
-      v-if="removedViewerLabels.length && !isOpen"
-      variant="default"
-      class="mb-6 border-error-600"
+    <!-- An index of what the API adjusted, not a report: each value is spelled
+         out on its own field, right below. -->
+    <div
+      v-if="restrictedFieldNames.length || (removedViewerLabels.length && !isOpen)"
+      class="mb-6 flex flex-col gap-2"
     >
-      <FeaturedIconOutline kind="outline" color="error" />
-      <AlertTitle>{{ t('components.domain.access.viewers-removed.title') }}</AlertTitle>
-      <AlertDescription>
-        {{ t('components.domain.access.viewers-removed.description') }}
-        <ul class="mt-3 space-y-1">
-          <li
-            v-for="label in removedViewerLabels"
-            :key="label"
-            class="text-sm font-semibold text-error-600"
-          >
-            {{ label }}
-          </li>
-        </ul>
-      </AlertDescription>
-    </Alert>
-    <Alert v-if="hasLimitedFields" variant="default" class="mb-6 border-error-600">
-      <FeaturedIconOutline kind="outline" color="error" />
-      <AlertTitle>{{ t('components.domain.configuration.hardware-limited.title') }}</AlertTitle>
-      <AlertDescription>
-        {{ t('components.domain.configuration.hardware-limited.description') }}
-        <ul v-if="restrictedFieldsDetails.length" class="mt-3 space-y-2">
-          <li v-for="field in restrictedFieldsDetails" :key="field.name" class="text-sm">
-            <span class="font-semibold text-error-600">{{ field.name }}: </span>
-            <span class="text-error-600">{{ field.oldValue }} → {{ field.newValue }}</span>
-          </li>
-        </ul>
-      </AlertDescription>
-    </Alert>
+      <AdjustmentStrip
+        v-if="restrictedFieldNames.length"
+        :label="
+          t('components.domain.configuration.hardware-limited.summary', {
+            count: restrictedFieldNames.length
+          })
+        "
+        :items="restrictedFieldNames"
+      >
+        <template v-if="!isOpen" #action>
+          <Button hierarchy="link-gray" size="sm" class="ml-auto" @click="open">
+            {{ t('components.domain.configuration.hardware-limited.review') }}
+          </Button>
+        </template>
+      </AdjustmentStrip>
+      <AdjustmentStrip
+        v-if="removedViewerLabels.length && !isOpen"
+        :label="
+          t('components.domain.access.viewers-removed.summary', {
+            count: removedViewerLabels.length
+          })
+        "
+        :items="removedViewerLabels"
+      />
+    </div>
     <div v-if="!alwaysOpen">
       <Separator class="my-12">
         <Button

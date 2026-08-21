@@ -7,17 +7,17 @@ import type { CreateDesktopRequest } from '@/gen/oas/apiv4'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/modal'
 import DomainConfigurationSection, {
-  type DomainConfigurationDefaults,
-  type LimitedHardwareValue
+  type DomainConfigurationDefaults
 } from '@/components/domain/DomainConfigurationSection.vue'
 import type { AccessFormData, HardwareFormData } from '@/lib/domainPayload'
+import type { LimitedHardware } from '@/lib/hardwareLimits'
 import { selectedViewerKeys } from '@/lib/viewers'
 
 const { t } = useI18n()
 
 interface Props {
   open?: boolean
-  data: CreateDesktopRequest & { limited_hardware?: Record<string, LimitedHardwareValue> | null }
+  data: CreateDesktopRequest & { limited_hardware?: LimitedHardware | null }
 }
 
 const props = withDefaults(defineProps<Props>(), {

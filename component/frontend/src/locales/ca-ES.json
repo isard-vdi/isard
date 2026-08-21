@@ -209,10 +209,6 @@
               "description": "Si us plau, revisa el formulari per errors"
             }
           }
-        },
-        "hardware-limited": {
-          "title": "@:components.domain.configuration.hardware-limited.title",
-          "description": "@:components.domain.configuration.hardware-limited.description"
         }
       },
       "creating": {
@@ -1978,7 +1974,8 @@
           "description": "Si s'activa, el visor s'obrirà en pantalla completa."
         },
         "viewers": {
-          "label": "Visors"
+          "label": "Visors",
+          "required": "Tria almenys un visor per accedir a l'escriptori"
         },
         "bastion": {
           "enable": "Activa el bastió",
@@ -2052,8 +2049,8 @@
         },
         "viewers-removed": {
           "title": "Visors RDP eliminats",
-          "description": "Aquests visors RDP s'han eliminat perquè aquest escriptori no té interfície de xarxa wireguard:",
-          "toast-description": "Aquests visors RDP s'han eliminat perquè aquest escriptori no té interfície de xarxa wireguard: {viewers}"
+          "toast-description": "Aquests visors RDP s'han eliminat perquè aquest escriptori no té interfície de xarxa wireguard: {viewers}",
+          "summary": "{count} visors retirats: aquest escriptori no té xarxa wireguard"
         }
       },
       "hardware": {
@@ -2116,11 +2113,18 @@
         },
         "limited": {
           "warning": {
-            "title": "Restriccions aplicades",
-            "subtitle": "Aquest valor ha estat limitat pels permisos d'usuari."
+            "title": "Restriccions aplicades"
           },
-          "restricted": "Valor restringit: {old_value} → Establert a: {new_value}",
-          "quota": "Aquest valor supera la teva quota"
+          "quota": "Aquest valor supera la teva quota",
+          "chip": {
+            "replaced": "abans: {old_value}",
+            "removed": "tret: {old_value}",
+            "removed-count": "{count} trets"
+          },
+          "detail": {
+            "replaced": "{old_value} supera el que et permeten els teus permisos, així que s'ha desat {new_value}.",
+            "removed": "{old_value} no està dins dels teus permisos, així que s'ha retirat."
+          }
         }
       },
       "configuration": {
@@ -2176,8 +2180,8 @@
           "description": "El maquinari es pot editar mitjançant el formulari següent"
         },
         "hardware-limited": {
-          "title": "Maquinari limitat",
-          "description": "Els valors de maquinari següents han estat limitats per permisos d'usuari:"
+          "summary": "{count} valors ajustats pels teus permisos",
+          "review": "Revisa-ho"
         }
       }
     },

@@ -23,9 +23,8 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Icon } from '@/components/icon'
 import ViewersSelector from '@/components/domain/ViewersSelector.vue'
+import AdjustmentStrip from '@/components/domain/AdjustmentStrip.vue'
 import BastionConfigForm from '@/components/domain/BastionConfigForm.vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
@@ -232,7 +231,9 @@ const formSchema = z.object({
     password: z.string().optional()
   }),
   fullscreen: z.boolean(),
-  viewers: z.array(z.string()).min(1)
+  viewers: z.array(z.string()).min(1, {
+    message: t('components.domain.access.viewers.required')
+  })
 })
 
 const defaultValues = reactive({
@@ -472,24 +473,17 @@ const showPassword = ref(false)
                 @update:model-value="(value) => field.handleChange(value)"
               />
             </FieldContent>
-            <FieldError :errors="field.state.meta.errors" />
+            <FieldError icon="alert-circle" :errors="field.state.meta.errors" />
           </form.Field>
-          <Alert v-if="removedViewerLabels.length" variant="default" class="border-error-600">
-            <FeaturedIconOutline kind="outline" color="error" />
-            <AlertTitle>{{ t('components.domain.access.viewers-removed.title') }}</AlertTitle>
-            <AlertDescription>
-              {{ t('components.domain.access.viewers-removed.description') }}
-              <ul class="mt-3 space-y-1">
-                <li
-                  v-for="label in removedViewerLabels"
-                  :key="label"
-                  class="text-sm font-semibold text-error-600"
-                >
-                  {{ label }}
-                </li>
-              </ul>
-            </AlertDescription>
-          </Alert>
+          <AdjustmentStrip
+            v-if="removedViewerLabels.length"
+            :label="
+              t('components.domain.access.viewers-removed.summary', {
+                count: removedViewerLabels.length
+              })
+            "
+            :items="removedViewerLabels"
+          />
         </div>
       </section>
       <section v-if="showCredentials" class="group/hw-section grid gap-4 items-start">

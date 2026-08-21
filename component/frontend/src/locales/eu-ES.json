@@ -122,11 +122,7 @@
             }
           }
         },
-        "description": "Mahaigainaren izena, irudia eta hardwarea editatu ditzakezu",
-        "hardware-limited": {
-          "title": "@:components.domain.configuration.hardware-limited.title",
-          "description": "@:components.domain.configuration.hardware-limited.description"
-        }
+        "description": "Mahaigainaren izena, irudia eta hardwarea editatu ditzakezu"
       },
       "creating": {
         "title": "Mahaigaina sortzen",
@@ -766,7 +762,8 @@
           "description": "Gaituta badago, ikuslea pantaila osoko moduan abiaraziko da."
         },
         "viewers": {
-          "label": "Ikustaileak"
+          "label": "Ikustaileak",
+          "required": "Aukeratu gutxienez ikustaile bat mahaigainera sartzeko"
         },
         "bastion": {
           "label": "Bastion gaituta",
@@ -866,11 +863,18 @@
         },
         "limited": {
           "warning": {
-            "title": "Murrizketak aplikatuta",
-            "subtitle": "Balio hau mugatu da erabiltzaile-baimenengatik."
+            "title": "Murrizketak aplikatuta"
           },
-          "restricted": "Murriztutako balioa: {old_value} → Ezarrita: {new_value}",
-          "quota": "Balio honek zure kuota gainditzen du"
+          "quota": "Balio honek zure kuota gainditzen du",
+          "chip": {
+            "replaced": "lehen: {old_value}",
+            "removed": "kenduta: {old_value}",
+            "removed-count": "{count} kenduta"
+          },
+          "detail": {
+            "replaced": "{old_value} zure baimenek uzten dutena gainditzen du, beraz {new_value} gorde da.",
+            "removed": "{old_value} ez dago zure baimenen barruan, beraz kendu egin da."
+          }
         }
       },
       "configuration": {
@@ -905,8 +909,8 @@
           "description": "Hardwarea hurrengo formularioaren bidez editatu daiteke"
         },
         "hardware-limited": {
-          "title": "Hardware mugatua",
-          "description": "Hurrengo hardware-balioak mugatu dira erabiltzaile-baimenengatik:"
+          "summary": "{count} balio zure baimenengatik doituta",
+          "review": "Berrikusi"
         }
       }
     },
