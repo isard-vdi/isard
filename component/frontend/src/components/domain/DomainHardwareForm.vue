@@ -392,6 +392,32 @@ const getFormData = () => ({
   }
 })
 
+const formValues = form.useStore((state) => state.values)
+
+const optionName = (id: string | undefined, options: { id: string; name: string }[]) =>
+  id === undefined ? undefined : (options.find((option) => option.id === id)?.name ?? id)
+
+const optionNames = (ids: string[] | undefined, options: { id: string; name: string }[]) =>
+  ids?.map((id) => optionName(id, options) as string)
+
+/** What the summary card shows for this form, live and with ids resolved. */
+const summary = computed(() => ({
+  vcpu: formValues.value.vcpus,
+  memory: formValues.value.memory,
+  diskBus: formValues.value.diskBus,
+  diskSize: props.showDiskSize ? formValues.value.diskSize : undefined,
+  videos: formValues.value.videos
+    ? [optionName(formValues.value.videos, videosOptions.value) as string]
+    : undefined,
+  bootOrder: formValues.value.bootOrder
+    ? [optionName(formValues.value.bootOrder, bootsOptions.value) as string]
+    : undefined,
+  isos: optionNames(formValues.value.isos, isosOptions.value),
+  floppies: optionNames(formValues.value.floppies, floppiesOptions.value),
+  interfaces: optionNames(formValues.value.interfaces, networksOptions.value),
+  vgpus: optionNames(formValues.value.reservables?.vgpus, vgpusOptions.value) ?? null
+}))
+
 const isFormValid = form.useStore((state) => state.isValid)
 
 const interfacesStore = form.useStore((state) => state.values.interfaces)
@@ -432,6 +458,7 @@ defineExpose({
   getFormData,
   isValid: isFormValid,
   isDirty,
+  summary,
   reset: () => form.reset(),
   limitedFields: computedLimitedHardware,
   getInterfaces,

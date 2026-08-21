@@ -368,6 +368,15 @@ const getFormData = () => {
   return data
 }
 
+const formValues = form.useStore((state) => state.values)
+
+/** What the summary card shows for this form, live. */
+const summary = computed(() => ({
+  credentials: formValues.value.credentials,
+  fullscreen: formValues.value.fullscreen,
+  viewers: formValues.value.viewers ?? []
+}))
+
 const isFormValid = form.useStore((state) => state.isValid)
 
 // The bastion sub-form (ports, ssh keys, etc.) has its own tanstack-form
@@ -394,6 +403,7 @@ defineExpose({
   isValid,
   isDirty,
   reset,
+  summary,
   removedViewers,
   removedViewerLabels
 })
