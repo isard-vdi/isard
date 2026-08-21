@@ -260,19 +260,10 @@ const form = useForm({
   }
 })
 
-// Sync form fields when source data changes (e.g. stale cache replaced by fresh fetch)
-watch([templateData, desktopData], () => {
-  form.setFieldValue('vcpus', vcpus.value)
-  form.setFieldValue('memory', memory.value)
-  form.setFieldValue('diskBus', diskBus.value)
-  form.setFieldValue('diskSize', diskSize.value)
-  form.setFieldValue('videos', videos.value)
-  form.setFieldValue('bootOrder', bootOrder.value)
-  form.setFieldValue('isos', isos.value)
-  form.setFieldValue('floppies', floppies.value)
-  form.setFieldValue('reservables.vgpus', vgpus.value)
-  form.setFieldValue('interfaces', interfaces.value)
-})
+// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch)
+watch([templateData, desktopData], () => form.reset())
+
+const isDirty = form.useStore((state) => !state.isDefaultValue)
 
 // Fetch user allowed hardware options
 
@@ -464,6 +455,8 @@ watch(interfacesStore, (newInterfaces) => {
 defineExpose({
   getFormData,
   isValid: isFormValid,
+  isDirty,
+  reset: () => form.reset(),
   limitedFields: computedLimitedHardware,
   getInterfaces,
   addInterface,
