@@ -1,5 +1,6 @@
 import { computed, reactive, toValue, type MaybeRefOrGetter } from 'vue'
 import { useForm } from '@tanstack/vue-form'
+import { useI18n } from 'vue-i18n'
 import * as z from 'zod'
 
 export interface DomainInfoSource {
@@ -7,12 +8,10 @@ export interface DomainInfoSource {
   description?: string | null
 }
 
-export const domainInfoFormSchema = z.object({
-  name: z.string().trim().min(4).max(50),
-  description: z.string().trim().max(255)
-})
-
-export type DomainInfoFormValues = z.infer<typeof domainInfoFormSchema>
+export interface DomainInfoFormValues {
+  name: string
+  description: string
+}
 
 /** Base fields plus whatever the caller declared through `extraSchema`. */
 export type DomainInfoValues = DomainInfoFormValues & Record<string, string>
@@ -27,9 +26,24 @@ export interface UseDomainInfoFormOptions {
 }
 
 export function useDomainInfoForm(options: UseDomainInfoFormOptions = {}) {
+  const { t } = useI18n()
+
+  const baseSchema = z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, t('components.form.validation.required'))
+      .min(4, t('components.form.validation.min-length', { min: 4 }))
+      .max(50, t('components.form.validation.max-length', { max: 50 })),
+    description: z
+      .string()
+      .trim()
+      .max(255, t('components.form.validation.max-length', { max: 255 }))
+  })
+
   // The extra shape is only known at runtime, so the widened `extend()` result
   // is restated as the value type the form and the validity check both use.
-  const schema = domainInfoFormSchema.extend(options.extraSchema ?? {}) as unknown as z.ZodType<
+  const schema = baseSchema.extend(options.extraSchema ?? {}) as unknown as z.ZodType<
     DomainInfoValues,
     DomainInfoValues
   >
