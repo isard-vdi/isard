@@ -21,7 +21,6 @@ import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
 import { FormHeader } from '@/components/form-header'
 import NewTemplateForm from '@/components/templates/new-template-form/NewTemplateForm.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 import DatatablePagination from '@/components/ui/data-table-pagination/DatatablePagination.vue'
@@ -297,20 +296,15 @@ useSearchShortcuts(NEW_TEMPLATE_SEARCH_INPUT_ID)
 
       <template #next>
         <template v-if="currentStep === 2">
-          <template v-if="newTemplateFormRef">
-            <newTemplateFormRef.form.Subscribe v-slot="{ isValid, isSubmitting }">
-              <Button
-                class="min-w-32"
-                type="submit"
-                :disabled="!isValid || newTemplateFormRef.isPending"
-                :icon="isSubmitting || newTemplateFormRef.isPending ? 'loading-02' : ''"
-                icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
-                @click="newTemplateFormRef.form.handleSubmit"
-                >{{ t('views.new-template.header.create-template') }}</Button
-              >
-            </newTemplateFormRef.form.Subscribe>
-          </template>
-          <Skeleton v-else class="h-10 w-32" />
+          <Button
+            class="min-w-32"
+            type="submit"
+            :disabled="!newTemplateFormRef?.isValid || newTemplateFormRef?.isPending"
+            :icon="newTemplateFormRef?.isPending ? 'loading-02' : ''"
+            icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
+            @click="newTemplateFormRef?.handleSubmit()"
+            >{{ t('views.new-template.header.create-template') }}</Button
+          >
         </template>
         <Button v-else class="min-w-32" :disabled="!selectedDesktopId" @click="goToNextStep">
           {{ t('views.new-template.header.next') }}
