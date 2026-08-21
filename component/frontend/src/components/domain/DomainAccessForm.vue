@@ -23,16 +23,16 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Icon } from '@/components/icon'
 import ViewersSelector from '@/components/domain/ViewersSelector.vue'
+import AdjustmentStrip from '@/components/domain/AdjustmentStrip.vue'
 import BastionConfigForm from '@/components/domain/BastionConfigForm.vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import {
   hasWireguardRequiringViewer,
   stripWireguardRequiringViewers,
-  getWireguardRequiringViewers
+  getWireguardRequiringViewers,
+  viewerLabels
 } from '@/lib/viewers'
 
 interface Credentials {
@@ -70,6 +70,8 @@ interface Props {
   showCustomDomains?: boolean // Whether to show custom domains in bastion config
   bastion?: Bastion
   viewers?: string[]
+  // Viewers the API already dropped, when there is no domain to read them from
+  initialRemovedViewers?: string[]
   hardwareInterfaces?: string[]
   onRequestAddInterface?: (ifaceId: string) => boolean | undefined
 }
@@ -101,6 +103,7 @@ const props = withDefaults(defineProps<Props>(), {
     customDomains: []
   }),
   viewers: () => [],
+  initialRemovedViewers: () => [],
   hardwareInterfaces: () => [],
   onRequestAddInterface: undefined
 })
@@ -232,7 +235,9 @@ const formSchema = z.object({
     password: z.string().optional()
   }),
   fullscreen: z.boolean(),
-  viewers: z.array(z.string()).min(1)
+  viewers: z.array(z.string()).min(1, {
+    message: t('components.domain.access.viewers.required')
+  })
 })
 
 const defaultValues = reactive({
@@ -256,8 +261,11 @@ function handleBastionEnabled(enabled: boolean) {
   bastionEnabled.value = enabled
   emit('bastion-enabled', enabled)
 }
-// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch)
-watch([templateData, desktopData], () => form.reset())
+// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch),
+// but never over edits in progress: the edit views refetch on focus.
+watch([templateData, desktopData], () => {
+  if (form.state.isPristine) form.reset()
+})
 
 const ownFieldsAreDirty = form.useStore((state) => !state.isDefaultValue)
 
@@ -270,26 +278,14 @@ const hasRdpViewer = computed(() => hasWireguardRequiringViewer(selectedViewers.
 const removedViewers = ref<string[]>([])
 
 watch(
-  () => (templateData.value ?? desktopData.value)?.removed_viewers,
+  () => (templateData.value ?? desktopData.value)?.removed_viewers ?? props.initialRemovedViewers,
   (dropped) => {
     if (dropped?.length) removedViewers.value = dropped
   },
   { immediate: true }
 )
 
-const viewerLabelKeys: Record<string, string> = {
-  browser_rdp: 'components.viewers-selector.browser-viewers.rdp-browser',
-  browser_vnc: 'components.viewers-selector.browser-viewers.vnc-browser',
-  file_rdpgw: 'components.viewers-selector.file-viewers.rdp',
-  file_spice: 'components.viewers-selector.file-viewers.spice',
-  file_rdpvpn: 'components.viewers-selector.file-viewers.rdp-vpn'
-}
-
-const removedViewerLabels = computed<string[]>(() =>
-  removedViewers.value.map((viewer) =>
-    viewerLabelKeys[viewer] ? t(viewerLabelKeys[viewer]) : viewer
-  )
-)
+const removedViewerLabels = computed<string[]>(() => viewerLabels(removedViewers.value, t))
 
 watch(
   hasRdpViewer,
@@ -469,24 +465,17 @@ const showPassword = ref(false)
                 @update:model-value="(value) => field.handleChange(value)"
               />
             </FieldContent>
-            <FieldError :errors="field.state.meta.errors" />
+            <FieldError icon="alert-circle" :errors="field.state.meta.errors" />
           </form.Field>
-          <Alert v-if="removedViewerLabels.length" variant="default" class="border-error-600">
-            <FeaturedIconOutline kind="outline" color="error" />
-            <AlertTitle>{{ t('components.domain.access.viewers-removed.title') }}</AlertTitle>
-            <AlertDescription>
-              {{ t('components.domain.access.viewers-removed.description') }}
-              <ul class="mt-3 space-y-1">
-                <li
-                  v-for="label in removedViewerLabels"
-                  :key="label"
-                  class="text-sm font-semibold text-error-600"
-                >
-                  {{ label }}
-                </li>
-              </ul>
-            </AlertDescription>
-          </Alert>
+          <AdjustmentStrip
+            v-if="removedViewerLabels.length"
+            :label="
+              t('components.domain.access.viewers-removed.summary', {
+                count: removedViewerLabels.length
+              })
+            "
+            :items="removedViewerLabels"
+          />
         </div>
       </section>
       <section v-if="showCredentials" class="group/hw-section grid gap-4 items-start">

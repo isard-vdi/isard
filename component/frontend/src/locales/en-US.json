@@ -209,59 +209,7 @@
             }
           }
         },
-        "description": "You can edit the desktop name, image and hardware",
-        "preview": {
-          "title": "Preview",
-          "description": "This is how your desktop will look like. This data can be edited",
-          "start-disabled": "You can start the desktop once it is created"
-        },
-        "desktop-information": {
-          "title": "@:domains.capitalized.desktops Information",
-          "description": "Provide a name and description for your desktop to help identify it"
-        },
-        "desktop-kind": {
-          "title": "Desktop Kind",
-          "description": "Select the kind of desktop you want to create",
-          "persistent": {
-            "title": "Persistent",
-            "description": "A persistent desktop saves all changes and files permanently."
-          },
-          "nonpersistent": {
-            "title": "Temporary",
-            "description": "A temporary desktop discards all changes and files when stopped. Only one temporary desktop is allowed per template."
-          }
-        },
-        "access": {
-          "title": "Access summary",
-          "description": "This is a sumary of the access methods available for your desktop",
-          "show-access-customization": "Change access",
-          "hide-access-customization": "Hide access"
-        },
-        "all-access": {
-          "title": "All access configuration",
-          "description": "Security and access configuration"
-        },
-        "hardware-limited": {
-          "title": "Hardware limited",
-          "description": "The following hardware values have been limited due to user permissions:"
-        },
-        "desktop-configuration": {
-          "title": "Desktop configuration",
-          "description": "These values come from the template. Change them below, or later once the desktop is created.",
-          "show": "Change configuration",
-          "restore": "Restore initial values",
-          "restore-disabled": "No changes to restore yet"
-        },
-        "hardware-summary": {
-          "title": "Hardware summary",
-          "description": "This is a sumary of the template inherited hardware. It will be used for your desktop",
-          "show-hardware-customization": "Change hardware",
-          "hide-hardware-customization": "Hide hardware"
-        },
-        "all-hardware": {
-          "title": "All the hardware",
-          "description": "The hardware can be edited through the following form"
-        }
+        "description": "You can edit the desktop name, image and hardware"
       },
       "creating": {
         "title": "Creating desktop",
@@ -957,18 +905,6 @@
         "title": "Error saving desktop",
         "load": "Error loading desktop"
       },
-      "info": {
-        "title": "@:domains.capitalized.desktops Information",
-        "description": "Provide a name and description for your desktop to help identify it"
-      },
-      "access": {
-        "title": "Access configuration",
-        "description": "Viewers, credentials, and bastion configuration."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memory, boot order, interfaces and reservables."
-      },
       "save-confirmation": {
         "title": "Some hardware fields are restricted",
         "description": "Saving will apply the restricted hardware changes. Continue?",
@@ -1425,7 +1361,8 @@
           "description": "If enabled, the viewer will start in fullscreen mode."
         },
         "viewers": {
-          "label": "Viewers"
+          "label": "Viewers",
+          "required": "Pick at least one viewer to reach the desktop with"
         },
         "bastion": {
           "enable": "Enable bastion",
@@ -1499,8 +1436,8 @@
         },
         "viewers-removed": {
           "title": "RDP viewers removed",
-          "description": "These RDP viewers were removed because this desktop has no wireguard network interface:",
-          "toast-description": "These RDP viewers were removed because this desktop has no wireguard network interface: {viewers}"
+          "toast-description": "These RDP viewers were removed because this desktop has no wireguard network interface: {viewers}",
+          "summary": "{count} viewers removed: this desktop has no wireguard network"
         }
       },
       "hardware": {
@@ -1563,11 +1500,75 @@
         },
         "limited": {
           "warning": {
-            "title": "Restrictions applied",
-            "subtitle": "This value has been limited due to user permissions."
+            "title": "Restrictions applied"
           },
-          "restricted": "Restricted value: {old_value} → Set to: {new_value}",
-          "quota": "This value exceeds your quota"
+          "quota": "This value exceeds your quota",
+          "chip": {
+            "replaced": "was {old_value}",
+            "removed": "removed: {old_value}",
+            "removed-count": "{count} removed"
+          },
+          "detail": {
+            "replaced": "{old_value} is above what your permissions allow, so {new_value} was kept instead.",
+            "removed": "{old_value} is not within your permissions, so it was removed."
+          }
+        }
+      },
+      "configuration": {
+        "preview": {
+          "title": "Preview",
+          "description": "This is how your desktop will look like. This data can be edited",
+          "start-disabled": "You can start the desktop once it is created"
+        },
+        "info": {
+          "title": {
+            "desktops": "@:domains.capitalized.desktops Information",
+            "templates": "@:domains.capitalized.templates Information"
+          },
+          "description": {
+            "desktops": "Provide a name and description for your desktop to help identify it",
+            "templates": "Provide a name and description for your template to help identify it"
+          }
+        },
+        "kind": {
+          "title": "Desktop Kind",
+          "description": "Select the kind of desktop you want to create",
+          "persistent": {
+            "title": "Persistent",
+            "description": "A persistent desktop saves all changes and files permanently."
+          },
+          "nonpersistent": {
+            "title": "Temporary",
+            "description": "A temporary desktop discards all changes and files when stopped. Only one temporary desktop is allowed per template."
+          }
+        },
+        "section": {
+          "title": {
+            "desktops": "Desktop configuration",
+            "templates": "Template configuration"
+          },
+          "description": {
+            "new-desktop": "These values come from the template. Change them below, or later once the desktop is created.",
+            "new-desktop-from-media": "These are the default values for the installation. Change them below, or later once the desktop is created.",
+            "edit-desktop": "Access and hardware of this desktop. Changes apply the next time it starts.",
+            "edit-template": "Access and hardware every desktop created from this template will inherit.",
+            "deployment-desktop": "Access and hardware inherited from the template. Changes apply to this deployment desktop only."
+          },
+          "show": "Change configuration",
+          "restore": "Restore initial values",
+          "restore-disabled": "No changes to restore yet"
+        },
+        "access": {
+          "title": "All access configuration",
+          "description": "Security and access configuration"
+        },
+        "hardware": {
+          "title": "All the hardware",
+          "description": "The hardware can be edited through the following form"
+        },
+        "hardware-limited": {
+          "summary": "{count} values adjusted by your permissions",
+          "review": "Review them"
         }
       }
     },

@@ -9,11 +9,13 @@ import { hasWireguardRequiringViewer } from '@/lib/viewers'
 
 // Access + hardware summary of a domain (desktop or template) in a single card.
 
-interface Props {
+/** What the card reports; whoever renders it collects these from its own source. */
+export interface DomainSummaryData {
   // Access
+  // Nullable fields: that is what the generated domain/template responses carry.
   credentials?: {
-    username?: string
-    password?: string
+    username?: string | null
+    password?: string | null
   } | null
   viewers?: string[]
   fullscreen?: boolean
@@ -29,6 +31,9 @@ interface Props {
   floppies?: string[]
   vgpus?: string[] | null
   interfaces?: string[]
+}
+
+interface Props extends DomainSummaryData {
   // Card
   title?: string
   loading?: boolean

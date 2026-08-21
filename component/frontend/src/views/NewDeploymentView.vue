@@ -37,6 +37,13 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import Separator from '@/components/ui/separator/Separator.vue'
 import AlertModal from '@/components/modal/AlertModal.vue'
 import EditHardwareModal from '@/components/deployments/deployment-edit-hardware/EditHardwareModal.vue'
+import {
+  toDomainHardware,
+  toGuestProperties,
+  toReservables,
+  type AccessFormData,
+  type HardwareFormData
+} from '@/lib/domainPayload'
 
 const router = useRouter()
 const { t, d } = useI18n()
@@ -432,30 +439,32 @@ const deleteDesktopConfirmationModalData = ref<{
 const updateHardwareModalData = ref<{
   index: number
   data: CreateDesktopRequest | any
-  restrictedFieldsDetails?: any
 } | null>(null)
 
-const updateHardware = (index: number, accessSettings: any, hardwareSettings: any) => {
+const updateHardware = (
+  index: number,
+  access: AccessFormData | undefined,
+  hardware: HardwareFormData | undefined
+) => {
   const currentDesktops = form.getFieldValue('desktops') || []
 
-  // convert from camelCase to snake_case
-  const { bootOrder, diskBus, reservables, interfaces, videos, ...restHardwareSettings } =
-    hardwareSettings
+  const restoredViewers = access?.viewers ?? {}
 
   const updatedDesktop = {
     ...currentDesktops[index],
-    ...{ guest_properties: { ...currentDesktops[index].guest_properties, ...accessSettings } },
-    ...{
-      hardware: {
-        ...currentDesktops[index].hardware,
-        ...restHardwareSettings,
-        interfaces: interfaces.map((iface: any) => (typeof iface === 'string' ? iface : iface.id)),
-        disk_bus: diskBus,
-        videos: [videos],
-        boot_order: [bootOrder]
-      }
+    // A viewer the user got back (by adding wireguard) is no longer removed.
+    removed_viewers: (currentDesktops[index].removed_viewers ?? []).filter(
+      (viewer: string) => !(viewer in restoredViewers)
+    ),
+    guest_properties: {
+      ...currentDesktops[index].guest_properties,
+      ...toGuestProperties(access)
     },
-    reservables
+    hardware: {
+      ...currentDesktops[index].hardware,
+      ...toDomainHardware(hardware)
+    },
+    reservables: toReservables(hardware)
   }
 
   const newDesktops = [
@@ -594,11 +603,10 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
       v-if="updateHardwareModalData !== null"
       :open="updateHardwareModalData !== null"
       :data="updateHardwareModalData?.data"
-      :restricted-fields-details="updateHardwareModalData?.restrictedFieldsDetails"
       @close="updateHardwareModalData = null"
       @submit="
-        ({ accessSettings, hardwareSettings }) => {
-          updateHardware(updateHardwareModalData!.index, accessSettings, hardwareSettings)
+        ({ access, hardware }) => {
+          updateHardware(updateHardwareModalData!.index, access, hardware)
         }
       "
     />
@@ -759,12 +767,8 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
                   }
                 "
                 @update-hardware="
-                  (restrictedFieldsDetails) => {
-                    updateHardwareModalData = {
-                      index,
-                      data: values.desktops[index],
-                      restrictedFieldsDetails
-                    }
+                  () => {
+                    updateHardwareModalData = { index, data: values.desktops[index] }
                   }
                 "
               />

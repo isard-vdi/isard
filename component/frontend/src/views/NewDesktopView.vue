@@ -9,6 +9,13 @@ import {
   checkStoragePoolCreationAvailabilityOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
+import {
+  toBastionTarget,
+  toDomainHardware,
+  toGuestProperties,
+  toImageInput,
+  toReservables
+} from '@/lib/domainPayload'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertModal, QuotaExceededModal } from '@/components/modal'
@@ -17,6 +24,7 @@ import router from '@/router'
 import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
 import Step1SelectTemplate from '@/components/new-desktop/Step1SelectTemplate.vue'
 import Step2ConfigureDesktop from '@/components/new-desktop/Step2ConfigureDesktop.vue'
+import type { DomainConfigurationPanelData } from '@/components/domain/DomainConfigurationPanel.vue'
 import Step3Creating from '@/components/new-desktop/Step3Creating.vue'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -120,14 +128,7 @@ const {
   }
 })
 
-const handleStep2Submit = (data: {
-  name: string
-  description: string
-  desktopKind: string
-  accessSettings: Record<string, unknown> | undefined
-  hardwareSettings: Record<string, unknown> | undefined
-  image: DomainImageOutput | undefined
-}) => {
+const handleStep2Submit = (data: DomainConfigurationPanelData) => {
   creationError.value = null
   currentStep.value = 3
 
@@ -136,25 +137,12 @@ const handleStep2Submit = (data: {
       template_id: selectedTemplate.value!.id,
       name: data.name,
       description: data.description,
-      persistent: data.desktopKind === 'persistent',
-      guest_properties: {
-        credentials: data.accessSettings?.credentials,
-        fullscreen: data.accessSettings?.fullscreen,
-        viewers: data.accessSettings?.viewers
-      },
-      hardware: {
-        vcpus: data.hardwareSettings?.vcpus,
-        memory: data.hardwareSettings?.memory,
-        disk_bus: data.hardwareSettings?.diskBus,
-        videos: [data.hardwareSettings?.videos],
-        boot_order: [data.hardwareSettings?.bootOrder],
-        interfaces: data.hardwareSettings?.interfaces,
-        isos: data.hardwareSettings?.isos,
-        floppies: data.hardwareSettings?.floppies
-      },
-      reservables: data.hardwareSettings?.reservables,
-      image: data.image ? { id: data.image.id, type: data.image.type } : undefined,
-      bastion_target: data.accessSettings?.bastion
+      persistent: data.kind === 'persistent',
+      guest_properties: toGuestProperties(data.access),
+      hardware: toDomainHardware(data.hardware),
+      reservables: toReservables(data.hardware),
+      image: toImageInput(data.image),
+      bastion_target: toBastionTarget(data.access?.bastion)
     }
   })
 }
@@ -269,7 +257,6 @@ const steps = computed<StepperFormStep[]>(() => {
             ref="step2Ref"
             :key="selectedTemplate?.id"
             :selected-template="selectedTemplate!"
-            :on-go-back="goToPreviousStep"
             @submit="handleStep2Submit"
           />
         </div>

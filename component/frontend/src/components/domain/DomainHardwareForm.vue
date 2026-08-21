@@ -36,19 +36,14 @@ import { SearchableTags } from '@/components/searchable-tags'
 import SelectNetworksModal from '@/components/modal/SelectNetworksModal.vue'
 import { Button } from '@/components/ui/button'
 import { MAX_VGPU_PROFILES, NO_VGPU_ID, isVgpuSelectable } from '@/lib/vgpuSelection'
+import HardwareLimitChip from '@/components/domain/HardwareLimitChip.vue'
+import type { LimitedHardware, LimitedHardwareValue } from '@/lib/hardwareLimits'
 import {
   VCPU_TIERS,
   MEMORY_TIERS,
   buildTieredOptions,
   roundToNearestTier
 } from '@/lib/hardwareTiers'
-
-interface LimitedHardwareValue {
-  old_value: unknown
-  new_value: unknown
-}
-
-type LimitedHardware = Record<string, LimitedHardwareValue>
 
 const emit = defineEmits<{
   'update:interfaces': [interfaces: string[]]
@@ -260,8 +255,11 @@ const form = useForm({
   }
 })
 
-// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch)
-watch([templateData, desktopData], () => form.reset())
+// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch),
+// but never over edits in progress: the edit views refetch on focus.
+watch([templateData, desktopData], () => {
+  if (form.state.isPristine) form.reset()
+})
 
 const isDirty = form.useStore((state) => !state.isDefaultValue)
 
@@ -354,30 +352,8 @@ const isInvalid = (field: { state: { meta: { isTouched: boolean; isValid: boolea
   return field.state.meta.isTouched && !field.state.meta.isValid
 }
 
-const isLimited = (fieldName: string) => {
-  return !!(computedLimitedHardware.value && computedLimitedHardware.value[fieldName])
-}
-
-const formatValue = (value: unknown) => {
-  if (Array.isArray(value)) {
-    return value.map((v: Record<string, unknown>) => v.name || v.id || v).join(', ') || 'None'
-  }
-  if (value && typeof value === 'object') {
-    const obj = value as Record<string, unknown>
-    return obj.name || obj.id || value || 'None'
-  }
-  return value || 'None'
-}
-
-const getLimitedMessage = (fieldName: string) => {
-  const limited = computedLimitedHardware.value?.[fieldName]
-  if (!limited) return ''
-
-  return t('components.domain.hardware.limited.restricted', {
-    old_value: formatValue(limited.old_value),
-    new_value: formatValue(limited.new_value)
-  })
-}
+const limitedField = (fieldName: string): LimitedHardwareValue | null =>
+  (computedLimitedHardware.value as LimitedHardware | null)?.[fieldName] ?? null
 
 function getNamedResources(ids: string[] | undefined, options: { id: string; name: string }[]) {
   if (!ids) return undefined
@@ -527,31 +503,7 @@ defineExpose({
                 </SelectContent>
               </Select>
               <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              <FieldDescription
-                v-if="isLimited('vcpus')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('vcpus') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('vcpus')" />
             </Field>
           </form.Field>
           <form.Field v-slot="{ field }" name="memory">
@@ -578,31 +530,7 @@ defineExpose({
                 </SelectContent>
               </Select>
               <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              <FieldDescription
-                v-if="isLimited('memory')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('memory') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('memory')" />
             </Field>
           </form.Field>
           <form.Field v-if="props.showDiskSize" v-slot="{ field }" name="diskSize">
@@ -634,10 +562,7 @@ defineExpose({
                 :model-value="field.state.value"
                 @update:model-value="field.handleChange"
               >
-                <SelectTrigger
-                  :aria-invalid="isInvalid(field) || isLimited('disk_bus')"
-                  class="min-w-[120px]"
-                >
+                <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
                   <SelectValue
                     :placeholder="t('components.domain.hardware.disk-bus.placeholder')"
                   />
@@ -648,9 +573,7 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <FieldDescription v-if="isLimited('disk_bus')" class="text-destructive">
-                {{ getLimitedMessage('disk_bus') }}
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('disk_bus')" />
             </Field>
           </form.Field>
           <form.Field v-slot="{ field }" name="videos">
@@ -663,10 +586,7 @@ defineExpose({
                 :model-value="field.state.value"
                 @update:model-value="field.handleChange"
               >
-                <SelectTrigger
-                  :aria-invalid="isInvalid(field) || isLimited('videos')"
-                  class="min-w-[120px]"
-                >
+                <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
                   <SelectValue :placeholder="t('components.domain.hardware.videos.placeholder')" />
                 </SelectTrigger>
                 <SelectContent position="item-aligned">
@@ -675,31 +595,7 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <FieldDescription
-                v-if="isLimited('videos')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('videos') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('videos')" />
             </Field>
           </form.Field>
           <form.Field v-slot="{ field }" name="bootOrder">
@@ -723,31 +619,7 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <FieldDescription
-                v-if="isLimited('boot_order')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('boot_order') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('boot_order')" />
             </Field>
           </form.Field>
         </div>
@@ -784,31 +656,7 @@ defineExpose({
                   @update:model-value="field.handleChange($event)"
                 />
                 <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-                <FieldDescription
-                  v-if="isLimited('isos')"
-                  class="text-destructive flex items-center gap-1"
-                >
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <div class="flex items-center gap-1">
-                          <Icon
-                            name="alert-circle"
-                            class="inline"
-                            size="sm"
-                            stroke-color="destructive"
-                          />
-                          {{ getLimitedMessage('isos') }}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        :title="$t('components.domain.hardware.limited.warning.title')"
-                        :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                        side="top"
-                      />
-                    </Tooltip>
-                  </TooltipProvider>
-                </FieldDescription>
+                <HardwareLimitChip :limited="limitedField('isos')" />
               </Field>
             </form.Field>
             <!-- TODO: Test how to add floppies to the system -->
@@ -823,26 +671,7 @@ defineExpose({
                   :placeholder="t('components.domain.hardware.floppies.placeholder')"
                   @update:modelValue="field.handleChange"
                 />
-                <FieldDescription
-                  v-if="isLimited('floppies')"
-                  class="text-destructive flex items-center gap-1"
-                >
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <div class="flex items-center gap-1">
-                          <Icon name="alert-circle" class="inline" size="sm" stroke-color="destructive" />
-                          {{ getLimitedMessage('floppies') }}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        :title="$t('components.domain.hardware.limited.warning.title')"
-                        :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                        side="top"
-                      />
-                    </Tooltip>
-                  </TooltipProvider>
-                </FieldDescription>
+                <HardwareLimitChip :limited="limitedField('floppies')" />
               </Field>
             </form.Field> -->
           </div>
@@ -892,31 +721,7 @@ defineExpose({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                <FieldDescription
-                  v-if="isLimited('reservables.vgpus')"
-                  class="text-destructive flex items-center gap-1"
-                >
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <div class="flex items-center gap-1">
-                          <Icon
-                            name="alert-circle"
-                            class="inline"
-                            size="sm"
-                            stroke-color="destructive"
-                          />
-                          {{ getLimitedMessage('vgpus') }}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        :title="$t('components.domain.hardware.limited.warning.title')"
-                        :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                        side="top"
-                      />
-                    </Tooltip>
-                  </TooltipProvider>
-                </FieldDescription>
+                <HardwareLimitChip :limited="limitedField('vgpus')" />
               </Field>
             </form.Field>
           </div>
@@ -940,31 +745,7 @@ defineExpose({
         </div>
         <form.Field v-slot="{ field }" name="interfaces">
           <Field>
-            <FieldDescription
-              v-if="isLimited('interfaces')"
-              class="text-destructive flex items-center gap-1"
-            >
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <div class="flex items-center gap-1">
-                      <Icon
-                        name="alert-circle"
-                        class="inline"
-                        size="sm"
-                        stroke-color="destructive"
-                      />
-                      {{ getLimitedMessage('interfaces') }}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    :title="$t('components.domain.hardware.limited.warning.title')"
-                    :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                    side="top"
-                  />
-                </Tooltip>
-              </TooltipProvider>
-            </FieldDescription>
+            <HardwareLimitChip :limited="limitedField('interfaces')" />
             <div class="flex flex-col gap-2 items-start">
               <!-- Add button to open modal -->
               <Button

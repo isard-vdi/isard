@@ -10,8 +10,7 @@ import {
   createTemplateMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
-import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
+import DomainSummary from '@/components/domain/DomainSummary.vue'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -398,28 +397,21 @@ const handleSaveAllowed = (selection: AllowedSelection) => {
         </h2>
       </div>
 
-      <Skeleton v-if="desktopInfoIsPending" class="h-48 w-full rounded-2xl" />
-      <div v-else class="flex flex-col gap-0">
-        <DomainAccessSummary
-          class="border-b-0 rounded-b-none pb-0"
-          :credentials="desktopDetails?.credentials"
-          :viewers="desktopDetails?.viewers"
-          :fullscreen="desktopDetails?.fullscreen"
-        />
-        <DomainHardwareSummary
-          class="border-t-0 rounded-t-none"
-          :vcpu="desktopDetails?.vcpu"
-          :memory="desktopDetails?.memory"
-          :disk-bus="desktopDetails?.disk_bus"
-          :videos="desktopDetails?.videos.map((iface) => iface.name)"
-          :interfaces="desktopDetails?.interfaces.map((iface) => iface.name)"
-          :boot-order="desktopDetails?.boot_order.map((boot) => boot.name)"
-          :isos="desktopDetails?.isos?.map((boot) => boot.name)"
-          :floppies="desktopDetails?.floppies?.map((boot) => boot.name)"
-          :loading="desktopDetailsIsPending"
-          :vgpus="desktopDetails?.reservables?.vgpus"
-        />
-      </div>
+      <DomainSummary
+        :loading="desktopDetailsIsPending"
+        :credentials="desktopDetails?.credentials"
+        :viewers="desktopDetails?.viewers"
+        :fullscreen="desktopDetails?.fullscreen"
+        :vcpu="desktopDetails?.vcpu"
+        :memory="desktopDetails?.memory"
+        :disk-bus="desktopDetails?.disk_bus"
+        :videos="desktopDetails?.videos.map((video) => video.name)"
+        :interfaces="desktopDetails?.interfaces.map((iface) => iface.name)"
+        :boot-order="desktopDetails?.boot_order.map((boot) => boot.name)"
+        :isos="desktopDetails?.isos?.map((iso) => iso.name)"
+        :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"
+        :vgpus="desktopDetails?.reservables?.vgpus"
+      />
     </div>
   </div>
 </template>

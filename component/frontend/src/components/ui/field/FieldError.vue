@@ -2,10 +2,13 @@
 import type { HTMLAttributes } from 'vue'
 import { computed } from 'vue'
 import { cn } from '@/lib/utils'
+import { Icon } from '@/components/icon'
 
 const props = defineProps<{
   class?: HTMLAttributes['class']
   errors?: (string | { message: string | undefined } | undefined)[]
+  /** Name of a leading icon, for errors that need to read at a glance. */
+  icon?: string
 }>()
 
 const content = computed(() => {
@@ -33,8 +36,22 @@ const content = computed(() => {
     v-if="$slots.default || content"
     role="alert"
     data-slot="field-error"
-    :class="cn('text-error-600 text-sm font-normal', props.class)"
+    :class="
+      cn(
+        'text-error-600 text-sm font-normal',
+        props.icon && 'flex items-start gap-1.5',
+        props.class
+      )
+    "
   >
+    <Icon
+      v-if="props.icon"
+      :name="props.icon"
+      size="sm"
+      stroke-color="error-600"
+      class="mt-0.5 shrink-0"
+      aria-hidden="true"
+    />
     <slot v-if="$slots.default" />
 
     <template v-else-if="typeof content === 'string'">

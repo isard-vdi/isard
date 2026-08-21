@@ -18,8 +18,7 @@ import { getDeploymentUserDesktopsDetail, type UserDeploymentDesktop } from '@/g
 import { Button } from '@/components/ui/button'
 import NoVNC from '@/components/noVNC/NoVNC.vue'
 
-import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
-import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
+import DomainSummary from '@/components/domain/DomainSummary.vue'
 
 import { Icon } from '@/components/icon'
 import { useAuthStore } from '@/stores/auth'
@@ -34,7 +33,6 @@ import {
 import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
 import { Separator } from '@/components/ui/separator'
 import DeploymentDesktopCard from '@/components/deployment-desktop-card/DeploymentDesktopCard.vue'
-import { Skeleton } from '@/components/ui/skeleton'
 import { RecreateDesktopConfirmationModal } from '@/components/recreate-desktop-confirmation-modal'
 import { DomainInfoModal, type DomainInfoItem } from '@/components/desktops'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -392,33 +390,22 @@ const openDeploymentInfoModal = () => {
           </Empty>
         </div>
 
-        <Skeleton v-if="desktopDetailsIsPending" class="h-48 w-full rounded-2xl" />
-        <div
-          v-else
-          class="flex flex-col gap-4 bg-gray-warm-50 p-6 rounded-lg border border-gray-warm-200"
-        >
-          <h2 class="text-lg font-bold text-gray-warm-700 mb-2">{{ desktopDetails?.name }}</h2>
-
-          <DomainAccessSummary
-            class="border-0 bg-transparent rounded-none px-0 py-0"
-            :credentials="desktopDetails?.credentials as any"
-            :viewers="desktopDetails?.viewers"
-            :fullscreen="desktopDetails?.fullscreen"
-          />
-          <DomainHardwareSummary
-            class="border-0 bg-transparent rounded-none px-0 py-0"
-            :vcpu="desktopDetails?.vcpu"
-            :memory="desktopDetails?.memory"
-            :disk-bus="desktopDetails?.disk_bus"
-            :videos="desktopDetails?.videos?.map((iface) => iface.name)"
-            :interfaces="desktopDetails?.interfaces?.map((iface) => iface.name)"
-            :boot-order="desktopDetails?.boot_order?.map((boot) => boot.name)"
-            :isos="desktopDetails?.isos?.map((boot) => boot.name)"
-            :floppies="desktopDetails?.floppies?.map((boot) => boot.name)"
-            :loading="desktopDetailsIsPending"
-            :vgpus="desktopDetails?.reservables?.vgpus"
-          />
-        </div>
+        <DomainSummary
+          :loading="desktopDetailsIsPending"
+          :title="desktopDetails?.name"
+          :credentials="desktopDetails?.credentials"
+          :viewers="desktopDetails?.viewers"
+          :fullscreen="desktopDetails?.fullscreen"
+          :vcpu="desktopDetails?.vcpu"
+          :memory="desktopDetails?.memory"
+          :disk-bus="desktopDetails?.disk_bus"
+          :videos="desktopDetails?.videos?.map((video) => video.name)"
+          :interfaces="desktopDetails?.interfaces?.map((iface) => iface.name)"
+          :boot-order="desktopDetails?.boot_order?.map((boot) => boot.name)"
+          :isos="desktopDetails?.isos?.map((iso) => iso.name)"
+          :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"
+          :vgpus="desktopDetails?.reservables?.vgpus"
+        />
       </div>
     </div>
 
