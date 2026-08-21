@@ -3,7 +3,7 @@ name = "isardvdi-db"
 version = "0.0.0"
 requires-python = ">=3.14,<3.15"
 dependencies = [
-  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz",
+  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/7de05d9a0d758e4b7fb7453849003a1e545446fe.tar.gz",
 ]
 
 [build-system]

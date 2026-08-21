@@ -22,7 +22,7 @@ dependencies = [
   "pytz==2026.2",
   "redis==8.0.1",
   "requests==2.34.2",
-  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/c1cfa75b2e27b2b3fac95dea67ec8e98a83dcb07.tar.gz",
+  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/7de05d9a0d758e4b7fb7453849003a1e545446fe.tar.gz",
   "rq==2.10.0",
   "simple-colors==0.1.5",
   "specktre==0.3.0",
