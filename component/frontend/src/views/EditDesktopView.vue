@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
@@ -12,8 +12,8 @@ import {
   getUserDesktopsLegacyQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import DomainConfigurationPanel from '@/components/domain/DomainConfigurationPanel.vue'
-import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { FormHeader } from '@/components/form-header'
 import {
   toBastionTarget,
   toDomainHardware,
@@ -51,8 +51,11 @@ const desktopKind = computed<'persistent' | 'nonpersistent' | 'deployment'>(() =
   desktopData.value?.deployment_name ? 'deployment' : 'persistent'
 )
 
+const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
 const panelRef = ref<InstanceType<typeof DomainConfigurationPanel> | null>(null)
 const areFormsValid = computed(() => panelRef.value?.areFormsValid ?? false)
+
+const isTouched = computed(() => panelRef.value?.isDirty ?? false)
 
 const submitError = ref<string | null>(null)
 
@@ -64,6 +67,7 @@ const { mutate: submitEdit, isPending: submitPending } = useMutation({
       queryKey: getDesktopInfoQueryKey({ path: { desktop_id: desktopId.value } }),
       exact: true
     })
+    formHeaderRef.value?.allowLeave()
     router.push({ name: 'desktops' })
   },
   onError: (error) => {
@@ -93,24 +97,16 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <header class="flex flex-col md:flex-row items-center max-w-480 w-full mx-auto mb-8 gap-4">
-    <div class="flex flex-row items-center gap-4 w-full">
-      <Button
-        :as="RouterLink"
-        :to="{ name: 'desktops' }"
-        hierarchy="link-color"
-        icon="arrow-left"
-        class="pb-6 pt-0 pl-0"
-      >
-        {{ t('views.edit-desktop.header.cancel') }}
-      </Button>
-    </div>
-    <div class="flex flex-row items-center justify-end gap-4 w-full">
-      <Button class="min-w-32" :disabled="!areFormsValid || submitPending" @click="handleSubmit">
-        {{ t('views.edit-desktop.header.save') }}
-      </Button>
-    </div>
-  </header>
+  <FormHeader
+    ref="formHeaderRef"
+    :cancel-to="{ name: 'desktops' }"
+    :cancel-label="t('components.form-header.cancel-edit')"
+    :confirm-cancel="isTouched"
+    :next-label="t('views.edit-desktop.header.save')"
+    :next-disabled="!areFormsValid"
+    :next-pending="submitPending"
+    @next="handleSubmit"
+  />
 
   <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
     <Alert v-if="desktopLoadError" variant="destructive">

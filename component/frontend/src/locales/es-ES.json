@@ -191,10 +191,6 @@
           }
         }
       },
-      "header": {
-        "cancel": "Cancelar",
-        "previous": "Anterior"
-      },
       "step-2": {
         "title": "Configura tu escritorio",
         "description": "Personaliza los ajustes de tu escritorio antes de crearlo.",
@@ -432,10 +428,8 @@
     },
     "new-template": {
       "header": {
-        "cancel": "Cancelar",
         "create-template": "Crear plantilla",
-        "next": "Siguiente",
-        "previous": "Anterior"
+        "next": "Siguiente"
       },
       "stepper-steps": {
         "select-desktop": "Selecciona un escritorio",
@@ -446,8 +440,6 @@
         "desktop-not-stopped": "El escritorio debe estar parado para crear una plantilla."
       },
       "form": {
-        "title": "Configura tu plantilla",
-        "subtitle": "Puedes editar el nombre de la plantilla, la imagen y quién puede usarla.",
         "sections": {
           "preview": {
             "title": "Vista previa",
@@ -817,8 +809,6 @@
         }
       },
       "header": {
-        "cancel": "Cancelar",
-        "previous": "Anterior",
         "next": "Siguiente",
         "create-deployment": "Crear Despliegue"
       }
@@ -874,7 +864,6 @@
       "title": "Editar escritorio",
       "subtitle": "Editando «{name}»",
       "header": {
-        "cancel": "Cancelar",
         "save": "Guardar cambios"
       },
       "errors": {
@@ -896,7 +885,6 @@
     },
     "edit-template": {
       "header": {
-        "cancel": "Cancelar",
         "save": "Guardar cambios"
       },
       "errors": {
@@ -2606,6 +2594,18 @@
       },
       "cancel": "Cancelar",
       "save": "Aceptar cambios"
+    },
+    "form-header": {
+      "cancel-creation": "Cancelar la creación",
+      "cancel-edit": "Cancelar la edición",
+      "previous": "Paso anterior",
+      "next": "Siguiente",
+      "discard-modal": {
+        "title": "¿Descartar y salir?",
+        "description": "Se perderá la información que has introducido.",
+        "cancel": "Seguir editando",
+        "confirm": "Descartar y salir"
+      }
     }
   },
   "authentication": {

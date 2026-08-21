@@ -191,10 +191,6 @@
           }
         }
       },
-      "header": {
-        "cancel": "Cancel",
-        "previous": "Previous"
-      },
       "step-2": {
         "title": "Configure your desktop",
         "buttons": {
@@ -223,7 +219,6 @@
     },
     "edit-template": {
       "header": {
-        "cancel": "Cancel",
         "save": "Save changes"
       },
       "errors": {
@@ -441,10 +436,8 @@
     },
     "new-template": {
       "header": {
-        "cancel": "Cancel",
         "create-template": "Create Template",
-        "next": "Next",
-        "previous": "Previous"
+        "next": "Next"
       },
       "stepper-steps": {
         "select-desktop": "Select Desktop",
@@ -455,8 +448,6 @@
         "desktop-not-stopped": "Desktop must be stopped to create a template."
       },
       "form": {
-        "title": "Configure your template",
-        "subtitle": "You can edit the template's name, image and who can use it.",
         "sections": {
           "preview": {
             "title": "Preview",
@@ -826,8 +817,6 @@
         }
       },
       "header": {
-        "cancel": "Cancel",
-        "previous": "Previous",
         "next": "Next",
         "create-deployment": "Create Deployment"
       }
@@ -898,7 +887,6 @@
       "title": "Edit desktop",
       "subtitle": "Editing \"{name}\"",
       "header": {
-        "cancel": "Cancel",
         "save": "Save changes"
       },
       "errors": {
@@ -2637,6 +2625,18 @@
       },
       "cancel": "Cancel",
       "save": "Accept changes"
+    },
+    "form-header": {
+      "cancel-creation": "Cancel creation",
+      "cancel-edit": "Cancel editing",
+      "previous": "Previous step",
+      "next": "Next",
+      "discard-modal": {
+        "title": "Discard and exit?",
+        "description": "The information you have entered will be lost.",
+        "cancel": "Keep editing",
+        "confirm": "Discard and exit"
+      }
     }
   },
   "authentication": {

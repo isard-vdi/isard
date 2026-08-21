@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
@@ -20,7 +20,7 @@ import OsTemplateSelect from '@/components/new-desktop/OsTemplateSelect.vue'
 import DomainConfigurationPanel from '@/components/domain/DomainConfigurationPanel.vue'
 import type { DomainConfigurationDefaults } from '@/components/domain/DomainConfigurationSection.vue'
 import Step3Creating from '@/components/new-desktop/Step3Creating.vue'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { FormHeader } from '@/components/form-header'
 import { toGuestProperties, toImageInput, toMediaHardware } from '@/lib/domainPayload'
 import router from '@/router'
 import type { DomainImageOutput, MediaKindEnum, VirtInstallItem } from '@/gen/oas/apiv4/types.gen'
@@ -111,11 +111,22 @@ const summary = {
 const infoExtraDefaults = { os_template: '' }
 const infoExtraSchema = { os_template: z.string().min(1) }
 
+const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
 const panelRef = ref<InstanceType<typeof DomainConfigurationPanel> | null>(null)
 
 const areFormsValid = computed(
   () => (panelRef.value?.areFormsValid ?? false) && hasOsTemplateOptions.value
 )
+
+const isTouched = computed(() => panelRef.value?.isDirty ?? false)
+
+const createButtonTooltip = computed(() => {
+  if (areFormsValid.value) return undefined
+  return {
+    title: t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.title'),
+    description: t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.description')
+  }
+})
 
 const creationError = ref<string | null>(null)
 const isCreating = ref(false)
@@ -124,6 +135,7 @@ const { mutate: submitCreateFromMedia } = useMutation({
   ...createDesktopFromMediaMutation(),
   onSuccess: async (data) => {
     await queryClient.invalidateQueries({ queryKey: getUserDesktopsQueryKey() })
+    formHeaderRef.value?.allowLeave()
     router.push({
       name: 'single-desktop',
       params: {
@@ -197,38 +209,15 @@ const handleSubmit = () => {
 
     <template v-else>
       <!-- Header -->
-      <header
-        class="flex flex-col md:flex-row items-start justify-center max-w-480 w-full mx-auto mb-8 gap-4"
-      >
-        <div class="flex flex-row items-center gap-4 w-full">
-          <Button
-            :as="RouterLink"
-            :to="{ name: 'media' }"
-            hierarchy="link-color"
-            icon="arrow-left"
-            class="pb-6 pt-0 pl-0"
-          >
-            {{ t('views.new-desktop.header.cancel') }}
-          </Button>
-        </div>
-        <div class="flex flex-row items-center justify-end gap-4 w-full">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button hierarchy="primary" :disabled="!areFormsValid" @click="handleSubmit">
-                {{ t('views.new-desktop.step-2.buttons.create-desktop.label') }}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent
-              v-if="!areFormsValid"
-              :title="t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.title')"
-              :subtitle="
-                t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.description')
-              "
-              side="top"
-            />
-          </Tooltip>
-        </div>
-      </header>
+      <FormHeader
+        ref="formHeaderRef"
+        :cancel-to="{ name: 'media' }"
+        :confirm-cancel="isTouched"
+        :next-label="t('views.new-desktop.step-2.buttons.create-desktop.label')"
+        :next-disabled="!areFormsValid"
+        :next-tooltip="createButtonTooltip"
+        @next="handleSubmit"
+      />
 
       <main class="max-w-320 w-full mx-auto flex flex-col gap-6">
         <!-- Creation error -->

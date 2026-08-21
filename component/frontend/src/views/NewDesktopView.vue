@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import {
@@ -26,7 +25,7 @@ import Step1SelectTemplate from '@/components/new-desktop/Step1SelectTemplate.vu
 import Step2ConfigureDesktop from '@/components/new-desktop/Step2ConfigureDesktop.vue'
 import type { DomainConfigurationPanelData } from '@/components/domain/DomainConfigurationPanel.vue'
 import Step3Creating from '@/components/new-desktop/Step3Creating.vue'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { FormHeader } from '@/components/form-header'
 
 import { cn } from '@/lib/utils'
 
@@ -76,6 +75,7 @@ const selectTemplate = (template: { id: string; image?: DomainImageOutput }) => 
   selectedTemplate.value = selectedTemplate.value?.id === template.id ? null : template
 }
 
+const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
 const step2Ref = ref<InstanceType<typeof Step2ConfigureDesktop> | null>(null)
 
 const nextButtonLabel = computed(() => {
@@ -83,6 +83,14 @@ const nextButtonLabel = computed(() => {
     return t('views.new-desktop.step-2.buttons.create-desktop.label')
   }
   return t('views.new-desktop.step-1.buttons.next.label')
+})
+
+const nextButtonTooltip = computed(() => {
+  if (currentStep.value !== 2 || step2Ref.value?.areFormsValid) return undefined
+  return {
+    title: t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.title'),
+    description: t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.description')
+  }
 })
 
 const isNextButtonDisabled = computed(() => {
@@ -114,6 +122,7 @@ const {
 } = useMutation({
   ...createDesktopMutation(),
   onSuccess: (data) => {
+    formHeaderRef.value?.allowLeave()
     router.push({
       name: 'single-desktop',
       params: {
@@ -189,47 +198,24 @@ const steps = computed<StepperFormStep[]>(() => {
 
   <div v-if="quotaCheckPassed" class="h-full flex flex-col">
     <!-- Header -->
-    <header
+    <FormHeader
       v-if="showStepsControls"
-      class="flex flex-col md:flex-row items-start max-w-480 w-full mx-auto mb-8 gap-4"
+      ref="formHeaderRef"
+      :cancel-to="{ name: 'desktops' }"
+      :confirm-cancel="!!step2Ref?.isDirty"
+      :show-previous="currentStep > 1"
+      :next-label="nextButtonLabel"
+      :next-disabled="isNextButtonDisabled"
+      :next-tooltip="nextButtonTooltip"
+      @previous="goToPreviousStep"
+      @next="handleNextClick"
     >
-      <div class="flex flex-row items-center gap-4 w-full">
-        <Button
-          :as="RouterLink"
-          :to="{ name: 'desktops' }"
-          hierarchy="link-color"
-          :icon="'arrow-left'"
-          class="pb-6 pt-0 pl-0"
-        >
-          {{ t('views.new-desktop.header.cancel') }}
-        </Button>
-      </div>
-      <div class="shrink-0 w-95">
-        <StepperForm v-model="currentStep" :steps="steps" />
-      </div>
-      <div class="flex flex-row items-center justify-end gap-4 w-full">
-        <Button hierarchy="link-color" :disabled="currentStep <= 1" @click="goToPreviousStep">
-          {{ t('views.new-desktop.header.previous') }}
-        </Button>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button class="min-w-32" :disabled="isNextButtonDisabled" @click="handleNextClick">
-                {{ nextButtonLabel }}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent
-              v-if="!step2Ref?.areFormsValid && currentStep === 2"
-              :title="$t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.title')"
-              :subtitle="
-                $t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.description')
-              "
-              side="top"
-            />
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-    </header>
+      <template #stepper>
+        <div class="shrink-0 w-80">
+          <StepperForm v-model="currentStep" :steps="steps" />
+        </div>
+      </template>
+    </FormHeader>
     <main
       :class="cn(currentStep !== 2 ? 'max-w-320' : undefined)"
       class="w-full mx-auto flex flex-1 flex-col gap-[24px]"
