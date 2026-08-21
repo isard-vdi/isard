@@ -55,6 +55,25 @@ def _storage_deleted_epoch(doc: dict) -> float | None:
     return None
 
 
+# Tables emptied by `--empty-tables` when the flag is given with no list.
+# Measured on a production-shaped install (4.79 GB of JSON across 59 tables):
+# logs_desktops 45.9%, usage_consumption 27.1%, logs_users 7.6% — 80.6% of the
+# whole dump, and none of it is needed to exercise the product. The rest of the
+# usage family is deliberately NOT here: usage_credit and friends are the
+# feature's configuration, not its time series, and they cost kilobytes.
+DEFAULT_EMPTY_TABLES = ("logs_desktops", "logs_users", "usage_consumption")
+
+
+def parse_empty_tables(value: str | None) -> tuple[str, ...]:
+    """`--empty-tables` with no value yields the defaults; with a value, the
+    comma-separated list it names. Empty entries are ignored so a trailing
+    comma is not an error."""
+    if value is None:
+        return ()
+    names = tuple(t.strip() for t in value.split(",") if t.strip())
+    return names or DEFAULT_EMPTY_TABLES
+
+
 class Pruner:
     """Decides whether to drop a document before it is scrubbed/written."""
 
