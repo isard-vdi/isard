@@ -1033,3 +1033,54 @@ def test_config_login_free_text_blanked():
     assert login["notification_form"]["icon"] == "info-circle"
     assert login["notification_form"]["button"]["extra_styles"] == "color: #bf0000;"
     assert login["providers"]["saml"]["hide_categories_dropdown"] is False
+
+
+def test_category_login_notification_and_bastion_domain_scrubbed():
+    # The per-category twin of config.login: a category can carry its own
+    # banners, and in the field they name the organisation. `bastion_domain`
+    # is the category's own hostname, same class as the branding domain.
+    banner = {
+        "notification_cover": {
+            "title": "RealOrg virtual desktops",
+            "description": "Sign in with your realorg.example account",
+            "icon": "info-circle",
+            "extra_styles": "background-color: #ffffff;",
+            "button": {
+                "text": "More at RealOrg",
+                "url": "https://desktops.realorg.example/help",
+                "extra_styles": "color: #bf0000;",
+            },
+        },
+        "notification_form": {"title": "", "extra_styles": "color: #000;"},
+    }
+    tables = {
+        "categories": [
+            {
+                "id": "realorg-fp",
+                "name": "RealOrg FP",
+                "bastion_domain": "bastion.realorg.example",
+                "login_notification": json.loads(json.dumps(banner)),
+            },
+            # the default category early-continues; it must still be scrubbed
+            {
+                "id": "default",
+                "bastion_domain": "bastion.realorg.example",
+                "login_notification": json.loads(json.dumps(banner)),
+            },
+        ]
+    }
+    out = _run(tables)
+    dumped = json.dumps(out)
+    for needle in ("realorg.example", "RealOrg", "More at"):
+        assert needle not in dumped, needle
+    for row in out["categories"]:
+        ln = row["login_notification"]
+        assert ln["notification_cover"]["title"] == ""
+        assert ln["notification_cover"]["description"] == ""
+        assert ln["notification_cover"]["button"]["text"] == ""
+        assert ln["notification_cover"]["button"]["url"] == ""
+        assert row["bastion_domain"] == ""
+        # presentation is not identity and stays
+        assert ln["notification_cover"]["icon"] == "info-circle"
+        assert ln["notification_cover"]["extra_styles"] == "background-color: #ffffff;"
+        assert ln["notification_form"]["extra_styles"] == "color: #000;"

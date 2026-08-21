@@ -616,6 +616,14 @@ class Scrubber:
             # host, the service account DN and the IdP endpoints. Same rule as
             # the global block, and likewise before the early-continue.
             self._scrub_provider_configs(r.get("authentication"))
+            # A category can also carry its own login banners, the per-category
+            # twin of config.login. Same operator-authored copy, same rule, and
+            # like the email domain restriction it applies to the default
+            # category too — hence before the early-continue.
+            self._blank_login_free_text(r.get("login_notification"))
+            # The category's own bastion hostname, same class as branding.domain.
+            if isinstance(r.get("bastion_domain"), str) and r["bastion_domain"]:
+                r["bastion_domain"] = ""
             if cid == "default":
                 # built-in default category: names public, but its uid may
                 # still hold an SSO-mapped value (e.g. `Isard_Admins`).
