@@ -10,6 +10,11 @@ dependencies = [
   "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/de0aa01a894bc08c3d8ecb9333bec2eafe9fd504.tar.gz",
 ]
 
+[dependency-groups]
+test = [
+  "pytest",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

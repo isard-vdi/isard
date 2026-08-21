@@ -663,6 +663,35 @@ unit-test-anonymize-db:
     reports:
       junit: sysadm/anonymize-db/report.xml
 
+unit-test-backupninja:
+  # The nightly database backup path, run for real against a live RethinkDB.
+  #
+  # Nothing else in this pipeline ever executes a dump. docker-image builds the
+  # backupninja image and no later job runs rethinkdb-dump against a server, so
+  # a driver that cannot dump at all still produced a green pipeline — which is
+  # how the Python 3.14 multiprocessing breakage reached a release branch.
+  #
+  # The service is what makes the suite run at all, not what makes it pass:
+  # without ISARD_TEST_RETHINKDB the tests skip, and a skipped suite is the
+  # green-having-asserted-nothing outcome the tests exist to prevent. Same image
+  # and digest as the stack's own isard-db (docker/db/Dockerfile), so CI
+  # exercises the server version production runs. The image's default command is
+  # already `rethinkdb --bind all`, so no override is needed.
+  extends: .python-test-base
+  stage: unit-test
+  needs: []
+  services:
+    - name: rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a
+      alias: rethinkdb
+  variables:
+    ISARD_TEST_RETHINKDB: "rethinkdb:28015"
+  script:
+    - make ci-test-backupninja
+  artifacts:
+    when: always
+    reports:
+      junit: docker/backupninja/report.xml
+
 unit-test-frontend:
   # Vue 3 (component/frontend) vitest unit suites. The specs vi.mock the
   # generated @/gen/oas/apiv4 client, but the alias must still resolve, so the

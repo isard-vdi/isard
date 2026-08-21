@@ -330,6 +330,11 @@ ci-test-anonymize-db:
 	uv sync --no-dev --group test --package isard-anonymize-db
 	cd sysadm/anonymize-db && uv run --no-dev --group test --package isard-anonymize-db pytest tests -q --tb=short --junitxml=report.xml
 
+.PHONY: ci-test-backupninja
+ci-test-backupninja:
+	uv sync --no-dev --group test --package isardvdi-backupninja
+	cd docker/backupninja && uv run --no-dev --group test --package isardvdi-backupninja pytest tests -q --tb=short --junitxml=report.xml
+
 .PHONY: ci-test-frontend
 ci-test-frontend:
 	cd component/frontend && bun install --frozen-lockfile && bun run test:unit --reporter=default --reporter=junit --outputFile=report.xml
