@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useQuery, useMutation } from '@tanstack/vue-query'
@@ -10,37 +10,20 @@ import {
   createTemplateMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
+import DomainInfoSection from '@/components/domain/DomainInfoSection.vue'
 import DomainSummary from '@/components/domain/DomainSummary.vue'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSeparator,
-  FieldSet,
-  FieldTitle
-} from '@/components/ui/field'
-import { InputField } from '@/components/input-field'
-import { useForm } from '@tanstack/vue-form'
-import * as z from 'zod'
+import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import Label from '@/components/ui/label/Label.vue'
 import Switch from '@/components/ui/switch/Switch.vue'
-import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
-import { Skeleton } from '@/components/ui/skeleton'
 import type { ErrorResponse } from '@/gen/oas/apiv4'
 import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 
-const { t, d } = useI18n()
+const { t } = useI18n()
 
 interface Props {
   desktopId: string
@@ -97,14 +80,41 @@ function handleImageSelected(image: DomainImageOutput) {
   selectedImage.value = image
 }
 
+// The template is named after the desktop it comes from, not like it.
+const infoSource = computed(() => ({
+  name: desktopInfo.value?.name
+    ? t(
+        'views.new-template.form.sections.preview.fields.name.default',
+        { desktop_name: desktopInfo.value.name },
+        desktopInfo.value.name
+      )
+    : '',
+  description: desktopInfo.value?.description ?? ''
+}))
+
+const infoRef = ref<InstanceType<typeof DomainInfoSection> | null>(null)
+const enabled = ref(true)
+
+const summary = computed(() => ({
+  credentials: desktopDetails.value?.credentials,
+  viewers: desktopDetails.value?.viewers,
+  fullscreen: desktopDetails.value?.fullscreen,
+  vcpu: desktopDetails.value?.vcpu,
+  memory: desktopDetails.value?.memory,
+  diskBus: desktopDetails.value?.disk_bus,
+  videos: desktopDetails.value?.videos.map((video) => video.name),
+  interfaces: desktopDetails.value?.interfaces.map((iface) => iface.name),
+  bootOrder: desktopDetails.value?.boot_order.map((boot) => boot.name),
+  isos: desktopDetails.value?.isos?.map((iso) => iso.name),
+  floppies: desktopDetails.value?.floppies?.map((floppy) => floppy.name),
+  vgpus: desktopDetails.value?.reservables?.vgpus
+}))
+
 const createTemplateErrorCode = ref<string | undefined>(undefined)
 const {
   mutate: createTemplate,
-  mutateAsync: createTemplateAsync,
   isPending: createTemplateIsPending,
-  isError: createTemplateIsError,
-  error: createTemplateError,
-  data: createTemplateData
+  isError: createTemplateIsError
 } = useMutation({
   ...createTemplateMutation(),
   onSuccess: (data) => {
@@ -116,63 +126,12 @@ const {
 
     // Handle name conflict error
     if (errorResponse.description_code === 'new_template_name_exists') {
-      form.getFieldInfo('name').instance?.setErrorMap({
+      infoRef.value?.form.getFieldInfo('name').instance?.setErrorMap({
         onSubmit: t('views.new-template.form.errors.fields.name.exists')
       })
     }
   }
 })
-
-const formSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, t('components.form.validation.required'))
-    .min(4, t('components.form.validation.min-length', { min: 4 }))
-    .max(50, t('components.form.validation.max-length', { max: 50 })),
-  description: z
-    .string()
-    .trim()
-    .max(255, t('components.form.validation.max-length', { max: 255 })),
-  enabled: z.boolean()
-})
-
-const form = useForm({
-  defaultValues: reactive({
-    name: computed(() =>
-      desktopInfo.value?.name
-        ? t(
-            'views.new-template.form.sections.preview.fields.name.default',
-            { desktop_name: desktopInfo.value.name },
-            desktopInfo.value.name
-          )
-        : ''
-    ),
-    description: computed(() => desktopInfo.value?.description || ''),
-    enabled: true
-  }),
-  validators: {
-    onChange: formSchema
-  },
-  onSubmit: ({ value }) => {
-    createTemplateAsync({
-      body: {
-        desktop_id: desktopId.value,
-        name: value.name,
-        description: value.description,
-        enabled: value.enabled,
-        image: currentImage.value
-          ? { id: currentImage.value.id, type: currentImage.value.type }
-          : undefined,
-        allowed: allowed.value
-      }
-    })
-  }
-})
-
-function isInvalid(field) {
-  return field.state.meta.isTouched && !field.state.meta.isValid
-}
 
 const isPending = computed(() => {
   return (
@@ -180,18 +139,38 @@ const isPending = computed(() => {
   )
 })
 
-const formIsDirty = form.useStore((state) => !state.isDefaultValue)
+const isValid = computed(() => infoRef.value?.isValid ?? false)
 
-// The card and the allowed selection live outside the form.
+// The card and the allowed selection live outside the info form.
 const isDirty = computed(
   () =>
-    formIsDirty.value ||
+    !!infoRef.value?.isDirty ||
     !!selectedImage.value ||
+    !enabled.value ||
     allowed.value.groups !== false ||
     allowed.value.users !== false
 )
 
-defineExpose({ form, isPending, isDirty })
+const handleSubmit = () => {
+  if (!isValid.value || !infoRef.value) return
+
+  const { name, description } = infoRef.value.getFormData()
+
+  createTemplate({
+    body: {
+      desktop_id: desktopId.value,
+      name,
+      description,
+      enabled: enabled.value,
+      image: currentImage.value
+        ? { id: currentImage.value.id, type: currentImage.value.type }
+        : undefined,
+      allowed: allowed.value
+    }
+  })
+}
+
+defineExpose({ isValid, isDirty, isPending, handleSubmit })
 
 // Allowed
 const handleSaveAllowed = (selection: AllowedSelection) => {
@@ -223,111 +202,15 @@ const handleSaveAllowed = (selection: AllowedSelection) => {
       }}</AlertDescription>
     </Alert>
 
-    <div class="flex flex-col gap-[16px]">
-      <div class="flex flex-col gap-[2px]">
-        <h1 class="text-lg font-semibold text-gray-warm-900">
-          {{ t('views.new-template.form.sections.preview.title') }}
-        </h1>
-        <h2 class="text-sm font-regular text-gray-warm-700">
-          {{ t('views.new-template.form.sections.preview.subtitle') }}
-        </h2>
-      </div>
-
-      <div v-if="desktopInfoIsPending" class="flex gap-2">
-        <Skeleton class="h-16 w-47 rounded-l-2xl shrink-0" />
-        <Skeleton class="h-16 w-full rounded-r-2xl" />
-      </div>
-      <div
-        v-else
-        class="grid gap-y-2 grid-flow-col"
-        :style="{
-          gridTemplateColumns:
-            'var(--spacing-48) minmax(var(--spacing-48), var(--spacing-120)) auto'
-        }"
-      >
-        <div class="grid grid-rows-subgrid row-span-3">
-          <div
-            class="row-start-2 w-48 h-16 overflow-hidden shrink-0 rounded-l-2xl object-cover bg-center bg-cover relative"
-            :style="{
-              backgroundImage: `url(${imageUrl})`
-            }"
-          >
-            <Button
-              class="absolute top-1 left-1 rounded-tl-xl"
-              hierarchy="secondary-gray"
-              size="sm"
-              icon="image-plus"
-              @click="showChangeImageModal = true"
-            />
-          </div>
-        </div>
-
-        <form class="contents" @submit.prevent="form.handleSubmit">
-          <form.Field v-slot="{ field }" name="name" class="contents">
-            <Field :data-invalid="isInvalid(field)" class="contents">
-              <div class="text-sm font-semibold px-4">
-                <FieldLabel :for="field.name">{{
-                  t('views.new-template.form.sections.preview.fields.name.label')
-                }}</FieldLabel>
-              </div>
-              <div
-                class="w-full bg-base-white h-16 flex items-center border-gray-warm-200 px-4 border-y pr-0"
-              >
-                <InputField
-                  :id="field.name"
-                  :name="field.name"
-                  :model-value="field.state.value"
-                  :placeholder="
-                    t('views.new-template.form.sections.preview.fields.name.placeholder')
-                  "
-                  :aria-invalid="isInvalid(field)"
-                  :destructive="isInvalid(field)"
-                  autocomplete="off"
-                  type="text"
-                  @blur="field.handleBlur"
-                  @input="field.handleChange($event.target.value)"
-                />
-              </div>
-
-              <div class="text-sm font-semibold px-4">
-                <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              </div>
-            </Field>
-          </form.Field>
-          <form.Field v-slot="{ field }" name="description" class="contents">
-            <Field :data-invalid="isInvalid(field)" class="contents">
-              <div class="text-sm font-semibold px-4">
-                <FieldLabel :for="field.name">{{
-                  t('views.new-template.form.sections.preview.fields.description.label')
-                }}</FieldLabel>
-              </div>
-              <div
-                class="w-full bg-base-white h-16 flex items-center border-gray-warm-200 px-4 border-y rounded-r-2xl border-r"
-              >
-                <InputField
-                  :id="field.name"
-                  :name="field.name"
-                  :model-value="field.state.value"
-                  :placeholder="
-                    t('views.new-template.form.sections.preview.fields.description.placeholder')
-                  "
-                  :aria-invalid="isInvalid(field)"
-                  :destructive="isInvalid(field)"
-                  autocomplete="off"
-                  type="text"
-                  @blur="field.handleBlur"
-                  @input="field.handleChange($event.target.value)"
-                />
-              </div>
-
-              <div class="text-sm font-semibold px-4">
-                <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              </div>
-            </Field>
-          </form.Field>
-        </form>
-      </div>
-    </div>
+    <DomainInfoSection
+      ref="infoRef"
+      :loading="desktopInfoIsPending"
+      :source="infoSource"
+      :image-url="imageUrl"
+      entity="templates"
+      preview="template-row"
+      @change-image="showChangeImageModal = true"
+    />
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="flex flex-col gap-[16px]">
@@ -340,25 +223,14 @@ const handleSaveAllowed = (selection: AllowedSelection) => {
           </h2>
         </div>
 
-        <form @submit.prevent="form.handleSubmit">
-          <form.Field v-slot="{ field }" name="enabled" class="contents">
-            <Field orientation="horizontal" :data-invalid="isInvalid(field)">
-              <Switch
-                :id="field.name"
-                :name="field.name"
-                :model-value="field.state.value"
-                :aria-invalid="isInvalid(field)"
-                @update:model-value="field.handleChange"
-              />
-              <FieldContent>
-                <FieldLabel :for="field.name">{{
-                  t('views.new-template.form.sections.visibility.label')
-                }}</FieldLabel>
-                <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              </FieldContent>
-            </Field>
-          </form.Field>
-        </form>
+        <Field orientation="horizontal">
+          <Switch id="enabled" v-model="enabled" name="enabled" />
+          <FieldContent>
+            <FieldLabel for="enabled">{{
+              t('views.new-template.form.sections.visibility.label')
+            }}</FieldLabel>
+          </FieldContent>
+        </Field>
       </div>
       <div class="flex flex-col gap-[16px]">
         <div class="flex flex-col gap-0.5">
@@ -408,21 +280,7 @@ const handleSaveAllowed = (selection: AllowedSelection) => {
         </h2>
       </div>
 
-      <DomainSummary
-        :loading="desktopDetailsIsPending"
-        :credentials="desktopDetails?.credentials"
-        :viewers="desktopDetails?.viewers"
-        :fullscreen="desktopDetails?.fullscreen"
-        :vcpu="desktopDetails?.vcpu"
-        :memory="desktopDetails?.memory"
-        :disk-bus="desktopDetails?.disk_bus"
-        :videos="desktopDetails?.videos.map((video) => video.name)"
-        :interfaces="desktopDetails?.interfaces.map((iface) => iface.name)"
-        :boot-order="desktopDetails?.boot_order.map((boot) => boot.name)"
-        :isos="desktopDetails?.isos?.map((iso) => iso.name)"
-        :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"
-        :vgpus="desktopDetails?.reservables?.vgpus"
-      />
+      <DomainSummary :loading="desktopDetailsIsPending" v-bind="summary" />
     </div>
   </div>
 </template>
