@@ -210,47 +210,15 @@
           }
         },
         "description": "You can edit the desktop name, image and hardware",
-        "preview": {
-          "title": "Preview",
-          "description": "This is how your desktop will look like. This data can be edited",
-          "start-disabled": "You can start the desktop once it is created"
-        },
-        "desktop-information": {
-          "title": "@:domains.capitalized.desktops Information",
-          "description": "Provide a name and description for your desktop to help identify it"
-        },
-        "desktop-kind": {
-          "title": "Desktop Kind",
-          "description": "Select the kind of desktop you want to create",
-          "persistent": {
-            "title": "Persistent",
-            "description": "A persistent desktop saves all changes and files permanently."
-          },
-          "nonpersistent": {
-            "title": "Temporary",
-            "description": "A temporary desktop discards all changes and files when stopped. Only one temporary desktop is allowed per template."
-          }
-        },
         "access": {
           "title": "Access summary",
           "description": "This is a sumary of the access methods available for your desktop",
           "show-access-customization": "Change access",
           "hide-access-customization": "Hide access"
         },
-        "all-access": {
-          "title": "All access configuration",
-          "description": "Security and access configuration"
-        },
         "hardware-limited": {
-          "title": "Hardware limited",
-          "description": "The following hardware values have been limited due to user permissions:"
-        },
-        "desktop-configuration": {
-          "title": "Desktop configuration",
-          "description": "These values come from the template. Change them below, or later once the desktop is created.",
-          "show": "Change configuration",
-          "restore": "Restore initial values",
-          "restore-disabled": "No changes to restore yet"
+          "title": "@:components.domain.configuration.hardware-limited.title",
+          "description": "@:components.domain.configuration.hardware-limited.description"
         },
         "hardware-summary": {
           "title": "Hardware summary",
@@ -259,8 +227,8 @@
           "hide-hardware-customization": "Hide hardware"
         },
         "all-hardware": {
-          "title": "All the hardware",
-          "description": "The hardware can be edited through the following form"
+          "title": "@:components.domain.configuration.hardware.title",
+          "description": "@:components.domain.configuration.hardware.description"
         }
       },
       "creating": {
@@ -957,18 +925,6 @@
         "title": "Error saving desktop",
         "load": "Error loading desktop"
       },
-      "info": {
-        "title": "@:domains.capitalized.desktops Information",
-        "description": "Provide a name and description for your desktop to help identify it"
-      },
-      "access": {
-        "title": "Access configuration",
-        "description": "Viewers, credentials, and bastion configuration."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memory, boot order, interfaces and reservables."
-      },
       "save-confirmation": {
         "title": "Some hardware fields are restricted",
         "description": "Saving will apply the restricted hardware changes. Continue?",
@@ -1568,6 +1524,62 @@
           },
           "restricted": "Restricted value: {old_value} → Set to: {new_value}",
           "quota": "This value exceeds your quota"
+        }
+      },
+      "configuration": {
+        "preview": {
+          "title": "Preview",
+          "description": "This is how your desktop will look like. This data can be edited",
+          "start-disabled": "You can start the desktop once it is created"
+        },
+        "info": {
+          "title": {
+            "desktops": "@:domains.capitalized.desktops Information",
+            "templates": "@:domains.capitalized.templates Information"
+          },
+          "description": {
+            "desktops": "Provide a name and description for your desktop to help identify it",
+            "templates": "Provide a name and description for your template to help identify it"
+          }
+        },
+        "kind": {
+          "title": "Desktop Kind",
+          "description": "Select the kind of desktop you want to create",
+          "persistent": {
+            "title": "Persistent",
+            "description": "A persistent desktop saves all changes and files permanently."
+          },
+          "nonpersistent": {
+            "title": "Temporary",
+            "description": "A temporary desktop discards all changes and files when stopped. Only one temporary desktop is allowed per template."
+          }
+        },
+        "section": {
+          "title": {
+            "desktops": "Desktop configuration",
+            "templates": "Template configuration"
+          },
+          "description": {
+            "new-desktop": "These values come from the template. Change them below, or later once the desktop is created.",
+            "new-desktop-from-media": "These are the default values for the installation. Change them below, or later once the desktop is created.",
+            "edit-desktop": "Access and hardware of this desktop. Changes apply the next time it starts.",
+            "edit-template": "Access and hardware every desktop created from this template will inherit."
+          },
+          "show": "Change configuration",
+          "restore": "Restore initial values",
+          "restore-disabled": "No changes to restore yet"
+        },
+        "access": {
+          "title": "All access configuration",
+          "description": "Security and access configuration"
+        },
+        "hardware": {
+          "title": "All the hardware",
+          "description": "The hardware can be edited through the following form"
+        },
+        "hardware-limited": {
+          "title": "Hardware limited",
+          "description": "The following hardware values have been limited due to user permissions:"
         }
       }
     },

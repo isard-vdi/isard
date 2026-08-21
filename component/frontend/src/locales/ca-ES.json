@@ -210,47 +210,15 @@
             }
           }
         },
-        "preview": {
-          "title": "Previsualització",
-          "description": "Així és com es veurà el teu escriptori. Aquestes dades es poden editar",
-          "start-disabled": "Podràs iniciar l'escriptori un cop creat"
-        },
-        "desktop-information": {
-          "title": "Informació de l'escriptori",
-          "description": "Proporciona un nom i una descripció per identificar el teu escriptori"
-        },
-        "desktop-kind": {
-          "title": "Tipus d'escriptori",
-          "description": "Selecciona el tipus d'escriptori que vols crear",
-          "persistent": {
-            "title": "Persistent",
-            "description": "Un escriptori persistent guarda tots els canvis i fitxers de forma permanent."
-          },
-          "nonpersistent": {
-            "title": "Temporal",
-            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura. Només es permet un escriptori temporal per plantilla."
-          }
-        },
         "access": {
           "title": "Resum d'accés",
           "description": "Aquest és un resum dels mètodes d'accés disponibles per al teu escriptori",
           "show-access-customization": "Canvia l'accés",
           "hide-access-customization": "Amaga l'accés"
         },
-        "all-access": {
-          "title": "Configuració de tot l'accés",
-          "description": "Configuració de seguretat i accés"
-        },
         "hardware-limited": {
-          "title": "Maquinari limitat",
-          "description": "Els valors de maquinari següents han estat limitats per permisos d'usuari:"
-        },
-        "desktop-configuration": {
-          "title": "Configuració de l'escriptori",
-          "description": "Aquests valors provenen de la plantilla. Canvia'ls a sota o més endavant, amb l'escriptori ja creat.",
-          "show": "Canvia la configuració",
-          "restore": "Restaura els valors inicials",
-          "restore-disabled": "Encara no hi ha canvis per restaurar"
+          "title": "@:components.domain.configuration.hardware-limited.title",
+          "description": "@:components.domain.configuration.hardware-limited.description"
         },
         "hardware-summary": {
           "title": "Resum del maquinari",
@@ -259,8 +227,8 @@
           "hide-hardware-customization": "Amaga el maquinari"
         },
         "all-hardware": {
-          "title": "Tot el maquinari",
-          "description": "El maquinari es pot editar mitjançant el formulari següent"
+          "title": "@:components.domain.configuration.hardware.title",
+          "description": "@:components.domain.configuration.hardware.description"
         }
       },
       "creating": {
@@ -925,18 +893,6 @@
       "errors": {
         "title": "Error en desar l’escriptori",
         "load": "Error en carregar l’escriptori"
-      },
-      "info": {
-        "title": "Informació de l'escriptori",
-        "description": "Proporciona un nom i una descripció per identificar el teu escriptori"
-      },
-      "access": {
-        "title": "Configuració d'accés",
-        "description": "Visualitzadors, credencials i configuració del bastion."
-      },
-      "hardware": {
-        "title": "Maquinari",
-        "description": "vCPU, memòria, ordre d’arrencada, interfícies i reservables."
       },
       "save-confirmation": {
         "title": "Alguns camps de maquinari estan restringits",
@@ -2181,6 +2137,62 @@
           },
           "restricted": "Valor restringit: {old_value} → Establert a: {new_value}",
           "quota": "Aquest valor supera la teva quota"
+        }
+      },
+      "configuration": {
+        "preview": {
+          "title": "Previsualització",
+          "description": "Així és com es veurà el teu escriptori. Aquestes dades es poden editar",
+          "start-disabled": "Podràs iniciar l'escriptori un cop creat"
+        },
+        "info": {
+          "title": {
+            "desktops": "Informació de l'escriptori",
+            "templates": "Informació de la plantilla"
+          },
+          "description": {
+            "desktops": "Proporciona un nom i una descripció per identificar el teu escriptori",
+            "templates": "Proporciona un nom i una descripció per identificar la teva plantilla"
+          }
+        },
+        "kind": {
+          "title": "Tipus d'escriptori",
+          "description": "Selecciona el tipus d'escriptori que vols crear",
+          "persistent": {
+            "title": "Persistent",
+            "description": "Un escriptori persistent guarda tots els canvis i fitxers de forma permanent."
+          },
+          "nonpersistent": {
+            "title": "Temporal",
+            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura. Només es permet un escriptori temporal per plantilla."
+          }
+        },
+        "section": {
+          "title": {
+            "desktops": "Configuració de l'escriptori",
+            "templates": "Configuració de la plantilla"
+          },
+          "description": {
+            "new-desktop": "Aquests valors provenen de la plantilla. Canvia'ls a sota o més endavant, amb l'escriptori ja creat.",
+            "new-desktop-from-media": "Aquests són els valors per defecte de la instal·lació. Canvia'ls a sota o més endavant, amb l'escriptori ja creat.",
+            "edit-desktop": "Accés i maquinari d'aquest escriptori. Els canvis s'apliquen el proper cop que s'iniciï.",
+            "edit-template": "Accés i maquinari que heretarà cada escriptori creat a partir d'aquesta plantilla."
+          },
+          "show": "Canvia la configuració",
+          "restore": "Restaura els valors inicials",
+          "restore-disabled": "Encara no hi ha canvis per restaurar"
+        },
+        "access": {
+          "title": "Configuració de tot l'accés",
+          "description": "Configuració de seguretat i accés"
+        },
+        "hardware": {
+          "title": "Tot el maquinari",
+          "description": "El maquinari es pot editar mitjançant el formulari següent"
+        },
+        "hardware-limited": {
+          "title": "Maquinari limitat",
+          "description": "Els valors de maquinari següents han estat limitats per permisos d'usuari:"
         }
       }
     },

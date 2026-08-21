@@ -123,26 +123,6 @@
           }
         },
         "description": "Mahaigainaren izena, irudia eta hardwarea editatu ditzakezu",
-        "preview": {
-          "title": "Aurrebista",
-          "description": "Honela izango da zure mahaigainaren itxura. Datu hauek editatu daitezke"
-        },
-        "desktop-information": {
-          "title": "@:domains.capitalized.desktops Information",
-          "description": "Eman izen eta deskribapen bat zure mahaigaina identifikatzeko"
-        },
-        "desktop-kind": {
-          "title": "Mahaigain mota",
-          "description": "Hautatu sortu nahi duzun mahaigain mota",
-          "persistent": {
-            "title": "Iraunkorra",
-            "description": "Mahaigain iraunkor batek aldaketa eta fitxategi guztiak betirako gordetzen ditu."
-          },
-          "nonpersistent": {
-            "title": "Aldi baterakoa",
-            "description": "Aldi baterako mahaigain batek aldaketa eta fitxategi guztiak baztertzen ditu gelditzean. Txantiloi bakoitzeko aldi baterako mahaigain bakarra onartzen da."
-          }
-        },
         "access": {
           "title": "Sarbide-laburpena",
           "description": "Hau zure mahaigainerako erabilgarri dauden sarbide-metodoen laburpena da",
@@ -150,8 +130,8 @@
           "hide-access-customization": "Ezkutatu sarbidea"
         },
         "hardware-limited": {
-          "title": "Hardware mugatua",
-          "description": "Hurrengo hardware-balioak mugatu dira erabiltzaile-baimenengatik:"
+          "title": "@:components.domain.configuration.hardware-limited.title",
+          "description": "@:components.domain.configuration.hardware-limited.description"
         },
         "hardware-summary": {
           "title": "Hardware-laburpena",
@@ -160,8 +140,8 @@
           "hide-hardware-customization": "Ezkutatu hardwarea"
         },
         "all-hardware": {
-          "title": "Hardware guztia",
-          "description": "Hardwarea hurrengo formularioaren bidez editatu daiteke"
+          "title": "@:components.domain.configuration.hardware.title",
+          "description": "@:components.domain.configuration.hardware.description"
         }
       },
       "creating": {
@@ -907,6 +887,42 @@
           },
           "restricted": "Murriztutako balioa: {old_value} → Ezarrita: {new_value}",
           "quota": "Balio honek zure kuota gainditzen du"
+        }
+      },
+      "configuration": {
+        "preview": {
+          "title": "Aurrebista",
+          "description": "Honela izango da zure mahaigainaren itxura. Datu hauek editatu daitezke"
+        },
+        "info": {
+          "title": {
+            "desktops": "@:domains.capitalized.desktops Information",
+            "templates": "@:domains.capitalized.templates Information"
+          },
+          "description": {
+            "desktops": "Eman izen eta deskribapen bat zure mahaigaina identifikatzeko",
+            "templates": "Eman izen eta deskribapen bat zure txantiloia identifikatzeko"
+          }
+        },
+        "kind": {
+          "title": "Mahaigain mota",
+          "description": "Hautatu sortu nahi duzun mahaigain mota",
+          "persistent": {
+            "title": "Iraunkorra",
+            "description": "Mahaigain iraunkor batek aldaketa eta fitxategi guztiak betirako gordetzen ditu."
+          },
+          "nonpersistent": {
+            "title": "Aldi baterakoa",
+            "description": "Aldi baterako mahaigain batek aldaketa eta fitxategi guztiak baztertzen ditu gelditzean. Txantiloi bakoitzeko aldi baterako mahaigain bakarra onartzen da."
+          }
+        },
+        "hardware": {
+          "title": "Hardware guztia",
+          "description": "Hardwarea hurrengo formularioaren bidez editatu daiteke"
+        },
+        "hardware-limited": {
+          "title": "Hardware mugatua",
+          "description": "Hurrengo hardware-balioak mugatu dira erabiltzaile-baimenengatik:"
         }
       }
     },

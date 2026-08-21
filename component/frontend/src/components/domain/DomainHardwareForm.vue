@@ -260,8 +260,11 @@ const form = useForm({
   }
 })
 
-// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch)
-watch([templateData, desktopData], () => form.reset())
+// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch),
+// but never over edits in progress: the edit views refetch on focus.
+watch([templateData, desktopData], () => {
+  if (form.state.isPristine) form.reset()
+})
 
 const isDirty = form.useStore((state) => !state.isDefaultValue)
 

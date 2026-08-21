@@ -210,47 +210,15 @@
             }
           }
         },
-        "preview": {
-          "title": "Vista previa",
-          "description": "Así es como se verá tu escritorio. Estos datos se pueden editar",
-          "start-disabled": "Podrás iniciar el escritorio una vez creado"
-        },
-        "desktop-information": {
-          "title": "Información del escritorio",
-          "description": "Proporciona un nombre y una descripción para identificar tu escritorio"
-        },
-        "desktop-kind": {
-          "title": "Tipo de escritorio",
-          "description": "Selecciona el tipo de escritorio que deseas crear",
-          "persistent": {
-            "title": "Persistente",
-            "description": "Un escritorio persistente guarda todos los cambios y archivos de forma permanente."
-          },
-          "nonpersistent": {
-            "title": "Temporal",
-            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene. Solo se permite un escritorio temporal por plantilla."
-          }
-        },
         "access": {
           "title": "Resumen de acceso",
           "description": "Este es un resumen de los métodos de acceso disponibles para tu escritorio",
           "show-access-customization": "Cambiar acceso",
           "hide-access-customization": "Ocultar acceso"
         },
-        "all-access": {
-          "title": "Configuración de todo el acceso",
-          "description": "Configuración de seguridad y acceso"
-        },
         "hardware-limited": {
-          "title": "Hardware limitado",
-          "description": "Los siguientes valores de hardware han sido limitados por permisos de usuario:"
-        },
-        "desktop-configuration": {
-          "title": "Configuración del escritorio",
-          "description": "Estos valores vienen de la plantilla. Cámbialos abajo o más adelante, con el escritorio ya creado.",
-          "show": "Cambiar configuración",
-          "restore": "Restaurar valores iniciales",
-          "restore-disabled": "Todavía no hay cambios que restaurar"
+          "title": "@:components.domain.configuration.hardware-limited.title",
+          "description": "@:components.domain.configuration.hardware-limited.description"
         },
         "hardware-summary": {
           "title": "Resumen de hardware",
@@ -259,8 +227,8 @@
           "hide-hardware-customization": "Ocultar hardware"
         },
         "all-hardware": {
-          "title": "Todo el hardware",
-          "description": "El hardware se puede editar mediante el siguiente formulario"
+          "title": "@:components.domain.configuration.hardware.title",
+          "description": "@:components.domain.configuration.hardware.description"
         }
       },
       "creating": {
@@ -932,18 +900,6 @@
       "errors": {
         "title": "Error al guardar el escritorio",
         "load": "Error al cargar el escritorio"
-      },
-      "info": {
-        "title": "Información del escritorio",
-        "description": "Proporciona un nombre y una descripción para identificar tu escritorio"
-      },
-      "access": {
-        "title": "Configuración de acceso",
-        "description": "Visores, credenciales y configuración del bastion."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memoria, orden de arranque, interfaces y reservables."
       },
       "save-confirmation": {
         "title": "Algunos campos de hardware están restringidos",
@@ -2193,6 +2149,62 @@
           },
           "restricted": "Valor restringido: {old_value} → Establecido a: {new_value}",
           "quota": "Este valor supera tu cuota"
+        }
+      },
+      "configuration": {
+        "preview": {
+          "title": "Vista previa",
+          "description": "Así es como se verá tu escritorio. Estos datos se pueden editar",
+          "start-disabled": "Podrás iniciar el escritorio una vez creado"
+        },
+        "info": {
+          "title": {
+            "desktops": "Información del escritorio",
+            "templates": "Información de la plantilla"
+          },
+          "description": {
+            "desktops": "Proporciona un nombre y una descripción para identificar tu escritorio",
+            "templates": "Proporciona un nombre y una descripción para identificar tu plantilla"
+          }
+        },
+        "kind": {
+          "title": "Tipo de escritorio",
+          "description": "Selecciona el tipo de escritorio que deseas crear",
+          "persistent": {
+            "title": "Persistente",
+            "description": "Un escritorio persistente guarda todos los cambios y archivos de forma permanente."
+          },
+          "nonpersistent": {
+            "title": "Temporal",
+            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene. Solo se permite un escritorio temporal por plantilla."
+          }
+        },
+        "section": {
+          "title": {
+            "desktops": "Configuración del escritorio",
+            "templates": "Configuración de la plantilla"
+          },
+          "description": {
+            "new-desktop": "Estos valores vienen de la plantilla. Cámbialos abajo o más adelante, con el escritorio ya creado.",
+            "new-desktop-from-media": "Estos son los valores por defecto de la instalación. Cámbialos abajo o más adelante, con el escritorio ya creado.",
+            "edit-desktop": "Acceso y hardware de este escritorio. Los cambios se aplican la próxima vez que se inicie.",
+            "edit-template": "Acceso y hardware que heredará cada escritorio creado a partir de esta plantilla."
+          },
+          "show": "Cambiar configuración",
+          "restore": "Restaurar valores iniciales",
+          "restore-disabled": "Todavía no hay cambios que restaurar"
+        },
+        "access": {
+          "title": "Configuración de todo el acceso",
+          "description": "Configuración de seguridad y acceso"
+        },
+        "hardware": {
+          "title": "Todo el hardware",
+          "description": "El hardware se puede editar mediante el siguiente formulario"
+        },
+        "hardware-limited": {
+          "title": "Hardware limitado",
+          "description": "Los siguientes valores de hardware han sido limitados por permisos de usuario:"
         }
       }
     },
