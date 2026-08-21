@@ -63,13 +63,15 @@ pytestmark = pytest.mark.skipif(
 # including an empty table: the archive must report 0 for it rather than omit
 # it, and a dump whose row counting is off by a table boundary shows up here.
 #
-# The table count is also a ceiling, not just a sample size. Restore allocates
-# five multiprocessing.Value objects per table (_import.py:105-110), each one a
-# POSIX semaphore, and musl caps a process at 256 of them — so on the Alpine
-# image a restore of more than ~51 tables dies in parse_sources with
-# "OSError: [Errno 24] No file descriptors available" before it reaches any
-# Process call. Staying well under that keeps this suite pointed at the
-# start-method defect instead of colliding with a separate platform limit.
+# The table count used to be a ceiling as well. A locked multiprocessing.Value
+# allocates a POSIX semaphore and musl caps a process at 256, so five per table
+# in the importer meant a restore of more than about fifty tables died in
+# parse_sources with "OSError: [Errno 24] No file descriptors available" before
+# reaching any Process at all. A real database has around sixty tables, so the
+# restore path was broken on the Alpine images irrespective of the interpreter.
+# The driver now takes a lock only for the counter several writers share, and
+# test_restore_survives_a_realistic_table_count below is what keeps it that way:
+# it seeds past the old ceiling on purpose.
 SEED = {
     "users": 40,
     "domains": 25,
@@ -219,19 +221,6 @@ def test_dump_archive_holds_every_seeded_row(conn, seeded_db, tmp_path):
     assert _archive_counts(archive) == expected
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "rethinkdb-restore is broken under Python 3.14 and the pinned driver does "
-        "not fix it. The _mp_context patch landed in _export.py only; _import.py is "
-        "byte-identical between the old and new pins and still calls bare "
-        "multiprocessing.Process at lines 1332/1344/1369, so restoring dies with "
-        "TypeError: cannot pickle '_thread._local' object at _import.py:1337. "
-        "Fixing it means giving _import.py the same fork context _export.py got. "
-        "strict=True so this flips the pipeline red the moment the driver is "
-        "repaired and this marker is left behind."
-    ),
-)
 def test_restore_round_trips_every_row(conn, seeded_db, tmp_path):
     """Dump, drop the database, restore it, and compare row counts.
 
@@ -271,3 +260,61 @@ def test_restore_round_trips_every_row(conn, seeded_db, tmp_path):
         conn
     ), "restore exited 0 without recreating the database"
     assert _live_counts(conn, seeded_db) == expected
+
+
+def test_restore_survives_a_realistic_table_count(conn, tmp_path):
+    """Restore a database with more tables than the old semaphore ceiling.
+
+    Kept separate from the seeded fixture because what is under test here is the
+    table COUNT, not the rows: each table costs the importer a set of shared
+    counters, and it was the number of those -- not the volume of data -- that
+    used to abort the restore. Sixty-odd tables is what a real deployment looks
+    like, and it is above the ceiling that used to exist, so this fails loudly
+    if a lock ever comes back to a per-table counter.
+    """
+    db = f"ceiling_{uuid.uuid4().hex[:8]}"
+    r.db_create(db).run(conn)
+    try:
+        for i in range(70):
+            table = f"t{i:03d}"
+            r.db(db).table_create(table).run(conn)
+            r.db(db).table(table).insert(
+                [{"id": f"{table}-{j}"} for j in range(3)]
+            ).run(conn)
+
+        archive = tmp_path / "ceiling.tar.gz"
+        dumped = _run(
+            [
+                _binary("rethinkdb-dump"),
+                "-c",
+                RETHINKDB_ADDRESS,
+                "-e",
+                db,
+                "-f",
+                str(archive),
+            ]
+        )
+        assert dumped.returncode == 0, (
+            "rethinkdb-dump failed on a realistic table count.\n"
+            f"--- stderr ---\n{dumped.stderr}"
+        )
+
+        restored = _run(
+            [
+                _binary("rethinkdb-restore"),
+                "-c",
+                RETHINKDB_ADDRESS,
+                "--force",
+                str(archive),
+            ]
+        )
+        assert "No file descriptors available" not in restored.stderr, (
+            "restore hit the semaphore ceiling again: a per-table counter took a "
+            f"lock back.\n--- stderr ---\n{restored.stderr}"
+        )
+        assert (
+            restored.returncode == 0
+        ), f"rethinkdb-restore failed.\n--- stderr ---\n{restored.stderr}"
+        assert len(r.db(db).table_list().run(conn)) == 70
+    finally:
+        r.db_drop(db).run(conn)
