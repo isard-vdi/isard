@@ -21,8 +21,7 @@ import { QUOTA_STALE_TIME } from '@/lib/constants'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
-import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
+import DomainSummary from '@/components/domain/DomainSummary.vue'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 import { InputField } from '@/components/input-field'
@@ -400,28 +399,20 @@ const isPending = computed(() => {
             </h2>
           </div>
 
-          <Skeleton v-if="templateDetailsIsPending" class="h-48 w-full rounded-2xl" />
-          <div v-else class="flex flex-col gap-0">
-            <DomainAccessSummary
-              class="border-b-0 rounded-b-none pb-0"
-              :credentials="templateDetails?.credentials as any"
-              :viewers="templateDetails?.viewers"
-              :fullscreen="templateDetails?.fullscreen"
-            />
-            <DomainHardwareSummary
-              class="border-t-0 rounded-t-none"
-              :vcpu="templateDetails?.vcpu"
-              :memory="templateDetails?.memory"
-              :disk-bus="templateDetails?.disk_bus"
-              :videos="templateDetails?.videos.map((iface) => iface.name)"
-              :interfaces="templateDetails?.interfaces.map((iface) => iface.name)"
-              :boot-order="templateDetails?.boot_order.map((boot) => boot.name)"
-              :isos="templateDetails?.isos?.map((boot) => boot.name)"
-              :floppies="templateDetails?.floppies?.map((boot) => boot.name)"
-              :loading="templateDetailsIsPending"
-              :vgpus="templateDetails?.reservables?.vgpus"
-            />
-          </div>
+          <DomainSummary
+            :loading="templateDetailsIsPending"
+            :credentials="templateDetails?.credentials"
+            :viewers="templateDetails?.viewers"
+            :fullscreen="templateDetails?.fullscreen"
+            :vcpu="templateDetails?.vcpu"
+            :memory="templateDetails?.memory"
+            :disk-bus="templateDetails?.disk_bus"
+            :videos="templateDetails?.videos.map((video) => video.name)"
+            :interfaces="templateDetails?.interfaces.map((iface) => iface.name)"
+            :boot-order="templateDetails?.boot_order.map((boot) => boot.name)"
+            :isos="templateDetails?.isos?.map((iso) => iso.name)"
+            :vgpus="templateDetails?.reservables?.vgpus"
+          />
         </div>
       </div>
     </main>

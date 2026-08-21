@@ -8,8 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/modal'
 import { Separator } from '@/components/ui/separator'
-import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
-import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
+import DomainSummary from '@/components/domain/DomainSummary.vue'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
 import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
@@ -124,7 +123,7 @@ const hasLimitedFields = computed(() => {
             </h2>
           </div>
 
-          <DomainAccessSummary
+          <DomainSummary
             :credentials="desktopData.guest_properties?.credentials"
             :viewers="selectedViewers"
             :fullscreen="desktopData.guest_properties?.fullscreen"
@@ -214,7 +213,7 @@ const hasLimitedFields = computed(() => {
             </AlertDescription>
           </Alert>
 
-          <DomainHardwareSummary
+          <DomainSummary
             :vcpu="desktopData.hardware?.vcpus"
             :memory="desktopData.hardware?.memory"
             :disk-bus="desktopData.hardware?.disk_bus"
@@ -223,7 +222,6 @@ const hasLimitedFields = computed(() => {
             :boot-order="desktopData.hardware?.boot_order"
             :isos="desktopData.hardware?.isos?.map((iso) => iso.name)"
             :floppies="desktopData.hardware?.floppies?.map((floppy) => floppy.name)"
-            :loading="false"
             :vgpus="desktopData.reservables?.vgpus"
           />
 

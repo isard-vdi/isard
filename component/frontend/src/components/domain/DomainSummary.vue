@@ -12,9 +12,10 @@ import { hasWireguardRequiringViewer } from '@/lib/viewers'
 /** What the card reports; whoever renders it collects these from its own source. */
 export interface DomainSummaryData {
   // Access
+  // Nullable fields: that is what the generated domain/template responses carry.
   credentials?: {
-    username?: string
-    password?: string
+    username?: string | null
+    password?: string | null
   } | null
   viewers?: string[]
   fullscreen?: boolean
