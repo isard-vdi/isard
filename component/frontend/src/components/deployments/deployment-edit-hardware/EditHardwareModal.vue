@@ -79,6 +79,7 @@ const handleSubmit = () => {
     :open="props.open"
     size="7xl"
     _class="h-full"
+    hide-title
     :title="
       t('components.deployments.form-update-hardware-modal.title', {
         'desktop-name': desktopData.name
