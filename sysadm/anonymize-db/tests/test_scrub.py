@@ -593,6 +593,9 @@ def test_log_names_rebuilt_from_fks():
                 "owner_group_id": "g1234567890abcdef",
                 "owner_group_name": "Finance Department",
                 "request_ip": "10.1.2.3",
+                "request_agent_browser": "Firefox",
+                "request_agent_platform": "Linux",
+                "request_agent_version": "141.0.7390.55",
             }
         ],
         "logs_desktops": [
@@ -617,6 +620,7 @@ def test_log_names_rebuilt_from_fks():
         "Maria's Finance Desktop",
         "Finance Lab 2026",
         "10.1.2.3",
+        "141.0.7390.55",
     ):
         assert needle not in blob, f"leaked: {needle!r}"
 
@@ -626,6 +630,12 @@ def test_log_names_rebuilt_from_fks():
     assert lu["owner_group_name"] == "group-g1234567890a"
     assert lu["owner_user_id"] == "u1234567-aaaa-bbbb"
     assert lu["request_ip"] == ""
+    # The whole request fingerprint goes, not part of it: logs_desktops has
+    # always dropped the agent version too, and logs_users started receiving
+    # it once the request-capture path was restored.
+    assert lu["request_agent_browser"] == ""
+    assert lu["request_agent_platform"] == ""
+    assert lu["request_agent_version"] == ""
 
     ld = out["logs_desktops"][0]
     assert ld["desktop_name"] == "desktop-d1234567"

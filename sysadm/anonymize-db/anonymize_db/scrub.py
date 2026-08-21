@@ -829,6 +829,7 @@ class Scrubber:
                 "request_ip",
                 "request_agent_browser",
                 "request_agent_platform",
+                "request_agent_version",
             ):
                 if isinstance(r.get(k), str):
                     r[k] = ""
