@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, readonly, ref, toValue, reactive, watch 
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import {
   useLocalStorage as vueuseLocalStorage,
+  refDebounced,
   useElementSize,
   useEventListener,
   useWindowSize,
@@ -500,6 +501,20 @@ const clearDesktopFilters = () => {
   desktopFilters.value = JSON.parse(JSON.stringify(defaultDesktopFilters))
 }
 
+// The input keeps updating on every keystroke; only the filtering waits, so the
+// grid is not rebuilt (and the query re-run over every desktop) mid-word.
+const debouncedDesktopSearch = refDebounced(
+  computed(() => desktopFilters.value.search.trim().toLowerCase()),
+  150
+)
+
+const RUNNING_DESKTOP_STATUSES: DesktopStatusEnum[] = [
+  DesktopStatusEnum.STARTING,
+  DesktopStatusEnum.STARTED,
+  DesktopStatusEnum.SHUTTING_DOWN,
+  DesktopStatusEnum.WAITING_IP
+]
+
 const filteredDesktops = computed(() => {
   return (
     desktops.value?.desktops.filter((desktop) => {
@@ -510,10 +525,11 @@ const filteredDesktops = computed(() => {
 
 const isDesktopVisible = (desktop: UserDesktop) => {
   // Search filter
+  const search = debouncedDesktopSearch.value
   const matchesSearch =
-    desktopFilters.value.search.toLowerCase() === '' ||
-    desktop.name.toLowerCase().includes(desktopFilters.value.search.toLowerCase()) ||
-    desktop.description?.toLowerCase().includes(desktopFilters.value.search.toLowerCase())
+    search === '' ||
+    desktop.name.toLowerCase().includes(search) ||
+    !!desktop.description?.toLowerCase().includes(search)
 
   // Kind filter
   const matchesKind =
@@ -528,23 +544,9 @@ const isDesktopVisible = (desktop: UserDesktop) => {
   const matchesStatus =
     desktopFilters.value.status === 'all' ||
     (desktopFilters.value.status === 'started' &&
-      (
-        [
-          DesktopStatusEnum.STARTING,
-          DesktopStatusEnum.STARTED,
-          DesktopStatusEnum.SHUTTING_DOWN,
-          DesktopStatusEnum.WAITING_IP
-        ] as DesktopStatusEnum[]
-      ).includes(desktop.status)) ||
+      RUNNING_DESKTOP_STATUSES.includes(desktop.status)) ||
     (desktopFilters.value.status === 'stopped' &&
-      !(
-        [
-          DesktopStatusEnum.STARTING,
-          DesktopStatusEnum.STARTED,
-          DesktopStatusEnum.SHUTTING_DOWN,
-          DesktopStatusEnum.WAITING_IP
-        ] as DesktopStatusEnum[]
-      ).includes(desktop.status))
+      !RUNNING_DESKTOP_STATUSES.includes(desktop.status))
 
   // ----------------------------------------------------
   return matchesSearch && matchesKind && matchesStatus
@@ -1612,7 +1614,7 @@ const cardGridVirtualizer = useWindowVirtualizer(
           v-show="filteredDesktops.length === 0"
           kind="desktops"
           :variant="isFirstRun ? 'first-run' : 'no-results'"
-          :searching="desktopFilters.search.length > 0"
+          :searching="debouncedDesktopSearch.length > 0"
           :active-filters="activeDesktopFilterCount"
           @clear-search="desktopFilters.search = ''"
           @clear-filters="clearDesktopFilters()"
