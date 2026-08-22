@@ -667,7 +667,7 @@ const updateHardware = (
         </form.Subscribe>
       </template>
     </FormHeader>
-    <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
+    <main class="max-w-320 w-full mx-auto flex flex-col gap-6">
       <!-- TODO: try to deduplicate `createDeploymentError as DesktopNameExistsErrorResponse` -->
       <Alert
         v-if="(createDeploymentError as DesktopNameExistsErrorResponse)?.description_code"

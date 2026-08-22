@@ -8,7 +8,6 @@ import {
   checkQuotaNewDeploymentOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { type OwnedDeployment } from '@/gen/oas/apiv4'
-import InputField from '@/components/input-field/InputField.vue'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { QuotaExceededModal } from '@/components/modal'
 import { DeleteModal } from '@/components/deployments/actions/delete-modal'
@@ -30,11 +29,16 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useRoute, useRouter } from 'vue-router'
 import { cn } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
-import Icon from '@/components/icon/Icon.vue'
 import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
-import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
-import { Kbd } from '@/components/kbd'
+import {
+  FilterPanel,
+  FilterToggle,
+  PageContainer,
+  PageToolbar,
+  SearchInput
+} from '@/components/page'
+import { useFilterPanel } from '@/composables/useFilterPanel'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -70,10 +74,17 @@ const goToNewDeployment = async () => {
 
 // Filters
 interface DeploymentFilters {
-  status: 'all' | 'visible'
+  status: 'all' | 'visible' | 'hidden'
 }
 
 const deploymentFilters = ref<DeploymentFilters>({ status: 'all' })
+
+const showDeploymentFilters = useFilterPanel('deployments_filters_state')
+
+// Search has its own always-visible input; only the ones the panel hides count.
+const activeDeploymentFilterCount = computed(() =>
+  deploymentFilters.value.status === 'all' ? 0 : 1
+)
 
 const filteredDeployments = computed(() => {
   const allDeployments = deployments.value?.deployments ?? []
@@ -91,7 +102,8 @@ const areDeploymentsVisible = (deployments: OwnedDeployment) => {
   // Visibility filter
   const matchesVisibility =
     deploymentFilters.value.status === 'all' ||
-    (deploymentFilters.value.status === 'visible' && deployments.tag_visible === true)
+    (deploymentFilters.value.status === 'visible' && deployments.tag_visible === true) ||
+    (deploymentFilters.value.status === 'hidden' && deployments.tag_visible !== true)
 
   return matchesSearch && matchesVisibility
 }
@@ -238,8 +250,6 @@ const goToDeployment = (row: any) => {
 }
 
 const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
-
-useSearchShortcuts(DEPLOYMENTS_SEARCH_INPUT_ID)
 </script>
 
 <template>
@@ -270,41 +280,22 @@ useSearchShortcuts(DEPLOYMENTS_SEARCH_INPUT_ID)
     :on-success="closeDeleteModal"
     @close="closeDeleteModal"
   />
-  <div v-if="deploymentsIsError" class="text-center text-error-500">
-    <pre>{{ deploymentsError }}</pre>
-  </div>
-  <main class="flex flex-col gap-6 p-4 w-full max-w-420 m-auto">
-    <div class="flex flex-row-reverse justify-end gap-2">
-      <p class="text-3xl font-bold">{{ t('views.deployments.table-title') }}</p>
-      <Icon name="info-circle" />
+  <PageContainer>
+    <div v-if="deploymentsIsError" class="text-center text-error-500">
+      <pre>{{ deploymentsError }}</pre>
     </div>
-    <div class="flex justify-between w-full items-center">
-      <InputField
-        :id="DEPLOYMENTS_SEARCH_INPUT_ID"
-        v-model="inputSearch"
-        :placeholder="t('views.deployments.filters.search.placeholder')"
-        icon="search-lg"
-        class="h-min w-full max-w-120 mr-auto"
-      >
-        <template #inline-end>
-          <Kbd class="max-sm:hidden">/</Kbd>
-        </template>
-      </InputField>
-      <div class="flex flex-row gap-5 items-center flex-wrap">
-        <ToggleGroup
-          v-model="deploymentFilters.status"
-          :spacing="1"
-          type="single"
-          size="default"
-          class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
-        >
-          <ToggleGroupItem value="all" variant="gray-warm">
-            <span>{{ t('views.deployments.filters.status.all') }}</span>
-          </ToggleGroupItem>
-          <ToggleGroupItem value="visible" variant="gray-warm">
-            <span>{{ t('views.deployments.filters.status.visible') }}</span>
-          </ToggleGroupItem>
-        </ToggleGroup>
+    <PageToolbar>
+      <template #search>
+        <SearchInput
+          :id="DEPLOYMENTS_SEARCH_INPUT_ID"
+          v-model="inputSearch"
+          :placeholder="t('views.deployments.filters.search.placeholder')"
+        />
+      </template>
+      <template #filters>
+        <FilterToggle v-model="showDeploymentFilters" :active-count="activeDeploymentFilterCount" />
+      </template>
+      <template #actions>
         <Button
           :disabled="checkQuotaIsPending"
           :icon="checkQuotaIsPending ? 'loading-02' : 'plus'"
@@ -313,8 +304,29 @@ useSearchShortcuts(DEPLOYMENTS_SEARCH_INPUT_ID)
         >
           {{ t('router.deployments.new.title') }}
         </Button>
-      </div>
-    </div>
+      </template>
+      <template #panel>
+        <FilterPanel :open="showDeploymentFilters">
+          <ToggleGroup
+            v-model="deploymentFilters.status"
+            :spacing="1"
+            type="single"
+            size="default"
+            class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
+          >
+            <ToggleGroupItem value="all" variant="gray-warm">
+              <span>{{ t('views.deployments.filters.status.all') }}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="visible" variant="gray-warm">
+              <span>{{ t('views.deployments.filters.status.visible') }}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="hidden" variant="gray-warm">
+              <span>{{ t('views.deployments.filters.status.hidden') }}</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </FilterPanel>
+      </template>
+    </PageToolbar>
     <div v-if="deploymentsArePending" class="flex flex-col gap-4 mt-8">
       <div v-for="n in 4" :key="'skeleton-row-' + n">
         <Skeleton class="h-16 w-full rounded-r-2xl" />
@@ -408,5 +420,5 @@ useSearchShortcuts(DEPLOYMENTS_SEARCH_INPUT_ID)
         </EmptyDescription>
       </Empty>
     </template>
-  </main>
+  </PageContainer>
 </template>

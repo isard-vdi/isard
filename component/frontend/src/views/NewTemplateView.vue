@@ -45,9 +45,7 @@ import {
 } from '@tanstack/vue-table'
 
 import { cn, valueUpdater } from '@/lib/utils'
-import InputField from '@/components/input-field/InputField.vue'
-import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
-import { Kbd } from '@/components/kbd'
+import { SearchInput } from '@/components/page'
 
 const route = useRoute()
 const router = useRouter()
@@ -237,8 +235,6 @@ const table = useVueTable({
 })
 
 const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
-
-useSearchShortcuts(NEW_TEMPLATE_SEARCH_INPUT_ID)
 </script>
 
 <template>
@@ -312,24 +308,19 @@ useSearchShortcuts(NEW_TEMPLATE_SEARCH_INPUT_ID)
       </template>
     </FormHeader>
 
-    <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
+    <main class="max-w-320 w-full mx-auto flex flex-col gap-6">
       <template v-if="currentStep === 1">
         <div class="flex flex-col md:flex-row items-center justify-between gap-2">
           <h1 class="text-lg font-semibold text-gray-warm-900 line-clamp-2">
             {{ t('views.new-template.select.title') }}
           </h1>
 
-          <InputField
+          <SearchInput
             :id="NEW_TEMPLATE_SEARCH_INPUT_ID"
             v-model="globalFilter"
-            class="w-full max-w-120 min-w-48"
-            icon="search-lg"
+            class="min-w-48"
             :placeholder="t('views.desktops.filters.search.placeholder')"
-          >
-            <template #inline-end>
-              <Kbd class="max-sm:hidden">/</Kbd>
-            </template>
-          </InputField>
+          />
         </div>
 
         <DataTableBackground>

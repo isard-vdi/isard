@@ -26,6 +26,14 @@ import {
 } from '@/components/ui/context-menu'
 import { TemplateDataTable } from '@/components/data-table'
 import {
+  FilterPanel,
+  FilterToggle,
+  PageContainer,
+  PageToolbar,
+  SearchInput
+} from '@/components/page'
+import { useFilterPanel } from '@/composables/useFilterPanel'
+import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -39,6 +47,7 @@ import { TemplateDeleteModal } from '@/components/templates/template-delete-moda
 import { TemplateToDesktopModal } from '@/components/templates/template-to-desktop-modal'
 import { TemplateToggleVisibilityModal } from '@/components/template-toggle-visibility'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { toggleVariants } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from '@/components/ui/toast'
@@ -50,6 +59,15 @@ const queryClient = useQueryClient()
 const { t } = useI18n()
 
 const activeTab = ref<'user' | 'shared'>('user')
+
+const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
+const inputSearch = ref('')
+
+const showTemplateFilters = useFilterPanel('templates_filters_state')
+const templateVisibility = ref<'all' | 'visible' | 'hidden'>('all')
+
+// Search has its own always-visible input; only the ones the panel hides count.
+const activeTemplateFilterCount = computed(() => (templateVisibility.value === 'all' ? 0 : 1))
 
 // Queries
 const {
@@ -99,8 +117,20 @@ const tableHeaders = computed(() => {
 })
 
 const tableRows = computed(() => {
-  const data = activeTab.value === 'user' ? userTemplates.value : sharedTemplates.value
-  return data?.templates || []
+  // Only owned templates carry a visibility flag, so the filter is theirs alone.
+  if (activeTab.value === 'shared') {
+    return sharedTemplates.value?.templates || []
+  }
+
+  return (userTemplates.value?.templates || []).filter((template) => {
+    if (templateVisibility.value === 'all') {
+      return true
+    }
+
+    // Legacy rows come back without the field and are visible
+    const isVisible = template.enabled !== false
+    return templateVisibility.value === 'visible' ? isVisible : !isVisible
+  })
 })
 
 const handleSharedTabClick = () => {
@@ -301,259 +331,299 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
     "
   />
 
-  <main class="w-full flex justify-center">
-    <div class="flex flex-col gap-6 w-full max-w-480">
-      <div v-if="userTemplatesIsError || sharedTemplatesIsError" class="text-center text-error-500">
-        <pre v-if="userTemplatesError">{{ userTemplatesError }}</pre>
-        <pre v-if="sharedTemplatesError">{{ sharedTemplatesError }}</pre>
-      </div>
+  <PageContainer>
+    <div v-if="userTemplatesIsError || sharedTemplatesIsError" class="text-center text-error-500">
+      <pre v-if="userTemplatesError">{{ userTemplatesError }}</pre>
+      <pre v-if="sharedTemplatesError">{{ sharedTemplatesError }}</pre>
+    </div>
 
-      <TemplateDataTable
-        :headers="tableHeaders"
-        :rows="tableRows"
-        :loading="userTemplatesIsPending || sharedTemplatesIsFetching"
-        :is-clickable="false"
-      >
-        <template #filters-left>
-          <Tabs v-model="activeTab">
-            <TabsList class="flex w-fit gap-[--spacing(1)] rounded-md">
-              <TabsTrigger
-                value="user"
-                :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
-              >
-                <Icon name="user-03" stroke-color="currentColor" />
-                {{ t('components.templates.template-type.owned') }}
-              </TabsTrigger>
-              <TabsTrigger
-                value="shared"
-                :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
-                @click="handleSharedTabClick"
-              >
-                <Icon name="share-06" stroke-color="currentColor" />
-                {{ t('components.templates.template-type.shared') }}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </template>
-
-        <template #filters-right>
-          <Button
-            :icon="templateCreationCheckIsPending ? 'loading-02' : 'plus'"
-            :icon-class="{
-              'motion-safe:animate-[spin_2s_linear_infinite]': templateCreationCheckIsPending
-            }"
-            :disabled="templateCreationCheckIsPending"
-            @click="handleWithTemplateQuotaCheck(() => router.push({ name: 'new-template' }))"
-            >{{ t('views.templates.new-template') }}</Button
-          >
-        </template>
-
-        <template #cell-image="{ row }">
-          <div class="relative">
-            <div
-              class="w-48 h-16 overflow-hidden shrink-0 rounded-l-2xl object-cover bg-center bg-cover relative"
-              :class="{ 'grayscale opacity-40': isFailed(row) }"
-              :style="{
-                backgroundImage: `url(${row.image.url})`
-              }"
+    <PageToolbar>
+      <template #tabs>
+        <Tabs v-model="activeTab">
+          <TabsList class="flex w-fit gap-[--spacing(1)] rounded-md">
+            <TabsTrigger
+              value="user"
+              :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
             >
-              <ContextMenu>
-                <ContextMenuTrigger class="absolute top-0 bottom-0 left-0 w-1/4 rounded-l-2xl">
-                </ContextMenuTrigger>
-                <ContextMenuContent class="bg-white border border-gray-warm-300 rounded-lg">
-                  <ContextMenuItem @click="copyToClipboard(row.id)">{{
-                    t('components.templates.datatable.debug-options.copy-id')
-                  }}</ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            </div>
+              <Icon name="user-03" stroke-color="currentColor" />
+              {{ t('components.templates.template-type.owned') }}
+            </TabsTrigger>
+            <TabsTrigger
+              value="shared"
+              :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
+              @click="handleSharedTabClick"
+            >
+              <Icon name="share-06" stroke-color="currentColor" />
+              {{ t('components.templates.template-type.shared') }}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </template>
 
-            <Tooltip v-if="isFailed(row)">
+      <template #search>
+        <SearchInput
+          :id="TEMPLATES_SEARCH_INPUT_ID"
+          v-model="inputSearch"
+          :placeholder="t('views.templates.filters.search.placeholder')"
+        />
+      </template>
+
+      <template #filters>
+        <FilterToggle
+          v-if="activeTab === 'user'"
+          v-model="showTemplateFilters"
+          :active-count="activeTemplateFilterCount"
+        />
+      </template>
+
+      <template #actions>
+        <Button
+          :icon="templateCreationCheckIsPending ? 'loading-02' : 'plus'"
+          :icon-class="{
+            'motion-safe:animate-[spin_2s_linear_infinite]': templateCreationCheckIsPending
+          }"
+          :disabled="templateCreationCheckIsPending"
+          @click="handleWithTemplateQuotaCheck(() => router.push({ name: 'new-template' }))"
+          >{{ t('views.templates.new-template') }}</Button
+        >
+      </template>
+
+      <template #panel>
+        <FilterPanel :open="showTemplateFilters && activeTab === 'user'">
+          <ToggleGroup
+            v-model="templateVisibility"
+            :spacing="1"
+            type="single"
+            size="default"
+            class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
+          >
+            <ToggleGroupItem value="all" variant="gray-warm">
+              <span>{{ t('views.templates.filters.visibility.all') }}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="visible" variant="gray-warm">
+              <span>{{ t('views.templates.filters.visibility.visible') }}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="hidden" variant="gray-warm">
+              <span>{{ t('views.templates.filters.visibility.hidden') }}</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </FilterPanel>
+      </template>
+    </PageToolbar>
+
+    <TemplateDataTable
+      v-model:search="inputSearch"
+      :headers="tableHeaders"
+      :rows="tableRows"
+      :loading="userTemplatesIsPending || sharedTemplatesIsFetching"
+      :is-clickable="false"
+      hide-toolbar
+    >
+      <template #cell-image="{ row }">
+        <div class="relative">
+          <div
+            class="w-48 h-16 overflow-hidden shrink-0 rounded-l-2xl object-cover bg-center bg-cover relative"
+            :class="{ 'grayscale opacity-40': isFailed(row) }"
+            :style="{
+              backgroundImage: `url(${row.image.url})`
+            }"
+          >
+            <ContextMenu>
+              <ContextMenuTrigger class="absolute top-0 bottom-0 left-0 w-1/4 rounded-l-2xl">
+              </ContextMenuTrigger>
+              <ContextMenuContent class="bg-white border border-gray-warm-300 rounded-lg">
+                <ContextMenuItem @click="copyToClipboard(row.id)">{{
+                  t('components.templates.datatable.debug-options.copy-id')
+                }}</ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          </div>
+
+          <Tooltip v-if="isFailed(row)">
+            <TooltipTrigger as-child>
+              <div
+                aria-hidden="true"
+                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center bg-error-200/60 p-1.5 rounded-full backdrop-blur-xs border-2 border-base-white ring-[3px] ring-error-600/20 ring-offset-1 ring-offset-base-white/30 shadow-md shadow-error-700"
+              >
+                <Icon name="alert-triangle" size="xl" stroke-color="error-700" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent :title="t('views.templates.table.failed-message')" />
+          </Tooltip>
+        </div>
+      </template>
+
+      <template #cell-name="{ row }">
+        <div class="flex flex-col">
+          <p class="text-sm font-semibold text-gray-warm-900 truncate">{{ row.name }}</p>
+          <template v-if="isFailed(row)">
+            <Tooltip :delay-duration="200">
               <TooltipTrigger as-child>
                 <div
-                  aria-hidden="true"
-                  class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center bg-error-200/60 p-1.5 rounded-full backdrop-blur-xs border-2 border-base-white ring-[3px] ring-error-600/20 ring-offset-1 ring-offset-base-white/30 shadow-md shadow-error-700"
+                  class="inline-flex items-center gap-1.5 font-semibold max-w-full w-max text-xs text-error-600"
                 >
-                  <Icon name="alert-triangle" size="xl" stroke-color="error-700" />
+                  <span aria-hidden="true" class="contents">
+                    <Icon
+                      name="info-circle"
+                      class="size-3.5 shrink-0"
+                      stroke-color="currentColor"
+                    />
+                  </span>
+                  <span class="truncate">{{ t('views.templates.table.failed-badge') }}</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent :title="t('views.templates.table.failed-message')" />
             </Tooltip>
-          </div>
-        </template>
+            <span class="sr-only">{{ t('views.templates.table.failed-message') }}</span>
+          </template>
+        </div>
+      </template>
 
-        <template #cell-name="{ row }">
-          <div class="flex flex-col">
-            <p class="text-sm font-semibold text-gray-warm-900 truncate">{{ row.name }}</p>
-            <template v-if="isFailed(row)">
-              <Tooltip :delay-duration="200">
-                <TooltipTrigger as-child>
-                  <div
-                    class="inline-flex items-center gap-1.5 font-semibold max-w-full w-max text-xs text-error-600"
-                  >
-                    <span aria-hidden="true" class="contents">
-                      <Icon
-                        name="info-circle"
-                        class="size-3.5 shrink-0"
-                        stroke-color="currentColor"
-                      />
-                    </span>
-                    <span class="truncate">{{ t('views.templates.table.failed-badge') }}</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent :title="t('views.templates.table.failed-message')" />
-              </Tooltip>
-              <span class="sr-only">{{ t('views.templates.table.failed-message') }}</span>
-            </template>
-          </div>
-        </template>
+      <template #cell-description="{ row }">
+        <p class="text-xs font-medium text-gray-warm-600 line-clamp-2">
+          {{ row.description }}
+        </p>
+      </template>
 
-        <template #cell-description="{ row }">
-          <p class="text-xs font-medium text-gray-warm-600 line-clamp-2">
-            {{ row.description }}
-          </p>
-        </template>
+      <template #cell-owner="{ row }">
+        <AvatarLabel :src="row.user.photo" :name="row.user.name" class="text-gray-warm-900" />
+      </template>
 
-        <template #cell-owner="{ row }">
-          <AvatarLabel :src="row.user.photo" :name="row.user.name" class="text-gray-warm-900" />
-        </template>
-
-        <template v-if="activeTab === 'user'" #cell-actions="{ row }">
-          <div class="flex gap-4">
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  hierarchy="secondary-gray"
-                  icon="edit-01"
-                  class="aspect-square p-[10px]"
-                  @click="router.push({ name: 'edit-template', params: { templateId: row.id } })"
-                />
-              </TooltipTrigger>
-              <TooltipContent :title="t('views.templates.table.actions.edit')" />
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  hierarchy="secondary-gray"
-                  :icon="row.enabled ? 'eye' : 'eye-off'"
-                  class="aspect-square p-[10px]"
-                  @click="
-                    visibilityModalData = {
-                      id: row.id,
-                      name: row.name,
-                      action: row.enabled ? 'hide' : 'show'
-                    }
-                  "
-                />
-              </TooltipTrigger>
-              <TooltipContent
-                :title="t(`views.templates.table.actions.${row.enabled ? 'hide' : 'show'}`)"
+      <template v-if="activeTab === 'user'" #cell-actions="{ row }">
+        <div class="flex gap-4">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                hierarchy="secondary-gray"
+                icon="edit-01"
+                class="aspect-square p-[10px]"
+                @click="router.push({ name: 'edit-template', params: { templateId: row.id } })"
               />
-            </Tooltip>
+            </TooltipTrigger>
+            <TooltipContent :title="t('views.templates.table.actions.edit')" />
+          </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <span class="inline-flex">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger>
-                      <Button
-                        hierarchy="secondary-gray"
-                        icon="dots-vertical"
-                        class="aspect-square p-[10px]"
-                      />
-                    </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                hierarchy="secondary-gray"
+                :icon="row.enabled ? 'eye' : 'eye-off'"
+                class="aspect-square p-[10px]"
+                @click="
+                  visibilityModalData = {
+                    id: row.id,
+                    name: row.name,
+                    action: row.enabled ? 'hide' : 'show'
+                  }
+                "
+              />
+            </TooltipTrigger>
+            <TooltipContent
+              :title="t(`views.templates.table.actions.${row.enabled ? 'hide' : 'show'}`)"
+            />
+          </Tooltip>
 
-                    <DropdownMenuContent
-                      class="bg-white border border-gray-warm-300 rounded-lg"
-                      align="end"
-                    >
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem @click="openTemplateInfoModal(row.id)">
-                          <Button
-                            size="sm"
-                            class="mr-2 w-full justify-start"
-                            hierarchy="link-gray"
-                            icon="info-circle"
-                            icon-size="md"
-                          >
-                            {{ t('views.templates.table.actions.info') }}
-                          </Button>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem @click="openAllowedModal({ id: row.id, name: row.name })">
-                          <Button
-                            size="sm"
-                            class="mr-2 w-full justify-start"
-                            hierarchy="link-gray"
-                            icon="users-01"
-                            icon-size="md"
-                          >
-                            {{ t('views.templates.table.actions.update-alloweds') }}
-                          </Button>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          :disabled="isFailed(row)"
-                          @click="
-                            handleWithDesktopQuotaCheck(
-                              () => (convertModalData = { id: row.id, name: row.name })
-                            )
-                          "
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span class="inline-flex">
+                <DropdownMenu>
+                  <DropdownMenuTrigger>
+                    <Button
+                      hierarchy="secondary-gray"
+                      icon="dots-vertical"
+                      class="aspect-square p-[10px]"
+                    />
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent
+                    class="bg-white border border-gray-warm-300 rounded-lg"
+                    align="end"
+                  >
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem @click="openTemplateInfoModal(row.id)">
+                        <Button
+                          size="sm"
+                          class="mr-2 w-full justify-start"
+                          hierarchy="link-gray"
+                          icon="info-circle"
+                          icon-size="md"
                         >
-                          <Button
-                            size="sm"
-                            class="mr-2 w-full justify-start"
-                            hierarchy="link-gray"
-                            icon="monitor-02"
-                            icon-size="md"
-                          >
-                            {{ t('views.templates.table.actions.template-to-desktop') }}
-                          </Button>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          class="hover:bg-error-50 focus:bg-error-50"
-                          @click="deleteModalData = { id: row.id, name: row.name }"
+                          {{ t('views.templates.table.actions.info') }}
+                        </Button>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem @click="openAllowedModal({ id: row.id, name: row.name })">
+                        <Button
+                          size="sm"
+                          class="mr-2 w-full justify-start"
+                          hierarchy="link-gray"
+                          icon="users-01"
+                          icon-size="md"
                         >
-                          <Button
-                            size="sm"
-                            class="mr-2 w-full justify-start text-error-700"
-                            hierarchy="link-gray"
-                            icon="trash-04"
-                            icon-size="md"
-                          >
-                            {{ t('views.templates.table.actions.delete') }}
-                          </Button>
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent :title="t('common.actions.more')" />
-            </Tooltip>
-          </div>
-        </template>
+                          {{ t('views.templates.table.actions.update-alloweds') }}
+                        </Button>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        :disabled="isFailed(row)"
+                        @click="
+                          handleWithDesktopQuotaCheck(
+                            () => (convertModalData = { id: row.id, name: row.name })
+                          )
+                        "
+                      >
+                        <Button
+                          size="sm"
+                          class="mr-2 w-full justify-start"
+                          hierarchy="link-gray"
+                          icon="monitor-02"
+                          icon-size="md"
+                        >
+                          {{ t('views.templates.table.actions.template-to-desktop') }}
+                        </Button>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        class="hover:bg-error-50 focus:bg-error-50"
+                        @click="deleteModalData = { id: row.id, name: row.name }"
+                      >
+                        <Button
+                          size="sm"
+                          class="mr-2 w-full justify-start text-error-700"
+                          hierarchy="link-gray"
+                          icon="trash-04"
+                          icon-size="md"
+                        >
+                          {{ t('views.templates.table.actions.delete') }}
+                        </Button>
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent :title="t('common.actions.more')" />
+          </Tooltip>
+        </div>
+      </template>
 
-        <template v-else #cell-actions="{ row }">
-          <div class="flex gap-2">
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  hierarchy="secondary-gray"
-                  icon="copy-07"
-                  class="aspect-square p-[10px]"
-                  :disabled="templateCreationCheckIsPending || isFailed(row)"
-                  @click="
-                    handleWithTemplateQuotaCheck(() =>
-                      router.push({ name: 'duplicate-template', params: { templateId: row.id } })
-                    )
-                  "
-                />
-              </TooltipTrigger>
-              <TooltipContent :title="t('views.templates.table.actions.duplicate')" />
-            </Tooltip>
-          </div>
-        </template>
-      </TemplateDataTable>
-    </div>
-  </main>
+      <template v-else #cell-actions="{ row }">
+        <div class="flex gap-2">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                hierarchy="secondary-gray"
+                icon="copy-07"
+                class="aspect-square p-[10px]"
+                :disabled="templateCreationCheckIsPending || isFailed(row)"
+                @click="
+                  handleWithTemplateQuotaCheck(() =>
+                    router.push({ name: 'duplicate-template', params: { templateId: row.id } })
+                  )
+                "
+              />
+            </TooltipTrigger>
+            <TooltipContent :title="t('views.templates.table.actions.duplicate')" />
+          </Tooltip>
+        </div>
+      </template>
+    </TemplateDataTable>
+  </PageContainer>
 </template>

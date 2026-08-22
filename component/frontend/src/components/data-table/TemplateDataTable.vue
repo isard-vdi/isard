@@ -18,11 +18,8 @@ import { Icon } from '@/components/icon'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import DatatablePagination from '@/components/ui/data-table-pagination/DatatablePagination.vue'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
-import { InputField } from '@/components/input-field'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
-import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
-import { Kbd } from '@/components/kbd'
+import { PageToolbar, SearchInput } from '@/components/page'
 
 const { t } = useI18n()
 
@@ -42,14 +39,19 @@ interface Props {
   isRowDisabled?: (row: Record<string, unknown>) => boolean
   disabledTooltip?: string
   selectedId?: string
+  hideToolbar?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pageSize: 10,
   paginationPageSizes: undefined,
   loading: false,
-  isClickable: false
+  isClickable: false,
+  hideToolbar: false
 })
+
+// Owned here by default, but a view laying out its own toolbar can drive it.
+const search = defineModel<string>('search', { default: '' })
 
 const emit = defineEmits<{
   rowClick: [Record<string, unknown>]
@@ -57,7 +59,6 @@ const emit = defineEmits<{
 
 const pageSize = computed(() => props.pageSize ?? 10)
 const columnFilters = ref<ColumnFiltersState>([])
-const globalFilter = ref('')
 
 const table = useVueTable({
   get data() {
@@ -79,13 +80,13 @@ const table = useVueTable({
     }
   },
   onColumnFiltersChange: (updaterOrValue) => valueUpdater(updaterOrValue, columnFilters),
-  onGlobalFilterChange: (updaterOrValue) => valueUpdater(updaterOrValue, globalFilter),
+  onGlobalFilterChange: (updaterOrValue) => valueUpdater(updaterOrValue, search),
   state: {
     get columnFilters() {
       return columnFilters.value
     },
     get globalFilter() {
-      return globalFilter.value
+      return search.value
     }
   }
 })
@@ -95,29 +96,24 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
 }
 
 const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
-
-useSearchShortcuts(TEMPLATES_SEARCH_INPUT_ID)
 </script>
 
 <template>
-  <div class="flex mb-4 gap-2">
-    <slot name="filters-left" />
-
-    <InputField
-      :id="TEMPLATES_SEARCH_INPUT_ID"
-      ref="searchRef"
-      class="h-min w-full max-w-120 ml-auto"
-      :placeholder="t('views.templates.filters.search.placeholder')"
-      icon="search-lg"
-      :model-value="globalFilter ?? ''"
-      @update:model-value="(value: string) => (globalFilter = String(value))"
-    >
-      <template #inline-end>
-        <Kbd class="max-sm:hidden">/</Kbd>
-      </template>
-    </InputField>
-    <slot name="filters-right" />
-  </div>
+  <PageToolbar v-if="!props.hideToolbar" class="mb-4">
+    <template #search>
+      <SearchInput
+        :id="TEMPLATES_SEARCH_INPUT_ID"
+        v-model="search"
+        :placeholder="t('views.templates.filters.search.placeholder')"
+      />
+    </template>
+    <template #filters>
+      <slot name="filters-left" />
+    </template>
+    <template #actions>
+      <slot name="filters-right" />
+    </template>
+  </PageToolbar>
 
   <div v-if="props.loading" class="flex flex-col gap-4 mt-8">
     <div v-for="n in 4" :key="'skeleton-row-' + n" class="flex gap-2">

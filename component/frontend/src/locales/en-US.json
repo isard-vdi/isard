@@ -408,6 +408,11 @@
       "filters": {
         "search": {
           "placeholder": "Search"
+        },
+        "visibility": {
+          "all": "All",
+          "visible": "Visible",
+          "hidden": "Hidden"
         }
       },
       "alloweds": {
@@ -641,7 +646,8 @@
         "status": {
           "all": "All",
           "started": "Started",
-          "visible": "Visible"
+          "visible": "Visible",
+          "hidden": "Hidden"
         }
       },
       "dropdown": {
@@ -1868,6 +1874,10 @@
       "title": "No {kind} available",
       "description": "Your {kind} will appear here once they are created or assigned to you.",
       "clear-filters": "Clear filters"
+    },
+    "filters": {
+      "toggle": "Filters",
+      "toggle-active": "Filters ({count} active)"
     },
     "empty-search": {
       "title": "No results found",

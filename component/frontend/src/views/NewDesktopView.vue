@@ -218,7 +218,7 @@ const steps = computed<StepperFormStep[]>(() => {
     </FormHeader>
     <main
       :class="cn(currentStep !== 2 ? 'max-w-320' : undefined)"
-      class="w-full mx-auto flex flex-1 flex-col gap-[24px]"
+      class="w-full mx-auto flex flex-1 flex-col gap-6"
     >
       <!-- Content -->
       <div class="flex flex-1 flex-col">

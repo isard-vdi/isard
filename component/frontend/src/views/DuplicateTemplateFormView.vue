@@ -182,8 +182,8 @@ const handleSubmit = () => {
       @next="handleSubmit"
     />
 
-    <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
-      <div class="w-full flex flex-col gap-[24px]">
+    <main class="max-w-320 w-full mx-auto flex flex-col gap-6">
+      <div class="w-full flex flex-col gap-6">
         <Alert
           v-if="duplicateTemplateIsError"
           variant="destructive"

@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import { formatRelativeTime, formatBytes } from '@/lib/utils'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
-import { InputField } from '@/components/input-field'
 import { Badge } from '@/components/badge'
 import { Icon, CopyIcon } from '@/components/icon'
 import { TooltipTrigger, TooltipContent, Tooltip } from '@/components/ui/tooltip'
@@ -24,8 +23,7 @@ import { getRecycleBinOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import bannerImg from '@/assets/img/rcb-entry-banner.svg'
 import { RestoreModal } from '@/components/recycle-bin'
-import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
-import { Kbd } from '@/components/kbd'
+import { PageContainer, PageToolbar, SearchInput } from '@/components/page'
 
 const { t, locale, d } = useI18n()
 const route = useRoute()
@@ -370,87 +368,84 @@ const entryErrorKey = computed(
 )
 
 const RECYCLE_BIN_ENTRY_SEARCH_INPUT_ID = 'recycle-bin-entry-search'
-
-useSearchShortcuts(RECYCLE_BIN_ENTRY_SEARCH_INPUT_ID)
 </script>
 
 <template>
-  <main class="w-full flex justify-center">
-    <div class="p-6 py-2 space-y-6 w-full max-w-480">
-      <div class="flex items-center gap-3">
+  <PageContainer>
+    <div class="flex items-center gap-3">
+      <Button
+        icon="arrow-left"
+        hierarchy="link-color"
+        class="text-lg w-min"
+        :as="RouterLink"
+        :to="{ name: 'recycle-bin' }"
+      >
+        {{ t('layouts.single-page.go-back') }}
+      </Button>
+      <div class="ml-auto flex flex-wrap gap-2">
         <Button
-          icon="arrow-left"
-          hierarchy="link-color"
-          class="text-lg w-min"
-          :as="RouterLink"
-          :to="{ name: 'recycle-bin' }"
+          :icon="'refresh-cw-01'"
+          hierarchy="secondary-gray"
+          :disabled="!entry"
+          @click="handleRestore"
         >
-          {{ t('layouts.single-page.go-back') }}
+          {{ t('views.recycle-bin.actions.restore') }}
         </Button>
-        <div class="ml-auto flex flex-wrap gap-2">
-          <Button
-            :icon="'refresh-cw-01'"
-            hierarchy="secondary-gray"
-            :disabled="!entry"
-            @click="handleRestore"
-          >
-            {{ t('views.recycle-bin.actions.restore') }}
-          </Button>
-          <Button hierarchy="destructive" icon="trash-04" :disabled="!entry" @click="handleDelete">
-          </Button>
+        <Button hierarchy="destructive" icon="trash-04" :disabled="!entry" @click="handleDelete">
+        </Button>
+      </div>
+    </div>
+
+    <div v-if="entryIsPending" class="space-y-4">
+      <Skeleton class="h-40 w-full" />
+      <Skeleton class="h-10 w-full" />
+      <Skeleton class="h-10 w-full" />
+    </div>
+
+    <Alert v-else-if="entryIsError" variant="destructive">
+      <AlertTitle>{{ t('views.recycle-bin.error.title') }}</AlertTitle>
+      <AlertDescription>{{
+        t(entryErrorKey || 'views.recycle-bin.error.generic')
+      }}</AlertDescription>
+    </Alert>
+
+    <template v-else>
+      <!-- Banner -->
+      <div
+        class="bg-warning-50 rounded-lg border border-gray-warm-300 flex flex-row overflow-hidden gap-8 px-2 pt-4"
+      >
+        <img
+          :src="bannerImg"
+          :alt="t('views.recycle-bin.entry.banner.alt')"
+          class="max-h-32 mb-0 hidden sm:block"
+        />
+
+        <div class="space-y-2 grid">
+          <h2 class="text-lg font-semibold text-warning-900 flex items-center gap-2">
+            <Icon :name="getItemTypeIcon(entry?.item_type || '')" size="md" />
+            {{ entry?.item_name }}
+          </h2>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-16 items-center">
+          <div class="flex flex-col gap-1 justify-center">
+            <Label>{{ t('views.recycle-bin.entry.banner.deleted-on') }}</Label>
+            <Tooltip>
+              <TooltipTrigger>
+                <p>{{ deletedAtLabel }}</p>
+              </TooltipTrigger>
+              <TooltipContent :title="deletedAtRelative" />
+            </Tooltip>
+          </div>
+          <div class="flex flex-col gap-1 justify-center">
+            <Label>{{ t('views.recycle-bin.entry.banner.total-size') }}</Label>
+            <p>{{ totalSizeLabel }}</p>
+          </div>
         </div>
       </div>
 
-      <div v-if="entryIsPending" class="space-y-4">
-        <Skeleton class="h-40 w-full" />
-        <Skeleton class="h-10 w-full" />
-        <Skeleton class="h-10 w-full" />
-      </div>
-
-      <Alert v-else-if="entryIsError" variant="destructive">
-        <AlertTitle>{{ t('views.recycle-bin.error.title') }}</AlertTitle>
-        <AlertDescription>{{
-          t(entryErrorKey || 'views.recycle-bin.error.generic')
-        }}</AlertDescription>
-      </Alert>
-
-      <template v-else>
-        <!-- Banner -->
-        <div
-          class="bg-warning-50 rounded-lg border border-gray-warm-300 flex flex-row overflow-hidden gap-8 px-2 pt-4"
-        >
-          <img
-            :src="bannerImg"
-            :alt="t('views.recycle-bin.entry.banner.alt')"
-            class="max-h-32 mb-0 hidden sm:block"
-          />
-
-          <div class="space-y-2 grid">
-            <h2 class="text-lg font-semibold text-warning-900 flex items-center gap-2">
-              <Icon :name="getItemTypeIcon(entry?.item_type || '')" size="md" />
-              {{ entry?.item_name }}
-            </h2>
-          </div>
-
-          <div class="grid sm:grid-cols-2 gap-16 items-center">
-            <div class="flex flex-col gap-1 justify-center">
-              <Label>{{ t('views.recycle-bin.entry.banner.deleted-on') }}</Label>
-              <Tooltip>
-                <TooltipTrigger>
-                  <p>{{ deletedAtLabel }}</p>
-                </TooltipTrigger>
-                <TooltipContent :title="deletedAtRelative" />
-              </Tooltip>
-            </div>
-            <div class="flex flex-col gap-1 justify-center">
-              <Label>{{ t('views.recycle-bin.entry.banner.total-size') }}</Label>
-              <p>{{ totalSizeLabel }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tabs -->
-        <div class="flex flex-col gap-4 md:flex-row md:items-start">
+      <PageToolbar>
+        <template #tabs>
           <Tabs v-model="selectedTab">
             <TabsList class="flex w-fit gap-[--spacing(1)] rounded-md flex-wrap">
               <TabsTrigger
@@ -464,134 +459,130 @@ useSearchShortcuts(RECYCLE_BIN_ENTRY_SEARCH_INPUT_ID)
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          <InputField
+        </template>
+        <template #search>
+          <SearchInput
             :id="RECYCLE_BIN_ENTRY_SEARCH_INPUT_ID"
             v-model="searchQuery"
             :placeholder="t('views.recycle-bin.entry.filters.search.placeholder')"
-            icon="search-lg"
-            class="w-full max-w-120 md:ml-auto"
-          >
-            <template #inline-end>
-              <Kbd class="max-sm:hidden">/</Kbd>
-            </template>
-          </InputField>
+          />
+        </template>
+      </PageToolbar>
+
+      <!-- Empty component -->
+      <Empty v-if="filteredRows.length === 0" class="md:flex-row-reverse">
+        <EmptyHeader>
+          <EmptyMedia variant="default" class="select-none pointer-events-none hidden md:block">
+            <img :src="templatesEmptyImg" />
+          </EmptyMedia>
+        </EmptyHeader>
+        <div class="flex flex-col items-start text-left rounded bg-base-background/75">
+          <EmptyTitle class="text-[30px] leading-16 font-bold text-gray-warm-950">{{
+            isSearching
+              ? t('components.empty-search.title')
+              : t('views.recycle-bin.entry.empty.title')
+          }}</EmptyTitle>
+          <EmptyDescription class="text-4! text-gray-warm-900">{{
+            t('views.recycle-bin.entry.empty.description')
+          }}</EmptyDescription>
         </div>
+      </Empty>
 
-        <!-- Empty component -->
-        <Empty v-if="filteredRows.length === 0" class="md:flex-row-reverse">
-          <EmptyHeader>
-            <EmptyMedia variant="default" class="select-none pointer-events-none hidden md:block">
-              <img :src="templatesEmptyImg" />
-            </EmptyMedia>
-          </EmptyHeader>
-          <div class="flex flex-col items-start text-left rounded bg-base-background/75">
-            <EmptyTitle class="text-[30px] leading-16 font-bold text-gray-warm-950">{{
-              isSearching
-                ? t('components.empty-search.title')
-                : t('views.recycle-bin.entry.empty.title')
-            }}</EmptyTitle>
-            <EmptyDescription class="text-4! text-gray-warm-900">{{
-              t('views.recycle-bin.entry.empty.description')
-            }}</EmptyDescription>
-          </div>
-        </Empty>
-
-        <!-- Table -->
-        <DataTable
-          v-else
-          :headers="activeHeaders"
-          :rows="filteredRows"
-          :is-clickable="true"
-          :cell-class="''"
-        >
-          <template #cell-name="{ row }">
-            <TruncatedText :title="row.name" class="text-sm font-semibold text-gray-warm-900" />
-          </template>
-          <template #cell-owner="{ row }">
-            <AvatarLabel
-              :src="row.owner_photo"
-              :name="row.owner || '—'"
-              size="sm"
-              class="text-gray-warm-900"
-            />
-          </template>
-          <template #cell-user="{ row }">
-            <AvatarLabel
-              :src="row.user_photo"
-              :name="row.user || '—'"
-              size="sm"
-              class="text-gray-warm-900"
-            />
-          </template>
-          <template #cell-id="{ row }">
-            <span class="flex flex-row items-center gap-2 py-3">
-              <CopyIcon v-if="row.id" :value="row.id" />
-              <span v-if="row.id" class="inline-flex items-center">
-                {{ row.id }}
-              </span>
-              <span v-else>—</span>
+      <!-- Table -->
+      <DataTable
+        v-else
+        :headers="activeHeaders"
+        :rows="filteredRows"
+        :is-clickable="true"
+        :cell-class="''"
+      >
+        <template #cell-name="{ row }">
+          <TruncatedText :title="row.name" class="text-sm font-semibold text-gray-warm-900" />
+        </template>
+        <template #cell-owner="{ row }">
+          <AvatarLabel
+            :src="row.owner_photo"
+            :name="row.owner || '—'"
+            size="sm"
+            class="text-gray-warm-900"
+          />
+        </template>
+        <template #cell-user="{ row }">
+          <AvatarLabel
+            :src="row.user_photo"
+            :name="row.user || '—'"
+            size="sm"
+            class="text-gray-warm-900"
+          />
+        </template>
+        <template #cell-id="{ row }">
+          <span class="flex flex-row items-center gap-2 py-3">
+            <CopyIcon v-if="row.id" :value="row.id" />
+            <span v-if="row.id" class="inline-flex items-center">
+              {{ row.id }}
             </span>
-          </template>
-          <template #cell-category="{ row }">
-            <Badge
-              v-if="row.category"
-              color="violet"
-              size="sm"
-              :content="row.category"
-              class="my-2"
-              shape="square"
-            />
             <span v-else>—</span>
-          </template>
-          <template #cell-parent="{ row }">
-            <span class="flex flex-row items-center gap-2 py-3">
-              <CopyIcon v-if="row.parent" :value="row.parent" />
-              <span v-if="row.parent" class="inline-flex items-center">
-                {{ row.parent }}
-              </span>
-              <span v-else>—</span>
+          </span>
+        </template>
+        <template #cell-category="{ row }">
+          <Badge
+            v-if="row.category"
+            color="violet"
+            size="sm"
+            :content="row.category"
+            class="my-2"
+            shape="square"
+          />
+          <span v-else>—</span>
+        </template>
+        <template #cell-parent="{ row }">
+          <span class="flex flex-row items-center gap-2 py-3">
+            <CopyIcon v-if="row.parent" :value="row.parent" />
+            <span v-if="row.parent" class="inline-flex items-center">
+              {{ row.parent }}
             </span>
-          </template>
-          <template #cell-group="{ row }">
-            <Badge
-              v-if="row.group"
-              color="indigo"
-              size="sm"
-              shape="square"
-              :content="row.group"
-              class="my-2"
-            />
             <span v-else>—</span>
-          </template>
-          <template #cell-accessed="{ row }">
-            <Tooltip v-if="row.accessed">
-              <TooltipTrigger as-child>
-                <span>
-                  {{ d(row.accessed * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent :title="formatRelativeTime(row.accessed, locale)" />
-            </Tooltip>
-            <span v-else>—</span>
-          </template>
-          <template #cell-size="{ row }">
-            <span v-if="typeof row.size === 'number'">{{ formatBytes(row.size) }}</span>
-            <span v-else>—</span>
-          </template>
-          <template #cell-used="{ row }">
-            <span v-if="typeof row.used === 'number'">{{ formatBytes(row.used) }}</span>
-            <span v-else>—</span>
-          </template>
-        </DataTable>
-        <DeleteModal
-          v-model:open="showDeleteModal"
-          :recycle-bin-id="recycleBinId"
-          :item-name="entry?.item_name"
-          :on-success="handleDeleteSuccess"
-        />
-      </template>
-    </div>
-  </main>
+          </span>
+        </template>
+        <template #cell-group="{ row }">
+          <Badge
+            v-if="row.group"
+            color="indigo"
+            size="sm"
+            shape="square"
+            :content="row.group"
+            class="my-2"
+          />
+          <span v-else>—</span>
+        </template>
+        <template #cell-accessed="{ row }">
+          <Tooltip v-if="row.accessed">
+            <TooltipTrigger as-child>
+              <span>
+                {{ d(row.accessed * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent :title="formatRelativeTime(row.accessed, locale)" />
+          </Tooltip>
+          <span v-else>—</span>
+        </template>
+        <template #cell-size="{ row }">
+          <span v-if="typeof row.size === 'number'">{{ formatBytes(row.size) }}</span>
+          <span v-else>—</span>
+        </template>
+        <template #cell-used="{ row }">
+          <span v-if="typeof row.used === 'number'">{{ formatBytes(row.used) }}</span>
+          <span v-else>—</span>
+        </template>
+      </DataTable>
+      <DeleteModal
+        v-model:open="showDeleteModal"
+        :recycle-bin-id="recycleBinId"
+        :item-name="entry?.item_name"
+        :on-success="handleDeleteSuccess"
+      />
+    </template>
+  </PageContainer>
 
   <!-- Restore Modal -->
   <RestoreModal

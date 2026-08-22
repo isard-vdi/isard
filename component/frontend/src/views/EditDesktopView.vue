@@ -108,7 +108,7 @@ const handleSubmit = () => {
     @next="handleSubmit"
   />
 
-  <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
+  <main class="max-w-320 w-full mx-auto flex flex-col gap-6">
     <Alert v-if="desktopLoadError" variant="destructive">
       <AlertTitle>{{ t('views.edit-desktop.errors.load') }}</AlertTitle>
     </Alert>

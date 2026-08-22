@@ -258,6 +258,11 @@
       "filters": {
         "search": {
           "placeholder": "Bilatu"
+        },
+        "visibility": {
+          "all": "Guztiak",
+          "visible": "Ikusgai",
+          "hidden": "Ezkutatuta"
         }
       },
       "table": {
@@ -1146,6 +1151,10 @@
       "title": "Ez dago {kind} erabilgarririk",
       "description": "Zure {kind} hemen agertuko dira sortzen edo esleitzen zaizkizunean.",
       "clear-filters": "Garbitu iragazkiak"
+    },
+    "filters": {
+      "toggle": "Iragazkiak",
+      "toggle-active": "Iragazkiak ({count} aktibo)"
     },
     "empty-search": {
       "title": "Ez da emaitzarik aurkitu"

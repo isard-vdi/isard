@@ -400,6 +400,11 @@
       "filters": {
         "search": {
           "placeholder": "Cerca"
+        },
+        "visibility": {
+          "all": "Tots",
+          "visible": "Visibles",
+          "hidden": "Ocults"
         }
       },
       "alloweds": {
@@ -633,7 +638,8 @@
         "status": {
           "all": "Tots",
           "started": "Iniciats",
-          "visible": "Visibles"
+          "visible": "Visibles",
+          "hidden": "Ocults"
         }
       },
       "dropdown": {
@@ -1604,6 +1610,10 @@
       "clear-filters": "Neteja els filtres",
       "description": "Els teus {kind} apareixeran aquí un cop es creïn o se t'assignin.",
       "title": "No hi ha {kind} disponibles"
+    },
+    "filters": {
+      "toggle": "Filtres",
+      "toggle-active": "Filtres ({count} actius)"
     },
     "empty-search": {
       "clear": "Neteja la cerca",
