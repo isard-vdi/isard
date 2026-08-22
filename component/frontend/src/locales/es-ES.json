@@ -1773,6 +1773,10 @@
         "title": "Reservables"
       }
     },
+    "domain-summary": {
+      "changed": "Valor modificado",
+      "removed": "Valor eliminado"
+    },
     "datatable": {
       "empty": "No hay escritorios disponibles",
       "pagination": {

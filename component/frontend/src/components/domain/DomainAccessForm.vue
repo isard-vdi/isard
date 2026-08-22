@@ -370,12 +370,23 @@ const getFormData = () => {
 
 const formValues = form.useStore((state) => state.values)
 
-/** What the summary card shows for this form, live. */
-const summary = computed(() => ({
-  credentials: formValues.value.credentials,
-  fullscreen: formValues.value.fullscreen,
-  viewers: formValues.value.viewers ?? []
-}))
+interface AccessValues {
+  credentials?: { username?: string; password?: string }
+  fullscreen?: boolean
+  viewers?: string[]
+}
+
+/** What the summary card shows for this form. */
+const buildSummary = (values: AccessValues) => ({
+  credentials: values.credentials,
+  fullscreen: values.fullscreen,
+  viewers: values.viewers ?? []
+})
+
+const summary = computed(() => buildSummary(formValues.value))
+
+/** The same, as the form was seeded: what the card compares the edits against. */
+const baseSummary = computed(() => buildSummary(defaultValues))
 
 const isFormValid = form.useStore((state) => state.isValid)
 
@@ -404,6 +415,7 @@ defineExpose({
   isDirty,
   reset,
   summary,
+  baseSummary,
   removedViewers,
   removedViewerLabels
 })
