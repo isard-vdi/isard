@@ -93,10 +93,11 @@ const removedViewerLabels = computed<string[]>(() => accessFormRef.value?.remove
 
 // The summaries come from endpoints that don't apply the wireguard filter the
 // access form does, so they would still offer viewers that won't be created.
+const keptViewers = (viewers: string[]) =>
+  viewers.filter((viewer: string) => !removedViewers.value.includes(viewer))
+
 const summaryViewers = computed(() =>
-  (accessFormRef.value?.summary.viewers ?? props.summary?.viewers ?? []).filter(
-    (viewer: string) => !removedViewers.value.includes(viewer)
-  )
+  keptViewers(accessFormRef.value?.summary.viewers ?? props.summary?.viewers ?? [])
 )
 
 /** Keeps a form that has not seeded itself yet from blanking the card. */
@@ -110,6 +111,14 @@ const liveSummary = computed<DomainSummaryData>(() => ({
   ...defined(accessFormRef.value?.summary),
   ...defined(hardwareFormRef.value?.summary),
   viewers: summaryViewers.value
+}))
+
+// What the forms were seeded with, so the card can flag the fields moved since.
+const baseSummary = computed<DomainSummaryData>(() => ({
+  ...props.summary,
+  ...defined(accessFormRef.value?.baseSummary),
+  ...defined(hardwareFormRef.value?.baseSummary),
+  viewers: keptViewers(accessFormRef.value?.baseSummary.viewers ?? props.summary?.viewers ?? [])
 }))
 
 const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces ?? [])
@@ -309,6 +318,7 @@ defineExpose({
           v-if="!alwaysOpen"
           class="shadow-xs"
           :loading="loading"
+          :previous="baseSummary"
           v-bind="liveSummary"
         />
 

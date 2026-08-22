@@ -400,23 +400,39 @@ const optionName = (id: string | undefined, options: { id: string; name: string 
 const optionNames = (ids: string[] | undefined, options: { id: string; name: string }[]) =>
   ids?.map((id) => optionName(id, options) as string)
 
-/** What the summary card shows for this form, live and with ids resolved. */
-const summary = computed(() => ({
-  vcpu: formValues.value.vcpus,
-  memory: formValues.value.memory,
-  diskBus: optionName(formValues.value.diskBus, diskBusOptions.value),
-  diskSize: props.showDiskSize ? formValues.value.diskSize : undefined,
-  videos: formValues.value.videos
-    ? [optionName(formValues.value.videos, videosOptions.value) as string]
+interface HardwareValues {
+  vcpus?: number
+  memory?: number
+  diskBus?: string
+  diskSize?: number
+  videos?: string
+  bootOrder?: string
+  isos?: string[]
+  floppies?: string[]
+  interfaces?: string[]
+  reservables?: { vgpus?: string[] }
+}
+
+/** What the summary card shows for this form, with ids resolved. */
+const buildSummary = (values: HardwareValues) => ({
+  vcpu: values.vcpus,
+  memory: values.memory,
+  diskBus: optionName(values.diskBus, diskBusOptions.value),
+  diskSize: props.showDiskSize ? values.diskSize : undefined,
+  videos: values.videos ? [optionName(values.videos, videosOptions.value) as string] : undefined,
+  bootOrder: values.bootOrder
+    ? [optionName(values.bootOrder, bootsOptions.value) as string]
     : undefined,
-  bootOrder: formValues.value.bootOrder
-    ? [optionName(formValues.value.bootOrder, bootsOptions.value) as string]
-    : undefined,
-  isos: optionNames(formValues.value.isos, isosOptions.value),
-  floppies: optionNames(formValues.value.floppies, floppiesOptions.value),
-  interfaces: optionNames(formValues.value.interfaces, networksOptions.value),
-  vgpus: optionNames(formValues.value.reservables?.vgpus, vgpusOptions.value) ?? null
-}))
+  isos: optionNames(values.isos, isosOptions.value),
+  floppies: optionNames(values.floppies, floppiesOptions.value),
+  interfaces: optionNames(values.interfaces, networksOptions.value),
+  vgpus: optionNames(values.reservables?.vgpus, vgpusOptions.value) ?? null
+})
+
+const summary = computed(() => buildSummary(formValues.value))
+
+/** The same, as the form was seeded: what the card compares the edits against. */
+const baseSummary = computed(() => buildSummary(defaultValues))
 
 const isFormValid = form.useStore((state) => state.isValid)
 
@@ -459,6 +475,7 @@ defineExpose({
   isValid: isFormValid,
   isDirty,
   summary,
+  baseSummary,
   reset: () => form.reset(),
   limitedFields: computedLimitedHardware,
   getInterfaces,

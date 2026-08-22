@@ -2284,6 +2284,10 @@
         "title": "Reservables"
       }
     },
+    "domain-summary": {
+      "changed": "Modified value",
+      "removed": "Removed value"
+    },
     "date-picker": {
       "today": "Today",
       "cancel": "Cancel",

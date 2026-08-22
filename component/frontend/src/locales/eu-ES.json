@@ -1404,6 +1404,10 @@
         "title": "Erreserbagarriak"
       }
     },
+    "domain-summary": {
+      "changed": "Aldatutako balioa",
+      "removed": "Kendutako balioa"
+    },
     "date-picker": {
       "today": "Gaur",
       "cancel": "Utzi",

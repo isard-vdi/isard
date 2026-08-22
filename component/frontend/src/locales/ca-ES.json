@@ -1717,6 +1717,10 @@
         "title": "Reservables"
       }
     },
+    "domain-summary": {
+      "changed": "Valor modificat",
+      "removed": "Valor eliminat"
+    },
     "viewers-selector": {
       "browser-viewers": {
         "label": "Visors de navegador",
