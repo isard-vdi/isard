@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { computed, readonly, ref, toValue, reactive, watch } from 'vue'
+import { computed, nextTick, onMounted, readonly, ref, toValue, reactive, watch } from 'vue'
 
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { useLocalStorage as vueuseLocalStorage, useWindowSize, useWindowScroll } from '@vueuse/core'
+import {
+  useLocalStorage as vueuseLocalStorage,
+  refDebounced,
+  useElementSize,
+  useEventListener,
+  useWindowSize,
+  useWindowScroll
+} from '@vueuse/core'
 import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { useForm } from '@tanstack/vue-form'
+import { useWindowVirtualizer } from '@tanstack/vue-virtual'
 
 import {
   getUserDesktopsOptions,
@@ -493,6 +501,20 @@ const clearDesktopFilters = () => {
   desktopFilters.value = JSON.parse(JSON.stringify(defaultDesktopFilters))
 }
 
+// The input keeps updating on every keystroke; only the filtering waits, so the
+// grid is not rebuilt (and the query re-run over every desktop) mid-word.
+const debouncedDesktopSearch = refDebounced(
+  computed(() => desktopFilters.value.search.trim().toLowerCase()),
+  150
+)
+
+const RUNNING_DESKTOP_STATUSES: DesktopStatusEnum[] = [
+  DesktopStatusEnum.STARTING,
+  DesktopStatusEnum.STARTED,
+  DesktopStatusEnum.SHUTTING_DOWN,
+  DesktopStatusEnum.WAITING_IP
+]
+
 const filteredDesktops = computed(() => {
   return (
     desktops.value?.desktops.filter((desktop) => {
@@ -503,10 +525,11 @@ const filteredDesktops = computed(() => {
 
 const isDesktopVisible = (desktop: UserDesktop) => {
   // Search filter
+  const search = debouncedDesktopSearch.value
   const matchesSearch =
-    desktopFilters.value.search.toLowerCase() === '' ||
-    desktop.name.toLowerCase().includes(desktopFilters.value.search.toLowerCase()) ||
-    desktop.description?.toLowerCase().includes(desktopFilters.value.search.toLowerCase())
+    search === '' ||
+    desktop.name.toLowerCase().includes(search) ||
+    !!desktop.description?.toLowerCase().includes(search)
 
   // Kind filter
   const matchesKind =
@@ -521,23 +544,9 @@ const isDesktopVisible = (desktop: UserDesktop) => {
   const matchesStatus =
     desktopFilters.value.status === 'all' ||
     (desktopFilters.value.status === 'started' &&
-      (
-        [
-          DesktopStatusEnum.STARTING,
-          DesktopStatusEnum.STARTED,
-          DesktopStatusEnum.SHUTTING_DOWN,
-          DesktopStatusEnum.WAITING_IP
-        ] as DesktopStatusEnum[]
-      ).includes(desktop.status)) ||
+      RUNNING_DESKTOP_STATUSES.includes(desktop.status)) ||
     (desktopFilters.value.status === 'stopped' &&
-      !(
-        [
-          DesktopStatusEnum.STARTING,
-          DesktopStatusEnum.STARTED,
-          DesktopStatusEnum.SHUTTING_DOWN,
-          DesktopStatusEnum.WAITING_IP
-        ] as DesktopStatusEnum[]
-      ).includes(desktop.status))
+      !RUNNING_DESKTOP_STATUSES.includes(desktop.status))
 
   // ----------------------------------------------------
   return matchesSearch && matchesKind && matchesStatus
@@ -835,7 +844,56 @@ const cardSize = computed<CardSize>(() => {
   return 'lg'
 })
 
-const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '412px'))
+const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? 250 : 412))
+const cardGridRowHeight = computed(() => (cardSize.value === 'md' ? 280 : 310))
+
+// Tailwind `gap-4`.
+const CARD_GRID_GAP = 16
+
+const cardGridRef = ref<HTMLElement | null>(null)
+const { width: cardGridWidth } = useElementSize(cardGridRef)
+
+// Mirrors what `repeat(auto-fill, minmax(min, 1fr))` would have resolved to.
+const cardGridColumns = computed(() => {
+  if (!cardGridWidth.value) return 1
+  return Math.max(
+    1,
+    Math.floor((cardGridWidth.value + CARD_GRID_GAP) / (cardGridMinWidth.value + CARD_GRID_GAP))
+  )
+})
+
+const cardGridRows = computed(() => {
+  const rows: UserDesktop[][] = []
+  for (let i = 0; i < filteredDesktops.value.length; i += cardGridColumns.value) {
+    rows.push(filteredDesktops.value.slice(i, i + cardGridColumns.value))
+  }
+  return rows
+})
+
+// The grid starts partway down the document, so the virtualizer needs to know
+// how much page precedes it. Remeasured on anything that reflows the toolbar
+// above, but never on scroll — that would be the reflow-per-event we just left.
+const cardGridOffsetTop = ref(0)
+const measureCardGridOffset = () => {
+  const el = cardGridRef.value
+  if (el) cardGridOffsetTop.value = el.getBoundingClientRect().top + window.scrollY
+}
+
+onMounted(measureCardGridOffset)
+useEventListener('resize', measureCardGridOffset)
+// Deliberately not watching the desktop count: more rows grow the grid
+// downwards but never move its top, so remeasuring per keystroke only bought a
+// forced reflow — and a costlier one the more cards the DOM held.
+watch([showDesktopFilters, cardGridColumns, viewMode], () => nextTick(measureCardGridOffset))
+
+const cardGridVirtualizer = useWindowVirtualizer(
+  computed(() => ({
+    count: cardGridRows.value.length,
+    estimateSize: () => cardGridRowHeight.value + CARD_GRID_GAP,
+    overscan: 2,
+    scrollMargin: cardGridOffsetTop.value
+  }))
+)
 </script>
 
 <template>
@@ -1540,7 +1598,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
       <div
         v-if="desktopsIsPending"
         class="grid gap-4 w-full"
-        :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardGridMinWidth}, 1fr))` }"
+        :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardGridMinWidth}px, 1fr))` }"
       >
         <DesktopCardSkeleton variant="started" class="h-[310px]" />
         <DesktopCardSkeleton variant="stopped" class="h-[310px]" />
@@ -1556,7 +1614,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           v-show="filteredDesktops.length === 0"
           kind="desktops"
           :variant="isFirstRun ? 'first-run' : 'no-results'"
-          :searching="desktopFilters.search.length > 0"
+          :searching="debouncedDesktopSearch.length > 0"
           :active-filters="activeDesktopFilterCount"
           @clear-search="desktopFilters.search = ''"
           @clear-filters="clearDesktopFilters()"
@@ -1623,53 +1681,63 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           @show-storage-modal="(dktp: UserDesktop) => (storageModalDesktop = dktp)"
         />
 
-        <div
-          v-else
-          class="grid gap-4 w-full"
-          :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardGridMinWidth}, 1fr))` }"
-        >
-          <template v-for="dktp in desktops?.desktops" :key="dktp.id">
-            <DesktopCard
-              v-show="isDesktopVisible(dktp)"
-              :size="cardSize"
-              fill
-              :desktop="dktp"
-              :preferred-viewer="preferedViewers[dktp.id]"
-              @desktop-start="desktopStart({ path: { desktop_id: dktp.id } })"
-              @desktop-stop="desktopStop({ path: { desktop_id: dktp.id } })"
-              @desktop-update-status="
-                submitDesktopUpdateStatus({
-                  path: { desktop_id: dktp.id }
-                })
-              "
-              @desktop-fetch-booking="
-                // handleStartNow(dktp)
-                fetchMaxBookingDate(dktp.id)
-              "
-              @open-viewer="(viewer) => fetchAndOpenViewer({ desktopId: dktp.id, viewer })"
-              @show-networks-modal="
-                networksModalData = {
-                  id: dktp.id,
-                  name: dktp.name,
-                  ip: dktp.ip,
-                  status: dktp.status
-                }
-              "
-              @show-info-modal="openDesktopInfoModal(dktp.id)"
-              @edit-desktop="goToEditDesktop(dktp.id)"
-              @show-delete-modal="deleteModalDesktopData = { id: dktp.id, name: dktp.name }"
-              @show-bastion-modal="
-                bastionModalData = { desktopId: dktp.id, desktopName: dktp.name }
-              "
-              @show-direct-link-modal="showDirectLink(dktp.id)"
-              @show-recreate-modal="
-                recreateDesktopModalDesktopData = { id: dktp.id, name: dktp.name }
-              "
-              @create-template="goToNewTemplate(dktp.id)"
-              @book-desktop="goToBookingDesktop(dktp.id)"
-              @show-storage-modal="storageModalDesktop = dktp"
-            />
-          </template>
+        <div v-else ref="cardGridRef" class="w-full">
+          <div
+            class="relative w-full"
+            :style="{ height: `${cardGridVirtualizer.getTotalSize()}px` }"
+          >
+            <div
+              v-for="virtualRow in cardGridVirtualizer.getVirtualItems()"
+              :key="virtualRow.key"
+              class="absolute left-0 top-0 grid w-full gap-4"
+              :style="{
+                gridTemplateColumns: `repeat(${cardGridColumns}, minmax(0, 1fr))`,
+                transform: `translateY(${virtualRow.start - cardGridOffsetTop}px)`
+              }"
+            >
+              <DesktopCard
+                v-for="dktp in cardGridRows[virtualRow.index]"
+                :key="dktp.id"
+                :size="cardSize"
+                fill
+                :desktop="dktp"
+                :preferred-viewer="preferedViewers[dktp.id]"
+                @desktop-start="desktopStart({ path: { desktop_id: dktp.id } })"
+                @desktop-stop="desktopStop({ path: { desktop_id: dktp.id } })"
+                @desktop-update-status="
+                  submitDesktopUpdateStatus({
+                    path: { desktop_id: dktp.id }
+                  })
+                "
+                @desktop-fetch-booking="
+                  // handleStartNow(dktp)
+                  fetchMaxBookingDate(dktp.id)
+                "
+                @open-viewer="(viewer) => fetchAndOpenViewer({ desktopId: dktp.id, viewer })"
+                @show-networks-modal="
+                  networksModalData = {
+                    id: dktp.id,
+                    name: dktp.name,
+                    ip: dktp.ip,
+                    status: dktp.status
+                  }
+                "
+                @show-info-modal="openDesktopInfoModal(dktp.id)"
+                @edit-desktop="goToEditDesktop(dktp.id)"
+                @show-delete-modal="deleteModalDesktopData = { id: dktp.id, name: dktp.name }"
+                @show-bastion-modal="
+                  bastionModalData = { desktopId: dktp.id, desktopName: dktp.name }
+                "
+                @show-direct-link-modal="showDirectLink(dktp.id)"
+                @show-recreate-modal="
+                  recreateDesktopModalDesktopData = { id: dktp.id, name: dktp.name }
+                "
+                @create-template="goToNewTemplate(dktp.id)"
+                @book-desktop="goToBookingDesktop(dktp.id)"
+                @show-storage-modal="storageModalDesktop = dktp"
+              />
+            </div>
+          </div>
         </div>
       </template>
     </div>
