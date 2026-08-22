@@ -13,11 +13,12 @@ export const useSocketStore = defineStore('socket', () => {
   // run outside any component/setup injection scope.
   const queryClient = useQueryClient()
   const isConnected = ref(false)
-  const messages = ref<string[]>([])
   let socket: Socket | null = null
 
   const connectWithToken = async () => {
-    if (isConnected.value) return
+    // Guard on the instance: `isConnected` is false while socket.io is still
+    // (re)connecting, and every navigation in that window built another client.
+    if (socket) return
 
     socket = createSocket()
     registerSocketHandlers(socket, queryClient)
@@ -35,10 +36,6 @@ export const useSocketStore = defineStore('socket', () => {
       console.error('[socket] connection error:', error.message)
     })
 
-    socket.on('message', (msg: string) => {
-      messages.value.push(msg)
-    })
-
     socket.connect()
   }
 
@@ -52,12 +49,10 @@ export const useSocketStore = defineStore('socket', () => {
 
   const $reset = () => {
     disconnect()
-    messages.value = []
   }
 
   return {
     isConnected,
-    messages,
     $reset,
     connectWithToken,
     disconnect
