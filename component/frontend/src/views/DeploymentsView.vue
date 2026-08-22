@@ -74,7 +74,7 @@ const goToNewDeployment = async () => {
 
 // Filters
 interface DeploymentFilters {
-  status: 'all' | 'visible'
+  status: 'all' | 'visible' | 'hidden'
 }
 
 const deploymentFilters = ref<DeploymentFilters>({ status: 'all' })
@@ -102,7 +102,8 @@ const areDeploymentsVisible = (deployments: OwnedDeployment) => {
   // Visibility filter
   const matchesVisibility =
     deploymentFilters.value.status === 'all' ||
-    (deploymentFilters.value.status === 'visible' && deployments.tag_visible === true)
+    (deploymentFilters.value.status === 'visible' && deployments.tag_visible === true) ||
+    (deploymentFilters.value.status === 'hidden' && deployments.tag_visible !== true)
 
   return matchesSearch && matchesVisibility
 }
@@ -318,6 +319,9 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
             </ToggleGroupItem>
             <ToggleGroupItem value="visible" variant="gray-warm">
               <span>{{ t('views.deployments.filters.status.visible') }}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="hidden" variant="gray-warm">
+              <span>{{ t('views.deployments.filters.status.hidden') }}</span>
             </ToggleGroupItem>
           </ToggleGroup>
         </FilterPanel>

@@ -25,7 +25,14 @@ import {
   ContextMenuItem
 } from '@/components/ui/context-menu'
 import { TemplateDataTable } from '@/components/data-table'
-import { PageContainer, PageToolbar, SearchInput } from '@/components/page'
+import {
+  FilterPanel,
+  FilterToggle,
+  PageContainer,
+  PageToolbar,
+  SearchInput
+} from '@/components/page'
+import { useFilterPanel } from '@/composables/useFilterPanel'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -40,6 +47,7 @@ import { TemplateDeleteModal } from '@/components/templates/template-delete-moda
 import { TemplateToDesktopModal } from '@/components/templates/template-to-desktop-modal'
 import { TemplateToggleVisibilityModal } from '@/components/template-toggle-visibility'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { toggleVariants } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from '@/components/ui/toast'
@@ -54,6 +62,12 @@ const activeTab = ref<'user' | 'shared'>('user')
 
 const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
 const inputSearch = ref('')
+
+const showTemplateFilters = useFilterPanel('templates_filters_state')
+const templateVisibility = ref<'all' | 'visible' | 'hidden'>('all')
+
+// Search has its own always-visible input; only the ones the panel hides count.
+const activeTemplateFilterCount = computed(() => (templateVisibility.value === 'all' ? 0 : 1))
 
 // Queries
 const {
@@ -103,8 +117,20 @@ const tableHeaders = computed(() => {
 })
 
 const tableRows = computed(() => {
-  const data = activeTab.value === 'user' ? userTemplates.value : sharedTemplates.value
-  return data?.templates || []
+  // Only owned templates carry a visibility flag, so the filter is theirs alone.
+  if (activeTab.value === 'shared') {
+    return sharedTemplates.value?.templates || []
+  }
+
+  return (userTemplates.value?.templates || []).filter((template) => {
+    if (templateVisibility.value === 'all') {
+      return true
+    }
+
+    // Legacy rows come back without the field and are visible
+    const isVisible = template.enabled !== false
+    return templateVisibility.value === 'visible' ? isVisible : !isVisible
+  })
 })
 
 const handleSharedTabClick = () => {
@@ -342,6 +368,14 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
         />
       </template>
 
+      <template #filters>
+        <FilterToggle
+          v-if="activeTab === 'user'"
+          v-model="showTemplateFilters"
+          :active-count="activeTemplateFilterCount"
+        />
+      </template>
+
       <template #actions>
         <Button
           :icon="templateCreationCheckIsPending ? 'loading-02' : 'plus'"
@@ -352,6 +386,28 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
           @click="handleWithTemplateQuotaCheck(() => router.push({ name: 'new-template' }))"
           >{{ t('views.templates.new-template') }}</Button
         >
+      </template>
+
+      <template #panel>
+        <FilterPanel :open="showTemplateFilters && activeTab === 'user'">
+          <ToggleGroup
+            v-model="templateVisibility"
+            :spacing="1"
+            type="single"
+            size="default"
+            class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
+          >
+            <ToggleGroupItem value="all" variant="gray-warm">
+              <span>{{ t('views.templates.filters.visibility.all') }}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="visible" variant="gray-warm">
+              <span>{{ t('views.templates.filters.visibility.visible') }}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="hidden" variant="gray-warm">
+              <span>{{ t('views.templates.filters.visibility.hidden') }}</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </FilterPanel>
       </template>
     </PageToolbar>
 

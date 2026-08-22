@@ -258,6 +258,11 @@
       "filters": {
         "search": {
           "placeholder": "Bilatu"
+        },
+        "visibility": {
+          "all": "Guztiak",
+          "visible": "Ikusgai",
+          "hidden": "Ezkutatuta"
         }
       },
       "table": {

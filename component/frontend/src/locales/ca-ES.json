@@ -400,6 +400,11 @@
       "filters": {
         "search": {
           "placeholder": "Cerca"
+        },
+        "visibility": {
+          "all": "Tots",
+          "visible": "Visibles",
+          "hidden": "Ocults"
         }
       },
       "alloweds": {
@@ -633,7 +638,8 @@
         "status": {
           "all": "Tots",
           "started": "Iniciats",
-          "visible": "Visibles"
+          "visible": "Visibles",
+          "hidden": "Ocults"
         }
       },
       "dropdown": {

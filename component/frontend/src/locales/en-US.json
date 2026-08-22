@@ -408,6 +408,11 @@
       "filters": {
         "search": {
           "placeholder": "Search"
+        },
+        "visibility": {
+          "all": "All",
+          "visible": "Visible",
+          "hidden": "Hidden"
         }
       },
       "alloweds": {
@@ -641,7 +646,8 @@
         "status": {
           "all": "All",
           "started": "Started",
-          "visible": "Visible"
+          "visible": "Visible",
+          "hidden": "Hidden"
         }
       },
       "dropdown": {
