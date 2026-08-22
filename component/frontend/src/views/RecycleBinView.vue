@@ -10,7 +10,6 @@ import {
   emptyRecycleBinMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { formatHoursToHumanReadable, formatBytes, formatRelativeTime } from '@/lib/utils'
 import { computed, ref, watch } from 'vue'
 
@@ -22,13 +21,12 @@ import { Icon } from '@/components/icon'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BadgeInfo } from '@/components/badge/info'
 import { DropdownButton } from '@/components/dropdown-button'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { AvatarLabel } from '@/components/avatar-label'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertModal } from '@/components/modal'
 import { DeleteModal } from '@/components/recycle-bin'
 import { RestoreModal } from '@/components/recycle-bin'
-import { PageContainer, PageToolbar, SearchInput } from '@/components/page'
+import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 
 const { t, locale, d } = useI18n()
 
@@ -277,25 +275,13 @@ const RECYCLE_BIN_SEARCH_INPUT_ID = 'recycle-bin-search'
       }}</AlertDescription>
     </Alert>
 
-    <Empty v-else-if="enrichedItems.length === 0" class="md:flex-row-reverse mt-16">
-      <EmptyHeader>
-        <EmptyMedia variant="default" class="select-none pointer-events-none hidden md:block">
-          <img :src="templatesEmptyImg" />
-        </EmptyMedia>
-      </EmptyHeader>
-
-      <div class="flex flex-col items-start text-left gap-4 rounded bg-base-background/75">
-        <EmptyTitle class="text-[60px] leading-[72px] font-bold text-gray-warm-950">{{
-          isSearching ? t('components.empty-search.title') : t('views.recycle-bin.empty.title')
-        }}</EmptyTitle>
-        <EmptyDescription v-if="!isSearching" class="text-[18px]! text-gray-warm-900">{{
-          t('views.recycle-bin.empty.description')
-        }}</EmptyDescription>
-        <Button v-else hierarchy="secondary-color" @click="searchQuery = ''">
-          {{ t('components.empty-search.clear') }}
-        </Button>
-      </div>
-    </Empty>
+    <EmptyState
+      v-else-if="enrichedItems.length === 0"
+      kind="recycle-bin"
+      :variant="hasItems ? 'no-results' : 'first-run'"
+      :searching="isSearching"
+      @clear-search="searchQuery = ''"
+    />
 
     <DataTable
       v-else

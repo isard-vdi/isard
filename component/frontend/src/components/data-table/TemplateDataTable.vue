@@ -12,14 +12,10 @@ import {
 
 import { valueUpdater } from '@/lib/utils'
 
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
-
-import { Icon } from '@/components/icon'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import DatatablePagination from '@/components/ui/data-table-pagination/DatatablePagination.vue'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
-import { PageToolbar, SearchInput } from '@/components/page'
+import { EmptyState, PageToolbar, SearchInput, type EmptyStateKind } from '@/components/page'
 
 const { t } = useI18n()
 
@@ -40,6 +36,9 @@ interface Props {
   disabledTooltip?: string
   selectedId?: string
   hideToolbar?: boolean
+  emptyKind?: EmptyStateKind
+  // Row count before any filtering, so a first run can be told from a fruitless search.
+  totalRows?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -47,7 +46,9 @@ const props = withDefaults(defineProps<Props>(), {
   paginationPageSizes: undefined,
   loading: false,
   isClickable: false,
-  hideToolbar: false
+  hideToolbar: false,
+  emptyKind: 'templates',
+  totalRows: undefined
 })
 
 // Owned here by default, but a view laying out its own toolbar can drive it.
@@ -91,6 +92,12 @@ const table = useVueTable({
   }
 })
 
+const filteredRowCount = computed(() => table.getFilteredRowModel().rows.length)
+
+const emptyVariant = computed(() =>
+  (props.totalRows ?? props.rows.length) === 0 ? 'first-run' : 'no-results'
+)
+
 const handleRowClick = (rowData: Record<string, unknown>) => {
   emit('rowClick', rowData)
 }
@@ -122,21 +129,14 @@ const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
     </div>
   </div>
 
-  <Empty v-else-if="props.rows.length === 0" class="md:flex-row-reverse mt-16">
-    <EmptyHeader>
-      <EmptyMedia variant="default" class="select-none pointer-events-none">
-        <img :src="templatesEmptyImg" />
-      </EmptyMedia>
-    </EmptyHeader>
-    <div class="flex flex-col items-start text-left gap-4">
-      <EmptyTitle class="text-[60px] leading-[72px] font-bold text-gray-warm-950">{{
-        t('components.empty.title', { kind: t('domains.templates', 0) })
-      }}</EmptyTitle>
-      <EmptyDescription class="text-[18px]! text-gray-warm-900">{{
-        t('components.empty.description', { kind: t('domains.templates', 0) })
-      }}</EmptyDescription>
-    </div>
-  </Empty>
+  <slot v-else-if="filteredRowCount === 0" name="empty" :variant="emptyVariant">
+    <EmptyState
+      :kind="props.emptyKind"
+      :variant="emptyVariant"
+      :searching="search.length > 0"
+      @clear-search="search = ''"
+    />
+  </slot>
 
   <template v-else>
     <div

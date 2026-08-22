@@ -17,13 +17,11 @@ import { Label } from '@/components/ui/label'
 import { TruncatedText } from '@/components/truncated-text'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { DeleteModal } from '@/components/recycle-bin'
 import { getRecycleBinOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import bannerImg from '@/assets/img/rcb-entry-banner.svg'
 import { RestoreModal } from '@/components/recycle-bin'
-import { PageContainer, PageToolbar, SearchInput } from '@/components/page'
+import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 
 const { t, locale, d } = useI18n()
 const route = useRoute()
@@ -469,24 +467,14 @@ const RECYCLE_BIN_ENTRY_SEARCH_INPUT_ID = 'recycle-bin-entry-search'
         </template>
       </PageToolbar>
 
-      <!-- Empty component -->
-      <Empty v-if="filteredRows.length === 0" class="md:flex-row-reverse">
-        <EmptyHeader>
-          <EmptyMedia variant="default" class="select-none pointer-events-none hidden md:block">
-            <img :src="templatesEmptyImg" />
-          </EmptyMedia>
-        </EmptyHeader>
-        <div class="flex flex-col items-start text-left rounded bg-base-background/75">
-          <EmptyTitle class="text-[30px] leading-16 font-bold text-gray-warm-950">{{
-            isSearching
-              ? t('components.empty-search.title')
-              : t('views.recycle-bin.entry.empty.title')
-          }}</EmptyTitle>
-          <EmptyDescription class="text-4! text-gray-warm-900">{{
-            t('views.recycle-bin.entry.empty.description')
-          }}</EmptyDescription>
-        </div>
-      </Empty>
+      <EmptyState
+        v-if="filteredRows.length === 0"
+        variant="no-results"
+        :title="isSearching ? undefined : t('views.recycle-bin.entry.empty.title')"
+        :description="isSearching ? undefined : t('views.recycle-bin.entry.empty.description')"
+        :searching="isSearching"
+        @clear-search="searchQuery = ''"
+      />
 
       <!-- Table -->
       <DataTable

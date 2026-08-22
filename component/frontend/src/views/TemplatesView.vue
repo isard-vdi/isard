@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/context-menu'
 import { TemplateDataTable } from '@/components/data-table'
 import {
+  EmptyState,
   FilterPanel,
   FilterToggle,
   PageContainer,
@@ -132,6 +133,24 @@ const tableRows = computed(() => {
     return templateVisibility.value === 'visible' ? isVisible : !isVisible
   })
 })
+
+// Unfiltered count of the active tab, to tell a first run from a fruitless search.
+const totalTemplates = computed(() =>
+  activeTab.value === 'shared'
+    ? (sharedTemplates.value?.templates?.length ?? 0)
+    : (userTemplates.value?.templates?.length ?? 0)
+)
+
+// The shared tab loads lazily, so an unfetched cache still counts as pending.
+const templatesArePending = computed(() =>
+  activeTab.value === 'shared'
+    ? sharedTemplatesIsFetching.value || !sharedTemplates.value
+    : userTemplatesIsPending.value
+)
+
+const isFirstRun = computed(() => !templatesArePending.value && totalTemplates.value === 0)
+
+const emptyKind = computed(() => (activeTab.value === 'shared' ? 'shared-templates' : 'templates'))
 
 const handleSharedTabClick = () => {
   if (!sharedTemplates.value) {
@@ -360,7 +379,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
         </Tabs>
       </template>
 
-      <template #search>
+      <template v-if="!isFirstRun" #search>
         <SearchInput
           :id="TEMPLATES_SEARCH_INPUT_ID"
           v-model="inputSearch"
@@ -368,7 +387,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
         />
       </template>
 
-      <template #filters>
+      <template v-if="!isFirstRun" #filters>
         <FilterToggle
           v-if="activeTab === 'user'"
           v-model="showTemplateFilters"
@@ -376,7 +395,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
         />
       </template>
 
-      <template #actions>
+      <template v-if="!isFirstRun" #actions>
         <Button
           :icon="templateCreationCheckIsPending ? 'loading-02' : 'plus'"
           :icon-class="{
@@ -388,7 +407,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
         >
       </template>
 
-      <template #panel>
+      <template v-if="!isFirstRun" #panel>
         <FilterPanel :open="showTemplateFilters && activeTab === 'user'">
           <ToggleGroup
             v-model="templateVisibility"
@@ -415,10 +434,35 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
       v-model:search="inputSearch"
       :headers="tableHeaders"
       :rows="tableRows"
-      :loading="userTemplatesIsPending || sharedTemplatesIsFetching"
+      :total-rows="totalTemplates"
+      :loading="templatesArePending"
       :is-clickable="false"
       hide-toolbar
     >
+      <template #empty="{ variant }">
+        <EmptyState
+          :kind="emptyKind"
+          :variant="variant"
+          :searching="inputSearch.length > 0"
+          :active-filters="activeTab === 'user' ? activeTemplateFilterCount : 0"
+          @clear-search="inputSearch = ''"
+          @clear-filters="templateVisibility = 'all'"
+        >
+          <template v-if="variant === 'first-run' && activeTab === 'user'" #actions>
+            <Button
+              :icon="templateCreationCheckIsPending ? 'loading-02' : 'plus'"
+              :icon-class="{
+                'motion-safe:animate-[spin_2s_linear_infinite]': templateCreationCheckIsPending
+              }"
+              :disabled="templateCreationCheckIsPending"
+              size="lg"
+              @click="handleWithTemplateQuotaCheck(() => router.push({ name: 'new-template' }))"
+              >{{ t('views.templates.new-template') }}</Button
+            >
+          </template>
+        </EmptyState>
+      </template>
+
       <template #cell-image="{ row }">
         <div class="relative">
           <div

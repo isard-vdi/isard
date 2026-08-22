@@ -22,15 +22,7 @@ import DomainSummary from '@/components/domain/DomainSummary.vue'
 
 import { Icon } from '@/components/icon'
 import { useAuthStore } from '@/stores/auth'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-  EmptyContent
-} from '@/components/ui/empty'
-import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
+import { EmptyState } from '@/components/page'
 import { Separator } from '@/components/ui/separator'
 import DeploymentDesktopCard from '@/components/deployment-desktop-card/DeploymentDesktopCard.vue'
 import { RecreateDesktopConfirmationModal } from '@/components/recreate-desktop-confirmation-modal'
@@ -348,19 +340,12 @@ const openDeploymentInfoModal = () => {
       class="flex flex-col w-full min-w-0 min-h-0 xl:col-start-1 xl:row-start-2"
       :class="{ 'order-last xl:order-none': !viewerData }"
     >
-      <Empty v-if="!viewerData">
-        <EmptyHeader>
-          <EmptyMedia variant="default" class="select-none pointer-events-none">
-            <img :src="desktopsEmptyImg" />
-          </EmptyMedia>
-        </EmptyHeader>
-        <EmptyTitle class="text-[30px] font-bold">{{
-          t('views.view-deployment.sections.viewer.empty.title')
-        }}</EmptyTitle>
-        <EmptyDescription class="text-[18px]!">
-          {{ t('views.view-deployment.sections.viewer.empty.description') }}
-        </EmptyDescription>
-      </Empty>
+      <EmptyState
+        v-if="!viewerData"
+        kind="desktops"
+        :title="t('views.view-deployment.sections.viewer.empty.title')"
+        :description="t('views.view-deployment.sections.viewer.empty.description')"
+      />
 
       <NoVNC
         v-else-if="fullScreen"
@@ -378,16 +363,12 @@ const openDeploymentInfoModal = () => {
             class="absolute inset-0 rounded-lg overflow-hidden cursor-auto!"
           />
 
-          <Empty class="absolute inset-0 -z-10">
-            <EmptyHeader>
-              <EmptyMedia variant="default" class="select-none pointer-events-none">
-                <img :src="desktopsEmptyImg" />
-              </EmptyMedia>
-            </EmptyHeader>
-            <EmptyTitle class="text-[30px] font-bold">{{
-              t('views.view-deployment.sections.viewer.empty.not-available')
-            }}</EmptyTitle>
-          </Empty>
+          <EmptyState
+            class="absolute inset-0 -z-10 min-h-0"
+            kind="desktops"
+            :title="t('views.view-deployment.sections.viewer.empty.not-available')"
+            :description="''"
+          />
         </div>
 
         <DomainSummary

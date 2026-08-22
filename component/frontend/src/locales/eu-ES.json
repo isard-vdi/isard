@@ -177,10 +177,6 @@
         "infinite": "Zakarrontziko elementuak ez dira automatikoki ezabatzen.",
         "immediately": "Zakarrontziko elementuak berehala ezabatuko dira behin betiko."
       },
-      "empty": {
-        "title": "Zakarrontzia hutsik dago",
-        "description": "Ezabatzen dituzun elementuak hemen agertuko dira leheneratu edo behin betiko ezabatu arte."
-      },
       "empty-recycle-bin": "Hustu zakarrontzia",
       "columns": {
         "name": "Izena",
@@ -204,6 +200,12 @@
         "generic": "Zerbait gaizki joan da",
         "restore-failed": "Ezin izan da elementua leheneratu",
         "delete-failed": "Ezin izan da elementua ezabatu"
+      },
+      "entry": {
+        "empty": {
+          "title": "Ez da elementurik aurkitu",
+          "description": "Saiatu fitxa aldatzen edo bilaketa doitzen."
+        }
       }
     },
     "register": {
@@ -1150,14 +1152,56 @@
     "empty": {
       "title": "Ez dago {kind} erabilgarririk",
       "description": "Zure {kind} hemen agertuko dira sortzen edo esleitzen zaizkizunean.",
-      "clear-filters": "Garbitu iragazkiak"
+      "clear-filters": "Garbitu iragazkiak",
+      "desktops": {
+        "title": "Oraindik ez duzu mahaigainik",
+        "description": "Mahaigain bat zure makina birtual propioa da, txantiloi batetik sortua, eta behar duzunean abiarazi eta gelditu dezakezu."
+      },
+      "templates": {
+        "title": "Oraindik ez duzu txantiloirik",
+        "description": "Txantiloi bat izoztutako mahaigain bat da, mahaigain berrien oinarri gisa balio duena, zureak zein partekatzen dituzun erabiltzaileenak."
+      },
+      "shared-templates": {
+        "title": "Ez dizute txantiloirik partekatu",
+        "description": "Beste erabiltzaileek zurekin partekatzen dituzten txantiloiak hemen agertuko dira, mahaigainak sortzeko prest."
+      },
+      "deployments": {
+        "title": "Oraindik ez duzu hedapenik",
+        "description": "Hedapen batek erabiltzaile bakoitzarentzat mahaigain bat sortzen du txantiloi beretik, eta zerrenda bakar batean gordetzen ditu abiarazi, gelditu eta gainbegiratzeko."
+      },
+      "shared-deployments": {
+        "title": "Ez dizute hedapenik partekatu",
+        "description": "Norbaitek hedapen baterako sarbidea ematen dizunean, bere mahaigainak hemen agertuko dira."
+      },
+      "media": {
+        "title": "Oraindik ez duzu euskarririk",
+        "description": "Igo ISO irudiak zure mahaigainetan sistema eragileak instalatzeko edo dagoeneko dituzunei eransteko."
+      },
+      "shared-media": {
+        "title": "Ez dizute euskarririk partekatu",
+        "description": "Beste erabiltzaileek zurekin partekatzen dituzten ISO irudiak hemen agertuko dira."
+      },
+      "recycle-bin": {
+        "title": "Zakarrontzia hutsik dago",
+        "description": "Ezabatzen dituzun elementuak hemen agertuko dira leheneratu edo behin betiko ezabatu arte."
+      },
+      "deployment-users": {
+        "title": "Hedapen honek ez du erabiltzailerik oraindik",
+        "description": "Hedapenean sartzeko baimena duten erabiltzaileak hemen agertuko dira, bakoitza esleitzen zaion mahaigainarekin."
+      },
+      "template-sources": {
+        "title": "Ez dago txantiloi bihurtzeko prest dagoen mahaigainik",
+        "description": "Hedapen batean sartuta ez dauden mahaigain iraunkor geldituak baino ezin dira txantiloi bihurtu."
+      }
     },
     "filters": {
       "toggle": "Iragazkiak",
       "toggle-active": "Iragazkiak ({count} aktibo)"
     },
     "empty-search": {
-      "title": "Ez da emaitzarik aurkitu"
+      "title": "Ez da emaitzarik aurkitu",
+      "description": "Ez dago zure bilaketa edo iragazkiekin bat datorren ezer. Saiatu beste termino batzuekin edo garbitu itzazu dena ikusteko.",
+      "clear": "Garbitu bilaketa"
     },
     "not-enough-advanced-time-modal": {
       "title": "Ez dago aurretiazko denbora nahikorik",

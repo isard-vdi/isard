@@ -121,7 +121,7 @@ onUnmounted(() => {
       <Header :title="t(route.meta.title)" :subtitle="t(route.meta.subtitle)" />
     </template>
     <template #container>
-      <div class="bg-base-background w-full h-full p-5 z-0 relative">
+      <div class="bg-base-background relative z-0 flex w-full flex-1 flex-col p-5">
         <RouterView />
         <div
           v-if="route.meta.showDotsBg"
@@ -132,7 +132,7 @@ onUnmounted(() => {
         <img
           v-if="route.meta.showMountainBg"
           src="@/assets/img/mountains.svg"
-          class="fixed bottom-0 right-0 -z-10 select-none"
+          class="fixed bottom-0 right-0 -z-10 hidden select-none md:block"
         />
         <img
           v-if="route.meta.showCloudsBg"

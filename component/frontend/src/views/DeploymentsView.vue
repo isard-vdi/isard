@@ -8,7 +8,6 @@ import {
   checkQuotaNewDeploymentOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { type OwnedDeployment } from '@/gen/oas/apiv4'
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import { QuotaExceededModal } from '@/components/modal'
 import { DeleteModal } from '@/components/deployments/actions/delete-modal'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
@@ -23,8 +22,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useRoute, useRouter } from 'vue-router'
 import { cn } from '@/lib/utils'
@@ -32,6 +29,7 @@ import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
 import {
+  EmptyState,
   FilterPanel,
   FilterToggle,
   PageContainer,
@@ -154,18 +152,14 @@ const header = computed(() => [
   }
 ])
 
-const emptyState = computed(() => {
-  const isSearching = inputSearch.value.length > 0
+// Unfiltered count, to tell a first run from a fruitless search.
+const totalDeployments = computed(() => deployments.value?.deployments?.length ?? 0)
 
-  return {
-    title: isSearching
-      ? t('components.empty-search.title')
-      : t('components.empty.title', { kind: t('domains.deployments', 0) }),
-    subtitle: isSearching ? undefined : t('views.deployments.empty.subtitle'),
-    image: isSearching ? templatesEmptyImg : desktopsEmptyImg,
-    styles: isSearching ? 'md:flex-row-reverse mt-16' : ''
-  }
-})
+const isFirstRun = computed(() => !deploymentsArePending.value && totalDeployments.value === 0)
+
+const clearDeploymentFilters = () => {
+  deploymentFilters.value.status = 'all'
+}
 
 const badgeState = (isVisible: boolean) => ({
   color: isVisible ? 'blue' : ('gray' as const),
@@ -284,7 +278,7 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
     <div v-if="deploymentsIsError" class="text-center text-error-500">
       <pre>{{ deploymentsError }}</pre>
     </div>
-    <PageToolbar>
+    <PageToolbar v-if="!isFirstRun">
       <template #search>
         <SearchInput
           :id="DEPLOYMENTS_SEARCH_INPUT_ID"
@@ -405,20 +399,26 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
         </template>
       </DataTable>
     </template>
-    <template v-else>
-      <Empty :class="emptyState.styles">
-        <EmptyHeader>
-          <EmptyMedia variant="default" class="select-none pointer-events-none">
-            <img :src="emptyState.image" />
-          </EmptyMedia>
-        </EmptyHeader>
-        <EmptyTitle class="text-[30px] font-bold">
-          {{ emptyState.title }}
-        </EmptyTitle>
-        <EmptyDescription class="text-[18px]!">
-          {{ emptyState.subtitle }}
-        </EmptyDescription>
-      </Empty>
-    </template>
+    <EmptyState
+      v-else
+      kind="deployments"
+      :variant="isFirstRun ? 'first-run' : 'no-results'"
+      :searching="inputSearch.length > 0"
+      :active-filters="activeDeploymentFilterCount"
+      @clear-search="inputSearch = ''"
+      @clear-filters="clearDeploymentFilters"
+    >
+      <template v-if="isFirstRun" #actions>
+        <Button
+          :disabled="checkQuotaIsPending"
+          :icon="checkQuotaIsPending ? 'loading-02' : 'plus'"
+          :icon-class="cn(checkQuotaIsPending && 'motion-safe:animate-[spin_2s_linear_infinite]')"
+          size="lg"
+          @click="goToNewDeployment"
+        >
+          {{ t('router.deployments.new.title') }}
+        </Button>
+      </template>
+    </EmptyState>
   </PageContainer>
 </template>

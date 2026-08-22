@@ -268,10 +268,6 @@
         "infinite": "Items in the recycle bin are not automatically deleted.",
         "immediately": "Items in the recycle bin will be permanently deleted immediately."
       },
-      "empty": {
-        "title": "Recycle bin is empty",
-        "description": "Items you delete will appear here until they are restored or permanently deleted."
-      },
       "empty-recycle-bin": "Empty recycle bin",
       "columns": {
         "name": "Name",
@@ -664,9 +660,6 @@
       "visibility": {
         "visible": "Visible",
         "hidden": "Hidden"
-      },
-      "empty": {
-        "subtitle": "Create a deployment to start providing desktops to your users"
       },
       "actions": {
         "go-to-direct-viewer": "Go to direct viewer"
@@ -1873,7 +1866,47 @@
     "empty": {
       "title": "No {kind} available",
       "description": "Your {kind} will appear here once they are created or assigned to you.",
-      "clear-filters": "Clear filters"
+      "clear-filters": "Clear filters",
+      "desktops": {
+        "title": "You don't have any desktops yet",
+        "description": "A desktop is a virtual machine of your own, created from a template, that you can start and stop whenever you need it."
+      },
+      "templates": {
+        "title": "You don't have any templates yet",
+        "description": "A template is a frozen desktop that serves as the base for new desktops, yours and those of the users you share it with."
+      },
+      "shared-templates": {
+        "title": "No templates shared with you",
+        "description": "Templates that other users share with you will show up here, ready to create desktops from."
+      },
+      "deployments": {
+        "title": "You don't have any deployments yet",
+        "description": "A deployment creates one desktop per user from the same template, and keeps them all in a single list you can start, stop and monitor."
+      },
+      "shared-deployments": {
+        "title": "No deployments shared with you",
+        "description": "When someone gives you access to a deployment, its desktops will show up here."
+      },
+      "media": {
+        "title": "You don't have any media yet",
+        "description": "Upload ISO images to install operating systems on your desktops or attach them to the ones you already have."
+      },
+      "shared-media": {
+        "title": "No media shared with you",
+        "description": "ISO images that other users share with you will show up here."
+      },
+      "recycle-bin": {
+        "title": "Recycle bin is empty",
+        "description": "Items you delete will appear here until they are restored or permanently deleted."
+      },
+      "deployment-users": {
+        "title": "This deployment has no users yet",
+        "description": "Users allowed into the deployment appear here, each with the desktop it hands them."
+      },
+      "template-sources": {
+        "title": "No desktops ready to become a template",
+        "description": "Only stopped persistent desktops that are not part of a deployment can be turned into a template."
+      }
     },
     "filters": {
       "toggle": "Filters",
@@ -1881,7 +1914,8 @@
     },
     "empty-search": {
       "title": "No results found",
-      "clear": "Clear search"
+      "clear": "Clear search",
+      "description": "Nothing matches your search or filters. Try different terms, or clear them to see everything."
     },
     "not-enough-advanced-time-modal": {
       "title": "Not enough advanced time",

@@ -260,10 +260,6 @@
         "infinite": "Los elementos de la papelera no se eliminarán automáticamente.",
         "immediately": "Los elementos de la papelera se eliminarán permanentemente de manera inmediata."
       },
-      "empty": {
-        "title": "La papelera está vacía",
-        "description": "Los elementos que elimines aparecerán aquí hasta que se restauren o se eliminen permanentemente."
-      },
       "empty-recycle-bin": "Vaciar papelera",
       "columns": {
         "name": "Nombre",
@@ -656,9 +652,6 @@
       "visibility": {
         "visible": "Visible",
         "hidden": "Oculto"
-      },
-      "empty": {
-        "subtitle": "Crea un despliegue para empezar a proporcionar escritorios a tus usuarios"
       },
       "actions": {
         "go-to-direct-viewer": "Ir al visor directo"
@@ -1609,7 +1602,47 @@
     "empty": {
       "clear-filters": "Limpiar filtros",
       "description": "Sus {kind} aparecerán aquí una vez que se creen o se te asignen.",
-      "title": "No hay {kind} disponibles"
+      "title": "No hay {kind} disponibles",
+      "desktops": {
+        "title": "Aún no tienes ningún escritorio",
+        "description": "Un escritorio es una máquina virtual propia que creas a partir de una plantilla y puedes iniciar y detener cuando lo necesites."
+      },
+      "templates": {
+        "title": "Aún no tienes ninguna plantilla",
+        "description": "Una plantilla es un escritorio congelado que sirve de base para crear escritorios nuevos, tuyos o de los usuarios con los que la compartas."
+      },
+      "shared-templates": {
+        "title": "No te han compartido ninguna plantilla",
+        "description": "Las plantillas que otros usuarios compartan contigo aparecerán aquí, listas para crear escritorios."
+      },
+      "deployments": {
+        "title": "Aún no tienes ningún despliegue",
+        "description": "Un despliegue crea un escritorio por usuario a partir de la misma plantilla y los mantiene en una sola lista desde la que puedes iniciarlos, detenerlos y supervisarlos."
+      },
+      "shared-deployments": {
+        "title": "No te han compartido ningún despliegue",
+        "description": "Cuando alguien te dé acceso a un despliegue, sus escritorios aparecerán aquí."
+      },
+      "media": {
+        "title": "Aún no tienes ningún medio",
+        "description": "Sube imágenes ISO para instalar sistemas operativos en tus escritorios o conectarlas a los que ya tienes."
+      },
+      "shared-media": {
+        "title": "No te han compartido ningún medio",
+        "description": "Las imágenes ISO que otros usuarios compartan contigo aparecerán aquí."
+      },
+      "recycle-bin": {
+        "title": "La papelera está vacía",
+        "description": "Los elementos que elimines aparecerán aquí hasta que se restauren o se eliminen permanentemente."
+      },
+      "deployment-users": {
+        "title": "Este despliegue aún no tiene usuarios",
+        "description": "Los usuarios con acceso al despliegue aparecerán aquí, cada uno con el escritorio que se le asigna."
+      },
+      "template-sources": {
+        "title": "Ningún escritorio listo para convertir en plantilla",
+        "description": "Solo los escritorios persistentes detenidos que no forman parte de un despliegue se pueden convertir en plantilla."
+      }
     },
     "filters": {
       "toggle": "Filtros",
@@ -1617,7 +1650,8 @@
     },
     "empty-search": {
       "clear": "Limpiar búsqueda",
-      "title": "No se encontraron resultados"
+      "title": "No se encontraron resultados",
+      "description": "No hay nada que coincida con tu búsqueda o filtros. Prueba con otros términos o límpialos para verlo todo."
     },
     "recreate-desktop-confirmation-modal": {
       "cancel": "Cancelar",

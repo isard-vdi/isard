@@ -15,8 +15,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/badge'
 import { Switch } from '@/components/ui/switch'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { useMediaQuery } from '@vueuse/core'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -33,7 +31,7 @@ import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-
 import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
 import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
 import { useBulkSpawnStore } from '@/stores/bulk-spawn'
-import { PageContainer, PageToolbar, SearchInput } from '@/components/page'
+import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 
 const { t, d, locale } = useI18n()
 
@@ -80,6 +78,8 @@ const filteredDeploymentUsers = computed(() => {
 })
 
 const inputSearch = ref<string>('')
+
+const hasDeploymentUsers = computed(() => (deploymentEntry.value?.users?.length ?? 0) > 0)
 
 // Visibility
 const areUsersVisible = (users: DeploymentUserDetail) => {
@@ -344,7 +344,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
       </dl>
     </div>
     <PageToolbar>
-      <template #search>
+      <template v-if="hasDeploymentUsers" #search>
         <SearchInput
           :id="DEPLOYMENT_SEARCH_INPUT_ID"
           v-model="inputSearch"
@@ -527,17 +527,12 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
         </template>
       </DataTable>
     </template>
-    <template v-else>
-      <Empty class="md:flex-row-reverse mt-16">
-        <EmptyHeader>
-          <EmptyMedia variant="default" class="select-none pointer-events-none">
-            <img :src="templatesEmptyImg" />
-          </EmptyMedia>
-        </EmptyHeader>
-        <EmptyTitle class="text-[30px] font-bold">
-          {{ t('components.empty-search.title') }}
-        </EmptyTitle>
-      </Empty>
-    </template>
+    <EmptyState
+      v-else
+      kind="deployment-users"
+      :variant="hasDeploymentUsers ? 'no-results' : 'first-run'"
+      :searching="inputSearch.length > 0"
+      @clear-search="inputSearch = ''"
+    />
   </PageContainer>
 </template>
