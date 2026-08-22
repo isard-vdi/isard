@@ -16,13 +16,11 @@ import { Button } from '@/components/ui/button'
 import { useI18n } from 'vue-i18n'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { DesktopCardSkeleton } from '@/components/desktop-card'
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DomainInfoModal } from '@/components/desktops'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  EmptyState,
   FilterPanel,
   FilterToggle,
   PageContainer,
@@ -109,17 +107,14 @@ const areDeploymentsVisible = (deployment: SharedDeployment) => {
 
 const inputSearch = ref<string>('')
 
-const emptyState = computed(() => {
-  const isSearching = inputSearch.value.length > 0
+// Unfiltered count, to tell a first run from a fruitless search.
+const totalDeployments = computed(() => deployments.value?.deployments?.length ?? 0)
 
-  return {
-    title: isSearching
-      ? t('components.empty-search.title')
-      : t('components.empty.title', { kind: t('domains.deployments', 0) }),
-    image: isSearching ? templatesEmptyImg : desktopsEmptyImg,
-    styles: isSearching ? 'md:flex-row-reverse mt-16' : ''
-  }
-})
+const isFirstRun = computed(() => !deploymentsArePending.value && totalDeployments.value === 0)
+
+const clearDeploymentFilters = () => {
+  deploymentFilters.value.status = 'all'
+}
 
 // Deployment desktops info
 const showDeploymentInfoModal = ref(false)
@@ -156,7 +151,7 @@ const SHARED_DEPLOYMENTS_SEARCH_INPUT_ID = 'shared-deployments-search'
 
 <template>
   <PageContainer>
-    <PageToolbar>
+    <PageToolbar v-if="!isFirstRun">
       <template #search>
         <SearchInput
           :id="SHARED_DEPLOYMENTS_SEARCH_INPUT_ID"
@@ -186,7 +181,7 @@ const SHARED_DEPLOYMENTS_SEARCH_INPUT_ID = 'shared-deployments-search'
         </FilterPanel>
       </template>
     </PageToolbar>
-    <div class="w-full">
+    <div class="flex w-full flex-1 flex-col">
       <div
         v-if="deploymentsArePending"
         class="grid gap-4 w-full"
@@ -261,18 +256,15 @@ const SHARED_DEPLOYMENTS_SEARCH_INPUT_ID = 'shared-deployments-search'
           </DesktopCardBaseStacked>
         </template>
       </div>
-      <template v-else>
-        <Empty :class="emptyState.styles">
-          <EmptyHeader>
-            <EmptyMedia variant="default" class="select-none pointer-events-none">
-              <img :src="emptyState.image" />
-            </EmptyMedia>
-          </EmptyHeader>
-          <EmptyTitle class="text-[30px] font-bold">
-            {{ emptyState.title }}
-          </EmptyTitle>
-        </Empty>
-      </template>
+      <EmptyState
+        v-else
+        kind="shared-deployments"
+        :variant="isFirstRun ? 'first-run' : 'no-results'"
+        :searching="inputSearch.length > 0"
+        :active-filters="activeDeploymentFilterCount"
+        @clear-search="inputSearch = ''"
+        @clear-filters="clearDeploymentFilters"
+      />
     </div>
     <DomainInfoModal
       :open="showDeploymentInfoModal"

@@ -260,10 +260,6 @@
         "infinite": "Els elements de la paperera no s'eliminaran automàticament.",
         "immediately": "Els elements s'eliminaran de la paperera permanentment de manera immediata."
       },
-      "empty": {
-        "title": "La paperera és buida",
-        "description": "Els elements que eliminis apareixeran aquí fins que es restaurin o s'eliminin permanentment."
-      },
       "empty-recycle-bin": "Buida la paperera",
       "columns": {
         "name": "Nom",
@@ -656,9 +652,6 @@
       "visibility": {
         "visible": "Visible",
         "hidden": "Ocult"
-      },
-      "empty": {
-        "subtitle": "Crea un desplegament per començar a proporcionar escriptoris als teus usuaris"
       },
       "actions": {
         "go-to-direct-viewer": "Ves al visor directe"
@@ -1609,7 +1602,47 @@
     "empty": {
       "clear-filters": "Neteja els filtres",
       "description": "Els teus {kind} apareixeran aquí un cop es creïn o se t'assignin.",
-      "title": "No hi ha {kind} disponibles"
+      "title": "No hi ha {kind} disponibles",
+      "desktops": {
+        "title": "Encara no tens cap escriptori",
+        "description": "Un escriptori és una màquina virtual pròpia que crees a partir d'una plantilla i que pots engegar i aturar quan la necessitis."
+      },
+      "templates": {
+        "title": "Encara no tens cap plantilla",
+        "description": "Una plantilla és un escriptori congelat que serveix de base per crear escriptoris nous, teus o dels usuaris amb qui la comparteixis."
+      },
+      "shared-templates": {
+        "title": "No t'han compartit cap plantilla",
+        "description": "Les plantilles que altres usuaris comparteixin amb tu apareixeran aquí, a punt per crear-hi escriptoris."
+      },
+      "deployments": {
+        "title": "Encara no tens cap desplegament",
+        "description": "Un desplegament crea un escriptori per usuari a partir de la mateixa plantilla i els manté en una sola llista des d'on els pots engegar, aturar i supervisar."
+      },
+      "shared-deployments": {
+        "title": "No t'han compartit cap desplegament",
+        "description": "Quan algú et doni accés a un desplegament, els seus escriptoris apareixeran aquí."
+      },
+      "media": {
+        "title": "Encara no tens cap mèdia",
+        "description": "Puja imatges ISO per instal·lar sistemes operatius als teus escriptoris o connectar-les als que ja tens."
+      },
+      "shared-media": {
+        "title": "No t'han compartit cap mèdia",
+        "description": "Les imatges ISO que altres usuaris comparteixin amb tu apareixeran aquí."
+      },
+      "recycle-bin": {
+        "title": "La paperera és buida",
+        "description": "Els elements que eliminis apareixeran aquí fins que es restaurin o s'eliminin permanentment."
+      },
+      "deployment-users": {
+        "title": "Aquest desplegament encara no té usuaris",
+        "description": "Els usuaris amb accés al desplegament apareixeran aquí, cadascun amb l'escriptori que se li assigna."
+      },
+      "template-sources": {
+        "title": "Cap escriptori a punt per convertir en plantilla",
+        "description": "Només els escriptoris persistents aturats que no formen part d'un desplegament es poden convertir en plantilla."
+      }
     },
     "filters": {
       "toggle": "Filtres",
@@ -1617,7 +1650,8 @@
     },
     "empty-search": {
       "clear": "Neteja la cerca",
-      "title": "No s'ha trobat cap resultat"
+      "title": "No s'ha trobat cap resultat",
+      "description": "No hi ha res que coincideixi amb la cerca o els filtres. Prova altres termes o neteja'ls per veure-ho tot."
     },
     "recreate-desktop-confirmation-modal": {
       "cancel": "Cancel·la",

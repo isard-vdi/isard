@@ -45,7 +45,7 @@ import {
 } from '@tanstack/vue-table'
 
 import { cn, valueUpdater } from '@/lib/utils'
-import { SearchInput } from '@/components/page'
+import { EmptyState, SearchInput } from '@/components/page'
 
 const route = useRoute()
 const router = useRouter()
@@ -409,9 +409,30 @@ const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
               </template>
 
               <DataTableEmpty v-else>
-                <slot name="empty">
-                  {{ t('components.datatable.empty') }}
-                </slot>
+                <!-- No eligible desktop at all is a different dead end than a
+                     search that matched none of them. -->
+                <EmptyState
+                  v-if="tableData.length === 0"
+                  variant="no-results"
+                  :title="t('components.empty.template-sources.title')"
+                  :description="t('components.empty.template-sources.description')"
+                >
+                  <template #actions>
+                    <Button
+                      hierarchy="secondary-gray"
+                      icon="monitor-04"
+                      @click="router.push({ name: 'desktops' })"
+                    >
+                      {{ t('views.desktops.go-to-desktops') }}
+                    </Button>
+                  </template>
+                </EmptyState>
+                <EmptyState
+                  v-else
+                  variant="no-results"
+                  searching
+                  @clear-search="globalFilter = ''"
+                />
               </DataTableEmpty>
             </DataTableBody>
           </DataTable>

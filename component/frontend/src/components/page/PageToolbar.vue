@@ -14,8 +14,14 @@ const props = defineProps<{
       <slot name="tabs" />
     </div>
 
-    <div class="flex w-full flex-row flex-wrap items-start gap-2 sm:gap-4">
-      <div class="mr-auto flex min-w-30 flex-1 flex-row items-start gap-2">
+    <div
+      v-if="$slots.search || $slots.filters || $slots.actions"
+      class="flex w-full flex-row flex-wrap items-start gap-2 sm:gap-4"
+    >
+      <div
+        v-if="$slots.search || $slots.filters"
+        class="mr-auto flex min-w-30 flex-1 flex-row items-start gap-2"
+      >
         <slot name="search" />
         <slot name="filters" />
       </div>

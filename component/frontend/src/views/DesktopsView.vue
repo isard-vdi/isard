@@ -59,8 +59,6 @@ import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optim
 import { resolveDesktopKind } from '@/lib/desktops'
 import { useNotificationModalStore } from '@/stores/notification-modal'
 
-import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
-
 import { SinglePageLayout } from '@/layouts/single-page'
 
 import {
@@ -84,14 +82,7 @@ import {
   type CardSize
 } from '@/components/desktop-card'
 import { DesktopsDataTable } from '@/components/desktops-data-table'
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle
-} from '@/components/ui/empty'
+import { EmptyState } from '@/components/page'
 import {
   Field,
   FieldDescription,
@@ -491,6 +482,11 @@ const desktopFiltersToggleLabel = computed(() =>
   activeDesktopFilterCount.value
     ? t('views.desktops.filters.toggle-active', { count: activeDesktopFilterCount.value })
     : t('views.desktops.filters.toggle')
+)
+
+// Nothing to search or filter until the account holds a desktop.
+const isFirstRun = computed(
+  () => !desktopsIsPending.value && (desktops.value?.desktops.length ?? 0) === 0
 )
 
 const clearDesktopFilters = () => {
@@ -1248,15 +1244,13 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     @submit="onChangeAndStartSubmit"
   />
 
-  <main v-if="route.params.desktopId" class="w-full h-full flex justify-center items-center">
-    <Empty>
-      <EmptyTitle class="text-display-md! font-bold text-gray-warm-800">{{
-        t(`views.desktops.${route.params.action}.title`, { kind: t('domains.desktops', 0) })
-      }}</EmptyTitle>
-      <EmptyDescription class="-mt-3 text-md text-gray-warm-600">{{
+  <main v-if="route.params.desktopId" class="flex w-full flex-1 items-center justify-center">
+    <EmptyState
+      :title="t(`views.desktops.${route.params.action}.title`, { kind: t('domains.desktops', 0) })"
+      :description="
         t(`views.desktops.${route.params.action}.description`, { kind: t('domains.desktops', 0) })
-      }}</EmptyDescription>
-
+      "
+    >
       <DesktopCard
         v-if="routeDesktop"
         class="mt-6 text-start"
@@ -1297,7 +1291,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
         @show-storage-modal="storageModalDesktop = routeDesktop"
       />
 
-      <EmptyContent class="flex-row">
+      <template #actions>
         <Button hierarchy="link-color" :as="RouterLink" :to="{ name: 'desktops' }">{{
           t('views.desktops.go-to-desktops')
         }}</Button>
@@ -1307,16 +1301,18 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
             cn(desktopCreationCheckIsPending && 'motion-safe:animate-[spin_2s_linear_infinite]')
           "
           :disabled="desktopCreationCheckIsPending"
+          size="lg"
           @click="goToNewDesktop"
         >
           {{ t('views.desktops.new-desktop') }}
         </Button>
-      </EmptyContent>
-    </Empty>
+      </template>
+    </EmptyState>
   </main>
 
-  <main v-else class="-mt-4 flex flex-col w-full">
+  <main v-else class="-mt-4 flex w-full flex-1 flex-col">
     <div
+      v-if="!isFirstRun"
       :class="
         cn(
           'sticky top-16 z-40 -mx-5 mb-1 flex flex-col gap-3 bg-base-background px-5 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-8 before:bg-base-background',
@@ -1540,7 +1536,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
       </div>
     </div>
 
-    <div class="flex flex-col gap-2 flex-wrap w-full">
+    <div class="flex w-full flex-1 flex-col gap-2">
       <div
         v-if="desktopsIsPending"
         class="grid gap-4 w-full"
@@ -1556,38 +1552,29 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
       </p>
 
       <template v-else>
-        <Empty v-show="filteredDesktops.length === 0">
-          <EmptyHeader>
-            <EmptyMedia variant="default" class="select-none pointer-events-none">
-              <img :src="desktopsEmptyImg" />
-            </EmptyMedia>
-          </EmptyHeader>
-          <EmptyTitle class="text-[30px] font-bold">{{
-            t('components.empty.title', { kind: t('domains.desktops', 0) })
-          }}</EmptyTitle>
-          <EmptyDescription class="text-[18px]!">{{
-            t('components.empty.description', { kind: t('domains.desktops', 0) })
-          }}</EmptyDescription>
-          <EmptyContent class="flex-row">
-            <Button
-              v-show="areDesktopFiltersActive && desktops?.desktops.length"
-              hierarchy="secondary-color"
-              icon="filter-funnel-02"
-              @click="clearDesktopFilters()"
-              >{{ t('components.empty.clear-filters') }}</Button
-            >
+        <EmptyState
+          v-show="filteredDesktops.length === 0"
+          kind="desktops"
+          :variant="isFirstRun ? 'first-run' : 'no-results'"
+          :searching="desktopFilters.search.length > 0"
+          :active-filters="activeDesktopFilterCount"
+          @clear-search="desktopFilters.search = ''"
+          @clear-filters="clearDesktopFilters()"
+        >
+          <template v-if="isFirstRun" #actions>
             <Button
               :icon="desktopCreationCheckIsPending ? 'loading-02' : 'plus'"
               :icon-class="
                 cn(desktopCreationCheckIsPending && 'motion-safe:animate-[spin_2s_linear_infinite]')
               "
               :disabled="desktopCreationCheckIsPending"
+              size="lg"
               @click="goToNewDesktop"
             >
               {{ t('views.desktops.new-desktop') }}
             </Button>
-          </EmptyContent>
-        </Empty>
+          </template>
+        </EmptyState>
 
         <DesktopsDataTable
           v-if="viewMode === 'table'"
