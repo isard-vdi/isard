@@ -1147,6 +1147,10 @@
       "description": "Zure {kind} hemen agertuko dira sortzen edo esleitzen zaizkizunean.",
       "clear-filters": "Garbitu iragazkiak"
     },
+    "filters": {
+      "toggle": "Iragazkiak",
+      "toggle-active": "Iragazkiak ({count} aktibo)"
+    },
     "empty-search": {
       "title": "Ez da emaitzarik aurkitu"
     },

@@ -1605,6 +1605,10 @@
       "description": "Sus {kind} aparecerán aquí una vez que se creen o se te asignen.",
       "title": "No hay {kind} disponibles"
     },
+    "filters": {
+      "toggle": "Filtros",
+      "toggle-active": "Filtros ({count} activos)"
+    },
     "empty-search": {
       "clear": "Limpiar búsqueda",
       "title": "No se encontraron resultados"
