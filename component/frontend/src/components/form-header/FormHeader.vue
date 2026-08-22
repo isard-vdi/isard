@@ -62,7 +62,7 @@ defineExpose({ allowLeave })
     data-sticky-header
     :class="
       cn(
-        'sticky top-16 z-40 -mx-5 -mt-5 mb-6 p-5 bg-base-background',
+        'sticky top-16 z-40 -mx-[var(--page-gutter,1.5rem)] -mt-8 mb-6 px-[var(--page-gutter,1.5rem)] py-5 bg-base-background',
         // Masks the sliver between the page header and this one, so content cannot show through
         'before:absolute before:inset-x-0 before:bottom-full before:h-8 before:bg-base-background',
         windowScrollY > 0 && 'shadow-md'

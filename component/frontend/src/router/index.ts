@@ -41,7 +41,8 @@ const router = createRouter({
               meta: {
                 title: 'router.desktops.title',
                 subtitle: 'router.desktops.subtitle',
-                showMountainBg: true
+                showMountainBg: true,
+                narrowGutter: true
               },
               children: [
                 {
@@ -50,7 +51,8 @@ const router = createRouter({
                   component: () => import('../views/DesktopsView.vue'),
                   meta: {
                     showCloudsBg: true,
-                    showDotsBg: true
+                    showDotsBg: true,
+                    narrowGutter: true
                   }
                 }
               ]
@@ -241,7 +243,8 @@ const router = createRouter({
               meta: {
                 title: 'router.shared-deployments.title',
                 subtitle: 'router.shared-deployments.subtitle',
-                allowedRoles: ['user', 'advanced', 'manager', 'admin'] as Role[]
+                allowedRoles: ['user', 'advanced', 'manager', 'admin'] as Role[],
+                narrowGutter: true
               }
             },
             {
