@@ -39,7 +39,7 @@ function switchFrontend() {
   <button
     v-if="visible"
     type="button"
-    class="fixed bottom-4 right-4 z-50 rounded-full bg-brand-700 px-4 py-2 text-sm font-semibold text-base-white shadow-lg hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-gray-warm-300"
+    class="pointer-events-auto rounded-full bg-brand-700 px-4 py-2 text-sm font-semibold text-base-white shadow-lg hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-gray-warm-300"
     :disabled="!hasEquivalent"
     :title="hasEquivalent ? t('frontend_toggler.to_vue2') : t('frontend_toggler.no_equivalent')"
     @click="switchFrontend"

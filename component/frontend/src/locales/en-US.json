@@ -2685,6 +2685,9 @@
         "cancel": "Keep editing",
         "confirm": "Discard and exit"
       }
+    },
+    "scroll-to-top": {
+      "label": "Go to top"
     }
   },
   "authentication": {

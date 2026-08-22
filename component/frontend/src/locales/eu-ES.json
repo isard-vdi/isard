@@ -1546,6 +1546,9 @@
         "cancel": "Jarraitu editatzen",
         "confirm": "Baztertu eta irten"
       }
+    },
+    "scroll-to-top": {
+      "label": "Joan gora"
     }
   },
   "authentication": {

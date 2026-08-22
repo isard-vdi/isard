@@ -9,11 +9,13 @@ import { Sidebar } from '@/components/sidebar'
 import { FrontendToggler } from '@/components/frontend-toggler'
 import SessionModal from '@/components/modal/SessionModal.vue'
 import { MessageModal } from '@/components/modal'
+import ScrollToTop from '@/components/page/ScrollToTop.vue'
 
 import { useSessionStore } from '@/stores/session'
 import { sidebarItemsToShow } from '@/lib/navigation'
 import { DEFAULT_DOCS_URL, DEFAULT_VIEWERS_DOCS_URL, docsUrl } from '@/lib/docs'
 import { getUserOptions, getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { cn } from '@/lib/utils'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -28,6 +30,13 @@ const { isPending: isUserLoading, data: user } = useQuery({
   ...getUserOptions(),
   staleTime: Infinity
 })
+
+// The desktops grid runs wide by design, so it keeps the spacing the rest of the app grew out of.
+const contentPadding = computed(() =>
+  route.meta.narrowGutter
+    ? '[--page-gutter:1.25rem] p-5'
+    : '[--page-gutter:1.5rem] px-[var(--page-gutter)] pb-24 pt-8 md:[--page-gutter:3rem] lg:[--page-gutter:5rem]'
+)
 
 // In `hidden` mode the login notifications page is a transitional landing that
 // must funnel the user back to the old frontend.
@@ -121,7 +130,12 @@ onUnmounted(() => {
       <Header :title="t(route.meta.title)" :subtitle="t(route.meta.subtitle)" />
     </template>
     <template #container>
-      <div class="bg-base-background relative z-0 flex w-full flex-1 flex-col p-5">
+      <!-- The side gutters widen with the viewport so the content does not run edge to edge,
+           and the bottom one is deeper still so the floating buttons never land on the last
+           row of a page. Full-bleed children read the gutter back off --page-gutter. -->
+      <div
+        :class="cn('bg-base-background relative z-0 flex w-full flex-1 flex-col', contentPadding)"
+      >
         <RouterView />
         <div
           v-if="route.meta.showDotsBg"
@@ -153,5 +167,9 @@ onUnmounted(() => {
 
   <MessageModal />
 
-  <FrontendToggler />
+  <!-- Both float in the same corner, so they stack instead of overlapping when both are up. -->
+  <div class="pointer-events-none fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+    <ScrollToTop />
+    <FrontendToggler />
+  </div>
 </template>

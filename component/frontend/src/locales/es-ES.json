@@ -2654,6 +2654,9 @@
         "cancel": "Seguir editando",
         "confirm": "Descartar y salir"
       }
+    },
+    "scroll-to-top": {
+      "label": "Ir arriba"
     }
   },
   "authentication": {
