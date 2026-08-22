@@ -2654,6 +2654,9 @@
         "cancel": "Continua editant",
         "confirm": "Descarta i surt"
       }
+    },
+    "scroll-to-top": {
+      "label": "Ves a dalt"
     }
   },
   "authentication": {

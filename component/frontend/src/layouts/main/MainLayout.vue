@@ -9,6 +9,7 @@ import { Sidebar } from '@/components/sidebar'
 import { FrontendToggler } from '@/components/frontend-toggler'
 import SessionModal from '@/components/modal/SessionModal.vue'
 import { MessageModal } from '@/components/modal'
+import ScrollToTop from '@/components/page/ScrollToTop.vue'
 
 import { useSessionStore } from '@/stores/session'
 import { sidebarItemsToShow } from '@/lib/navigation'
@@ -121,7 +122,8 @@ onUnmounted(() => {
       <Header :title="t(route.meta.title)" :subtitle="t(route.meta.subtitle)" />
     </template>
     <template #container>
-      <div class="bg-base-background relative z-0 flex w-full flex-1 flex-col p-5">
+      <!-- The deeper bottom gutter keeps the floating buttons off the last row of a page. -->
+      <div class="bg-base-background relative z-0 flex w-full flex-1 flex-col p-5 pb-24">
         <RouterView />
         <div
           v-if="route.meta.showDotsBg"
@@ -153,5 +155,9 @@ onUnmounted(() => {
 
   <MessageModal />
 
-  <FrontendToggler />
+  <!-- Both float in the same corner, so they stack instead of overlapping when both are up. -->
+  <div class="pointer-events-none fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+    <ScrollToTop />
+    <FrontendToggler />
+  </div>
 </template>
