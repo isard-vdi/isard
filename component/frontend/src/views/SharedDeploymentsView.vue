@@ -123,7 +123,7 @@ const deploymentDesktopItems = computed<DomainInfoItem[]>(() => {
     vcpu: d.vcpu,
     ram: d.memory,
     bootOrder: d.boot_order.map((bo) => bo.name),
-    diskBus: d.disk_bus,
+    diskBus: d.disk_bus?.name,
     vga: d.videos.map((v) => v.name),
     viewers: d.viewers,
     fullscreen: d.fullscreen,

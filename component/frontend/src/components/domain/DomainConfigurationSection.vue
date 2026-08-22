@@ -94,8 +94,23 @@ const removedViewerLabels = computed<string[]>(() => accessFormRef.value?.remove
 // The summaries come from endpoints that don't apply the wireguard filter the
 // access form does, so they would still offer viewers that won't be created.
 const summaryViewers = computed(() =>
-  (props.summary?.viewers ?? []).filter((viewer) => !removedViewers.value.includes(viewer))
+  (accessFormRef.value?.summary.viewers ?? props.summary?.viewers ?? []).filter(
+    (viewer: string) => !removedViewers.value.includes(viewer)
+  )
 )
+
+/** Keeps a form that has not seeded itself yet from blanking the card. */
+const defined = (values: Record<string, unknown> | undefined) =>
+  Object.fromEntries(Object.entries(values ?? {}).filter(([, value]) => value !== undefined))
+
+// The card tracks the forms as they are edited, and falls back to whatever the
+// view seeded it with for the fields the forms don't hold.
+const liveSummary = computed<DomainSummaryData>(() => ({
+  ...props.summary,
+  ...defined(accessFormRef.value?.summary),
+  ...defined(hardwareFormRef.value?.summary),
+  viewers: summaryViewers.value
+}))
 
 const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces ?? [])
 
@@ -290,13 +305,11 @@ defineExpose({
         </div>
         <!-- The summary previews what the collapsed forms hold; where they are
              open from the start it would only repeat them. -->
-        <!-- `viewers` last: it overrides the ones the summary came with. -->
         <DomainSummary
           v-if="!alwaysOpen"
           class="shadow-xs"
           :loading="loading"
-          v-bind="summary"
-          :viewers="summaryViewers"
+          v-bind="liveSummary"
         />
 
         <div

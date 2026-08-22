@@ -286,7 +286,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
     :vcpu="templateDetails?.vcpu"
     :ram="templateDetails?.memory"
     :boot-order="templateDetails?.boot_order.map((bo) => bo.name)"
-    :disk-bus="templateDetails?.disk_bus"
+    :disk-bus="templateDetails?.disk_bus?.name"
     :vga="templateDetails?.videos.map((vga) => vga.name)"
     :viewers="templateDetails?.viewers"
     :isos="templateDetails?.isos?.map((iso) => iso.name)"

@@ -970,7 +970,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     :vcpu="desktopDetails?.vcpu"
     :ram="desktopDetails?.memory"
     :boot-order="desktopDetails?.boot_order.map((bo) => bo.name)"
-    :disk-bus="desktopDetails?.disk_bus"
+    :disk-bus="desktopDetails?.disk_bus?.name"
     :vga="desktopDetails?.videos.map((vga) => vga.name)"
     :viewers="desktopDetails?.viewers"
     :isos="desktopDetails?.isos?.map((iso) => iso.name)"

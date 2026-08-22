@@ -101,7 +101,7 @@ const summary = computed(() => ({
   fullscreen: desktopDetails.value?.fullscreen,
   vcpu: desktopDetails.value?.vcpu,
   memory: desktopDetails.value?.memory,
-  diskBus: desktopDetails.value?.disk_bus,
+  diskBus: desktopDetails.value?.disk_bus?.name,
   videos: desktopDetails.value?.videos.map((video) => video.name),
   interfaces: desktopDetails.value?.interfaces.map((iface) => iface.name),
   bootOrder: desktopDetails.value?.boot_order.map((boot) => boot.name),
