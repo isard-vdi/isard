@@ -64,7 +64,7 @@ def _configured(**overrides):
     acmedns = {
         "base_url": "https://auth.example.com",
         "username": "eabcdb41-d89f-4580-826f-3e62e9755ef2",
-        "password": "htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z",
+        "password": "not-a-real-password-for-tests-0123456789",
         "subdomain": "d420c923-bbd7-4056-ab64-c3ca54c9b3cf",
         "fulldomain": "d420c923.auth.example.com",
         "verified": True,
@@ -100,7 +100,7 @@ class TestIssuing:
         request = _request(mock_call)
         assert request.acme_dns_base_url == "https://auth.example.com"
         assert request.acme_dns_username == "eabcdb41-d89f-4580-826f-3e62e9755ef2"
-        assert request.acme_dns_password == "htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z"
+        assert request.acme_dns_password == "not-a-real-password-for-tests-0123456789"
         assert request.acme_dns_subdomain == "d420c923-bbd7-4056-ab64-c3ca54c9b3cf"
 
     def test_the_names_and_the_account_still_travel(self, bastion, stored_config):

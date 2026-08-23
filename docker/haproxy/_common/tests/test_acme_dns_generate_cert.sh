@@ -72,7 +72,7 @@ WORK_DIR=""
 cleanup_suite() { [ -n "$WORK_DIR" ] && rm -rf "$WORK_DIR"; return 0; }
 trap cleanup_suite EXIT
 
-PASSWORD='htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z'
+PASSWORD='not-a-real-password-for-tests-0123456789'
 
 # new_fixture <issue_exit_code> [hold_seconds]
 #

@@ -23,7 +23,7 @@ import (
 // anywhere else. Asserting only the first would pass just as well if the
 // password were sent twice.
 
-const testPassword = "htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z"
+const testPassword = "not-a-real-password-for-tests-0123456789"
 
 func testCreds() ACMEDNSCredentials {
 	return ACMEDNSCredentials{

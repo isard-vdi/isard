@@ -47,7 +47,7 @@ def stored():
             "acmedns": {
                 "base_url": "https://auth.example.com",
                 "username": "eabcdb41-d89f-4580-826f-3e62e9755ef2",
-                "password": "htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z",
+                "password": "not-a-real-password-for-tests-0123456789",
                 "subdomain": "d420c923-bbd7-4056-ab64-c3ca54c9b3cf",
                 "fulldomain": "d420c923.auth.example.com",
                 "auto_register": True,
@@ -185,7 +185,7 @@ class TestUpdate:
         )
         assert (
             _written(mock_config)["main_domain"]["acmedns"]["password"]
-            == "htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z"
+            == "not-a-real-password-for-tests-0123456789"
         )
 
     @patch("api.services.admin.certificates.CertificatesConfig")
@@ -197,7 +197,7 @@ class TestUpdate:
             {"main_domain": {"acmedns": {"username": "a-new-user"}}}
         )
         acmedns = _written(mock_config)["main_domain"]["acmedns"]
-        assert acmedns["password"] == "htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z"
+        assert acmedns["password"] == "not-a-real-password-for-tests-0123456789"
         assert acmedns["username"] == "a-new-user"
 
     @patch("api.services.admin.certificates.CertificatesConfig")

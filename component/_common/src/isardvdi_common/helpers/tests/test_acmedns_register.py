@@ -46,7 +46,7 @@ def response():
     """A well-formed acme-dns /register response."""
     return {
         "username": "eabcdb41-d89f-4580-826f-3e62e9755ef2",
-        "password": "htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z",
+        "password": "not-a-real-password-for-tests-0123456789",
         "fulldomain": "d420c923-bbd7-4056-ab64-c3ca54c9b3cf.auth.example.com",
         "subdomain": "d420c923-bbd7-4056-ab64-c3ca54c9b3cf",
         "allowfrom": [],

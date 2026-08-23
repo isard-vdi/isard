@@ -38,7 +38,7 @@ def registration():
     return {
         "base_url": "https://auth.example.com",
         "username": "eabcdb41-d89f-4580-826f-3e62e9755ef2",
-        "password": "htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z",
+        "password": "not-a-real-password-for-tests-0123456789",
         "subdomain": "d420c923-bbd7-4056-ab64-c3ca54c9b3cf",
         "fulldomain": "d420c923.auth.example.com",
     }

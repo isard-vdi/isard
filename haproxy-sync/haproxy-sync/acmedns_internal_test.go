@@ -41,7 +41,7 @@ func testDNSDomain() DomainSyncDomain {
 		Name:             "vdi.example.com",
 		ACMEDNSBaseURL:   "https://auth.example.com",
 		ACMEDNSUsername:  "eabcdb41-d89f-4580-826f-3e62e9755ef2",
-		ACMEDNSPassword:  "htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z",
+		ACMEDNSPassword:  "not-a-real-password-for-tests-0123456789",
 		ACMEDNSSubdomain: "d420c923-bbd7-4056-ab64-c3ca54c9b3cf",
 	}
 }
@@ -153,7 +153,7 @@ func TestACMEDNSCredentialsAreCarriedThrough(t *testing.T) {
 	assert.Equal(t, acme.ACMEDNSCredentials{
 		BaseURL:   "https://auth.example.com",
 		Username:  "eabcdb41-d89f-4580-826f-3e62e9755ef2",
-		Password:  "htB9mR9DYgcu9bX_afHF62erXaH2TS7bg9KW3F7Z",
+		Password:  "not-a-real-password-for-tests-0123456789",
 		Subdomain: "d420c923-bbd7-4056-ab64-c3ca54c9b3cf",
 	}, creds)
 	assert.True(t, creds.Complete())
