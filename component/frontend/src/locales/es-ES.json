@@ -544,6 +544,10 @@
       "no-data": "No hay datos de usuario disponibles"
     },
     "media": {
+      "alloweds": {
+        "success": "Usuarios y grupos permitidos actualizados",
+        "error": "No se han podido actualizar los usuarios y grupos permitidos"
+      },
       "data-table": {
         "headers": {
           "name": "Nombre",

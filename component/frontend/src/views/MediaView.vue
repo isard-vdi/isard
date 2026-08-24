@@ -7,7 +7,9 @@ import {
   abortMediaDownloadMutation,
   deleteMediaMutation,
   checkQuotaNewMediaOptions,
-  checkQuotaNewDesktopOptions
+  checkQuotaNewDesktopOptions,
+  updateMediaAllowedMutation,
+  getMediaAllowedTableQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { MediaStatusEnum, type ErrorResponse } from '@/gen/oas/apiv4'
 import DataTable from '@/components/data-table/DataTable.vue'
@@ -27,6 +29,8 @@ import { Button } from '@/components/ui/button'
 import { useMutation } from '@tanstack/vue-query'
 import NewMediaModal from '@/components/media/NewMediaModal.vue'
 import { AlertModal, QuotaExceededModal } from '@/components/modal'
+import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
+import { toast } from '@/components/ui/toast'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 
@@ -387,6 +391,40 @@ const closeDeleteModal = () => {
   deleteModalMediaData.value = null
 }
 
+const allowedModalMediaId = ref<string | null>(null)
+const allowedError = ref('')
+
+const { mutate: updateMediaAllowed, isPending: updateAllowedIsPending } = useMutation({
+  ...updateMediaAllowedMutation(),
+  onSuccess: (_data, variables) => {
+    queryClient.removeQueries({
+      queryKey: getMediaAllowedTableQueryKey({ path: { media_id: variables.path.media_id } })
+    })
+    closeAllowedModal()
+    toast.success(t('views.media.alloweds.success'))
+  },
+  onError: () => {
+    allowedError.value = t('views.media.alloweds.error')
+  }
+})
+
+const openAllowedModal = (mediaId: string) => {
+  allowedError.value = ''
+  allowedModalMediaId.value = mediaId
+}
+
+const closeAllowedModal = () => {
+  allowedModalMediaId.value = null
+  allowedError.value = ''
+}
+
+const handleSaveAllowed = (selection: AllowedSelection) => {
+  const mediaId = allowedModalMediaId.value
+  if (!mediaId) return
+  allowedError.value = ''
+  updateMediaAllowed({ path: { media_id: mediaId }, body: selection })
+}
+
 const MEDIA_SEARCH_INPUT_ID = 'media-search'
 </script>
 
@@ -570,6 +608,27 @@ const MEDIA_SEARCH_INPUT_ID = 'media-search'
             <Tooltip
               v-if="
                 activeTab === 'user' &&
+                row.editable &&
+                row.status !== MediaStatusEnum.DOWNLOAD_FAILED &&
+                row.status !== MediaStatusEnum.DOWNLOAD_FAILED_INVALID_FORMAT
+              "
+            >
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="users-01"
+                  class="aspect-square p-2.5"
+                  @click="openAllowedModal(row.id)"
+                ></Button>
+              </TooltipTrigger>
+              <TooltipContent
+                :side="'top'"
+                :title="t('views.media.tooltip.buttons.allowed.title')"
+              />
+            </Tooltip>
+            <Tooltip
+              v-if="
+                activeTab === 'user' &&
                 (row.status === MediaStatusEnum.DOWNLOADED ||
                   row.status === MediaStatusEnum.DOWNLOAD_FAILED)
               "
@@ -648,6 +707,18 @@ const MEDIA_SEARCH_INPUT_ID = 'media-search'
     @close="showQuotaExceededModal = false"
   />
   <NewMediaModal :open="showNewMediaModal" @close="showNewMediaModal = false" />
+
+  <!-- Allowed Modal -->
+  <AllowedModal
+    v-if="allowedModalMediaId"
+    open
+    item-type="media"
+    :item-id="allowedModalMediaId"
+    :loading="updateAllowedIsPending"
+    :error="allowedError"
+    @save="handleSaveAllowed"
+    @close="closeAllowedModal"
+  />
 
   <!-- Desktop Quota Exceeded Modal -->
   <QuotaExceededModal
