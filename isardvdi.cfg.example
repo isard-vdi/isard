@@ -1,4 +1,4 @@
-# Isard main config v2.36.1
+# Isard main config v3.0.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -102,15 +102,6 @@ FRONTEND_VIEWERS_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/user/viewers/vie
 ## - url
 DIRECTVIEWER_MODE=browser
 
-# ------ Notifier ------------------------------------------------------------
-## Email credentials that will be used to send email notifications.
-## DEPRECATED variables after migration 175. Please configure it via
-## administration web interface.
-# NOTIFY_EMAIL=True
-# NOTIFY_EMAIL_SMTP_SERVER=smtp.gmail.com
-# NOTIFY_EMAIL_SMTP_PORT=587
-# NOTIFY_EMAIL_USERNAME=example@isardvdi.com
-# NOTIFY_EMAIL_PASSWORD=IsardVDI
 
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
@@ -171,11 +162,6 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_ATTEMPTS=10
 # The time duration that the user will be unable to login if gets rate limited
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER=1m
-# This factor will be powered against the RETRY_AFTER and the number of failed attempts after being rate limited.
-# So, for example, given
-# MAX_ATTEMPTS=10
-# RETRY_AFTER=1m
-# INCREMENT_FACTOR=2
 # And the user fails the authentication for 13th time in a row, the user will have to wait (13 - 10) ^ 2 * 1m -> 9 minutes
 # before being able to log in again
 AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR=2
@@ -185,170 +171,6 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 # Maximum time a impersonate token will be valid. If this duration is exceeded, token won't be able to be used
 # for any action. The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
-
-## Local
-### Local authentication against isard database
-## DEPRECATED variables after migration 184. Please configure it via
-## administration web interface.
-#AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED=true
-
-## LDAP
-## DEPRECATED variables after migration 184. Please configure it via
-## administration web interface.
-#AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED=false
-
-## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_LDAP_* after migration
-## 180. Please configure it via administration web interface.
-
-#AUTHENTICATION_AUTHENTICATION_LDAP_PROTOCOL=ldap
-#AUTHENTICATION_AUTHENTICATION_LDAP_HOST=
-#AUTHENTICATION_AUTHENTICATION_LDAP_PORT=389
-
-### Credentials used for querying the LDAP
-#AUTHENTICATION_AUTHENTICATION_LDAP_BIND_DN=
-#AUTHENTICATION_AUTHENTICATION_LDAP_PASSWORD=
-
-### Base Search is the DN that all the users share, e.g. ou=people,dc=example,dc=com
-#AUTHENTICATION_AUTHENTICATION_LDAP_BASE_SEARCH=
-### Filter is the actual filter used to search users. The '%s' represents the user that is sent through the form
-### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
-#AUTHENTICATION_AUTHENTICATION_LDAP_FILTER="(&(objectClass=person)(uid=%s))"
-
-### These are the fields that the LDAP search responds. For example, in some installations, the field for the email is called 'mail'
-### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field. The 
-### regex match tries to extract the first group, but if there's no group it will extract the whole match
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_UID=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_UID=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_USERNAME=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_USERNAME=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_NAME=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_NAME=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_EMAIL=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_EMAIL=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_PHOTO=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_PHOTO=.*
-
-### Auto Register the existing ldap users into IsardVDI
-#AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER=false
-### Only the users that belong to one of these groups will be autoregistered (comma separated)
-#AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER_GROUPS=
-
-### Try guessing the category based in the LDAP search results (must have AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY configured)
-#AUTHENTICATION_AUTHENTICATION_LDAP_GUESS_CATEGORY=false
-### These are the fields that the LDAP search responds. For example, in some installations, the field for the group is called 'group'
-### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field. The 
-### regex match tries to extract the first group, but if there's no group it will extract the whole match
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_CATEGORY=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP=.*
-### If this is configured, this will set a default group when autoregistering a user
-### This is only advised to be configured if you have users without a group, otherwise don't configure it
-### It's the equivalent of AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP with AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP applied to it
-#AUTHENTICATION_AUTHENTICATION_LDAP_GROUP_DEFAULT=
-### The base search for listing all the roles of a user
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_SEARCH_BASE=
-### Filter is the actual filter used to search all the roles of a user. The '%s' represents the user that is sent through the form
-### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FILTER="(&(objectClass=posixGroup)(memberUid=%s))"
-# If this field is set to true, use the full DN instead of the user that is sent through the form to search for the user roles
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_USE_USE_DN=false
-### The field that contains the roles in the AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FILTER search
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FIELD=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_REGEX=.*
-### All the users that are in at least one of the roles specified here, will be created in the admin role (comma separated)
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADMIN_IDS=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_MANAGER_IDS=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADVANCED_IDS=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_USER_IDS=
-# This is the default role that users will have if they don't match in any of the previous roles.
-# Values can be 'admin', 'manager', 'advanced', 'user'
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_DEFAULT=user
-# Save email provided by LDAP. Even if the email is not saved, it will be used to validate the domain during authentication.
-#AUTHENTICATION_AUTHENTICATION_LDAP_SAVE_EMAIL=true
-
-## SAML
-## DEPRECATED variables after migration 184. Please configure it via
-## administration web interface.
-#AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=false
-
-## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_SAML_* after migration
-## 182. Please configure it via administration web interface.
-
-#AUTHENTICATION_AUTHENTICATION_SAML_METADATA_URL=
-## Optional: Local IdP metadata file (checked before fetching from URL)
-## If this file exists, it will be used instead of fetching from METADATA_URL
-## This allows the service to start without network access to the IdP
-## To create this file: curl -o /opt/isard/keys/idp-metadata.xml <METADATA_URL>
-#AUTHENTICATION_AUTHENTICATION_SAML_METADATA_FILE=/keys/idp-metadata.xml
-## Optional: Custom Entity ID for SAML Service Provider
-## If not set, defaults to the metadata URL (https://DOMAIN/authentication/saml/metadata)
-## Set this if your IdP requires a specific Entity ID (e.g., "vdi-pro")
-#AUTHENTICATION_AUTHENTICATION_SAML_ENTITY_ID=
-## Optional: Signature method for signing SAML AuthnRequests
-## If not set, requests will NOT be signed (current default behavior)
-## Set this if your IdP requires signed requests (AuthnRequestsSigned="true")
-## Valid values (use full URI):
-##   - http://www.w3.org/2001/04/xmldsig-more#rsa-sha256 (recommended, SHA-256)
-##   - http://www.w3.org/2000/09/xmldsig#rsa-sha1 (legacy, SHA-1)
-##   - http://www.w3.org/2001/04/xmldsig-more#rsa-sha512 (strong, SHA-512)
-#AUTHENTICATION_AUTHENTICATION_SAML_SIGNATURE_METHOD=
-## If the key and cert files don't exist, they will be self signed automatically
-#AUTHENTICATION_AUTHENTICATION_SAML_KEY_FILE=/keys/isardvdi.key
-#AUTHENTICATION_AUTHENTICATION_SAML_CERT_FILE=/keys/isardvdi.cert
-## DO NOT CHANGE THIS UNLESS YOU KNOW WHAT YOU'RE DOING
-## Set the maximum time between the initial login request and the response
-#AUTHENTICATION_AUTHENTICATION_SAML_MAX_ISSUE_DELAY=90s
-
-### These are the fields that the SAML search responds. For example, in some installations, the field for the email is called 'mail'
-### Then, a regex is applied to this field, in case we needed to filter inside a SAML field. By default it collects the whole field. The 
-### regex match tries to extract the first group, but if there's no group it will extract the whole match
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_UID=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_UID=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_USERNAME=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_USERNAME=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_NAME=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_NAME=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_EMAIL=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_EMAIL=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_PHOTO=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_PHOTO=.*
-# TODO: We need to document this configuration options (see LDAP configuration options)
-#AUTHENTICATION_AUTHENTICATION_SAML_AUTO_REGISTER=false
-### Only the users that belong to one of these groups will be autoregistered (comma separated)
-#AUTHENTICATION_AUTHENTICATION_SAML_AUTO_REGISTER_ROLES=
-#AUTHENTICATION_AUTHENTICATION_SAML_GUESS_CATEGORY=false
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_CATEGORY=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_CATEGORY=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_GROUP=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_GROUP=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_GROUP_DEFAULT=default
-#AUTHENTICATION_AUTHENTICATION_SAML_GUESS_ROLE=false
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_ROLE=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_ROLE=.*
-### All the users that match with the FIELD_ROLE in at least one of the IDs specified here, will be created in the admin role (comma separated)
-#AUTHENTICATION_AUTHENTICATION_SAML_ROLE_ADMIN_IDS=
-#AUTHENTICATION_AUTHENTICATION_SAML_ROLE_MANAGER_IDS=
-#AUTHENTICATION_AUTHENTICATION_SAML_ROLE_ADVANCED_IDS=
-#AUTHENTICATION_AUTHENTICATION_SAML_ROLE_USER_IDS=
-# This is the default role that users will have if they don't match in any of the previous groups.
-# Values can be 'admin', 'manager', 'advanced', 'user'
-#AUTHENTICATION_AUTHENTICATION_SAML_ROLE_DEFAULT=user
-# URL to redirect after logout
-#AUTHENTICATION_AUTHENTICATION_SAML_LOGOUT_REDIRECT_URL=
-# Save email provided by SAML. Even if the email is not saved, it will be used to validate the domain during authentication.
-#AUTHENTICATION_AUTHENTICATION_SAML_SAVE_EMAIL=true
-
-## Google
-### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
-### Authorized redirect URIs: https://domain.tld/authentication/callback
-## DEPRECATED variables after migration 184. Please configure it via
-## administration web interface.
-#AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED=false
-## DEPRECATED variables after migration 183. Please configure it via
-## administration web interface.
-#AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID=id
-#AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET=secret
 
 # ------ Backups -------------------------------------------------------------
 
@@ -769,12 +591,6 @@ HAPROXY_LOGGING=.
 #VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
 #VIDEO_HYPERVISOR_PORTS=5900-7899
 
-# ------ Vide proxy settings -------------------------------------------------
-## This is the inactivity timeout when the proxy will close the RDP connection.
-## The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
-## The duration will be trucated up to minutes
-#RDPGW_IDLE_TIMEOUT=30m
-#RDPGW_API_ADDR=isard-apiv4:5000
 
 # ------ Docker networking ---------------------------------------------------
 ## Assign a docker /24 network. The host part will be set by system
@@ -912,16 +728,12 @@ WG_GUESTS_RESERVED_HOSTS=20
 # Documentation: https://isard.gitlab.io/isardvdi-formacion/monitoring/alerts/#grafana-customizations
 # This variable is used for provisioning alerts in Grafana
 #GRAFANA_TELEGRAM_TOKEN=
-#GRAFANA_TELEGRAM_TOKEN_ORCHESTRATOR=
 #GRAFANA_TELEGRAM_CHAT_ID=
-#GRAFANA_TELEGRAM_CHAT_ID_ORCHESTRATOR=
 
 # ------ VictoriaMetrics -----------------------------------------------------
 #VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428
 #VICTORIAMETRICS_RETENTION_TIME=40d
 
-# ------ Stats -----------------------------------------------------
-#STATS_DIRECTORY=/opt/isard/stats
 
 # ------ Loki -----------------------------------------------------
 #LOKI_ADDRESS=http://isard-loki:3100
@@ -937,7 +749,6 @@ WG_GUESTS_RESERVED_HOSTS=20
 #
 #TEMPO=false
 #TEMPO_ADDRESS=http://isard-tempo:3200
-#TEMPO_ADDRESS_OTEL_GRPC=isard-tempo:4317
 
 # ------ Faro (Frontend errors) ------------------------------------------
 #
