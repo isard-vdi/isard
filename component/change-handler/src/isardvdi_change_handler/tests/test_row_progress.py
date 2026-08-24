@@ -31,6 +31,10 @@ class _Model:
     def __call__(self, item_id):
         return self.rows[item_id]
 
+    def build(self, item_id):
+        """One read, None when absent — mirrors ``RethinkBase.build``."""
+        return self.rows.get(item_id)
+
 
 def _task(name, kwargs, meta):
     return SimpleNamespace(task=name, kwargs=kwargs, job=SimpleNamespace(meta=meta))
@@ -54,15 +58,44 @@ def wire(monkeypatch):
     [
         ("download_url", {"media_id": "m1"}, "media"),
         ("download_url_for_domain", {"domain_id": "m1"}, "domain"),
+        # ``move`` is NOT here: it stores nothing even on its final tick, which
+        # test_a_move_stores_nothing_even_on_its_final_tick asserts.
+    ],
+)
+def test_the_final_flush_reaches_the_row(wire, name, kwargs, item_class):
+    """The closing tick is the authoritative record of the transfer and is
+    persisted; it rides on the ``result`` entry, hence ``final=True``."""
+    payload = {"received_percent": 100, "total_percent": 100}
+    row = wire(name, kwargs, {ROW_PROGRESS_META_KEY: payload}, item_class, _Row("m1"))
+
+    assert apply_row_progress("t1", final=True) is True
+    assert row.progress == payload
+
+
+@pytest.mark.parametrize(
+    "name, kwargs, item_class",
+    [
+        ("download_url", {"media_id": "m1"}, "media"),
+        ("download_url_for_domain", {"domain_id": "m1"}, "domain"),
         ("move", {"progress_domain_id": "m1"}, "domain"),
     ],
 )
-def test_the_metadata_progress_reaches_the_row(wire, name, kwargs, item_class):
-    payload = {"received_percent": 42, "total_percent": 42}
-    row = wire(name, kwargs, {ROW_PROGRESS_META_KEY: payload}, item_class, _Row("m1"))
+def test_an_intermediate_tick_never_reaches_the_row(wire, name, kwargs, item_class):
+    """The percentage between the ends is a transient the next tick supersedes,
+    and it had no durability contract even when it was written — the progress
+    consumer ACKs whether the write landed or not. The frontend gets it live
+    from the task event, so the row does not carry it and the database does not
+    pay a hard write per tick."""
+    row = wire(
+        name,
+        kwargs,
+        {ROW_PROGRESS_META_KEY: {"received_percent": 42}},
+        item_class,
+        _Row("m1", status="Downloading"),
+    )
 
-    assert apply_row_progress("t1") is True
-    assert row.progress == payload
+    assert apply_row_progress("t1") is False
+    assert row.progress is None
 
 
 def test_the_stated_size_reaches_the_row(wire):
@@ -86,7 +119,7 @@ def test_the_stated_size_reaches_the_row(wire):
         _Row("m1"),
     )
 
-    assert apply_row_progress("t1") is True
+    assert apply_row_progress("t1", final=True) is True
     assert row.progress["total_bytes"] == 3490290
 
 
@@ -113,7 +146,24 @@ def test_the_first_progress_moves_a_starting_row_to_downloading(wire):
 
 @pytest.mark.parametrize("status", ["DownloadAborting", "DownloadFailed", "Deleting"])
 def test_a_row_on_its_way_out_keeps_its_status(wire, status):
-    """A tick already in flight must not resurrect a cancelled download."""
+    """A tick already in flight must not resurrect a cancelled download. The
+    final flush still records the size it measured — that figure is what the
+    space readers sum, and it is true whatever became of the row — but the
+    status is not touched."""
+    row = wire(
+        "download_url",
+        {"media_id": "m1"},
+        {ROW_PROGRESS_META_KEY: {"received_percent": 100}},
+        "media",
+        _Row("m1", status=status),
+    )
+
+    assert apply_row_progress("t1", final=True) is True
+    assert row.status == status
+
+
+@pytest.mark.parametrize("status", ["DownloadAborting", "DownloadFailed", "Deleting"])
+def test_an_intermediate_tick_does_not_touch_a_row_on_its_way_out(wire, status):
     row = wire(
         "download_url",
         {"media_id": "m1"},
@@ -122,8 +172,9 @@ def test_a_row_on_its_way_out_keeps_its_status(wire, status):
         _Row("m1", status=status),
     )
 
-    assert apply_row_progress("t1") is True
+    assert apply_row_progress("t1") is False
     assert row.status == status
+    assert row.progress is None
 
 
 def test_a_deleted_row_is_not_recreated(wire, monkeypatch):
@@ -156,3 +207,34 @@ def test_an_unloadable_task_does_not_raise(monkeypatch):
     monkeypatch.setattr(row_progress, "Task", _boom)
 
     assert apply_row_progress("t1") is False
+
+
+def test_a_move_stores_nothing_even_on_its_final_tick(wire):
+    """``move``'s payload is only ``{total_percent, received_percent}``, so a
+    final write would leave every template row carrying a permanent
+    ``{100, 100}`` that nothing reads: every consumer of template progress is
+    guarded on ``status == CreatingTemplate``, which is false by then."""
+    row = wire(
+        "move",
+        {"progress_domain_id": "m1"},
+        {ROW_PROGRESS_META_KEY: {"total_percent": 100, "received_percent": 100}},
+        "domain",
+        _Row("m1", status="CreatingTemplate"),
+    )
+
+    assert apply_row_progress("t1", final=True) is False
+    assert row.progress is None
+
+
+def test_a_download_still_stores_its_final_tick(wire):
+    """The counterpart: the key this whole path exists for still lands."""
+    row = wire(
+        "download_url",
+        {"media_id": "m1"},
+        {ROW_PROGRESS_META_KEY: {"total_bytes": 123, "total": "123"}},
+        "media",
+        _Row("m1"),
+    )
+
+    assert apply_row_progress("t1", final=True) is True
+    assert row.progress["total_bytes"] == 123

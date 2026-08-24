@@ -43,8 +43,8 @@ async def test_emits_full_fan_out_when_user_has_category():
     with (
         patch("isardvdi_change_handler.task_results.feedback.Task", return_value=task),
         patch(
-            "isardvdi_change_handler.task_results.feedback.User",
-            return_value=SimpleNamespace(category="cat-eng"),
+            "isardvdi_change_handler.task_results.feedback.category_of",
+            return_value="cat-eng",
         ),
     ):
         await emit_task_feedback(redis_manager, task.id)
@@ -88,8 +88,8 @@ async def test_storage_id_serialized_as_id_not_object():
     with (
         patch("isardvdi_change_handler.task_results.feedback.Task", return_value=task),
         patch(
-            "isardvdi_change_handler.task_results.feedback.User",
-            return_value=SimpleNamespace(category="cat-eng"),
+            "isardvdi_change_handler.task_results.feedback.category_of",
+            return_value="cat-eng",
         ),
     ):
         await emit_task_feedback(redis_manager, task.id)
@@ -111,8 +111,8 @@ async def test_emits_admins_only_when_user_missing():
     with (
         patch("isardvdi_change_handler.task_results.feedback.Task", return_value=task),
         patch(
-            "isardvdi_change_handler.task_results.feedback.User",
-            side_effect=Exception("not found"),
+            "isardvdi_change_handler.task_results.feedback.category_of",
+            return_value=None,
         ),
     ):
         await emit_task_feedback(redis_manager, task.id)
@@ -166,8 +166,8 @@ async def test_queue_event_uses_first_dot_segment():
     with (
         patch("isardvdi_change_handler.task_results.feedback.Task", return_value=task),
         patch(
-            "isardvdi_change_handler.task_results.feedback.User",
-            return_value=SimpleNamespace(category="cat-x"),
+            "isardvdi_change_handler.task_results.feedback.category_of",
+            return_value="cat-x",
         ),
     ):
         await emit_task_feedback(redis_manager, task.id)

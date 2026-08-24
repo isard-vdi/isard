@@ -110,16 +110,24 @@ def test_media_from_url_emits_progress_to_admins_and_userspace(
         for ns, ev, pl in ws.snapshot()
         if ev == "media_update" and matches_media(pl)
     ]
-    assert saw_progress_admin, (
-        f"no /administrators media_update with received_percent>0 for {media_id}; "
-        f"seen={seen}"
-    )
+    # NOTE: the mid-flight progress assertions that used to live here are gone
+    # on purpose. Intermediate ticks no longer write the row, so they no longer
+    # produce a ``media_update`` at all — live progress reaches the client on
+    # the ``task`` SocketIO event instead. Asserting ``received_percent > 0`` on
+    # ``media_update`` would still PASS, because the final flush writes 100, and
+    # a test that passes for the wrong reason is worse than one that fails: it
+    # would claim to cover live progress while only observing the terminal
+    # write. Covering it properly means watching the ``task`` event, which is a
+    # different fixture than this one and is left as its own test.
+    assert (
+        saw_progress_admin or saw_downloaded_admin
+    ), f"no /administrators media_update at all for {media_id}; seen={seen}"
     assert (
         saw_downloaded_admin
     ), f"no /administrators media_update with status=Downloaded for {media_id}; seen={seen}"
     assert (
-        saw_progress_user
-    ), f"no /userspace media_update with received_percent>0 for {media_id}; seen={seen}"
+        saw_progress_user or saw_downloaded_user
+    ), f"no /userspace media_update at all for {media_id}; seen={seen}"
     assert (
         saw_downloaded_user
     ), f"no /userspace media_update with status=Downloaded for {media_id}; seen={seen}"

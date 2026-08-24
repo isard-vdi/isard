@@ -53,6 +53,18 @@ _ROW_OF_TASK = {
     "move": ("domain", "progress_domain_id"),
 }
 
+#: Tasks whose FINAL payload is worth persisting. Only a download's is: it
+#: carries ``total_bytes``, the measured on-disk size that quota, analytics and
+#: the usage pipeline sum.
+#:
+#: ``move`` is deliberately absent. Its payload is only
+#: ``{total_percent, received_percent}`` (docker/storage/task/task.py), so once
+#: the transfer is over the final write would leave every template row carrying
+#: a permanent ``{100, 100}`` that no reader ever looks at — every consumer of
+#: template progress is guarded on ``status == CreatingTemplate``, which by then
+#: is false. It still moves the row's status on; it just stores nothing.
+_PERSISTS_FINAL = ("download_url", "download_url_for_domain")
+
 #: Statuses a row may be in while its download is queued but not yet running.
 #: Seeing progress proves curl is running, so the row is moved on. Anything
 #: else is left alone — an abort or a failure must not be overwritten by a
@@ -63,12 +75,37 @@ _STARTING_STATUSES = ("DownloadStarting",)
 _RUNNING_STATUS = "Downloading"
 
 
-def apply_row_progress(task_id):
-    """Write the progress the task left in its metadata onto its row.
+def apply_row_progress(task_id, final=False):
+    """Persist what survives the transfer, and only that.
 
-    Called for every ``progress`` event. Returns True when a row was written,
-    which the tests assert on; the consumer ignores it, because a tick that
-    lands nowhere is not a failure worth retrying — the next one supersedes it.
+    ``final`` is True for the ``result`` entry, which carries the closing
+    flush, and False for every intermediate tick.
+
+    An INTERMEDIATE percentage never reaches the database. It is a transient the
+    next tick supersedes, it had no durability contract even before this — the
+    progress consumer ACKs unconditionally whether the write landed or not —
+    and it was costing a hard write per tick, which on a long copy is a hundred
+    fsyncs to move a bar. The frontend already receives it live from the task
+    event and degrades cleanly without the column: the card passes ``undefined``
+    for the bar when the row carries no progress and simply does not draw one,
+    so a page loaded mid-operation shows the row with its real status and gains
+    the bar on the next tick.
+
+    The FINAL flush is a different thing wearing the same name and it MUST be
+    written. Its ``total_bytes`` is the exact on-disk size the worker measured,
+    and it is what every media-space reader sums — quota
+    (``lib/usage/media.py``), analytics (``lib/analytics/analytics.py``) and the
+    media listing all pluck it straight out of ``progress``. Dropping it would
+    leave the database disagreeing with the disk, which is the one thing this
+    write is for.
+
+    The status transition stays on both paths, because that is state and not
+    progress: without it a download sits at ``DownloadStarting`` for its whole
+    life. It is written once — the first tick that finds the row still starting
+    — so an intermediate tick costs one read and, after that first one, no
+    write at all.
+
+    Returns True when the row was written.
     """
     try:
         task = Task(task_id)
@@ -84,6 +121,8 @@ def apply_row_progress(task_id):
     if not item_id:
         return False
 
+    # The tick still has to SAY the transfer is running, so an empty progress
+    # payload is nothing to act on.
     progress = (task.job.meta or {}).get(ROW_PROGRESS_META_KEY)
     if not progress:
         return False
@@ -94,15 +133,23 @@ def apply_row_progress(task_id):
         return False
 
     try:
-        if not model.exists(item_id):
-            # Deleted while its download was still running. Constructing the
-            # model would raise, and init_document would insert it back as a
-            # row holding nothing but an id and a progress dict.
+        # ``build`` and not ``exists`` + construct: one read, and None for a row
+        # deleted while its download was still running rather than a raise.
+        row = model.build(item_id)
+        if row is None:
             return False
-        row = model(item_id)
-        if row.status in _STARTING_STATUSES:
+        starting = row.status in _STARTING_STATUSES
+        persists = final and task.task in _PERSISTS_FINAL
+        if not (starting or persists):
+            # An intermediate tick on a row that has already moved on: nothing
+            # to write, which is the steady state of a running transfer.
+            return False
+        # A row on its way out (aborting, failed, deleting) keeps its status —
+        # a tick already in flight must not resurrect a cancelled download.
+        if starting:
             row.status = _RUNNING_STATUS
-        row.progress = progress
+        if final and task.task in _PERSISTS_FINAL:
+            row.progress = progress
     except Exception:
         log.exception("row_progress: failed to write %s %s", item_class, item_id)
         return False

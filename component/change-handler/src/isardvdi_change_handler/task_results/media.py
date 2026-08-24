@@ -50,7 +50,7 @@ def handle_media_update(task, **media_dict):
     if task.depending_status != "finished":
         return
     if media_dict:
-        Media.init_document(**media_dict)
+        Media.insert_document(media_dict, conflict="update")
         return
     for dependency in task.dependencies:
         if dependency.task in ("check_media_existence", "download_url"):
@@ -62,7 +62,7 @@ def handle_media_update(task, **media_dict):
             # Skip empty (failed/aborted) results — they carry no payload.
             result = dependency.result
             if result:
-                Media.init_document(**result)
+                Media.insert_document(result, conflict="update")
 
 
 def handle_media_download_update_status(task, media_id):

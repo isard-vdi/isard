@@ -584,6 +584,23 @@ HAPROXY_LOGGING=.
 ## peak ~ max under your load.
 #APIV4_EXECUTOR_MAX_WORKERS=128
 #RETHINKDB_POOL_SIZE=128
+## ⚠️ ONE name, EIGHT services. Every service declares this variable with its
+## own default (apiv4 128, engine 50, change-handler 32, socketio/scheduler/
+## webapp 5, changefeed 4), and those defaults only apply while the variable is
+## UNSET here. Uncommenting the line above sets all eight to 128 — including
+## the ones sized deliberately small — so set it only if that is what you mean.
+
+## How many task-results stream entries the change-handler settles at once.
+## Entries name different chains and are almost entirely waiting on the
+## database, so settling them one at a time left the loop idle; the marks of a
+## single chain are still serialised per finalize anchor.
+## Swept on a 25-VU burst against a clean install (lag / interactive p95):
+##   4 -> 347 / 30.5s (misses the 30s objective) · 8 -> 233 / 20.4s
+##   16 -> 232 / 20.6s (no gain over 8) · 24 -> 165 / 22.4s
+## 24 drains a backlog faster but serves each create worse. Raise it if what
+## you need is to empty an accumulated backlog; leave it if what you protect is
+## interactive latency.
+#SETTLE_CONCURRENCY=8
 ## Slow-query observer threshold (ms). Each rdb query slower than this
 ## emits an `rdb_query_slow` log line with pool stats — primary signal for
 ## identifying helpers that should migrate to async-native (W2).

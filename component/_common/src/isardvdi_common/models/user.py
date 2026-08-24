@@ -20,7 +20,9 @@
 from typing import Literal, Optional, Union
 from uuid import uuid4
 
+from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
+from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from pydantic import BaseModel, Field
 from rethinkdb import r
 
@@ -54,6 +56,35 @@ class UserModel(BaseModel):
     vpn: dict | None = None
     user_storage: Optional[UserStorageModel] = None
     bastion_ssh_key: str | None = None
+
+
+# Resolving "which category does this user belong to" is one of the hottest
+# reads in the product: every storage task produce does it, and so does every
+# SocketIO fan-out, which means once per stream entry per consumer. Measured on
+# a 25-VU burst: 29741 keyed reads of ``users`` for at most 25 distinct answers,
+# 5.5 per settled entry.
+#
+# It is also the cheapest thing in the world to cache — a user's category is
+# administrative data that changes by hand, and the only consequence of a stale
+# answer is which SocketIO room an event is fanned to for up to the TTL.
+_category_cache = SynchronizedTTLCache(maxsize=4096, ttl=60)
+
+
+@cached(_category_cache)
+def category_of(user_id):
+    """The user's category, or ``None`` when the user is gone.
+
+    One round trip, not two: ``User.get`` already answers "absent" with
+    ``None``, so the ``exists`` probe that ``User(user_id)`` would run first
+    carries no information.
+    """
+    if not user_id:
+        return None
+    try:
+        owner = User.get(user_id)
+    except Exception:
+        return None
+    return owner.get("category") if owner else None
 
 
 class User(RethinkCustomBase):

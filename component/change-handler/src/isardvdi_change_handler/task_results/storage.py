@@ -37,7 +37,7 @@ from contextlib import contextmanager
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, StoragePool
-from isardvdi_common.models.user import User
+from isardvdi_common.models.user import category_of
 
 # Per-stream-entry de-duplication of the fire-and-forget ``storage`` status
 # sockets. A single chain often touches the same storage row twice in one
@@ -132,12 +132,8 @@ def _apply_storage_update(storage_dict):
 
 
 def _resolve_user_category(user_id):
-    if not user_id:
-        return None
-    try:
-        return User(user_id).category
-    except Exception:
-        return None
+    """Same question, same shared cache — see ``models.user.category_of``."""
+    return category_of(user_id)
 
 
 async def send_status_socket(redis_manager, storage_id, status, user_id=None):
@@ -286,7 +282,9 @@ async def handle_storage_update_dict(redis_manager, task, **storage_dict):
 
 def handle_storage_add(task, **storage_dict):
     """Port of core_worker.task.storage_add."""
-    Storage.init_document(**storage_dict)
+    # The rebuilt object is unused here, and rebuilding it costs two more
+    # reads: insert and stop.
+    Storage.insert_document(storage_dict, conflict="update")
 
 
 def handle_storage_delete(task, storage_id):
@@ -327,7 +325,10 @@ async def handle_update_status(redis_manager, task, statuses=None):
                         # status here would re-create it as a zombie with
                         # nothing but an id and a status.
                         continue
-                    model.init_document(item_id, status=item_status)
+                    model.insert_document(
+                        {"id": item_id, "status": item_status},
+                        conflict="update",
+                    )
                     if item_class.lower() == "storage":
                         await send_status_socket(redis_manager, item_id, item_status)
 

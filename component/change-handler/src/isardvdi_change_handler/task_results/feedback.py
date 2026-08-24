@@ -42,22 +42,21 @@ import json
 import logging as log
 
 from isardvdi_common.models.task import Task
-from isardvdi_common.models.user import User
+from isardvdi_common.models.user import category_of
 
 
 def _resolve_user_category(user_id):
-    """Look up the user's category from rethinkdb.
+    """Look up the user's category, through the shared per-user cache.
 
-    Replaces core_worker's ``user_info(user_id)`` apiv4 call. Returns
-    ``None`` if the user no longer exists or any error occurs — same
-    semantics as the original ``isinstance(user, dict)`` guard.
+    Replaces core_worker's ``user_info(user_id)`` apiv4 call. Returns ``None``
+    if the user no longer exists or any error occurs — same semantics as the
+    original ``isinstance(user, dict)`` guard.
+
+    This ran uncached on every stream entry, and as ``User(user_id)`` it cost
+    two round trips rather than one. Measured on a 25-VU burst: 29741 reads of
+    ``users`` for at most 25 distinct answers.
     """
-    if not user_id:
-        return None
-    try:
-        return User(user_id).category
-    except Exception:
-        return None
+    return category_of(user_id)
 
 
 def _enrich_feedback(task, task_dict):

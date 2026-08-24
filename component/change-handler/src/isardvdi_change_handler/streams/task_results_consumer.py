@@ -47,6 +47,7 @@ corrupt on replay.
 
 import asyncio
 import logging as log
+import os
 import time
 import uuid
 
@@ -103,6 +104,78 @@ MAX_DELIVERIES = 5
 # trimmed before it is delivered. Replaces the producer's tight approximate
 # MAXLEN (which discarded unread ``kind=result`` entries under a burst).
 TRIM_EVERY_S = 5
+
+# How many entries may be settled at once. A settled entry is dominated by
+# waiting — a keyed rethinkdb write is ~8 ms of durability latency here and a
+# keyed read 0.21 ms — so the loop was idle almost all of the time it took.
+# Bounded because the process shares one rethinkdb pool: past its width the
+# extra entries queue on a connection instead of on the database.
+SETTLE_CONCURRENCY_DEFAULT = 8
+
+
+def settle_concurrency():
+    """How many entries to settle at once, read per batch rather than at import.
+
+    Per batch so the value can later come from somewhere that changes while the
+    process runs — the storage scheduler's config already does exactly that
+    (``Config.get_storage_scheduler_config`` mirrored into ``governor:config``,
+    with a per-key DB -> env -> hardcoded merge), and this knob is the same kind
+    of thing: an operator may want to trade interactive latency for drain speed
+    on a backlog without a redeploy.
+    """
+    try:
+        return max(
+            1, int(os.environ.get("SETTLE_CONCURRENCY") or SETTLE_CONCURRENCY_DEFAULT)
+        )
+    except (TypeError, ValueError):
+        return SETTLE_CONCURRENCY_DEFAULT
+
+
+# Serialise ONLY where entries share mutable state, which is the finalize
+# anchor: a chain's marks live in one rq job's meta, several entries of the same
+# chain can mark the SAME anchor, and ``save_meta`` writes the whole blob back.
+# Two of them at once is a read-modify-write race that silently drops marks —
+# the failure the "save every anchor" comment below exists to prevent. Entries
+# of different chains share no anchor and never wait for each other.
+#
+# Locks are created on demand and dropped when nothing holds them, so a long
+# run does not accumulate one per chain it has ever seen.
+_anchor_locks = {}
+_anchor_locks_guard = asyncio.Lock()
+
+
+class _anchor_lock:
+    """Hold every lock this dispatch needs, in a stable order.
+
+    Sorted by id so two dispatches that overlap on two anchors can never take
+    them in opposite orders and deadlock.
+    """
+
+    def __init__(self, anchor_ids):
+        self._ids = sorted(set(anchor_ids))
+        self._held = []
+
+    async def __aenter__(self):
+        for anchor_id in self._ids:
+            async with _anchor_locks_guard:
+                entry = _anchor_locks.setdefault(anchor_id, [asyncio.Lock(), 0])
+                entry[1] += 1
+            await entry[0].acquire()
+            self._held.append(anchor_id)
+        return self
+
+    async def __aexit__(self, *exc):
+        for anchor_id in reversed(self._held):
+            async with _anchor_locks_guard:
+                entry = _anchor_locks.get(anchor_id)
+                if entry is None:
+                    continue
+                entry[0].release()
+                entry[1] -= 1
+                if entry[1] <= 0:
+                    _anchor_locks.pop(anchor_id, None)
+        self._held.clear()
+        return False
 
 
 async def _ensure_consumer_group(redis, stream=STREAM_KEY):
@@ -550,7 +623,11 @@ async def _process_entry(redis_manager, fields):
     # ``result`` carries it too: the final flush that closes the bar at 100 is
     # followed by no progress event of its own.
     if kind in ("progress", "result"):
-        await asyncio.to_thread(apply_row_progress, task_id)
+        # ``result`` IS the final flush — the closing tick is folded into it and
+        # is followed by no progress event of its own — so it is the entry that
+        # persists the measured size. An intermediate tick only moves the row
+        # out of its starting status.
+        await asyncio.to_thread(apply_row_progress, task_id, kind == "result")
     if kind == "progress":
         return True
 
@@ -638,67 +715,74 @@ async def _process_entry(redis_manager, fields):
     # idempotent ``init_document`` upsert or a guarded delete, so at-least-once
     # redelivery/replay is safe for the DB writes; only the fire-and-forget
     # socket is non-idempotent, and this scope removes the intra-pass repeats.
-    with dedup_status_emits():
-        for dep_task in dependents:
-            # Finalize is always metadata. A non-CoreStep here can only be a
-            # pre-upgrade legacy rq ``core`` job replayed during migration — the
-            # startup drain heals those, so skip rather than mishandle it.
-            if not isinstance(dep_task, CoreStep):
-                continue
-            # Reaching what is behind a completed step means passing THROUGH
-            # it, not running it again. On a dead chain the walk yields those
-            # steps after the failure branch has already run, so re-executing
-            # one re-applies a success body over what the failure branch just
-            # wrote — a template marked Failed gets promoted back to ready by a
-            # step redoing work it had already done. Its mark stands as it is.
-            #
-            # Only on a dead chain: a redelivered RESULT event must still
-            # re-run its handlers, which is the at-least-once contract that
-            # recovers a knot child whose enqueue failed.
-            if dead_chain and dep_task.job_status in _TERMINAL_STATUSES:
-                continue
-            ok = await _run_handler(redis_manager, dep_task)
-            all_ok = all_ok and ok
-            # Propagate the outcome onto this dep before the next sibling/child
-            # runs, so handlers that gate on ``task.depending_status`` see the
-            # right value (was "deferred" otherwise — no worker on the core
-            # queue ever marks it). A handler gated on ``depending_status``
-            # no-ops when the chain failed and reports success for having done
-            # nothing. Marking that FINISHED tells the NEXT step its dependency
-            # succeeded, so a nested step runs its success body for an operation
-            # that never happened.
-            # A step's outcome is ITS OWN, not the chain's. A chain cancelled
-            # half way still contains steps whose dependency genuinely
-            # succeeded; marking those FAILED because the chain as a whole did
-            # not succeed rewrites history that happened, and tells the step
-            # below them that a dependency failed when it did not. Every
-            # handler already decides this way — it gates on
-            # ``task.depending_status`` — so the mark has to agree with it, or
-            # a step reports an outcome its own handler did not take.
-            dependency_succeeded = dep_task.depending_status == JobStatus.FINISHED
-            step_status = (
-                JobStatus.FINISHED if ok and dependency_succeeded else JobStatus.FAILED
-            )
-            # Stamp the shared meta node in place. A nested
-            # child's ``depending_status`` reads this parent, so the mark
-            # must land before the child runs (the walk yields parent first).
-            dep_task.mark(step_status == JobStatus.FINISHED)
-            anchor = dep_task.anchor
-            if anchor is not None:
-                anchors[anchor.id] = anchor
-            # Advance this dep's storage children so the worker picks them up.
-            # Skipped when the handler failed — failure must NOT advance the
-            # chain — and when the member is cancelled, since running its
-            # children would do work for an operation the user cancelled.
-            #
-            # This one stays keyed on the WHOLE chain, deliberately, while the
-            # mark above is per step: creating work is mutation, not traversal.
-            # A step whose own dependency succeeded may still not start a disk
-            # operation once the chain it belongs to is dead — that is the
-            # operation the user cancelled.
-            if ok and not chain_failed and not _is_canceled(dep_task):
-                enqueued = await _enqueue_metadata_storage_dependents(dep_task)
-                all_ok = all_ok and enqueued
+    # The walk above only reads. From here on the pass MUTATES the anchors it
+    # found, so take their locks first — and only theirs.
+    async with _anchor_lock(
+        a.id for a in (getattr(d, "anchor", None) for d in dependents) if a is not None
+    ):
+        with dedup_status_emits():
+            for dep_task in dependents:
+                # Finalize is always metadata. A non-CoreStep here can only be a
+                # pre-upgrade legacy rq ``core`` job replayed during migration — the
+                # startup drain heals those, so skip rather than mishandle it.
+                if not isinstance(dep_task, CoreStep):
+                    continue
+                # Reaching what is behind a completed step means passing THROUGH
+                # it, not running it again. On a dead chain the walk yields those
+                # steps after the failure branch has already run, so re-executing
+                # one re-applies a success body over what the failure branch just
+                # wrote — a template marked Failed gets promoted back to ready by a
+                # step redoing work it had already done. Its mark stands as it is.
+                #
+                # Only on a dead chain: a redelivered RESULT event must still
+                # re-run its handlers, which is the at-least-once contract that
+                # recovers a knot child whose enqueue failed.
+                if dead_chain and dep_task.job_status in _TERMINAL_STATUSES:
+                    continue
+                ok = await _run_handler(redis_manager, dep_task)
+                all_ok = all_ok and ok
+                # Propagate the outcome onto this dep before the next sibling/child
+                # runs, so handlers that gate on ``task.depending_status`` see the
+                # right value (was "deferred" otherwise — no worker on the core
+                # queue ever marks it). A handler gated on ``depending_status``
+                # no-ops when the chain failed and reports success for having done
+                # nothing. Marking that FINISHED tells the NEXT step its dependency
+                # succeeded, so a nested step runs its success body for an operation
+                # that never happened.
+                # A step's outcome is ITS OWN, not the chain's. A chain cancelled
+                # half way still contains steps whose dependency genuinely
+                # succeeded; marking those FAILED because the chain as a whole did
+                # not succeed rewrites history that happened, and tells the step
+                # below them that a dependency failed when it did not. Every
+                # handler already decides this way — it gates on
+                # ``task.depending_status`` — so the mark has to agree with it, or
+                # a step reports an outcome its own handler did not take.
+                dependency_succeeded = dep_task.depending_status == JobStatus.FINISHED
+                step_status = (
+                    JobStatus.FINISHED
+                    if ok and dependency_succeeded
+                    else JobStatus.FAILED
+                )
+                # Stamp the shared meta node in place. A nested
+                # child's ``depending_status`` reads this parent, so the mark
+                # must land before the child runs (the walk yields parent first).
+                dep_task.mark(step_status == JobStatus.FINISHED)
+                anchor = dep_task.anchor
+                if anchor is not None:
+                    anchors[anchor.id] = anchor
+                # Advance this dep's storage children so the worker picks them up.
+                # Skipped when the handler failed — failure must NOT advance the
+                # chain — and when the member is cancelled, since running its
+                # children would do work for an operation the user cancelled.
+                #
+                # This one stays keyed on the WHOLE chain, deliberately, while the
+                # mark above is per step: creating work is mutation, not traversal.
+                # A step whose own dependency succeeded may still not start a disk
+                # operation once the chain it belongs to is dead — that is the
+                # operation the user cancelled.
+                if ok and not chain_failed and not _is_canceled(dep_task):
+                    enqueued = await _enqueue_metadata_storage_dependents(dep_task)
+                    all_ok = all_ok and enqueued
 
     # Persist the finalize status marks so ``Task.pending`` stops gating the
     # storage and the reconcile self-heal can tell a done chain from a stuck
@@ -753,14 +837,30 @@ async def _read_and_dispatch(redis, redis_manager, consumer_name):
     if not response:
         return False
     for _stream, entries in response:
-        for entry_id, fields in entries:
-            ok = False
-            try:
-                ok = await _process_entry(redis_manager, fields)
-            except Exception:
-                log.exception("task_results: process_entry raised for %s", entry_id)
-            if ok:
-                await _ack(redis, entry_id)
+        # The batch is settled CONCURRENTLY. Entries name different chains, and a
+        # settled entry is almost entirely waiting on rethinkdb, so processing
+        # them one at a time left the loop — and the connection pool — idle for
+        # most of the time it took. What must not overlap is two entries marking
+        # the same finalize anchor, and that is held by ``_anchor_lock`` inside
+        # ``_process_entry`` rather than by serialising everything.
+        #
+        # The ACK stays tied to its own entry's outcome, so a handler that failed
+        # still leaves exactly that entry in the PEL for redelivery.
+        semaphore = asyncio.Semaphore(settle_concurrency())
+
+        async def _settle(entry_id, fields):
+            async with semaphore:
+                ok = False
+                try:
+                    ok = await _process_entry(redis_manager, fields)
+                except Exception:
+                    log.exception("task_results: process_entry raised for %s", entry_id)
+                if ok:
+                    await _ack(redis, entry_id)
+
+        await asyncio.gather(
+            *(_settle(entry_id, fields) for entry_id, fields in entries)
+        )
     return True
 
 
