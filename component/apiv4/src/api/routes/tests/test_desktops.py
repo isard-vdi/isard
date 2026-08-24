@@ -737,13 +737,13 @@ def test_get_allowed_reservables_uses_the_creation_hardware_source(
 
 
 def test_get_allowed_reservables_requires_auth(test_client):
-    """Without a JWT the route must 403 — proves it's no longer
-    ``open_router``. ``has_token`` rejects missing tokens with 403
-    rather than 401."""
+    """Without a JWT the route must reject — proves it's no longer
+    ``open_router``. Missing credentials are rejected with 401
+    (fastapi >=0.139 returns 401, not 403, for missing auth)."""
     response = test_client(
         url="/items/domains/get-allowed-reservables",
     )
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 def test_update_bastion_authorized_keys_requires_can_use_bastion(

@@ -1,12 +1,12 @@
 [project]
 name = "isardvdi-socketio"
 version = "0.0.0"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14,<3.15"
 dependencies = [
   "isardvdi-common",
-  "python-socketio==5.16.2",
-  "uvicorn==0.34.2",
-  "watchfiles==1.0.4",
+  "python-socketio==5.16.3",
+  "uvicorn==0.51.0",
+  "watchfiles==1.2.0",
 ]
 
 [build-system]

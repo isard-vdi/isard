@@ -93,7 +93,7 @@ RUN bun run build
 #
 # nginx
 #
-FROM nginxinc/nginx-unprivileged:1.27.4-alpine-slim@sha256:e9796392bfbd5d97721c1d67fa1433cb2f5658a72b9b3ef6af3f63b00a4c273e as production
+FROM nginxinc/nginx-unprivileged:1.31.2-alpine-slim@sha256:eed3e4c2f3f9285e80610238e0b18fe1bf311c50559434db1969b1cfabd5518b as production
 
 USER root
 RUN apk -U upgrade --no-cache

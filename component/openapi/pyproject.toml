@@ -1,10 +1,10 @@
 [project]
 name = "isardvdi-openapi"
 version = "0.0.0"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14,<3.15"
 dependencies = [
-  "fastapi==0.115.12",
-  "uvicorn==0.34.2",
+  "fastapi==0.139.0",
+  "uvicorn==0.51.0",
 ]
 
 [build-system]

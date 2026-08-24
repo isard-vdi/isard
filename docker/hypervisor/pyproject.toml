@@ -1,12 +1,12 @@
 [project]
 name = "isardvdi-hypervisor"
 version = "0.0.0"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14,<3.15"
 dependencies = [
   "isardvdi-apiv4-client",
   "pyjwt==2.13.0",
-  "pythonping==1.0.15",
-  "requests==2.32.4",
+  "pythonping==1.1.4",
+  "requests==2.34.2",
 ]
 
 [build-system]

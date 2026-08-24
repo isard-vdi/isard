@@ -1,12 +1,12 @@
 [project]
 name = "isardvdi-changefeed"
 version = "0.0.0"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14,<3.15"
 dependencies = [
   "isardvdi-changefeed-asyncapi",
   "isardvdi-common",
-  "redis==5.2.1",
-  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz",
+  "redis==8.0.1",
+  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/de0aa01a894bc08c3d8ecb9333bec2eafe9fd504.tar.gz",
 ]
 
 [dependency-groups]

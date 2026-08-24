@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM golang:1.25.8-alpine3.22@sha256:6b7607461f105ccaa0615b6f7932dfd5b36c5d827a0770b5578e565107cc3adb AS go-build
+FROM golang:1.25.12-alpine3.24@sha256:56961d79ea8129efddcc0b8643fd8a5416b4e6228cfd477e3fd61deb2672c587 AS go-build
 ENV CGO_ENABLED=0
 COPY docker/codegen/tools/go.mod docker/codegen/tools/go.sum /tools/
 RUN --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
@@ -18,7 +18,7 @@ COPY docker/codegen/tools/package.json docker/codegen/tools/bun.lock /deps/
 RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
     bun install --frozen-lockfile
 
-FROM ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b AS py-build
+FROM ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 AS py-build
 # UV_COMPILE_BYTECODE=0: uv fans its bytecode compiler out over every core, and
 # on a 192-core host that exhausts file descriptors mid-walk —
 #   error: Failed to bytecode-compile Python file in /venv/.../site-packages
@@ -46,7 +46,7 @@ RUN uv sync --frozen --no-dev \
         --no-editable && \
     chmod -R a+w /venv
 
-FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 RUN apk -U upgrade --no-cache && \
     apk add --no-cache \
         protoc \
@@ -61,10 +61,10 @@ COPY --from=go-build /usr/local/go /usr/local/go
 COPY --from=go-build /go/bin/ /usr/local/bin/
 COPY --from=node-build /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=node-build /deps/ /deps/
-COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b /usr/local/bin/python3.13 /usr/local/bin/python3.13
-COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b /usr/local/lib/python3.13 /usr/local/lib/python3.13
-COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b /usr/local/lib/libpython3.13.so.1.0 /usr/local/lib/libpython3.13.so.1.0
-COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b /usr/local/bin/uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 /usr/local/bin/python3.14 /usr/local/bin/python3.14
+COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 /usr/local/lib/python3.14 /usr/local/lib/python3.14
+COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 /usr/local/lib/libpython3.14.so.1.0 /usr/local/lib/libpython3.14.so.1.0
+COPY --from=ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 /usr/local/bin/uv /usr/local/bin/uv
 COPY --from=py-build /venv /venv
 
 RUN ln -s bun /usr/local/bin/node && \

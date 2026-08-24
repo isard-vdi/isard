@@ -26,7 +26,16 @@ from typing import Literal
 
 import jwt
 from cachetools import Cache
+from fastapi.routing import APIRoute, iter_route_contexts
 from rethinkdb import r
+
+
+def iter_api_routes(app):
+    """Yield every ``APIRoute`` of ``app`` with its effective path. fastapi
+    >=0.139 keeps included routers lazy, so ``app.routes`` holds wrappers."""
+    for context in iter_route_contexts(app.routes):
+        if isinstance(context.original_route, APIRoute):
+            yield context
 
 
 class MockJWT:

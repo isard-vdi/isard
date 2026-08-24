@@ -165,7 +165,7 @@ test-e2e-seed:
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-e UV_CACHE_DIR=/tmp/uv-cache \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
-	ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine \
+	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine \
 	sh -c 'apk add --no-cache git && uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py'
 
 .PHONY: test-e2e
@@ -329,6 +329,11 @@ ci-test-codegen:
 ci-test-anonymize-db:
 	uv sync --no-dev --group test --package isard-anonymize-db
 	cd sysadm/anonymize-db && uv run --no-dev --group test --package isard-anonymize-db pytest tests -q --tb=short --junitxml=report.xml
+
+.PHONY: ci-test-backupninja
+ci-test-backupninja:
+	uv sync --no-dev --group test --package isardvdi-backupninja
+	cd docker/backupninja && uv run --no-dev --group test --package isardvdi-backupninja pytest tests -q --tb=short --junitxml=report.xml
 
 .PHONY: ci-test-frontend
 ci-test-frontend:

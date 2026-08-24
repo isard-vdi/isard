@@ -1,7 +1,7 @@
 FROM debian:12-slim@sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716 AS ovmf
 RUN apt-get update && apt-get install -y ovmf && rm -rf /var/lib/apt/lists/*
 
-FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS mdevctl-build
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS mdevctl-build
 RUN apk add --no-cache cargo git make py3-docutils uuidgen
 # mdevctl v1.2.0
 RUN cd /opt && git clone https://github.com/mdevctl/mdevctl && \
@@ -10,7 +10,7 @@ WORKDIR /opt/mdevctl
 RUN CARGO_INCREMENTAL=0 cargo build --release
 RUN make install || true
 
-FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS builder
+FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
 # UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
 # venv's hard-coded shebangs keep resolving after the cross-stage COPY.
@@ -22,14 +22,13 @@ WORKDIR /workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-hypervisor --no-editable
 
-# Pin runtime to alpine 3.22 — alpine 3.23 ships qemu 10.1.3 which is
-# linked against libspice-server.so.1.15.0 (exports
-# spice_qxl_gl_scanout2). The custom spice-dev override below ships
-# 1.14.3 (no spice_qxl_gl_scanout2) → qemu fails to load the spice
-# module → "domain configuration does not support video model 'qxl'".
-# 3.22's qemu (9.2.x) is built against the older spice that the
-# custom override matches.
-FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS runtime
+# Runtime = python:3.14-alpine (Alpine 3.24) with qemu 11 from @edge, which links
+# against the packaged libspice-server.so.1.15.0 (exports spice_qxl_gl_scanout2).
+# Keep that packaged libspice; do NOT override it with a hand-built copy (an older
+# 1.14.3 source build lacked the symbol and broke qemu's spice/qxl module load,
+# so every qxl SPICE desktop failed to start). It was only needed for the old
+# Alpine 3.22 / qemu 9.2 base.
+FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS runtime
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
@@ -113,8 +112,8 @@ COPY docker/hypervisor/src /src
 COPY component/_common/src/isardvdi_common /src/isardvdi_common
 COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
 
-RUN rm /usr/lib/libspice*
-COPY docker/hypervisor/spice-dev/* /usr/lib/
+# Keep the packaged libspice-server (qemu 11 needs its spice_qxl_gl_scanout2
+# symbol for qxl/SPICE). See the note at the top of the runtime stage.
 
 ENV PATH="/.venv/bin:$PATH"
 ENV G_MESSAGES_DEBUG=all
