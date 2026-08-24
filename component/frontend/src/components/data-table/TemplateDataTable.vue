@@ -12,15 +12,10 @@ import {
 
 import { valueUpdater } from '@/lib/utils'
 
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
-
-import { Icon } from '@/components/icon'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import DatatablePagination from '@/components/ui/data-table-pagination/DatatablePagination.vue'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
-import { InputField } from '@/components/input-field'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
+import { EmptyState, PageToolbar, SearchInput, type EmptyStateKind } from '@/components/page'
 
 const { t } = useI18n()
 
@@ -40,14 +35,24 @@ interface Props {
   isRowDisabled?: (row: Record<string, unknown>) => boolean
   disabledTooltip?: string
   selectedId?: string
+  hideToolbar?: boolean
+  emptyKind?: EmptyStateKind
+  // Row count before any filtering, so a first run can be told from a fruitless search.
+  totalRows?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pageSize: 10,
   paginationPageSizes: undefined,
   loading: false,
-  isClickable: false
+  isClickable: false,
+  hideToolbar: false,
+  emptyKind: 'templates',
+  totalRows: undefined
 })
+
+// Owned here by default, but a view laying out its own toolbar can drive it.
+const search = defineModel<string>('search', { default: '' })
 
 const emit = defineEmits<{
   rowClick: [Record<string, unknown>]
@@ -55,7 +60,6 @@ const emit = defineEmits<{
 
 const pageSize = computed(() => props.pageSize ?? 10)
 const columnFilters = ref<ColumnFiltersState>([])
-const globalFilter = ref('')
 
 const table = useVueTable({
   get data() {
@@ -77,36 +81,49 @@ const table = useVueTable({
     }
   },
   onColumnFiltersChange: (updaterOrValue) => valueUpdater(updaterOrValue, columnFilters),
-  onGlobalFilterChange: (updaterOrValue) => valueUpdater(updaterOrValue, globalFilter),
+  onGlobalFilterChange: (updaterOrValue) => valueUpdater(updaterOrValue, search),
   state: {
     get columnFilters() {
       return columnFilters.value
     },
     get globalFilter() {
-      return globalFilter.value
+      return search.value
     }
   }
 })
 
+const filteredRowCount = computed(() => table.getFilteredRowModel().rows.length)
+
+const emptyVariant = computed(() =>
+  (props.totalRows ?? props.rows.length) === 0 ? 'first-run' : 'no-results'
+)
+
 const handleRowClick = (rowData: Record<string, unknown>) => {
   emit('rowClick', rowData)
 }
+
+const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
 </script>
 
 <template>
-  <div class="flex mb-4 gap-2">
-    <slot name="filters-left" />
-
-    <InputField
-      ref="searchRef"
-      class="h-min w-full max-w-120 ml-auto"
-      :placeholder="t('views.templates.filters.search.placeholder')"
-      icon="search-lg"
-      :model-value="globalFilter ?? ''"
-      @update:model-value="(value: string) => (globalFilter = String(value))"
-    />
-    <slot name="filters-right" />
-  </div>
+  <PageToolbar v-if="!props.hideToolbar">
+    <template v-if="$slots.tabs" #tabs>
+      <slot name="tabs" />
+    </template>
+    <template #search>
+      <SearchInput
+        :id="TEMPLATES_SEARCH_INPUT_ID"
+        v-model="search"
+        :placeholder="t('views.templates.filters.search.placeholder')"
+      />
+    </template>
+    <template #filters>
+      <slot name="filters-left" />
+    </template>
+    <template #actions>
+      <slot name="filters-right" />
+    </template>
+  </PageToolbar>
 
   <div v-if="props.loading" class="flex flex-col gap-4 mt-8">
     <div v-for="n in 4" :key="'skeleton-row-' + n" class="flex gap-2">
@@ -115,21 +132,14 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
     </div>
   </div>
 
-  <Empty v-else-if="props.rows.length === 0" class="md:flex-row-reverse mt-16">
-    <EmptyHeader>
-      <EmptyMedia variant="default" class="select-none pointer-events-none">
-        <img :src="templatesEmptyImg" />
-      </EmptyMedia>
-    </EmptyHeader>
-    <div class="flex flex-col items-start text-left gap-4">
-      <EmptyTitle class="text-[60px] leading-[72px] font-bold text-gray-warm-950">{{
-        t('components.empty.title', { kind: t('domains.templates', 0) })
-      }}</EmptyTitle>
-      <EmptyDescription class="text-[18px]! text-gray-warm-900">{{
-        t('components.empty.description', { kind: t('domains.templates', 0) })
-      }}</EmptyDescription>
-    </div>
-  </Empty>
+  <slot v-else-if="filteredRowCount === 0" name="empty" :variant="emptyVariant">
+    <EmptyState
+      :kind="props.emptyKind"
+      :variant="emptyVariant"
+      :searching="search.length > 0"
+      @clear-search="search = ''"
+    />
+  </slot>
 
   <template v-else>
     <div

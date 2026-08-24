@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import { isInvalid } from '@/lib/utils'
@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { NewDeploymentForm } from '@/components/deployments/new-deployment-form'
 import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
+import { FormHeader } from '@/components/form-header'
 import { DomainInfoModal } from '@/components/desktops'
 
 import { NewDeploymentDesktopFormCard } from '@/components/deployments/new-deployment-desktop-from-card'
@@ -37,6 +38,13 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import Separator from '@/components/ui/separator/Separator.vue'
 import AlertModal from '@/components/modal/AlertModal.vue'
 import EditHardwareModal from '@/components/deployments/deployment-edit-hardware/EditHardwareModal.vue'
+import {
+  toDomainHardware,
+  toGuestProperties,
+  toReservables,
+  type AccessFormData,
+  type HardwareFormData
+} from '@/lib/domainPayload'
 
 const router = useRouter()
 const { t, d } = useI18n()
@@ -59,6 +67,8 @@ const {
   error: userQuotasError
 } = useQuery(getUserQuotasOptions())
 
+const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
+
 const {
   mutate: createDeployment,
   mutateAsync: createDeploymentAsync,
@@ -70,6 +80,7 @@ const {
 } = useMutation({
   ...createDeploymentMutation(),
   onSuccess: (data) => {
+    formHeaderRef.value?.allowLeave()
     router.push({
       name: 'deployments',
       params: { deploymentId: data.id }
@@ -285,6 +296,7 @@ const form = useForm({
 // Reactively get field metadata from the form to track errors per step
 const formFieldMeta = form.useStore((state) => state.fieldMeta)
 const formValues = form.useStore((state) => state.values)
+const formIsTouched = form.useStore((state) => !state.isPristine)
 
 // Define which form fields belong to each step
 const step1Fields = ['name', 'description', 'visible']
@@ -334,6 +346,18 @@ const steps = computed<StepperFormStep[]>(() => {
     }
   ]
 })
+
+const goToPreviousStep = () => {
+  if (currentStep.value > 1) {
+    currentStep.value -= 1
+  }
+}
+
+const goToNextStep = () => {
+  if (currentStep.value < steps.value.length) {
+    currentStep.value += 1
+  }
+}
 
 const toMediaResources = (media?: DomainInfoMedia[]) =>
   media?.map(({ id, name }) => ({ id, name: name ?? id }))
@@ -432,30 +456,32 @@ const deleteDesktopConfirmationModalData = ref<{
 const updateHardwareModalData = ref<{
   index: number
   data: CreateDesktopRequest | any
-  restrictedFieldsDetails?: any
 } | null>(null)
 
-const updateHardware = (index: number, accessSettings: any, hardwareSettings: any) => {
+const updateHardware = (
+  index: number,
+  access: AccessFormData | undefined,
+  hardware: HardwareFormData | undefined
+) => {
   const currentDesktops = form.getFieldValue('desktops') || []
 
-  // convert from camelCase to snake_case
-  const { bootOrder, diskBus, reservables, interfaces, videos, ...restHardwareSettings } =
-    hardwareSettings
+  const restoredViewers = access?.viewers ?? {}
 
   const updatedDesktop = {
     ...currentDesktops[index],
-    ...{ guest_properties: { ...currentDesktops[index].guest_properties, ...accessSettings } },
-    ...{
-      hardware: {
-        ...currentDesktops[index].hardware,
-        ...restHardwareSettings,
-        interfaces: interfaces.map((iface: any) => (typeof iface === 'string' ? iface : iface.id)),
-        disk_bus: diskBus,
-        videos: [videos],
-        boot_order: [bootOrder]
-      }
+    // A viewer the user got back (by adding wireguard) is no longer removed.
+    removed_viewers: (currentDesktops[index].removed_viewers ?? []).filter(
+      (viewer: string) => !(viewer in restoredViewers)
+    ),
+    guest_properties: {
+      ...currentDesktops[index].guest_properties,
+      ...toGuestProperties(access)
     },
-    reservables
+    hardware: {
+      ...currentDesktops[index].hardware,
+      ...toDomainHardware(hardware)
+    },
+    reservables: toReservables(hardware)
   }
 
   const newDesktops = [
@@ -527,7 +553,7 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
         :vcpu="templateDetails?.vcpu"
         :ram="templateDetails?.memory"
         :boot-order="templateDetails?.boot_order.map((bo) => bo.name)"
-        :disk-bus="templateDetails?.disk_bus"
+        :disk-bus="templateDetails?.disk_bus?.name"
         :vga="templateDetails?.videos.map((vga) => vga.name)"
         :viewers="templateDetails?.viewers"
         :isos="templateDetails?.isos?.map((iso) => iso.name)"
@@ -594,52 +620,32 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
       v-if="updateHardwareModalData !== null"
       :open="updateHardwareModalData !== null"
       :data="updateHardwareModalData?.data"
-      :restricted-fields-details="updateHardwareModalData?.restrictedFieldsDetails"
       @close="updateHardwareModalData = null"
       @submit="
-        ({ accessSettings, hardwareSettings }) => {
-          updateHardware(updateHardwareModalData!.index, accessSettings, hardwareSettings)
+        ({ access, hardware }) => {
+          updateHardware(updateHardwareModalData!.index, access, hardware)
         }
       "
     />
 
-    <div
-      class="flex flex-col md:flex-row items-start justify-center max-w-480 w-full mx-auto mb-8 gap-4"
+    <FormHeader
+      ref="formHeaderRef"
+      :cancel-to="{ name: 'deployments' }"
+      :confirm-cancel="formIsTouched || currentStep > 1"
+      :show-previous="currentStep > 1"
+      @previous="goToPreviousStep"
     >
-      <div class="flex flex-row items-center gap-4 w-full">
-        <Button
-          :as="RouterLink"
-          :to="{ name: 'deployments' }"
-          hierarchy="link-color"
-          icon="arrow-left"
-        >
-          {{ t('views.new-deployment.header.cancel') }}
-        </Button>
-      </div>
+      <template #stepper>
+        <div class="shrink-0 _w-160 w-80">
+          <StepperForm
+            v-model="currentStep"
+            :steps="steps"
+            :disable-future-steps="!isStepFieldsValid(currentStep)"
+          />
+        </div>
+      </template>
 
-      <div class="shrink-0 _w-160 w-80">
-        <StepperForm
-          v-model="currentStep"
-          :steps="steps"
-          :disable-future-steps="!isStepFieldsValid(currentStep)"
-        />
-      </div>
-
-      <div class="flex flex-row items-center justify-end gap-4 w-full">
-        <Button
-          hierarchy="link-color"
-          :disabled="currentStep <= 1"
-          @click="
-            () => {
-              if (currentStep > 1) {
-                currentStep -= 1
-              }
-            }
-          "
-        >
-          {{ t('views.new-deployment.header.previous') }}
-        </Button>
-
+      <template #next>
         <form.Subscribe v-slot="{ isValid, isSubmitting, isTouched }">
           <Button
             v-if="currentStep === steps.length"
@@ -655,19 +661,13 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
             v-else
             class="min-w-32"
             :disabled="!isStepFieldsValid(currentStep)"
-            @click="
-              () => {
-                if (currentStep < steps.length) {
-                  currentStep += 1
-                }
-              }
-            "
+            @click="goToNextStep"
             >{{ t('views.new-deployment.header.next') }}</Button
           >
         </form.Subscribe>
-      </div>
-    </div>
-    <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
+      </template>
+    </FormHeader>
+    <main class="max-w-320 w-full mx-auto flex flex-col gap-6">
       <!-- TODO: try to deduplicate `createDeploymentError as DesktopNameExistsErrorResponse` -->
       <Alert
         v-if="(createDeploymentError as DesktopNameExistsErrorResponse)?.description_code"
@@ -759,12 +759,8 @@ const updateHardware = (index: number, accessSettings: any, hardwareSettings: an
                   }
                 "
                 @update-hardware="
-                  (restrictedFieldsDetails) => {
-                    updateHardwareModalData = {
-                      index,
-                      data: values.desktops[index],
-                      restrictedFieldsDetails
-                    }
+                  () => {
+                    updateHardwareModalData = { index, data: values.desktops[index] }
                   }
                 "
               />

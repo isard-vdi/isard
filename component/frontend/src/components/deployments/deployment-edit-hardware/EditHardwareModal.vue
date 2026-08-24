@@ -4,23 +4,23 @@ import { useI18n } from 'vue-i18n'
 
 import type { CreateDesktopRequest } from '@/gen/oas/apiv4'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/modal'
-import { Separator } from '@/components/ui/separator'
-import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
-import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
-import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
-import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
-import { FeaturedIconOutline } from '@/components/icon/featured-outline'
+import DomainConfigurationSection, {
+  type DomainConfigurationDefaults
+} from '@/components/domain/DomainConfigurationSection.vue'
+import type { AccessFormData, HardwareFormData } from '@/lib/domainPayload'
+import type { LimitedHardware } from '@/lib/hardwareLimits'
 import { selectedViewerKeys } from '@/lib/viewers'
 
-const { t, d } = useI18n()
+const { t } = useI18n()
 
 interface Props {
   open?: boolean
-  data: CreateDesktopRequest
-  restrictedFieldsDetails?: { name: string; oldValue: any; newValue: any }[]
+  data: CreateDesktopRequest & {
+    limited_hardware?: LimitedHardware | null
+    removed_viewers?: string[] | null
+  }
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -29,70 +29,52 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   close: []
-  submit: [
-    {
-      accessSettings: any
-      hardwareSettings: any
-    }
-  ]
+  submit: [{ access: AccessFormData | undefined; hardware: HardwareFormData | undefined }]
 }>()
 
-const showAccessCustomization = ref(false)
-const showHardwareCustomization = ref(false)
-
-const desktopData = ref<CreateDesktopRequest>(props.data)
-
-const submitButtonLoading = ref(false)
-const handleSubmit = () => {
-  submitButtonLoading.value = true
-
-  const accessSettings = accessFormRef.value?.getFormData()
-  const hardwareSettings = hardwareFormRef.value?.getFormData()
-
-  emit('submit', {
-    accessSettings,
-    hardwareSettings
-  })
-
-  submitButtonLoading.value = false
-}
-
-const accessFormRef = ref<{
-  getFormData: () => any
-  isValid: boolean
-  removedViewerLabels: string[]
-} | null>(null)
-const hardwareFormRef = ref<{
-  getFormData: () => any
-  isValid: boolean
-  limitedFields: any
-  addInterface: (ifaceId: string) => boolean | undefined
-  removeInterface: (ifaceId: string) => void
-  interfaces: string[]
-} | null>(null)
-
-const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces ?? [])
+const desktopData = ref(props.data)
 
 const selectedViewers = computed<string[]>(() =>
   selectedViewerKeys(desktopData.value.guest_properties?.viewers)
 )
 
-const removedViewerLabels = computed<string[]>(() => accessFormRef.value?.removedViewerLabels ?? [])
+// There is no desktop or template to read from yet, so the sub-forms are seeded
+// from the deployment entry the parent is building.
+const defaults = computed<DomainConfigurationDefaults>(() => ({
+  access: {
+    credentials: {
+      username: desktopData.value.guest_properties?.credentials?.username ?? '',
+      password: desktopData.value.guest_properties?.credentials?.password ?? ''
+    },
+    fullscreen: desktopData.value.guest_properties?.fullscreen,
+    viewers: selectedViewers.value
+  },
+  hardware: {
+    vcpus: desktopData.value.hardware?.vcpus ?? undefined,
+    memory: desktopData.value.hardware?.memory ?? undefined,
+    diskBus: desktopData.value.hardware?.disk_bus ?? undefined,
+    videos: desktopData.value.hardware?.videos?.[0],
+    bootOrder: desktopData.value.hardware?.boot_order?.[0],
+    isos: desktopData.value.hardware?.isos?.map((iso) => iso.id),
+    floppies: desktopData.value.hardware?.floppies?.map((floppy) => floppy.id),
+    interfaces: desktopData.value.hardware?.interfaces ?? undefined,
+    reservables: { vgpus: desktopData.value.reservables?.vgpus ?? [] }
+  }
+}))
 
-function handleAddInterfaceFromAccessForm(ifaceId: string) {
-  return hardwareFormRef.value?.addInterface(ifaceId)
+const configurationRef = ref<InstanceType<typeof DomainConfigurationSection> | null>(null)
+const isValid = computed(() => configurationRef.value?.isValid ?? false)
+
+const submitButtonLoading = ref(false)
+
+const handleSubmit = () => {
+  if (!isValid.value || !configurationRef.value) return
+  submitButtonLoading.value = true
+
+  emit('submit', configurationRef.value.getFormData())
+
+  submitButtonLoading.value = false
 }
-
-// Check if hardware form has limited fields (using data from DomainHardwareForm)
-const hasLimitedFields = computed(() => {
-  const limitedFields = hardwareFormRef.value?.limitedFields
-  return !!(
-    limitedFields &&
-    limitedFields !== null &&
-    typeof limitedFields === 'object' &&
-    Object.keys(limitedFields).length > 0
-  )
-})
 </script>
 
 <template>
@@ -100,6 +82,7 @@ const hasLimitedFields = computed(() => {
     :open="props.open"
     size="7xl"
     _class="h-full"
+    hide-title
     :title="
       t('components.deployments.form-update-hardware-modal.title', {
         'desktop-name': desktopData.name
@@ -113,159 +96,15 @@ const hasLimitedFields = computed(() => {
     @close="emit('close')"
   >
     <template #default>
-      <div class="flex flex-col gap-8 mb-8 px-8 py-4">
-        <div class="flex flex-col gap-6">
-          <div>
-            <h1 class="text-lg font-semibold text-gray-warm-900">
-              {{ t('views.new-desktop.step-2.access.title') }}
-            </h1>
-            <h2 class="text-sm font-regular">
-              {{ t('views.new-desktop.step-2.access.description') }}
-            </h2>
-          </div>
-
-          <DomainAccessSummary
-            :credentials="desktopData.guest_properties?.credentials"
-            :viewers="selectedViewers"
-            :fullscreen="desktopData.guest_properties?.fullscreen"
-          />
-
-          <Alert
-            v-if="removedViewerLabels.length && !showAccessCustomization"
-            variant="default"
-            class="border-error-600"
-          >
-            <FeaturedIconOutline kind="outline" color="error" />
-            <AlertTitle>{{ t('components.domain.access.viewers-removed.title') }}</AlertTitle>
-            <AlertDescription>
-              {{ t('components.domain.access.viewers-removed.description') }}
-              <ul class="mt-3 space-y-1">
-                <li
-                  v-for="label in removedViewerLabels"
-                  :key="label"
-                  class="text-sm font-semibold text-error-600"
-                >
-                  {{ label }}
-                </li>
-              </ul>
-            </AlertDescription>
-          </Alert>
-
-          <div class="flex items-center gap-2">
-            <Separator />
-            <Button
-              hierarchy="secondary-gray"
-              size="sm"
-              :icon="showAccessCustomization ? 'chevron-up' : 'chevron-down'"
-              @click="showAccessCustomization = !showAccessCustomization"
-              >{{
-                t(
-                  `views.new-desktop.step-2.access.${showAccessCustomization ? 'hide' : 'show'}-access-customization`
-                )
-              }}</Button
-            >
-            <Separator />
-          </div>
-          <div v-show="showAccessCustomization">
-            <h3 class="text-lg font-semibold text-gray-warm-900">
-              {{ t('views.new-desktop.step-2.all-hardware.title') }}
-            </h3>
-            <p class="text-sm font-regular mb-6">
-              {{ t('views.new-desktop.step-2.all-hardware.description') }}
-            </p>
-            <DomainAccessForm
-              ref="accessFormRef"
-              :show-bastion-config="false"
-              :credentials="desktopData.guest_properties?.credentials"
-              :fullscreen="desktopData.guest_properties?.fullscreen"
-              :viewers="selectedViewers"
-              :hardware-interfaces="hardwareInterfaces"
-              :on-request-add-interface="handleAddInterfaceFromAccessForm"
-            />
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-6">
-          <div>
-            <h1 class="text-lg font-semibold text-gray-warm-900">
-              {{ t('views.new-desktop.step-2.hardware-summary.title') }}
-            </h1>
-            <h2 class="text-sm font-regular">
-              {{ t('views.new-desktop.step-2.hardware-summary.description') }}
-            </h2>
-          </div>
-
-          <!-- Informational alert for limited hardware fields -->
-          <Alert v-if="hasLimitedFields" variant="default" class="mb-6 border-error-600">
-            <FeaturedIconOutline kind="outline" color="error" />
-            <AlertTitle>{{ t('views.new-desktop.step-2.hardware-limited.title') }}</AlertTitle>
-            <AlertDescription>
-              {{ t('views.new-desktop.step-2.hardware-limited.description') }}
-              <ul v-if="props.restrictedFieldsDetails?.length" class="mt-3 space-y-2">
-                <li
-                  v-for="field in props.restrictedFieldsDetails"
-                  :key="field.name"
-                  class="text-sm"
-                >
-                  <span class="font-semibold text-error-600">{{ field.name }}: </span>
-                  <span class="text-error-600">{{ field.oldValue }} → {{ field.newValue }}</span>
-                </li>
-              </ul>
-            </AlertDescription>
-          </Alert>
-
-          <DomainHardwareSummary
-            :vcpu="desktopData.hardware?.vcpus"
-            :memory="desktopData.hardware?.memory"
-            :disk-bus="desktopData.hardware?.disk_bus"
-            :videos="desktopData.hardware?.videos"
-            :interfaces="desktopData.hardware?.interfaces"
-            :boot-order="desktopData.hardware?.boot_order"
-            :isos="desktopData.hardware?.isos?.map((iso) => iso.name)"
-            :floppies="desktopData.hardware?.floppies?.map((floppy) => floppy.name)"
-            :loading="false"
-            :vgpus="desktopData.reservables?.vgpus"
-          />
-
-          <div class="flex items-center gap-2">
-            <Separator />
-            <Button
-              hierarchy="secondary-gray"
-              size="sm"
-              :icon="showHardwareCustomization ? 'chevron-up' : 'chevron-down'"
-              @click="showHardwareCustomization = !showHardwareCustomization"
-            >
-              {{
-                t(
-                  `views.new-desktop.step-2.hardware-summary.${showHardwareCustomization ? 'hide' : 'show'}-hardware-customization`
-                )
-              }}
-            </Button>
-            <Separator />
-          </div>
-          <div v-show="showHardwareCustomization">
-            <h3 class="text-lg font-semibold text-gray-warm-900">
-              {{ t('views.new-desktop.step-2.all-hardware.title') }}
-            </h3>
-            <p class="text-sm font-regular mb-6">
-              {{ t('views.new-desktop.step-2.all-hardware.description') }}
-            </p>
-            <DomainHardwareForm
-              ref="hardwareFormRef"
-              _template-id="props.data?.template_id"
-              :vcpus="desktopData.hardware?.vcpus"
-              :memory="desktopData.hardware?.memory"
-              :disk-bus="desktopData.hardware?.disk_bus"
-              :videos="desktopData.hardware?.videos?.[0]"
-              :interfaces="desktopData.hardware?.interfaces"
-              :boot-order="desktopData.hardware?.boot_order?.[0]"
-              :isos="desktopData.hardware?.isos?.map((iso) => iso.id)"
-              :floppies="desktopData.hardware?.floppies?.map((floppy) => floppy.id)"
-              :reservables="desktopData.reservables"
-              :limited-hardware="desktopData.limited_hardware"
-            />
-          </div>
-        </div>
+      <div class="px-8 py-4">
+        <DomainConfigurationSection
+          ref="configurationRef"
+          always-open
+          context="deployment-desktop"
+          :defaults="defaults"
+          :limited-hardware="desktopData.limited_hardware"
+          :initial-removed-viewers="desktopData.removed_viewers ?? undefined"
+        />
       </div>
     </template>
 
@@ -275,14 +114,10 @@ const hasLimitedFields = computed(() => {
       </Button>
       <Button
         hierarchy="primary"
-        :disabled="submitButtonLoading"
+        :disabled="!isValid || submitButtonLoading"
         :icon="submitButtonLoading ? 'loading-02' : undefined"
         icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
-        @click="
-          () => {
-            handleSubmit()
-          }
-        "
+        @click="handleSubmit"
       >
         {{ t('components.deployments.form-update-hardware-modal.confirm') }}
       </Button>

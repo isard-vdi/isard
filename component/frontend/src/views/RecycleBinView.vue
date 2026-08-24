@@ -10,7 +10,6 @@ import {
   emptyRecycleBinMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { formatHoursToHumanReadable, formatBytes, formatRelativeTime } from '@/lib/utils'
 import { computed, ref, watch } from 'vue'
 
@@ -22,13 +21,12 @@ import { Icon } from '@/components/icon'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BadgeInfo } from '@/components/badge/info'
 import { DropdownButton } from '@/components/dropdown-button'
-import { InputField } from '@/components/input-field'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { AvatarLabel } from '@/components/avatar-label'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertModal } from '@/components/modal'
 import { DeleteModal } from '@/components/recycle-bin'
 import { RestoreModal } from '@/components/recycle-bin'
+import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 
 const { t, locale, d } = useI18n()
 
@@ -200,188 +198,174 @@ const goToEntry = (row: any) => {
   if (!row?.id) return
   router.push({ name: 'recycle-bin-entry', params: { recycleBinId: row.id } })
 }
+
+const RECYCLE_BIN_SEARCH_INPUT_ID = 'recycle-bin-search'
 </script>
 
 <template>
-  <main class="w-full flex justify-center">
-    <div class="p-6 py-2 space-y-6 w-full max-w-480">
-      <Skeleton v-if="cutoffTimeIsPending" class="h-20 w-full" />
+  <PageContainer>
+    <Skeleton v-if="cutoffTimeIsPending" class="h-20 w-full" />
 
-      <Alert v-else-if="cutoffTimeIsError" variant="destructive">
-        <AlertTitle>{{ t('views.recycle-bin.error.title') }}</AlertTitle>
-        <AlertDescription>{{
-          t(cutoffTimeError?.description_code || 'error.generic')
-        }}</AlertDescription>
-      </Alert>
+    <Alert v-else-if="cutoffTimeIsError" variant="destructive">
+      <AlertTitle>{{ t('views.recycle-bin.error.title') }}</AlertTitle>
+      <AlertDescription>{{
+        t(cutoffTimeError?.description_code || 'error.generic')
+      }}</AlertDescription>
+    </Alert>
 
-      <Alert v-else class="border-info-300 sm:flex items-center gap-3">
-        <FeaturedIconOutline
-          kind="outline"
-          color="brand"
-          size="md"
-          class="shrink-0 hidden sm:block"
-        />
-        <div class="flex-1 space-y-1 text-left">
-          <AlertTitle>{{ t('views.recycle-bin.alert.title') }}</AlertTitle>
-          <AlertDescription v-if="isImmediateCutoff">
-            {{ t('views.recycle-bin.alert.immediately') }}
-          </AlertDescription>
-          <AlertDescription v-else-if="isInfiniteCutoff">
-            {{ t('views.recycle-bin.alert.infinite') }}
-          </AlertDescription>
-          <AlertDescription v-else-if="finiteCutoffHours !== undefined">
-            {{
-              t('views.recycle-bin.alert.empty-after', {
-                time: formatHoursToHumanReadable(finiteCutoffHours, locale)
-              })
-            }}
-          </AlertDescription>
-          <AlertDescription v-else>...</AlertDescription>
-        </div>
-        <Button
-          v-if="hasItems"
-          hierarchy="destructive"
-          icon="trash-01"
-          @click="handleOpenEmptyBinModal"
-        >
-          {{ t('views.recycle-bin.empty-recycle-bin') }}
-        </Button>
-      </Alert>
-
-      <h2 v-if="hasItems" class="text-3xl font-bold">
-        {{ t('views.recycle-bin.table-title') }}
-      </h2>
-
-      <InputField
-        v-if="hasItems"
-        v-model="searchQuery"
-        :placeholder="t('views.recycle-bin.filters.search.placeholder')"
-        icon="search-lg"
-        class="w-full max-w-120"
+    <Alert v-else class="border-info-300 sm:flex items-center gap-3">
+      <FeaturedIconOutline
+        kind="outline"
+        color="brand"
+        size="md"
+        class="shrink-0 hidden sm:block"
       />
-
-      <Alert v-if="emptyBinError" variant="destructive">
-        <AlertTitle>{{ t('views.recycle-bin.error.title') }}</AlertTitle>
-        <AlertDescription>{{ t(emptyBinError) }}</AlertDescription>
-      </Alert>
-
-      <div v-if="itemsIsPending" class="space-y-2">
-        <Skeleton class="h-10 w-full" />
-        <Skeleton class="h-10 w-full" />
-        <Skeleton class="h-10 w-full" />
+      <div class="flex-1 space-y-1 text-left">
+        <AlertTitle>{{ t('views.recycle-bin.alert.title') }}</AlertTitle>
+        <AlertDescription v-if="isImmediateCutoff">
+          {{ t('views.recycle-bin.alert.immediately') }}
+        </AlertDescription>
+        <AlertDescription v-else-if="isInfiniteCutoff">
+          {{ t('views.recycle-bin.alert.infinite') }}
+        </AlertDescription>
+        <AlertDescription v-else-if="finiteCutoffHours !== undefined">
+          {{
+            t('views.recycle-bin.alert.empty-after', {
+              time: formatHoursToHumanReadable(finiteCutoffHours, locale)
+            })
+          }}
+        </AlertDescription>
+        <AlertDescription v-else>...</AlertDescription>
       </div>
-
-      <Alert v-else-if="itemsIsError" variant="destructive">
-        <AlertTitle>{{ t('views.recycle-bin.error.title') }}</AlertTitle>
-        <AlertDescription>{{
-          t(itemsError?.description_code || 'views.recycle-bin.error.generic')
-        }}</AlertDescription>
-      </Alert>
-
-      <Empty v-else-if="enrichedItems.length === 0" class="md:flex-row-reverse mt-16">
-        <EmptyHeader>
-          <EmptyMedia variant="default" class="select-none pointer-events-none hidden md:block">
-            <img :src="templatesEmptyImg" />
-          </EmptyMedia>
-        </EmptyHeader>
-
-        <div class="flex flex-col items-start text-left gap-4 rounded bg-base-background/75">
-          <EmptyTitle class="text-[60px] leading-[72px] font-bold text-gray-warm-950">{{
-            isSearching ? t('components.empty-search.title') : t('views.recycle-bin.empty.title')
-          }}</EmptyTitle>
-          <EmptyDescription v-if="!isSearching" class="text-[18px]! text-gray-warm-900">{{
-            t('views.recycle-bin.empty.description')
-          }}</EmptyDescription>
-          <Button v-else hierarchy="secondary-color" @click="searchQuery = ''">
-            {{ t('components.empty-search.clear') }}
-          </Button>
-        </div>
-      </Empty>
-
-      <DataTable
-        v-else
-        :headers="headers"
-        :rows="enrichedItems"
-        :is-clickable="true"
-        row-class="hover:bg-brand-100 rounded-lg"
-        @row-click="goToEntry"
+      <Button
+        v-if="hasItems"
+        hierarchy="destructive"
+        icon="trash-01"
+        @click="handleOpenEmptyBinModal"
       >
-        <template #cell-item_name="{ row }">
-          <div class="flex items-center gap-2 my-4">
-            <Icon :name="getItemTypeIcon(row.item_type)" size="md" />
-            <span class="font-semibold">{{ row.item_name }}</span>
-          </div>
-        </template>
-        <template #cell-size="{ row }">
-          {{ formatBytes(row.size) }}
-        </template>
-        <template #cell-last_time_sort="{ row }">
-          <Tooltip v-if="getRowTimestamp(row)">
-            <TooltipTrigger as-child>
-              <span>
-                {{ d(getRowTimestamp(row) * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent :title="formatRelativeTime(getRowTimestamp(row), locale)" />
-          </Tooltip>
-          <span v-else>—</span>
-        </template>
-        <template #cell-content="{ row }">
-          <div class="flex gap-2">
-            <BadgeInfo
-              v-if="row.desktops"
-              :icon="getItemTypeIcon('desktop')"
-              :content="row.desktops"
-            />
-            <BadgeInfo
-              v-if="row.templates"
-              :icon="getItemTypeIcon('template')"
-              :content="row.templates"
-            />
-            <BadgeInfo
-              v-if="row.deployments"
-              :icon="getItemTypeIcon('deployment')"
-              :content="row.deployments"
-            />
-          </div>
-        </template>
-        <template #cell-agent_name="{ row }">
-          <AvatarLabel
-            :src="row.agent_photo"
-            :name="row.agent_name"
-            size="sm"
-            class="text-gray-warm-900"
-          />
-        </template>
-        <template #cell-actions="{ row }">
-          <span @click.stop @keydown.enter.stop @keydown.space.stop>
-            <DropdownButton
-              :menu-content="[
-                {
-                  icon: 'refresh-ccw-05',
-                  text: t('views.recycle-bin.actions.restore'),
-                  onClick: () => handleRestore(row)
-                },
-                {
-                  icon: 'trash-03',
-                  text: t('views.recycle-bin.actions.delete-permanently'),
-                  onClick: () => handleDelete(row),
-                  class: 'text-error-700'
-                }
-              ]"
-            />
-          </span>
-        </template>
-      </DataTable>
+        {{ t('views.recycle-bin.empty-recycle-bin') }}
+      </Button>
+    </Alert>
 
-      <DeleteModal
-        v-model:open="showDeleteModal"
-        :recycle-bin-id="selectedEntry?.id || ''"
-        :item-name="selectedEntry?.item_name"
-        :on-success="handleDeleteSuccess"
-      />
+    <PageToolbar v-if="hasItems">
+      <template #search>
+        <SearchInput
+          :id="RECYCLE_BIN_SEARCH_INPUT_ID"
+          v-model="searchQuery"
+          :placeholder="t('views.recycle-bin.filters.search.placeholder')"
+        />
+      </template>
+    </PageToolbar>
+
+    <Alert v-if="emptyBinError" variant="destructive">
+      <AlertTitle>{{ t('views.recycle-bin.error.title') }}</AlertTitle>
+      <AlertDescription>{{ t(emptyBinError) }}</AlertDescription>
+    </Alert>
+
+    <div v-if="itemsIsPending" class="space-y-2">
+      <Skeleton class="h-10 w-full" />
+      <Skeleton class="h-10 w-full" />
+      <Skeleton class="h-10 w-full" />
     </div>
-  </main>
+
+    <Alert v-else-if="itemsIsError" variant="destructive">
+      <AlertTitle>{{ t('views.recycle-bin.error.title') }}</AlertTitle>
+      <AlertDescription>{{
+        t(itemsError?.description_code || 'views.recycle-bin.error.generic')
+      }}</AlertDescription>
+    </Alert>
+
+    <EmptyState
+      v-else-if="enrichedItems.length === 0"
+      kind="recycle-bin"
+      :variant="hasItems ? 'no-results' : 'first-run'"
+      :searching="isSearching"
+      @clear-search="searchQuery = ''"
+    />
+
+    <DataTable
+      v-else
+      :headers="headers"
+      :rows="enrichedItems"
+      :is-clickable="true"
+      row-class="hover:bg-brand-100 rounded-lg"
+      @row-click="goToEntry"
+    >
+      <template #cell-item_name="{ row }">
+        <div class="flex items-center gap-2 my-4">
+          <Icon :name="getItemTypeIcon(row.item_type)" size="md" />
+          <span class="font-semibold">{{ row.item_name }}</span>
+        </div>
+      </template>
+      <template #cell-size="{ row }">
+        {{ formatBytes(row.size) }}
+      </template>
+      <template #cell-last_time_sort="{ row }">
+        <Tooltip v-if="getRowTimestamp(row)">
+          <TooltipTrigger as-child>
+            <span>
+              {{ d(getRowTimestamp(row) * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent :title="formatRelativeTime(getRowTimestamp(row), locale)" />
+        </Tooltip>
+        <span v-else>—</span>
+      </template>
+      <template #cell-content="{ row }">
+        <div class="flex gap-2">
+          <BadgeInfo
+            v-if="row.desktops"
+            :icon="getItemTypeIcon('desktop')"
+            :content="row.desktops"
+          />
+          <BadgeInfo
+            v-if="row.templates"
+            :icon="getItemTypeIcon('template')"
+            :content="row.templates"
+          />
+          <BadgeInfo
+            v-if="row.deployments"
+            :icon="getItemTypeIcon('deployment')"
+            :content="row.deployments"
+          />
+        </div>
+      </template>
+      <template #cell-agent_name="{ row }">
+        <AvatarLabel
+          :src="row.agent_photo"
+          :name="row.agent_name"
+          size="sm"
+          class="text-gray-warm-900"
+        />
+      </template>
+      <template #cell-actions="{ row }">
+        <span @click.stop @keydown.enter.stop @keydown.space.stop>
+          <DropdownButton
+            :menu-content="[
+              {
+                icon: 'refresh-ccw-05',
+                text: t('views.recycle-bin.actions.restore'),
+                onClick: () => handleRestore(row)
+              },
+              {
+                icon: 'trash-03',
+                text: t('views.recycle-bin.actions.delete-permanently'),
+                onClick: () => handleDelete(row),
+                class: 'text-error-700'
+              }
+            ]"
+          />
+        </span>
+      </template>
+    </DataTable>
+
+    <DeleteModal
+      v-model:open="showDeleteModal"
+      :recycle-bin-id="selectedEntry?.id || ''"
+      :item-name="selectedEntry?.item_name"
+      :on-success="handleDeleteSuccess"
+    />
+  </PageContainer>
 
   <!-- Restore Modal -->
   <RestoreModal

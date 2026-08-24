@@ -2,7 +2,7 @@
 import { revalidateLogic, useForm } from '@tanstack/vue-form'
 import { useI18n } from 'vue-i18n'
 import { InputField } from '@/components/input-field'
-import { reactive, computed, ref, watch } from 'vue'
+import { reactive, computed, watch } from 'vue'
 import { z } from 'zod'
 import {
   Field,
@@ -13,6 +13,7 @@ import {
   FieldLabel
 } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Separator } from '@/components/ui/separator'
 import { useQuery } from '@tanstack/vue-query'
 import {
   getAllowedHardwareOptions,
@@ -32,22 +33,17 @@ import {
 import { Icon } from '@/components/icon'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { SearchableTags } from '@/components/searchable-tags'
-import SelectNetworksModal from '@/components/modal/SelectNetworksModal.vue'
-import { Button } from '@/components/ui/button'
+import NetworkSelector from '@/components/domain/NetworkSelector.vue'
 import { MAX_VGPU_PROFILES, NO_VGPU_ID, isVgpuSelectable } from '@/lib/vgpuSelection'
+import { WIREGUARD_INTERFACE_ID } from '@/lib/viewers'
+import HardwareLimitChip from '@/components/domain/HardwareLimitChip.vue'
+import type { LimitedHardware, LimitedHardwareValue } from '@/lib/hardwareLimits'
 import {
   VCPU_TIERS,
   MEMORY_TIERS,
   buildTieredOptions,
   roundToNearestTier
 } from '@/lib/hardwareTiers'
-
-interface LimitedHardwareValue {
-  old_value: unknown
-  new_value: unknown
-}
-
-type LimitedHardware = Record<string, LimitedHardwareValue>
 
 const emit = defineEmits<{
   'update:interfaces': [interfaces: string[]]
@@ -72,6 +68,8 @@ interface Props {
     vgpus?: string[]
   }
   interfaces?: string[]
+  // Interfaces another form depends on (the access form needs wireguard for RDP).
+  requiredInterfaces?: string[]
   limitedHardware?: LimitedHardware | null
 }
 
@@ -91,6 +89,7 @@ const props = withDefaults(defineProps<Props>(), {
   floppies: () => [],
   reservables: () => ({ vgpus: undefined }),
   interfaces: () => [],
+  requiredInterfaces: () => [],
   limitedHardware: null
 })
 
@@ -259,19 +258,13 @@ const form = useForm({
   }
 })
 
-// Sync form fields when source data changes (e.g. stale cache replaced by fresh fetch)
+// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch),
+// but never over edits in progress: the edit views refetch on focus.
 watch([templateData, desktopData], () => {
-  form.setFieldValue('vcpus', vcpus.value)
-  form.setFieldValue('memory', memory.value)
-  form.setFieldValue('diskBus', diskBus.value)
-  form.setFieldValue('diskSize', diskSize.value)
-  form.setFieldValue('videos', videos.value)
-  form.setFieldValue('bootOrder', bootOrder.value)
-  form.setFieldValue('isos', isos.value)
-  form.setFieldValue('floppies', floppies.value)
-  form.setFieldValue('reservables.vgpus', vgpus.value)
-  form.setFieldValue('interfaces', interfaces.value)
+  if (form.state.isPristine) form.reset()
 })
+
+const isDirty = form.useStore((state) => !state.isDefaultValue)
 
 // Fetch user allowed hardware options
 
@@ -362,30 +355,8 @@ const isInvalid = (field: { state: { meta: { isTouched: boolean; isValid: boolea
   return field.state.meta.isTouched && !field.state.meta.isValid
 }
 
-const isLimited = (fieldName: string) => {
-  return !!(computedLimitedHardware.value && computedLimitedHardware.value[fieldName])
-}
-
-const formatValue = (value: unknown) => {
-  if (Array.isArray(value)) {
-    return value.map((v: Record<string, unknown>) => v.name || v.id || v).join(', ') || 'None'
-  }
-  if (value && typeof value === 'object') {
-    const obj = value as Record<string, unknown>
-    return obj.name || obj.id || value || 'None'
-  }
-  return value || 'None'
-}
-
-const getLimitedMessage = (fieldName: string) => {
-  const limited = computedLimitedHardware.value?.[fieldName]
-  if (!limited) return ''
-
-  return t('components.domain.hardware.limited.restricted', {
-    old_value: formatValue(limited.old_value),
-    new_value: formatValue(limited.new_value)
-  })
-}
+const limitedField = (fieldName: string): LimitedHardwareValue | null =>
+  (computedLimitedHardware.value as LimitedHardware | null)?.[fieldName] ?? null
 
 function getNamedResources(ids: string[] | undefined, options: { id: string; name: string }[]) {
   if (!ids) return undefined
@@ -396,14 +367,6 @@ function getNamedResources(ids: string[] | undefined, options: { id: string; nam
       name: item?.name ?? id
     }
   })
-}
-
-// Add state for modal
-const showNetworksModal = ref(false)
-
-// Handler for saving networks
-const handleSaveNetworks = (interfaces: string[]) => {
-  form.setFieldValue('interfaces', interfaces)
 }
 
 // Expose method to get form data to parent components
@@ -423,6 +386,48 @@ const getFormData = () => ({
       : null
   }
 })
+
+const formValues = form.useStore((state) => state.values)
+
+const optionName = (id: string | undefined, options: { id: string; name: string }[]) =>
+  id === undefined ? undefined : (options.find((option) => option.id === id)?.name ?? id)
+
+const optionNames = (ids: string[] | undefined, options: { id: string; name: string }[]) =>
+  ids?.map((id) => optionName(id, options) as string)
+
+interface HardwareValues {
+  vcpus?: number
+  memory?: number
+  diskBus?: string
+  diskSize?: number
+  videos?: string
+  bootOrder?: string
+  isos?: string[]
+  floppies?: string[]
+  interfaces?: string[]
+  reservables?: { vgpus?: string[] }
+}
+
+/** What the summary card shows for this form, with ids resolved. */
+const buildSummary = (values: HardwareValues) => ({
+  vcpu: values.vcpus,
+  memory: values.memory,
+  diskBus: optionName(values.diskBus, diskBusOptions.value),
+  diskSize: props.showDiskSize ? values.diskSize : undefined,
+  videos: values.videos ? [optionName(values.videos, videosOptions.value) as string] : undefined,
+  bootOrder: values.bootOrder
+    ? [optionName(values.bootOrder, bootsOptions.value) as string]
+    : undefined,
+  isos: optionNames(values.isos, isosOptions.value),
+  floppies: optionNames(values.floppies, floppiesOptions.value),
+  interfaces: optionNames(values.interfaces, networksOptions.value),
+  vgpus: optionNames(values.reservables?.vgpus, vgpusOptions.value) ?? null
+})
+
+const summary = computed(() => buildSummary(formValues.value))
+
+/** The same, as the form was seeded: what the card compares the edits against. */
+const baseSummary = computed(() => buildSummary(defaultValues))
 
 const isFormValid = form.useStore((state) => state.isValid)
 
@@ -453,7 +458,7 @@ function removeInterface(ifaceId: string) {
 }
 
 const wireguardAvailable = computed(() =>
-  networksOptions.value.some((iface) => iface.id === 'wireguard')
+  networksOptions.value.some((iface) => iface.id === WIREGUARD_INTERFACE_ID)
 )
 
 watch(interfacesStore, (newInterfaces) => {
@@ -463,6 +468,10 @@ watch(interfacesStore, (newInterfaces) => {
 defineExpose({
   getFormData,
   isValid: isFormValid,
+  isDirty,
+  summary,
+  baseSummary,
+  reset: () => form.reset(),
   limitedFields: computedLimitedHardware,
   getInterfaces,
   addInterface,
@@ -487,14 +496,21 @@ defineExpose({
   </template>
   <form v-else>
     <FieldGroup>
-      <section
-        class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:grid-cols-[280px_1FR] md:gap-0"
-      >
-        <div class="flex flex-row-reverse justify-end items-center gap-2.5">
-          <h4 class="text-lg font-semibold text-gray-warm-900">
+      <section class="group/hw-section grid gap-4 items-start">
+        <div class="flex items-center gap-2">
+          <Icon
+            name="hdd-02"
+            size="sm"
+            stroke-color=""
+            aria-hidden="true"
+            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          />
+          <h4
+            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          >
             {{ t('components.domain.hardware.hardwareGroups.system') }}
           </h4>
-          <Icon name="hdd-02" />
+          <Separator class="flex-1" />
         </div>
         <div
           :class="[
@@ -526,31 +542,7 @@ defineExpose({
                 </SelectContent>
               </Select>
               <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              <FieldDescription
-                v-if="isLimited('vcpus')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('vcpus') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('vcpus')" />
             </Field>
           </form.Field>
           <form.Field v-slot="{ field }" name="memory">
@@ -577,31 +569,7 @@ defineExpose({
                 </SelectContent>
               </Select>
               <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              <FieldDescription
-                v-if="isLimited('memory')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('memory') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('memory')" />
             </Field>
           </form.Field>
           <form.Field v-if="props.showDiskSize" v-slot="{ field }" name="diskSize">
@@ -633,10 +601,7 @@ defineExpose({
                 :model-value="field.state.value"
                 @update:model-value="field.handleChange"
               >
-                <SelectTrigger
-                  :aria-invalid="isInvalid(field) || isLimited('disk_bus')"
-                  class="min-w-[120px]"
-                >
+                <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
                   <SelectValue
                     :placeholder="t('components.domain.hardware.disk-bus.placeholder')"
                   />
@@ -647,9 +612,7 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <FieldDescription v-if="isLimited('disk_bus')" class="text-destructive">
-                {{ getLimitedMessage('disk_bus') }}
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('disk_bus')" />
             </Field>
           </form.Field>
           <form.Field v-slot="{ field }" name="videos">
@@ -662,10 +625,7 @@ defineExpose({
                 :model-value="field.state.value"
                 @update:model-value="field.handleChange"
               >
-                <SelectTrigger
-                  :aria-invalid="isInvalid(field) || isLimited('videos')"
-                  class="min-w-[120px]"
-                >
+                <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
                   <SelectValue :placeholder="t('components.domain.hardware.videos.placeholder')" />
                 </SelectTrigger>
                 <SelectContent position="item-aligned">
@@ -674,31 +634,7 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <FieldDescription
-                v-if="isLimited('videos')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('videos') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('videos')" />
             </Field>
           </form.Field>
           <form.Field v-slot="{ field }" name="bootOrder">
@@ -722,241 +658,149 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <FieldDescription
-                v-if="isLimited('boot_order')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('boot_order') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('boot_order')" />
             </Field>
           </form.Field>
         </div>
       </section>
-      <section
-        v-if="props.showPeripherals"
-        class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:grid-cols-[280px_1FR] md:gap-0"
-      >
-        <div class="flex flex-row-reverse justify-end items-center gap-2.5">
-          <h4 class="text-lg font-semibold text-gray-warm-900">
-            {{ t('components.domain.hardware.hardwareGroups.peripherals') }}
-          </h4>
-          <Icon name="hdd" />
+      <section class="grid grid-cols-1 gap-y-7 md:grid-cols-2 md:gap-x-10 items-start">
+        <div v-if="props.showPeripherals" class="group/hw-section grid gap-4 items-start">
+          <div class="flex items-center gap-2">
+            <Icon
+              name="hdd"
+              size="sm"
+              stroke-color=""
+              aria-hidden="true"
+              class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+            />
+            <h4
+              class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+            >
+              {{ t('components.domain.hardware.hardwareGroups.peripherals') }}
+            </h4>
+            <Separator class="flex-1" />
+          </div>
+          <div class="grid grid-cols-1 gap-2.5 md:gap-5">
+            <form.Field v-slot="{ field }" name="isos">
+              <Field>
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.isos.label') }}
+                </FieldLabel>
+                <SearchableTags
+                  :tags="isosOptions.map((iso) => ({ label: iso.name, value: iso.id }))"
+                  :placeholder="t('components.domain.hardware.isos.placeholder')"
+                  :model-value="field.state.value"
+                  tagsDisplay="wrap"
+                  :invalid="isInvalid(field)"
+                  @update:model-value="field.handleChange($event)"
+                />
+                <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
+                <HardwareLimitChip :limited="limitedField('isos')" />
+              </Field>
+            </form.Field>
+            <!-- TODO: Test how to add floppies to the system -->
+            <!-- <form.Field name="floppies" #default="{ field }">
+              <Field>
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.floppies.label') }}
+                </FieldLabel>
+                <SearchableTags
+                  :selected="field.state.value"
+                  :tags="floppiesOptions.map((floppy) => ({ label: floppy.name, value: floppy.id }))"
+                  :placeholder="t('components.domain.hardware.floppies.placeholder')"
+                  @update:modelValue="field.handleChange"
+                />
+                <HardwareLimitChip :limited="limitedField('floppies')" />
+              </Field>
+            </form.Field> -->
+          </div>
         </div>
-        <div class="grid grid-cols-1 gap-2.5 md:gap-5 md:grid-cols-2">
-          <form.Field v-slot="{ field }" name="isos">
-            <!-- Borrows part of the column floppies would use, for the chips. -->
-            <Field class="md:col-span-2 md:max-w-[70%]">
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.isos.label') }}
-              </FieldLabel>
-              <SearchableTags
-                :tags="isosOptions.map((iso) => ({ label: iso.name, value: iso.id }))"
-                :placeholder="t('components.domain.hardware.isos.placeholder')"
-                :model-value="field.state.value"
-                tagsDisplay="wrap"
-                :invalid="isInvalid(field)"
-                @update:model-value="field.handleChange($event)"
-              />
-              <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              <FieldDescription
-                v-if="isLimited('isos')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('isos') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
-            </Field>
-          </form.Field>
-          <!-- TODO: Test how to add floppies to the system -->
-          <!-- <form.Field name="floppies" #default="{ field }">
+        <div class="group/hw-section grid gap-4 items-start">
+          <div class="flex items-center gap-2">
+            <Icon
+              name="gpu"
+              size="sm"
+              stroke-color=""
+              aria-hidden="true"
+              class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+            />
+            <h4
+              class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+            >
+              {{ t('components.domain.hardware.hardwareGroups.reservables') }}
+            </h4>
+            <Separator class="flex-1" />
+          </div>
+          <div class="grid grid-cols-1">
+            <form.Field v-slot="{ field }" name="reservables.vgpus">
+              <Field>
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.vgpus.label') }}
+                </FieldLabel>
+                <Select
+                  name="reservables.vgpus"
+                  multiple
+                  :model-value="field.state.value ?? []"
+                  @update:model-value="field.handleChange"
+                >
+                  <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
+                    <SelectValue :placeholder="t('components.domain.hardware.vgpus.placeholder')" />
+                  </SelectTrigger>
+                  <SelectContent position="item-aligned">
+                    <SelectGroup v-for="(grp, gi) in groupedVgpus" :key="gi">
+                      <SelectLabel v-if="grp.label">{{ grp.label }}</SelectLabel>
+                      <SelectItem
+                        v-for="vgpu in grp.items"
+                        :key="vgpu.id"
+                        :value="vgpu.id"
+                        :disabled="vgpuDisabled(vgpu, field.state.value)"
+                      >
+                        {{ vgpu.name }}
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <HardwareLimitChip :limited="limitedField('vgpus')" />
+              </Field>
+            </form.Field>
+          </div>
+        </div>
+      </section>
+      <section class="group/hw-section grid gap-4 items-start">
+        <div class="flex items-center gap-2">
+          <Icon
+            name="modem-02"
+            size="sm"
+            stroke-color=""
+            aria-hidden="true"
+            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          />
+          <h4
+            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          >
+            {{ t('components.domain.hardware.networks.label') }}
+          </h4>
+          <Separator class="flex-1" />
+        </div>
+        <div class="grid grid-cols-1 gap-2.5 md:gap-5">
+          <form.Field v-slot="{ field }" name="interfaces">
             <Field>
               <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.floppies.label') }}
+                {{ $t('components.domain.hardware.networks.interfaces-label') }}
               </FieldLabel>
-              <SearchableTags
-                :selected="field.state.value"
-                :tags="floppiesOptions.map((floppy) => ({ label: floppy.name, value: floppy.id }))"
-                :placeholder="t('components.domain.hardware.floppies.placeholder')"
-                @update:modelValue="field.handleChange"
+              <NetworkSelector
+                :id="field.name"
+                :model-value="(field.state.value as string[]) ?? []"
+                :options="networksOptions"
+                :placeholder="t('components.domain.hardware.networks.placeholder')"
+                :required-ids="props.requiredInterfaces"
+                @update:model-value="field.handleChange($event)"
               />
-              <FieldDescription
-                v-if="isLimited('floppies')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon name="alert-circle" class="inline" size="sm" stroke-color="destructive" />
-                        {{ getLimitedMessage('floppies') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
-            </Field>
-          </form.Field> -->
-        </div>
-      </section>
-      <section
-        class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:grid-cols-[280px_1FR] md:gap-0"
-      >
-        <div class="flex flex-row-reverse justify-end items-center gap-2.5">
-          <h4 class="text-lg font-semibold text-gray-warm-900">
-            {{ t('components.domain.hardware.hardwareGroups.reservables') }}
-          </h4>
-          <Icon name="gpu" />
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2">
-          <form.Field v-slot="{ field }" name="reservables.vgpus">
-            <!-- Only field in the section: borrows part of the empty column. -->
-            <Field class="md:col-span-2 md:max-w-[70%]">
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.vgpus.label') }}
-              </FieldLabel>
-              <Select
-                name="reservables.vgpus"
-                multiple
-                :model-value="field.state.value ?? []"
-                @update:model-value="field.handleChange"
-              >
-                <SelectTrigger :aria-invalid="isInvalid(field)" class="min-w-[120px]">
-                  <SelectValue :placeholder="t('components.domain.hardware.vgpus.placeholder')" />
-                </SelectTrigger>
-                <SelectContent position="item-aligned">
-                  <SelectGroup v-for="(grp, gi) in groupedVgpus" :key="gi">
-                    <SelectLabel v-if="grp.label">{{ grp.label }}</SelectLabel>
-                    <SelectItem
-                      v-for="vgpu in grp.items"
-                      :key="vgpu.id"
-                      :value="vgpu.id"
-                      :disabled="vgpuDisabled(vgpu, field.state.value)"
-                    >
-                      {{ vgpu.name }}
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <FieldDescription
-                v-if="isLimited('reservables.vgpus')"
-                class="text-destructive flex items-center gap-1"
-              >
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <div class="flex items-center gap-1">
-                        <Icon
-                          name="alert-circle"
-                          class="inline"
-                          size="sm"
-                          stroke-color="destructive"
-                        />
-                        {{ getLimitedMessage('vgpus') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      :title="$t('components.domain.hardware.limited.warning.title')"
-                      :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                      side="top"
-                    />
-                  </Tooltip>
-                </TooltipProvider>
-              </FieldDescription>
+              <HardwareLimitChip :limited="limitedField('interfaces')" />
             </Field>
           </form.Field>
         </div>
       </section>
-      <form.Field v-slot="{ field }" name="interfaces">
-        <Field>
-          <FieldLabel :for="field.name">
-            {{ $t('components.domain.hardware.networks.label') }}
-          </FieldLabel>
-          <FieldDescription
-            v-if="isLimited('interfaces')"
-            class="text-destructive flex items-center gap-1"
-          >
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <div class="flex items-center gap-1">
-                    <Icon name="alert-circle" class="inline" size="sm" stroke-color="destructive" />
-                    {{ getLimitedMessage('interfaces') }}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent
-                  :title="$t('components.domain.hardware.limited.warning.title')"
-                  :subtitle="$t('components.domain.hardware.limited.warning.subtitle')"
-                  side="top"
-                />
-              </Tooltip>
-            </TooltipProvider>
-          </FieldDescription>
-          <div class="flex flex-col gap-2">
-            <!-- Add button to open modal -->
-            <Button
-              type="button"
-              hierarchy="link-color"
-              size="md"
-              class="cursor-pointer"
-              icon="edit-02"
-              @click="showNetworksModal = true"
-            >
-              {{ t('components.domain.hardware.networks.label') }}
-            </Button>
-
-            <!-- Add modal -->
-            <SelectNetworksModal
-              :open="showNetworksModal"
-              :selected-networks="field.state.value as string[]"
-              :available-networks="networksOptions"
-              @close="showNetworksModal = false"
-              @save="handleSaveNetworks"
-            />
-          </div>
-        </Field>
-      </form.Field>
     </FieldGroup>
   </form>
 </template>

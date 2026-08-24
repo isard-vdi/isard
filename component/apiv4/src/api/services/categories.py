@@ -26,7 +26,6 @@ from isardvdi_common.lib.users.categories.categories import (
 
 
 class CategoryService:
-
     @staticmethod
     def get_categories_frontend(domain: Optional[str] = None) -> list[dict]:
         """
@@ -58,8 +57,17 @@ class CategoryService:
         return CommonCategories.get_custom_login_url(category_id) or "/login"
 
     @staticmethod
-    def search_users_in_category(category_id: str, search: str) -> list[dict]:
+    def search_users_in_category(
+        category_id: str, search: str, limit: int = 50
+    ) -> dict:
         """
         Get all users in a specific category.
         """
-        return CommonCategories.search_users_in_category(category_id, search)
+        return CommonCategories.search_users_in_category(category_id, search, limit)
+
+    @staticmethod
+    def get_available_groups_in_category(category_id: str):
+        """
+        Get all available groups in a specific category.
+        """
+        return CommonCategories.get_available_groups_in_category(category_id)

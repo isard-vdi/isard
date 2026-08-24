@@ -149,7 +149,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
       @row-click="selectable && !isFailed($event) ? emit('rowClick', $event) : null"
       :selected-id="props.selectedId"
     >
-      <template #filters-left>
+      <template #tabs>
         <Tabs v-model="localActiveTab">
           <TabsList class="flex w-fit gap-[--spacing(1)] rounded-md">
             <TabsTrigger

@@ -599,7 +599,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       :vcpu="desktopDetails?.vcpu"
       :ram="desktopDetails?.memory"
       :boot-order="desktopDetails?.boot_order?.map((bo) => bo.name)"
-      :disk-bus="desktopDetails?.disk_bus"
+      :disk-bus="desktopDetails?.disk_bus?.name"
       :vga="desktopDetails?.videos?.map((v) => v.name)"
       :viewers="desktopDetails?.viewers"
       :isos="desktopDetails?.isos?.map((iso) => iso.name)"

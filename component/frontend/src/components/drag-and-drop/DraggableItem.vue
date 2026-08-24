@@ -8,16 +8,25 @@ import {
 } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge'
 import type { Edge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/types'
 import { DropIndicator } from '@/components/drag-and-drop'
+import { cn } from '@/lib/utils'
 
 interface Props {
   item: { value: string; label: string }
   index: number
   canReorder?: boolean
+  /** Which way the list runs, and so which edges accept a drop. */
+  orientation?: 'vertical' | 'horizontal'
+  class?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  canReorder: true
+  canReorder: true,
+  orientation: 'vertical',
+  class: ''
 })
+
+// The drop indicator is a sibling root, so attrs would have nowhere to land.
+defineOptions({ inheritAttrs: false })
 const emit = defineEmits<{
   reorder: [fromIndex: number, toIndex: number]
 }>()
@@ -78,7 +87,8 @@ onMounted(() => {
                 {
                   element,
                   input,
-                  allowedEdges: ['top', 'bottom']
+                  allowedEdges:
+                    props.orientation === 'horizontal' ? ['left', 'right'] : ['top', 'bottom']
                 }
               )
             },
@@ -119,11 +129,15 @@ onMounted(() => {
   <div
     ref="elRef"
     :data-item-id="props.item.value"
-    :class="[
-      'relative flex items-center gap-2 p-2 border border-gray-warm-200 rounded bg-white transition-all duration-200',
-      'hover:shadow-sm hover:cursor-grab active:cursor-grabbing',
-      stateStyles[elState.type] ?? ''
-    ]"
+    :class="
+      cn(
+        'relative flex items-center gap-2 p-2 border border-gray-warm-200 rounded bg-white transition-all duration-200',
+        'hover:shadow-sm hover:cursor-grab active:cursor-grabbing',
+        stateStyles[elState.type] ?? '',
+        props.class
+      )
+    "
+    v-bind="$attrs"
   >
     <slot :item="props.item">
       <span class="text-sm text-gray-warm-900">{{ props.item.label }}</span>

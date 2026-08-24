@@ -73,16 +73,18 @@ watch(currentStep, (newStep) => {
         :class="item.step === steps[steps.length - 1].step ? '!flex-[0_0_auto]' : ''"
       >
         <div
-          class="flex flex-col items-center gap-1.5"
+          class="flex flex-col items-center gap-0.5"
           :class="item.step === steps[steps.length - 1].step ? 'w-auto' : 'w-full'"
         >
           <div
             class="flex items-center"
             :class="item.step === steps[steps.length - 1].step ? 'w-auto' : 'w-full'"
           >
-            <div class="w-12 flex justify-center shrink-0">
+            <div class="w-8 flex justify-center shrink-0">
               <StepperTrigger>
-                <StepperIndicator :class="item.destructive ? 'ring-sm ring-error-200!' : ''">
+                <StepperIndicator
+                  :class="['size-8 text-sm', item.destructive ? 'ring-sm ring-error-200!' : '']"
+                >
                   {{ item.step }}
                 </StepperIndicator>
               </StepperTrigger>
@@ -92,13 +94,13 @@ watch(currentStep, (newStep) => {
             </div>
           </div>
           <div
-            class="flex items-center mt-1"
+            class="flex items-center"
             :class="item.step === steps[steps.length - 1].step ? 'w-auto' : 'w-full'"
           >
-            <div class="w-12 flex items-center justify-center text-center shrink-0">
+            <div class="w-8 flex items-center justify-center text-center shrink-0">
               <div class="flex flex-col items-center">
                 <StepperTitle
-                  class="text-sm font-bold whitespace-nowrap"
+                  class="text-xs font-bold whitespace-nowrap mt-0"
                   :class="item.destructive ? 'text-error-600!' : ''"
                 >
                   {{ item.title }}

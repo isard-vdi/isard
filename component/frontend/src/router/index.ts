@@ -10,6 +10,15 @@ import { ensureFaroInitialized, setFaroView } from '@/lib/faro-hook'
 
 const router = createRouter({
   history: createWebHistory(),
+  // Without this every navigation inherits the previous page's scroll position, so a new view
+  // opens half-way down. Detail panes and modal routes nested under a list keep it on purpose.
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    const nested =
+      (to.name != null && from.matched.some((record) => record.name === to.name)) ||
+      (from.name != null && to.matched.some((record) => record.name === from.name))
+    return nested ? false : { top: 0 }
+  },
   routes: [
     {
       path: '/frontend',
@@ -32,7 +41,8 @@ const router = createRouter({
               meta: {
                 title: 'router.desktops.title',
                 subtitle: 'router.desktops.subtitle',
-                showMountainBg: true
+                showMountainBg: true,
+                narrowGutter: true
               },
               children: [
                 {
@@ -41,7 +51,8 @@ const router = createRouter({
                   component: () => import('../views/DesktopsView.vue'),
                   meta: {
                     showCloudsBg: true,
-                    showDotsBg: true
+                    showDotsBg: true,
+                    narrowGutter: true
                   }
                 }
               ]
@@ -232,7 +243,8 @@ const router = createRouter({
               meta: {
                 title: 'router.shared-deployments.title',
                 subtitle: 'router.shared-deployments.subtitle',
-                allowedRoles: ['user', 'advanced', 'manager', 'admin'] as Role[]
+                allowedRoles: ['user', 'advanced', 'manager', 'admin'] as Role[],
+                narrowGutter: true
               }
             },
             {

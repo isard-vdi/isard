@@ -122,47 +122,7 @@
             }
           }
         },
-        "description": "Mahaigainaren izena, irudia eta hardwarea editatu ditzakezu",
-        "preview": {
-          "title": "Aurrebista",
-          "description": "Honela izango da zure mahaigainaren itxura. Datu hauek editatu daitezke"
-        },
-        "desktop-information": {
-          "title": "@:domains.capitalized.desktops Information",
-          "description": "Eman izen eta deskribapen bat zure mahaigaina identifikatzeko"
-        },
-        "desktop-kind": {
-          "title": "Mahaigain mota",
-          "description": "Hautatu sortu nahi duzun mahaigain mota",
-          "persistent": {
-            "title": "Iraunkorra",
-            "description": "Mahaigain iraunkor batek aldaketa eta fitxategi guztiak betirako gordetzen ditu."
-          },
-          "nonpersistent": {
-            "title": "Aldi baterakoa",
-            "description": "Aldi baterako mahaigain batek aldaketa eta fitxategi guztiak baztertzen ditu gelditzean. Txantiloi bakoitzeko aldi baterako mahaigain bakarra onartzen da."
-          }
-        },
-        "access": {
-          "title": "Sarbide-laburpena",
-          "description": "Hau zure mahaigainerako erabilgarri dauden sarbide-metodoen laburpena da",
-          "show-access-customization": "Aldatu sarbidea",
-          "hide-access-customization": "Ezkutatu sarbidea"
-        },
-        "hardware-limited": {
-          "title": "Hardware mugatua",
-          "description": "Hurrengo hardware-balioak mugatu dira erabiltzaile-baimenengatik:"
-        },
-        "hardware-summary": {
-          "title": "Hardware-laburpena",
-          "description": "Hau txantiloiaren heredatutako hardwarearen laburpena da. Zure mahaigainerako erabiliko da",
-          "show-hardware-customization": "Aldatu hardwarea",
-          "hide-hardware-customization": "Ezkutatu hardwarea"
-        },
-        "all-hardware": {
-          "title": "Hardware guztia",
-          "description": "Hardwarea hurrengo formularioaren bidez editatu daiteke"
-        }
+        "description": "Mahaigainaren izena, irudia eta hardwarea editatu ditzakezu"
       },
       "creating": {
         "title": "Mahaigaina sortzen",
@@ -217,10 +177,6 @@
         "infinite": "Zakarrontziko elementuak ez dira automatikoki ezabatzen.",
         "immediately": "Zakarrontziko elementuak berehala ezabatuko dira behin betiko."
       },
-      "empty": {
-        "title": "Zakarrontzia hutsik dago",
-        "description": "Ezabatzen dituzun elementuak hemen agertuko dira leheneratu edo behin betiko ezabatu arte."
-      },
       "empty-recycle-bin": "Hustu zakarrontzia",
       "columns": {
         "name": "Izena",
@@ -244,6 +200,12 @@
         "generic": "Zerbait gaizki joan da",
         "restore-failed": "Ezin izan da elementua leheneratu",
         "delete-failed": "Ezin izan da elementua ezabatu"
+      },
+      "entry": {
+        "empty": {
+          "title": "Ez da elementurik aurkitu",
+          "description": "Saiatu fitxa aldatzen edo bilaketa doitzen."
+        }
       }
     },
     "register": {
@@ -265,6 +227,8 @@
         "search": {
           "placeholder": "Bilatu mahaigainak"
         },
+        "toggle": "Iragazkiak",
+        "toggle-active": "Iragazkiak ({count} aktibo)",
         "kind": {
           "all": "Guztiak",
           "persistent": "Iraunkorra | Iraunkorrak",
@@ -276,6 +240,10 @@
           "started": "Abiarazita",
           "stopped": "Geldituta"
         }
+      },
+      "view-mode": {
+        "table": "Ikusi taula gisa",
+        "cards": "Ikusi txartel gisa"
       },
       "go-to-desktops": "Joan mahaigainetara",
       "desktop-created": {
@@ -292,6 +260,11 @@
       "filters": {
         "search": {
           "placeholder": "Bilatu"
+        },
+        "visibility": {
+          "all": "Guztiak",
+          "visible": "Ikusgai",
+          "hidden": "Ezkutatuta"
         }
       },
       "table": {
@@ -314,10 +287,8 @@
     },
     "new-template": {
       "header": {
-        "cancel": "Utzi",
         "create-template": "Sortu txantiloia",
-        "next": "Hurrengoa",
-        "previous": "Aurrekoa"
+        "next": "Hurrengoa"
       },
       "stepper-steps": {
         "select-desktop": "Hautatu mahaigaina",
@@ -328,8 +299,6 @@
         "desktop-not-stopped": "Mahaigaina geldituta egon behar da txantiloia sortzeko."
       },
       "form": {
-        "title": "Konfiguratu zure txantiloia",
-        "subtitle": "Txantiloiaren izena, irudia eta nork erabil dezakeen editatu ditzakezu.",
         "sections": {
           "preview": {
             "title": "Aurrebista",
@@ -796,7 +765,8 @@
           "description": "Gaituta badago, ikuslea pantaila osoko moduan abiaraziko da."
         },
         "viewers": {
-          "label": "Ikustaileak"
+          "label": "Ikustaileak",
+          "required": "Aukeratu gutxienez ikustaile bat mahaigainera sartzeko"
         },
         "bastion": {
           "label": "Bastion gaituta",
@@ -881,26 +851,65 @@
         },
         "networks": {
           "label": "Sareak",
-          "placeholder": "Hautatu sareak",
-          "modal": {
-            "title": "Konfiguratu sareak",
-            "description": "Gehitu, ezabatu edo berrordenatu domeinu honi esleitutako sareak",
-            "selected": "Hautatutako sareak",
-            "drop-here": "Jaregin sareak hemen",
-            "available": "Sare erabilgarriak",
-            "empty-selected": "Arrastatu sareak hona edo sakatu + gehitzeko",
-            "empty-available": "Sare guztiak hautatuta daude",
-            "cancel": "Utzi",
-            "save": "Gorde"
-          }
+          "interfaces-label": "Interfazeak",
+          "placeholder": "Gehitu sare bat",
+          "empty": "Oraindik ez dago sarerik. Hautatu bat goiko hautatzailearekin.",
+          "order-hint": "Arrastatu sareak edo sakatu ← / → mahaigaineko interfazeen ordena zehazteko",
+          "chip-label": "{name}, {position}. postua",
+          "chip-label-required": "{name}, {position}. postua, beharrezkoa",
+          "required": "Beharrezkoa",
+          "remove": "Kendu {name}"
         },
         "limited": {
           "warning": {
-            "title": "Murrizketak aplikatuta",
-            "subtitle": "Balio hau mugatu da erabiltzaile-baimenengatik."
+            "title": "Murrizketak aplikatuta"
           },
-          "restricted": "Murriztutako balioa: {old_value} → Ezarrita: {new_value}",
-          "quota": "Balio honek zure kuota gainditzen du"
+          "quota": "Balio honek zure kuota gainditzen du",
+          "chip": {
+            "replaced": "lehen: {old_value}",
+            "removed": "kenduta: {old_value}",
+            "removed-count": "{count} kenduta"
+          },
+          "detail": {
+            "replaced": "{old_value} zure baimenek uzten dutena gainditzen du, beraz {new_value} gorde da.",
+            "removed": "{old_value} ez dago zure baimenen barruan, beraz kendu egin da."
+          }
+        }
+      },
+      "configuration": {
+        "preview": {
+          "title": "Aurrebista",
+          "description": "Honela izango da zure mahaigainaren itxura. Datu hauek editatu daitezke"
+        },
+        "info": {
+          "title": {
+            "desktops": "@:domains.capitalized.desktops Information",
+            "templates": "@:domains.capitalized.templates Information"
+          },
+          "description": {
+            "desktops": "Eman izen eta deskribapen bat zure mahaigaina identifikatzeko",
+            "templates": "Eman izen eta deskribapen bat zure txantiloia identifikatzeko"
+          }
+        },
+        "kind": {
+          "title": "Mahaigain mota",
+          "description": "Hautatu sortu nahi duzun mahaigain mota",
+          "persistent": {
+            "title": "Iraunkorra",
+            "description": "Mahaigain iraunkor batek aldaketa eta fitxategi guztiak betirako gordetzen ditu."
+          },
+          "nonpersistent": {
+            "title": "Aldi baterakoa",
+            "description": "Aldi baterako mahaigain batek aldaketa eta fitxategi guztiak baztertzen ditu gelditzean. Txantiloi bakoitzeko aldi baterako mahaigain bakarra onartzen da."
+          }
+        },
+        "hardware": {
+          "title": "Hardware guztia",
+          "description": "Hardwarea hurrengo formularioaren bidez editatu daiteke"
+        },
+        "hardware-limited": {
+          "summary": "{count} balio zure baimenengatik doituta",
+          "review": "Berrikusi"
         }
       }
     },
@@ -1139,10 +1148,56 @@
     "empty": {
       "title": "Ez dago {kind} erabilgarririk",
       "description": "Zure {kind} hemen agertuko dira sortzen edo esleitzen zaizkizunean.",
-      "clear-filters": "Garbitu iragazkiak"
+      "clear-filters": "Garbitu iragazkiak",
+      "desktops": {
+        "title": "Oraindik ez duzu mahaigainik",
+        "description": "Mahaigain bat zure makina birtual propioa da, txantiloi batetik sortua, eta behar duzunean abiarazi eta gelditu dezakezu."
+      },
+      "templates": {
+        "title": "Oraindik ez duzu txantiloirik",
+        "description": "Txantiloi bat izoztutako mahaigain bat da, mahaigain berrien oinarri gisa balio duena, zureak zein partekatzen dituzun erabiltzaileenak."
+      },
+      "shared-templates": {
+        "title": "Ez dizute txantiloirik partekatu",
+        "description": "Beste erabiltzaileek zurekin partekatzen dituzten txantiloiak hemen agertuko dira, mahaigainak sortzeko prest."
+      },
+      "deployments": {
+        "title": "Oraindik ez duzu hedapenik",
+        "description": "Hedapen batek erabiltzaile bakoitzarentzat mahaigain bat sortzen du txantiloi beretik, eta zerrenda bakar batean gordetzen ditu abiarazi, gelditu eta gainbegiratzeko."
+      },
+      "shared-deployments": {
+        "title": "Ez dizute hedapenik partekatu",
+        "description": "Norbaitek hedapen baterako sarbidea ematen dizunean, bere mahaigainak hemen agertuko dira."
+      },
+      "media": {
+        "title": "Oraindik ez duzu euskarririk",
+        "description": "Igo ISO irudiak zure mahaigainetan sistema eragileak instalatzeko edo dagoeneko dituzunei eransteko."
+      },
+      "shared-media": {
+        "title": "Ez dizute euskarririk partekatu",
+        "description": "Beste erabiltzaileek zurekin partekatzen dituzten ISO irudiak hemen agertuko dira."
+      },
+      "recycle-bin": {
+        "title": "Zakarrontzia hutsik dago",
+        "description": "Ezabatzen dituzun elementuak hemen agertuko dira leheneratu edo behin betiko ezabatu arte."
+      },
+      "deployment-users": {
+        "title": "Hedapen honek ez du erabiltzailerik oraindik",
+        "description": "Hedapenean sartzeko baimena duten erabiltzaileak hemen agertuko dira, bakoitza esleitzen zaion mahaigainarekin."
+      },
+      "template-sources": {
+        "title": "Ez dago txantiloi bihurtzeko prest dagoen mahaigainik",
+        "description": "Hedapen batean sartuta ez dauden mahaigain iraunkor geldituak baino ezin dira txantiloi bihurtu."
+      }
+    },
+    "filters": {
+      "toggle": "Iragazkiak",
+      "toggle-active": "Iragazkiak ({count} aktibo)"
     },
     "empty-search": {
-      "title": "Ez da emaitzarik aurkitu"
+      "title": "Ez da emaitzarik aurkitu",
+      "description": "Ez dago zure bilaketa edo iragazkiekin bat datorren ezer. Saiatu beste termino batzuekin edo garbitu itzazu dena ikusteko.",
+      "clear": "Garbitu bilaketa"
     },
     "not-enough-advanced-time-modal": {
       "title": "Ez dago aurretiazko denbora nahikorik",
@@ -1398,6 +1453,10 @@
         "title": "Erreserbagarriak"
       }
     },
+    "domain-summary": {
+      "changed": "Aldatutako balioa",
+      "removed": "Kendutako balioa"
+    },
     "date-picker": {
       "today": "Gaur",
       "cancel": "Utzi",
@@ -1471,6 +1530,21 @@
       "summary": {
         "title": "Zure erreserba guztiak"
       }
+    },
+    "form-header": {
+      "cancel-creation": "Utzi sorkuntza",
+      "cancel-edit": "Utzi edizioa",
+      "previous": "Aurreko urratsa",
+      "next": "Hurrengoa",
+      "discard-modal": {
+        "title": "Baztertu eta irten?",
+        "description": "Sartu duzun informazioa galduko da.",
+        "cancel": "Jarraitu editatzen",
+        "confirm": "Baztertu eta irten"
+      }
+    },
+    "scroll-to-top": {
+      "label": "Joan gora"
     }
   },
   "authentication": {

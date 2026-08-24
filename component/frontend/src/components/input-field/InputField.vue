@@ -59,6 +59,10 @@ const emit = defineEmits<{
       @input="emit('input', $event)"
     />
 
+    <InputGroupAddon v-if="$slots['inline-end']" align="inline-end">
+      <slot name="inline-end" />
+    </InputGroupAddon>
+
     <InputGroupAddon v-if="props.destructive" align="inline-end">
       <Icon name="alert-circle" size="xs" stroke-color="error-500" />
     </InputGroupAddon>

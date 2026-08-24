@@ -225,11 +225,8 @@ vi.mock('@/components/desktop-card/parts/DirectViewerCardPreview.vue', () => ({
   default: { template: '<div data-test="card-preview" />' }
 }))
 
-vi.mock('@/components/domain/DomainAccessSummary.vue', () => ({
-  default: { template: '<div data-test="access-summary" />' }
-}))
-vi.mock('@/components/domain/DomainHardwareSummary.vue', () => ({
-  default: { template: '<div data-test="hardware-summary" />' }
+vi.mock('@/components/domain/DomainSummary.vue', () => ({
+  default: { template: '<div data-test="domain-summary" />' }
 }))
 
 vi.mock('@/components/login', () => ({

@@ -191,10 +191,6 @@
           }
         }
       },
-      "header": {
-        "cancel": "Cancel",
-        "previous": "Previous"
-      },
       "step-2": {
         "title": "Configure your desktop",
         "buttons": {
@@ -209,51 +205,7 @@
             }
           }
         },
-        "description": "You can edit the desktop name, image and hardware",
-        "preview": {
-          "title": "Preview",
-          "description": "This is how your desktop will look like. This data can be edited"
-        },
-        "desktop-information": {
-          "title": "@:domains.capitalized.desktops Information",
-          "description": "Provide a name and description for your desktop to help identify it"
-        },
-        "desktop-kind": {
-          "title": "Desktop Kind",
-          "description": "Select the kind of desktop you want to create",
-          "persistent": {
-            "title": "Persistent",
-            "description": "A persistent desktop saves all changes and files permanently."
-          },
-          "nonpersistent": {
-            "title": "Temporary",
-            "description": "A temporary desktop discards all changes and files when stopped. Only one temporary desktop is allowed per template."
-          }
-        },
-        "access": {
-          "title": "Access summary",
-          "description": "This is a sumary of the access methods available for your desktop",
-          "show-access-customization": "Change access",
-          "hide-access-customization": "Hide access"
-        },
-        "all-access": {
-          "title": "All access configuration",
-          "description": "Security and access configuration"
-        },
-        "hardware-limited": {
-          "title": "Hardware limited",
-          "description": "The following hardware values have been limited due to user permissions:"
-        },
-        "hardware-summary": {
-          "title": "Hardware summary",
-          "description": "This is a sumary of the template inherited hardware. It will be used for your desktop",
-          "show-hardware-customization": "Change hardware",
-          "hide-hardware-customization": "Hide hardware"
-        },
-        "all-hardware": {
-          "title": "All the hardware",
-          "description": "The hardware can be edited through the following form"
-        }
+        "description": "You can edit the desktop name, image and hardware"
       },
       "creating": {
         "title": "Creating desktop",
@@ -267,7 +219,6 @@
     },
     "edit-template": {
       "header": {
-        "cancel": "Cancel",
         "save": "Save changes"
       },
       "errors": {
@@ -316,10 +267,6 @@
         "empty-after": "Items in the recycle bin are permanently deleted after remaining here for {time}.",
         "infinite": "Items in the recycle bin are not automatically deleted.",
         "immediately": "Items in the recycle bin will be permanently deleted immediately."
-      },
-      "empty": {
-        "title": "Recycle bin is empty",
-        "description": "Items you delete will appear here until they are restored or permanently deleted."
       },
       "empty-recycle-bin": "Empty recycle bin",
       "columns": {
@@ -423,6 +370,8 @@
         "search": {
           "placeholder": "Search desktops"
         },
+        "toggle": "Filters",
+        "toggle-active": "Filters ({count} active)",
         "kind": {
           "all": "All",
           "persistent": "Persistent | Persistents",
@@ -434,6 +383,10 @@
           "started": "Started",
           "stopped": "Stopped"
         }
+      },
+      "view-mode": {
+        "table": "View as table",
+        "cards": "View as cards"
       },
       "go-to-desktops": "Go to desktops",
       "go-to-media": "Go to media",
@@ -451,7 +404,16 @@
       "filters": {
         "search": {
           "placeholder": "Search"
+        },
+        "visibility": {
+          "all": "All",
+          "visible": "Visible",
+          "hidden": "Hidden"
         }
+      },
+      "alloweds": {
+        "success": "Allowed users and groups updated",
+        "error": "Could not update the allowed users and groups"
       },
       "table": {
         "headers": {
@@ -475,10 +437,8 @@
     },
     "new-template": {
       "header": {
-        "cancel": "Cancel",
         "create-template": "Create Template",
-        "next": "Next",
-        "previous": "Previous"
+        "next": "Next"
       },
       "stepper-steps": {
         "select-desktop": "Select Desktop",
@@ -489,8 +449,6 @@
         "desktop-not-stopped": "Desktop must be stopped to create a template."
       },
       "form": {
-        "title": "Configure your template",
-        "subtitle": "You can edit the template's name, image and who can use it.",
         "sections": {
           "preview": {
             "title": "Preview",
@@ -515,6 +473,8 @@
           "alloweds": {
             "title": "Allowed Groups and Users",
             "subtitle": "This template will be shared with {groups} and {users}.",
+            "subtitle-everyone": "This template will be shared with everyone in its category.",
+            "subtitle-nobody": "This template will not be shared with anyone.",
             "button": "Manage users and groups"
           },
           "access": {
@@ -682,7 +642,8 @@
         "status": {
           "all": "All",
           "started": "Started",
-          "visible": "Visible"
+          "visible": "Visible",
+          "hidden": "Hidden"
         }
       },
       "dropdown": {
@@ -699,9 +660,6 @@
       "visibility": {
         "visible": "Visible",
         "hidden": "Hidden"
-      },
-      "empty": {
-        "subtitle": "Create a deployment to start providing desktops to your users"
       },
       "actions": {
         "go-to-direct-viewer": "Go to direct viewer"
@@ -858,8 +816,6 @@
         }
       },
       "header": {
-        "cancel": "Cancel",
-        "previous": "Previous",
         "next": "Next",
         "create-deployment": "Create Deployment"
       }
@@ -930,24 +886,11 @@
       "title": "Edit desktop",
       "subtitle": "Editing \"{name}\"",
       "header": {
-        "cancel": "Cancel",
         "save": "Save changes"
       },
       "errors": {
         "title": "Error saving desktop",
         "load": "Error loading desktop"
-      },
-      "info": {
-        "title": "@:domains.capitalized.desktops Information",
-        "description": "Provide a name and description for your desktop to help identify it"
-      },
-      "access": {
-        "title": "Access configuration",
-        "description": "Viewers, credentials, and bastion configuration."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memory, boot order, interfaces and reservables."
       },
       "save-confirmation": {
         "title": "Some hardware fields are restricted",
@@ -1405,16 +1348,18 @@
           "description": "If enabled, the viewer will start in fullscreen mode."
         },
         "viewers": {
-          "label": "Viewers"
+          "label": "Viewers",
+          "required": "Pick at least one viewer to reach the desktop with"
         },
         "bastion": {
-          "label": "Bastion enabled",
+          "enable": "Enable bastion",
           "description": "Enable access to the desktop via a bastion host.",
           "custom-domains": {
             "label": "Custom domains"
           },
           "http-https": {
             "label": "HTTP / HTTPS",
+            "enable": "Enable HTTP / HTTPS access",
             "description": "Access the desktop using a web browser or an RDP viewer that supports HTTP/HTTPS connections.",
             "http-port": {
               "label": "HTTP Port",
@@ -1444,6 +1389,7 @@
           },
           "ssh": {
             "label": "SSH",
+            "enable": "Enable SSH access",
             "description": "Use an SSH client to connect to the desktop via the bastion host.",
             "port": {
               "label": "SSH Port",
@@ -1477,8 +1423,8 @@
         },
         "viewers-removed": {
           "title": "RDP viewers removed",
-          "description": "These RDP viewers were removed because this desktop has no wireguard network interface:",
-          "toast-description": "These RDP viewers were removed because this desktop has no wireguard network interface: {viewers}"
+          "toast-description": "These RDP viewers were removed because this desktop has no wireguard network interface: {viewers}",
+          "summary": "{count} viewers removed: this desktop has no wireguard network"
         }
       },
       "hardware": {
@@ -1526,26 +1472,86 @@
         },
         "networks": {
           "label": "Networks",
-          "placeholder": "Select networks",
-          "modal": {
-            "title": "Configure Networks",
-            "description": "Add, delete or reorder the networks assigned to this domain",
-            "selected": "Selected Networks",
-            "drop-here": "Drop networks here",
-            "available": "Available Networks",
-            "empty-selected": "Drag networks here or click + to add",
-            "empty-available": "All networks are selected",
-            "cancel": "Cancel",
-            "save": "Save"
-          }
+          "interfaces-label": "Interfaces",
+          "placeholder": "Add a network",
+          "empty": "No networks yet. Pick one with the selector above.",
+          "order-hint": "Drag the networks or press ← / → to set the order the interfaces get inside the desktop",
+          "chip-label": "{name}, position {position}",
+          "chip-label-required": "{name}, position {position}, required",
+          "required": "Required",
+          "remove": "Remove {name}"
         },
         "limited": {
           "warning": {
-            "title": "Restrictions applied",
-            "subtitle": "This value has been limited due to user permissions."
+            "title": "Restrictions applied"
           },
-          "restricted": "Restricted value: {old_value} → Set to: {new_value}",
-          "quota": "This value exceeds your quota"
+          "quota": "This value exceeds your quota",
+          "chip": {
+            "replaced": "was {old_value}",
+            "removed": "removed: {old_value}",
+            "removed-count": "{count} removed"
+          },
+          "detail": {
+            "replaced": "{old_value} is above what your permissions allow, so {new_value} was kept instead.",
+            "removed": "{old_value} is not within your permissions, so it was removed."
+          }
+        }
+      },
+      "configuration": {
+        "preview": {
+          "title": "Preview",
+          "description": "This is how your desktop will look like. This data can be edited",
+          "start-disabled": "You can start the desktop once it is created"
+        },
+        "info": {
+          "title": {
+            "desktops": "@:domains.capitalized.desktops Information",
+            "templates": "@:domains.capitalized.templates Information"
+          },
+          "description": {
+            "desktops": "Provide a name and description for your desktop to help identify it",
+            "templates": "Provide a name and description for your template to help identify it"
+          }
+        },
+        "kind": {
+          "title": "Desktop Kind",
+          "description": "Select the kind of desktop you want to create",
+          "persistent": {
+            "title": "Persistent",
+            "description": "A persistent desktop saves all changes and files permanently."
+          },
+          "nonpersistent": {
+            "title": "Temporary",
+            "description": "A temporary desktop discards all changes and files when stopped. Only one temporary desktop is allowed per template."
+          }
+        },
+        "section": {
+          "title": {
+            "desktops": "Desktop configuration",
+            "templates": "Template configuration"
+          },
+          "description": {
+            "new-desktop": "These values come from the template. Change them below, or later once the desktop is created.",
+            "new-desktop-from-media": "These are the default values for the installation. Change them below, or later once the desktop is created.",
+            "edit-desktop": "Access and hardware of this desktop. Changes apply the next time it starts.",
+            "edit-template": "Access and hardware every desktop created from this template will inherit.",
+            "deployment-desktop": "Access and hardware inherited from the template. Changes apply to this deployment desktop only."
+          },
+          "show": "Change configuration",
+          "restore": "Restore initial values",
+          "restore-disabled": "No changes to restore yet"
+        },
+        "access": {
+          "title": "All access configuration",
+          "description": "Security and access configuration"
+        },
+        "hardware": {
+          "title": "All the hardware",
+          "description": "The hardware can be edited through the following form"
+        },
+        "hardware-limited": {
+          "summary": "{count} values adjusted by your permissions",
+          "review": "Review them"
         }
       }
     },
@@ -1856,11 +1862,56 @@
     "empty": {
       "title": "No {kind} available",
       "description": "Your {kind} will appear here once they are created or assigned to you.",
-      "clear-filters": "Clear filters"
+      "clear-filters": "Clear filters",
+      "desktops": {
+        "title": "You don't have any desktops yet",
+        "description": "A desktop is a virtual machine of your own, created from a template, that you can start and stop whenever you need it."
+      },
+      "templates": {
+        "title": "You don't have any templates yet",
+        "description": "A template is a frozen desktop that serves as the base for new desktops, yours and those of the users you share it with."
+      },
+      "shared-templates": {
+        "title": "No templates shared with you",
+        "description": "Templates that other users share with you will show up here, ready to create desktops from."
+      },
+      "deployments": {
+        "title": "You don't have any deployments yet",
+        "description": "A deployment creates one desktop per user from the same template, and keeps them all in a single list you can start, stop and monitor."
+      },
+      "shared-deployments": {
+        "title": "No deployments shared with you",
+        "description": "When someone gives you access to a deployment, its desktops will show up here."
+      },
+      "media": {
+        "title": "You don't have any media yet",
+        "description": "Upload ISO images to install operating systems on your desktops or attach them to the ones you already have."
+      },
+      "shared-media": {
+        "title": "No media shared with you",
+        "description": "ISO images that other users share with you will show up here."
+      },
+      "recycle-bin": {
+        "title": "Recycle bin is empty",
+        "description": "Items you delete will appear here until they are restored or permanently deleted."
+      },
+      "deployment-users": {
+        "title": "This deployment has no users yet",
+        "description": "Users allowed into the deployment appear here, each with the desktop it hands them."
+      },
+      "template-sources": {
+        "title": "No desktops ready to become a template",
+        "description": "Only stopped persistent desktops that are not part of a deployment can be turned into a template."
+      }
+    },
+    "filters": {
+      "toggle": "Filters",
+      "toggle-active": "Filters ({count} active)"
     },
     "empty-search": {
       "title": "No results found",
-      "clear": "Clear search"
+      "clear": "Clear search",
+      "description": "Nothing matches your search or filters. Try different terms, or clear them to see everything."
     },
     "not-enough-advanced-time-modal": {
       "title": "Not enough advanced time",
@@ -2273,6 +2324,10 @@
         "title": "Reservables"
       }
     },
+    "domain-summary": {
+      "changed": "Modified value",
+      "removed": "Removed value"
+    },
     "date-picker": {
       "today": "Today",
       "cancel": "Cancel",
@@ -2559,6 +2614,76 @@
       "not-found": "No results found",
       "more-results": "{count} more results, refine your search",
       "remove": "Remove {name}"
+    },
+    "allowed-modal": {
+      "title": "Manage users",
+      "description": {
+        "generic": "Edit the groups and users allowed to access it",
+        "template": "Edit the groups and users allowed to access this template",
+        "deployment": "Edit the groups and users allowed to access this deployment",
+        "media": "Edit the groups and users allowed to access this media"
+      },
+      "columns": {
+        "groups": "Groups",
+        "users": "Users",
+        "users-in-group": "Users in '{group_name}'"
+      },
+      "empty": {
+        "groups": "No groups available",
+        "users": "This group has no users",
+        "no-group": "Select a group or search for users",
+        "no-group-short-term": "Type at least 2 characters to search users"
+      },
+      "share-everyone": {
+        "unchecked": {
+          "title": "Share with everyone",
+          "description": "Give every user in this category access"
+        },
+        "checked": {
+          "title": "Shared with everyone",
+          "description": "Every user in this category will have access"
+        }
+      },
+      "view-group": "Show the users in '{group_name}'",
+      "unview-group": "Stop showing the users in '{group_name}'",
+      "require-selection": "Select at least one group or user",
+      "no-changes": "Make a change to save",
+      "select-all": {
+        "groups": "Select all groups",
+        "count": "{selected} of {total} selected"
+      },
+      "search": {
+        "user-in-group": {
+          "placeholder": "Search user in group '{group_name}'",
+          "empty": "No user found"
+        },
+        "user": {
+          "placeholder": "Search all users",
+          "empty": "No user found",
+          "truncated": "Showing {shown} of {total} results, refine your search"
+        },
+        "group": {
+          "placeholder": "Search group",
+          "empty": "No group found"
+        }
+      },
+      "cancel": "Cancel",
+      "save": "Accept changes"
+    },
+    "form-header": {
+      "cancel-creation": "Cancel creation",
+      "cancel-edit": "Cancel editing",
+      "previous": "Previous step",
+      "next": "Next",
+      "discard-modal": {
+        "title": "Discard and exit?",
+        "description": "The information you have entered will be lost.",
+        "cancel": "Keep editing",
+        "confirm": "Discard and exit"
+      }
+    },
+    "scroll-to-top": {
+      "label": "Go to top"
     }
   },
   "authentication": {

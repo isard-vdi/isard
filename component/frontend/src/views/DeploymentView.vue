@@ -3,7 +3,6 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
-import { InputField } from '@/components/input-field'
 import { Icon } from '@/components/icon'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DataTable } from '@/components/data-table'
@@ -16,8 +15,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/badge'
 import { Switch } from '@/components/ui/switch'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { useMediaQuery } from '@vueuse/core'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -34,6 +31,7 @@ import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-
 import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
 import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
 import { useBulkSpawnStore } from '@/stores/bulk-spawn'
+import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 
 const { t, d, locale } = useI18n()
 
@@ -80,6 +78,8 @@ const filteredDeploymentUsers = computed(() => {
 })
 
 const inputSearch = ref<string>('')
+
+const hasDeploymentUsers = computed(() => (deploymentEntry.value?.users?.length ?? 0) > 0)
 
 // Visibility
 const areUsersVisible = (users: DeploymentUserDetail) => {
@@ -230,6 +230,8 @@ const handleNotImplemented = () => alert('not implemented yet')
 const enterVideowall = () => {
   router.push({ name: 'deployment-videowall', params: { deploymentId: deploymentId.value } })
 }
+
+const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
 </script>
 
 <template>
@@ -266,10 +268,16 @@ const enterVideowall = () => {
     :username="bastionUserModalData.username"
     @close="bastionUserModalData = null"
   />
-  <Button icon="arrow-left" hierarchy="link-color" :as="RouterLink" :to="{ name: 'deployments' }">
-    {{ t('layouts.single-page.go-back') }}
-  </Button>
-  <main v-if="!deploymentEntryIsError" class="flex flex-col gap-6 p-4 w-full max-w-420 m-auto">
+  <PageContainer v-if="!deploymentEntryIsError">
+    <Button
+      icon="arrow-left"
+      hierarchy="link-color"
+      class="w-min"
+      :as="RouterLink"
+      :to="{ name: 'deployments' }"
+    >
+      {{ t('layouts.single-page.go-back') }}
+    </Button>
     <!-- Banner -->
     <div
       class="bg-warning-50 rounded-lg border border-gray-warm-300 grid gap-3 p-4 lg:px-5 lg:p-0 sm:grid-cols-2 md:grid-cols-[auto_1fr_auto] md:gap-8 md:px-7.5 overflow-hidden"
@@ -335,14 +343,15 @@ const enterVideowall = () => {
         </div>
       </dl>
     </div>
-    <div class="flex flex-col gap-6 lg:flex-row justify-between">
-      <InputField
-        v-model="inputSearch"
-        :placeholder="t('views.deployment.search-placeholder')"
-        icon="search-lg"
-        class="h-min w-full md:max-w-120 mr-auto"
-      />
-      <div class="flex flex-wrap gap-4">
+    <PageToolbar>
+      <template v-if="hasDeploymentUsers" #search>
+        <SearchInput
+          :id="DEPLOYMENT_SEARCH_INPUT_ID"
+          v-model="inputSearch"
+          :placeholder="t('views.deployment.search-placeholder')"
+        />
+      </template>
+      <template #actions>
         <Button icon="users-01" hierarchy="secondary-gray" @click="handleNotImplemented">
           {{ t('views.deployment.buttons.users-and-groups') }}
         </Button>
@@ -386,8 +395,8 @@ const enterVideowall = () => {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
-    </div>
+      </template>
+    </PageToolbar>
     <div v-if="deploymentEntryIsPending" class="flex flex-col gap-4">
       <div v-for="n in 4" :key="'skeleton-row-' + n">
         <Skeleton class="h-16 w-full rounded-r-2xl" />
@@ -518,17 +527,12 @@ const enterVideowall = () => {
         </template>
       </DataTable>
     </template>
-    <template v-else>
-      <Empty class="md:flex-row-reverse mt-16">
-        <EmptyHeader>
-          <EmptyMedia variant="default" class="select-none pointer-events-none">
-            <img :src="templatesEmptyImg" />
-          </EmptyMedia>
-        </EmptyHeader>
-        <EmptyTitle class="text-[30px] font-bold">
-          {{ t('components.empty-search.title') }}
-        </EmptyTitle>
-      </Empty>
-    </template>
-  </main>
+    <EmptyState
+      v-else
+      kind="deployment-users"
+      :variant="hasDeploymentUsers ? 'no-results' : 'first-run'"
+      :searching="inputSearch.length > 0"
+      @clear-search="inputSearch = ''"
+    />
+  </PageContainer>
 </template>

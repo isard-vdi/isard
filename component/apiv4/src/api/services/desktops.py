@@ -67,6 +67,7 @@ from isardvdi_common.lib.domains.xml_sections import XmlSectionsProcessed
 from isardvdi_common.lib.media.media import MediaProcessed as CommonMedia
 from isardvdi_common.lib.storage.storage import StorageProcessed as CommonStorage
 from isardvdi_common.models.boots import Boot as RethinkBoot
+from isardvdi_common.models.disk_bus import DiskBus as RethinkDiskBus
 from isardvdi_common.models.domain import Domain as RethinkDomain
 from isardvdi_common.models.media import Media as RethinkMedia
 from isardvdi_common.models.storage import Storage
@@ -443,6 +444,8 @@ class DesktopService:
         desktop_status = CommonDesktops.parse_frontend_desktop_status(details)["status"]
         boots_names = RethinkBoot.get_boots_names()
         videos_names = RethinkVideos.get_videos_names()
+        disk_bus_names = RethinkDiskBus.get_disk_bus_names()
+        disk_bus = details["create_dict"]["hardware"].get("disk_bus", "default")
         template = details.get("template", None)
         if not isinstance(template, dict) or not template.get("id"):
             template = None
@@ -454,7 +457,7 @@ class DesktopService:
             "ip": details.get("viewer", {}).get("guest_ip"),
             "vcpu": details["create_dict"]["hardware"].get("vcpus", 0),
             "memory": details["create_dict"]["hardware"].get("memory", 0) / 1048576,
-            "disk_bus": details["create_dict"]["hardware"].get("disk_bus", "default"),
+            "disk_bus": {"id": disk_bus, "name": disk_bus_names[disk_bus]},
             "boot_order": [
                 {"id": b, "name": boots_names[b]}
                 for b in details["create_dict"]["hardware"].get("boot_order", [])

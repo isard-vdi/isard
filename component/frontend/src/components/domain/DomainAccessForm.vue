@@ -14,6 +14,7 @@ import {
   FieldLabel
 } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Separator } from '@/components/ui/separator'
 import { useQuery } from '@tanstack/vue-query'
 import {
   getTemplateInfoOptions,
@@ -22,16 +23,17 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Icon } from '@/components/icon'
 import ViewersSelector from '@/components/domain/ViewersSelector.vue'
+import AdjustmentStrip from '@/components/domain/AdjustmentStrip.vue'
 import BastionConfigForm from '@/components/domain/BastionConfigForm.vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import {
   hasWireguardRequiringViewer,
+  WIREGUARD_INTERFACE_ID,
   stripWireguardRequiringViewers,
-  getWireguardRequiringViewers
+  getWireguardRequiringViewers,
+  viewerLabels
 } from '@/lib/viewers'
 
 interface Credentials {
@@ -69,6 +71,8 @@ interface Props {
   showCustomDomains?: boolean // Whether to show custom domains in bastion config
   bastion?: Bastion
   viewers?: string[]
+  // Viewers the API already dropped, when there is no domain to read them from
+  initialRemovedViewers?: string[]
   hardwareInterfaces?: string[]
   onRequestAddInterface?: (ifaceId: string) => boolean | undefined
 }
@@ -100,6 +104,7 @@ const props = withDefaults(defineProps<Props>(), {
     customDomains: []
   }),
   viewers: () => [],
+  initialRemovedViewers: () => [],
   hardwareInterfaces: () => [],
   onRequestAddInterface: undefined
 })
@@ -231,7 +236,9 @@ const formSchema = z.object({
     password: z.string().optional()
   }),
   fullscreen: z.boolean(),
-  viewers: z.array(z.string()).min(1)
+  viewers: z.array(z.string()).min(1, {
+    message: t('components.domain.access.viewers.required')
+  })
 })
 
 const defaultValues = reactive({
@@ -255,12 +262,14 @@ function handleBastionEnabled(enabled: boolean) {
   bastionEnabled.value = enabled
   emit('bastion-enabled', enabled)
 }
-// Sync form fields when source data changes (e.g. stale cache replaced by fresh fetch)
+// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch),
+// but never over edits in progress: the edit views refetch on focus.
 watch([templateData, desktopData], () => {
-  form.setFieldValue('credentials', credentials.value)
-  form.setFieldValue('fullscreen', fullscreen.value)
-  form.setFieldValue('viewers', viewers.value)
+  if (form.state.isPristine) form.reset()
 })
+
+const ownFieldsAreDirty = form.useStore((state) => !state.isDefaultValue)
+
 // --- Viewer / wireguard coordination ---
 
 const selectedViewers = form.useStore((state) => state.values.viewers)
@@ -270,26 +279,14 @@ const hasRdpViewer = computed(() => hasWireguardRequiringViewer(selectedViewers.
 const removedViewers = ref<string[]>([])
 
 watch(
-  () => (templateData.value ?? desktopData.value)?.removed_viewers,
+  () => (templateData.value ?? desktopData.value)?.removed_viewers ?? props.initialRemovedViewers,
   (dropped) => {
     if (dropped?.length) removedViewers.value = dropped
   },
   { immediate: true }
 )
 
-const viewerLabelKeys: Record<string, string> = {
-  browser_rdp: 'components.viewers-selector.browser-viewers.rdp-browser',
-  browser_vnc: 'components.viewers-selector.browser-viewers.vnc-browser',
-  file_rdpgw: 'components.viewers-selector.file-viewers.rdp',
-  file_spice: 'components.viewers-selector.file-viewers.spice',
-  file_rdpvpn: 'components.viewers-selector.file-viewers.rdp-vpn'
-}
-
-const removedViewerLabels = computed<string[]>(() =>
-  removedViewers.value.map((viewer) =>
-    viewerLabelKeys[viewer] ? t(viewerLabelKeys[viewer]) : viewer
-  )
-)
+const removedViewerLabels = computed<string[]>(() => viewerLabels(removedViewers.value, t))
 
 watch(
   hasRdpViewer,
@@ -302,8 +299,8 @@ watch(
 watch(
   () => props.hardwareInterfaces,
   (newInterfaces, oldInterfaces) => {
-    const had = (oldInterfaces ?? []).includes('wireguard')
-    const has = (newInterfaces ?? []).includes('wireguard')
+    const had = (oldInterfaces ?? []).includes(WIREGUARD_INTERFACE_ID)
+    const has = (newInterfaces ?? []).includes(WIREGUARD_INTERFACE_ID)
     if (had && !has && hasRdpViewer.value) {
       const current = (form.getFieldValue('viewers') as string[] | undefined) ?? []
       removedViewers.value = getWireguardRequiringViewers(current)
@@ -323,10 +320,10 @@ watch(
 
 watch(hasRdpViewer, (next, prev) => {
   if (!next || prev) return
-  if ((props.hardwareInterfaces ?? []).includes('wireguard')) return
+  if ((props.hardwareInterfaces ?? []).includes(WIREGUARD_INTERFACE_ID)) return
   if (!props.onRequestAddInterface) return
 
-  const added = props.onRequestAddInterface('wireguard')
+  const added = props.onRequestAddInterface(WIREGUARD_INTERFACE_ID)
 
   if (added === true) {
     toast.info(t('components.domain.access.wireguard-added.title'), {
@@ -372,6 +369,26 @@ const getFormData = () => {
   return data
 }
 
+const formValues = form.useStore((state) => state.values)
+
+interface AccessValues {
+  credentials?: { username?: string; password?: string }
+  fullscreen?: boolean
+  viewers?: string[]
+}
+
+/** What the summary card shows for this form. */
+const buildSummary = (values: AccessValues) => ({
+  credentials: values.credentials,
+  fullscreen: values.fullscreen,
+  viewers: values.viewers ?? []
+})
+
+const summary = computed(() => buildSummary(formValues.value))
+
+/** The same, as the form was seeded: what the card compares the edits against. */
+const baseSummary = computed(() => buildSummary(defaultValues))
+
 const isFormValid = form.useStore((state) => state.isValid)
 
 // The bastion sub-form (ports, ssh keys, etc.) has its own tanstack-form
@@ -383,9 +400,24 @@ const isValid = computed(() => {
   return isFormValid.value && (bastionFormRef.value?.isValid ?? true)
 })
 
+const isDirty = computed(() => {
+  if (!props.showBastionConfig) return ownFieldsAreDirty.value
+  return ownFieldsAreDirty.value || (bastionFormRef.value?.isDirty ?? false)
+})
+
+const reset = () => {
+  form.reset()
+  bastionFormRef.value?.reset()
+}
+
 defineExpose({
   getFormData,
   isValid,
+  isDirty,
+  reset,
+  summary,
+  baseSummary,
+  removedViewers,
   removedViewerLabels
 })
 
@@ -404,15 +436,88 @@ const showPassword = ref(false)
   </template>
   <template v-else>
     <FieldGroup>
-      <section
-        v-if="showCredentials"
-        class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:grid-cols-[280px_1FR] md:gap-0"
-      >
-        <div class="flex flex-row-reverse justify-end items-center gap-2.5">
-          <h4 class="text-lg font-semibold text-gray-warm-900">
+      <section class="group/hw-section grid gap-4 items-start">
+        <div class="flex items-center gap-2">
+          <Icon
+            name="monitor"
+            size="sm"
+            stroke-color=""
+            aria-hidden="true"
+            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          />
+          <h4
+            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          >
+            {{ t('components.domain.access.sections.viewers') }}
+          </h4>
+          <Separator class="flex-1" />
+        </div>
+        <div class="flex flex-col gap-2.5 md:gap-5 md:w-auto">
+          <form.Field v-slot="{ field }" name="fullscreen">
+            <div class="flex gap-3">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <FieldLabel>
+                      {{ t('components.domain.access.fullscreen.label') }}
+                      <Icon name="info-circle" size="xs" class="inline-block" />
+                    </FieldLabel>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    :title="t('components.domain.access.fullscreen.label')"
+                    :subtitle="t('components.domain.access.fullscreen.description')"
+                  />
+                </Tooltip>
+              </TooltipProvider>
+              <FieldContent>
+                <Switch
+                  :id="field.name"
+                  type="checkbox"
+                  :name="field.name"
+                  :model-value="field.state.value"
+                  @update:model-value="field.handleChange"
+                />
+              </FieldContent>
+            </div>
+            <FieldError :errors="field.state.meta.errors" />
+          </form.Field>
+          <form.Field v-slot="{ field }" name="viewers">
+            <FieldContent>
+              <ViewersSelector
+                :model-value="field.state.value"
+                @update:model-value="(value) => field.handleChange(value)"
+              />
+            </FieldContent>
+            <FieldError icon="alert-circle" :errors="field.state.meta.errors" />
+          </form.Field>
+          <AdjustmentStrip
+            v-if="removedViewerLabels.length"
+            :label="
+              t('components.domain.access.viewers-removed.summary', {
+                count: removedViewerLabels.length
+              })
+            "
+            :items="removedViewerLabels"
+          />
+        </div>
+      </section>
+      <section v-if="showCredentials" class="group/hw-section grid gap-4 items-start">
+        <div class="flex items-center gap-2">
+          <!-- Empty stroke-color clears Icon's inline color so the class below can drive
+               currentColor and pick up the focus-within highlight. -->
+          <Icon
+            name="key-01"
+            size="sm"
+            stroke-color=""
+            aria-hidden="true"
+            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          />
+          <h4
+            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          >
             {{ t('components.domain.access.sections.credentials') }}
           </h4>
-          <Icon name="key-01" />
+          <Separator class="flex-1" />
         </div>
         <div class="grid grid-cols-1 gap-2.5 md:gap-5 md:w-auto md:grid-cols-2">
           <form.Field v-slot="{ field }" name="credentials.username">
@@ -464,71 +569,6 @@ const showPassword = ref(false)
               <FieldError :errors="field.state.meta.errors" />
             </div>
           </form.Field>
-        </div>
-      </section>
-      <section
-        class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:m-0 md:grid-cols-[280px_1FR] md:gap-0"
-      >
-        <div class="flex flex-row-reverse items-center gap-2.5 justify-end">
-          <h4 class="text-lg font-semibold text-gray-warm-900">
-            {{ t('components.domain.access.sections.viewers') }}
-          </h4>
-          <Icon name="monitor" />
-        </div>
-        <div class="flex flex-col gap-2.5 md:gap-5 md:w-auto">
-          <form.Field v-slot="{ field }" name="fullscreen">
-            <div class="flex gap-3">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <FieldLabel>
-                      {{ t('components.domain.access.fullscreen.label') }}
-                      <Icon name="info-circle" size="xs" class="inline-block" />
-                    </FieldLabel>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    :title="t('components.domain.access.fullscreen.label')"
-                    :subtitle="t('components.domain.access.fullscreen.description')"
-                  />
-                </Tooltip>
-              </TooltipProvider>
-              <FieldContent>
-                <Switch
-                  :id="field.name"
-                  type="checkbox"
-                  :name="field.name"
-                  :model-value="field.state.value"
-                  @update:model-value="field.handleChange"
-                />
-              </FieldContent>
-            </div>
-            <FieldError :errors="field.state.meta.errors" />
-          </form.Field>
-          <form.Field v-slot="{ field }" name="viewers">
-            <FieldContent>
-              <ViewersSelector
-                :model-value="field.state.value"
-                @update:model-value="(value) => field.handleChange(value)"
-              />
-            </FieldContent>
-            <FieldError :errors="field.state.meta.errors" />
-          </form.Field>
-          <Alert v-if="removedViewerLabels.length" variant="default" class="border-error-600">
-            <FeaturedIconOutline kind="outline" color="error" />
-            <AlertTitle>{{ t('components.domain.access.viewers-removed.title') }}</AlertTitle>
-            <AlertDescription>
-              {{ t('components.domain.access.viewers-removed.description') }}
-              <ul class="mt-3 space-y-1">
-                <li
-                  v-for="label in removedViewerLabels"
-                  :key="label"
-                  class="text-sm font-semibold text-error-600"
-                >
-                  {{ label }}
-                </li>
-              </ul>
-            </AlertDescription>
-          </Alert>
         </div>
       </section>
       <BastionConfigForm

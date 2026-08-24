@@ -191,10 +191,6 @@
           }
         }
       },
-      "header": {
-        "cancel": "Cancel·la",
-        "previous": "Anterior"
-      },
       "step-2": {
         "title": "Configura el teu escriptori",
         "description": "Pots editar el nom, la imatge i el maquinari de l'escriptori",
@@ -209,50 +205,6 @@
               "description": "Si us plau, revisa el formulari per errors"
             }
           }
-        },
-        "preview": {
-          "title": "Previsualització",
-          "description": "Així és com es veurà el teu escriptori. Aquestes dades es poden editar"
-        },
-        "desktop-information": {
-          "title": "Informació de l'escriptori",
-          "description": "Proporciona un nom i una descripció per identificar el teu escriptori"
-        },
-        "desktop-kind": {
-          "title": "Tipus d'escriptori",
-          "description": "Selecciona el tipus d'escriptori que vols crear",
-          "persistent": {
-            "title": "Persistent",
-            "description": "Un escriptori persistent guarda tots els canvis i fitxers de forma permanent."
-          },
-          "nonpersistent": {
-            "title": "Temporal",
-            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura. Només es permet un escriptori temporal per plantilla."
-          }
-        },
-        "access": {
-          "title": "Resum d'accés",
-          "description": "Aquest és un resum dels mètodes d'accés disponibles per al teu escriptori",
-          "show-access-customization": "Canvia l'accés",
-          "hide-access-customization": "Amaga l'accés"
-        },
-        "all-access": {
-          "title": "Configuració de tot l'accés",
-          "description": "Configuració de seguretat i accés"
-        },
-        "hardware-limited": {
-          "title": "Maquinari limitat",
-          "description": "Els valors de maquinari següents han estat limitats per permisos d'usuari:"
-        },
-        "hardware-summary": {
-          "title": "Resum del maquinari",
-          "description": "Aquest és un resum del maquinari heretat de la plantilla. S'utilitzarà per al teu escriptori",
-          "show-hardware-customization": "Canvia el maquinari",
-          "hide-hardware-customization": "Amaga el maquinari"
-        },
-        "all-hardware": {
-          "title": "Tot el maquinari",
-          "description": "El maquinari es pot editar mitjançant el formulari següent"
         }
       },
       "creating": {
@@ -307,10 +259,6 @@
         "empty-after": "Els elements de la paperera s'eliminaran permanentment després d'estar dins durant {time}.",
         "infinite": "Els elements de la paperera no s'eliminaran automàticament.",
         "immediately": "Els elements s'eliminaran de la paperera permanentment de manera immediata."
-      },
-      "empty": {
-        "title": "La paperera és buida",
-        "description": "Els elements que eliminis apareixeran aquí fins que es restaurin o s'eliminin permanentment."
       },
       "empty-recycle-bin": "Buida la paperera",
       "columns": {
@@ -420,11 +368,17 @@
         "search": {
           "placeholder": "Cerca els escriptoris"
         },
+        "toggle": "Filtres",
+        "toggle-active": "Filtres ({count} actius)",
         "status": {
           "all": "Tots",
           "started": "Iniciats",
           "stopped": "Aturats"
         }
+      },
+      "view-mode": {
+        "table": "Veure com a taula",
+        "cards": "Veure com a targetes"
       },
       "go-to-desktops": "Ves als escriptoris",
       "go-to-media": "Ves als mitjans",
@@ -442,7 +396,16 @@
       "filters": {
         "search": {
           "placeholder": "Cerca"
+        },
+        "visibility": {
+          "all": "Tots",
+          "visible": "Visibles",
+          "hidden": "Ocults"
         }
+      },
+      "alloweds": {
+        "success": "Usuaris i grups permesos actualitzats",
+        "error": "No s'han pogut actualitzar els usuaris i grups permesos"
       },
       "table": {
         "headers": {
@@ -466,10 +429,8 @@
     },
     "new-template": {
       "header": {
-        "cancel": "Cancel·la",
         "create-template": "Crea la plantilla",
-        "next": "Següent",
-        "previous": "Anterior"
+        "next": "Següent"
       },
       "stepper-steps": {
         "select-desktop": "Selecciona l'escriptori",
@@ -480,8 +441,6 @@
         "desktop-not-stopped": "L'escriptori ha d'estar aturat per crear una plantilla."
       },
       "form": {
-        "title": "Configura la teva plantilla",
-        "subtitle": "Pots editar el nom de la plantilla, la imatge i qui la pot utilitzar.",
         "sections": {
           "preview": {
             "title": "Previsualització",
@@ -506,6 +465,8 @@
           "alloweds": {
             "title": "Grups i Usuaris permesos",
             "subtitle": "Aquesta plantilla es compartirà amb {groups} i {users}.",
+            "subtitle-everyone": "Aquesta plantilla es compartirà amb tots els usuaris de la seva categoria.",
+            "subtitle-nobody": "Aquesta plantilla no es compartirà amb ningú.",
             "button": "Gestiona usuaris i grups"
           },
           "access": {
@@ -673,7 +634,8 @@
         "status": {
           "all": "Tots",
           "started": "Iniciats",
-          "visible": "Visibles"
+          "visible": "Visibles",
+          "hidden": "Ocults"
         }
       },
       "dropdown": {
@@ -690,9 +652,6 @@
       "visibility": {
         "visible": "Visible",
         "hidden": "Ocult"
-      },
-      "empty": {
-        "subtitle": "Crea un desplegament per començar a proporcionar escriptoris als teus usuaris"
       },
       "actions": {
         "go-to-direct-viewer": "Ves al visor directe"
@@ -849,8 +808,6 @@
         }
       },
       "header": {
-        "cancel": "Cancel·la",
-        "previous": "Anterior",
         "next": "Següent",
         "create-deployment": "Crea el desplegament"
       }
@@ -899,24 +856,11 @@
       "title": "Edita l’escriptori",
       "subtitle": "Editant «{name}»",
       "header": {
-        "cancel": "Cancel·la",
         "save": "Desa els canvis"
       },
       "errors": {
         "title": "Error en desar l’escriptori",
         "load": "Error en carregar l’escriptori"
-      },
-      "info": {
-        "title": "Informació de l'escriptori",
-        "description": "Proporciona un nom i una descripció per identificar el teu escriptori"
-      },
-      "access": {
-        "title": "Configuració d'accés",
-        "description": "Visualitzadors, credencials i configuració del bastion."
-      },
-      "hardware": {
-        "title": "Maquinari",
-        "description": "vCPU, memòria, ordre d’arrencada, interfícies i reservables."
       },
       "save-confirmation": {
         "title": "Alguns camps de maquinari estan restringits",
@@ -933,7 +877,6 @@
     },
     "edit-template": {
       "header": {
-        "cancel": "Cancel·la",
         "save": "Desa els canvis"
       },
       "errors": {
@@ -1659,11 +1602,56 @@
     "empty": {
       "clear-filters": "Neteja els filtres",
       "description": "Els teus {kind} apareixeran aquí un cop es creïn o se t'assignin.",
-      "title": "No hi ha {kind} disponibles"
+      "title": "No hi ha {kind} disponibles",
+      "desktops": {
+        "title": "Encara no tens cap escriptori",
+        "description": "Un escriptori és una màquina virtual pròpia que crees a partir d'una plantilla i que pots engegar i aturar quan la necessitis."
+      },
+      "templates": {
+        "title": "Encara no tens cap plantilla",
+        "description": "Una plantilla és un escriptori congelat que serveix de base per crear escriptoris nous, teus o dels usuaris amb qui la comparteixis."
+      },
+      "shared-templates": {
+        "title": "No t'han compartit cap plantilla",
+        "description": "Les plantilles que altres usuaris comparteixin amb tu apareixeran aquí, a punt per crear-hi escriptoris."
+      },
+      "deployments": {
+        "title": "Encara no tens cap desplegament",
+        "description": "Un desplegament crea un escriptori per usuari a partir de la mateixa plantilla i els manté en una sola llista des d'on els pots engegar, aturar i supervisar."
+      },
+      "shared-deployments": {
+        "title": "No t'han compartit cap desplegament",
+        "description": "Quan algú et doni accés a un desplegament, els seus escriptoris apareixeran aquí."
+      },
+      "media": {
+        "title": "Encara no tens cap mèdia",
+        "description": "Puja imatges ISO per instal·lar sistemes operatius als teus escriptoris o connectar-les als que ja tens."
+      },
+      "shared-media": {
+        "title": "No t'han compartit cap mèdia",
+        "description": "Les imatges ISO que altres usuaris comparteixin amb tu apareixeran aquí."
+      },
+      "recycle-bin": {
+        "title": "La paperera és buida",
+        "description": "Els elements que eliminis apareixeran aquí fins que es restaurin o s'eliminin permanentment."
+      },
+      "deployment-users": {
+        "title": "Aquest desplegament encara no té usuaris",
+        "description": "Els usuaris amb accés al desplegament apareixeran aquí, cadascun amb l'escriptori que se li assigna."
+      },
+      "template-sources": {
+        "title": "Cap escriptori a punt per convertir en plantilla",
+        "description": "Només els escriptoris persistents aturats que no formen part d'un desplegament es poden convertir en plantilla."
+      }
+    },
+    "filters": {
+      "toggle": "Filtres",
+      "toggle-active": "Filtres ({count} actius)"
     },
     "empty-search": {
       "clear": "Neteja la cerca",
-      "title": "No s'ha trobat cap resultat"
+      "title": "No s'ha trobat cap resultat",
+      "description": "No hi ha res que coincideixi amb la cerca o els filtres. Prova altres termes o neteja'ls per veure-ho tot."
     },
     "recreate-desktop-confirmation-modal": {
       "cancel": "Cancel·la",
@@ -1772,6 +1760,10 @@
       "reservables": {
         "title": "Reservables"
       }
+    },
+    "domain-summary": {
+      "changed": "Valor modificat",
+      "removed": "Valor eliminat"
     },
     "viewers-selector": {
       "browser-viewers": {
@@ -2018,16 +2010,18 @@
           "description": "Si s'activa, el visor s'obrirà en pantalla completa."
         },
         "viewers": {
-          "label": "Visors"
+          "label": "Visors",
+          "required": "Tria almenys un visor per accedir a l'escriptori"
         },
         "bastion": {
-          "label": "Bastió activat",
+          "enable": "Activa el bastió",
           "description": "Permet l'accés a l'escriptori a través d'un host bastió.",
           "custom-domains": {
             "label": "Dominis personalitzats"
           },
           "http-https": {
             "label": "HTTP / HTTPS",
+            "enable": "Activa l'accés HTTP / HTTPS",
             "description": "Accedeix a l'escriptori amb un navegador web o un visor RDP compatible amb connexions HTTP/HTTPS.",
             "http-port": {
               "label": "Port HTTP",
@@ -2057,6 +2051,7 @@
           },
           "ssh": {
             "label": "SSH",
+            "enable": "Activa l'accés SSH",
             "description": "Fes servir un client SSH per connectar-te a l'escriptori a través de l'host bastió.",
             "port": {
               "label": "Port SSH",
@@ -2090,8 +2085,8 @@
         },
         "viewers-removed": {
           "title": "Visors RDP eliminats",
-          "description": "Aquests visors RDP s'han eliminat perquè aquest escriptori no té interfície de xarxa wireguard:",
-          "toast-description": "Aquests visors RDP s'han eliminat perquè aquest escriptori no té interfície de xarxa wireguard: {viewers}"
+          "toast-description": "Aquests visors RDP s'han eliminat perquè aquest escriptori no té interfície de xarxa wireguard: {viewers}",
+          "summary": "{count} visors retirats: aquest escriptori no té xarxa wireguard"
         }
       },
       "hardware": {
@@ -2139,26 +2134,86 @@
         },
         "networks": {
           "label": "Xarxes",
-          "placeholder": "Selecciona xarxes",
-          "modal": {
-            "title": "Configura les xarxes",
-            "description": "Afegeix, elimina o reordena les xarxes assignades a aquest domini",
-            "selected": "Xarxes seleccionades",
-            "drop-here": "Arrossega xarxes aquí",
-            "available": "Xarxes disponibles",
-            "empty-selected": "Arrossega xarxes aquí o prem + per afegir-ne",
-            "empty-available": "Totes les xarxes estan seleccionades",
-            "cancel": "Cancel·la",
-            "save": "Desa"
-          }
+          "interfaces-label": "Interfícies",
+          "placeholder": "Afegeix una xarxa",
+          "empty": "Encara no hi ha cap xarxa. Tria'n una amb el selector de dalt.",
+          "order-hint": "Arrossega les xarxes o prem ← / → per definir l'ordre de les interfícies dins de l'escriptori",
+          "chip-label": "{name}, posició {position}",
+          "chip-label-required": "{name}, posició {position}, necessària",
+          "required": "Necessària",
+          "remove": "Treu {name}"
         },
         "limited": {
           "warning": {
-            "title": "Restriccions aplicades",
-            "subtitle": "Aquest valor ha estat limitat pels permisos d'usuari."
+            "title": "Restriccions aplicades"
           },
-          "restricted": "Valor restringit: {old_value} → Establert a: {new_value}",
-          "quota": "Aquest valor supera la teva quota"
+          "quota": "Aquest valor supera la teva quota",
+          "chip": {
+            "replaced": "abans: {old_value}",
+            "removed": "tret: {old_value}",
+            "removed-count": "{count} trets"
+          },
+          "detail": {
+            "replaced": "{old_value} supera el que et permeten els teus permisos, així que s'ha desat {new_value}.",
+            "removed": "{old_value} no està dins dels teus permisos, així que s'ha retirat."
+          }
+        }
+      },
+      "configuration": {
+        "preview": {
+          "title": "Previsualització",
+          "description": "Així és com es veurà el teu escriptori. Aquestes dades es poden editar",
+          "start-disabled": "Podràs iniciar l'escriptori un cop creat"
+        },
+        "info": {
+          "title": {
+            "desktops": "Informació de l'escriptori",
+            "templates": "Informació de la plantilla"
+          },
+          "description": {
+            "desktops": "Proporciona un nom i una descripció per identificar el teu escriptori",
+            "templates": "Proporciona un nom i una descripció per identificar la teva plantilla"
+          }
+        },
+        "kind": {
+          "title": "Tipus d'escriptori",
+          "description": "Selecciona el tipus d'escriptori que vols crear",
+          "persistent": {
+            "title": "Persistent",
+            "description": "Un escriptori persistent guarda tots els canvis i fitxers de forma permanent."
+          },
+          "nonpersistent": {
+            "title": "Temporal",
+            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura. Només es permet un escriptori temporal per plantilla."
+          }
+        },
+        "section": {
+          "title": {
+            "desktops": "Configuració de l'escriptori",
+            "templates": "Configuració de la plantilla"
+          },
+          "description": {
+            "new-desktop": "Aquests valors provenen de la plantilla. Canvia'ls a sota o més endavant, amb l'escriptori ja creat.",
+            "new-desktop-from-media": "Aquests són els valors per defecte de la instal·lació. Canvia'ls a sota o més endavant, amb l'escriptori ja creat.",
+            "edit-desktop": "Accés i maquinari d'aquest escriptori. Els canvis s'apliquen el proper cop que s'iniciï.",
+            "edit-template": "Accés i maquinari que heretarà cada escriptori creat a partir d'aquesta plantilla.",
+            "deployment-desktop": "Accés i maquinari heretats de la plantilla. Els canvis només afecten aquest escriptori del desplegament."
+          },
+          "show": "Canvia la configuració",
+          "restore": "Restaura els valors inicials",
+          "restore-disabled": "Encara no hi ha canvis per restaurar"
+        },
+        "access": {
+          "title": "Configuració de tot l'accés",
+          "description": "Configuració de seguretat i accés"
+        },
+        "hardware": {
+          "title": "Tot el maquinari",
+          "description": "El maquinari es pot editar mitjançant el formulari següent"
+        },
+        "hardware-limited": {
+          "summary": "{count} valors ajustats pels teus permisos",
+          "review": "Revisa-ho"
         }
       }
     },
@@ -2528,6 +2583,76 @@
       "not-found": "No s'ha trobat cap resultat",
       "more-results": "{count} resultats més, afineu la cerca",
       "remove": "Traieu {name}"
+    },
+    "allowed-modal": {
+      "title": "Gestiona els usuaris",
+      "description": {
+        "generic": "Edita els grups i els usuaris que hi poden accedir",
+        "template": "Edita els grups i els usuaris que poden accedir a aquesta plantilla",
+        "deployment": "Edita els grups i els usuaris que poden accedir a aquest desplegament",
+        "media": "Edita els grups i els usuaris que poden accedir a aquest mitjà"
+      },
+      "columns": {
+        "groups": "Grups",
+        "users": "Usuaris",
+        "users-in-group": "Usuaris del grup '{group_name}'"
+      },
+      "empty": {
+        "groups": "No hi ha grups disponibles",
+        "users": "Aquest grup no té usuaris",
+        "no-group": "Selecciona un grup o cerca usuaris",
+        "no-group-short-term": "Escriu com a mínim 2 caràcters per cercar usuaris"
+      },
+      "share-everyone": {
+        "unchecked": {
+          "title": "Comparteix amb tothom",
+          "description": "Dona accés a tots els usuaris d'aquesta categoria"
+        },
+        "checked": {
+          "title": "Compartit amb tothom",
+          "description": "Tots els usuaris d'aquesta categoria hi tindran accés"
+        }
+      },
+      "view-group": "Mostra els usuaris del grup '{group_name}'",
+      "unview-group": "Deixa de mostrar els usuaris del grup '{group_name}'",
+      "require-selection": "Selecciona com a mínim un grup o un usuari",
+      "no-changes": "Fes algun canvi per desar",
+      "select-all": {
+        "groups": "Selecciona tots els grups",
+        "count": "{selected} de {total} seleccionats"
+      },
+      "search": {
+        "user-in-group": {
+          "placeholder": "Cercar un usuari al grup '{group_name}'",
+          "empty": "No s'ha trobat cap usuari"
+        },
+        "user": {
+          "placeholder": "Cerca tots els usuaris",
+          "empty": "No s'ha trobat cap usuari",
+          "truncated": "Es mostren {shown} de {total} resultats, afina la cerca"
+        },
+        "group": {
+          "placeholder": "Cercar grup",
+          "empty": "No s'ha trobat cap grup"
+        }
+      },
+      "cancel": "Cancel·la",
+      "save": "Accepta els canvis"
+    },
+    "form-header": {
+      "cancel-creation": "Cancel·la la creació",
+      "cancel-edit": "Cancel·la l'edició",
+      "previous": "Pas anterior",
+      "next": "Següent",
+      "discard-modal": {
+        "title": "Vols descartar i sortir?",
+        "description": "Es perdrà la informació que has introduït.",
+        "cancel": "Continua editant",
+        "confirm": "Descarta i surt"
+      }
+    },
+    "scroll-to-top": {
+      "label": "Ves a dalt"
     }
   },
   "authentication": {

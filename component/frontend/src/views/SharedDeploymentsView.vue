@@ -13,16 +13,21 @@ import { DesktopCardBaseStacked, DesktopCardHeader } from '@/components/desktop-
 import { type CardSize } from '@/components/desktop-card'
 import { useWindowSize } from '@vueuse/core'
 import { Button } from '@/components/ui/button'
-import { InputField } from '@/components/input-field'
 import { useI18n } from 'vue-i18n'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { DesktopCardSkeleton } from '@/components/desktop-card'
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DomainInfoModal } from '@/components/desktops'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  EmptyState,
+  FilterPanel,
+  FilterToggle,
+  PageContainer,
+  PageToolbar,
+  SearchInput
+} from '@/components/page'
+import { useFilterPanel } from '@/composables/useFilterPanel'
 
 const { t } = useI18n()
 
@@ -71,6 +76,13 @@ interface DeploymentFilters {
 
 const deploymentFilters = ref<DeploymentFilters>({ status: 'all' })
 
+const showDeploymentFilters = useFilterPanel('shared_deployments_filters_state')
+
+// Search has its own always-visible input; only the ones the panel hides count.
+const activeDeploymentFilterCount = computed(() =>
+  deploymentFilters.value.status === 'all' ? 0 : 1
+)
+
 // Filtered deployments
 const filteredDeployments = computed(() => {
   const allDeployments = deployments.value?.deployments ?? []
@@ -95,17 +107,14 @@ const areDeploymentsVisible = (deployment: SharedDeployment) => {
 
 const inputSearch = ref<string>('')
 
-const emptyState = computed(() => {
-  const isSearching = inputSearch.value.length > 0
+// Unfiltered count, to tell a first run from a fruitless search.
+const totalDeployments = computed(() => deployments.value?.deployments?.length ?? 0)
 
-  return {
-    title: isSearching
-      ? t('components.empty-search.title')
-      : t('components.empty.title', { kind: t('domains.deployments', 0) }),
-    image: isSearching ? templatesEmptyImg : desktopsEmptyImg,
-    styles: isSearching ? 'md:flex-row-reverse mt-16' : ''
-  }
-})
+const isFirstRun = computed(() => !deploymentsArePending.value && totalDeployments.value === 0)
+
+const clearDeploymentFilters = () => {
+  deploymentFilters.value.status = 'all'
+}
 
 // Deployment desktops info
 const showDeploymentInfoModal = ref(false)
@@ -121,7 +130,7 @@ const deploymentDesktopItems = computed<DomainInfoItem[]>(() => {
     vcpu: d.vcpu,
     ram: d.memory,
     bootOrder: d.boot_order.map((bo) => bo.name),
-    diskBus: d.disk_bus,
+    diskBus: d.disk_bus?.name,
     vga: d.videos.map((v) => v.name),
     viewers: d.viewers,
     fullscreen: d.fullscreen,
@@ -136,33 +145,43 @@ const deploymentDesktopItems = computed<DomainInfoItem[]>(() => {
 })
 
 const handleNotImplemented = () => alert('not implemented yet')
+
+const SHARED_DEPLOYMENTS_SEARCH_INPUT_ID = 'shared-deployments-search'
 </script>
 
 <template>
-  <main class="flex flex-col gap-6 p-3 w-full">
-    <div class="flex flex-row gap-5 items-center flex-wrap">
-      <InputField
-        v-model="inputSearch"
-        :placeholder="t('views.deployments.filters.search.placeholder')"
-        icon="search-lg"
-        class="h-full w-full max-w-120 mr-auto"
-      />
-      <ToggleGroup
-        v-model="deploymentFilters.status"
-        :spacing="1"
-        type="single"
-        size="default"
-        class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
-      >
-        <ToggleGroupItem value="all" variant="gray-warm">
-          <span>{{ t('views.deployments.filters.status.all') }}</span>
-        </ToggleGroupItem>
-        <ToggleGroupItem value="started" variant="gray-warm">
-          <span>{{ t('views.deployments.filters.status.started') }}</span>
-        </ToggleGroupItem>
-      </ToggleGroup>
-    </div>
-    <div class="w-full">
+  <PageContainer>
+    <PageToolbar v-if="!isFirstRun">
+      <template #search>
+        <SearchInput
+          :id="SHARED_DEPLOYMENTS_SEARCH_INPUT_ID"
+          v-model="inputSearch"
+          :placeholder="t('views.deployments.filters.search.placeholder')"
+        />
+      </template>
+      <template #filters>
+        <FilterToggle v-model="showDeploymentFilters" :active-count="activeDeploymentFilterCount" />
+      </template>
+      <template #panel>
+        <FilterPanel :open="showDeploymentFilters">
+          <ToggleGroup
+            v-model="deploymentFilters.status"
+            :spacing="1"
+            type="single"
+            size="default"
+            class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
+          >
+            <ToggleGroupItem value="all" variant="gray-warm">
+              <span>{{ t('views.deployments.filters.status.all') }}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="started" variant="gray-warm">
+              <span>{{ t('views.deployments.filters.status.started') }}</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </FilterPanel>
+      </template>
+    </PageToolbar>
+    <div class="flex w-full flex-1 flex-col">
       <div
         v-if="deploymentsArePending"
         class="grid gap-4 w-full"
@@ -237,18 +256,15 @@ const handleNotImplemented = () => alert('not implemented yet')
           </DesktopCardBaseStacked>
         </template>
       </div>
-      <template v-else>
-        <Empty :class="emptyState.styles">
-          <EmptyHeader>
-            <EmptyMedia variant="default" class="select-none pointer-events-none">
-              <img :src="emptyState.image" />
-            </EmptyMedia>
-          </EmptyHeader>
-          <EmptyTitle class="text-[30px] font-bold">
-            {{ emptyState.title }}
-          </EmptyTitle>
-        </Empty>
-      </template>
+      <EmptyState
+        v-else
+        kind="shared-deployments"
+        :variant="isFirstRun ? 'first-run' : 'no-results'"
+        :searching="inputSearch.length > 0"
+        :active-filters="activeDeploymentFilterCount"
+        @clear-search="inputSearch = ''"
+        @clear-filters="clearDeploymentFilters"
+      />
     </div>
     <DomainInfoModal
       :open="showDeploymentInfoModal"
@@ -261,5 +277,5 @@ const handleNotImplemented = () => alert('not implemented yet')
         }
       "
     />
-  </main>
+  </PageContainer>
 </template>

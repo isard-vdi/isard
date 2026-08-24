@@ -191,10 +191,6 @@
           }
         }
       },
-      "header": {
-        "cancel": "Cancelar",
-        "previous": "Anterior"
-      },
       "step-2": {
         "title": "Configura tu escritorio",
         "description": "Personaliza los ajustes de tu escritorio antes de crearlo.",
@@ -209,50 +205,6 @@
               "description": "Por favor, revisa el formulario en busca de errores"
             }
           }
-        },
-        "preview": {
-          "title": "Vista previa",
-          "description": "Así es como se verá tu escritorio. Estos datos se pueden editar"
-        },
-        "desktop-information": {
-          "title": "Información del escritorio",
-          "description": "Proporciona un nombre y una descripción para identificar tu escritorio"
-        },
-        "desktop-kind": {
-          "title": "Tipo de escritorio",
-          "description": "Selecciona el tipo de escritorio que deseas crear",
-          "persistent": {
-            "title": "Persistente",
-            "description": "Un escritorio persistente guarda todos los cambios y archivos de forma permanente."
-          },
-          "nonpersistent": {
-            "title": "Temporal",
-            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene. Solo se permite un escritorio temporal por plantilla."
-          }
-        },
-        "access": {
-          "title": "Resumen de acceso",
-          "description": "Este es un resumen de los métodos de acceso disponibles para tu escritorio",
-          "show-access-customization": "Cambiar acceso",
-          "hide-access-customization": "Ocultar acceso"
-        },
-        "all-access": {
-          "title": "Configuración de todo el acceso",
-          "description": "Configuración de seguridad y acceso"
-        },
-        "hardware-limited": {
-          "title": "Hardware limitado",
-          "description": "Los siguientes valores de hardware han sido limitados por permisos de usuario:"
-        },
-        "hardware-summary": {
-          "title": "Resumen de hardware",
-          "description": "Este es un resumen del hardware heredado de la plantilla. Se utilizará para tu escritorio",
-          "show-hardware-customization": "Cambiar hardware",
-          "hide-hardware-customization": "Ocultar hardware"
-        },
-        "all-hardware": {
-          "title": "Todo el hardware",
-          "description": "El hardware se puede editar mediante el siguiente formulario"
         }
       },
       "creating": {
@@ -307,10 +259,6 @@
         "empty-after": "Los elementos de la papelera se eliminarán permanentemente después de haber estado aquí {time}.",
         "infinite": "Los elementos de la papelera no se eliminarán automáticamente.",
         "immediately": "Los elementos de la papelera se eliminarán permanentemente de manera inmediata."
-      },
-      "empty": {
-        "title": "La papelera está vacía",
-        "description": "Los elementos que elimines aparecerán aquí hasta que se restauren o se eliminen permanentemente."
       },
       "empty-recycle-bin": "Vaciar papelera",
       "columns": {
@@ -420,11 +368,17 @@
         "search": {
           "placeholder": "Busca los escritorios"
         },
+        "toggle": "Filtros",
+        "toggle-active": "Filtros ({count} activos)",
         "status": {
           "all": "Todos",
           "started": "Iniciados",
           "stopped": "Parados"
         }
+      },
+      "view-mode": {
+        "table": "Ver como tabla",
+        "cards": "Ver como tarjetas"
       },
       "go-to-desktops": "Ir a mis escritorios",
       "go-to-media": "Ir a mis medios",
@@ -442,7 +396,16 @@
       "filters": {
         "search": {
           "placeholder": "Buscar"
+        },
+        "visibility": {
+          "all": "Todos",
+          "visible": "Visibles",
+          "hidden": "Ocultos"
         }
+      },
+      "alloweds": {
+        "success": "Usuarios y grupos permitidos actualizados",
+        "error": "No se han podido actualizar los usuarios y grupos permitidos"
       },
       "table": {
         "headers": {
@@ -466,10 +429,8 @@
     },
     "new-template": {
       "header": {
-        "cancel": "Cancelar",
         "create-template": "Crear plantilla",
-        "next": "Siguiente",
-        "previous": "Anterior"
+        "next": "Siguiente"
       },
       "stepper-steps": {
         "select-desktop": "Selecciona un escritorio",
@@ -480,8 +441,6 @@
         "desktop-not-stopped": "El escritorio debe estar parado para crear una plantilla."
       },
       "form": {
-        "title": "Configura tu plantilla",
-        "subtitle": "Puedes editar el nombre de la plantilla, la imagen y quién puede usarla.",
         "sections": {
           "preview": {
             "title": "Vista previa",
@@ -506,6 +465,8 @@
           "alloweds": {
             "title": "Grupos y Usuarios Permitidos",
             "subtitle": "Esta plantilla se compartirá con {groups} y {users}.",
+            "subtitle-everyone": "Esta plantilla se compartirá con todos los usuarios de su categoría.",
+            "subtitle-nobody": "Esta plantilla no se compartirá con nadie.",
             "button": "Gestionar usuarios y grupos"
           },
           "access": {
@@ -673,7 +634,8 @@
         "status": {
           "all": "Todos",
           "started": "Iniciados",
-          "visible": "Visibles"
+          "visible": "Visibles",
+          "hidden": "Ocultos"
         }
       },
       "dropdown": {
@@ -690,9 +652,6 @@
       "visibility": {
         "visible": "Visible",
         "hidden": "Oculto"
-      },
-      "empty": {
-        "subtitle": "Crea un despliegue para empezar a proporcionar escritorios a tus usuarios"
       },
       "actions": {
         "go-to-direct-viewer": "Ir al visor directo"
@@ -849,8 +808,6 @@
         }
       },
       "header": {
-        "cancel": "Cancelar",
-        "previous": "Anterior",
         "next": "Siguiente",
         "create-deployment": "Crear Despliegue"
       }
@@ -906,24 +863,11 @@
       "title": "Editar escritorio",
       "subtitle": "Editando «{name}»",
       "header": {
-        "cancel": "Cancelar",
         "save": "Guardar cambios"
       },
       "errors": {
         "title": "Error al guardar el escritorio",
         "load": "Error al cargar el escritorio"
-      },
-      "info": {
-        "title": "Información del escritorio",
-        "description": "Proporciona un nombre y una descripción para identificar tu escritorio"
-      },
-      "access": {
-        "title": "Configuración de acceso",
-        "description": "Visores, credenciales y configuración del bastion."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memoria, orden de arranque, interfaces y reservables."
       },
       "save-confirmation": {
         "title": "Algunos campos de hardware están restringidos",
@@ -940,7 +884,6 @@
     },
     "edit-template": {
       "header": {
-        "cancel": "Cancelar",
         "save": "Guardar cambios"
       },
       "errors": {
@@ -1659,11 +1602,56 @@
     "empty": {
       "clear-filters": "Limpiar filtros",
       "description": "Sus {kind} aparecerán aquí una vez que se creen o se te asignen.",
-      "title": "No hay {kind} disponibles"
+      "title": "No hay {kind} disponibles",
+      "desktops": {
+        "title": "Aún no tienes ningún escritorio",
+        "description": "Un escritorio es una máquina virtual propia que creas a partir de una plantilla y puedes iniciar y detener cuando lo necesites."
+      },
+      "templates": {
+        "title": "Aún no tienes ninguna plantilla",
+        "description": "Una plantilla es un escritorio congelado que sirve de base para crear escritorios nuevos, tuyos o de los usuarios con los que la compartas."
+      },
+      "shared-templates": {
+        "title": "No te han compartido ninguna plantilla",
+        "description": "Las plantillas que otros usuarios compartan contigo aparecerán aquí, listas para crear escritorios."
+      },
+      "deployments": {
+        "title": "Aún no tienes ningún despliegue",
+        "description": "Un despliegue crea un escritorio por usuario a partir de la misma plantilla y los mantiene en una sola lista desde la que puedes iniciarlos, detenerlos y supervisarlos."
+      },
+      "shared-deployments": {
+        "title": "No te han compartido ningún despliegue",
+        "description": "Cuando alguien te dé acceso a un despliegue, sus escritorios aparecerán aquí."
+      },
+      "media": {
+        "title": "Aún no tienes ningún medio",
+        "description": "Sube imágenes ISO para instalar sistemas operativos en tus escritorios o conectarlas a los que ya tienes."
+      },
+      "shared-media": {
+        "title": "No te han compartido ningún medio",
+        "description": "Las imágenes ISO que otros usuarios compartan contigo aparecerán aquí."
+      },
+      "recycle-bin": {
+        "title": "La papelera está vacía",
+        "description": "Los elementos que elimines aparecerán aquí hasta que se restauren o se eliminen permanentemente."
+      },
+      "deployment-users": {
+        "title": "Este despliegue aún no tiene usuarios",
+        "description": "Los usuarios con acceso al despliegue aparecerán aquí, cada uno con el escritorio que se le asigna."
+      },
+      "template-sources": {
+        "title": "Ningún escritorio listo para convertir en plantilla",
+        "description": "Solo los escritorios persistentes detenidos que no forman parte de un despliegue se pueden convertir en plantilla."
+      }
+    },
+    "filters": {
+      "toggle": "Filtros",
+      "toggle-active": "Filtros ({count} activos)"
     },
     "empty-search": {
       "clear": "Limpiar búsqueda",
-      "title": "No se encontraron resultados"
+      "title": "No se encontraron resultados",
+      "description": "No hay nada que coincida con tu búsqueda o filtros. Prueba con otros términos o límpialos para verlo todo."
     },
     "recreate-desktop-confirmation-modal": {
       "cancel": "Cancelar",
@@ -1828,6 +1816,10 @@
       "reservables": {
         "title": "Reservables"
       }
+    },
+    "domain-summary": {
+      "changed": "Valor modificado",
+      "removed": "Valor eliminado"
     },
     "datatable": {
       "empty": "No hay escritorios disponibles",
@@ -2030,16 +2022,18 @@
           "description": "Si se activa, el visor se abrirá en pantalla completa."
         },
         "viewers": {
-          "label": "Visores"
+          "label": "Visores",
+          "required": "Elige al menos un visor para acceder al escritorio"
         },
         "bastion": {
-          "label": "Bastión activado",
+          "enable": "Activar el bastión",
           "description": "Permite el acceso al escritorio a través de un host bastión.",
           "custom-domains": {
             "label": "Dominios personalizados"
           },
           "http-https": {
             "label": "HTTP / HTTPS",
+            "enable": "Activar el acceso HTTP / HTTPS",
             "description": "Accede al escritorio usando un navegador web o un visor RDP compatible con conexiones HTTP/HTTPS.",
             "http-port": {
               "label": "Puerto HTTP",
@@ -2069,6 +2063,7 @@
           },
           "ssh": {
             "label": "SSH",
+            "enable": "Activar el acceso SSH",
             "description": "Usa un cliente SSH para conectarte al escritorio a través del host bastión.",
             "port": {
               "label": "Puerto SSH",
@@ -2102,8 +2097,8 @@
         },
         "viewers-removed": {
           "title": "Visores RDP eliminados",
-          "description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard:",
-          "toast-description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard: {viewers}"
+          "toast-description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard: {viewers}",
+          "summary": "{count} visores retirados: este escritorio no tiene red wireguard"
         }
       },
       "hardware": {
@@ -2151,26 +2146,86 @@
         },
         "networks": {
           "label": "Redes",
-          "placeholder": "Selecciona redes",
-          "modal": {
-            "title": "Configurar redes",
-            "description": "Añade, elimina o reordena las redes asignadas a este dominio",
-            "selected": "Redes seleccionadas",
-            "drop-here": "Arrastra redes aquí",
-            "available": "Redes disponibles",
-            "empty-selected": "Arrastra redes aquí o pulsa + para añadir",
-            "empty-available": "Todas las redes están seleccionadas",
-            "cancel": "Cancelar",
-            "save": "Guardar"
-          }
+          "interfaces-label": "Interfaces",
+          "placeholder": "Añade una red",
+          "empty": "Todavía no hay ninguna red. Elige una con el selector de arriba.",
+          "order-hint": "Arrastra las redes o pulsa ← / → para definir el orden de las interfaces dentro del escritorio",
+          "chip-label": "{name}, posición {position}",
+          "chip-label-required": "{name}, posición {position}, necesaria",
+          "required": "Necesaria",
+          "remove": "Quitar {name}"
         },
         "limited": {
           "warning": {
-            "title": "Restricciones aplicadas",
-            "subtitle": "Este valor ha sido limitado por permisos de usuario."
+            "title": "Restricciones aplicadas"
           },
-          "restricted": "Valor restringido: {old_value} → Establecido a: {new_value}",
-          "quota": "Este valor supera tu cuota"
+          "quota": "Este valor supera tu cuota",
+          "chip": {
+            "replaced": "antes: {old_value}",
+            "removed": "quitado: {old_value}",
+            "removed-count": "{count} quitados"
+          },
+          "detail": {
+            "replaced": "{old_value} supera lo que permiten tus permisos, así que se ha guardado {new_value}.",
+            "removed": "{old_value} no está dentro de tus permisos, así que se ha retirado."
+          }
+        }
+      },
+      "configuration": {
+        "preview": {
+          "title": "Vista previa",
+          "description": "Así es como se verá tu escritorio. Estos datos se pueden editar",
+          "start-disabled": "Podrás iniciar el escritorio una vez creado"
+        },
+        "info": {
+          "title": {
+            "desktops": "Información del escritorio",
+            "templates": "Información de la plantilla"
+          },
+          "description": {
+            "desktops": "Proporciona un nombre y una descripción para identificar tu escritorio",
+            "templates": "Proporciona un nombre y una descripción para identificar tu plantilla"
+          }
+        },
+        "kind": {
+          "title": "Tipo de escritorio",
+          "description": "Selecciona el tipo de escritorio que deseas crear",
+          "persistent": {
+            "title": "Persistente",
+            "description": "Un escritorio persistente guarda todos los cambios y archivos de forma permanente."
+          },
+          "nonpersistent": {
+            "title": "Temporal",
+            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene. Solo se permite un escritorio temporal por plantilla."
+          }
+        },
+        "section": {
+          "title": {
+            "desktops": "Configuración del escritorio",
+            "templates": "Configuración de la plantilla"
+          },
+          "description": {
+            "new-desktop": "Estos valores vienen de la plantilla. Cámbialos abajo o más adelante, con el escritorio ya creado.",
+            "new-desktop-from-media": "Estos son los valores por defecto de la instalación. Cámbialos abajo o más adelante, con el escritorio ya creado.",
+            "edit-desktop": "Acceso y hardware de este escritorio. Los cambios se aplican la próxima vez que se inicie.",
+            "edit-template": "Acceso y hardware que heredará cada escritorio creado a partir de esta plantilla.",
+            "deployment-desktop": "Acceso y hardware heredados de la plantilla. Los cambios solo afectan a este escritorio del despliegue."
+          },
+          "show": "Cambiar configuración",
+          "restore": "Restaurar valores iniciales",
+          "restore-disabled": "Todavía no hay cambios que restaurar"
+        },
+        "access": {
+          "title": "Configuración de todo el acceso",
+          "description": "Configuración de seguridad y acceso"
+        },
+        "hardware": {
+          "title": "Todo el hardware",
+          "description": "El hardware se puede editar mediante el siguiente formulario"
+        },
+        "hardware-limited": {
+          "summary": "{count} valores ajustados por tus permisos",
+          "review": "Revisarlo"
         }
       }
     },
@@ -2528,6 +2583,76 @@
       "not-found": "No se ha encontrado ningún resultado",
       "more-results": "{count} resultados más, afina tu búsqueda",
       "remove": "Quitar {name}"
+    },
+    "allowed-modal": {
+      "title": "Gestionar usuarios",
+      "description": {
+        "generic": "Edita los grupos y usuarios que pueden acceder",
+        "template": "Edita los grupos y usuarios que pueden acceder a esta plantilla",
+        "deployment": "Edita los grupos y usuarios que pueden acceder a este despliegue",
+        "media": "Edita los grupos y usuarios que pueden acceder a este medio"
+      },
+      "columns": {
+        "groups": "Grupos",
+        "users": "Usuarios",
+        "users-in-group": "Usuarios del grupo '{group_name}'"
+      },
+      "empty": {
+        "groups": "No hay grupos disponibles",
+        "users": "Este grupo no tiene usuarios",
+        "no-group": "Selecciona un grupo o busca usuarios",
+        "no-group-short-term": "Escribe al menos 2 caracteres para buscar usuarios"
+      },
+      "share-everyone": {
+        "unchecked": {
+          "title": "Compartir con todos",
+          "description": "Dar acceso a todos los usuarios de esta categoría"
+        },
+        "checked": {
+          "title": "Compartido con todos",
+          "description": "Todos los usuarios de esta categoría tendrán acceso"
+        }
+      },
+      "view-group": "Mostrar los usuarios del grupo '{group_name}'",
+      "unview-group": "Dejar de mostrar los usuarios del grupo '{group_name}'",
+      "require-selection": "Selecciona como mínimo un grupo o un usuario",
+      "no-changes": "Haz algún cambio para guardar",
+      "select-all": {
+        "groups": "Seleccionar todos los grupos",
+        "count": "{selected} de {total} seleccionados"
+      },
+      "search": {
+        "user-in-group": {
+          "placeholder": "Buscar un usuario en el grupo '{group_name}'",
+          "empty": "No se ha encontrado ningún usuario"
+        },
+        "user": {
+          "placeholder": "Buscar todos los usuarios",
+          "empty": "No se ha encontrado ningún usuario",
+          "truncated": "Mostrando {shown} de {total} resultados, afina tu búsqueda"
+        },
+        "group": {
+          "placeholder": "Buscar grupo",
+          "empty": "No se ha encontrado ningún grupo"
+        }
+      },
+      "cancel": "Cancelar",
+      "save": "Aceptar cambios"
+    },
+    "form-header": {
+      "cancel-creation": "Cancelar la creación",
+      "cancel-edit": "Cancelar la edición",
+      "previous": "Paso anterior",
+      "next": "Siguiente",
+      "discard-modal": {
+        "title": "¿Descartar y salir?",
+        "description": "Se perderá la información que has introducido.",
+        "cancel": "Seguir editando",
+        "confirm": "Descartar y salir"
+      }
+    },
+    "scroll-to-top": {
+      "label": "Ir arriba"
     }
   },
   "authentication": {

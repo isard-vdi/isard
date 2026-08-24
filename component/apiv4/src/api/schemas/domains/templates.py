@@ -409,8 +409,8 @@ class TemplateDetailsResponse(BaseModel):
     boot_order: list[TemplateNamedResource] = Field(
         description="List of IDs and names with the boot order that will be followed when booting the template. Each ID will be a valid boot id.",
     )
-    disk_bus: str = Field(
-        description="Type of disk bus used by the desktop, e.g., 'virtio', 'scsi'.",
+    disk_bus: TemplateNamedResource = Field(
+        description="ID and name of the disk bus used by the template, e.g., 'virtio', 'scsi'.",
     )
     interfaces: list[TemplateNamedResource] = Field(
         description="List of IDs and names with the network interfaces that will be attached to the template. Each ID will be a valid network interface id.",

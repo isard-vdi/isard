@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import {
@@ -9,6 +8,13 @@ import {
   checkStoragePoolCreationAvailabilityOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
+import {
+  toBastionTarget,
+  toDomainHardware,
+  toGuestProperties,
+  toImageInput,
+  toReservables
+} from '@/lib/domainPayload'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertModal, QuotaExceededModal } from '@/components/modal'
@@ -17,8 +23,11 @@ import router from '@/router'
 import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
 import Step1SelectTemplate from '@/components/new-desktop/Step1SelectTemplate.vue'
 import Step2ConfigureDesktop from '@/components/new-desktop/Step2ConfigureDesktop.vue'
+import type { DomainConfigurationPanelData } from '@/components/domain/DomainConfigurationPanel.vue'
 import Step3Creating from '@/components/new-desktop/Step3Creating.vue'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { FormHeader } from '@/components/form-header'
+
+import { cn } from '@/lib/utils'
 
 const { t } = useI18n()
 
@@ -66,6 +75,7 @@ const selectTemplate = (template: { id: string; image?: DomainImageOutput }) => 
   selectedTemplate.value = selectedTemplate.value?.id === template.id ? null : template
 }
 
+const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
 const step2Ref = ref<InstanceType<typeof Step2ConfigureDesktop> | null>(null)
 
 const nextButtonLabel = computed(() => {
@@ -73,6 +83,14 @@ const nextButtonLabel = computed(() => {
     return t('views.new-desktop.step-2.buttons.create-desktop.label')
   }
   return t('views.new-desktop.step-1.buttons.next.label')
+})
+
+const nextButtonTooltip = computed(() => {
+  if (currentStep.value !== 2 || step2Ref.value?.areFormsValid) return undefined
+  return {
+    title: t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.title'),
+    description: t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.description')
+  }
 })
 
 const isNextButtonDisabled = computed(() => {
@@ -104,6 +122,7 @@ const {
 } = useMutation({
   ...createDesktopMutation(),
   onSuccess: (data) => {
+    formHeaderRef.value?.allowLeave()
     router.push({
       name: 'single-desktop',
       params: {
@@ -118,14 +137,7 @@ const {
   }
 })
 
-const handleStep2Submit = (data: {
-  name: string
-  description: string
-  desktopKind: string
-  accessSettings: Record<string, unknown> | undefined
-  hardwareSettings: Record<string, unknown> | undefined
-  image: DomainImageOutput | undefined
-}) => {
+const handleStep2Submit = (data: DomainConfigurationPanelData) => {
   creationError.value = null
   currentStep.value = 3
 
@@ -134,25 +146,12 @@ const handleStep2Submit = (data: {
       template_id: selectedTemplate.value!.id,
       name: data.name,
       description: data.description,
-      persistent: data.desktopKind === 'persistent',
-      guest_properties: {
-        credentials: data.accessSettings?.credentials,
-        fullscreen: data.accessSettings?.fullscreen,
-        viewers: data.accessSettings?.viewers
-      },
-      hardware: {
-        vcpus: data.hardwareSettings?.vcpus,
-        memory: data.hardwareSettings?.memory,
-        disk_bus: data.hardwareSettings?.diskBus,
-        videos: [data.hardwareSettings?.videos],
-        boot_order: [data.hardwareSettings?.bootOrder],
-        interfaces: data.hardwareSettings?.interfaces,
-        isos: data.hardwareSettings?.isos,
-        floppies: data.hardwareSettings?.floppies
-      },
-      reservables: data.hardwareSettings?.reservables,
-      image: data.image ? { id: data.image.id, type: data.image.type } : undefined,
-      bastion_target: data.accessSettings?.bastion
+      persistent: data.kind === 'persistent',
+      guest_properties: toGuestProperties(data.access),
+      hardware: toDomainHardware(data.hardware),
+      reservables: toReservables(data.hardware),
+      image: toImageInput(data.image),
+      bastion_target: toBastionTarget(data.access?.bastion)
     }
   })
 }
@@ -197,52 +196,32 @@ const steps = computed<StepperFormStep[]>(() => {
     </template>
   </AlertModal>
 
-  <template v-if="quotaCheckPassed">
+  <div v-if="quotaCheckPassed" class="h-full flex flex-col">
     <!-- Header -->
-    <header
+    <FormHeader
       v-if="showStepsControls"
-      class="flex flex-col md:flex-row items-start max-w-480 w-full mx-auto mb-8 gap-4"
+      ref="formHeaderRef"
+      :cancel-to="{ name: 'desktops' }"
+      :confirm-cancel="!!step2Ref?.isDirty"
+      :show-previous="currentStep > 1"
+      :next-label="nextButtonLabel"
+      :next-disabled="isNextButtonDisabled"
+      :next-tooltip="nextButtonTooltip"
+      @previous="goToPreviousStep"
+      @next="handleNextClick"
     >
-      <div class="flex flex-row items-center gap-4 w-full">
-        <Button
-          :as="RouterLink"
-          :to="{ name: 'desktops' }"
-          hierarchy="link-color"
-          :icon="'arrow-left'"
-          class="pb-6 pt-0 pl-0"
-        >
-          {{ t('views.new-desktop.header.cancel') }}
-        </Button>
-      </div>
-      <div class="shrink-0 w-95">
-        <StepperForm v-model="currentStep" :steps="steps" />
-      </div>
-      <div class="flex flex-row items-center justify-end gap-4 w-full">
-        <Button hierarchy="link-color" :disabled="currentStep <= 1" @click="goToPreviousStep">
-          {{ t('views.new-desktop.header.previous') }}
-        </Button>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button class="min-w-32" :disabled="isNextButtonDisabled" @click="handleNextClick">
-                {{ nextButtonLabel }}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent
-              v-if="!step2Ref?.areFormsValid && currentStep === 2"
-              :title="$t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.title')"
-              :subtitle="
-                $t('views.new-desktop.step-2.buttons.create-desktop.disabled-tooltip.description')
-              "
-              side="top"
-            />
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-    </header>
-    <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
+      <template #stepper>
+        <div class="shrink-0 w-80">
+          <StepperForm v-model="currentStep" :steps="steps" />
+        </div>
+      </template>
+    </FormHeader>
+    <main
+      :class="cn(currentStep !== 2 ? 'max-w-320' : undefined)"
+      class="w-full mx-auto flex flex-1 flex-col gap-6"
+    >
       <!-- Content -->
-      <div>
+      <div class="flex flex-1 flex-col">
         <!-- Step 1 -->
         <div v-if="currentStep === 1">
           <Step1SelectTemplate
@@ -251,17 +230,19 @@ const steps = computed<StepperFormStep[]>(() => {
           />
         </div>
         <!-- Step 2 -->
-        <div v-if="currentStep >= 2" v-show="currentStep === 2">
+        <div v-if="currentStep >= 2" v-show="currentStep === 2" class="max-w-320 m-auto">
           <Alert v-if="creationError" variant="destructive" class="mb-6">
             <AlertTitle>{{ t(`api.new-desktop.errors.${creationError}.title`) }}</AlertTitle>
             <AlertDescription>{{
               t(`api.new-desktop.errors.${creationError}.description`)
             }}</AlertDescription>
           </Alert>
+          <!-- Keyed: the step stays mounted across steps and its template queries
+               are built once, so a new template needs a new instance. -->
           <Step2ConfigureDesktop
             ref="step2Ref"
+            :key="selectedTemplate?.id"
             :selected-template="selectedTemplate!"
-            :on-go-back="goToPreviousStep"
             @submit="handleStep2Submit"
           />
         </div>
@@ -271,5 +252,5 @@ const steps = computed<StepperFormStep[]>(() => {
         </div>
       </div>
     </main>
-  </template>
+  </div>
 </template>

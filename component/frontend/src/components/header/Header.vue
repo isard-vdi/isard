@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { type HTMLAttributes } from 'vue'
 import thingsUrl from '@/assets/img/things.svg'
+import { cn } from '@/lib/utils'
 
 interface Props {
   title: string
@@ -17,14 +18,17 @@ const props = withDefaults(defineProps<Props>(), {
 
 <template>
   <!-- TODO: Use figma variables -->
-  <div class="flex flex-col gap-[10px]">
-    <div class="flex flex-row gap-4">
-      <h1 class="text-gray-warm-700 text-xl sm:text-[24px] font-bold leading-8">
+  <div :class="cn('flex gap-4 items-center', props.class)">
+    <div class="flex gap-4 items-center min-w-0">
+      <h1 class="text-gray-warm-700 text-base sm:text-lg font-bold leading-6">
         {{ props.title }}
       </h1>
-      <img v-if="props.img" :src="thingsUrl" alt="things" class="h-4 mt-2 sm:mt-0 sm:h-8" />
+      <img v-if="props.img" :src="thingsUrl" alt="things" class="h-4 shrink-0" />
     </div>
-    <p v-if="props.subtitle" class="hidden md:block text-gray-warm-500 font-medium">
+    <p
+      v-if="props.subtitle"
+      class="flex-1 min-w-40 max-md:hidden line-clamp-2 text-gray-warm-500 font-medium pt-0.5"
+    >
       {{ props.subtitle }}
     </p>
   </div>

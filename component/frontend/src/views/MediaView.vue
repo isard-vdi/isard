@@ -14,14 +14,11 @@ import DataTable from '@/components/data-table/DataTable.vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
-import InputField from '@/components/input-field/InputField.vue'
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import Progress from '@/components/ui/progress/Progress.vue'
 import Badge from '@/components/badge/Badge.vue'
 import AvatarLabel from '@/components/avatar-label/AvatarLabel.vue'
 import Icon from '@/components/icon/Icon.vue'
-import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import { type MediaItemResponse, type UserSharedMedia } from '@/gen/oas/apiv4'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
@@ -31,6 +28,7 @@ import { useMutation } from '@tanstack/vue-query'
 import NewMediaModal from '@/components/media/NewMediaModal.vue'
 import { AlertModal, QuotaExceededModal } from '@/components/modal'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
+import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 
 const { t, d, te } = useI18n()
 const router = useRouter()
@@ -347,11 +345,17 @@ const headers = computed(() =>
   activeTab.value === 'user' ? userHeaders.value : sharedHeaders.value
 )
 
-const emptyMessage = (input: string) => {
-  return input.length > 0
-    ? t('components.empty-search.title')
-    : t('components.empty.title', { kind: t('domains.media', 0) })
-}
+// The shared tab loads lazily, so an unfetched cache still counts as pending.
+const mediaArePending = computed(() =>
+  activeTab.value === 'user'
+    ? userMediaIsPending.value
+    : sharedMediaIsFetching.value || !sharedMedia.value
+)
+
+// `currentMedia` is unfiltered, so it tells a first run from a fruitless search.
+const isFirstRun = computed(() => !mediaArePending.value && currentMedia.value.length === 0)
+
+const emptyKind = computed(() => (activeTab.value === 'shared' ? 'shared-media' : 'media'))
 
 const handleSharedTabClick = () => {
   if (!sharedMedia.value) {
@@ -382,46 +386,53 @@ const handleDeleteClick = (mediaId: string, mediaName: string) => {
 const closeDeleteModal = () => {
   deleteModalMediaData.value = null
 }
+
+const MEDIA_SEARCH_INPUT_ID = 'media-search'
 </script>
 
 <template>
-  <main class="flex flex-col gap-6 p-4 w-full max-w-420 m-auto">
+  <PageContainer>
     <div v-if="userMediaIsError || sharedMediaIsError" class="text-center text-error-500">
       <pre v-if="userMediaError">{{ userMediaError }}</pre>
       <pre v-if="sharedMediaError">{{ sharedMediaError }}</pre>
     </div>
-    <div class="flex flex-row w-full gap-4 items-center">
-      <Tabs v-model="activeTab" class="mr-auto">
-        <TabsList class="flex w-fit gap-[--spacing(1)] rounded-md">
-          <TabsTrigger
-            value="user"
-            :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
-          >
-            <Icon name="user-03" stroke-color="currentColor" />
-            {{ t('components.media.media-type.owned') }}
-          </TabsTrigger>
-          <TabsTrigger
-            value="shared"
-            :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
-            @click="handleSharedTabClick"
-          >
-            <Icon name="share-06" stroke-color="currentColor" />
-            {{ t('components.media.media-type.shared') }}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-      <Button icon="plus" :disabled="checkQuotaIsPending" @click="openNewMediaModal">
-        {{ t('components.media.new.button') }}
-      </Button>
-    </div>
-    <InputField
-      v-model="inputSearch"
-      :placeholder="t('views.media.filters.search.placeholder')"
-      icon="search-lg"
-      class="h-min w-full max-w-120 mr-auto"
-    />
+    <PageToolbar>
+      <template #tabs>
+        <Tabs v-model="activeTab">
+          <TabsList class="flex w-fit gap-[--spacing(1)] rounded-md">
+            <TabsTrigger
+              value="user"
+              :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
+            >
+              <Icon name="user-03" stroke-color="currentColor" />
+              {{ t('components.media.media-type.owned') }}
+            </TabsTrigger>
+            <TabsTrigger
+              value="shared"
+              :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
+              @click="handleSharedTabClick"
+            >
+              <Icon name="share-06" stroke-color="currentColor" />
+              {{ t('components.media.media-type.shared') }}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </template>
+      <template v-if="!isFirstRun" #search>
+        <SearchInput
+          :id="MEDIA_SEARCH_INPUT_ID"
+          v-model="inputSearch"
+          :placeholder="t('views.media.filters.search.placeholder')"
+        />
+      </template>
+      <template v-if="!isFirstRun" #actions>
+        <Button icon="plus" :disabled="checkQuotaIsPending" @click="openNewMediaModal">
+          {{ t('components.media.new.button') }}
+        </Button>
+      </template>
+    </PageToolbar>
 
-    <div v-if="userMediaIsPending || sharedMediaIsFetching" class="flex flex-col gap-4 mt-8">
+    <div v-if="mediaArePending" class="flex flex-col gap-4 mt-8">
       <div v-for="n in 4" :key="'skeleton-row-' + n">
         <Skeleton class="h-16 w-full rounded-r-2xl" />
       </div>
@@ -580,20 +591,19 @@ const closeDeleteModal = () => {
         </template>
       </DataTable>
     </template>
-    <template v-else>
-      <Empty class="md:flex-row-reverse mt-16">
-        <EmptyHeader>
-          <EmptyMedia variant="default" class="select-none pointer-events-none">
-            <img :src="templatesEmptyImg" />
-          </EmptyMedia>
-        </EmptyHeader>
-        <div class="flex flex-col items-start text-left gap-4">
-          <EmptyTitle class="text-[60px] leading-18 font-bold text-gray-warm-950">
-            {{ emptyMessage(inputSearch) }}
-          </EmptyTitle>
-        </div>
-      </Empty>
-    </template>
+    <EmptyState
+      v-else
+      :kind="emptyKind"
+      :variant="isFirstRun ? 'first-run' : 'no-results'"
+      :searching="inputSearch.length > 0"
+      @clear-search="inputSearch = ''"
+    >
+      <template v-if="isFirstRun && activeTab === 'user'" #actions>
+        <Button icon="plus" size="lg" :disabled="checkQuotaIsPending" @click="openNewMediaModal">
+          {{ t('components.media.new.button') }}
+        </Button>
+      </template>
+    </EmptyState>
     <!-- Delete Modal -->
     <AlertModal
       :open="deleteModalMediaData !== null"
@@ -626,7 +636,7 @@ const closeDeleteModal = () => {
         </Button>
       </template>
     </AlertModal>
-  </main>
+  </PageContainer>
 
   <!-- Quota Exceeded Modal -->
   <QuotaExceededModal

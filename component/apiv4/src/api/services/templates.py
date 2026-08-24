@@ -42,6 +42,7 @@ from isardvdi_common.lib.domains.templates.templates import (
 from isardvdi_common.lib.media.media import MediaProcessed as CommonMedia
 from isardvdi_common.lib.storage.storage import StorageProcessed as CommonStorage
 from isardvdi_common.models.boots import Boot as RethinkBoot
+from isardvdi_common.models.disk_bus import DiskBus as RethinkDiskBus
 from isardvdi_common.models.domain import Domain as RethinkDomain
 from isardvdi_common.models.interfaces import Interface as RethinkInterfaces
 from isardvdi_common.models.user import User as RethinkUser
@@ -401,9 +402,18 @@ class TemplateService:
                 f"Template with ID {template_id} not found.",
             )
 
+        item_allowed = RethinkDomain.get(template_id).get("allowed") or {}
+        selected = {
+            "groups": item_allowed.get("groups", False),
+            "users": item_allowed.get("users", False),
+        }
+
         return {
-            "selected": RethinkDomain.get(template_id)["allowed"],
+            "selected": selected,
             "available_groups": Alloweds.get_allowed_groups(category_id),
+            "indeterminate_groups": Alloweds.get_indeterminate_groups(
+                allowed_users=selected["users"],
+            ),
         }
 
     @staticmethod
@@ -473,6 +483,8 @@ class TemplateService:
         boots_names = RethinkBoot.get_boots_names()
         videos_names = RethinkVideos.get_videos_names()
         interfaces_names = RethinkInterfaces.get_interfaces_names()
+        disk_bus_names = RethinkDiskBus.get_disk_bus_names()
+        disk_bus = details["create_dict"]["hardware"].get("disk_bus", "default")
         parsed_details = {
             "name": details["name"],
             "description": details["description"],
@@ -498,7 +510,7 @@ class TemplateService:
                 }
                 for d in details["create_dict"]["hardware"].get("disks", [])
             ],
-            "disk_bus": details["create_dict"]["hardware"].get("disk_bus", ""),
+            "disk_bus": {"id": disk_bus, "name": disk_bus_names[disk_bus]},
             "videos": [
                 {"id": v, "name": videos_names[v]}
                 for v in details["create_dict"]["hardware"].get("videos", [])
