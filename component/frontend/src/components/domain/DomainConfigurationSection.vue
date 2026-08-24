@@ -49,6 +49,8 @@ const props = withDefaults(
     loading?: boolean
     /** Edit views drop the disclosure and render the forms straight away. */
     alwaysOpen?: boolean
+    /** Opts the summary in or out; by default it only shows while the forms are collapsed. */
+    showSummary?: boolean
     showBastionConfig?: boolean
     showCustomDomains?: boolean
     showDiskSize?: boolean
@@ -69,6 +71,7 @@ const props = withDefaults(
     desktopId: undefined,
     loading: false,
     alwaysOpen: false,
+    showSummary: undefined,
     showBastionConfig: false,
     showCustomDomains: false,
     showDiskSize: false,
@@ -168,6 +171,7 @@ const kindAccent = computed(() => domainKindStyle(summaryKind.value))
 const showConfiguration = ref(false)
 const isOpen = computed(() => props.alwaysOpen || showConfiguration.value)
 const disclosureRef = ref<HTMLElement | null>(null)
+const showSummary = computed(() => props.showSummary ?? !props.alwaysOpen)
 
 function scrollBehavior(): ScrollBehavior {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
@@ -330,10 +334,8 @@ defineExpose({
             />
           </Tooltip>
         </div>
-        <!-- The summary previews what the collapsed forms hold; where they are
-             open from the start it would only repeat them. -->
         <DomainSummary
-          v-if="!alwaysOpen"
+          v-if="showSummary"
           class="shadow-xs"
           :loading="loading"
           :kind="summaryKind"
