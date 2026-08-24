@@ -11,21 +11,22 @@ import { hasWireguardRequiringViewer } from '@/lib/viewers'
 // Access + hardware summary of a domain (desktop or template) in a single card.
 
 /** What the card reports; whoever renders it collects these from its own source. */
+// Both groups follow the order the forms below the card lay their inputs out.
 export interface DomainSummaryData {
   // Access
+  fullscreen?: boolean
+  viewers?: string[]
   // Nullable fields: that is what the generated domain/template responses carry.
   credentials?: {
     username?: string | null
     password?: string | null
   } | null
-  viewers?: string[]
-  fullscreen?: boolean
   // bastion?:
   // Hardware
   vcpu?: number
   memory?: number
-  diskBus?: string
   diskSize?: number
+  diskBus?: string
   videos?: string[]
   bootOrder?: string[]
   isos?: string[]
@@ -45,14 +46,14 @@ interface Props extends DomainSummaryData {
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
-  credentials: undefined,
   viewers: undefined,
+  credentials: undefined,
   vcpu: undefined,
   memory: undefined,
-  bootOrder: undefined,
-  diskBus: undefined,
   diskSize: undefined,
+  diskBus: undefined,
   videos: undefined,
+  bootOrder: undefined,
   isos: undefined,
   floppies: undefined,
   vgpus: undefined,
@@ -201,6 +202,27 @@ const hasHardwareInfo = computed(() => {
     <template v-else>
       <!-- Access -->
       <div v-if="hasAccessInfo" class="grid grid-cols-1 sm:grid-cols-4 gap-6">
+        <!-- Viewers -->
+        <div
+          v-if="hasViewers"
+          class="flex flex-col gap-4"
+          :class="showCredentials ? 'sm:col-span-3' : 'sm:col-span-4'"
+        >
+          <div class="flex items-center gap-2.5">
+            <div class="text-sm font-bold text-gray-warm-500">
+              {{ t('components.domain-access-summary.viewers.title') }}
+            </div>
+            <Separator class="flex-1" />
+          </div>
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <SummaryValue v-slot="{ changed }" v-bind="field('fullscreen', fullscreenLabel)">
+              <Icon name="expand-06" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+            <SummaryValue v-slot="{ changed }" v-bind="field('viewers', viewerLabels)">
+              <Icon name="monitor" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+          </div>
+        </div>
         <!-- Credentials -->
         <div
           v-if="showCredentials"
@@ -227,28 +249,6 @@ const hasHardwareInfo = computed(() => {
               v-bind="credential('password')"
             >
               <Icon name="passcode-lock" size="md" :stroke-color="iconColor(changed)" />
-            </SummaryValue>
-          </div>
-        </div>
-
-        <!-- Viewers -->
-        <div
-          v-if="hasViewers"
-          class="flex flex-col gap-4"
-          :class="showCredentials ? 'sm:col-span-3' : 'sm:col-span-4'"
-        >
-          <div class="flex items-center gap-2.5">
-            <div class="text-sm font-bold text-gray-warm-500">
-              {{ t('components.domain-access-summary.viewers.title') }}
-            </div>
-            <Separator class="flex-1" />
-          </div>
-          <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <SummaryValue v-slot="{ changed }" v-bind="field('fullscreen', fullscreenLabel)">
-              <Icon name="expand-06" size="md" :stroke-color="iconColor(changed)" />
-            </SummaryValue>
-            <SummaryValue v-slot="{ changed }" v-bind="field('viewers', viewerLabels)">
-              <Icon name="monitor" size="md" :stroke-color="iconColor(changed)" />
             </SummaryValue>
           </div>
         </div>
@@ -282,6 +282,12 @@ const hasHardwareInfo = computed(() => {
             >
               <Icon name="hdd" size="md" :stroke-color="iconColor(changed)" />
             </SummaryValue>
+            <SummaryValue v-if="props.diskBus" v-slot="{ changed }" v-bind="field('diskBus', text)">
+              <Icon name="hdd-02" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+            <SummaryValue v-if="props.videos" v-slot="{ changed }" v-bind="field('videos', list)">
+              <Icon name="wires" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
             <SummaryValue
               v-if="props.bootOrder"
               v-slot="{ changed }"
@@ -289,30 +295,6 @@ const hasHardwareInfo = computed(() => {
             >
               <Icon name="hdd" size="md" :stroke-color="iconColor(changed)" />
             </SummaryValue>
-            <SummaryValue v-if="props.diskBus" v-slot="{ changed }" v-bind="field('diskBus', text)">
-              <Icon name="hdd-02" size="md" :stroke-color="iconColor(changed)" />
-            </SummaryValue>
-            <SummaryValue v-if="props.videos" v-slot="{ changed }" v-bind="field('videos', list)">
-              <Icon name="wires" size="md" :stroke-color="iconColor(changed)" />
-            </SummaryValue>
-          </div>
-        </div>
-
-        <!-- Networks -->
-        <div v-if="hasNetworks" class="flex flex-col gap-4">
-          <div class="flex items-center gap-2.5">
-            <div class="text-sm font-bold text-gray-warm-500">
-              {{ t('components.domain-hardware-summary.networks.title') }}
-            </div>
-            <Separator class="flex-1" />
-          </div>
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <Icon name="modem-02" size="sm" stroke-color="gray-warm-700" />
-            <SummaryValue
-              v-for="network in props.interfaces"
-              :key="network"
-              v-bind="listItem('interfaces', network)"
-            />
           </div>
         </div>
 
@@ -356,6 +338,23 @@ const hasHardwareInfo = computed(() => {
             <SummaryValue v-slot="{ changed }" v-bind="field('vgpus', list)">
               <Icon name="gpu" size="md" :stroke-color="iconColor(changed)" />
             </SummaryValue>
+          </div>
+        </div>
+        <!-- Networks -->
+        <div v-if="hasNetworks" class="flex flex-col gap-4">
+          <div class="flex items-center gap-2.5">
+            <div class="text-sm font-bold text-gray-warm-500">
+              {{ t('components.domain-hardware-summary.networks.title') }}
+            </div>
+            <Separator class="flex-1" />
+          </div>
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <Icon name="modem-02" size="sm" stroke-color="gray-warm-700" />
+            <SummaryValue
+              v-for="network in props.interfaces"
+              :key="network"
+              v-bind="listItem('interfaces', network)"
+            />
           </div>
         </div>
       </div>
