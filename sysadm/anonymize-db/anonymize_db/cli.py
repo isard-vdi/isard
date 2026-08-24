@@ -18,7 +18,7 @@ from pathlib import Path
 from . import dump as dump_mod
 from . import fake_storage
 from .progress import fmt_dur, human_bytes
-from .prune import Pruner
+from .prune import DEFAULT_EMPTY_TABLES, Pruner, parse_empty_tables
 from .safety import (
     assert_devel_usage,
     confirm_destructive_target,
@@ -93,8 +93,32 @@ def _check_workdir_space(workdir: Path, input_path: str | None) -> None:
         )
 
 
+def _empty_table(json_path: Path) -> int:
+    """Replace a table's rows with an empty array, keeping its `.info`.
+
+    The `.info` file beside it carries the primary key and every secondary
+    index, and nothing here touches it, so the table is restored complete and
+    simply has no rows. This is the same shape the drop-scrubbers already
+    produce for `hypervisors`, `gpus` and friends.
+
+    Returns the number of rows dropped, for the summary.
+    """
+    rows = 0
+    with json_path.open() as fin:
+        for _ in iter_json_array(fin):
+            rows += 1
+    tmp = json_path.with_name(json_path.name + ".tmp")
+    with tmp.open("w") as fout:
+        JsonArrayWriter(fout).close()
+    os.replace(tmp, json_path)
+    return rows
+
+
 def _scrub_dir_progress(
-    db_dir: Path, scrubber: Scrubber, pruner: Pruner | None = None
+    db_dir: Path,
+    scrubber: Scrubber,
+    pruner: Pruner | None = None,
+    empty_tables: tuple[str, ...] = (),
 ) -> None:
     """Like _scrub_dir but logs per-table progress."""
     table_scrubbers = get_scrubbers(scrubber)
@@ -103,11 +127,25 @@ def _scrub_dir_progress(
     sizes = [p.stat().st_size for p in json_files]
     total_bytes = sum(sizes) or 1
     done = 0
+    emptied: dict[str, int] = {}
     t0 = time.monotonic()
     for i, json_path in enumerate(json_files, 1):
         table = json_path.stem
         size = sizes[i - 1]
         el = time.monotonic() - t0
+        if table in empty_tables:
+            # Emptied before any other work: the rows are not scrubbed, not
+            # pruned and not visited by the cross-table pass, which is where
+            # the time saving comes from on the big time-series tables.
+            log.info(
+                "  scrub [%2d/%2d] %-22s %9s | emptied", i, n, table, human_bytes(size)
+            )
+            try:
+                emptied[table] = _empty_table(json_path)
+            except ValueError:
+                log.warning("table %s is not a JSON array; left unchanged", table)
+            done += size
+            continue
         # byte-weighted ETA from the work completed so far (big tables dominate)
         eta = f"~{fmt_dur(el / done * (total_bytes - done))} left" if done else ""
         log.info(
@@ -149,6 +187,20 @@ def _scrub_dir_progress(
             "  pruned %d old/deleted rows: %s",
             sum(pruner.counts.values()),
             ", ".join(f"{t} {c}" for t, c in sorted(pruner.counts.items())),
+        )
+    if emptied:
+        log.info(
+            "  emptied %d rows from %d table(s): %s",
+            sum(emptied.values()),
+            len(emptied),
+            ", ".join(f"{t} {c}" for t, c in sorted(emptied.items())),
+        )
+    missing = sorted(set(empty_tables) - {p.stem for p in json_files})
+    if missing:
+        log.warning(
+            "  --empty-tables named %d table(s) not present in this dump: %s",
+            len(missing),
+            ", ".join(missing),
         )
     _cross_table_pass(db_dir, scrubber)
 
@@ -418,7 +470,13 @@ def _print_report(scrubber: Scrubber) -> None:
         log.info("  %-22s %d", t, scrubber.counts[t])
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """The CLI parser, split out of main() so it can be exercised on its own.
+
+    Rendering the help is a real test: argparse interpolates `%` in help
+    strings, so a literal percentage in one of them raises TypeError at
+    --help time and nothing else in the suite would notice.
+    """
     p = argparse.ArgumentParser(
         prog="anonymize-db",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -557,6 +615,21 @@ def main(argv: list[str] | None = None) -> int:
         help="keep only the last DAYS (default 30) of the time-series tables: "
         "logs_desktops, logs_users, usage_consumption.",
     )
+    g_trim.add_argument(
+        "--empty-tables",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="T1,T2,...",
+        help="carry these tables EMPTY: their rows are dropped whole, never "
+        "scrubbed. The table itself is preserved with its primary key and "
+        "every secondary index, so a restore gets it complete and with no "
+        "rows. Give the flag with no value for the default set ("
+        + ", ".join(DEFAULT_EMPTY_TABLES)
+        + "), which is about 80%% of a production dump and none of it needed "
+        "to exercise the product. Note this empties the admin users/desktops "
+        "logs and the usage history, so do not use it when testing those.",
+    )
 
     g_rst = p.add_argument_group(
         "restore (opt-in)",
@@ -661,6 +734,11 @@ def main(argv: list[str] | None = None) -> int:
     g_misc.add_argument(
         "-v", "--verbose", action="store_true", help="enable DEBUG logging"
     )
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = build_parser()
     args = p.parse_args(argv)
     fake_only = bool(
         args.with_fake_storage
@@ -751,13 +829,15 @@ def main(argv: list[str] | None = None) -> int:
                 prune_deleted_days=args.prune_deleted_days,
                 cap_history_days=args.cap_history_days,
             )
-            if pruner.active:
+            empty_tables = parse_empty_tables(args.empty_tables)
+            if pruner.active or empty_tables:
                 log.info(
-                    "trim: prune-deleted=%s cap-history=%s",
+                    "trim: prune-deleted=%s cap-history=%s empty=%s",
                     f"{args.prune_deleted_days}d" if args.prune_deleted_days else "off",
                     f"{args.cap_history_days}d" if args.cap_history_days else "off",
+                    ",".join(empty_tables) if empty_tables else "off",
                 )
-            _scrub_dir_progress(db_dir, scrubber, pruner)
+            _scrub_dir_progress(db_dir, scrubber, pruner, empty_tables)
             log.info("repacking → %s", args.output)
             _repack(db_dir.parent, args.output)
             _print_report(scrubber)
