@@ -21,6 +21,10 @@ RESULT_STREAM = "stream:task-results"
 # Progress heartbeats are disposable and high-volume — their own stream so they
 # can never evict an unread result from a shared budget.
 PROGRESS_STREAM = "stream:progress"
+# Where the consumer dead-letters an entry that failed every redelivery. Named
+# here with its siblings so a reader of the streams — the change-handler that
+# writes it, the admin gauge that counts it — cannot drift to two spellings.
+DEAD_STREAM = f"{RESULT_STREAM}:dead"
 
 # Hard OOM floor for the result stream. The change-handler consumer drives a MINID
 # trim down to its read+ACK frontier (stopgap ①), so this large cap only
