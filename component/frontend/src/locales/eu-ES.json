@@ -1456,8 +1456,7 @@
       }
     },
     "domain-summary": {
-      "changed": "Aldatutako balioa",
-      "removed": "Kendutako balioa"
+      "changed": "Aldatutako balioa"
     },
     "date-picker": {
       "today": "Gaur",

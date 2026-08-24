@@ -1850,8 +1850,7 @@
       }
     },
     "domain-summary": {
-      "changed": "Valor modificado",
-      "removed": "Valor eliminado"
+      "changed": "Valor modificado"
     },
     "datatable": {
       "empty": "No hay escritorios disponibles",

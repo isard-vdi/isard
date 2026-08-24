@@ -2357,8 +2357,7 @@
       }
     },
     "domain-summary": {
-      "changed": "Modified value",
-      "removed": "Removed value"
+      "changed": "Modified value"
     },
     "date-picker": {
       "today": "Today",

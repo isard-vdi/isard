@@ -1794,8 +1794,7 @@
       }
     },
     "domain-summary": {
-      "changed": "Valor modificat",
-      "removed": "Valor eliminat"
+      "changed": "Valor modificat"
     },
     "viewers-selector": {
       "browser-viewers": {

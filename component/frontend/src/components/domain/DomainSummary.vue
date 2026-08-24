@@ -67,22 +67,23 @@ const { t } = useI18n()
 const sameValue = (a: unknown, b: unknown) =>
   JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
-/** Renders a value against what its field held before the edits. */
+/** Renders a value, flagged when its field has moved since the edits started. */
 function field<K extends keyof DomainSummaryData>(
   key: K,
   format: (value: DomainSummaryData[K]) => string
 ) {
   const before = props.previous?.[key]
   // A baseline that has not seeded itself is missing, not empty.
-  const changed = before !== undefined && !sameValue(props[key], before)
-  return { value: format(props[key]), changed, previous: changed ? format(before) : null }
+  return {
+    value: format(props[key]),
+    changed: before !== undefined && !sameValue(props[key], before)
+  }
 }
 
 function credential(name: 'username' | 'password') {
   const current = props.credentials?.[name] ?? ''
   const before = props.previous?.credentials?.[name]
-  const changed = before !== undefined && before !== current
-  return { value: current, changed, previous: changed ? before : null }
+  return { value: current, changed: before !== undefined && before !== current }
 }
 
 type ListKey = 'interfaces' | 'isos' | 'floppies'
@@ -91,9 +92,6 @@ const listItem = (key: ListKey, item: string) => {
   const before = props.previous?.[key]
   return { value: item, changed: before !== undefined && !before.includes(item) }
 }
-
-const removedItems = (key: ListKey) =>
-  (props.previous?.[key] ?? []).filter((item) => !(props[key] ?? []).includes(item))
 
 const list = (values?: string[] | null) => values?.join(', ') ?? ''
 const text = (value?: string) => value ?? ''
@@ -129,16 +127,9 @@ const hasSystemInfo = computed(() => {
   )
 })
 
-const hasNetworks = computed(
-  () => Boolean(props.interfaces?.length) || removedItems('interfaces').length > 0
-)
+const hasNetworks = computed(() => Boolean(props.interfaces?.length))
 
-const hasPeripherals = computed(
-  () =>
-    Boolean(props.isos?.length || props.floppies?.length) ||
-    removedItems('isos').length > 0 ||
-    removedItems('floppies').length > 0
-)
+const hasPeripherals = computed(() => Boolean(props.isos?.length || props.floppies?.length))
 
 const hasReservables = computed(() => Boolean(props.vgpus && props.vgpus.length > 0))
 
@@ -308,13 +299,6 @@ const hasHardwareInfo = computed(() => {
             <div v-for="network in props.interfaces" :key="network" class="flex items-center gap-2">
               <SummaryValue v-bind="listItem('interfaces', network)" />
             </div>
-            <div
-              v-for="network in removedItems('interfaces')"
-              :key="`removed-${network}`"
-              class="flex items-center gap-2"
-            >
-              <SummaryValue :value="network" removed />
-            </div>
           </div>
         </div>
 
@@ -331,25 +315,9 @@ const hasHardwareInfo = computed(() => {
               <Icon name="disc-02" size="sm" stroke-color="gray-warm-700" />
               <SummaryValue v-bind="listItem('isos', iso)" />
             </div>
-            <div
-              v-for="iso in removedItems('isos')"
-              :key="`removed-${iso}`"
-              class="flex items-center gap-2"
-            >
-              <Icon name="disc-02" size="sm" stroke-color="gray-warm-400" />
-              <SummaryValue :value="iso" removed />
-            </div>
             <div v-for="floppy in props.floppies" :key="floppy" class="flex items-center gap-2">
               <Icon name="save-01" size="sm" stroke-color="gray-warm-700" />
               <SummaryValue v-bind="listItem('floppies', floppy)" />
-            </div>
-            <div
-              v-for="floppy in removedItems('floppies')"
-              :key="`removed-${floppy}`"
-              class="flex items-center gap-2"
-            >
-              <Icon name="save-01" size="sm" stroke-color="gray-warm-400" />
-              <SummaryValue :value="floppy" removed />
             </div>
           </div>
         </div>
