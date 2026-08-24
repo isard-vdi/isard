@@ -2134,18 +2134,14 @@
         },
         "networks": {
           "label": "Xarxes",
-          "placeholder": "Selecciona xarxes",
-          "modal": {
-            "title": "Configura les xarxes",
-            "description": "Afegeix, elimina o reordena les xarxes assignades a aquest domini",
-            "selected": "Xarxes seleccionades",
-            "drop-here": "Arrossega xarxes aquí",
-            "available": "Xarxes disponibles",
-            "empty-selected": "Arrossega xarxes aquí o prem + per afegir-ne",
-            "empty-available": "Totes les xarxes estan seleccionades",
-            "cancel": "Cancel·la",
-            "save": "Desa"
-          }
+          "interfaces-label": "Interfícies",
+          "placeholder": "Afegeix una xarxa",
+          "empty": "Encara no hi ha cap xarxa. Tria'n una amb el selector de dalt.",
+          "order-hint": "Arrossega les xarxes o prem ← / → per definir l'ordre de les interfícies dins de l'escriptori",
+          "chip-label": "{name}, posició {position}",
+          "chip-label-required": "{name}, posició {position}, necessària",
+          "required": "Necessària",
+          "remove": "Treu {name}"
         },
         "limited": {
           "warning": {

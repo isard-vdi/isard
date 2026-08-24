@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import {
   hasWireguardRequiringViewer,
+  WIREGUARD_INTERFACE_ID,
   stripWireguardRequiringViewers,
   getWireguardRequiringViewers,
   viewerLabels
@@ -298,8 +299,8 @@ watch(
 watch(
   () => props.hardwareInterfaces,
   (newInterfaces, oldInterfaces) => {
-    const had = (oldInterfaces ?? []).includes('wireguard')
-    const has = (newInterfaces ?? []).includes('wireguard')
+    const had = (oldInterfaces ?? []).includes(WIREGUARD_INTERFACE_ID)
+    const has = (newInterfaces ?? []).includes(WIREGUARD_INTERFACE_ID)
     if (had && !has && hasRdpViewer.value) {
       const current = (form.getFieldValue('viewers') as string[] | undefined) ?? []
       removedViewers.value = getWireguardRequiringViewers(current)
@@ -319,10 +320,10 @@ watch(
 
 watch(hasRdpViewer, (next, prev) => {
   if (!next || prev) return
-  if ((props.hardwareInterfaces ?? []).includes('wireguard')) return
+  if ((props.hardwareInterfaces ?? []).includes(WIREGUARD_INTERFACE_ID)) return
   if (!props.onRequestAddInterface) return
 
-  const added = props.onRequestAddInterface('wireguard')
+  const added = props.onRequestAddInterface(WIREGUARD_INTERFACE_ID)
 
   if (added === true) {
     toast.info(t('components.domain.access.wireguard-added.title'), {

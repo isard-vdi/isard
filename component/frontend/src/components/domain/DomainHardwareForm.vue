@@ -2,7 +2,7 @@
 import { revalidateLogic, useForm } from '@tanstack/vue-form'
 import { useI18n } from 'vue-i18n'
 import { InputField } from '@/components/input-field'
-import { reactive, computed, ref, watch } from 'vue'
+import { reactive, computed, watch } from 'vue'
 import { z } from 'zod'
 import {
   Field,
@@ -33,9 +33,9 @@ import {
 import { Icon } from '@/components/icon'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { SearchableTags } from '@/components/searchable-tags'
-import SelectNetworksModal from '@/components/modal/SelectNetworksModal.vue'
-import { Button } from '@/components/ui/button'
+import NetworkSelector from '@/components/domain/NetworkSelector.vue'
 import { MAX_VGPU_PROFILES, NO_VGPU_ID, isVgpuSelectable } from '@/lib/vgpuSelection'
+import { WIREGUARD_INTERFACE_ID } from '@/lib/viewers'
 import HardwareLimitChip from '@/components/domain/HardwareLimitChip.vue'
 import type { LimitedHardware, LimitedHardwareValue } from '@/lib/hardwareLimits'
 import {
@@ -68,6 +68,8 @@ interface Props {
     vgpus?: string[]
   }
   interfaces?: string[]
+  // Interfaces another form depends on (the access form needs wireguard for RDP).
+  requiredInterfaces?: string[]
   limitedHardware?: LimitedHardware | null
 }
 
@@ -87,6 +89,7 @@ const props = withDefaults(defineProps<Props>(), {
   floppies: () => [],
   reservables: () => ({ vgpus: undefined }),
   interfaces: () => [],
+  requiredInterfaces: () => [],
   limitedHardware: null
 })
 
@@ -366,14 +369,6 @@ function getNamedResources(ids: string[] | undefined, options: { id: string; nam
   })
 }
 
-// Add state for modal
-const showNetworksModal = ref(false)
-
-// Handler for saving networks
-const handleSaveNetworks = (interfaces: string[]) => {
-  form.setFieldValue('interfaces', interfaces)
-}
-
 // Expose method to get form data to parent components
 const getFormData = () => ({
   vcpus: form.getFieldValue('vcpus'),
@@ -463,7 +458,7 @@ function removeInterface(ifaceId: string) {
 }
 
 const wireguardAvailable = computed(() =>
-  networksOptions.value.some((iface) => iface.id === 'wireguard')
+  networksOptions.value.some((iface) => iface.id === WIREGUARD_INTERFACE_ID)
 )
 
 watch(interfacesStore, (newInterfaces) => {
@@ -787,33 +782,24 @@ defineExpose({
           </h4>
           <Separator class="flex-1" />
         </div>
-        <form.Field v-slot="{ field }" name="interfaces">
-          <Field>
-            <HardwareLimitChip :limited="limitedField('interfaces')" />
-            <div class="flex flex-col gap-2 items-start">
-              <!-- Add button to open modal -->
-              <Button
-                type="button"
-                hierarchy="link-color"
-                size="md"
-                class="cursor-pointer"
-                icon="edit-02"
-                @click="showNetworksModal = true"
-              >
-                {{ t('components.domain.hardware.networks.modal.title') }}
-              </Button>
-
-              <!-- Add modal -->
-              <SelectNetworksModal
-                :open="showNetworksModal"
-                :selected-networks="field.state.value as string[]"
-                :available-networks="networksOptions"
-                @close="showNetworksModal = false"
-                @save="handleSaveNetworks"
+        <div class="grid grid-cols-1 gap-2.5 md:gap-5">
+          <form.Field v-slot="{ field }" name="interfaces">
+            <Field>
+              <FieldLabel :for="field.name">
+                {{ $t('components.domain.hardware.networks.interfaces-label') }}
+              </FieldLabel>
+              <NetworkSelector
+                :id="field.name"
+                :model-value="(field.state.value as string[]) ?? []"
+                :options="networksOptions"
+                :placeholder="t('components.domain.hardware.networks.placeholder')"
+                :required-ids="props.requiredInterfaces"
+                @update:model-value="field.handleChange($event)"
               />
-            </div>
-          </Field>
-        </form.Field>
+              <HardwareLimitChip :limited="limitedField('interfaces')" />
+            </Field>
+          </form.Field>
+        </div>
       </section>
     </FieldGroup>
   </form>

@@ -1,3 +1,6 @@
+/** Interface id the RDP viewers need attached to the domain. */
+export const WIREGUARD_INTERFACE_ID = 'wireguard'
+
 export const WIREGUARD_REQUIRING_VIEWERS = ['browser_rdp', 'file_rdpgw', 'file_rdpvpn'] as const
 
 export type WireguardRequiringViewer = (typeof WIREGUARD_REQUIRING_VIEWERS)[number]

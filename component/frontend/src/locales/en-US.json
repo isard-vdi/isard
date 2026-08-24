@@ -1472,18 +1472,14 @@
         },
         "networks": {
           "label": "Networks",
-          "placeholder": "Select networks",
-          "modal": {
-            "title": "Configure Networks",
-            "description": "Add, delete or reorder the networks assigned to this domain",
-            "selected": "Selected Networks",
-            "drop-here": "Drop networks here",
-            "available": "Available Networks",
-            "empty-selected": "Drag networks here or click + to add",
-            "empty-available": "All networks are selected",
-            "cancel": "Cancel",
-            "save": "Save"
-          }
+          "interfaces-label": "Interfaces",
+          "placeholder": "Add a network",
+          "empty": "No networks yet. Pick one with the selector above.",
+          "order-hint": "Drag the networks or press ← / → to set the order the interfaces get inside the desktop",
+          "chip-label": "{name}, position {position}",
+          "chip-label-required": "{name}, position {position}, required",
+          "required": "Required",
+          "remove": "Remove {name}"
         },
         "limited": {
           "warning": {
