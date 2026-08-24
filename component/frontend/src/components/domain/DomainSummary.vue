@@ -93,6 +93,8 @@ const listItem = (key: ListKey, item: string) => {
   return { value: item, changed: before !== undefined && !before.includes(item) }
 }
 
+const iconColor = (changed: boolean) => (changed ? 'brand-700' : 'gray-warm-700')
+
 const list = (values?: string[] | null) => values?.join(', ') ?? ''
 const text = (value?: string) => value ?? ''
 const viewerLabels = (viewers?: string[]) =>
@@ -212,14 +214,20 @@ const hasHardwareInfo = computed(() => {
             <Separator class="flex-1" />
           </div>
           <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
-            <div v-if="props.credentials?.username" class="flex items-center gap-2">
-              <Icon name="user-03" size="md" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="credential('username')" />
-            </div>
-            <div v-if="props.credentials?.password" class="flex items-center gap-2">
-              <Icon name="passcode-lock" size="md" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="credential('password')" />
-            </div>
+            <SummaryValue
+              v-if="props.credentials?.username"
+              v-slot="{ changed }"
+              v-bind="credential('username')"
+            >
+              <Icon name="user-03" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+            <SummaryValue
+              v-if="props.credentials?.password"
+              v-slot="{ changed }"
+              v-bind="credential('password')"
+            >
+              <Icon name="passcode-lock" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
           </div>
         </div>
 
@@ -236,14 +244,12 @@ const hasHardwareInfo = computed(() => {
             <Separator class="flex-1" />
           </div>
           <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <div class="flex items-center gap-2">
-              <Icon name="expand-06" size="md" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="field('fullscreen', fullscreenLabel)" />
-            </div>
-            <div class="flex items-center gap-2">
-              <Icon name="monitor" size="md" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="field('viewers', viewerLabels)" />
-            </div>
+            <SummaryValue v-slot="{ changed }" v-bind="field('fullscreen', fullscreenLabel)">
+              <Icon name="expand-06" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+            <SummaryValue v-slot="{ changed }" v-bind="field('viewers', viewerLabels)">
+              <Icon name="monitor" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
           </div>
         </div>
       </div>
@@ -259,30 +265,36 @@ const hasHardwareInfo = computed(() => {
             <Separator class="flex-1" />
           </div>
           <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <div v-if="props.vcpu" class="flex items-center gap-2">
-              <Icon name="cpu" size="md" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="field('vcpu', vcpuLabel)" />
-            </div>
-            <div v-if="props.memory" class="flex items-center gap-2">
-              <Icon name="memory" size="md" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="field('memory', memoryLabel)" />
-            </div>
-            <div v-if="props.diskSize" class="flex items-center gap-2">
-              <Icon name="hdd" size="md" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="field('diskSize', diskSizeLabel)" />
-            </div>
-            <div v-if="props.bootOrder" class="flex items-center gap-2">
-              <Icon name="hdd" size="md" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="field('bootOrder', list)" />
-            </div>
-            <div v-if="props.diskBus" class="flex items-center gap-2">
-              <Icon name="hdd-02" size="md" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="field('diskBus', text)" />
-            </div>
-            <div v-if="props.videos" class="flex items-center gap-2">
-              <Icon name="wires" size="md" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="field('videos', list)" />
-            </div>
+            <SummaryValue v-if="props.vcpu" v-slot="{ changed }" v-bind="field('vcpu', vcpuLabel)">
+              <Icon name="cpu" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+            <SummaryValue
+              v-if="props.memory"
+              v-slot="{ changed }"
+              v-bind="field('memory', memoryLabel)"
+            >
+              <Icon name="memory" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+            <SummaryValue
+              v-if="props.diskSize"
+              v-slot="{ changed }"
+              v-bind="field('diskSize', diskSizeLabel)"
+            >
+              <Icon name="hdd" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+            <SummaryValue
+              v-if="props.bootOrder"
+              v-slot="{ changed }"
+              v-bind="field('bootOrder', list)"
+            >
+              <Icon name="hdd" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+            <SummaryValue v-if="props.diskBus" v-slot="{ changed }" v-bind="field('diskBus', text)">
+              <Icon name="hdd-02" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+            <SummaryValue v-if="props.videos" v-slot="{ changed }" v-bind="field('videos', list)">
+              <Icon name="wires" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
           </div>
         </div>
 
@@ -296,9 +308,11 @@ const hasHardwareInfo = computed(() => {
           </div>
           <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
             <Icon name="modem-02" size="sm" stroke-color="gray-warm-700" />
-            <div v-for="network in props.interfaces" :key="network" class="flex items-center gap-2">
-              <SummaryValue v-bind="listItem('interfaces', network)" />
-            </div>
+            <SummaryValue
+              v-for="network in props.interfaces"
+              :key="network"
+              v-bind="listItem('interfaces', network)"
+            />
           </div>
         </div>
 
@@ -311,14 +325,22 @@ const hasHardwareInfo = computed(() => {
             <Separator class="flex-1" />
           </div>
           <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <div v-for="iso in props.isos" :key="iso" class="flex items-center gap-2">
-              <Icon name="disc-02" size="sm" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="listItem('isos', iso)" />
-            </div>
-            <div v-for="floppy in props.floppies" :key="floppy" class="flex items-center gap-2">
-              <Icon name="save-01" size="sm" stroke-color="gray-warm-700" />
-              <SummaryValue v-bind="listItem('floppies', floppy)" />
-            </div>
+            <SummaryValue
+              v-for="iso in props.isos"
+              :key="iso"
+              v-bind="listItem('isos', iso)"
+              v-slot="{ changed }"
+            >
+              <Icon name="disc-02" size="sm" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
+            <SummaryValue
+              v-for="floppy in props.floppies"
+              :key="floppy"
+              v-bind="listItem('floppies', floppy)"
+              v-slot="{ changed }"
+            >
+              <Icon name="save-01" size="sm" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
           </div>
         </div>
 
@@ -331,8 +353,9 @@ const hasHardwareInfo = computed(() => {
             <Separator class="flex-1" />
           </div>
           <div v-if="props.vgpus" class="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <Icon name="gpu" size="md" stroke-color="gray-warm-700" />
-            <SummaryValue v-bind="field('vgpus', list)" />
+            <SummaryValue v-slot="{ changed }" v-bind="field('vgpus', list)">
+              <Icon name="gpu" size="md" :stroke-color="iconColor(changed)" />
+            </SummaryValue>
           </div>
         </div>
       </div>
