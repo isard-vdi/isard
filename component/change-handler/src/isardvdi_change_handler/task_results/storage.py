@@ -321,7 +321,7 @@ async def handle_update_status(redis_manager, task, statuses=None):
                 for item_id in item_ids:
                     if not model.exists(item_id):
                         # The row was deleted while its chain was still
-                        # settling. init_document inserts, so writing the
+                        # settling. insert_document inserts, so writing the
                         # status here would re-create it as a zombie with
                         # nothing but an id and a status.
                         continue

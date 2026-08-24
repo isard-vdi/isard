@@ -99,8 +99,8 @@ def test_storage_add_writes_the_payload_it_was_given():
     with patch.object(storage, "Storage") as mock_storage_cls:
         storage.handle_storage_add(_task(), id="s1", status="ready", user_id="u1")
 
-    mock_storage_cls.init_document.assert_called_once_with(
-        id="s1", status="ready", user_id="u1"
+    mock_storage_cls.insert_document.assert_called_once_with(
+        {"id": "s1", "status": "ready", "user_id": "u1"}, conflict="update"
     )
 
 
@@ -141,7 +141,9 @@ async def test_update_status_skips_an_unknown_item_class_and_keeps_going():
             },
         )
 
-    model.init_document.assert_called_once_with("s1", status="ready")
+    model.insert_document.assert_called_once_with(
+        {"id": "s1", "status": "ready"}, conflict="update"
+    )
     mock_send.assert_awaited_once()
 
 
