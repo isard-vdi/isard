@@ -106,7 +106,10 @@ const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
 </script>
 
 <template>
-  <PageToolbar v-if="!props.hideToolbar" class="mb-4">
+  <PageToolbar v-if="!props.hideToolbar">
+    <template v-if="$slots.tabs" #tabs>
+      <slot name="tabs" />
+    </template>
     <template #search>
       <SearchInput
         :id="TEMPLATES_SEARCH_INPUT_ID"
