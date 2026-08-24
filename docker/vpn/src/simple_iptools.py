@@ -111,7 +111,9 @@ class UserIpTools(object):
                 user = r.table("users").get(user_id).run(conn)
             user_addr = user["vpn"]["wireguard"]["Address"]
         except Exception as e:
-            log.error("EXCEPTION READING USERS: " + e)
+            # str(e): concatenating the exception itself raised a TypeError
+            # from inside the handler, replacing the real cause with its own.
+            log.error("EXCEPTION READING USERS: " + str(e))
             return
 
         log.debug(

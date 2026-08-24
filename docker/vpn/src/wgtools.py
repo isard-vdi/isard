@@ -734,6 +734,52 @@ PostUp = %s
     #        [hypervisor]
     #        [IPv4Network('192.168.128.0/23'), IPv4Network('192.168.130.0/23'), IPv4Network('192.168.132.0/23'), IPv4Network('192.168.134.0/23'), IPv4Network('192.168.136.0/23'), IPv4Network('192.168.138.0/23'), IPv4Network('192.168.140.0/23'), IPv4Network('192.168.142.0/23')]
 
+    # ------------------------------------------------------------------ #
+    # Applied-desktop index
+    #
+    # The rules and the OVS flow are installed from an UPDATE event carrying
+    # viewer.guest_ip, and reaped from a later event that has to name the same
+    # ip. The changefeed squashes changes to a document inside 0.5 s, so a
+    # domain deleted right after its guest ip was written arrives with an
+    # old_val from before that write: no viewer, no ip, nothing to reap by.
+    # The service knows what it installed; it should not need the event to
+    # tell it.
+    # ------------------------------------------------------------------ #
+
+    @property
+    def _applied_desktops(self):
+        index = self.__dict__.get("_applied_desktops_index")
+        if index is None:
+            index = {}
+            self.__dict__["_applied_desktops_index"] = index
+        return index
+
+    def _remember_applied_desktop(self, domain_id, user, guest_ip):
+        if domain_id and guest_ip:
+            self._applied_desktops[domain_id] = {"user": user, "guest_ip": guest_ip}
+
+    def _forget_applied_desktop(self, domain_id):
+        self._applied_desktops.pop(domain_id, None)
+
+    def _resolve_applied_desktop(self, old_val):
+        """What to reap for a deleted domain, or ``None`` if it had nothing.
+
+        The event wins when it carries the ip -- it is the freshest view. The
+        index is the fallback for a squashed delete.
+        """
+        guest_ip = (old_val.get("viewer") or {}).get("guest_ip")
+        if guest_ip:
+            return {"user": old_val.get("user"), "guest_ip": guest_ip}
+        remembered = self._applied_desktops.get(old_val.get("id"))
+        if remembered is not None:
+            log.info(
+                "desktop_iptables: domain %s was deleted without a viewer in the "
+                "event; reaping %s from the applied-desktop index",
+                old_val.get("id"),
+                remembered["guest_ip"],
+            )
+        return remembered
+
     def desktop_iptables(self, data):
         old_val = data.get("old_val")
         new_val = data.get("new_val")
@@ -741,11 +787,23 @@ PostUp = %s
             # New. Do nothing as will not have ip yet.
             return
         elif new_val is None:
-            # Deleted. We should ensure that no rules are kept for this domain.
-            old_viewer = old_val.get("viewer", {})
-            guest_ip = old_viewer.get("guest_ip")
-            if guest_ip:
-                self._remove_table2_flow(guest_ip)
+            # Deleted. Reap everything desktop_add installed, not just the flow:
+            # a desktop deleted while still started never passes through the
+            # "viewer cleared" update below, so this is its only cleanup.
+            applied = self._resolve_applied_desktop(old_val)
+            if applied is None:
+                # Overwhelmingly the ordinary case: the domain never started, or
+                # it was stopped first and the "viewer cleared" update already
+                # reaped it. Debug, not error -- one line per deleted domain
+                # would only teach people to ignore this log.
+                log.debug(
+                    "desktop_iptables: nothing to reap for deleted domain %s",
+                    old_val.get("id"),
+                )
+                return
+            self.uipt.desktop_remove(applied["user"], applied["guest_ip"])
+            self._remove_table2_flow(applied["guest_ip"])
+            self._forget_applied_desktop(old_val.get("id"))
             return
         else:
             # Updated
@@ -757,10 +815,14 @@ PostUp = %s
             if nv_status == "Started" and "guest_ip" in new_viewer:
                 # As the changes filters for guest_ip in viewer we won't have viewer field till guest_ip is set.
                 self.uipt.desktop_add(nv_user, new_viewer.get("guest_ip"))
+                self._remember_applied_desktop(
+                    new_val.get("id"), nv_user, new_viewer.get("guest_ip")
+                )
             elif not new_viewer and old_viewer.get("guest_ip"):
                 guest_ip = old_viewer.get("guest_ip")
                 self.uipt.desktop_remove(ov_user, guest_ip)
                 self._remove_table2_flow(guest_ip)
+                self._forget_applied_desktop(old_val.get("id"))
 
     def _remove_table2_flow(self, guest_ip):
         """Remove table 2 source IP pinning flow and ARP entry for a stopped domain."""
