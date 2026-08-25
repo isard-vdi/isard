@@ -5,13 +5,17 @@ import {
   getAllDeploymentsQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type {
+  DeploymentVisibilityResponse,
+  GetAllDeploymentsResponse,
   GetDeploymentResponse,
   SetDeploymentVisibilityRequest
 } from '@/gen/oas/apiv4/types.gen'
+import { recomputeDeployment } from '@/lib/deployment-visibility'
+import { patchEntityList } from '@/lib/utils'
 
 /**
  * Stable key so the WebSocket handler can tell "our own visibility write is
- * in flight" and hold off invalidating over the optimistic patch.
+ * in flight" and hold off patching over the optimistic state.
  */
 export const DEPLOYMENT_VISIBILITY_MUTATION_KEY = ['deploymentVisibility'] as const
 
@@ -32,9 +36,7 @@ function isSelected(
 
 /**
  * Apply a visibility SET to a cached deployment, mirroring the server's
- * derivation so the optimistic state and the eventual truth agree:
- * a user is visible when *any* of their desktops is, and so is the
- * deployment.
+ * derivation so the optimistic state and the eventual truth agree.
  */
 export function patchVisibility(
   cached: GetDeploymentResponse | undefined,
@@ -42,24 +44,15 @@ export function patchVisibility(
 ): GetDeploymentResponse | undefined {
   if (!cached) return cached
 
-  let visibleDesktops = 0
-  const users = (cached.users ?? []).map((user) => {
-    const desktops = (user.desktops ?? []).map((desktop) =>
-      isSelected(desktop, user.id, body) ? { ...desktop, visible: body.visible } : desktop
-    )
-    visibleDesktops += desktops.filter((desktop) => desktop.visible).length
-    return { ...user, desktops, visible: desktops.some((desktop) => desktop.visible) }
-  })
-
-  return {
+  return recomputeDeployment({
     ...cached,
-    users,
-    info: {
-      ...cached.info,
-      visible_desktops: visibleDesktops,
-      tag_visible: visibleDesktops > 0
-    }
-  }
+    users: cached.users.map((user) => ({
+      ...user,
+      desktops: (user.desktops ?? []).map((desktop) =>
+        isSelected(desktop, user.id, body) ? { ...desktop, visible: body.visible } : desktop
+      )
+    }))
+  })
 }
 
 /** What `onMutate` hands to `onError` so a failed write can be rolled back. */
@@ -86,18 +79,55 @@ export function useDeploymentVisibility(deploymentId: () => string) {
       return { previous }
     },
 
+    // The response is the recomputed aggregate, so reconciling from it costs
+    // no GET. A refetch here would be one request per click, and the change
+    // handler emits one event per affected desktop on top of that.
+    onSuccess: (data) => {
+      const result = data as DeploymentVisibilityResponse
+
+      queryClient.setQueryData<GetDeploymentResponse>(queryKey(), (cached) => {
+        if (!cached) return cached
+        return {
+          ...cached,
+          info: {
+            ...cached.info,
+            tag_visible: result.tag_visible,
+            visible_desktops: result.visible_desktops,
+            existing_desktops: result.existing_desktops
+          }
+        }
+      })
+
+      // Only the counters the write moved: the list row is otherwise the
+      // same deployment it already holds.
+      queryClient.setQueryData<GetAllDeploymentsResponse>(getAllDeploymentsQueryKey(), (cached) =>
+        cached
+          ? {
+              ...cached,
+              deployments: patchEntityList(cached.deployments, 'update', {
+                id: result.id,
+                tag_visible: result.tag_visible,
+                visible_desktops: result.visible_desktops
+              })
+            }
+          : cached
+      )
+
+      // The optimistic patch flipped the cells the selectors matched; the
+      // server counted the rows that actually exist. A disagreement means the
+      // cache is missing or holding a stale row, and only a read can fix it.
+      const patched = queryClient.getQueryData<GetDeploymentResponse>(queryKey())
+      const cells = (patched?.users ?? []).flatMap((user) => user.desktops ?? [])
+      if (cells.length && cells.filter((cell) => cell.visible).length !== result.visible_desktops) {
+        queryClient.invalidateQueries({ queryKey: queryKey() })
+      }
+    },
+
     // This vue-query version passes the onMutate result as the third argument
     // and types it `unknown`, so narrow it here to keep the rollback typed.
     onError: (_error, _variables, onMutateResult) => {
       const context = onMutateResult as RollbackContext | undefined
       if (context?.previous) queryClient.setQueryData(queryKey(), context.previous)
-    },
-
-    onSettled: () => {
-      // Must be the generated key helper: generated keys are
-      // `[{ _id, baseUrl, path }]`, so a bare string never matches.
-      queryClient.invalidateQueries({ queryKey: queryKey() })
-      queryClient.invalidateQueries({ queryKey: getAllDeploymentsQueryKey() })
     }
   })
 }

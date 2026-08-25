@@ -1,4 +1,4 @@
-import type { DeploymentDesktop, DeploymentUserDetail } from '@/gen/oas/apiv4'
+import type { DeploymentDesktop, DeploymentResponse, DeploymentUserDetail } from '@/gen/oas/apiv4'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import type { VisibilityState } from '@/components/deployments/visibility'
 
@@ -99,4 +99,42 @@ export function visibilityStateFromCounts(
   if (!total) return fallback
   if (visible === 0) return false
   return visible === total ? true : 'indeterminate'
+}
+
+/**
+ * Re-derive every aggregate the API computes from the per-desktop rows.
+ *
+ * Both the optimistic patch and the WebSocket patch route through this, so a
+ * cache write lands the same state a GET would and neither has to refetch to
+ * find out what the counters became.
+ */
+export function recomputeDeployment(deployment: DeploymentResponse): DeploymentResponse {
+  const users = deployment.users.map((user) => {
+    const desktops = userDesktops(user)
+    const statuses = new Map<string, number>()
+    for (const desktop of desktops) {
+      if (!desktop.status) continue
+      statuses.set(desktop.status, (statuses.get(desktop.status) ?? 0) + 1)
+    }
+    return {
+      ...user,
+      visible: desktops.some((desktop) => desktop.visible),
+      desktops_statuses: [...statuses].map(([status, amount]) => ({ status, amount }))
+    }
+  })
+
+  const cells = users.flatMap(userDesktops)
+  return {
+    ...deployment,
+    users,
+    info: {
+      ...deployment.info,
+      visible_desktops: visibleCount(cells),
+      // The master flag is the OR over the desktops, matching
+      // Deployment.recompute_tag_visible; the fallback keeps a deployment
+      // with no desktops yet on whatever it was created with.
+      tag_visible: cells.length ? visibleCount(cells) > 0 : deployment.info.tag_visible,
+      started_desktops: cells.filter((cell) => cell.status === DesktopStatusEnum.STARTED).length
+    }
+  }
 }

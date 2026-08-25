@@ -1,8 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mutationOptions: { current: Record<string, (...args: never[]) => unknown> } = { current: {} }
+const queryClient: { current: unknown } = { current: {} }
 
 vi.mock('@tanstack/vue-query', () => ({
-  useMutation: () => ({}),
-  useQueryClient: () => ({})
+  useMutation: (options: Record<string, (...args: never[]) => unknown>) => {
+    mutationOptions.current = options
+    return {}
+  },
+  useQueryClient: () => queryClient.current
 }))
 
 vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
@@ -11,7 +17,7 @@ vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
   getAllDeploymentsQueryKey: () => [{ _id: 'getAllDeployments' }]
 }))
 
-import { patchVisibility } from './useDeploymentVisibility'
+import { patchVisibility, useDeploymentVisibility } from './useDeploymentVisibility'
 
 const cached = () =>
   ({
@@ -115,5 +121,39 @@ describe('patchVisibility', () => {
 
   it('returns undefined when there is nothing cached', () => {
     expect(patchVisibility(undefined, { visible: true })).toBeUndefined()
+  })
+})
+
+describe('useDeploymentVisibility', () => {
+  const setQueryData = vi.fn()
+  const getQueryData = vi.fn()
+  const invalidateQueries = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    queryClient.current = { setQueryData, getQueryData, invalidateQueries, cancelQueries: vi.fn() }
+    useDeploymentVisibility(() => 'dep-1')
+  })
+
+  const succeed = (visibleDesktops: number) =>
+    mutationOptions.current.onSuccess?.({
+      id: 'dep-1',
+      tag_visible: visibleDesktops > 0,
+      visible_desktops: visibleDesktops,
+      existing_desktops: 4,
+      updated: 1
+    } as never)
+
+  it('reconciles from the response instead of refetching', () => {
+    // The write flipped d1; the cache the optimistic patch left agrees.
+    getQueryData.mockReturnValue(patchVisibility(cached(), { visible: false, users: ['u1'] }))
+    succeed(1)
+    expect(invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('refetches only when the optimistic count disagrees with the server', () => {
+    getQueryData.mockReturnValue(cached())
+    succeed(1)
+    expect(invalidateQueries).toHaveBeenCalledOnce()
   })
 })

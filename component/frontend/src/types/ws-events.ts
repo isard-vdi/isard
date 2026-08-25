@@ -42,6 +42,7 @@ export interface WsDesktopPayload {
   id: string
   name: string
   state: string
+  /** Canonical value; `state` is the apiv3 alias carrying the same string. */
   status: string
   type: 'persistent' | 'nonpersistent'
   template: string | null
@@ -120,9 +121,16 @@ export interface WsTemplatePayload extends WsDesktopPayload {
 export interface WsDeploymentPayload {
   id: string
   name: string
+  description?: string | null
   user: string
   co_owners: string[]
   visible: boolean
+  tag_visible?: boolean
+  /** Only the deployments-table emitter aliases the aggregates to snake_case;
+   *  the per-domain one leaves them camelCase. */
+  visible_desktops?: number
+  started_desktops?: number
+  total_desktops?: number
   [key: string]: unknown
 }
 
