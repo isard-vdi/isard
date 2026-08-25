@@ -35,13 +35,14 @@ import {
   columnState,
   deploymentState,
   desktopColumns,
+  isRunning,
   rowState,
+  runningCount,
   userDesktops,
   visibleCount,
   type MatrixDesktop,
   type DesktopColumn
 } from '@/lib/deployment-visibility'
-import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -142,30 +143,50 @@ const columnCount = (tagDesktopId: string | null) => {
   return `${visibleCount(cells)}/${cells.length}`
 }
 
-const RUNNING_STATES: string[] = [
-  DesktopStatusEnum.STARTED,
-  DesktopStatusEnum.STARTING,
-  DesktopStatusEnum.SHUTTING_DOWN
-]
-
-const isRunning = (desktop?: MatrixDesktop) =>
-  !!desktop?.status && RUNNING_STATES.includes(desktop.status)
-
 // ─── Applying changes ──────────────────────────────────────────────────
 
 const VISIBILITY_TOAST_ID = 'deployment-visibility'
 
-interface ApplyOptions {
+interface VisibilityAction {
   visible: boolean
   affected: MatrixDesktop[]
   users?: string[]
   tagDesktopIds?: string[]
+  /** Success toast. */
   message: string
+  /** Names the scope in the confirmation. */
+  title: string
+  /** The master switch reaches every user, so it confirms even with nothing started. */
+  alwaysConfirm?: boolean
 }
 
-function applyVisibility(options: ApplyOptions) {
-  const { affected } = options
-  if (!affected.length) return
+/** Held while the confirmation is open, applied with the answer to it. */
+const pendingAction = ref<VisibilityAction | null>(null)
+const pendingRunning = computed(() =>
+  pendingAction.value ? runningCount(pendingAction.value.affected) : 0
+)
+
+/**
+ * Hiding a started desktop pulls it from under whoever is using it, so that
+ * case asks first whether to stop it too. Showing never interrupts anyone.
+ */
+function requestVisibility(action: VisibilityAction) {
+  if (!action.affected.length) return
+  if (action.alwaysConfirm || (!action.visible && runningCount(action.affected))) {
+    pendingAction.value = action
+    return
+  }
+  applyVisibility(action, false)
+}
+
+function confirmPending(stopStartedDomains: boolean) {
+  const action = pendingAction.value
+  pendingAction.value = null
+  if (action) applyVisibility(action, stopStartedDomains)
+}
+
+function applyVisibility(action: VisibilityAction, stopStartedDomains: boolean) {
+  const { affected } = action
 
   // Snapshot the exact prior partition. Undoing with the inverse rectangle
   // would be wrong whenever the prior state was mixed: re-hiding a column
@@ -192,22 +213,26 @@ function applyVisibility(options: ApplyOptions) {
     {
       path: { deployment_id: deploymentId.value },
       body: {
-        visible: options.visible,
-        users: options.users ?? null,
-        tag_desktop_ids: options.tagDesktopIds ?? null,
-        stop_started_domains: false
+        visible: action.visible,
+        users: action.users ?? null,
+        tag_desktop_ids: action.tagDesktopIds ?? null,
+        stop_started_domains: stopStartedDomains
       }
     },
     {
       onSuccess: () => {
-        toast.success(options.message, {
+        toast.success(action.message, {
           // One shared id: a new change replaces the previous toast in place
           // and restarts its countdown, instead of stacking toasts where only
           // the newest counts down and Undo is ambiguous.
           id: VISIBILITY_TOAST_ID,
           // Required: an actioned toast is sticky by default.
           duration: 8000,
-          action: { label: t('common.actions.undo'), onClick: undo }
+          // Undo restores visibility, and nothing can restore a stopped
+          // desktop, so a hide that stopped desktops is not offered as undoable.
+          action: stopStartedDomains
+            ? undefined
+            : { label: t('common.actions.undo'), onClick: undo }
         })
       },
       onError: () => toast.error(t('views.deployment.visibility.toast.error'))
@@ -227,22 +252,31 @@ const rowWillShow = (user: DeploymentUserDetail) => rowState(user) !== true
 const cellWillShow = (user: DeploymentUserDetail, column: DesktopColumn) =>
   !cellFor(user, column.tagDesktopId)?.visible
 
+// The sentence that names the click, shared by the tooltip and the title of
+// the confirmation, so the modal cannot describe a different change.
+const columnTitle = (column: DesktopColumn, visible: boolean) =>
+  t(
+    visible ? 'views.deployment.visibility.column-show' : 'views.deployment.visibility.column-hide',
+    { desktop: column.name }
+  )
+
+const userTitle = (user: DeploymentUserDetail, visible: boolean) =>
+  t(visible ? 'views.deployment.visibility.row-show' : 'views.deployment.visibility.row-hide', {
+    user: user.name
+  })
+
+const cellTitle = (user: DeploymentUserDetail, column: DesktopColumn, visible: boolean) =>
+  t(visible ? 'views.deployment.visibility.cell-show' : 'views.deployment.visibility.cell-hide', {
+    desktop: column.name,
+    user: user.name
+  })
+
 /** Names the click, not the options: on a mixed column the icon cannot say it. */
 const columnTooltip = (column: DesktopColumn) =>
-  `${t(
-    columnWillShow(column)
-      ? 'views.deployment.visibility.column-show'
-      : 'views.deployment.visibility.column-hide',
-    { desktop: column.name }
-  )} — ${t('views.deployment.visibility.all-users-warning')}`
+  `${columnTitle(column, columnWillShow(column))} — ${t('views.deployment.visibility.all-users-warning')}`
 
 const cellTooltip = (user: DeploymentUserDetail, column: DesktopColumn) =>
-  t(
-    cellWillShow(user, column)
-      ? 'views.deployment.visibility.cell-show'
-      : 'views.deployment.visibility.cell-hide',
-    { desktop: column.name, user: user.name }
-  )
+  cellTitle(user, column, cellWillShow(user, column))
 
 /** Stable accessible name; a disabled row still says why it is inert, like
  *  the empty cells do, because a disabled control never reaches its tooltip. */
@@ -254,20 +288,16 @@ const rowLabel = (user: DeploymentUserDetail) =>
 /** A row with no desktops explains why it is inert, like the cells do. */
 const rowTooltip = (user: DeploymentUserDetail) =>
   userDesktops(user).length
-    ? t(
-        rowWillShow(user)
-          ? 'views.deployment.visibility.row-show'
-          : 'views.deployment.visibility.row-hide',
-        { user: user.name }
-      )
+    ? userTitle(user, rowWillShow(user))
     : t('views.deployment.visibility.no-desktops-user', { user: user.name })
 
 function toggleColumn(column: DesktopColumn) {
   const visible = columnWillShow(column)
-  applyVisibility({
+  requestVisibility({
     visible,
     affected: columnCells(users.value, column.tagDesktopId),
     tagDesktopIds: column.tagDesktopId ? [column.tagDesktopId] : undefined,
+    title: columnTitle(column, visible),
     message: t(
       visible
         ? 'views.deployment.visibility.toast.shown.desktop'
@@ -279,10 +309,11 @@ function toggleColumn(column: DesktopColumn) {
 
 function toggleUser(user: DeploymentUserDetail) {
   const visible = rowWillShow(user)
-  applyVisibility({
+  requestVisibility({
     visible,
     affected: userDesktops(user),
     users: [user.id],
+    title: userTitle(user, visible),
     message: t(
       visible
         ? 'views.deployment.visibility.toast.shown.user'
@@ -296,11 +327,12 @@ function toggleCell(user: DeploymentUserDetail, column: DesktopColumn) {
   const desktop = cellFor(user, column.tagDesktopId)
   if (!desktop) return
   const visible = cellWillShow(user, column)
-  applyVisibility({
+  requestVisibility({
     visible,
     affected: [desktop],
     users: [user.id],
     tagDesktopIds: column.tagDesktopId ? [column.tagDesktopId] : undefined,
+    title: cellTitle(user, column, visible),
     message: t(
       visible
         ? 'views.deployment.visibility.toast.shown.cell'
@@ -311,9 +343,25 @@ function toggleCell(user: DeploymentUserDetail, column: DesktopColumn) {
 }
 
 // Both directions confirm: applying to every user of the deployment at once
-// is worth a deliberate step, and hiding additionally offers to stop the
-// running desktops.
-const masterAction = ref<'show' | 'hide' | null>(null)
+// is worth a deliberate step, whatever is started.
+function toggleAll(visible: boolean) {
+  requestVisibility({
+    visible,
+    affected: allCells.value,
+    alwaysConfirm: true,
+    title: t(
+      visible
+        ? 'views.deployment.visibility.confirm.deployment-show-title'
+        : 'views.deployment.visibility.confirm.deployment-hide-title',
+      { deployment: info.value?.name ?? '' }
+    ),
+    message: t(
+      visible
+        ? 'views.deployment.visibility.toast.shown.deployment'
+        : 'views.deployment.visibility.toast.hidden.deployment'
+    )
+  })
+}
 
 const goBack = () =>
   router.push({ name: 'deployment', params: { deploymentId: deploymentId.value } })
@@ -321,12 +369,13 @@ const goBack = () =>
 
 <template>
   <DeploymentVisibilityModal
-    v-if="masterAction"
-    :open="masterAction !== null"
-    :deployment-id="deploymentId"
-    :deployment-name="info?.name"
-    :action="masterAction"
-    @close="masterAction = null"
+    v-if="pendingAction"
+    open
+    :action="pendingAction.visible ? 'show' : 'hide'"
+    :title="pendingAction.title"
+    :running-count="pendingRunning"
+    @confirm="confirmPending"
+    @close="pendingAction = null"
   />
 
   <PageContainer>
@@ -385,7 +434,7 @@ const goBack = () =>
           icon="eye"
           size="sm"
           :disabled="isSettingVisibility || masterState === true"
-          @click="masterAction = 'show'"
+          @click="toggleAll(true)"
         >
           {{ t('views.deployment-visibility.show-all') }}
         </Button>
@@ -394,7 +443,7 @@ const goBack = () =>
           icon="eye-off"
           size="sm"
           :disabled="isSettingVisibility || masterState === false"
-          @click="masterAction = 'hide'"
+          @click="toggleAll(false)"
         >
           {{ t('views.deployment-visibility.hide-all') }}
         </Button>

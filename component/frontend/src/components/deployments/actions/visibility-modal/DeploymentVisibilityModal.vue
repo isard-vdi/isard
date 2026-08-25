@@ -3,50 +3,45 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { AlertModal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
-import { useDeploymentVisibility } from '@/composables/useDeploymentVisibility'
 
 interface Props {
   open?: boolean
-  deploymentId: string
-  deploymentName?: string | null
-  /** Explicit direction: both "show all" and "hide all" confirm. */
+  /** Explicit direction: both "show" and "hide" can confirm. */
   action: 'show' | 'hide'
-  onSuccess?: () => void
+  /** Names the scope being changed — the caller knows it, the modal does not. */
+  title: string
+  /** Started desktops inside that scope. */
+  runningCount?: number
 }
 
-const props = withDefaults(defineProps<Props>(), { open: false })
+const props = withDefaults(defineProps<Props>(), { open: false, runningCount: 0 })
 
 const emit = defineEmits<{
-  (e: 'update:open', value: boolean): void
-  (e: 'close'): void
+  'update:open': [value: boolean]
+  close: []
+  confirm: [stopStartedDomains: boolean]
 }>()
 
 const { t } = useI18n()
 
 const hiding = computed(() => props.action === 'hide')
 
+/** Hiding a stopped desktop interrupts nobody, so only a running one asks. */
+const offersStop = computed(() => hiding.value && props.runningCount > 0)
+
+const description = computed(() => {
+  const base = t(
+    hiding.value
+      ? 'views.deployment.visibility.confirm.description-hide'
+      : 'views.deployment.visibility.confirm.description-show'
+  )
+  if (!offersStop.value) return base
+  return `${base}\n\n${t('views.deployment.visibility.confirm.running', props.runningCount)}`
+})
+
 const handleClose = () => {
   emit('update:open', false)
   emit('close')
-}
-
-const { mutate: setVisibility, isPending } = useDeploymentVisibility(() => props.deploymentId)
-
-// No selectors: this is the master switch, so it covers every desktop.
-const apply = (stopStartedDomains: boolean) => {
-  if (!props.deploymentId) return
-  setVisibility(
-    {
-      path: { deployment_id: props.deploymentId },
-      body: { visible: !hiding.value, stop_started_domains: stopStartedDomains }
-    },
-    {
-      onSuccess: () => {
-        handleClose()
-        props.onSuccess?.()
-      }
-    }
-  )
 }
 </script>
 
@@ -54,35 +49,35 @@ const apply = (stopStartedDomains: boolean) => {
   <AlertModal
     :open="props.open"
     :level="hiding ? 'warning' : 'info'"
-    size="lg"
-    :title="
-      hiding
-        ? t('views.deployment.toggle-lab-visibility.title-invisible')
-        : t('views.deployment.toggle-lab-visibility.title-visible')
-    "
-    :description="
-      hiding
-        ? t('views.deployment.toggle-lab-visibility.description-invisible')
-        : t('views.deployment.toggle-lab-visibility.description-visible')
-    "
+    :size="offersStop ? 'lg' : 'md'"
+    :title="props.title"
+    :description="description"
     @close="handleClose"
   >
     <template #footer>
-      <Button hierarchy="link-gray" :disabled="isPending" @click="handleClose">
-        {{ t('views.deployment.toggle-lab-visibility.cancel') }}
+      <Button hierarchy="link-gray" @click="handleClose">
+        {{ t('views.deployment.visibility.confirm.cancel') }}
       </Button>
 
-      <template v-if="hiding">
-        <Button hierarchy="secondary-gray" :disabled="isPending" @click="apply(false)">
-          {{ t('views.deployment.toggle-lab-visibility.only-hide') }}
+      <template v-if="offersStop">
+        <Button hierarchy="secondary-gray" @click="emit('confirm', false)">
+          {{ t('views.deployment.visibility.confirm.only-hide') }}
         </Button>
-        <Button hierarchy="destructive" :disabled="isPending" @click="apply(true)">
-          {{ t('views.deployment.toggle-lab-visibility.hide-and-stop') }}
+        <Button hierarchy="destructive" @click="emit('confirm', true)">
+          {{ t('views.deployment.visibility.confirm.hide-and-stop') }}
         </Button>
       </template>
 
-      <Button v-else hierarchy="primary" :disabled="isPending" @click="apply(false)">
-        {{ t('views.deployment.toggle-lab-visibility.confirm') }}
+      <Button
+        v-else
+        :hierarchy="hiding ? 'destructive' : 'primary'"
+        @click="emit('confirm', false)"
+      >
+        {{
+          hiding
+            ? t('views.deployment.visibility.confirm.hide')
+            : t('views.deployment.visibility.confirm.show')
+        }}
       </Button>
     </template>
   </AlertModal>

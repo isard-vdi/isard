@@ -820,6 +820,18 @@
         "count-label": "{visible} de {total} escriptoris visibles",
         "all-users-warning": "s'aplica a tots els usuaris, no només als d'aquesta pàgina",
         "no-desktop": "«{desktop}» no s'ha creat per a {user}. Recrea el desplegament per crear-lo.",
+        "confirm": {
+          "deployment-show-title": "Mostra tots els escriptoris de «{deployment}»",
+          "deployment-hide-title": "Amaga tots els escriptoris de «{deployment}»",
+          "description-show": "Els usuaris veuran aquests escriptoris a la seva llista i els podran engegar.",
+          "description-hide": "Els usuaris deixaran de veure aquests escriptoris a la seva llista. No s'esborra res: els pots tornar a mostrar quan vulguis.",
+          "running": "N'hi ha un d'arrencat. Amagar-lo no l'atura. | N'hi ha {count} d'arrencats. Amagar-los no els atura.",
+          "cancel": "Cancel·la",
+          "show": "Mostra",
+          "hide": "Amaga",
+          "only-hide": "Només amaga",
+          "hide-and-stop": "Amaga i atura"
+        },
         "toast": {
           "shown": {
             "deployment": "El desplegament ara és visible per als seus usuaris",

@@ -820,6 +820,18 @@
         "count-label": "{visible} de {total} escritorios visibles",
         "all-users-warning": "se aplica a todos los usuarios, no solo a los de esta página",
         "no-desktop": "«{desktop}» no se ha creado para {user}. Recrea el despliegue para crearlo.",
+        "confirm": {
+          "deployment-show-title": "Mostrar todos los escritorios de «{deployment}»",
+          "deployment-hide-title": "Ocultar todos los escritorios de «{deployment}»",
+          "description-show": "Los usuarios verán estos escritorios en su lista y podrán arrancarlos.",
+          "description-hide": "Los usuarios dejarán de ver estos escritorios en su lista. No se borra nada: puedes volver a mostrarlos cuando quieras.",
+          "running": "Hay uno arrancado. Ocultarlo no lo detiene. | Hay {count} arrancados. Ocultarlos no los detiene.",
+          "cancel": "Cancelar",
+          "show": "Mostrar",
+          "hide": "Ocultar",
+          "only-hide": "Solo ocultar",
+          "hide-and-stop": "Ocultar y detener"
+        },
         "toast": {
           "shown": {
             "deployment": "El despliegue ahora es visible para sus usuarios",

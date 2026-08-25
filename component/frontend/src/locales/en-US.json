@@ -828,6 +828,18 @@
         "count-label": "{visible} of {total} desktops visible",
         "all-users-warning": "applies to every user, not only this page",
         "no-desktop": "“{desktop}” was not created for {user}. Recreate the deployment to create it.",
+        "confirm": {
+          "deployment-show-title": "Show every desktop of “{deployment}”",
+          "deployment-hide-title": "Hide every desktop of “{deployment}”",
+          "description-show": "The users will see these desktops in their list and will be able to start them.",
+          "description-hide": "The users will stop seeing these desktops in their list. Nothing is deleted: you can show them again at any time.",
+          "running": "One of them is started. Hiding it does not stop it. | {count} of them are started. Hiding them does not stop them.",
+          "cancel": "Cancel",
+          "show": "Show",
+          "hide": "Hide",
+          "only-hide": "Only hide",
+          "hide-and-stop": "Hide and stop"
+        },
         "toast": {
           "shown": {
             "deployment": "The deployment is now visible to its users",

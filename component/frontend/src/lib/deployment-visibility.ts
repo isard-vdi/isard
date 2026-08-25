@@ -1,4 +1,5 @@
 import type { DeploymentDesktop, DeploymentUserDetail } from '@/gen/oas/apiv4'
+import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import type { VisibilityState } from '@/components/deployments/visibility'
 
 /** One (user, desktop) cell of the visibility matrix. */
@@ -70,6 +71,21 @@ export function deploymentState(users: DeploymentUserDetail[], fallback: boolean
 
 export const visibleCount = (desktops: MatrixDesktop[]): number =>
   desktops.filter((desktop) => desktop.visible).length
+
+// The statuses the API stops when a hide asks for it, so what the modal
+// counts is exactly what the server would interrupt.
+const RUNNING_STATES: string[] = [
+  DesktopStatusEnum.STARTED,
+  DesktopStatusEnum.STARTING,
+  DesktopStatusEnum.STARTING_PAUSED,
+  DesktopStatusEnum.SHUTTING_DOWN
+]
+
+export const isRunning = (desktop?: MatrixDesktop): boolean =>
+  !!desktop?.status && RUNNING_STATES.includes(desktop.status)
+
+/** Hiding these is the change a user would notice mid-session. */
+export const runningCount = (desktops: MatrixDesktop[]): number => desktops.filter(isRunning).length
 
 /**
  * Same tri-state for surfaces that carry only the totals rather than the
