@@ -126,8 +126,8 @@ export interface WsDeploymentPayload {
   co_owners: string[]
   visible: boolean
   tag_visible?: boolean
-  /** Only the deployments-table emitter aliases the aggregates to snake_case;
-   *  the per-domain one leaves them camelCase. */
+  /** Aliased to snake_case by DeploymentsHandler; absent on the payloads that
+   *  come straight from the deployments row. */
   visible_desktops?: number
   started_desktops?: number
   total_desktops?: number

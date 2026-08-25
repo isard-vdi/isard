@@ -162,9 +162,10 @@ export const deploymentDesktopEventHandlers = {
             deployments: patchEntityList(cached.deployments, 'update', {
               id: data.id,
               name: data.name,
-              // Only the emitter that watches the deployments table aliases
-              // these to snake_case; the per-domain one leaves them camelCase
-              // and a second stale, so skip it and let the desktop events say.
+              // DeploymentsHandler is the only emitter of this event and it
+              // aliases the aggregates to snake_case, but a payload without
+              // them must leave the cached counters alone rather than blank
+              // them.
               ...(typeof data.visible_desktops === 'number'
                 ? {
                     tag_visible: !!data.tag_visible,
