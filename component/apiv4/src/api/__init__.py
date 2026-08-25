@@ -43,6 +43,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import JSONResponse
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.cards import Cards
@@ -235,14 +236,17 @@ async def lifespan(app: FastAPI):
 
 
 _ENABLE_OPENAPI = os.environ.get("ENABLE_OPENAPI", "false").lower() == "true"
+SWAGGER_JS_URL = "/openapi/static/swagger-ui-bundle.js"
+SWAGGER_CSS_URL = "/openapi/static/swagger-ui.css"
+REDOC_JS_URL = "/openapi/static/redoc.standalone.js"
 
 app = FastAPI(
     title="IsardVDI API",
     description="IsardVDI API v4",
     version="4.0.0-alpha1",
     openapi_url="/api/v4/openapi.json" if _ENABLE_OPENAPI else None,
-    docs_url="/api/v4/docs" if _ENABLE_OPENAPI else None,
-    redoc_url="/api/v4/redoc" if _ENABLE_OPENAPI else None,
+    docs_url=None,
+    redoc_url=None,
     lifespan=lifespan,
     swagger_ui_parameters={
         "docExpansion": "none",
@@ -501,6 +505,28 @@ app.include_router(disclaimer_router)
 app.include_router(direct_viewer_router)
 app.include_router(migration_router)
 app.include_router(email_verification_router)
+
+
+if _ENABLE_OPENAPI:
+    app.add_route(
+        "/api/v4/docs",
+        get_swagger_ui_html(
+            openapi_url="/api/v4/openapi.json",
+            title=f"{app.title} - Swagger UI",
+            swagger_js_url=SWAGGER_JS_URL,
+            swagger_css_url=SWAGGER_CSS_URL,
+        ),
+        include_in_schema=False,
+    )
+    app.add_route(
+        "/api/v4/redoc",
+        get_redoc_html(
+            openapi_url="/api/v4/openapi.json",
+            title=f"{app.title} - ReDoc",
+            redoc_js_url=REDOC_JS_URL,
+        ),
+        include_in_schema=False,
+    )
 
 
 @app.exception_handler(Error)

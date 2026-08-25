@@ -113,6 +113,7 @@ services:
       VPN_MTU:
       GENEVE_ONLY_INFRA: ${GENEVE_ONLY_INFRA:-false}
       USAGE: ${USAGE:-production}
+      ENABLE_OPENAPI: ${ENABLE_OPENAPI:-false}
       VIEWER_RDP_GW:
       FRONTEND_SHOW_BOOKINGS:
       FRONTEND_DOCS_URI:
