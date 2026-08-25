@@ -213,7 +213,7 @@ async def lifespan(app: FastAPI):
         health_task.cancel()
         try:
             await health_task
-        except (asyncio.CancelledError, Exception):
+        except asyncio.CancelledError, Exception:
             pass
     if haproxy_health_channel:
         await haproxy_health_channel.close()
@@ -221,7 +221,7 @@ async def lifespan(app: FastAPI):
         pool_sampler_task.cancel()
         try:
             await pool_sampler_task
-        except (asyncio.CancelledError, Exception):
+        except asyncio.CancelledError, Exception:
             pass
     headroom = pool_size - pool_peak_state["peak_in_use"]
     log.info(
@@ -234,15 +234,15 @@ async def lifespan(app: FastAPI):
     await recycle_bin_queue.stop()
 
 
-_debug_mode = os.environ.get("USAGE", "production") != "production"
+_ENABLE_OPENAPI = os.environ.get("ENABLE_OPENAPI", "false").lower() == "true"
 
 app = FastAPI(
     title="IsardVDI API",
     description="IsardVDI API v4",
     version="4.0.0-alpha1",
-    openapi_url="/api/v4/openapi.json" if _debug_mode else None,
-    docs_url="/api/v4/docs" if _debug_mode else None,
-    redoc_url="/api/v4/redoc" if _debug_mode else None,
+    openapi_url="/api/v4/openapi.json" if _ENABLE_OPENAPI else None,
+    docs_url="/api/v4/docs" if _ENABLE_OPENAPI else None,
+    redoc_url="/api/v4/redoc" if _ENABLE_OPENAPI else None,
     lifespan=lifespan,
     swagger_ui_parameters={
         "docExpansion": "none",
