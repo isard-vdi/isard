@@ -29,6 +29,7 @@ WORKDIR /app
 COPY --from=builder /.venv /.venv
 COPY component/openapi/src /app
 COPY pkg/oas /app/oas
+COPY docker/swagger-ui/init.js /static/swagger-init.js
 COPY component/frontend/src/assets/img/cover-img.svg /static/cover-img.svg
 COPY component/frontend/public/favicon.ico /static/favicon.ico
 ENV PATH="/.venv/bin:$PATH"

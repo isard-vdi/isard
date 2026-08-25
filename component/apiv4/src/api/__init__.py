@@ -23,6 +23,8 @@ import concurrent.futures
 import logging as log
 import os
 from contextlib import asynccontextmanager
+from html import escape as html_escape
+from json import dumps as json_dumps
 
 from api.dependencies.jwt_token import (
     has_email_verification_required_or_login_token,
@@ -43,8 +45,8 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
-from fastapi.responses import JSONResponse
+from fastapi.openapi.docs import get_redoc_html
+from fastapi.responses import HTMLResponse, JSONResponse
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.maintenance import Maintenance
@@ -238,7 +240,30 @@ async def lifespan(app: FastAPI):
 _ENABLE_OPENAPI = os.environ.get("ENABLE_OPENAPI", "false").lower() == "true"
 SWAGGER_JS_URL = "/openapi/static/swagger-ui-bundle.js"
 SWAGGER_CSS_URL = "/openapi/static/swagger-ui.css"
+SWAGGER_INIT_URL = "/openapi/static/swagger-init.js"
 REDOC_JS_URL = "/openapi/static/redoc.standalone.js"
+FAVICON_URL = "/favicon.ico"
+
+
+def _swagger_ui_html(openapi_url, title, config=None):
+    """Swagger UI with no inline script, so `script-src 'self'` still renders it."""
+    cfg = html_escape(json_dumps({"url": openapi_url, **(config or {})}))
+    return HTMLResponse(
+        f"""<!DOCTYPE html>
+<html>
+  <head>
+    <title>{html_escape(title)}</title>
+    <link rel="stylesheet" type="text/css" href="{SWAGGER_CSS_URL}">
+    <link rel="shortcut icon" href="{FAVICON_URL}">
+  </head>
+  <body>
+    <div id="swagger-ui" data-config="{cfg}"></div>
+    <script src="{SWAGGER_JS_URL}"></script>
+    <script src="{SWAGGER_INIT_URL}"></script>
+  </body>
+</html>"""
+    )
+
 
 app = FastAPI(
     title="IsardVDI API",
@@ -510,11 +535,10 @@ app.include_router(email_verification_router)
 if _ENABLE_OPENAPI:
     app.add_route(
         "/api/v4/docs",
-        get_swagger_ui_html(
-            openapi_url="/api/v4/openapi.json",
-            title=f"{app.title} - Swagger UI",
-            swagger_js_url=SWAGGER_JS_URL,
-            swagger_css_url=SWAGGER_CSS_URL,
+        _swagger_ui_html(
+            "/api/v4/openapi.json",
+            f"{app.title} - Swagger UI",
+            app.swagger_ui_parameters,
         ),
         include_in_schema=False,
     )
@@ -524,6 +548,8 @@ if _ENABLE_OPENAPI:
             openapi_url="/api/v4/openapi.json",
             title=f"{app.title} - ReDoc",
             redoc_js_url=REDOC_JS_URL,
+            redoc_favicon_url=FAVICON_URL,
+            with_google_fonts=False,
         ),
         include_in_schema=False,
     )

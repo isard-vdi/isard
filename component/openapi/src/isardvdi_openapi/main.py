@@ -1,15 +1,39 @@
 import os
+from html import escape as html_escape
+from json import dumps as json_dumps
 
 from fastapi import APIRouter, FastAPI
-from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.openapi.docs import get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 SWAGGER_JS_URL = "/openapi/static/swagger-ui-bundle.js"
 SWAGGER_CSS_URL = "/openapi/static/swagger-ui.css"
+SWAGGER_INIT_URL = "/openapi/static/swagger-init.js"
 REDOC_JS_URL = "/openapi/static/redoc.standalone.js"
 FAVICON_URL = "/favicon.ico"
+
+
+def swagger_ui_html(openapi_url, title, config=None):
+    """Swagger UI with no inline script, so `script-src 'self'` still renders it."""
+    cfg = html_escape(json_dumps({"url": openapi_url, **(config or {})}))
+    return HTMLResponse(
+        f"""<!DOCTYPE html>
+<html>
+  <head>
+    <title>{html_escape(title)}</title>
+    <link rel="stylesheet" type="text/css" href="{SWAGGER_CSS_URL}">
+    <link rel="shortcut icon" href="{FAVICON_URL}">
+  </head>
+  <body>
+    <div id="swagger-ui" data-config="{cfg}"></div>
+    <script src="{SWAGGER_JS_URL}"></script>
+    <script src="{SWAGGER_INIT_URL}"></script>
+  </body>
+</html>"""
+    )
+
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 router = APIRouter()
@@ -113,13 +137,7 @@ def serve_json(path):
 
 
 def swagger_page(name, title):
-    return get_swagger_ui_html(
-        openapi_url=f"/openapi/{name}.json",
-        title=title,
-        swagger_js_url=SWAGGER_JS_URL,
-        swagger_css_url=SWAGGER_CSS_URL,
-        swagger_favicon_url=FAVICON_URL,
-    )
+    return swagger_ui_html(f"/openapi/{name}.json", title)
 
 
 def redoc_page(name, title):
