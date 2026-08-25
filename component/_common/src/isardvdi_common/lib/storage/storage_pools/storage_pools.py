@@ -46,7 +46,7 @@ class StoragePoolsProcessed(RethinkSharedConnection):
 
     @staticmethod
     def _check_with_validate_weight(data):
-        """_From /api/libv2/api_storage.py \_check_with_validate_weight()_"""
+        r"""_From /api/libv2/api_storage.py \_check_with_validate_weight()_"""
         for key in data:
             if len(data[key]):
                 total = sum(item["weight"] for item in data[key])
@@ -55,7 +55,7 @@ class StoragePoolsProcessed(RethinkSharedConnection):
 
     @staticmethod
     def _check_duplicated_paths(data):
-        """_From /api/libv2/api_storage.py \_check_duplicated_paths()_"""
+        r"""_From /api/libv2/api_storage.py \_check_duplicated_paths()_"""
         seen_paths = set()
         for key in data:
             for item in data[key]:
@@ -68,7 +68,7 @@ class StoragePoolsProcessed(RethinkSharedConnection):
 
     @classmethod
     def _check_mountpoint_safe(cls, mountpoint):
-        """_From /api/libv2/api_storage.py \_check_mountpoint_safe()_
+        r"""_From /api/libv2/api_storage.py \_check_mountpoint_safe()_
 
         A category pool's mountpoint must be /isard/storage_pools/<name>.
 
@@ -130,7 +130,7 @@ class StoragePoolsProcessed(RethinkSharedConnection):
 
     @staticmethod
     def _check_paths_safe(data):
-        """_From /api/libv2/api_storage.py \_check_paths_safe()_
+        r"""_From /api/libv2/api_storage.py \_check_paths_safe()_
 
         Reject path entries that could escape the pool's category subtree.
 

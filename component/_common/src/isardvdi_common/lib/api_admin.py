@@ -279,7 +279,7 @@ class ApiAdmin(RethinkSharedConnection):
 
     @classmethod
     def _validate_table(cls, table):
-        """_From api/libv2/validators.py \_validate_table()_"""
+        r"""_From api/libv2/validators.py \_validate_table()_"""
         from isardvdi_common.helpers.error_factory import Error
 
         if table not in cls.system_tables():
