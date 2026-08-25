@@ -125,6 +125,10 @@
     },
     "disclaimer": {
       "title": "Avís legal"
+    },
+    "deployment-visibility": {
+      "title": "Visibilitat dels escriptoris",
+      "subtitle": "Tria quins escriptoris pot veure cada usuari d'aquest desplegament"
     }
   },
   "views": {
@@ -658,7 +662,8 @@
           "reserve": "Reservar",
           "bastion": "Bastió",
           "bastion-csv": "Descarrega el CSV del bastió",
-          "delete": "Eliminar desplegament"
+          "delete": "Eliminar desplegament",
+          "manage-visibility": "Visibilitat dels escriptoris"
         }
       },
       "alloweds": {
@@ -669,7 +674,8 @@
       },
       "visibility": {
         "visible": "Visible",
-        "hidden": "Ocult"
+        "hidden": "Ocult",
+        "mixed": "Parcialment visible"
       },
       "actions": {
         "go-to-direct-viewer": "Ves al visor directe"
@@ -709,7 +715,9 @@
           "last-access": "Últim accés",
           "user": "Usuari",
           "started-desktops": "Escriptoris arrencats",
-          "actions": "Accions"
+          "actions": "Accions",
+          "all": "Tots",
+          "visible-desktops": "Escriptoris visibles"
         },
         "disabled-user": {
           "badge": "Deshabilitat",
@@ -789,13 +797,45 @@
         "description-visible": "Els usuaris del desplegament veuran i podran utilitzar els seus escriptoris.",
         "description-invisible": "Els usuaris del desplegament deixaran de veure els seus escriptoris. També podeu aturar els iniciats.",
         "only-hide": "Només amaga",
-        "hide-and-stop": "Amaga i atura els escriptoris"
+        "hide-and-stop": "Amaga i atura els escriptoris",
+        "cancel": "Cancel·la",
+        "confirm": "Mostra tots els escriptoris"
       },
       "toggle-user-visibility": {
         "title-visible": "Fes visibles els escriptoris de l'usuari",
         "title-invisible": "Fes invisibles els escriptoris de l'usuari",
         "description-visible": "L'usuari veurà i podrà utilitzar els seus escriptoris del desplegament.",
         "description-invisible": "L'usuari deixarà de veure els seus escriptoris del desplegament."
+      },
+      "visibility": {
+        "column-label": "Visibilitat d'«{desktop}» per a tots els usuaris",
+        "column-show": "Mostra «{desktop}» a tots els usuaris",
+        "column-hide": "Amaga «{desktop}» a tots els usuaris",
+        "row-label": "Visibilitat dels escriptoris de {user}",
+        "row-show": "Mostra tots els escriptoris de {user}",
+        "row-hide": "Amaga tots els escriptoris de {user}",
+        "cell-label": "Visibilitat d'«{desktop}» per a {user}",
+        "cell-show": "Mostra «{desktop}» a {user}",
+        "cell-hide": "Amaga «{desktop}» a {user}",
+        "count-label": "{visible} de {total} escriptoris visibles",
+        "all-users-warning": "s'aplica a tots els usuaris, no només als d'aquesta pàgina",
+        "no-desktop": "«{desktop}» no s'ha creat per a {user}. Recrea el desplegament per crear-lo.",
+        "toast": {
+          "shown": {
+            "deployment": "El desplegament ara és visible per als seus usuaris",
+            "desktop": "«{desktop}» ara és visible per a tots els usuaris",
+            "user": "Els escriptoris de {user} ara són visibles",
+            "cell": "«{desktop}» ara és visible per a {user}"
+          },
+          "hidden": {
+            "deployment": "El desplegament ara està ocult per als seus usuaris",
+            "desktop": "«{desktop}» ara està ocult per a tots els usuaris",
+            "user": "Els escriptoris de {user} ara estan ocults",
+            "cell": "«{desktop}» ara està ocult per a {user}"
+          },
+          "error": "No s'ha pogut canviar la visibilitat"
+        },
+        "no-desktops-user": "No s'ha creat cap escriptori per a {user}. Recrea el desplegament per crear-los."
       }
     },
     "view-deployment": {
@@ -1015,6 +1055,29 @@
       "success": {
         "message": "Contrasenya canviada amb èxit.",
         "redirecting": "Redirigint a l'inici de sessió en {seconds} segon(s)."
+      }
+    },
+    "deployment-visibility": {
+      "back": "Torna al desplegament",
+      "summary": "{visible} de {total} escriptoris visibles",
+      "show-all": "Mostra-ho tot",
+      "hide-all": "Amaga-ho tot",
+      "search-placeholder": "Cerca un usuari",
+      "click-hint": "Fes clic a les icones per mostrar o amagar cada escriptori",
+      "headers": {
+        "user": "Usuari",
+        "all": "Tots",
+        "state": "Estat"
+      },
+      "filter": {
+        "all": "Tots els usuaris",
+        "visible": "Totalment visibles",
+        "hidden": "Totalment ocults",
+        "mixed": "Parcialment visibles"
+      },
+      "legend": {
+        "started": "Iniciat",
+        "stopped": "Aturat"
       }
     }
   },
@@ -1788,6 +1851,7 @@
       "fields": {
         "id": "ID",
         "mac": "Adreça MAC",
+        "name": "Nom",
         "ip": "Adreça IP"
       }
     },
@@ -3218,7 +3282,8 @@
       "delete": "Esborra",
       "info": "Informació",
       "other-viewers": "Altres visors",
-      "sort": "Ordena"
+      "sort": "Ordena",
+      "undo": "Desfés"
     }
   }
 }

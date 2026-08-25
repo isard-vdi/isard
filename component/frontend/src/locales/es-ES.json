@@ -125,6 +125,10 @@
     },
     "disclaimer": {
       "title": "Aviso legal"
+    },
+    "deployment-visibility": {
+      "title": "Visibilidad de los escritorios",
+      "subtitle": "Elige qué escritorios puede ver cada usuario de este despliegue"
     }
   },
   "views": {
@@ -658,7 +662,8 @@
           "reserve": "Reservar",
           "bastion": "Bastión",
           "bastion-csv": "Descargar el CSV del bastión",
-          "delete": "Eliminar despliegue"
+          "delete": "Eliminar despliegue",
+          "manage-visibility": "Visibilidad de los escritorios"
         }
       },
       "alloweds": {
@@ -669,7 +674,8 @@
       },
       "visibility": {
         "visible": "Visible",
-        "hidden": "Oculto"
+        "hidden": "Oculto",
+        "mixed": "Parcialmente visible"
       },
       "actions": {
         "go-to-direct-viewer": "Ir al visor directo"
@@ -709,7 +715,9 @@
           "last-access": "Último acceso",
           "user": "Usuario",
           "started-desktops": "Escritorios arrancados",
-          "actions": "Acciones"
+          "actions": "Acciones",
+          "all": "Todos",
+          "visible-desktops": "Escritorios visibles"
         },
         "disabled-user": {
           "badge": "Deshabilitado",
@@ -789,13 +797,45 @@
         "description-visible": "Los usuarios del despliegue verán y podrán utilizar sus escritorios.",
         "description-invisible": "Los usuarios del despliegue dejarán de ver sus escritorios. También puede parar los iniciados.",
         "only-hide": "Solo ocultar",
-        "hide-and-stop": "Ocultar y parar los escritorios"
+        "hide-and-stop": "Ocultar y parar los escritorios",
+        "cancel": "Cancelar",
+        "confirm": "Mostrar todos los escritorios"
       },
       "toggle-user-visibility": {
         "title-visible": "Hacer visibles los escritorios del usuario",
         "title-invisible": "Hacer invisibles los escritorios del usuario",
         "description-visible": "El usuario verá y podrá utilizar sus escritorios del despliegue.",
         "description-invisible": "El usuario dejará de ver sus escritorios del despliegue."
+      },
+      "visibility": {
+        "column-label": "Visibilidad de «{desktop}» para todos los usuarios",
+        "column-show": "Mostrar «{desktop}» a todos los usuarios",
+        "column-hide": "Ocultar «{desktop}» a todos los usuarios",
+        "row-label": "Visibilidad de los escritorios de {user}",
+        "row-show": "Mostrar todos los escritorios de {user}",
+        "row-hide": "Ocultar todos los escritorios de {user}",
+        "cell-label": "Visibilidad de «{desktop}» para {user}",
+        "cell-show": "Mostrar «{desktop}» a {user}",
+        "cell-hide": "Ocultar «{desktop}» a {user}",
+        "count-label": "{visible} de {total} escritorios visibles",
+        "all-users-warning": "se aplica a todos los usuarios, no solo a los de esta página",
+        "no-desktop": "«{desktop}» no se ha creado para {user}. Recrea el despliegue para crearlo.",
+        "toast": {
+          "shown": {
+            "deployment": "El despliegue ahora es visible para sus usuarios",
+            "desktop": "«{desktop}» ahora es visible para todos los usuarios",
+            "user": "Los escritorios de {user} ahora son visibles",
+            "cell": "«{desktop}» ahora es visible para {user}"
+          },
+          "hidden": {
+            "deployment": "El despliegue ahora está oculto para sus usuarios",
+            "desktop": "«{desktop}» ahora está oculto para todos los usuarios",
+            "user": "Los escritorios de {user} ahora están ocultos",
+            "cell": "«{desktop}» ahora está oculto para {user}"
+          },
+          "error": "No se ha podido cambiar la visibilidad"
+        },
+        "no-desktops-user": "No se ha creado ningún escritorio para {user}. Recrea el despliegue para crearlos."
       }
     },
     "view-deployment": {
@@ -1015,6 +1055,29 @@
       "success": {
         "message": "Contraseña cambiada con éxito.",
         "redirecting": "Redirigiendo al inicio de sesión en {seconds} segundo(s)."
+      }
+    },
+    "deployment-visibility": {
+      "back": "Volver al despliegue",
+      "summary": "{visible} de {total} escritorios visibles",
+      "show-all": "Mostrarlo todo",
+      "hide-all": "Ocultarlo todo",
+      "search-placeholder": "Buscar un usuario",
+      "click-hint": "Haz clic en los iconos para mostrar u ocultar cada escritorio",
+      "headers": {
+        "user": "Usuario",
+        "all": "Todos",
+        "state": "Estado"
+      },
+      "filter": {
+        "all": "Todos los usuarios",
+        "visible": "Totalmente visibles",
+        "hidden": "Totalmente ocultos",
+        "mixed": "Parcialmente visibles"
+      },
+      "legend": {
+        "started": "Iniciado",
+        "stopped": "Parado"
       }
     }
   },
@@ -1788,6 +1851,7 @@
       "fields": {
         "id": "ID",
         "mac": "Dirección MAC",
+        "name": "Nombre",
         "ip": "Dirección IP"
       }
     },
@@ -3218,7 +3282,8 @@
       "delete": "Eliminar",
       "info": "Información",
       "other-viewers": "Otros visores",
-      "sort": "Ordenar"
+      "sort": "Ordenar",
+      "undo": "Deshacer"
     }
   }
 }

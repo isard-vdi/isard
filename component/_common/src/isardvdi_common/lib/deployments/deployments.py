@@ -458,7 +458,14 @@ class DeploymentsProcessed(RethinkSharedConnection):
                     "name",
                     "description",
                     "tag_visible",
-                    {"create_dict": {"template": True}},
+                    {
+                        "create_dict": {
+                            "template": True,
+                            "name": True,
+                            "tag_desktop_id": True,
+                            "image": True,
+                        }
+                    },
                 )
                 .merge(
                     {
@@ -472,6 +479,13 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         "visible_desktops": r.table("domains")
                         .get_all(deployment_id, index="tag")
                         .filter({"tag_visible": True})
+                        .count(),
+                        # Desktop rows that actually exist. ``total_desktops``
+                        # is desktops x users, an *expected* count, so comparing
+                        # it against ``visible_desktops`` would report a false
+                        # "mixed" whenever a desktop is missing.
+                        "existing_desktops": r.table("domains")
+                        .get_all(deployment_id, index="tag")
                         .count(),
                     }
                 )
@@ -559,6 +573,8 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         ),
                     )
                 )
+                # Visibility is per desktop, and this flag is only the OR over
+                # every user's: it rules deployments out, not this user in.
                 .filter({"tag_visible": True})
                 .pluck(
                     "image",
@@ -570,21 +586,26 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 )
                 .merge(
                     lambda deployment: {
-                        "total_desktops": r.table("domains")
+                        "visible_statuses": r.table("domains")
                         .get_all(
                             ["desktop", user_payload["user_id"], deployment["id"]],
                             index="kind_user_tag",
                         )
-                        .count(),
-                        "started_desktops": r.table("domains")
-                        .get_all(
-                            ["desktop", user_payload["user_id"], deployment["id"]],
-                            index="kind_user_tag",
-                        )
-                        .filter({"status": "Started"})
+                        .filter({"tag_visible": True})
+                        .map(lambda domain: domain["status"])
+                        .coerce_to("array")
+                    }
+                )
+                .filter(lambda deployment: deployment["visible_statuses"].count().gt(0))
+                .merge(
+                    lambda deployment: {
+                        "total_desktops": deployment["visible_statuses"].count(),
+                        "started_desktops": deployment["visible_statuses"]
+                        .filter(lambda status: status.eq("Started"))
                         .count(),
                     }
                 )
+                .without("visible_statuses")
                 .run(cls._rdb_connection)
             )
         parsed_deployments = []

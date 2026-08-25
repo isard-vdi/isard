@@ -137,7 +137,18 @@ class TestToggleDomainVisibility:
     def test_tagged_desktop_toggles(self):
         toggle = MagicMock(name="toggle_user_visible")
         inst = SimpleNamespace(tag="dep1", toggle_user_visible=toggle)
-        with patch("api.services.deployments.RethinkDomain", return_value=inst) as D:
+        with (
+            patch("api.services.deployments.RethinkDomain", return_value=inst) as D,
+            patch(
+                "api.services.deployments.RethinkDeployment.recompute_tag_visible"
+            ) as recompute,
+            patch(
+                "api.services.deployments.Caches.clear_get_cached_deployment_desktops_cache"
+            ),
+            patch("api.services.deployments.deployment_cache.clear"),
+        ):
             D.exists.return_value = True
             DeploymentService.toggle_domain_visibility("d1")
         toggle.assert_called_once()
+        # The deployment flag is the OR over its desktops, so one flip re-derives it.
+        recompute.assert_called_once_with("dep1")

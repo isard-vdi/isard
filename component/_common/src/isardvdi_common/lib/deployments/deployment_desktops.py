@@ -23,6 +23,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.caches import Caches
+from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.isard_viewer import IsardViewer
 from isardvdi_common.lib.domains.desktops.desktop_direct_viewer import (
     DesktopDirectViewer,
@@ -38,50 +39,6 @@ isard_viewer = IsardViewer()
 class DeploymentDesktopsProcessed(RethinkSharedConnection):
 
     _rdb_table = "domains"
-
-    @classmethod
-    def get_deployment_desktops_grouped_by_user_status(cls, deployment_id):
-        with cls._rdb_context():
-            desktops = (
-                r.table("domains")
-                .get_all(deployment_id, index="tag")
-                .group(r.row["user"])
-                .map(
-                    lambda domain: {
-                        "status": domain["status"],
-                        "accessed": domain["accessed"],
-                        "tag_visible": domain["tag_visible"],
-                    }
-                )
-                .ungroup()
-                .map(
-                    lambda group: {
-                        "user": group["group"],
-                        "statuses": group["reduction"]
-                        .group("status")
-                        .count()
-                        .ungroup()
-                        .map(
-                            lambda status_group: {
-                                "status": status_group["group"],
-                                "amount": status_group["reduction"],
-                            }
-                        ),
-                        "last_access": group["reduction"]
-                        .filter(lambda d: d["accessed"].ne(None))
-                        .max("accessed")
-                        .default(None)
-                        .get_field("accessed")
-                        .default(None),
-                        "visible": group["reduction"]
-                        .filter(lambda d: d["tag_visible"].eq(True))
-                        .count()
-                        .gt(0),
-                    }
-                )
-                .run(cls._rdb_connection)
-            )
-        return list(desktops)
 
     @classmethod
     def get_with_tag_dict(cls, tag):
@@ -116,16 +73,20 @@ class DeploymentDesktopsProcessed(RethinkSharedConnection):
         return desktops
 
     @classmethod
-    def get_deployment_user_desktops(cls, deployment_id, user_id):
+    def get_deployment_user_desktops(cls, deployment_id, user_id, only_visible=False):
         """
         Get the deployment for a specific user
         """
+        query = (
+            r.table(cls._rdb_table)
+            .get_all(deployment_id, index="tag")
+            .filter(lambda domain: (domain["user"].eq(user_id)))
+        )
+        if only_visible:
+            query = query.filter({"tag_visible": True})
         with cls._rdb_context():
             desktops = (
-                r.table(cls._rdb_table)
-                .get_all(deployment_id, index="tag")
-                .filter(lambda domain: (domain["user"].eq(user_id)))
-                .merge(
+                query.merge(
                     lambda lab: {
                         "total_desktops": r.table("domains")
                         .get_all(lab["tag"], index="tag")
@@ -152,6 +113,193 @@ class DeploymentDesktopsProcessed(RethinkSharedConnection):
                 .run(cls._rdb_connection)
             )
         return list(desktops)
+
+    @classmethod
+    def user_has_visible_desktops(cls, deployment_id, user_id):
+        """Whether the owner made any of this user's desktops visible to them."""
+        with cls._rdb_context():
+            return (
+                r.table(cls._rdb_table)
+                .get_all(["desktop", user_id, deployment_id], index="kind_user_tag")
+                .filter({"tag_visible": True})
+                .count()
+                .gt(0)
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def _visibility_selection(
+        cls,
+        deployment_id,
+        users=None,
+        tag_desktop_ids=None,
+        desktop_ids=None,
+        legacy_tag_desktop_id=None,
+    ):
+        """Build the narrowest indexed selection for a visibility scope.
+
+        Index choice, most selective first:
+
+        * ``desktop_ids``     -> primary key, then a ``tag`` filter so a caller
+          can never reach outside the deployment.
+        * ``users``           -> ``kind_user_tag``; one key per user, each
+          yielding that user's |desktops| rows. A ``tag_desktop_ids`` residual
+          is applied over those few rows -- cheaper than the reverse, which
+          would read |users| rows to keep one.
+        * ``tag_desktop_ids`` -> ``tag_tag_desktop_id``; one key per desktop.
+        * neither             -> ``tag``.
+        """
+        if desktop_ids:
+            return (
+                r.table(cls._rdb_table)
+                .get_all(r.args(desktop_ids))
+                .filter({"tag": deployment_id, "kind": "desktop"})
+            )
+
+        # Legacy rows (pre release-184) carry ``tag_desktop_id: False``, and
+        # upgrade.py backfilled them from ``create_dict[0]``. So targeting the
+        # first desktop must also match rows that never got the field.
+        desktop_keys = list(tag_desktop_ids) if tag_desktop_ids else None
+        if (
+            desktop_keys
+            and legacy_tag_desktop_id
+            and legacy_tag_desktop_id in desktop_keys
+        ):
+            desktop_keys = desktop_keys + [False]
+
+        if users:
+            selection = r.table(cls._rdb_table).get_all(
+                r.args([["desktop", user, deployment_id] for user in users]),
+                index="kind_user_tag",
+            )
+            if desktop_keys is not None:
+                selection = selection.filter(
+                    lambda domain: r.expr(desktop_keys).contains(
+                        domain["tag_desktop_id"].default(False)
+                    )
+                )
+            return selection
+
+        if desktop_keys is not None:
+            return r.table(cls._rdb_table).get_all(
+                r.args([[deployment_id, key] for key in desktop_keys]),
+                index="tag_tag_desktop_id",
+            )
+
+        return (
+            r.table(cls._rdb_table)
+            .get_all(deployment_id, index="tag")
+            .filter({"kind": "desktop"})
+        )
+
+    @classmethod
+    def set_desktops_visibility(
+        cls,
+        deployment_id,
+        visible,
+        users=None,
+        tag_desktop_ids=None,
+        desktop_ids=None,
+        stop_started_domains=False,
+    ):
+        """Idempotently set ``tag_visible`` over a scoped subset.
+
+        Returns the recomputed deployment aggregate so the caller needs no
+        follow-up read.
+        """
+        from isardvdi_common.models.deployment import Deployment
+
+        legacy_tag_desktop_id = Deployment.first_tag_desktop_id(deployment_id)
+
+        selection = cls._visibility_selection(
+            deployment_id,
+            users=users,
+            tag_desktop_ids=tag_desktop_ids,
+            desktop_ids=desktop_ids,
+            legacy_tag_desktop_id=legacy_tag_desktop_id,
+        )
+
+        # Only the rows that actually differ, so ``updated`` is a true change
+        # count and the stop list never targets an already hidden desktop.
+        with cls._rdb_context():
+            changing = list(
+                selection.filter(
+                    lambda domain: domain["tag_visible"].default(False).ne(visible)
+                )
+                .pluck("id", "status")
+                .run(cls._rdb_connection)
+            )
+
+        changing_ids = [domain["id"] for domain in changing]
+        if changing_ids:
+            with cls._rdb_context():
+                r.table(cls._rdb_table).get_all(r.args(changing_ids)).update(
+                    {"tag_visible": visible}
+                ).run(cls._rdb_connection)
+
+        # The master flag is derived from the desktops, never set independently.
+        aggregate = Deployment.recompute_tag_visible(deployment_id, fallback=visible)
+
+        # Feeds ``visible_desktops`` on the deployments LIST view (1s TTL).
+        Caches.clear_get_cached_deployment_desktops_cache()
+
+        stopped = []
+        if stop_started_domains and not visible and changing_ids:
+            stoppable = {
+                DesktopStatusEnum.started.value,
+                DesktopStatusEnum.starting.value,
+                DesktopStatusEnum.starting_paused.value,
+                DesktopStatusEnum.shutting_down.value,
+            }
+            stopped = [
+                domain["id"] for domain in changing if domain.get("status") in stoppable
+            ]
+            if stopped:
+                DesktopEvents.desktops_stop(stopped, force=True)
+
+        return {
+            "id": deployment_id,
+            "updated": len(changing_ids),
+            "stopped": stopped,
+            **aggregate,
+        }
+
+    @classmethod
+    def get_deployment_desktops_visibility_matrix(
+        cls, deployment_id, legacy_tag_desktop_id=None
+    ):
+        """One row per deployment desktop, keyed by (user, tag_desktop_id).
+
+        Feeds both the per-user aggregate (statuses / last access / "any
+        visible") and the per-desktop visibility matrix from a single pass.
+        """
+        fallback = legacy_tag_desktop_id if legacy_tag_desktop_id is not None else False
+        with cls._rdb_context():
+            rows = list(
+                r.table(cls._rdb_table)
+                .get_all(deployment_id, index="tag")
+                .filter({"kind": "desktop"})
+                .map(
+                    lambda domain: {
+                        "user": domain["user"],
+                        # Legacy rows carry ``tag_desktop_id: False``; bucket
+                        # them under the first desktop, the same convention
+                        # upgrade.py used to backfill the field.
+                        "tag_desktop_id": r.branch(
+                            domain["tag_desktop_id"].default(False).eq(False),
+                            r.expr(fallback),
+                            domain["tag_desktop_id"],
+                        ),
+                        "desktop_id": domain["id"],
+                        "name": domain["name"],
+                        "visible": domain["tag_visible"].default(False),
+                        "status": domain["status"],
+                        "accessed": domain["accessed"].default(None),
+                    }
+                )
+                .run(cls._rdb_connection)
+            )
+        return rows
 
     @classmethod
     def update_desktops_visibility(cls, desktop_ids, visible):

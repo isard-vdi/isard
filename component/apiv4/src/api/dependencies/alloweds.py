@@ -31,6 +31,9 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.lib.api_admin import ApiAdmin
+from isardvdi_common.lib.deployments.deployment_desktops import (
+    DeploymentDesktopsProcessed,
+)
 from isardvdi_common.lib.deployments.deployments import DeploymentsProcessed
 from isardvdi_common.lib.domains.templates.templates import TemplatesProcessed
 from isardvdi_common.models.domain import Domain
@@ -237,9 +240,9 @@ async def is_allowed_deployment_id_and_user_id(
         )
 
     if payload["user_id"] == user_id:
-        if not deployment["tag_visible"] and not _manages_deployment(
-            payload, deployment_id
-        ):
+        if not DeploymentDesktopsProcessed.user_has_visible_desktops(
+            deployment_id, user_id
+        ) and not _manages_deployment(payload, deployment_id):
             raise Error(
                 "forbidden",
                 f" The deployment {deployment_id} is not visible to the user {user_id}.",
@@ -258,6 +261,20 @@ async def is_allowed_deployment_id_and_user_id(
         )
 
     return deployment_id
+
+
+async def deployment_user_sees_only_visible(
+    payload: str = Depends(has_token),
+    deployment_id: str = Depends(is_allowed_deployment_id_and_user_id),
+    user_id: str = Path(...),
+) -> bool:
+    """
+    Whether the requester is the participant themselves, who sees only the
+    desktops the owner made visible; whoever manages the deployment sees all.
+    """
+    return payload["user_id"] == user_id and not _manages_deployment(
+        payload, deployment_id
+    )
 
 
 def allowed_deployment_action(action: str = "recreate"):

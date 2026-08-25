@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from isardvdi_common.lib.deployments import deployment_users as mod
+from isardvdi_common.models.deployment import Deployment
 
 DU = mod.DeploymentUsers
 
@@ -39,8 +40,11 @@ def users(monkeypatch):
     monkeypatch.setattr(DU, "get_users", classmethod(lambda cls, did: ["u-1"]))
     monkeypatch.setattr(
         mod.DeploymentDesktopsProcessed,
-        "get_deployment_desktops_grouped_by_user_status",
-        classmethod(lambda cls, did: []),
+        "get_deployment_desktops_visibility_matrix",
+        classmethod(lambda cls, did, legacy_tag_desktop_id=None: []),
+    )
+    monkeypatch.setattr(
+        Deployment, "first_tag_desktop_id", classmethod(lambda cls, did: "r1")
     )
 
     tbl = MagicMock(name="r.table")

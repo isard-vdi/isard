@@ -4,6 +4,7 @@ import type {
   WsDeploymentDesktopPayload,
   WsDeploymentPayload
 } from '@/types/ws-events'
+import { DEPLOYMENT_VISIBILITY_MUTATION_KEY } from '@/composables/useDeploymentVisibility'
 
 /**
  * Match any TanStack Query whose first key element is a generated-client
@@ -19,10 +20,32 @@ function isDeploymentScopedQuery(queryKey: QueryKey): boolean {
   return id.includes('Deployment') || id.includes('Lab')
 }
 
+/**
+ * Coalescing window for the invalidation below.
+ *
+ * The change handler emits one `deploymentdesktop_update` per domain, so a
+ * bulk write — hiding one deployment desktop across 100 users — arrives as 100
+ * events. Without this, each one invalidates every deployment-scoped query
+ * and triggers its own refetch.
+ *
+ * A module-level timer rather than `useDebounceFn`: these handlers are a
+ * plain object with no component instance to own a composable.
+ */
+const INVALIDATE_DEBOUNCE_MS = 300
+let invalidateTimer: ReturnType<typeof setTimeout> | null = null
+
 function invalidateDeploymentScoped(queryClient: QueryClient) {
-  queryClient.invalidateQueries({
-    predicate: (query) => isDeploymentScopedQuery(query.queryKey)
-  })
+  if (invalidateTimer !== null) clearTimeout(invalidateTimer)
+  invalidateTimer = setTimeout(() => {
+    invalidateTimer = null
+    // Our own visibility write is in flight: its optimistic patch is
+    // authoritative until the mutation's `onSettled` invalidates. Refetching
+    // here would clobber it with state the server may not have applied yet.
+    if (queryClient.isMutating({ mutationKey: DEPLOYMENT_VISIBILITY_MUTATION_KEY }) > 0) return
+    queryClient.invalidateQueries({
+      predicate: (query) => isDeploymentScopedQuery(query.queryKey)
+    })
+  }, INVALIDATE_DEBOUNCE_MS)
 }
 
 export const deploymentDesktopEventHandlers = {
