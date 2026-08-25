@@ -4,9 +4,19 @@ from fastapi import APIRouter, FastAPI
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+SWAGGER_JS_URL = "/openapi/static/swagger-ui-bundle.js"
+SWAGGER_CSS_URL = "/openapi/static/swagger-ui.css"
+REDOC_JS_URL = "/openapi/static/redoc.standalone.js"
+FAVICON_URL = "/favicon.ico"
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 router = APIRouter()
+
+app.mount(
+    "/openapi/static", StaticFiles(directory="/static", check_dir=False), name="static"
+)
 
 
 @router.get("/", include_in_schema=False)
@@ -65,7 +75,7 @@ def landing():
       <body>
         <div class="container">
           <div class="left">
-            <img src="/openapi/cover-img.svg" alt="Cover Image"/>
+            <img src="/openapi/static/cover-img.svg" alt="Cover Image"/>
           </div>
           <div class="right">
             <div class="logo">
@@ -97,20 +107,29 @@ def landing():
     )
 
 
-# server cover-img.svg and favicon.ico
-@router.get("/cover-img.svg", include_in_schema=False)
-def cover_image():
-    return FileResponse("cover-img.svg", media_type="image/svg+xml")
-
-
-@router.get("/favicon.ico", include_in_schema=False)
-def favicon():
-    return FileResponse("/favicon.ico", media_type="image/x-icon")
-
-
 # Helper to serve JSON files
 def serve_json(path):
     return FileResponse(path, media_type="application/json")
+
+
+def swagger_page(name, title):
+    return get_swagger_ui_html(
+        openapi_url=f"/openapi/{name}.json",
+        title=title,
+        swagger_js_url=SWAGGER_JS_URL,
+        swagger_css_url=SWAGGER_CSS_URL,
+        swagger_favicon_url=FAVICON_URL,
+    )
+
+
+def redoc_page(name, title):
+    return get_redoc_html(
+        openapi_url=f"/openapi/{name}.json",
+        title=title,
+        redoc_js_url=REDOC_JS_URL,
+        redoc_favicon_url=FAVICON_URL,
+        with_google_fonts=False,
+    )
 
 
 # --- Authentication ---
@@ -121,16 +140,12 @@ def openapi_auth():
 
 @router.get("/docs/authentication", include_in_schema=False)
 def docs_auth():
-    return get_swagger_ui_html(
-        openapi_url="/openapi/authentication.json", title="Authentication Swagger UI"
-    )
+    return swagger_page("authentication", "Authentication Swagger UI")
 
 
 @router.get("/redoc/authentication", include_in_schema=False)
 def redoc_auth():
-    return get_redoc_html(
-        openapi_url="/openapi/authentication.json", title="Authentication ReDoc"
-    )
+    return redoc_page("authentication", "Authentication ReDoc")
 
 
 # --- Notifier ---
@@ -141,14 +156,12 @@ def openapi_notifier():
 
 @router.get("/docs/notifier", include_in_schema=False)
 def docs_notifier():
-    return get_swagger_ui_html(
-        openapi_url="/openapi/notifier.json", title="Notifier Swagger UI"
-    )
+    return swagger_page("notifier", "Notifier Swagger UI")
 
 
 @router.get("/redoc/notifier", include_in_schema=False)
 def redoc_notifier():
-    return get_redoc_html(openapi_url="/openapi/notifier.json", title="Notifier ReDoc")
+    return redoc_page("notifier", "Notifier ReDoc")
 
 
 def get_server_url():
