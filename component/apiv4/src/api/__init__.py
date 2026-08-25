@@ -24,6 +24,7 @@ import logging as log
 import os
 from contextlib import asynccontextmanager
 
+import api.dependencies.log_config  # noqa: F401
 from api.dependencies.jwt_token import (
     has_email_verification_required_or_login_token,
     has_migration_required_or_login_token,
