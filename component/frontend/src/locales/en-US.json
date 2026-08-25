@@ -552,6 +552,10 @@
       "no-data": "No user data available"
     },
     "media": {
+      "alloweds": {
+        "success": "Allowed users and groups updated",
+        "error": "Could not update the allowed users and groups"
+      },
       "data-table": {
         "headers": {
           "name": "Name",

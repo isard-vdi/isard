@@ -544,6 +544,10 @@
       "no-data": "No hi ha dades d'usuari disponibles"
     },
     "media": {
+      "alloweds": {
+        "success": "Usuaris i grups permesos actualitzats",
+        "error": "No s'han pogut actualitzar els usuaris i grups permesos"
+      },
       "data-table": {
         "headers": {
           "name": "Nom",
