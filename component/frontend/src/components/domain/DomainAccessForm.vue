@@ -436,18 +436,16 @@ const showPassword = ref(false)
   </template>
   <template v-else>
     <FieldGroup>
-      <section class="group/hw-section grid gap-4 items-start">
+      <section class="grid gap-4 items-start">
         <div class="flex items-center gap-2">
           <Icon
             name="monitor"
             size="sm"
             stroke-color=""
             aria-hidden="true"
-            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+            class="text-brand-700"
           />
-          <h4
-            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-          >
+          <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
             {{ t('components.domain.access.sections.viewers') }}
           </h4>
           <Separator class="flex-1" />
@@ -501,20 +499,12 @@ const showPassword = ref(false)
           />
         </div>
       </section>
-      <section v-if="showCredentials" class="group/hw-section grid gap-4 items-start">
+      <section v-if="showCredentials" class="grid gap-4 items-start">
         <div class="flex items-center gap-2">
           <!-- Empty stroke-color clears Icon's inline color so the class below can drive
                currentColor and pick up the focus-within highlight. -->
-          <Icon
-            name="key-01"
-            size="sm"
-            stroke-color=""
-            aria-hidden="true"
-            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-          />
-          <h4
-            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-          >
+          <Icon name="key-01" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
+          <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
             {{ t('components.domain.access.sections.credentials') }}
           </h4>
           <Separator class="flex-1" />

@@ -214,20 +214,12 @@ const removeCustomDomain = (index: number) => {
 
 <template>
   <!-- Bastion -->
-  <section class="group/hw-section grid gap-4 items-start">
+  <section class="grid gap-4 items-start">
     <div class="flex items-center gap-2">
       <!-- Empty stroke-color clears Icon's inline color so the class below can drive
            currentColor and pick up the focus-within highlight. -->
-      <Icon
-        name="shield-01"
-        size="sm"
-        stroke-color=""
-        aria-hidden="true"
-        class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-      />
-      <h4
-        class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-      >
+      <Icon name="shield-01" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
+      <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
         {{ t('components.domain.access.sections.bastion') }}
       </h4>
       <Separator class="flex-1" />
@@ -268,18 +260,16 @@ const removeCustomDomain = (index: number) => {
   </section>
   <template v-if="bastionEnabled">
     <!-- Bastion configuration -->
-    <section class="group/hw-section grid gap-4 items-start">
+    <section class="grid gap-4 items-start">
       <div class="flex items-center gap-2">
         <Icon
           name="shield-zap"
           size="sm"
           stroke-color=""
           aria-hidden="true"
-          class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+          class="text-brand-700"
         />
-        <h4
-          class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-        >
+        <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
           {{ t('components.domain.access.sections.bastion-configuration') }}
         </h4>
         <Separator class="flex-1" />
