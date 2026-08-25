@@ -1,8 +1,25 @@
+import contextvars
 import logging
 
 import isardvdi_common.helpers.log  # noqa: F401
 
 UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access", "uvicorn.asgi")
+IDENTITY_FIELDS = ("user_id", "role_id", "category_id", "group_id")
+
+_request_identity: contextvars.ContextVar = contextvars.ContextVar(
+    "apiv4_request_identity", default=None
+)
+
+
+def set_request_identity(payload):
+    _request_identity.set(payload)
+
+
+def _identity():
+    payload = _request_identity.get()
+    if not isinstance(payload, dict):
+        return None
+    return {field: payload[field] for field in IDENTITY_FIELDS if payload.get(field)}
 
 
 class UvicornRecordFilter(logging.Filter):
@@ -28,6 +45,11 @@ class UvicornRecordFilter(logging.Filter):
         }
         record.msg = "%s %s %s"
         record.args = (method, path, status_code)
+
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            user = _identity()
+            if user:
+                record.user = user
         return True
 
 

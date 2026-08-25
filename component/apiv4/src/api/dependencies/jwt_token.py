@@ -25,6 +25,7 @@ import os
 import traceback
 from typing import Literal, TypedDict
 
+from api.dependencies.log_config import set_request_identity
 from api.services.error import Error
 from fastapi import Depends, Path, Request, status
 from fastapi.security import HTTPBearer
@@ -76,6 +77,12 @@ class TokenFastAPI(Token):
         """
 
         return {}
+
+    @classmethod
+    def get_token_payload(cls, token, user_request=None):
+        payload = super().get_token_payload(token, user_request=user_request)
+        set_request_identity(payload)
+        return payload
 
     @classmethod
     def log_user(cls, payload, user_request=None):
