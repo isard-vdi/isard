@@ -1,39 +1,72 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '../icon'
-// A value on the summary card, flagged when the forms below have moved it.
-// The icon that labels the value goes in the default slot so the flag can wrap
-// both; `changed` comes back as a slot prop for the icon to follow the accent.
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useIsTextTruncated } from '@/composables/useIsTextTruncated'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     value: string
+    icon?: string
+    label?: string
     changed?: boolean
+    truncate?: boolean
   }>(),
   {
-    changed: false
+    icon: undefined,
+    label: undefined,
+    changed: false,
+    truncate: false
   }
 )
 
 const { t } = useI18n()
+
+const valueRef = ref<HTMLElement | null>(null)
+const { isTruncated } = useIsTextTruncated(valueRef, () => props.value)
 </script>
 
 <template>
-  <span
-    :class="[
-      'flex items-center [&_svg]:shrink-0',
-      changed ? 'bg-brand-100 text-brand-700 px-2 py-1 rounded-md' : ''
-    ]"
-    :title="changed ? t('components.domain-summary.changed') : undefined"
-  >
-    <slot :changed="changed" />
-    <span
-      :class="[
-        'text-sm',
-        changed ? 'rounded-md bg-brand-100 font-semibold ml-2' : 'ml-2 font-semibold'
-      ]"
-      >{{ value }}</span
-    >
-    <Icon v-if="changed" name="dot" size="xs" stroke-color="brand-700" class="ml-1" />
-  </span>
+  <Tooltip>
+    <TooltipTrigger as-child>
+      <span
+        :class="[
+          'flex items-center gap-1.5 [&_svg]:shrink-0',
+          changed ? 'rounded-md bg-secondary-3-100 px-2 py-1' : ''
+        ]"
+      >
+        <Icon
+          v-if="icon"
+          aria-hidden="true"
+          :name="icon"
+          size="sm"
+          stroke-color=""
+          :class="changed ? 'text-brand-700' : 'text-gray-warm-500'"
+        />
+        <span
+          v-if="label"
+          :class="[
+            'text-xs font-semibold uppercase tracking-wide shrink-0',
+            changed ? 'text-brand-700/70' : 'text-gray-warm-500'
+          ]"
+          >{{ label }}</span
+        >
+        <span
+          ref="valueRef"
+          :class="[
+            'text-sm font-semibold',
+            changed ? 'text-brand-700' : 'text-gray-warm-800',
+            truncate ? 'max-w-40 truncate' : ''
+          ]"
+          >{{ value }}</span
+        >
+      </span>
+    </TooltipTrigger>
+    <TooltipContent
+      v-if="isTruncated || changed"
+      :title="isTruncated ? value : t('components.domain-summary.changed')"
+      side="top"
+    />
+  </Tooltip>
 </template>

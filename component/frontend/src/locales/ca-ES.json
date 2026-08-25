@@ -1794,7 +1794,17 @@
       }
     },
     "domain-summary": {
-      "changed": "Valor modificat"
+      "changed": "Valor modificat",
+      "tags": {
+        "boot": "Arrencada",
+        "disk": "Disc",
+        "disk-bus": "Bus",
+        "floppy": "Floppy",
+        "iso": "ISO",
+        "password": "Contrasenya",
+        "user": "Usuari",
+        "video": "Vídeo"
+      }
     },
     "viewers-selector": {
       "browser-viewers": {

@@ -1456,7 +1456,17 @@
       }
     },
     "domain-summary": {
-      "changed": "Aldatutako balioa"
+      "changed": "Aldatutako balioa",
+      "tags": {
+        "boot": "Abioa",
+        "disk": "Diskoa",
+        "disk-bus": "Busa",
+        "floppy": "Floppy",
+        "iso": "ISO",
+        "password": "Pasahitza",
+        "user": "Erabiltzailea",
+        "video": "Bideoa"
+      }
     },
     "date-picker": {
       "today": "Gaur",
