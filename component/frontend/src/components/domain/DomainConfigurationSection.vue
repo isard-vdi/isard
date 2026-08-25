@@ -327,6 +327,7 @@ defineExpose({
           v-if="!alwaysOpen"
           class="shadow-xs"
           :loading="loading"
+          :kind="entity === 'templates' ? 'template' : kind"
           :previous="baseSummary"
           v-bind="liveSummary"
         />

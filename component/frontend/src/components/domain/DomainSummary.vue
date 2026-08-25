@@ -35,10 +35,13 @@ export interface DomainSummaryData {
   interfaces?: string[]
 }
 
+export type DomainSummaryKind = 'persistent' | 'nonpersistent' | 'deployment' | 'template'
+
 interface Props extends DomainSummaryData {
   // Card
   title?: string
   loading?: boolean
+  kind?: DomainSummaryKind
   /** What the fields held before the edits, when the card tracks live forms. */
   previous?: DomainSummaryData
   class?: HTMLAttributes['class']
@@ -59,11 +62,27 @@ const props = withDefaults(defineProps<Props>(), {
   vgpus: undefined,
   interfaces: undefined,
   title: undefined,
+  kind: undefined,
   previous: undefined,
   class: undefined
 })
 
 const { t } = useI18n()
+
+const accent = computed(() => {
+  switch (props.kind) {
+    case 'nonpersistent':
+      return 'border-l-6 border-l-secondary-1-500'
+    case 'deployment':
+      return 'border-l-6 border-l-secondary-2-500'
+    case 'persistent':
+      return 'border-l-6 border-l-secondary-3-500'
+    case 'template':
+      return 'border-l-6 border-l-brand-700'
+    default:
+      return ''
+  }
+})
 
 const sameValue = (a: unknown, b: unknown) =>
   JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
@@ -144,13 +163,10 @@ const hasHardwareInfo = computed(() => {
 <template>
   <div
     :class="
-      cn(
-        'flex flex-col gap-6 bg-gray-warm-50 p-4 rounded-md border border-gray-warm-200',
-        props.class
-      )
+      cn('bg-gray-warm-50 px-4 py-2 rounded-md border border-gray-warm-200', accent, props.class)
     "
   >
-    <h2 v-if="props.title" class="text-lg font-bold text-gray-warm-700">{{ props.title }}</h2>
+    <h2 v-if="props.title" class="py-2 text-lg font-bold text-gray-warm-700">{{ props.title }}</h2>
 
     <!-- Loading skeleton -->
     <template v-if="props.loading">
