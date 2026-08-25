@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import DataTable from '@/components/data-table/DataTable.vue'
 import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
 import {
   getAllDeploymentsOptions,
-  checkQuotaNewDeploymentOptions
+  checkQuotaNewDeploymentOptions,
+  editDeploymentUsersMutation,
+  getDeploymentAllowedQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { type OwnedDeployment } from '@/gen/oas/apiv4'
+import { type ErrorResponse, type OwnedDeployment } from '@/gen/oas/apiv4'
 import { QuotaExceededModal } from '@/components/modal'
+import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
+import { toast } from '@/components/ui/toast'
 import { DeleteModal } from '@/components/deployments/actions/delete-modal'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import Badge from '@/components/badge/Badge.vue'
@@ -179,6 +183,15 @@ const dropdownActions = computed(() => [
     fn: handleNotImplemented
   },
   {
+    key: 'alloweds',
+    icon: 'users-01',
+    label: t('views.deployments.dropdown.buttons.alloweds'),
+    fn: (deployment: OwnedDeployment) => {
+      allowedError.value = ''
+      allowedModalDeploymentId.value = deployment.id
+    }
+  },
+  {
     key: 'download',
     icon: 'download-02',
     label: t('views.deployments.dropdown.buttons.download-viewer'),
@@ -238,6 +251,40 @@ const downloadCsvModalDeploymentData = ref<{
   name: string
 } | null>(null)
 
+const allowedModalDeploymentId = ref<string | null>(null)
+const allowedError = ref('')
+
+const { mutate: editDeploymentUsers, isPending: updateAllowedIsPending } = useMutation({
+  ...editDeploymentUsersMutation(),
+  onSuccess: (_data, variables) => {
+    queryClient.removeQueries({
+      queryKey: getDeploymentAllowedQueryKey({
+        path: { deployment_id: variables.path.deployment_id }
+      })
+    })
+    closeAllowedModal()
+    toast.success(t('views.deployments.alloweds.success'))
+  },
+  onError: (error) => {
+    allowedError.value =
+      (error as ErrorResponse)?.description_code === 'cant_edit_booked_deployment'
+        ? t('views.deployments.alloweds.blocked')
+        : t('views.deployments.alloweds.error')
+  }
+})
+
+const closeAllowedModal = () => {
+  allowedModalDeploymentId.value = null
+  allowedError.value = ''
+}
+
+const handleSaveAllowed = (selection: AllowedSelection) => {
+  const deploymentId = allowedModalDeploymentId.value
+  if (!deploymentId) return
+  allowedError.value = ''
+  editDeploymentUsers({ path: { deployment_id: deploymentId }, body: { allowed: selection } })
+}
+
 const goToDeployment = (row: any) => {
   if (!row?.id) return
   router.push({ name: 'deployment', params: { deploymentId: row.id } })
@@ -254,6 +301,19 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
     :cancel-label="t('components.deployments.quota-exceeded-modal.cancel')"
     :cancel-to="{ name: 'deployments' }"
     @close="showQuotaExceededModal = false"
+  />
+  <AllowedModal
+    v-if="allowedModalDeploymentId"
+    open
+    item-type="deployment"
+    :item-id="allowedModalDeploymentId"
+    :warning="t('views.deployments.alloweds.warning')"
+    require-selection
+    :supports-everyone="false"
+    :loading="updateAllowedIsPending"
+    :error="allowedError"
+    @save="handleSaveAllowed"
+    @close="closeAllowedModal"
   />
   <RecreateModal
     :open="showRecreateModal"
