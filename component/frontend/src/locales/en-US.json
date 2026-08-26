@@ -2831,10 +2831,12 @@
         "internal_server": "Internal server error while saving the desktop.",
         "precondition_required": "The desktop must be stopped before editing.",
         "not_found": "The desktop was not found.",
-        "bad_request": "RDP viewers need the wireguard network. Please add the wireguard network to this desktop or remove RDP viewers.",
+        "rdp_requires_wireguard": "RDP viewers need the wireguard network. Please add the wireguard network to this desktop or remove RDP viewers.",
         "new_desktop_name_exists": "A desktop with the same name already exists. Please choose a different name.",
         "one_viewer_minimum": "At least one viewer must be selected.",
-        "only_works_rdp": "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option."
+        "only_works_rdp": "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option.",
+        "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
+        "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host."
       }
     },
     "edit-template": {
@@ -2844,7 +2846,9 @@
         "new_template_name_exists": "A template with this name already exists. Please choose a different name.",
         "not_found": "The template was not found.",
         "precondition_required": "The template must be stopped before it can be edited.",
-        "bad_request": "RDP viewers require the wireguard network. Please add the wireguard network to this template or remove RDP viewers."
+        "rdp_requires_wireguard": "RDP viewers require the wireguard network. Please add the wireguard network to this template or remove RDP viewers.",
+        "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
+        "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host."
       }
     },
     "booking": {

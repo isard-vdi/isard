@@ -2755,7 +2755,9 @@
         "new_template_name_exists": "Ya existe una plantilla con este nombre. Por favor, elige un nombre diferente.",
         "not_found": "No se encontró la plantilla.",
         "precondition_required": "La plantilla debe estar detenida antes de poder editarla.",
-        "bad_request": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a esta plantilla o elimina los visores RDP."
+        "rdp_requires_wireguard": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a esta plantilla o elimina los visores RDP.",
+        "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
+        "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host."
       }
     },
     "new-media": {
@@ -2808,10 +2810,12 @@
         "internal_server": "Error interno del servidor al guardar el escritorio.",
         "precondition_required": "El escritorio debe estar detenido antes de editarlo.",
         "not_found": "No se encontró el escritorio.",
-        "bad_request": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a este escritorio o elimina los visores RDP.",
+        "rdp_requires_wireguard": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a este escritorio o elimina los visores RDP.",
         "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre. Por favor, elige un nombre diferente.",
         "one_viewer_minimum": "Debes seleccionar al menos un visor.",
-        "only_works_rdp": "El modo 'Solo GPU' solo funciona con visores RDP. Por favor, elimina los visores que no sean RDP o elige otra opción de vídeo."
+        "only_works_rdp": "El modo 'Solo GPU' solo funciona con visores RDP. Por favor, elimina los visores que no sean RDP o elige otra opción de vídeo.",
+        "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
+        "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host."
       }
     },
     "booking": {
