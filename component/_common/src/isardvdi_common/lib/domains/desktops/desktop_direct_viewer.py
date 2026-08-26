@@ -309,7 +309,11 @@ class DesktopDirectViewer(RethinkSharedConnection):
             "jwt": IsardViewer.viewer_jwt(domain["category"], domain["id"], minutes=30),
             "name": domain["name"],
             "description": domain["description"],
-            "status": DesktopStatusEnum.started.value,
+            "status": (
+                domain["status"]
+                if domain["status"] == DesktopStatusEnum.maintenance.value
+                else DesktopStatusEnum.started.value
+            ),
             "scheduled": (
                 sched_src if isinstance(sched_src, dict) else {"shutdown": False}
             ),
@@ -321,6 +325,8 @@ class DesktopDirectViewer(RethinkSharedConnection):
                 else DesktopTypeEnum.nonpersistent.value
             ),
         }
+        if domain["status"] == DesktopStatusEnum.maintenance.value:
+            return desktop
         desktop_viewers = available_viewers(domain["guest_properties"])
         if "file_spice" in desktop_viewers:
             desktop["viewers"]["file-spice"] = cls.desktop_viewer(
