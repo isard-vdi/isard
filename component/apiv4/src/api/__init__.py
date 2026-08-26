@@ -39,6 +39,7 @@ from api.dependencies.jwt_token import (
     is_admin_or_manager,
     is_not_user,
 )
+from api.dependencies.log_config import RequestContextMiddleware
 from api.services.error import Error
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -263,6 +264,8 @@ if cors_origins:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+app.add_middleware(RequestContextMiddleware)
 
 
 def _error_response_body(
