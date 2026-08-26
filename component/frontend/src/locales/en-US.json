@@ -2837,6 +2837,21 @@
         "only_works_rdp": "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option."
       }
     },
+    "delete-desktop": {
+      "errors": {
+        "generic": "Could not delete the desktop. Please try again.",
+        "not_found": "The desktop was not found.",
+        "precondition_required": "The desktop can't be deleted right now. Please try again in a moment."
+      }
+    },
+    "delete-deployment": {
+      "errors": {
+        "generic": "Could not delete the deployment. Please try again.",
+        "not_found": "The deployment was not found.",
+        "precondition_required": "The deployment can't be deleted right now. Please try again in a moment.",
+        "deployment_stop": "The deployment's desktops must be stopped before it can be deleted."
+      }
+    },
     "edit-template": {
       "errors": {
         "generic": "There was an error saving the template. Please try again.",

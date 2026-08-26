@@ -8,10 +8,12 @@ import {
   deleteDeploymentMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { AlertModal } from '@/components/modal'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/icon'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { describeApiError } from '@/lib/api-errors'
 
 interface Props {
   open?: boolean
@@ -29,13 +31,14 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const { data: recycleBinDefaultDelete } = useQuery(getRecycleBinDefaultDeleteConfigOptions())
 
 const { data: recycleBinCutoffTime } = useQuery(getRecycleBinCutoffTimeOptions())
 
 const deleteModalRecycleBinChecked = ref(recycleBinDefaultDelete.value)
+const deleteDeploymentErrorMessage = ref<string | null>(null)
 
 watch(recycleBinDefaultDelete, (val) => {
   deleteModalRecycleBinChecked.value = val
@@ -48,6 +51,9 @@ const { mutate: deleteDeployment, isPending: deleteDeploymentIsPending } = useMu
     if (props.onSuccess) {
       props.onSuccess()
     }
+  },
+  onError: (error) => {
+    deleteDeploymentErrorMessage.value = describeApiError(error, { t, te }, 'delete-deployment')
   }
 })
 
@@ -67,6 +73,7 @@ const confirmDelete = () => {
 
 const handleClose = () => {
   deleteModalRecycleBinChecked.value = recycleBinDefaultDelete.value
+  deleteDeploymentErrorMessage.value = null
   emit('update:open', false)
   emit('close')
 }
@@ -87,6 +94,9 @@ const handleClose = () => {
     @close="handleClose"
   >
     <template #description>
+      <Alert v-if="deleteDeploymentErrorMessage" variant="destructive" class="mb-4">
+        <AlertDescription>{{ deleteDeploymentErrorMessage }}</AlertDescription>
+      </Alert>
       <Label
         v-if="recycleBinCutoffTime?.recycle_bin_cutoff_time"
         class="w-fit flex flex-row items-start gap-2"

@@ -2840,6 +2840,21 @@
         "one_viewer_minimum": "Cal seleccionar almenys un visor.",
         "only_works_rdp": "El mode «Només GPU» només funciona amb visors RDP. Si us plau, elimina els visors que no siguin RDP o tria una altra opció de vídeo."
       }
+    },
+    "delete-desktop": {
+      "errors": {
+        "generic": "No s'ha pogut eliminar l'escriptori. Torna-ho a provar.",
+        "not_found": "No s'ha trobat l'escriptori.",
+        "precondition_required": "L'escriptori no es pot eliminar en aquest moment. Torna-ho a provar d'aquí a uns instants."
+      }
+    },
+    "delete-deployment": {
+      "errors": {
+        "generic": "No s'ha pogut eliminar el desplegament. Torna-ho a provar.",
+        "not_found": "No s'ha trobat el desplegament.",
+        "precondition_required": "El desplegament no es pot eliminar en aquest moment. Torna-ho a provar d'aquí a uns instants.",
+        "deployment_stop": "Els escriptoris del desplegament han d'estar aturats abans de poder eliminar-lo."
+      }
     }
   },
   "domains": {
