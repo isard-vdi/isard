@@ -234,6 +234,7 @@ const handleSubmit = () => {
           :info-extra-schema="infoExtraSchema"
           :image="desktopImage"
           show-disk-size
+          always-show-configuration
           :show-peripherals="false"
           :defaults="defaults"
           :summary="summary"
