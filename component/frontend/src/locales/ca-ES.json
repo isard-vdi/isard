@@ -2755,7 +2755,9 @@
         "new_template_name_exists": "Ja existeix una plantilla amb aquest nom. Si us plau, tria un nom diferent.",
         "not_found": "No s'ha trobat la plantilla.",
         "precondition_required": "La plantilla ha d'estar aturada per poder-la editar.",
-        "bad_request": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquesta plantilla o elimina els visors RDP."
+        "rdp_requires_wireguard": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquesta plantilla o elimina els visors RDP.",
+        "vgpu_profiles_different_hypervisors": "Els perfils de GPU seleccionats no estan tots disponibles en un mateix host. Trieu una altra combinació.",
+        "vgpu_profiles_different_models": "Tots els perfils de GPU seleccionats han de ser del mateix model de GPU per poder executar-se en un mateix host."
       }
     },
     "new-media": {
@@ -2835,10 +2837,12 @@
         "internal_server": "Error intern del servidor en desar l’escriptori.",
         "precondition_required": "L’escriptori ha d’estar aturat abans d’editar-lo.",
         "not_found": "No s’ha trobat l’escriptori.",
-        "bad_request": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquest escriptori o elimina els visors RDP.",
+        "rdp_requires_wireguard": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquest escriptori o elimina els visors RDP.",
         "new_desktop_name_exists": "Ja existeix un escriptori amb el mateix nom. Si us plau, tria un nom diferent.",
         "one_viewer_minimum": "Cal seleccionar almenys un visor.",
-        "only_works_rdp": "El mode «Només GPU» només funciona amb visors RDP. Si us plau, elimina els visors que no siguin RDP o tria una altra opció de vídeo."
+        "only_works_rdp": "El mode «Només GPU» només funciona amb visors RDP. Si us plau, elimina els visors que no siguin RDP o tria una altra opció de vídeo.",
+        "vgpu_profiles_different_hypervisors": "Els perfils de GPU seleccionats no estan tots disponibles en un mateix host. Trieu una altra combinació.",
+        "vgpu_profiles_different_models": "Tots els perfils de GPU seleccionats han de ser del mateix model de GPU per poder executar-se en un mateix host."
       }
     },
     "delete-desktop": {

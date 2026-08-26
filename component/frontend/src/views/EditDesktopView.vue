@@ -14,6 +14,7 @@ import {
 import DomainConfigurationPanel from '@/components/domain/DomainConfigurationPanel.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { FormHeader } from '@/components/form-header'
+import { describeApiError } from '@/lib/api-errors'
 import {
   toBastionTarget,
   toDomainHardware,
@@ -23,7 +24,7 @@ import {
 } from '@/lib/domainPayload'
 import router from '@/router'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const route = useRoute()
 const queryClient = useQueryClient()
 
@@ -71,7 +72,7 @@ const { mutate: submitEdit, isPending: submitPending } = useMutation({
     router.push({ name: 'desktops' })
   },
   onError: (error) => {
-    submitError.value = 'description_code' in error ? error.description_code : 'generic'
+    submitError.value = describeApiError(error, { t, te }, 'edit-desktop')
   }
 })
 
@@ -114,7 +115,7 @@ const handleSubmit = () => {
     </Alert>
     <Alert v-if="submitError" variant="destructive">
       <AlertTitle>{{ t('views.edit-desktop.errors.title') }}</AlertTitle>
-      <AlertDescription>{{ t(`api.edit-desktop.errors.${submitError}`) }}</AlertDescription>
+      <AlertDescription>{{ submitError }}</AlertDescription>
     </Alert>
 
     <DomainConfigurationPanel
