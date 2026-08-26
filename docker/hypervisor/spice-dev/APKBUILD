@@ -1,0 +1,76 @@
+# Maintainer: Natanael Copa <ncopa@alpinelinux.org>
+# IsardVDI: upstream aports main/spice, plus two patches carried locally.
+# Drop each one as soon as it lands upstream; see fix-*.patch headers.
+pkgname=spice
+pkgver=0.16.0
+pkgrel=1
+pkgdesc="Implements the SPICE protocol"
+url="http://www.spice-space.org/"
+arch="all"
+license="LGPL-2.0-or-later"
+makedepends="
+	cyrus-sasl-dev
+	glib-dev
+	gst-plugins-base-dev
+	gstreamer-dev
+	libjpeg-turbo-dev
+	lz4-dev
+	meson
+	openssl-dev>3
+	opus-dev
+	orc-dev
+	pixman-dev
+	py3-parsing
+	py3-six
+	spice-protocol
+	zlib-dev
+	"
+subpackages="$pkgname-dev"
+source="https://www.spice-space.org/download/releases/spice-server/spice-$pkgver.tar.bz2
+	failing-tests.patch
+	fix-jcs-extensions.patch
+	fix-net-test-id-sentinel.patch
+	"
+
+# secfixes:
+#   0.15.0-r0:
+#     - CVE-2020-14355
+#   0.14.3-r1:
+#     - CVE-2021-20201
+#   0.14.1-r4:
+#     - CVE-2019-3813
+#   0.14.1-r0:
+#     - CVE-2018-10873
+#   0.12.8-r4:
+#     - CVE-2017-7506
+#   0.12.8-r3:
+#     - CVE-2016-9577
+#     - CVE-2016-9578
+
+build() {
+	abuild-meson \
+		-Db_lto=true \
+		-Dgstreamer=1.0 \
+		-Dlz4=true \
+		-Dsasl=true \
+		-Dopus=enabled \
+		-Dsmartcard=disabled \
+		. output
+	meson compile -C output
+}
+
+check() {
+	meson test --print-errorlogs -C output
+}
+
+package() {
+	provides="$pkgname-server=$pkgver-r$pkgrel"
+	DESTDIR="$pkgdir" meson install --no-rebuild -C output
+}
+
+sha512sums="
+21fb8cc3cc4b3c185a1d3735dfda5df054e9244eeec9f3e2e2cf6f67acce70b213766502e55ac7c7e3b69872895cb28b79a39b4d428b63e030eaa157b6c48731  spice-0.16.0.tar.bz2
+4fe7665ba7ef63d92570a870eb74f907e9d68f465e6607de7f16233c1d4cd209f390b3d51e2f9da1dd2365027e0402c042396d049d8e78e1eebdd3f5c56686d5  failing-tests.patch
+83cf0e49719bf2ad872bcdd130cb3d4e197ed933f275a0411334eca6c98b05f699f662245af05375a1880649eda7407ee6c178f0bde7732c7e13d3f7e660edd8  fix-jcs-extensions.patch
+ed3c2e8b4ff6e0ac30044384dfb2f68dabb564e893940e29c5415ff9bf32ecb27cf9fa5bbbcef63803d2f9f1ac240afc988666578a6d4cc7071ee3fdaa80f8c0  fix-net-test-id-sentinel.patch
+"
