@@ -24,6 +24,7 @@ passwords and TLS material never reach stdout/Loki, while every other
 field (status, timestamps, ids…) stays visible for debugging.
 """
 
+import json
 from collections.abc import Mapping
 
 REDACTED = "***"
@@ -38,9 +39,15 @@ _SECRET_TOKENS = (
     "tls",
     "cert",
     "private_key",
+    "ssh_key",
+    "authorized_keys",
+    "jwt",
 )
 # Opaque blobs masked whole: secrets are embedded in the value, not in subkeys.
-_SECRET_KEYS = frozenset({"xml"})
+# `code` is exact-match so description_code/msg_code stay readable.
+_SECRET_KEYS = frozenset({"xml", "code"})
+
+BODY_LIMIT = 8192
 
 
 def _is_secret_key(key) -> bool:
@@ -67,3 +74,23 @@ def redact_secrets(value):
     if isinstance(value, (list, tuple)):
         return [redact_secrets(item) for item in value]
     return value
+
+
+def loggable_body(raw):
+    """Redacted, size-capped JSON body, or None if it cannot safely be logged."""
+    if not raw:
+        return None
+    if isinstance(raw, (bytes, bytearray)):
+        if len(raw) > BODY_LIMIT:
+            return {"truncated": True, "size": len(raw)}
+        try:
+            raw = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            return None
+    elif isinstance(raw, str) and len(raw) > BODY_LIMIT:
+        return {"truncated": True, "size": len(raw)}
+    try:
+        parsed = json.loads(raw)
+    except TypeError, ValueError:
+        return None
+    return redact_secrets(parsed)
