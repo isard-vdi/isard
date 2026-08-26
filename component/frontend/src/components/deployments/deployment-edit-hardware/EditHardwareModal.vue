@@ -15,16 +15,20 @@ import { selectedViewerKeys } from '@/lib/viewers'
 
 const { t } = useI18n()
 
+type DesktopData = CreateDesktopRequest & {
+  limited_hardware?: LimitedHardware | null
+  removed_viewers?: string[] | null
+}
+
 interface Props {
   open?: boolean
-  data: CreateDesktopRequest & {
-    limited_hardware?: LimitedHardware | null
-    removed_viewers?: string[] | null
-  }
+  data: DesktopData
+  original?: DesktopData | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  open: false
+  open: false,
+  original: null
 })
 
 const emit = defineEmits<{
@@ -34,33 +38,35 @@ const emit = defineEmits<{
 
 const desktopData = ref(props.data)
 
-const selectedViewers = computed<string[]>(() =>
-  selectedViewerKeys(desktopData.value.guest_properties?.viewers)
-)
-
 // There is no desktop or template to read from yet, so the sub-forms are seeded
 // from the deployment entry the parent is building.
-const defaults = computed<DomainConfigurationDefaults>(() => ({
+const toConfigurationDefaults = (desktop: DesktopData): DomainConfigurationDefaults => ({
   access: {
     credentials: {
-      username: desktopData.value.guest_properties?.credentials?.username ?? '',
-      password: desktopData.value.guest_properties?.credentials?.password ?? ''
+      username: desktop.guest_properties?.credentials?.username ?? '',
+      password: desktop.guest_properties?.credentials?.password ?? ''
     },
-    fullscreen: desktopData.value.guest_properties?.fullscreen,
-    viewers: selectedViewers.value
+    fullscreen: desktop.guest_properties?.fullscreen,
+    viewers: selectedViewerKeys(desktop.guest_properties?.viewers)
   },
   hardware: {
-    vcpus: desktopData.value.hardware?.vcpus ?? undefined,
-    memory: desktopData.value.hardware?.memory ?? undefined,
-    diskBus: desktopData.value.hardware?.disk_bus ?? undefined,
-    videos: desktopData.value.hardware?.videos?.[0],
-    bootOrder: desktopData.value.hardware?.boot_order?.[0],
-    isos: desktopData.value.hardware?.isos?.map((iso) => iso.id),
-    floppies: desktopData.value.hardware?.floppies?.map((floppy) => floppy.id),
-    interfaces: desktopData.value.hardware?.interfaces ?? undefined,
-    reservables: { vgpus: desktopData.value.reservables?.vgpus ?? [] }
+    vcpus: desktop.hardware?.vcpus ?? undefined,
+    memory: desktop.hardware?.memory ?? undefined,
+    diskBus: desktop.hardware?.disk_bus ?? undefined,
+    videos: desktop.hardware?.videos?.[0],
+    bootOrder: desktop.hardware?.boot_order?.[0],
+    isos: desktop.hardware?.isos?.map((iso) => iso.id),
+    floppies: desktop.hardware?.floppies?.map((floppy) => floppy.id),
+    interfaces: desktop.hardware?.interfaces ?? undefined,
+    reservables: { vgpus: desktop.reservables?.vgpus ?? [] }
   }
-}))
+})
+
+const defaults = computed(() => toConfigurationDefaults(desktopData.value))
+
+const original = computed(() =>
+  props.original ? toConfigurationDefaults(props.original) : undefined
+)
 
 const configurationRef = ref<InstanceType<typeof DomainConfigurationSection> | null>(null)
 const isValid = computed(() => configurationRef.value?.isValid ?? false)
@@ -103,6 +109,7 @@ const handleSubmit = () => {
           context="deployment-desktop"
           kind="deployment"
           :defaults="defaults"
+          :original="original"
           :limited-hardware="desktopData.limited_hardware"
           :initial-removed-viewers="desktopData.removed_viewers ?? undefined"
         />

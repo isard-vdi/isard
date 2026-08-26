@@ -57,6 +57,7 @@ const props = withDefaults(
     showPeripherals?: boolean
     summary?: DomainSummaryData
     defaults?: DomainConfigurationDefaults
+    original?: DomainConfigurationDefaults
     /** Quota restrictions when there is no template or desktop to read them from. */
     limitedHardware?: LimitedHardware | null
     /** Viewers the API dropped, when there is no template or desktop to read them from. */
@@ -78,6 +79,7 @@ const props = withDefaults(
     showPeripherals: true,
     summary: undefined,
     defaults: undefined,
+    original: undefined,
     limitedHardware: undefined,
     initialRemovedViewers: undefined,
     kind: 'persistent',
@@ -380,6 +382,7 @@ defineExpose({
               :credentials="defaults?.access?.credentials"
               :fullscreen="defaults?.access?.fullscreen"
               :viewers="defaults?.access?.viewers"
+              :original="original?.access"
               :initial-removed-viewers="props.initialRemovedViewers"
               :hardware-interfaces="hardwareInterfaces"
               :on-request-add-interface="handleAddInterfaceFromAccessForm"
@@ -436,6 +439,7 @@ defineExpose({
               :required-interfaces="requiredInterfaces"
               :reservables="defaults?.hardware?.reservables"
               :book-vgpu-now="kind === 'nonpersistent'"
+              :original="original?.hardware"
               class="p-6"
             />
           </div>

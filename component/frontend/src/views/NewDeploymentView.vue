@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -453,7 +453,7 @@ const goToNextStep = () => {
 const toMediaResources = (media?: DomainInfoMedia[]) =>
   media?.map(({ id, name }) => ({ id, name: name ?? id }))
 
-async function addDesktop(templateId: string) {
+async function desktopFromTemplate(templateId: string, entryId: string, name: string) {
   const {
     id,
     hardware: {
@@ -466,30 +466,39 @@ async function addDesktop(templateId: string) {
     ...templateData
   } = await getTemplateInfoAsync(templateId)
 
-  const currentDesktops = form.getFieldValue('desktops') || []
-  const newDesktops = [
-    ...currentDesktops,
-    {
-      ...templateData,
-      hardware: {
-        ...templateHardware,
-        interfaces: templateInterfaces.map((iface) =>
-          typeof iface === 'string' ? iface : iface.id
-        ),
-        isos: toMediaResources(templateIsos),
-        floppies: toMediaResources(templateFloppies)
-      },
+  return {
+    ...templateData,
+    hardware: {
+      ...templateHardware,
+      interfaces: templateInterfaces.map((iface) => (typeof iface === 'string' ? iface : iface.id)),
+      isos: toMediaResources(templateIsos),
+      floppies: toMediaResources(templateFloppies)
+    },
 
-      _id: `${Date.now()}-${Math.random()}`,
-      template_id: templateId,
-      name: ''
-    }
-  ]
-  form.setFieldValue('desktops', newDesktops)
+    _id: entryId,
+    template_id: templateId,
+    name
+  }
+}
+
+const desktopOriginals = ref(new Map<string, any>())
+
+const rememberOriginal = (desktop: { _id: string }) => {
+  desktopOriginals.value.set(desktop._id, structuredClone(toRaw(desktop)))
+}
+
+async function addDesktop(templateId: string) {
+  const desktop = await desktopFromTemplate(templateId, `${Date.now()}-${Math.random()}`, '')
+  rememberOriginal(desktop)
+
+  const currentDesktops = form.getFieldValue('desktops') || []
+  form.setFieldValue('desktops', [...currentDesktops, desktop])
 }
 
 const deleteDesktop = (index: number) => {
   const currentDesktops = form.getFieldValue('desktops') || []
+  desktopOriginals.value.delete(currentDesktops[index]._id)
+
   const newDesktops = [...currentDesktops.slice(0, index), ...currentDesktops.slice(index + 1)]
   form.setFieldValue('desktops', newDesktops)
 
@@ -497,39 +506,19 @@ const deleteDesktop = (index: number) => {
 }
 
 async function updateDesktopTemplate(templateId: string, index: number) {
-  const {
-    id,
-    hardware: {
-      interfaces: templateInterfaces,
-      isos: templateIsos,
-      floppies: templateFloppies,
-
-      ...templateHardware
-    },
-    ...templateData
-  } = await getTemplateInfoAsync(templateId)
-
   const currentDesktops = form.getFieldValue('desktops') || []
-  const newDesktops = [
-    ...currentDesktops.slice(0, index),
-    {
-      ...templateData,
-      hardware: {
-        ...templateHardware,
-        interfaces: templateInterfaces.map((iface) =>
-          typeof iface === 'string' ? iface : iface.id
-        ),
-        isos: toMediaResources(templateIsos),
-        floppies: toMediaResources(templateFloppies)
-      },
+  const desktop = await desktopFromTemplate(
+    templateId,
+    currentDesktops[index]._id,
+    currentDesktops[index].name
+  )
+  rememberOriginal(desktop)
 
-      _id: currentDesktops[index]._id,
-      template_id: templateId,
-      name: currentDesktops[index].name
-    },
+  form.setFieldValue('desktops', [
+    ...currentDesktops.slice(0, index),
+    desktop,
     ...currentDesktops.slice(index + 1)
-  ]
-  form.setFieldValue('desktops', newDesktops)
+  ])
 }
 
 interface SelectTemplateModalData {
@@ -554,7 +543,16 @@ const deleteDesktopConfirmationModalData = ref<{
 const updateHardwareModalData = ref<{
   index: number
   data: CreateDesktopRequest | any
+  original: CreateDesktopRequest | any
 } | null>(null)
+
+const openHardwareModal = (index: number, desktop: { _id: string }) => {
+  updateHardwareModalData.value = {
+    index,
+    data: desktop,
+    original: desktopOriginals.value.get(desktop._id) ?? null
+  }
+}
 
 const updateHardware = (
   index: number,
@@ -714,6 +712,7 @@ const updateHardware = (
       v-if="updateHardwareModalData !== null"
       :open="updateHardwareModalData !== null"
       :data="updateHardwareModalData?.data"
+      :original="updateHardwareModalData?.original"
       @close="updateHardwareModalData = null"
       @submit="
         ({ access, hardware }) => {
@@ -844,7 +843,7 @@ const updateHardware = (
                 "
                 @update-hardware="
                   () => {
-                    updateHardwareModalData = { index, data: values.desktops[index] }
+                    openHardwareModal(index, values.desktops[index])
                   }
                 "
               />
