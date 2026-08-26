@@ -1327,6 +1327,7 @@
         "title": "No s’ha pogut canviar la GPU",
         "vgpu_profiles_different_hypervisors": "Els perfils de GPU seleccionats no estan tots disponibles en un mateix host. Trieu una altra combinació.",
         "vgpu_profiles_different_models": "Tots els perfils de GPU seleccionats han de ser del mateix model de GPU per poder executar-se en un mateix host.",
+        "booking_does_not_fit_date": "Els perfils de GPU seleccionats no estan disponibles durant tot aquest temps. Trieu una hora de finalització anterior.",
         "generic": "No s’ha pogut canviar i iniciar l’escriptori. Torneu-ho a provar."
       }
     },

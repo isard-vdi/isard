@@ -46,7 +46,7 @@ const emit = defineEmits<{
   submit: [payload: { desktopId: string; profileIds: string[]; endTime: string }]
 }>()
 
-const { t, d } = useI18n()
+const { t, d, te } = useI18n()
 
 const form = useForm({
   defaultValues: { profiles: [] as string[], end_time: '' },
@@ -105,10 +105,8 @@ watch(endLimit, (limit) => {
 
 const submitErrorMessage = computed(() => {
   if (!props.submitError) return null
-  return t(
-    `components.desktop-gpu-change-and-start-modal.errors.${props.submitError}`,
-    `components.desktop-gpu-change-and-start-modal.errors.generic`
-  )
+  const key = `components.desktop-gpu-change-and-start-modal.errors.${props.submitError}`
+  return te(key) ? t(key) : t('components.desktop-gpu-change-and-start-modal.errors.generic')
 })
 
 function isInvalid(field: { state: { meta: { isTouched: boolean; isValid: boolean } } }) {
