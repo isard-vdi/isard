@@ -2814,6 +2814,21 @@
         "only_works_rdp": "El modo 'Solo GPU' solo funciona con visores RDP. Por favor, elimina los visores que no sean RDP o elige otra opción de vídeo."
       }
     },
+    "delete-desktop": {
+      "errors": {
+        "generic": "No se ha podido eliminar el escritorio. Inténtalo de nuevo.",
+        "not_found": "No se encontró el escritorio.",
+        "precondition_required": "El escritorio no se puede eliminar en este momento. Inténtalo de nuevo en unos instantes."
+      }
+    },
+    "delete-deployment": {
+      "errors": {
+        "generic": "No se ha podido eliminar el despliegue. Inténtalo de nuevo.",
+        "not_found": "No se encontró el despliegue.",
+        "precondition_required": "El despliegue no se puede eliminar en este momento. Inténtalo de nuevo en unos instantes.",
+        "deployment_stop": "Los escritorios del despliegue deben estar parados antes de poder eliminarlo."
+      }
+    },
     "booking": {
       "errors": {
         "booking_deployment_delete_stop": "El despliegue debe estar detenido para eliminar esta reserva",

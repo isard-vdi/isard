@@ -64,6 +64,7 @@ import { getEndTimeIntervals } from '@/lib/booking/end-time-intervals'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { sessionTokenName } from '@/lib/auth'
 import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
+import { describeApiError } from '@/lib/api-errors'
 import { resolveDesktopKind } from '@/lib/desktops'
 import { useNotificationModalStore } from '@/stores/notification-modal'
 
@@ -129,7 +130,7 @@ import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
 import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
 import { Kbd } from '@/components/kbd'
 
-const { t, d } = useI18n()
+const { t, d, te } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -367,12 +368,12 @@ const deleteModalDesktopData = ref<{
 } | null>(null)
 const deleteModalRecicleBinChecked = ref(recycleBinDefaultDelete.value)
 
+const deleteDesktopErrorMessage = ref<string | null>(null)
+
 const {
   mutate: deleteDesktopMutate,
   mutateAsync: deleteDesktopAsync,
-  isPending: deleteDesktopIsPending,
-  isError: deleteDesktopIsError,
-  error: deleteDesktopError
+  isPending: deleteDesktopIsPending
 } = useMutation(
   withOptimisticItemRemoval<{ path: { desktop_id: string } }, UserDesktop, 'desktops'>({
     queryClient,
@@ -382,6 +383,9 @@ const {
     baseMutation: deleteDesktopMutation(),
     onSuccess: () => {
       closeDeleteModal()
+    },
+    onError: (error) => {
+      deleteDesktopErrorMessage.value = describeApiError(error, { t, te }, 'delete-desktop')
     }
   })
 )
@@ -389,6 +393,7 @@ const {
 const closeDeleteModal = () => {
   deleteModalRecicleBinChecked.value = recycleBinDefaultDelete.value
   deleteModalDesktopData.value = null
+  deleteDesktopErrorMessage.value = null
 }
 
 // --------------------------------------------------
@@ -960,6 +965,9 @@ const cardGridVirtualizer = useWindowVirtualizer(
   >
     <!-- TODO: Delete modal component -->
     <template #description>
+      <Alert v-if="deleteDesktopErrorMessage" variant="destructive" class="mb-4">
+        <AlertDescription>{{ deleteDesktopErrorMessage }}</AlertDescription>
+      </Alert>
       <Label
         v-if="recycleBinCutoffTime?.recycle_bin_cutoff_time"
         class="w-fit flex flex-row items-start gap-2"
