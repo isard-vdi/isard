@@ -1965,6 +1965,7 @@
         "title": "Could not change the GPU",
         "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
         "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host.",
+        "booking_does_not_fit_date": "The selected GPU profiles are not available for that long. Pick an earlier end time.",
         "generic": "The desktop could not be changed and started. Please try again."
       }
     },
