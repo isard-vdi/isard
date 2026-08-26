@@ -145,11 +145,13 @@ export const desktopActionsData = (
 
     case DesktopStatusEnum.MAINTENANCE:
       return {
-        actionButton: {
-          icon: 'minus-circle',
-          hierarchy: 'destructive',
-          action: DesktopActionsEnum.AbortOperation
-        },
+        actionButton: directViewer
+          ? null
+          : {
+              icon: 'minus-circle',
+              hierarchy: 'destructive',
+              action: DesktopActionsEnum.AbortOperation
+            },
         viewers: false,
         text: {
           icon: 'tool-02',
