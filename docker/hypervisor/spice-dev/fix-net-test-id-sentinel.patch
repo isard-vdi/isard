@@ -1,0 +1,45 @@
+Stop spice-server disconnecting the first viewer of every qemu process at 60s.
+
+MainChannelClient uses net_test_id == 0 to mean "no net test running", but
+handle_pong() compares incoming pong ids against it unconditionally. The
+periodic connectivity ping takes its id from rand(), and on musl the first
+rand() of a process returns 0 (seed starts at 0: 0*A+1 = 1, 1 >> 33 = 0).
+
+So the first connectivity pong carries id 0, matches the sentinel, is swallowed
+by the net-test state machine ("invalid net test stage") and never reaches the
+latency monitor. latency_monitor.state stays PING_STATE_WARMUP, start_ping_timer
+then refuses to arm, no further ping is ever sent, and connectivity_timer kills
+the client after two 30s windows with nothing received.
+
+Only the first client of each qemu process is affected; reconnecting works.
+Does not reproduce on glibc, whose first rand() is 1804289383.
+
+IsardVDI #3376. Report upstream and drop this once it lands.
+
+--- a/server/main-channel-client.cpp
++++ b/server/main-channel-client.cpp
+@@ -337,7 +337,9 @@
+ 
+     roundtrip = spice_get_monotonic_time_ns() / NSEC_PER_MICROSEC - ping->timestamp;
+ 
+-    if (ping->id != priv->net_test_id) {
++    /* net_test_id 0 means no test is running; musl's first rand() is 0, so a
++     * connectivity pong carrying id 0 must not be taken for a net-test pong */
++    if (priv->net_test_id == 0 || ping->id != priv->net_test_id) {
+         /*
+          * channel client monitors the connectivity using ping-pong messages
+          */
+--- a/server/red-channel-client.cpp
++++ b/server/red-channel-client.cpp
+@@ -604,7 +604,10 @@
+     spice_assert(priv->latency_monitor.state == PING_STATE_NONE);
+     priv->latency_monitor.state = PING_STATE_WARMUP;
+     priv->latency_monitor.warmup_was_sent = false;
+-    priv->latency_monitor.id = rand();
++    /* 0 collides with main-channel-client's net_test_id sentinel */
++    do {
++        priv->latency_monitor.id = rand();
++    } while (priv->latency_monitor.id == 0);
+     pipe_add_type(RED_PIPE_ITEM_TYPE_PING);
+     pipe_add_type(RED_PIPE_ITEM_TYPE_PING);
+ }

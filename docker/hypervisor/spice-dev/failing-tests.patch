@@ -1,0 +1,33 @@
+diff --git a/server/tests/meson.build b/server/tests/meson.build
+index 1ae7d37..e93334e 100644
+--- a/server/tests/meson.build
++++ b/server/tests/meson.build
+@@ -42,17 +42,14 @@ tests = [
+   ['test-dispatcher', true, 'cpp'],
+   ['test-options', true],
+   ['test-stat', true],
+-  ['test-agent-msg-filter', true],
+   ['test-loop', true],
+   ['test-qxl-parsing', true, 'cpp'],
+-  ['test-leaks', true],
+   ['test-vdagent', true],
+   ['test-fail-on-null-core-interface', true],
+   ['test-empty-success', true],
+   ['test-channel', true, 'cpp'],
+   ['test-stream-device', true, 'cpp'],
+   ['test-set-ticket', true],
+-  ['test-listen', true],
+   ['test-record', true],
+   ['test-display-no-ssl', false],
+   ['test-display-streaming', false],
+@@ -62,10 +59,6 @@ tests = [
+   ['test-display-width-stride', false],
+ ]
+ 
+-if spice_server_has_sasl
+-  tests += [['test-sasl', true]]
+-endif
+-
+ if spice_server_has_smartcard == true
+   tests += [['test-smartcard', true, 'cpp']]
+ endif

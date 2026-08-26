@@ -1,0 +1,34 @@
+Fix JPEG compression being silently disabled in spice-server 0.16.0.
+
+jpeg_encode() sets in_color_space/input_components from the switch on the
+image type, then overwrites both unconditionally a few lines later, so the
+JCS_EXTENSIONS fast path never applies and convert_line_to_RGB24 is left NULL.
+
+Upstream: https://gitlab.freedesktop.org/spice/spice/-/issues/97
+Carried since IsardVDI 1c35ca04f4; lost with 8047b99695, restored for #3376.
+
+diff --git a/server/jpeg-encoder.c b/server/jpeg-encoder.c
+index 087be67c..12d1bee8 100644
+--- a/server/jpeg-encoder.c
++++ b/server/jpeg-encoder.c
+@@ -232,6 +232,10 @@ int jpeg_encode(JpegEncoderContext *enc, int quality, JpegEncoderImageType type,
+     enc->cur_image.stride = stride;
+     enc->cur_image.out_size = 0;
+ 
++    enc->cinfo.input_components = 3;
++    enc->cinfo.in_color_space = JCS_RGB;
++    enc->cur_image.convert_line_to_RGB24 = NULL;
++
+     switch (type) {
+     case JPEG_IMAGE_TYPE_RGB16:
+         enc->cur_image.convert_line_to_RGB24 = convert_RGB16_to_RGB24;
+@@ -258,8 +262,6 @@ int jpeg_encode(JpegEncoderContext *enc, int quality, JpegEncoderImageType type,
+ 
+     enc->cinfo.image_width = width;
+     enc->cinfo.image_height = height;
+-    enc->cinfo.input_components = 3;
+-    enc->cinfo.in_color_space = JCS_RGB;
+     jpeg_set_defaults(&enc->cinfo);
+     jpeg_set_quality(&enc->cinfo, quality, TRUE);
+ 
+
