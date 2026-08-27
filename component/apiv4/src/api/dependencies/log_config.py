@@ -2,9 +2,10 @@ import contextvars
 import logging
 import os
 import time
+from urllib.parse import parse_qsl
 
 import isardvdi_common.helpers.log  # noqa: F401
-from isardvdi_common.helpers.redact import BODY_LIMIT, loggable_body
+from isardvdi_common.helpers.redact import BODY_LIMIT, loggable_body, redact_secrets
 
 UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access", "uvicorn.asgi")
 IDENTITY_FIELDS = ("user_id", "role_id", "category_id", "group_id")
@@ -72,6 +73,13 @@ def _identity():
     return {field: payload[field] for field in IDENTITY_FIELDS if payload.get(field)}
 
 
+def _query(full_path):
+    qs = str(full_path).partition("?")[2]
+    if not qs:
+        return None
+    return redact_secrets(dict(parse_qsl(qs, keep_blank_values=True)))
+
+
 def _body():
     captured = _request_body.get()
     if not captured or not captured["size"]:
@@ -120,6 +128,9 @@ class UvicornRecordFilter(logging.Filter):
             record.user = user
 
         if logging.getLogger().isEnabledFor(logging.DEBUG):
+            query = _query(full_path)
+            if query is not None:
+                record.request["query"] = query
             body = _body()
             if body is not None:
                 record.request["body"] = body

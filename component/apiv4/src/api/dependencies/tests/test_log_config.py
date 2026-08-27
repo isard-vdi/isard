@@ -177,7 +177,7 @@ class TestDuration:
 
 class TestUrl:
     def test_the_query_string_is_stripped(self, root_level):
-        """A `?jwt=` must never reach Loki, so nothing after `?` is kept."""
+        """`url` is path-only at every level, so a `?jwt=` cannot ride along."""
         out = _access(
             None,
             args=("10.0.0.54:0", "GET", "/api/v4/desktops?jwt=secret&x=1", "1.1", 200),
@@ -188,6 +188,58 @@ class TestUrl:
     def test_the_path_is_in_the_message(self, root_level):
         out = _access(None)
         assert out["msg"] == "GET /api/v4/desktops 200"
+
+
+class TestQueryParams:
+    JWT_ARGS = (
+        "10.0.0.54:0",
+        "GET",
+        "/api/v4/desktops?jwt=secret&sort=name",
+        "1.1",
+        200,
+    )
+
+    def test_parsed_and_redacted_at_debug(self, root_level):
+        out = _access(None, logging.DEBUG, args=self.JWT_ARGS)
+        assert out["request"]["query"] == {"jwt": REDACTED, "sort": "name"}
+        assert "secret" not in json.dumps(out)
+
+    def test_the_url_stays_path_only_at_debug(self, root_level):
+        out = _access(None, logging.DEBUG, args=self.JWT_ARGS)
+        assert out["request"]["url"] == "/api/v4/desktops"
+
+    def test_no_query_key_at_info(self, root_level):
+        out = _access(None, logging.INFO, args=self.JWT_ARGS)
+        assert "query" not in out["request"]
+
+    def test_no_query_key_without_a_query_string(self, root_level):
+        out = _access(None, logging.DEBUG)
+        assert "query" not in out["request"]
+
+    def test_a_bare_trailing_question_mark_emits_nothing(self, root_level):
+        out = _access(
+            None,
+            logging.DEBUG,
+            args=("10.0.0.54:0", "GET", "/api/v4/desktops?", "1.1", 200),
+        )
+        assert "query" not in out["request"]
+
+    def test_a_blank_value_is_kept(self, root_level):
+        out = _access(
+            None,
+            logging.DEBUG,
+            args=("10.0.0.54:0", "GET", "/api/v4/desktops?foo=", "1.1", 200),
+        )
+        assert out["request"]["query"] == {"foo": ""}
+
+    def test_the_registration_code_is_masked(self, root_level):
+        """`code` is an exact-match secret key, reached through this path too."""
+        out = _access(
+            None,
+            logging.DEBUG,
+            args=("10.0.0.54:0", "GET", "/api/v4/register?code=abc", "1.1", 200),
+        )
+        assert out["request"]["query"] == {"code": REDACTED}
 
 
 class TestMalformedRecords:
