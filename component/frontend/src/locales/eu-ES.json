@@ -222,6 +222,7 @@
     },
     "desktops": {
       "new-desktop": "Mahaigain berria",
+      "loading": "Mahaigainak kargatzen…",
       "stop-all": "Gelditu mahaigain guztiak",
       "filters": {
         "search": {

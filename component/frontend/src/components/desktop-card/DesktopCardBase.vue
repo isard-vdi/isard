@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide } from 'vue'
+import { computed, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { cn } from '@/lib/utils'
 
@@ -39,6 +39,13 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 provide(CARD_SIZE_INJECTION_KEY, props.size)
+
+// Latched: the contents cost ms per card, and stay mounted for the close animation.
+const debugMenuOpened = ref(false)
+
+const rememberDebugMenuOpened = (open: boolean) => {
+  if (open) debugMenuOpened.value = true
+}
 
 const showSvgDecoration = computed(() => props.size !== '2xs')
 
@@ -117,18 +124,18 @@ const desktopKindStyle = computed(() => {
             </svg>
           </div>
 
-          <ContextMenu>
+          <ContextMenu @update:open="rememberDebugMenuOpened">
             <ContextMenuTrigger :class="cn(cardIconTriggerVariants({ size }), 'rounded-br-2xl')">
               <Icon :name="desktopKindStyle.icon" :stroke-color="desktopKindStyle.iconColor" />
             </ContextMenuTrigger>
-            <slot name="debug-options-content" />
+            <slot v-if="debugMenuOpened" name="debug-options-content" />
           </ContextMenu>
         </div>
       </div>
 
       <!-- Simplified icon for 2xs (no SVG decoration) -->
       <div v-else class="absolute top-0 left-0 z-20">
-        <ContextMenu>
+        <ContextMenu @update:open="rememberDebugMenuOpened">
           <ContextMenuTrigger class="flex items-center justify-center w-[20px] h-5">
             <Icon
               :name="desktopKindStyle.icon"
@@ -136,7 +143,7 @@ const desktopKindStyle = computed(() => {
               class="h-3 w-3"
             />
           </ContextMenuTrigger>
-          <slot name="debug-options-content" />
+          <slot v-if="debugMenuOpened" name="debug-options-content" />
         </ContextMenu>
       </div>
 

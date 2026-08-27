@@ -362,6 +362,7 @@
     },
     "desktops": {
       "new-desktop": "New desktop",
+      "loading": "Loading desktops…",
       "stop-all": "Stop all desktops",
       "stop-all-tooltip": {
         "title": "There are no started desktops now"
