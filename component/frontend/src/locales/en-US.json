@@ -2255,6 +2255,10 @@
         "description": "The system resources are currently unavailable and desktops cannot be started. Please try again later.",
         "go-to-desktops": "Go back to desktops"
       },
+      "start-error-modal": {
+        "title": "Could not start the desktop",
+        "close": "Close"
+      },
       "direct-viewer-modal": {
         "title": "Direct access link",
         "enable-access": "Enable direct access",
@@ -2884,6 +2888,11 @@
         "generic": "Could not delete the desktop. Please try again.",
         "not_found": "The desktop was not found.",
         "precondition_required": "The desktop can't be deleted right now. Please try again in a moment."
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "The desktop could not be started. Please try again."
       }
     },
     "delete-deployment": {

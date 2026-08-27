@@ -218,6 +218,10 @@ const QUOTA_EXCEEDED_MODAL_KEYS: Record<string, string> = {
 
 const showStartStorageUnavailableModal = ref(false)
 
+// Not every start failure has a quota modal: without this the mutation failed
+// with no feedback at all.
+const startErrorMessage = ref<string | null>(null)
+
 const desktopsKey = getUserDesktopsQueryKey()
 
 const {
@@ -251,6 +255,8 @@ const {
         }
       } else if (err.description_code === 'no_storage_pool_available') {
         showStartStorageUnavailableModal.value = true
+      } else {
+        startErrorMessage.value = describeApiError(error, { t, te }, 'start-desktop')
       }
     },
     onSuccess: async () => {
@@ -1046,6 +1052,22 @@ const missingCardRows = computed(() => {
     <template #footer>
       <Button hierarchy="primary" @click="showStartStorageUnavailableModal = false">{{
         t('components.desktops.start-storage-unavailable-modal.go-to-desktops')
+      }}</Button>
+    </template>
+  </AlertModal>
+
+  <!-- Start error modal -->
+  <AlertModal
+    :open="startErrorMessage !== null"
+    level="danger"
+    size="md"
+    :title="t('components.desktops.start-error-modal.title')"
+    :description="startErrorMessage ?? ''"
+    @close="startErrorMessage = null"
+  >
+    <template #footer>
+      <Button hierarchy="primary" @click="startErrorMessage = null">{{
+        t('components.desktops.start-error-modal.close')
       }}</Button>
     </template>
   </AlertModal>

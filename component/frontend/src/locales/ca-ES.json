@@ -1625,6 +1625,10 @@
         "description": "Els recursos del sistema no estan disponibles actualment i no es poden iniciar escriptoris. Si us plau, torni-ho a provar més tard.",
         "go-to-desktops": "Tornar als escriptoris"
       },
+      "start-error-modal": {
+        "title": "No s'ha pogut iniciar l'escriptori",
+        "close": "Tanca"
+      },
       "fields": {
         "ip": {
           "title-full": "@:components.domain-info-modal.fields.ip.title de l'@:domains.desktops"
@@ -1977,10 +1981,29 @@
                 "user": "Usuari"
               }
             }
+          },
+          "cross-category": {
+            "title": "Derivats en altres categories",
+            "description": "Alguns derivats d'aquesta plantilla pertanyen a altres categories. Esborrar-la també afectarà elements de fora de la teva categoria."
           }
         },
         "cancel": "Cancel·la",
         "confirm": "Esborra la plantilla",
+        "toast": {
+          "recycled": {
+            "title": "La plantilla '{name}' s'ha mogut a la paperera",
+            "description": "S'han mogut {count} elements. S'eliminaran definitivament al cap de {time}."
+          },
+          "recycled-infinite": {
+            "title": "La plantilla '{name}' s'ha mogut a la paperera",
+            "description": "S'han mogut {count} elements a la paperera."
+          },
+          "permanent": {
+            "title": "S'ha esborrat la plantilla '{name}'",
+            "description": "S'han eliminat definitivament {count} elements."
+          },
+          "open-recycle-bin": "Obre la paperera"
+        },
         "debug-options": {
           "copy-id": "Copia l'ID"
         }
@@ -2905,6 +2928,11 @@
         "generic": "No s'ha pogut eliminar l'escriptori. Torna-ho a provar.",
         "not_found": "No s'ha trobat l'escriptori.",
         "precondition_required": "L'escriptori no es pot eliminar en aquest moment. Torna-ho a provar d'aquí a uns instants."
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "No s'ha pogut iniciar l'escriptori. Torna-ho a provar."
       }
     },
     "delete-deployment": {

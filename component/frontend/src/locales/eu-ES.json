@@ -1399,10 +1399,39 @@
         "go-to-profile": "Egiaztatu zure kuota",
         "cancel": "Itzuli mahaigainetara"
       },
+      "start-quota-exceeded-modal": {
+        "title": "Mahaigainak abiarazteko kuota gaindituta",
+        "description": "Abian dauden mahaigainen gehienezko kopurura iritsi zara. Mahaigain bat gelditu behar duzu beste bat abiarazteko.",
+        "cancel": "Itzuli mahaigainetara"
+      },
+      "start-memory-quota-exceeded-modal": {
+        "title": "Memoria kuota gaindituta",
+        "description": "Memoria kuota gainditu duzu. Gelditu mahaigain bat beste bat abiarazteko, edo editatu mahaigain hau bere memoria murrizteko.",
+        "cancel": "Itzuli mahaigainetara"
+      },
+      "start-vcpu-quota-exceeded-modal": {
+        "title": "vCPU kuota gaindituta",
+        "description": "vCPU kuota gainditu duzu. Gelditu mahaigain bat beste bat abiarazteko, edo editatu mahaigain hau bere vCPUak murrizteko.",
+        "cancel": "Itzuli mahaigainetara"
+      },
+      "start-disk-quota-exceeded-modal": {
+        "title": "Biltegiratze kuota gaindituta",
+        "description": "Biltegiratze kuota gainditu duzu. Egin lekua diskoan mahaigain hau abiarazteko.",
+        "cancel": "Itzuli mahaigainetara"
+      },
       "storage-unavailable-modal": {
         "title": "Biltegiratzea ez dago erabilgarri",
         "description": "Sortzeko biltegiratzea ez dago erabilgarri une honetan eta mahaigainak ezin dira sortu. Mesedez, saiatu berriro geroago.",
         "go-to-desktops": "Itzuli mahaigainetara"
+      },
+      "start-storage-unavailable-modal": {
+        "title": "Sistemaren baliabideak ez daude erabilgarri",
+        "description": "Sistemaren baliabideak ez daude erabilgarri une honetan eta ezin da mahaigainik abiarazi. Saiatu berriro geroago.",
+        "go-to-desktops": "Itzuli mahaigainetara"
+      },
+      "start-error-modal": {
+        "title": "Ezin izan da mahaigaina abiarazi",
+        "close": "Itxi"
       },
       "data-table": {
         "headers": {
@@ -1670,6 +1699,11 @@
         "not_found": "Ez da planik aurkitu",
         "reservable_item_not_found": "Ez da aurkitu erreserbatu daitekeen elementua",
         "unable_to_insert": "Ezin izan da plana sortu"
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "Ezin izan da mahaigaina abiarazi. Saiatu berriro."
       }
     }
   },

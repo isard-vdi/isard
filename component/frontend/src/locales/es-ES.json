@@ -1625,6 +1625,10 @@
         "description": "Los recursos del sistema no estan disponibles actualmente y no se pueden iniciar escritorios. Por favor, inténtelo más tarde.",
         "go-to-desktops": "Volver a escritorios"
       },
+      "start-error-modal": {
+        "title": "No se ha podido iniciar el escritorio",
+        "close": "Cerrar"
+      },
       "fields": {
         "ip": {
           "title-full": "@:components.domain-info-modal.fields.ip.title del @:domains.desktops"
@@ -1989,10 +1993,29 @@
                 "user": "Usuario"
               }
             }
+          },
+          "cross-category": {
+            "title": "Derivados en otras categorías",
+            "description": "Algunos derivados de esta plantilla pertenecen a otras categorías. Eliminarla también afectará a elementos fuera de tu categoría."
           }
         },
         "cancel": "Cancelar",
         "confirm": "Eliminar plantilla",
+        "toast": {
+          "recycled": {
+            "title": "La plantilla '{name}' se ha movido a la papelera",
+            "description": "Se han movido {count} elementos. Se borrarán definitivamente después de {time}."
+          },
+          "recycled-infinite": {
+            "title": "La plantilla '{name}' se ha movido a la papelera",
+            "description": "Se han movido {count} elementos a la papelera."
+          },
+          "permanent": {
+            "title": "Plantilla '{name}' eliminada",
+            "description": "Se han borrado definitivamente {count} elementos."
+          },
+          "open-recycle-bin": "Abrir papelera"
+        },
         "debug-options": {
           "copy-id": "Copiar ID"
         }
@@ -2878,6 +2901,11 @@
         "generic": "No se ha podido eliminar el escritorio. Inténtalo de nuevo.",
         "not_found": "No se encontró el escritorio.",
         "precondition_required": "El escritorio no se puede eliminar en este momento. Inténtalo de nuevo en unos instantes."
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "No se ha podido iniciar el escritorio. Inténtalo de nuevo."
       }
     },
     "delete-deployment": {
