@@ -82,6 +82,10 @@ const isPending = computed(() => active.value.isPending.value)
 
 const desktopIp = computed(() => props.desktop.ip)
 
+// Same affordance as the networks overlay: the guest hasn't reported its
+// address yet, so an empty IP row is expected rather than missing data.
+const isWaitingIp = computed(() => props.desktop.status === DesktopStatusEnum.WAITING_IP)
+
 const statusBadge = computed(() => {
   const s = props.desktop.status
   if (s === DesktopStatusEnum.STARTED) return 'bg-success-500/80'
@@ -172,18 +176,21 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
       </span>
 
       <div
-        v-if="isPending || desktopIp"
+        v-if="isPending || desktopIp || isWaitingIp"
         class="flex items-center gap-1.5 min-w-0"
         :class="cardOverlayTextVariants({ size })"
       >
         <Icon
-          name="signal-01"
+          :name="isWaitingIp ? 'loading-02' : 'signal-01'"
           size="xs"
           stroke-color="base-white"
-          class="shrink-0"
+          :class="['shrink-0', isWaitingIp && 'motion-safe:animate-spin']"
           aria-hidden="true"
         />
-        <Skeleton v-if="isPending && !desktopIp" class="bg-base-white/20 h-3 w-24" />
+        <span v-if="isWaitingIp" class="italic truncate pr-0.5">
+          {{ t('components.desktops.desktop-card.status.waitingip.text') }}
+        </span>
+        <Skeleton v-else-if="isPending && !desktopIp" class="bg-base-white/20 h-3 w-24" />
         <template v-else-if="desktopIp">
           <span class="sr-only">
             {{ t('components.desktops.desktop-card.ip-address', { ip: desktopIp }) }}
