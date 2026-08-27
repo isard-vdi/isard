@@ -2812,6 +2812,22 @@
         "temporal_new_reservable": {
           "title": "Los escritorios temporales no pueden tener reservables",
           "description": "Los escritorios temporales no pueden tener reservables asignados. Elimina los reservables e inténtalo de nuevo."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Cuota de inicio de escritorios superada",
+          "description": "Has alcanzado el número máximo de escritorios en marcha. Debes detener uno para poder crear este."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Cuota de memoria superada",
+          "description": "Iniciar este escritorio superaría tu cuota de memoria. Detén un escritorio, o reduce la memoria del que estás creando."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "Cuota de vCPU superada",
+          "description": "Iniciar este escritorio superaría tu cuota de vCPU. Detén un escritorio, o reduce las vCPU del que estás creando."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Cuota de almacenamiento superada",
+          "description": "Iniciar este escritorio superaría tu cuota de almacenamiento. Libera espacio de disco e inténtalo de nuevo."
         }
       }
     },

@@ -54,3 +54,32 @@ export function describeApiError(err: unknown, i18n: I18nLike, domain: string): 
 
   return r?.msg || i18n.t(`api.${domain}.errors.generic`)
 }
+
+// Creating a desktop also runs the start quota checks (a temporal desktop is
+// started right away), so the wizards receive start codes too. Each resource
+// shares one message across its user/group/category variants.
+const NEW_DESKTOP_ERROR_ALIASES: Record<string, string> = {
+  desktop_start_user_quota_exceeded: 'desktop_start_quota_exceeded',
+  desktop_start_group_limit_exceeded: 'desktop_start_quota_exceeded',
+  desktop_start_category_limit_exceeded: 'desktop_start_quota_exceeded',
+  desktop_start_memory_quota_exceeded: 'desktop_start_memory_quota_exceeded',
+  desktop_start_group_memory_limit_exceeded: 'desktop_start_memory_quota_exceeded',
+  desktop_start_category_memory_limit_exceeded: 'desktop_start_memory_quota_exceeded',
+  desktop_start_vcpu_quota_exceeded: 'desktop_start_vcpu_quota_exceeded',
+  desktop_start_group_vcpu_limit_exceeded: 'desktop_start_vcpu_quota_exceeded',
+  desktop_start_category_vcpu_limit_exceeded: 'desktop_start_vcpu_quota_exceeded',
+  total_size_quota_exceeded: 'desktop_start_disk_quota_exceeded',
+  group_total_size_limit_exceeded: 'desktop_start_disk_quota_exceeded',
+  category_total_size_limit_exceeded: 'desktop_start_disk_quota_exceeded'
+}
+
+/**
+ * Resolves a desktop creation `description_code` to a key under
+ * `api.new-desktop.errors.<key>` holding a `title` / `description` pair,
+ * falling back to `generic` so an untranslated code never renders raw keys.
+ */
+export function newDesktopErrorKey(code: string | null, i18n: I18nLike): string {
+  if (!code) return 'generic'
+  const key = NEW_DESKTOP_ERROR_ALIASES[code] ?? code
+  return i18n.te(`api.new-desktop.errors.${key}.title`) ? key : 'generic'
+}

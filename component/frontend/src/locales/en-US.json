@@ -2814,6 +2814,22 @@
         "temporal_new_reservable": {
           "title": "Temporal desktops cannot have reservables",
           "description": "Temporal desktops cannot have reservables assigned. Please remove the reservables and try again."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Desktop start quota exceeded",
+          "description": "You have reached the maximum number of running desktops. A desktop must be stopped in order to create this one."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Memory quota exceeded",
+          "description": "Starting this desktop would exceed your memory quota. Stop a desktop, or reduce the memory of the one you are creating."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "vCPU quota exceeded",
+          "description": "Starting this desktop would exceed your vCPU quota. Stop a desktop, or reduce the vCPUs of the one you are creating."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Storage quota exceeded",
+          "description": "Starting this desktop would exceed your storage quota. Free up disk space and try again."
         }
       }
     },

@@ -2812,6 +2812,22 @@
         "temporal_new_reservable": {
           "title": "Els escriptoris temporals no poden tenir reservables",
           "description": "Els escriptoris temporals no poden tenir reservables assignats. Elimina els reservables i torna-ho a provar."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Quota d'inici d'escriptoris superada",
+          "description": "Has arribat al nombre màxim d'escriptoris en marxa. N'has d'aturar un per poder crear aquest."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Quota de memòria superada",
+          "description": "Iniciar aquest escriptori superaria la teva quota de memòria. Atura un escriptori, o redueix la memòria del que estàs creant."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "Quota de vCPU superada",
+          "description": "Iniciar aquest escriptori superaria la teva quota de vCPU. Atura un escriptori, o redueix les vCPU del que estàs creant."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Quota d'emmagatzematge superada",
+          "description": "Iniciar aquest escriptori superaria la teva quota d'emmagatzematge. Allibera espai de disc i torna-ho a provar."
         }
       }
     },

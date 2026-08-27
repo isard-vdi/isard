@@ -1666,6 +1666,22 @@
         "temporal_new_reservable": {
           "title": "Aldi baterako mahaigainek ezin dute erreserbagarririk izan",
           "description": "Aldi baterako mahaigainek ezin dute erreserbagarririk esleituta izan. Mesedez, kendu erreserbagarriak eta saiatu berriro."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Mahaigainak abiarazteko kuota gaindituta",
+          "description": "Abian dauden mahaigainen gehienezko kopurura iritsi zara. Mahaigain bat gelditu behar duzu hau sortu ahal izateko."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Memoria kuota gaindituta",
+          "description": "Mahaigain hau abiarazteak zure memoria kuota gaindituko luke. Gelditu mahaigain bat, edo murriztu sortzen ari zarenaren memoria."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "vCPU kuota gaindituta",
+          "description": "Mahaigain hau abiarazteak zure vCPU kuota gaindituko luke. Gelditu mahaigain bat, edo murriztu sortzen ari zarenaren vCPUak."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Biltegiratze kuota gaindituta",
+          "description": "Mahaigain hau abiarazteak zure biltegiratze kuota gaindituko luke. Egin lekua diskoan eta saiatu berriro."
         }
       }
     },

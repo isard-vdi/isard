@@ -30,8 +30,9 @@ import Step3Creating from '@/components/new-desktop/Step3Creating.vue'
 import { FormHeader } from '@/components/form-header'
 
 import { cn } from '@/lib/utils'
+import { newDesktopErrorKey } from '@/lib/api-errors'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 // --------------------------------------------------
 // Quota and storage checks
@@ -91,6 +92,7 @@ const goToPreviousStep = () => {
 // Step 1: Select Template
 const selectedTemplate = ref<{ id: string; image?: DomainImageOutput } | null>(null)
 const creationError = ref<string | null>(null)
+const creationErrorKey = computed(() => newDesktopErrorKey(creationError.value, { t, te }))
 
 const selectTemplate = (template: { id: string; image?: DomainImageOutput }) => {
   selectedTemplate.value = selectedTemplate.value?.id === template.id ? null : template
@@ -253,9 +255,9 @@ const steps = computed<StepperFormStep[]>(() => {
         <!-- Step 2 -->
         <div v-if="currentStep >= 2" v-show="currentStep === 2" class="max-w-320 m-auto">
           <Alert v-if="creationError" variant="destructive" class="mb-6">
-            <AlertTitle>{{ t(`api.new-desktop.errors.${creationError}.title`) }}</AlertTitle>
+            <AlertTitle>{{ t(`api.new-desktop.errors.${creationErrorKey}.title`) }}</AlertTitle>
             <AlertDescription>{{
-              t(`api.new-desktop.errors.${creationError}.description`)
+              t(`api.new-desktop.errors.${creationErrorKey}.description`)
             }}</AlertDescription>
           </Alert>
           <!-- Keyed: the step stays mounted across steps and its template queries
