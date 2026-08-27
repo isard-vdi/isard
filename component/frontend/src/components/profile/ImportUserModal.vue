@@ -23,7 +23,7 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const router = useRouter()
 
 const importToken = ref('')
@@ -63,7 +63,10 @@ const handleSubmit = async () => {
             ?.description_code
         : undefined
     if (descriptionCode) {
-      apiError.value = t(`components.profile.import-user-modal.errors.${descriptionCode}`)
+      const errorKey = `components.profile.import-user-modal.errors.${descriptionCode}`
+      apiError.value = te(errorKey)
+        ? t(errorKey)
+        : t('components.profile.import-user-modal.errors.generic')
     } else {
       apiError.value =
         t('components.profile.import-user-modal.errors.generic') || 'An error occurred'

@@ -24,7 +24,7 @@ import { verifyEmailMutation } from '@/gen/oas/authentication/@tanstack/vue-quer
 
 type Mode = 'verifying' | 'verified' | 'link-error' | 'form'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const route = useRoute()
 const cookies = useAuthCookies()
 
@@ -135,7 +135,7 @@ const form = useForm({
 
       if (descriptionCode) {
         const errorKey = `components.profile.email-verification-modal.errors.${descriptionCode}`
-        apiError.value = t(errorKey)
+        apiError.value = te(errorKey) ? t(errorKey) : t('views.verify-email.error-generic')
       } else {
         apiError.value = t('views.verify-email.error-generic')
       }

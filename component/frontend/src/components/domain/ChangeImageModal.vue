@@ -44,7 +44,7 @@ const emit = defineEmits<{
   select: [image: DomainImageOutput & { file?: DomainImageFile }]
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const queryClient = useQueryClient()
 
 const {
@@ -98,6 +98,10 @@ function selectImage(image: DomainImageOutput) {
 }
 
 const saveErrorCode = ref<string | undefined>(undefined)
+const saveErrorMessage = computed(() => {
+  const key = `components.change-image-modal.errors.${saveErrorCode.value}`
+  return te(key) ? t(key) : t('components.change-image-modal.errors.generic')
+})
 
 const { mutate: saveImage, isPending: saveIsPending } = useMutation({
   ...editDesktopMutation(),
@@ -144,6 +148,10 @@ function handleSave() {
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploadErrorCode = ref<string | undefined>(undefined)
+const uploadErrorMessage = computed(() => {
+  const key = `components.change-image-modal.upload-errors.${uploadErrorCode.value}`
+  return te(key) ? t(key) : t('components.change-image-modal.upload-errors.generic')
+})
 
 function triggerFilePicker() {
   fileInput.value?.click()
@@ -200,23 +208,13 @@ const anyPending = computed(() => saveIsPending.value)
       <Alert v-if="saveErrorCode" variant="destructive" class="mb-4">
         <FeaturedIconOutline kind="outline" color="error" />
         <AlertTitle>{{ t('components.change-image-modal.errors.title') }}</AlertTitle>
-        <AlertDescription>{{
-          t(
-            `components.change-image-modal.errors.${saveErrorCode}`,
-            t('components.change-image-modal.errors.generic')
-          )
-        }}</AlertDescription>
+        <AlertDescription>{{ saveErrorMessage }}</AlertDescription>
       </Alert>
 
       <Alert v-if="uploadErrorCode" variant="destructive" class="mb-4">
         <FeaturedIconOutline kind="outline" color="error" />
         <AlertTitle>{{ t('components.change-image-modal.upload-errors.title') }}</AlertTitle>
-        <AlertDescription>{{
-          t(
-            `components.change-image-modal.upload-errors.${uploadErrorCode}`,
-            t('components.change-image-modal.upload-errors.generic')
-          )
-        }}</AlertDescription>
+        <AlertDescription>{{ uploadErrorMessage }}</AlertDescription>
       </Alert>
 
       <Alert v-if="imagesError" variant="destructive" class="mb-4">

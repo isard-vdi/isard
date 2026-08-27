@@ -75,8 +75,9 @@ const NEW_DESKTOP_ERROR_ALIASES: Record<string, string> = {
 
 /**
  * Resolves a desktop creation `description_code` to a key under
- * `api.new-desktop.errors.<key>` holding a `title` / `description` pair,
- * falling back to `generic` so an untranslated code never renders raw keys.
+ * `api.new-desktop.errors.<key>` holding a `title` / `description` pair.
+ * Falls back to `generic` when the code has no string in the active locale:
+ * a generic message the user reads beats an English one they may not.
  */
 export function newDesktopErrorKey(code: string | null, i18n: I18nLike): string {
   if (!code) return 'generic'

@@ -37,7 +37,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const queryClient = useQueryClient()
 
 const mediaKinds = [
@@ -66,6 +66,9 @@ const formSchema = z.object({
 })
 
 const creationError = ref<string | null>(null)
+const creationErrorKey = computed(() =>
+  te(`api.new-media.errors.${creationError.value}.title`) ? creationError.value : 'generic'
+)
 
 const { mutate: createMedia, isPending: createMediaIsPending } = useMutation({
   ...createMediaMutation(),
@@ -166,9 +169,9 @@ const handleClose = () => {
     </div>
 
     <Alert v-if="creationError" variant="destructive" class="my-2">
-      <AlertTitle>{{ t(`api.new-media.errors.${creationError}.title`) }}</AlertTitle>
+      <AlertTitle>{{ t(`api.new-media.errors.${creationErrorKey}.title`) }}</AlertTitle>
       <AlertDescription>{{
-        t(`api.new-media.errors.${creationError}.description`)
+        t(`api.new-media.errors.${creationErrorKey}.description`)
       }}</AlertDescription>
     </Alert>
 

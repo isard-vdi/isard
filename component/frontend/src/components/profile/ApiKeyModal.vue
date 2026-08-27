@@ -78,7 +78,9 @@ watch(
 
       if (descriptionCode) {
         const errorKey = `components.profile.api-key-modal.errors.${descriptionCode}`
-        errorMessage.value = t(errorKey, t('components.profile.api-key-modal.alert.error-fetch'))
+        errorMessage.value = te(errorKey)
+          ? t(errorKey)
+          : t('components.profile.api-key-modal.alert.error-fetch')
       } else {
         errorMessage.value = t('components.profile.api-key-modal.alert.error-fetch')
       }
@@ -127,7 +129,9 @@ const handleExpireKey = async () => {
 
     if (descriptionCode) {
       const errorKey = `components.profile.api-key-modal.errors.${descriptionCode}`
-      errorMessage.value = t(errorKey, t('components.profile.api-key-modal.alert.error-expire'))
+      errorMessage.value = te(errorKey)
+        ? t(errorKey)
+        : t('components.profile.api-key-modal.alert.error-expire')
     } else {
       errorMessage.value = t('components.profile.api-key-modal.alert.error-expire')
     }
@@ -143,7 +147,7 @@ const minValue = computed(() => today(tz).add({ days: 1 }))
 const maxValue = computed(() => today(tz).add({ years: 1 }))
 const defaultPlaceholder = computed(() => today(tz).add({ months: 1 }))
 
-const { locale, t } = useI18n()
+const { locale, t, te } = useI18n()
 
 const formattedExpireDate = computed(() => {
   const expireDate = apiKeyExpireDate.value

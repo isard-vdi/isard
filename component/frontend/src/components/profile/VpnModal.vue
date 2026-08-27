@@ -23,7 +23,7 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const selectedOption = ref<'download' | 'reset' | undefined>(undefined)
 const errorMessage = ref('')
@@ -103,7 +103,9 @@ const handleResetVpn = () => {
           ?.response?.data?.description_code
         if (descriptionCode) {
           const errorKey = `components.profile.vpn-modal.errors.${descriptionCode}`
-          errorMessage.value = t(errorKey, t('components.profile.vpn-modal.errors.generic'))
+          errorMessage.value = te(errorKey)
+            ? t(errorKey)
+            : t('components.profile.vpn-modal.errors.generic')
         } else {
           errorMessage.value = t('components.profile.vpn-modal.errors.generic')
         }

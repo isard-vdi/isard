@@ -26,7 +26,7 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const queryClient = useQueryClient()
 
 const apiError = ref<string>('')
@@ -64,7 +64,9 @@ const form = useForm({
 
       if (descriptionCode) {
         const errorKey = `components.profile.email-verification-modal.errors.${descriptionCode}`
-        apiError.value = t(errorKey)
+        apiError.value = te(errorKey)
+          ? t(errorKey)
+          : t('components.profile.email-verification-modal.error-generic')
       } else {
         apiError.value = t('components.profile.email-verification-modal.error-generic')
       }

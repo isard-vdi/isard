@@ -23,7 +23,7 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const restoreError = ref('')
 
@@ -40,7 +40,9 @@ const { mutate: restoreEntry, isPending: restoreIsPending } = useMutation({
     const descriptionCode = error?.description_code
     if (descriptionCode) {
       const errorKey = `components.recycle-bin.restore-modal.errors.${descriptionCode}`
-      restoreError.value = t(errorKey, t('components.recycle-bin.restore-modal.errors.generic'))
+      restoreError.value = te(errorKey)
+        ? t(errorKey)
+        : t('components.recycle-bin.restore-modal.errors.generic')
     } else {
       restoreError.value = t('components.recycle-bin.restore-modal.errors.generic')
     }
