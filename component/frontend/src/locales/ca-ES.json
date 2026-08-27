@@ -2709,6 +2709,7 @@
       "view-group": "Mostra els usuaris del grup '{group_name}'",
       "unview-group": "Deixa de mostrar els usuaris del grup '{group_name}'",
       "require-selection": "Selecciona com a mínim un grup o un usuari",
+      "require-selection-users": "Selecciona com a mínim un usuari",
       "no-changes": "Fes algun canvi per desar",
       "select-all": {
         "groups": "Selecciona tots els grups",

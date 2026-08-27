@@ -37,6 +37,7 @@ interface Props {
   selection?: AllowedSelection // Selection to open with when the item does not exist yet
   requireSelection?: boolean // Block saving if the selection is empty
   supportsEveryone?: boolean // Whether an empty array means "everyone"
+  usersOnly?: boolean // Only users can be picked; groups become browse-only navigation
   error?: string // Error message to show in the footer.
 }
 
@@ -51,6 +52,7 @@ const props = withDefaults(defineProps<Props>(), {
   selection: undefined,
   requireSelection: false,
   supportsEveryone: true,
+  usersOnly: false,
   error: ''
 })
 
@@ -60,6 +62,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const everyoneEnabled = computed(() => props.supportsEveryone && !props.usersOnly)
 
 // --- Queries ---------------------------------------------------------------
 
@@ -180,7 +184,7 @@ const availableGroups = computed<AllowedOption[]>(() => {
 
 const readBucket = (value: boolean | string[] | undefined, all: () => string[]): string[] => {
   if (!Array.isArray(value)) return []
-  if (value.length === 0) return props.supportsEveryone ? all() : []
+  if (value.length === 0) return everyoneEnabled.value ? all() : []
   return [...value]
 }
 
@@ -192,7 +196,7 @@ const hydrate = () => {
   const allGroupIds = () => availableGroups.value.map((group) => group.value)
 
   if (
-    props.supportsEveryone &&
+    everyoneEnabled.value &&
     Array.isArray(source.groups) &&
     source.groups.length === 0 &&
     allGroupIds().length === 0
@@ -203,9 +207,9 @@ const hydrate = () => {
   selectedGroups.value = readBucket(source.groups, allGroupIds)
 
   apiAllGroups.value =
-    props.supportsEveryone && Array.isArray(source.groups) && source.groups.length === 0
+    everyoneEnabled.value && Array.isArray(source.groups) && source.groups.length === 0
   shareWithEveryone.value =
-    props.supportsEveryone && Array.isArray(source.users) && source.users.length === 0
+    everyoneEnabled.value && Array.isArray(source.users) && source.users.length === 0
   selectedUsers.value =
     !shareWithEveryone.value && Array.isArray(source.users) ? [...source.users] : []
   apiIndeterminateGroups.value = Array.isArray(allowedData.value?.indeterminate_groups)
@@ -215,7 +219,7 @@ const hydrate = () => {
 }
 
 watch(
-  [() => props.open, allowedData, availableGroups],
+  [() => props.open, () => props.selection, allowedData, availableGroups],
   () => {
     if (props.open && !hydrated.value) hydrate()
   },
@@ -385,14 +389,16 @@ const dropKnownMembers = (groupIds: string[]) => {
 }
 
 const toggleAllGroups = (selectAll: boolean) => {
+  if (props.usersOnly) return
   dirty.value = true
   const groupIds = availableGroups.value.map((group) => group.value)
-  apiAllGroups.value = props.supportsEveryone && selectAll
+  apiAllGroups.value = everyoneEnabled.value && selectAll
   selectedGroups.value = selectAll ? groupIds : []
   dropKnownMembers(groupIds)
 }
 
 const toggleGroup = (groupId: string) => {
+  if (props.usersOnly) return
   dirty.value = true
   apiAllGroups.value = false
   selectedGroups.value = selectedGroups.value.includes(groupId)
@@ -435,12 +441,20 @@ const toggleShareWithEveryone = () => {
   shareWithEveryone.value = !shareWithEveryone.value
 }
 
-const isEmptySelection = computed(
-  () =>
+const isEmptySelection = computed(() => {
+  if (props.usersOnly) return selectedUsers.value.length === 0
+  return (
     !shareWithEveryone.value &&
     !apiAllGroups.value &&
     selectedGroups.value.length === 0 &&
     selectedUsers.value.length === 0
+  )
+})
+
+const requireSelectionText = computed(() =>
+  props.usersOnly
+    ? t('components.allowed-modal.require-selection-users')
+    : t('components.allowed-modal.require-selection')
 )
 
 const columnsDisabled = computed(() => shareWithEveryone.value || props.loading)
@@ -456,13 +470,15 @@ const saveHint = computed(() =>
 const handleSave = () => {
   if (saveDisabled.value) return
   emit('save', {
-    groups: shareWithEveryone.value
+    groups: props.usersOnly
       ? false
-      : apiAllGroups.value
-        ? []
-        : selectedGroups.value.length
-          ? [...selectedGroups.value]
-          : false,
+      : shareWithEveryone.value
+        ? false
+        : apiAllGroups.value
+          ? []
+          : selectedGroups.value.length
+            ? [...selectedGroups.value]
+            : false,
     users: shareWithEveryone.value
       ? []
       : selectedUsers.value.length
@@ -501,7 +517,7 @@ const handleClose = () => {
       </Alert>
     </div>
     <div
-      v-if="props.supportsEveryone"
+      v-if="everyoneEnabled"
       :class="[
         'mb-4 flex shrink-0 select-none flex-row items-center gap-2 rounded-lg border p-3',
         shareWithEveryone ? 'border-brand-600 bg-brand-100' : 'border-gray-warm-200 bg-base-white',
@@ -558,7 +574,8 @@ const handleClose = () => {
         :search-placeholder="t('components.allowed-modal.search.group.placeholder')"
         :empty-text="groupsEmptyText"
         :not-found-text="t('components.allowed-modal.search.group.empty')"
-        :select-all="props.supportsEveryone"
+        :selectable="!props.usersOnly"
+        :select-all="everyoneEnabled"
         :select-all-checked="apiAllGroups"
         :select-all-label="t('components.allowed-modal.select-all.groups')"
         :select-all-count-label="
@@ -613,7 +630,7 @@ const handleClose = () => {
           v-if="props.requireSelection && isEmptySelection"
           class="min-w-0 truncate text-sm text-gray-warm-600"
         >
-          {{ t('components.allowed-modal.require-selection') }}
+          {{ requireSelectionText }}
         </p>
         <div class="flex shrink-0 gap-2">
           <Button hierarchy="secondary-gray" :disabled="props.loading" @click="handleClose">

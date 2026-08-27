@@ -2709,6 +2709,7 @@
       "view-group": "Show the users in '{group_name}'",
       "unview-group": "Stop showing the users in '{group_name}'",
       "require-selection": "Select at least one group or user",
+      "require-selection-users": "Select at least one user",
       "no-changes": "Make a change to save",
       "select-all": {
         "groups": "Select all groups",
