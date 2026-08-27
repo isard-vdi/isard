@@ -26,6 +26,7 @@ from contextlib import asynccontextmanager
 from html import escape as html_escape
 from json import dumps as json_dumps
 
+import api.dependencies.log_config  # noqa: F401
 from api.dependencies.jwt_token import (
     has_email_verification_required_or_login_token,
     has_migration_required_or_login_token,
@@ -40,6 +41,7 @@ from api.dependencies.jwt_token import (
     is_admin_or_manager,
     is_not_user,
 )
+from api.dependencies.log_config import RequestContextMiddleware
 from api.services.error import Error
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -291,6 +293,8 @@ if cors_origins:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+app.add_middleware(RequestContextMiddleware)
 
 
 def _error_response_body(

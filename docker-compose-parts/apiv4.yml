@@ -77,8 +77,8 @@ services:
       NOTIFY_EMAIL:
       DOMAIN:
       LOG_LEVEL:
-      DEBUG_STATS: "false"
-      DEBUG_WEBSOCKETS: "false"
+      DEBUG_STATS:
+      DEBUG_WEBSOCKETS:
       FARO_ENABLED:
       FARO_URL:
       FARO_HTTP_SAMPLING:

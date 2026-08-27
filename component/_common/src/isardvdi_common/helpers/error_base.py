@@ -20,7 +20,10 @@
 
 import inspect
 import json
+import logging
 import os
+
+from isardvdi_common.helpers.redact import loggable_body
 
 try:
     from isardvdi_common.helpers.log import logger
@@ -247,13 +250,13 @@ class ErrorBase(Exception):
                     % (self.error.get("function_call"), self.error.get("function")),
                     "request": {
                         "url": (
-                            str(self.request.url)
+                            str(self.request.url).split("?", 1)[0]
                             if hasattr(self.request, "url")
                             else ""
                         ),
                     },
                 }
-                if os.environ.get("LOG_LEVEL", "INFO") == "DEBUG":
+                if logging.getLogger().isEnabledFor(logging.DEBUG):
                     if hasattr(self.request, "headers"):
                         extra["request"]["headers"] = self.request.headers
                     if debug:
@@ -262,7 +265,9 @@ class ErrorBase(Exception):
                 if hasattr(self.request, "method"):
                     extra["request"]["method"] = self.request.method
                 if request_body is not None:
-                    extra["request"]["body"] = request_body
+                    body = loggable_body(request_body)
+                    if body is not None:
+                        extra["request"]["body"] = body
                 if data:
                     extra["data"] = data
                 self.logger.error(
