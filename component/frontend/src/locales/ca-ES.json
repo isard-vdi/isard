@@ -354,6 +354,7 @@
     },
     "desktops": {
       "new-desktop": "Escriptori nou",
+      "loading": "S'estan carregant els escriptoris…",
       "stop-all": "Atura tots els escriptoris",
       "stop-all-tooltip": {
         "title": "No hi ha escriptoris iniciats ara mateix"

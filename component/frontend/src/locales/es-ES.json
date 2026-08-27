@@ -354,6 +354,7 @@
     },
     "desktops": {
       "new-desktop": "Nuevo escritorio",
+      "loading": "Cargando escritorios…",
       "stop-all": "Parar todos los escritorios",
       "stop-all-tooltip": {
         "title": "No hay escritorios iniciados ahora"

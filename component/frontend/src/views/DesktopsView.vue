@@ -1,5 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, readonly, ref, toValue, reactive, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onMounted,
+  readonly,
+  ref,
+  shallowRef,
+  toValue,
+  reactive,
+  watch,
+  watchEffect
+} from 'vue'
 
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import {
@@ -14,7 +25,7 @@ import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { useForm } from '@tanstack/vue-form'
-import { useWindowVirtualizer } from '@tanstack/vue-virtual'
+import { useWindowVirtualizer, type VirtualItem } from '@tanstack/vue-virtual'
 
 import {
   getUserDesktopsOptions,
@@ -119,6 +130,7 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Toggle } from '@/components/ui/toggle'
@@ -127,6 +139,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ViewerSelect } from '@/components/viewer-select'
 
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
+import { useFastScroll } from '@/composables/useFastScroll'
 import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
 import { Kbd } from '@/components/kbd'
 
@@ -838,7 +851,7 @@ watch(showDesktopFilters, (newValue) => {
   })
 })
 
-const { width: windowWidth } = useWindowSize()
+const { width: windowWidth, height: windowHeight } = useWindowSize()
 const { y: windowScrollY } = useWindowScroll()
 
 // Below `sm` the toolbar buttons drop their label, so a tooltip takes over
@@ -857,6 +870,12 @@ const CARD_GRID_GAP = 16
 
 const cardGridRef = ref<HTMLElement | null>(null)
 const { width: cardGridWidth } = useElementSize(cardGridRef)
+
+const desktopToolbarRef = ref<HTMLElement | null>(null)
+// Border box: the toolbar's padding is part of what covers the curtain.
+const { height: desktopToolbarHeight } = useElementSize(desktopToolbarRef, undefined, {
+  box: 'border-box'
+})
 
 // Mirrors what `repeat(auto-fill, minmax(min, 1fr))` would have resolved to.
 const cardGridColumns = computed(() => {
@@ -879,9 +898,14 @@ const cardGridRows = computed(() => {
 // how much page precedes it. Remeasured on anything that reflows the toolbar
 // above, but never on scroll — that would be the reflow-per-event we just left.
 const cardGridOffsetTop = ref(0)
+// Viewport-relative, so the fixed overlay does not cover the sidebar.
+const cardGridOffsetLeft = ref(0)
 const measureCardGridOffset = () => {
   const el = cardGridRef.value
-  if (el) cardGridOffsetTop.value = el.getBoundingClientRect().top + window.scrollY
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  cardGridOffsetTop.value = rect.top + window.scrollY
+  cardGridOffsetLeft.value = rect.left
 }
 
 onMounted(measureCardGridOffset)
@@ -889,7 +913,9 @@ useEventListener('resize', measureCardGridOffset)
 // Deliberately not watching the desktop count: more rows grow the grid
 // downwards but never move its top, so remeasuring per keystroke only bought a
 // forced reflow — and a costlier one the more cards the DOM held.
-watch([showDesktopFilters, cardGridColumns, viewMode], () => nextTick(measureCardGridOffset))
+watch([showDesktopFilters, cardGridColumns, cardGridWidth, viewMode], () =>
+  nextTick(measureCardGridOffset)
+)
 
 const cardGridVirtualizer = useWindowVirtualizer(
   computed(() => ({
@@ -899,6 +925,54 @@ const cardGridVirtualizer = useWindowVirtualizer(
     scrollMargin: cardGridOffsetTop.value
   }))
 )
+
+const { isFastScrolling } = useFastScroll()
+
+// The toolbar is sticky on top of the curtain, so the curtain starts where the
+// toolbar ends: anything higher is a first row cut in half. Then enough rows to
+// fill the rest of the viewport, plus the one it is scrolled into.
+const TOOLBAR_TOP = 64
+const curtainTop = computed(() => TOOLBAR_TOP + desktopToolbarHeight.value)
+const curtainRows = computed(
+  () =>
+    Math.ceil((windowHeight.value - curtainTop.value) / (cardGridRowHeight.value + CARD_GRID_GAP)) +
+    1
+)
+
+// The rows the cards render from lag the scroll by a frame, and stop moving
+// altogether once the curtain is up. Committing them straight from the scroll
+// event costs ~18ms a card in the very flush that has to reveal the curtain,
+// which is how the fling used to outrun it.
+const cardVirtualRows = shallowRef<VirtualItem[]>([])
+let commitScheduled = false
+
+const commitVirtualRows = () => {
+  cardVirtualRows.value = cardGridVirtualizer.value.getVirtualItems()
+}
+
+watchEffect(() => {
+  cardGridVirtualizer.value.getVirtualItems()
+  if (commitScheduled) return
+  commitScheduled = true
+  requestAnimationFrame(() => {
+    commitScheduled = false
+    if (!isFastScrolling.value) commitVirtualRows()
+  })
+})
+
+// Back in one go with the curtain: same flush, so the rows are on screen the
+// moment it lifts.
+watch(isFastScrolling, (fast) => {
+  if (!fast) commitVirtualRows()
+})
+
+// The curtain stands in for rows that are not built. Filter down to a handful
+// of desktops and every row on screen is already there, so a fling has nothing
+// to wait for and the curtain would be pure noise.
+const missingCardRows = computed(() => {
+  const built = new Set(cardVirtualRows.value.map((row) => row.index))
+  return cardGridVirtualizer.value.getVirtualItems().some((row) => !built.has(row.index))
+})
 </script>
 
 <template>
@@ -1379,6 +1453,7 @@ const cardGridVirtualizer = useWindowVirtualizer(
   <main v-else class="-mt-4 flex w-full flex-1 flex-col">
     <div
       v-if="!isFirstRun"
+      ref="desktopToolbarRef"
       :class="
         cn(
           'sticky top-16 z-40 -mx-5 mb-1 flex flex-col gap-3 bg-base-background px-5 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-8 before:bg-base-background',
@@ -1690,12 +1765,49 @@ const cardGridVirtualizer = useWindowVirtualizer(
         />
 
         <div v-else ref="cardGridRef" class="w-full">
+          <!-- Fixed and never re-rendered: the compositor keeps it in place while
+               the main thread works, so the fling outruns nothing. Mounted from
+               the start, because building it once the fling is on is already
+               too late. -->
+          <div
+            v-show="isFastScrolling && missingCardRows"
+            aria-hidden="true"
+            class="bg-base-background pointer-events-none fixed bottom-0 z-20 overflow-hidden pt-4"
+            :style="{
+              top: `${curtainTop}px`,
+              left: `${cardGridOffsetLeft}px`,
+              width: `${cardGridWidth}px`
+            }"
+          >
+            <div
+              class="grid gap-4"
+              :style="{ gridTemplateColumns: `repeat(${cardGridColumns}, minmax(0, 1fr))` }"
+            >
+              <DesktopCardSkeleton
+                v-for="n in cardGridColumns * curtainRows"
+                :key="n"
+                :style="{ height: `${cardGridRowHeight}px` }"
+              />
+            </div>
+
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div
+                class="flex flex-col items-center gap-4 rounded-xl bg-base-white/90 px-10 py-8 shadow-lg"
+              >
+                <Spinner />
+                <p class="text-base font-medium text-gray-warm-600">
+                  {{ t('views.desktops.loading') }}
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div
             class="relative w-full"
             :style="{ height: `${cardGridVirtualizer.getTotalSize()}px` }"
           >
             <div
-              v-for="virtualRow in cardGridVirtualizer.getVirtualItems()"
+              v-for="virtualRow in cardVirtualRows"
               :key="virtualRow.key"
               class="absolute left-0 top-0 grid w-full gap-4"
               :style="{
