@@ -1953,10 +1953,22 @@
       },
       "delete-confirmation-modal": {
         "title": "Esborra la plantilla '{name}'",
+        "subtitle": "Cap altre escriptori, plantilla o desplegament depèn d'aquesta plantilla.",
+        "recycle-bin": {
+          "temporary": "Els elements esborrats es mouen a la paperera i s'eliminen definitivament al cap de {time}. L'esborrat de plantilles sempre passa per la paperera i no es pot fer permanent des d'aquí.",
+          "permanent": "Els elements esborrats s'eliminen definitivament i no es poden recuperar.",
+          "infinite": "Els elements esborrats es mouen a la paperera i no s'eliminen automàticament."
+        },
         "fields": {
+          "summary": {
+            "total": "S'esborraran {count} elements",
+            "breakdown": "{desktops} escriptoris · {templates} plantilles · {deployments} desplegaments · {hidden} ocults"
+          },
           "dependency": {
             "alert": {
-              "title": "Avís de dependència"
+              "title": "Avís de dependència",
+              "description": "Els escriptoris, plantilles i desplegaments següents depenen d'aquesta plantilla i s'esborraran juntament amb els seus discos.",
+              "pending": "Alguns escriptoris, plantilles o desplegaments que depenen d'aquesta plantilla no són teus. Contacta amb un administrador per esborrar aquesta plantilla."
             },
             "datatable": {
               "headers": {
