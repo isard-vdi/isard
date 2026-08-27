@@ -1,5 +1,6 @@
 import contextvars
 import logging
+import os
 import time
 
 import isardvdi_common.helpers.log  # noqa: F401
@@ -19,6 +20,7 @@ _request_body: contextvars.ContextVar = contextvars.ContextVar(
 )
 
 BODY_CONTENT_TYPES = ("application/json",)
+DEBUG_STATS_PATHS = ("/api/v4", "/api/v4/")
 
 
 def _content_type(scope):
@@ -93,6 +95,12 @@ class UvicornRecordFilter(logging.Filter):
             return True
 
         path = str(full_path).split("?", 1)[0]
+        if (
+            path in DEBUG_STATS_PATHS
+            and os.environ.get("DEBUG_STATS", "").lower() != "true"
+        ):
+            return False
+
         record.status = int(status_code)
         record.request = {
             "method": method,

@@ -427,6 +427,11 @@ HAPROXY_RUN_IMAGE=haproxy:3.3-alpine3.22@sha256:3755973a59dd758b24d952649ca1f003
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
 
+## Log the API version endpoint (/api/v4/), which monitoring polls continuously.
+#DEBUG_STATS=false
+## Log websocket authentication failures and socket.io room joins/leaves.
+#DEBUG_WEBSOCKETS=false
+
 ## ------ HAPROXIES
 ## Comment/uncomment to deactivate/activate haproxy logging
 ## (by default will log only bad response status)

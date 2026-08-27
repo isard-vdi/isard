@@ -99,6 +99,12 @@ def _access(
     return contextvars.copy_context().run(run)
 
 
+def _verdict(path):
+    """Whether the filter keeps a record for ``path``."""
+    args = ("10.0.0.54:0", "GET", path, "1.1", 200)
+    return UvicornRecordFilter().filter(_record("uvicorn.access", ACCESS_MSG, args))
+
+
 class TestIdentity:
     def test_all_four_ids_are_present(self, root_level):
         out = _access(FULL_PAYLOAD)
@@ -230,6 +236,46 @@ class TestBodyOnTheAccessLine:
             captured=_captured(b'{"pad":"xxx"}', size=BODY_LIMIT + 500),
         )
         assert out["request"]["body"] == {"truncated": True, "size": BODY_LIMIT + 500}
+
+
+class TestDebugStats:
+    """apiv4 has no stats routes, so this only gates the version endpoint."""
+
+    def test_dropped_when_unset(self, monkeypatch):
+        monkeypatch.delenv("DEBUG_STATS", raising=False)
+        assert _verdict("/api/v4/") is False
+
+    def test_dropped_when_false(self, monkeypatch):
+        monkeypatch.setenv("DEBUG_STATS", "false")
+        assert _verdict("/api/v4/") is False
+
+    def test_kept_when_true(self, monkeypatch):
+        monkeypatch.setenv("DEBUG_STATS", "true")
+        assert _verdict("/api/v4/") is True
+
+    def test_the_redirect_spelling_is_dropped_too(self, monkeypatch):
+        """`/api/v4` 307s to `/api/v4/` and logs a line of its own."""
+        monkeypatch.delenv("DEBUG_STATS", raising=False)
+        assert _verdict("/api/v4") is False
+
+    def test_a_query_string_does_not_evade_it(self, monkeypatch):
+        monkeypatch.delenv("DEBUG_STATS", raising=False)
+        assert _verdict("/api/v4/?x=1") is False
+
+    def test_other_paths_are_untouched(self, monkeypatch):
+        monkeypatch.delenv("DEBUG_STATS", raising=False)
+        assert _verdict("/api/v4/desktops") is True
+
+    def test_it_applies_at_info_too(self, monkeypatch, root_level):
+        """apiv3 only skipped at DEBUG, so production logged the noise anyway."""
+        monkeypatch.delenv("DEBUG_STATS", raising=False)
+        logging.getLogger().setLevel(logging.INFO)
+        assert _verdict("/api/v4/") is False
+
+    def test_lifecycle_records_are_never_dropped(self, monkeypatch):
+        monkeypatch.delenv("DEBUG_STATS", raising=False)
+        record = _record("uvicorn.error", "Application startup complete.")
+        assert UvicornRecordFilter().filter(record) is True
 
 
 class TestRequestContextMiddleware:
