@@ -137,14 +137,16 @@ vi.mock('@/services/directViewerSocket', () => ({
 // controlled per-test via the refs above.
 vi.mock('@/lib/desktops', () => ({
   desktopBookingNotificationText: () => bookingText.value,
-  desktopActionsData: () => ({
+  desktopActionsData: (status: string) => ({
     actionButton: {
       action: mainButtonAction.value,
       hierarchy: 'primary',
       icon: '',
       iconClass: '',
       label: 'action'
-    }
+    },
+    // Mirrors the real helper: viewers only while the desktop is up.
+    viewers: ['Started', 'WaitingIP', 'Shutting-down'].includes(status)
   }),
   DesktopActionsEnum: { Reset: 'reset', Stop: 'stop', Start: 'start' }
 }))
@@ -470,6 +472,23 @@ describe('DirectViewerView', () => {
     await settings.trigger('click')
     expect(wrapper.find('[data-test="change-viewer-modal"]').attributes('data-open')).toBe('true')
   })
+
+  it.each(['Stopped', 'Maintenance'])(
+    'hides the viewer button group when the desktop turns %s elsewhere',
+    async (status) => {
+      viewerData.value = startedDesktop({
+        viewers: { 'browser-vnc': { kind: 'browser', viewer: '/viewer/vnc' } }
+      })
+      const wrapper = mountView()
+      await flushPromises()
+      expect(wrapper.find('[data-test="button-group"]').exists()).toBe(true)
+
+      viewerData.value = { ...viewerData.value, status }
+      await flushPromises()
+
+      expect(wrapper.find('[data-test="button-group"]').exists()).toBe(false)
+    }
+  )
 
   it('opens a browser viewer in a new tab with the direct flag set', async () => {
     const openSpy = vi.fn()

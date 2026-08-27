@@ -172,6 +172,7 @@ const mainButtonData = computed(() => {
 })
 
 const desktopCardKind = computed(() => desktopViewer.value?.type as 'persistent' | 'nonpersistent')
+const showViewers = computed(() => mainButtonData.value.viewers)
 
 const normalizeViewerId = (viewerId: string) => viewerId.replace(/_/g, '-')
 
@@ -531,7 +532,10 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                           handleDesktopAction(mainButtonData.actionButton!.action)
                         "
                       />
-                      <ButtonGroup v-if="viewerIds.length > 0" class="ml-auto min-w-0">
+                      <ButtonGroup
+                        v-if="showViewers && viewerIds.length > 0"
+                        class="ml-auto min-w-0"
+                      >
                         <Button
                           class="min-w-0 overflow-hidden"
                           :icon="activeViewerLoading ? 'loading-02' : ''"
