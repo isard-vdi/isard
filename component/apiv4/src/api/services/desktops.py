@@ -679,9 +679,11 @@ class DesktopService:
             return {"enabled": False}
 
     @staticmethod
-    def get_desktop_direct_viewer_from_token(token: str, request: Request) -> dict:
+    def get_desktop_direct_viewer_from_token(
+        token: str, request: Request, start_desktop: bool = True
+    ) -> dict:
         direct_viewer = DesktopDirectViewer.desktop_viewer_from_token(
-            token, request=request
+            token, start_desktop=start_desktop, request=request
         )
         # Carried here so the card can gate the bastion button without the
         # direct viewer having to fetch get-details up front.

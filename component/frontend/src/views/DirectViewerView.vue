@@ -16,6 +16,7 @@ import {
   apiV4LoginConfigOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
+  renewDesktopViewerByToken,
   type DesktopViewerResponse,
   type ViewersModel,
   type BrowserVncValues
@@ -32,6 +33,7 @@ import {
 import { withOptimisticStatus } from '@/lib/optimistic'
 
 import { useDirectViewerSocket } from '@/services/directViewerSocket'
+import { useJwtRenewal } from '@/composables/useJwtRenewal'
 
 import {
   DesktopCardBase,
@@ -122,6 +124,30 @@ const { data: desktopDetails } = useQuery({
 const bastion = computed(() => desktopViewer.value?.bastion)
 const desktopIp = computed(() => desktopViewer.value?.ip)
 
+// The viewer JWT lasts 30 minutes and every direct-viewer request carries it,
+// so a page left open would 401 until a reload. get-viewer can't be polled to
+// refresh it — it starts a stopped desktop and logs an access — hence the
+// dedicated renew-viewer route.
+const { mutateAsync: renewViewerToken } = useMutation({
+  mutationFn: () =>
+    renewDesktopViewerByToken({
+      path: { token: token.value },
+      client: directViewerClient,
+      throwOnError: true
+    }),
+  onSuccess: ({ data }) => {
+    queryClient.setQueryData(queryKey, (old: DesktopViewerResponse | undefined) =>
+      // `status` on this payload is synthesised by the viewer helper — always
+      // Started/WaitingIP, because get-viewer is normally called right after a
+      // start. A renewal doesn't start anything, so keep the live status the
+      // socket maintains instead of flipping a stopped desktop back to Started.
+      old ? { ...old, ...data, status: old.status } : data
+    )
+  }
+})
+
+useJwtRenewal(viewerJwt, renewViewerToken)
+
 watch(
   () => desktopViewer.value?.jwt,
   (jwt) => {
@@ -133,7 +159,7 @@ watch(
       // noVNC reads `viewerToken` from document.cookie and uses it as the websocket security token (docker/static/noVNC/index.html: getCookie("viewerToken")). Without it the wss URL ends in `null` and websockify closes the connection.
       cookies.set('viewerToken', jwt, VIEWER_COOKIE_OPTS)
       if (!isConnected.value) {
-        connectSocket(jwt)
+        connectSocket(() => viewerJwt.value)
       }
     }
   },
