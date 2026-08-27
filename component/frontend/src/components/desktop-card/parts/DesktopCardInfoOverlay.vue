@@ -5,9 +5,12 @@ import { useQuery } from '@tanstack/vue-query'
 
 import { useIsTextTruncated } from '@/composables/useIsTextTruncated'
 
-import { getDesktopInfoOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import type { DesktopDetailsResponse } from '@/gen/oas/apiv4/'
+import {
+  getDesktopDetailsOptions,
+  getDesktopDetailsFromTokenOptions
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
+import type { Client } from '@/gen/oas/apiv4/client'
 
 import { Icon, CopyIcon } from '@/components/icon'
 import { Button } from '@/components/ui/button'
@@ -30,64 +33,54 @@ interface DesktopInfoTarget {
 
 interface Props {
   desktop: DesktopInfoTarget
-  directViewer?: boolean
-  directViewerDetails?: DesktopDetailsResponse | null
-  directViewerDetailsPending?: boolean
+  // When provided, fetches the details via the direct-viewer token endpoint
+  // (using the supplied client's viewer JWT). Otherwise falls back to the
+  // standard user-authenticated endpoint keyed by desktopId.
+  directViewerToken?: string
+  directViewerClient?: Client
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  directViewer: false,
-  directViewerDetails: undefined,
-  directViewerDetailsPending: false
+  directViewerToken: undefined,
+  directViewerClient: undefined
 })
 const emit = defineEmits<{ showInfoModal: [] }>()
 
 const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 
-const isDirectViewer = computed(() => props.directViewer)
+const isDirectViewer = !!props.directViewerToken && !!props.directViewerClient
+const tokenQuery = useQuery({
+  ...getDesktopDetailsFromTokenOptions({
+    path: { token: props.directViewerToken ?? '' },
+    client: props.directViewerClient
+  }),
+  enabled: isDirectViewer
+})
 
-const { data: info, isPending: isInfoPending } = useQuery({
-  ...getDesktopInfoOptions({
+const desktopIdQuery = useQuery({
+  ...getDesktopDetailsOptions({
     path: { desktop_id: props.desktop.id }
   }),
-  enabled: computed(() => !isDirectViewer.value)
+  enabled: !isDirectViewer
 })
 
-const hardware = computed(() => {
-  if (isDirectViewer.value) {
-    const details = props.directViewerDetails
-    return {
-      vcpus: details?.vcpu,
-      memory: details?.memory,
-      diskBus: details?.disk_bus ?? '',
-      bootOrder: details?.boot_order?.map((b) => b.id) ?? [],
-      videos: details?.videos?.map((v) => v.id) ?? [],
-      isos: details?.isos ?? [],
-      floppies: details?.floppies ?? [],
-      vgpus: details?.reservables?.vgpus ?? []
-    }
-  }
-  return {
-    vcpus: info.value?.hardware?.vcpus,
-    memory: info.value?.hardware?.memory,
-    diskBus: info.value?.hardware?.disk_bus ?? '',
-    bootOrder: info.value?.hardware?.boot_order ?? [],
-    videos: info.value?.hardware?.videos ?? [],
-    isos: info.value?.hardware?.isos ?? [],
-    floppies: info.value?.hardware?.floppies ?? [],
-    vgpus: info.value?.reservables?.vgpus ?? []
-  }
-})
+const active = computed(() => (isDirectViewer ? tokenQuery : desktopIdQuery))
+const info = computed(() => active.value.data.value)
 
-const isPending = computed(() =>
-  isDirectViewer.value ? !!props.directViewerDetailsPending : isInfoPending.value
-)
+const hardware = computed(() => ({
+  vcpus: info.value?.vcpu,
+  memory: info.value?.memory,
+  diskBus: info.value?.disk_bus?.name ?? '',
+  bootOrder: info.value?.boot_order?.map((b) => b.name) ?? [],
+  videos: info.value?.videos?.map((v) => v.name) ?? [],
+  isos: info.value?.isos ?? [],
+  floppies: info.value?.floppies ?? [],
+  vgpus: info.value?.reservables?.vgpus ?? []
+}))
 
-// get-info (non-direct-viewer) doesn't expose the desktop's live IP on
-// `desktop`, but the direct-viewer's separately-fetched details do.
-const desktopIp = computed(() =>
-  isDirectViewer.value ? props.directViewerDetails?.ip : props.desktop.ip
-)
+const isPending = computed(() => active.value.isPending.value)
+
+const desktopIp = computed(() => props.desktop.ip)
 
 const statusBadge = computed(() => {
   const s = props.desktop.status

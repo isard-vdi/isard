@@ -99,25 +99,28 @@ const queryKey = getDesktopViewerByTokenQueryKey({
 })
 const { isConnected, connect: connectSocket } = useDirectViewerSocket(token, queryClient, queryKey)
 
-// Desktop details (hardware) are fetched separately so the user can
-// see what they're about to launch while the viewer page is still
-// booting. The endpoint lives on `direct_viewer_router` and needs the
-// viewer JWT, so the query stays disabled until `directViewerClient`
-// has its Authorization header set in the watch below.
+type OverlayKind = 'networks' | 'bastion' | 'info'
+const activeOverlay = ref<OverlayKind | null>(null)
+
+const toggleOverlay = (kind: OverlayKind) => {
+  activeOverlay.value = activeOverlay.value === kind ? null : kind
+}
+
+const showBastionModal = ref(false)
+const showNetworksModal = ref(false)
+const showDesktopInfoModal = ref(false)
+
 const viewerJwt = ref<string | undefined>(undefined)
-const {
-  data: desktopDetails,
-  isPending: isDetailsPending,
-  refetch: refetchDesktopDetails
-} = useQuery({
+const { data: desktopDetails } = useQuery({
   ...getDesktopDetailsFromTokenOptions({
     path: { token: token.value },
     client: directViewerClient
   }),
-  enabled: computed(() => !!viewerJwt.value)
+  enabled: computed(() => !!viewerJwt.value && showDesktopInfoModal.value)
 })
 
-const bastion = computed(() => desktopDetails.value?.bastion)
+const bastion = computed(() => desktopViewer.value?.bastion)
+const desktopIp = computed(() => desktopViewer.value?.ip)
 
 watch(
   () => desktopViewer.value?.jwt,
@@ -135,19 +138,6 @@ watch(
     }
   },
   { immediate: true }
-)
-
-// The IP (and other live details) come from the separately-fetched get-details
-// query, which the socket doesn't touch — only desktopViewer updates live. So
-// refetch details on every status change so a boot (WaitingIP → Started)
-// surfaces the IP without a manual reload.
-watch(
-  () => desktopViewer.value?.status,
-  (status, prevStatus) => {
-    if (status && status !== prevStatus && viewerJwt.value) {
-      refetchDesktopDetails()
-    }
-  }
 )
 
 const mainButtonData = computed(() => {
@@ -238,18 +228,7 @@ const notificationText = computed<string | null>(() => {
   return null
 })
 
-// One overlay at a time, same as the desktop cards: clicking the same icon
-// toggles it off, clicking another swaps.
-type OverlayKind = 'networks' | 'bastion' | 'info'
-const activeOverlay = ref<OverlayKind | null>(null)
-
-const toggleOverlay = (kind: OverlayKind) => {
-  activeOverlay.value = activeOverlay.value === kind ? null : kind
-}
-
 const isViewerChangeModalOpen = ref(false)
-const showBastionModal = ref(false)
-const showNetworksModal = ref(false)
 
 const logoSrc = ref('/custom/logo.svg')
 const handleLogoError = () => {
@@ -281,8 +260,6 @@ const { mutate: resetDesktop, isPending: isResetting } = useMutation(
     }
   })
 )
-
-const showDesktopInfoModal = ref(false)
 
 // Start desktop (authenticated via the direct-viewer JWT). Used for
 // explicit user clicks after the owner has stopped the desktop from
@@ -464,7 +441,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                           ref="networksOverlayRef"
                           :desktop-id="desktopViewer.id"
                           :desktop-status="desktopViewer.status"
-                          :desktop-ip="desktopDetails?.ip"
+                          :desktop-ip="desktopIp"
                           :direct-viewer-token="token"
                           :direct-viewer-client="directViewerClient"
                           :full-height="
@@ -503,9 +480,8 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       <DesktopCardInfoOverlay
                         v-else-if="activeOverlay === 'info'"
                         :desktop="desktopViewer"
-                        direct-viewer
-                        :direct-viewer-details="desktopDetails"
-                        :direct-viewer-details-pending="isDetailsPending"
+                        :direct-viewer-token="token"
+                        :direct-viewer-client="directViewerClient"
                         @show-info-modal="showDesktopInfoModal = true"
                       />
                     </template>
@@ -577,7 +553,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       :desktop-id="desktopViewer.id"
       :desktop-name="desktopViewer.name"
       :desktop-status="desktopViewer.status"
-      :desktop-ip="desktopDetails?.ip"
+      :desktop-ip="desktopIp"
       :direct-viewer-token="token"
       :direct-viewer-client="directViewerClient"
       @close="showNetworksModal = false"
@@ -595,7 +571,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       :name="desktopDetails?.name || desktopViewer?.name || ''"
       :description="desktopDetails?.description || ''"
       :status="desktopDetails?.status"
-      :ip="desktopDetails?.ip"
+      :ip="desktopIp"
       :vcpu="desktopDetails?.vcpu"
       :ram="desktopDetails?.memory"
       :boot-order="desktopDetails?.boot_order?.map((bo) => bo.name)"

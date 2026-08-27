@@ -16,7 +16,6 @@ const mainButtonAction = ref<string>('none')
 const cookieSetMock = vi.fn()
 const connectMock = vi.fn()
 const clientSetConfigMock = vi.fn()
-const refetchMock = vi.fn()
 // useMutation is called twice in the view (resetDesktop, then startDesktop);
 // capture each returned mutate in order.
 const mutations: { mutate: ReturnType<typeof vi.fn> }[] = []
@@ -37,7 +36,7 @@ vi.mock('@tanstack/vue-query', () => {
         isPending: viewerPending
       }
     if (idx === 1) return { data: loginConfig, error: ref(null), isPending: ref(false) }
-    return { data: desktopDetails, error: ref(null), isPending: ref(false), refetch: refetchMock }
+    return { data: desktopDetails, error: ref(null), isPending: ref(false) }
   }
   const useQueryClient = () => ({ setQueryData: vi.fn(), invalidateQueries: vi.fn() })
   const useMutation = () => {
@@ -154,8 +153,10 @@ vi.mock('@/components/desktop-card', () => ({
   },
   DesktopCardIp: { template: '<div data-test="card-ip" />' },
   DesktopCardNetworksOverlay: {
+    props: ['desktopIp'],
     emits: ['showNetworksModal'],
-    template: '<div data-test="card-networks" @click="$emit(\'showNetworksModal\')" />'
+    template:
+      '<div data-test="card-networks" :data-ip="desktopIp" @click="$emit(\'showNetworksModal\')" />'
   },
   DesktopCardBastionOverlay: { template: '<div data-test="card-bastion" />' },
   DesktopCardInfoOverlay: {
@@ -302,7 +303,6 @@ describe('DirectViewerView', () => {
     cookieSetMock.mockReset()
     connectMock.mockReset()
     clientSetConfigMock.mockReset()
-    refetchMock.mockReset()
     mutations.length = 0
     useQueryCallIndex = 0
   })
@@ -488,16 +488,19 @@ describe('DirectViewerView', () => {
     expect(wrapper.find('[data-test="info-modal"]').attributes('data-open')).toBe('true')
   })
 
-  it('refetches the desktop details when the viewer status changes', async () => {
-    viewerData.value = startedDesktop({ status: 'WaitingIP' })
-    mountView()
-    await flushPromises()
-    refetchMock.mockClear()
-
-    // Socket flips the desktop to Started → details (holding the IP) refetch.
-    viewerData.value = { ...viewerData.value, status: 'Started' }
+  it('shows the guest IP straight off the viewer payload once the socket reports it', async () => {
+    // The IP rides on get-viewer, so the socket patch is enough — no
+    // get-details round trip is involved in surfacing it.
+    viewerData.value = startedDesktop({ status: 'WaitingIP', ip: null })
+    const wrapper = mountView()
     await flushPromises()
 
-    expect(refetchMock).toHaveBeenCalled()
+    await wrapper.find('[data-test="overlay-btn"][data-icon="modem-02"]').trigger('click')
+    expect(wrapper.find('[data-test="card-networks"]').attributes('data-ip')).toBeUndefined()
+
+    viewerData.value = { ...viewerData.value, status: 'Started', ip: '10.1.2.3' }
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="card-networks"]').attributes('data-ip')).toBe('10.1.2.3')
   })
 })
