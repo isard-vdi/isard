@@ -11,10 +11,10 @@ export function useDirectViewerSocket(token: Ref<string>, queryClient: QueryClie
   const isConnected = ref(false)
   let socket: ReturnType<typeof createSocket> | null = null
 
-  const connect = (jwt: string) => {
+  const connect = (getJwt: () => string | undefined) => {
     if (socket) return
 
-    socket = createSocket(jwt)
+    socket = createSocket(getJwt)
 
     socket.on('connect', () => {
       isConnected.value = true

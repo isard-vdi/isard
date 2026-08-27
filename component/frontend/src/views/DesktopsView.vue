@@ -35,14 +35,14 @@ import {
   stopDesktopMutation,
   checkQuotaNewDesktopOptions,
   checkQuotaNewTemplateOptions,
-  checkStoragePoolCreationAvailabilityOptions
+  checkStoragePoolCreationAvailabilityOptions,
+  getDesktopDetailsOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   startDesktop,
   stopDesktop,
   stopDesktops,
   getDesktopNetworks,
-  getDesktopDetails as getDesktopInfo,
   deleteDesktop,
   updateDesktopBastionAuthorizedKeys,
   getDesktopViewerByType as getDesktopViewer,
@@ -336,15 +336,15 @@ const {
   variables: desktopDetailsDesktopId,
   reset: resetDesktopDetails
 } = useMutation({
-  mutationFn: async (desktopId: string) => {
-    const { data } = await getDesktopInfo({
-      path: {
-        desktop_id: desktopId
-      },
-      throwOnError: true
-    })
-    return data
-  }
+  mutationFn: (desktopId: string) =>
+    queryClient.fetchQuery(
+      getDesktopDetailsOptions({
+        path: {
+          desktop_id: desktopId
+        },
+        throwOnError: true
+      })
+    )
 })
 
 const openDesktopInfoModal = async (desktopId: string) => {

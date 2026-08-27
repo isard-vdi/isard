@@ -422,6 +422,7 @@ class DesktopDomainHandler:
                         "description": viewers.pop("description", None),
                         # Prefer the real status over the helper's hard-coded value
                         "status": parsed_status,
+                        "ip": viewers.pop("ip", None),
                         "scheduled": viewers.pop("scheduled", None),
                         "viewers": viewers["viewers"],
                         "needs_booking": viewers.pop("needs_booking", False),

@@ -318,6 +318,7 @@ class DesktopDirectViewer(RethinkSharedConnection):
                 sched_src if isinstance(sched_src, dict) else {"shutdown": False}
             ),
             "viewers": {},
+            "ip": (domain.get("viewer") or {}).get("guest_ip"),
             "image": domain.get("image"),
             "type": (
                 DesktopTypeEnum.persistent.value
