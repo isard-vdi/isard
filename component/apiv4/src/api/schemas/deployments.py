@@ -435,6 +435,10 @@ class DeploymentDetail(BaseModel):
     desktops_each_user: int = Field(
         description="Number of desktops assigned to each user"
     )
+    co_owner: bool = Field(
+        default=False,
+        description="Indicates if the requesting user is a co-owner of the deployment",
+    )
 
 
 class DeploymentResponse(BaseModel):

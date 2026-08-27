@@ -656,6 +656,7 @@
         "buttons": {
           "edit": "Edit deployment",
           "alloweds": "Users and groups",
+          "co-owners": "Manage Co-Owners",
           "download-viewer": "Download direct links",
           "recreate": "Recreate deployment",
           "reserve": "Reserve",
@@ -2570,6 +2571,13 @@
         "go-to-profile": "Check your quota",
         "cancel": "Go back to deployments"
       },
+      "co-owners-modal": {
+        "title": "Manage co-owners for '{name}'",
+        "description": "Choose which users co-own this deployment. Owner: {owner}",
+        "warning": "Co-owners have the same permissions as the owner, except they cannot delete the deployment or manage co-owners.",
+        "success": "Co-owners updated",
+        "error": "Could not update the co-owners"
+      },
       "download-csv-modal": {
         "title": "Download direct viewer CSV for '{name}'",
         "options": {
@@ -2694,7 +2702,8 @@
         "groups": "No groups available",
         "users": "This group has no users",
         "no-group": "Select a group or search for users",
-        "no-group-short-term": "Type at least 2 characters to search users"
+        "no-group-short-term": "Type at least 2 characters to search users",
+        "no-users-selected": "No users selected yet — search to add some"
       },
       "share-everyone": {
         "unchecked": {

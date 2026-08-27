@@ -38,6 +38,8 @@ interface Props {
   requireSelection?: boolean // Block saving if the selection is empty
   supportsEveryone?: boolean // Whether an empty array means "everyone"
   usersOnly?: boolean // Only users can be picked; groups become browse-only navigation
+  roles?: string[] // Restrict the pickable users to these role ids
+  preselectedUsers?: AllowedOption[] // Users shown in the users column when nothing is being browsed or searched
   error?: string // Error message to show in the footer.
 }
 
@@ -53,6 +55,8 @@ const props = withDefaults(defineProps<Props>(), {
   requireSelection: false,
   supportsEveryone: true,
   usersOnly: false,
+  roles: undefined,
+  preselectedUsers: undefined,
   error: ''
 })
 
@@ -64,6 +68,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const everyoneEnabled = computed(() => props.supportsEveryone && !props.usersOnly)
+
+const roleQuery = computed(() => (props.roles?.length ? { roles: [...props.roles] } : undefined))
 
 // --- Queries ---------------------------------------------------------------
 
@@ -253,9 +259,15 @@ const selectedGroupCount = computed(() => {
 // --- Users column ----------------------------------------------------------
 
 const usersInGroup = useQuery({
-  ...getUsersInGroupOptions({ path: { group_id: viewedGroup.value ?? '' } }),
+  ...getUsersInGroupOptions({
+    path: { group_id: viewedGroup.value ?? '' },
+    query: roleQuery.value
+  }),
   queryKey: computed(() =>
-    getUsersInGroupQueryKey({ path: { group_id: viewedGroup.value ?? '' } })
+    getUsersInGroupQueryKey({
+      path: { group_id: viewedGroup.value ?? '' },
+      query: roleQuery.value
+    })
   ),
   enabled: computed(() => props.open && !!viewedGroup.value)
 })
@@ -273,11 +285,11 @@ const USER_SEARCH_LIMIT = 50
 
 const searchedUsers = useQuery({
   ...searchUsersInCategoryOptions({
-    query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT }
+    query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT, ...roleQuery.value }
   }),
   queryKey: computed(() =>
     searchUsersInCategoryQueryKey({
-      query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT }
+      query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT, ...roleQuery.value }
     })
   ),
   enabled: computed(() => props.open && termSearchActive.value)
@@ -322,9 +334,36 @@ const checkedUsers = computed(() => {
   return selectedUsers.value
 })
 
-const usersColumnItems = computed<AllowedOption[]>(() =>
-  viewedGroup.value ? viewedGroupUsers.value : searchedUserOptions.value
-)
+const knownUsers = computed<Record<string, AllowedOption>>(() => {
+  const known: Record<string, AllowedOption> = {}
+  for (const user of props.preselectedUsers ?? []) known[user.value] = user
+  for (const members of Object.values(usersByGroup.value)) {
+    for (const member of members) known[member.value] = member
+  }
+  for (const user of searchedUserOptions.value) known[user.value] = user
+  return known
+})
+
+const showsSelectionWhenIdle = computed(() => props.preselectedUsers !== undefined)
+
+const idleUserOptions = computed<AllowedOption[]>(() => {
+  const options = [...(props.preselectedUsers ?? [])]
+  const seen = new Set(options.map((option) => option.value))
+  for (const id of selectedUsers.value) {
+    if (seen.has(id)) continue
+    const option = knownUsers.value[id]
+    if (!option) continue
+    options.push(option)
+    seen.add(id)
+  }
+  return options
+})
+
+const usersColumnItems = computed<AllowedOption[]>(() => {
+  if (viewedGroup.value) return viewedGroupUsers.value
+  if (termSearchActive.value) return searchedUserOptions.value
+  return showsSelectionWhenIdle.value ? idleUserOptions.value : []
+})
 
 const usersLoading = computed(() => {
   if (viewedGroup.value) {
@@ -369,6 +408,9 @@ const usersEmptyText = computed(() => {
   if (searchedUsers.error.value) return t('api.loading-error')
   if (termSearchActive.value && !searchedUsers.isFetching.value) {
     return t('components.allowed-modal.search.user.empty')
+  }
+  if (showsSelectionWhenIdle.value) {
+    return t('components.allowed-modal.empty.no-users-selected')
   }
   return t('components.allowed-modal.empty.no-group')
 })

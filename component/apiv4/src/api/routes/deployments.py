@@ -189,7 +189,7 @@ async def check_deployment_quota_post(
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
-    dependencies=[Depends(owns_deployment_id)],
+    dependencies=[Depends(owns_deployment_id())],
 )
 async def get_deployment(
     deployment_id: str,
@@ -199,7 +199,9 @@ async def get_deployment(
         return JSONResponse(
             content=DeploymentResponse(
                 **await asyncio.to_thread(
-                    DeploymentService.get_deployment, deployment_id
+                    DeploymentService.get_deployment,
+                    deployment_id,
+                    request.token_payload["user_id"],
                 )
             ).model_dump(mode="json"),
             status_code=200,

@@ -170,7 +170,11 @@ class CategoriesProcessed(RethinkSharedConnection):
 
     @classmethod
     def search_users_in_category(
-        cls, category_id: str, search: str, limit: int = 50
+        cls,
+        category_id: str,
+        search: str,
+        limit: int = 50,
+        roles: list[str] | None = None,
     ) -> dict:
         pattern = "(?i)" + re.escape(search)
         matches = (
@@ -182,6 +186,8 @@ class CategoriesProcessed(RethinkSharedConnection):
                 | user["username"].match(pattern)
             )
         )
+        if roles:
+            matches = matches.filter(lambda user: r.expr(roles).contains(user["role"]))
 
         with cls._rdb_context():
             total = matches.count().run(cls._rdb_connection)

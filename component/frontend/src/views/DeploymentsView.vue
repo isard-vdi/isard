@@ -7,11 +7,14 @@ import {
   getAllDeploymentsOptions,
   checkQuotaNewDeploymentOptions,
   editDeploymentUsersMutation,
-  getDeploymentAllowedQueryKey
+  getDeploymentAllowedQueryKey,
+  getDeploymentCoOwnersOptions,
+  getDeploymentCoOwnersQueryKey,
+  updateDeploymentCoOwnersMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { type ErrorResponse, type OwnedDeployment } from '@/gen/oas/apiv4'
 import { QuotaExceededModal } from '@/components/modal'
-import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
+import { AllowedModal, type AllowedOption, type AllowedSelection } from '@/components/modal/allowed'
 import { toast } from '@/components/ui/toast'
 import { DeleteModal } from '@/components/deployments/actions/delete-modal'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
@@ -175,7 +178,18 @@ const badgeState = (isVisible: boolean) => ({
   class: 'gap-2'
 })
 
-const dropdownActions = computed(() => [
+interface DeploymentAction {
+  key: string
+  icon: string
+  label: string
+  destructive?: boolean
+  disabledFor?: (deployment: OwnedDeployment) => boolean
+  disabledTooltip?: string
+  hiddenFor?: (deployment: OwnedDeployment) => boolean
+  fn: (deployment: OwnedDeployment) => void
+}
+
+const dropdownActions = computed<DeploymentAction[]>(() => [
   {
     key: 'edit',
     icon: 'edit-01',
@@ -189,6 +203,16 @@ const dropdownActions = computed(() => [
     fn: (deployment: OwnedDeployment) => {
       allowedError.value = ''
       allowedModalDeploymentId.value = deployment.id
+    }
+  },
+  {
+    key: 'co-owners',
+    icon: 'users-plus',
+    label: t('views.deployments.dropdown.buttons.co-owners'),
+    hiddenFor: (deployment: OwnedDeployment) => deployment.co_owner,
+    fn: (deployment: OwnedDeployment) => {
+      coOwnersError.value = ''
+      coOwnersModalDeploymentData.value = { id: deployment.id, name: deployment.name }
     }
   },
   {
@@ -250,6 +274,69 @@ const downloadCsvModalDeploymentData = ref<{
   id: string
   name: string
 } | null>(null)
+
+const visibleDropdownActions = (deployment: OwnedDeployment) =>
+  dropdownActions.value.filter((action) => !action.hiddenFor?.(deployment))
+
+const coOwnersModalDeploymentData = ref<{ id: string; name: string } | null>(null)
+const coOwnersDeploymentId = computed(() => coOwnersModalDeploymentData.value?.id ?? '')
+const coOwnersError = ref('')
+
+const { data: coOwners } = useQuery({
+  ...getDeploymentCoOwnersOptions({ path: { deployment_id: coOwnersDeploymentId.value } }),
+  queryKey: computed(() =>
+    getDeploymentCoOwnersQueryKey({ path: { deployment_id: coOwnersDeploymentId.value } })
+  ),
+  enabled: computed(() => !!coOwnersDeploymentId.value)
+})
+
+const coOwnersSelection = computed<AllowedSelection | undefined>(() =>
+  coOwners.value
+    ? { groups: false, users: coOwners.value.co_owners.map((user) => user.id) }
+    : undefined
+)
+
+const coOwnersOwnerName = computed(() => coOwners.value?.owner.name ?? '')
+
+const preselectedCoOwners = computed<AllowedOption[] | undefined>(() =>
+  coOwners.value?.co_owners.map((user) => ({
+    value: user.id,
+    label: user.name,
+    subLabel: user.uid ?? undefined,
+    avatar: user.photo ?? ''
+  }))
+)
+
+const { mutate: updateCoOwners, isPending: updateCoOwnersIsPending } = useMutation({
+  ...updateDeploymentCoOwnersMutation(),
+  onSuccess: (_data, variables) => {
+    queryClient.removeQueries({
+      queryKey: getDeploymentCoOwnersQueryKey({
+        path: { deployment_id: variables.path.deployment_id }
+      })
+    })
+    closeCoOwnersModal()
+    toast.success(t('components.deployments.co-owners-modal.success'))
+  },
+  onError: () => {
+    coOwnersError.value = t('components.deployments.co-owners-modal.error')
+  }
+})
+
+const closeCoOwnersModal = () => {
+  coOwnersModalDeploymentData.value = null
+  coOwnersError.value = ''
+}
+
+const handleSaveCoOwners = (selection: AllowedSelection) => {
+  const deploymentId = coOwnersDeploymentId.value
+  if (!deploymentId) return
+  coOwnersError.value = ''
+  updateCoOwners({
+    path: { deployment_id: deploymentId },
+    body: { co_owners: Array.isArray(selection.users) ? selection.users : [] }
+  })
+}
 
 const allowedModalDeploymentId = ref<string | null>(null)
 const allowedError = ref('')
@@ -314,6 +401,28 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
     :error="allowedError"
     @save="handleSaveAllowed"
     @close="closeAllowedModal"
+  />
+  <AllowedModal
+    v-if="coOwnersModalDeploymentData"
+    open
+    users-only
+    :roles="['advanced', 'manager', 'admin']"
+    :supports-everyone="false"
+    :selection="coOwnersSelection"
+    :preselected-users="preselectedCoOwners"
+    :title="
+      t('components.deployments.co-owners-modal.title', {
+        name: coOwnersModalDeploymentData.name
+      })
+    "
+    :description="
+      t('components.deployments.co-owners-modal.description', { owner: coOwnersOwnerName })
+    "
+    :warning="t('components.deployments.co-owners-modal.warning')"
+    :loading="updateCoOwnersIsPending"
+    :error="coOwnersError"
+    @save="handleSaveCoOwners"
+    @close="closeCoOwnersModal"
   />
   <RecreateModal
     :open="showRecreateModal"
@@ -433,7 +542,7 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
                   >
                     <DropdownMenuGroup>
                       <DropdownMenuItem
-                        v-for="action in dropdownActions"
+                        v-for="action in visibleDropdownActions(row)"
                         :key="action.key"
                         :class="{ 'hover:bg-error-50 focus:bg-error-50': action.destructive }"
                         @click="action.fn(row)"

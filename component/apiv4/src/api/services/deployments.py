@@ -74,7 +74,7 @@ class DeploymentService:
         return deployments
 
     @staticmethod
-    def get_deployment(deployment_id: str) -> dict:
+    def get_deployment(deployment_id: str, user_id: str = None) -> dict:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -87,6 +87,8 @@ class DeploymentService:
             len(deployment["create_dict"]) * deployment["total_users"]
         )
         deployment["desktops_each_user"] = len(deployment["create_dict"])
+        co_owners = Caches.get_document("deployments", deployment_id, ["co_owners"])
+        deployment["co_owner"] = bool(user_id) and user_id in (co_owners or [])
         return {"info": deployment, "users": users}
 
     @staticmethod

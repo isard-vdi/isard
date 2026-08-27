@@ -648,6 +648,7 @@
         "buttons": {
           "edit": "Editar despliegue",
           "alloweds": "Usuarios y grupos",
+          "co-owners": "Gestionar copropietarios",
           "download-viewer": "Descargar enlaces directos",
           "recreate": "Recrear despliegue",
           "reserve": "Reservar",
@@ -2495,6 +2496,13 @@
         "go-to-profile": "Comprobar tu cuota",
         "cancel": "Volver a despliegues"
       },
+      "co-owners-modal": {
+        "title": "Gestionar copropietarios de '{name}'",
+        "description": "Elige qué usuarios son copropietarios de este despliegue. Propietario: {owner}",
+        "warning": "Los copropietarios tienen los mismos permisos que el propietario, excepto eliminar el despliegue y gestionar los copropietarios.",
+        "success": "Copropietarios actualizados",
+        "error": "No se han podido actualizar los copropietarios"
+      },
       "download-csv-modal": {
         "title": "Descargar CSV de visores directos de '{name}'",
         "options": {
@@ -2694,7 +2702,8 @@
         "groups": "No hay grupos disponibles",
         "users": "Este grupo no tiene usuarios",
         "no-group": "Selecciona un grupo o busca usuarios",
-        "no-group-short-term": "Escribe al menos 2 caracteres para buscar usuarios"
+        "no-group-short-term": "Escribe al menos 2 caracteres para buscar usuarios",
+        "no-users-selected": "Todavía no hay usuarios seleccionados: búscalos para añadirlos"
       },
       "share-everyone": {
         "unchecked": {

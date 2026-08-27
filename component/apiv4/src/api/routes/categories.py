@@ -57,6 +57,10 @@ async def search_users_in_category(
     limit: int = Query(
         50, ge=1, le=200, description="Maximum number of users to return."
     ),
+    roles: Optional[List[str]] = Query(
+        None,
+        description="Restrict results to these roles",
+    ),
 ):
     try:
         return JSONResponse(
@@ -66,6 +70,7 @@ async def search_users_in_category(
                     request.token_payload["category_id"],
                     search,
                     limit,
+                    roles,
                 )
             ).model_dump(mode="json"),
             status_code=200,
