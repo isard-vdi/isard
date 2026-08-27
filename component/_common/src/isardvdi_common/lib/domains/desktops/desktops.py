@@ -1237,6 +1237,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                                 "memory": True,
                                 "vcpus": True,
                                 "videos": True,
+                                "disk_bus": True,
                             },
                             "reservables": True,
                         },
