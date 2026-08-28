@@ -33,8 +33,16 @@ def stub(monkeypatch):
 
     created = []
 
-    def fake_create(cls, user_id, template_id, name=None, description=None):
-        created.append((user_id, template_id, name, description))
+    def fake_create(
+        cls,
+        user_id,
+        template_id,
+        name=None,
+        description=None,
+        new_data=None,
+        image=None,
+    ):
+        created.append((user_id, template_id, name, description, new_data, image))
         return f"d-{len(created)}"
 
     monkeypatch.setattr(
@@ -72,14 +80,14 @@ def test_same_template_twice_creates_two_desktops(stub):
     second = DNP.new_desktop("u-1", "t-1")
 
     assert [first, second] == ["d-1", "d-2"]
-    assert stub["created"] == [("u-1", "t-1", None, None)] * 2
+    assert stub["created"] == [("u-1", "t-1", None, None, None, None)] * 2
 
 
 def test_returns_bare_id_and_forwards_name(stub):
     desktop_id = DNP.new_desktop("u-1", "t-1", name="mine", description="d")
 
     assert desktop_id == "d-1"
-    assert stub["created"] == [("u-1", "t-1", "mine", "d")]
+    assert stub["created"] == [("u-1", "t-1", "mine", "d", None, None)]
 
 
 # ``all`` and ``hidden`` also keep the old frontend reachable.
@@ -94,12 +102,30 @@ def test_old_frontend_reachable_reuses_the_existing_desktop(monkeypatch, stub, m
     mod.DesktopEvents.desktop_start.assert_called_once_with("d-old")
 
 
+def test_a_submitted_configuration_is_never_reused_away(monkeypatch, stub):
+    monkeypatch.setenv("FRONTEND_MODE", "deprecated")
+    _existing(stub, {"id": "d-old", "status": "Started"})
+
+    desktop_id = DNP.new_desktop(
+        "u-1",
+        "t-1",
+        name="mine",
+        new_data={"hardware": {"vcpus": 4}},
+        allow_reuse=False,
+    )
+
+    assert desktop_id == "d-1"
+    assert stub["created"] == [
+        ("u-1", "t-1", "mine", None, {"hardware": {"vcpus": 4}}, None)
+    ]
+
+
 def test_old_frontend_reachable_creates_when_none_exists(monkeypatch, stub):
     monkeypatch.setenv("FRONTEND_MODE", "deprecated")
     _existing(stub)
 
     assert DNP.new_desktop("u-1", "t-1") == "d-1"
-    assert stub["created"] == [("u-1", "t-1", None, None)]
+    assert stub["created"] == [("u-1", "t-1", None, None, None, None)]
     stub["bulk_delete"].assert_not_called()
 
 
@@ -111,7 +137,7 @@ def test_old_frontend_reachable_collapses_leftovers(monkeypatch, stub):
 
     assert DNP.new_desktop("u-1", "t-1") == "d-1"
     stub["bulk_delete"].assert_called_once_with("u-1", "t-1")
-    assert stub["created"] == [("u-1", "t-1", None, None)]
+    assert stub["created"] == [("u-1", "t-1", None, None, None, None)]
 
 
 def test_unknown_user_creates_nothing(monkeypatch, stub):

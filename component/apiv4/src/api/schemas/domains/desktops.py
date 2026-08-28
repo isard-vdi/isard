@@ -43,7 +43,6 @@ from .hardware import (
 
 
 class CreateDesktopRequest(BaseModel):
-    # TODO: Consider allowing non-persistent desktops to be created with the fields description, guest_properties, hardware, and image.
     template_id: str = Field(
         description="ID of the template to use for creating the desktop."
     )
@@ -54,7 +53,7 @@ class CreateDesktopRequest(BaseModel):
     )
     description: str | None = Field(
         default=None,
-        description="Description of the desktop to be created. When creating a temporal desktop this field will be ignored.",
+        description="Description of the desktop to be created.",
         min_length=0,
         max_length=255,
     )
@@ -64,11 +63,11 @@ class CreateDesktopRequest(BaseModel):
     )
     guest_properties: Optional[DomainGuestProperties] = Field(
         default=None,
-        description="Guest properties to be set for the desktop. If not provided, the template guest properties will be inherited. When creating a temporal desktop this field will be ignored and the template guest properties will be inherited.",
+        description="Guest properties to be set for the desktop. If not provided, the template guest properties will be inherited.",
     )
     hardware: Optional[DomainHardware] = Field(
         default=None,
-        description="Hardware configuration for the desktop. If not provided, the template hardware will be inherited. When creating a temporal desktop this field will be ignored and the template hardware will be inherited.",
+        description="Hardware configuration for the desktop. If not provided, the template hardware will be inherited.",
     )
     reservables: Optional[Reservables] = Field(
         default=None,
@@ -76,7 +75,7 @@ class CreateDesktopRequest(BaseModel):
     )
     image: Optional[DomainImage] = Field(
         default=None,
-        description="Image to be used for the desktop. If not provided, the template image will be inherited. When creating a temporal desktop this field will be ignored and the image will be inherited.",
+        description="Image to be used for the desktop. If not provided, the template image will be inherited.",
     )
     bastion_target: BastionRequest | None = Field(
         default=None,

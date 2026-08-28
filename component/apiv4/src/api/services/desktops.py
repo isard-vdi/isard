@@ -122,6 +122,10 @@ class DesktopService:
                 description_code="not_found",
             )
 
+        submitted_hardware = (
+            data.hardware.model_dump(exclude_unset=True) if data.hardware else {}
+        )
+
         # TODO: These checks must be reviewed
         if data.persistent:
             Quotas.desktop_create(user_id)
@@ -129,7 +133,16 @@ class DesktopService:
             # Temporal desktops count against ``volatile``, not ``desktops``, and
             # are started on creation.
             Quotas.volatile_create(user_id)
-            Quotas.desktop_start(user_id, data.template_id)
+            # The desktop starts with the submitted hardware, so checking the
+            # template's rejects creates that do fit in the quota.
+            started_hardware = {}
+            if submitted_hardware.get("memory"):
+                started_hardware["memory"] = Helpers.memory_gib_to_kib(
+                    submitted_hardware["memory"]
+                )
+            if submitted_hardware.get("vcpus"):
+                started_hardware["vcpus"] = submitted_hardware["vcpus"]
+            Quotas.desktop_start(user_id, data.template_id, hardware=started_hardware)
         template = CommonTemplates.get_template(data.template_id)
         CommonTemplates.check_template_status(None, template)
         payload = Helpers.gen_payload_from_user(user_id=user_id)
@@ -148,9 +161,7 @@ class DesktopService:
         Helpers.check_user_duplicated_domain_name(data.name, user_id, "desktop")
 
         new_data = {
-            "hardware": (
-                data.hardware.model_dump(exclude_unset=True) if data.hardware else {}
-            ),
+            "hardware": submitted_hardware,
             "guest_properties": (
                 data.guest_properties.model_dump(exclude_unset=True)
                 if data.guest_properties
@@ -178,6 +189,11 @@ class DesktopService:
                 template_id=data.template_id,
                 name=data.name,
                 description=data.description,
+                new_data=new_data,
+                image=data.image.model_dump(exclude_unset=True) if data.image else None,
+                # This body carries a configuration; the old frontend's
+                # one-desktop-per-template reuse would discard it.
+                allow_reuse=False,
             )
 
         if data.bastion_target:
