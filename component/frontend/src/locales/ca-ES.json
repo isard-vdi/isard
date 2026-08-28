@@ -505,6 +505,7 @@
           "change-password": "Canvia la contrasenya",
           "verify-email": "Verifica / Canvia el correu",
           "api-key": "Clau API",
+          "vpn": "VPN",
           "reset-vpn": "Restableix la VPN",
           "download-vpn": "Descarrega la VPN",
           "ssh-key": "Clau SSH del bastió"
@@ -1184,16 +1185,32 @@
           "started_deployment_desktops": "Escriptoris en execució del desplegament"
         }
       },
-      "reset-vpn-modal": {
-        "title": "Restablir les claus VPN",
-        "description": "Vols restablir les claus VPN? Hauràs de descarregar un nou fitxer VPN",
+      "vpn-modal": {
+        "title": "VPN",
+        "description": "Tria què vols fer amb la configuració de la VPN.",
+        "options": {
+          "download": {
+            "description": "Descarrega el fitxer de configuració actual de la VPN."
+          },
+          "reset": {
+            "description": "Genera unes claus noves.",
+            "warning": "El fitxer descarregat anteriorment deixarà de funcionar, així que l'hauràs de tornar a descarregar."
+          }
+        },
         "cancel": "Cancel·la",
-        "confirm": "Restableix la VPN",
-        "success": "Les claus VPN s'han restablert correctament.",
+        "confirm": {
+          "download": "Descarrega",
+          "reset": "Restableix la VPN"
+        },
+        "success": {
+          "download": "El fitxer de configuració de la VPN s'ha descarregat correctament.",
+          "reset": "Les claus VPN s'han restablert correctament."
+        },
         "errors": {
-          "unauthorized": "La teva sessió ha expirat. Si us plau, inicia sessió de nou.",
-          "internal_server": "No s'han pogut restablir les claus VPN per un error del servidor. Si us plau, intenta-ho més tard.",
-          "generic": "No s'han pogut restablir les claus VPN. Si us plau, intenta-ho de nou."
+          "download": "No s'ha pogut descarregar el fitxer de configuració de la VPN. Intenta-ho de nou.",
+          "unauthorized": "La sessió ha expirat. Inicia la sessió de nou.",
+          "internal_server": "No s'han pogut restablir les claus VPN per un error del servidor. Intenta-ho més tard.",
+          "generic": "No s'han pogut restablir les claus VPN. Intenta-ho de nou."
         }
       },
       "ssh-key-modal": {

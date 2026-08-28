@@ -514,6 +514,7 @@
           "verify-email": "Verify / Change Email",
           "api-key": "API Key",
           "ssh-key": "Bastion SSH Key",
+          "vpn": "VPN",
           "reset-vpn": "Reset VPN",
           "download-vpn": "Download VPN"
         }
@@ -1086,16 +1087,32 @@
           }
         }
       },
-      "reset-vpn-modal": {
-        "title": "Reset VPN keys",
-        "description": "Reset VPN keys? You will have to download a new VPN file",
+      "vpn-modal": {
+        "title": "VPN",
+        "description": "Choose what to do with your VPN configuration.",
+        "options": {
+          "download": {
+            "description": "Download the file with your current VPN configuration."
+          },
+          "reset": {
+            "description": "Generate new keys.",
+            "warning": "The previously downloaded file will stop working, so you will need to download it again."
+          }
+        },
         "cancel": "Cancel",
-        "confirm": "Reset VPN",
-        "success": "VPN keys were reset successfully.",
+        "confirm": {
+          "download": "Download",
+          "reset": "Reset VPN"
+        },
+        "success": {
+          "download": "The VPN configuration file has been downloaded successfully.",
+          "reset": "The VPN keys have been reset successfully."
+        },
         "errors": {
-          "unauthorized": "Your session has expired. Please log in again.",
-          "internal_server": "We couldn't reset your VPN keys due to a server error. Please try again later.",
-          "generic": "We couldn't reset your VPN keys. Please try again."
+          "download": "The VPN configuration file could not be downloaded. Please try again.",
+          "unauthorized": "The session has expired. Please log in again.",
+          "internal_server": "The VPN keys could not be reset due to a server error. Please try again later.",
+          "generic": "The VPN keys could not be reset. Please try again."
         }
       },
       "email-verification-modal": {
