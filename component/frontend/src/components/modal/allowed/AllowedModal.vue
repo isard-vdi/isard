@@ -21,6 +21,7 @@ import {
   getUsersInGroupOptions,
   getUsersInGroupQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline/index.js'
@@ -30,6 +31,7 @@ interface Props {
   loading?: boolean
   title?: string // Overrides the default title.
   description?: string // Overrides the description derived from itemType.
+  warning?: string // Shown as an alert above the columns.
   itemId?: string // ID of the item being edited. Used to fetch current allowed settings.
   itemType?: 'template' | 'deployment' | 'media' // Type of the item being edited. Used to determine API endpoint and description.
   selection?: AllowedSelection // Selection to open with when the item does not exist yet
@@ -43,6 +45,7 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   title: '',
   description: '',
+  warning: '',
   itemId: undefined,
   itemType: undefined,
   selection: undefined,
@@ -488,6 +491,15 @@ const handleClose = () => {
     :close-on-backdrop-click="false"
     @close="handleClose"
   >
+    <div v-if="props.warning" class="mb-4 w-full flex justify-center">
+      <Alert variant="warning" class="w-[min(100%,var(--spacing-256))]">
+        <FeaturedIconOutline kind="outline" color="warning" />
+        <AlertTitle class="font-bold text-gray-warm-700 mb-2">{{
+          t('components.allowed-modal.warning')
+        }}</AlertTitle>
+        <AlertDescription>{{ props.warning }}</AlertDescription>
+      </Alert>
+    </div>
     <div
       v-if="props.supportsEveryone"
       :class="[
@@ -589,13 +601,16 @@ const handleClose = () => {
       />
     </div>
 
+    <div v-if="props.error" class="mt-4 w-full flex justify-center">
+      <Alert variant="destructive" class="w-[min(100%,var(--spacing-256))]">
+        <AlertDescription>{{ props.error }}</AlertDescription>
+      </Alert>
+    </div>
+
     <template #footer>
       <div class="flex w-full items-center justify-end gap-4">
-        <p v-if="props.error" class="min-w-0 truncate text-sm text-error-700 mr-auto">
-          {{ props.error }}
-        </p>
         <p
-          v-else-if="props.requireSelection && isEmptySelection"
+          v-if="props.requireSelection && isEmptySelection"
           class="min-w-0 truncate text-sm text-gray-warm-600"
         >
           {{ t('components.allowed-modal.require-selection') }}

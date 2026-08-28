@@ -647,6 +647,7 @@
       "dropdown": {
         "buttons": {
           "edit": "Editar desplegament",
+          "alloweds": "Usuaris i grups",
           "download-viewer": "Descarregar enllaços directes",
           "recreate": "Recrear desplegament",
           "reserve": "Reservar",
@@ -654,6 +655,12 @@
           "bastion-csv": "Descarrega el CSV del bastió",
           "delete": "Eliminar desplegament"
         }
+      },
+      "alloweds": {
+        "warning": "En treure un usuari del desplegament també s'eliminen els seus escriptoris.",
+        "success": "Usuaris i grups permesos actualitzats",
+        "error": "No s'han pogut actualitzar els usuaris i grups permesos",
+        "blocked": "No pots canviar qui pot accedir a aquest desplegament mentre tingui una reserva programada"
       },
       "visibility": {
         "visible": "Visible",
@@ -2609,6 +2616,7 @@
     },
     "allowed-modal": {
       "title": "Gestiona els usuaris",
+      "warning": "Avís",
       "description": {
         "generic": "Edita els grups i els usuaris que hi poden accedir",
         "template": "Edita els grups i els usuaris que poden accedir a aquesta plantilla",

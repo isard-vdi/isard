@@ -647,6 +647,7 @@
       "dropdown": {
         "buttons": {
           "edit": "Editar despliegue",
+          "alloweds": "Usuarios y grupos",
           "download-viewer": "Descargar enlaces directos",
           "recreate": "Recrear despliegue",
           "reserve": "Reservar",
@@ -654,6 +655,12 @@
           "bastion-csv": "Descargar el CSV del bastión",
           "delete": "Eliminar despliegue"
         }
+      },
+      "alloweds": {
+        "warning": "Al quitar un usuario del despliegue también se eliminan sus escritorios.",
+        "success": "Usuarios y grupos permitidos actualizados",
+        "error": "No se han podido actualizar los usuarios y grupos permitidos",
+        "blocked": "No puedes cambiar quién puede acceder a este despliegue mientras tenga una reserva programada"
       },
       "visibility": {
         "visible": "Visible",
@@ -2609,6 +2616,7 @@
     },
     "allowed-modal": {
       "title": "Gestionar usuarios",
+      "warning": "Aviso",
       "description": {
         "generic": "Edita los grupos y usuarios que pueden acceder",
         "template": "Edita los grupos y usuarios que pueden acceder a esta plantilla",

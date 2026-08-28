@@ -274,4 +274,4 @@ class DeploymentUsers(RethinkSharedConnection):
                 desktops_ids=desktops_ids,
                 permanent=True,
             )
-        # cls.recreate(payload, deployment_id)
+        DeploymentsProcessed.recreate(payload, deployment_id)

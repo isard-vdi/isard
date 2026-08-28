@@ -655,6 +655,7 @@
       "dropdown": {
         "buttons": {
           "edit": "Edit deployment",
+          "alloweds": "Users and groups",
           "download-viewer": "Download direct links",
           "recreate": "Recreate deployment",
           "reserve": "Reserve",
@@ -662,6 +663,12 @@
           "bastion-csv": "Download bastion CSV",
           "delete": "Delete deployment"
         }
+      },
+      "alloweds": {
+        "warning": "Removing a user from the deployment also deletes their desktops.",
+        "success": "Allowed users and groups updated",
+        "error": "Could not update the allowed users and groups",
+        "blocked": "You can't change who can access this deployment while it has a scheduled booking"
       },
       "visibility": {
         "visible": "Visible",
@@ -2640,6 +2647,7 @@
     },
     "allowed-modal": {
       "title": "Manage users",
+      "warning": "Warning",
       "description": {
         "generic": "Edit the groups and users allowed to access it",
         "template": "Edit the groups and users allowed to access this template",

@@ -2,14 +2,19 @@
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useQuery, useMutation } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { Icon } from '@/components/icon'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DataTable } from '@/components/data-table'
 import bannerDeployments from '@/assets/img/banner-deployments.svg'
-import { getDeploymentOptions, getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import {
+  getDeploymentOptions,
+  getUserConfigOptions,
+  editDeploymentUsersMutation,
+  getDeploymentAllowedQueryKey
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { getDeploymentBastionCsv } from '@/gen/oas/apiv4/sdk.gen'
-import { type DeploymentUserDetail } from '@/gen/oas/apiv4'
+import { type DeploymentUserDetail, type ErrorResponse } from '@/gen/oas/apiv4'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/badge'
@@ -32,6 +37,8 @@ import DeploymentBastionModal from '@/components/deployments/DeploymentBastionMo
 import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
 import { useBulkSpawnStore } from '@/stores/bulk-spawn'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
+import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
+import { toast } from '@/components/ui/toast'
 
 const { t, d, locale } = useI18n()
 
@@ -227,6 +234,48 @@ const showDownloadCsvModal = ref(false)
 
 const handleNotImplemented = () => alert('not implemented yet')
 
+const queryClient = useQueryClient()
+
+const showAllowedModal = ref(false)
+const allowedError = ref('')
+
+const { mutate: editDeploymentUsers, isPending: updateAllowedIsPending } = useMutation({
+  ...editDeploymentUsersMutation(),
+  onSuccess: (_data, variables) => {
+    queryClient.removeQueries({
+      queryKey: getDeploymentAllowedQueryKey({
+        path: { deployment_id: variables.path.deployment_id }
+      })
+    })
+    closeAllowedModal()
+    toast.success(t('views.deployments.alloweds.success'))
+  },
+  onError: (error) => {
+    allowedError.value =
+      (error as ErrorResponse)?.description_code === 'cant_edit_booked_deployment'
+        ? t('views.deployments.alloweds.blocked')
+        : t('views.deployments.alloweds.error')
+  }
+})
+
+const openAllowedModal = () => {
+  allowedError.value = ''
+  showAllowedModal.value = true
+}
+
+const closeAllowedModal = () => {
+  showAllowedModal.value = false
+  allowedError.value = ''
+}
+
+const handleSaveAllowed = (selection: AllowedSelection) => {
+  allowedError.value = ''
+  editDeploymentUsers({
+    path: { deployment_id: deploymentId.value },
+    body: { allowed: selection }
+  })
+}
+
 const enterVideowall = () => {
   router.push({ name: 'deployment-videowall', params: { deploymentId: deploymentId.value } })
 }
@@ -241,6 +290,19 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     :deployment-name="deploymentEntry?.info.name"
     :onSuccess="closeRecreateModal"
     @close="closeRecreateModal"
+  />
+  <AllowedModal
+    v-if="showAllowedModal"
+    open
+    item-type="deployment"
+    :item-id="deploymentId"
+    :warning="t('views.deployments.alloweds.warning')"
+    require-selection
+    :supports-everyone="false"
+    :loading="updateAllowedIsPending"
+    :error="allowedError"
+    @save="handleSaveAllowed"
+    @close="closeAllowedModal"
   />
   <DeleteModal
     v-model:open="showDeleteModal"
@@ -352,7 +414,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
         />
       </template>
       <template #actions>
-        <Button icon="users-01" hierarchy="secondary-gray" @click="handleNotImplemented">
+        <Button icon="users-01" hierarchy="secondary-gray" @click="openAllowedModal">
           {{ t('views.deployment.buttons.users-and-groups') }}
         </Button>
         <Button icon="tv-03" hierarchy="secondary-gray" @click="enterVideowall">

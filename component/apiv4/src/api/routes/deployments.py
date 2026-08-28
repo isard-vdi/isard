@@ -1236,7 +1236,6 @@ async def get_deployment_allowed(request: Request, deployment_id: str):
     },
     dependencies=[
         Depends(owns_deployment_id()),
-        Depends(deployment_has_no_started_desktops),
     ],
 )
 async def edit_deployment_users(
