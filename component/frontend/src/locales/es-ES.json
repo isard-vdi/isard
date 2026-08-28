@@ -1550,6 +1550,8 @@
           "description": "¿Cancelar la tarea de almacenamiento en curso sobre {name}? Los archivos parciales se limpiarán después de abortar la tarea.",
           "dismiss": "Mantener",
           "confirm": "Cancelar operación",
+          "error-title": "No se ha podido cancelar la operación de almacenamiento",
+          "error-description": "Hubo un error al intentar cancelar la operación de almacenamiento. Por favor, inténtalo de nuevo más tarde. \nSi el problema persiste, contacta con tu administrador.",
           "fallback-error": "No se ha podido cancelar la operación de almacenamiento."
         },
         "increase-modal": {

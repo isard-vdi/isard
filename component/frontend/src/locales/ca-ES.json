@@ -1550,6 +1550,8 @@
           "description": "Vols cancel·lar la tasca d'emmagatzematge en curs sobre {name}? Els fitxers parcials es netejaran després d'avortar la tasca.",
           "dismiss": "Mantén-la",
           "confirm": "Cancel·la l'operació",
+          "error-title": "No s'ha pogut cancel·lar l'operació d'emmagatzematge",
+          "error-description": "Hi ha hagut un error en intentar cancel·lar l'operació d'emmagatzematge. Si us plau, torna-ho a provar més endavant. \nSi el problema persisteix, contacta amb el teu administrador.",
           "fallback-error": "No s'ha pogut cancel·lar l'operació d'emmagatzematge."
         },
         "increase-modal": {

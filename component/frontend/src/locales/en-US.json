@@ -2188,6 +2188,8 @@
           "description": "Cancel the running storage task on {name}? Partial files may be cleaned up after the task is aborted.",
           "dismiss": "Keep running",
           "confirm": "Cancel operation",
+          "error-title": "Could not cancel the storage operation",
+          "error-description": "There was an error while trying to cancel the storage operation. Please try again later. \nIf the problem persists, contact your administrator.",
           "fallback-error": "Could not cancel the storage operation."
         },
         "increase-modal": {

@@ -137,6 +137,7 @@ import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ViewerSelect } from '@/components/viewer-select'
+import { AbortStorageOperationModal } from '@/components/AbortStorageOperationModal'
 
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
 import { useFastScroll } from '@/composables/useFastScroll'
@@ -340,6 +341,13 @@ const networksModalData = ref<{
 const showDesktopInfoModal = ref(false)
 
 const storageModalDesktop = ref<UserDesktop | null>(null)
+
+const abortOperationModalData = ref<{
+  storageId: string
+  desktopName: string
+  operation: string
+} | null>(null)
+
 const {
   mutate: fetchDesktopDetails,
   isPending: fetchDesktopDetailsIsPending,
@@ -976,6 +984,16 @@ const missingCardRows = computed(() => {
 </script>
 
 <template>
+  <!-- Abort Storage Operation Modal -->
+  <AbortStorageOperationModal
+    v-if="abortOperationModalData !== null"
+    :open="abortOperationModalData !== null"
+    :storage-id="abortOperationModalData?.storageId"
+    :desktop-name="abortOperationModalData?.desktopName"
+    @close="abortOperationModalData = null"
+  />
+
+  <!-- Direct Viewer Modal -->
   <DirectViewerModal
     :open="directLinkDesktopId !== null"
     :desktop-id="directLinkDesktopId"
@@ -1428,6 +1446,13 @@ const missingCardRows = computed(() => {
         "
         @create-template="goToNewTemplate(routeDesktop.id)"
         @book-desktop="goToBookingDesktop(routeDesktop.id)"
+        @desktop-abort-operation="
+          abortOperationModalData = {
+            storageId: routeDesktop.storage?.[0]!,
+            desktopName: routeDesktop.name,
+            operation: 'abort'
+          }
+        "
         @show-storage-modal="storageModalDesktop = routeDesktop"
       />
 
@@ -1761,6 +1786,15 @@ const missingCardRows = computed(() => {
           "
           @create-template="(dktp) => goToNewTemplate(dktp.id)"
           @book-desktop="(dktp) => goToBookingDesktop(dktp.id)"
+          @desktop-abort-operation="
+            (dktp) => {
+              abortOperationModalData = {
+                storageId: dktp.storage?.[0]!,
+                desktopName: dktp.name,
+                operation: 'abort'
+              }
+            }
+          "
           @show-storage-modal="(dktp: UserDesktop) => (storageModalDesktop = dktp)"
         />
 
@@ -1854,6 +1888,13 @@ const missingCardRows = computed(() => {
                 "
                 @create-template="goToNewTemplate(dktp.id)"
                 @book-desktop="goToBookingDesktop(dktp.id)"
+                @desktop-abort-operation="
+                  abortOperationModalData = {
+                    storageId: dktp.storage?.[0]!,
+                    desktopName: dktp.name,
+                    operation: 'abort'
+                  }
+                "
                 @show-storage-modal="storageModalDesktop = dktp"
               />
             </div>
