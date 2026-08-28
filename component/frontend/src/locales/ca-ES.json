@@ -1284,7 +1284,7 @@
       "media": "Mitjans",
       "deployments": {
         "title": "Desplegaments",
-        "created-by-you": "Creats per tu",
+        "owned-by-you": "De la teva propietat",
         "shared-deployments": "Compartits amb tu"
       },
       "user-deployments": "Els meus desplegaments",

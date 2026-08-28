@@ -1669,7 +1669,7 @@
       "media": "Media",
       "deployments": {
         "title": "Deployments",
-        "created-by-you": "Created by you",
+        "owned-by-you": "Owned by you",
         "shared-deployments": "Shared with you"
       },
       "user-deployments": "My Deployments",
