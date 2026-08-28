@@ -39,19 +39,18 @@ export function describeApiErrors(err: unknown, i18n: I18nLike, domain: string):
  * Maps an apiv4 error thrown by the OAS client to a localized string.
  *
  * Tries `api.<domain>.errors.<description_code>` first, then the top-level
- * HTTP class (e.g. `conflict`, `not_found`), then the raw `msg`, then a
- * generic fallback.
+ * HTTP class (e.g. `conflict`, `not_found`), then `generic`. The response's
+ * own `msg` is not used: it only ever comes back in English.
  */
 export function describeApiError(err: unknown, i18n: I18nLike, domain: string): string {
   const r = err as Partial<ErrorResponse> | undefined
+  const base = `api.${domain}.errors`
 
   for (const code of [r?.description_code, r?.error]) {
-    if (!code) continue
-    const key = `api.${domain}.errors.${code}`
-    if (i18n.te(key)) return i18n.t(key)
+    if (code && i18n.te(`${base}.${code}`)) return i18n.t(`${base}.${code}`)
   }
 
-  return r?.msg || i18n.t(`api.${domain}.errors.generic`)
+  return i18n.t(`${base}.generic`)
 }
 
 /**
