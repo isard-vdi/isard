@@ -10,6 +10,7 @@ import { CheckboxGroup } from '@/components/checkbox-group'
 import { toast } from '@/components/ui/toast'
 import keepVpn from '@/assets/img/modal/keep-vpn.svg'
 import regenerateUrls from '@/assets/img/modal/regenerate-urls.svg'
+import { describeErrorCode } from '@/lib/api-errors'
 
 interface Props {
   open?: boolean
@@ -101,14 +102,11 @@ const handleResetVpn = () => {
       onError: (error) => {
         const descriptionCode = (error as { response?: { data?: { description_code?: string } } })
           ?.response?.data?.description_code
-        if (descriptionCode) {
-          const errorKey = `components.profile.vpn-modal.errors.${descriptionCode}`
-          errorMessage.value = te(errorKey)
-            ? t(errorKey)
-            : t('components.profile.vpn-modal.errors.generic')
-        } else {
-          errorMessage.value = t('components.profile.vpn-modal.errors.generic')
-        }
+        errorMessage.value = describeErrorCode(
+          descriptionCode,
+          { t, te },
+          'components.profile.vpn-modal.errors'
+        )
       }
     }
   )

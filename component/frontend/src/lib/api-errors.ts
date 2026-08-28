@@ -28,11 +28,10 @@ export function apiErrorCodes(err: unknown): string[] {
  * {@link apiErrorCodes}, so callers never parse the raw payload themselves.
  */
 export function describeApiErrors(err: unknown, i18n: I18nLike, domain: string): string[] {
-  const base = `api.${domain}.errors.`
+  const base = `api.${domain}.errors`
   const codes = apiErrorCodes(err)
-  const fallback = `${base}unknown`
-  return (codes.length ? codes : ['unknown']).map((code) =>
-    i18n.te(`${base}${code}`) ? i18n.t(`${base}${code}`) : i18n.t(fallback)
+  return (codes.length ? codes : [null]).map((code) =>
+    describeErrorCode(code, i18n, base, `${base}.unknown`)
   )
 }
 
@@ -55,6 +54,41 @@ export function describeApiError(err: unknown, i18n: I18nLike, domain: string): 
   return r?.msg || i18n.t(`api.${domain}.errors.generic`)
 }
 
+/**
+ * Localized message for an error `code` under `base`.
+ *
+ * Falls back to `fallbackKey` (`<base>.generic` by default) whenever the code
+ * is absent or has no string in the *active* locale. Deliberately not `t`'s
+ * default-message argument: that resolves through the fallback locale first,
+ * showing English to users who may not read it, where a generic message in
+ * their own language always lands.
+ */
+export function describeErrorCode(
+  code: string | null | undefined,
+  i18n: I18nLike,
+  base: string,
+  fallbackKey = `${base}.generic`
+): string {
+  const key = `${base}.${code}`
+  return code && i18n.te(key) ? i18n.t(key) : i18n.t(fallbackKey)
+}
+
+/**
+ * Same resolution as {@link describeErrorCode}, but for entries holding a
+ * `title` / `description` pair: returns the key segment to interpolate, or
+ * `generic`. `aliases` folds several codes onto one entry.
+ */
+export function errorCodeKey(
+  code: string | null | undefined,
+  i18n: I18nLike,
+  base: string,
+  aliases: Record<string, string> = {}
+): string {
+  if (!code) return 'generic'
+  const key = aliases[code] ?? code
+  return i18n.te(`${base}.${key}.title`) ? key : 'generic'
+}
+
 // Creating a desktop also runs the start quota checks (a temporal desktop is
 // started right away), so the wizards receive start codes too. Each resource
 // shares one message across its user/group/category variants.
@@ -73,14 +107,7 @@ const NEW_DESKTOP_ERROR_ALIASES: Record<string, string> = {
   category_total_size_limit_exceeded: 'desktop_start_disk_quota_exceeded'
 }
 
-/**
- * Resolves a desktop creation `description_code` to a key under
- * `api.new-desktop.errors.<key>` holding a `title` / `description` pair.
- * Falls back to `generic` when the code has no string in the active locale:
- * a generic message the user reads beats an English one they may not.
- */
-export function newDesktopErrorKey(code: string | null, i18n: I18nLike): string {
-  if (!code) return 'generic'
-  const key = NEW_DESKTOP_ERROR_ALIASES[code] ?? code
-  return i18n.te(`api.new-desktop.errors.${key}.title`) ? key : 'generic'
+/** {@link errorCodeKey} for the desktop creation wizards, start codes folded in. */
+export function newDesktopErrorKey(code: string | null | undefined, i18n: I18nLike): string {
+  return errorCodeKey(code, i18n, 'api.new-desktop.errors', NEW_DESKTOP_ERROR_ALIASES)
 }

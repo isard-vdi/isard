@@ -21,6 +21,7 @@ import { InputField } from '@/components/input-field'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { setUserEmailMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { verifyEmailMutation } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
+import { describeErrorCode } from '@/lib/api-errors'
 
 type Mode = 'verifying' | 'verified' | 'link-error' | 'form'
 
@@ -133,12 +134,12 @@ const form = useForm({
               ?.description_code
           : undefined
 
-      if (descriptionCode) {
-        const errorKey = `components.profile.email-verification-modal.errors.${descriptionCode}`
-        apiError.value = te(errorKey) ? t(errorKey) : t('views.verify-email.error-generic')
-      } else {
-        apiError.value = t('views.verify-email.error-generic')
-      }
+      apiError.value = describeErrorCode(
+        descriptionCode,
+        { t, te },
+        'components.profile.email-verification-modal.errors',
+        'views.verify-email.error-generic'
+      )
     }
   }
 })

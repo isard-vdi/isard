@@ -6,6 +6,7 @@ import { restoreRecycleBinMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.g
 import { AlertModal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/icon'
+import { describeErrorCode } from '@/lib/api-errors'
 
 interface Props {
   open?: boolean
@@ -37,15 +38,11 @@ const { mutate: restoreEntry, isPending: restoreIsPending } = useMutation({
     }
   },
   onError: (error: any) => {
-    const descriptionCode = error?.description_code
-    if (descriptionCode) {
-      const errorKey = `components.recycle-bin.restore-modal.errors.${descriptionCode}`
-      restoreError.value = te(errorKey)
-        ? t(errorKey)
-        : t('components.recycle-bin.restore-modal.errors.generic')
-    } else {
-      restoreError.value = t('components.recycle-bin.restore-modal.errors.generic')
-    }
+    restoreError.value = describeErrorCode(
+      error?.description_code,
+      { t, te },
+      'components.recycle-bin.restore-modal.errors'
+    )
   }
 })
 

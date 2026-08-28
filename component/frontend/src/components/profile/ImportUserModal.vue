@@ -10,6 +10,7 @@ import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { useI18n } from 'vue-i18n'
 import { migrationImportUserMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { describeErrorCode } from '@/lib/api-errors'
 
 interface Props {
   open?: boolean
@@ -62,15 +63,11 @@ const handleSubmit = async () => {
         ? (error as { response?: { data?: { description_code?: string } } }).response?.data
             ?.description_code
         : undefined
-    if (descriptionCode) {
-      const errorKey = `components.profile.import-user-modal.errors.${descriptionCode}`
-      apiError.value = te(errorKey)
-        ? t(errorKey)
-        : t('components.profile.import-user-modal.errors.generic')
-    } else {
-      apiError.value =
-        t('components.profile.import-user-modal.errors.generic') || 'An error occurred'
-    }
+    apiError.value = describeErrorCode(
+      descriptionCode,
+      { t, te },
+      'components.profile.import-user-modal.errors'
+    )
   }
 }
 </script>

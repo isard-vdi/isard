@@ -22,6 +22,7 @@ import type { ErrorResponse } from '@/gen/oas/apiv4'
 import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
+import { describeErrorCode } from '@/lib/api-errors'
 
 const { t, te } = useI18n()
 
@@ -111,10 +112,9 @@ const summary = computed(() => ({
 }))
 
 const createTemplateErrorCode = ref<string | undefined>(undefined)
-const createTemplateErrorMessage = computed(() => {
-  const key = `api.new-template.errors.${createTemplateErrorCode.value}`
-  return te(key) ? t(key) : t('api.new-template.errors.generic')
-})
+const createTemplateErrorMessage = computed(() =>
+  describeErrorCode(createTemplateErrorCode.value, { t, te }, 'api.new-template.errors')
+)
 const {
   mutate: createTemplate,
   isPending: createTemplateIsPending,

@@ -24,6 +24,7 @@ import type { ErrorResponse } from '@/gen/oas/apiv4'
 
 import dotGrid from '@/assets/img/modal/dot-grid.svg?component'
 import newMediaImg from '@/assets/img/modal/new-media.svg'
+import { errorCodeKey } from '@/lib/api-errors'
 
 interface Props {
   open?: boolean
@@ -67,7 +68,7 @@ const formSchema = z.object({
 
 const creationError = ref<string | null>(null)
 const creationErrorKey = computed(() =>
-  te(`api.new-media.errors.${creationError.value}.title`) ? creationError.value : 'generic'
+  errorCodeKey(creationError.value, { t, te }, 'api.new-media.errors')
 )
 
 const { mutate: createMedia, isPending: createMediaIsPending } = useMutation({

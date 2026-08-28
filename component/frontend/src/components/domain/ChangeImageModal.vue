@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { describeErrorCode } from '@/lib/api-errors'
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif']
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 // 5 MB
@@ -98,10 +99,9 @@ function selectImage(image: DomainImageOutput) {
 }
 
 const saveErrorCode = ref<string | undefined>(undefined)
-const saveErrorMessage = computed(() => {
-  const key = `components.change-image-modal.errors.${saveErrorCode.value}`
-  return te(key) ? t(key) : t('components.change-image-modal.errors.generic')
-})
+const saveErrorMessage = computed(() =>
+  describeErrorCode(saveErrorCode.value, { t, te }, 'components.change-image-modal.errors')
+)
 
 const { mutate: saveImage, isPending: saveIsPending } = useMutation({
   ...editDesktopMutation(),
@@ -148,10 +148,9 @@ function handleSave() {
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploadErrorCode = ref<string | undefined>(undefined)
-const uploadErrorMessage = computed(() => {
-  const key = `components.change-image-modal.upload-errors.${uploadErrorCode.value}`
-  return te(key) ? t(key) : t('components.change-image-modal.upload-errors.generic')
-})
+const uploadErrorMessage = computed(() =>
+  describeErrorCode(uploadErrorCode.value, { t, te }, 'components.change-image-modal.upload-errors')
+)
 
 function triggerFilePicker() {
   fileInput.value?.click()

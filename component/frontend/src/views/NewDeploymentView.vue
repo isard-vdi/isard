@@ -45,6 +45,7 @@ import {
   type AccessFormData,
   type HardwareFormData
 } from '@/lib/domainPayload'
+import { errorCodeKey } from '@/lib/api-errors'
 
 const router = useRouter()
 const { t, d, te } = useI18n()
@@ -126,9 +127,7 @@ const deploymentErrorCode = computed(
   () => (createDeploymentError.value as DesktopNameExistsErrorResponse | null)?.description_code
 )
 const deploymentErrorKey = computed(() =>
-  te(`api.new-deployment.errors.${deploymentErrorCode.value}.title`)
-    ? deploymentErrorCode.value
-    : 'generic'
+  errorCodeKey(deploymentErrorCode.value, { t, te }, 'api.new-deployment.errors')
 )
 
 const {

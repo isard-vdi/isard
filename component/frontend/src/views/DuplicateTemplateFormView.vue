@@ -26,6 +26,7 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
 import { FormHeader } from '@/components/form-header'
 import { Switch } from '@/components/ui/switch'
+import { describeErrorCode } from '@/lib/api-errors'
 
 const route = useRoute()
 const router = useRouter()
@@ -123,10 +124,9 @@ const summary = computed(() => ({
 }))
 
 const duplicateTemplateErrorCode = ref<string | undefined>(undefined)
-const duplicateTemplateErrorMessage = computed(() => {
-  const key = `api.new-template.errors.${duplicateTemplateErrorCode.value}`
-  return te(key) ? t(key) : t('api.new-template.errors.generic')
-})
+const duplicateTemplateErrorMessage = computed(() =>
+  describeErrorCode(duplicateTemplateErrorCode.value, { t, te }, 'api.new-template.errors')
+)
 const {
   mutate: duplicateTemplate,
   isPending: duplicateTemplateIsPending,
