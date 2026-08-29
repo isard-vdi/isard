@@ -57,39 +57,15 @@ def handler():
 
 
 @pytest.mark.asyncio
-async def test_only_a_user_uploaded_card_is_deleted(handler):
-    """A built-in card is shared; deleting it blanks every desktop using it."""
-    from isardvdi_change_handler.handlers import domains
+@pytest.mark.parametrize("card_type", ["user", "default"])
+async def test_no_card_is_deleted_when_the_row_disappears(handler, card_type):
+    """The row also disappears when the desktop is binned, and ``restore()``
+    puts it back with its ``image`` intact. Deleting the file here would hand
+    the restored desktop a card that no longer exists."""
+    with patch("isardvdi_common.helpers.cards.Cards.delete_card") as delete_card:
+        await handler.on_delete(_row(image={"type": card_type, "id": "card-1"}))
 
-    with patch.object(domains, "Cards") as cards:
-        await handler.on_delete(_row(image={"type": "default", "id": "card-1"}))
-
-    cards.delete_card.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_a_user_uploaded_card_is_deleted(handler):
-    from isardvdi_change_handler.handlers import domains
-
-    with patch.object(domains, "Cards") as cards:
-        await handler.on_delete(_row(image={"type": "user", "id": "card-1"}))
-
-    cards.delete_card.assert_called_once_with("card-1")
-
-
-@pytest.mark.asyncio
-async def test_a_failed_card_delete_still_announces_the_desktop_is_gone(handler):
-    """Fail open: the image is cosmetic, the delete event is not.
-
-    Letting the card failure escape would skip the delegate, and the
-    client would keep rendering a desktop that no longer exists.
-    """
-    from isardvdi_change_handler.handlers import domains
-
-    with patch.object(domains, "Cards") as cards:
-        cards.delete_card.side_effect = OSError("read-only fs")
-        await handler.on_delete(_row(image={"type": "user", "id": "card-1"}))
-
+    delete_card.assert_not_called()
     handler.desktop_handler.on_delete.assert_awaited_once()
 
 
@@ -185,10 +161,9 @@ async def test_only_a_tagged_desktop_triggers_the_deployment_cleanup(handler):
     deployment to empty - neither should pay for the rdb round trip."""
     from isardvdi_change_handler.handlers import domains
 
-    with (
-        patch.object(domains, "Cards"),
-        patch.object(domains.DomainsHandler, "_cleanup_deployment_if_empty") as cleanup,
-    ):
+    with patch.object(
+        domains.DomainsHandler, "_cleanup_deployment_if_empty"
+    ) as cleanup:
         await handler.on_delete(_row(tag=None))
         await handler.on_delete(_row(tag="tag1", kind="template", status="Stopped"))
 
@@ -219,11 +194,8 @@ async def test_a_delete_is_forwarded_even_from_an_engine_internal_status(handler
     about, or its row never disappears."""
     from isardvdi_change_handler.handlers import domains
 
-    with (
-        patch.object(domains, "Cards"),
-        patch.object(
-            domains.Helpers, "_is_frontend_desktop_status", return_value=False
-        ),
+    with patch.object(
+        domains.Helpers, "_is_frontend_desktop_status", return_value=False
     ):
         await handler.on_delete(_row(status="ForceDeleting"))
 
