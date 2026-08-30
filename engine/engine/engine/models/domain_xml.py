@@ -1017,6 +1017,49 @@ class DomainXML(object):
         xpath_next = "/domain/clock"
         self.add_to_domain(xpath_same, cpu, xpath_next, xpath_previous)
 
+    def fix_hyperv_dependency_chain(self):
+        """Complete the Hyper-V enlightenments a domain asks for but did not declare.
+
+        qemu enforces the dependencies between these: ``stimer`` needs
+        ``synic``, and ``synic`` needs ``vpindex``. Before qemu 11 a missing
+        link was tolerated, so XMLs written against older emulators declare
+        ``synic`` and ``stimer`` alone -- including ``win10Virtio.xml``, which
+        this product has seeded into every installation since 2020. On qemu 11
+        the domain dies while connecting to the monitor, and the message names
+        the MSR rather than Hyper-V, so it reads as anything but this:
+
+            qemu-system-x86_64: Hyper-V synthetic interrupt controller
+            (hv-synic) requires Hyper-V VP_INDEX MSR (hv-vpindex)
+
+        The chain is a static rule of the emulator, not a per-host capability,
+        so nothing has to be asked of libvirt to apply it.
+
+        Only ADDS what is missing: an enlightenment the admin turned off stays
+        off, and a domain whose XML declares no ``<hyperv>`` block is left
+        alone. Returns the list of elements added, for the caller to log.
+        """
+        hyperv = self.tree.xpath("/domain/features/hyperv")
+        if not hyperv:
+            return []
+        hyperv = hyperv[0]
+
+        def _is_on(name):
+            node = hyperv.find(name)
+            return node is not None and node.get("state") == "on"
+
+        added = []
+        # Walk the chain from the leaf inwards, so enabling `stimer` pulls in
+        # `synic`, and that in turn pulls in `vpindex`, in one pass.
+        for needs, required in (("stimer", "synic"), ("synic", "vpindex")):
+            if _is_on(needs) and not _is_on(required):
+                node = hyperv.find(required)
+                if node is not None:
+                    node.set("state", "on")
+                else:
+                    hyperv.append(etree.Element(required, state="on"))
+                added.append(required)
+        return added
+
     def add_shared_folder(self):
         webdav_xml = """  <channel type='spiceport'>
                  <source channel='org.spice-space.webdav.0'/>
@@ -2029,6 +2072,18 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
                 x.set_cpu_host_model("host-passthrough")
             else:
                 x.set_cpu_host_model(cpu_host_model)
+
+    # Hyper-V enlightenments: qemu refuses a partial chain. Not gated on a
+    # protected section -- there is none for <features>, and a domain missing a
+    # link cannot boot at all, so there is no admin intent to preserve here.
+    # An admin who wants the XML untouched has the `raw` sentinel, which
+    # returns above and keeps this from running.
+    hyperv_added = x.fix_hyperv_dependency_chain()
+    if hyperv_added:
+        log.info(
+            f"Domain {id_domain}: added missing Hyper-V enlightenments "
+            f"{hyperv_added} -- qemu requires the full dependency chain"
+        )
 
     # spice video compression
     if "graphics" not in protected:
