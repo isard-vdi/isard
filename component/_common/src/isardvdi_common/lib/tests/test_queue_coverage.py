@@ -829,6 +829,62 @@ def test_health_says_no_consumer_not_degraded_when_fleet_down(monkeypatch):
     assert health["available"] is False
 
 
+class _AnswersEverythingButBacklog:
+    """Redis as it behaves when the fleet is readable and the lane is not.
+
+    The decision reads the coverage index first and the lane's own backlog
+    second. Failing only the second is what separates "we cannot see this lane"
+    from "redis is down" — the latter takes the health read's outer guard and
+    never reaches the flag under test.
+    """
+
+    def __init__(self):
+        self.sets = {}
+        self.hashes = {}
+        self.strings = {}
+
+    def zremrangebyscore(self, *_a, **_k):
+        return 0
+
+    def zcount(self, *_a, **_k):
+        return 1
+
+    def smembers(self, key):
+        return set(self.sets.get(key, ()))
+
+    def hgetall(self, key):
+        return dict(self.hashes.get(key, {}))
+
+    def get(self, key):
+        return self.strings.get(key)
+
+    def set(self, key, value, **_k):
+        self.strings[key] = value
+        return True
+
+    def llen(self, _key):
+        raise RuntimeError("lane unreadable")
+
+
+def test_a_lane_the_gate_refuses_is_not_reported_healthy(monkeypatch):
+    """The health read must not contradict the admission gate.
+
+    An unreadable lane is refused with a 429, so answering ``available`` for it
+    sends the user to a door that is shut.
+    """
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
+    conn = _AnswersEverythingButBacklog()
+
+    decision, ctx = qc.lane_shed_decision(conn, "storage.p1.interactive")
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
+
+    health = qc.category_storage_health(conn, "cat-a")
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["degraded"] is True
+    assert health["available"] is False
+
+
 def test_counter_failure_never_swallows_the_429():
     """The counter is observability, not a gate: a redis blip between the shed
     decision and the INCR must still leave the caller with the typed 429."""
