@@ -406,9 +406,13 @@ groups:
           summary: 'Storage governor is shedding requests ({{ $labels.reason }})'
           description: >-
             {{ $value | printf "%.0f" }} storage requests rejected in 15m on
-            {{ $labels.reason }}. Users see these as 429s. Either a lane lost its
-            consumer or the pool is genuinely saturated — check queue depth and
-            worker_up for the tier in isardvdi_storage_governor_events_tier_total.
+            {{ $labels.reason }}. Users see these as 429s. no_consumer means the
+            lane has no worker, overloaded means the pool is genuinely saturated,
+            and coverage_unreadable means the governor could not read the fleet
+            at all — that last one is a redis or index problem, not a capacity
+            one, so check redis before queue depth. For the first two, check
+            queue depth and worker_up for the tier in
+            isardvdi_storage_governor_events_tier_total.
 
       - alert: StorageGovernorDeferStorm
         expr: increase(isardvdi_storage_governor_events_total{kind="defer"}[15m]) > 200
