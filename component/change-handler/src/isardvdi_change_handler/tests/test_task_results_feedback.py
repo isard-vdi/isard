@@ -75,13 +75,16 @@ async def test_emits_full_fan_out_when_user_has_category():
 
 
 @pytest.mark.asyncio
-async def test_storage_id_serialized_as_id_not_object():
-    """``Task.storage_id`` resolves to a ``Storage`` object; the feedback payload
-    must carry its id string, never the object (which breaks ``json.dumps`` and
-    silently drops the whole SocketIO task event)."""
+async def test_the_payload_carries_the_owner_id_the_task_reports():
+    """The client keys on this field: a null owner makes it discard the event.
+
+    ``Task.storage_id`` is the id string itself. Building the fake from an
+    object instead is what let a reach for ``.id`` survive the change that
+    retired it, green, while production shipped None for every task.
+    """
     from isardvdi_change_handler.task_results.feedback import emit_task_feedback
 
-    task = _fake_task(storage_id=SimpleNamespace(id="s-123"))
+    task = _fake_task(storage_id="s-123")
     redis_manager = AsyncMock()
     redis_manager.emit = AsyncMock()
 
@@ -176,3 +179,72 @@ async def test_queue_event_uses_first_dot_segment():
         c.args[0] for c in redis_manager.emit.await_args_list if c.args[0] != "task"
     }
     assert queue_events == {"media"}
+
+
+@pytest.mark.asyncio
+async def test_a_task_that_names_no_owner_still_reaches_the_client():
+    """An ownerless task (system maintenance, deleted row) must still fan out.
+
+    The field is best-effort; a task with nothing to key on still has a status
+    the admin Tasks view shows, so the whole event must not be lost with it.
+    """
+    from isardvdi_change_handler.task_results.feedback import emit_task_feedback
+
+    task = _fake_task(storage_id=None)
+    redis_manager = AsyncMock()
+    redis_manager.emit = AsyncMock()
+
+    with (
+        patch("isardvdi_change_handler.task_results.feedback.Task", return_value=task),
+        patch(
+            "isardvdi_change_handler.task_results.feedback.category_of",
+            return_value="cat-eng",
+        ),
+    ):
+        await emit_task_feedback(redis_manager, task.id)
+
+    assert redis_manager.emit.await_count == 6
+    task_payload = next(
+        c.args[1] for c in redis_manager.emit.await_args_list if c.args[0] == "task"
+    )
+    assert json.loads(task_payload)["storage_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_an_unreadable_owner_does_not_kill_the_whole_fan_out():
+    """Reading the owner can raise once the job hash is gone; if that escaped,
+    the task's terminal event would never be emitted and its card would sit
+    'running' forever."""
+    from isardvdi_change_handler.task_results.feedback import emit_task_feedback
+
+    base = _fake_task()
+
+    class _TaskWithUnreadableOwner:
+        id = base.id
+        user_id = base.user_id
+        queue = base.queue
+        result = base.result
+        to_dict = staticmethod(base.to_dict)
+
+        @property
+        def storage_id(self):
+            raise RuntimeError("job hash vanished")
+
+    task = _TaskWithUnreadableOwner()
+    redis_manager = AsyncMock()
+    redis_manager.emit = AsyncMock()
+
+    with (
+        patch("isardvdi_change_handler.task_results.feedback.Task", return_value=task),
+        patch(
+            "isardvdi_change_handler.task_results.feedback.category_of",
+            return_value="cat-eng",
+        ),
+    ):
+        await emit_task_feedback(redis_manager, task.id)
+
+    assert redis_manager.emit.await_count == 6
+    task_payload = next(
+        c.args[1] for c in redis_manager.emit.await_args_list if c.args[0] == "task"
+    )
+    assert json.loads(task_payload)["storage_id"] is None

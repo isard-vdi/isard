@@ -70,18 +70,18 @@ def record_service_time(conn, tier, action, seconds):
     if not math.isfinite(sample) or sample < _SVC_MIN:
         return
     sample = min(sample, _SVC_MAX)
-    key = _ewma_key(tier, action)
-    try:
-        prev = conn.get(key)
-        prev = float(_decode(prev)) if prev is not None else None
-        new = (
-            sample
-            if prev is None
-            else (_EWMA_ALPHA * sample + (1 - _EWMA_ALPHA) * prev)
-        )
-        conn.set(key, repr(new), ex=_EWMA_TTL)
-    except Exception:
-        return
+    for key in (_ewma_key(tier, action), f"{_EWMA_PREFIX}:{tier}"):
+        try:
+            prev = conn.get(key)
+            prev = float(_decode(prev)) if prev is not None else None
+            new = (
+                sample
+                if prev is None
+                else (_EWMA_ALPHA * sample + (1 - _EWMA_ALPHA) * prev)
+            )
+            conn.set(key, repr(new), ex=_EWMA_TTL)
+        except Exception:
+            return
 
 
 def _read_service_time(conn, tier, action):
@@ -137,17 +137,27 @@ def _eta_seconds(conn, covered, pool, tier, action, effective_position):
 # RQ stores a queue's job-id list at ``rq:queue:<name>``; an LLEN on the bare
 # lane name reads a key that never exists (always 0). Every backlog read must
 # prefix it, exactly like ``Queue(name).count`` does internally.
+_RQ_QUEUES_KEY = "rq:queues"
 _RQ_QUEUE_PREFIX = "rq:queue:"
 
 
-def _lane(pool, category, tier):
-    # interactive/standard are always FLAT (never per-category); only the
-    # governed/fair tiers carry a category segment. Match retier_queue so the
-    # reconstructed lane name is the one RQ actually created — else a per-tenant
-    # llen of a flat foreground tier would hit a nonexistent lane and read 0.
-    if category and tier in queue_tiers._FAIR_TIERS:
-        return f"storage.{pool}.{category}.{tier}"
-    return f"storage.{pool}.{tier}"
+def _pool_lanes(conn, pool):
+    """Every storage lane RQ currently holds for ``pool``, as ``(tier, lane)``."""
+    lanes = []
+    try:
+        members = conn.smembers(_RQ_QUEUES_KEY) or []
+    except Exception:
+        return lanes
+    for raw in members:
+        name = _decode(raw)
+        if not isinstance(name, str):
+            continue
+        if name.startswith(_RQ_QUEUE_PREFIX):
+            name = name[len(_RQ_QUEUE_PREFIX) :]
+        parsed = queue_tiers.parse_storage_queue(name)
+        if parsed and parsed[0] == pool:
+            lanes.append((parsed[2], name))
+    return lanes
 
 
 def _higher_tier_backlog(conn, pool, category, tier):
@@ -156,10 +166,13 @@ def _higher_tier_backlog(conn, pool, category, tier):
         idx = queue_tiers.TIERS.index(tier)
     except ValueError:
         return 0
+    higher_tiers = set(queue_tiers.TIERS[:idx])
     total = 0
-    for higher in queue_tiers.TIERS[:idx]:
+    for lane_tier, lane in _pool_lanes(conn, pool):
+        if lane_tier not in higher_tiers:
+            continue
         try:
-            total += conn.llen(_RQ_QUEUE_PREFIX + _lane(pool, category, higher))
+            total += conn.llen(_RQ_QUEUE_PREFIX + lane)
         except Exception:
             continue
     return total

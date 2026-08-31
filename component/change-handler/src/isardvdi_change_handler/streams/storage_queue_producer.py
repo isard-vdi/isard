@@ -116,31 +116,39 @@ def _collect(conn):
             len(candidates),
         )
 
-    # One batched task_id -> storage_id lookup for the whole sweep.
-    storage_by_task = {}
+    owner_by_task = {}
     if candidates:
-        # Off the job's own meta: the producer stamps the row that created the
-        # chain there, which is the same answer the retired ``task`` secondary
-        # index gave, without a table read.
         for task_id, _, _ in candidates:
             try:
-                owner_id = Task(task_id).storage_id
+                task = Task(task_id)
             except Exception:
                 continue
-            if owner_id:
-                storage_by_task[task_id] = owner_id
+            try:
+                storage_id = task.storage_id
+            except Exception:
+                storage_id = None
+            try:
+                media_id = task.job.meta.get("media_id")
+            except Exception:
+                media_id = None
+            if storage_id or media_id:
+                owner_by_task[task_id] = {
+                    "storage_id": storage_id,
+                    "media_id": media_id,
+                }
 
     out = []
     for task_id, user_id, est in candidates:
-        storage_id = storage_by_task.get(task_id)
-        if not storage_id:
-            continue  # without it the frontend cannot map the task to a card
+        owner = owner_by_task.get(task_id)
+        if not owner:
+            continue  # names no row at all: nothing on screen could carry it
         out.append(
             (
                 user_id,
                 {
                     "id": task_id,
-                    "storage_id": storage_id,
+                    "storage_id": owner["storage_id"],
+                    "media_id": owner["media_id"],
                     "status": "queued",
                     "pending": True,
                     **est,
