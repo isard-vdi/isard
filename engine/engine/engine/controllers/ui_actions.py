@@ -22,7 +22,9 @@ from engine.models.domain_xml import (
     add_numa_pinning,
     add_qemu_pcie_reserve,
     count_passthrough_gpus_in_xml,
+    domain_is_raw,
     hostdev_locked,
+    normalize_machine_type,
     numa_opts_allowed,
     pinned_cpuset_from_xml,
     recreate_xml_if_gpu,
@@ -45,6 +47,7 @@ from engine.services.db import (
     update_vgpu_info_if_stopped,
     update_vgpu_uuid_domain_action,
 )
+from engine.services.db.hypervisors import get_hyp_machine_types
 from engine.services.db.storage_pool import get_category_storage_pool_id
 from engine.services.log import *
 
@@ -749,6 +752,41 @@ class UiActions(object):
                         f"{_opt_err}; starting without them"
                     )
                     xml = _xml_before_opts
+
+                # Machine type: the only point where "which qemu?" has an
+                # answer. recreate_xml_to_start runs BEFORE the balancer picks
+                # a host, and during a rolling upgrade two hypervisors in one
+                # installation accept different sets -- so this cannot be done
+                # earlier, nor from anything global.
+                #
+                # RAW domains are skipped: the admin's XML is authoritative and
+                # an invalid value there is meant to fail, loudly, at libvirt.
+                try:
+                    # Everything here is inside the try, the `raw` lookup
+                    # included: this function takes `xml` and `id_domain`, not
+                    # the domain dict, and a name error in the CONDITION would
+                    # escape the guard below and kill the start silently --
+                    # leaving the desktop in Starting for ever, with no detail
+                    # and nothing in the log. Measured on staging, 31/08/2026.
+                    if not domain_is_raw(get_domain(id_domain) or {}):
+                        accepted = get_hyp_machine_types(next_hyp)
+                        xml, _old_machine, _new_machine = normalize_machine_type(
+                            xml, accepted
+                        )
+                        if _new_machine:
+                            log.warning(
+                                f"{id_domain}: machine type {_old_machine} is not "
+                                f"accepted by {next_hyp}; starting it as "
+                                f"{_new_machine} (oldest accepted revision of the "
+                                f"same chipset)"
+                            )
+                except Exception as _mt_err:
+                    # Never block a start on this: without it the domain
+                    # gets exactly the behaviour it had before.
+                    log.warning(
+                        f"{id_domain}: machine type check failed on {next_hyp}: "
+                        f"{_mt_err}; starting the XML unchanged"
+                    )
 
                 if LOG_LEVEL == "DEBUG":
                     print(f"%%%% DOMAIN: {id_domain} -- action: {action} %%%%")

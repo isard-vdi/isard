@@ -2425,6 +2425,97 @@ def recreate_xml_if_start_paused(xml, memory_mb=64):
     return xml_output
 
 
+def _machine_family_and_version(machine):
+    """Split ``pc-i440fx-5.1`` into ``("pc-i440fx", (5, 1))``.
+
+    The chipset family is everything before the trailing version. A machine
+    whose tail is not a dotted number -- ``pc-i440fx-hirsute``, which a real
+    installation was found carrying -- sorts as the oldest of its family, which
+    is what we want: it is certainly older than any numbered revision.
+    """
+    if not machine:
+        return None, ()
+    head, _, tail = machine.rpartition("-")
+    if not head:
+        return machine, ()
+    try:
+        return head, tuple(int(p) for p in tail.split("."))
+    except ValueError:
+        return head, ()
+
+
+def normalize_machine_type(xml, accepted_machines):
+    """Move a domain's machine type onto one the target emulator accepts.
+
+    qemu removes machine types between majors -- qemu 11 dropped everything
+    below ``pc-i440fx-5.1`` -- and a domain that pins a removed one fails to
+    define, with a message that names the emulator rather than the desktop.
+
+    The replacement is always OF THE SAME CHIPSET: switching i440fx to q35
+    removes the floppy controller and turns IDE into SATA, so a domain carrying
+    either would stop booting for a brand new reason.
+
+    Within the chipset the target depends on WHICH WAY the pin is wrong. Too
+    old takes the OLDEST accepted revision, because it
+    changes least of what the guest sees. Too new takes the NEWEST revision
+    that is not newer than the pin, because there the oldest would be a
+    decade-wide downgrade applied silently, and a guest that was working is
+    worse off than it was when libvirt simply refused and named the type.
+
+    Args:
+        xml: the domain XML.
+        accepted_machines: what the chosen hypervisor reported it accepts. An
+            EMPTY list means the hypervisor could not tell us, and is treated
+            as "do not touch" -- never as "supports nothing", which would
+            rewrite every domain on the strength of a failed probe.
+
+    Returns:
+        (xml, old_machine, new_machine). ``new_machine`` is None when nothing
+        was changed, and ``old_machine`` is then whatever it already was.
+    """
+    if not accepted_machines:
+        return xml, None, None
+    try:
+        tree = etree.parse(StringIO(xml))
+    except Exception:
+        return xml, None, None
+    nodes = tree.xpath("/domain/os/type")
+    if not nodes:
+        return xml, None, None
+    current = nodes[0].get("machine")
+    # No machine attribute: libvirt picks its own default, which is by
+    # definition one the emulator has. Nothing to correct.
+    if not current or current in set(accepted_machines):
+        return xml, current, None
+
+    family, current_version = _machine_family_and_version(current)
+    candidates = [
+        m for m in accepted_machines if _machine_family_and_version(m)[0] == family
+    ]
+    if not candidates:
+        # Same chipset is gone entirely. Leave it: libvirt's own refusal names
+        # the machine type and is a better diagnosis than a silent chipset swap.
+        return xml, current, None
+
+    # Too old wants the oldest accepted revision; too new wants the newest one
+    # that is not newer than the pin.
+    not_newer = [
+        m
+        for m in candidates
+        if current_version and _machine_family_and_version(m)[1] <= current_version
+    ]
+    if not_newer:
+        replacement = max(not_newer, key=lambda m: _machine_family_and_version(m)[1])
+    else:
+        replacement = min(candidates, key=lambda m: _machine_family_and_version(m)[1])
+    nodes[0].set("machine", replacement)
+    return (
+        etree.tostring(tree, pretty_print=True).decode("utf-8"),
+        current,
+        replacement,
+    )
+
+
 def domain_is_raw(domain):
     """True when the domain is in RAW XML mode.
 
