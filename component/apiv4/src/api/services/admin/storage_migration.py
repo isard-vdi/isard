@@ -37,6 +37,9 @@ from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.lib.storage.migration_run import DEFAULT_PRIORITY
+from isardvdi_common.lib.storage.storage_pools.storage_pools import (
+    StoragePoolsProcessed,
+)
 from isardvdi_common.models.storage import get_queue_from_storage_pools
 from isardvdi_common.models.storage_migration import (
     MigrationStatus,
@@ -256,6 +259,20 @@ class AdminStorageMigrationService:
             if queue in seen:
                 continue
             seen.add(queue)
+            decision, ctx = queue_coverage.lane_shed_decision(Task._redis, queue)
+            if decision == "reject" and ctx.get("reason") == "no_consumer":
+                # Declared but powered off is WAITING, not orphaned; only a pool
+                # nobody declares can never be drained.
+                try:
+                    declared = StoragePoolsProcessed._pool_coverage_declared(
+                        src_pool.id
+                    ) and StoragePoolsProcessed._pool_coverage_declared(dst_pool.id)
+                except Exception:
+                    # Fail closed, like the gate itself: not knowing is not the
+                    # same as knowing somebody will come back for this work.
+                    declared = 0
+                if declared:
+                    continue
             queue_coverage.check_no_consumer(Task._redis, queue)
 
     @classmethod
