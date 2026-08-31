@@ -1576,3 +1576,71 @@ def test_mac2network_lab_opts_missing_from_mapping_defaults_to_false():
     mapping = _mapping_of(x)
     for attr in _LAB_FLAG_TO_ATTR.values():
         assert mapping[0].get(attr) == "false"
+
+
+class TestHypervDependencyChain:
+    """qemu 11 enforces stimer -> synic -> vpindex; older XMLs declare gaps.
+
+    The domains this bites are not exotic: ``win10Virtio.xml``, seeded into
+    every installation since 2020, declares ``synic`` and ``stimer`` with no
+    ``vpindex``, and every Windows desktop cloned from it inherits the gap.
+    """
+
+    def _hyperv(self, inner):
+        return DomainXML(
+            f"<domain type='kvm'><features><acpi/><apic/>"
+            f"<hyperv>{inner}</hyperv></features></domain>"
+        )
+
+    def _state(self, x, name):
+        node = x.tree.xpath(f"/domain/features/hyperv/{name}")
+        return node[0].get("state") if node else None
+
+    def test_the_shipped_win10_gap_is_completed(self):
+        """synic + stimer and no vpindex — the exact shape we ship."""
+        x = self._hyperv("<relaxed state='on'/><synic state='on'/><stimer state='on'/>")
+        assert x.fix_hyperv_dependency_chain() == ["vpindex"]
+        assert self._state(x, "vpindex") == "on"
+        # untouched neighbours stay exactly as they were
+        assert self._state(x, "relaxed") == "on"
+        assert self._state(x, "synic") == "on"
+
+    def test_stimer_alone_pulls_in_both_links(self):
+        """One pass has to walk the whole chain, not just the first link."""
+        x = self._hyperv("<stimer state='on'/>")
+        assert x.fix_hyperv_dependency_chain() == ["synic", "vpindex"]
+        assert self._state(x, "synic") == "on"
+        assert self._state(x, "vpindex") == "on"
+
+    def test_a_complete_chain_is_not_touched(self):
+        x = self._hyperv("<synic state='on'/><stimer state='on'/><vpindex state='on'/>")
+        assert x.fix_hyperv_dependency_chain() == []
+
+    def test_an_off_link_is_turned_on_rather_than_duplicated(self):
+        """A declared-but-off requirement must be flipped, not appended twice —
+        two <vpindex> elements are not valid libvirt."""
+        x = self._hyperv("<synic state='on'/><vpindex state='off'/>")
+        assert x.fix_hyperv_dependency_chain() == ["vpindex"]
+        assert len(x.tree.xpath("/domain/features/hyperv/vpindex")) == 1
+        assert self._state(x, "vpindex") == "on"
+
+    def test_an_enlightenment_the_admin_turned_off_stays_off(self):
+        """synic off means the guest does not want it; nothing depends on it,
+        so we must not switch it on to satisfy a rule nobody invoked."""
+        x = self._hyperv("<synic state='off'/><relaxed state='on'/>")
+        assert x.fix_hyperv_dependency_chain() == []
+        assert self._state(x, "synic") == "off"
+        assert self._state(x, "vpindex") is None
+
+    def test_a_domain_without_a_hyperv_block_is_left_alone(self):
+        """Linux guests carry no <hyperv>; they must not grow one."""
+        x = DomainXML("<domain type='kvm'><features><acpi/></features></domain>")
+        assert x.fix_hyperv_dependency_chain() == []
+        assert x.tree.xpath("/domain/features/hyperv") == []
+
+    def test_running_it_twice_changes_nothing_the_second_time(self):
+        """It runs on every start, so it has to be idempotent."""
+        x = self._hyperv("<synic state='on'/><stimer state='on'/>")
+        assert x.fix_hyperv_dependency_chain() == ["vpindex"]
+        assert x.fix_hyperv_dependency_chain() == []
+        assert len(x.tree.xpath("/domain/features/hyperv/vpindex")) == 1
