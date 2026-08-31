@@ -204,3 +204,62 @@ def test_start_verify_onto_a_dead_lane_leaves_no_fence_behind(monkeypatch):
     assert item["state"] == "rebased", "the disk advanced on an unplaceable job"
     assert caps["claims"] == [], "the ledger was claimed before the lane was asked"
     assert _fences(caps, "verify_task_id") == [], "a fence outlived a deferred tick"
+
+
+# Unlike rebase/verify, a fence surviving a deferred _start_move is by design.
+def _move_item():
+    return {
+        "id": "i1",
+        "state": "pending",
+        "storage_id": "s1",
+        "tree_id": "t1",
+        "kind": "desktop",
+        "src_path": SRC,
+        "dst_path": DST,
+        "size_bytes": 1024,
+        "move_task_id": None,
+        # already recorded, so the status read that would touch the DB is skipped
+        "storage_orig_status": "ready",
+    }
+
+
+def test_start_move_onto_a_dead_lane_hands_out_no_rsync(monkeypatch):
+    item = _move_item()
+    r = _runner(drainable=False)
+    caps = _instrument(r)
+    r._move_queue = lambda src_path: "storage.p-src.default.move"
+    monkeypatch.setattr(mr.Storage, "update_document", lambda *a, **k: None)
+    _fake_claim(monkeypatch, item, caps)
+
+    r._start_move(item)
+
+    assert caps["enqueued"] == [], "an rsync was handed to a lane nothing drains"
+    assert item.get("move_started_at") is None, "a move was recorded as launched"
+    # the fence is fine; a real task id would mean tree_next waits on a job that
+    # was never enqueued.
+    assert not str(item.get("move_task_id")).startswith("real"), item.get(
+        "move_task_id"
+    )
+
+
+def test_start_move_on_a_live_lane_enqueues_the_rsync(monkeypatch):
+    """The gate must not be a blanket refusal: a drainable lane still launches
+    the copy, or the migration never makes progress."""
+    item = _move_item()
+    r = _runner(drainable=True)
+    caps = _instrument(r)
+    r._move_queue = lambda src_path: "storage.p-src.default.move"
+    monkeypatch.setattr(mr.Storage, "update_document", lambda *a, **k: None)
+    _fake_claim(monkeypatch, item, caps)
+
+    r._start_move(item)
+
+    assert len(caps["enqueued"]) == 1
+    action, queue, kwargs = caps["enqueued"][0]
+    assert action == "move"
+    assert queue == "storage.p-src.default.move", f"the move went to {queue}"
+    assert kwargs["origin_path"] == SRC
+    assert kwargs["destination_path"] == DST
+    assert item["state"] == "moving"
+    assert item["move_task_id"] == "real-tid"
+    assert item.get("move_started_at") is not None
