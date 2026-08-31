@@ -53,6 +53,12 @@ export const buttonVariants = cva(
           focus-visible:bg-error-50 focus-visible:ring-3 focus-visible:ring-error
           disabled:bg-transparent disabled:text-gray-warm-400
         `,
+        'pagination-button': `
+          bg-base-white text-gray-warm-600
+          hover:bg-gray-warm-50 hover:text-gray-warm-800
+          focus:ring-3 focus:ring-gray
+          disabled:cursor-default disabled:bg-brand-100 disabled:text-brand-700
+        `,
         destructive: `
           bg-error-600 text-base-white border-error-600 border
           hover:bg-error-700 :hover:text-base-white

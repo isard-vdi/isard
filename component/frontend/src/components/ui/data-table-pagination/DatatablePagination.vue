@@ -20,6 +20,9 @@ const props = withDefaults(defineProps<DataTablePaginationProps>(), {
 })
 const { table } = props
 
+const isCurrentPage = (page: number | null) =>
+  table.getState().pagination.pageIndex === (page ?? 0) - 1
+
 const visiblePages = computed(() => {
   const currentPage = computed(() => table.getState().pagination.pageIndex + 1)
   const totalPages = computed(() => table.getPageCount())
@@ -91,7 +94,9 @@ const visiblePages = computed(() => {
               v-if="page.type === 'page'"
               hierarchy="pagination-button"
               size="sm"
-              :disabled="table.getState().pagination.pageIndex === page.value - 1"
+              class="min-w-9"
+              :aria-current="isCurrentPage(page.value) ? 'page' : undefined"
+              :disabled="isCurrentPage(page.value)"
               @click="table.setPageIndex(page.value - 1)"
             >
               {{ page.value }}
