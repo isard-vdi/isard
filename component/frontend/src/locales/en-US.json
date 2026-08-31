@@ -2357,7 +2357,10 @@
       }
     },
     "domain-summary": {
+      "added": "Added value",
       "changed": "Modified value",
+      "previous-value": "Previous value: {value}",
+      "removed": "Removed value",
       "tags": {
         "boot": "Boot",
         "disk": "Disk",

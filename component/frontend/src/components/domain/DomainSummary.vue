@@ -82,34 +82,51 @@ const accent = computed(() => {
   }
 })
 
+const NO_VALUE = '—'
+
 const sameValue = (a: unknown, b: unknown) =>
   JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
-/** Renders a value, flagged when its field has moved since the edits started. */
+/** Renders a value against what its field held before the edits. */
 function field<K extends keyof DomainSummaryData>(
   key: K,
   format: (value: DomainSummaryData[K]) => string
 ) {
   const before = props.previous?.[key]
   // A baseline that has not seeded itself is missing, not empty.
+  const changed = before !== undefined && !sameValue(props[key], before)
   return {
     value: format(props[key]),
-    changed: before !== undefined && !sameValue(props[key], before)
+    state: changed ? ('changed' as const) : undefined,
+    previous: changed ? format(before) : null
   }
 }
 
 function credential(name: 'username' | 'password') {
   const current = props.credentials?.[name] ?? ''
   const before = props.previous?.credentials?.[name]
-  return { value: current, changed: before !== undefined && before !== current }
+  if (before === undefined || (before ?? '') === current) return { value: current || NO_VALUE }
+  if (!before) return { value: current, state: 'added' as const }
+  return { value: current || NO_VALUE, state: 'changed' as const, previous: before }
 }
+
+const credentialFields = computed(() => ({
+  username: credential('username'),
+  password: credential('password')
+}))
 
 type ListKey = 'interfaces' | 'isos' | 'floppies'
 
+// Items are matched by membership, not by position: a reorder is not a change.
 const listItem = (key: ListKey, item: string) => {
   const before = props.previous?.[key]
-  return { value: item, changed: before !== undefined && !before.includes(item) }
+  const added = before !== undefined && !before.includes(item)
+  return { value: item, state: added ? ('added' as const) : undefined }
 }
+
+/** What the field held before the edits and no longer does. */
+const removedItems = (key: ListKey) =>
+  (props.previous?.[key] ?? []).filter((item) => !(props[key] ?? []).includes(item))
 
 const list = (values?: string[] | null) => values?.join(', ') ?? ''
 const text = (value?: string) => value ?? ''
@@ -129,11 +146,16 @@ const diskSizeLabel = (size?: number) => `${size} ${t('common.units.gb')}`
 
 // Credentials only make sense for the viewers that go through Wireguard; the
 // rest never surface them, so showing them there would be misleading.
-const showCredentials = computed(
-  () =>
-    hasWireguardRequiringViewer(props.viewers ?? []) &&
-    !!(props.credentials?.username || props.credentials?.password)
-)
+const showCredentials = computed(() => {
+  if (!hasWireguardRequiringViewer(props.viewers ?? [])) return false
+  const { username, password } = credentialFields.value
+  return !!(
+    props.credentials?.username ||
+    props.credentials?.password ||
+    username.state ||
+    password.state
+  )
+})
 
 const hasViewers = computed(() => Boolean(props.viewers && props.viewers.length > 0))
 
@@ -143,11 +165,24 @@ const hasSystemInfo = computed(() => {
   )
 })
 
-const hasNetworks = computed(() => Boolean(props.interfaces?.length))
+const hasNetworks = computed(
+  () => Boolean(props.interfaces?.length) || removedItems('interfaces').length > 0
+)
 
-const hasPeripherals = computed(() => Boolean(props.isos?.length || props.floppies?.length))
+const hasPeripherals = computed(
+  () =>
+    Boolean(props.isos?.length || props.floppies?.length) ||
+    removedItems('isos').length > 0 ||
+    removedItems('floppies').length > 0
+)
 
-const hasReservables = computed(() => Boolean(props.vgpus && props.vgpus.length > 0))
+const removedVgpus = computed(() =>
+  props.vgpus?.length ? [] : (props.previous?.vgpus ?? []).filter(Boolean)
+)
+
+const hasReservables = computed(
+  () => Boolean(props.vgpus && props.vgpus.length > 0) || removedVgpus.value.length > 0
+)
 </script>
 
 <template>
@@ -181,16 +216,14 @@ const hasReservables = computed(() => Boolean(props.vgpus && props.vgpus.length 
           :label="t('components.domain-access-summary.credentials.title')"
         >
           <SummaryValue
-            v-if="props.credentials?.username"
             icon="user-03"
-            v-bind="credential('username')"
+            v-bind="credentialFields.username"
             :label="t('components.domain-summary.tags.user')"
             truncate
           />
           <SummaryValue
-            v-if="props.credentials?.password"
             icon="passcode-lock"
-            v-bind="credential('password')"
+            v-bind="credentialFields.password"
             :label="t('components.domain-summary.tags.password')"
             truncate
           />
@@ -237,17 +270,33 @@ const hasReservables = computed(() => Boolean(props.vgpus && props.vgpus.length 
           :label="t('components.domain-hardware-summary.peripherals.title')"
         >
           <SummaryValue
-            v-for="iso in props.isos"
-            :key="iso"
+            v-for="(iso, index) in props.isos"
+            :key="`iso-${index}`"
             icon="disc-02"
             v-bind="listItem('isos', iso)"
             :label="t('components.domain-summary.tags.iso')"
           />
           <SummaryValue
-            v-for="floppy in props.floppies"
-            :key="floppy"
+            v-for="(iso, index) in removedItems('isos')"
+            :key="`iso-removed-${index}`"
+            icon="disc-02"
+            :value="iso"
+            state="removed"
+            :label="t('components.domain-summary.tags.iso')"
+          />
+          <SummaryValue
+            v-for="(floppy, index) in props.floppies"
+            :key="`floppy-${index}`"
             icon="save-01"
             v-bind="listItem('floppies', floppy)"
+            :label="t('components.domain-summary.tags.floppy')"
+          />
+          <SummaryValue
+            v-for="(floppy, index) in removedItems('floppies')"
+            :key="`floppy-removed-${index}`"
+            icon="save-01"
+            :value="floppy"
+            state="removed"
             :label="t('components.domain-summary.tags.floppy')"
           />
         </SummaryRow>
@@ -258,7 +307,8 @@ const hasReservables = computed(() => Boolean(props.vgpus && props.vgpus.length 
           icon="gpu"
           :label="t('components.domain-hardware-summary.reservables.title')"
         >
-          <SummaryValue icon="gpu" v-bind="field('vgpus', list)" />
+          <SummaryValue v-if="props.vgpus?.length" icon="gpu" v-bind="field('vgpus', list)" />
+          <SummaryValue v-else icon="gpu" :value="list(removedVgpus)" state="removed" />
         </SummaryRow>
 
         <!-- Networks -->
@@ -270,9 +320,16 @@ const hasReservables = computed(() => Boolean(props.vgpus && props.vgpus.length 
           <!-- Numbered: the order the interfaces sit in is what the domain gets. -->
           <SummaryValue
             v-for="(network, index) in props.interfaces"
-            :key="network"
+            :key="`interface-${index}`"
             v-bind="listItem('interfaces', network)"
             :label="`${index + 1}.`"
+          />
+          <!-- A dropped interface has no position left to number. -->
+          <SummaryValue
+            v-for="(network, index) in removedItems('interfaces')"
+            :key="`interface-removed-${index}`"
+            :value="network"
+            state="removed"
           />
         </SummaryRow>
       </template>

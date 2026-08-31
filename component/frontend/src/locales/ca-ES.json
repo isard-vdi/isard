@@ -1794,7 +1794,10 @@
       }
     },
     "domain-summary": {
+      "added": "Valor afegit",
       "changed": "Valor modificat",
+      "previous-value": "Valor anterior: {value}",
+      "removed": "Valor eliminat",
       "tags": {
         "boot": "Arrencada",
         "disk": "Disc",

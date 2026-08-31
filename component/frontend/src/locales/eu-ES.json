@@ -1456,7 +1456,10 @@
       }
     },
     "domain-summary": {
+      "added": "Gehitutako balioa",
       "changed": "Aldatutako balioa",
+      "previous-value": "Aurreko balioa: {value}",
+      "removed": "Kendutako balioa",
       "tags": {
         "boot": "Abioa",
         "disk": "Diskoa",

@@ -1850,7 +1850,10 @@
       }
     },
     "domain-summary": {
+      "added": "Valor añadido",
       "changed": "Valor modificado",
+      "previous-value": "Valor anterior: {value}",
+      "removed": "Valor eliminado",
       "tags": {
         "boot": "Arranque",
         "disk": "Disco",
