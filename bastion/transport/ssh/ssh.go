@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"regexp"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -94,7 +95,7 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 	wg.Done()
 }
 
-func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+func (b *bastion) handleAuth(ctx context.Context, conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 	// Check if targetID looks like a UUID
 	if !uuidRegex.MatchString(conn.User()) {
 		b.log.Warn().Str("target_id", conn.User()).Str("remote_addr", conn.RemoteAddr().String()).Msg("bannerCallback: non-UUID username received, applying delay")
@@ -114,7 +115,7 @@ func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Per
 	}
 
 	// Get the target from the DB and ensure is enabled
-	if err := target.Load(context.Background(), b.db); err != nil {
+	if err := target.Load(ctx, b.db); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			b.log.Error().Str("target", target.ID).Msg("target not found")
 			return nil, &ssh.BannerError{
@@ -136,22 +137,16 @@ func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Per
 		}
 	}
 
-	// Authenticate the user with their SSH key against the authorized ones
-	found := false
-	for _, a := range target.SSH.AuthorizedKeys {
-		aKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(a))
-		if err != nil {
-			// b.log.Warn().Str("target", target.ID).Str("desktop", target.DesktopID).Msg("parse SSH authorized key")
-			continue
-		}
+	ok, err := b.checkAuthorizedKeys(ctx, target, key)
+	if err != nil {
+		b.log.Error().Str("target", target.ID).Str("desktop", target.DesktopID).Err(err).Msg("check the target authorized keys")
 
-		if bytes.Equal(ssh.MarshalAuthorizedKey(key), ssh.MarshalAuthorizedKey(aKey)) {
-			found = true
-			break
+		return nil, &ssh.BannerError{
+			Message: "service not available\n",
 		}
 	}
 
-	if !found {
+	if !ok {
 		b.log.Error().Str("target", target.ID).Str("desktop", target.DesktopID).Msg("key authentication failed, no matching valid keys")
 
 		return nil, &ssh.BannerError{
@@ -164,7 +159,7 @@ func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Per
 		ID: target.DesktopID,
 	}
 
-	if err := dktp.Load(context.Background(), b.db); err != nil {
+	if err := dktp.Load(ctx, b.db); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			b.log.Error().Str("target", target.ID).Str("desktop", dktp.ID).Msg("desktop not found")
 			return nil, &ssh.BannerError{
@@ -218,8 +213,10 @@ func (b *bastion) handleConn(ctx context.Context, log *zerolog.Logger, tcpConn n
 	defer tcpConn.Close()
 
 	cfg := &ssh.ServerConfig{
-		PublicKeyCallback: b.handleAuth,
-		BannerCallback:    b.bannerCallback,
+		PublicKeyCallback: func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+			return b.handleAuth(ctx, conn, key)
+		},
+		BannerCallback: b.bannerCallback,
 	}
 	cfg.AddHostKey(b.privKey)
 
@@ -492,6 +489,105 @@ func (b *bastion) handleChannel(ctx context.Context, log *zerolog.Logger, target
 			return
 		}
 	}
+}
+
+func (b *bastion) checkAuthorizedKeys(ctx context.Context, target *model.Target, key ssh.PublicKey) (bool, error) {
+	b.log.Debug().Str("target", target.ID).Str("offered_key", string(bytes.TrimSpace(ssh.MarshalAuthorizedKey(key)))).Msg("checking the authorized keys")
+
+	// Check the target's own authorized keys.
+	for _, a := range target.SSH.AuthorizedKeys {
+		aKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(a))
+		if err != nil {
+			// b.log.Warn().Str("target", target.ID).Str("desktop", target.DesktopID).Err(err).Msg("parse target authorized key")
+			continue
+		}
+
+		if bytes.Equal(ssh.MarshalAuthorizedKey(key), ssh.MarshalAuthorizedKey(aKey)) {
+			return true, nil
+		}
+	}
+
+	// Check the target user's bastion SSH key.
+	ok, err := b.checkUserAuthorizedKey(ctx, target.UserID, key)
+	if err != nil {
+		return false, fmt.Errorf("check the target user SSH key: %w", err)
+	}
+
+	if ok {
+		return true, nil
+	}
+
+	// Check the bastion SSH keys of the deployment owner and co-owners.
+	ok, err = b.checkDeploymentAuthorizedKeys(ctx, target.DesktopID, key)
+	if err != nil {
+		return false, fmt.Errorf("check the deployment users SSH keys: %w", err)
+	}
+
+	return ok, nil
+}
+
+func (b *bastion) checkUserAuthorizedKey(ctx context.Context, userID string, key ssh.PublicKey) (bool, error) {
+	if userID == "" {
+		return false, nil
+	}
+
+	usr := &model.User{ID: userID}
+	if err := usr.Load(ctx, b.db); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("load user from DB: %w", err)
+	}
+
+	if usr.SSHKey == "" {
+		return false, nil
+	}
+
+	usrKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(usr.SSHKey))
+	if err != nil {
+		// b.log.Warn().Str("user", userID).Err(err).Msg("parse user SSH key")
+		return false, nil
+	}
+
+	return bytes.Equal(ssh.MarshalAuthorizedKey(key), ssh.MarshalAuthorizedKey(usrKey)), nil
+}
+
+func (b *bastion) checkDeploymentAuthorizedKeys(ctx context.Context, desktopID string, key ssh.PublicKey) (bool, error) {
+	dktp := &model.Desktop{ID: desktopID}
+	if err := dktp.Load(ctx, b.db); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("load desktop from DB: %w", err)
+	}
+
+	if dktp.Tag == "" || dktp.Tag == "0" {
+		return false, nil
+	}
+
+	deployment := &model.Deployment{ID: dktp.Tag}
+	if err := deployment.Load(ctx, b.db); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("load deployment from DB: %w", err)
+	}
+
+	for _, usrID := range slices.Concat([]string{deployment.UserID}, deployment.CoOwners) {
+		ok, err := b.checkUserAuthorizedKey(ctx, usrID, key)
+		if err != nil {
+			return false, fmt.Errorf("check the deployment user %q SSH key: %w", usrID, err)
+		}
+
+		if ok {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (b *bastion) bannerCallback(_ ssh.ConnMetadata) string {
