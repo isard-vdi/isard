@@ -202,6 +202,10 @@ async def test_pass1_storage_orphan_with_finished_parent_is_released():
     orphan = _task("stg1", queue="storage.default.low", dependencies=[parent])
     with (
         patch.object(reconcile.Task, "get_by_status", return_value=[orphan]),
+        # The lane has a consumer: this test is about whether the orphan is RELEASED.
+        patch.object(
+            reconcile.queue_coverage, "lane_has_consumer", return_value=(True, {})
+        ),
         patch.object(reconcile, "_release_via_parents", new=AsyncMock()) as rel,
     ):
         healed = await reconcile._reconcile_orphan_deferred(AsyncMock())

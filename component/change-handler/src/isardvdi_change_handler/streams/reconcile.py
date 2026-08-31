@@ -66,6 +66,7 @@ import asyncio
 import logging as log
 from datetime import datetime, timezone
 
+from isardvdi_common.lib import queue_coverage
 from isardvdi_common.lib.task_index import MEDIA, STORAGE, current_task_id
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.media import Media
@@ -339,6 +340,21 @@ async def _heal_storage_orphan(task):
                 getattr(task, "id", "?"),
             )
         return 1
+    # Leave it deferred: pass 1 scans DEFERRED, so this pass IS the retry loop, and
+    # releasing onto a lane nothing drains would pin the owning row at 428 for ever.
+    allowed, ctx = await asyncio.to_thread(
+        queue_coverage.lane_has_consumer,
+        task._redis,
+        getattr(task, "queue", "") or "",
+    )
+    if not allowed:
+        log.warning(
+            "reconcile: no consumer for %s, leaving storage orphan %s deferred (%s)",
+            getattr(task, "queue", "?"),
+            getattr(task, "id", "?"),
+            ctx.get("reason"),
+        )
+        return 0
     await _release_via_parents(task)
     return 1
 

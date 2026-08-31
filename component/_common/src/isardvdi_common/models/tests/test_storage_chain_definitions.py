@@ -269,6 +269,9 @@ def _run_template_chain(s, template_storage_id):
 
     with (
         patch.object(Storage, "create_task") as mock_create,
+        # These tests are about the SHAPE of the definition and run with no fleet;
+        # admission is pinned in its own suite.
+        patch.object(Storage, "_preflight_lane"),
         patch.object(Storage, "exists", return_value=True),
         patch.object(
             Storage,

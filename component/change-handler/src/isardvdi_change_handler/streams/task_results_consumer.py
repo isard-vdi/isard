@@ -55,6 +55,7 @@ import redis
 import redis.asyncio as aioredis
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.task_streams import CANCELED_KIND, DEAD_STREAM
+from isardvdi_common.lib import queue_coverage
 from isardvdi_common.models.task import (
     _TERMINAL_STATUSES,
     CoreStep,
@@ -476,6 +477,22 @@ async def _enqueue_metadata_storage_dependents(step):
         child["job_kwargs"] = job_kwargs
         try:
             if await asyncio.to_thread(Task.exists, child_id):
+                continue
+            # Ask before building: this runs on a lane the root's gate never covered.
+            # Decline rather than raise, so the entry stays unACKed and is redelivered.
+            allowed, ctx = await asyncio.to_thread(
+                queue_coverage.lane_has_consumer, Task._redis, child.get("queue")
+            )
+            if not allowed:
+                ok = False
+                log.warning(
+                    "task_results: no consumer for %s, not enqueueing metadata "
+                    "storage dependent %s of %s (%s)",
+                    child.get("queue"),
+                    child_id,
+                    getattr(step, "id", "?"),
+                    ctx.get("reason"),
+                )
                 continue
             await asyncio.to_thread(lambda c=child: Task(**c))
         except Exception:

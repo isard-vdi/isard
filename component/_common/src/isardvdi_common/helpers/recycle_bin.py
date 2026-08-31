@@ -17,7 +17,7 @@ from isardvdi_common.helpers.helpers import Helpers as CommonHelpers
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.user_storage import UserStorage
-from isardvdi_common.lib import queue_tiers
+from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.notifications.notifications_data import (
     NotificationsDataProcessed,
 )
@@ -1986,6 +1986,66 @@ class RecycleBin(RethinkSharedConnection):
                             time.time() - start,
                         )
                     else:
+                        # All or none: an entry only reaches ``deleted`` once every one of its
+                        # storages finished, so a partial enqueue strands it in ``deleting``.
+                        plans = []
+                        for storage in rb.storages:
+                            if not Storage.exists(storage["id"]):
+                                continue
+                            storage = Storage(storage["id"])
+                            if storage.status == RecycleBinStatusEnum.deleted.value:
+                                continue
+                            task_name = (
+                                "move_delete"
+                                if Helpers.get_delete_action() == "move"
+                                else "delete"
+                            )
+                            category = storage.category or queue_tiers.NULL_CATEGORY
+                            plans.append(
+                                {
+                                    "storage": storage,
+                                    "category": category,
+                                    "task_name": task_name,
+                                    "queue": queue_tiers.retier_queue(
+                                        f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.bulk",
+                                        task_name,
+                                        category,
+                                    ),
+                                }
+                            )
+                        blocked = sorted(
+                            {
+                                plan["queue"]
+                                for plan in plans
+                                if not queue_coverage.lane_has_consumer(
+                                    Task._redis, plan["queue"]
+                                )[0]
+                            }
+                        )
+                        if blocked:
+                            # ``recycled``, not ``deleting``: the state a normal delete re-drives.
+                            log.warning(
+                                "RecycleBin %s delete_storage: deferring all %s delete(s), no consumer on %s",
+                                rb.id,
+                                len(plans),
+                                ", ".join(blocked),
+                            )
+                            Helpers.update_status(
+                                rb.id,
+                                self.owner_id,
+                                RecycleBinStatusEnum.recycled.value,
+                            )
+                            Helpers.add_log(
+                                "delete_deferred",
+                                entry["id"],
+                                self.agent_type,
+                                self.agent_id,
+                                self.agent_name,
+                                self.agent_category_id,
+                                self.agent_category_name,
+                                self.agent_role,
+                            )
+                            continue
                         start = time.time()
                         Helpers.update_status(
                             rb.id, self.owner_id, RecycleBinStatusEnum.deleting.value
@@ -2023,51 +2083,13 @@ class RecycleBin(RethinkSharedConnection):
                                 rb.id,
                                 time.time() - start,
                             )
-                        for storage in rb.storages:
-                            start = time.time()
-                            exists = Storage.exists(storage["id"])
-                            log.debug(
-                                "RecycleBin %s delete_storage: Checked if storage %s exists in %s seconds",
-                                rb.id,
-                                storage["id"],
-                                time.time() - start,
-                            )
-                            if not exists:
-                                continue
-                            start = time.time()
-                            storage = Storage(storage["id"])
-                            if storage.status == RecycleBinStatusEnum.deleted.value:
-                                continue
+                        for plan in plans:
+                            storage = plan["storage"]
+                            category = plan["category"]
+                            task_name = plan["task_name"]
+                            delete_queue = plan["queue"]
                             if storage.status != RecycleBinStatusEnum.recycled.value:
                                 storage.status = RecycleBinStatusEnum.recycled.value
-                            move = Helpers.get_delete_action() == "move"
-                            task_name = "move_delete" if move else "delete"
-                            log.debug(
-                                "RecycleBin %s delete_storage: Storage %s loaded in %s seconds",
-                                rb.id,
-                                storage.id,
-                                time.time() - start,
-                            )
-                            # Route through the queue-tier resolver instead of a raw
-                            # ``.default`` queue (the one storage-task producer that
-                            # otherwise bypasses it). The input ``.bulk`` is a hint,
-                            # but ``delete``/``move_delete`` hard-floor to the LOWEST
-                            # ``reclaim`` tier: the user already saw the item vanish
-                            # (its domain row + view were removed synchronously), so
-                            # freeing the bytes is best-effort and must never crowd a
-                            # create/start/template. Thread the storage owner's
-                            # category (or the _nocat sentinel for a deleted owner)
-                            # so the cleanup is fair-scheduled per tenant, exactly as
-                            # ``Storage.create_task`` and ``Media.create_task`` do —
-                            # per-category fairness is structural in the worker
-                            # (``GovernedWorker.multitenancy`` is always on), so
-                            # producers resolve the category unconditionally.
-                            category = storage.category or queue_tiers.NULL_CATEGORY
-                            delete_queue = queue_tiers.retier_queue(
-                                f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.bulk",
-                                task_name,
-                                category,
-                            )
                             start = time.time()
                             task = Task(
                                 user_id=rb.owner_id,
@@ -2186,6 +2208,9 @@ class RecycleBin(RethinkSharedConnection):
                                 }
                             )
 
+            except Error:
+                # Re-raise: wrapping below would turn a 428 or 429 into a 500.
+                raise
             except Exception as e:
                 raise Error(
                     "internal_server",

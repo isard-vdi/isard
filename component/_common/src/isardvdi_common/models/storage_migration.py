@@ -318,6 +318,10 @@ class StorageMigrationItemModel(BaseModel):
     domain_id: str | None = None
     #: server_autostart value before we deactivated it (None == not touched)
     autostart_was_on: bool | None = None
+    # The source file is still on disk and no row points at it any more: its
+    # move_delete could not be placed, and nothing will retry it.
+    source_retained: bool = False
+    source_retained_path: str | None = None
 
 
 # --------------------------------------------------------------------------- #
