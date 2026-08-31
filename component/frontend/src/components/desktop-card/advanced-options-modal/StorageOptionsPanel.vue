@@ -8,14 +8,17 @@ import DesktopStorageItem from '../desktop-storage-modal/DesktopStorageItem.vue'
 
 interface Props {
   desktop?: UserDesktop
+  showId?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  desktop: undefined
+  desktop: undefined,
+  showId: false
 })
 
 const emit = defineEmits<{
   error: [message: string]
+  success: []
 }>()
 
 const { t } = useI18n()
@@ -36,7 +39,9 @@ const storageIds = computed<string[]>(() => {
       :key="id"
       :storage-id="id"
       :desktop="props.desktop!"
+      :show-id="props.showId"
       @error="(msg) => emit('error', msg)"
+      @success="emit('success')"
     />
   </div>
 </template>

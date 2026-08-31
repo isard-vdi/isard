@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
@@ -6,8 +7,14 @@ import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
 import { Button } from '@/components/ui/button'
 import { DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import { hasAdvancedOptions } from '@/components/desktop-card/advanced-options-modal/options'
+
+import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+
+const canSeeAdvancedOptions = computed(() => hasAdvancedOptions(authStore.user?.role_id))
 
 interface Props {
   desktop: UserDesktop
@@ -45,7 +52,7 @@ const emit = defineEmits<{
           {{ t('components.desktops.desktop-card.actions.edit') }}
         </Button>
       </DropdownMenuItem>
-      <DropdownMenuItem @click="emit('showStorageModal')">
+      <DropdownMenuItem v-if="canSeeAdvancedOptions" @click="emit('showStorageModal')">
         <Button
           size="sm"
           class="mr-2 w-full justify-start"
