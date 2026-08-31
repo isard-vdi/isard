@@ -712,6 +712,21 @@ function migRenderSummary (totals) {
   } else {
     $("#mig_sum_stay").parent().hide();
   }
+  // A plan that silently left chains behind would be approved as if it were
+  // complete, so the count and the first reasons go on the preview.
+  const excluded = totals.excluded_trees || [];
+  if (excluded.length) {
+    const reasons = excluded.slice(0, 5).map(function (e) {
+      return (e.storage_id || "?") + ": " + (e.reason || "");
+    }).join("\n");
+    const extra = excluded.length > 5 ? "\n… and " + (excluded.length - 5) + " more" : "";
+    $("#mig_sum_excluded")
+      .text((totals.excluded_disks_total || 0) + " in " + excluded.length + " chain(s)")
+      .attr("title", migEscape(reasons + extra));
+    $("#mig_sum_excluded_cell").show();
+  } else {
+    $("#mig_sum_excluded_cell").hide();
+  }
   migLastPlanBytes = totals.bytes_total || 0;
   migLastPlanItems = totals.items_total || 0;
   migLastPlanTrees = totals.trees || 0;

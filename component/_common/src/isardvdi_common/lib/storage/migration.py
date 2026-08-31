@@ -75,6 +75,15 @@ def classify_kind(has_children, perms):
     return "desktop" if "w" in (perms or []) else "template"
 
 
+class _Unplaceable(Exception):
+    """A disk whose destination directory cannot be resolved."""
+
+    def __init__(self, storage_id, reason):
+        super().__init__(reason)
+        self.storage_id = storage_id
+        self.reason = reason
+
+
 def split_moving_subtrees(order, parent_of, moves):
     """Split ONE tree's topo ``order`` into the sub-trees that actually move.
 
@@ -263,7 +272,7 @@ def _count_by_kind(item_dicts):
     return out
 
 
-def summarize_plan(item_dicts, not_moving=None, order=None):
+def summarize_plan(item_dicts, not_moving=None, order=None, excluded=None):
     """Aggregate per-job totals from the built item dicts.
 
     Computed from the data (never incremented), matching the at-least-once
@@ -298,6 +307,11 @@ def summarize_plan(item_dicts, not_moving=None, order=None):
         "state_counts": {"pending": len(item_dicts)} if item_dicts else {},
         "not_moving_by_kind": dict(not_moving or {}),
         "not_moving_total": sum((not_moving or {}).values()),
+        #: trees left out because a disk in them has no resolvable destination.
+        #: The plan is still built: one malformed row must not cost the estate
+        #: its migration, but the admin has to see what stayed and why.
+        "excluded_trees": list(excluded or ()),
+        "excluded_disks_total": sum(e["disks"] for e in (excluded or ())),
         "order": order or "none",
         #: trees whose moving disks have no usage date. They sort last in BOTH
         #: directions, so a budget reaches them last either way.
@@ -1651,36 +1665,20 @@ def build_plan_for_roots(
             except Exception as exc:
                 # A category-nested (non-default) pool needs the owner's
                 # category, and get_storage_pool_path deliberately raises rather
-                # than write a "<mountpoint>/None/..." path. Keep that refusal,
-                # but say WHICH disk and what to do: otherwise one owner-less row
-                # aborts the whole plan with nothing to act on. Note this still
-                # fails the plan -- skipping just the disk would strand its
-                # children, so skipping its whole tree is separate work.
-                from isardvdi_common.helpers import error_factory
-
-                raise error_factory.Error(
-                    "bad_request",
-                    f"Storage {s.id} cannot be placed in pool {dst_pool.id}: "
-                    f"{exc}. Give the disk a resolvable owner category, exclude "
-                    "it from the selection, or migrate into the default pool.",
+                # than write a "<mountpoint>/None/..." path.
+                raise _Unplaceable(
+                    s.id,
+                    f"{exc}. Give the disk a resolvable owner category or "
+                    "migrate into the default pool.",
                 ) from exc
             if dst_dir_cache[s.id] is None:
-                # The other way the destination can be unknown: the disk's usage
-                # cannot be reverse-mapped in the destination pool, and
-                # get_storage_pool_path answers None instead of raising. Refuse
-                # here too. Left to travel, that None reaches the item as
-                # dst_path and task.move dies inside os.path.isfile(None) with a
-                # TypeError, which the admin only sees as "move or rebase task
-                # failed" -- with the disk's whole subtree skipped behind it.
-                from isardvdi_common.helpers import error_factory
-
-                raise error_factory.Error(
-                    "bad_request",
-                    f"Storage {s.id} cannot be placed in pool {dst_pool.id}: its "
-                    f"directory {getattr(s, 'directory_path', '?')} does not match "
-                    "any usage path of its current pool, so the destination "
-                    "directory is unknown. Fix the disk's directory_path or "
-                    "exclude it from the selection.",
+                # Left to travel, this None reaches the item as dst_path and
+                # task.move dies inside os.path.isfile(None) with a TypeError.
+                raise _Unplaceable(
+                    s.id,
+                    f"its directory {getattr(s, 'directory_path', '?')} does not "
+                    "match any usage path of its current pool, so the "
+                    "destination directory is unknown",
                 )
         return dst_dir_cache[s.id]
 
@@ -1721,18 +1719,41 @@ def build_plan_for_roots(
 
     items = []
     not_moving = Counter()
+    excluded = []
+    excluded_nodes = set()
     for root_id in root_ids:
         topo = tree_orders[root_id]
-        for sub_root, sub_order in split_moving_subtrees(topo, parent_within, moves):
-            items.extend(
-                build_tree_items(
-                    migration_id,
-                    sub_root,
-                    get_children,
-                    node_info,
-                    order=sub_order,
+        tree_items = []
+        try:
+            for sub_root, sub_order in split_moving_subtrees(
+                topo, parent_within, moves
+            ):
+                tree_items.extend(
+                    build_tree_items(
+                        migration_id,
+                        sub_root,
+                        get_children,
+                        node_info,
+                        order=sub_order,
+                    )
                 )
+        except _Unplaceable as unplaceable:
+            # The whole tree, not the disk: dropping one disk would leave its
+            # derivatives rebasing onto a path nothing resolved. One malformed
+            # row used to abort the entire migration.
+            excluded.append(
+                {
+                    "root_id": root_id,
+                    "storage_id": unplaceable.storage_id,
+                    "reason": unplaceable.reason,
+                    "disks": len(topo),
+                }
             )
+            excluded_nodes.update(topo)
+            continue
+        items.extend(tree_items)
+
+    walked -= excluded_nodes
     # counted over the walked SET, not per tree: two explicit tree_ids can
     # overlap, and a disk that stays is one disk however many walks reach it
     for nid in walked:
@@ -1741,7 +1762,9 @@ def build_plan_for_roots(
 
     if order in ("oldest_first", "newest_first"):
         _stamp_tree_order_keys(items, walked, st)
-    return items, summarize_plan(items, not_moving=not_moving, order=order)
+    return items, summarize_plan(
+        items, not_moving=not_moving, order=order, excluded=excluded
+    )
 
 
 def _stamp_tree_order_keys(items, walked, st):

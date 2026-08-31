@@ -739,15 +739,14 @@ def test_build_plan_with_an_order_freezes_the_key_on_every_item(monkeypatch):
     assert mig.sort_tree_ids(keys, "oldest_first") == ["d1", "d3", "d2"]
 
 
-def test_build_plan_refuses_a_disk_with_no_resolvable_destination(monkeypatch):
-    """An unresolvable destination must fail the PLAN, not the disk at run time.
+def test_an_unresolvable_destination_never_reaches_the_item(monkeypatch):
+    """The ``None`` must be caught at plan time, not at run time.
 
     ``get_storage_pool_path`` answers ``None`` -- rather than raising -- when the
     disk's usage cannot be reverse-mapped in the destination pool. That ``None``
-    used to travel all the way into the item, and ``task.move`` then died inside
+    used to travel into the item, and ``task.move`` then died inside
     ``os.path.isfile(None)`` with a TypeError the admin only ever saw as "move or
-    rebase task failed", with the disk's whole subtree skipped behind it. Refuse
-    up front, naming the disk, exactly as the raising sibling path already does.
+    rebase task failed". The disk is now excluded with its tree and named.
     """
     _FakeStorage.registry = {
         "root": {
@@ -763,12 +762,10 @@ def test_build_plan_refuses_a_disk_with_no_resolvable_destination(monkeypatch):
         "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
     )
 
-    with pytest.raises(Exception) as raised:
-        mig.build_plan_for_roots("mig1", ["root"], _MultiPathPool())
+    items, totals = mig.build_plan_for_roots("mig1", ["root"], _MultiPathPool())
 
-    message = str(raised.value)
-    assert "root" in message, message
-    assert "TypeError" not in message, message
+    assert items == []
+    assert [e["storage_id"] for e in totals["excluded_trees"]] == ["root"]
 
 
 # a failed disk must say WHY, not just that it failed
@@ -810,3 +807,119 @@ def test_plan_tree_failure_reports_the_reason_it_was_given():
     # and without one, the historical wording is kept rather than an empty cell
     ((_it, _s, fallback),) = mig.plan_tree_failure(items, "d1")
     assert fallback == "move/rebase task failed"
+
+
+# excluded_trees — one malformed row must not cost the estate its migration
+def _two_trees(bad_usage):
+    """Two independent single-disk trees; only ``bad`` cannot be placed."""
+    return {
+        "good": {
+            "type": "qcow2",
+            "parent": None,
+            "perms": ["r", "w"],
+            "pool_usage": "desktop",
+            "children": [],
+        },
+        "bad": {
+            "type": "qcow2",
+            "parent": None,
+            "perms": ["r", "w"],
+            "pool_usage": bad_usage,
+            "children": [],
+        },
+    }
+
+
+def test_a_disk_with_no_resolvable_directory_excludes_its_tree_not_the_plan(
+    monkeypatch,
+):
+    """Measured in the field: one disk of 1.802 sat one level up and the whole
+    pool's plan answered 400. The tree goes, the plan stays."""
+    _FakeStorage.registry = _two_trees(None)  # get_storage_pool_path -> None
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+
+    items, totals = mig.build_plan_for_roots("m", ["good", "bad"], _UsageLimitedPool())
+
+    assert [it["storage_id"] for it in items] == ["good"]
+    assert totals["items_total"] == 1
+    assert totals["excluded_disks_total"] == 1
+    excluded = totals["excluded_trees"]
+    assert [e["root_id"] for e in excluded] == ["bad"]
+    assert excluded[0]["storage_id"] == "bad"
+    assert "does not match any usage path" in excluded[0]["reason"]
+    # an excluded disk is not a disk that "stays": it is not in the plan at all
+    assert totals["not_moving_total"] == 0
+
+
+def test_a_disk_whose_owner_category_is_unresolvable_excludes_its_tree(monkeypatch):
+    """The other trigger of the identical abort: get_storage_pool_path raises
+    rather than write a '<mountpoint>/None/...' path."""
+    _FakeStorage.registry = _two_trees("template")  # the pool serves no template
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+
+    items, totals = mig.build_plan_for_roots("m", ["good", "bad"], _UsageLimitedPool())
+
+    assert [it["storage_id"] for it in items] == ["good"]
+    assert [e["root_id"] for e in totals["excluded_trees"]] == ["bad"]
+    assert "no 'template' path configured" in totals["excluded_trees"][0]["reason"]
+
+
+def test_excluding_a_tree_takes_its_whole_chain_with_it(monkeypatch):
+    """Dropping only the unplaceable disk would leave its derivatives rebasing
+    onto a path nothing resolved, so the count is the whole tree."""
+    _FakeStorage.registry = {
+        "bad": {
+            "type": "qcow2",
+            "parent": None,
+            "perms": ["r"],
+            "pool_usage": None,
+            "children": ["d1", "d2"],
+        },
+        **{
+            d: {
+                "type": "qcow2",
+                "parent": "bad",
+                "perms": ["r", "w"],
+                "pool_usage": "desktop",
+                "children": [],
+            }
+            for d in ("d1", "d2")
+        },
+    }
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+
+    items, totals = mig.build_plan_for_roots("m", ["bad"], _UsageLimitedPool())
+
+    assert items == []
+    assert totals["excluded_disks_total"] == 3
+    assert totals["excluded_trees"][0]["disks"] == 3
+
+
+def test_a_plan_with_nothing_wrong_reports_no_exclusions(monkeypatch):
+    _FakeStorage.registry = {
+        "good": {
+            "type": "qcow2",
+            "parent": None,
+            "perms": ["r", "w"],
+            "pool_usage": "desktop",
+            "children": [],
+        }
+    }
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+
+    _, totals = mig.build_plan_for_roots("m", ["good"], _UsageLimitedPool())
+
+    assert totals["excluded_trees"] == []
+    assert totals["excluded_disks_total"] == 0

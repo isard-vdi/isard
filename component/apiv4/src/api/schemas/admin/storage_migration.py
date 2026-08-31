@@ -166,6 +166,11 @@ class MigrationTotalsResponse(BaseModel):
     #: so the plan preview is the only place they are ever visible.
     not_moving_total: int = 0
     not_moving_by_kind: dict = Field(default_factory=dict)
+    #: trees left out because a disk in them has no resolvable destination, and
+    #: how many disks that costs. A malformed row no longer aborts the plan, so
+    #: this is the only place the admin sees what will not be migrated.
+    excluded_trees: list[dict] = Field(default_factory=list)
+    excluded_disks_total: int = 0
     #: the tree-start order this plan was built with (`none` unless asked for).
     order: str = "none"
     #: trees whose moving disks carry no usage date. They sort LAST in both
