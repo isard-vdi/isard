@@ -783,11 +783,10 @@ class Helpers(RethinkSharedConnection):
             time.time() - start,
         )
 
-        # Only proceed if all tasks are finished and status is not already "deleted"
-        if (
-            len(finished_tasks) == len(updated_rb["storages"])
-            and updated_rb.get("status") != "deleted"
-        ):
+        # Done means every task this entry STARTED has finished, which is not one
+        # per storage: the delete loop skips rows already gone or already deleted.
+        tasks = updated_rb.get("tasks") or []
+        if len(finished_tasks) == len(tasks) and updated_rb.get("status") != "deleted":
             start = time.time()
             with cls._rdb_context():
                 # Atomically update status to deleted, but only if it's not already deleted
