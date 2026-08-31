@@ -342,34 +342,52 @@ defineExpose({
         <!-- Skeletons until loaded: the first edit snapshots every value, so a
              field still reading its unresolved seed would be frozen empty. -->
         <div v-if="loading" class="flex flex-col gap-3">
-          <Skeleton class="h-11 w-full" />
-          <Skeleton class="h-25 w-full" />
+          <div class="flex flex-col gap-2">
+            <Skeleton class="h-5 w-24" />
+            <Skeleton class="h-11 w-full" />
+          </div>
+          <div class="flex flex-col gap-2">
+            <Skeleton class="h-5 w-32" />
+            <Skeleton class="h-25 w-full" />
+          </div>
         </div>
         <div v-else class="flex flex-col gap-3">
-          <form.Field v-slot="{ field }" name="name">
-            <InputField
-              :id="field.name"
-              :name="field.name"
-              :model-value="field.state.value"
-              :aria-label="t('components.domain.info.name.label')"
-              :placeholder="t('components.domain.info.name.placeholder')"
-              maxlength="50"
-              autofocus
-              @update:model-value="(value) => field.handleChange(String(value))"
-              @input="field.handleChange(String(($event.target as HTMLInputElement).value))"
-              @blur="field.handleBlur"
-            />
-          </form.Field>
-          <form.Field v-slot="{ field }" name="description">
-            <Textarea
-              :model-value="field.state.value"
-              maxlength="255"
-              class="bg-base-white resize-none h-25"
-              :aria-label="t('components.domain.info.description.label')"
-              :placeholder="t('components.domain.info.description.placeholder')"
-              @update:model-value="(value) => field.handleChange(String(value))"
-            />
-          </form.Field>
+          <div class="flex flex-col gap-2">
+            <form.Field v-slot="{ field }" name="name">
+              <FieldLabel :for="field.name">{{
+                t('components.domain.info.name.label')
+              }}</FieldLabel>
+              <InputField
+                :id="field.name"
+                :name="field.name"
+                :model-value="field.state.value"
+                :aria-label="t('components.domain.info.name.label')"
+                :placeholder="t('components.domain.info.name.placeholder')"
+                maxlength="50"
+                autofocus
+                @update:model-value="(value) => field.handleChange(String(value))"
+                @input="field.handleChange(String(($event.target as HTMLInputElement).value))"
+                @blur="field.handleBlur"
+              />
+            </form.Field>
+          </div>
+          <div class="flex flex-col gap-2">
+            <form.Field v-slot="{ field }" name="description">
+              <FieldLabel :for="field.name">{{
+                t('components.domain.info.description.label')
+              }}</FieldLabel>
+              <Textarea
+                :id="field.name"
+                :name="field.name"
+                :model-value="field.state.value"
+                maxlength="255"
+                class="bg-base-white resize-none h-25"
+                :aria-label="t('components.domain.info.description.label')"
+                :placeholder="t('components.domain.info.description.placeholder')"
+                @update:model-value="(value) => field.handleChange(String(value))"
+              />
+            </form.Field>
+          </div>
           <slot name="extra" :form="form" />
         </div>
       </div>
