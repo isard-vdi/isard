@@ -1058,6 +1058,27 @@ class DomainXML(object):
                 else:
                     hyperv.append(etree.Element(required, state="on"))
                 added.append(required)
+
+        # The chain leaves <hyperv> at its last link: `stimer` also needs the
+        # `hypervclock` TIMER, which lives under <clock>. libvirt refuses the
+        # domain with "'stimer' hyperv feature requires 'hypervclock' timer" --
+        # a third cryptic message for the same missing dependency, and one that
+        # completing the enlightenments alone does not answer. Both templates
+        # this product ships declare it, so a domain descended from them is
+        # fine; one written by hand or by an older tool may not be.
+        if _is_on("stimer"):
+            clock = self.tree.xpath("/domain/clock")
+            if clock:
+                clock = clock[0]
+                timer = clock.find("timer[@name='hypervclock']")
+                if timer is None:
+                    clock.append(
+                        etree.Element("timer", name="hypervclock", present="yes")
+                    )
+                    added.append("hypervclock")
+                elif timer.get("present") != "yes":
+                    timer.set("present", "yes")
+                    added.append("hypervclock")
         return added
 
     def add_shared_folder(self):

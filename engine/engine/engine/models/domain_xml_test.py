@@ -1644,3 +1644,54 @@ class TestHypervDependencyChain:
         assert x.fix_hyperv_dependency_chain() == ["vpindex"]
         assert x.fix_hyperv_dependency_chain() == []
         assert len(x.tree.xpath("/domain/features/hyperv/vpindex")) == 1
+
+
+class TestHypervclockTimer:
+    """The chain does not end inside <hyperv>: `stimer` also needs the
+    `hypervclock` timer, which lives under <clock>. libvirt refuses with
+    "'stimer' hyperv feature requires 'hypervclock' timer" -- measured on
+    staging, 31/08/2026, on a domain whose enlightenments were already complete.
+    """
+
+    def _dom(self, clock, stimer="on"):
+        return DomainXML(
+            f"<domain type='kvm'><features><hyperv>"
+            f"<synic state='on'/><stimer state='{stimer}'/><vpindex state='on'/>"
+            f"</hyperv></features>{clock}</domain>"
+        )
+
+    def _timer(self, x):
+        n = x.tree.xpath("/domain/clock/timer[@name='hypervclock']")
+        return n[0].get("present") if n else None
+
+    def test_a_clock_without_the_timer_gets_it(self):
+        x = self._dom("<clock offset='utc'/>")
+        assert x.fix_hyperv_dependency_chain() == ["hypervclock"]
+        assert self._timer(x) == "yes"
+
+    def test_a_timer_declared_absent_is_turned_on(self):
+        x = self._dom(
+            "<clock offset='utc'><timer name='hypervclock' present='no'/></clock>"
+        )
+        assert x.fix_hyperv_dependency_chain() == ["hypervclock"]
+        assert len(x.tree.xpath("/domain/clock/timer[@name='hypervclock']")) == 1
+
+    def test_a_clock_that_already_has_it_is_untouched(self):
+        x = self._dom(
+            "<clock offset='utc'><timer name='hypervclock' present='yes'/></clock>"
+        )
+        assert x.fix_hyperv_dependency_chain() == []
+
+    def test_no_stimer_means_no_timer_is_added(self):
+        """Nothing needs it, so we must not add it."""
+        x = self._dom("<clock offset='utc'/>", stimer="off")
+        assert "hypervclock" not in x.fix_hyperv_dependency_chain()
+        assert self._timer(x) is None
+
+    def test_a_domain_with_no_clock_section_does_not_raise(self):
+        x = DomainXML(
+            "<domain type='kvm'><features><hyperv>"
+            "<synic state='on'/><stimer state='on'/><vpindex state='on'/>"
+            "</hyperv></features></domain>"
+        )
+        assert x.fix_hyperv_dependency_chain() == []
