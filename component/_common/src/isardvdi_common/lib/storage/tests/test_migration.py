@@ -465,6 +465,51 @@ def test_split_moving_subtrees_keeps_one_tree_when_the_root_moves():
     assert groups == {"r": ["r", "a", "a1"]}
 
 
+# stranded_by_selection — the (parent, child) pairs the caller refuses on
+def test_stranded_by_selection_flags_a_child_left_backing_a_moved_parent():
+    """A parent that moves while a derivative stays behind breaks that
+    derivative's backing chain; every such pair is what the caller refuses on."""
+    order = ["tpl", "d1", "d2"]
+    parents = {"d1": "tpl", "d2": "tpl"}
+    stranded = mig.stranded_by_selection(
+        order, lambda n: parents.get(n), lambda n: n == "tpl"  # only the parent moves
+    )
+    assert stranded == [("tpl", "d1"), ("tpl", "d2")]
+
+
+def test_stranded_by_selection_allows_a_child_that_moves_onto_a_parent_that_stays():
+    """The safe direction: the leaf moves and rebases onto its still-present
+    parent, so nothing is stranded."""
+    order = ["tpl", "d1"]
+    parents = {"d1": "tpl"}
+    assert (
+        mig.stranded_by_selection(order, lambda n: parents.get(n), lambda n: n == "d1")
+        == []
+    )
+
+
+def test_stranded_by_selection_is_empty_when_the_whole_subtree_moves():
+    order = ["tpl", "d1", "d2"]
+    parents = {"d1": "tpl", "d2": "tpl"}
+    assert (
+        mig.stranded_by_selection(order, lambda n: parents.get(n), lambda n: True) == []
+    )
+
+
+def test_stranded_by_selection_never_probes_the_move_of_a_rootless_node():
+    """A node whose parent is outside the walk (``None``) can strand nobody by
+    staying, and its parent's move must not even be consulted."""
+    order = ["tpl", "d1"]
+    parents = {"d1": "tpl"}  # tpl's parent is absent from the map -> None
+
+    def moves(n):
+        if n is None:
+            raise AssertionError("consulted the move of a None parent")
+        return False  # nothing moves
+
+    assert mig.stranded_by_selection(order, lambda n: parents.get(n), moves) == []
+
+
 def test_item_kinds_empty_is_exactly_todays_plan(monkeypatch):
     """Backward compatibility is the contract: absent or empty must build the
     identical plan, item for item."""
