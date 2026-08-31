@@ -17,7 +17,8 @@ import importlib.util
 import sys
 import types
 from pathlib import Path
-from unittest.mock import patch
+from subprocess import CalledProcessError
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -34,6 +35,25 @@ def _entry(entry_id, address, allowed, extra_nets=None):
             "wireguard": {"Address": address, "extra_client_nets": extra_nets},
         },
     }
+
+
+def _iptables_mock():
+    """A check_output stand-in that reports every rule as absent.
+
+    The append path asks ``iptables -C`` first once it is idempotent, and a bare
+    mock answers that successfully — so the guard concludes the rule is already
+    there and never appends. Raising for ``-C`` keeps these asserting on the
+    adds and removes they are about.
+    """
+    mock = MagicMock()
+
+    def _run(argv, *args, **kwargs):
+        if "-C" in argv:
+            raise CalledProcessError(1, argv)
+        return b""
+
+    mock.side_effect = _run
+    return mock
 
 
 @pytest.fixture()
@@ -91,7 +111,7 @@ class TestTeardownCoversRevokedEntries:
 
         with patch.object(
             uipt, "get_all_remotevpn", return_value=[revoked, still_ok]
-        ), patch.object(simple_iptools, "check_output") as run:
+        ), patch.object(simple_iptools, "check_output", _iptables_mock()) as run:
             uipt.remove_remote_vpn(user, "192.168.1.10")
 
         # The revoked entry is exactly the one the old teardown skipped.
@@ -119,7 +139,7 @@ class TestTeardownCoversRevokedEntries:
 
         with patch.object(
             uipt, "get_all_remotevpn", return_value=[entry]
-        ), patch.object(simple_iptools, "check_output") as run:
+        ), patch.object(simple_iptools, "check_output", _iptables_mock()) as run:
             uipt.remove_remote_vpn({"id": "alice"}, "192.168.1.10")
 
         assert set(_peers(run.mock_calls, "-D", "192.168.1.10")) == {
@@ -212,7 +232,7 @@ class TestRefreshRemotevpnAllowed:
         self._patch_db(simple_iptools, monkeypatch, desktops, users)
         entry = _entry("vpn1", "10.9.0.5/32", {"users": ["bob"]})
 
-        with patch.object(simple_iptools, "check_output") as run:
+        with patch.object(simple_iptools, "check_output", _iptables_mock()) as run:
             uipt.refresh_remotevpn_allowed(entry)
 
         # Both desktops are cleaned first, in both directions, so the operation
@@ -237,7 +257,7 @@ class TestRefreshRemotevpnAllowed:
         }
         self._patch_db(simple_iptools, monkeypatch, desktops, users)
 
-        with patch.object(simple_iptools, "check_output") as run:
+        with patch.object(simple_iptools, "check_output", _iptables_mock()) as run:
             uipt.refresh_remotevpn_allowed(_entry("v", "10.9.0.5/32", {"users": []}))
 
         run.assert_not_called()
@@ -277,7 +297,7 @@ class TestRefreshRemotevpnAllowed:
 
         monkeypatch.setattr(simple_iptools.r, "table", table)
 
-        with patch.object(simple_iptools, "check_output"):
+        with patch.object(simple_iptools, "check_output", _iptables_mock()):
             uipt.refresh_remotevpn_allowed(_entry("v", "10.9.0.5/32", {"users": []}))
 
         assert reads == ["alice"]
