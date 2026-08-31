@@ -16,6 +16,8 @@ bypass-selection = true
 [dependency-groups]
 test = [
   "pytest",
+  "redis",
+  "rq",
   "python-socketio[client]==5.16.3",
   "requests==2.34.2",
   "websocket-client==1.9.0",

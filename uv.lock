@@ -1489,7 +1489,9 @@ dependencies = [
 test = [
     { name = "pytest" },
     { name = "python-socketio", extra = ["client"] },
+    { name = "redis" },
     { name = "requests" },
+    { name = "rq" },
     { name = "websocket-client" },
 ]
 
@@ -1500,7 +1502,9 @@ requires-dist = [{ name = "rethinkdb", specifier = "==2.4.10.post1" }]
 test = [
     { name = "pytest" },
     { name = "python-socketio", extras = ["client"], specifier = "==5.16.3" },
+    { name = "redis" },
     { name = "requests", specifier = "==2.34.2" },
+    { name = "rq" },
     { name = "websocket-client", specifier = "==1.9.0" },
 ]
 
