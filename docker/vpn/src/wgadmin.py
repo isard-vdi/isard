@@ -207,6 +207,18 @@ def _process_vpn_change(change, wg_users, wg_hypers):
                     if old_val["table"] in ["users", "remotevpn"]:
                         wg_users.set_iptables(new_val)
 
+                # Permissions are evaluated when a desktop starts and nowhere
+                # else, so without this a withdrawn one kept working until the
+                # desktop stopped.
+                if old_val["table"] == "remotevpn" and old_val.get(
+                    "allowed"
+                ) != new_val.get("allowed"):
+                    log.info(
+                        f"Modified allowed on remotevpn item {new_val['id']}, "
+                        "re-evaluating running desktops..."
+                    )
+                    wg_users.refresh_remotevpn_allowed(new_val)
+
             elif old_val["table"] == "domains":
                 wg_users.desktop_iptables({"old_val": old_val, "new_val": new_val})
 

@@ -221,80 +221,38 @@ class UserIpTools(object):
 
     ## Remote vpn host (for external server access to desktops)
     def apply_remote_vpn(self, user, desktop_ip):
-        for extra_alloweds in self.get_extra_alloweds(user):
-            remotevpn_addr = extra_alloweds["vpn"]["wireguard"]["Address"]
-
-            check_output(
-                (
-                    "/sbin/iptables",
-                    "-A",
-                    "FORWARD",
-                    "-s",
-                    desktop_ip,
-                    "-d",
-                    remotevpn_addr,
-                    "-j",
-                    "ACCEPT",
-                )
-            )
-            check_output(
-                (
-                    "/sbin/iptables",
-                    "-A",
-                    "FORWARD",
-                    "-d",
-                    desktop_ip,
-                    "-s",
-                    remotevpn_addr,
-                    "-j",
-                    "ACCEPT",
-                )
-            )
-
-            if extra_alloweds["vpn"]["wireguard"]["extra_client_nets"]:
-                for extra_addr in extra_alloweds["vpn"]["wireguard"][
-                    "extra_client_nets"
-                ].split(","):
-                    check_output(
-                        (
-                            "/sbin/iptables",
-                            "-A",
-                            "FORWARD",
-                            "-s",
-                            desktop_ip,
-                            "-d",
-                            extra_addr,
-                            "-j",
-                            "ACCEPT",
-                        )
-                    )
-                    check_output(
-                        (
-                            "/sbin/iptables",
-                            "-A",
-                            "FORWARD",
-                            "-d",
-                            desktop_ip,
-                            "-s",
-                            extra_addr,
-                            "-j",
-                            "ACCEPT",
-                        )
-                    )
+        self._add_remotevpn_rules(self.get_extra_alloweds(user), desktop_ip)
 
     def remove_remote_vpn(self, user, desktop_ip):
-        for extra_alloweds in self.get_extra_alloweds(user):
-            remotevpn_addr = extra_alloweds["vpn"]["wireguard"]["Address"]
-            try:
+        # Every entry, not only the ones the user may still reach: a permission
+        # revoked while the desktop ran leaves a rule nothing else ever removes.
+        self._remove_remotevpn_rules(self.get_all_remotevpn(), desktop_ip)
+
+    @staticmethod
+    def _remotevpn_addrs(entry):
+        """Every address a remotevpn entry reaches: its own plus extra_client_nets."""
+        wireguard = ((entry or {}).get("vpn") or {}).get("wireguard") or {}
+        address = wireguard.get("Address")
+        if not address:
+            return []
+        addrs = [address]
+        extra = wireguard.get("extra_client_nets")
+        if extra:
+            addrs += extra.split(",")
+        return addrs
+
+    def _add_remotevpn_rules(self, entries, desktop_ip):
+        for entry in entries:
+            for addr in self._remotevpn_addrs(entry):
                 check_output(
                     (
                         "/sbin/iptables",
-                        "-D",
+                        "-A",
                         "FORWARD",
                         "-s",
                         desktop_ip,
                         "-d",
-                        remotevpn_addr,
+                        addr,
                         "-j",
                         "ACCEPT",
                     )
@@ -302,90 +260,97 @@ class UserIpTools(object):
                 check_output(
                     (
                         "/sbin/iptables",
-                        "-D",
+                        "-A",
                         "FORWARD",
                         "-d",
                         desktop_ip,
                         "-s",
-                        remotevpn_addr,
+                        addr,
                         "-j",
                         "ACCEPT",
                     )
                 )
-            except:
-                pass
-                # It does not exist
-            if extra_alloweds["vpn"]["wireguard"]["extra_client_nets"]:
-                for extra_addr in extra_alloweds["vpn"]["wireguard"][
-                    "extra_client_nets"
-                ].split(","):
+
+    def _remove_remotevpn_rules(self, entries, desktop_ip):
+        for entry in entries:
+            for addr in self._remotevpn_addrs(entry):
+                for direction in (
+                    ("-s", desktop_ip, "-d", addr),
+                    ("-d", desktop_ip, "-s", addr),
+                ):
                     try:
                         check_output(
-                            (
-                                "/sbin/iptables",
-                                "-D",
-                                "FORWARD",
-                                "-s",
-                                desktop_ip,
-                                "-d",
-                                extra_addr,
-                                "-j",
-                                "ACCEPT",
-                            )
+                            ("/sbin/iptables", "-D", "FORWARD")
+                            + direction
+                            + ("-j", "ACCEPT")
                         )
-                        check_output(
-                            (
-                                "/sbin/iptables",
-                                "-D",
-                                "FORWARD",
-                                "-d",
-                                desktop_ip,
-                                "-s",
-                                extra_addr,
-                                "-j",
-                                "ACCEPT",
-                            )
-                        )
-                    except:
+                    except Exception:
                         pass
 
-    def get_extra_alloweds(self, user, table="remotevpn"):
+    @staticmethod
+    def is_allowed_remotevpn(user, entry):
+        """Whether ``user`` may reach one remotevpn entry.
+
+        Per level, False means "do not check this one" and an empty list means
+        "everybody". Roles are checked first and users last; a level that does
+        not match falls through to the next.
+        """
+        allowed = entry.get("allowed") or {}
+        levels = (
+            ("roles", [user.get("role")]),
+            ("categories", [user.get("category")]),
+            ("groups", [user.get("group")] + list(user.get("secondary_groups") or [])),
+            ("users", [user.get("id")]),
+        )
+        for level, held in levels:
+            configured = allowed.get(level)
+            if configured is False:
+                continue
+            if not configured:
+                return True
+            if any(value in configured for value in held if value is not None):
+                return True
+        return False
+
+    def get_all_remotevpn(self, table="remotevpn"):
         with vpn_rethink_conn() as conn:
-            data = list(r.table(table).run(conn))
-        allowed_data = []
-        for d in data:
-            # False doesn't check, [] means all allowed
-            # Role is the master and user the least. If allowed in roles,
-            #   won't check categories, groups, users
-            allowed = d["allowed"]
-            if d["allowed"]["roles"] != False:
-                if not d["allowed"]["roles"]:  # Len != 0
-                    allowed_data.append(d)
-                    continue
-                if user["role"] in d["allowed"]["roles"]:
-                    allowed_data.append(d)
-                    continue
-            if d["allowed"]["categories"] != False:
-                if not d["allowed"]["categories"]:
-                    allowed_data.append(d)
-                    continue
-                if user["category"] in d["allowed"]["categories"]:
-                    allowed_data.append(d)
-                    continue
-            if d["allowed"]["groups"] != False:
-                if not d["allowed"]["groups"]:
-                    allowed_data.append(d)
-                    continue
-                if user["group"] in d["allowed"]["groups"]:
-                    allowed_data.append(d)
-                    continue
-            if d["allowed"]["users"] != False:
-                if not d["allowed"]["users"]:
-                    allowed_data.append(d)
-                    continue
-                if user["id"] in d["allowed"]["users"]:
-                    allowed_data.append(d)
-        return allowed_data
+            return list(r.table(table).run(conn))
+
+    def get_extra_alloweds(self, user, table="remotevpn"):
+        return [
+            entry
+            for entry in self.get_all_remotevpn(table)
+            if self.is_allowed_remotevpn(user, entry)
+        ]
+
+    def refresh_remotevpn_allowed(self, entry):
+        """Re-apply one remotevpn entry's rules over every running desktop.
+
+        Nothing reacted to ``allowed`` changing, so a withdrawn permission kept
+        working until the desktop stopped. Removing before adding makes it
+        idempotent whichever way the permission moved.
+        """
+        with vpn_rethink_conn() as conn:
+            desktops = list(
+                r.table("domains")
+                .get_all("Started", index="status")
+                .pluck("id", "user", {"viewer": "guest_ip"})
+                .run(conn)
+            )
+            users = {}
+            for desktop in desktops:
+                user_id = desktop.get("user")
+                if user_id and user_id not in users:
+                    users[user_id] = r.table("users").get(user_id).run(conn)
+
+        for desktop in desktops:
+            guest_ip = (desktop.get("viewer") or {}).get("guest_ip")
+            user = users.get(desktop.get("user"))
+            if not guest_ip or not user:
+                continue
+            self._remove_remotevpn_rules([entry], guest_ip)
+            if self.is_allowed_remotevpn(user, entry):
+                self._add_remotevpn_rules([entry], guest_ip)
 
     def remove_matching_rules(self, peer):
         try:
