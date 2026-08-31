@@ -1368,7 +1368,7 @@
           "info": "Información",
           "recreate": "Recrear",
           "template": "Convertir en plantilla",
-          "storage": "Almacenamiento",
+          "advanced-options": "Opciones avanzadas",
           "reset": "Reiniciar",
           "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",
           "networks": "Redes"
@@ -1518,10 +1518,20 @@
           }
         }
       },
+      "advanced-options-modal": {
+        "title": "Opciones avanzadas",
+        "options": {
+          "storage": {
+            "label": "Almacenamiento",
+            "description": "Discos de almacenamiento asociados a este escritorio. Las acciones están disponibles mientras el escritorio está parado."
+          }
+        },
+        "error": {
+          "title": "La acción ha fallado",
+          "close": "Cerrar"
+        }
+      },
       "desktop-storage-modal": {
-        "title": "Almacenamiento — {name}",
-        "description": "Discos de almacenamiento asociados a este escritorio. Las acciones están disponibles mientras el escritorio está parado.",
-        "close": "Cerrar",
         "no-storages": "Este escritorio no tiene almacenamiento asociado.",
         "load-error": "No se han podido cargar los datos del almacenamiento.",
         "virtual-size": "Tamaño virtual",
@@ -1563,10 +1573,6 @@
           "dismiss": "Cancelar",
           "confirm": "Aumentar",
           "fallback-error": "No se ha podido aumentar el tamaño del disco."
-        },
-        "error": {
-          "title": "La acción de almacenamiento ha fallado",
-          "close": "Cerrar"
         }
       },
       "direct-viewer-modal": {

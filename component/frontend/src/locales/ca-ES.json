@@ -1368,7 +1368,7 @@
           "info": "Informació",
           "recreate": "Recrea",
           "template": "Converteix en plantilla",
-          "storage": "Emmagatzematge",
+          "advanced-options": "Opcions avançades",
           "reset": "Reinicia",
           "bastion-access": "Accés pel bastió (HTTP / HTTPS / SSH)",
           "networks": "Xarxes"
@@ -1518,10 +1518,20 @@
           }
         }
       },
+      "advanced-options-modal": {
+        "title": "Opcions avançades",
+        "options": {
+          "storage": {
+            "label": "Emmagatzematge",
+            "description": "Discs d'emmagatzematge associats a aquest escriptori. Les accions estan disponibles mentre l'escriptori està aturat."
+          }
+        },
+        "error": {
+          "title": "L'acció ha fallat",
+          "close": "Tanca"
+        }
+      },
       "desktop-storage-modal": {
-        "title": "Emmagatzematge — {name}",
-        "description": "Discs d'emmagatzematge associats a aquest escriptori. Les accions estan disponibles mentre l'escriptori està aturat.",
-        "close": "Tanca",
         "no-storages": "Aquest escriptori no té emmagatzematge associat.",
         "load-error": "No s'han pogut carregar les dades de l'emmagatzematge.",
         "virtual-size": "Mida virtual",
@@ -1563,10 +1573,6 @@
           "dismiss": "Cancel·la",
           "confirm": "Augmenta",
           "fallback-error": "No s'ha pogut augmentar la mida del disc."
-        },
-        "error": {
-          "title": "L'acció d'emmagatzematge ha fallat",
-          "close": "Tanca"
         }
       },
       "direct-viewer-modal": {

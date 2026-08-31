@@ -50,10 +50,10 @@ const emit = defineEmits<{
           size="sm"
           class="mr-2 w-full justify-start"
           hierarchy="link-gray"
-          icon="hard-drive"
+          icon="settings-02"
           icon-size="md"
         >
-          {{ t('components.desktops.desktop-card.actions.storage') }}
+          {{ t('components.desktops.desktop-card.actions.advanced-options') }}
         </Button>
       </DropdownMenuItem>
       <DropdownMenuItem @click="emit('createTemplate')">

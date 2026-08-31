@@ -2023,7 +2023,7 @@
           "networks": "Networks",
           "direct-link": "Direct Link",
           "recreate": "Recreate",
-          "storage": "Storage",
+          "advanced-options": "Advanced options",
           "reset": "Reset"
         },
         "overlay": {
@@ -2156,10 +2156,20 @@
           "copy-id": "Copy Desktop ID"
         }
       },
+      "advanced-options-modal": {
+        "title": "Advanced options",
+        "options": {
+          "storage": {
+            "label": "Storage",
+            "description": "Storage disks attached to this desktop. Actions are available while the desktop is stopped."
+          }
+        },
+        "error": {
+          "title": "Action failed",
+          "close": "Dismiss"
+        }
+      },
       "desktop-storage-modal": {
-        "title": "Storage — {name}",
-        "description": "Storage disks attached to this desktop. Actions are available while the desktop is stopped.",
-        "close": "Close",
         "no-storages": "This desktop has no storage attached.",
         "load-error": "Could not load storage details.",
         "virtual-size": "Virtual size",
@@ -2201,10 +2211,6 @@
           "dismiss": "Cancel",
           "confirm": "Increase",
           "fallback-error": "Could not increase the disk size."
-        },
-        "error": {
-          "title": "Storage action failed",
-          "close": "Dismiss"
         }
       },
       "quota-exceeded-modal": {
