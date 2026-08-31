@@ -229,8 +229,18 @@ class MigrationRunner:
         key = get_queue_from_storage_pools(src_pool, self.dst_pool)
         return queue_tiers.retier_queue(f"storage.{key}.{DEFAULT_PRIORITY}", "move")
 
-    def _pool_queue(self, path):
-        return f"storage.{self._pool_of(path).id}.{DEFAULT_PRIORITY}"
+    def _pool_queue(self, path, action):
+        """Single-pool lane for this disk, tiered by the tier RULES.
+
+        Same reasoning as :meth:`_move_queue`, for the steps that stay inside one
+        pool. ``action`` is not optional: every task this runner enqueues has a
+        hard floor, and hand-building the tier here left rebase and verify on
+        ``default`` -- a lane that is neither fair-scheduled nor PSI-deferred --
+        while the release's ``move_delete`` skipped the reclaim floor entirely.
+        """
+        return queue_tiers.retier_queue(
+            f"storage.{self._pool_of(path).id}.{DEFAULT_PRIORITY}", action
+        )
 
     def _pool_of(self, path):
         pools = StoragePool.get_by_path(dirname(path))
@@ -822,7 +832,7 @@ class MigrationRunner:
     def _start_rebase(self, item):
         # Before the claim, so a deferred tick leaves no fence behind and charges
         # no abandon.
-        queue = self._pool_queue(item["dst_path"])
+        queue = self._pool_queue(item["dst_path"], "rebase")
         if not self.lane_is_drainable(Task._redis, queue):
             log.warning(
                 "migration %s: no consumer for %s, deferring %s of %s",
@@ -901,7 +911,7 @@ class MigrationRunner:
         # expectation; a non-root must back onto parent_dst_path.
         # Before the claim, so a deferred tick leaves no fence behind and charges
         # no abandon.
-        queue = self._pool_queue(item["dst_path"])
+        queue = self._pool_queue(item["dst_path"], "migration_verify_destination")
         if not self.lane_is_drainable(Task._redis, queue):
             log.warning(
                 "migration %s: no consumer for %s, deferring %s of %s",
@@ -959,10 +969,7 @@ class MigrationRunner:
         # Restore the storage to its ORIGINAL status (saga-5: not hardcoded
         # "ready"), then delete the source LAST.
         self._restore_storage_status(item)
-        # Retier here, not in _pool_queue: its other callers have no tier floor.
-        queue = queue_tiers.retier_queue(
-            self._pool_queue(item["src_path"]), "move_delete"
-        )
+        queue = self._pool_queue(item["src_path"], "move_delete")
         if not self.lane_is_drainable(Task._redis, queue):
             # Mark, never defer: the tree is already committed, and holding the
             # release hostage to a pool outage would keep its desktops down.
