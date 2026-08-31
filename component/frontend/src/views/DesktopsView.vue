@@ -135,6 +135,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { toast } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ViewerSelect } from '@/components/viewer-select'
 import { AbortStorageOperationModal } from '@/components/AbortStorageOperationModal'
@@ -746,7 +747,7 @@ const startNowForm = useForm({
       desktopStart({ path: { desktop_id: startNowModalDesktopData.value!.id } })
       closeStartNowModal()
     } catch (bookingError) {
-      console.error('Error creating booking event:', bookingError)
+      toast.error(describeApiError(bookingError, { t, te }, 'booking'))
     }
   }
 })
