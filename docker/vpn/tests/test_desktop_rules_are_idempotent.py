@@ -9,6 +9,7 @@ keeps the rules, not against a mock that only remembers the calls.
 """
 from __future__ import annotations
 
+from contextlib import ExitStack
 from unittest.mock import patch
 
 import pytest
@@ -39,9 +40,15 @@ class _FakeR:
 def uipt(simple_iptools, fake_iptables):
     # Skip __init__: it shells out to iptables and reaches the database.
     instance = simple_iptools.UserIpTools.__new__(simple_iptools.UserIpTools)
-    with patch.object(simple_iptools, "check_output", fake_iptables), patch.object(
-        simple_iptools, "r", _FakeR(USER)
-    ), patch.object(instance, "get_extra_alloweds", return_value=[]):
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(simple_iptools, "check_output", fake_iptables))
+        stack.enter_context(patch.object(simple_iptools, "r", _FakeR(USER)))
+        # Both names: the teardown reads every entry rather than the reachable
+        # ones once permission revocation lands, and this fixture must stub
+        # whichever lookup the module in front of it actually has.
+        for name in ("get_extra_alloweds", "get_all_remotevpn"):
+            if hasattr(instance, name):
+                stack.enter_context(patch.object(instance, name, return_value=[]))
         yield instance
 
 
