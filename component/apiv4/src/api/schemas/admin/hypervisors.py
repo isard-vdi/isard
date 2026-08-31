@@ -84,6 +84,13 @@ class AdminHypervisorEnableData(BaseModel):
 
     enabled: bool = True
     numa_topology: Optional[Dict[str, Any]] = None
+    # What this host's emulator will accept as <os><type machine="...">.
+    # ``{"machines": [...], "aliases": {...}, "reason": "ok"}``. qemu drops old
+    # machine types between majors, so the answer belongs to the hypervisor the
+    # domain lands on, not to the database -- during a rolling upgrade two
+    # hypervisors in one installation disagree. An empty ``machines`` means the
+    # hypervisor could not tell us, NEVER that it supports nothing.
+    machine_types: Optional[Dict[str, Any]] = None
 
 
 # ── Hypervisor Internal (hyper-to-api) ───────────────────────────────────

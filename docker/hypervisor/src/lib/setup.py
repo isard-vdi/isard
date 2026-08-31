@@ -27,9 +27,11 @@ def strtobool(val):
 from gpu_discovery import (
     discover_gpus,
     discover_hugepages,
+    discover_machine_types,
     discover_numa_topology,
     discover_pci_devices,
     ensure_sriov_vfs,
+    machine_types_report_is_usable,
 )
 from isardvdi_apiv4_client.api.role_admin import (
     admin_hypervisor_create,
@@ -41,7 +43,6 @@ from isardvdi_apiv4_client.models import (
     AdminGpuAppliedRequest,
     AdminHypervisorCreateData,
     AdminHypervisorEnableData,
-    AdminHypervisorEnableDataNumaTopologyType0,
 )
 from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 from progress import report_progress
@@ -448,49 +449,77 @@ def DeleteHypervisor():
         return False
 
 
-def _refresh_numa_topology_with_libvirt():
-    """Re-run NUMA discovery now that libvirtd is up and publish to the API.
+def _publish_libvirt_host_facts():
+    """Publish the host facts that only libvirt can answer, at enable time.
 
-    SetupHypervisor() runs before libvirtd starts, so its numa_topology is
-    sysfs-only with libvirt_numa_ok=False. This runs at enable time and
-    publishes the validated topology (libvirt_numa_ok=True when libvirt's
-    NUMA view matches sysfs, False otherwise — engine gates <numatune> on
-    that flag).
+    Two of them, both needing libvirtd up and therefore neither available to
+    SetupHypervisor(), which runs before it starts:
+
+    * ``numa_topology`` — SetupHypervisor()'s copy is sysfs-only with
+      ``libvirt_numa_ok=False``. This publishes the validated one (True when
+      libvirt's NUMA view matches sysfs; the engine gates <numatune> on it).
+    * ``machine_types`` — what this host's emulator accepts as
+      ``<os><type machine="...">``. qemu removes machine types between majors,
+      and the answer belongs to the hypervisor the domain lands on: during a
+      rolling upgrade two hypervisors in one installation disagree, so the
+      engine cannot derive it from anything global.
+
+    Both ride the same enable call. Either failing must not stop the
+    hypervisor coming Online, so each is gathered defensively and the whole
+    publish is best-effort.
     """
     try:
         topo = discover_numa_topology(probe_libvirt=True)
     except Exception as e:
-        print(f"NUMA refresh: discovery failed: {e}")
-        return
-    if not topo:
+        print(f"host facts: NUMA discovery failed: {e}")
+        topo = None
+    try:
+        machines = discover_machine_types()
+    except Exception as e:
+        print(f"host facts: machine type discovery failed: {e}")
+        machines = None
+    # A failed probe is a populated dict with an empty list, so it is truthy,
+    # and the store replaces the subdocument wholesale.
+    if machines and not machine_types_report_is_usable(machines):
+        print(
+            f"host facts: machine types unknown (reason={machines.get('reason')}); "
+            "keeping whatever is already stored"
+        )
+        machines = None
+    if not topo and not machines:
         return
     hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
     try:
-        # The generated client's ``AdminHypervisorEnableData.to_dict``
-        # calls ``self.numa_topology.to_dict()``, so passing a raw dict
-        # raises ``AttributeError: 'dict' object has no attribute
-        # 'to_dict'``. Wrap via the typed helper that the codegen
-        # produced from the same OpenAPI schema.
-        numa_topology = AdminHypervisorEnableDataNumaTopologyType0.from_dict(topo)
+        # from_dict, not the constructor: it parses each field itself, and a
+        # client older than a field still sends it via additional_properties.
+        body = {"enabled": True}
+        if topo:
+            body["numa_topology"] = topo
+        if machines:
+            body["machine_types"] = machines
         with build_client("isard-hypervisor", role="hypervisor") as client:
             resp = admin_hypervisor_enable.sync_detailed(
                 client=client,
                 hyper_id=hyper_id,
-                body=AdminHypervisorEnableData(
-                    enabled=True, numa_topology=numa_topology
-                ),
+                body=AdminHypervisorEnableData.from_dict(body),
             )
             raise_for_status(resp)
-        print(
-            f"NUMA refresh: libvirt_numa_ok={topo.get('libvirt_numa_ok')} "
-            f"reason={topo.get('reason')} nodes={list(topo.get('nodes', {}).keys())}"
-        )
+        if topo:
+            print(
+                f"host facts: libvirt_numa_ok={topo.get('libvirt_numa_ok')} "
+                f"reason={topo.get('reason')} nodes={list(topo.get('nodes', {}).keys())}"
+            )
+        if machines:
+            print(
+                f"host facts: {len(machines.get('machines', []))} machine types "
+                f"accepted (reason={machines.get('reason')})"
+            )
     except Exception as e:
-        print(f"NUMA refresh: failed to update hypervisor record: {e}")
+        print(f"host facts: failed to update hypervisor record: {e}")
 
 
 def EnableHypervisor():
-    _refresh_numa_topology_with_libvirt()
+    _publish_libvirt_host_facts()
     return _set_enabled(True)
 
 

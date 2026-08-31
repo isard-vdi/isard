@@ -8,6 +8,7 @@ import gzip
 import json
 import logging
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -2046,6 +2047,94 @@ def _get_libvirt_capabilities_xml():
     except Exception as e:
         log.warning("NUMA: virsh capabilities failed: %s", e)
         return None
+
+
+def discover_machine_types():
+    """List the machine types this host's emulator accepts, for the API to store.
+
+    qemu drops old machine types as it moves: qemu 10 went from
+    ``pc-i440fx-2.4`` up, qemu 11 starts at ``pc-i440fx-5.1``. A domain whose
+    XML pins one the emulator no longer knows fails to define, with
+
+        unsupported configuration: Emulator '/usr/bin/qemu-kvm'
+        does not support machine type 'pc-i440fx-2.8'
+
+    and nothing notices until somebody presses start. The engine cannot answer
+    "will this boot here?" from the database, because the answer belongs to the
+    hypervisor the domain lands on -- and during a rolling upgrade two of them
+    in the same installation give different answers. So the hypervisor reports
+    what it accepts and the row carries it, the same way ``numa_topology`` and
+    the GPU inventory already do.
+
+    Returns:
+        dict: {
+            "machines": ["pc-i440fx-5.1", "pc-q35-6.1", ...],   # sorted
+            "aliases": {"pc": "pc-i440fx-10.0", "q35": "pc-q35-10.0"},
+            "reason": "ok" | "libvirt_unreachable" | "no_kvm_domain" | "parse_error",
+        }
+        ``machines`` empty means the caller must not draw any conclusion --
+        an empty list is "we do not know", never "nothing is supported".
+    """
+    xml = _get_libvirt_capabilities_xml()
+    if not xml:
+        log.warning("machine types: libvirt capabilities unavailable")
+        return {"machines": [], "aliases": {}, "reason": "libvirt_unreachable"}
+
+    # Stdlib xml.etree — the hypervisor image does not ship lxml.
+    import xml.etree.ElementTree as ET  # noqa: PLC0415
+
+    try:
+        tree = ET.fromstring(xml)
+    except Exception as e:
+        log.warning("machine types: capabilities did not parse: %s", e)
+        return {"machines": [], "aliases": {}, "reason": "parse_error"}
+
+    machines = set()
+    aliases = {}
+    # Every <guest> that can run kvm on this arch; a host may publish more
+    # than one <guest> block for the same arch (e.g. i440fx and q35 emulators).
+    for guest in tree.findall("./guest"):
+        arch = guest.find("./arch")
+        if arch is None or arch.get("name") != platform.machine():
+            continue
+        if arch.find('./domain[@type="kvm"]') is None:
+            continue
+        for node in arch.findall("./machine"):
+            name = (node.text or "").strip()
+            if not name:
+                continue
+            canonical = node.get("canonical")
+            if canonical:
+                # An alias ("pc", "q35"): record where it points, and do not
+                # offer the alias itself as a normalisation target -- it moves
+                # under our feet on the next qemu.
+                aliases[name] = canonical
+            else:
+                machines.add(name)
+
+    if not machines:
+        log.warning("machine types: no kvm machines in capabilities")
+        return {"machines": [], "aliases": aliases, "reason": "no_kvm_domain"}
+
+    log.info("machine types: %d accepted, aliases=%s", len(machines), sorted(aliases))
+    return {"machines": sorted(machines), "aliases": aliases, "reason": "ok"}
+
+
+def machine_types_report_is_usable(report):
+    """True when a machine-type report actually answers the question.
+
+    ``discover_machine_types`` never returns a falsy value: an unreachable
+    libvirt, an unparseable document and a host with no kvm guest all come back
+    as a POPULATED three-key dict whose ``machines`` is empty. So ``if report:``
+    cannot tell an answer from a failure, and every consumer that tests the dict
+    instead of the list treats "we could not ask" as "here is the list".
+
+    That distinction is the whole safety property of this feature. The store
+    replaces the subdocument wholesale, and the engine reads an empty list as
+    "do not touch" -- so publishing a failed probe replaces a good list with
+    nothing and silently switches the correction off.
+    """
+    return bool((report or {}).get("machines"))
 
 
 def _probe_libvirt_numa_cells():

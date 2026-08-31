@@ -1300,3 +1300,135 @@ def test_discover_gpus_cycles_nvidia_bound_card(monkeypatch, tmp_path):
     gpus = discover_gpus()
     assert called["n"] == 1
     assert gpus[0]["vgpu_profiles"] == real_profiles
+
+
+# ── discover_machine_types ────────────────────────────────────────────────
+# The hypervisor reports what its emulator accepts so the engine can refuse a
+# machine type before libvirt does: qemu 11 dropped everything
+# below pc-i440fx-5.1 and left 179 domains unable to start on one install.
+
+_CAPS = """<capabilities>
+  <host><cpu><arch>x86_64</arch></cpu></host>
+  <guest>
+    <os_type>hvm</os_type>
+    <arch name="x86_64">
+      <machine maxCpus="255">pc-i440fx-5.1</machine>
+      <machine canonical="pc-i440fx-10.0" maxCpus="255">pc</machine>
+      <machine maxCpus="255">pc-i440fx-10.0</machine>
+      <machine maxCpus="288">pc-q35-6.1</machine>
+      <machine canonical="pc-q35-10.0" maxCpus="288">q35</machine>
+      <machine maxCpus="288">pc-q35-10.0</machine>
+      <domain type="qemu"/>
+      <domain type="kvm"/>
+    </arch>
+  </guest>
+  <guest>
+    <os_type>hvm</os_type>
+    <arch name="aarch64">
+      <machine maxCpus="512">virt-10.0</machine>
+      <domain type="kvm"/>
+    </arch>
+  </guest>
+</capabilities>"""
+
+
+def _caps(monkeypatch, xml):
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_get_libvirt_capabilities_xml", lambda: xml)
+    monkeypatch.setattr(gd.platform, "machine", lambda: "x86_64")
+    return gd
+
+
+def test_machine_types_lists_what_the_emulator_accepts(monkeypatch):
+    gd = _caps(monkeypatch, _CAPS)
+    out = gd.discover_machine_types()
+    assert out["reason"] == "ok"
+    assert out["machines"] == [
+        "pc-i440fx-10.0",
+        "pc-i440fx-5.1",
+        "pc-q35-10.0",
+        "pc-q35-6.1",
+    ]
+
+
+def test_aliases_are_recorded_but_never_offered_as_a_target(monkeypatch):
+    """`pc` and `q35` move to whatever the next qemu decides, so they are not
+    something to normalise a pinned domain onto — but we keep where they point."""
+    gd = _caps(monkeypatch, _CAPS)
+    out = gd.discover_machine_types()
+    assert out["aliases"] == {"pc": "pc-i440fx-10.0", "q35": "pc-q35-10.0"}
+    assert "pc" not in out["machines"] and "q35" not in out["machines"]
+
+
+def test_another_arch_is_not_mixed_in(monkeypatch):
+    """The aarch64 guest block must not contribute virt-10.0 to an x86_64 host."""
+    gd = _caps(monkeypatch, _CAPS)
+    assert "virt-10.0" not in gd.discover_machine_types()["machines"]
+
+
+def test_a_guest_that_cannot_run_kvm_is_skipped(monkeypatch):
+    gd = _caps(
+        monkeypatch,
+        """<capabilities><guest><arch name="x86_64">
+             <machine>pc-i440fx-5.1</machine><domain type="qemu"/>
+           </arch></guest></capabilities>""",
+    )
+    out = gd.discover_machine_types()
+    assert out["machines"] == []
+    assert out["reason"] == "no_kvm_domain"
+
+
+def test_libvirt_unreachable_says_so_instead_of_claiming_nothing_is_supported(
+    monkeypatch,
+):
+    """An empty list must be readable as "we do not know". If it were taken as
+    "supports nothing", the engine would refuse to start every domain."""
+    gd = _caps(monkeypatch, None)
+    out = gd.discover_machine_types()
+    assert out == {"machines": [], "aliases": {}, "reason": "libvirt_unreachable"}
+
+
+def test_unparseable_capabilities_do_not_raise(monkeypatch):
+    """This runs during hypervisor setup; it must not take the boot down."""
+    gd = _caps(monkeypatch, "<capabilities><guest>")
+    assert gd.discover_machine_types()["reason"] == "parse_error"
+
+
+# ── machine_types_report_is_usable ────────────────────────────────────────
+# discover_machine_types never returns a falsy value, so every consumer has to
+# test the LIST, not the dict.
+
+
+def test_a_real_report_is_usable(monkeypatch):
+    gd = _caps(monkeypatch, _CAPS)
+    assert gd.machine_types_report_is_usable(gd.discover_machine_types()) is True
+
+
+@pytest.mark.parametrize(
+    "xml,reason",
+    [
+        (None, "libvirt_unreachable"),
+        ("<capabilities><guest>", "parse_error"),
+        (
+            '<capabilities><guest><arch name="x86_64">'
+            "<machine>pc-i440fx-5.1</machine>"
+            '<domain type="qemu"/></arch></guest></capabilities>',
+            "no_kvm_domain",
+        ),
+    ],
+)
+def test_every_failed_probe_is_refused(monkeypatch, xml, reason):
+    """All three failure shapes are TRUTHY dicts; only the list says no."""
+    gd = _caps(monkeypatch, xml)
+    report = gd.discover_machine_types()
+    assert report["reason"] == reason
+    assert bool(report) is True, "the dict is truthy -- that is the trap"
+    assert gd.machine_types_report_is_usable(report) is False
+
+
+def test_nothing_at_all_is_refused(monkeypatch):
+    gd = _caps(monkeypatch, _CAPS)
+    assert gd.machine_types_report_is_usable(None) is False
+    assert gd.machine_types_report_is_usable({}) is False
+    assert gd.machine_types_report_is_usable({"machines": []}) is False
