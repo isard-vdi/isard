@@ -2646,7 +2646,8 @@
       "search-placeholder": "Search",
       "not-found": "No results found",
       "more-results": "{count} more results, refine your search",
-      "remove": "Remove {name}"
+      "remove": "Remove {name}",
+      "more-selected": "{count} more selected: {items}"
     },
     "allowed-modal": {
       "title": "Manage users",

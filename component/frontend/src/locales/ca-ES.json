@@ -2615,7 +2615,8 @@
       "search-placeholder": "Cerca",
       "not-found": "No s'ha trobat cap resultat",
       "more-results": "{count} resultats més, afineu la cerca",
-      "remove": "Traieu {name}"
+      "remove": "Traieu {name}",
+      "more-selected": "{count} més seleccionats: {items}"
     },
     "allowed-modal": {
       "title": "Gestiona els usuaris",

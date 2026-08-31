@@ -14,6 +14,7 @@ import { useResizeObserver } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { selectTriggerVariants } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Icon } from '@/components/icon'
 import { cn } from '@/lib/utils'
 
@@ -120,7 +121,8 @@ const visibleChips = computed(() =>
     ? selectedTags.value
     : selectedTags.value.slice(0, props.maxVisibleTags)
 )
-const hiddenChipsCount = computed(() => selectedTags.value.length - visibleChips.value.length)
+const hiddenChips = computed(() => selectedTags.value.slice(visibleChips.value.length))
+const hiddenChipsLabel = computed(() => hiddenChips.value.map((tag) => tag.label).join(', '))
 
 const chipsRow = ref<HTMLElement | null>(null)
 const hasOverflow = ref(false)
@@ -217,9 +219,23 @@ function removeLastTag() {
                 <Icon name="x-close" size="sm" stroke-color="gray-warm-500" />
               </button>
             </span>
-            <span v-if="hiddenChipsCount > 0" class="shrink-0 text-sm text-gray-warm-500">
-              +{{ hiddenChipsCount }}
-            </span>
+            <Tooltip v-if="hiddenChips.length">
+              <TooltipTrigger as-child>
+                <span
+                  tabindex="0"
+                  class="shrink-0 flex items-center h-6 px-2 rounded-md bg-brand-100 text-sm text-gray-warm-900 cursor-help hover:bg-brand-200 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  :aria-label="
+                    t('components.searchable-tags.more-selected', {
+                      count: hiddenChips.length,
+                      items: hiddenChipsLabel
+                    })
+                  "
+                >
+                  +{{ hiddenChips.length }}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent :title="hiddenChipsLabel" />
+            </Tooltip>
           </div>
           <Icon
             name="chevron-down"

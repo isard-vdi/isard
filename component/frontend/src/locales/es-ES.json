@@ -2615,7 +2615,8 @@
       "search-placeholder": "Buscar",
       "not-found": "No se ha encontrado ningún resultado",
       "more-results": "{count} resultados más, afina tu búsqueda",
-      "remove": "Quitar {name}"
+      "remove": "Quitar {name}",
+      "more-selected": "{count} más seleccionados: {items}"
     },
     "allowed-modal": {
       "title": "Gestionar usuarios",
