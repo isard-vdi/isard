@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Functional tests for the storage-pool Space cell. The webapp admin JS has no
-// CI test harness yet, so run this directly:
-//
-//   docker run --rm -v "$PWD:/app" -w /app node:lts \
-//     node webapp/webapp/webapp/static/admin/js/tests/storage_pools_space.test.js
+// Functional tests for the storage-pool Space cell. Run by
+// `make ci-test-webapp-js`, or directly with `bun <this file>`.
 //
 // What matters here is what the cell REFUSES to say. On a thin pool the
 // filesystem free space is the pool's logical size, so an admin reading it

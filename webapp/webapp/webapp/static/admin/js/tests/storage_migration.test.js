@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Functional regression tests for the admin storage-migration JS. The webapp
-// admin JS has no CI test harness yet, so run this directly:
-//
-//   docker run --rm -v "$PWD:/app" -w /app node:lts \
-//     node webapp/webapp/webapp/static/admin/js/tests/storage_migration.test.js
+// Functional regression tests for the admin storage-migration JS. Run by
+// `make ci-test-webapp-js`, or directly with `bun <this file>`.
 //
 // Covered:
 //   * migEscape (guard-3): attribute-injection XSS — & < > " ' all escaped.
