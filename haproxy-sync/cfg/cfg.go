@@ -9,9 +9,10 @@ import (
 )
 
 type Cfg struct {
-	Log     cfg.Log
-	GRPC    cfg.GRPC
-	HAProxy HAProxy
+	Log       cfg.Log
+	GRPC      cfg.GRPC
+	HAProxy   HAProxy
+	CertWatch CertWatch `mapstructure:"cert_watch"`
 }
 
 type HAProxy struct {
@@ -41,6 +42,11 @@ type HAProxyBastion struct {
 	IndividualDomainsMap string `mapstructure:"individual_domains_map"`
 }
 
+type CertWatch struct {
+	// Interval is how often the certificates referenced by the crt-list are checked for changes.
+	Interval time.Duration `mapstructure:"interval"`
+}
+
 func New() Cfg {
 	config := &Cfg{}
 
@@ -66,5 +72,9 @@ func setDefaults() {
 			"subdomains_map":         "virt@subdomains",
 			"individual_domains_map": "virt@individual",
 		},
+	})
+
+	viper.SetDefault("cert_watch", map[string]any{
+		"interval": "60s",
 	})
 }

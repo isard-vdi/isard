@@ -90,6 +90,21 @@ prepare.sh
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting file monitoring for automatic reloads..."
 inotifyd haproxy-reload /usr/local/etc/haproxy/lists/black.lst:c /usr/local/etc/haproxy/lists/external/black.lst:c /usr/local/etc/haproxy/lists/white.lst:c &
 
+# Watch the certificates HAProxy serves and hot-update them when they change on disk.
+# inotify never fires for a certificate renewed on the server side of an NFS mount, so
+# the only portable way to notice it is to poll. CERT_WATCH=off disables it.
+if [ "$CERT_WATCH" != "off" ]; then
+        # Supervise cert-watch: it waits for the admin socket itself, and this
+        # loop restarts it if it ever exits.
+        (
+            while true; do
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting certificate watcher..."
+                cert-watch || echo "[$(date '+%Y-%m-%d %H:%M:%S')] cert-watch exited ($?), restarting in 1s..."
+                sleep 1
+            done
+        ) &
+fi
+
 
 # Load the ACME generated thumbprint (may not exist if ACME is not configured)
 if [ -f /etc/acme/account-thumbprint ]; then
