@@ -10,7 +10,7 @@
   <currentMemory>4194304</currentMemory>
   <vcpu>2</vcpu>
   <os>
-	  <type arch='x86_64' machine='pc-i440fx-2.8'>hvm</type>
+	  <type arch='x86_64' machine='pc-i440fx-5.1'>hvm</type>
 	  <boot dev='hd'/>
   </os>
   <features>
@@ -22,7 +22,7 @@
       <spinlocks state="on" retries="8191"/>
       <synic state='on'/>
       <stimer state='on'/>
-
+      <vpindex state='on'/>
     </hyperv>
     <vmport state="off"/>
   </features>
