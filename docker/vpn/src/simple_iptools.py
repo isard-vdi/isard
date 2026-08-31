@@ -7,7 +7,7 @@ import ipaddress
 import logging as log
 import shlex
 import traceback
-from subprocess import check_output
+from subprocess import DEVNULL, check_output
 
 from db import vpn_rethink_conn
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
@@ -37,6 +37,23 @@ def _rule_addr(tokens, flag):
         return tokens[tokens.index(flag) + 1].split("/")[0]
     except (ValueError, IndexError):
         return None
+
+
+IPTABLES = "/sbin/iptables"
+
+
+def _append_forward(rule):
+    """Append a FORWARD rule unless the chain already carries it.
+
+    Any write to a running desktop's row replays the add, so an unconditional
+    append grows one copy per event and a single delete cannot undo them.
+    """
+    try:
+        check_output((IPTABLES, "-C", "FORWARD", *rule), stderr=DEVNULL)
+        return
+    except Exception:
+        pass
+    check_output((IPTABLES, "-A", "FORWARD", *rule), text=True)
 
 
 class UserIpTools(object):
@@ -74,34 +91,8 @@ class UserIpTools(object):
             + " USER ]"
         )
 
-        check_output(
-            (
-                "/sbin/iptables",
-                "-A",
-                "FORWARD",
-                "-s",
-                user_addr,
-                "-d",
-                desktop_ip,
-                "-j",
-                "ACCEPT",
-            ),
-            text=True,
-        ).strip()
-        check_output(
-            (
-                "/sbin/iptables",
-                "-A",
-                "FORWARD",
-                "-d",
-                user_addr,
-                "-s",
-                desktop_ip,
-                "-j",
-                "ACCEPT",
-            ),
-            text=True,
-        ).strip()
+        _append_forward(("-s", user_addr, "-d", desktop_ip, "-j", "ACCEPT"))
+        _append_forward(("-d", user_addr, "-s", desktop_ip, "-j", "ACCEPT"))
         self.apply_remote_vpn(user, desktop_ip)
         return
 
@@ -224,62 +215,18 @@ class UserIpTools(object):
         for extra_alloweds in self.get_extra_alloweds(user):
             remotevpn_addr = extra_alloweds["vpn"]["wireguard"]["Address"]
 
-            check_output(
-                (
-                    "/sbin/iptables",
-                    "-A",
-                    "FORWARD",
-                    "-s",
-                    desktop_ip,
-                    "-d",
-                    remotevpn_addr,
-                    "-j",
-                    "ACCEPT",
-                )
-            )
-            check_output(
-                (
-                    "/sbin/iptables",
-                    "-A",
-                    "FORWARD",
-                    "-d",
-                    desktop_ip,
-                    "-s",
-                    remotevpn_addr,
-                    "-j",
-                    "ACCEPT",
-                )
-            )
+            _append_forward(("-s", desktop_ip, "-d", remotevpn_addr, "-j", "ACCEPT"))
+            _append_forward(("-d", desktop_ip, "-s", remotevpn_addr, "-j", "ACCEPT"))
 
             if extra_alloweds["vpn"]["wireguard"]["extra_client_nets"]:
                 for extra_addr in extra_alloweds["vpn"]["wireguard"][
                     "extra_client_nets"
                 ].split(","):
-                    check_output(
-                        (
-                            "/sbin/iptables",
-                            "-A",
-                            "FORWARD",
-                            "-s",
-                            desktop_ip,
-                            "-d",
-                            extra_addr,
-                            "-j",
-                            "ACCEPT",
-                        )
+                    _append_forward(
+                        ("-s", desktop_ip, "-d", extra_addr, "-j", "ACCEPT")
                     )
-                    check_output(
-                        (
-                            "/sbin/iptables",
-                            "-A",
-                            "FORWARD",
-                            "-d",
-                            desktop_ip,
-                            "-s",
-                            extra_addr,
-                            "-j",
-                            "ACCEPT",
-                        )
+                    _append_forward(
+                        ("-d", desktop_ip, "-s", extra_addr, "-j", "ACCEPT")
                     )
 
     def remove_remote_vpn(self, user, desktop_ip):
