@@ -71,10 +71,16 @@ class UserIpTools(object):
                 .run(conn)
             )
         for ds in domains_started:
-            if ds.get("viewer") and "guest_ip" in ds["viewer"].keys():
-                self.desktop_add(ds["user"], ds["viewer"]["guest_ip"])
+            # The value, not the key: a desktop between Started and its address
+            # arriving carries an explicit null, which used to reach desktop_add
+            # and take the whole service down on startup.
+            guest_ip = (ds.get("viewer") or {}).get("guest_ip")
+            if guest_ip:
+                self.desktop_add(ds["user"], guest_ip)
 
     def desktop_add(self, user_id, desktop_ip):
+        if not desktop_ip:
+            return
         try:
             with vpn_rethink_conn() as conn:
                 user = r.table("users").get(user_id).run(conn)
