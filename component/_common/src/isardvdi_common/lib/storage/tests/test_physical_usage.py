@@ -287,7 +287,7 @@ def test_thin_pool_without_the_ioctl_says_so_instead_of_falling_back(pool, tmp_p
     assert usage["physical_total_bytes"] == 36387684352 * 512
     assert usage["physical_used_bytes"] is None
     assert usage["physical_free_bytes"] is None
-    assert "STORAGE_POOL_PHYSICAL_STATS" in usage["reason"]
+    assert "STORAGE_POOL_VDO_STATS" in usage["reason"]
 
 
 def test_thick_pool_physical_equals_filesystem(pool, tmp_path):
@@ -350,6 +350,9 @@ class _FakeRedis:
 
     def hgetall(self, key):
         return self.hashes.get(key, {})
+
+    def hget(self, key, field):
+        return self.hashes.get(key, {}).get(field)
 
 
 def test_publish_then_read_returns_usable_numbers():
@@ -503,3 +506,55 @@ def test_every_mount_under_the_storage_root_is_discovered(tmp_path, monkeypatch)
         "/isard/templates",
     ]
     assert "/" not in points and "/somewhere/else" not in points
+
+
+def test_another_nodes_live_measurement_is_not_overwritten(caplog):
+    """One key per path, so two nodes with a local filesystem at the same path
+    would take turns publishing about different disks. The reader cannot tell,
+    and the figure is a free-space floor."""
+    conn = _FakeRedis()
+    m.publish_usage(
+        conn,
+        {
+            "path": "/isard/groups",
+            "kind": "local-thick",
+            "node": "nas-a",
+            "physical_free_bytes": 10,
+        },
+        900,
+    )
+    with caplog.at_level("WARNING"):
+        m.publish_usage(
+            conn,
+            {
+                "path": "/isard/groups",
+                "kind": "local-thick",
+                "node": "nas-b",
+                "physical_free_bytes": 999,
+            },
+            900,
+        )
+
+    stored = conn.hgetall(m.pool_status_key("/isard/groups"))
+    assert stored["node"] == b"nas-a"
+    assert stored["physical_free_bytes"] == b"10"
+    assert "nas-a" in caplog.text and "nas-b" in caplog.text
+
+
+def test_the_same_node_keeps_updating_its_own_measurement():
+    """The guard must not freeze the reporter that owns the key."""
+    conn = _FakeRedis()
+    for free in (10, 20):
+        m.publish_usage(
+            conn,
+            {
+                "path": "/isard/groups",
+                "kind": "local-thick",
+                "node": "nas-a",
+                "physical_free_bytes": free,
+            },
+            900,
+        )
+    assert (
+        conn.hgetall(m.pool_status_key("/isard/groups"))["physical_free_bytes"] == b"20"
+    )

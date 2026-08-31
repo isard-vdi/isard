@@ -217,11 +217,12 @@ def _physical_free_space(path):
         if published and published.get("physical_free_bytes") is not None:
             return published["physical_free_bytes"]
         log.warning(
-            "%s is thin-provisioned and nobody publishes its physical usage, so "
-            "the free-space floor falls back to the filesystem figure, which "
-            "reports the LOGICAL size and does not protect this pool. Set "
-            "STORAGE_POOL_PHYSICAL_STATS on the node holding its physical mounts.",
+            "%s is %s on %s and nobody publishes its fill, so the free-space "
+            "floor falls back to the LOGICAL figure and protects nothing: set "
+            "STORAGE_POOL_VDO_STATS=true on the node whose mount is local",
             path,
+            usage.get("backend"),
+            usage.get("vpool"),
         )
     except Exception:
         log.exception("could not read the physical free space at %s", path)

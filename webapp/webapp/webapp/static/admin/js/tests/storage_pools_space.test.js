@@ -41,7 +41,7 @@ const TiB = 1024 ** 4;
 {
   const html = spSpaceCell(null, NOW);
   assert.ok(html.includes("not reported"), "must say it is not reported");
-  assert.ok(html.includes("STORAGE_POOL_PHYSICAL_STATS"), "must say how to fix it");
+  assert.ok(html.includes("STORAGE_POOL_VDO_STATS"), "must say how to fix it");
 }
 
 // --- a network pool cannot be measured here ---------------------------------

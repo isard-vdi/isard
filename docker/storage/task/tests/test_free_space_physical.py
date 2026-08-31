@@ -98,7 +98,7 @@ def test_thin_without_a_published_figure_falls_back_and_says_so(
             "/isard/pool", "/isard/d.qcow2", 1024**3, "move", "copy"
         )
 
-    assert "STORAGE_POOL_PHYSICAL_STATS" in caplog.text
+    assert "STORAGE_POOL_VDO_STATS" in caplog.text
 
 
 def test_a_published_figure_is_used_when_this_node_cannot_measure(guard, monkeypatch):

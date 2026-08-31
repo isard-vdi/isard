@@ -147,7 +147,11 @@ def test_thin_pool_without_a_fill_is_flagged_to_the_operator(
     with caplog.at_level("WARNING"):
         reporter.cycle(connection=object(), ttl=900)
 
-    assert "STORAGE_POOL_PHYSICAL_STATS" in caplog.text
+    # Naming the mount and its backing is the point: an operator reading "set
+    # this somewhere" has to go and find out where, and on which of the mounts.
+    assert "STORAGE_POOL_VDO_STATS" in caplog.text
+    assert LOCAL in caplog.text
+    assert "lvm-vdo" in caplog.text
 
 
 def test_the_reporter_never_reaches_a_database():
@@ -162,3 +166,32 @@ def test_the_reporter_never_reaches_a_database():
         assert (
             forbidden not in source.split('"""')[2]
         ), f"{forbidden} must not appear in the reporter's code"
+
+
+def test_the_privileged_call_is_skipped_where_nothing_is_thin(wired, monkeypatch):
+    """Otherwise it is a dmsetup that fails once a cycle, for ever, on every
+    node of a fleet that has no thin pool anywhere."""
+
+    class _Usage(dict):
+        # The reporter reads many fields on the way out; this test is about one.
+        def __missing__(self, key):
+            return None
+
+    calls = []
+    monkeypatch.setattr(reporter, "pool_paths", lambda: [LOCAL])
+    monkeypatch.setattr(reporter, "classify", lambda path, **k: {"kind": "local-thick"})
+    monkeypatch.setattr(reporter, "vdo_status", lambda *a, **k: calls.append(1) or {})
+    monkeypatch.setattr(
+        reporter,
+        "pool_physical_usage",
+        lambda path, **k: _Usage(
+            kind="local-thick", path=path, fstype="ext4", physical_used_bytes=1
+        ),
+    )
+
+    reporter.cycle()
+    assert calls == []
+
+    monkeypatch.setattr(reporter, "classify", lambda path, **k: {"kind": "local-thin"})
+    reporter.cycle()
+    assert calls == [1]

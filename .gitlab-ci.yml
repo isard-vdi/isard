@@ -359,6 +359,9 @@ docker-compose-build:
     - echo "USAGE=build" >> isardvdi.build.cfg
     - echo "BASTION_ENABLED=true" >> isardvdi.build.cfg
     - echo "ENABLE_OPENAPI=true" >> isardvdi.build.cfg
+    # Its part is off by default, and a service absent from the compose is an
+    # image nothing can build.
+    - echo "STORAGE_POOL_VDO_STATS=true" >> isardvdi.build.cfg
     - cp isardvdi.build.cfg isardvdi.infrastructure.build.cfg
     - echo "INFRASTRUCTURE_MANAGEMENT=true" >> isardvdi.infrastructure.build.cfg
     - cp isardvdi.build.cfg isardvdi.video-standalone.build.cfg
@@ -794,6 +797,7 @@ docker-image:
           - stats-go
           - stats-rethinkdb
           - storage
+          - storage-vdo-stats
           - webapp
           - websockify
       - DOCKER_COMPOSE: build

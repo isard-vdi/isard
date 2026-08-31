@@ -21,7 +21,7 @@ kind             is ``statvfs`` the truth?  elevation
 
 Only ``local-thin`` needs more, and only for the *fill*: it lives behind the
 device-mapper ioctl (``CAP_SYS_ADMIN`` + ``/dev/mapper/control``), granted only
-where the operator opted in (``STORAGE_POOL_PHYSICAL_STATS``). Without it
+where the operator opted in (``STORAGE_POOL_VDO_STATS``). Without it
 the pool is reported thin with an unknown fill -- honest, unlike a filesystem
 figure that is wrong by an order of magnitude. On ``network`` no capability
 would help: the backing store is on another host. ``unknown`` covers
@@ -36,10 +36,13 @@ trusted, but their fill is not read: its data blocks need the block size from
 ``dmsetup table``, a second privileged call.
 """
 
+import logging
 import os
 import time
 from subprocess import DEVNULL, PIPE, run
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
+log = logging.getLogger(__name__)
 
 #: Served by another host: no capability granted here could reveal the backing
 #: store.
@@ -354,9 +357,9 @@ def pool_physical_usage(
     if not measured:
         usage["source"] = "sysfs"
         usage["reason"] = (
-            f"{backing['reason']}; its fill needs the device-mapper ioctl, which "
-            "this container does not have -- set STORAGE_POOL_PHYSICAL_STATS "
-            "on the node holding the physical mounts"
+            f"{backing['reason']}; the fill of {backing['backend']} on "
+            f"{backing['vpool']} needs the device-mapper ioctl -- set "
+            "STORAGE_POOL_VDO_STATS=true on this node"
         )
         return usage
 
@@ -516,6 +519,19 @@ def publish_usage(connection: Any, usage: Dict[str, Any], ttl: int) -> None:
     if not mapping:
         return
     key = pool_status_key(usage["path"])
+    # Two nodes with a local filesystem at the same path share this key, and a
+    # figure about another machine's disk is worse than none. Expiry settles it.
+    holder = connection.hget(key, "node")
+    if isinstance(holder, bytes):
+        holder = holder.decode()
+    if holder and holder != mapping.get("node"):
+        log.warning(
+            "%s is already published by %s; not overwriting it from %s",
+            usage["path"],
+            holder,
+            mapping.get("node"),
+        )
+        return
     pipe = connection.pipeline()
     pipe.delete(key)
     pipe.hset(key, mapping=mapping)

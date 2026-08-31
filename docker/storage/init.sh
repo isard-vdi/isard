@@ -120,16 +120,17 @@ case "${_cap_disk}" in
     *) _cap_disk_enabled=1 ;;
 esac
 
-# --- Physical (thin-aware) storage pool usage --------------------------------
-# Seconds between measurements, 0 = off. Started BEFORE the fleet: a node with
-# REDIS_WORKERS=0 still owns its mounts.
-case "${STORAGE_POOL_PHYSICAL_STATS:-0}" in
-    ''|*[!0-9]*) _pool_stats_seconds=0 ;;
-    *) _pool_stats_seconds="${STORAGE_POOL_PHYSICAL_STATS}" ;;
+# --- Storage pool space ------------------------------------------------------
+# Where the VDO fill was asked for, isard-storage-vdo-stats measures instead:
+# two writers on one key would leave the answer to whoever wrote last.
+case "$(printf '%s' "${STORAGE_POOL_VDO_STATS:-false}" | tr '[:upper:]' '[:lower:]')" in
+    true|t|1|yes|y|on) _vdo_stats_sidecar=1 ;;
+    *) _vdo_stats_sidecar=0 ;;
 esac
-if [ "${_pool_stats_seconds}" -gt 0 ]; then
-    echo "storage: reporting physical pool usage every ${_pool_stats_seconds}s"
-    /utils/storage-pool-physical --interval "${_pool_stats_seconds}" &
+if [ "${_vdo_stats_sidecar}" -eq 0 ]; then
+    /utils/storage-pool-physical &
+else
+    echo "storage: pool space published by isard-storage-vdo-stats"
 fi
 
 if [ "${REDIS_WORKERS:-1}" -ne 0 ] && [ "${_cap_disk_enabled}" -eq 1 ]

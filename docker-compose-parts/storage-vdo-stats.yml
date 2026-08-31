@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# The VDO fill needs the device-mapper ioctl: the control node O_RDWR (a
+# read-only device fails at open) and CAP_SYS_ADMIN, which also permits removing
+# any volume here -- so it goes to this container and never to isard-storage.
+services:
+  isard-storage-vdo-stats:
+    container_name: isard-storage-vdo-stats
+    image: ${DOCKER_IMAGE_PREFIX}storage-vdo-stats:${DOCKER_IMAGE_TAG-latest}
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/mapper/control:/dev/mapper/control:rw
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network: {}
+    volumes:
+      - /opt/isard/templates:/isard/templates:ro
+      - /opt/isard/groups:/isard/groups:ro
+      - /opt/isard/media:/isard/media:ro
+      - /opt/isard/volatile:/isard/volatile:ro
+      - /opt/isard/storage_pools:/isard/storage_pools:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      STORAGE_DOMAIN:
+      REDIS_HOST: ${REDIS_HOST:-isard-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      LOG_LEVEL:
+    depends_on:
+      - isard-redis
+    restart: unless-stopped

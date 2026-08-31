@@ -580,21 +580,21 @@ create_docker_compose_file(){
 		parts="$parts redis.passwd"
 	fi
 
-	# Physical (thin-aware) pool usage: seconds between measurements, 0 = off.
-	# The part it chains grants the storage container device-mapper access.
-	case "${STORAGE_POOL_PHYSICAL_STATS:-0}" in
-		''|*[!0-9]*) _pool_stats_seconds=0 ;;
-		*) _pool_stats_seconds="$STORAGE_POOL_PHYSICAL_STATS" ;;
+	# The VDO fill needs a privileged container; everything else about the pools
+	# is measured and published by isard-storage without one.
+	case "$(printf '%s' "${STORAGE_POOL_VDO_STATS:-false}" | tr '[:upper:]' '[:lower:]')" in
+		true|t|1|yes|y|on) _vdo_stats_enabled=1 ;;
+		*) _vdo_stats_enabled=0 ;;
 	esac
-	if [ "$_pool_stats_seconds" -gt 0 ]
+	if [ "$_vdo_stats_enabled" -eq 1 ]
 	then
 		case " $(echo $parts) " in
 			*" storage "*)
-				echo "STORAGE_POOL_PHYSICAL_STATS=$_pool_stats_seconds, adding storage.physical-stats part"
-				parts="$parts storage.physical-stats"
+				echo "STORAGE_POOL_VDO_STATS is true, adding storage-vdo-stats part"
+				parts="$parts storage-vdo-stats"
 				;;
 			*)
-				echo "WARNING: STORAGE_POOL_PHYSICAL_STATS is set but flavour $FLAVOUR has no storage part; ignoring it"
+				echo "WARNING: STORAGE_POOL_VDO_STATS is true but flavour $FLAVOUR has no storage part; ignoring it"
 				;;
 		esac
 	fi

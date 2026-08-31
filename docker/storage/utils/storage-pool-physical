@@ -3,7 +3,7 @@
 
 """Publish the PHYSICAL space behind each storage pool mounted on this node.
 
-Run by ``init.sh`` as a background loop when ``STORAGE_POOL_PHYSICAL_STATS`` is
+Run by ``init.sh`` as a background loop when ``STORAGE_POOL_VDO_STATS`` is
 a positive number of seconds, and by hand for diagnosis:
 
     storage-pool-physical --json     # show what this node sees, publish nothing
@@ -36,6 +36,7 @@ import time
 
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.lib.storage.physical_usage import (
+    classify,
     pool_paths,
     pool_physical_usage,
     pool_root,
@@ -56,15 +57,6 @@ DEFAULT_INTERVAL_SECONDS = 300
 TTL_CYCLES = 3
 
 log = logging.getLogger("storage-pool-physical")
-
-
-def _env_interval():
-    """Seconds from ``STORAGE_POOL_PHYSICAL_STATS``; the default when it is
-    unset, 0 or not a number. A manual run still works on a node where the
-    reporter is switched off, which is exactly when an operator wants to ask
-    what it can see."""
-    raw = (os.environ.get("STORAGE_POOL_PHYSICAL_STATS") or "").strip()
-    return int(raw) if raw.isdigit() and int(raw) > 0 else DEFAULT_INTERVAL_SECONDS
 
 
 def node_name():
@@ -94,21 +86,22 @@ def describe(usage):
 
 def cycle(connection=None, ttl=None):
     """Measure every pool mount once, publishing what this node can measure."""
-    vdo = vdo_status()
+    paths = list(pool_paths())
+    backings = {path: classify(path) for path in paths}
+    # The only privileged call: without a thin pool it is a dmsetup that fails
+    # once a cycle, for ever, on every node.
+    vdo = (
+        vdo_status()
+        if any(b["kind"] == "local-thin" for b in backings.values())
+        else {}
+    )
     results = {}
     mine = {}
-    for path in pool_paths():
+    for path in paths:
         usage = pool_physical_usage(path, vdo=vdo)
         usage["node"] = node_name()
         results[path] = usage
         log.info("%s: %s", path, describe(usage))
-        if usage["kind"] == "local-thin" and usage["physical_used_bytes"] is None:
-            log.warning(
-                "%s is thin-provisioned and its fill cannot be read here; set "
-                "STORAGE_POOL_PHYSICAL_STATS on the node holding its physical "
-                "mounts so this container gets the device-mapper control node",
-                path,
-            )
         if connection is None:
             continue
         if usage["kind"] not in ("local-thick", "local-thin"):
@@ -119,6 +112,23 @@ def cycle(connection=None, ttl=None):
             continue
         publish_usage(connection, usage, ttl)
         mine.setdefault(pool_root(path), []).append(usage)
+
+    # Name the mounts that need the elevation, so the operator reads WHICH ones
+    # rather than being told to set it somewhere.
+    needs = [
+        (path, usage)
+        for path, usage in results.items()
+        if usage["kind"] == "local-thin" and usage["physical_used_bytes"] is None
+    ]
+    if needs:
+        log.warning(
+            "thin mounts whose fill needs STORAGE_POOL_VDO_STATS=true on this "
+            "node: %s",
+            ", ".join(
+                f"{path} ({usage.get('backend')} on {usage.get('vpool')})"
+                for path, usage in needs
+            ),
+        )
 
     # One figure per pool as well, so a reader holding only a pool's mountpoint
     # gets an answer. It is the pool's most constrained path, because a pool
@@ -139,7 +149,7 @@ def main(argv=None):
     parser.add_argument(
         "--interval",
         type=int,
-        default=_env_interval(),
+        default=DEFAULT_INTERVAL_SECONDS,
         help="seconds between cycles in loop mode",
     )
     args = parser.parse_args(argv)

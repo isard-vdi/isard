@@ -58,7 +58,7 @@ function spEsc(v) {
 function spSpaceCell(usage, nowSeconds) {
   const now = nowSeconds || Math.floor(Date.now() / 1000);
   if (!usage || typeof usage !== "object") {
-    return '<span class="text-muted" title="No node reports the physical space of this pool. Set STORAGE_POOL_PHYSICAL_STATS on the node holding its physical mounts.">not reported</span>';
+    return '<span class="text-muted" title="No node reports the physical space of this pool. Set STORAGE_POOL_VDO_STATS on the node holding its physical mounts.">not reported</span>';
   }
   if (usage.kind !== "local-thick" && usage.kind !== "local-thin") {
     return '<span class="text-muted" title="' + spEsc(usage.reason) + '">' + spEsc(usage.kind || "unknown") + '</span>';

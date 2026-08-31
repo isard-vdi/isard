@@ -1,4 +1,4 @@
-# Isard main config v3.0.1
+# Isard main config v3.0.2
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -356,19 +356,20 @@ HAPROXY_LOGGING=.
 ## Comma-separated storage pool ids that can be used for disk operations
 #CAPABILITIES_STORAGE_POOLS=00000000-0000-0000-0000-000000000000
 
-## Publish the PHYSICAL free space of this node's storage pools, every N
-## seconds; 0 (the default) disables it. 300 is a sensible value: a pool's fill
-## moves slowly and the measurement is cheap. It is published to redis with an
-## expiry, so a node that stops measuring simply stops answering.
-## WHERE: only on the node holding the pools' physical mounts.
-## WHEN:  only if one of them is thin (LVM-VDO) -- there statvfs reports the
-##        logical size and is 5x-17x optimistic. Pointless on a thick pool
-##        (statvfs is already right) and on a network mount (no local device).
-## COST:  grants the storage container /dev/mapper/control + CAP_SYS_ADMIN,
-##        which also permits removing any volume on the node. Nothing narrower
-##        works. Check a node with:
-##          docker exec isard-storage storage-pool-physical --json
-#STORAGE_POOL_PHYSICAL_STATS=0
+## Read the FILL of a thin (LVM-VDO) storage pool on this node. Off by default,
+## and needed nowhere else: isard-storage already publishes the space of every
+## mount it can measure on its own -- a thick pool in full, a network mount not
+## at all, and a thin one as thin, with its capacity and no fill. Turn this on
+## only where a pool IS thin, because there the filesystem figure is the
+## LOGICAL size and reads 5x to 17x more free space than the pool has.
+## It starts isard-storage-vdo-stats, which is granted /dev/mapper/control and
+## CAP_SYS_ADMIN -- an ioctl that also permits removing or suspending any volume
+## on the node, which is why it goes to a container that does nothing else and
+## never to isard-storage. While it runs, isard-storage stops publishing: two
+## writers on one key would leave the answer to whoever wrote last.
+## Ask a node what it sees, before and after:
+##   docker exec isard-storage storage-pool-physical --json
+#STORAGE_POOL_VDO_STATS=false
 
 # ------ Hypervisor options ---------------------------------------------------
 ## ONLY_FORCED_HYP enables only_forced option to only get domains with
