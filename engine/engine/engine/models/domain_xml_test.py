@@ -1856,3 +1856,60 @@ class TestNormalizeMachineTypeTooNew:
             ["pc-i440fx-hirsute", "pc-i440fx-5.1", "pc-i440fx-8.2"],
         )
         assert new == "pc-i440fx-8.2"
+
+
+class TestSetVideoTypeWithoutAVideoDevice:
+    """A domain whose XML carries no <video><model> used to raise IndexError.
+
+    It surfaced on a real start: recreate_xml_to_start calls set_video_type
+    because create_dict declares a video, the xpath returned nothing, and the
+    [0] took the whole start down. The desktop was left Failed with
+    "Engine failed to build XML for start: list index out of range" -- a detail
+    that names neither the device nor the domain.
+    """
+
+    QXL = {"type": "qxl", "heads": 1, "ram": 65536, "vram": 65536}
+
+    def _model(self, x):
+        node = x.tree.xpath("/domain/devices/video/model")
+        return node[0] if node else None
+
+    def test_a_domain_with_no_video_device_gets_one(self):
+        x = DomainXML("<domain type='kvm'><devices/></domain>")
+        x.set_video_type(self.QXL)
+        model = self._model(x)
+        assert model is not None
+        assert model.get("type") == "qxl"
+        assert model.get("ram") == "65536"
+
+    def test_a_video_element_without_a_model_gets_one(self):
+        x = DomainXML("<domain type='kvm'><devices><video/></devices></domain>")
+        x.set_video_type(self.QXL)
+        assert self._model(x).get("type") == "qxl"
+        assert len(x.tree.xpath("/domain/devices/video")) == 1
+
+    def test_a_domain_with_no_devices_at_all_does_not_raise(self):
+        """Nothing to hang a video device from; the start must still proceed."""
+        x = DomainXML("<domain type='kvm'><name>d</name></domain>")
+        x.set_video_type(self.QXL)
+        assert x.tree.xpath("/domain/devices/video/model") == []
+
+    def test_an_existing_model_is_still_updated_in_place(self):
+        x = DomainXML(
+            "<domain type='kvm'><devices>"
+            "<video><model type='cirrus' vram='16384'/></video></devices></domain>"
+        )
+        x.set_video_type(self.QXL)
+        assert self._model(x).get("type") == "qxl"
+        assert len(x.tree.xpath("/domain/devices/video/model")) == 1
+
+    def test_a_non_qxl_type_still_strips_the_attributes_libvirt_refuses(self):
+        x = DomainXML(
+            "<domain type='kvm'><devices>"
+            "<video><model type='qxl' ram='65536' vram='65536' heads='1'/>"
+            "</video></devices></domain>"
+        )
+        x.set_video_type({"type": "none"})
+        model = self._model(x)
+        assert model.get("type") == "none"
+        assert model.get("ram") is None and model.get("vram") is None

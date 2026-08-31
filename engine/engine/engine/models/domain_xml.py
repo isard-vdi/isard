@@ -448,7 +448,7 @@ class DomainXML(object):
         if xml_tree.xpath("/domain/devices/video/model"):
             vm_dict["video"] = {}
             for key in ("type", "ram", "vram", "vgamem", "heads"):
-                if key in self.tree.xpath("/domain/devices/video/model")[0].keys():
+                if key in xml_tree.xpath("/domain/devices/video/model")[0].keys():
                     vm_dict["video"][key] = xml_tree.xpath(
                         "/domain/devices/video/model"
                     )[0].get(key)
@@ -1102,43 +1102,51 @@ class DomainXML(object):
         xpath_next = "/domain/devices/memballoon"
         self.add_device(xpath_same, element, xpath_next, xpath_previous)
 
+    def _video_model_node(self):
+        """The <video><model> node, created when the XML carries none.
+
+        Returns None only when there is no <devices> to hang it from.
+        """
+        node = self.tree.xpath("/domain/devices/video/model")
+        if node:
+            return node[0]
+        video = self.tree.xpath("/domain/devices/video")
+        if not video:
+            devices = self.tree.xpath("/domain/devices")
+            if not devices:
+                return None
+            video = [etree.SubElement(devices[0], "video")]
+        return etree.SubElement(video[0], "model")
+
     def set_video_type(self, video):
+        model = self._video_model_node()
+        if model is None:
+            return
         if video.get("type", "none") != "qxl":
-            # remove all attributes like vram that have no sense if type_video is none
-            # libvirt xml parser launch an exception if these keys exists
-            for key in self.tree.xpath("/domain/devices/video/model")[0].keys():
+            # libvirt rejects the domain if vram and friends survive on a
+            # non-qxl model, so strip everything but the type.
+            for key in list(model.keys()):
                 if key != "type":
                     try:
-                        del self.tree.xpath("/domain/devices/video/model")[0].attrib[
-                            key
-                        ]
+                        del model.attrib[key]
                     except Exception as e:
                         logs.exception_id.debug("0023")
                         print(
                             f"Exception when remove attribute from video model none in xml: {e}"
                         )
-            # remove alivas
             if self.tree.xpath("/domain/devices/video/alias"):
                 self.tree.xpath("/domain/devices/video/alias")[-1].getparent().remove(
                     self.tree.xpath("//domain/devices/video/alias")[-1]
                 )
 
-        self.tree.xpath("/domain/devices/video/model")[0].set(
-            "type", str(video["type"])
-        )
+        model.set("type", str(video["type"]))
         if video.get("heads"):
-            self.tree.xpath("/domain/devices/video/model")[0].set(
-                "heads", str(video["heads"])
-            )
+            model.set("heads", str(video["heads"]))
         if video.get("vram"):
-            self.tree.xpath("/domain/devices/video/model")[0].set(
-                "vram", str(video["vram"])
-            )
+            model.set("vram", str(video["vram"]))
         if video["type"] == "qxl":
             if video.get("ram"):
-                self.tree.xpath("/domain/devices/video/model")[0].set(
-                    "ram", str(video["ram"])
-                )
+                model.set("ram", str(video["ram"]))
 
     def add_metadata_isard(self, user_id, group_id, category_id, parent_id):
         xpath_same = "/domain/metadata"
