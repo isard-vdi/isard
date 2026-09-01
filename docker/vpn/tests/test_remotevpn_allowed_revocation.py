@@ -24,6 +24,8 @@ import pytest
 
 SRC_DIR = Path(__file__).resolve().parent.parent / "src"
 
+_ABSENT = object()
+
 ALLOWED_NONE = {"roles": False, "categories": False, "groups": False, "users": False}
 
 
@@ -301,3 +303,90 @@ class TestRefreshRemotevpnAllowed:
             uipt.refresh_remotevpn_allowed(_entry("v", "10.9.0.5/32", {"users": []}))
 
         assert reads == ["alice"]
+
+
+class TestMalformedAllowedIsNotOpen:
+    """A malformed ``allowed`` must not read as "everybody".
+
+    Only a real empty list means everybody. A level that is absent, null or not
+    a list is a malformed row, and treating it as open hands every user an entry
+    that names somebody else. The code this replaced raised KeyError on a missing
+    level, which failed closed by crashing; failing closed quietly is better, but
+    failing OPEN is not an option.
+    """
+
+    USER = {
+        "id": "alice",
+        "role": "user",
+        "category": "cat",
+        "group": "grp",
+        "secondary_groups": ["grp2"],
+    }
+
+    @staticmethod
+    def _entry(allowed):
+        entry = {"id": "rv", "vpn": {"wireguard": {"Address": "10.9.0.5/32"}}}
+        if allowed is not _ABSENT:
+            entry["allowed"] = allowed
+        return entry
+
+    def test_a_level_naming_somebody_else_is_not_widened_by_the_missing_ones(
+        self, simple_iptools
+    ):
+        # The one that matters: users names bob, and the three levels checked
+        # before it are simply absent.
+        entry = self._entry({"users": ["bob"]})
+        assert (
+            simple_iptools.UserIpTools.is_allowed_remotevpn(self.USER, entry) is False
+        )
+
+    def test_an_empty_allowed_grants_nothing(self, simple_iptools):
+        assert (
+            simple_iptools.UserIpTools.is_allowed_remotevpn(self.USER, self._entry({}))
+            is False
+        )
+
+    def test_a_missing_allowed_grants_nothing(self, simple_iptools):
+        assert (
+            simple_iptools.UserIpTools.is_allowed_remotevpn(
+                self.USER, self._entry(_ABSENT)
+            )
+            is False
+        )
+
+    def test_a_null_level_is_skipped_not_opened(self, simple_iptools):
+        entry = self._entry(
+            {"roles": None, "categories": False, "groups": False, "users": ["bob"]}
+        )
+        assert (
+            simple_iptools.UserIpTools.is_allowed_remotevpn(self.USER, entry) is False
+        )
+
+    def test_a_level_that_is_not_a_list_is_skipped(self, simple_iptools):
+        entry = self._entry(
+            {"roles": "user", "categories": False, "groups": False, "users": ["bob"]}
+        )
+        assert (
+            simple_iptools.UserIpTools.is_allowed_remotevpn(self.USER, entry) is False
+        )
+
+    def test_allowed_that_is_not_a_dict_does_not_raise(self, simple_iptools):
+        for junk in ("notadict", [], 7):
+            entry = {"id": "rv", "allowed": junk, "vpn": {"wireguard": {}}}
+            assert (
+                simple_iptools.UserIpTools.is_allowed_remotevpn(self.USER, entry)
+                is False
+            )
+
+    def test_a_real_empty_list_still_means_everybody(self, simple_iptools):
+        # The documented semantics must survive the hardening.
+        entry = self._entry(
+            {"roles": False, "categories": False, "groups": False, "users": []}
+        )
+        assert simple_iptools.UserIpTools.is_allowed_remotevpn(self.USER, entry) is True
+
+    def test_a_secondary_group_still_grants(self, simple_iptools):
+        entry = self._entry(
+            {"roles": False, "categories": False, "groups": ["grp2"], "users": False}
+        )
+        assert simple_iptools.UserIpTools.is_allowed_remotevpn(self.USER, entry) is True

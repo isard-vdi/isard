@@ -294,8 +294,15 @@ class UserIpTools(object):
         Per level, False means "do not check this one" and an empty list means
         "everybody". Roles are checked first and users last; a level that does
         not match falls through to the next.
+
+        A level that is absent, null or not a list is NOT "everybody": only a
+        real empty list means that. Reading a malformed row as open would hand
+        every user an entry that names somebody else, so it is skipped like
+        False and the remaining levels decide.
         """
-        allowed = entry.get("allowed") or {}
+        allowed = entry.get("allowed")
+        if not isinstance(allowed, dict):
+            return False
         levels = (
             ("roles", [user.get("role")]),
             ("categories", [user.get("category")]),
@@ -304,7 +311,7 @@ class UserIpTools(object):
         )
         for level, held in levels:
             configured = allowed.get(level)
-            if configured is False:
+            if not isinstance(configured, (list, tuple)):
                 continue
             if not configured:
                 return True
