@@ -398,6 +398,11 @@ class DeploymentUserDetail(BaseModel):
     name: str = Field(description="Name of the user")
     username: str = Field(description="Username of the user")
     photo: Optional[str] = Field(description="Photo of the user", default=None)
+    active: bool = Field(
+        description="Whether the user account is enabled; a deployment recreate "
+        "skips the allowed users that are not",
+        default=True,
+    )
     desktops_statuses: list[DesktopStatus] = Field(
         description="List of desktop statuses associated with the user", default=[]
     )

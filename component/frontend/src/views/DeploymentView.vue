@@ -540,7 +540,26 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
           <span v-else>—</span>
         </template>
         <template #cell-name="{ row }">
-          <AvatarLabel :src="row.photo" :name="row.name" />
+          <div class="flex items-center gap-2">
+            <AvatarLabel
+              :src="row.photo"
+              :name="row.name"
+              :name-class="row.active === false ? 'text-gray-warm-400' : ''"
+            />
+            <Tooltip v-if="row.active === false">
+              <TooltipTrigger as-child>
+                <Badge
+                  color="gray"
+                  shape="square"
+                  size="sm"
+                  icon="slash-circle-01"
+                  class="w-fit gap-1.5"
+                  :content="t('views.deployment.data-table.disabled-user.badge')"
+                />
+              </TooltipTrigger>
+              <TooltipContent :title="t('views.deployment.data-table.disabled-user.tooltip')" />
+            </Tooltip>
+          </div>
         </template>
         <template #cell-started_desktops="{ row }">
           <div

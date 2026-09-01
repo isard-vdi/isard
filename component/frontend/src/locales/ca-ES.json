@@ -705,6 +705,10 @@
           "user": "Usuari",
           "started-desktops": "Escriptoris arrencats",
           "actions": "Accions"
+        },
+        "disabled-user": {
+          "badge": "Deshabilitat",
+          "tooltip": "Aquest compte d'usuari està deshabilitat. Una recreació no li crearà cap escriptori."
         }
       },
       "tooltips": {

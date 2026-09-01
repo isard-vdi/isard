@@ -713,6 +713,10 @@
           "user": "User",
           "started-desktops": "Started desktops",
           "actions": "Actions"
+        },
+        "disabled-user": {
+          "badge": "Disabled",
+          "tooltip": "This user account is disabled. A recreate will not create a desktop for it."
         }
       },
       "tooltips": {

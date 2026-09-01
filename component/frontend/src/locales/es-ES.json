@@ -705,6 +705,10 @@
           "user": "Usuario",
           "started-desktops": "Escritorios arrancados",
           "actions": "Acciones"
+        },
+        "disabled-user": {
+          "badge": "Deshabilitado",
+          "tooltip": "Esta cuenta de usuario está deshabilitada. Una recreación no le creará ningún escritorio."
         }
       },
       "tooltips": {
