@@ -12,6 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { AlertModal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/icon'
+import { toast } from '@/components/ui/toast'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
@@ -33,8 +34,7 @@ const emit = defineEmits<{
 const {
   mutate: abortOperations,
   isPending,
-  isError,
-  error: errorResponse
+  isError
 } = useMutation({
   ...abortStorageOperationsMutation(),
   onSuccess: () => {
@@ -48,7 +48,10 @@ const {
         path: { storage_id: props.storageId }
       })
     })
-    handleClose()
+    toast.success(t('components.desktops.desktop-storage-modal.cancel-modal.success'))
+    // The mutation settles only after this callback, so `handleClose` would still
+    // see it pending and swallow the close.
+    emit('close')
   }
 })
 
