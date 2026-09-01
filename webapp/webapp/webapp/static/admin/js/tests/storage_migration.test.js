@@ -163,3 +163,17 @@ assert.strictEqual(a.migCreateConfig().order, "oldest_first");
 console.log("migCreateConfig order: PASS");
 
 console.log("ALL PASS");
+
+// The exclusion reason comes from the API and lands in a title attribute, so it
+// is the one string on this panel an admin does not author.
+const summary = extract("migRenderSummary");
+assert(summary.includes("excluded_trees"), "the preview must read excluded_trees");
+assert(
+  /\.attr\("title", migEscape\(/.test(summary),
+  "the exclusion reason must reach the title attribute escaped"
+);
+assert(
+  summary.includes("excluded_disks_total"),
+  "the preview must show how many disks the exclusions cost"
+);
+console.log("migRenderSummary excluded trees: PASS");
