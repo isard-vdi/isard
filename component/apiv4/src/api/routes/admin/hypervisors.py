@@ -249,6 +249,12 @@ async def admin_hypervisor_enable(
                 hyper_id,
                 data.numa_topology,
             )
+        if data.machine_types is not None:
+            await asyncio.to_thread(
+                AdminHypervisorsService.update_hyper_machine_types,
+                hyper_id,
+                data.machine_types,
+            )
         result = await asyncio.to_thread(
             AdminHypervisorsService.enable_hyper, hyper_id, data.enabled
         )

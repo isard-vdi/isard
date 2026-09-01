@@ -166,6 +166,14 @@ class AdminHypervisorsService:
         HypervisorsProcessed.update_hyper_numa_topology(hyper_id, numa_topology)
 
     @staticmethod
+    def update_hyper_machine_types(hyper_id: str, machine_types: dict) -> None:
+        """Refresh the machine types this hypervisor's emulator accepts.
+
+        Sent at enable time, once libvirt is up and can be asked.
+        """
+        HypervisorsProcessed.update_hyper_machine_types(hyper_id, machine_types)
+
+    @staticmethod
     def update_hyper_boot_progress(hyper_id: str, boot_progress: dict) -> None:
         """Refresh hypervisor boot_progress payload (called from monitoring agents)."""
         HypervisorsProcessed.update_hyper_boot_progress(hyper_id, boot_progress)

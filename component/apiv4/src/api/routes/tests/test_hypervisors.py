@@ -186,6 +186,63 @@ def test_admin_hypervisor_enable(monkeypatch, test_client):
     assert captured == {"hyper_id": "hyper-1", "enabled": False}
 
 
+def test_admin_hypervisor_enable_stores_the_machine_types_it_is_given(
+    monkeypatch, test_client
+):
+    """The hypervisor reports what its emulator accepts when it comes up; the
+    engine reads it to refuse a machine type before libvirt does."""
+    jwt = MockJWT()
+    stored = {}
+
+    monkeypatch.setattr(
+        "api.services.admin.hypervisors.AdminHypervisorsService.enable_hyper",
+        staticmethod(lambda hyper_id, enabled: {"id": hyper_id, "enabled": enabled}),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.hypervisors.AdminHypervisorsService.update_hyper_machine_types",
+        staticmethod(lambda hyper_id, mt: stored.update(id=hyper_id, machine_types=mt)),
+    )
+
+    payload = {"machines": ["pc-i440fx-5.1", "pc-q35-6.1"], "reason": "ok"}
+    response = test_client(
+        url="/admin/item/hypervisor/hyper-1",
+        method="PUT",
+        body={"enabled": True, "machine_types": payload},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert stored == {"id": "hyper-1", "machine_types": payload}
+
+
+def test_admin_hypervisor_enable_without_machine_types_writes_nothing(
+    monkeypatch, test_client
+):
+    """An enable that carries no report must not blank the stored one — an
+    older hypervisor image sends none, and its row has to keep what it has."""
+    jwt = MockJWT()
+    calls = []
+
+    monkeypatch.setattr(
+        "api.services.admin.hypervisors.AdminHypervisorsService.enable_hyper",
+        staticmethod(lambda hyper_id, enabled: {"id": hyper_id, "enabled": enabled}),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.hypervisors.AdminHypervisorsService.update_hyper_machine_types",
+        staticmethod(lambda hyper_id, mt: calls.append(mt)),
+    )
+
+    response = test_client(
+        url="/admin/item/hypervisor/hyper-1",
+        method="PUT",
+        body={"enabled": True},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert calls == []
+
+
 def test_admin_hypervisor_delete(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []

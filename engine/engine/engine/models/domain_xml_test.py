@@ -1644,3 +1644,272 @@ class TestHypervDependencyChain:
         assert x.fix_hyperv_dependency_chain() == ["vpindex"]
         assert x.fix_hyperv_dependency_chain() == []
         assert len(x.tree.xpath("/domain/features/hyperv/vpindex")) == 1
+
+
+class TestNormalizeMachineType:
+    """qemu 11 removed everything below pc-i440fx-5.1.
+
+    One install had 179 domains that could not boot because of it, all
+    descended from the win10Virtio template this product has shipped since
+    2020 with ``machine='pc-i440fx-2.8'`` pinned in it.
+    """
+
+    ACCEPTED = [
+        "pc-i440fx-5.1",
+        "pc-i440fx-8.2",
+        "pc-i440fx-10.0",
+        "pc-q35-6.1",
+        "pc-q35-10.0",
+    ]
+
+    def _xml(self, machine=None):
+        attr = f" machine='{machine}'" if machine else ""
+        return (
+            f"<domain type='kvm'><os><type arch='x86_64'{attr}>hvm</type></os></domain>"
+        )
+
+    def _machine_of(self, xml):
+        return etree.parse(StringIO(xml)).xpath("/domain/os/type")[0].get("machine")
+
+    def test_a_removed_type_moves_to_the_oldest_of_its_own_chipset(self):
+        """5.1, not 10.0: the oldest accepted revision changes least of what
+        the guest sees."""
+        xml, old, new = dxml.normalize_machine_type(
+            self._xml("pc-i440fx-2.8"), self.ACCEPTED
+        )
+        assert (old, new) == ("pc-i440fx-2.8", "pc-i440fx-5.1")
+        assert self._machine_of(xml) == "pc-i440fx-5.1"
+
+    def test_it_never_crosses_to_another_chipset(self):
+        """i440fx has a floppy controller and IDE; q35 has neither. Swapping
+        chipset would stop the domain booting for a brand new reason."""
+        xml, _old, new = dxml.normalize_machine_type(
+            self._xml("pc-q35-2.8"), self.ACCEPTED
+        )
+        assert new == "pc-q35-6.1"
+        assert self._machine_of(xml).startswith("pc-q35")
+
+    def test_a_non_numeric_tail_is_treated_as_the_oldest(self):
+        """`pc-i440fx-hirsute` was found on a real install."""
+        _xml, old, new = dxml.normalize_machine_type(
+            self._xml("pc-i440fx-hirsute"), self.ACCEPTED
+        )
+        assert (old, new) == ("pc-i440fx-hirsute", "pc-i440fx-5.1")
+
+    def test_an_accepted_type_is_left_exactly_as_it_is(self):
+        xml, old, new = dxml.normalize_machine_type(
+            self._xml("pc-i440fx-8.2"), self.ACCEPTED
+        )
+        assert (old, new) == ("pc-i440fx-8.2", None)
+        assert self._machine_of(xml) == "pc-i440fx-8.2"
+
+    def test_no_machine_attribute_is_left_alone(self):
+        """libvirt then picks its own default, which the emulator has by
+        definition — there is nothing to correct."""
+        _xml, old, new = dxml.normalize_machine_type(self._xml(), self.ACCEPTED)
+        assert (old, new) == (None, None)
+
+    def test_an_empty_report_means_do_not_know_not_supports_nothing(self):
+        """If a failed probe were read as "supports nothing", every domain in
+        the installation would be rewritten on the strength of it."""
+        xml, old, new = dxml.normalize_machine_type(self._xml("pc-i440fx-2.8"), [])
+        assert (old, new) == (None, None)
+        assert self._machine_of(xml) == "pc-i440fx-2.8"
+
+    def test_a_chipset_with_no_accepted_revision_is_left_for_libvirt_to_refuse(self):
+        """libvirt's own refusal names the machine type; that is a better
+        diagnosis than a silent swap to something that will not boot."""
+        _xml, old, new = dxml.normalize_machine_type(
+            self._xml("pc-foobar-1.0"), self.ACCEPTED
+        )
+        assert (old, new) == ("pc-foobar-1.0", None)
+
+    def test_versions_compare_as_numbers_not_as_text(self):
+        """'10.0' < '8.2' as strings; picking by text would choose the wrong one."""
+        _xml, _old, new = dxml.normalize_machine_type(
+            self._xml("pc-i440fx-2.8"), ["pc-i440fx-10.0", "pc-i440fx-8.2"]
+        )
+        assert new == "pc-i440fx-8.2"
+
+    def test_unparseable_xml_does_not_raise(self):
+        xml, old, new = dxml.normalize_machine_type("<domain", self.ACCEPTED)
+        assert (xml, old, new) == ("<domain", None, None)
+
+
+class TestHypervclockTimer:
+    """The chain does not end inside <hyperv>: `stimer` also needs the
+    `hypervclock` timer, which lives under <clock>. libvirt refuses with
+    "'stimer' hyperv feature requires 'hypervclock' timer" -- measured on
+    staging, 31/08/2026, on a domain whose enlightenments were already complete.
+    """
+
+    def _dom(self, clock, stimer="on"):
+        return DomainXML(
+            f"<domain type='kvm'><features><hyperv>"
+            f"<synic state='on'/><stimer state='{stimer}'/><vpindex state='on'/>"
+            f"</hyperv></features>{clock}</domain>"
+        )
+
+    def _timer(self, x):
+        n = x.tree.xpath("/domain/clock/timer[@name='hypervclock']")
+        return n[0].get("present") if n else None
+
+    def test_a_clock_without_the_timer_gets_it(self):
+        x = self._dom("<clock offset='utc'/>")
+        assert x.fix_hyperv_dependency_chain() == ["hypervclock"]
+        assert self._timer(x) == "yes"
+
+    def test_a_timer_declared_absent_is_turned_on(self):
+        x = self._dom(
+            "<clock offset='utc'><timer name='hypervclock' present='no'/></clock>"
+        )
+        assert x.fix_hyperv_dependency_chain() == ["hypervclock"]
+        assert len(x.tree.xpath("/domain/clock/timer[@name='hypervclock']")) == 1
+
+    def test_a_clock_that_already_has_it_is_untouched(self):
+        x = self._dom(
+            "<clock offset='utc'><timer name='hypervclock' present='yes'/></clock>"
+        )
+        assert x.fix_hyperv_dependency_chain() == []
+
+    def test_no_stimer_means_no_timer_is_added(self):
+        """Nothing needs it, so we must not add it."""
+        x = self._dom("<clock offset='utc'/>", stimer="off")
+        assert "hypervclock" not in x.fix_hyperv_dependency_chain()
+        assert self._timer(x) is None
+
+    def test_a_domain_with_no_clock_section_does_not_raise(self):
+        x = DomainXML(
+            "<domain type='kvm'><features><hyperv>"
+            "<synic state='on'/><stimer state='on'/><vpindex state='on'/>"
+            "</hyperv></features></domain>"
+        )
+        assert x.fix_hyperv_dependency_chain() == []
+
+
+class TestNormalizeMachineTypeTooNew:
+    """A pin can be wrong in the OTHER direction, and then "oldest" is the
+    worst possible answer.
+
+    Same fleet, same feature: a domain pinned while the hypervisors ran a newer
+    qemu, a template carried in from a newer installation, or an image rolled
+    back after an incident. Before this the domain simply failed to define and
+    libvirt named the machine type; taking the oldest accepted revision would
+    instead boot a Windows guest on a chipset a decade older than the one it
+    was installed on, silently.
+    """
+
+    # A qemu 10 host, as the hypervisor-side discovery describes one:
+    # "qemu 10 went from pc-i440fx-2.4 up, qemu 11 starts at pc-i440fx-5.1".
+    QEMU10 = [
+        "pc-i440fx-2.4",
+        "pc-i440fx-2.12",
+        "pc-i440fx-5.1",
+        "pc-i440fx-8.2",
+        "pc-i440fx-10.0",
+    ]
+
+    def _xml(self, machine):
+        return f"<domain type='kvm'><os><type arch='x86_64' machine='{machine}'>hvm</type></os></domain>"
+
+    def test_a_pin_newer_than_the_host_takes_the_newest_it_can_define(self):
+        """10.0, not 2.4 — the smallest step the emulator can actually take."""
+        _x, old, new = dxml.normalize_machine_type(
+            self._xml("pc-i440fx-11.0"), self.QEMU10
+        )
+        assert (old, new) == ("pc-i440fx-11.0", "pc-i440fx-10.0")
+
+    def test_a_pin_one_minor_too_new_does_not_fall_to_the_bottom(self):
+        _x, _old, new = dxml.normalize_machine_type(
+            self._xml("pc-i440fx-10.1"), self.QEMU10
+        )
+        assert new == "pc-i440fx-10.0"
+
+    def test_the_too_old_direction_still_takes_the_oldest(self):
+        """The too-old direction must not regress: nothing accepted is older than the
+        pin, so the oldest accepted revision is still the answer."""
+        _x, _old, new = dxml.normalize_machine_type(
+            self._xml("pc-i440fx-2.0"), self.QEMU10
+        )
+        assert new == "pc-i440fx-2.4"
+
+    def test_a_non_numeric_pin_still_takes_the_oldest(self):
+        """`pc-i440fx-hirsute` parses to no version, so there is no direction
+        to read — the oldest accepted revision stays the safe default."""
+        _x, _old, new = dxml.normalize_machine_type(
+            self._xml("pc-i440fx-hirsute"), self.QEMU10
+        )
+        assert new == "pc-i440fx-2.4"
+
+    def test_versions_of_different_length_compare_as_numbers(self):
+        """(10,) vs (5,1): a pin of `pc-i440fx-10` is newer than 5.1."""
+        _x, _old, new = dxml.normalize_machine_type(
+            self._xml("pc-i440fx-10"), ["pc-i440fx-5.1", "pc-i440fx-11.0"]
+        )
+        assert new == "pc-i440fx-5.1"
+
+    def test_an_unversioned_accepted_entry_never_beats_a_real_revision(self):
+        """An entry whose tail does not parse sorts as the empty tuple. It must
+        not win the too-new branch over a real, newer revision."""
+        _x, _old, new = dxml.normalize_machine_type(
+            self._xml("pc-i440fx-11.0"),
+            ["pc-i440fx-hirsute", "pc-i440fx-5.1", "pc-i440fx-8.2"],
+        )
+        assert new == "pc-i440fx-8.2"
+
+
+class TestSetVideoTypeWithoutAVideoDevice:
+    """A domain whose XML carries no <video><model> used to raise IndexError.
+
+    It surfaced on a real start: recreate_xml_to_start calls set_video_type
+    because create_dict declares a video, the xpath returned nothing, and the
+    [0] took the whole start down. The desktop was left Failed with
+    "Engine failed to build XML for start: list index out of range" -- a detail
+    that names neither the device nor the domain.
+    """
+
+    QXL = {"type": "qxl", "heads": 1, "ram": 65536, "vram": 65536}
+
+    def _model(self, x):
+        node = x.tree.xpath("/domain/devices/video/model")
+        return node[0] if node else None
+
+    def test_a_domain_with_no_video_device_gets_one(self):
+        x = DomainXML("<domain type='kvm'><devices/></domain>")
+        x.set_video_type(self.QXL)
+        model = self._model(x)
+        assert model is not None
+        assert model.get("type") == "qxl"
+        assert model.get("ram") == "65536"
+
+    def test_a_video_element_without_a_model_gets_one(self):
+        x = DomainXML("<domain type='kvm'><devices><video/></devices></domain>")
+        x.set_video_type(self.QXL)
+        assert self._model(x).get("type") == "qxl"
+        assert len(x.tree.xpath("/domain/devices/video")) == 1
+
+    def test_a_domain_with_no_devices_at_all_does_not_raise(self):
+        """Nothing to hang a video device from; the start must still proceed."""
+        x = DomainXML("<domain type='kvm'><name>d</name></domain>")
+        x.set_video_type(self.QXL)
+        assert x.tree.xpath("/domain/devices/video/model") == []
+
+    def test_an_existing_model_is_still_updated_in_place(self):
+        x = DomainXML(
+            "<domain type='kvm'><devices>"
+            "<video><model type='cirrus' vram='16384'/></video></devices></domain>"
+        )
+        x.set_video_type(self.QXL)
+        assert self._model(x).get("type") == "qxl"
+        assert len(x.tree.xpath("/domain/devices/video/model")) == 1
+
+    def test_a_non_qxl_type_still_strips_the_attributes_libvirt_refuses(self):
+        x = DomainXML(
+            "<domain type='kvm'><devices>"
+            "<video><model type='qxl' ram='65536' vram='65536' heads='1'/>"
+            "</video></devices></domain>"
+        )
+        x.set_video_type({"type": "none"})
+        model = self._model(x)
+        assert model.get("type") == "none"
+        assert model.get("ram") is None and model.get("vram") is None
