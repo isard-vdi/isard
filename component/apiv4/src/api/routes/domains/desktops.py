@@ -354,7 +354,6 @@ async def update_desktop_bastion_authorized_keys(
             DesktopService.update_desktop_bastion_authorized_keys,
             desktop_id,
             data,
-            request.token_payload["user_id"],
         )
         return JSONResponse(
             content=SimpleResponse(id=desktop_id).model_dump(mode="json"),

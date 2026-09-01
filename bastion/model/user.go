@@ -23,6 +23,7 @@ func init() {
 type User struct {
 	ID         string `rethinkdb:"id"`
 	CategoryID string `rethinkdb:"category"`
+	SSHKey     string `rethinkdb:"bastion_ssh_key"`
 }
 
 func (u *User) Load(ctx context.Context, sess r.QueryExecutor) error {

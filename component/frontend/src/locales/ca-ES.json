@@ -1251,7 +1251,7 @@
           "remove": "Elimina la clau",
           "save": "Desa la clau"
         },
-        "description": "Afegeix la teva pròpia clau pública SSH al perfil. S'afegeix automàticament a l'accés SSH del bastió de qualsevol escriptori que iniciïs (quan l'accés SSH pel bastió està activat en aquell escriptori), de manera que no cal afegir-la a cada escriptori.",
+        "description": "Afegeix la teva pròpia clau pública SSH al perfil. El bastió l'accepta per a l'accés SSH de qualsevol escriptori teu, i dels escriptoris de qualsevol desplegament del qual siguis propietari o copropietari, de manera que no cal afegir-la a cada escriptori. Si l'elimines, aquest accés es revoca.",
         "invalid": "Això no sembla una clau pública SSH vàlida.",
         "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... usuari{'@'}host",
         "security-note": "Afegeix només la teva pròpia clau pública. Afegir la clau d'una altra persona pot violar la política de seguretat de la teva organització.",
@@ -2163,9 +2163,11 @@
               "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
               "others-label": "Claus SSH d'altres persones (una per línia)",
               "own-key": {
-                "add-link": "Afegeix-la al teu perfil",
-                "managed": "La teva pròpia clau s'afegeix automàticament des del teu perfil quan inicies aquest escriptori. Aquesta casella només és per a les claus públiques d'altres persones.",
-                "missing": "Encara no tens cap clau SSH del bastió al teu perfil, així que no tindràs accés SSH automàticament."
+                "missing": {
+                  "title": "Falta la clau SSH d'usuari",
+                  "description": "Encara no tens cap clau SSH del bastió al teu perfil; pots afegir-la per tenir accés SSH automàticament a tots els teus escriptoris.",
+                  "button": "Afegeix-la al teu perfil"
+                }
               }
             }
           }

@@ -298,7 +298,7 @@
         "ssh-key": {
             "modal": {
                 "title": "Bastion SSH key",
-                "description": "Add a single SSH public key to your profile. It is added automatically to the bastion SSH access of any desktop you start (when bastion SSH is enabled on that desktop), so you don't have to add it to each desktop.",
+                "description": "Add a single SSH public key to your profile. The bastion accepts it for the SSH access of any desktop you own, and of the desktops of any deployment you own or co-own, so you don't have to add it to each desktop. Removing it revokes that access.",
                 "label": "Your SSH public key",
                 "invalid": "This doesn't look like a valid SSH public key.",
                 "buttons": {
@@ -1404,7 +1404,6 @@
                     "not-verified": "Domain not verified - click shield to verify"
                 },
                 "own-key": {
-                    "managed": "Your own key is added automatically from your profile when you start this desktop. This box is only for other people's public keys.",
                     "missing": "You don't have a bastion SSH key in your profile yet, so you won't get SSH access automatically.",
                     "add-link": "Add it in your profile"
                 },

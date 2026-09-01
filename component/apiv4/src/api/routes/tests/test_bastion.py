@@ -401,7 +401,7 @@ def test_update_bastion_authorized_keys(monkeypatch, test_client, bastion_db_fac
     jwt = MockJWT()
     captured = {}
 
-    def fake_update(desktop_id, authorized_keys, editor_user_id=None):
+    def fake_update(desktop_id, authorized_keys):
         captured["desktop_id"] = desktop_id
         captured["authorized_keys"] = authorized_keys
         return {}
@@ -426,15 +426,15 @@ def test_update_bastion_authorized_keys(monkeypatch, test_client, bastion_db_fac
     assert captured["authorized_keys"] == ["ssh-ed25519 AAAA... user@host"]
 
 
-def test_update_bastion_authorized_keys_empty_rejected(
+def test_update_bastion_authorized_keys_service_error_maps_to_400(
     monkeypatch, test_client, bastion_db_factory
 ):
-    """PUT /item/desktop/{id}/bastion/authorized-keys with empty list."""
+    """PUT /item/desktop/{id}/bastion/authorized-keys, service raises."""
     jwt = MockJWT()
     _bypass_owns_domain_id(monkeypatch)
     _bypass_bastion_checks(monkeypatch)
 
-    def fake_update(desktop_id, authorized_keys, editor_user_id=None):
+    def fake_update(desktop_id, authorized_keys):
         from api.services.error import Error
 
         raise Error("bad_request", "Authorized keys are required")

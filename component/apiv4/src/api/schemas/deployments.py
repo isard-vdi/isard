@@ -828,8 +828,8 @@ class DeploymentRecreateCountResponse(BaseModel):
 
 
 class DeploymentBastionSsh(BaseModel):
-    """Deployment-level bastion SSH options (no authorized keys — those come
-    from each user's profile)."""
+    """Deployment-level bastion SSH options (no authorized keys — the bastion
+    resolves each user's profile key at connection time)."""
 
     enabled: bool = Field(default=False)
     port: int = Field(default=22)
