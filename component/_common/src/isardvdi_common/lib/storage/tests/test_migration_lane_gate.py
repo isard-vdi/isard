@@ -26,6 +26,7 @@ collect and run against the version that has no gate at all.
 """
 
 import isardvdi_common.lib.storage.migration_run as mr
+from isardvdi_common.lib import queue_tiers
 
 SRC = "/pool-src/disk.qcow2"
 DST = "/pool-dst/disk.qcow2"
@@ -59,7 +60,9 @@ def _instrument(r, *, pool_queue="storage.p-src.default"):
 
     r._enqueue = _enqueue
     r._set = _set
-    r._pool_queue = lambda path: pool_queue
+    # The tier comes from the rules, so a step that forgets to name its action is
+    # still visible to these tests.
+    r._pool_queue = lambda path, action: queue_tiers.retier_queue(pool_queue, action)
     r._claim_storage_task = lambda item, task_id: None
     return caps
 

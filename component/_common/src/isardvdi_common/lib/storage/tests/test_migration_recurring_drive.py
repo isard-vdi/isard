@@ -130,7 +130,7 @@ def _runner(
     r.prepare = lambda: None
     r.reactivate = lambda: None
     r._enqueue = lambda *a, **k: "tid"
-    r._pool_queue = lambda p: "q"
+    r._pool_queue = lambda p, action: "q"
     r._move_queue = lambda p: "q"
     r._pool_of = lambda p: type("P", (), {"id": "p"})()
     r._admit_tree = lambda *a, **k: True
