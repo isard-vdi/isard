@@ -81,6 +81,28 @@ _RQ_QUEUE_PREFIX = "rq:queue:"
 _GOVERNOR_WORKER_PREFIX = "governor:worker:"
 _COV_PREFIX = "governor:cov:"
 
+REASON_NON_STORAGE_QUEUE = "non_storage_queue"
+REASON_FLEET_GAP = "fleet_gap"
+REASON_COVERAGE_UNREADABLE = "coverage_unreadable"
+REASON_NO_CONSUMER = "no_consumer"
+REASON_OVERLOADED = "overloaded"
+REASON_BACKLOG = "backlog"
+
+# Every reason the decision can carry. A consumer comparing against anything
+# outside this set is asking a question the producer never answers.
+DECISION_REASONS = frozenset(
+    {
+        REASON_NON_STORAGE_QUEUE,
+        REASON_FLEET_GAP,
+        REASON_COVERAGE_UNREADABLE,
+        REASON_NO_CONSUMER,
+        REASON_OVERLOADED,
+        REASON_BACKLOG,
+    }
+)
+
+BLIND_REASONS = frozenset({REASON_COVERAGE_UNREADABLE})
+
 # Interactive tiers: a user (or a system action on their behalf) is actively
 # waiting, so these — and only these — may be rejected with a "retry later".
 # Every other tier is deferrable/governed and only ever informs.
@@ -265,7 +287,7 @@ def lane_shed_decision(conn, queue, now=None):
     answer at all sheds too, but under its own reason."""
     parsed = queue_tiers.parse_storage_queue(queue)
     if not parsed:
-        return "ok", {"reason": "non_storage_queue"}
+        return "ok", {"reason": REASON_NON_STORAGE_QUEUE}
     pool, category, tier = parsed
     if now is None:
         now = time.time()
@@ -289,7 +311,7 @@ def lane_shed_decision(conn, queue, now=None):
                 seen = fleet_last_seen(conn)
                 if seen is not None and now - seen <= FLEET_GONE_GRACE_S:
                     return "ok", {
-                        "reason": "fleet_gap",
+                        "reason": REASON_FLEET_GAP,
                         "pool": pool,
                         "category": category,
                         "tier": tier,
@@ -308,7 +330,7 @@ def lane_shed_decision(conn, queue, now=None):
         # Both used to land in this except, which is what made the bias look
         # deliberate for a case nobody had decided.
         return "reject", {
-            "reason": "coverage_unreadable",
+            "reason": REASON_COVERAGE_UNREADABLE,
             "pool": pool,
             "category": category,
             "tier": tier,
@@ -330,15 +352,15 @@ def lane_shed_decision(conn, queue, now=None):
     # dead pool serves. A live-but-busy consumer is not stranded: foreground
     # gets the extra hard-cap rule below, governed tiers still accumulate.
     if stranded:
-        return "reject", {**ctx, "reason": "no_consumer"}
+        return "reject", {**ctx, "reason": REASON_NO_CONSUMER}
 
     if tier in FOREGROUND_TIERS:
         cap = hard_cap(tier)
         if cap is not None and backlog >= cap:
-            return "reject", {**ctx, "reason": "overloaded", "hard_cap": cap}
+            return "reject", {**ctx, "reason": REASON_OVERLOADED, "hard_cap": cap}
 
     if backlog >= warn_backlog(tier):
-        return "warn", {**ctx, "reason": "backlog", "warn": warn_backlog(tier)}
+        return "warn", {**ctx, "reason": REASON_BACKLOG, "warn": warn_backlog(tier)}
     return "ok", ctx
 
 
@@ -366,7 +388,7 @@ def _raise_lane_429(conn, ctx):
     # Same code, so nothing downstream has to learn a new one.
     code = (
         "storage_no_consumer_retry_later"
-        if ctx.get("reason") in ("no_consumer", "coverage_unreadable")
+        if ctx.get("reason") in (REASON_NO_CONSUMER, REASON_COVERAGE_UNREADABLE)
         else "storage_overloaded_retry_later"
     )
     raise Error(
@@ -533,11 +555,13 @@ def _lane_health(conn, pool, tier):
             "tier": tier,
             "live": pool_live_workers(conn, pool, tier),
             "backlog": ctx.get("backlog", 0),
-            "no_consumer": decision == "reject" and ctx.get("reason") == "no_consumer",
-            "overloaded": decision == "reject" and ctx.get("reason") == "overloaded",
+            "no_consumer": decision == "reject"
+            and ctx.get("reason") == REASON_NO_CONSUMER,
+            "overloaded": decision == "reject"
+            and ctx.get("reason") == REASON_OVERLOADED,
             # Only an unreadable index is degraded; a readable one reporting an
             # empty fleet is a real no-consumer, not a blind spot.
-            "degraded": ctx.get("reason") == "coverage_error",
+            "degraded": ctx.get("reason") in BLIND_REASONS,
         }
     except Exception:
         return {
