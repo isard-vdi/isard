@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { Icon } from '@/components/icon'
@@ -35,6 +35,7 @@ import { DeleteModal } from '@/components/deployments/actions/delete-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
 import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
 import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
+import DeploymentProvisioningModal from '@/components/deployments/DeploymentProvisioningModal.vue'
 import { useBulkSpawnStore } from '@/stores/bulk-spawn'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
@@ -136,6 +137,50 @@ const bulkSpawnStore = useBulkSpawnStore()
 const isRecreatingDesktops = computed(() =>
   deploymentId.value ? bulkSpawnStore.deploymentsInProgress.has(deploymentId.value) : false
 )
+
+// Rows the engine has inserted but storage has not finished with yet: the
+// bulk-spawn envelope alone misses a recreate whose fan-out already ended.
+const CREATING_STATUSES: string[] = [
+  DesktopStatusEnum.CREATING,
+  DesktopStatusEnum.CREATING_DISK,
+  DesktopStatusEnum.CREATING_AND_STARTING
+]
+const hasDesktopsBeingCreated = computed(() =>
+  (deploymentEntry.value?.users ?? [])
+    .flatMap((user) => user.desktops_statuses ?? [])
+    .some((status) => CREATING_STATUSES.includes(status.status) && status.amount > 0)
+)
+const isProvisioning = computed(() => isRecreatingDesktops.value || hasDesktopsBeingCreated.value)
+
+const showProvisioningModal = ref(false)
+let provisioningCloseTimer: ReturnType<typeof setTimeout> | null = null
+
+const clearProvisioningCloseTimer = () => {
+  if (provisioningCloseTimer === null) return
+  clearTimeout(provisioningCloseTimer)
+  provisioningCloseTimer = null
+}
+
+// Held open for a moment after the last desktop lands, so both bars are seen
+// full instead of the modal vanishing mid-progress.
+watch(
+  isProvisioning,
+  (provisioning) => {
+    clearProvisioningCloseTimer()
+    if (provisioning) {
+      showProvisioningModal.value = true
+      return
+    }
+    if (!showProvisioningModal.value) return
+    provisioningCloseTimer = setTimeout(() => {
+      provisioningCloseTimer = null
+      showProvisioningModal.value = false
+    }, 2000)
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(clearProvisioningCloseTimer)
 
 const { data: userConfig } = useQuery(getUserConfigOptions())
 const canUseBastion = computed(() => userConfig.value?.can_use_bastion === true)
@@ -329,6 +374,11 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     :user-id="bastionUserModalData.userId"
     :username="bastionUserModalData.username"
     @close="bastionUserModalData = null"
+  />
+  <DeploymentProvisioningModal
+    :open="showProvisioningModal"
+    :deployment="deploymentEntry"
+    @close="showProvisioningModal = false"
   />
   <PageContainer v-if="!deploymentEntryIsError">
     <Button

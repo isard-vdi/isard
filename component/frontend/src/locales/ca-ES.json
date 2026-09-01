@@ -722,6 +722,18 @@
         "empty": "No hi ha cap escriptori per crear: tots els usuaris permesos i actius ja tenen el seu.",
         "close": "Tancar"
       },
+      "provisioning-modal": {
+        "title": "Creant escriptoris per a '{name}'",
+        "description": "Els teus escriptoris s'estan aprovisionant en dues etapes. No es podran fer servir fins que les dues acabin.",
+        "stage1-title": "Etapa 1 — Afegint escriptoris al desplegament",
+        "stage1-pending": "Esperant que el motor comenci a crear escriptoris...",
+        "stage1-progress": "{current} de {total} escriptoris afegits",
+        "stage1-done": "{total} de {total} escriptoris afegits",
+        "stage2-title": "Etapa 2 — Aprovisionant emmagatzematge",
+        "stage2-pending": "Esperant que l'Etapa 1 acabi abans d'aprovisionar emmagatzematge",
+        "stage2-progress": "{current} de {total} escriptoris aprovisionats",
+        "stage2-done": "{total} de {total} escriptoris aprovisionats"
+      },
       "actions": {
         "access": "Accedeix",
         "stop": "Atura"
