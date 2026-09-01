@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
-	"gitlab.com/isard/isardvdi/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 
 	"github.com/google/go-cmp/cmp"
@@ -559,61 +558,4 @@ func notifyBrandingDomainChangeIfNeeded(channel chan categoryBrandingDomainChang
 		Host:           newHost,
 		Authentication: auth,
 	}
-}
-
-func addLDAPWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.LDAPConfig, p provider.ConfigurableProvider[model.LDAPConfig]) {
-	wg.Go(func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-
-			case cfg := <-changesChan:
-				log.Debug().Msg("reloading LDAP configuration")
-				if err := p.LoadConfig(ctx, cfg); err != nil {
-					log.Error().Err(err).Msg("load new LDAP configuration")
-				} else {
-					log.Info().Msg("successfully reloaded LDAP configuration")
-				}
-			}
-		}
-	})
-}
-
-func addSAMLWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.SAMLConfig, p provider.ConfigurableProvider[model.SAMLConfig]) {
-	wg.Go(func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-
-			case cfg := <-changesChan:
-				log.Debug().Msg("reloading SAML configuration")
-				if err := p.LoadConfig(ctx, cfg); err != nil {
-					log.Error().Err(err).Msg("load new SAML configuration")
-				} else {
-					log.Info().Msg("successfully reloaded SAML configuration")
-				}
-			}
-		}
-	})
-}
-
-func addGoogleWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.GoogleConfig, p provider.ConfigurableProvider[model.GoogleConfig]) {
-	wg.Go(func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-
-			case cfg := <-changesChan:
-				log.Debug().Msg("reloading Google configuration")
-				if err := p.LoadConfig(ctx, cfg); err != nil {
-					log.Error().Err(err).Msg("load new Google configuration")
-				} else {
-					log.Info().Msg("successfully reloaded Google configuration")
-				}
-			}
-		}
-	})
 }

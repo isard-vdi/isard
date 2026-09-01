@@ -606,7 +606,7 @@ func (s *SAML) Healthcheck() error {
 	cfg := s.cfg.Cfg()
 
 	if cfg.Middleware == nil {
-		return fmt.Errorf("SAML middleware not yet configured")
+		return ErrNotConfigured
 	}
 
 	var binding, bindingLocation string
