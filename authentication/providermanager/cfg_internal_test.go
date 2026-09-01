@@ -234,6 +234,29 @@ func TestCfgWatcherWatch(t *testing.T) {
 				google.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "new-client-id"}).Return(nil)
 			},
 		},
+		"should notify watchers when a provider is enabled on reload without config changes": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					LDAP:   model.LDAP{Enabled: false, LDAPConfig: model.LDAPConfig{Host: "ldap.test", Port: 636}},
+					SAML:   model.SAML{Enabled: false, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
+					Google: model.Google{Enabled: false, GoogleConfig: model.GoogleConfig{ClientID: "test-client-id"}},
+				}, nil).Once()
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					LDAP:   model.LDAP{Enabled: true, LDAPConfig: model.LDAPConfig{Host: "ldap.test", Port: 636}},
+					SAML:   model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
+					Google: model.Google{Enabled: true, GoogleConfig: model.GoogleConfig{ClientID: "test-client-id"}},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
+				ldap.On("String").Return(types.ProviderLDAP)
+				saml.On("String").Return(types.ProviderSAML)
+				google.On("String").Return(types.ProviderGoogle)
+				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil).Once()
+				saml.On("LoadConfig", ctx, model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}).Return(nil).Once()
+				google.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "test-client-id"}).Return(nil).Once()
+			},
+		},
 		"should not notify watchers when config has not changed on reload": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{

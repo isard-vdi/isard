@@ -145,14 +145,35 @@ func (c *cfgWatcher) watchGlobal(ctx context.Context, wg *sync.WaitGroup, sess r
 			notifyProviderChangeIfNeeded(c.log, c.providerChanges, nil, types.ProviderSAML, cfg.SAML.Enabled, newCfg.SAML.Enabled)
 			notifyProviderChangeIfNeeded(c.log, c.providerChanges, nil, types.ProviderGoogle, cfg.Google.Enabled, newCfg.Google.Enabled)
 
+			// notifyIfNeeded compares against the configuration the provider
+			// already has applied, so the previous read only stands in for it
+			// when the provider was enabled back then. Otherwise, on a
+			// disabled -> enabled change, it would compare against the last
+			// applied configuration instead of the empty one the provider was
+			// reinitialized with, and nothing would be sent.
 			if newCfg.LDAP.Enabled {
-				notifyIfNeeded(c.globalChanges.ldapChanges, cfg.LDAP.LDAPConfig, newCfg.LDAP.LDAPConfig)
+				var ldapCfg model.LDAPConfig
+				if cfg.LDAP.Enabled {
+					ldapCfg = cfg.LDAP.LDAPConfig
+				}
+
+				notifyIfNeeded(c.globalChanges.ldapChanges, ldapCfg, newCfg.LDAP.LDAPConfig)
 			}
 			if newCfg.SAML.Enabled {
-				notifyIfNeeded(c.globalChanges.samlChanges, cfg.SAML.SAMLConfig, newCfg.SAML.SAMLConfig)
+				var samlCfg model.SAMLConfig
+				if cfg.SAML.Enabled {
+					samlCfg = cfg.SAML.SAMLConfig
+				}
+
+				notifyIfNeeded(c.globalChanges.samlChanges, samlCfg, newCfg.SAML.SAMLConfig)
 			}
 			if newCfg.Google.Enabled {
-				notifyIfNeeded(c.globalChanges.googleChanges, cfg.Google.GoogleConfig, newCfg.Google.GoogleConfig)
+				var googleCfg model.GoogleConfig
+				if cfg.Google.Enabled {
+					googleCfg = cfg.Google.GoogleConfig
+				}
+
+				notifyIfNeeded(c.globalChanges.googleChanges, googleCfg, newCfg.Google.GoogleConfig)
 			}
 
 			cfg = newCfg
