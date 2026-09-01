@@ -55,6 +55,7 @@ const emit = defineEmits<{
   // --- Redirects ---
   editDesktop: [ApiSchemasDomainsDesktopsUserDesktop]
   createTemplate: [ApiSchemasDomainsDesktopsUserDesktop]
+  bookDesktop: [ApiSchemasDomainsDesktopsUserDesktop]
   showStorageModal: [ApiSchemasDomainsDesktopsUserDesktop]
   // goTo*: [ApiSchemasDomainsDesktopsUserDesktop]
 }>()
@@ -225,6 +226,7 @@ const headers = [
                     @show-direct-link-modal="emit('showDirectLinkModal', row)"
                     @show-recreate-modal="emit('showRecreateModal', row)"
                     @create-template="emit('createTemplate', row)"
+                    @book-desktop="emit('bookDesktop', row)"
                     @show-storage-modal="emit('showStorageModal', row)"
                   />
                 </DropdownMenuContent>
