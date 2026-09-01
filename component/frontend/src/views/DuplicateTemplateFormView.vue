@@ -308,7 +308,7 @@ const handleSubmit = () => {
             </h2>
           </div>
 
-          <DomainSummary :loading="templateDetailsIsPending" v-bind="summary" />
+          <DomainSummary kind="template" :loading="templateDetailsIsPending" v-bind="summary" />
         </div>
       </div>
     </main>

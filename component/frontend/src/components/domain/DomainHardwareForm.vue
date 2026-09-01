@@ -483,18 +483,10 @@ defineExpose({
   </template>
   <form v-else>
     <FieldGroup>
-      <section class="group/hw-section grid gap-4 items-start">
+      <section class="grid gap-4 items-start">
         <div class="flex items-center gap-2">
-          <Icon
-            name="hdd-02"
-            size="sm"
-            stroke-color=""
-            aria-hidden="true"
-            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-          />
-          <h4
-            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-          >
+          <Icon name="hdd-02" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
+          <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
             {{ t('components.domain.hardware.hardwareGroups.system') }}
           </h4>
           <Separator class="flex-1" />
@@ -651,18 +643,10 @@ defineExpose({
         </div>
       </section>
       <section class="grid grid-cols-1 gap-y-7 md:grid-cols-2 md:gap-x-10 items-start">
-        <div v-if="props.showPeripherals" class="group/hw-section grid gap-4 items-start">
+        <div v-if="props.showPeripherals" class="grid gap-4 items-start">
           <div class="flex items-center gap-2">
-            <Icon
-              name="hdd"
-              size="sm"
-              stroke-color=""
-              aria-hidden="true"
-              class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-            />
-            <h4
-              class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-            >
+            <Icon name="hdd" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
+            <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
               {{ t('components.domain.hardware.hardwareGroups.peripherals') }}
             </h4>
             <Separator class="flex-1" />
@@ -702,18 +686,10 @@ defineExpose({
             </form.Field> -->
           </div>
         </div>
-        <div class="group/hw-section grid gap-4 items-start">
+        <div class="grid gap-4 items-start">
           <div class="flex items-center gap-2">
-            <Icon
-              name="gpu"
-              size="sm"
-              stroke-color=""
-              aria-hidden="true"
-              class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-            />
-            <h4
-              class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-            >
+            <Icon name="gpu" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
+            <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
               {{ t('components.domain.hardware.hardwareGroups.reservables') }}
             </h4>
             <Separator class="flex-1" />
@@ -744,18 +720,16 @@ defineExpose({
           </div>
         </div>
       </section>
-      <section class="group/hw-section grid gap-4 items-start">
+      <section class="grid gap-4 items-start">
         <div class="flex items-center gap-2">
           <Icon
             name="modem-02"
             size="sm"
             stroke-color=""
             aria-hidden="true"
-            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+            class="text-brand-700"
           />
-          <h4
-            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-          >
+          <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
             {{ t('components.domain.hardware.networks.label') }}
           </h4>
           <Separator class="flex-1" />

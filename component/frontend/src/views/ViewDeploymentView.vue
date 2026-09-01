@@ -372,6 +372,7 @@ const openDeploymentInfoModal = () => {
         </div>
 
         <DomainSummary
+          kind="deployment"
           :loading="desktopDetailsIsPending"
           :title="desktopDetails?.name"
           :credentials="desktopDetails?.credentials"

@@ -67,9 +67,9 @@ const hasBothCredentials = computed(
 
 const tintBgClass = computed(() => {
   if (props.kind !== 'desktop') return 'bg-brand-100/40'
-  if (props.desktopKind === 'persistent') return 'bg-secondary-3-500/15'
-  if (props.desktopKind === 'nonpersistent') return 'bg-secondary-1-500/15'
-  if (props.desktopKind === 'deployment') return 'bg-secondary-2-500/15'
+  if (props.desktopKind === 'persistent') return 'bg-secondary-3-100'
+  if (props.desktopKind === 'nonpersistent') return 'bg-secondary-1-100'
+  if (props.desktopKind === 'deployment') return 'bg-secondary-2-100'
   return 'bg-brand-100/40'
 })
 

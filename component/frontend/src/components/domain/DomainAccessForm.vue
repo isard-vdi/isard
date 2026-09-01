@@ -26,7 +26,6 @@ import ViewersSelector from '@/components/domain/ViewersSelector.vue'
 import AdjustmentStrip from '@/components/domain/AdjustmentStrip.vue'
 import BastionConfigForm from '@/components/domain/BastionConfigForm.vue'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import {
   hasWireguardRequiringViewer,
@@ -420,8 +419,6 @@ defineExpose({
   removedViewers,
   removedViewerLabels
 })
-
-const showPassword = ref(false)
 </script>
 <template>
   <template
@@ -436,18 +433,16 @@ const showPassword = ref(false)
   </template>
   <template v-else>
     <FieldGroup>
-      <section class="group/hw-section grid gap-4 items-start">
+      <section class="grid gap-4 items-start">
         <div class="flex items-center gap-2">
           <Icon
             name="monitor"
             size="sm"
             stroke-color=""
             aria-hidden="true"
-            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
+            class="text-brand-700"
           />
-          <h4
-            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-          >
+          <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
             {{ t('components.domain.access.sections.viewers') }}
           </h4>
           <Separator class="flex-1" />
@@ -501,20 +496,12 @@ const showPassword = ref(false)
           />
         </div>
       </section>
-      <section v-if="showCredentials" class="group/hw-section grid gap-4 items-start">
+      <section v-if="showCredentials" class="grid gap-4 items-start">
         <div class="flex items-center gap-2">
           <!-- Empty stroke-color clears Icon's inline color so the class below can drive
                currentColor and pick up the focus-within highlight. -->
-          <Icon
-            name="key-01"
-            size="sm"
-            stroke-color=""
-            aria-hidden="true"
-            class="text-gray-warm-500 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-          />
-          <h4
-            class="text-xs font-bold uppercase tracking-wide text-gray-warm-600 transition-colors duration-200 group-focus-within/hw-section:text-brand-700"
-          >
+          <Icon name="key-01" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
+          <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
             {{ t('components.domain.access.sections.credentials') }}
           </h4>
           <Separator class="flex-1" />
@@ -544,24 +531,14 @@ const showPassword = ref(false)
                 t('components.domain.access.credentials.password.label')
               }}</FieldLabel>
               <FieldContent>
-                <div class="relative">
-                  <InputField
-                    :id="field.name"
-                    :name="field.name"
-                    :model-value="field.state.value"
-                    :type="showPassword ? 'text' : 'password'"
-                    autocomplete="new-password"
-                    :placeholder="t('components.domain.access.credentials.password.placeholder')"
-                    @update:model-value="(value) => field.handleChange(String(value))"
-                  />
-                  <Button
-                    hierarchy="link-color"
-                    class="absolute right-3 top-1/2 -translate-y-1/2"
-                    @click="showPassword = !showPassword"
-                  >
-                    <Icon :name="showPassword ? 'eye-off' : 'eye'" />
-                  </Button>
-                </div>
+                <InputField
+                  :id="field.name"
+                  :name="field.name"
+                  :model-value="field.state.value"
+                  autocomplete="new-password"
+                  :placeholder="t('components.domain.access.credentials.password.placeholder')"
+                  @update:model-value="(value) => field.handleChange(String(value))"
+                />
                 <FieldDescription class="text-brand-600">
                   {{ t('components.domain.access.credentials.password.help') }}
                 </FieldDescription>

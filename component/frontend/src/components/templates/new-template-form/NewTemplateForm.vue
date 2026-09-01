@@ -279,7 +279,7 @@ const handleSaveAllowed = (selection: AllowedSelection) => {
         </h2>
       </div>
 
-      <DomainSummary :loading="desktopDetailsIsPending" v-bind="summary" />
+      <DomainSummary kind="template" :loading="desktopDetailsIsPending" v-bind="summary" />
     </div>
   </div>
 </template>

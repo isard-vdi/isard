@@ -1798,8 +1798,20 @@
       }
     },
     "domain-summary": {
+      "added": "Valor afegit",
       "changed": "Valor modificat",
-      "removed": "Valor eliminat"
+      "previous-value": "Valor anterior: {value}",
+      "removed": "Valor eliminat",
+      "tags": {
+        "boot": "Arrencada",
+        "disk": "Disc",
+        "disk-bus": "Bus",
+        "floppy": "Floppy",
+        "iso": "ISO",
+        "password": "Contrasenya",
+        "user": "Usuari",
+        "video": "Vídeo"
+      }
     },
     "viewers-selector": {
       "browser-viewers": {

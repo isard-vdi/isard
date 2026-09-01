@@ -1854,8 +1854,20 @@
       }
     },
     "domain-summary": {
+      "added": "Valor añadido",
       "changed": "Valor modificado",
-      "removed": "Valor eliminado"
+      "previous-value": "Valor anterior: {value}",
+      "removed": "Valor eliminado",
+      "tags": {
+        "boot": "Arranque",
+        "disk": "Disco",
+        "disk-bus": "Bus",
+        "floppy": "Floppy",
+        "iso": "ISO",
+        "password": "Contraseña",
+        "user": "Usuario",
+        "video": "Vídeo"
+      }
     },
     "datatable": {
       "empty": "No hay escritorios disponibles",

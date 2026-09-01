@@ -152,9 +152,9 @@ const resolveKind = (
 
 const nameBadgeClass = (item: DomainInfoItem): string => {
   const kind = resolveKind(item)
-  if (kind === 'persistent') return 'bg-secondary-3-500/60 text-secondary-3-700'
-  if (kind === 'nonpersistent') return 'bg-secondary-1-500/70 text-secondary-1-700'
-  if (kind === 'deployment') return 'bg-secondary-2-500/50 text-secondary-2-900'
+  if (kind === 'persistent') return 'bg-secondary-3-300 text-secondary-3-600'
+  if (kind === 'nonpersistent') return 'bg-secondary-1-300 text-secondary-1-600'
+  if (kind === 'deployment') return 'bg-secondary-2-300 text-secondary-2-600'
   return 'bg-brand-700 text-base-white'
 }
 
