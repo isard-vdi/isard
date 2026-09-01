@@ -1664,6 +1664,7 @@
       "file-downloaded": "Fitxer descarregat",
       "creating-deployment": "Creant desplegament",
       "recreating-deployment": "Recreant desplegament",
+      "no-desktops-to-recreate": "'{name}': no hi ha cap escriptori per crear. Tots els usuaris permesos i habilitats ja tenen els seus escriptoris.",
       "deployment-desktops-created": "Escriptoris del desplegament creats",
       "deployment-bastion-updated": "Configuració de bastió del desplegament actualitzada",
       "bastion-not-configured": "El bastió no està habilitat per a aquest escriptori",

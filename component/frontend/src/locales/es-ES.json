@@ -716,7 +716,11 @@
       "recreate-modal": {
         "title": "Recrear despliegue '{name}'",
         "description": "Restablece los escritorios al estado inicial en el que se crearon. Solo los escritorios eliminados se restablecerán",
-        "button": "Recrear despliegue"
+        "button": "Recrear despliegue",
+        "counting": "Comprobando cuántos escritorios se crearán…",
+        "count": "Se creará {n} escritorio | Se crearán {n} escritorios",
+        "empty": "No hay ningún escritorio que crear: todos los usuarios permitidos y activos ya tienen el suyo.",
+        "close": "Cerrar"
       },
       "actions": {
         "access": "Acceder",
@@ -2956,6 +2960,13 @@
         "not_found": "No se encontró el despliegue.",
         "precondition_required": "El despliegue no se puede eliminar en este momento. Inténtalo de nuevo en unos instantes.",
         "deployment_stop": "Los escritorios del despliegue deben estar parados antes de poder eliminarlo."
+      }
+    },
+    "recreate-deployment": {
+      "errors": {
+        "generic": "No se ha podido comprobar la recreación del despliegue. Inténtalo de nuevo.",
+        "not_found": "No se encontró el despliegue.",
+        "deployment_recreate_booking_not_enough_units": "La reserva futura del despliegue no tiene suficientes unidades para los escritorios que crearía la recreación."
       }
     },
     "booking": {

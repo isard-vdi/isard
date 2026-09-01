@@ -1498,6 +1498,7 @@
             "file-downloaded": "File downloaded",
             "creating-deployment": "Creating Deployment",
             "recreating-deployment": "Recreating Deployment",
+            "no-desktops-to-recreate": "'{name}': there are no missing desktops to create. All the allowed and enabled users already have their desktops.",
             "deployment-desktops-created": "Deployment desktops created",
             "deployment-bastion-updated": "Deployment bastion configuration updated",
             "bastion-not-configured": "Bastion is not enabled for this desktop",

@@ -724,7 +724,11 @@
       "recreate-modal": {
         "title": "Recreate deployment '{name}'",
         "description": "Restores desktops to the initial state in which they were created. Only deleted desktops will be restored",
-        "button": "Recreate deployment"
+        "button": "Recreate deployment",
+        "counting": "Checking how many desktops will be created…",
+        "count": "It will create {n} desktop | It will create {n} desktops",
+        "empty": "There are no desktops to create: every allowed and active user already has theirs.",
+        "close": "Close"
       },
       "actions": {
         "access": "Access",
@@ -2943,6 +2947,13 @@
         "not_found": "The deployment was not found.",
         "precondition_required": "The deployment can't be deleted right now. Please try again in a moment.",
         "deployment_stop": "The deployment's desktops must be stopped before it can be deleted."
+      }
+    },
+    "recreate-deployment": {
+      "errors": {
+        "generic": "The deployment recreate could not be checked. Please try again.",
+        "not_found": "Deployment not found.",
+        "deployment_recreate_booking_not_enough_units": "The deployment's future booking does not have enough units for the desktops the recreate would create."
       }
     },
     "edit-template": {

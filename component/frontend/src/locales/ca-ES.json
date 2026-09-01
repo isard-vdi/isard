@@ -716,7 +716,11 @@
       "recreate-modal": {
         "title": "Recrear desplegament '{name}'",
         "description": "Restableix els escriptoris a l'estat inicial en què es van crear. Només els escriptoris eliminats es restabliran",
-        "button": "Recrear desplegament"
+        "button": "Recrear desplegament",
+        "counting": "S'està comprovant quants escriptoris es crearan…",
+        "count": "Es crearà {n} escriptori | Es crearan {n} escriptoris",
+        "empty": "No hi ha cap escriptori per crear: tots els usuaris permesos i actius ja tenen el seu.",
+        "close": "Tancar"
       },
       "actions": {
         "access": "Accedeix",
@@ -2983,6 +2987,13 @@
         "not_found": "No s'ha trobat el desplegament.",
         "precondition_required": "El desplegament no es pot eliminar en aquest moment. Torna-ho a provar d'aquí a uns instants.",
         "deployment_stop": "Els escriptoris del desplegament han d'estar aturats abans de poder eliminar-lo."
+      }
+    },
+    "recreate-deployment": {
+      "errors": {
+        "generic": "No s'ha pogut comprovar la recreació del desplegament. Torna-ho a provar.",
+        "not_found": "No s'ha trobat el desplegament.",
+        "deployment_recreate_booking_not_enough_units": "La reserva futura del desplegament no té prou unitats per als escriptoris que crearia la recreació."
       }
     }
   },

@@ -809,6 +809,15 @@ class DeploymentVideowallResponse(BaseModel):
     desktops_each_user: int
 
 
+class DeploymentRecreateCountResponse(BaseModel):
+    """How many desktops a recreate would create, shown before confirming."""
+
+    desktops_to_create: int = Field(
+        description="Number of desktops that a recreate would create for the "
+        "deployment's currently allowed and active users"
+    )
+
+
 class DeploymentBastionSsh(BaseModel):
     """Deployment-level bastion SSH options (no authorized keys — those come
     from each user's profile)."""

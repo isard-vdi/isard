@@ -950,6 +950,16 @@ class DeploymentsProcessed(RethinkSharedConnection):
             cls.create_deployment_desktops(deployment_tag, [desktop], users)
 
     @classmethod
+    def count_recreate_desktops(cls, payload, deployment_id):
+        """Number of desktops a ``recreate`` would actually create.
+
+        Built from the same plan as ``recreate`` so the confirmation shown
+        to the user never counts users it will skip.
+        """
+        _, plan = cls._prepare_recreate(payload, deployment_id)
+        return sum(len(users) for _, _, users in plan)
+
+    @classmethod
     def create(
         cls,
         payload,
