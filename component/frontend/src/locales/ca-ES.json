@@ -648,6 +648,7 @@
         "buttons": {
           "edit": "Editar desplegament",
           "alloweds": "Usuaris i grups",
+          "co-owners": "Gestionar copropietaris",
           "download-viewer": "Descarregar enllaços directes",
           "recreate": "Recrear desplegament",
           "reserve": "Reservar",
@@ -1303,7 +1304,7 @@
       "media": "Mitjans",
       "deployments": {
         "title": "Desplegaments",
-        "created-by-you": "Creats per tu",
+        "owned-by-you": "De la teva propietat",
         "shared-deployments": "Compartits amb tu"
       },
       "user-deployments": "Els meus desplegaments",
@@ -2503,6 +2504,13 @@
         "go-to-profile": "Comprova la teva quota",
         "cancel": "Torna als desplegaments"
       },
+      "co-owners-modal": {
+        "title": "Gestionar copropietaris de '{name}'",
+        "description": "Tria quins usuaris són copropietaris d'aquest desplegament. Propietari: {owner}",
+        "warning": "Els copropietaris tenen els mateixos permisos que el propietari, excepte eliminar el desplegament i gestionar els copropietaris.",
+        "success": "Copropietaris actualitzats",
+        "error": "No s'han pogut actualitzar els copropietaris"
+      },
       "download-csv-modal": {
         "title": "Descarregar CSV de visors directes de '{name}'",
         "options": {
@@ -2714,7 +2722,8 @@
         "groups": "No hi ha grups disponibles",
         "users": "Aquest grup no té usuaris",
         "no-group": "Selecciona un grup o cerca usuaris",
-        "no-group-short-term": "Escriu com a mínim 2 caràcters per cercar usuaris"
+        "no-group-short-term": "Escriu com a mínim 2 caràcters per cercar usuaris",
+        "no-users-selected": "Encara no hi ha usuaris seleccionats: cerca'ls per afegir-los"
       },
       "share-everyone": {
         "unchecked": {
@@ -2729,6 +2738,7 @@
       "view-group": "Mostra els usuaris del grup '{group_name}'",
       "unview-group": "Deixa de mostrar els usuaris del grup '{group_name}'",
       "require-selection": "Selecciona com a mínim un grup o un usuari",
+      "require-selection-users": "Selecciona com a mínim un usuari",
       "no-changes": "Fes algun canvi per desar",
       "select-all": {
         "groups": "Selecciona tots els grups",

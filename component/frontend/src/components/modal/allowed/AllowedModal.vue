@@ -37,6 +37,9 @@ interface Props {
   selection?: AllowedSelection // Selection to open with when the item does not exist yet
   requireSelection?: boolean // Block saving if the selection is empty
   supportsEveryone?: boolean // Whether an empty array means "everyone"
+  usersOnly?: boolean // Only users can be picked; groups become browse-only navigation
+  roles?: string[] // Restrict the pickable users to these role ids
+  preselectedUsers?: AllowedOption[] // Users shown in the users column when nothing is being browsed or searched
   error?: string // Error message to show in the footer.
 }
 
@@ -51,6 +54,9 @@ const props = withDefaults(defineProps<Props>(), {
   selection: undefined,
   requireSelection: false,
   supportsEveryone: true,
+  usersOnly: false,
+  roles: undefined,
+  preselectedUsers: undefined,
   error: ''
 })
 
@@ -60,6 +66,10 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const everyoneEnabled = computed(() => props.supportsEveryone && !props.usersOnly)
+
+const roleQuery = computed(() => (props.roles?.length ? { roles: [...props.roles] } : undefined))
 
 // --- Queries ---------------------------------------------------------------
 
@@ -180,7 +190,7 @@ const availableGroups = computed<AllowedOption[]>(() => {
 
 const readBucket = (value: boolean | string[] | undefined, all: () => string[]): string[] => {
   if (!Array.isArray(value)) return []
-  if (value.length === 0) return props.supportsEveryone ? all() : []
+  if (value.length === 0) return everyoneEnabled.value ? all() : []
   return [...value]
 }
 
@@ -192,7 +202,7 @@ const hydrate = () => {
   const allGroupIds = () => availableGroups.value.map((group) => group.value)
 
   if (
-    props.supportsEveryone &&
+    everyoneEnabled.value &&
     Array.isArray(source.groups) &&
     source.groups.length === 0 &&
     allGroupIds().length === 0
@@ -203,9 +213,9 @@ const hydrate = () => {
   selectedGroups.value = readBucket(source.groups, allGroupIds)
 
   apiAllGroups.value =
-    props.supportsEveryone && Array.isArray(source.groups) && source.groups.length === 0
+    everyoneEnabled.value && Array.isArray(source.groups) && source.groups.length === 0
   shareWithEveryone.value =
-    props.supportsEveryone && Array.isArray(source.users) && source.users.length === 0
+    everyoneEnabled.value && Array.isArray(source.users) && source.users.length === 0
   selectedUsers.value =
     !shareWithEveryone.value && Array.isArray(source.users) ? [...source.users] : []
   apiIndeterminateGroups.value = Array.isArray(allowedData.value?.indeterminate_groups)
@@ -215,7 +225,7 @@ const hydrate = () => {
 }
 
 watch(
-  [() => props.open, allowedData, availableGroups],
+  [() => props.open, () => props.selection, allowedData, availableGroups],
   () => {
     if (props.open && !hydrated.value) hydrate()
   },
@@ -249,9 +259,15 @@ const selectedGroupCount = computed(() => {
 // --- Users column ----------------------------------------------------------
 
 const usersInGroup = useQuery({
-  ...getUsersInGroupOptions({ path: { group_id: viewedGroup.value ?? '' } }),
+  ...getUsersInGroupOptions({
+    path: { group_id: viewedGroup.value ?? '' },
+    query: roleQuery.value
+  }),
   queryKey: computed(() =>
-    getUsersInGroupQueryKey({ path: { group_id: viewedGroup.value ?? '' } })
+    getUsersInGroupQueryKey({
+      path: { group_id: viewedGroup.value ?? '' },
+      query: roleQuery.value
+    })
   ),
   enabled: computed(() => props.open && !!viewedGroup.value)
 })
@@ -269,11 +285,11 @@ const USER_SEARCH_LIMIT = 50
 
 const searchedUsers = useQuery({
   ...searchUsersInCategoryOptions({
-    query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT }
+    query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT, ...roleQuery.value }
   }),
   queryKey: computed(() =>
     searchUsersInCategoryQueryKey({
-      query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT }
+      query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT, ...roleQuery.value }
     })
   ),
   enabled: computed(() => props.open && termSearchActive.value)
@@ -318,9 +334,36 @@ const checkedUsers = computed(() => {
   return selectedUsers.value
 })
 
-const usersColumnItems = computed<AllowedOption[]>(() =>
-  viewedGroup.value ? viewedGroupUsers.value : searchedUserOptions.value
-)
+const knownUsers = computed<Record<string, AllowedOption>>(() => {
+  const known: Record<string, AllowedOption> = {}
+  for (const user of props.preselectedUsers ?? []) known[user.value] = user
+  for (const members of Object.values(usersByGroup.value)) {
+    for (const member of members) known[member.value] = member
+  }
+  for (const user of searchedUserOptions.value) known[user.value] = user
+  return known
+})
+
+const showsSelectionWhenIdle = computed(() => props.preselectedUsers !== undefined)
+
+const idleUserOptions = computed<AllowedOption[]>(() => {
+  const options = [...(props.preselectedUsers ?? [])]
+  const seen = new Set(options.map((option) => option.value))
+  for (const id of selectedUsers.value) {
+    if (seen.has(id)) continue
+    const option = knownUsers.value[id]
+    if (!option) continue
+    options.push(option)
+    seen.add(id)
+  }
+  return options
+})
+
+const usersColumnItems = computed<AllowedOption[]>(() => {
+  if (viewedGroup.value) return viewedGroupUsers.value
+  if (termSearchActive.value) return searchedUserOptions.value
+  return showsSelectionWhenIdle.value ? idleUserOptions.value : []
+})
 
 const usersLoading = computed(() => {
   if (viewedGroup.value) {
@@ -366,6 +409,9 @@ const usersEmptyText = computed(() => {
   if (termSearchActive.value && !searchedUsers.isFetching.value) {
     return t('components.allowed-modal.search.user.empty')
   }
+  if (showsSelectionWhenIdle.value) {
+    return t('components.allowed-modal.empty.no-users-selected')
+  }
   return t('components.allowed-modal.empty.no-group')
 })
 
@@ -385,14 +431,16 @@ const dropKnownMembers = (groupIds: string[]) => {
 }
 
 const toggleAllGroups = (selectAll: boolean) => {
+  if (props.usersOnly) return
   dirty.value = true
   const groupIds = availableGroups.value.map((group) => group.value)
-  apiAllGroups.value = props.supportsEveryone && selectAll
+  apiAllGroups.value = everyoneEnabled.value && selectAll
   selectedGroups.value = selectAll ? groupIds : []
   dropKnownMembers(groupIds)
 }
 
 const toggleGroup = (groupId: string) => {
+  if (props.usersOnly) return
   dirty.value = true
   apiAllGroups.value = false
   selectedGroups.value = selectedGroups.value.includes(groupId)
@@ -435,12 +483,20 @@ const toggleShareWithEveryone = () => {
   shareWithEveryone.value = !shareWithEveryone.value
 }
 
-const isEmptySelection = computed(
-  () =>
+const isEmptySelection = computed(() => {
+  if (props.usersOnly) return selectedUsers.value.length === 0
+  return (
     !shareWithEveryone.value &&
     !apiAllGroups.value &&
     selectedGroups.value.length === 0 &&
     selectedUsers.value.length === 0
+  )
+})
+
+const requireSelectionText = computed(() =>
+  props.usersOnly
+    ? t('components.allowed-modal.require-selection-users')
+    : t('components.allowed-modal.require-selection')
 )
 
 const columnsDisabled = computed(() => shareWithEveryone.value || props.loading)
@@ -456,13 +512,15 @@ const saveHint = computed(() =>
 const handleSave = () => {
   if (saveDisabled.value) return
   emit('save', {
-    groups: shareWithEveryone.value
+    groups: props.usersOnly
       ? false
-      : apiAllGroups.value
-        ? []
-        : selectedGroups.value.length
-          ? [...selectedGroups.value]
-          : false,
+      : shareWithEveryone.value
+        ? false
+        : apiAllGroups.value
+          ? []
+          : selectedGroups.value.length
+            ? [...selectedGroups.value]
+            : false,
     users: shareWithEveryone.value
       ? []
       : selectedUsers.value.length
@@ -501,7 +559,7 @@ const handleClose = () => {
       </Alert>
     </div>
     <div
-      v-if="props.supportsEveryone"
+      v-if="everyoneEnabled"
       :class="[
         'mb-4 flex shrink-0 select-none flex-row items-center gap-2 rounded-lg border p-3',
         shareWithEveryone ? 'border-brand-600 bg-brand-100' : 'border-gray-warm-200 bg-base-white',
@@ -558,7 +616,8 @@ const handleClose = () => {
         :search-placeholder="t('components.allowed-modal.search.group.placeholder')"
         :empty-text="groupsEmptyText"
         :not-found-text="t('components.allowed-modal.search.group.empty')"
-        :select-all="props.supportsEveryone"
+        :selectable="!props.usersOnly"
+        :select-all="everyoneEnabled"
         :select-all-checked="apiAllGroups"
         :select-all-label="t('components.allowed-modal.select-all.groups')"
         :select-all-count-label="
@@ -613,7 +672,7 @@ const handleClose = () => {
           v-if="props.requireSelection && isEmptySelection"
           class="min-w-0 truncate text-sm text-gray-warm-600"
         >
-          {{ t('components.allowed-modal.require-selection') }}
+          {{ requireSelectionText }}
         </p>
         <div class="flex shrink-0 gap-2">
           <Button hierarchy="secondary-gray" :disabled="props.loading" @click="handleClose">

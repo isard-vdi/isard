@@ -13,7 +13,9 @@ def test_search_users_in_category_route(monkeypatch, test_client):
     """
     monkeypatch.setattr(
         "api.services.categories.CategoryService.search_users_in_category",
-        staticmethod(lambda category_id, search, limit: {"users": [], "total": 0}),
+        staticmethod(
+            lambda category_id, search, limit, roles=None: {"users": [], "total": 0}
+        ),
     )
 
     jwt = MockJWT(role_id="advanced", category_id="default")
@@ -35,7 +37,7 @@ def test_search_users_in_category_returns_user_list(monkeypatch, test_client):
     monkeypatch.setattr(
         "api.services.categories.CategoryService.search_users_in_category",
         staticmethod(
-            lambda category_id, search, limit: {
+            lambda category_id, search, limit, roles=None: {
                 "users": [
                     {"id": "u-1", "name": "Alice", "username": "alice"},
                     {"id": "u-2", "name": "Anna", "username": "anna"},
@@ -60,10 +62,11 @@ def test_search_users_in_category_uses_caller_category(monkeypatch, test_client)
     user-supplied param. Pin the ownership boundary."""
     captured = {}
 
-    def fake_search(category_id, search, limit):
+    def fake_search(category_id, search, limit, roles=None):
         captured["category_id"] = category_id
         captured["search"] = search
         captured["limit"] = limit
+        captured["roles"] = roles
         return {"users": [], "total": 0}
 
     monkeypatch.setattr(
@@ -85,7 +88,12 @@ def test_search_users_in_category_uses_caller_category(monkeypatch, test_client)
             ],
         },
     )
-    assert captured == {"category_id": "cat-mgr", "search": "alice", "limit": 50}
+    assert captured == {
+        "category_id": "cat-mgr",
+        "search": "alice",
+        "limit": 50,
+        "roles": None,
+    }
 
 
 @pytest.mark.clear_cache
@@ -93,7 +101,9 @@ def test_search_users_in_category_rejects_user_role(monkeypatch, test_client):
     """The endpoint sits on advanced_router, so role=user must not reach it."""
     monkeypatch.setattr(
         "api.services.categories.CategoryService.search_users_in_category",
-        staticmethod(lambda category_id, search, limit: {"users": [], "total": 0}),
+        staticmethod(
+            lambda category_id, search, limit, roles=None: {"users": [], "total": 0}
+        ),
     )
     jwt = MockJWT(role_id="user", category_id="default")
     response = test_client(url="/item/category/users/search?search=x", jwt=jwt)
@@ -117,7 +127,7 @@ def test_search_users_in_category_unexpected_error_is_500(monkeypatch, test_clie
     """Uncaught service exceptions must fall through to the route's
     except Exception arm and return 500, not leak a 200 with bad content."""
 
-    def boom(category_id, search, limit):
+    def boom(category_id, search, limit, roles=None):
         raise RuntimeError("db unavailable")
 
     monkeypatch.setattr(
@@ -127,3 +137,26 @@ def test_search_users_in_category_unexpected_error_is_500(monkeypatch, test_clie
     jwt = MockJWT(role_id="advanced", category_id="default")
     response = test_client(url="/item/category/users/search?search=x", jwt=jwt)
     assert response.status_code == 500
+
+
+@pytest.mark.clear_cache
+def test_search_users_in_category_forwards_roles(monkeypatch, test_client):
+    """``roles`` is a repeated query param; it must reach the service as a
+    list so pickers can restrict results to advanced-and-above accounts."""
+    captured = {}
+
+    def fake_search(category_id, search, limit, roles=None):
+        captured["roles"] = roles
+        return {"users": [], "total": 0}
+
+    monkeypatch.setattr(
+        "api.services.categories.CategoryService.search_users_in_category",
+        staticmethod(fake_search),
+    )
+    jwt = MockJWT(role_id="advanced", category_id="default")
+    response = test_client(
+        url="/item/category/users/search?search=a&roles=advanced&roles=admin",
+        jwt=jwt,
+    )
+    assert response.status_code == 200
+    assert captured["roles"] == ["advanced", "admin"]

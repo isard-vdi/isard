@@ -11,7 +11,10 @@ import {
   getDeploymentOptions,
   getUserConfigOptions,
   editDeploymentUsersMutation,
-  getDeploymentAllowedQueryKey
+  getDeploymentAllowedQueryKey,
+  getDeploymentCoOwnersOptions,
+  getDeploymentCoOwnersQueryKey,
+  updateDeploymentCoOwnersMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { getDeploymentBastionCsv } from '@/gen/oas/apiv4/sdk.gen'
 import { type DeploymentUserDetail, type ErrorResponse } from '@/gen/oas/apiv4'
@@ -38,7 +41,7 @@ import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserB
 import DeploymentProvisioningModal from '@/components/deployments/DeploymentProvisioningModal.vue'
 import { useBulkSpawnStore } from '@/stores/bulk-spawn'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
-import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
+import { AllowedModal, type AllowedOption, type AllowedSelection } from '@/components/modal/allowed'
 import { toast } from '@/components/ui/toast'
 
 const { t, d, locale } = useI18n()
@@ -243,6 +246,16 @@ const dropdownActions = computed(() => [
         }
       ]
     : []),
+  ...(deploymentEntry.value?.info.co_owner
+    ? []
+    : [
+        {
+          key: 'co-owners',
+          icon: 'users-plus',
+          label: t('views.deployments.dropdown.buttons.co-owners'),
+          fn: () => openCoOwnersModal()
+        }
+      ]),
   {
     key: 'recreate',
     icon: 'refresh-cw-04',
@@ -280,6 +293,68 @@ const showDownloadCsvModal = ref(false)
 const handleNotImplemented = () => alert('not implemented yet')
 
 const queryClient = useQueryClient()
+
+const showCoOwnersModal = ref(false)
+const coOwnersError = ref('')
+
+const { data: coOwners } = useQuery({
+  ...getDeploymentCoOwnersOptions({ path: { deployment_id: deploymentId.value } }),
+  queryKey: computed(() =>
+    getDeploymentCoOwnersQueryKey({ path: { deployment_id: deploymentId.value } })
+  ),
+  enabled: computed(() => showCoOwnersModal.value && !!deploymentId.value)
+})
+
+const coOwnersSelection = computed<AllowedSelection | undefined>(() =>
+  coOwners.value
+    ? { groups: false, users: coOwners.value.co_owners.map((user) => user.id) }
+    : undefined
+)
+
+const coOwnersOwnerName = computed(() => coOwners.value?.owner.name ?? '')
+
+const preselectedCoOwners = computed<AllowedOption[] | undefined>(() =>
+  coOwners.value?.co_owners.map((user) => ({
+    value: user.id,
+    label: user.name,
+    subLabel: user.uid ?? undefined,
+    avatar: user.photo ?? ''
+  }))
+)
+
+const { mutate: updateCoOwners, isPending: updateCoOwnersIsPending } = useMutation({
+  ...updateDeploymentCoOwnersMutation(),
+  onSuccess: (_data, variables) => {
+    queryClient.removeQueries({
+      queryKey: getDeploymentCoOwnersQueryKey({
+        path: { deployment_id: variables.path.deployment_id }
+      })
+    })
+    closeCoOwnersModal()
+    toast.success(t('components.deployments.co-owners-modal.success'))
+  },
+  onError: () => {
+    coOwnersError.value = t('components.deployments.co-owners-modal.error')
+  }
+})
+
+const openCoOwnersModal = () => {
+  coOwnersError.value = ''
+  showCoOwnersModal.value = true
+}
+
+const closeCoOwnersModal = () => {
+  showCoOwnersModal.value = false
+  coOwnersError.value = ''
+}
+
+const handleSaveCoOwners = (selection: AllowedSelection) => {
+  coOwnersError.value = ''
+  updateCoOwners({
+    path: { deployment_id: deploymentId.value },
+    body: { co_owners: Array.isArray(selection.users) ? selection.users : [] }
+  })
+}
 
 const showAllowedModal = ref(false)
 const allowedError = ref('')
@@ -329,6 +404,24 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
 </script>
 
 <template>
+  <AllowedModal
+    v-if="showCoOwnersModal"
+    open
+    users-only
+    :roles="['advanced', 'manager', 'admin']"
+    :supports-everyone="false"
+    :selection="coOwnersSelection"
+    :preselected-users="preselectedCoOwners"
+    :title="t('components.deployments.co-owners-modal.title', { name: deploymentEntry?.info.name })"
+    :description="
+      t('components.deployments.co-owners-modal.description', { owner: coOwnersOwnerName })
+    "
+    :warning="t('components.deployments.co-owners-modal.warning')"
+    :loading="updateCoOwnersIsPending"
+    :error="coOwnersError"
+    @save="handleSaveCoOwners"
+    @close="closeCoOwnersModal"
+  />
   <RecreateModal
     :open="showRecreateModal"
     :deployment-id="deploymentEntry?.info.id || ''"

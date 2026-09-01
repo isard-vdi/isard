@@ -656,6 +656,7 @@
         "buttons": {
           "edit": "Edit deployment",
           "alloweds": "Users and groups",
+          "co-owners": "Manage Co-Owners",
           "download-viewer": "Download direct links",
           "recreate": "Recreate deployment",
           "reserve": "Reserve",
@@ -1688,7 +1689,7 @@
       "media": "Media",
       "deployments": {
         "title": "Deployments",
-        "created-by-you": "Created by you",
+        "owned-by-you": "Owned by you",
         "shared-deployments": "Shared with you"
       },
       "user-deployments": "My Deployments",
@@ -2590,6 +2591,13 @@
         "go-to-profile": "Check your quota",
         "cancel": "Go back to deployments"
       },
+      "co-owners-modal": {
+        "title": "Manage co-owners for '{name}'",
+        "description": "Choose which users co-own this deployment. Owner: {owner}",
+        "warning": "Co-owners have the same permissions as the owner, except they cannot delete the deployment or manage co-owners.",
+        "success": "Co-owners updated",
+        "error": "Could not update the co-owners"
+      },
       "download-csv-modal": {
         "title": "Download direct viewer CSV for '{name}'",
         "options": {
@@ -2714,7 +2722,8 @@
         "groups": "No groups available",
         "users": "This group has no users",
         "no-group": "Select a group or search for users",
-        "no-group-short-term": "Type at least 2 characters to search users"
+        "no-group-short-term": "Type at least 2 characters to search users",
+        "no-users-selected": "No users selected yet — search to add some"
       },
       "share-everyone": {
         "unchecked": {
@@ -2729,6 +2738,7 @@
       "view-group": "Show the users in '{group_name}'",
       "unview-group": "Stop showing the users in '{group_name}'",
       "require-selection": "Select at least one group or user",
+      "require-selection-users": "Select at least one user",
       "no-changes": "Make a change to save",
       "select-all": {
         "groups": "Select all groups",

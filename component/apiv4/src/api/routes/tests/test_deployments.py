@@ -37,7 +37,7 @@ def test_get_deployment(monkeypatch, test_client):
 
     monkeypatch.setattr(
         "api.services.deployments.DeploymentService.get_deployment",
-        staticmethod(lambda deployment_id: deployment_data),
+        staticmethod(lambda deployment_id, user_id=None: deployment_data),
     )
 
     async def mock_owns_deployment_id(deployment_id: str = "dep-1"):

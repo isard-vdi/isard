@@ -17,6 +17,7 @@ interface Props {
   activeId?: string | null
   loading?: boolean
   disabled?: boolean
+  selectable?: boolean // When false the rows have no checkboxes and no select-all header.
   searchPlaceholder: string
   emptyText: string
   notFoundText: string
@@ -32,6 +33,7 @@ const props = withDefaults(defineProps<Props>(), {
   activeId: null,
   loading: false,
   disabled: false,
+  selectable: true,
   footerText: '',
   selectAll: false,
   selectAllLabel: '',
@@ -102,7 +104,7 @@ const toggleAll = () => {
       class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-warm-200 bg-base-white"
     >
       <div
-        v-if="props.selectAll"
+        v-if="props.selectAll && props.selectable"
         :class="
           cn(
             'flex min-h-10 shrink-0 select-none flex-row items-center gap-2 border-b border-gray-warm-200 bg-gray-warm-50 px-3 py-2.5',
@@ -169,6 +171,7 @@ const toggleAll = () => {
               :checked="checkedState(item.value)"
               :active="item.value === props.activeId"
               :disabled="props.disabled"
+              :selectable="props.selectable"
               @update:checked="emit('toggle', item.value)"
               @select="emit('select', item.value)"
             >
