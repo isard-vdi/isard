@@ -1053,7 +1053,10 @@
         "description": "This will permanently delete all the entries in the recycle bin. This action is irreversible",
         "cancel": "Cancel",
         "confirm": "Empty",
-        "error": "Error emptying recycle bin"
+        "error-title": "Error emptying recycle bin",
+        "errors": {
+          "generic": "An error occurred while emptying the recycle bin. Please try again."
+        }
       }
     },
     "profile": {
@@ -1844,7 +1847,8 @@
       "error-loading": "Could not load the deployment bastion configuration",
       "error-saving": "Could not save the deployment bastion configuration",
       "buttons": {
-        "save": "Save"
+        "save": "Save",
+        "cancel": "Cancel"
       }
     },
     "deployment-user-bastion-modal": {
@@ -2240,6 +2244,14 @@
             "too-small": "The increment must be greater than 0.",
             "too-large": "The disk cannot exceed {max} GB. You can add {available} GB at most."
           }
+        },
+        "cancel-modal": {
+          "title": "Cancel storage operation?",
+          "description": "Cancel the running storage task on {name}? Partial files may be cleaned up after the task is aborted.",
+          "dismiss": "Keep running",
+          "confirm": "Cancel operation",
+          "error-title": "Could not cancel the storage operation",
+          "error-description": "There was an error while trying to cancel the storage operation. Please try again later. \nIf the problem persists, contact your administrator."
         }
       },
       "quota-exceeded-modal": {
@@ -2686,7 +2698,8 @@
         "maximum-time": "You can't create a reservation for that long",
         "end-before-start": "The booking end time can't be before the start time",
         "minimum-time": "The booking must last at least 5 minutes",
-        "past-booking": "Can't create a booking in the past"
+        "past-booking": "Can't create a booking in the past",
+        "no-availability": "There is no availability in the selected time slot"
       }
     },
     "notification-modal": {

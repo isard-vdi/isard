@@ -1053,7 +1053,10 @@
         "description": "Esto eliminará permanentemente todas las entradas de la papelera. Esta acción es irreversible",
         "cancel": "Cancelar",
         "confirm": "Vaciar",
-        "error": "Error al vaciar la papelera"
+        "error-title": "Error al vaciar la papelera",
+        "errors": {
+          "generic": "Se produjo un error al vaciar la papelera. Inténtalo de nuevo."
+        }
       }
     },
     "profile": {
@@ -1589,6 +1592,14 @@
             "too-small": "El incremento debe ser mayor que 0.",
             "too-large": "El disco no puede superar los {max} GB. Como máximo puedes añadir {available} GB."
           }
+        },
+        "cancel-modal": {
+          "title": "¿Cancelar la operación de almacenamiento?",
+          "description": "¿Cancelar la tarea de almacenamiento en curso sobre {name}? Los archivos parciales se limpiarán después de abortar la tarea.",
+          "dismiss": "Mantener",
+          "confirm": "Cancelar operación",
+          "error-title": "No se ha podido cancelar la operación de almacenamiento",
+          "error-description": "Hubo un error al intentar cancelar la operación de almacenamiento. Por favor, inténtalo de nuevo más tarde. \nSi el problema persiste, contacta con tu administrador."
         }
       },
       "direct-viewer-modal": {
@@ -1935,7 +1946,8 @@
       "error-loading": "No se ha podido cargar la configuración del bastión del despliegue",
       "error-saving": "No se ha podido guardar la configuración del bastión del despliegue",
       "buttons": {
-        "save": "Guardar"
+        "save": "Guardar",
+        "cancel": "Cancelar"
       }
     },
     "deployment-user-bastion-modal": {
@@ -2583,7 +2595,8 @@
         "forbid": "Necesitas más tiempo de antelación para crear la reserva",
         "maximum-time": "No puedes crear una reserva tan larga",
         "minimum-time": "La reserva debe durar al menos 5 minutos",
-        "past-booking": "No puedes crear una reserva en el pasado"
+        "past-booking": "No puedes crear una reserva en el pasado",
+        "no-availability": "No hay disponibilidad en la franja horaria seleccionada"
       },
       "item": {
         "enough-units": "Unidades suficientes",

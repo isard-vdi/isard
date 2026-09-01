@@ -1053,7 +1053,10 @@
         "description": "Això eliminarà definitivament totes les entrades de la paperera. Aquesta acció és irreversible",
         "cancel": "Cancel·la",
         "confirm": "Buida",
-        "error": "Error en buidar la paperera"
+        "error-title": "Error en buidar la paperera",
+        "errors": {
+          "generic": "S'ha produït un error en buidar la paperera. Torna-ho a provar."
+        }
       }
     },
     "profile": {
@@ -1589,6 +1592,14 @@
             "too-small": "L'increment ha de ser més gran que 0.",
             "too-large": "El disc no pot superar els {max} GB. Com a màxim pots afegir {available} GB."
           }
+        },
+        "cancel-modal": {
+          "title": "Cancel·lar l'operació d'emmagatzematge?",
+          "description": "Vols cancel·lar la tasca d'emmagatzematge en curs sobre {name}? Els fitxers parcials es netejaran després d'avortar la tasca.",
+          "dismiss": "Mantén-la",
+          "confirm": "Cancel·la l'operació",
+          "error-title": "No s'ha pogut cancel·lar l'operació d'emmagatzematge",
+          "error-description": "Hi ha hagut un error en intentar cancel·lar l'operació d'emmagatzematge. Si us plau, torna-ho a provar més endavant. \nSi el problema persisteix, contacta amb el teu administrador."
         }
       },
       "direct-viewer-modal": {
@@ -1923,7 +1934,8 @@
       "error-loading": "No s'ha pogut carregar la configuració del bastió del desplegament",
       "error-saving": "No s'ha pogut desar la configuració del bastió del desplegament",
       "buttons": {
-        "save": "Desa"
+        "save": "Desa",
+        "cancel": "Cancel·la"
       }
     },
     "deployment-user-bastion-modal": {
@@ -2574,7 +2586,8 @@
         "forbid": "Necessites més temps d'antelació per crear la reserva",
         "maximum-time": "No pots crear una reserva tan llarga",
         "minimum-time": "La reserva ha de durar com a mínim 5 minuts",
-        "past-booking": "No pots crear una reserva en el passat"
+        "past-booking": "No pots crear una reserva en el passat",
+        "no-availability": "No hi ha disponibilitat en la franja horària seleccionada"
       },
       "item": {
         "enough-units": "Unitats suficients",
