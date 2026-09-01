@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import os
 import re
 import time
 import traceback
@@ -237,12 +238,72 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                 total += redis.llen(key)
         return total
 
+    #: Past this, a declaration is a decommissioned row nobody deleted, and
+    #: counting it would silence the orphan alarm for ever.
+    DECLARATION_STALE_S = int(
+        os.environ.get("STORAGE_POOL_DECLARATION_STALE_S", 7 * 24 * 3600)
+    )
+
+    @classmethod
+    def _category_consumer_warning(cls, storage_pool_id):
+        """Warn on the DECLARED half: a pool whose nodes are merely asleep will
+        route these disks as soon as one returns."""
+        if cls._pool_coverage_declared(storage_pool_id) != 0:
+            return None
+        return {
+            "code": "storage_pool_category_no_consumer",
+            "message": (
+                "Category assigned to a storage pool that no hypervisor/storage "
+                "node declares. New disks for this category will stall until a "
+                "node with this pool in its CAPABILITIES_STORAGE_POOLS is "
+                "running."
+            ),
+        }
+
+    @staticmethod
+    def declaration_counts(hypervisor, now, stale_s):
+        """Whether one enabled declarer still promises to serve its pools.
+
+        Online always counts. A node that is not Online counts while it is
+        expected back: an elastic fleet powers nodes down, and that is a
+        different fact from nobody serving the pool. Past ``stale_s`` in the
+        same state it is a decommissioned row nobody deleted, and counting it
+        would silence the orphan alarm for ever.
+        """
+        if hypervisor.get("status") == "Online":
+            return True
+        return (now - (hypervisor.get("status_time") or 0)) <= stale_s
+
+    @classmethod
+    def _pool_coverage_declared(cls, storage_pool_id, now=None):
+        """Enabled hypervisors that declare this pool, powered on or NOT.
+
+        Filtered in python over a plucked read rather than in the query, so
+        :meth:`declaration_counts` is the single definition of the rule.
+        """
+        moment = now if now is not None else time.time()
+        with cls._rdb_context():
+            declarers = list(
+                r.table("hypervisors")
+                .filter(
+                    lambda h: (h["enabled"] == True)
+                    & h["storage_pools"].contains(storage_pool_id)
+                )
+                .pluck("status", "status_time")
+                .run(cls._rdb_connection)
+            )
+        return sum(
+            1
+            for h in declarers
+            if cls.declaration_counts(h, moment, cls.DECLARATION_STALE_S)
+        )
+
     @classmethod
     def _pool_coverage(cls, storage_pool_id):
         """How many Online+enabled hypervisors register this pool as one they
-        serve (``storage_pools`` list). 0 ⇒ no node's
-        ``CAPABILITIES_STORAGE_POOLS`` covers it, so tasks routed to its lanes
-        stall unserved. This mirrors the ``storages`` count in
+        serve (``storage_pools`` list). This is the LIVE half; 0 here with
+        :meth:`_pool_coverage_declared` above 0 means the lane is waiting for a
+        node to come back, not orphaned. This mirrors the ``storages`` count in
         ``get_storage_pools`` for a single pool."""
         with cls._rdb_context():
             return (
@@ -300,6 +361,9 @@ class StoragePoolsProcessed(RethinkSharedConnection):
             "disks": disks,
             "queued_tasks": queued,
             "coverage": cls._pool_coverage(storage_pool_id),
+            #: both halves, so a reader can tell "nobody serves this" from
+            #: "the nodes that serve it are powered off"
+            "coverage_declared": cls._pool_coverage_declared(storage_pool_id),
             "drained": categories == 0 and disks == 0 and queued == 0,
         }
 
@@ -591,18 +655,9 @@ class StoragePoolsProcessed(RethinkSharedConnection):
         # at DownloadStarting - warn loudly (non-blocking: the admin may be about
         # to provision/restart the node).
         warnings = []
-        if cls._pool_coverage(storage_pool_id) == 0:
-            warnings.append(
-                {
-                    "code": "storage_pool_category_no_consumer",
-                    "message": (
-                        "Category assigned to a storage pool that no online "
-                        "hypervisor/storage node serves. New disks for this "
-                        "category will stall until a node with this pool in its "
-                        "CAPABILITIES_STORAGE_POOLS is running."
-                    ),
-                }
-            )
+        no_consumer = cls._category_consumer_warning(storage_pool_id)
+        if no_consumer:
+            warnings.append(no_consumer)
         return {"warnings": warnings}
 
     @classmethod

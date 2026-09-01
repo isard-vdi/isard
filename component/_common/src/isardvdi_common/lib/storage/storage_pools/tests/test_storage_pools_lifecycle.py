@@ -20,11 +20,16 @@ SPP = mod.StoragePoolsProcessed
 DEFAULT = mod.DEFAULT_STORAGE_POOL_ID
 
 
-def _patch_helpers(monkeypatch, pool, disks=0, queued=0, coverage=0):
+def _patch_helpers(monkeypatch, pool, disks=0, queued=0, coverage=0, declared=None):
     monkeypatch.setattr(mod.StoragePool, "get", staticmethod(lambda _id: pool))
     monkeypatch.setattr(SPP, "_residing_disks", classmethod(lambda c, i, m=None: disks))
     monkeypatch.setattr(SPP, "_pending_lane_jobs", classmethod(lambda c, i: queued))
     monkeypatch.setattr(SPP, "_pool_coverage", classmethod(lambda c, i: coverage))
+    monkeypatch.setattr(
+        SPP,
+        "_pool_coverage_declared",
+        classmethod(lambda c, i: coverage if declared is None else declared),
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -128,6 +133,7 @@ def test_pending_summary_drained_true_when_all_zero(monkeypatch):
         "disks": 0,
         "queued_tasks": 0,
         "coverage": 2,
+        "coverage_declared": 2,
         "drained": True,
     }
 
