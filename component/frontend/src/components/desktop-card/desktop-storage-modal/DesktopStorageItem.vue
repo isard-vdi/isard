@@ -16,6 +16,7 @@ import {
 
 import { describeApiError } from '@/lib/api-errors'
 import { isNotUser } from '@/lib/auth'
+import { desktopStatusLabel } from '@/lib/desktops'
 import { useAuthStore } from '@/stores/auth'
 
 import { Button } from '@/components/ui/button'
@@ -156,10 +157,7 @@ const submitIncrease = () => {
   })
 }
 
-const desktopStatusLabel = computed(() => {
-  const key = `components.desktops.desktop-card.status.${props.desktop.status?.toLowerCase()}.text`
-  return i18n.te(key) ? t(key) : t('components.desktops.desktop-card.status.unknown.text')
-})
+const desktopStatusText = computed(() => desktopStatusLabel(props.desktop.status, i18n))
 
 const desktopStatusColor = computed<'green' | 'red' | 'gray' | 'lightyellow'>(() => {
   switch (props.desktop.status) {
@@ -237,7 +235,7 @@ const formatBytes = (n?: number): string => {
             </span>
             <Badge
               :color="desktopStatusColor"
-              :content="desktopStatusLabel"
+              :content="desktopStatusText"
               shape="square"
               size="sm"
             />

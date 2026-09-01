@@ -1,9 +1,12 @@
 import { computed } from 'vue'
+import type { Composer } from 'vue-i18n'
 
 import {
   DesktopStatusEnum,
   type ApiSchemasDomainsDesktopsUserDesktop as UserDesktop
 } from '@/gen/oas/apiv4/'
+
+import { Locale } from '@/lib/i18n'
 
 export type UserDesktopWithQueue = UserDesktop & { queue?: number }
 
@@ -40,6 +43,19 @@ export interface DesktopActionsData {
     iconColor: string
   } | null
 }
+
+// `te` does not walk the fallback chain, so ask English: the guard is about
+// unknown statuses, not about locales that are still incomplete.
+export const desktopStatusLabel = (
+  status: string | undefined,
+  i18n: Pick<Composer, 't' | 'te'>
+) => {
+  const key = `components.desktops.desktop-card.status.${status?.toLowerCase()}.text`
+  return i18n.te(key, Locale.English)
+    ? i18n.t(key)
+    : i18n.t('components.desktops.desktop-card.status.unknown.text')
+}
+
 export const desktopActionsData = (
   status: string,
   needsBooking = false,

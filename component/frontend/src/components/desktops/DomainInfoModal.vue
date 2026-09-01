@@ -6,13 +6,15 @@ import type { DesktopTemplate } from '@/gen/oas/apiv4'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import Badge from '@/components/badge/Badge.vue'
 import DomainInfoContent from './DomainInfoContent.vue'
+import { desktopStatusLabel } from '@/lib/desktops'
 import { Icon } from '@/components/icon'
 
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
-const { t } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 
 export interface DomainInfoItem {
   domainId?: string
@@ -136,6 +138,8 @@ const closeModal = () => {
   emit('close')
 }
 
+const statusLabel = (status?: string) => desktopStatusLabel(status, i18n)
+
 const statusBadgeColor = (status?: string): 'green' | 'gray' | 'red' | 'lightyellow' => {
   if (status === DesktopStatusEnum.STARTED) return 'green'
   if (status === DesktopStatusEnum.FAILED) return 'red'
@@ -238,7 +242,7 @@ const kindSrLabel = (item: DomainInfoItem): string => {
           <Badge
             v-if="item.status && item.kind === 'desktop'"
             :color="statusBadgeColor(item.status)"
-            :content="item.status"
+            :content="statusLabel(item.status)"
             shape="square"
             size="sm"
             class="font-bold shrink-0"

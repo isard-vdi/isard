@@ -14,6 +14,8 @@ import {
 import { MediaStatusEnum, type ErrorResponse } from '@/gen/oas/apiv4'
 import DataTable from '@/components/data-table/DataTable.vue'
 import { useI18n } from 'vue-i18n'
+
+import { Locale } from '@/lib/i18n'
 import { useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
@@ -218,7 +220,7 @@ const filteredMedia = computed(() => {
     const statusKey = (item.status ?? '').toLowerCase()
     const statusPath = `views.media.status.${statusKey}`
     const statusLabel =
-      statusKey && te(statusPath) ? t(statusPath) : t('views.media.status.unknown')
+      statusKey && te(statusPath, Locale.English) ? t(statusPath) : t('views.media.status.unknown')
 
     return {
       ...item,

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
 import { useIsTextTruncated } from '@/composables/useIsTextTruncated'
+import { desktopStatusLabel } from '@/lib/desktops'
 
 import {
   getDesktopDetailsOptions,
@@ -23,7 +24,8 @@ import {
   cardOverlayLabelVariants
 } from '..'
 
-const { t } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 
 interface DesktopInfoTarget {
   id: string
@@ -85,6 +87,8 @@ const desktopIp = computed(() => props.desktop.ip)
 // Same affordance as the networks overlay: the guest hasn't reported its
 // address yet, so an empty IP row is expected rather than missing data.
 const isWaitingIp = computed(() => props.desktop.status === DesktopStatusEnum.WAITING_IP)
+
+const statusLabel = computed(() => desktopStatusLabel(props.desktop.status, i18n))
 
 const statusBadge = computed(() => {
   const s = props.desktop.status
@@ -172,7 +176,7 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
         :class="[statusBadge, cardOverlayLabelVariants({ size })]"
       >
         <span class="sr-only">{{ t('components.desktops.desktop-card.info.status') }}: </span>
-        {{ desktop.status }}
+        {{ statusLabel }}
       </span>
 
       <div

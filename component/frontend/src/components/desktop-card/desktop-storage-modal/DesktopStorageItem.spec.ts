@@ -53,7 +53,8 @@ vi.mock('vue-i18n', () => ({
   })
 }))
 
-vi.mock('@/lib/i18n', () => ({
+vi.mock('@/lib/i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/i18n')>()),
   i18n: { global: { locale: { value: 'en-US' }, t: (k: string) => k } }
 }))
 
