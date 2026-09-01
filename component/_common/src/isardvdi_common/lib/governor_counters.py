@@ -162,7 +162,14 @@ def _read(conn, kind, now=None):
 
 
 def record_shed(conn, reason, pool=None, tier=None, now=None):
-    """Count one producer-side shed rejection (a user-visible 429)."""
+    """Count one producer-side refusal to place work on a lane.
+
+    Not always a user-visible 429: a producer with nobody to answer declines
+    instead of raising, and counts the same event here. Keeping both postures on
+    one counter is what preserves the fleet alarm — a lane that stops being fed
+    also stops looking stranded, so without this the alarm would go quiet at the
+    exact moment the pool died.
+    """
     _record(conn, SHED, reason, pool=pool, tier=tier, now=now)
 
 

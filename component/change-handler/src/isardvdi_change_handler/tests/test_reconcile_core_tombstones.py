@@ -303,7 +303,14 @@ class TestReleaseNeedsProvenSuccess:
             dependencies=[_dep(JobStatus.FINISHED, 600)],
         )
 
-        with patch.object(reconcile, "_release_via_parents", new=AsyncMock()) as rel:
+        with (
+            # A consumer exists: this test is about proving success before
+            # releasing, not about where the released work would land.
+            patch.object(
+                reconcile.queue_coverage, "lane_has_consumer", return_value=(True, {})
+            ),
+            patch.object(reconcile, "_release_via_parents", new=AsyncMock()) as rel,
+        ):
             await reconcile._heal_storage_orphan(orphan)
 
         rel.assert_awaited_once_with(orphan)

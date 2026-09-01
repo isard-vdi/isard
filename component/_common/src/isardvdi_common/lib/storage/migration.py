@@ -944,6 +944,10 @@ def build_audit_record(item, result, occurrence, now):
         "error": item.get("error"),
         "started_at": item.get("move_started_at"),
         "finished_at": now,
+        # Still moved_ok: a new result string would drop the disk out of
+        # summarize_audit's bytes_moved total.
+        "source_retained": bool(item.get("source_retained")),
+        "source_retained_path": item.get("source_retained_path"),
     }
 
 

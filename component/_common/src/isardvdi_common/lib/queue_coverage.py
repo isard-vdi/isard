@@ -26,6 +26,17 @@ The one case that still admits is a lane redis ANSWERS is momentarily empty
 while the fleet was seen recently — a rolling worker restart. That is knowledge,
 and it is graced, not ignored.
 
+Two postures
+------------
+The gate is mandatory on every producer; the VERB is not. A producer answering a
+request refuses, with a typed 429 the caller can render
+(:func:`check_no_consumer`, :func:`check_shed`). A producer running with nobody
+to answer declines instead (:func:`lane_has_consumer`), because an exception
+there is caught, logged as a traceback and the work is lost just as quietly as
+if it had been enqueued into the void. Both postures share one decision and one
+shed counter, so a lane that stops being fed still shows up as refused work
+rather than as silence.
+
 Coverage model
 --------------
 Each live worker contributes the ``(pool, tier)`` pairs it serves:
@@ -388,6 +399,36 @@ def check_no_consumer(conn, queue):
         _raise_lane_429(conn, ctx)
 
 
+def lane_has_consumer(conn, queue):
+    """Non-raising twin of :func:`check_no_consumer`: ``(allowed, ctx)``.
+
+    Same :func:`lane_shed_decision`, same shed counter, so the two postures keep
+    ONE definition of "has a consumer" and one set of numbers behind it. Like
+    that gate it is fail-CLOSED on an unreadable index: not knowing is not the
+    same as knowing the lane is fine.
+
+    For producers whose right answer to a lane nothing can drain is to decline
+    rather than to refuse. Raising is only useful where somebody can hear it; in
+    a background consumer an exception is caught, logged as a traceback and the
+    work is lost just as quietly as if it had been enqueued into the void. A
+    caller that declines leaves the work in a state something already re-drives,
+    and the shed is still counted, so the fleet alarm keeps firing.
+    """
+    decision, ctx = lane_shed_decision(conn, queue)
+    allowed = not (
+        decision == "reject"
+        and ctx.get("reason") in ("no_consumer", "coverage_unreadable")
+    )
+    if not allowed:
+        governor_counters.record_shed(
+            conn,
+            ctx.get("reason"),
+            pool=ctx.get("pool"),
+            tier=ctx.get("tier"),
+        )
+    return allowed, ctx
+
+
 def check_shed(conn, queue):
     """Raise a typed 429 ``Error`` if a task must not enqueue on ``queue``
     (stranded for any tier, or a foreground lane above its hard backlog cap).
@@ -401,7 +442,12 @@ def check_shed(conn, queue):
 def enforce_shed(conn, kwargs):
     """create_task gate: refuse to enqueue on a lane with no live consumer (any tier)
     OR an overloaded foreground lane (per-lane, automatic). Governed lanes over backlog
-    accumulate and are never refused. Call BEFORE any state mutation."""
+    accumulate and are never refused. Call BEFORE any state mutation.
+
+    Root-only by design. A chain's dependents are retiered by their own action,
+    so they can sit on other lanes and other pools, and they are released hours
+    after this runs — asking here would answer about a lane that may be healthy
+    now and gone by then. They are asked where they are released instead."""
     kwargs.pop("shed", None)  # deprecated: overload shed is now mandatory, not opt-in
     queue = kwargs.get("queue")
     if not queue:

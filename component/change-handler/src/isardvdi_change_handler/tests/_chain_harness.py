@@ -12,9 +12,10 @@ chain the product builds, with the product's own code, on a real Redis:
 * cancellation goes through the real ``Task.cancel``,
 * and the event handed to the consumer is the one ``Task.cancel`` published.
 
-Only the two edges this suite does not own are stubbed: the SocketIO feedback
-emit, and the finalize handler bodies (they write to RethinkDB), replaced by
-recorders so the assertions are about which members were reached.
+Only the edges this suite does not own are stubbed: the SocketIO feedback emit,
+the finalize handler bodies (they write to RethinkDB), replaced by recorders so
+the assertions are about which members were reached, and the producer-side
+admission gates, which ask about a fleet this scratch Redis does not have.
 """
 
 import os
@@ -133,6 +134,9 @@ def template_chain_kwargs():
 
     with (
         patch.object(Storage, "create_task") as create_task,
+        # These tests are about the SHAPE of the chain, on a scratch Redis with no
+        # fleet; admission has its own tests.
+        patch.object(Storage, "_preflight_lane"),
         patch.object(Storage, "exists", return_value=True),
         patch.object(
             Storage,

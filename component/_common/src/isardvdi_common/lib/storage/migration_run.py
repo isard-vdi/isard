@@ -820,6 +820,18 @@ class MigrationRunner:
         self._set(item, state=MigrationItemState.MOVED.value)
 
     def _start_rebase(self, item):
+        # Before the claim, so a deferred tick leaves no fence behind and charges
+        # no abandon.
+        queue = self._pool_queue(item["dst_path"])
+        if not self.lane_is_drainable(Task._redis, queue):
+            log.warning(
+                "migration %s: no consumer for %s, deferring %s of %s",
+                self.migration_id,
+                queue,
+                "rebase",
+                item["storage_id"],
+            )
+            return
         observed = item.get("rebase_task_id")
         # Atomic single-writer claim: fence rebase_task_id (None fresh / the gone
         # id on resume) so exactly one driver (re-)enqueues. State stays ``moved``.
@@ -839,7 +851,7 @@ class MigrationRunner:
             return
         task_id = self._enqueue(
             "rebase",
-            self._pool_queue(item["dst_path"]),
+            queue,
             {
                 "child_path": item["dst_path"],
                 "new_backing_path": item["parent_dst_path"],
@@ -887,6 +899,18 @@ class MigrationRunner:
         # destination pool's worker (where the file lives). Read-only, so a lost
         # job is safe to re-enqueue. A root has no in-tree parent, so no backing
         # expectation; a non-root must back onto parent_dst_path.
+        # Before the claim, so a deferred tick leaves no fence behind and charges
+        # no abandon.
+        queue = self._pool_queue(item["dst_path"])
+        if not self.lane_is_drainable(Task._redis, queue):
+            log.warning(
+                "migration %s: no consumer for %s, deferring %s of %s",
+                self.migration_id,
+                queue,
+                "verify",
+                item["storage_id"],
+            )
+            return
         observed = item.get("verify_task_id")
         # Atomic single-writer claim: fence verify_task_id (None fresh / the gone
         # id on resume) so exactly one driver (re-)enqueues. State stays ``rebased``.
@@ -909,7 +933,7 @@ class MigrationRunner:
             return
         task_id = self._enqueue(
             "migration_verify_destination",
-            self._pool_queue(item["dst_path"]),
+            queue,
             {
                 "dst_path": item["dst_path"],
                 "expect_backing": item.get("parent_dst_path"),
@@ -935,9 +959,31 @@ class MigrationRunner:
         # Restore the storage to its ORIGINAL status (saga-5: not hardcoded
         # "ready"), then delete the source LAST.
         self._restore_storage_status(item)
+        # Retier here, not in _pool_queue: its other callers have no tier floor.
+        queue = queue_tiers.retier_queue(
+            self._pool_queue(item["src_path"]), "move_delete"
+        )
+        if not self.lane_is_drainable(Task._redis, queue):
+            # Mark, never defer: the tree is already committed, and holding the
+            # release hostage to a pool outage would keep its desktops down.
+            log.warning(
+                "migration %s: no consumer for %s, retaining source %s",
+                self.migration_id,
+                queue,
+                item["src_path"],
+            )
+            self._set(
+                item,
+                state=MigrationItemState.RELEASED.value,
+                move_delete_task_id=None,
+                source_retained=True,
+                source_retained_path=item["src_path"],
+            )
+            self._audit(item, "moved_ok")
+            return
         del_task_id = self._enqueue(
             "move_delete",
-            self._pool_queue(item["src_path"]),
+            queue,
             {"path": item["src_path"]},
         )
         self._set(

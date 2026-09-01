@@ -210,6 +210,12 @@ async def test_metadata_knot_enqueues_storage_child_as_fresh_task():
     task_mock.exists.return_value = False  # not yet enqueued
 
     with (
+        # A consumer exists: this test is about the knot child being built FRESH.
+        patch.object(
+            task_results_consumer.queue_coverage,
+            "lane_has_consumer",
+            return_value=(True, {}),
+        ),
         patch(
             "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
             new=AsyncMock(),

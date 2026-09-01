@@ -1869,6 +1869,41 @@ class Storage(RethinkCustomBase):
         )
         return (storage, task_id)
 
+    @staticmethod
+    def _preflight_lane(queue, domain_id, pool_id, what):
+        """Ask the lane BEFORE any state mutation, and say so in product terms.
+
+        Without this the refusal still happens, but later and deeper: the row is
+        already in maintenance or CreatingDisk, and the operator is left with a
+        stuck row and a traceback instead of a sentence naming the pool. The
+        shed itself fails open on coverage uncertainty, so a worker restart
+        never fails a create.
+        """
+        # Imported here, as everywhere else in this module: models/domain imports
+        # back from models/storage, so a module-level import is a cycle.
+        from isardvdi_common.models.domain import Domain
+
+        try:
+            queue_coverage.check_shed(Task._redis, queue)
+        except Error as shed_error:
+            if domain_id and Domain.exists(domain_id):
+                domain = Domain(domain_id)
+                domain.status = "Failed"
+                description_code = getattr(shed_error, "error", {}).get(
+                    "description_code"
+                )
+                if description_code == "storage_overloaded_retry_later":
+                    domain.detail = (
+                        f"{what} not created: storage pool {pool_id} "
+                        "is temporarily overloaded, please retry"
+                    )
+                else:
+                    domain.detail = (
+                        f"{what} not created: storage pool {pool_id} "
+                        "has no online storage worker"
+                    )
+            raise shed_error
+
     def enqueue_disk_creation_chain_for_domain(
         self,
         domain_id,
@@ -1975,26 +2010,7 @@ class Storage(RethinkCustomBase):
             "create",
             queue_tiers.resolve_category(self.category),
         )
-        try:
-            queue_coverage.check_shed(Task._redis, create_queue)
-        except Error as shed_error:
-            if Domain.exists(domain_id):
-                domain = Domain(domain_id)
-                domain.status = "Failed"
-                description_code = getattr(shed_error, "error", {}).get(
-                    "description_code"
-                )
-                if description_code == "storage_overloaded_retry_later":
-                    domain.detail = (
-                        f"desktop disk not created: storage pool {self.pool.id} "
-                        "is temporarily overloaded, please retry"
-                    )
-                else:
-                    domain.detail = (
-                        f"desktop disk not created: storage pool {self.pool.id} "
-                        "has no online storage worker"
-                    )
-            raise shed_error
+        self._preflight_lane(create_queue, domain_id, self.pool.id, "desktop disk")
 
         if Domain.exists(domain_id):
             _d = Domain(domain_id)
@@ -2184,6 +2200,18 @@ class Storage(RethinkCustomBase):
         # domain-stopped check (the template domain is in CreatingTemplate
         # by construction). The desktop's existing storage is left in
         # "ready" — see docstring for the locking argument.
+        # Both pools, before the maintenance label: the chain roots on the destination
+        # and hands a later step to the source.
+        for pool_id in dict.fromkeys([dst_pool.id, self.pool.id]):
+            self._preflight_lane(
+                # No category segment: coverage is per (pool, tier), and resolving the
+                # owner here would hit the database for an answer that does not need it.
+                queue_tiers.retier_queue(f"storage.{pool_id}.{priority}", "move"),
+                template_id,
+                pool_id,
+                "template disk",
+            )
+
         template_storage.set_maintenance("create")
 
         return self.create_task(
