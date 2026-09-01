@@ -4,7 +4,12 @@ import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop } from '@/gen/oas/apiv4/'
 
-import { desktopNeedsBooking, desktopActionsData, desktopNotificationText } from '@/lib/desktops'
+import {
+  desktopNeedsBooking,
+  desktopActionsData,
+  desktopHasMenuActions,
+  desktopNotificationText
+} from '@/lib/desktops'
 import { copyToClipboard } from '@/lib/utils'
 
 import {
@@ -203,7 +208,7 @@ const headers = [
           <TooltipContent :title="t('components.desktops.desktop-card.actions.bastion-access')" />
         </Tooltip>
 
-        <Tooltip>
+        <Tooltip v-if="desktopHasMenuActions(row)">
           <TooltipTrigger as-child>
             <span class="inline-flex">
               <DropdownMenu>

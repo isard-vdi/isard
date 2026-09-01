@@ -17,6 +17,11 @@ export const resolveDesktopKind = (desktop: Pick<UserDesktop, 'tag' | 'type'>): 
   return desktop.type === 'persistent' ? 'persistent' : 'nonpersistent'
 }
 
+// Mirrors the action list of DesktopCardHeaderActionsDropdownContent: the
+// direct link covers every standalone desktop, recreate every other case.
+export const desktopHasMenuActions = (desktop: Pick<UserDesktop, 'tag' | 'permissions'>): boolean =>
+  !desktop.tag || desktop.permissions?.includes('recreate') === true
+
 export enum DesktopActionsEnum {
   Start = 'desktopStart',
   Stop = 'desktopStop',
