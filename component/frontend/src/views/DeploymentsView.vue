@@ -282,9 +282,7 @@ const downloadCsvModalDeploymentData = ref<{
 const visibleDropdownActions = (deployment: OwnedDeployment) =>
   dropdownActions.value.filter((action) => !action.hiddenFor?.(deployment))
 
-const coOwnersModalDeploymentData = ref<{ id: string; name: string; coOwner: boolean } | null>(
-  null
-)
+const coOwnersModalDeploymentData = ref<{ id: string; name: string; coOwner: boolean } | null>(null)
 const coOwnersDeploymentId = computed(() => coOwnersModalDeploymentData.value?.id ?? '')
 const coOwnersError = ref('')
 
