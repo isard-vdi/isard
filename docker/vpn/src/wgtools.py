@@ -852,6 +852,9 @@ PostUp = %s
             # As the changes filters for guest_ip in viewer we won't have viewer field till guest_ip is set.
             self.uipt.desktop_add(data["user"], data["viewer"]["guest_ip"])
 
+    def refresh_remotevpn_allowed(self, entry):
+        self.uipt.refresh_remotevpn_allowed(entry)
+
     def set_user_rules(self, user_id):
         with vpn_rethink_conn() as conn:
             started_desktops = (
