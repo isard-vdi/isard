@@ -187,6 +187,7 @@ onBeforeUnmount(clearProvisioningCloseTimer)
 
 const { data: userConfig } = useQuery(getUserConfigOptions())
 const canUseBastion = computed(() => userConfig.value?.can_use_bastion === true)
+const isCoOwner = computed(() => deploymentEntry.value?.info.co_owner === true)
 
 const showBastionConfigModal = ref(false)
 const bastionUserModalData = ref<{ userId: string; username: string } | null>(null)
@@ -246,7 +247,7 @@ const dropdownActions = computed(() => [
         }
       ]
     : []),
-  ...(deploymentEntry.value?.info.co_owner
+  ...(isCoOwner.value
     ? []
     : [
         {
@@ -269,13 +270,17 @@ const dropdownActions = computed(() => [
     label: t('views.deployments.dropdown.buttons.reserve'),
     fn: handleNotImplemented
   },
-  {
-    key: 'delete',
-    icon: 'trash-04',
-    label: t('views.deployments.dropdown.buttons.delete'),
-    destructive: true,
-    fn: () => (showDeleteModal.value = true)
-  }
+  ...(isCoOwner.value
+    ? []
+    : [
+        {
+          key: 'delete',
+          icon: 'trash-04',
+          label: t('views.deployments.dropdown.buttons.delete'),
+          destructive: true,
+          fn: () => (showDeleteModal.value = true)
+        }
+      ])
 ])
 
 const showRecreateModal = ref(false)

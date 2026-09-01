@@ -244,6 +244,7 @@ const dropdownActions = computed<DeploymentAction[]>(() => [
     icon: 'trash-04',
     label: t('views.deployments.dropdown.buttons.delete'),
     destructive: true,
+    hiddenFor: (deployment: OwnedDeployment) => deployment.co_owner,
     fn: (deployment: OwnedDeployment) =>
       (deleteModalDeploymentData.value = { id: deployment.id, name: deployment.name })
   }
