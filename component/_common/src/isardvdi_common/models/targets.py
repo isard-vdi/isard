@@ -55,7 +55,6 @@ class TargetModel(BaseModel):
 
 
 class Targets(RethinkCustomBase):
-
     @classmethod
     def find_domain_target(cls, domain_id):
         """Return the target row for ``domain_id`` or ``None`` — never raises.
@@ -125,9 +124,9 @@ class Targets(RethinkCustomBase):
                 )
 
         if data.get("http"):
-            target["http"] = data["http"]
+            target["http"] = {**(target.get("http") or {}), **data["http"]}
         if data.get("ssh"):
-            target["ssh"] = data["ssh"]
+            target["ssh"] = {**(target.get("ssh") or {}), **data["ssh"]}
         if "domains" in data:
             new_domains = [
                 d.strip() for d in (data["domains"] or []) if d and d.strip()
