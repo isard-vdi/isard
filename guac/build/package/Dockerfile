@@ -15,7 +15,8 @@ RUN go mod download
 
 WORKDIR /
 
-COPY . /build/guac
+COPY pkg /build/pkg
+COPY guac /build/guac
 
 WORKDIR /build/guac
 

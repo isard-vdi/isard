@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -11,16 +11,20 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
-	"github.com/wwt/guac"
+	"gitlab.com/isard/isardvdi/guac"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/sirupsen/logrus"
 )
 
 var (
-	guacdAddr string
-	apiAddr   string
-	jwtSecret string
+	guacdAddr      string
+	apiAddr        string
+	apiIgnoreCerts bool
+	jwtSecret      string
+	apiCli         apiv4.Invoker
 )
 
 type LoginClaims struct {
@@ -61,9 +65,10 @@ func init() {
 
 	apiAddr = os.Getenv("API_DOMAIN")
 	if apiAddr == "" || apiAddr == "isard-apiv4" {
-		apiAddr = "isard-apiv4:5000"
+		apiAddr = "http://isard-apiv4:5000"
 	} else {
 		apiAddr = "https://" + apiAddr
+		apiIgnoreCerts = true
 	}
 
 	jwtSecret = os.Getenv("API_ISARDVDI_SECRET")
@@ -101,48 +106,43 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 			return
 		}
 
+		var subject string
 		switch claims := iclaims.(type) {
 		case *LoginClaims:
-			logrus.Infof("User %s (id: %s) is trying to access %s", claims.Data.Name, claims.Data.ID, hostname)
-
-			ownership, err := ownsDesktop(tkn, hostname)
-			if err != nil {
-				logrus.Errorf("error checking if user owns desktop: %v", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			if !ownership {
-				logrus.Errorf("user %s (id: %s) doesn't own desktop %s", claims.Data.Name, claims.Data.ID, hostname)
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-
-			logrus.Debug("User authorized")
+			subject = fmt.Sprintf("user %s (id: %s)", claims.Data.Name, claims.Data.ID)
 		case *ViewerClaims:
-			logrus.Infof("Viewer for desktop %s is trying to access %s", claims.Data.DesktopID, hostname)
-
-			ownership, err := ownsDesktop(tkn, hostname)
-			if err != nil {
-				logrus.Errorf("error checking viewer owns desktop: %v", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			if !ownership {
-				logrus.Errorf("viewer doesn't own desktop %s", hostname)
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-
-			logrus.Debug("Viewer authorized")
+			subject = "viewer for desktop " + claims.Data.DesktopID
 		default:
-			logrus.Errorf("unknown claims type or missing required fields")
+			logrus.Error("unknown claims type or missing required fields")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		logrus.Debug("done authenticating request")
+		logrus.Infof("%s is trying to access %s", subject, hostname)
+
+		res, err := apiCli.UserOwnsDesktop(ogenclient.ContextWithAPIv4Token(r.Context(), tkn), &apiv4.UserOwnsDesktopRequest{
+			IP: apiv4.NewOptNilString(hostname),
+		})
+		if err != nil {
+			logrus.Errorf("error checking if %s owns desktop %s: %v", subject, hostname, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if _, ok := res.(*apiv4.EmptyResponse); !ok {
+			apiErr := ogenclient.AsAPIError(res)
+			if errors.Is(apiErr, ogenclient.ErrUnauthorized) || errors.Is(apiErr, ogenclient.ErrForbidden) {
+				logrus.Errorf("%s doesn't own desktop %s", subject, hostname)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			logrus.Errorf("error checking if %s owns desktop %s: %v", subject, hostname, apiErr)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		logrus.Debugf("%s authorized to access %s", subject, hostname)
 		handler.ServeHTTP(w, r)
 	})
 }
@@ -168,53 +168,6 @@ func verifyToken(tokenString string) (jwt.Claims, error) {
 	}
 
 	return nil, fmt.Errorf("token does not match known claim types or signature invalid")
-}
-
-func ownsDesktop(tkn string, hostname string) (bool, error) {
-	baseurl, err := url.Parse(fmt.Sprintf("http://%s", apiAddr))
-	if err != nil {
-		return false, fmt.Errorf("error parsing API URL: %v", err)
-	}
-	baseurl.Path = "/api/v4/"
-
-	path, err := url.Parse("item/user/owns-desktop")
-	if err != nil {
-		return false, fmt.Errorf("error parsing relative API URL: %v", err)
-	}
-
-	rawBody := map[string]interface{}{}
-	rawBody["ip"] = hostname
-	url := baseurl.ResolveReference(path)
-	body, err := json.Marshal(rawBody)
-	if err != nil {
-		return false, fmt.Errorf("error encoding body: %v", err)
-	}
-	buf := bytes.NewBuffer(body)
-	req, err := http.NewRequest(http.MethodPost, url.String(), buf)
-	if err != nil {
-		return false, fmt.Errorf("error creating request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "isardvdi-guac")
-	req.Header.Set("Authorization", "Bearer "+tkn)
-
-	rsp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false, fmt.Errorf("error performing request: %v", err)
-	}
-	defer rsp.Body.Close()
-
-	switch {
-	case rsp.StatusCode >= 500:
-		return false, fmt.Errorf("API request failed with status: %s", rsp.Status)
-	case rsp.StatusCode == 401 || rsp.StatusCode == 403:
-		return false, nil
-	case rsp.StatusCode >= 400:
-		return false, fmt.Errorf("API request failed with status: %s", rsp.Status)
-	default:
-		return true, nil
-	}
 }
 
 func logLevel() {
@@ -250,6 +203,17 @@ func logFormat() {
 func main() {
 	logFormat()
 	logLevel()
+
+	opts := []ogenclient.Option{ogenclient.WithUserAgent("isardvdi-guac")}
+	if apiIgnoreCerts {
+		opts = append(opts, ogenclient.WithIgnoreCerts())
+	}
+
+	var err error
+	apiCli, err = apiv4.NewClient(apiAddr, ogenclient.APIv4Context{}, apiv4.WithClient(ogenclient.NewHTTPClient(opts...)))
+	if err != nil {
+		logrus.Fatalf("create the API client: %v", err)
+	}
 
 	servlet := guac.NewServer(DemoDoConnect)
 	wsServer := guac.NewWebsocketServer(DemoDoConnect)
@@ -297,9 +261,8 @@ func main() {
 		WriteTimeout:   guac.SocketTimeout,
 		MaxHeaderBytes: 1 << 20,
 	}
-	err := s.ListenAndServe()
-	if err != nil {
-		fmt.Println(err)
+	if err := s.ListenAndServe(); err != nil {
+		logrus.Fatalf("serve: %v", err)
 	}
 }
 
