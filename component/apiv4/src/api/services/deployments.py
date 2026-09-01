@@ -424,7 +424,7 @@ class DeploymentService:
             )
 
     @staticmethod
-    def start_all_desktops(deployment_id: str, user_id=None) -> None:
+    def start_all_desktops(deployment_id: str) -> None:
         desktops = CommonDeploymentDesktops.get_desktop_ids(deployment_id)
         if not desktops:
             raise Error(
@@ -434,15 +434,13 @@ class DeploymentService:
             )
         DesktopEvents.desktops_start(desktops)
         # Best-effort: reconcile each desktop's bastion target to the deployment
-        # config and inject the deployment owner + co-owners (+ acting user)
-        # profile keys, owner-first and de-duped. ensure_keys_on_start resolves
-        # the deployment from the desktop, so this runs even without user_id.
+        # config, which is resolved from the desktop.
         for d_id in desktops:
             try:
-                BastionService.ensure_keys_on_start(d_id, user_id)
+                BastionService.ensure_bastion_config_on_start(d_id)
             except Exception:
                 logging.warning(
-                    "Failed to inject bastion SSH key on deployment start "
+                    "Failed to reconcile the bastion config on deployment start "
                     "of desktop %s",
                     d_id,
                     exc_info=True,
@@ -652,7 +650,7 @@ class DeploymentService:
         """Persist the bastion config on the deployment and apply it (ssh/http
         enable + ports) to every current desktop's bastion target, preserving
         each target's authorized_keys / domains. New/recreated desktops inherit
-        it at their next start via BastionService.ensure_keys_on_start.
+        it at their next start via BastionService.ensure_bastion_config_on_start.
         """
         if not RethinkDeployment.exists(deployment_id):
             raise Error(

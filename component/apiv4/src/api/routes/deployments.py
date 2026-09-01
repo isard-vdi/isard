@@ -998,7 +998,6 @@ async def start_all_desktops_in_deployment(
         await asyncio.to_thread(
             DeploymentService.start_all_desktops,
             deployment_id,
-            request.token_payload["user_id"],
         )
         return Response(status_code=204)
     except Error:

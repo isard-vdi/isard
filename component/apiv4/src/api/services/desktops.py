@@ -552,7 +552,6 @@ class DesktopService:
     def update_desktop_bastion_authorized_keys(
         desktop_id: str,
         data: BastionAuthorizedKeysUpdateRequest,
-        editor_user_id=None,
     ) -> dict:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
@@ -560,15 +559,11 @@ class DesktopService:
                 f"Desktop with ID {desktop_id} not found",
                 description_code="not_found",
             )
-        # The desktop owner's profile key is managed automatically (re-prepended
-        # at index 0); the editor's own profile key is stripped. The box only
-        # carries other people's keys. See BastionService.normalize_authorized_keys.
-        BastionService.normalize_authorized_keys(
-            desktop_id,
-            other_keys=data.authorized_keys or [],
-            strip_user_ids=[editor_user_id] if editor_user_id else [],
+        # The box carries other people's keys only; profile keys are resolved by
+        # the bastion at connection time, never stored here.
+        return BastionService.update_bastion_authorized_keys(
+            desktop_id, data.authorized_keys or []
         )
-        return {}
 
     @staticmethod
     def update_desktop_bastion_domain(desktop_id: str, domain_name: str | None) -> dict:
@@ -952,14 +947,13 @@ class DesktopService:
         # frontend flip and makes the desktop card visibly flicker
         # Stopped → Starting → Stopped → Starting before settling.
         DesktopEvents.desktop_start(desktop_id=desktop_id)
-        # Add the starting user's profile bastion SSH key to this desktop's
-        # bastion target (owner-first, de-duped) when bastion SSH is enabled.
-        # Best-effort: never let it block the start.
+        # Reconcile a deployment desktop's bastion target to its deployment's
+        # bastion config. Best-effort: never let it block the start.
         try:
-            BastionService.ensure_keys_on_start(desktop_id, user_id)
+            BastionService.ensure_bastion_config_on_start(desktop_id)
         except Exception:
             logging.warning(
-                "Failed to inject bastion SSH key on start of desktop %s",
+                "Failed to reconcile the bastion config on start of desktop %s",
                 desktop_id,
                 exc_info=True,
             )
