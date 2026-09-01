@@ -10,11 +10,10 @@ import { DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-me
 import { hasAdvancedOptions } from '@/components/desktop-card/advanced-options-modal/options'
 
 import { useAuthStore } from '@/stores/auth'
+import { isNotUser } from '@/lib/auth'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-
-const canSeeAdvancedOptions = computed(() => hasAdvancedOptions(authStore.user?.role_id))
 
 interface Props {
   desktop: UserDesktop
@@ -27,115 +26,101 @@ const props = withDefaults(defineProps<Props>(), {
 
 // `showInfoModal` and `showBastionModal` were promoted to dedicated icon
 // buttons in DesktopCardHeaderActions; the dropdown no longer emits them.
-const emit = defineEmits<{
-  editDesktop: []
-  showDeleteModal: []
-  showDirectLinkModal: []
-  showRecreateModal: []
-  createTemplate: []
-  bookDesktop: []
-  showStorageModal: []
-}>()
+type ActionEvent =
+  | 'editDesktop'
+  | 'showStorageModal'
+  | 'createTemplate'
+  | 'bookDesktop'
+  | 'showDirectLinkModal'
+  | 'showRecreateModal'
+  | 'showDeleteModal'
+
+const emit = defineEmits<(e: ActionEvent) => void>()
+
+interface Action {
+  event: ActionEvent
+  labelKey: string
+  icon: string
+  when: boolean
+  danger?: boolean
+}
 
 const isManageable = computed(
   () =>
     props.desktop.status === DesktopStatusEnum.STOPPED ||
     props.desktop.status === DesktopStatusEnum.FAILED
 )
+
+const role = computed(() => authStore.user?.role_id)
+
+const actions = computed<Action[]>(() =>
+  (
+    [
+      {
+        event: 'editDesktop',
+        labelKey: 'components.desktops.desktop-card.actions.edit',
+        icon: 'edit-01',
+        when: isManageable.value
+      },
+      {
+        event: 'showStorageModal',
+        labelKey: 'components.desktops.desktop-card.actions.advanced-options',
+        icon: 'settings-02',
+        when: isManageable.value && hasAdvancedOptions(role.value)
+      },
+      {
+        event: 'createTemplate',
+        labelKey: 'components.desktops.desktop-card.actions.template',
+        icon: 'colors',
+        when: props.desktop.status === DesktopStatusEnum.STOPPED && isNotUser(role.value)
+      },
+      {
+        event: 'bookDesktop',
+        labelKey: 'components.desktops.desktop-card.actions.book',
+        icon: 'calendar-check-02',
+        when: isManageable.value && !props.desktop.tag && props.desktop.needs_booking === true
+      },
+      {
+        event: 'showDirectLinkModal',
+        labelKey: 'components.desktops.desktop-card.actions.direct-link',
+        icon: 'link-01',
+        when: true
+      },
+      {
+        event: 'showRecreateModal',
+        labelKey: 'components.desktops.desktop-card.actions.recreate',
+        icon: 'refresh-cw-01',
+        when: Boolean(props.desktop.tag && props.desktop.permissions?.includes('recreate'))
+      },
+      {
+        event: 'showDeleteModal',
+        labelKey: 'components.desktops.desktop-card.actions.delete',
+        icon: 'trash-04',
+        when: isManageable.value && !props.desktop.tag,
+        danger: true
+      }
+    ] satisfies Action[]
+  ).filter((action) => action.when)
+)
 </script>
 
 <template>
   <DropdownMenuGroup>
-    <template v-if="isManageable">
-      <DropdownMenuItem @click="emit('editDesktop')">
-        <Button
-          size="sm"
-          class="mr-2 w-full justify-start"
-          hierarchy="link-gray"
-          icon="edit-01"
-          icon-size="md"
-        >
-          {{ t('components.desktops.desktop-card.actions.edit') }}
-        </Button>
-      </DropdownMenuItem>
-      <DropdownMenuItem v-if="canSeeAdvancedOptions" @click="emit('showStorageModal')">
-        <Button
-          size="sm"
-          class="mr-2 w-full justify-start"
-          hierarchy="link-gray"
-          icon="settings-02"
-          icon-size="md"
-        >
-          {{ t('components.desktops.desktop-card.actions.advanced-options') }}
-        </Button>
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        v-if="props.desktop.status === DesktopStatusEnum.STOPPED"
-        @click="emit('createTemplate')"
-      >
-        <Button
-          size="sm"
-          class="mr-2 w-full justify-start"
-          hierarchy="link-gray"
-          icon="colors"
-          icon-size="md"
-        >
-          {{ t('components.desktops.desktop-card.actions.template') }}
-        </Button>
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        v-if="!props.desktop.tag && props.desktop.needs_booking === true"
-        @click="emit('bookDesktop')"
-      >
-        <Button
-          size="sm"
-          class="mr-2 w-full justify-start"
-          hierarchy="link-gray"
-          icon="calendar-check-02"
-          icon-size="md"
-        >
-          {{ t('components.desktops.desktop-card.actions.book') }}
-        </Button>
-      </DropdownMenuItem>
-    </template>
-    <DropdownMenuItem @click="emit('showDirectLinkModal')">
-      <Button
-        size="sm"
-        class="mr-2 w-full justify-start"
-        hierarchy="link-gray"
-        icon="link-01"
-        icon-size="md"
-      >
-        {{ t('components.desktops.desktop-card.actions.direct-link') }}
-      </Button>
-    </DropdownMenuItem>
     <DropdownMenuItem
-      v-if="props.desktop.tag && props.desktop.permissions?.includes('recreate')"
-      @click="emit('showRecreateModal')"
+      v-for="action in actions"
+      :key="action.event"
+      :class="{ 'hover:bg-error-50 focus:bg-error-50': action.danger }"
+      @click="emit(action.event)"
     >
       <Button
         size="sm"
         class="mr-2 w-full justify-start"
+        :class="{ 'text-error-700': action.danger }"
         hierarchy="link-gray"
-        icon="refresh-cw-01"
+        :icon="action.icon"
         icon-size="md"
       >
-        {{ t('components.desktops.desktop-card.actions.recreate') }}
-      </Button>
-    </DropdownMenuItem>
-    <DropdownMenuItem
-      v-if="isManageable && !props.desktop.tag"
-      class="hover:bg-error-50 focus:bg-error-50"
-      @click="emit('showDeleteModal')"
-    >
-      <Button
-        size="sm"
-        class="mr-2 w-full justify-start text-error-700"
-        hierarchy="link-gray"
-        icon="trash-04"
-        icon-size="md"
-      >
-        {{ t('components.desktops.desktop-card.actions.delete') }}
+        {{ t(action.labelKey) }}
       </Button>
     </DropdownMenuItem>
   </DropdownMenuGroup>
