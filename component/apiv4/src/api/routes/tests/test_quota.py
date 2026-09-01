@@ -9,6 +9,8 @@ from api.dependencies.quotas import (
     can_create_template,
 )
 from api.routes.tests.helpers import MockJWT
+from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.quotas import Quotas
 
 
 def test_quota_media_ok(monkeypatch, test_client):
@@ -146,3 +148,43 @@ def test_admin_quota_by_kind_invalid(test_client):
     jwt = MockJWT()
     response = test_client(url="/admin/quota/banana", jwt=jwt)
     assert response.status_code == 400
+
+
+# ─── Temporal desktops quota ─────────────────────────────────────────────
+# Their used counter is the non-persistent one: a full desktops quota says
+# nothing about them and must not block the new-desktop flow.
+
+
+def test_quota_volatile_desktop_checks_the_volatile_counter(monkeypatch, test_client):
+    checked = []
+    monkeypatch.setattr(
+        Quotas,
+        "desktop_create",
+        classmethod(lambda cls, user_id, quantity=1: checked.append("desktop")),
+    )
+    monkeypatch.setattr(
+        Quotas,
+        "volatile_create",
+        classmethod(lambda cls, user_id, quantity=1: checked.append("volatile")),
+    )
+
+    response = test_client(url="/quota/desktop/new-volatile", jwt=MockJWT())
+
+    assert response.status_code == 204
+    assert checked == ["volatile"]
+
+
+def test_quota_volatile_desktop_exceeded(monkeypatch, test_client):
+    def exceeded(cls, user_id, quantity=1):
+        raise Error(
+            "precondition_required",
+            "quota exceeded for creating new non persistent desktop",
+            description_code="desktop_new_user_quota_exceeded",
+        )
+
+    monkeypatch.setattr(Quotas, "volatile_create", classmethod(exceeded))
+
+    response = test_client(url="/quota/desktop/new-volatile", jwt=MockJWT())
+
+    assert response.status_code == 428
+    assert response.json()["description_code"] == "desktop_new_user_quota_exceeded"

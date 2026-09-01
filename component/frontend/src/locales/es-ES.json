@@ -1625,6 +1625,10 @@
         "description": "Los recursos del sistema no estan disponibles actualmente y no se pueden iniciar escritorios. Por favor, inténtelo más tarde.",
         "go-to-desktops": "Volver a escritorios"
       },
+      "start-error-modal": {
+        "title": "No se ha podido iniciar el escritorio",
+        "close": "Cerrar"
+      },
       "fields": {
         "ip": {
           "title-full": "@:components.domain-info-modal.fields.ip.title del @:domains.desktops"
@@ -1965,10 +1969,22 @@
       },
       "delete-confirmation-modal": {
         "title": "Eliminar la plantilla '{name}'",
+        "subtitle": "Ningún otro escritorio, plantilla o despliegue depende de esta plantilla.",
+        "recycle-bin": {
+          "temporary": "Los elementos eliminados se mueven a la papelera y se borran definitivamente después de {time}. La eliminación de plantillas siempre pasa por la papelera y no se puede hacer permanente desde aquí.",
+          "permanent": "Los elementos eliminados se borran definitivamente y no se pueden recuperar.",
+          "infinite": "Los elementos eliminados se mueven a la papelera y no se borran automáticamente."
+        },
         "fields": {
+          "summary": {
+            "total": "Se eliminarán {count} elementos",
+            "breakdown": "{desktops} escritorios · {templates} plantillas · {deployments} despliegues · {hidden} ocultos"
+          },
           "dependency": {
             "alert": {
-              "title": "Aviso de dependencia"
+              "title": "Aviso de dependencia",
+              "description": "Los siguientes escritorios, plantillas y despliegues dependen de esta plantilla y se eliminarán junto con sus discos.",
+              "pending": "Algunos escritorios, plantillas o despliegues que dependen de esta plantilla no son tuyos. Contacta con un administrador para eliminar esta plantilla."
             },
             "datatable": {
               "headers": {
@@ -1977,10 +1993,29 @@
                 "user": "Usuario"
               }
             }
+          },
+          "cross-category": {
+            "title": "Derivados en otras categorías",
+            "description": "Algunos derivados de esta plantilla pertenecen a otras categorías. Eliminarla también afectará a elementos fuera de tu categoría."
           }
         },
         "cancel": "Cancelar",
         "confirm": "Eliminar plantilla",
+        "toast": {
+          "recycled": {
+            "title": "La plantilla '{name}' se ha movido a la papelera",
+            "description": "Se han movido {count} elementos. Se borrarán definitivamente después de {time}."
+          },
+          "recycled-infinite": {
+            "title": "La plantilla '{name}' se ha movido a la papelera",
+            "description": "Se han movido {count} elementos a la papelera."
+          },
+          "permanent": {
+            "title": "Plantilla '{name}' eliminada",
+            "description": "Se han borrado definitivamente {count} elementos."
+          },
+          "open-recycle-bin": "Abrir papelera"
+        },
         "debug-options": {
           "copy-id": "Copiar ID"
         }
@@ -2229,8 +2264,18 @@
           },
           "nonpersistent": {
             "title": "Temporal",
-            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene. Solo se permite un escritorio temporal por plantilla."
+            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene."
           }
+        },
+        "single-temporal": {
+          "title": "Un escritorio temporal por plantilla",
+          "description": "Mientras la interfaz antigua siga disponible, solo puedes tener un escritorio temporal por plantilla.",
+          "existing": "Ya tienes un escritorio temporal de esta plantilla. Elimínalo para crear otro."
+        },
+        "quota-exceeded": {
+          "title": "Cuota superada",
+          "persistent": "Has alcanzado el límite de escritorios persistentes. Elimina uno para crear otro.",
+          "temporal": "Has alcanzado el límite de escritorios temporales. Elimina uno para crear otro."
         },
         "section": {
           "title": {
@@ -2767,6 +2812,22 @@
         "temporal_new_reservable": {
           "title": "Los escritorios temporales no pueden tener reservables",
           "description": "Los escritorios temporales no pueden tener reservables asignados. Elimina los reservables e inténtalo de nuevo."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Cuota de inicio de escritorios superada",
+          "description": "Has alcanzado el número máximo de escritorios en marcha. Debes detener uno para poder crear este."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Cuota de memoria superada",
+          "description": "Iniciar este escritorio superaría tu cuota de memoria. Detén un escritorio, o reduce la memoria del que estás creando."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "Cuota de vCPU superada",
+          "description": "Iniciar este escritorio superaría tu cuota de vCPU. Detén un escritorio, o reduce las vCPU del que estás creando."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Cuota de almacenamiento superada",
+          "description": "Iniciar este escritorio superaría tu cuota de almacenamiento. Libera espacio de disco e inténtalo de nuevo."
         }
       }
     },
@@ -2856,6 +2917,11 @@
         "generic": "No se ha podido eliminar el escritorio. Inténtalo de nuevo.",
         "not_found": "No se encontró el escritorio.",
         "precondition_required": "El escritorio no se puede eliminar en este momento. Inténtalo de nuevo en unos instantes."
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "No se ha podido iniciar el escritorio. Inténtalo de nuevo."
       }
     },
     "delete-deployment": {

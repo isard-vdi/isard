@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useQuery } from '@tanstack/vue-query'
 import type * as z from 'zod'
+import { getTemplateNonpersistentDesktopOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { useUserStore } from '@/stores/user'
 import { useDomainInfoForm, type DomainInfoSource } from '@/composables/useDomainInfoForm'
 import { CheckboxGroup } from '@/components/checkbox-group'
+import type { FeaturedIconItem } from '@/components/checkbox-group/featured-icon'
 import { DesktopCardBase, DesktopCardHeader, DesktopCardSkeleton } from '@/components/desktop-card'
 import { InputField } from '@/components/input-field'
 import { Button } from '@/components/ui/button'
@@ -23,8 +26,11 @@ const props = withDefaults(
     extraDefaults?: Record<string, string>
     extraSchema?: z.ZodRawShape
     imageUrl?: string
+    templateId?: string
     showKindSelector?: boolean
     kind?: DomainKind
+    persistentQuotaExceeded?: boolean
+    temporalQuotaExceeded?: boolean
     entity?: 'desktops' | 'templates'
     preview?: DomainInfoPreview
   }>(),
@@ -34,8 +40,11 @@ const props = withDefaults(
     extraDefaults: undefined,
     extraSchema: undefined,
     imageUrl: '',
+    templateId: undefined,
     showKindSelector: false,
     kind: 'persistent',
+    persistentQuotaExceeded: false,
+    temporalQuotaExceeded: false,
     entity: 'desktops',
     preview: 'desktop-card'
   }
@@ -60,13 +69,37 @@ const kindModel = computed({
   set: (value: 'persistent' | 'nonpersistent') => emit('update:kind', value)
 })
 
-const kindOptions = computed(() => {
-  const options = [
+// TODO(old-frontend-removal): this block, the temporal option's note/disabled/
+// tooltip and the `single-temporal` locale keys go with the old frontend, whose
+// one-desktop-per-template card is the only reason the backend reuses.
+const singleTemporalPerTemplate = computed(
+  () => props.showKindSelector && !userStore.config?.multiple_temporal_desktops
+)
+
+// Only asked where that limit applies: elsewhere the endpoint always answers null.
+const { data: reusedTemporalDesktop } = useQuery({
+  ...getTemplateNonpersistentDesktopOptions({
+    path: { template_id: props.templateId || '' }
+  }),
+  enabled: computed(() => singleTemporalPerTemplate.value && !!props.templateId)
+})
+
+const temporalDisabled = computed(() => !!reusedTemporalDesktop.value?.desktop_id)
+
+const kindOptions = computed<FeaturedIconItem[]>(() => {
+  const quotaTooltip = (kind: 'persistent' | 'temporal') => ({
+    title: t('components.domain.configuration.quota-exceeded.title'),
+    description: t(`components.domain.configuration.quota-exceeded.${kind}`)
+  })
+
+  const options: FeaturedIconItem[] = [
     {
       color: 'persistent',
       title: t('components.domain.configuration.kind.persistent.title'),
       description: t('components.domain.configuration.kind.persistent.description'),
-      value: 'persistent'
+      value: 'persistent',
+      disabled: props.persistentQuotaExceeded,
+      tooltip: props.persistentQuotaExceeded ? quotaTooltip('persistent') : undefined
     }
   ]
 
@@ -75,12 +108,40 @@ const kindOptions = computed(() => {
       color: 'temporary',
       title: t('components.domain.configuration.kind.nonpersistent.title'),
       description: t('components.domain.configuration.kind.nonpersistent.description'),
-      value: 'nonpersistent'
+      value: 'nonpersistent',
+      // TODO(old-frontend-removal): note, disabled and tooltip, with their
+      // `components.domain.configuration.single-temporal.*` locale keys.
+      note: singleTemporalPerTemplate.value
+        ? t('components.domain.configuration.single-temporal.description')
+        : undefined,
+      disabled: temporalDisabled.value || props.temporalQuotaExceeded,
+      tooltip: props.temporalQuotaExceeded
+        ? quotaTooltip('temporal')
+        : temporalDisabled.value
+          ? {
+              title: t('components.domain.configuration.single-temporal.title'),
+              description: t('components.domain.configuration.single-temporal.existing')
+            }
+          : undefined
     })
   }
 
   return options
 })
+
+// Quota and the reuse query both land late: never sit on a locked kind.
+watch(
+  kindOptions,
+  (options) => {
+    if (!props.showKindSelector) return
+    if (!options.find((option) => option.value === kindModel.value)?.disabled) return
+    const available = options.find((option) => !option.disabled)
+    if (available) {
+      emit('update:kind', available.value as 'persistent' | 'nonpersistent')
+    }
+  },
+  { immediate: true }
+)
 
 const isInvalid = (field: { state: { meta: { isTouched: boolean; isValid: boolean } } }) =>
   field.state.meta.isTouched && !field.state.meta.isValid

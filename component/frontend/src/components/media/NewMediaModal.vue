@@ -24,6 +24,7 @@ import type { ErrorResponse } from '@/gen/oas/apiv4'
 
 import dotGrid from '@/assets/img/modal/dot-grid.svg?component'
 import newMediaImg from '@/assets/img/modal/new-media.svg'
+import { errorCodeKey } from '@/lib/api-errors'
 
 interface Props {
   open?: boolean
@@ -37,7 +38,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const queryClient = useQueryClient()
 
 const mediaKinds = [
@@ -66,6 +67,9 @@ const formSchema = z.object({
 })
 
 const creationError = ref<string | null>(null)
+const creationErrorKey = computed(() =>
+  errorCodeKey(creationError.value, { t, te }, 'api.new-media.errors')
+)
 
 const { mutate: createMedia, isPending: createMediaIsPending } = useMutation({
   ...createMediaMutation(),
@@ -166,9 +170,9 @@ const handleClose = () => {
     </div>
 
     <Alert v-if="creationError" variant="destructive" class="my-2">
-      <AlertTitle>{{ t(`api.new-media.errors.${creationError}.title`) }}</AlertTitle>
+      <AlertTitle>{{ t(`api.new-media.errors.${creationErrorKey}.title`) }}</AlertTitle>
       <AlertDescription>{{
-        t(`api.new-media.errors.${creationError}.description`)
+        t(`api.new-media.errors.${creationErrorKey}.description`)
       }}</AlertDescription>
     </Alert>
 

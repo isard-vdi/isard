@@ -596,12 +596,7 @@ class UsersProcessed(RethinkSharedConnection):
             bastion_allowed = False
             bastion_domain = None
 
-        frontend_mode_raw = getenv("FRONTEND_MODE", "deprecated")
-        frontend_mode = (
-            frontend_mode_raw
-            if frontend_mode_raw in ("deprecated", "actual", "all", "hidden")
-            else "deprecated"
-        )
+        frontend_mode = Helpers.frontend_mode()
 
         faro_enabled = getenv("FARO_ENABLED", "false").lower() == "true"
         try:
@@ -629,6 +624,7 @@ class UsersProcessed(RethinkSharedConnection):
                 ),
                 "show_change_email_button": frontend_show_change_email,
                 "show_temporal_tab": frontend_show_temporal_tab,
+                "multiple_temporal_desktops": frontend_mode == "actual",
                 "http_port": getenv("HTTP_PORT", "80"),
                 "https_port": getenv("HTTPS_PORT", "443"),
                 "bastion_domain": bastion_domain,

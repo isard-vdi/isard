@@ -8,13 +8,14 @@ import {
   getUserTemplatesOptions,
   getUserSharedTemplatesOptions,
   checkQuotaNewTemplateOptions,
-  checkQuotaNewDesktopOptions,
   updateTemplateAllowedMutation,
   getTemplateAllowedQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { copyToClipboard } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
+import { canCreateAnyDesktop } from '@/lib/quotas'
+import { useUserStore } from '@/stores/user'
 
 import { AvatarLabel } from '@/components/avatar-label'
 import { Button } from '@/components/ui/button'
@@ -57,6 +58,7 @@ import { getTemplateDetails } from '@/gen/oas/apiv4/'
 
 const router = useRouter()
 const queryClient = useQueryClient()
+const userStore = useUserStore()
 const { t } = useI18n()
 
 const activeTab = ref<'user' | 'shared'>('user')
@@ -200,14 +202,10 @@ const handleWithTemplateQuotaCheck = async (callback: () => void) => {
 
 const handleWithDesktopQuotaCheck = async (callback: () => void) => {
   desktopCreationCheckIsPending.value = true
-  try {
-    await queryClient.fetchQuery({
-      ...checkQuotaNewDesktopOptions(),
-      staleTime: QUOTA_STALE_TIME
-    })
+  if (await canCreateAnyDesktop(queryClient, userStore.config?.show_temporal_tab !== false)) {
     desktopCreationCheckIsPending.value = false
     callback()
-  } catch {
+  } else {
     desktopCreationCheckIsPending.value = false
     quotaExceededModalData.value = {
       title: t('components.desktops.quota-exceeded-modal.title'),

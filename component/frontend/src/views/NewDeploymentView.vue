@@ -45,9 +45,10 @@ import {
   type AccessFormData,
   type HardwareFormData
 } from '@/lib/domainPayload'
+import { errorCodeKey } from '@/lib/api-errors'
 
 const router = useRouter()
-const { t, d } = useI18n()
+const { t, d, te } = useI18n()
 
 const currentStep = ref(1)
 
@@ -119,6 +120,15 @@ const {
     }
   }
 })
+
+// Untranslated in the active locale: a generic message the user reads beats an
+// English one they may not.
+const deploymentErrorCode = computed(
+  () => (createDeploymentError.value as DesktopNameExistsErrorResponse | null)?.description_code
+)
+const deploymentErrorKey = computed(() =>
+  errorCodeKey(deploymentErrorCode.value, { t, te }, 'api.new-deployment.errors')
+)
 
 const {
   mutate: getTemplateInfoMutate,
@@ -677,20 +687,15 @@ const updateHardware = (
         <FeaturedIconOutline kind="outline" color="error" />
 
         <AlertTitle class="font-bold text-gray-warm-700 mb-2">{{
-          t(
-            `api.new-deployment.errors.${(createDeploymentError as DesktopNameExistsErrorResponse).description_code}.title`,
-            t('api.new-deployment.errors.generic.title')
-          )
+          t(`api.new-deployment.errors.${deploymentErrorKey}.title`)
         }}</AlertTitle>
 
         <AlertDescription>
           <i18n-t
             v-if="
-              ['new_desktop_name_exists', 'duplicated_name'].includes(
-                (createDeploymentError as DesktopNameExistsErrorResponse).description_code
-              )
+              ['new_desktop_name_exists', 'duplicated_name'].includes(deploymentErrorKey as string)
             "
-            :keypath="`api.new-deployment.errors.${(createDeploymentError as DesktopNameExistsErrorResponse).description_code}.description`"
+            :keypath="`api.new-deployment.errors.${deploymentErrorKey}.description`"
             class="whitespace-pre-wrap"
           >
             <template #desktop_name>
@@ -703,12 +708,7 @@ const updateHardware = (
             </template>
           </i18n-t>
           <template v-else>
-            {{
-              t(
-                `api.new-deployment.errors.${(createDeploymentError as DesktopNameExistsErrorResponse).description_code}.description`,
-                t('api.new-deployment.errors.generic.description')
-              )
-            }}
+            {{ t(`api.new-deployment.errors.${deploymentErrorKey}.description`) }}
           </template>
 
           <ul

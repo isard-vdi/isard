@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { AvailableReservablesResponse } from '@/gen/oas/apiv4'
 import { earliestBookingDate, getEndTimeIntervals } from '@/lib/booking/end-time-intervals'
 import { MAX_VGPU_PROFILES } from '@/lib/vgpuSelection'
+import { describeErrorCode } from '@/lib/api-errors'
 
 interface Props {
   open: boolean
@@ -105,8 +106,11 @@ watch(endLimit, (limit) => {
 
 const submitErrorMessage = computed(() => {
   if (!props.submitError) return null
-  const key = `components.desktop-gpu-change-and-start-modal.errors.${props.submitError}`
-  return te(key) ? t(key) : t('components.desktop-gpu-change-and-start-modal.errors.generic')
+  return describeErrorCode(
+    props.submitError,
+    { t, te },
+    'components.desktop-gpu-change-and-start-modal.errors'
+  )
 })
 
 function isInvalid(field: { state: { meta: { isTouched: boolean; isValid: boolean } } }) {

@@ -8,6 +8,7 @@ from api.dependencies.quotas import (
     can_create_desktop,
     can_create_media,
     can_create_template,
+    can_create_volatile_desktop,
 )
 from api.schemas.common import ErrorResponse
 from api.schemas.quota import AdminQuotaResponse
@@ -127,6 +128,26 @@ async def check_quota_new_media():
     dependencies=[Depends(can_create_desktop)],
 )
 async def check_quota_new_desktop():
+    return Response(status_code=204)
+
+
+@token_router.get(
+    "/quota/desktop/new-volatile",
+    tags=[tag, "desktops"],
+    status_code=204,
+    response_class=Response,
+    summary="Check temporal desktops quota",
+    description="Checks if creating a new temporal desktop would exceed the user's quota.",
+    responses={
+        204: {"description": "Can create a new temporal desktop"},
+        428: {
+            "model": ErrorResponse,
+            "description": "Cannot create a new temporal desktop, as it would exceed quota",
+        },
+    },
+    dependencies=[Depends(can_create_volatile_desktop)],
+)
+async def check_quota_new_volatile_desktop():
     return Response(status_code=204)
 
 

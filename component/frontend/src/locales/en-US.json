@@ -1552,8 +1552,18 @@
           },
           "nonpersistent": {
             "title": "Temporary",
-            "description": "A temporary desktop discards all changes and files when stopped. Only one temporary desktop is allowed per template."
+            "description": "A temporary desktop discards all changes and files when stopped."
           }
+        },
+        "single-temporal": {
+          "title": "One temporary desktop per template",
+          "description": "While the old interface is still available, you can only have one temporary desktop per template.",
+          "existing": "You already have a temporary desktop from this template. Delete it to create another one."
+        },
+        "quota-exceeded": {
+          "title": "Quota exceeded",
+          "persistent": "You have reached your persistent desktops limit. Delete one to create another.",
+          "temporal": "You have reached your temporary desktops limit. Delete one to create another."
         },
         "section": {
           "title": {
@@ -2245,6 +2255,10 @@
         "description": "The system resources are currently unavailable and desktops cannot be started. Please try again later.",
         "go-to-desktops": "Go back to desktops"
       },
+      "start-error-modal": {
+        "title": "Could not start the desktop",
+        "close": "Close"
+      },
       "direct-viewer-modal": {
         "title": "Direct access link",
         "enable-access": "Enable direct access",
@@ -2800,6 +2814,22 @@
         "temporal_new_reservable": {
           "title": "Temporal desktops cannot have reservables",
           "description": "Temporal desktops cannot have reservables assigned. Please remove the reservables and try again."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Desktop start quota exceeded",
+          "description": "You have reached the maximum number of running desktops. A desktop must be stopped in order to create this one."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Memory quota exceeded",
+          "description": "Starting this desktop would exceed your memory quota. Stop a desktop, or reduce the memory of the one you are creating."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "vCPU quota exceeded",
+          "description": "Starting this desktop would exceed your vCPU quota. Stop a desktop, or reduce the vCPUs of the one you are creating."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Storage quota exceeded",
+          "description": "Starting this desktop would exceed your storage quota. Free up disk space and try again."
         }
       }
     },
@@ -2874,6 +2904,11 @@
         "generic": "Could not delete the desktop. Please try again.",
         "not_found": "The desktop was not found.",
         "precondition_required": "The desktop can't be deleted right now. Please try again in a moment."
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "The desktop could not be started. Please try again."
       }
     },
     "delete-deployment": {

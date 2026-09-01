@@ -902,8 +902,18 @@
           },
           "nonpersistent": {
             "title": "Aldi baterakoa",
-            "description": "Aldi baterako mahaigain batek aldaketa eta fitxategi guztiak baztertzen ditu gelditzean. Txantiloi bakoitzeko aldi baterako mahaigain bakarra onartzen da."
+            "description": "Aldi baterako mahaigain batek aldaketa eta fitxategi guztiak baztertzen ditu gelditzean."
           }
+        },
+        "single-temporal": {
+          "title": "Txantiloi bakoitzeko aldi baterako mahaigain bat",
+          "description": "Interfaze zaharra erabilgarri dagoen bitartean, txantiloi bakoitzeko aldi baterako mahaigain bakarra izan dezakezu.",
+          "existing": "Jada baduzu txantiloi honetako aldi baterako mahaigain bat. Ezabatu beste bat sortzeko."
+        },
+        "quota-exceeded": {
+          "title": "Kuota gaindituta",
+          "persistent": "Mahaigain iraunkorren muga gainditu duzu. Ezabatu bat beste bat sortzeko.",
+          "temporal": "Aldi baterako mahaigainen muga gainditu duzu. Ezabatu bat beste bat sortzeko."
         },
         "hardware": {
           "title": "Hardware guztia",
@@ -1389,10 +1399,39 @@
         "go-to-profile": "Egiaztatu zure kuota",
         "cancel": "Itzuli mahaigainetara"
       },
+      "start-quota-exceeded-modal": {
+        "title": "Mahaigainak abiarazteko kuota gaindituta",
+        "description": "Abian dauden mahaigainen gehienezko kopurura iritsi zara. Mahaigain bat gelditu behar duzu beste bat abiarazteko.",
+        "cancel": "Itzuli mahaigainetara"
+      },
+      "start-memory-quota-exceeded-modal": {
+        "title": "Memoria kuota gaindituta",
+        "description": "Memoria kuota gainditu duzu. Gelditu mahaigain bat beste bat abiarazteko, edo editatu mahaigain hau bere memoria murrizteko.",
+        "cancel": "Itzuli mahaigainetara"
+      },
+      "start-vcpu-quota-exceeded-modal": {
+        "title": "vCPU kuota gaindituta",
+        "description": "vCPU kuota gainditu duzu. Gelditu mahaigain bat beste bat abiarazteko, edo editatu mahaigain hau bere vCPUak murrizteko.",
+        "cancel": "Itzuli mahaigainetara"
+      },
+      "start-disk-quota-exceeded-modal": {
+        "title": "Biltegiratze kuota gaindituta",
+        "description": "Biltegiratze kuota gainditu duzu. Egin lekua diskoan mahaigain hau abiarazteko.",
+        "cancel": "Itzuli mahaigainetara"
+      },
       "storage-unavailable-modal": {
         "title": "Biltegiratzea ez dago erabilgarri",
         "description": "Sortzeko biltegiratzea ez dago erabilgarri une honetan eta mahaigainak ezin dira sortu. Mesedez, saiatu berriro geroago.",
         "go-to-desktops": "Itzuli mahaigainetara"
+      },
+      "start-storage-unavailable-modal": {
+        "title": "Sistemaren baliabideak ez daude erabilgarri",
+        "description": "Sistemaren baliabideak ez daude erabilgarri une honetan eta ezin da mahaigainik abiarazi. Saiatu berriro geroago.",
+        "go-to-desktops": "Itzuli mahaigainetara"
+      },
+      "start-error-modal": {
+        "title": "Ezin izan da mahaigaina abiarazi",
+        "close": "Itxi"
       },
       "data-table": {
         "headers": {
@@ -1627,6 +1666,22 @@
         "temporal_new_reservable": {
           "title": "Aldi baterako mahaigainek ezin dute erreserbagarririk izan",
           "description": "Aldi baterako mahaigainek ezin dute erreserbagarririk esleituta izan. Mesedez, kendu erreserbagarriak eta saiatu berriro."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Mahaigainak abiarazteko kuota gaindituta",
+          "description": "Abian dauden mahaigainen gehienezko kopurura iritsi zara. Mahaigain bat gelditu behar duzu hau sortu ahal izateko."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Memoria kuota gaindituta",
+          "description": "Mahaigain hau abiarazteak zure memoria kuota gaindituko luke. Gelditu mahaigain bat, edo murriztu sortzen ari zarenaren memoria."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "vCPU kuota gaindituta",
+          "description": "Mahaigain hau abiarazteak zure vCPU kuota gaindituko luke. Gelditu mahaigain bat, edo murriztu sortzen ari zarenaren vCPUak."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Biltegiratze kuota gaindituta",
+          "description": "Mahaigain hau abiarazteak zure biltegiratze kuota gaindituko luke. Egin lekua diskoan eta saiatu berriro."
         }
       }
     },
@@ -1635,6 +1690,52 @@
         "new_template_name_exists": "Izen honekin txantiloi bat lehendik existitzen da. Mesedez, aukeratu beste izen bat.",
         "generic": "Errore bat gertatu da txantiloia sortzean, mesedez, saiatu berriro.",
         "storage_pending_task": "Mahaigain honen diskoa beste eragiketa batekin lanpetuta dago. Itxaron une bat eta saiatu berriro."
+      }
+    },
+    "edit-desktop": {
+      "errors": {
+        "generic": "Errore bat gertatu da mahaigaina gordetzean. Saiatu berriro.",
+        "internal_server": "Zerbitzariaren barne errorea mahaigaina gordetzean.",
+        "precondition_required": "Mahaigaina gelditu behar da editatu aurretik.",
+        "not_found": "Ez da mahaigaina aurkitu.",
+        "rdp_requires_wireguard": "RDP ikustaileek wireguard sarea behar dute. Gehitu wireguard sarea mahaigain honi edo kendu RDP ikustaileak.",
+        "new_desktop_name_exists": "Izen bera duen mahaigain bat badago jada. Aukeratu beste izen bat.",
+        "one_viewer_minimum": "Gutxienez ikustaile bat hautatu behar da.",
+        "only_works_rdp": "'GPU soilik' moduak RDP ikustaileekin bakarrik funtzionatzen du. Kendu RDP ez diren ikustaileak edo aukeratu beste bideo aukera bat.",
+        "vgpu_profiles_different_hypervisors": "Hautatutako GPU profil guztiak ez daude erabilgarri host bakar batean. Aukeratu beste konbinazio bat.",
+        "vgpu_profiles_different_models": "Hautatutako GPU profil guztiek GPU eredu berekoak izan behar dute, host bakar batean exekutatu ahal izateko."
+      }
+    },
+    "delete-desktop": {
+      "errors": {
+        "generic": "Ezin izan da mahaigaina ezabatu. Saiatu berriro.",
+        "not_found": "Ez da mahaigaina aurkitu.",
+        "precondition_required": "Mahaigaina ezin da orain ezabatu. Saiatu berriro une batean."
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "Ezin izan da mahaigaina abiarazi. Saiatu berriro."
+      }
+    },
+    "delete-deployment": {
+      "errors": {
+        "generic": "Ezin izan da hedapena ezabatu. Saiatu berriro.",
+        "not_found": "Ez da hedapena aurkitu.",
+        "precondition_required": "Hedapena ezin da orain ezabatu. Saiatu berriro une batean.",
+        "deployment_stop": "Hedapenaren mahaigainak gelditu behar dira ezabatu ahal izateko."
+      }
+    },
+    "edit-template": {
+      "errors": {
+        "generic": "Errore bat gertatu da txantiloia gordetzean. Saiatu berriro.",
+        "internal_server": "Zerbitzariaren barne errore bat gertatu da. Saiatu berriro geroago.",
+        "new_template_name_exists": "Izen hori duen txantiloi bat badago jada. Aukeratu beste izen bat.",
+        "not_found": "Ez da txantiloia aurkitu.",
+        "precondition_required": "Txantiloia gelditu behar da editatu ahal izateko.",
+        "rdp_requires_wireguard": "RDP ikustaileek wireguard sarea behar dute. Gehitu wireguard sarea txantiloi honi edo kendu RDP ikustaileak.",
+        "vgpu_profiles_different_hypervisors": "Hautatutako GPU profil guztiak ez daude erabilgarri host bakar batean. Aukeratu beste konbinazio bat.",
+        "vgpu_profiles_different_models": "Hautatutako GPU profil guztiek GPU eredu berekoak izan behar dute, host bakar batean exekutatu ahal izateko."
       }
     },
     "booking": {

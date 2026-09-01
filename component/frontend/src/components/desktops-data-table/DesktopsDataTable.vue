@@ -138,6 +138,7 @@ const headers = [
           @desktop-update-status="emit('desktopUpdateStatus', row)"
           @desktop-abort-operation="emit('desktopAbortOperation', row)"
           @desktop-fetch-booking="emit('desktopFetchBooking', row)"
+          @show-delete-modal="emit('showDeleteModal', row)"
         />
       </template>
     </template>

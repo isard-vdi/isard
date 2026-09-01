@@ -1625,6 +1625,10 @@
         "description": "Els recursos del sistema no estan disponibles actualment i no es poden iniciar escriptoris. Si us plau, torni-ho a provar més tard.",
         "go-to-desktops": "Tornar als escriptoris"
       },
+      "start-error-modal": {
+        "title": "No s'ha pogut iniciar l'escriptori",
+        "close": "Tanca"
+      },
       "fields": {
         "ip": {
           "title-full": "@:components.domain-info-modal.fields.ip.title de l'@:domains.desktops"
@@ -1953,10 +1957,22 @@
       },
       "delete-confirmation-modal": {
         "title": "Esborra la plantilla '{name}'",
+        "subtitle": "Cap altre escriptori, plantilla o desplegament depèn d'aquesta plantilla.",
+        "recycle-bin": {
+          "temporary": "Els elements esborrats es mouen a la paperera i s'eliminen definitivament al cap de {time}. L'esborrat de plantilles sempre passa per la paperera i no es pot fer permanent des d'aquí.",
+          "permanent": "Els elements esborrats s'eliminen definitivament i no es poden recuperar.",
+          "infinite": "Els elements esborrats es mouen a la paperera i no s'eliminen automàticament."
+        },
         "fields": {
+          "summary": {
+            "total": "S'esborraran {count} elements",
+            "breakdown": "{desktops} escriptoris · {templates} plantilles · {deployments} desplegaments · {hidden} ocults"
+          },
           "dependency": {
             "alert": {
-              "title": "Avís de dependència"
+              "title": "Avís de dependència",
+              "description": "Els escriptoris, plantilles i desplegaments següents depenen d'aquesta plantilla i s'esborraran juntament amb els seus discos.",
+              "pending": "Alguns escriptoris, plantilles o desplegaments que depenen d'aquesta plantilla no són teus. Contacta amb un administrador per esborrar aquesta plantilla."
             },
             "datatable": {
               "headers": {
@@ -1965,10 +1981,29 @@
                 "user": "Usuari"
               }
             }
+          },
+          "cross-category": {
+            "title": "Derivats en altres categories",
+            "description": "Alguns derivats d'aquesta plantilla pertanyen a altres categories. Esborrar-la també afectarà elements de fora de la teva categoria."
           }
         },
         "cancel": "Cancel·la",
         "confirm": "Esborra la plantilla",
+        "toast": {
+          "recycled": {
+            "title": "La plantilla '{name}' s'ha mogut a la paperera",
+            "description": "S'han mogut {count} elements. S'eliminaran definitivament al cap de {time}."
+          },
+          "recycled-infinite": {
+            "title": "La plantilla '{name}' s'ha mogut a la paperera",
+            "description": "S'han mogut {count} elements a la paperera."
+          },
+          "permanent": {
+            "title": "S'ha esborrat la plantilla '{name}'",
+            "description": "S'han eliminat definitivament {count} elements."
+          },
+          "open-recycle-bin": "Obre la paperera"
+        },
         "debug-options": {
           "copy-id": "Copia l'ID"
         }
@@ -2217,8 +2252,18 @@
           },
           "nonpersistent": {
             "title": "Temporal",
-            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura. Només es permet un escriptori temporal per plantilla."
+            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura."
           }
+        },
+        "single-temporal": {
+          "title": "Un escriptori temporal per plantilla",
+          "description": "Mentre la interfície antiga continuï disponible, només pots tenir un escriptori temporal per plantilla.",
+          "existing": "Ja tens un escriptori temporal d'aquesta plantilla. Elimina'l per crear-ne un altre."
+        },
+        "quota-exceeded": {
+          "title": "Quota superada",
+          "persistent": "Has arribat al límit d'escriptoris persistents. N'has d'eliminar un per crear-ne un altre.",
+          "temporal": "Has arribat al límit d'escriptoris temporals. N'has d'eliminar un per crear-ne un altre."
         },
         "section": {
           "title": {
@@ -2767,6 +2812,22 @@
         "temporal_new_reservable": {
           "title": "Els escriptoris temporals no poden tenir reservables",
           "description": "Els escriptoris temporals no poden tenir reservables assignats. Elimina els reservables i torna-ho a provar."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Quota d'inici d'escriptoris superada",
+          "description": "Has arribat al nombre màxim d'escriptoris en marxa. N'has d'aturar un per poder crear aquest."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Quota de memòria superada",
+          "description": "Iniciar aquest escriptori superaria la teva quota de memòria. Atura un escriptori, o redueix la memòria del que estàs creant."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "Quota de vCPU superada",
+          "description": "Iniciar aquest escriptori superaria la teva quota de vCPU. Atura un escriptori, o redueix les vCPU del que estàs creant."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Quota d'emmagatzematge superada",
+          "description": "Iniciar aquest escriptori superaria la teva quota d'emmagatzematge. Allibera espai de disc i torna-ho a provar."
         }
       }
     },
@@ -2883,6 +2944,11 @@
         "generic": "No s'ha pogut eliminar l'escriptori. Torna-ho a provar.",
         "not_found": "No s'ha trobat l'escriptori.",
         "precondition_required": "L'escriptori no es pot eliminar en aquest moment. Torna-ho a provar d'aquí a uns instants."
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "No s'ha pogut iniciar l'escriptori. Torna-ho a provar."
       }
     },
     "delete-deployment": {

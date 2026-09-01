@@ -26,10 +26,11 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
 import { FormHeader } from '@/components/form-header'
 import { Switch } from '@/components/ui/switch'
+import { describeErrorCode } from '@/lib/api-errors'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 // --------------------------------------------------
 // Quota check
@@ -123,6 +124,9 @@ const summary = computed(() => ({
 }))
 
 const duplicateTemplateErrorCode = ref<string | undefined>(undefined)
+const duplicateTemplateErrorMessage = computed(() =>
+  describeErrorCode(duplicateTemplateErrorCode.value, { t, te }, 'api.new-template.errors')
+)
 const {
   mutate: duplicateTemplate,
   isPending: duplicateTemplateIsPending,
@@ -220,9 +224,7 @@ const handleSubmit = () => {
           <AlertTitle class="font-bold text-gray-warm-700 mb-2">{{
             t(`views.new-template.form.errors.title`)
           }}</AlertTitle>
-          <AlertDescription>{{
-            t(`api.new-template.errors.${duplicateTemplateErrorCode}`)
-          }}</AlertDescription>
+          <AlertDescription>{{ duplicateTemplateErrorMessage }}</AlertDescription>
         </Alert>
 
         <DomainInfoSection

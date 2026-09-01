@@ -22,8 +22,9 @@ import type { ErrorResponse } from '@/gen/oas/apiv4'
 import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
+import { describeErrorCode } from '@/lib/api-errors'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 interface Props {
   desktopId: string
@@ -111,6 +112,9 @@ const summary = computed(() => ({
 }))
 
 const createTemplateErrorCode = ref<string | undefined>(undefined)
+const createTemplateErrorMessage = computed(() =>
+  describeErrorCode(createTemplateErrorCode.value, { t, te }, 'api.new-template.errors')
+)
 const {
   mutate: createTemplate,
   isPending: createTemplateIsPending,
@@ -194,12 +198,7 @@ const handleSaveAllowed = (selection: AllowedSelection) => {
       <AlertTitle class="font-bold text-gray-warm-700 mb-2">{{
         t(`views.new-template.form.errors.title`)
       }}</AlertTitle>
-      <AlertDescription>{{
-        t(
-          `api.new-template.errors.${createTemplateErrorCode}`,
-          t('api.new-template.errors.generic')
-        )
-      }}</AlertDescription>
+      <AlertDescription>{{ createTemplateErrorMessage }}</AlertDescription>
     </Alert>
 
     <DomainInfoSection

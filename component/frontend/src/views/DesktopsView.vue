@@ -44,7 +44,6 @@ import {
   createBookingEventMutation,
   startDesktopMutation,
   stopDesktopMutation,
-  checkQuotaNewDesktopOptions,
   checkQuotaNewTemplateOptions,
   checkStoragePoolCreationAvailabilityOptions,
   getDesktopDetailsOptions
@@ -78,6 +77,8 @@ import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optim
 import { describeApiError } from '@/lib/api-errors'
 import { resolveDesktopKind } from '@/lib/desktops'
 import { useNotificationModalStore } from '@/stores/notification-modal'
+import { useUserStore } from '@/stores/user'
+import { canCreateAnyDesktop } from '@/lib/quotas'
 
 import { SinglePageLayout } from '@/layouts/single-page'
 
@@ -150,6 +151,7 @@ const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const notificationModalStore = useNotificationModalStore()
+const userStore = useUserStore()
 
 const { mutate: fetchAndOpenViewer, preferedViewers } = useFetchAndOpenViewer()
 
@@ -216,6 +218,10 @@ const QUOTA_EXCEEDED_MODAL_KEYS: Record<string, string> = {
 
 const showStartStorageUnavailableModal = ref(false)
 
+// Not every start failure has a quota modal: without this the mutation failed
+// with no feedback at all.
+const startErrorMessage = ref<string | null>(null)
+
 const desktopsKey = getUserDesktopsQueryKey()
 
 const {
@@ -249,6 +255,8 @@ const {
         }
       } else if (err.description_code === 'no_storage_pool_available') {
         showStartStorageUnavailableModal.value = true
+      } else {
+        startErrorMessage.value = describeApiError(error, { t, te }, 'start-desktop')
       }
     },
     onSuccess: async () => {
@@ -387,6 +395,7 @@ const desktopDetailsKind = computed(() => {
 const deleteModalDesktopData = ref<{
   id: string
   name: string
+  persistent: boolean
 } | null>(null)
 const deleteModalRecicleBinChecked = ref(recycleBinDefaultDelete.value)
 
@@ -417,6 +426,15 @@ const closeDeleteModal = () => {
   deleteModalDesktopData.value = null
   deleteDesktopErrorMessage.value = null
 }
+
+// Temporal desktops are force-deleted by the backend: the recycle bin never
+// applies to them.
+const deleteIsPermanent = computed(
+  () =>
+    !deleteModalDesktopData.value?.persistent ||
+    recycleBinCutoffTime.value?.recycle_bin_cutoff_time === 0 ||
+    !deleteModalRecicleBinChecked.value
+)
 
 // --------------------------------------------------
 
@@ -776,12 +794,7 @@ const desktopCreationCheckIsPending = ref(false)
 
 const goToNewDesktop = async () => {
   desktopCreationCheckIsPending.value = true
-  try {
-    await queryClient.fetchQuery({
-      ...checkQuotaNewDesktopOptions(),
-      staleTime: QUOTA_STALE_TIME
-    })
-  } catch {
+  if (!(await canCreateAnyDesktop(queryClient, userStore.config?.show_temporal_tab !== false))) {
     desktopCreationCheckIsPending.value = false
     quotaExceededModalData.value = {
       title: t('components.desktops.quota-exceeded-modal.title'),
@@ -1043,6 +1056,22 @@ const missingCardRows = computed(() => {
     </template>
   </AlertModal>
 
+  <!-- Start error modal -->
+  <AlertModal
+    :open="startErrorMessage !== null"
+    level="danger"
+    size="md"
+    :title="t('components.desktops.start-error-modal.title')"
+    :description="startErrorMessage ?? ''"
+    @close="startErrorMessage = null"
+  >
+    <template #footer>
+      <Button hierarchy="primary" @click="startErrorMessage = null">{{
+        t('components.desktops.start-error-modal.close')
+      }}</Button>
+    </template>
+  </AlertModal>
+
   <!-- Delete modal -->
   <AlertModal
     :open="deleteModalDesktopData !== null"
@@ -1062,7 +1091,7 @@ const missingCardRows = computed(() => {
         <AlertDescription>{{ deleteDesktopErrorMessage }}</AlertDescription>
       </Alert>
       <Label
-        v-if="recycleBinCutoffTime?.recycle_bin_cutoff_time"
+        v-if="recycleBinCutoffTime?.recycle_bin_cutoff_time && deleteModalDesktopData?.persistent"
         class="w-fit flex flex-row items-start gap-2"
       >
         <Checkbox v-model="deleteModalRecicleBinChecked" class="m-0.5" />
@@ -1091,10 +1120,7 @@ const missingCardRows = computed(() => {
         @click="
           deleteDesktopMutate({
             path: { desktop_id: deleteModalDesktopData.id },
-            query: {
-              permanent:
-                recycleBinCutoffTime?.recycle_bin_cutoff_time === 0 || !deleteModalRecicleBinChecked
-            }
+            query: { permanent: deleteIsPermanent }
           })
         "
       >
@@ -1105,7 +1131,7 @@ const missingCardRows = computed(() => {
           stroke-color="currentColor"
         />
         {{
-          recycleBinCutoffTime?.recycle_bin_cutoff_time === 0 || !deleteModalRecicleBinChecked
+          deleteIsPermanent
             ? t('components.delete-confirmation-modal.confirm.permanent')
             : t('components.delete-confirmation-modal.confirm.recycle-bin')
         }}
@@ -1436,7 +1462,11 @@ const missingCardRows = computed(() => {
         @show-info-modal="openDesktopInfoModal(routeDesktop.id)"
         @edit-desktop="goToEditDesktop(routeDesktop.id)"
         @show-delete-modal="
-          deleteModalDesktopData = { id: routeDesktop.id, name: routeDesktop.name }
+          deleteModalDesktopData = {
+            id: routeDesktop.id,
+            name: routeDesktop.name,
+            persistent: routeDesktop.type !== 'nonpersistent'
+          }
         "
         @show-bastion-modal="
           bastionModalData = { desktopId: routeDesktop.id, desktopName: routeDesktop.name }
@@ -1771,7 +1801,11 @@ const missingCardRows = computed(() => {
           @edit-desktop="(dktp) => goToEditDesktop(dktp.id)"
           @show-delete-modal="
             (dktp) => {
-              deleteModalDesktopData = { id: dktp.id, name: dktp.name }
+              deleteModalDesktopData = {
+                id: dktp.id,
+                name: dktp.name,
+                persistent: dktp.type !== 'nonpersistent'
+              }
             }
           "
           @show-bastion-modal="
@@ -1879,7 +1913,13 @@ const missingCardRows = computed(() => {
                 "
                 @show-info-modal="openDesktopInfoModal(dktp.id)"
                 @edit-desktop="goToEditDesktop(dktp.id)"
-                @show-delete-modal="deleteModalDesktopData = { id: dktp.id, name: dktp.name }"
+                @show-delete-modal="
+                  deleteModalDesktopData = {
+                    id: dktp.id,
+                    name: dktp.name,
+                    persistent: dktp.type !== 'nonpersistent'
+                  }
+                "
                 @show-bastion-modal="
                   bastionModalData = { desktopId: dktp.id, desktopName: dktp.name }
                 "

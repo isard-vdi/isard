@@ -122,8 +122,27 @@ class DesktopService:
                 description_code="not_found",
             )
 
+        submitted_hardware = (
+            data.hardware.model_dump(exclude_unset=True) if data.hardware else {}
+        )
+
         # TODO: These checks must be reviewed
-        Quotas.desktop_create(user_id)
+        if data.persistent:
+            Quotas.desktop_create(user_id)
+        else:
+            # Temporal desktops count against ``volatile``, not ``desktops``, and
+            # are started on creation.
+            Quotas.volatile_create(user_id)
+            # The desktop starts with the submitted hardware, so checking the
+            # template's rejects creates that do fit in the quota.
+            started_hardware = {}
+            if submitted_hardware.get("memory"):
+                started_hardware["memory"] = Helpers.memory_gib_to_kib(
+                    submitted_hardware["memory"]
+                )
+            if submitted_hardware.get("vcpus"):
+                started_hardware["vcpus"] = submitted_hardware["vcpus"]
+            Quotas.desktop_start(user_id, data.template_id, hardware=started_hardware)
         template = CommonTemplates.get_template(data.template_id)
         CommonTemplates.check_template_status(None, template)
         payload = Helpers.gen_payload_from_user(user_id=user_id)
@@ -142,9 +161,7 @@ class DesktopService:
         Helpers.check_user_duplicated_domain_name(data.name, user_id, "desktop")
 
         new_data = {
-            "hardware": (
-                data.hardware.model_dump(exclude_unset=True) if data.hardware else {}
-            ),
+            "hardware": submitted_hardware,
             "guest_properties": (
                 data.guest_properties.model_dump(exclude_unset=True)
                 if data.guest_properties
@@ -158,34 +175,39 @@ class DesktopService:
         }
 
         if data.persistent is True:
-            desktop = CommonDesktops.new_from_template(
+            desktop_id = CommonDesktops.new_from_template(
                 user_id=user_id,
                 desktop_name=data.name,
                 desktop_description=data.description,
                 template_id=data.template_id,
                 new_data=new_data,
                 image=data.image.model_dump(exclude_unset=True) if data.image else None,
-            )
+            )["id"]
         else:
-            desktop = CommonDesktopsNonpersistent.new_desktop(
+            desktop_id = CommonDesktopsNonpersistent.new_desktop(
                 user_id=user_id,
                 template_id=data.template_id,
                 name=data.name,
                 description=data.description,
+                new_data=new_data,
+                image=data.image.model_dump(exclude_unset=True) if data.image else None,
+                # This body carries a configuration; the old frontend's
+                # one-desktop-per-template reuse would discard it.
+                allow_reuse=False,
             )
 
         if data.bastion_target:
             RethinkTargets.update_domain_target(
-                desktop["id"], data.bastion_target.model_dump(exclude_unset=True)
+                desktop_id, data.bastion_target.model_dump(exclude_unset=True)
             )
 
-        return desktop["id"]
+        return desktop_id
 
     @staticmethod
     def create_nonpersistent_desktop(payload: dict, template_id: str) -> str:
-        """Create (or reuse + start) a non-persistent desktop from a
-        template. ``@has_token`` — takes only ``template_id`` and
-        delegates quota + allowlist checks to the common helper.
+        """Create and start a non-persistent desktop from a template.
+        ``@has_token`` — takes only ``template_id`` and delegates quota +
+        allowlist checks to the common helper.
         """
         user_id = payload["user_id"]
         if not RethinkUser.exists(user_id):
@@ -205,13 +227,23 @@ class DesktopService:
                 description_code="template_not_allowed",
             )
 
-        desktop = CommonDesktopsNonpersistent.new_desktop(
+        return CommonDesktopsNonpersistent.new_desktop(
             user_id=user_id,
             template_id=template_id,
         )
-        if isinstance(desktop, dict):
-            return desktop.get("id")
-        return desktop
+
+    @staticmethod
+    def get_reused_nonpersistent_desktop(
+        user_id: str, template_id: str
+    ) -> Optional[str]:
+        """The desktop ``new-nonpersistent`` would reuse instead of creating one.
+        TODO(old-frontend-removal): only its one-per-template rule reuses."""
+        if Helpers.frontend_mode() == "actual":
+            return None
+        desktops = CommonDesktopsNonpersistent.user_template_desktops(
+            user_id, template_id
+        )
+        return desktops[0]["id"] if len(desktops) == 1 else None
 
     @staticmethod
     def create_from_media(user_id: str, data: CreateDesktopFromMedia) -> str:
