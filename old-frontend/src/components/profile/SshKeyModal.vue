@@ -72,7 +72,7 @@ export default {
     const storedKey = computed(() => $store.getters.getUserBastionSshKey)
     const hasKey = computed(() => !!storedKey.value)
 
-    watch(showSshKeyModal, (open) => {
+    watch([showSshKeyModal, storedKey], ([open]) => {
       if (open) {
         sshKey.value = storedKey.value || ''
       }
