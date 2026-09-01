@@ -1,9 +1,10 @@
 """Hand-written helpers for the generated isard-scheduler client.
 
 ``build_client(service)`` assembles an ``AuthenticatedClient`` with a
-fresh service JWT and the correct base URL. The minted token has a 20s
-TTL, so re-enter the context every iteration or implement a per-request
-``httpx.Auth`` if TTL matters.
+fresh service JWT and the correct base URL. A fresh client is cheap:
+every one of them borrows the process-wide connection pool from
+``isardvdi_apiv4_client_auth._transport``, so the minted token can keep
+its 20s TTL without paying for a handshake per call.
 
 JWT minting and error handling are reused from
 ``isardvdi_apiv4_client_auth`` — the isard-scheduler service validates
@@ -20,6 +21,7 @@ from typing import TYPE_CHECKING, Optional
 from isardvdi_apiv4_client_auth._errors import ApiV4Error as _ApiError
 from isardvdi_apiv4_client_auth._errors import raise_for_status as _raise_for_status
 from isardvdi_apiv4_client_auth._jwt import Role, mint_service_token
+from isardvdi_apiv4_client_auth._transport import POOL_TIMEOUT, shared_transport
 
 from ._url import resolve_base_url
 
@@ -62,4 +64,6 @@ def build_client(
         token=token,
         verify_ssl=verify_ssl,
         raise_on_unexpected_status=False,
+        timeout=POOL_TIMEOUT,
+        httpx_args={"transport": shared_transport(verify=verify_ssl)},
     )

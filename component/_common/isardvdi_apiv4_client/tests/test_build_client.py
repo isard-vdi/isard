@@ -45,6 +45,30 @@ def test_user_jwt_passthrough_does_not_mint():
     assert client.token == "user-token-xyz"
 
 
+def test_clients_share_one_connection_pool():
+    first = build_client("isard-scheduler")
+    second = build_client("isard-scheduler")
+
+    assert first.get_httpx_client()._transport is second.get_httpx_client()._transport
+
+
+def test_leaving_the_context_manager_keeps_the_pool_alive():
+    with build_client("isard-scheduler") as client:
+        transport = client.get_httpx_client()._transport
+
+    assert build_client("isard-scheduler").get_httpx_client()._transport is transport
+
+
+def test_with_timeout_keeps_the_shared_pool():
+    """docker/storage evolves the client; evolve must carry httpx_args."""
+    import httpx
+
+    client = build_client("isard-storage")
+    evolved = client.with_timeout(httpx.Timeout(120.0))
+
+    assert evolved.get_httpx_client()._transport is client.get_httpx_client()._transport
+
+
 def test_raise_for_status_reexported():
     """Must be importable from the subpackage init for convenience."""
     assert callable(raise_for_status)
