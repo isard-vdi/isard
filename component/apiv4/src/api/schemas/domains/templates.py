@@ -439,3 +439,11 @@ class TemplateDetailsResponse(BaseModel):
     credentials: DomainGuestProperties._GuestPropertiesCredentials = Field(
         description="Credentials that will be set in the guest OS of the template.",
     )
+
+
+# TODO(old-frontend-removal): goes with /item/template/{id}/get-nonpersistent-desktop.
+class TemplateNonpersistentDesktopResponse(BaseModel):
+    desktop_id: Optional[str] = Field(
+        default=None,
+        description="ID of the non-persistent desktop the user already has from this template and that would be reused instead of creating a new one. None when a new one would be created.",
+    )

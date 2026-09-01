@@ -1153,11 +1153,12 @@ class UiActions(object):
             return False
 
     def force_deleting(self, domain_id, old_status):
-        if old_status in ["Started", "Shutting-down", "Stopping", "Paused"]:
-            hyp_id = get_domain_hyp_started(domain_id)
-
-            if hyp_id is not None and hyp_id is not False:
-                self.stop_domain(domain_id, hyp_id, not_change_status=True)
+        # Destroy wherever the VM actually is rather than trusting a status
+        # whitelist: a WaitingIP/Starting domain was left running on the
+        # hypervisor while its row and its disks were removed underneath it.
+        hyp_id = get_domain_hyp_started(domain_id)
+        if hyp_id and hyp_id in self.manager.q.workers:
+            self.stop_domain(domain_id, hyp_id, not_change_status=True)
 
         if not self.deleting_disks_from_domain(domain_id):
             # Keeping the row is what stops the disks becoming orphans: nothing

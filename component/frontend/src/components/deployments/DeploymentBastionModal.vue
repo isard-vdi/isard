@@ -248,7 +248,7 @@ const form = useForm({
     <template #footer>
       <div class="flex justify-between w-full px-6">
         <Button size="lg" hierarchy="link-color" :disabled="isSaving" @click="emit('close')">
-          {{ t('modals.cancel') }}
+          {{ t('components.deployment-bastion-modal.buttons.cancel') }}
         </Button>
         <Button
           size="lg"
@@ -256,9 +256,13 @@ const form = useForm({
           :disabled="isPending || isError || isSaving"
           @click="form.handleSubmit"
         >
-          {{
-            isSaving ? t('common.loading') : t('components.deployment-bastion-modal.buttons.save')
-          }}
+          <Icon
+            v-if="isSaving"
+            class="motion-safe:animate-[spin_2s_linear_infinite]"
+            name="loading-02"
+            stroke-color="currentColor"
+          />
+          {{ t('components.deployment-bastion-modal.buttons.save') }}
         </Button>
       </div>
     </template>

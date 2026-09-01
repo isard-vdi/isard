@@ -354,6 +354,7 @@
     },
     "desktops": {
       "new-desktop": "Escriptori nou",
+      "loading": "S'estan carregant els escriptoris…",
       "stop-all": "Atura tots els escriptoris",
       "stop-all-tooltip": {
         "title": "No hi ha escriptoris iniciats ara mateix"
@@ -504,6 +505,7 @@
           "change-password": "Canvia la contrasenya",
           "verify-email": "Verifica / Canvia el correu",
           "api-key": "Clau API",
+          "vpn": "VPN",
           "reset-vpn": "Restableix la VPN",
           "download-vpn": "Descarrega la VPN",
           "ssh-key": "Clau SSH del bastió"
@@ -645,6 +647,8 @@
       "dropdown": {
         "buttons": {
           "edit": "Editar desplegament",
+          "alloweds": "Usuaris i grups",
+          "co-owners": "Gestionar copropietaris",
           "download-viewer": "Descarregar enllaços directes",
           "recreate": "Recrear desplegament",
           "reserve": "Reservar",
@@ -652,6 +656,12 @@
           "bastion-csv": "Descarrega el CSV del bastió",
           "delete": "Eliminar desplegament"
         }
+      },
+      "alloweds": {
+        "warning": "En treure un usuari del desplegament també s'eliminen els seus escriptoris.",
+        "success": "Usuaris i grups permesos actualitzats",
+        "error": "No s'han pogut actualitzar els usuaris i grups permesos",
+        "blocked": "No pots canviar qui pot accedir a aquest desplegament mentre tingui una reserva programada"
       },
       "visibility": {
         "visible": "Visible",
@@ -696,6 +706,10 @@
           "user": "Usuari",
           "started-desktops": "Escriptoris arrencats",
           "actions": "Accions"
+        },
+        "disabled-user": {
+          "badge": "Deshabilitat",
+          "tooltip": "Aquest compte d'usuari està deshabilitat. Una recreació no li crearà cap escriptori."
         }
       },
       "tooltips": {
@@ -707,7 +721,23 @@
       "recreate-modal": {
         "title": "Recrear desplegament '{name}'",
         "description": "Restableix els escriptoris a l'estat inicial en què es van crear. Només els escriptoris eliminats es restabliran",
-        "button": "Recrear desplegament"
+        "button": "Recrear desplegament",
+        "counting": "S'està comprovant quants escriptoris es crearan…",
+        "count": "Es crearà {n} escriptori | Es crearan {n} escriptoris",
+        "empty": "No hi ha cap escriptori per crear: tots els usuaris permesos i actius ja tenen el seu.",
+        "close": "Tancar"
+      },
+      "provisioning-modal": {
+        "title": "Creant escriptoris per a '{name}'",
+        "description": "Els teus escriptoris s'estan aprovisionant en dues etapes. No es podran fer servir fins que les dues acabin.",
+        "stage1-title": "Etapa 1 — Afegint escriptoris al desplegament",
+        "stage1-pending": "Esperant que el motor comenci a crear escriptoris...",
+        "stage1-progress": "{current} de {total} escriptoris afegits",
+        "stage1-done": "{total} de {total} escriptoris afegits",
+        "stage2-title": "Etapa 2 — Aprovisionant emmagatzematge",
+        "stage2-pending": "Esperant que l'Etapa 1 acabi abans d'aprovisionar emmagatzematge",
+        "stage2-progress": "{current} de {total} escriptoris aprovisionats",
+        "stage2-done": "{total} de {total} escriptoris aprovisionats"
       },
       "actions": {
         "access": "Accedeix",
@@ -1023,7 +1053,10 @@
         "description": "Això eliminarà definitivament totes les entrades de la paperera. Aquesta acció és irreversible",
         "cancel": "Cancel·la",
         "confirm": "Buida",
-        "error": "Error en buidar la paperera"
+        "error-title": "Error en buidar la paperera",
+        "errors": {
+          "generic": "S'ha produït un error en buidar la paperera. Torna-ho a provar."
+        }
       }
     },
     "profile": {
@@ -1183,16 +1216,32 @@
           "started_deployment_desktops": "Escriptoris en execució del desplegament"
         }
       },
-      "reset-vpn-modal": {
-        "title": "Restablir les claus VPN",
-        "description": "Vols restablir les claus VPN? Hauràs de descarregar un nou fitxer VPN",
+      "vpn-modal": {
+        "title": "VPN",
+        "description": "Tria què vols fer amb la configuració de la VPN.",
+        "options": {
+          "download": {
+            "description": "Descarrega el fitxer de configuració actual de la VPN."
+          },
+          "reset": {
+            "description": "Genera unes claus noves.",
+            "warning": "El fitxer descarregat anteriorment deixarà de funcionar, així que l'hauràs de tornar a descarregar."
+          }
+        },
         "cancel": "Cancel·la",
-        "confirm": "Restableix la VPN",
-        "success": "Les claus VPN s'han restablert correctament.",
+        "confirm": {
+          "download": "Descarrega",
+          "reset": "Restableix la VPN"
+        },
+        "success": {
+          "download": "El fitxer de configuració de la VPN s'ha descarregat correctament.",
+          "reset": "Les claus VPN s'han restablert correctament."
+        },
         "errors": {
-          "unauthorized": "La teva sessió ha expirat. Si us plau, inicia sessió de nou.",
-          "internal_server": "No s'han pogut restablir les claus VPN per un error del servidor. Si us plau, intenta-ho més tard.",
-          "generic": "No s'han pogut restablir les claus VPN. Si us plau, intenta-ho de nou."
+          "download": "No s'ha pogut descarregar el fitxer de configuració de la VPN. Intenta-ho de nou.",
+          "unauthorized": "La sessió ha expirat. Inicia la sessió de nou.",
+          "internal_server": "No s'han pogut restablir les claus VPN per un error del servidor. Intenta-ho més tard.",
+          "generic": "No s'han pogut restablir les claus VPN. Intenta-ho de nou."
         }
       },
       "ssh-key-modal": {
@@ -1205,7 +1254,7 @@
           "remove": "Elimina la clau",
           "save": "Desa la clau"
         },
-        "description": "Afegeix la teva pròpia clau pública SSH al perfil. S'afegeix automàticament a l'accés SSH del bastió de qualsevol escriptori que iniciïs (quan l'accés SSH pel bastió està activat en aquell escriptori), de manera que no cal afegir-la a cada escriptori.",
+        "description": "Afegeix la teva pròpia clau pública SSH al perfil. El bastió l'accepta per a l'accés SSH de qualsevol escriptori teu, i dels escriptoris de qualsevol desplegament del qual siguis propietari o copropietari, de manera que no cal afegir-la a cada escriptori. Si l'elimines, aquest accés es revoca.",
         "invalid": "Això no sembla una clau pública SSH vàlida.",
         "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... usuari{'@'}host",
         "security-note": "Afegeix només la teva pròpia clau pública. Afegir la clau d'una altra persona pot violar la política de seguretat de la teva organització.",
@@ -1258,7 +1307,7 @@
       "media": "Mitjans",
       "deployments": {
         "title": "Desplegaments",
-        "created-by-you": "Creats per tu",
+        "owned-by-you": "De la teva propietat",
         "shared-deployments": "Compartits amb tu"
       },
       "user-deployments": "Els meus desplegaments",
@@ -1327,6 +1376,7 @@
         "title": "No s’ha pogut canviar la GPU",
         "vgpu_profiles_different_hypervisors": "Els perfils de GPU seleccionats no estan tots disponibles en un mateix host. Trieu una altra combinació.",
         "vgpu_profiles_different_models": "Tots els perfils de GPU seleccionats han de ser del mateix model de GPU per poder executar-se en un mateix host.",
+        "booking_does_not_fit_date": "Els perfils de GPU seleccionats no estan disponibles durant tot aquest temps. Trieu una hora de finalització anterior.",
         "generic": "No s’ha pogut canviar i iniciar l’escriptori. Torneu-ho a provar."
       }
     },
@@ -1342,7 +1392,7 @@
           "info": "Informació",
           "recreate": "Recrea",
           "template": "Converteix en plantilla",
-          "storage": "Emmagatzematge",
+          "advanced-options": "Opcions avançades",
           "reset": "Reinicia",
           "bastion-access": "Accés pel bastió (HTTP / HTTPS / SSH)",
           "networks": "Xarxes"
@@ -1492,12 +1542,26 @@
           }
         }
       },
+      "advanced-options-modal": {
+        "title": "Opcions avançades",
+        "subtitle": "Opcions avançades de l'escriptori '{name}'",
+        "options": {
+          "storage": {
+            "label": "Emmagatzematge",
+            "description": "Discs d'emmagatzematge associats a aquest escriptori. Les accions estan disponibles mentre l'escriptori està aturat."
+          }
+        },
+        "error": {
+          "title": "L'acció ha fallat"
+        }
+      },
       "desktop-storage-modal": {
-        "title": "Emmagatzematge — {name}",
-        "description": "Discs d'emmagatzematge associats a aquest escriptori. Les accions estan disponibles mentre l'escriptori està aturat.",
-        "close": "Tanca",
         "no-storages": "Aquest escriptori no té emmagatzematge associat.",
         "load-error": "No s'han pogut carregar les dades de l'emmagatzematge.",
+        "format": "Format",
+        "disk-id": "ID del disc",
+        "desktop-status": "Escriptori",
+        "disk-status": "Disc",
         "virtual-size": "Mida virtual",
         "actual-size": "Mida real",
         "status": {
@@ -1511,34 +1575,32 @@
           "unknown": "Desconegut"
         },
         "actions": {
-          "cancel": "Cancel·la l'operació",
-          "cancel-tooltip": "Cancel·la la tasca d'emmagatzematge en curs sobre aquest disc.",
           "increase": "Augmenta la mida",
-          "increase-tooltip": "Afegeix capacitat al disc.",
+          "no-actions": "No hi ha accions disponibles per a aquest emmagatzematge.",
           "increase-needs-stopped": "L'escriptori ha d'estar aturat per augmentar la mida del disc.",
-          "increase-needs-ready": "El disc ha d'estar preparat per a redimensionar-lo.",
-          "no-actions": "No hi ha accions disponibles per a aquest emmagatzematge."
+          "increase-needs-ready": "El disc ha d'estar preparat per a redimensionar-lo."
+        },
+        "increase": {
+          "field-label": "Incrementa l'espai del disc en GB",
+          "help-title": "El disc creix segons la quantitat de gigabytes especificada.",
+          "help-subtitle": "Les quotes es validen al servidor.",
+          "preview": "Mida virtual resultant: {size}",
+          "errors": {
+            "required": "Indica quants gigabytes vols afegir.",
+            "not-a-number": "Només s'admeten dígits.",
+            "not-an-integer": "L'increment ha de ser un nombre enter de gigabytes.",
+            "too-small": "L'increment ha de ser més gran que 0.",
+            "too-large": "El disc no pot superar els {max} GB. Com a màxim pots afegir {available} GB."
+          }
         },
         "cancel-modal": {
           "title": "Cancel·lar l'operació d'emmagatzematge?",
           "description": "Vols cancel·lar la tasca d'emmagatzematge en curs sobre {name}? Els fitxers parcials es netejaran després d'avortar la tasca.",
           "dismiss": "Mantén-la",
           "confirm": "Cancel·la l'operació",
-          "fallback-error": "No s'ha pogut cancel·lar l'operació d'emmagatzematge."
-        },
-        "increase-modal": {
-          "title": "Augmentar la mida del disc",
-          "description": "Afegeix capacitat al disc de l'escriptori. L'increment s'aplica sobre la mida virtual i no es pot desfer.",
-          "field-label": "Increment en GB",
-          "field-placeholder": "10",
-          "help": "El disc creix segons la quantitat de gigabytes especificada. Les quotes es validen al servidor.",
-          "dismiss": "Cancel·la",
-          "confirm": "Augmenta",
-          "fallback-error": "No s'ha pogut augmentar la mida del disc."
-        },
-        "error": {
-          "title": "L'acció d'emmagatzematge ha fallat",
-          "close": "Tanca"
+          "success": "S'està cancel·lant l'operació d'emmagatzematge.",
+          "error-title": "No s'ha pogut cancel·lar l'operació d'emmagatzematge",
+          "error-description": "Hi ha hagut un error en intentar cancel·lar l'operació d'emmagatzematge. Si us plau, torna-ho a provar més endavant. \nSi el problema persisteix, contacta amb el teu administrador."
         }
       },
       "direct-viewer-modal": {
@@ -1596,6 +1658,10 @@
         "title": "Recursos del sistema no disponibles",
         "description": "Els recursos del sistema no estan disponibles actualment i no es poden iniciar escriptoris. Si us plau, torni-ho a provar més tard.",
         "go-to-desktops": "Tornar als escriptoris"
+      },
+      "start-error-modal": {
+        "title": "No s'ha pogut iniciar l'escriptori",
+        "close": "Tanca"
       },
       "fields": {
         "ip": {
@@ -1718,6 +1784,9 @@
           "title": "Maquinari",
           "vcpu": "{vcpu} vCPU"
         },
+        "interfaces": {
+          "title": "Xarxes"
+        },
         "ip": {
           "title": "Adreça IP"
         },
@@ -1766,8 +1835,20 @@
       }
     },
     "domain-summary": {
+      "added": "Valor afegit",
       "changed": "Valor modificat",
-      "removed": "Valor eliminat"
+      "previous-value": "Valor anterior: {value}",
+      "removed": "Valor eliminat",
+      "tags": {
+        "boot": "Arrencada",
+        "disk": "Disc",
+        "disk-bus": "Bus",
+        "floppy": "Floppy",
+        "iso": "ISO",
+        "password": "Contrasenya",
+        "user": "Usuari",
+        "video": "Vídeo"
+      }
     },
     "viewers-selector": {
       "browser-viewers": {
@@ -1857,7 +1938,8 @@
       "error-loading": "No s'ha pogut carregar la configuració del bastió del desplegament",
       "error-saving": "No s'ha pogut desar la configuració del bastió del desplegament",
       "buttons": {
-        "save": "Desa"
+        "save": "Desa",
+        "cancel": "Cancel·la"
       }
     },
     "deployment-user-bastion-modal": {
@@ -1925,10 +2007,22 @@
       },
       "delete-confirmation-modal": {
         "title": "Esborra la plantilla '{name}'",
+        "subtitle": "Cap altre escriptori, plantilla o desplegament depèn d'aquesta plantilla.",
+        "recycle-bin": {
+          "temporary": "Els elements esborrats es mouen a la paperera i s'eliminen definitivament al cap de {time}. L'esborrat de plantilles sempre passa per la paperera i no es pot fer permanent des d'aquí.",
+          "permanent": "Els elements esborrats s'eliminen definitivament i no es poden recuperar.",
+          "infinite": "Els elements esborrats es mouen a la paperera i no s'eliminen automàticament."
+        },
         "fields": {
+          "summary": {
+            "total": "S'esborraran {count} elements",
+            "breakdown": "{desktops} escriptoris · {templates} plantilles · {deployments} desplegaments · {hidden} ocults"
+          },
           "dependency": {
             "alert": {
-              "title": "Avís de dependència"
+              "title": "Avís de dependència",
+              "description": "Els escriptoris, plantilles i desplegaments següents depenen d'aquesta plantilla i s'esborraran juntament amb els seus discos.",
+              "pending": "Alguns escriptoris, plantilles o desplegaments que depenen d'aquesta plantilla no són teus. Contacta amb un administrador per esborrar aquesta plantilla."
             },
             "datatable": {
               "headers": {
@@ -1937,10 +2031,29 @@
                 "user": "Usuari"
               }
             }
+          },
+          "cross-category": {
+            "title": "Derivats en altres categories",
+            "description": "Alguns derivats d'aquesta plantilla pertanyen a altres categories. Esborrar-la també afectarà elements de fora de la teva categoria."
           }
         },
         "cancel": "Cancel·la",
         "confirm": "Esborra la plantilla",
+        "toast": {
+          "recycled": {
+            "title": "La plantilla '{name}' s'ha mogut a la paperera",
+            "description": "S'han mogut {count} elements. S'eliminaran definitivament al cap de {time}."
+          },
+          "recycled-infinite": {
+            "title": "La plantilla '{name}' s'ha mogut a la paperera",
+            "description": "S'han mogut {count} elements a la paperera."
+          },
+          "permanent": {
+            "title": "S'ha esborrat la plantilla '{name}'",
+            "description": "S'han eliminat definitivament {count} elements."
+          },
+          "open-recycle-bin": "Obre la paperera"
+        },
         "debug-options": {
           "copy-id": "Copia l'ID"
         }
@@ -2066,9 +2179,11 @@
               "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
               "others-label": "Claus SSH d'altres persones (una per línia)",
               "own-key": {
-                "add-link": "Afegeix-la al teu perfil",
-                "managed": "La teva pròpia clau s'afegeix automàticament des del teu perfil quan inicies aquest escriptori. Aquesta casella només és per a les claus públiques d'altres persones.",
-                "missing": "Encara no tens cap clau SSH del bastió al teu perfil, així que no tindràs accés SSH automàticament."
+                "missing": {
+                  "title": "Falta la clau SSH d'usuari",
+                  "description": "Encara no tens cap clau SSH del bastió al teu perfil; pots afegir-la per tenir accés SSH automàticament a tots els teus escriptoris.",
+                  "button": "Afegeix-la al teu perfil"
+                }
               }
             }
           }
@@ -2128,7 +2243,8 @@
         },
         "vgpus": {
           "label": "vGPU",
-          "placeholder": "Selecciona una vGPU"
+          "placeholder": "Selecciona una vGPU",
+          "hint": "Màxim {max} perfils de vGPU per escriptori."
         },
         "hardwareGroups": {
           "hardware": "Maquinari",
@@ -2188,8 +2304,18 @@
           },
           "nonpersistent": {
             "title": "Temporal",
-            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura. Només es permet un escriptori temporal per plantilla."
+            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura."
           }
+        },
+        "single-temporal": {
+          "title": "Un escriptori temporal per plantilla",
+          "description": "Mentre la interfície antiga continuï disponible, només pots tenir un escriptori temporal per plantilla.",
+          "existing": "Ja tens un escriptori temporal d'aquesta plantilla. Elimina'l per crear-ne un altre."
+        },
+        "quota-exceeded": {
+          "title": "Quota superada",
+          "persistent": "Has arribat al límit d'escriptoris persistents. N'has d'eliminar un per crear-ne un altre.",
+          "temporal": "Has arribat al límit d'escriptoris temporals. N'has d'eliminar un per crear-ne un altre."
         },
         "section": {
           "title": {
@@ -2396,6 +2522,14 @@
         "go-to-profile": "Comprova la teva quota",
         "cancel": "Torna als desplegaments"
       },
+      "co-owners-modal": {
+        "title": "Gestionar copropietaris de '{name}'",
+        "description": "Tria quins usuaris són copropietaris d'aquest desplegament. Propietari: {owner}",
+        "warning": "Els copropietaris tenen els mateixos permisos que el propietari, excepte eliminar el desplegament i gestionar els copropietaris.",
+        "co-owner-warning": "Com a copropietari no pots canviar els copropietaris. Contacta amb el propietari del desplegament.",
+        "success": "Copropietaris actualitzats",
+        "error": "No s'han pogut actualitzar els copropietaris"
+      },
       "download-csv-modal": {
         "title": "Descarregar CSV de visors directes de '{name}'",
         "options": {
@@ -2456,7 +2590,8 @@
         "forbid": "Necessites més temps d'antelació per crear la reserva",
         "maximum-time": "No pots crear una reserva tan llarga",
         "minimum-time": "La reserva ha de durar com a mínim 5 minuts",
-        "past-booking": "No pots crear una reserva en el passat"
+        "past-booking": "No pots crear una reserva en el passat",
+        "no-availability": "No hi ha disponibilitat en la franja horària seleccionada"
       },
       "item": {
         "enough-units": "Unitats suficients",
@@ -2586,10 +2721,12 @@
       "search-placeholder": "Cerca",
       "not-found": "No s'ha trobat cap resultat",
       "more-results": "{count} resultats més, afineu la cerca",
-      "remove": "Traieu {name}"
+      "remove": "Traieu {name}",
+      "more-selected": "{count} més seleccionats: {items}"
     },
     "allowed-modal": {
       "title": "Gestiona els usuaris",
+      "warning": "Avís",
       "description": {
         "generic": "Edita els grups i els usuaris que hi poden accedir",
         "template": "Edita els grups i els usuaris que poden accedir a aquesta plantilla",
@@ -2605,7 +2742,8 @@
         "groups": "No hi ha grups disponibles",
         "users": "Aquest grup no té usuaris",
         "no-group": "Selecciona un grup o cerca usuaris",
-        "no-group-short-term": "Escriu com a mínim 2 caràcters per cercar usuaris"
+        "no-group-short-term": "Escriu com a mínim 2 caràcters per cercar usuaris",
+        "no-users-selected": "Encara no hi ha usuaris seleccionats: cerca'ls per afegir-los"
       },
       "share-everyone": {
         "unchecked": {
@@ -2620,6 +2758,7 @@
       "view-group": "Mostra els usuaris del grup '{group_name}'",
       "unview-group": "Deixa de mostrar els usuaris del grup '{group_name}'",
       "require-selection": "Selecciona com a mínim un grup o un usuari",
+      "require-selection-users": "Selecciona com a mínim un usuari",
       "no-changes": "Fes algun canvi per desar",
       "select-all": {
         "groups": "Selecciona tots els grups",
@@ -2736,6 +2875,22 @@
         "temporal_new_reservable": {
           "title": "Els escriptoris temporals no poden tenir reservables",
           "description": "Els escriptoris temporals no poden tenir reservables assignats. Elimina els reservables i torna-ho a provar."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Quota d'inici d'escriptoris superada",
+          "description": "Has arribat al nombre màxim d'escriptoris en marxa. N'has d'aturar un per poder crear aquest."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Quota de memòria superada",
+          "description": "Iniciar aquest escriptori superaria la teva quota de memòria. Atura un escriptori, o redueix la memòria del que estàs creant."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "Quota de vCPU superada",
+          "description": "Iniciar aquest escriptori superaria la teva quota de vCPU. Atura un escriptori, o redueix les vCPU del que estàs creant."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Quota d'emmagatzematge superada",
+          "description": "Iniciar aquest escriptori superaria la teva quota d'emmagatzematge. Allibera espai de disc i torna-ho a provar."
         }
       }
     },
@@ -2754,7 +2909,12 @@
         "new_template_name_exists": "Ja existeix una plantilla amb aquest nom. Si us plau, tria un nom diferent.",
         "not_found": "No s'ha trobat la plantilla.",
         "precondition_required": "La plantilla ha d'estar aturada per poder-la editar.",
-        "bad_request": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquesta plantilla o elimina els visors RDP."
+        "rdp_requires_wireguard": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquesta plantilla o elimina els visors RDP.",
+        "too_many_vgpu_profiles": "S'ha superat el nombre màxim de perfils de vGPU permesos.",
+        "duplicate_vgpu_profiles": "No es pot seleccionar el mateix perfil de vGPU més d'una vegada.",
+        "vgpu_profile_not_found": "Un o més perfils de vGPU seleccionats ja no existeixen.",
+        "vgpu_profiles_different_hypervisors": "Els perfils de GPU seleccionats no estan tots disponibles en un mateix host. Trieu una altra combinació.",
+        "vgpu_profiles_different_models": "Tots els perfils de GPU seleccionats han de ser del mateix model de GPU per poder executar-se en un mateix host."
       }
     },
     "new-media": {
@@ -2834,10 +2994,52 @@
         "internal_server": "Error intern del servidor en desar l’escriptori.",
         "precondition_required": "L’escriptori ha d’estar aturat abans d’editar-lo.",
         "not_found": "No s’ha trobat l’escriptori.",
-        "bad_request": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquest escriptori o elimina els visors RDP.",
+        "rdp_requires_wireguard": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquest escriptori o elimina els visors RDP.",
         "new_desktop_name_exists": "Ja existeix un escriptori amb el mateix nom. Si us plau, tria un nom diferent.",
         "one_viewer_minimum": "Cal seleccionar almenys un visor.",
-        "only_works_rdp": "El mode «Només GPU» només funciona amb visors RDP. Si us plau, elimina els visors que no siguin RDP o tria una altra opció de vídeo."
+        "only_works_rdp": "El mode «Només GPU» només funciona amb visors RDP. Si us plau, elimina els visors que no siguin RDP o tria una altra opció de vídeo.",
+        "vgpu_profiles_different_hypervisors": "Els perfils de GPU seleccionats no estan tots disponibles en un mateix host. Trieu una altra combinació.",
+        "vgpu_profiles_different_models": "Tots els perfils de GPU seleccionats han de ser del mateix model de GPU per poder executar-se en un mateix host."
+      }
+    },
+    "increase-storage": {
+      "errors": {
+        "generic": "No s'ha pogut augmentar la mida del disc. Torna-ho a provar.",
+        "validation_error": "L'increment sol·licitat no és un nombre de gigabytes vàlid.",
+        "bad_request": "L'increment no cap a la teva quota de mida de disc.",
+        "unauthorized": "La teva sessió ha caducat. Torna a iniciar sessió per redimensionar el disc.",
+        "forbidden": "No tens permís per redimensionar aquest disc.",
+        "not_found": "No s'ha trobat el disc.",
+        "storage_no_consumer_retry_later": "Ara mateix no hi ha cap treballador d'emmagatzematge disponible. Torna-ho a provar d'aquí a uns minuts.",
+        "storage_overloaded_retry_later": "Les tasques d'emmagatzematge estan saturades en aquest moment. Torna-ho a provar d'aquí a uns minuts.",
+        "internal_server": "El servidor no ha pogut programar el redimensionament. Torna-ho a provar."
+      }
+    },
+    "delete-desktop": {
+      "errors": {
+        "generic": "No s'ha pogut eliminar l'escriptori. Torna-ho a provar.",
+        "not_found": "No s'ha trobat l'escriptori.",
+        "precondition_required": "L'escriptori no es pot eliminar en aquest moment. Torna-ho a provar d'aquí a uns instants."
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "No s'ha pogut iniciar l'escriptori. Torna-ho a provar."
+      }
+    },
+    "delete-deployment": {
+      "errors": {
+        "generic": "No s'ha pogut eliminar el desplegament. Torna-ho a provar.",
+        "not_found": "No s'ha trobat el desplegament.",
+        "precondition_required": "El desplegament no es pot eliminar en aquest moment. Torna-ho a provar d'aquí a uns instants.",
+        "deployment_stop": "Els escriptoris del desplegament han d'estar aturats abans de poder eliminar-lo."
+      }
+    },
+    "recreate-deployment": {
+      "errors": {
+        "generic": "No s'ha pogut comprovar la recreació del desplegament. Torna-ho a provar.",
+        "not_found": "No s'ha trobat el desplegament.",
+        "deployment_recreate_booking_not_enough_units": "La reserva futura del desplegament no té prou unitats per als escriptoris que crearia la recreació."
       }
     }
   },

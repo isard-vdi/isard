@@ -14,6 +14,7 @@ interface Props {
   checked?: boolean | 'indeterminate'
   active?: boolean
   disabled?: boolean
+  selectable?: boolean // When false the row has no checkbox and can only be activated.
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,7 +23,8 @@ const props = withDefaults(defineProps<Props>(), {
   icon: undefined,
   checked: false,
   active: false,
-  disabled: false
+  disabled: false,
+  selectable: true
 })
 
 const emit = defineEmits<{
@@ -63,7 +65,7 @@ const select = () => {
     :data-active="props.active || undefined"
     @click="select"
   >
-    <span class="flex shrink-0 items-center" @click.stop>
+    <span v-if="props.selectable" class="flex shrink-0 items-center" @click.stop>
       <Checkbox
         :model-value="props.checked"
         :indeterminate="props.checked === 'indeterminate'"

@@ -398,6 +398,11 @@ class DeploymentUserDetail(BaseModel):
     name: str = Field(description="Name of the user")
     username: str = Field(description="Username of the user")
     photo: Optional[str] = Field(description="Photo of the user", default=None)
+    active: bool = Field(
+        description="Whether the user account is enabled; a deployment recreate "
+        "skips the allowed users that are not",
+        default=True,
+    )
     desktops_statuses: list[DesktopStatus] = Field(
         description="List of desktop statuses associated with the user", default=[]
     )
@@ -434,6 +439,10 @@ class DeploymentDetail(BaseModel):
     )
     desktops_each_user: int = Field(
         description="Number of desktops assigned to each user"
+    )
+    co_owner: bool = Field(
+        default=False,
+        description="Indicates if the requesting user is a co-owner of the deployment",
     )
 
 
@@ -809,9 +818,18 @@ class DeploymentVideowallResponse(BaseModel):
     desktops_each_user: int
 
 
+class DeploymentRecreateCountResponse(BaseModel):
+    """How many desktops a recreate would create, shown before confirming."""
+
+    desktops_to_create: int = Field(
+        description="Number of desktops that a recreate would create for the "
+        "deployment's currently allowed and active users"
+    )
+
+
 class DeploymentBastionSsh(BaseModel):
-    """Deployment-level bastion SSH options (no authorized keys — those come
-    from each user's profile)."""
+    """Deployment-level bastion SSH options (no authorized keys — the bastion
+    resolves each user's profile key at connection time)."""
 
     enabled: bool = Field(default=False)
     port: int = Field(default=22)

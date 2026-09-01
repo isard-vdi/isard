@@ -1,15 +1,23 @@
 <script setup lang="ts">
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useQuery, useMutation } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { Icon } from '@/components/icon'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DataTable } from '@/components/data-table'
 import bannerDeployments from '@/assets/img/banner-deployments.svg'
-import { getDeploymentOptions, getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import {
+  getDeploymentOptions,
+  getUserConfigOptions,
+  editDeploymentUsersMutation,
+  getDeploymentAllowedQueryKey,
+  getDeploymentCoOwnersOptions,
+  getDeploymentCoOwnersQueryKey,
+  updateDeploymentCoOwnersMutation
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { getDeploymentBastionCsv } from '@/gen/oas/apiv4/sdk.gen'
-import { type DeploymentUserDetail } from '@/gen/oas/apiv4'
+import { type DeploymentUserDetail, type ErrorResponse } from '@/gen/oas/apiv4'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/badge'
@@ -30,8 +38,11 @@ import { DeleteModal } from '@/components/deployments/actions/delete-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
 import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
 import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
+import DeploymentProvisioningModal from '@/components/deployments/DeploymentProvisioningModal.vue'
 import { useBulkSpawnStore } from '@/stores/bulk-spawn'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
+import { AllowedModal, type AllowedOption, type AllowedSelection } from '@/components/modal/allowed'
+import { toast } from '@/components/ui/toast'
 
 const { t, d, locale } = useI18n()
 
@@ -130,8 +141,53 @@ const isRecreatingDesktops = computed(() =>
   deploymentId.value ? bulkSpawnStore.deploymentsInProgress.has(deploymentId.value) : false
 )
 
+// Rows the engine has inserted but storage has not finished with yet: the
+// bulk-spawn envelope alone misses a recreate whose fan-out already ended.
+const CREATING_STATUSES: string[] = [
+  DesktopStatusEnum.CREATING,
+  DesktopStatusEnum.CREATING_DISK,
+  DesktopStatusEnum.CREATING_AND_STARTING
+]
+const hasDesktopsBeingCreated = computed(() =>
+  (deploymentEntry.value?.users ?? [])
+    .flatMap((user) => user.desktops_statuses ?? [])
+    .some((status) => CREATING_STATUSES.includes(status.status) && status.amount > 0)
+)
+const isProvisioning = computed(() => isRecreatingDesktops.value || hasDesktopsBeingCreated.value)
+
+const showProvisioningModal = ref(false)
+let provisioningCloseTimer: ReturnType<typeof setTimeout> | null = null
+
+const clearProvisioningCloseTimer = () => {
+  if (provisioningCloseTimer === null) return
+  clearTimeout(provisioningCloseTimer)
+  provisioningCloseTimer = null
+}
+
+// Held open for a moment after the last desktop lands, so both bars are seen
+// full instead of the modal vanishing mid-progress.
+watch(
+  isProvisioning,
+  (provisioning) => {
+    clearProvisioningCloseTimer()
+    if (provisioning) {
+      showProvisioningModal.value = true
+      return
+    }
+    if (!showProvisioningModal.value) return
+    provisioningCloseTimer = setTimeout(() => {
+      provisioningCloseTimer = null
+      showProvisioningModal.value = false
+    }, 2000)
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(clearProvisioningCloseTimer)
+
 const { data: userConfig } = useQuery(getUserConfigOptions())
 const canUseBastion = computed(() => userConfig.value?.can_use_bastion === true)
+const isCoOwner = computed(() => deploymentEntry.value?.info.co_owner === true)
 
 const showBastionConfigModal = ref(false)
 const bastionUserModalData = ref<{ userId: string; username: string } | null>(null)
@@ -192,6 +248,12 @@ const dropdownActions = computed(() => [
       ]
     : []),
   {
+    key: 'co-owners',
+    icon: 'users-plus',
+    label: t('views.deployments.dropdown.buttons.co-owners'),
+    fn: () => openCoOwnersModal()
+  },
+  {
     key: 'recreate',
     icon: 'refresh-cw-04',
     label: t('views.deployments.dropdown.buttons.recreate'),
@@ -204,13 +266,17 @@ const dropdownActions = computed(() => [
     label: t('views.deployments.dropdown.buttons.reserve'),
     fn: handleNotImplemented
   },
-  {
-    key: 'delete',
-    icon: 'trash-04',
-    label: t('views.deployments.dropdown.buttons.delete'),
-    destructive: true,
-    fn: () => (showDeleteModal.value = true)
-  }
+  ...(isCoOwner.value
+    ? []
+    : [
+        {
+          key: 'delete',
+          icon: 'trash-04',
+          label: t('views.deployments.dropdown.buttons.delete'),
+          destructive: true,
+          fn: () => (showDeleteModal.value = true)
+        }
+      ])
 ])
 
 const showRecreateModal = ref(false)
@@ -227,6 +293,110 @@ const showDownloadCsvModal = ref(false)
 
 const handleNotImplemented = () => alert('not implemented yet')
 
+const queryClient = useQueryClient()
+
+const showCoOwnersModal = ref(false)
+const coOwnersError = ref('')
+
+const { data: coOwners } = useQuery({
+  ...getDeploymentCoOwnersOptions({ path: { deployment_id: deploymentId.value } }),
+  queryKey: computed(() =>
+    getDeploymentCoOwnersQueryKey({ path: { deployment_id: deploymentId.value } })
+  ),
+  enabled: computed(() => showCoOwnersModal.value && !!deploymentId.value)
+})
+
+const coOwnersSelection = computed<AllowedSelection | undefined>(() =>
+  coOwners.value
+    ? { groups: false, users: coOwners.value.co_owners.map((user) => user.id) }
+    : undefined
+)
+
+const coOwnersOwnerName = computed(() => coOwners.value?.owner.name ?? '')
+
+const preselectedCoOwners = computed<AllowedOption[] | undefined>(() =>
+  coOwners.value?.co_owners.map((user) => ({
+    value: user.id,
+    label: user.name,
+    subLabel: user.uid ?? undefined,
+    avatar: user.photo ?? ''
+  }))
+)
+
+const { mutate: updateCoOwners, isPending: updateCoOwnersIsPending } = useMutation({
+  ...updateDeploymentCoOwnersMutation(),
+  onSuccess: (_data, variables) => {
+    queryClient.removeQueries({
+      queryKey: getDeploymentCoOwnersQueryKey({
+        path: { deployment_id: variables.path.deployment_id }
+      })
+    })
+    closeCoOwnersModal()
+    toast.success(t('components.deployments.co-owners-modal.success'))
+  },
+  onError: () => {
+    coOwnersError.value = t('components.deployments.co-owners-modal.error')
+  }
+})
+
+const openCoOwnersModal = () => {
+  coOwnersError.value = ''
+  showCoOwnersModal.value = true
+}
+
+const closeCoOwnersModal = () => {
+  showCoOwnersModal.value = false
+  coOwnersError.value = ''
+}
+
+const handleSaveCoOwners = (selection: AllowedSelection) => {
+  coOwnersError.value = ''
+  updateCoOwners({
+    path: { deployment_id: deploymentId.value },
+    body: { co_owners: Array.isArray(selection.users) ? selection.users : [] }
+  })
+}
+
+const showAllowedModal = ref(false)
+const allowedError = ref('')
+
+const { mutate: editDeploymentUsers, isPending: updateAllowedIsPending } = useMutation({
+  ...editDeploymentUsersMutation(),
+  onSuccess: (_data, variables) => {
+    queryClient.removeQueries({
+      queryKey: getDeploymentAllowedQueryKey({
+        path: { deployment_id: variables.path.deployment_id }
+      })
+    })
+    closeAllowedModal()
+    toast.success(t('views.deployments.alloweds.success'))
+  },
+  onError: (error) => {
+    allowedError.value =
+      (error as ErrorResponse)?.description_code === 'cant_edit_booked_deployment'
+        ? t('views.deployments.alloweds.blocked')
+        : t('views.deployments.alloweds.error')
+  }
+})
+
+const openAllowedModal = () => {
+  allowedError.value = ''
+  showAllowedModal.value = true
+}
+
+const closeAllowedModal = () => {
+  showAllowedModal.value = false
+  allowedError.value = ''
+}
+
+const handleSaveAllowed = (selection: AllowedSelection) => {
+  allowedError.value = ''
+  editDeploymentUsers({
+    path: { deployment_id: deploymentId.value },
+    body: { allowed: selection }
+  })
+}
+
 const enterVideowall = () => {
   router.push({ name: 'deployment-videowall', params: { deploymentId: deploymentId.value } })
 }
@@ -235,12 +405,50 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
 </script>
 
 <template>
+  <AllowedModal
+    v-if="showCoOwnersModal"
+    open
+    users-only
+    :roles="['advanced', 'manager', 'admin']"
+    :supports-everyone="false"
+    :selection="coOwnersSelection"
+    :preselected-users="preselectedCoOwners"
+    :title="t('components.deployments.co-owners-modal.title', { name: deploymentEntry?.info.name })"
+    :description="
+      t('components.deployments.co-owners-modal.description', { owner: coOwnersOwnerName })
+    "
+    :readonly="isCoOwner"
+    :warning="
+      t(
+        isCoOwner
+          ? 'components.deployments.co-owners-modal.co-owner-warning'
+          : 'components.deployments.co-owners-modal.warning'
+      )
+    "
+    :loading="updateCoOwnersIsPending"
+    :error="coOwnersError"
+    @save="handleSaveCoOwners"
+    @close="closeCoOwnersModal"
+  />
   <RecreateModal
     :open="showRecreateModal"
     :deployment-id="deploymentEntry?.info.id || ''"
     :deployment-name="deploymentEntry?.info.name"
     :onSuccess="closeRecreateModal"
     @close="closeRecreateModal"
+  />
+  <AllowedModal
+    v-if="showAllowedModal"
+    open
+    item-type="deployment"
+    :item-id="deploymentId"
+    :warning="t('views.deployments.alloweds.warning')"
+    require-selection
+    :supports-everyone="false"
+    :loading="updateAllowedIsPending"
+    :error="allowedError"
+    @save="handleSaveAllowed"
+    @close="closeAllowedModal"
   />
   <DeleteModal
     v-model:open="showDeleteModal"
@@ -267,6 +475,11 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     :user-id="bastionUserModalData.userId"
     :username="bastionUserModalData.username"
     @close="bastionUserModalData = null"
+  />
+  <DeploymentProvisioningModal
+    :open="showProvisioningModal"
+    :deployment="deploymentEntry"
+    @close="showProvisioningModal = false"
   />
   <PageContainer v-if="!deploymentEntryIsError">
     <Button
@@ -352,7 +565,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
         />
       </template>
       <template #actions>
-        <Button icon="users-01" hierarchy="secondary-gray" @click="handleNotImplemented">
+        <Button icon="users-01" hierarchy="secondary-gray" @click="openAllowedModal">
           {{ t('views.deployment.buttons.users-and-groups') }}
         </Button>
         <Button icon="tv-03" hierarchy="secondary-gray" @click="enterVideowall">
@@ -428,7 +641,26 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
           <span v-else>—</span>
         </template>
         <template #cell-name="{ row }">
-          <AvatarLabel :src="row.photo" :name="row.name" />
+          <div class="flex items-center gap-2">
+            <AvatarLabel
+              :src="row.photo"
+              :name="row.name"
+              :name-class="row.active === false ? 'text-gray-warm-400' : ''"
+            />
+            <Tooltip v-if="row.active === false">
+              <TooltipTrigger as-child>
+                <Badge
+                  color="gray"
+                  shape="square"
+                  size="sm"
+                  icon="slash-circle-01"
+                  class="w-fit gap-1.5"
+                  :content="t('views.deployment.data-table.disabled-user.badge')"
+                />
+              </TooltipTrigger>
+              <TooltipContent :title="t('views.deployment.data-table.disabled-user.tooltip')" />
+            </Tooltip>
+          </div>
         </template>
         <template #cell-started_desktops="{ row }">
           <div

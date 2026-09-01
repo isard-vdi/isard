@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { AvailableReservablesResponse } from '@/gen/oas/apiv4'
 import { earliestBookingDate, getEndTimeIntervals } from '@/lib/booking/end-time-intervals'
 import { MAX_VGPU_PROFILES } from '@/lib/vgpuSelection'
+import { describeErrorCode } from '@/lib/api-errors'
 
 interface Props {
   open: boolean
@@ -46,7 +47,7 @@ const emit = defineEmits<{
   submit: [payload: { desktopId: string; profileIds: string[]; endTime: string }]
 }>()
 
-const { t, d } = useI18n()
+const { t, d, te } = useI18n()
 
 const form = useForm({
   defaultValues: { profiles: [] as string[], end_time: '' },
@@ -105,9 +106,10 @@ watch(endLimit, (limit) => {
 
 const submitErrorMessage = computed(() => {
   if (!props.submitError) return null
-  return t(
-    `components.desktop-gpu-change-and-start-modal.errors.${props.submitError}`,
-    `components.desktop-gpu-change-and-start-modal.errors.generic`
+  return describeErrorCode(
+    props.submitError,
+    { t, te },
+    'components.desktop-gpu-change-and-start-modal.errors'
   )
 })
 

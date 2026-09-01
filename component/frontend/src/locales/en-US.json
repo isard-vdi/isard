@@ -362,6 +362,7 @@
     },
     "desktops": {
       "new-desktop": "New desktop",
+      "loading": "Loading desktops…",
       "stop-all": "Stop all desktops",
       "stop-all-tooltip": {
         "title": "There are no started desktops now"
@@ -513,6 +514,7 @@
           "verify-email": "Verify / Change Email",
           "api-key": "API Key",
           "ssh-key": "Bastion SSH Key",
+          "vpn": "VPN",
           "reset-vpn": "Reset VPN",
           "download-vpn": "Download VPN"
         }
@@ -653,6 +655,8 @@
       "dropdown": {
         "buttons": {
           "edit": "Edit deployment",
+          "alloweds": "Users and groups",
+          "co-owners": "Manage Co-Owners",
           "download-viewer": "Download direct links",
           "recreate": "Recreate deployment",
           "reserve": "Reserve",
@@ -660,6 +664,12 @@
           "bastion-csv": "Download bastion CSV",
           "delete": "Delete deployment"
         }
+      },
+      "alloweds": {
+        "warning": "Removing a user from the deployment also deletes their desktops.",
+        "success": "Allowed users and groups updated",
+        "error": "Could not update the allowed users and groups",
+        "blocked": "You can't change who can access this deployment while it has a scheduled booking"
       },
       "visibility": {
         "visible": "Visible",
@@ -704,6 +714,10 @@
           "user": "User",
           "started-desktops": "Started desktops",
           "actions": "Actions"
+        },
+        "disabled-user": {
+          "badge": "Disabled",
+          "tooltip": "This user account is disabled. A recreate will not create a desktop for it."
         }
       },
       "tooltips": {
@@ -715,7 +729,23 @@
       "recreate-modal": {
         "title": "Recreate deployment '{name}'",
         "description": "Restores desktops to the initial state in which they were created. Only deleted desktops will be restored",
-        "button": "Recreate deployment"
+        "button": "Recreate deployment",
+        "counting": "Checking how many desktops will be created…",
+        "count": "It will create {n} desktop | It will create {n} desktops",
+        "empty": "There are no desktops to create: every allowed and active user already has theirs.",
+        "close": "Close"
+      },
+      "provisioning-modal": {
+        "title": "Creating desktops for '{name}'",
+        "description": "Your desktops are being provisioned in two stages. They will not be usable until both stages finish.",
+        "stage1-title": "Stage 1 — Adding desktops to the deployment",
+        "stage1-pending": "Waiting for the engine to start spawning desktops...",
+        "stage1-progress": "{current} of {total} desktops added",
+        "stage1-done": "{total} of {total} desktops added",
+        "stage2-title": "Stage 2 — Provisioning storage",
+        "stage2-pending": "Waiting for Stage 1 to finish before storage can be provisioned",
+        "stage2-progress": "{current} of {total} desktops provisioned",
+        "stage2-done": "{total} of {total} desktops provisioned"
       },
       "actions": {
         "access": "Access",
@@ -1023,13 +1053,16 @@
         "description": "This will permanently delete all the entries in the recycle bin. This action is irreversible",
         "cancel": "Cancel",
         "confirm": "Empty",
-        "error": "Error emptying recycle bin"
+        "error-title": "Error emptying recycle bin",
+        "errors": {
+          "generic": "An error occurred while emptying the recycle bin. Please try again."
+        }
       }
     },
     "profile": {
       "ssh-key-modal": {
         "title": "Bastion SSH key",
-        "description": "Add your own SSH public key to your profile. It is added automatically to the bastion SSH access of any desktop you start (when bastion SSH is enabled on that desktop), so you don't have to add it to each desktop.",
+        "description": "Add your own SSH public key to your profile. The bastion accepts it for the SSH access of any desktop you own, and of the desktops of any deployment you own or co-own, so you don't have to add it to each desktop. Removing it revokes that access.",
         "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user{'@'}host",
         "invalid": "This doesn't look like a valid SSH public key.",
         "alert": {
@@ -1085,16 +1118,32 @@
           }
         }
       },
-      "reset-vpn-modal": {
-        "title": "Reset VPN keys",
-        "description": "Reset VPN keys? You will have to download a new VPN file",
+      "vpn-modal": {
+        "title": "VPN",
+        "description": "Choose what to do with your VPN configuration.",
+        "options": {
+          "download": {
+            "description": "Download the file with your current VPN configuration."
+          },
+          "reset": {
+            "description": "Generate new keys.",
+            "warning": "The previously downloaded file will stop working, so you will need to download it again."
+          }
+        },
         "cancel": "Cancel",
-        "confirm": "Reset VPN",
-        "success": "VPN keys were reset successfully.",
+        "confirm": {
+          "download": "Download",
+          "reset": "Reset VPN"
+        },
+        "success": {
+          "download": "The VPN configuration file has been downloaded successfully.",
+          "reset": "The VPN keys have been reset successfully."
+        },
         "errors": {
-          "unauthorized": "Your session has expired. Please log in again.",
-          "internal_server": "We couldn't reset your VPN keys due to a server error. Please try again later.",
-          "generic": "We couldn't reset your VPN keys. Please try again."
+          "download": "The VPN configuration file could not be downloaded. Please try again.",
+          "unauthorized": "The session has expired. Please log in again.",
+          "internal_server": "The VPN keys could not be reset due to a server error. Please try again later.",
+          "generic": "The VPN keys could not be reset. Please try again."
         }
       },
       "email-verification-modal": {
@@ -1404,9 +1453,11 @@
               "others-label": "Other people's SSH keys (one per line)",
               "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
               "own-key": {
-                "managed": "Your own key is added automatically from your profile when you start this desktop. This box is only for other people's public keys.",
-                "missing": "You don't have a bastion SSH key in your profile yet, so you won't get SSH access automatically.",
-                "add-link": "Add it in your profile"
+                "missing": {
+                  "title": "User SSH key missing",
+                  "description": "You don't have a bastion SSH key in your profile yet, you can add it to get SSH access automatically on all your desktops.",
+                  "button": "Add it to your profile"
+                }
               }
             }
           }
@@ -1466,7 +1517,8 @@
         },
         "vgpus": {
           "label": "vGPU",
-          "placeholder": "Select a vgpu"
+          "placeholder": "Select a vgpu",
+          "hint": "Maximum of {max} vGPU profiles per desktop."
         },
         "hardwareGroups": {
           "hardware": "Hardware",
@@ -1526,8 +1578,18 @@
           },
           "nonpersistent": {
             "title": "Temporary",
-            "description": "A temporary desktop discards all changes and files when stopped. Only one temporary desktop is allowed per template."
+            "description": "A temporary desktop discards all changes and files when stopped."
           }
+        },
+        "single-temporal": {
+          "title": "One temporary desktop per template",
+          "description": "While the old interface is still available, you can only have one temporary desktop per template.",
+          "existing": "You already have a temporary desktop from this template. Delete it to create another one."
+        },
+        "quota-exceeded": {
+          "title": "Quota exceeded",
+          "persistent": "You have reached your persistent desktops limit. Delete one to create another.",
+          "temporal": "You have reached your temporary desktops limit. Delete one to create another."
         },
         "section": {
           "title": {
@@ -1632,7 +1694,7 @@
       "media": "Media",
       "deployments": {
         "title": "Deployments",
-        "created-by-you": "Created by you",
+        "owned-by-you": "Owned by you",
         "shared-deployments": "Shared with you"
       },
       "user-deployments": "My Deployments",
@@ -1757,6 +1819,9 @@
         },
         "reservables": {
           "title": "Reservables"
+        },
+        "interfaces": {
+          "title": "Networks"
         }
       }
     },
@@ -1785,7 +1850,8 @@
       "error-loading": "Could not load the deployment bastion configuration",
       "error-saving": "Could not save the deployment bastion configuration",
       "buttons": {
-        "save": "Save"
+        "save": "Save",
+        "cancel": "Cancel"
       }
     },
     "deployment-user-bastion-modal": {
@@ -1965,6 +2031,7 @@
         "title": "Could not change the GPU",
         "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
         "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host.",
+        "booking_does_not_fit_date": "The selected GPU profiles are not available for that long. Pick an earlier end time.",
         "generic": "The desktop could not be changed and started. Please try again."
       }
     },
@@ -1997,7 +2064,7 @@
           "networks": "Networks",
           "direct-link": "Direct Link",
           "recreate": "Recreate",
-          "storage": "Storage",
+          "advanced-options": "Advanced options",
           "reset": "Reset"
         },
         "overlay": {
@@ -2130,12 +2197,26 @@
           "copy-id": "Copy Desktop ID"
         }
       },
+      "advanced-options-modal": {
+        "title": "Advanced options",
+        "subtitle": "Advanced options for desktop '{name}'",
+        "options": {
+          "storage": {
+            "label": "Storage",
+            "description": "Storage disks attached to this desktop. Actions are available while the desktop is stopped."
+          }
+        },
+        "error": {
+          "title": "Action failed"
+        }
+      },
       "desktop-storage-modal": {
-        "title": "Storage — {name}",
-        "description": "Storage disks attached to this desktop. Actions are available while the desktop is stopped.",
-        "close": "Close",
         "no-storages": "This desktop has no storage attached.",
         "load-error": "Could not load storage details.",
+        "format": "Format",
+        "disk-id": "Disk ID",
+        "desktop-status": "Desktop",
+        "disk-status": "Disk",
         "virtual-size": "Virtual size",
         "actual-size": "Actual size",
         "status": {
@@ -2149,34 +2230,32 @@
           "unknown": "Unknown"
         },
         "actions": {
-          "cancel": "Cancel operation",
-          "cancel-tooltip": "Cancel the storage task currently running on this disk.",
           "increase": "Increase size",
-          "increase-tooltip": "Add capacity to the disk.",
+          "no-actions": "No actions available for this storage.",
           "increase-needs-stopped": "The desktop must be stopped to increase the disk size.",
-          "increase-needs-ready": "The disk must be ready to be resized.",
-          "no-actions": "No actions available for this storage."
+          "increase-needs-ready": "The disk must be ready to be resized."
+        },
+        "increase": {
+          "field-label": "Increase the disk space in GB",
+          "help-title": "The disk grows by the specified amount of gigabytes.",
+          "help-subtitle": "Quotas are enforced server-side.",
+          "preview": "Resulting virtual size: {size}",
+          "errors": {
+            "required": "Enter how many gigabytes you want to add.",
+            "not-a-number": "Only digits are allowed.",
+            "not-an-integer": "The increment must be a whole number of gigabytes.",
+            "too-small": "The increment must be greater than 0.",
+            "too-large": "The disk cannot exceed {max} GB. You can add {available} GB at most."
+          }
         },
         "cancel-modal": {
           "title": "Cancel storage operation?",
           "description": "Cancel the running storage task on {name}? Partial files may be cleaned up after the task is aborted.",
           "dismiss": "Keep running",
           "confirm": "Cancel operation",
-          "fallback-error": "Could not cancel the storage operation."
-        },
-        "increase-modal": {
-          "title": "Increase disk size",
-          "description": "Add capacity to the desktop's disk. The increment is applied to the virtual size and cannot be undone.",
-          "field-label": "Increment in GB",
-          "field-placeholder": "10",
-          "help": "The disk grows by the specified amount of gigabytes. Quotas are enforced server-side.",
-          "dismiss": "Cancel",
-          "confirm": "Increase",
-          "fallback-error": "Could not increase the disk size."
-        },
-        "error": {
-          "title": "Storage action failed",
-          "close": "Dismiss"
+          "success": "The storage operation is being cancelled.",
+          "error-title": "Could not cancel the storage operation",
+          "error-description": "There was an error while trying to cancel the storage operation. Please try again later. \nIf the problem persists, contact your administrator."
         }
       },
       "quota-exceeded-modal": {
@@ -2215,6 +2294,10 @@
         "title": "System resources unavailable",
         "description": "The system resources are currently unavailable and desktops cannot be started. Please try again later.",
         "go-to-desktops": "Go back to desktops"
+      },
+      "start-error-modal": {
+        "title": "Could not start the desktop",
+        "close": "Close"
       },
       "direct-viewer-modal": {
         "title": "Direct access link",
@@ -2329,8 +2412,20 @@
       }
     },
     "domain-summary": {
+      "added": "Added value",
       "changed": "Modified value",
-      "removed": "Removed value"
+      "previous-value": "Previous value: {value}",
+      "removed": "Removed value",
+      "tags": {
+        "boot": "Boot",
+        "disk": "Disk",
+        "disk-bus": "Bus",
+        "floppy": "Floppy",
+        "iso": "ISO",
+        "password": "Password",
+        "user": "User",
+        "video": "Video"
+      }
     },
     "date-picker": {
       "today": "Today",
@@ -2514,6 +2609,14 @@
         "go-to-profile": "Check your quota",
         "cancel": "Go back to deployments"
       },
+      "co-owners-modal": {
+        "title": "Manage co-owners for '{name}'",
+        "description": "Choose which users co-own this deployment. Owner: {owner}",
+        "warning": "Co-owners have the same permissions as the owner, except they cannot delete the deployment or manage co-owners.",
+        "co-owner-warning": "As a co-owner you cannot change the co-owners. Contact the deployment owner.",
+        "success": "Co-owners updated",
+        "error": "Could not update the co-owners"
+      },
       "download-csv-modal": {
         "title": "Download direct viewer CSV for '{name}'",
         "options": {
@@ -2599,7 +2702,8 @@
         "maximum-time": "You can't create a reservation for that long",
         "end-before-start": "The booking end time can't be before the start time",
         "minimum-time": "The booking must last at least 5 minutes",
-        "past-booking": "Can't create a booking in the past"
+        "past-booking": "Can't create a booking in the past",
+        "no-availability": "There is no availability in the selected time slot"
       }
     },
     "notification-modal": {
@@ -2617,10 +2721,12 @@
       "search-placeholder": "Search",
       "not-found": "No results found",
       "more-results": "{count} more results, refine your search",
-      "remove": "Remove {name}"
+      "remove": "Remove {name}",
+      "more-selected": "{count} more selected: {items}"
     },
     "allowed-modal": {
       "title": "Manage users",
+      "warning": "Warning",
       "description": {
         "generic": "Edit the groups and users allowed to access it",
         "template": "Edit the groups and users allowed to access this template",
@@ -2636,7 +2742,8 @@
         "groups": "No groups available",
         "users": "This group has no users",
         "no-group": "Select a group or search for users",
-        "no-group-short-term": "Type at least 2 characters to search users"
+        "no-group-short-term": "Type at least 2 characters to search users",
+        "no-users-selected": "No users selected yet — search to add some"
       },
       "share-everyone": {
         "unchecked": {
@@ -2651,6 +2758,7 @@
       "view-group": "Show the users in '{group_name}'",
       "unview-group": "Stop showing the users in '{group_name}'",
       "require-selection": "Select at least one group or user",
+      "require-selection-users": "Select at least one user",
       "no-changes": "Make a change to save",
       "select-all": {
         "groups": "Select all groups",
@@ -2769,6 +2877,22 @@
         "temporal_new_reservable": {
           "title": "Temporal desktops cannot have reservables",
           "description": "Temporal desktops cannot have reservables assigned. Please remove the reservables and try again."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Desktop start quota exceeded",
+          "description": "You have reached the maximum number of running desktops. A desktop must be stopped in order to create this one."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Memory quota exceeded",
+          "description": "Starting this desktop would exceed your memory quota. Stop a desktop, or reduce the memory of the one you are creating."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "vCPU quota exceeded",
+          "description": "Starting this desktop would exceed your vCPU quota. Stop a desktop, or reduce the vCPUs of the one you are creating."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Storage quota exceeded",
+          "description": "Starting this desktop would exceed your storage quota. Free up disk space and try again."
         }
       }
     },
@@ -2830,10 +2954,52 @@
         "internal_server": "Internal server error while saving the desktop.",
         "precondition_required": "The desktop must be stopped before editing.",
         "not_found": "The desktop was not found.",
-        "bad_request": "RDP viewers need the wireguard network. Please add the wireguard network to this desktop or remove RDP viewers.",
+        "rdp_requires_wireguard": "RDP viewers need the wireguard network. Please add the wireguard network to this desktop or remove RDP viewers.",
         "new_desktop_name_exists": "A desktop with the same name already exists. Please choose a different name.",
         "one_viewer_minimum": "At least one viewer must be selected.",
-        "only_works_rdp": "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option."
+        "only_works_rdp": "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option.",
+        "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
+        "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host."
+      }
+    },
+    "increase-storage": {
+      "errors": {
+        "generic": "Could not increase the disk size. Please try again.",
+        "validation_error": "The requested increment is not a valid number of gigabytes.",
+        "bad_request": "The increment does not fit in your disk size quota.",
+        "unauthorized": "Your session has expired. Sign in again to resize the disk.",
+        "forbidden": "You are not allowed to resize this disk.",
+        "not_found": "The disk was not found.",
+        "storage_no_consumer_retry_later": "No storage worker is available right now. Please try again in a few minutes.",
+        "storage_overloaded_retry_later": "Storage tasks are overloaded right now. Please try again in a few minutes.",
+        "internal_server": "The server could not schedule the resize. Please try again."
+      }
+    },
+    "delete-desktop": {
+      "errors": {
+        "generic": "Could not delete the desktop. Please try again.",
+        "not_found": "The desktop was not found.",
+        "precondition_required": "The desktop can't be deleted right now. Please try again in a moment."
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "The desktop could not be started. Please try again."
+      }
+    },
+    "delete-deployment": {
+      "errors": {
+        "generic": "Could not delete the deployment. Please try again.",
+        "not_found": "The deployment was not found.",
+        "precondition_required": "The deployment can't be deleted right now. Please try again in a moment.",
+        "deployment_stop": "The deployment's desktops must be stopped before it can be deleted."
+      }
+    },
+    "recreate-deployment": {
+      "errors": {
+        "generic": "The deployment recreate could not be checked. Please try again.",
+        "not_found": "Deployment not found.",
+        "deployment_recreate_booking_not_enough_units": "The deployment's future booking does not have enough units for the desktops the recreate would create."
       }
     },
     "edit-template": {
@@ -2843,7 +3009,12 @@
         "new_template_name_exists": "A template with this name already exists. Please choose a different name.",
         "not_found": "The template was not found.",
         "precondition_required": "The template must be stopped before it can be edited.",
-        "bad_request": "RDP viewers require the wireguard network. Please add the wireguard network to this template or remove RDP viewers."
+        "rdp_requires_wireguard": "RDP viewers require the wireguard network. Please add the wireguard network to this template or remove RDP viewers.",
+        "too_many_vgpu_profiles": "The maximum number of vGPU profiles allowed has been exceeded.",
+        "duplicate_vgpu_profiles": "The same vGPU profile cannot be selected more than once.",
+        "vgpu_profile_not_found": "One or more selected vGPU profiles no longer exist.",
+        "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
+        "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host."
       }
     },
     "booking": {

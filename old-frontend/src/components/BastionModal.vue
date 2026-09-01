@@ -297,12 +297,6 @@
             {{ $t('views.desktop.bastion_modal.own-key.add-link') }}
           </router-link>
         </b-alert>
-        <small
-          v-else
-          class="w-100 text-muted mb-1"
-        >
-          {{ $t('views.desktop.bastion_modal.own-key.managed') }}
-        </small>
         <b-form-textarea
           id="sshAuthorizedKeysField"
           v-model="otherAuthorizedKeys"
@@ -375,19 +369,13 @@ export default {
     const splitNewLine = (text) => text.split(/\r?\n/)
     const joinNewLine = (array) => array.join('\n')
 
-    // The user's own profile key is managed automatically (injected at desktop
-    // start, kept first in the target). This box is only for OTHER people's
-    // keys, so we hide the user's own key here and re-add nothing on save —
-    // the server re-prepends the owner key and strips the editor's own key.
-    const userKey = computed(() => $store.getters.getUserBastionSshKey)
-    const hasOwnKey = computed(() => !!userKey.value)
+    const hasOwnKey = computed(() => !!$store.getters.getUserBastionSshKey)
 
     const otherAuthorizedKeys = ref('')
     watch(
       () => modal.value && modal.value.bastion && modal.value.bastion.ssh && modal.value.bastion.ssh.authorized_keys,
       (keys) => {
-        const own = (userKey.value || '').trim()
-        const list = (keys || []).filter(k => k && k.trim() && k.trim() !== own)
+        const list = (keys || []).filter(k => k && k.trim())
         otherAuthorizedKeys.value = joinNewLine(list)
       },
       { immediate: true }

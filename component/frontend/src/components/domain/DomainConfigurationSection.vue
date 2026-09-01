@@ -327,12 +327,13 @@ defineExpose({
           v-if="!alwaysOpen"
           class="shadow-xs"
           :loading="loading"
+          :kind="entity === 'templates' ? 'template' : kind"
           :previous="baseSummary"
           v-bind="liveSummary"
         />
 
         <div
-          class="mt-6 flex flex-col gap-5 border border-gray-warm-200 rounded-lg overflow-hidden shadow-xs bg-gray-warm-50"
+          class="mt-6 flex flex-col gap-2 border border-gray-warm-200 rounded-md overflow-hidden shadow-xs bg-gray-warm-50"
         >
           <div>
             <div :class="['flex gap-6 items-center px-4 py-3', kindAccent.header]">
@@ -370,7 +371,7 @@ defineExpose({
             />
           </div>
           <div>
-            <div :class="['flex gap-6 items-center px-4 py-3 rounded-t-lg', kindAccent.header]">
+            <div :class="['flex gap-6 items-center px-4 py-3 rounded-t-md', kindAccent.header]">
               <div class="flex gap-3 items-center">
                 <Icon name="cpu" size="lg" :stroke-color="kindAccent.icon" aria-hidden="true" />
                 <h4 class="text-lg font-semibold">

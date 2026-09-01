@@ -58,7 +58,7 @@ const sidebarItems: ComputedRef<Record<string, Record<string, SidebarItem>>> = c
         subItems: [
           {
             key: 'deployments-list',
-            label: i18n.global.t('components.sidebar.deployments.created-by-you'),
+            label: i18n.global.t('components.sidebar.deployments.owned-by-you'),
             icon: 'layers-three-01',
             route: 'deployments',
             selected: false

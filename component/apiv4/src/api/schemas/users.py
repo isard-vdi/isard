@@ -161,6 +161,14 @@ class UserConfigResponse(BaseModel):
             "'hidden' (both reachable by path, no toggler shown)."
         ),
     )
+    multiple_temporal_desktops: bool = Field(
+        False,
+        description=(
+            "Whether a user may hold several temporal desktops from the same "
+            "template. Only true on frontend_mode 'actual': the Vue 2 frontend "
+            "maps each template card to a single desktop."
+        ),
+    )
     faro: FaroConfig = Field(
         description="Faro telemetry configuration for the browser SDK.",
     )

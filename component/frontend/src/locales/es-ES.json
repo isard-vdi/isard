@@ -354,6 +354,7 @@
     },
     "desktops": {
       "new-desktop": "Nuevo escritorio",
+      "loading": "Cargando escritorios…",
       "stop-all": "Parar todos los escritorios",
       "stop-all-tooltip": {
         "title": "No hay escritorios iniciados ahora"
@@ -504,6 +505,7 @@
           "change-password": "Cambiar contraseña",
           "verify-email": "Verificar / Cambiar correo",
           "api-key": "Llave API",
+          "vpn": "VPN",
           "reset-vpn": "Restablecer VPN",
           "download-vpn": "Descargar VPN",
           "ssh-key": "Llave SSH del bastión"
@@ -645,6 +647,8 @@
       "dropdown": {
         "buttons": {
           "edit": "Editar despliegue",
+          "alloweds": "Usuarios y grupos",
+          "co-owners": "Gestionar copropietarios",
           "download-viewer": "Descargar enlaces directos",
           "recreate": "Recrear despliegue",
           "reserve": "Reservar",
@@ -652,6 +656,12 @@
           "bastion-csv": "Descargar el CSV del bastión",
           "delete": "Eliminar despliegue"
         }
+      },
+      "alloweds": {
+        "warning": "Al quitar un usuario del despliegue también se eliminan sus escritorios.",
+        "success": "Usuarios y grupos permitidos actualizados",
+        "error": "No se han podido actualizar los usuarios y grupos permitidos",
+        "blocked": "No puedes cambiar quién puede acceder a este despliegue mientras tenga una reserva programada"
       },
       "visibility": {
         "visible": "Visible",
@@ -696,6 +706,10 @@
           "user": "Usuario",
           "started-desktops": "Escritorios arrancados",
           "actions": "Acciones"
+        },
+        "disabled-user": {
+          "badge": "Deshabilitado",
+          "tooltip": "Esta cuenta de usuario está deshabilitada. Una recreación no le creará ningún escritorio."
         }
       },
       "tooltips": {
@@ -707,7 +721,23 @@
       "recreate-modal": {
         "title": "Recrear despliegue '{name}'",
         "description": "Restablece los escritorios al estado inicial en el que se crearon. Solo los escritorios eliminados se restablecerán",
-        "button": "Recrear despliegue"
+        "button": "Recrear despliegue",
+        "counting": "Comprobando cuántos escritorios se crearán…",
+        "count": "Se creará {n} escritorio | Se crearán {n} escritorios",
+        "empty": "No hay ningún escritorio que crear: todos los usuarios permitidos y activos ya tienen el suyo.",
+        "close": "Cerrar"
+      },
+      "provisioning-modal": {
+        "title": "Creando escritorios para '{name}'",
+        "description": "Tus escritorios se están aprovisionando en dos etapas. No podrán usarse hasta que ambas terminen.",
+        "stage1-title": "Etapa 1 — Añadiendo escritorios al despliegue",
+        "stage1-pending": "Esperando a que el motor empiece a crear escritorios...",
+        "stage1-progress": "{current} de {total} escritorios añadidos",
+        "stage1-done": "{total} de {total} escritorios añadidos",
+        "stage2-title": "Etapa 2 — Aprovisionando almacenamiento",
+        "stage2-pending": "Esperando a que termine la Etapa 1 antes de aprovisionar el almacenamiento",
+        "stage2-progress": "{current} de {total} escritorios aprovisionados",
+        "stage2-done": "{total} de {total} escritorios aprovisionados"
       },
       "actions": {
         "access": "Acceder",
@@ -1023,7 +1053,10 @@
         "description": "Esto eliminará permanentemente todas las entradas de la papelera. Esta acción es irreversible",
         "cancel": "Cancelar",
         "confirm": "Vaciar",
-        "error": "Error al vaciar la papelera"
+        "error-title": "Error al vaciar la papelera",
+        "errors": {
+          "generic": "Se produjo un error al vaciar la papelera. Inténtalo de nuevo."
+        }
       }
     },
     "profile": {
@@ -1183,16 +1216,32 @@
           "started_deployment_desktops": "Escritorios en ejecución del despliegue"
         }
       },
-      "reset-vpn-modal": {
-        "title": "Restablecer claves VPN",
-        "description": "¿Restablecer las claves VPN? Tendrás que descargar un nuevo archivo VPN",
+      "vpn-modal": {
+        "title": "VPN",
+        "description": "Elige qué quieres hacer con la configuración de la VPN.",
+        "options": {
+          "download": {
+            "description": "Descargar el archivo de configuración actual de la VPN."
+          },
+          "reset": {
+            "description": "Generar unas claves nuevas.",
+            "warning": "El archivo descargado anteriormente dejará de funcionar, así que tendrás que descargarlo de nuevo."
+          }
+        },
         "cancel": "Cancelar",
-        "confirm": "Restablecer VPN",
-        "success": "Las claves VPN se han restablecido correctamente.",
+        "confirm": {
+          "download": "Descargar",
+          "reset": "Restablecer VPN"
+        },
+        "success": {
+          "download": "El archivo de configuración de la VPN se ha descargado correctamente.",
+          "reset": "Las claves VPN se han restablecido correctamente."
+        },
         "errors": {
-          "unauthorized": "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.",
-          "internal_server": "No pudimos restablecer tus claves VPN por un error del servidor. Inténtalo más tarde.",
-          "generic": "No pudimos restablecer tus claves VPN. Inténtalo de nuevo."
+          "download": "No se ha podido descargar el archivo de configuración de la VPN. Inténtalo de nuevo.",
+          "unauthorized": "La sesión ha expirado. Por favor, inicia sesión de nuevo.",
+          "internal_server": "No se han podido restablecer las claves VPN por un error del servidor. Inténtalo más tarde.",
+          "generic": "No se han podido restablecer las claves VPN. Inténtalo de nuevo."
         }
       },
       "ssh-key-modal": {
@@ -1205,7 +1254,7 @@
           "remove": "Eliminar llave",
           "save": "Guardar llave"
         },
-        "description": "Añade tu propia llave pública SSH al perfil. Se añade automáticamente al acceso SSH del bastión de cualquier escritorio que inicies (cuando el acceso SSH por bastión está activado en ese escritorio), de modo que no tienes que añadirla a cada escritorio.",
+        "description": "Añade tu propia llave pública SSH al perfil. El bastión la acepta para el acceso SSH de cualquier escritorio tuyo, y de los escritorios de cualquier despliegue del que seas propietario o copropietario, de modo que no tienes que añadirla a cada escritorio. Si la eliminas, ese acceso se revoca.",
         "invalid": "Esto no parece una llave pública SSH válida.",
         "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... usuario{'@'}host",
         "security-note": "Añade solo tu propia llave pública. Añadir la llave de otra persona puede violar la política de seguridad de tu organización.",
@@ -1250,7 +1299,7 @@
       "media": "Medios",
       "deployments": {
         "title": "Despliegues",
-        "created-by-you": "Creados por ti",
+        "owned-by-you": "De tu propiedad",
         "shared-deployments": "Compartidos contigo"
       },
       "user-deployments": "Mis despliegues",
@@ -1327,6 +1376,7 @@
         "title": "No se ha podido cambiar la GPU",
         "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
         "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host.",
+        "booking_does_not_fit_date": "Los perfiles de GPU seleccionados no están disponibles durante todo ese tiempo. Elige una hora de finalización anterior.",
         "generic": "No se ha podido cambiar e iniciar el escritorio. Inténtalo de nuevo."
       }
     },
@@ -1342,7 +1392,7 @@
           "info": "Información",
           "recreate": "Recrear",
           "template": "Convertir en plantilla",
-          "storage": "Almacenamiento",
+          "advanced-options": "Opciones avanzadas",
           "reset": "Reiniciar",
           "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",
           "networks": "Redes"
@@ -1492,12 +1542,26 @@
           }
         }
       },
+      "advanced-options-modal": {
+        "title": "Opciones avanzadas",
+        "subtitle": "Opciones avanzadas del escritorio '{name}'",
+        "options": {
+          "storage": {
+            "label": "Almacenamiento",
+            "description": "Discos de almacenamiento asociados a este escritorio. Las acciones están disponibles mientras el escritorio está parado."
+          }
+        },
+        "error": {
+          "title": "La acción ha fallado"
+        }
+      },
       "desktop-storage-modal": {
-        "title": "Almacenamiento — {name}",
-        "description": "Discos de almacenamiento asociados a este escritorio. Las acciones están disponibles mientras el escritorio está parado.",
-        "close": "Cerrar",
         "no-storages": "Este escritorio no tiene almacenamiento asociado.",
         "load-error": "No se han podido cargar los datos del almacenamiento.",
+        "format": "Formato",
+        "disk-id": "ID del disco",
+        "desktop-status": "Escritorio",
+        "disk-status": "Disco",
         "virtual-size": "Tamaño virtual",
         "actual-size": "Tamaño real",
         "status": {
@@ -1511,34 +1575,32 @@
           "unknown": "Desconocido"
         },
         "actions": {
-          "cancel": "Cancelar operación",
-          "cancel-tooltip": "Cancela la tarea de almacenamiento en curso sobre este disco.",
           "increase": "Aumentar tamaño",
-          "increase-tooltip": "Añade capacidad al disco.",
+          "no-actions": "No hay acciones disponibles para este almacenamiento.",
           "increase-needs-stopped": "El escritorio debe estar parado para aumentar el tamaño del disco.",
-          "increase-needs-ready": "El disco debe estar listo para redimensionarlo.",
-          "no-actions": "No hay acciones disponibles para este almacenamiento."
+          "increase-needs-ready": "El disco debe estar listo para redimensionarlo."
+        },
+        "increase": {
+          "field-label": "Incrementa el espacio del disco en GB",
+          "help-title": "El disco crece según la cantidad de gigabytes especificada.",
+          "help-subtitle": "Las cuotas se validan en el servidor.",
+          "preview": "Tamaño virtual resultante: {size}",
+          "errors": {
+            "required": "Indica cuántos gigabytes quieres añadir.",
+            "not-a-number": "Solo se admiten dígitos.",
+            "not-an-integer": "El incremento debe ser un número entero de gigabytes.",
+            "too-small": "El incremento debe ser mayor que 0.",
+            "too-large": "El disco no puede superar los {max} GB. Como máximo puedes añadir {available} GB."
+          }
         },
         "cancel-modal": {
           "title": "¿Cancelar la operación de almacenamiento?",
           "description": "¿Cancelar la tarea de almacenamiento en curso sobre {name}? Los archivos parciales se limpiarán después de abortar la tarea.",
           "dismiss": "Mantener",
           "confirm": "Cancelar operación",
-          "fallback-error": "No se ha podido cancelar la operación de almacenamiento."
-        },
-        "increase-modal": {
-          "title": "Aumentar el tamaño del disco",
-          "description": "Añade capacidad al disco del escritorio. El incremento se aplica al tamaño virtual y no se puede deshacer.",
-          "field-label": "Incremento en GB",
-          "field-placeholder": "10",
-          "help": "El disco crece según la cantidad de gigabytes especificada. Las cuotas se validan en el servidor.",
-          "dismiss": "Cancelar",
-          "confirm": "Aumentar",
-          "fallback-error": "No se ha podido aumentar el tamaño del disco."
-        },
-        "error": {
-          "title": "La acción de almacenamiento ha fallado",
-          "close": "Cerrar"
+          "success": "Se está cancelando la operación de almacenamiento.",
+          "error-title": "No se ha podido cancelar la operación de almacenamiento",
+          "error-description": "Hubo un error al intentar cancelar la operación de almacenamiento. Por favor, inténtalo de nuevo más tarde. \nSi el problema persiste, contacta con tu administrador."
         }
       },
       "direct-viewer-modal": {
@@ -1596,6 +1658,10 @@
         "title": "Recursos del sistema no disponibles",
         "description": "Los recursos del sistema no estan disponibles actualmente y no se pueden iniciar escritorios. Por favor, inténtelo más tarde.",
         "go-to-desktops": "Volver a escritorios"
+      },
+      "start-error-modal": {
+        "title": "No se ha podido iniciar el escritorio",
+        "close": "Cerrar"
       },
       "fields": {
         "ip": {
@@ -1718,6 +1784,9 @@
           "title": "Hardware",
           "vcpu": "{vcpu} vCPU"
         },
+        "interfaces": {
+          "title": "Redes"
+        },
         "ip": {
           "title": "Dirección IP"
         },
@@ -1822,8 +1891,20 @@
       }
     },
     "domain-summary": {
+      "added": "Valor añadido",
       "changed": "Valor modificado",
-      "removed": "Valor eliminado"
+      "previous-value": "Valor anterior: {value}",
+      "removed": "Valor eliminado",
+      "tags": {
+        "boot": "Arranque",
+        "disk": "Disco",
+        "disk-bus": "Bus",
+        "floppy": "Floppy",
+        "iso": "ISO",
+        "password": "Contraseña",
+        "user": "Usuario",
+        "video": "Vídeo"
+      }
     },
     "datatable": {
       "empty": "No hay escritorios disponibles",
@@ -1869,7 +1950,8 @@
       "error-loading": "No se ha podido cargar la configuración del bastión del despliegue",
       "error-saving": "No se ha podido guardar la configuración del bastión del despliegue",
       "buttons": {
-        "save": "Guardar"
+        "save": "Guardar",
+        "cancel": "Cancelar"
       }
     },
     "deployment-user-bastion-modal": {
@@ -1937,10 +2019,22 @@
       },
       "delete-confirmation-modal": {
         "title": "Eliminar la plantilla '{name}'",
+        "subtitle": "Ningún otro escritorio, plantilla o despliegue depende de esta plantilla.",
+        "recycle-bin": {
+          "temporary": "Los elementos eliminados se mueven a la papelera y se borran definitivamente después de {time}. La eliminación de plantillas siempre pasa por la papelera y no se puede hacer permanente desde aquí.",
+          "permanent": "Los elementos eliminados se borran definitivamente y no se pueden recuperar.",
+          "infinite": "Los elementos eliminados se mueven a la papelera y no se borran automáticamente."
+        },
         "fields": {
+          "summary": {
+            "total": "Se eliminarán {count} elementos",
+            "breakdown": "{desktops} escritorios · {templates} plantillas · {deployments} despliegues · {hidden} ocultos"
+          },
           "dependency": {
             "alert": {
-              "title": "Aviso de dependencia"
+              "title": "Aviso de dependencia",
+              "description": "Los siguientes escritorios, plantillas y despliegues dependen de esta plantilla y se eliminarán junto con sus discos.",
+              "pending": "Algunos escritorios, plantillas o despliegues que dependen de esta plantilla no son tuyos. Contacta con un administrador para eliminar esta plantilla."
             },
             "datatable": {
               "headers": {
@@ -1949,10 +2043,29 @@
                 "user": "Usuario"
               }
             }
+          },
+          "cross-category": {
+            "title": "Derivados en otras categorías",
+            "description": "Algunos derivados de esta plantilla pertenecen a otras categorías. Eliminarla también afectará a elementos fuera de tu categoría."
           }
         },
         "cancel": "Cancelar",
         "confirm": "Eliminar plantilla",
+        "toast": {
+          "recycled": {
+            "title": "La plantilla '{name}' se ha movido a la papelera",
+            "description": "Se han movido {count} elementos. Se borrarán definitivamente después de {time}."
+          },
+          "recycled-infinite": {
+            "title": "La plantilla '{name}' se ha movido a la papelera",
+            "description": "Se han movido {count} elementos a la papelera."
+          },
+          "permanent": {
+            "title": "Plantilla '{name}' eliminada",
+            "description": "Se han borrado definitivamente {count} elementos."
+          },
+          "open-recycle-bin": "Abrir papelera"
+        },
         "debug-options": {
           "copy-id": "Copiar ID"
         }
@@ -2078,9 +2191,11 @@
               "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
               "others-label": "Claves SSH de otras personas (una por línea)",
               "own-key": {
-                "add-link": "Añádela en tu perfil",
-                "managed": "Tu propia clave se añade automáticamente desde tu perfil cuando inicias este escritorio. Esta casilla solo es para las claves públicas de otras personas.",
-                "missing": "Aún no tienes ninguna clave SSH del bastión en tu perfil, así que no tendrás acceso SSH automáticamente."
+                "missing": {
+                  "title": "Falta la clave SSH de usuario",
+                  "description": "Aún no tienes ninguna clave SSH del bastión en tu perfil; puedes añadirla para tener acceso SSH automáticamente en todos tus escritorios.",
+                  "button": "Añádela a tu perfil"
+                }
               }
             }
           }
@@ -2140,7 +2255,8 @@
         },
         "vgpus": {
           "label": "vGPU",
-          "placeholder": "Selecciona una vGPU"
+          "placeholder": "Selecciona una vGPU",
+          "hint": "Máximo {max} perfiles de vGPU por escritorio."
         },
         "hardwareGroups": {
           "hardware": "Hardware",
@@ -2200,8 +2316,18 @@
           },
           "nonpersistent": {
             "title": "Temporal",
-            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene. Solo se permite un escritorio temporal por plantilla."
+            "description": "Un escritorio temporal descarta todos los cambios y archivos cuando se detiene."
           }
+        },
+        "single-temporal": {
+          "title": "Un escritorio temporal por plantilla",
+          "description": "Mientras la interfaz antigua siga disponible, solo puedes tener un escritorio temporal por plantilla.",
+          "existing": "Ya tienes un escritorio temporal de esta plantilla. Elimínalo para crear otro."
+        },
+        "quota-exceeded": {
+          "title": "Cuota superada",
+          "persistent": "Has alcanzado el límite de escritorios persistentes. Elimina uno para crear otro.",
+          "temporal": "Has alcanzado el límite de escritorios temporales. Elimina uno para crear otro."
         },
         "section": {
           "title": {
@@ -2408,6 +2534,14 @@
         "go-to-profile": "Comprobar tu cuota",
         "cancel": "Volver a despliegues"
       },
+      "co-owners-modal": {
+        "title": "Gestionar copropietarios de '{name}'",
+        "description": "Elige qué usuarios son copropietarios de este despliegue. Propietario: {owner}",
+        "warning": "Los copropietarios tienen los mismos permisos que el propietario, excepto eliminar el despliegue y gestionar los copropietarios.",
+        "co-owner-warning": "Como copropietario no puedes cambiar los copropietarios. Contacta con el propietario del despliegue.",
+        "success": "Copropietarios actualizados",
+        "error": "No se han podido actualizar los copropietarios"
+      },
       "download-csv-modal": {
         "title": "Descargar CSV de visores directos de '{name}'",
         "options": {
@@ -2465,7 +2599,8 @@
         "forbid": "Necesitas más tiempo de antelación para crear la reserva",
         "maximum-time": "No puedes crear una reserva tan larga",
         "minimum-time": "La reserva debe durar al menos 5 minutos",
-        "past-booking": "No puedes crear una reserva en el pasado"
+        "past-booking": "No puedes crear una reserva en el pasado",
+        "no-availability": "No hay disponibilidad en la franja horaria seleccionada"
       },
       "item": {
         "enough-units": "Unidades suficientes",
@@ -2586,10 +2721,12 @@
       "search-placeholder": "Buscar",
       "not-found": "No se ha encontrado ningún resultado",
       "more-results": "{count} resultados más, afina tu búsqueda",
-      "remove": "Quitar {name}"
+      "remove": "Quitar {name}",
+      "more-selected": "{count} más seleccionados: {items}"
     },
     "allowed-modal": {
       "title": "Gestionar usuarios",
+      "warning": "Aviso",
       "description": {
         "generic": "Edita los grupos y usuarios que pueden acceder",
         "template": "Edita los grupos y usuarios que pueden acceder a esta plantilla",
@@ -2605,7 +2742,8 @@
         "groups": "No hay grupos disponibles",
         "users": "Este grupo no tiene usuarios",
         "no-group": "Selecciona un grupo o busca usuarios",
-        "no-group-short-term": "Escribe al menos 2 caracteres para buscar usuarios"
+        "no-group-short-term": "Escribe al menos 2 caracteres para buscar usuarios",
+        "no-users-selected": "Todavía no hay usuarios seleccionados: búscalos para añadirlos"
       },
       "share-everyone": {
         "unchecked": {
@@ -2620,6 +2758,7 @@
       "view-group": "Mostrar los usuarios del grupo '{group_name}'",
       "unview-group": "Dejar de mostrar los usuarios del grupo '{group_name}'",
       "require-selection": "Selecciona como mínimo un grupo o un usuario",
+      "require-selection-users": "Selecciona como mínimo un usuario",
       "no-changes": "Haz algún cambio para guardar",
       "select-all": {
         "groups": "Seleccionar todos los grupos",
@@ -2736,6 +2875,22 @@
         "temporal_new_reservable": {
           "title": "Los escritorios temporales no pueden tener reservables",
           "description": "Los escritorios temporales no pueden tener reservables asignados. Elimina los reservables e inténtalo de nuevo."
+        },
+        "desktop_start_quota_exceeded": {
+          "title": "Cuota de inicio de escritorios superada",
+          "description": "Has alcanzado el número máximo de escritorios en marcha. Debes detener uno para poder crear este."
+        },
+        "desktop_start_memory_quota_exceeded": {
+          "title": "Cuota de memoria superada",
+          "description": "Iniciar este escritorio superaría tu cuota de memoria. Detén un escritorio, o reduce la memoria del que estás creando."
+        },
+        "desktop_start_vcpu_quota_exceeded": {
+          "title": "Cuota de vCPU superada",
+          "description": "Iniciar este escritorio superaría tu cuota de vCPU. Detén un escritorio, o reduce las vCPU del que estás creando."
+        },
+        "desktop_start_disk_quota_exceeded": {
+          "title": "Cuota de almacenamiento superada",
+          "description": "Iniciar este escritorio superaría tu cuota de almacenamiento. Libera espacio de disco e inténtalo de nuevo."
         }
       }
     },
@@ -2754,7 +2909,12 @@
         "new_template_name_exists": "Ya existe una plantilla con este nombre. Por favor, elige un nombre diferente.",
         "not_found": "No se encontró la plantilla.",
         "precondition_required": "La plantilla debe estar detenida antes de poder editarla.",
-        "bad_request": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a esta plantilla o elimina los visores RDP."
+        "rdp_requires_wireguard": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a esta plantilla o elimina los visores RDP.",
+        "too_many_vgpu_profiles": "Se ha superado el número máximo de perfiles de vGPU permitidos.",
+        "duplicate_vgpu_profiles": "No se puede seleccionar el mismo perfil de vGPU más de una vez.",
+        "vgpu_profile_not_found": "Uno o más perfiles de vGPU seleccionados ya no existen.",
+        "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
+        "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host."
       }
     },
     "new-media": {
@@ -2807,10 +2967,52 @@
         "internal_server": "Error interno del servidor al guardar el escritorio.",
         "precondition_required": "El escritorio debe estar detenido antes de editarlo.",
         "not_found": "No se encontró el escritorio.",
-        "bad_request": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a este escritorio o elimina los visores RDP.",
+        "rdp_requires_wireguard": "Los visores RDP requieren la red wireguard. Por favor, añade la red wireguard a este escritorio o elimina los visores RDP.",
         "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre. Por favor, elige un nombre diferente.",
         "one_viewer_minimum": "Debes seleccionar al menos un visor.",
-        "only_works_rdp": "El modo 'Solo GPU' solo funciona con visores RDP. Por favor, elimina los visores que no sean RDP o elige otra opción de vídeo."
+        "only_works_rdp": "El modo 'Solo GPU' solo funciona con visores RDP. Por favor, elimina los visores que no sean RDP o elige otra opción de vídeo.",
+        "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
+        "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host."
+      }
+    },
+    "increase-storage": {
+      "errors": {
+        "generic": "No se ha podido aumentar el tamaño del disco. Inténtalo de nuevo.",
+        "validation_error": "El incremento solicitado no es un número de gigabytes válido.",
+        "bad_request": "El incremento no cabe en tu cuota de tamaño de disco.",
+        "unauthorized": "Tu sesión ha caducado. Vuelve a iniciar sesión para redimensionar el disco.",
+        "forbidden": "No tienes permiso para redimensionar este disco.",
+        "not_found": "No se ha encontrado el disco.",
+        "storage_no_consumer_retry_later": "Ahora mismo no hay ningún trabajador de almacenamiento disponible. Inténtalo de nuevo en unos minutos.",
+        "storage_overloaded_retry_later": "Las tareas de almacenamiento están saturadas en este momento. Inténtalo de nuevo en unos minutos.",
+        "internal_server": "El servidor no ha podido programar el redimensionado. Inténtalo de nuevo."
+      }
+    },
+    "delete-desktop": {
+      "errors": {
+        "generic": "No se ha podido eliminar el escritorio. Inténtalo de nuevo.",
+        "not_found": "No se encontró el escritorio.",
+        "precondition_required": "El escritorio no se puede eliminar en este momento. Inténtalo de nuevo en unos instantes."
+      }
+    },
+    "start-desktop": {
+      "errors": {
+        "generic": "No se ha podido iniciar el escritorio. Inténtalo de nuevo."
+      }
+    },
+    "delete-deployment": {
+      "errors": {
+        "generic": "No se ha podido eliminar el despliegue. Inténtalo de nuevo.",
+        "not_found": "No se encontró el despliegue.",
+        "precondition_required": "El despliegue no se puede eliminar en este momento. Inténtalo de nuevo en unos instantes.",
+        "deployment_stop": "Los escritorios del despliegue deben estar parados antes de poder eliminarlo."
+      }
+    },
+    "recreate-deployment": {
+      "errors": {
+        "generic": "No se ha podido comprobar la recreación del despliegue. Inténtalo de nuevo.",
+        "not_found": "No se encontró el despliegue.",
+        "deployment_recreate_booking_not_enough_units": "La reserva futura del despliegue no tiene suficientes unidades para los escritorios que crearía la recreación."
       }
     },
     "booking": {

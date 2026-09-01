@@ -493,6 +493,7 @@ import DeploymentModal from '@/components/deployments/DeploymentModal.vue'
 import RecycleBinModal from '@/components/recycleBin/RecycleBinModal.vue'
 import { ref, computed, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
+import { ErrorUtils } from '@/utils/errorUtils'
 
 export default {
   components: {
@@ -709,16 +710,25 @@ export default {
             setDisableRecreateButton(false)
           }
 
-          const existing = (deployment.value.desktops || []).length
-          const target = deployment.value.totalDesktops || 0
-          const toCreate = Math.max(0, target - existing)
-          context.root.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-deployment', { name: deployment.value.name, count: toCreate })}`, {
-            position: 'centerTop',
-            buttons: [
-              { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
-              { text: `${i18n.t('messages.no')}`, action: noAction }
-            ],
-            placeholder: ''
+          // Ask the API what it would really create: disabled users are skipped there.
+          $store.dispatch('fetchRecreateDeploymentCount', { id: deployment.value.id }).then(toCreate => {
+            context.root.$snotify.clear()
+            if (!toCreate) {
+              setDisableRecreateButton(false)
+              ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.no-desktops-to-recreate', { name: deployment.value.name }), '', false, 3000)
+              return
+            }
+            context.root.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-deployment', { name: deployment.value.name, count: toCreate })}`, {
+              position: 'centerTop',
+              buttons: [
+                { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+                { text: `${i18n.t('messages.no')}`, action: noAction }
+              ],
+              placeholder: ''
+            })
+          }).catch(e => {
+            setDisableRecreateButton(false)
+            ErrorUtils.handleErrors(e, context.root.$snotify)
           })
         }
       })

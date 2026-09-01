@@ -220,6 +220,7 @@ const deploymentDesktopItems = computed<DomainInfoItem[]>(() => {
     bootOrder: d.boot_order.map((bo) => bo.name),
     diskBus: d.disk_bus?.name,
     vga: d.videos.map((v) => v.name),
+    interfaces: d.interfaces,
     viewers: d.viewers,
     fullscreen: d.fullscreen,
     isos: d.isos?.map((iso) => iso.name),
@@ -251,6 +252,7 @@ const openDeploymentInfoModal = () => {
     :boot-order="modalDesktopDetails?.boot_order.map((bo) => bo.name)"
     :disk-bus="modalDesktopDetails?.disk_bus?.name"
     :vga="modalDesktopDetails?.videos.map((vga) => vga.name)"
+    :interfaces="modalDesktopDetails?.interfaces"
     :viewers="modalDesktopDetails?.viewers"
     :isos="modalDesktopDetails?.isos?.map((iso) => iso.name)"
     :floppies="modalDesktopDetails?.floppies?.map((floppy) => floppy.name)"
@@ -372,6 +374,7 @@ const openDeploymentInfoModal = () => {
         </div>
 
         <DomainSummary
+          kind="deployment"
           :loading="desktopDetailsIsPending"
           :title="desktopDetails?.name"
           :credentials="desktopDetails?.credentials"

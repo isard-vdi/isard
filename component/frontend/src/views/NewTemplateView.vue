@@ -4,10 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
-import { useQuery, useMutation } from '@tanstack/vue-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { getUserDesktopsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { getDesktopDetails } from '@/gen/oas/apiv4'
-import { checkQuotaNewTemplateOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import {
+  checkQuotaNewTemplateOptions,
+  getDesktopDetailsOptions
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { QuotaExceededModal } from '@/components/modal'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 
@@ -50,6 +52,7 @@ import { EmptyState, SearchInput } from '@/components/page'
 const route = useRoute()
 const router = useRouter()
 const { t, d } = useI18n()
+const queryClient = useQueryClient()
 
 // --------------------------------------------------
 // Quota check
@@ -89,15 +92,15 @@ const {
   variables: desktopDetailsDesktopId,
   reset: resetDesktopDetails
 } = useMutation({
-  mutationFn: async (desktopId: string) => {
-    const { data } = await getDesktopDetails({
-      path: {
-        desktop_id: desktopId
-      },
-      throwOnError: true
-    })
-    return data
-  }
+  mutationFn: (desktopId: string) =>
+    queryClient.fetchQuery(
+      getDesktopDetailsOptions({
+        path: {
+          desktop_id: desktopId
+        },
+        throwOnError: true
+      })
+    )
 })
 
 const openDesktopInfoModal = (desktopId: string) => {
@@ -261,6 +264,7 @@ const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
       :boot-order="desktopDetails?.boot_order.map((bo) => bo.name)"
       :disk-bus="desktopDetails?.disk_bus?.name"
       :vga="desktopDetails?.videos.map((vga) => vga.name)"
+      :interfaces="desktopDetails?.interfaces"
       :viewers="desktopDetails?.viewers"
       :isos="desktopDetails?.isos?.map((iso) => iso.name)"
       :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"

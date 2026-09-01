@@ -33,6 +33,17 @@ async def can_create_desktop(
     return Quotas.desktop_create(payload["user_id"])
 
 
+async def can_create_volatile_desktop(
+    payload: str = Depends(has_token),
+):
+    """
+    Check if the user can create a new temporal desktop according to their quota.
+    Its used counter is the non-persistent one, so the desktop quota says nothing
+    about it.
+    """
+    return Quotas.volatile_create(payload["user_id"])
+
+
 async def can_create_template(
     payload: str = Depends(is_not_user),
 ):

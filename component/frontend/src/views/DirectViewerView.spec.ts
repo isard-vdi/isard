@@ -16,7 +16,8 @@ const mainButtonAction = ref<string>('none')
 const cookieSetMock = vi.fn()
 const connectMock = vi.fn()
 const clientSetConfigMock = vi.fn()
-const refetchMock = vi.fn()
+const setQueryDataMock = vi.fn()
+const renewMock = vi.fn()
 // useMutation is called twice in the view (resetDesktop, then startDesktop);
 // capture each returned mutate in order.
 const mutations: { mutate: ReturnType<typeof vi.fn> }[] = []
@@ -37,13 +38,23 @@ vi.mock('@tanstack/vue-query', () => {
         isPending: viewerPending
       }
     if (idx === 1) return { data: loginConfig, error: ref(null), isPending: ref(false) }
-    return { data: desktopDetails, error: ref(null), isPending: ref(false), refetch: refetchMock }
+    return { data: desktopDetails, error: ref(null), isPending: ref(false) }
   }
-  const useQueryClient = () => ({ setQueryData: vi.fn(), invalidateQueries: vi.fn() })
-  const useMutation = () => {
+  const useQueryClient = () => ({
+    setQueryData: setQueryDataMock,
+    invalidateQueries: vi.fn()
+  })
+  const useMutation = (options?: any) => {
     const mutate = vi.fn()
+    // `mutateAsync` runs the real mutationFn + onSuccess so the token-renewal
+    // wiring can be asserted end to end.
+    const mutateAsync = vi.fn(async (vars?: unknown) => {
+      const result = await options?.mutationFn?.(vars)
+      await options?.onSuccess?.(result, vars)
+      return result
+    })
     mutations.push({ mutate })
-    return { mutate, isPending: ref(false) }
+    return { mutate, mutateAsync, isPending: ref(false) }
   }
   return { useQuery, useQueryClient, useMutation }
 })
@@ -57,7 +68,16 @@ vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
   apiV4LoginConfigOptions: () => ({ queryKey: { _id: 'login' } })
 }))
 
-vi.mock('@/gen/oas/apiv4', () => ({}))
+vi.mock('@/gen/oas/apiv4', () => ({
+  // Wrapped so the factory doesn't touch `renewMock` before it is initialised.
+  renewDesktopViewerByToken: (...args: unknown[]) => renewMock(...args)
+}))
+
+// `exp` in the past for `expiring-jwt`, an hour out for anything else.
+vi.mock('jwt-decode', () => ({
+  jwtDecode: (jwt: string) =>
+    jwt === 'expiring-jwt' ? { exp: 1 } : { exp: Math.floor(Date.now() / 1000) + 3600 }
+}))
 
 vi.mock('@/gen/oas/apiv4/types.gen', () => ({
   DesktopStatusEnum: {
@@ -117,14 +137,16 @@ vi.mock('@/services/directViewerSocket', () => ({
 // controlled per-test via the refs above.
 vi.mock('@/lib/desktops', () => ({
   desktopBookingNotificationText: () => bookingText.value,
-  desktopActionsData: () => ({
+  desktopActionsData: (status: string) => ({
     actionButton: {
       action: mainButtonAction.value,
       hierarchy: 'primary',
       icon: '',
       iconClass: '',
       label: 'action'
-    }
+    },
+    // Mirrors the real helper: viewers only while the desktop is up.
+    viewers: ['Started', 'WaitingIP', 'Shutting-down'].includes(status)
   }),
   DesktopActionsEnum: { Reset: 'reset', Stop: 'stop', Start: 'start' }
 }))
@@ -154,8 +176,10 @@ vi.mock('@/components/desktop-card', () => ({
   },
   DesktopCardIp: { template: '<div data-test="card-ip" />' },
   DesktopCardNetworksOverlay: {
+    props: ['desktopIp'],
     emits: ['showNetworksModal'],
-    template: '<div data-test="card-networks" @click="$emit(\'showNetworksModal\')" />'
+    template:
+      '<div data-test="card-networks" :data-ip="desktopIp" @click="$emit(\'showNetworksModal\')" />'
   },
   DesktopCardBastionOverlay: { template: '<div data-test="card-bastion" />' },
   DesktopCardInfoOverlay: {
@@ -302,7 +326,8 @@ describe('DirectViewerView', () => {
     cookieSetMock.mockReset()
     connectMock.mockReset()
     clientSetConfigMock.mockReset()
-    refetchMock.mockReset()
+    setQueryDataMock.mockReset()
+    renewMock.mockReset()
     mutations.length = 0
     useQueryCallIndex = 0
   })
@@ -353,7 +378,31 @@ describe('DirectViewerView', () => {
       'resolved-jwt',
       expect.objectContaining({ path: '/', sameSite: 'strict' })
     )
-    expect(connectMock).toHaveBeenCalledWith('resolved-jwt')
+    // The socket gets a getter, not the string: a renewed token has to reach
+    // every reconnect handshake.
+    const getJwt = connectMock.mock.calls.at(-1)![0]
+    expect(typeof getJwt).toBe('function')
+    expect(getJwt()).toBe('resolved-jwt')
+  })
+
+  it('renews the viewer jwt when it is about to expire', async () => {
+    renewMock.mockResolvedValue({
+      data: startedDesktop({ jwt: 'renewed-jwt', status: 'Started' })
+    })
+    viewerData.value = startedDesktop({ jwt: 'expiring-jwt' })
+    mountView()
+    await flushPromises()
+    await vi.waitFor(() => expect(renewMock).toHaveBeenCalled())
+
+    expect(renewMock.mock.calls[0][0]).toMatchObject({ path: { token: 'tok-1' } })
+    // The fresh payload is written back onto the get-viewer cache entry, which
+    // is what re-arms the client header, the cookie and the socket.
+    await vi.waitFor(() => expect(setQueryDataMock).toHaveBeenCalled())
+    const patch = setQueryDataMock.mock.calls[0][1]
+    const merged = patch({ ...viewerData.value, status: 'Stopped' })
+    expect(merged).toMatchObject({ jwt: 'renewed-jwt' })
+    // renew-viewer reports a synthesised Started/WaitingIP; the live status wins.
+    expect(merged.status).toBe('Stopped')
   })
 
   it('feeds the scheduled-shutdown notification text into the card header', async () => {
@@ -400,7 +449,8 @@ describe('DirectViewerView', () => {
     const modalButtons = wrapper.find('[data-test="reset-modal"]').findAll('[data-test="btn"]')
     expect(modalButtons.length).toBe(2)
     await modalButtons[1].trigger('click')
-    expect(mutations[0].mutate).toHaveBeenCalled()
+    // Declaration order in the view: [0] token renewal, [1] reset, [2] start.
+    expect(mutations[1].mutate).toHaveBeenCalled()
   })
 
   it('shows the viewer button group and opens the change-viewer modal for multiple viewers', async () => {
@@ -417,11 +467,28 @@ describe('DirectViewerView', () => {
     expect(wrapper.find('[data-test="button-group"]').exists()).toBe(true)
     expect(wrapper.find('[data-test="change-viewer-modal"]').attributes('data-open')).toBe('false')
 
-    const settings = wrapper.find('[aria-label="views.direct-viewer.select-viewer"]')
+    const settings = wrapper.find('[aria-label="components.change-viewer-modal.title"]')
     expect(settings.exists()).toBe(true)
     await settings.trigger('click')
     expect(wrapper.find('[data-test="change-viewer-modal"]').attributes('data-open')).toBe('true')
   })
+
+  it.each(['Stopped', 'Maintenance'])(
+    'hides the viewer button group when the desktop turns %s elsewhere',
+    async (status) => {
+      viewerData.value = startedDesktop({
+        viewers: { 'browser-vnc': { kind: 'browser', viewer: '/viewer/vnc' } }
+      })
+      const wrapper = mountView()
+      await flushPromises()
+      expect(wrapper.find('[data-test="button-group"]').exists()).toBe(true)
+
+      viewerData.value = { ...viewerData.value, status }
+      await flushPromises()
+
+      expect(wrapper.find('[data-test="button-group"]').exists()).toBe(false)
+    }
+  )
 
   it('opens a browser viewer in a new tab with the direct flag set', async () => {
     const openSpy = vi.fn()
@@ -488,16 +555,19 @@ describe('DirectViewerView', () => {
     expect(wrapper.find('[data-test="info-modal"]').attributes('data-open')).toBe('true')
   })
 
-  it('refetches the desktop details when the viewer status changes', async () => {
-    viewerData.value = startedDesktop({ status: 'WaitingIP' })
-    mountView()
-    await flushPromises()
-    refetchMock.mockClear()
-
-    // Socket flips the desktop to Started → details (holding the IP) refetch.
-    viewerData.value = { ...viewerData.value, status: 'Started' }
+  it('shows the guest IP straight off the viewer payload once the socket reports it', async () => {
+    // The IP rides on get-viewer, so the socket patch is enough — no
+    // get-details round trip is involved in surfacing it.
+    viewerData.value = startedDesktop({ status: 'WaitingIP', ip: null })
+    const wrapper = mountView()
     await flushPromises()
 
-    expect(refetchMock).toHaveBeenCalled()
+    await wrapper.find('[data-test="overlay-btn"][data-icon="modem-02"]').trigger('click')
+    expect(wrapper.find('[data-test="card-networks"]').attributes('data-ip')).toBeUndefined()
+
+    viewerData.value = { ...viewerData.value, status: 'Started', ip: '10.1.2.3' }
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="card-networks"]').attributes('data-ip')).toBe('10.1.2.3')
   })
 })

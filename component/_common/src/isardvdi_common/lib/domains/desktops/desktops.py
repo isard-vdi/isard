@@ -1237,6 +1237,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                                 "memory": True,
                                 "vcpus": True,
                                 "videos": True,
+                                "disk_bus": True,
                             },
                             "reservables": True,
                         },
@@ -1852,6 +1853,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 "bad_request",
                 "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
                 traceback.format_exc(),
+                description_code="rdp_requires_wireguard",
             )
 
         if "none" in hardware["videos"] and (

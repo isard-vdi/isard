@@ -1,5 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, readonly, ref, toValue, reactive, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onMounted,
+  readonly,
+  ref,
+  shallowRef,
+  toValue,
+  reactive,
+  watch,
+  watchEffect
+} from 'vue'
 
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import {
@@ -14,7 +25,7 @@ import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { useForm } from '@tanstack/vue-form'
-import { useWindowVirtualizer } from '@tanstack/vue-virtual'
+import { useWindowVirtualizer, type VirtualItem } from '@tanstack/vue-virtual'
 
 import {
   getUserDesktopsOptions,
@@ -33,16 +44,15 @@ import {
   createBookingEventMutation,
   startDesktopMutation,
   stopDesktopMutation,
-  checkQuotaNewDesktopOptions,
   checkQuotaNewTemplateOptions,
-  checkStoragePoolCreationAvailabilityOptions
+  checkStoragePoolCreationAvailabilityOptions,
+  getDesktopDetailsOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   startDesktop,
   stopDesktop,
   stopDesktops,
   getDesktopNetworks,
-  getDesktopDetails as getDesktopInfo,
   deleteDesktop,
   updateDesktopBastionAuthorizedKeys,
   getDesktopViewerByType as getDesktopViewer,
@@ -64,8 +74,11 @@ import { getEndTimeIntervals } from '@/lib/booking/end-time-intervals'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { sessionTokenName } from '@/lib/auth'
 import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
+import { describeApiError } from '@/lib/api-errors'
 import { resolveDesktopKind } from '@/lib/desktops'
 import { useNotificationModalStore } from '@/stores/notification-modal'
+import { useUserStore } from '@/stores/user'
+import { canCreateAnyDesktop } from '@/lib/quotas'
 
 import { SinglePageLayout } from '@/layouts/single-page'
 
@@ -75,7 +88,7 @@ import {
   DesktopBastionInfoModal,
   DesktopNetworksModal
 } from '@/components/desktops'
-import { DesktopStorageModal } from '@/components/desktop-card/desktop-storage-modal'
+import { AdvancedOptionsModal } from '@/components/desktop-card/advanced-options-modal'
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { BadgeMini } from '@/components/badge/mini'
@@ -118,22 +131,27 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { toast } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ViewerSelect } from '@/components/viewer-select'
+import { AbortStorageOperationModal } from '@/components/AbortStorageOperationModal'
 
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
+import { useFastScroll } from '@/composables/useFastScroll'
 import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
 import { Kbd } from '@/components/kbd'
 
-const { t, d } = useI18n()
+const { t, d, te } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const notificationModalStore = useNotificationModalStore()
+const userStore = useUserStore()
 
 const { mutate: fetchAndOpenViewer, preferedViewers } = useFetchAndOpenViewer()
 
@@ -200,6 +218,10 @@ const QUOTA_EXCEEDED_MODAL_KEYS: Record<string, string> = {
 
 const showStartStorageUnavailableModal = ref(false)
 
+// Not every start failure has a quota modal: without this the mutation failed
+// with no feedback at all.
+const startErrorMessage = ref<string | null>(null)
+
 const desktopsKey = getUserDesktopsQueryKey()
 
 const {
@@ -233,6 +255,8 @@ const {
         }
       } else if (err.description_code === 'no_storage_pool_available') {
         showStartStorageUnavailableModal.value = true
+      } else {
+        startErrorMessage.value = describeApiError(error, { t, te }, 'start-desktop')
       }
     },
     onSuccess: async () => {
@@ -326,6 +350,14 @@ const networksModalData = ref<{
 const showDesktopInfoModal = ref(false)
 
 const storageModalDesktop = ref<UserDesktop | null>(null)
+
+const abortOperationModalData = ref<{
+  storageId: string
+  desktopName: string
+  operation: string
+} | null>(null)
+
+const advancedOptionsDesktop = ref<UserDesktop | null>(null)
 const {
   mutate: fetchDesktopDetails,
   isPending: fetchDesktopDetailsIsPending,
@@ -335,15 +367,15 @@ const {
   variables: desktopDetailsDesktopId,
   reset: resetDesktopDetails
 } = useMutation({
-  mutationFn: async (desktopId: string) => {
-    const { data } = await getDesktopInfo({
-      path: {
-        desktop_id: desktopId
-      },
-      throwOnError: true
-    })
-    return data
-  }
+  mutationFn: (desktopId: string) =>
+    queryClient.fetchQuery(
+      getDesktopDetailsOptions({
+        path: {
+          desktop_id: desktopId
+        },
+        throwOnError: true
+      })
+    )
 })
 
 const openDesktopInfoModal = async (desktopId: string) => {
@@ -364,15 +396,16 @@ const desktopDetailsKind = computed(() => {
 const deleteModalDesktopData = ref<{
   id: string
   name: string
+  persistent: boolean
 } | null>(null)
 const deleteModalRecicleBinChecked = ref(recycleBinDefaultDelete.value)
+
+const deleteDesktopErrorMessage = ref<string | null>(null)
 
 const {
   mutate: deleteDesktopMutate,
   mutateAsync: deleteDesktopAsync,
-  isPending: deleteDesktopIsPending,
-  isError: deleteDesktopIsError,
-  error: deleteDesktopError
+  isPending: deleteDesktopIsPending
 } = useMutation(
   withOptimisticItemRemoval<{ path: { desktop_id: string } }, UserDesktop, 'desktops'>({
     queryClient,
@@ -382,6 +415,9 @@ const {
     baseMutation: deleteDesktopMutation(),
     onSuccess: () => {
       closeDeleteModal()
+    },
+    onError: (error) => {
+      deleteDesktopErrorMessage.value = describeApiError(error, { t, te }, 'delete-desktop')
     }
   })
 )
@@ -389,7 +425,17 @@ const {
 const closeDeleteModal = () => {
   deleteModalRecicleBinChecked.value = recycleBinDefaultDelete.value
   deleteModalDesktopData.value = null
+  deleteDesktopErrorMessage.value = null
 }
+
+// Temporal desktops are force-deleted by the backend: the recycle bin never
+// applies to them.
+const deleteIsPermanent = computed(
+  () =>
+    !deleteModalDesktopData.value?.persistent ||
+    recycleBinCutoffTime.value?.recycle_bin_cutoff_time === 0 ||
+    !deleteModalRecicleBinChecked.value
+)
 
 // --------------------------------------------------
 
@@ -720,7 +766,7 @@ const startNowForm = useForm({
       desktopStart({ path: { desktop_id: startNowModalDesktopData.value!.id } })
       closeStartNowModal()
     } catch (bookingError) {
-      console.error('Error creating booking event:', bookingError)
+      toast.error(describeApiError(bookingError, { t, te }, 'booking'))
     }
   }
 })
@@ -749,12 +795,7 @@ const desktopCreationCheckIsPending = ref(false)
 
 const goToNewDesktop = async () => {
   desktopCreationCheckIsPending.value = true
-  try {
-    await queryClient.fetchQuery({
-      ...checkQuotaNewDesktopOptions(),
-      staleTime: QUOTA_STALE_TIME
-    })
-  } catch {
+  if (!(await canCreateAnyDesktop(queryClient, userStore.config?.show_temporal_tab !== false))) {
     desktopCreationCheckIsPending.value = false
     quotaExceededModalData.value = {
       title: t('components.desktops.quota-exceeded-modal.title'),
@@ -833,7 +874,7 @@ watch(showDesktopFilters, (newValue) => {
   })
 })
 
-const { width: windowWidth } = useWindowSize()
+const { width: windowWidth, height: windowHeight } = useWindowSize()
 const { y: windowScrollY } = useWindowScroll()
 
 // Below `sm` the toolbar buttons drop their label, so a tooltip takes over
@@ -852,6 +893,12 @@ const CARD_GRID_GAP = 16
 
 const cardGridRef = ref<HTMLElement | null>(null)
 const { width: cardGridWidth } = useElementSize(cardGridRef)
+
+const desktopToolbarRef = ref<HTMLElement | null>(null)
+// Border box: the toolbar's padding is part of what covers the curtain.
+const { height: desktopToolbarHeight } = useElementSize(desktopToolbarRef, undefined, {
+  box: 'border-box'
+})
 
 // Mirrors what `repeat(auto-fill, minmax(min, 1fr))` would have resolved to.
 const cardGridColumns = computed(() => {
@@ -874,9 +921,14 @@ const cardGridRows = computed(() => {
 // how much page precedes it. Remeasured on anything that reflows the toolbar
 // above, but never on scroll — that would be the reflow-per-event we just left.
 const cardGridOffsetTop = ref(0)
+// Viewport-relative, so the fixed overlay does not cover the sidebar.
+const cardGridOffsetLeft = ref(0)
 const measureCardGridOffset = () => {
   const el = cardGridRef.value
-  if (el) cardGridOffsetTop.value = el.getBoundingClientRect().top + window.scrollY
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  cardGridOffsetTop.value = rect.top + window.scrollY
+  cardGridOffsetLeft.value = rect.left
 }
 
 onMounted(measureCardGridOffset)
@@ -884,7 +936,9 @@ useEventListener('resize', measureCardGridOffset)
 // Deliberately not watching the desktop count: more rows grow the grid
 // downwards but never move its top, so remeasuring per keystroke only bought a
 // forced reflow — and a costlier one the more cards the DOM held.
-watch([showDesktopFilters, cardGridColumns, viewMode], () => nextTick(measureCardGridOffset))
+watch([showDesktopFilters, cardGridColumns, cardGridWidth, viewMode], () =>
+  nextTick(measureCardGridOffset)
+)
 
 const cardGridVirtualizer = useWindowVirtualizer(
   computed(() => ({
@@ -894,9 +948,67 @@ const cardGridVirtualizer = useWindowVirtualizer(
     scrollMargin: cardGridOffsetTop.value
   }))
 )
+
+const { isFastScrolling } = useFastScroll()
+
+// The toolbar is sticky on top of the curtain, so the curtain starts where the
+// toolbar ends: anything higher is a first row cut in half. Then enough rows to
+// fill the rest of the viewport, plus the one it is scrolled into.
+const TOOLBAR_TOP = 64
+const curtainTop = computed(() => TOOLBAR_TOP + desktopToolbarHeight.value)
+const curtainRows = computed(
+  () =>
+    Math.ceil((windowHeight.value - curtainTop.value) / (cardGridRowHeight.value + CARD_GRID_GAP)) +
+    1
+)
+
+// The rows the cards render from lag the scroll by a frame, and stop moving
+// altogether once the curtain is up. Committing them straight from the scroll
+// event costs ~18ms a card in the very flush that has to reveal the curtain,
+// which is how the fling used to outrun it.
+const cardVirtualRows = shallowRef<VirtualItem[]>([])
+let commitScheduled = false
+
+const commitVirtualRows = () => {
+  cardVirtualRows.value = cardGridVirtualizer.value.getVirtualItems()
+}
+
+watchEffect(() => {
+  cardGridVirtualizer.value.getVirtualItems()
+  if (commitScheduled) return
+  commitScheduled = true
+  requestAnimationFrame(() => {
+    commitScheduled = false
+    if (!isFastScrolling.value) commitVirtualRows()
+  })
+})
+
+// Back in one go with the curtain: same flush, so the rows are on screen the
+// moment it lifts.
+watch(isFastScrolling, (fast) => {
+  if (!fast) commitVirtualRows()
+})
+
+// The curtain stands in for rows that are not built. Filter down to a handful
+// of desktops and every row on screen is already there, so a fling has nothing
+// to wait for and the curtain would be pure noise.
+const missingCardRows = computed(() => {
+  const built = new Set(cardVirtualRows.value.map((row) => row.index))
+  return cardGridVirtualizer.value.getVirtualItems().some((row) => !built.has(row.index))
+})
 </script>
 
 <template>
+  <!-- Abort Storage Operation Modal -->
+  <AbortStorageOperationModal
+    v-if="abortOperationModalData !== null"
+    :open="abortOperationModalData !== null"
+    :storage-id="abortOperationModalData?.storageId"
+    :desktop-name="abortOperationModalData?.desktopName"
+    @close="abortOperationModalData = null"
+  />
+
+  <!-- Direct Viewer Modal -->
   <DirectViewerModal
     :open="directLinkDesktopId !== null"
     :desktop-id="directLinkDesktopId"
@@ -945,6 +1057,22 @@ const cardGridVirtualizer = useWindowVirtualizer(
     </template>
   </AlertModal>
 
+  <!-- Start error modal -->
+  <AlertModal
+    :open="startErrorMessage !== null"
+    level="danger"
+    size="md"
+    :title="t('components.desktops.start-error-modal.title')"
+    :description="startErrorMessage ?? ''"
+    @close="startErrorMessage = null"
+  >
+    <template #footer>
+      <Button hierarchy="primary" @click="startErrorMessage = null">{{
+        t('components.desktops.start-error-modal.close')
+      }}</Button>
+    </template>
+  </AlertModal>
+
   <!-- Delete modal -->
   <AlertModal
     :open="deleteModalDesktopData !== null"
@@ -960,8 +1088,11 @@ const cardGridVirtualizer = useWindowVirtualizer(
   >
     <!-- TODO: Delete modal component -->
     <template #description>
+      <Alert v-if="deleteDesktopErrorMessage" variant="destructive" class="mb-4">
+        <AlertDescription>{{ deleteDesktopErrorMessage }}</AlertDescription>
+      </Alert>
       <Label
-        v-if="recycleBinCutoffTime?.recycle_bin_cutoff_time"
+        v-if="recycleBinCutoffTime?.recycle_bin_cutoff_time && deleteModalDesktopData?.persistent"
         class="w-fit flex flex-row items-start gap-2"
       >
         <Checkbox v-model="deleteModalRecicleBinChecked" class="m-0.5" />
@@ -990,10 +1121,7 @@ const cardGridVirtualizer = useWindowVirtualizer(
         @click="
           deleteDesktopMutate({
             path: { desktop_id: deleteModalDesktopData.id },
-            query: {
-              permanent:
-                recycleBinCutoffTime?.recycle_bin_cutoff_time === 0 || !deleteModalRecicleBinChecked
-            }
+            query: { permanent: deleteIsPermanent }
           })
         "
       >
@@ -1004,7 +1132,7 @@ const cardGridVirtualizer = useWindowVirtualizer(
           stroke-color="currentColor"
         />
         {{
-          recycleBinCutoffTime?.recycle_bin_cutoff_time === 0 || !deleteModalRecicleBinChecked
+          deleteIsPermanent
             ? t('components.delete-confirmation-modal.confirm.permanent')
             : t('components.delete-confirmation-modal.confirm.recycle-bin')
         }}
@@ -1026,6 +1154,7 @@ const cardGridVirtualizer = useWindowVirtualizer(
     :boot-order="desktopDetails?.boot_order.map((bo) => bo.name)"
     :disk-bus="desktopDetails?.disk_bus?.name"
     :vga="desktopDetails?.videos.map((vga) => vga.name)"
+    :interfaces="desktopDetails?.interfaces"
     :viewers="desktopDetails?.viewers"
     :isos="desktopDetails?.isos?.map((iso) => iso.name)"
     :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"
@@ -1335,7 +1464,11 @@ const cardGridVirtualizer = useWindowVirtualizer(
         @show-info-modal="openDesktopInfoModal(routeDesktop.id)"
         @edit-desktop="goToEditDesktop(routeDesktop.id)"
         @show-delete-modal="
-          deleteModalDesktopData = { id: routeDesktop.id, name: routeDesktop.name }
+          deleteModalDesktopData = {
+            id: routeDesktop.id,
+            name: routeDesktop.name,
+            persistent: routeDesktop.type !== 'nonpersistent'
+          }
         "
         @show-bastion-modal="
           bastionModalData = { desktopId: routeDesktop.id, desktopName: routeDesktop.name }
@@ -1346,7 +1479,14 @@ const cardGridVirtualizer = useWindowVirtualizer(
         "
         @create-template="goToNewTemplate(routeDesktop.id)"
         @book-desktop="goToBookingDesktop(routeDesktop.id)"
-        @show-storage-modal="storageModalDesktop = routeDesktop"
+        @desktop-abort-operation="
+          abortOperationModalData = {
+            storageId: routeDesktop.storage?.[0]!,
+            desktopName: routeDesktop.name,
+            operation: 'abort'
+          }
+        "
+        @show-storage-modal="advancedOptionsDesktop = routeDesktop"
       />
 
       <template #actions>
@@ -1371,6 +1511,7 @@ const cardGridVirtualizer = useWindowVirtualizer(
   <main v-else class="-mt-4 flex w-full flex-1 flex-col">
     <div
       v-if="!isFirstRun"
+      ref="desktopToolbarRef"
       :class="
         cn(
           'sticky top-16 z-40 -mx-5 mb-1 flex flex-col gap-3 bg-base-background px-5 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-8 before:bg-base-background',
@@ -1662,7 +1803,11 @@ const cardGridVirtualizer = useWindowVirtualizer(
           @edit-desktop="(dktp) => goToEditDesktop(dktp.id)"
           @show-delete-modal="
             (dktp) => {
-              deleteModalDesktopData = { id: dktp.id, name: dktp.name }
+              deleteModalDesktopData = {
+                id: dktp.id,
+                name: dktp.name,
+                persistent: dktp.type !== 'nonpersistent'
+              }
             }
           "
           @show-bastion-modal="
@@ -1678,16 +1823,62 @@ const cardGridVirtualizer = useWindowVirtualizer(
           "
           @create-template="(dktp) => goToNewTemplate(dktp.id)"
           @book-desktop="(dktp) => goToBookingDesktop(dktp.id)"
-          @show-storage-modal="(dktp: UserDesktop) => (storageModalDesktop = dktp)"
+          @desktop-abort-operation="
+            (dktp) => {
+              abortOperationModalData = {
+                storageId: dktp.storage?.[0]!,
+                desktopName: dktp.name,
+                operation: 'abort'
+              }
+            }
+          "
+          @show-storage-modal="(dktp: UserDesktop) => (advancedOptionsDesktop = dktp)"
         />
 
         <div v-else ref="cardGridRef" class="w-full">
+          <!-- Fixed and never re-rendered: the compositor keeps it in place while
+               the main thread works, so the fling outruns nothing. Mounted from
+               the start, because building it once the fling is on is already
+               too late. -->
+          <div
+            v-show="isFastScrolling && missingCardRows"
+            aria-hidden="true"
+            class="bg-base-background pointer-events-none fixed bottom-0 z-20 overflow-hidden pt-4"
+            :style="{
+              top: `${curtainTop}px`,
+              left: `${cardGridOffsetLeft}px`,
+              width: `${cardGridWidth}px`
+            }"
+          >
+            <div
+              class="grid gap-4"
+              :style="{ gridTemplateColumns: `repeat(${cardGridColumns}, minmax(0, 1fr))` }"
+            >
+              <DesktopCardSkeleton
+                v-for="n in cardGridColumns * curtainRows"
+                :key="n"
+                :style="{ height: `${cardGridRowHeight}px` }"
+              />
+            </div>
+
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div
+                class="flex flex-col items-center gap-4 rounded-xl bg-base-white/90 px-10 py-8 shadow-lg"
+              >
+                <Spinner />
+                <p class="text-base font-medium text-gray-warm-600">
+                  {{ t('views.desktops.loading') }}
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div
             class="relative w-full"
             :style="{ height: `${cardGridVirtualizer.getTotalSize()}px` }"
           >
             <div
-              v-for="virtualRow in cardGridVirtualizer.getVirtualItems()"
+              v-for="virtualRow in cardVirtualRows"
               :key="virtualRow.key"
               class="absolute left-0 top-0 grid w-full gap-4"
               :style="{
@@ -1724,7 +1915,13 @@ const cardGridVirtualizer = useWindowVirtualizer(
                 "
                 @show-info-modal="openDesktopInfoModal(dktp.id)"
                 @edit-desktop="goToEditDesktop(dktp.id)"
-                @show-delete-modal="deleteModalDesktopData = { id: dktp.id, name: dktp.name }"
+                @show-delete-modal="
+                  deleteModalDesktopData = {
+                    id: dktp.id,
+                    name: dktp.name,
+                    persistent: dktp.type !== 'nonpersistent'
+                  }
+                "
                 @show-bastion-modal="
                   bastionModalData = { desktopId: dktp.id, desktopName: dktp.name }
                 "
@@ -1734,7 +1931,14 @@ const cardGridVirtualizer = useWindowVirtualizer(
                 "
                 @create-template="goToNewTemplate(dktp.id)"
                 @book-desktop="goToBookingDesktop(dktp.id)"
-                @show-storage-modal="storageModalDesktop = dktp"
+                @desktop-abort-operation="
+                  abortOperationModalData = {
+                    storageId: dktp.storage?.[0]!,
+                    desktopName: dktp.name,
+                    operation: 'abort'
+                  }
+                "
+                @show-storage-modal="advancedOptionsDesktop = dktp"
               />
             </div>
           </div>
@@ -1742,10 +1946,10 @@ const cardGridVirtualizer = useWindowVirtualizer(
       </template>
     </div>
 
-    <DesktopStorageModal
-      :open="storageModalDesktop !== null"
-      :desktop="storageModalDesktop ?? undefined"
-      @close="storageModalDesktop = null"
+    <AdvancedOptionsModal
+      :open="advancedOptionsDesktop !== null"
+      :desktop="advancedOptionsDesktop ?? undefined"
+      @close="advancedOptionsDesktop = null"
     />
   </main>
 </template>

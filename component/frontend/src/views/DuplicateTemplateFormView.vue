@@ -15,6 +15,7 @@ import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 import { checkQuotaNewTemplateOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { QuotaExceededModal } from '@/components/modal'
+import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -25,10 +26,11 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
 import { FormHeader } from '@/components/form-header'
 import { Switch } from '@/components/ui/switch'
+import { describeErrorCode } from '@/lib/api-errors'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 // --------------------------------------------------
 // Quota check
@@ -76,8 +78,36 @@ const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
 const infoRef = ref<InstanceType<typeof DomainInfoSection> | null>(null)
 const enabled = ref(true)
 
+const showAllowedModal = ref<boolean>(false)
+
+const allowed = ref<AllowedSelection>({ groups: false, users: false })
+
+const bucketCount = (bucket: boolean | string[]) => (Array.isArray(bucket) ? bucket.length : 0)
+const isEveryone = (bucket: boolean | string[]) => Array.isArray(bucket) && bucket.length === 0
+
+const allowedGroupCount = computed(() => bucketCount(allowed.value.groups))
+const allowedUserCount = computed(() => bucketCount(allowed.value.users))
+
+const allowedSummary = computed<'everyone' | 'nobody' | 'counts'>(() => {
+  if (isEveryone(allowed.value.groups) || isEveryone(allowed.value.users)) return 'everyone'
+  return allowedGroupCount.value + allowedUserCount.value === 0 ? 'nobody' : 'counts'
+})
+
+const handleSaveAllowed = (selection: AllowedSelection) => {
+  allowed.value = selection
+  showAllowedModal.value = false
+}
+
 const isValid = computed(() => infoRef.value?.isValid ?? false)
-const isDirty = computed(() => !!infoRef.value?.isDirty || !!selectedImage.value || !enabled.value)
+
+const isDirty = computed(
+  () =>
+    !!infoRef.value?.isDirty ||
+    !!selectedImage.value ||
+    !enabled.value ||
+    allowed.value.groups !== false ||
+    allowed.value.users !== false
+)
 
 const summary = computed(() => ({
   credentials: templateDetails.value?.credentials,
@@ -94,6 +124,9 @@ const summary = computed(() => ({
 }))
 
 const duplicateTemplateErrorCode = ref<string | undefined>(undefined)
+const duplicateTemplateErrorMessage = computed(() =>
+  describeErrorCode(duplicateTemplateErrorCode.value, { t, te }, 'api.new-template.errors')
+)
 const {
   mutate: duplicateTemplate,
   isPending: duplicateTemplateIsPending,
@@ -145,10 +178,7 @@ const handleSubmit = () => {
       image: selectedImage.value
         ? { id: selectedImage.value.id, type: selectedImage.value.type }
         : undefined,
-      allowed: {
-        users: false,
-        groups: false
-      }
+      allowed: allowed.value
     }
   })
 }
@@ -194,9 +224,7 @@ const handleSubmit = () => {
           <AlertTitle class="font-bold text-gray-warm-700 mb-2">{{
             t(`views.new-template.form.errors.title`)
           }}</AlertTitle>
-          <AlertDescription>{{
-            t(`api.new-template.errors.${duplicateTemplateErrorCode}`)
-          }}</AlertDescription>
+          <AlertDescription>{{ duplicateTemplateErrorMessage }}</AlertDescription>
         </Alert>
 
         <DomainInfoSection
@@ -234,24 +262,38 @@ const handleSubmit = () => {
               <h1 class="text-lg font-semibold text-gray-warm-900">
                 {{ t('views.new-template.form.sections.alloweds.title') }}
               </h1>
+              <h2
+                v-if="allowedSummary !== 'counts'"
+                class="text-sm font-regular text-gray-warm-700"
+              >
+                {{ t(`views.new-template.form.sections.alloweds.subtitle-${allowedSummary}`) }}
+              </h2>
               <i18n-t
+                v-else
                 keypath="views.new-template.form.sections.alloweds.subtitle"
                 tag="h2"
                 class="text-sm font-regular text-gray-warm-700"
               >
                 <template #groups>
-                  <b>{{ t('users.count.groups', 0) }}</b>
+                  <b>{{ t('users.count.groups', allowedGroupCount) }}</b>
                 </template>
                 <template #users>
-                  <b>{{ t('users.count.users', 0) }}</b>
+                  <b>{{ t('users.count.users', allowedUserCount) }}</b>
                 </template>
               </i18n-t>
             </div>
 
             <div>
-              <Button icon="plus" hierarchy="secondary-gray">{{
+              <Button icon="plus" hierarchy="secondary-gray" @click="showAllowedModal = true">{{
                 t('views.new-template.form.sections.alloweds.button')
               }}</Button>
+              <AllowedModal
+                :open="showAllowedModal"
+                item-type="template"
+                :selection="allowed"
+                @close="showAllowedModal = false"
+                @save="handleSaveAllowed"
+              />
             </div>
           </div>
         </div>
@@ -266,7 +308,7 @@ const handleSubmit = () => {
             </h2>
           </div>
 
-          <DomainSummary :loading="templateDetailsIsPending" v-bind="summary" />
+          <DomainSummary kind="template" :loading="templateDetailsIsPending" v-bind="summary" />
         </div>
       </div>
     </main>

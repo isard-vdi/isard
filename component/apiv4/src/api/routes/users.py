@@ -631,8 +631,9 @@ async def set_user_email(request: Request, data: UserSetEmailPutData):
     tags=[tag],
     response_model=UserBastionSshKeyResponse,
     summary="Get the user's bastion SSH public key",
-    description="Returns the single SSH public key stored on the user's profile, "
-    "automatically added to the bastion access of any bastion-SSH desktop the user starts.",
+    description="Returns the single SSH public key stored on the user's profile. The "
+    "bastion accepts it for any bastion-SSH desktop the user owns, and for the desktops "
+    "of any deployment they own or co-own.",
 )
 async def get_user_bastion_ssh_key(request: Request):
     try:
@@ -662,8 +663,9 @@ async def get_user_bastion_ssh_key(request: Request):
     response_model=SimpleResponse,
     summary="Set the user's bastion SSH public key",
     description="Stores a single SSH public key on the user's profile. Replaces any "
-    "existing key. The key is validated and automatically added to the bastion access "
-    "of any bastion-SSH desktop the user starts.",
+    "existing key. The key is validated, and the bastion accepts it from then on for "
+    "any bastion-SSH desktop the user owns, and for the desktops of any deployment they "
+    "own or co-own.",
     responses={
         400: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
@@ -700,8 +702,9 @@ async def set_user_bastion_ssh_key(request: Request, data: UserSetBastionSshKeyP
     status_code=204,
     response_class=Response,
     summary="Delete the user's bastion SSH public key",
-    description="Removes the SSH public key stored on the user's profile. Keys already "
-    "added to existing desktops are left untouched.",
+    description="Removes the SSH public key stored on the user's profile, revoking the "
+    "bastion access it granted. Copies of the key written into a desktop's authorized "
+    "keys by earlier releases are left untouched and must be removed there.",
     responses={
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},

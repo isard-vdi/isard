@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
+
+import { desktopHasMenuActions } from '@/lib/desktops'
 
 import { DesktopCardHeaderActionsDropdownContent, DesktopCardOverlayButton } from '..'
 import { Button } from '@/components/ui/button'
@@ -24,6 +27,13 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   activeOverlay: null
 })
+
+// Latched: the contents cost ms per card, and stay mounted for the close animation.
+const menuOpened = ref(false)
+
+const rememberMenuOpened = (open: boolean) => {
+  if (open) menuOpened.value = true
+}
 
 const emit = defineEmits<{
   infoClick: []
@@ -67,10 +77,10 @@ const bastionEnabled =
     @click="emit('bastionClick')"
   />
 
-  <Tooltip>
+  <Tooltip v-if="desktopHasMenuActions(props.desktop)">
     <TooltipTrigger as-child>
       <span class="inline-flex">
-        <DropdownMenu>
+        <DropdownMenu @update:open="rememberMenuOpened">
           <DropdownMenuTrigger>
             <Button
               hierarchy="link-gray"
@@ -81,7 +91,11 @@ const bastionEnabled =
             >
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent class="bg-white border border-gray-warm-300 rounded-lg" align="end">
+          <DropdownMenuContent
+            v-if="menuOpened"
+            class="bg-white border border-gray-warm-300 rounded-lg"
+            align="end"
+          >
             <DesktopCardHeaderActionsDropdownContent
               :desktop="props.desktop"
               @edit-desktop="emit('editDesktop')"

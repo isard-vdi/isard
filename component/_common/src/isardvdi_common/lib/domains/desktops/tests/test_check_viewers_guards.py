@@ -70,6 +70,7 @@ class TestCheckViewersGuards:
         with pytest.raises(Error) as exc:
             DP.check_viewers(data, _domain())
         assert exc.value.error["error"] == "bad_request"
+        assert exc.value.error["description_code"] == "rdp_requires_wireguard"
 
     def test_rdp_viewer_with_wireguard_passes(self):
         data = _data(viewers={"browser_rdp": True}, interfaces=["wireguard"])

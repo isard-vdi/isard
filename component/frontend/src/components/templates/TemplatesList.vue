@@ -135,7 +135,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
       {{ t('api.loading') }}
     </div>
     <div v-else-if="tableIsError" class="text-center text-error-500">
-      {{ t('api.error') }}
+      {{ t('api.loading-error') }}
     </div>
     <TemplateDataTable
       :headers="localActiveTab === 'user' ? userTemplatesHeader : userSharedTemplatesHeader"

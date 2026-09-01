@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch, onMounted } from 'vue'
+import { computed, ref, shallowRef, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
@@ -10,8 +10,7 @@ import {
   getUserDetailsOptions,
   getUserConfigOptions,
   getProviderExportEnabledOptions,
-  getProviderImportEnabledOptions,
-  getUserVpnOptions
+  getProviderImportEnabledOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -19,17 +18,14 @@ import { InputField } from '@/components/input-field'
 import { Icon } from '@/components/icon'
 import { LocaleSwitch } from '@/components/locale-switch'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertModal } from '@/components/modal'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import { TruncatedText } from '@/components/truncated-text'
-import { toast } from '@/components/ui/toast'
 import ApiKeyModal from '@/components/profile/ApiKeyModal.vue'
 import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
 import ImportUserModal from '@/components/profile/ImportUserModal.vue'
 import PasswordModal from '@/components/profile/PasswordModal.vue'
 import SshPublicKeyModal from '@/components/profile/SshPublicKeyModal.vue'
-import { userResetVpnMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { useMutation } from '@tanstack/vue-query'
+import VpnModal from '@/components/profile/VpnModal.vue'
 import profileImg from '@/assets/img/profile-img.svg'
 import QuotaModal from '@/components/profile/QuotaModal.vue'
 
@@ -66,29 +62,6 @@ const { data: importEnabled } = useQuery(
     enabled: !!userDetails.value?.provider
   }))
 )
-
-const { refetch: refetchUserVpn, isFetching: userVpnIsFetching } = useQuery({
-  ...getUserVpnOptions(),
-  enabled: false
-})
-
-const fetchVpn = async () => {
-  try {
-    const { data } = await refetchUserVpn()
-
-    if (typeof data !== 'string' || !data) return
-
-    const el = document.createElement('a')
-    el.setAttribute('href', `data:text/plain;charset=utf-8,${encodeURIComponent(data)}`)
-    el.setAttribute('download', `isard-vpn.conf`)
-    el.style.display = 'none'
-    document.body.appendChild(el)
-    el.click()
-    document.body.removeChild(el)
-  } catch (e) {
-    console.error(e)
-  }
-}
 
 const isLoading = computed(() => isUserLoading.value || isUserDetailsLoading.value)
 
@@ -141,8 +114,7 @@ const secondaryGroups = computed(
   () => userDetails.value?.secondary_groups_data?.map((group) => group.name).join(', ') || '–'
 )
 
-const showResetVpnModal = ref(false)
-const resetVpnError = ref('')
+const showVpnModal = ref(false)
 const showApiKeyModal = ref(false)
 const showSshKeyModal = ref(false)
 const showPasswordModal = shallowRef(false)
@@ -155,41 +127,10 @@ const router = useRouter()
 onMounted(() => {
   if (route.query.open === 'quota') {
     showQuotaModal.value = true
+  } else if (route.query.open === 'ssh') {
+    showSshKeyModal.value = true
   }
 })
-const { mutate: resetVpn, isPending: isResettingVpn } = useMutation(userResetVpnMutation())
-
-const handleResetVpn = () => {
-  resetVpn(
-    {},
-    {
-      onSuccess: () => {
-        resetVpnError.value = ''
-        showResetVpnModal.value = false
-        toast.success(t('components.profile.reset-vpn-modal.success'))
-      },
-      onError: (error) => {
-        const descriptionCode = (error as { response?: { data?: { description_code?: string } } })
-          ?.response?.data?.description_code
-        if (descriptionCode) {
-          const errorKey = `components.profile.reset-vpn-modal.errors.${descriptionCode}`
-          resetVpnError.value = t(errorKey, t('components.profile.reset-vpn-modal.errors.generic'))
-        } else {
-          resetVpnError.value = t('components.profile.reset-vpn-modal.errors.generic')
-        }
-      }
-    }
-  )
-}
-
-watch(
-  () => showResetVpnModal.value,
-  (isOpen) => {
-    if (isOpen) {
-      resetVpnError.value = ''
-    }
-  }
-)
 </script>
 
 <template>
@@ -410,22 +351,9 @@ watch(
                   class="justify-start min-w-56"
                   icon="shield-01"
                   icon-size="md"
-                  @click="showResetVpnModal = true"
+                  @click="showVpnModal = true"
                 >
-                  {{ t('views.profile.security.actions.reset-vpn') }}
-                </Button>
-              </div>
-              <div>
-                <Button
-                  hierarchy="secondary-gray"
-                  size="sm"
-                  class="justify-start min-w-56"
-                  icon="download-02"
-                  icon-size="md"
-                  :disabled="userVpnIsFetching"
-                  @click="fetchVpn"
-                >
-                  {{ t('views.profile.security.actions.download-vpn') }}
+                  {{ t('views.profile.security.actions.vpn') }}
                 </Button>
               </div>
             </div>
@@ -622,33 +550,5 @@ watch(
     @update:open="(val) => (showImportUserModal = val)"
   />
   <QuotaModal v-model:open="showQuotaModal" />
-
-  <AlertModal
-    v-model:open="showResetVpnModal"
-    level="warning"
-    size="md"
-    :title="t('components.profile.reset-vpn-modal.title')"
-    :description="t('components.profile.reset-vpn-modal.description')"
-    :loading="isResettingVpn"
-  >
-    <template #description>
-      <!-- TODO: unify how we want to display errors across the app -->
-      <div v-if="resetVpnError" class="mt-3 rounded-md border border-error-200 bg-error-50 p-3">
-        <p class="text-sm font-medium text-error-700">{{ resetVpnError }}</p>
-      </div>
-    </template>
-    <template #footer>
-      <Button
-        hierarchy="secondary-gray"
-        size="lg"
-        :disabled="isResettingVpn"
-        @click="showResetVpnModal = false"
-      >
-        {{ t('components.profile.reset-vpn-modal.cancel') }}
-      </Button>
-      <Button hierarchy="primary" size="lg" :disabled="isResettingVpn" @click="handleResetVpn">
-        {{ t('components.profile.reset-vpn-modal.confirm') }}
-      </Button>
-    </template>
-  </AlertModal>
+  <VpnModal v-model:open="showVpnModal" />
 </template>

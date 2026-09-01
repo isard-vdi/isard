@@ -74,7 +74,7 @@ class DeploymentService:
         return deployments
 
     @staticmethod
-    def get_deployment(deployment_id: str) -> dict:
+    def get_deployment(deployment_id: str, user_id: str = None) -> dict:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -87,6 +87,8 @@ class DeploymentService:
             len(deployment["create_dict"]) * deployment["total_users"]
         )
         deployment["desktops_each_user"] = len(deployment["create_dict"])
+        co_owners = Caches.get_document("deployments", deployment_id, ["co_owners"])
+        deployment["co_owner"] = bool(user_id) and user_id in (co_owners or [])
         return {"info": deployment, "users": users}
 
     @staticmethod
@@ -254,6 +256,26 @@ class DeploymentService:
         return deployment_id
 
     @staticmethod
+    def count_recreate_desktops(payload: dict, deployment_id: str) -> int:
+        """
+        Count the desktops a recreate would create for this deployment.
+
+        Args:
+            payload: The token payload of the requesting user
+            deployment_id: The ID of the deployment
+
+        Returns:
+            int: Number of desktops that would be created
+        """
+        if not RethinkDeployment.exists(deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+
+        return CommonDeployments.count_recreate_desktops(payload, deployment_id)
+
+    @staticmethod
     def stop_all_desktops(deployment_id: str) -> None:
         desktops = CommonDeploymentDesktops.get_desktop_ids(deployment_id)
         if not desktops:
@@ -402,7 +424,7 @@ class DeploymentService:
             )
 
     @staticmethod
-    def start_all_desktops(deployment_id: str, user_id=None) -> None:
+    def start_all_desktops(deployment_id: str) -> None:
         desktops = CommonDeploymentDesktops.get_desktop_ids(deployment_id)
         if not desktops:
             raise Error(
@@ -412,15 +434,13 @@ class DeploymentService:
             )
         DesktopEvents.desktops_start(desktops)
         # Best-effort: reconcile each desktop's bastion target to the deployment
-        # config and inject the deployment owner + co-owners (+ acting user)
-        # profile keys, owner-first and de-duped. ensure_keys_on_start resolves
-        # the deployment from the desktop, so this runs even without user_id.
+        # config, which is resolved from the desktop.
         for d_id in desktops:
             try:
-                BastionService.ensure_keys_on_start(d_id, user_id)
+                BastionService.ensure_bastion_config_on_start(d_id)
             except Exception:
                 logging.warning(
-                    "Failed to inject bastion SSH key on deployment start "
+                    "Failed to reconcile the bastion config on deployment start "
                     "of desktop %s",
                     d_id,
                     exc_info=True,
@@ -630,7 +650,7 @@ class DeploymentService:
         """Persist the bastion config on the deployment and apply it (ssh/http
         enable + ports) to every current desktop's bastion target, preserving
         each target's authorized_keys / domains. New/recreated desktops inherit
-        it at their next start via BastionService.ensure_keys_on_start.
+        it at their next start via BastionService.ensure_bastion_config_on_start.
         """
         if not RethinkDeployment.exists(deployment_id):
             raise Error(

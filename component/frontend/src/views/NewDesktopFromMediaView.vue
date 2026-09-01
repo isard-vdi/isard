@@ -24,8 +24,9 @@ import { FormHeader } from '@/components/form-header'
 import { toGuestProperties, toImageInput, toMediaHardware } from '@/lib/domainPayload'
 import router from '@/router'
 import type { DomainImageOutput, MediaKindEnum, VirtInstallItem } from '@/gen/oas/apiv4/types.gen'
+import { newDesktopErrorKey } from '@/lib/api-errors'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const route = useRoute()
 const queryClient = useQueryClient()
 
@@ -129,6 +130,7 @@ const createButtonTooltip = computed(() => {
 })
 
 const creationError = ref<string | null>(null)
+const creationErrorKey = computed(() => newDesktopErrorKey(creationError.value, { t, te }))
 const isCreating = ref(false)
 
 const { mutate: submitCreateFromMedia } = useMutation({
@@ -222,9 +224,9 @@ const handleSubmit = () => {
       <main class="max-w-320 w-full mx-auto flex flex-col gap-6">
         <!-- Creation error -->
         <Alert v-if="creationError" variant="destructive">
-          <AlertTitle>{{ t(`api.new-desktop.errors.${creationError}.title`) }}</AlertTitle>
+          <AlertTitle>{{ t(`api.new-desktop.errors.${creationErrorKey}.title`) }}</AlertTitle>
           <AlertDescription>{{
-            t(`api.new-desktop.errors.${creationError}.description`)
+            t(`api.new-desktop.errors.${creationErrorKey}.description`)
           }}</AlertDescription>
         </Alert>
 
@@ -234,6 +236,7 @@ const handleSubmit = () => {
           :info-extra-schema="infoExtraSchema"
           :image="desktopImage"
           show-disk-size
+          always-show-configuration
           :show-peripherals="false"
           :defaults="defaults"
           :summary="summary"

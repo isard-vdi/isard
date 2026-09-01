@@ -1079,9 +1079,9 @@ def test_change_desktop_owner(monkeypatch, test_client):
 
 def test_create_nonpersistent_desktop(monkeypatch, test_client):
     """POST /item/desktop/new-nonpersistent — webapp TableList/Card
-    'instant session' flow. Takes JSON ``{template_id}`` and reuses
-    the existing non-persistent desktop (and starts it) if one already
-    exists."""
+    'instant session' flow. Takes JSON ``{template_id}`` and creates a
+    new non-persistent desktop, even if the user already holds others
+    from the same template."""
     from api import app
     from api.dependencies.storage_pools import check_create_storage_pool_availability
 

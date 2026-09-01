@@ -5,14 +5,16 @@ import { Modal } from '@/components/modal'
 import type { DesktopTemplate } from '@/gen/oas/apiv4'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import Badge from '@/components/badge/Badge.vue'
-import DomainInfoContent from './DomainInfoContent.vue'
+import DomainInfoContent, { type DomainInfoInterface } from './DomainInfoContent.vue'
+import { desktopStatusLabel } from '@/lib/desktops'
 import { Icon } from '@/components/icon'
 
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
-const { t } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 
 export interface DomainInfoItem {
   domainId?: string
@@ -25,6 +27,7 @@ export interface DomainInfoItem {
   bootOrder?: string[]
   diskBus?: string
   vga?: string[]
+  interfaces?: DomainInfoInterface[]
   viewers?: string[]
   fullscreen?: boolean
   isos?: string[]
@@ -49,6 +52,7 @@ export interface Props {
   bootOrder?: string[]
   diskBus?: string
   vga?: string[]
+  interfaces?: DomainInfoInterface[]
   viewers?: string[]
   fullscreen?: boolean
   isos?: string[]
@@ -74,6 +78,7 @@ const props = withDefaults(defineProps<Props>(), {
   bootOrder: undefined,
   diskBus: undefined,
   vga: undefined,
+  interfaces: undefined,
   viewers: undefined,
   fullscreen: undefined,
   isos: undefined,
@@ -106,6 +111,7 @@ const resolvedItems = computed<DomainInfoItem[]>(() => {
       bootOrder: props.bootOrder,
       diskBus: props.diskBus,
       vga: props.vga,
+      interfaces: props.interfaces,
       viewers: props.viewers,
       fullscreen: props.fullscreen,
       isos: props.isos,
@@ -136,6 +142,8 @@ const closeModal = () => {
   emit('close')
 }
 
+const statusLabel = (status?: string) => desktopStatusLabel(status, i18n)
+
 const statusBadgeColor = (status?: string): 'green' | 'gray' | 'red' | 'lightyellow' => {
   if (status === DesktopStatusEnum.STARTED) return 'green'
   if (status === DesktopStatusEnum.FAILED) return 'red'
@@ -152,9 +160,9 @@ const resolveKind = (
 
 const nameBadgeClass = (item: DomainInfoItem): string => {
   const kind = resolveKind(item)
-  if (kind === 'persistent') return 'bg-secondary-3-500/60 text-secondary-3-700'
-  if (kind === 'nonpersistent') return 'bg-secondary-1-500/70 text-secondary-1-700'
-  if (kind === 'deployment') return 'bg-secondary-2-500/50 text-secondary-2-900'
+  if (kind === 'persistent') return 'bg-secondary-3-300 text-secondary-3-600'
+  if (kind === 'nonpersistent') return 'bg-secondary-1-300 text-secondary-1-600'
+  if (kind === 'deployment') return 'bg-secondary-2-300 text-secondary-2-600'
   return 'bg-brand-700 text-base-white'
 }
 
@@ -238,7 +246,7 @@ const kindSrLabel = (item: DomainInfoItem): string => {
           <Badge
             v-if="item.status && item.kind === 'desktop'"
             :color="statusBadgeColor(item.status)"
-            :content="item.status"
+            :content="statusLabel(item.status)"
             shape="square"
             size="sm"
             class="font-bold shrink-0"

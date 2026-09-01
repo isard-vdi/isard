@@ -25,7 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <div class="flex h-full min-h-screen overflow-y-auto">
+  <div class="flex h-full min-h-screen overflow-y-auto bg-base-white">
     <!-- Left panel (cover image) -->
     <div
       class="hidden w-1/2 h-screen bg-cover bg-center bg-cover-img md:flex flex-col justify-center gap-4 px-20 content-center fixed"

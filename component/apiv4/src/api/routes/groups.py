@@ -19,6 +19,7 @@
 
 import asyncio
 import traceback
+from typing import List, Optional
 
 from api import advanced_router
 from api.dependencies.alloweds import owns_domain_id
@@ -26,7 +27,7 @@ from api.schemas.common import ErrorResponse
 from api.schemas.groups import GroupUsersResponse
 from api.services.error import Error
 from api.services.groups import GroupsService
-from fastapi import Depends, Path, Request
+from fastapi import Depends, Path, Query, Request
 from fastapi.responses import JSONResponse
 
 tag = "groups"
@@ -48,10 +49,16 @@ tag = "groups"
 async def get_users_in_group(
     request: Request,
     group_id: str = Path(..., description="The ID of the group"),
+    roles: Optional[List[str]] = Query(
+        None,
+        description="Restrict results to these roles",
+    ),
 ):
     # TODO@: probably not in use
     try:
-        users = await asyncio.to_thread(GroupsService.get_users_in_group, group_id)
+        users = await asyncio.to_thread(
+            GroupsService.get_users_in_group, group_id, roles
+        )
         return JSONResponse(
             content=GroupUsersResponse(users=users).model_dump(mode="json"),
             status_code=200,
