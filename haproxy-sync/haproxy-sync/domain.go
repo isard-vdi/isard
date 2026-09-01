@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/net/idna"
 )
@@ -68,14 +69,34 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 	certsRemoved := 0
 	var failedDomains []DomainSyncError
 
-	// Build a set of desired domain names for quick lookup during removal
-	desiredDomains := make(map[string]bool, len(domains))
+	// A second certificate for the domain the base one already serves leaves two
+	// crt-list entries with the same SAN, and neither reliably wins SNI.
+	wanted := make([]DomainSyncDomain, 0, len(domains))
 	for _, d := range domains {
+		if h.isBaseDomain(d.Name) {
+			h.log.Warn().
+				Str("domain", d.Name).
+				Msg("refusing to manage the deployment's own domain, the base certificate already serves it")
+
+			failedDomains = append(failedDomains, DomainSyncError{
+				Domain: d.Name,
+				Error:  fmt.Sprintf("%q is the deployment's own domain, already served by the base certificate", d.Name),
+			})
+
+			continue
+		}
+
+		wanted = append(wanted, d)
+	}
+
+	// Build a set of desired domain names for quick lookup during removal.
+	desiredDomains := make(map[string]bool, len(wanted))
+	for _, d := range wanted {
 		desiredDomains[d.Name] = true
 	}
 
 	// Add the missing domains
-	for _, d := range domains {
+	for _, d := range wanted {
 		if _, ok := h.Domains.domains[d.Name]; !ok {
 			if err := h.addDomain(ctx, d.Name, d.Certificate); err != nil {
 				h.log.Warn().Err(err).Str("domain", d.Name).Msg("failed to add domain, skipping")
@@ -101,6 +122,15 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 
 		pemName := domainPemName(d)
 		certPath := domainCertPath(h.Domains.CertsPath, pemName)
+
+		if h.isBaseDomain(d) {
+			h.dropBaseDomain(d, certPath)
+
+			delete(h.Domains.domains, d)
+			domainsRemoved += 1
+
+			continue
+		}
 
 		if err := h.haproxy.DelMap(h.Domains.DomainsMapName, d); err != nil {
 			return DomainSyncResult{}, fmt.Errorf("delete domain from HAProxy: %w", err)
@@ -128,6 +158,32 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 		CertsRemoved:   certsRemoved,
 		FailedDomains:  failedDomains,
 	}, nil
+}
+
+// dropBaseDomain removes a duplicate registered before the refusal above,
+// leaving untouched the ACME state the base certificate renews from.
+func (h *HAproxySync) dropBaseDomain(d, certPath string) {
+	if err := h.haproxy.DelMap(h.Domains.DomainsMapName, d); err != nil {
+		h.log.Warn().Err(err).Str("domain", d).Msg("delete the deployment's own domain from the domains map")
+	}
+
+	if err := h.haproxy.DelSslCrtList(h.Domains.CrtListPath, certPath); err != nil {
+		h.log.Warn().Err(err).Str("domain", d).Msg("delete the deployment's own domain from the crt-list")
+	}
+
+	if err := h.haproxy.DelSslCert(certPath); err != nil {
+		h.log.Warn().Err(err).Str("domain", d).Msg("delete the deployment's own domain certificate")
+	}
+
+	h.log.Warn().
+		Str("domain", d).
+		Msg("dropped the deployment's own domain from HAProxy, its ACME state was left untouched")
+}
+
+// isBaseDomain reports whether d is the deployment's own domain, matched case
+// insensitively as DNS names are.
+func (h *HAproxySync) isBaseDomain(d string) bool {
+	return h.Domains.BaseDomain != "" && strings.EqualFold(d, h.Domains.BaseDomain)
 }
 
 func (h *HAproxySync) addDomain(ctx context.Context, d string, certData []byte) error {

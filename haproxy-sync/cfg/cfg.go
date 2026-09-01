@@ -1,6 +1,7 @@
 package cfg
 
 import (
+	"os"
 	"time"
 
 	"gitlab.com/isard/isardvdi/pkg/cfg"
@@ -33,6 +34,9 @@ type HAProxyDomains struct {
 	// CertsPath is the directory where individual PEM certificate files are stored.
 	// Each domain gets its own file (<domain>.pem) that is referenced by the crt-list.
 	CertsPath string `mapstructure:"certs_path"`
+	// BaseDomain is the deployment's own domain, the one the certificate the
+	// crt-list already points at is issued for.
+	BaseDomain string `mapstructure:"base_domain"`
 }
 
 type HAProxyBastion struct {
@@ -67,6 +71,8 @@ func setDefaults() {
 			// are registered at runtime for SNI-based selection.
 			"crt_list_path": "/certs/crt-list.cfg",
 			"certs_path":    "/certs",
+			// DOMAIN is what the entrypoint and the configuration use for it.
+			"base_domain": os.Getenv("DOMAIN"),
 		},
 		"bastion": map[string]any{
 			"subdomains_map":         "virt@subdomains",
