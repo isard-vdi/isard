@@ -1784,6 +1784,9 @@
           "title": "Maquinari",
           "vcpu": "{vcpu} vCPU"
         },
+        "interfaces": {
+          "title": "Xarxes"
+        },
         "ip": {
           "title": "Adreça IP"
         },

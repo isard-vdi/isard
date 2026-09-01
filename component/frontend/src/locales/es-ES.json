@@ -1784,6 +1784,9 @@
           "title": "Hardware",
           "vcpu": "{vcpu} vCPU"
         },
+        "interfaces": {
+          "title": "Redes"
+        },
         "ip": {
           "title": "Dirección IP"
         },

@@ -264,6 +264,7 @@ const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
       :boot-order="desktopDetails?.boot_order.map((bo) => bo.name)"
       :disk-bus="desktopDetails?.disk_bus?.name"
       :vga="desktopDetails?.videos.map((vga) => vga.name)"
+      :interfaces="desktopDetails?.interfaces"
       :viewers="desktopDetails?.viewers"
       :isos="desktopDetails?.isos?.map((iso) => iso.name)"
       :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"

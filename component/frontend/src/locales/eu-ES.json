@@ -1104,6 +1104,9 @@
         },
         "reservables": {
           "title": "Erreserbagarriak"
+        },
+        "interfaces": {
+          "title": "Sareak"
         }
       }
     },

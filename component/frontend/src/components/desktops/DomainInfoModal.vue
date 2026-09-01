@@ -5,7 +5,7 @@ import { Modal } from '@/components/modal'
 import type { DesktopTemplate } from '@/gen/oas/apiv4'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import Badge from '@/components/badge/Badge.vue'
-import DomainInfoContent from './DomainInfoContent.vue'
+import DomainInfoContent, { type DomainInfoInterface } from './DomainInfoContent.vue'
 import { desktopStatusLabel } from '@/lib/desktops'
 import { Icon } from '@/components/icon'
 
@@ -27,6 +27,7 @@ export interface DomainInfoItem {
   bootOrder?: string[]
   diskBus?: string
   vga?: string[]
+  interfaces?: DomainInfoInterface[]
   viewers?: string[]
   fullscreen?: boolean
   isos?: string[]
@@ -51,6 +52,7 @@ export interface Props {
   bootOrder?: string[]
   diskBus?: string
   vga?: string[]
+  interfaces?: DomainInfoInterface[]
   viewers?: string[]
   fullscreen?: boolean
   isos?: string[]
@@ -76,6 +78,7 @@ const props = withDefaults(defineProps<Props>(), {
   bootOrder: undefined,
   diskBus: undefined,
   vga: undefined,
+  interfaces: undefined,
   viewers: undefined,
   fullscreen: undefined,
   isos: undefined,
@@ -108,6 +111,7 @@ const resolvedItems = computed<DomainInfoItem[]>(() => {
       bootOrder: props.bootOrder,
       diskBus: props.diskBus,
       vga: props.vga,
+      interfaces: props.interfaces,
       viewers: props.viewers,
       fullscreen: props.fullscreen,
       isos: props.isos,
