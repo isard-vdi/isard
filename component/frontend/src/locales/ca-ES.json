@@ -2510,6 +2510,7 @@
         "title": "Gestionar copropietaris de '{name}'",
         "description": "Tria quins usuaris són copropietaris d'aquest desplegament. Propietari: {owner}",
         "warning": "Els copropietaris tenen els mateixos permisos que el propietari, excepte eliminar el desplegament i gestionar els copropietaris.",
+        "co-owner-warning": "Com a copropietari no pots canviar els copropietaris. Contacta amb el propietari del desplegament.",
         "success": "Copropietaris actualitzats",
         "error": "No s'han pogut actualitzar els copropietaris"
       },

@@ -187,6 +187,7 @@ onBeforeUnmount(clearProvisioningCloseTimer)
 
 const { data: userConfig } = useQuery(getUserConfigOptions())
 const canUseBastion = computed(() => userConfig.value?.can_use_bastion === true)
+const isCoOwner = computed(() => deploymentEntry.value?.info.co_owner === true)
 
 const showBastionConfigModal = ref(false)
 const bastionUserModalData = ref<{ userId: string; username: string } | null>(null)
@@ -246,16 +247,12 @@ const dropdownActions = computed(() => [
         }
       ]
     : []),
-  ...(deploymentEntry.value?.info.co_owner
-    ? []
-    : [
-        {
-          key: 'co-owners',
-          icon: 'users-plus',
-          label: t('views.deployments.dropdown.buttons.co-owners'),
-          fn: () => openCoOwnersModal()
-        }
-      ]),
+  {
+    key: 'co-owners',
+    icon: 'users-plus',
+    label: t('views.deployments.dropdown.buttons.co-owners'),
+    fn: () => openCoOwnersModal()
+  },
   {
     key: 'recreate',
     icon: 'refresh-cw-04',
@@ -269,13 +266,17 @@ const dropdownActions = computed(() => [
     label: t('views.deployments.dropdown.buttons.reserve'),
     fn: handleNotImplemented
   },
-  {
-    key: 'delete',
-    icon: 'trash-04',
-    label: t('views.deployments.dropdown.buttons.delete'),
-    destructive: true,
-    fn: () => (showDeleteModal.value = true)
-  }
+  ...(isCoOwner.value
+    ? []
+    : [
+        {
+          key: 'delete',
+          icon: 'trash-04',
+          label: t('views.deployments.dropdown.buttons.delete'),
+          destructive: true,
+          fn: () => (showDeleteModal.value = true)
+        }
+      ])
 ])
 
 const showRecreateModal = ref(false)
@@ -416,7 +417,14 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     :description="
       t('components.deployments.co-owners-modal.description', { owner: coOwnersOwnerName })
     "
-    :warning="t('components.deployments.co-owners-modal.warning')"
+    :readonly="isCoOwner"
+    :warning="
+      t(
+        isCoOwner
+          ? 'components.deployments.co-owners-modal.co-owner-warning'
+          : 'components.deployments.co-owners-modal.warning'
+      )
+    "
     :loading="updateCoOwnersIsPending"
     :error="coOwnersError"
     @save="handleSaveCoOwners"
