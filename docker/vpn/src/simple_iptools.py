@@ -336,7 +336,14 @@ class UserIpTools(object):
         Nothing reacted to ``allowed`` changing, so a withdrawn permission kept
         working until the desktop stopped. Removing before adding makes it
         idempotent whichever way the permission moved.
+
+        Each desktop is isolated: this runs on the revocation path, and letting
+        one iptables failure abort the pass would leave every desktop after it
+        still reaching a host its user may no longer use -- the exact leak this
+        is here to close. A failure is counted and named instead, loudly,
+        because the caller swallows what reaches it.
         """
+        entry_id = (entry or {}).get("id")
         with vpn_rethink_conn() as conn:
             desktops = list(
                 r.table("domains")
@@ -347,17 +354,48 @@ class UserIpTools(object):
             users = {}
             for desktop in desktops:
                 user_id = desktop.get("user")
-                if user_id and user_id not in users:
+                if not user_id or user_id in users:
+                    continue
+                try:
                     users[user_id] = r.table("users").get(user_id).run(conn)
+                except Exception:
+                    users[user_id] = None
+                    log.error(
+                        "remotevpn %s: cannot read user %s, its desktops are skipped",
+                        entry_id,
+                        user_id,
+                        exc_info=True,
+                    )
 
+        failed = []
         for desktop in desktops:
             guest_ip = (desktop.get("viewer") or {}).get("guest_ip")
             user = users.get(desktop.get("user"))
             if not guest_ip or not user:
                 continue
-            self._remove_remotevpn_rules([entry], guest_ip)
-            if self.is_allowed_remotevpn(user, entry):
-                self._add_remotevpn_rules([entry], guest_ip)
+            try:
+                self._remove_remotevpn_rules([entry], guest_ip)
+                if self.is_allowed_remotevpn(user, entry):
+                    self._add_remotevpn_rules([entry], guest_ip)
+            except Exception:
+                failed.append(desktop.get("id"))
+                log.error(
+                    "remotevpn %s: desktop %s (%s) not refreshed",
+                    entry_id,
+                    desktop.get("id"),
+                    guest_ip,
+                    exc_info=True,
+                )
+
+        if failed:
+            log.error(
+                "remotevpn %s: %s of %s desktops left unrefreshed: %s",
+                entry_id,
+                len(failed),
+                len(desktops),
+                ", ".join(str(d) for d in failed),
+            )
+        return failed
 
     def remove_matching_rules(self, peer):
         try:

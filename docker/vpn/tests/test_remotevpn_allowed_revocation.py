@@ -390,3 +390,127 @@ class TestMalformedAllowedIsNotOpen:
             {"roles": False, "categories": False, "groups": ["grp2"], "users": False}
         )
         assert simple_iptools.UserIpTools.is_allowed_remotevpn(self.USER, entry) is True
+
+
+class TestOneFailureDoesNotStopTheSweep:
+    """A refresh that gives up halfway leaves the leak it came to close.
+
+    This is the revocation path: every desktop after the failure keeps reaching
+    a host its user may no longer use. And the caller swallows what reaches it,
+    so an aborted pass is invisible. Each desktop is isolated and the failures
+    are counted and named.
+    """
+
+    DESKTOPS = [
+        {
+            "id": "d%d" % i,
+            "user": "u%d" % i,
+            "viewer": {"guest_ip": "10.2.0.%d" % (10 + i)},
+        }
+        for i in range(5)
+    ]
+    USERS = {
+        "u%d" % i: {"id": "u%d" % i, "role": "user", "category": "c", "group": "g"}
+        for i in range(5)
+    }
+    OPEN_TO_ALL = {
+        "id": "rv",
+        "allowed": {"roles": False, "categories": False, "groups": False, "users": []},
+        "vpn": {"wireguard": {"Address": "10.9.0.5/32", "extra_client_nets": None}},
+    }
+
+    def _patch_db(self, module, monkeypatch):
+        desktops, users = self.DESKTOPS, self.USERS
+
+        def table(name):
+            class _Q:
+                def get_all(self, *a, **k):
+                    return self
+
+                def pluck(self, *a, **k):
+                    return self
+
+                def get(self, key):
+                    self._key = key
+                    return self
+
+                def run(self, conn):
+                    return list(desktops) if name == "domains" else users.get(self._key)
+
+            return _Q()
+
+        monkeypatch.setattr(module.r, "table", table)
+
+    @staticmethod
+    def _runner(fail_from=None):
+        """A check_output that reports every rule absent, failing from call N."""
+        state = {"n": 0, "touched": set()}
+
+        def _run(argv, *args, **kwargs):
+            state["n"] += 1
+            if "-C" in argv:
+                raise CalledProcessError(1, argv)
+            for flag in ("-s", "-d"):
+                value = argv[argv.index(flag) + 1]
+                if value.startswith("10.2.0."):
+                    state["touched"].add(value)
+            if fail_from is not None and state["n"] >= fail_from:
+                raise CalledProcessError(1, argv)
+            return b""
+
+        return _run, state
+
+    def test_a_clean_pass_reaches_every_desktop(self, simple_iptools, monkeypatch):
+        uipt = _uipt(simple_iptools)
+        self._patch_db(simple_iptools, monkeypatch)
+        runner, state = self._runner()
+        with patch.object(simple_iptools, "check_output", runner):
+            failed = uipt.refresh_remotevpn_allowed(self.OPEN_TO_ALL)
+        assert len(state["touched"]) == 5
+        assert failed == []
+
+    def test_one_failure_does_not_cost_the_desktops_behind_it(
+        self, simple_iptools, monkeypatch
+    ):
+        uipt = _uipt(simple_iptools)
+        self._patch_db(simple_iptools, monkeypatch)
+        runner, state = self._runner(fail_from=6)
+        with patch.object(simple_iptools, "check_output", runner):
+            failed = uipt.refresh_remotevpn_allowed(self.OPEN_TO_ALL)
+        # Every desktop is still attempted, and the ones that failed are named.
+        assert len(state["touched"]) == 5, state["touched"]
+        assert failed, "a failed desktop must be reported, not swallowed"
+
+    def test_an_unreadable_user_does_not_stop_the_others(
+        self, simple_iptools, monkeypatch
+    ):
+        uipt = _uipt(simple_iptools)
+        desktops, users = self.DESKTOPS, self.USERS
+
+        def table(name):
+            class _Q:
+                def get_all(self, *a, **k):
+                    return self
+
+                def pluck(self, *a, **k):
+                    return self
+
+                def get(self, key):
+                    self._key = key
+                    return self
+
+                def run(self, conn):
+                    if name == "domains":
+                        return list(desktops)
+                    if self._key == "u2":
+                        raise RuntimeError("row unreadable")
+                    return users.get(self._key)
+
+            return _Q()
+
+        monkeypatch.setattr(simple_iptools.r, "table", table)
+        runner, state = self._runner()
+        with patch.object(simple_iptools, "check_output", runner):
+            uipt.refresh_remotevpn_allowed(self.OPEN_TO_ALL)
+        # Four of the five still get their rules; only u2's desktop is skipped.
+        assert len(state["touched"]) == 4, state["touched"]
