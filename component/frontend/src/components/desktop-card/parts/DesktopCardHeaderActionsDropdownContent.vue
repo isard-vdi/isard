@@ -36,11 +36,17 @@ const emit = defineEmits<{
   bookDesktop: []
   showStorageModal: []
 }>()
+
+const isManageable = computed(
+  () =>
+    props.desktop.status === DesktopStatusEnum.STOPPED ||
+    props.desktop.status === DesktopStatusEnum.FAILED
+)
 </script>
 
 <template>
   <DropdownMenuGroup>
-    <template v-if="props.desktop.status === DesktopStatusEnum.STOPPED">
+    <template v-if="isManageable">
       <DropdownMenuItem @click="emit('editDesktop')">
         <Button
           size="sm"
@@ -63,7 +69,10 @@ const emit = defineEmits<{
           {{ t('components.desktops.desktop-card.actions.advanced-options') }}
         </Button>
       </DropdownMenuItem>
-      <DropdownMenuItem @click="emit('createTemplate')">
+      <DropdownMenuItem
+        v-if="props.desktop.status === DesktopStatusEnum.STOPPED"
+        @click="emit('createTemplate')"
+      >
         <Button
           size="sm"
           class="mr-2 w-full justify-start"
@@ -75,11 +84,7 @@ const emit = defineEmits<{
         </Button>
       </DropdownMenuItem>
       <DropdownMenuItem
-        v-if="
-          props.desktop.status === DesktopStatusEnum.STOPPED &&
-          !props.desktop.tag &&
-          props.desktop.needs_booking === true
-        "
+        v-if="!props.desktop.tag && props.desktop.needs_booking === true"
         @click="emit('bookDesktop')"
       >
         <Button
@@ -119,7 +124,7 @@ const emit = defineEmits<{
       </Button>
     </DropdownMenuItem>
     <DropdownMenuItem
-      v-if="props.desktop.status === DesktopStatusEnum.STOPPED && !props.desktop.tag"
+      v-if="isManageable && !props.desktop.tag"
       class="hover:bg-error-50 focus:bg-error-50"
       @click="emit('showDeleteModal')"
     >
