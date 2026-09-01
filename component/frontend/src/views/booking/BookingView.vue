@@ -154,7 +154,7 @@ const onCellClicked = (event: Record<string, unknown>) => {
     return
   }
   if (!canCreate) {
-    apiError.value = t('messages.info.no-availability-event')
+    apiError.value = t('components.bookings.errors.no-availability')
     return
   }
   openCreateModal(start, dragEndDate, dragEndTime)
@@ -203,7 +203,7 @@ const onModalSubmit = (draft: BookingEventDraft) => {
   }
   const canCreate = canCreateCheck({ id: draft.id || undefined, start, end }, events.value)
   if (!canCreate) {
-    apiError.value = t('messages.info.no-availability-event')
+    apiError.value = t('components.bookings.errors.no-availability')
     return
   }
   if (modalMode.value === 'create') {

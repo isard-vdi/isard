@@ -1053,7 +1053,10 @@
         "description": "Això eliminarà definitivament totes les entrades de la paperera. Aquesta acció és irreversible",
         "cancel": "Cancel·la",
         "confirm": "Buida",
-        "error": "Error en buidar la paperera"
+        "error-title": "Error en buidar la paperera",
+        "errors": {
+          "generic": "S'ha produït un error en buidar la paperera. Torna-ho a provar."
+        }
       }
     },
     "profile": {
@@ -1931,7 +1934,8 @@
       "error-loading": "No s'ha pogut carregar la configuració del bastió del desplegament",
       "error-saving": "No s'ha pogut desar la configuració del bastió del desplegament",
       "buttons": {
-        "save": "Desa"
+        "save": "Desa",
+        "cancel": "Cancel·la"
       }
     },
     "deployment-user-bastion-modal": {
@@ -2582,7 +2586,8 @@
         "forbid": "Necessites més temps d'antelació per crear la reserva",
         "maximum-time": "No pots crear una reserva tan llarga",
         "minimum-time": "La reserva ha de durar com a mínim 5 minuts",
-        "past-booking": "No pots crear una reserva en el passat"
+        "past-booking": "No pots crear una reserva en el passat",
+        "no-availability": "No hi ha disponibilitat en la franja horària seleccionada"
       },
       "item": {
         "enough-units": "Unitats suficients",

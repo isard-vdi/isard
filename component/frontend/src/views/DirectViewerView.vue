@@ -554,7 +554,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                           <Button
                             icon="settings-02"
                             class="rounded-l-none"
-                            :aria-label="t('views.direct-viewer.select-viewer')"
+                            :aria-label="t('components.change-viewer-modal.title')"
                             @click="isViewerChangeModalOpen = true"
                           />
                         </template>

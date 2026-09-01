@@ -1531,7 +1531,8 @@
         "forbid": "Denbora gehiago behar duzu erreserba sortzeko",
         "maximum-time": "Ezin duzu hain erreserba luzea sortu",
         "minimum-time": "Erreserbak gutxienez 5 minutu iraun behar du",
-        "past-booking": "Ezin duzu erreserba bat sortu iraganean"
+        "past-booking": "Ezin duzu erreserba bat sortu iraganean",
+        "no-availability": "Ez dago erabilgarritasunik hautatutako ordu-tartean"
       },
       "item": {
         "enough-units": "Behar adina unitate",

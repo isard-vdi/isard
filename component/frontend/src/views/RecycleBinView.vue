@@ -11,6 +11,7 @@ import {
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { formatHoursToHumanReadable, formatBytes, formatRelativeTime } from '@/lib/utils'
+import { describeErrorCode } from '@/lib/api-errors'
 import { computed, ref, watch } from 'vue'
 
 import { DataTable } from '@/components/data-table'
@@ -28,7 +29,7 @@ import { DeleteModal } from '@/components/recycle-bin'
 import { RestoreModal } from '@/components/recycle-bin'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 
-const { t, locale, d } = useI18n()
+const { t, te, locale, d } = useI18n()
 
 const {
   isPending: cutoffTimeIsPending,
@@ -47,7 +48,11 @@ const { mutate: emptyBin, isPending: isEmptyingBin } = useMutation({
     emptyBinError.value = null
   },
   onError: (err: any) => {
-    emptyBinError.value = err?.description_code || 'error.generic'
+    emptyBinError.value = describeErrorCode(
+      err?.description_code,
+      { t, te },
+      'components.recycle-bin.empty-modal.errors'
+    )
   }
 })
 
@@ -259,7 +264,7 @@ const RECYCLE_BIN_SEARCH_INPUT_ID = 'recycle-bin-search'
 
     <Alert v-if="emptyBinError" variant="destructive">
       <AlertTitle>{{ t('views.recycle-bin.error.title') }}</AlertTitle>
-      <AlertDescription>{{ t(emptyBinError) }}</AlertDescription>
+      <AlertDescription>{{ emptyBinError }}</AlertDescription>
     </Alert>
 
     <div v-if="itemsIsPending" class="space-y-2">
@@ -385,8 +390,8 @@ const RECYCLE_BIN_SEARCH_INPUT_ID = 'recycle-bin-search'
     <template #description>
       <div v-if="emptyBinError" class="mb-4">
         <Alert variant="destructive">
-          <AlertTitle>{{ t('views.recycle-bin.empty-modal.error') }}</AlertTitle>
-          <AlertDescription>{{ t(emptyBinError) }}</AlertDescription>
+          <AlertTitle>{{ t('components.recycle-bin.empty-modal.error-title') }}</AlertTitle>
+          <AlertDescription>{{ emptyBinError }}</AlertDescription>
         </Alert>
       </div>
       <p>{{ t('components.recycle-bin.empty-modal.description') }}</p>

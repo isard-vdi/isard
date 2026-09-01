@@ -467,7 +467,7 @@ describe('DirectViewerView', () => {
     expect(wrapper.find('[data-test="button-group"]').exists()).toBe(true)
     expect(wrapper.find('[data-test="change-viewer-modal"]').attributes('data-open')).toBe('false')
 
-    const settings = wrapper.find('[aria-label="views.direct-viewer.select-viewer"]')
+    const settings = wrapper.find('[aria-label="components.change-viewer-modal.title"]')
     expect(settings.exists()).toBe(true)
     await settings.trigger('click')
     expect(wrapper.find('[data-test="change-viewer-modal"]').attributes('data-open')).toBe('true')
