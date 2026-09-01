@@ -580,6 +580,25 @@ create_docker_compose_file(){
 		parts="$parts redis.passwd"
 	fi
 
+	# The VDO fill needs a privileged container; everything else about the pools
+	# is measured and published by isard-storage without one.
+	case "$(printf '%s' "${STORAGE_POOL_VDO_STATS:-false}" | tr '[:upper:]' '[:lower:]')" in
+		true|t|1|yes|y|on) _vdo_stats_enabled=1 ;;
+		*) _vdo_stats_enabled=0 ;;
+	esac
+	if [ "$_vdo_stats_enabled" -eq 1 ]
+	then
+		case " $(echo $parts) " in
+			*" storage "*)
+				echo "STORAGE_POOL_VDO_STATS is true, adding storage-vdo-stats part"
+				parts="$parts storage-vdo-stats"
+				;;
+			*)
+				echo "WARNING: STORAGE_POOL_VDO_STATS is true but flavour $FLAVOUR has no storage part; ignoring it"
+				;;
+		esac
+	fi
+
 	# Add openapi container
 	if [ "$ENABLE_OPENAPI" = "true" ]
 	then

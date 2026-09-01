@@ -81,6 +81,14 @@ function tableHypervisorDomains(hyp) {
   adminShowIdCol(domains_table[hyp], 'domains-table-' + hyp)
 }
 
+function hdHumanBytes(n) {
+  n = Number(n) || 0;
+  const u = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
+}
+
 function setMountpoints(id) {
   mountpoint_table = $("#table-mountpoints-" + id).DataTable({
     "language": {
@@ -101,7 +109,17 @@ function setMountpoints(id) {
     "columnDefs": [{
       'targets': 1,
       "render": function (data, type, full, meta) {
-        return data + '%'
+        // `df` reports a thin pool's LOGICAL size, so the >90% colour below could
+        // never fire on the pools that need it. The published figure replaces it.
+        if (!full.physical) { return data + '%' }
+        var tip = 'Physical usage of the pool backing store'
+        if (full.total_bytes) {
+          tip += ': ' + hdHumanBytes(full.total_bytes - full.free_bytes) + ' of ' +
+                 hdHumanBytes(full.total_bytes) + ', ' + hdHumanBytes(full.free_bytes) + ' free'
+        }
+        if (full.thin) { tip += '. The filesystem here reports the pool LOGICAL size.' }
+        return '<span title="' + tip.replace(/"/g, '&quot;') + '">' + data + '%' +
+               (full.thin ? ' <small class="text-muted">thin</small>' : '') + '</span>'
       }
     }],
     "order": [0, 'desc'],

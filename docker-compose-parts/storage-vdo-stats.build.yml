@@ -1,0 +1,5 @@
+services:
+  isard-storage-vdo-stats:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/storage-vdo-stats/Dockerfile

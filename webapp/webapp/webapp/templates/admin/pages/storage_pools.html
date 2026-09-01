@@ -99,6 +99,16 @@
         <label style="margin-left:8px;"><i class="fa fa-arrow-right text-muted" style="margin-right:4px;"></i>Destination&nbsp;pool
           <select id="mig_dst_pool" class="form-control input-sm" title="The pool disks are moved TO. Disks already in this pool are skipped."></select>
         </label>
+        <div style="margin-top:6px;">
+          <span>Disk types
+            <span id="mig_item_kinds">
+              <label style="font-weight:normal;"><input type="checkbox" class="mig-item-kind" value="desktop"> desktops</label>
+              <label style="font-weight:normal;margin-left:6px;"><input type="checkbox" class="mig-item-kind" value="template"> templates</label>
+              <label style="font-weight:normal;margin-left:6px;"><input type="checkbox" class="mig-item-kind" value="media"> media</label>
+            </span>
+            <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Which disk types actually move. None selected = all of them. The rest of each backing chain is still read, but stays where it is — so &ldquo;desktops only&rdquo; moves the desktops and leaves the templates they are built on in place. A template cannot move while its derivatives stay behind."></i>
+          </span>
+        </div>
       </fieldset>
 
       <!-- ── Schedule: when it is allowed to run ───────────────────────────── -->
@@ -166,6 +176,14 @@
         </label>
         <label style="margin-left:8px;" title="Stop a running desktop to move its disk, instead of skipping it. The desktop is restartable afterwards."><input type="checkbox" id="mig_force_stop"> force-stop</label>
         <label style="margin-left:8px;" title="Checksum-verify each destination copy before deleting the source. Strongly recommended — leave on."><input type="checkbox" id="mig_verify" checked> verify</label>
+        <label style="margin-left:8px;">Move&nbsp;first
+          <select id="mig_order" class="form-control input-sm" title="Which disks a limited run should spend itself on.">
+            <option value="none" title="No order imposed — whatever order the job reads its disks in. The behaviour every existing job has.">no preference</option>
+            <option value="oldest_first" title="Start with the disks nobody has used for longest. With a &ldquo;Stop after&rdquo; limit, this is how you spend the run on cold data.">least-used first</option>
+            <option value="newest_first" title="Start with the disks in active use. Note these are also the likeliest to be running, so more trees get skipped unless force-stop is on.">most-used first</option>
+          </select>
+          <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Only changes the OUTCOME together with &ldquo;Stop after&rdquo;: whatever is left at the end of the list does not move in that run. Usage comes from when each desktop was last started or opened; a disk with no usage data is moved last, never first. The order is frozen when the job is created, so a desktop somebody starts afterwards will not reshuffle it."></i>
+        </label>
         <label style="margin-left:8px;">Stop&nbsp;after
           <input type="number" id="mig_budget_gb" class="form-control input-sm" value="0" min="0" step="any" style="width:84px;" title="Move at most this much per run, then stop and wait for the next window. 0 = no limit."> GB
           <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="How much this run may move before it stops. Disks move as whole backing-chain trees, so the limit is honoured at TREE boundaries: trees already copying finish, and the run can overshoot by up to one tree per parallel slot. Set it to a few times your typical tree size, never below it. The job then reports &ldquo;budget reached&rdquo;; a recurring one resumes by itself next window, a one-off resumes once you raise the budget."></i>
@@ -209,6 +227,15 @@
           <span class="mig-sum-lbl"><i class="fa fa-database"></i> Total files</span>
           <span class="mig-sum-sz" id="mig_sum_total_sz">&nbsp;</span>
         </div>
+        <div class="mig-sum-cell" style="display:none;" title="Disks in the same backing chains that are read but left where they are, because their type was not selected." data-toggle="tooltip">
+          <span class="mig-sum-num" id="mig_sum_stay">–</span>
+          <span class="mig-sum-lbl"><i class="fa fa-anchor"></i> Stay in place</span>
+          <span class="mig-sum-sz">&nbsp;</span>
+        </div>
+      </div>
+      <div class="mig-sum-eta" style="display:none;">
+        <i class="fa fa-sort-amount-asc text-muted"></i> Move order
+        <span class="val" id="mig_sum_order">–</span>
       </div>
       <div class="mig-sum-eta">
         <i class="fa fa-clock-o text-muted"></i> Estimated time

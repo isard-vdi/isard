@@ -25,6 +25,28 @@ def test_list_storage_pools(monkeypatch, test_client):
     assert len(response.json()["storage_pools"]) == 1
 
 
+def test_list_storage_pools_carries_the_physical_measurement(monkeypatch, test_client):
+    """The response model is an explicit field list, so a field it does not
+    name is dropped in silence. On a thin pool the physical figure is the only
+    one an admin can act on -- the filesystem reports the logical size -- so a
+    silent drop here would put the wrong number in front of them."""
+    jwt = MockJWT()
+    usage = {
+        "kind": "local-thin",
+        "physical_total_bytes": 18630494388224,
+        "physical_free_bytes": 18506929315840,
+        "filesystem_free_bytes": 91345006592000,
+        "source": "dm-status",
+    }
+    monkeypatch.setattr(
+        "api.services.storage_pools.StoragePoolService.get_storage_pools",
+        staticmethod(lambda: [{"id": "pool-1", "physical_usage": usage}]),
+    )
+    response = test_client(url="/storage-pools", jwt=jwt)
+    assert response.status_code == 200
+    assert response.json()["storage_pools"][0]["physical_usage"] == usage
+
+
 def test_get_storage_pool(monkeypatch, test_client):
     jwt = MockJWT()
     monkeypatch.setattr(

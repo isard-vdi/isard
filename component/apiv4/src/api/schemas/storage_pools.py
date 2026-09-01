@@ -80,6 +80,9 @@ class StoragePoolResponse(BaseModel):
     storages: Optional[int] = None
     hypers: Optional[int] = None
     qos_disk_id: Optional[str] = None
+    #: What the node holding the mounts last measured of the BACKING store;
+    #: absent where nobody publishes it. On a thin pool statvfs is the logical size.
+    physical_usage: Optional[dict[str, Any]] = None
 
 
 class StoragePoolListResponse(BaseModel):

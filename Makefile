@@ -339,6 +339,10 @@ ci-test-backupninja:
 ci-test-frontend:
 	cd component/frontend && bun install --frozen-lockfile && bun run test:unit --reporter=default --reporter=junit --outputFile=report.xml
 
+.PHONY: ci-test-webapp-js
+ci-test-webapp-js:
+	for t in webapp/webapp/webapp/static/admin/js/tests/*.test.js; do echo "== $$t"; bun "$$t" || exit 1; done
+
 .PHONY: ci-test-python
 ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-socketio ci-test-openapi ci-test-notifier ci-test-scheduler ci-test-webapp ci-test-apiv4-client ci-test-vpn ci-test-codegen ci-test-anonymize-db ci-test-storage
 

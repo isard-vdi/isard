@@ -22,10 +22,13 @@ import logging as log
 import os
 from typing import Optional, Union
 
+from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
+from isardvdi_common.lib.storage.physical_usage import read_usage
 from isardvdi_common.schemas.hypervisor import HypervisorStatus
+from redis import Redis
 
 # GENEVE / WireGuard encapsulation overheads. Canonical arithmetic lives in
 # docker/vpn/ovs/ovs_setup.sh (it physically sizes vlan-wg/ovsbr0); this is a
@@ -305,10 +308,53 @@ class AdminHypervisorsService:
 
     @staticmethod
     def get_hyper_mountpoints(hyper_id: str) -> list[dict]:
-        """Get mountpoints for a hypervisor."""
-        return HypervisorsProcessed.get_hyper_mountpoints(hyper_id)["mountpoints"]
+        """Mountpoints of a hypervisor, with pool mounts measured physically.
+
+        The engine fills these from ``df`` run over ssh on the hypervisor, which
+        is right for its own filesystems and wrong for a thin-provisioned pool:
+        there ``df`` reports the pool's LOGICAL size. Measured in the field, a
+        pool 60% full of its backing store showed 9% here, and since the table
+        colours a row red above 90% that alarm could never fire on the one kind
+        of pool that needs it.
+
+        So where a node publishes a physical measurement for that mountpoint,
+        it wins, and ``physical`` marks the rows where it did. A mount nobody
+        publishes keeps the ``df`` figure untouched, which for a plain
+        filesystem is the truth.
+        """
+        mountpoints = HypervisorsProcessed.get_hyper_mountpoints(hyper_id)[
+            "mountpoints"
+        ]
+        connection = _redis()
+        if connection is None:
+            return mountpoints
+        for mountpoint in mountpoints:
+            usage = read_usage(connection, mountpoint.get("mount") or "")
+            total = (usage or {}).get("physical_total_bytes")
+            free = (usage or {}).get("physical_free_bytes")
+            if not usage or not total or free is None:
+                continue
+            mountpoint["usage"] = round((total - free) * 100 / total)
+            mountpoint["physical"] = True
+            mountpoint["total_bytes"] = total
+            mountpoint["free_bytes"] = free
+            mountpoint["thin"] = bool(usage.get("thin"))
+        return mountpoints
 
     @staticmethod
     def get_hyper_started_domains(hyper_id: str) -> list[dict]:
         """Get started domains on a hypervisor."""
         return HypervisorsProcessed.get_hyper_started_domains(hyper_id)
+
+
+def _redis():
+    """A connection to the RQ redis, or ``None`` if it cannot be reached.
+
+    Degrading to "nobody published" leaves the ``df`` figure in place, which is
+    the pre-existing behaviour -- never a fabricated one.
+    """
+    try:
+        return Redis.from_url(rq_url())
+    except Exception:
+        log.warning("cannot reach redis to read published pool usage")
+        return None

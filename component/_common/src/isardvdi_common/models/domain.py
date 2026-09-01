@@ -184,6 +184,59 @@ class Domain(RethinkCustomBase):
             domains.append(found)
         return domains
 
+    @classmethod
+    def accessed_by_storage(cls, storage_ids):
+        """Map storage id -> the most recent ``accessed`` of any domain on it.
+
+        ``accessed`` is the only genuine usage signal in the estate: the storage
+        row has no usage field, its ``status_time`` is the last STATE change (a
+        disk untouched for a year and one used daily read alike), and the pool
+        filesystems are mounted ``noatime`` so the filesystem's own atime never
+        advances. It is stamped on create-from-template, on start, on all three
+        stop transitions and on opening the viewer, from the shared library, so
+        both frontends feed it.
+
+        One indexed query, and plucked rather than built into Domain objects:
+        the migration planner asks this for every disk of a plan (thousands),
+        where a model per row would dominate the cost.
+
+        Two traps, both silent. ``storage_ids`` is a MULTI index and not a
+        stored field, so ``pluck("storage_ids")`` returns nothing and a mapping
+        built from it comes back empty with no error; the disk ids have to be
+        read back out of ``create_dict.hardware.disks``. And a domain holding
+        two of the queried disks matches twice, so take the max per disk rather
+        than counting rows.
+
+        :param storage_ids: Storage ids to look up
+        :type storage_ids: list
+        :return: ``{storage_id: accessed}``, absent when never accessed
+        :rtype: dict
+        """
+        storage_ids = list(dict.fromkeys(storage_ids))
+        if not storage_ids:
+            return {}
+        wanted = set(storage_ids)
+        out = {}
+        with cls._rdb_context():
+            rows = (
+                r.table(cls._rdb_table)
+                .get_all(r.args(storage_ids), index="storage_ids")
+                .pluck("accessed", {"create_dict": {"hardware": "disks"}})
+                .run(cls._rdb_connection)
+            )
+            for row in rows:
+                accessed = row.get("accessed")
+                if not accessed:
+                    continue
+                disks = ((row.get("create_dict") or {}).get("hardware") or {}).get(
+                    "disks"
+                ) or []
+                for disk in disks:
+                    sid = disk.get("storage_id")
+                    if sid in wanted and accessed > out.get(sid, 0):
+                        out[sid] = accessed
+        return out
+
     def toggle_user_visible(self):
         """
         Returns True if the domain is visible to the user, otherwise False

@@ -45,6 +45,51 @@ function spHumanBytes(n) {
   return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
 }
 
+// A thin pool reports its LOGICAL size to the filesystem, so the cell shows the
+// PHYSICAL figure where a node publishes one and says so plainly where none does.
+const SP_USAGE_MAX_AGE_S = 900;
+
+function spEsc(v) {
+  return String(v == null ? "" : v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function spSpaceCell(usage, nowSeconds) {
+  const now = nowSeconds || Math.floor(Date.now() / 1000);
+  if (!usage || typeof usage !== "object") {
+    return '<span class="text-muted" title="No node reports the physical space of this pool. Set STORAGE_POOL_VDO_STATS on the node holding its physical mounts.">not reported</span>';
+  }
+  if (usage.kind !== "local-thick" && usage.kind !== "local-thin") {
+    return '<span class="text-muted" title="' + spEsc(usage.reason) + '">' + spEsc(usage.kind || "unknown") + '</span>';
+  }
+
+  const total = Number(usage.physical_total_bytes) || 0;
+  const free = usage.physical_free_bytes;
+  const thin = usage.kind === "local-thin";
+
+  if (free === null || free === undefined) {
+    // Capacity needs no privileges; the fill does. Saying "? of <total>" keeps
+    // the distinction visible instead of implying the pool was measured.
+    return '<i class="fa fa-warning" style="color:red;" title="' + spEsc(usage.reason) + '"></i> ' +
+      '<span class="text-muted">? of ' + spHumanBytes(total) + '</span>';
+  }
+
+  const age = Math.max(0, now - (Number(usage.measured_at) || 0));
+  const stale = age > SP_USAGE_MAX_AGE_S;
+  const pct = total ? Math.round(((total - free) / total) * 100) : 0;
+  let title = "Physical " + spHumanBytes(total - free) + " used of " + spHumanBytes(total) +
+    " (" + pct + "%), measured by " + spEsc(usage.node || "?") + " " + age + "s ago via " + spEsc(usage.source || "?");
+  if (thin && usage.filesystem_free_bytes) {
+    title += ". The filesystem claims " + spHumanBytes(usage.filesystem_free_bytes) +
+      " free, which is this pool's LOGICAL size and not the constraint.";
+  }
+  const cls = stale ? "text-muted" : (pct >= 90 ? "text-danger" : "");
+  return '<span class="' + cls + '" title="' + spEsc(title) + '">' + spHumanBytes(free) + " free" +
+    (thin ? ' <small class="text-muted">thin</small>' : "") +
+    (stale ? ' <i class="fa fa-clock-o" title="Measurement is stale"></i>' : "") + "</span>";
+}
+
 // Per-type disk kinds shown in the "Items" cell, with the same icons the pool
 // paths use for each usage.
 const SP_ITEM_KINDS = [
@@ -161,6 +206,12 @@ $(document).ready(function () {
       { "data": "id", "title": "Pool ID" },
       { "data": "name", "title": "Name" },
       { "data": "mountpoint", "title": "Mountpoint" },
+      {
+        "data": "physical_usage",
+        "title": '<span title="Physical free space behind this pool. On a thin pool the filesystem figure is its LOGICAL size, so only a published physical measurement means anything.">Space</span>',
+        "width": "130px", "className": "text-center", "defaultContent": "",
+        "render": function (data, type, full, meta) { return spSpaceCell(data); }
+      },
       {
         "data": "categories_names", "title": "Categories", "render": function (data, type, full, meta) {
           var categoryList = []

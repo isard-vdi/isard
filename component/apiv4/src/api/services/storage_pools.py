@@ -17,13 +17,18 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging as log
+
+from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.api_admin import ApiAdmin
+from isardvdi_common.lib.storage.physical_usage import read_usage
 from isardvdi_common.lib.storage.storage_pools.storage_pools import (
     StoragePoolsProcessed,
 )
 from isardvdi_common.models.storage_pool import StoragePool
+from redis import Redis
 
 
 class StoragePoolService:
@@ -40,8 +45,23 @@ class StoragePoolService:
     def get_storage_pools() -> list[dict]:
         """
         Get all storage pools with enriched data.
+
+        The physical usage is read from redis, where the node holding each
+        pool's mounts publishes it: a storage node never reaches RethinkDB, so
+        resolving a published mountpoint to a pool is done here, where the
+        database legitimately is. A pool nobody publishes simply has no
+        ``physical_usage`` -- the key expired or was never written -- and the
+        reader must not substitute a filesystem figure for it.
         """
-        return StoragePoolsProcessed.get_storage_pools()
+        pools = StoragePoolsProcessed.get_storage_pools()
+        connection = _redis()
+        if connection is None:
+            return pools
+        for pool in pools:
+            usage = read_usage(connection, pool.get("mountpoint") or "")
+            if usage:
+                pool["physical_usage"] = usage
+        return pools
 
     @staticmethod
     def get_storage_pool(storage_pool_id: str) -> dict:
@@ -116,3 +136,17 @@ class StoragePoolService:
         return StoragePoolsProcessed.check_category_storage_pool_availability(
             categories, storage_pool_id
         )
+
+
+def _redis():
+    """A connection to the RQ redis, or ``None`` if it cannot be reached.
+
+    Read-only use: apiv4 never writes a governor key, it only reports what the
+    nodes publish. An unreachable redis degrades to "nobody published", which
+    is the same answer as a node that stopped -- never to a made-up figure.
+    """
+    try:
+        return Redis.from_url(rq_url())
+    except Exception:
+        log.warning("cannot reach redis to read published pool usage")
+        return None

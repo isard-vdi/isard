@@ -287,6 +287,8 @@ class StorageMigrationItemModel(BaseModel):
     dst_path: str | None = None
     dst_dir: str | None = None
     size_bytes: int = 0  # fresh `qemu-img info -U` probe at plan time
+    #: this tree's usage key, frozen at plan time. None sorts it LAST, not first.
+    tree_order_key: int | None = None
     bytes_done: int = 0
     parent_storage_id: str | None = None
     parent_dst_dir: str | None = None

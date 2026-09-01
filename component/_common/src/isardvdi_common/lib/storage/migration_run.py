@@ -415,7 +415,13 @@ class MigrationRunner:
         it, so a re-scan only ever ADDS newly-matching disks."""
         selection = self.migration.selection or {}
         roots = mig.roots_for_selection(selection)
-        items, _ = mig.build_plan_for_roots(self.migration_id, roots, self.dst_pool)
+        items, _ = mig.build_plan_for_roots(
+            self.migration_id,
+            roots,
+            self.dst_pool,
+            item_kinds=selection.get("item_kinds"),
+            order=self.config.get("order"),
+        )
         existing = {it["storage_id"] for it in self._items()}
         for item in items:
             if item["storage_id"] not in existing:
@@ -430,7 +436,13 @@ class MigrationRunner:
         scope and never reappear; in-flight disks are left untouched."""
         selection = self.migration.selection or {}
         roots = mig.roots_for_selection(selection)
-        planned, _ = mig.build_plan_for_roots(self.migration_id, roots, self.dst_pool)
+        planned, _ = mig.build_plan_for_roots(
+            self.migration_id,
+            roots,
+            self.dst_pool,
+            item_kinds=selection.get("item_kinds"),
+            order=self.config.get("order"),
+        )
         existing = {it["storage_id"]: it for it in self._items()}
         policy = self.config.get("failure_policy") or "retry_quarantine"
         qafter = int(self.config.get("quarantine_after") or 3)
@@ -494,6 +506,31 @@ class MigrationRunner:
         audit = list(item.get("audit") or [])
         audit.append(record)
         self._set(item, audit=audit)
+
+    def _failure_reason(self, item):
+        """What the disk's failing task actually said, or None.
+
+        The three task slots are checked newest-phase-first because that is the
+        one that just failed; a task that raised keeps its traceback in
+        ``exc_info``, whose last line is the actionable sentence (e.g. a move
+        refused because the destination would drop below its free-space floor).
+        Best-effort by design: a missing or expired task must not stop the tree
+        from terminalizing, so anything unreadable falls back to the generic
+        wording rather than raising here.
+        """
+        for slot in ("verify_task_id", "rebase_task_id", "move_task_id"):
+            task_id = item.get(slot)
+            if not task_id:
+                continue
+            try:
+                if not Task.exists(task_id):
+                    continue
+                exc_info = Task(task_id).exc_info
+            except Exception:
+                continue
+            if exc_info:
+                return mig.task_error_line(exc_info, None)
+        return None
 
     def _tree_key(self, tree_items):
         """EWMA throughput key for a tree: ``<src_pool>:<dst_pool>`` using the
@@ -1027,7 +1064,9 @@ class MigrationRunner:
         # exception handler), which plan_tree_failure leaves untouched — reset
         # its storage explicitly so it never stays stuck in maintenance.
         self._restore_storage_status(item)
-        changes = mig.plan_tree_failure(tree_items, item["storage_id"])
+        changes = mig.plan_tree_failure(
+            tree_items, item["storage_id"], reason=self._failure_reason(item)
+        )
         changed_ids = {it["id"] for it, _s, _r in changes}
         # The triggering disk may already be ``failed`` (generic exception
         # handler), so plan_tree_failure leaves it untouched and out of ``changes``
@@ -1095,6 +1134,15 @@ class MigrationRunner:
         trees = {}
         for it in items:
             trees.setdefault(it["tree_id"], []).append(it)
+        # The order the PLAN froze, not the ledger's: under a byte budget the
+        # tail does not move, so it must be the order the admin approved.
+        trees = {
+            tid: trees[tid]
+            for tid in mig.sort_tree_ids(
+                {tid: tis[0].get("tree_order_key") for tid, tis in trees.items()},
+                self.config.get("order"),
+            )
+        }
 
         # Parallelism gate (P2.3): bound concurrent trees to config.parallelism
         # so the storage worker is not oversubscribed. In-flight trees keep

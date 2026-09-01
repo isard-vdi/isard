@@ -120,6 +120,19 @@ case "${_cap_disk}" in
     *) _cap_disk_enabled=1 ;;
 esac
 
+# --- Storage pool space ------------------------------------------------------
+# Where the VDO fill was asked for, isard-storage-vdo-stats measures instead:
+# two writers on one key would leave the answer to whoever wrote last.
+case "$(printf '%s' "${STORAGE_POOL_VDO_STATS:-false}" | tr '[:upper:]' '[:lower:]')" in
+    true|t|1|yes|y|on) _vdo_stats_sidecar=1 ;;
+    *) _vdo_stats_sidecar=0 ;;
+esac
+if [ "${_vdo_stats_sidecar}" -eq 0 ]; then
+    /utils/storage-pool-physical &
+else
+    echo "storage: pool space published by isard-storage-vdo-stats"
+fi
+
 if [ "${REDIS_WORKERS:-1}" -ne 0 ] && [ "${_cap_disk_enabled}" -eq 1 ]
 then
     # Wait for Redis to be ready before starting workers

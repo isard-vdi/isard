@@ -39,12 +39,19 @@ class MigrationWindowData(BaseModel):
 class MigrationSelectionData(BaseModel):
     """What a migration job moves and where to."""
 
+    #: HOW the source disks are selected, not what type they are — see
+    #: `item_kinds` for that.
     kind: Literal["pool", "path", "category"] = "pool"
     src_pool_id: Optional[str] = None
     dst_pool_id: Optional[str] = None
     category_id: Optional[str] = None
     path_prefix: Optional[str] = None
     tree_ids: list[str] = Field(default_factory=list)
+    #: Which disk KINDS actually move. Empty or absent == all of them. The rest
+    #: of the chain is still walked, to know what backs what, but stays put.
+    item_kinds: list[Literal["desktop", "template", "media"]] = Field(
+        default_factory=list
+    )
 
 
 class MigrationConfigData(BaseModel):
@@ -74,17 +81,26 @@ class MigrationConfigData(BaseModel):
     #: free space while the real limit is physical fill, so no probe can size
     #: this safely. Gates only the START of a tree, so the last one may overshoot.
     max_bytes_per_occurrence: int = Field(default=0, ge=0)
-    #: Filesystem-level free-space floor on the destination, in bytes; 0 = off.
-    #: Enforced by the worker immediately before each copy (the only place the
-    #: number is true, and the only process that can see the pool mounts).
-    #: NOT valid on thin-provisioned (VDO) pools -- see max_bytes_per_occurrence.
+    #: Order in which trees are STARTED. Only observable under a byte budget,
+    #: where the tail of the list does not move this occurrence.
+    order: Literal["none", "oldest_first", "newest_first"] = "none"
+    #: Free-space floor on the destination in bytes, 0 = off. Held against the
+    #: PHYSICAL fill where known; on statvfs alone it protects nothing.
     min_free_bytes: int = Field(default=0, ge=0)
 
 
 class MigrationPlanData(BaseModel):
-    """Dry-run plan preview request — selection only, nothing is persisted."""
+    """Dry-run plan preview request — nothing is persisted.
+
+    The config is optional and only two of its knobs change the preview
+    (`order` and `max_bytes_per_occurrence`), but they change it decisively:
+    without them the preview cannot say which trees would fall outside this
+    occurrence's budget, and an admin would be approving a job whose actual
+    effect is invisible until it runs.
+    """
 
     selection: MigrationSelectionData
+    config: MigrationConfigData = Field(default_factory=MigrationConfigData)
 
 
 class MigrationCreateData(BaseModel):
@@ -98,6 +114,11 @@ class MigrationCreateData(BaseModel):
 class MigrationTreeSummary(BaseModel):
     tree_id: str
     root_storage_id: str
+    #: usage key this tree was ordered by (epoch seconds); None == no usage data
+    order_key: Optional[int] = None
+    #: whether this tree fits inside `max_bytes_per_occurrence` in plan order.
+    #: True everywhere when no budget is set.
+    within_budget: bool = True
     derivative_templates: int = 0
     desktops: int = 0
     media: int = 0
@@ -141,6 +162,19 @@ class MigrationTotalsResponse(BaseModel):
     #: aggregate progress bar; 0 on the dry-run plan totals.
     done: int = 0
     state_counts: dict = Field(default_factory=dict)
+    #: disks the selection walks but leaves in place. They carry no ledger row,
+    #: so the plan preview is the only place they are ever visible.
+    not_moving_total: int = 0
+    not_moving_by_kind: dict = Field(default_factory=dict)
+    #: the tree-start order this plan was built with (`none` unless asked for).
+    order: str = "none"
+    #: trees whose moving disks carry no usage date. They sort LAST in both
+    #: directions, so a budget reaches them last either way.
+    order_trees_without_usage: int = 0
+    #: bytes/trees that fit in `max_bytes_per_occurrence`; equal to the totals
+    #: when there is no budget.
+    bytes_within_budget: int = 0
+    trees_within_budget: int = 0
 
 
 class MigrationPlanResponse(BaseModel):
