@@ -333,6 +333,9 @@ class Wg(object):
         """
         if not peers and not remotevpn_peers:
             return
+        # A delete that lands while the queue drains must win: without this the
+        # queued up_peer puts the peer back and nothing takes it off again.
+        self._torn_down_while_draining = set()
         thread = threading.Thread(
             target=self._run_background_up_peers,
             args=(list(peers), list(remotevpn_peers) if remotevpn_peers else []),
@@ -358,6 +361,8 @@ class Wg(object):
                 "init_peers[%s]: background up_peer terminated unexpectedly",
                 self.table,
             )
+        finally:
+            self._torn_down_while_draining = None
 
     def _drain_up_peer_queue(self, table, peers):
         """Run ``up_peer`` for every entry in ``peers`` and log progress +
@@ -370,6 +375,16 @@ class Wg(object):
         started_at = time.monotonic()
         for i, peer in enumerate(peers, start=1):
             try:
+                torn_down = getattr(self, "_torn_down_while_draining", None)
+                peer_id = peer.get("id") if isinstance(peer, dict) else None
+                if torn_down is not None and peer_id in torn_down:
+                    log.info(
+                        "init_peers[%s]: %s was taken down while the queue drained; "
+                        "not bringing it up",
+                        table,
+                        peer_id,
+                    )
+                    continue
                 self.up_peer(self._to_model(peer))
             except Exception:
                 log.exception(
@@ -885,6 +900,9 @@ class Wg(object):
         peer = self._to_dict(peer)
         if table == False:
             table = self.table
+        torn_down = getattr(self, "_torn_down_while_draining", None)
+        if torn_down is not None and peer.get("id"):
+            torn_down.add(peer["id"])
         applied = self._resolve_applied_peer(peer)
         if applied is not None:
             if applied["extra_client_nets"]:
