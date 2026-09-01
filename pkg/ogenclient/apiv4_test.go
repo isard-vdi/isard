@@ -1,62 +1,86 @@
 package ogenclient_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
-	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 )
 
 var (
 	_ apiv4.SecuritySource = ogenclient.APIv4Source{}
 	_ apiv4.SecuritySource = ogenclient.APIv4Static{}
+	_ apiv4.SecuritySource = ogenclient.APIv4Context{}
 )
 
-func TestAPIv4Source_HTTPBearer(t *testing.T) {
+func TestAPIv4SourceHTTPBearer(t *testing.T) {
 	t.Parallel()
 
-	const secret = "test-secret"
+	assert := assert.New(t)
 
-	src := ogenclient.APIv4Source{Secret: secret}
-	bearer, err := src.HTTPBearer(t.Context(), "TestOp")
-	require.NoError(t, err)
-	assert.NotEmpty(t, bearer.Token)
+	cases := map[string]struct {
+		Secret string
+	}{
+		"should sign a token the configured secret verifies": {
+			Secret: "test-secret",
+		},
+		"should sign with whatever secret the source carries": {
+			Secret: "another-secret",
+		},
+	}
 
-	parsed, parseErr := jwt.Parse(bearer.Token, func(tok *jwt.Token) (any, error) {
-		_, ok := tok.Method.(*jwt.SigningMethodHMAC)
-		if !ok {
-			return nil, errors.New("expected HMAC signing method")
-		}
-		return []byte(secret), nil
-	})
-	require.NoError(t, parseErr)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	claims, ok := parsed.Claims.(jwt.MapClaims)
-	require.True(t, ok)
+			src := ogenclient.APIv4Source{Secret: tc.Secret}
 
-	assert.Equal(t, "isardvdi", claims["kid"])
-	assert.Equal(t, "isardvdi-service", claims["session_id"])
+			bearer, err := src.HTTPBearer(t.Context(), "TestOp")
+			require.NoError(t, err)
+			assert.NotEmpty(bearer.Token)
 
-	data, ok := claims["data"].(map[string]any)
-	require.True(t, ok, "data claim should be a map")
-	assert.Equal(t, "admin", data["role_id"])
-	assert.Equal(t, "local-default-admin-admin", data["user_id"])
-	assert.Equal(t, "default", data["category_id"])
+			keyFunc := func(tok *jwt.Token) (any, error) {
+				if _, ok := tok.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, errors.New("expected HMAC signing method")
+				}
 
-	expClaim, expErr := claims.GetExpirationTime()
-	require.NoError(t, expErr)
-	assert.True(t, expClaim.After(time.Now()), "token should not be expired")
-	assert.WithinDuration(t, time.Now().Add(20*time.Second), expClaim.Time, 5*time.Second)
+				return []byte(tc.Secret), nil
+			}
+
+			parsed, err := jwt.Parse(bearer.Token, keyFunc)
+			require.NoError(t, err)
+
+			claims, ok := parsed.Claims.(jwt.MapClaims)
+			require.True(t, ok)
+
+			assert.Equal("isardvdi", claims["kid"])
+			assert.Equal("isardvdi-service", claims["session_id"])
+
+			data, ok := claims["data"].(map[string]any)
+			require.True(t, ok, "data claim should be a map")
+			assert.Equal("admin", data["role_id"])
+			assert.Equal("local-default-admin-admin", data["user_id"])
+			assert.Equal("default", data["category_id"])
+
+			exp, err := claims.GetExpirationTime()
+			require.NoError(t, err)
+			assert.True(exp.After(time.Now()), "token should not be expired")
+			assert.WithinDuration(time.Now().Add(20*time.Second), exp.Time, 5*time.Second)
+		})
+	}
 }
 
-func TestAPIv4Static_HTTPBearer(t *testing.T) {
+func TestAPIv4StaticHTTPBearer(t *testing.T) {
 	t.Parallel()
+
+	assert := assert.New(t)
 
 	cases := map[string]struct {
 		Token string
@@ -70,9 +94,54 @@ func TestAPIv4Static_HTTPBearer(t *testing.T) {
 			t.Parallel()
 
 			src := ogenclient.APIv4Static{Token: tc.Token}
+
 			bearer, err := src.HTTPBearer(t.Context(), "TestOp")
 			require.NoError(t, err)
-			assert.Equal(t, tc.Token, bearer.Token)
+			assert.Equal(tc.Token, bearer.Token)
+		})
+	}
+}
+
+func TestAPIv4ContextHTTPBearer(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		PrepareCtx    func(context.Context) context.Context
+		ExpectedToken string
+		ExpectedErr   string
+	}{
+		"should return the token carried by the context": {
+			PrepareCtx: func(ctx context.Context) context.Context {
+				return ogenclient.ContextWithAPIv4Token(ctx, "my-request-token")
+			},
+			ExpectedToken: "my-request-token",
+		},
+		"should return an error if the context carries no token": {
+			PrepareCtx: func(ctx context.Context) context.Context {
+				return ctx
+			},
+			ExpectedErr: "no apiv4 token in the context",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := tc.PrepareCtx(t.Context())
+
+			src := ogenclient.APIv4Context{}
+			bearer, err := src.HTTPBearer(ctx, "TestOp")
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+				assert.ErrorIs(err, ogenclient.ErrMissingToken)
+			} else {
+				assert.Nil(err)
+				assert.Equal(tc.ExpectedToken, bearer.Token)
+			}
 		})
 	}
 }

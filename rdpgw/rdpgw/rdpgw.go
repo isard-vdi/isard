@@ -7,16 +7,28 @@ import (
 	"net"
 	"time"
 
-	"github.com/bolkedebruin/rdpgw/protocol"
-	"github.com/patrickmn/go-cache"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"gitlab.com/isard/isardvdi/rdpgw/cfg"
+
+	"github.com/bolkedebruin/rdpgw/protocol"
+	"github.com/patrickmn/go-cache"
 )
 
 var c = cache.New(5*time.Minute, 10*time.Minute)
 
-func Init(cfg cfg.Cfg) *protocol.Gateway {
+func Init(cfg cfg.Cfg) (*protocol.Gateway, error) {
+	opts := []ogenclient.Option{ogenclient.WithUserAgent("isardvdi-rdpgw")}
+
+	cli, err := apiv4.NewClient(
+		"http://"+cfg.APIAddr,
+		ogenclient.APIv4Context{},
+		apiv4.WithClient(ogenclient.NewHTTPClient(opts...)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create the API client: %w", err)
+	}
+
 	return &protocol.Gateway{ServerConf: &protocol.ServerConf{
 		IdleTimeout: int(cfg.IdleTimeout.Minutes()),
 		TokenAuth:   true,
@@ -28,8 +40,8 @@ func Init(cfg cfg.Cfg) *protocol.Gateway {
 			Pnp:       true,
 		},
 		VerifyTunnelCreate: verifyToken,
-		VerifyServerFunc:   verifyServer(cfg.APIAddr),
-	}}
+		VerifyServerFunc:   verifyServer(cli),
+	}}, nil
 }
 
 func verifyToken(ctx context.Context, tkn string) (bool, error) {
@@ -39,7 +51,7 @@ func verifyToken(ctx context.Context, tkn string) (bool, error) {
 	return true, nil
 }
 
-func verifyServer(apiAddr string) func(context.Context, string) (bool, error) {
+func verifyServer(cli apiv4.Invoker) func(context.Context, string) (bool, error) {
 	return func(ctx context.Context, host string) (bool, error) {
 		s := ctx.Value("SessionInfo").(*protocol.SessionInfo)
 		tknAny, ok := c.Get(s.ConnId)
@@ -56,17 +68,7 @@ func verifyServer(apiAddr string) func(context.Context, string) (bool, error) {
 			return false, fmt.Errorf("split host ip and port: %w", err)
 		}
 
-		httpClient := ogenclient.NewHTTPClient()
-		cli, err := apiv4.NewClient(
-			fmt.Sprintf("http://%s", apiAddr),
-			ogenclient.APIv4Static{Token: tkn},
-			apiv4.WithClient(httpClient),
-		)
-		if err != nil {
-			return false, fmt.Errorf("error creating the client: %w", err)
-		}
-
-		res, err := cli.UserOwnsDesktop(ctx, &apiv4.UserOwnsDesktopRequest{
+		res, err := cli.UserOwnsDesktop(ogenclient.ContextWithAPIv4Token(ctx, tkn), &apiv4.UserOwnsDesktopRequest{
 			IP: apiv4.NewOptNilString(ip),
 		})
 		if err != nil {
