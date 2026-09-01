@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
@@ -48,8 +48,9 @@ const emit = defineEmits<{
   showStorageModal: []
 }>()
 
-const bastionEnabled =
-  props.desktop.bastion_target?.http?.enabled || props.desktop.bastion_target?.ssh?.enabled
+const bastionEnabled = computed(
+  () => props.desktop.bastion_target?.http?.enabled || props.desktop.bastion_target?.ssh?.enabled
+)
 </script>
 
 <template>
