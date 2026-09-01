@@ -1819,6 +1819,9 @@
         },
         "reservables": {
           "title": "Reservables"
+        },
+        "interfaces": {
+          "title": "Networks"
         }
       }
     },
