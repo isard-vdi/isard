@@ -41,6 +41,7 @@ interface Props {
   roles?: string[] // Restrict the pickable users to these role ids
   preselectedUsers?: AllowedOption[] // Users shown in the users column when nothing is being browsed or searched
   error?: string // Error message to show in the footer.
+  readonly?: boolean // Show the current selection without allowing changes.
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -57,7 +58,8 @@ const props = withDefaults(defineProps<Props>(), {
   usersOnly: false,
   roles: undefined,
   preselectedUsers: undefined,
-  error: ''
+  error: '',
+  readonly: false
 })
 
 const emit = defineEmits<{
@@ -478,7 +480,7 @@ const toggleUser = (userId: string) => {
 }
 
 const toggleShareWithEveryone = () => {
-  if (props.loading) return
+  if (props.loading || props.readonly) return
   dirty.value = true
   shareWithEveryone.value = !shareWithEveryone.value
 }
@@ -499,7 +501,7 @@ const requireSelectionText = computed(() =>
     : t('components.allowed-modal.require-selection')
 )
 
-const columnsDisabled = computed(() => shareWithEveryone.value || props.loading)
+const columnsDisabled = computed(() => shareWithEveryone.value || props.loading || props.readonly)
 
 const saveDisabled = computed(
   () => props.loading || !dirty.value || (props.requireSelection && isEmptySelection.value)
@@ -563,8 +565,8 @@ const handleClose = () => {
       :class="[
         'mb-4 flex shrink-0 select-none flex-row items-center gap-2 rounded-lg border p-3',
         shareWithEveryone ? 'border-brand-600 bg-brand-100' : 'border-gray-warm-200 bg-base-white',
-        props.loading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
-        !props.loading && !shareWithEveryone && 'hover:bg-gray-warm-50'
+        props.loading || props.readonly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+        !props.loading && !props.readonly && !shareWithEveryone && 'hover:bg-gray-warm-50'
       ]"
       data-slot="share-everyone"
       @click="toggleShareWithEveryone"
@@ -594,7 +596,7 @@ const handleClose = () => {
               `components.allowed-modal.share-everyone.${shareWithEveryone ? 'checked' : 'unchecked'}.title`
             )
           "
-          :disabled="props.loading"
+          :disabled="props.loading || props.readonly"
           data-slot="share-everyone-checkbox"
           size="md"
           class="bg-base-white"
@@ -678,7 +680,7 @@ const handleClose = () => {
           <Button hierarchy="secondary-gray" :disabled="props.loading" @click="handleClose">
             {{ t('components.allowed-modal.cancel') }}
           </Button>
-          <Tooltip :disabled="!saveHint">
+          <Tooltip v-if="!props.readonly" :disabled="!saveHint">
             <TooltipTrigger as-child>
               <span class="flex">
                 <Button

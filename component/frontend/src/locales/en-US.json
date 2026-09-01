@@ -2597,6 +2597,7 @@
         "title": "Manage co-owners for '{name}'",
         "description": "Choose which users co-own this deployment. Owner: {owner}",
         "warning": "Co-owners have the same permissions as the owner, except they cannot delete the deployment or manage co-owners.",
+        "co-owner-warning": "As a co-owner you cannot change the co-owners. Contact the deployment owner.",
         "success": "Co-owners updated",
         "error": "Could not update the co-owners"
       },

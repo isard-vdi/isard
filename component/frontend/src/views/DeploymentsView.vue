@@ -209,10 +209,13 @@ const dropdownActions = computed<DeploymentAction[]>(() => [
     key: 'co-owners',
     icon: 'users-plus',
     label: t('views.deployments.dropdown.buttons.co-owners'),
-    hiddenFor: (deployment: OwnedDeployment) => deployment.co_owner,
     fn: (deployment: OwnedDeployment) => {
       coOwnersError.value = ''
-      coOwnersModalDeploymentData.value = { id: deployment.id, name: deployment.name }
+      coOwnersModalDeploymentData.value = {
+        id: deployment.id,
+        name: deployment.name,
+        coOwner: deployment.co_owner
+      }
     }
   },
   {
@@ -279,7 +282,9 @@ const downloadCsvModalDeploymentData = ref<{
 const visibleDropdownActions = (deployment: OwnedDeployment) =>
   dropdownActions.value.filter((action) => !action.hiddenFor?.(deployment))
 
-const coOwnersModalDeploymentData = ref<{ id: string; name: string } | null>(null)
+const coOwnersModalDeploymentData = ref<{ id: string; name: string; coOwner: boolean } | null>(
+  null
+)
 const coOwnersDeploymentId = computed(() => coOwnersModalDeploymentData.value?.id ?? '')
 const coOwnersError = ref('')
 
@@ -419,7 +424,14 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
     :description="
       t('components.deployments.co-owners-modal.description', { owner: coOwnersOwnerName })
     "
-    :warning="t('components.deployments.co-owners-modal.warning')"
+    :readonly="coOwnersModalDeploymentData.coOwner"
+    :warning="
+      t(
+        coOwnersModalDeploymentData.coOwner
+          ? 'components.deployments.co-owners-modal.co-owner-warning'
+          : 'components.deployments.co-owners-modal.warning'
+      )
+    "
     :loading="updateCoOwnersIsPending"
     :error="coOwnersError"
     @save="handleSaveCoOwners"
