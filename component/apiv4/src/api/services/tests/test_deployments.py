@@ -193,6 +193,21 @@ class TestGetDeploymentDesktopBastion:
             DeploymentService.get_deployment_desktop_bastion("d1", "desk-x")
 
 
+class TestCountRecreateDesktops:
+    @patch(
+        "api.services.deployments.CommonDeployments.count_recreate_desktops",
+        return_value=3,
+    )
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_returns_the_common_count(self, _exists, _count):
+        assert DeploymentService.count_recreate_desktops(JWT_PAYLOAD, "d1") == 3
+
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=False)
+    def test_raises_not_found(self, _exists):
+        with pytest.raises(Error):
+            DeploymentService.count_recreate_desktops(JWT_PAYLOAD, "ghost")
+
+
 class TestGetDeploymentUserDesktops:
     @patch(
         "api.services.deployments.CommonDeploymentDesktops.get_deployment_user_desktops",

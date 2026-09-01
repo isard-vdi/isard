@@ -283,6 +283,12 @@ export default {
         throw e
       })
     },
+    fetchRecreateDeploymentCount (_, payload) {
+      // Only the API knows which allowed users are active and still lack their desktop.
+      return axios.get(`${apiV3Segment}/item/deployment/${payload.id}/recreate/count`).then(response => {
+        return response.data.desktops_to_create
+      })
+    },
     recreateDeployment (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.recreating-deployment'), '', true, 1000)
       axios.put(`${apiV3Segment}/item/deployment/${payload.id}/recreate`).then(response => {

@@ -713,6 +713,10 @@
           "user": "User",
           "started-desktops": "Started desktops",
           "actions": "Actions"
+        },
+        "disabled-user": {
+          "badge": "Disabled",
+          "tooltip": "This user account is disabled. A recreate will not create a desktop for it."
         }
       },
       "tooltips": {
@@ -724,7 +728,23 @@
       "recreate-modal": {
         "title": "Recreate deployment '{name}'",
         "description": "Restores desktops to the initial state in which they were created. Only deleted desktops will be restored",
-        "button": "Recreate deployment"
+        "button": "Recreate deployment",
+        "counting": "Checking how many desktops will be created…",
+        "count": "It will create {n} desktop | It will create {n} desktops",
+        "empty": "There are no desktops to create: every allowed and active user already has theirs.",
+        "close": "Close"
+      },
+      "provisioning-modal": {
+        "title": "Creating desktops for '{name}'",
+        "description": "Your desktops are being provisioned in two stages. They will not be usable until both stages finish.",
+        "stage1-title": "Stage 1 — Adding desktops to the deployment",
+        "stage1-pending": "Waiting for the engine to start spawning desktops...",
+        "stage1-progress": "{current} of {total} desktops added",
+        "stage1-done": "{total} of {total} desktops added",
+        "stage2-title": "Stage 2 — Provisioning storage",
+        "stage2-pending": "Waiting for Stage 1 to finish before storage can be provisioned",
+        "stage2-progress": "{current} of {total} desktops provisioned",
+        "stage2-done": "{total} of {total} desktops provisioned"
       },
       "actions": {
         "access": "Access",
@@ -2943,6 +2963,13 @@
         "not_found": "The deployment was not found.",
         "precondition_required": "The deployment can't be deleted right now. Please try again in a moment.",
         "deployment_stop": "The deployment's desktops must be stopped before it can be deleted."
+      }
+    },
+    "recreate-deployment": {
+      "errors": {
+        "generic": "The deployment recreate could not be checked. Please try again.",
+        "not_found": "Deployment not found.",
+        "deployment_recreate_booking_not_enough_units": "The deployment's future booking does not have enough units for the desktops the recreate would create."
       }
     },
     "edit-template": {

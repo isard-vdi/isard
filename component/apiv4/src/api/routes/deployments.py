@@ -60,6 +60,7 @@ from api.schemas.deployments import (
     DeploymentHardwareResponse,
     DeploymentInfoResponse,
     DeploymentPermissions,
+    DeploymentRecreateCountResponse,
     DeploymentResponse,
     DeploymentVideowallResponse,
     OwnedDeploymentsResponse,
@@ -521,6 +522,45 @@ async def get_deployment_csv(
             request,
             "internal_server",
             f"Failed to generate CSV",
+            traceback.format_exc(),
+        )
+
+
+@advanced_router.get(
+    "/item/deployment/{deployment_id}/recreate/count",
+    tags=[tag],
+    summary="Count the desktops a deployment recreate would create",
+    response_model=DeploymentRecreateCountResponse,
+    description="Returns how many desktops a recreate would create, so the confirmation shown to the user matches what will actually be created.",
+    responses={
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def count_recreate_deployment_desktops(
+    deployment_id: str,
+    request: Request,
+    owns_deployment_id=Depends(owns_deployment_id()),
+):
+    try:
+        desktops_to_create = await asyncio.to_thread(
+            DeploymentService.count_recreate_desktops,
+            request.token_payload,
+            deployment_id,
+        )
+        return JSONResponse(
+            content=DeploymentRecreateCountResponse(
+                desktops_to_create=desktops_to_create
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to count deployment recreate desktops: {type(e).__name__}: {e}",
             traceback.format_exc(),
         )
 

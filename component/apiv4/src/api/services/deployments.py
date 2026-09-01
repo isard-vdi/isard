@@ -254,6 +254,26 @@ class DeploymentService:
         return deployment_id
 
     @staticmethod
+    def count_recreate_desktops(payload: dict, deployment_id: str) -> int:
+        """
+        Count the desktops a recreate would create for this deployment.
+
+        Args:
+            payload: The token payload of the requesting user
+            deployment_id: The ID of the deployment
+
+        Returns:
+            int: Number of desktops that would be created
+        """
+        if not RethinkDeployment.exists(deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+
+        return CommonDeployments.count_recreate_desktops(payload, deployment_id)
+
+    @staticmethod
     def stop_all_desktops(deployment_id: str) -> None:
         desktops = CommonDeploymentDesktops.get_desktop_ids(deployment_id)
         if not desktops:

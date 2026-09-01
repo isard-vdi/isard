@@ -1510,6 +1510,7 @@
       "file-downloaded": "Fichero descargado",
       "creating-deployment": "Creando despliegue",
       "recreating-deployment": "Recreando despliegue",
+      "no-desktops-to-recreate": "'{name}': no hay ningún escritorio por crear. Todos los usuarios permitidos y habilitados ya tienen sus escritorios.",
       "deployment-desktops-created": "Escritorios del despliegue creados",
       "deployment-bastion-updated": "Configuración de bastión del despliegue actualizada",
       "bastion-not-configured": "El bastión no está habilitado para este escritorio",

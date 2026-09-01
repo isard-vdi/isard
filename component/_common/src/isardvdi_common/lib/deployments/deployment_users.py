@@ -53,7 +53,7 @@ class DeploymentUsers(RethinkSharedConnection):
             users_data = list(
                 r.table("users")
                 .get_all(r.args(deployment_users))
-                .pluck("id", "name", "username", "photo")
+                .pluck("id", "name", "username", "photo", "active")
                 .run(cls._rdb_connection)
             )
 
@@ -63,6 +63,9 @@ class DeploymentUsers(RethinkSharedConnection):
                 "name": user["name"],
                 "username": user["username"],
                 "photo": user.get("photo"),
+                # The same truth get_selected_users filters on, so a caller can
+                # mark the allowed users a recreate will skip.
+                "active": user.get("active") is True,
                 "desktops_statuses": [],
                 "visible": False,
                 "last_access": None,
