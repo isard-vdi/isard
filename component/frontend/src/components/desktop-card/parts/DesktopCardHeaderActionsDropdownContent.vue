@@ -53,6 +53,10 @@ const isManageable = computed(
 
 const role = computed(() => authStore.user?.role_id)
 
+// A deployment desktop is shaped from its deployment, the deployment owner's
+// own desktop included; recreate is the only entry the owner can hand out.
+const isStandalone = computed(() => !props.desktop.tag)
+
 const actions = computed<Action[]>(() =>
   (
     [
@@ -60,31 +64,34 @@ const actions = computed<Action[]>(() =>
         event: 'editDesktop',
         labelKey: 'components.desktops.desktop-card.actions.edit',
         icon: 'edit-01',
-        when: isManageable.value
+        when: isManageable.value && isStandalone.value
       },
       {
         event: 'showStorageModal',
         labelKey: 'components.desktops.desktop-card.actions.advanced-options',
         icon: 'settings-02',
-        when: isManageable.value && hasAdvancedOptions(role.value)
+        when: isManageable.value && isStandalone.value && hasAdvancedOptions(role.value)
       },
       {
         event: 'createTemplate',
         labelKey: 'components.desktops.desktop-card.actions.template',
         icon: 'colors',
-        when: props.desktop.status === DesktopStatusEnum.STOPPED && isNotUser(role.value)
+        when:
+          props.desktop.status === DesktopStatusEnum.STOPPED &&
+          isStandalone.value &&
+          isNotUser(role.value)
       },
       {
         event: 'bookDesktop',
         labelKey: 'components.desktops.desktop-card.actions.book',
         icon: 'calendar-check-02',
-        when: isManageable.value && !props.desktop.tag && props.desktop.needs_booking === true
+        when: isManageable.value && isStandalone.value && props.desktop.needs_booking === true
       },
       {
         event: 'showDirectLinkModal',
         labelKey: 'components.desktops.desktop-card.actions.direct-link',
         icon: 'link-01',
-        when: true
+        when: isStandalone.value
       },
       {
         event: 'showRecreateModal',
@@ -96,7 +103,7 @@ const actions = computed<Action[]>(() =>
         event: 'showDeleteModal',
         labelKey: 'components.desktops.desktop-card.actions.delete',
         icon: 'trash-04',
-        when: isManageable.value && !props.desktop.tag,
+        when: isManageable.value && isStandalone.value,
         danger: true
       }
     ] satisfies Action[]

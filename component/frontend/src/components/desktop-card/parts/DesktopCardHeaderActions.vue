@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
 
+import { desktopHasMenuActions } from '@/lib/desktops'
+
 import { DesktopCardHeaderActionsDropdownContent, DesktopCardOverlayButton } from '..'
 import { Button } from '@/components/ui/button'
 import {
@@ -75,7 +77,7 @@ const bastionEnabled =
     @click="emit('bastionClick')"
   />
 
-  <Tooltip>
+  <Tooltip v-if="desktopHasMenuActions(props.desktop)">
     <TooltipTrigger as-child>
       <span class="inline-flex">
         <DropdownMenu @update:open="rememberMenuOpened">
