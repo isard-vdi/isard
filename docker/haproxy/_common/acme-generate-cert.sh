@@ -13,8 +13,9 @@ export LE_WORKING_DIR="/etc/acme"
 # ACME_SERVER is defaulted by the entrypoint, which a `docker exec` of this
 # script does not inherit; read it in a subshell so an explicit value wins.
 haproxy_env="${HAPROXY_ENV_FILE:-/var/run/haproxy-env}"
-if [ -z "${ACME_SERVER:-}" ] && [ -r "$haproxy_env" ]; then
-    ACME_SERVER="$(. "$haproxy_env"; printf '%s' "$ACME_SERVER")"
+if [ -r "$haproxy_env" ]; then
+    [ -n "${ACME_SERVER:-}" ] || ACME_SERVER="$(. "$haproxy_env"; printf '%s' "$ACME_SERVER")"
+    [ -n "${ACME_DOMAIN:-}" ] || ACME_DOMAIN="$(. "$haproxy_env"; printf '%s' "$ACME_DOMAIN")"
     export ACME_SERVER
 fi
 
@@ -23,10 +24,21 @@ if [ -z "${ACME_SERVER:-}" ]; then
     exit 1
 fi
 
+# Extra names belong on the installation's own certificate only, so that a
+# DOMAIN of the www. kind can serve its apex; a per-domain one stays one name.
+set -- --issue --stateless -d "$acme_domain"
+if [ -n "${ACME_EXTRA_DOMAINS:-}" ] && [ "$acme_domain" = "${ACME_DOMAIN:-}" ]; then
+    for extra in $(printf '%s' "$ACME_EXTRA_DOMAINS" | tr ',' ' '); do
+        if [ "$extra" != "$acme_domain" ]; then
+            set -- "$@" -d "$extra"
+        fi
+    done
+fi
+
 # Generate the certificate
 echo "Generating ACME certificate for $acme_domain"
 set +e
-acme.sh --issue --stateless -d "$acme_domain" --server "$ACME_SERVER"
+acme.sh "$@" --server "$ACME_SERVER"
 ACME_EXIT_CODE="$?"
 set -e
 if [ "$ACME_EXIT_CODE" = 0 ]; then

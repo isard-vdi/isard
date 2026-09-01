@@ -1,4 +1,4 @@
-# Isard main config v3.0.2
+# Isard main config v3.0.3
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -125,6 +125,14 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ## - zerossl
 ## Full list is in the CA_NAMES variable: https://github.com/acmesh-official/acme.sh/blob/master/acme.sh#L40
 #ACME_SERVER="letsencrypt"
+## Additional names to put on this installation's certificate, comma separated
+## and without spaces. Use it when DOMAIN is a "www." name and the bare name
+## has to work too, or for any alias that must not raise a certificate warning.
+## The names are added to the certificate and accepted by the SNI filter, so
+## they also work with FORBID_DOMAIN_IP enabled. Nothing is redirected: every
+## name serves the same site, while links the webapp builds still use DOMAIN.
+## Changing this list makes the certificate be reissued on the next start.
+#ACME_EXTRA_DOMAINS=example.com,alias.example.com
 
 # ------ Sessions ------------------------------------------------------------
 # Maximum valid session time. If this duration is exceeded, the user won't be able to renew
