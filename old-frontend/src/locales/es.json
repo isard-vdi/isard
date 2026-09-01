@@ -297,7 +297,7 @@
     "ssh-key": {
       "modal": {
         "title": "Clave SSH de bastión",
-        "description": "Añade una sola clave pública SSH a tu perfil. Se añade automáticamente al acceso SSH del bastión de cualquier escritorio que arranques (cuando el SSH del bastión esté habilitado en ese escritorio), así que no tienes que añadirla manualmente a cada escritorio.",
+        "description": "Añade una sola clave pública SSH a tu perfil. El bastión la acepta para el acceso SSH de cualquier escritorio tuyo, y de los escritorios de cualquier despliegue del que seas propietario o copropietario, así que no tienes que añadirla manualmente a cada escritorio. Si la eliminas, ese acceso se revoca.",
         "label": "Tu clave pública SSH",
         "invalid": "La clave pública SSH proporcionada no es válida.",
         "buttons": {
@@ -1416,7 +1416,6 @@
           "not-verified": "Dominio no verificado - haz clic en el escudo para verificar"
         },
         "own-key": {
-          "managed": "Tu propia clave se añade automáticamente desde tu perfil al arrancar este escritorio. Este campo es solo para las claves públicas de otras personas.",
           "missing": "Todavía no tienes una clave SSH de bastión en tu perfil, así que no obtendrás acceso SSH automáticamente.",
           "add-link": "Añádela en tu perfil"
         },

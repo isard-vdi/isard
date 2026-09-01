@@ -1099,7 +1099,6 @@
           "not-verified": "Domini no verificat - fes clic a l'escut per verificar"
         },
         "own-key": {
-          "managed": "La teva pròpia clau s'afegeix automàticament des del teu perfil en arrencar aquest escriptori. Aquest camp és només per a les claus públiques d'altres persones.",
           "missing": "Encara no tens una clau SSH de bastió al teu perfil, així que no obtindràs accés SSH automàticament.",
           "add-link": "Afegeix-la al teu perfil"
         },
@@ -1450,7 +1449,7 @@
     "ssh-key": {
       "modal": {
         "title": "Clau SSH de bastió",
-        "description": "Afegeix una sola clau pública SSH al teu perfil. S'afegeix automàticament a l'accés SSH del bastió de qualsevol escriptori que arrenquis (quan l'SSH del bastió estigui habilitat en aquest escriptori), així que no cal afegir-la manualment a cada escriptori.",
+        "description": "Afegeix una sola clau pública SSH al teu perfil. El bastió l'accepta per a l'accés SSH de qualsevol escriptori teu, i dels escriptoris de qualsevol desplegament del qual siguis propietari o copropietari, així que no cal afegir-la manualment a cada escriptori. Si l'elimines, aquest accés es revoca.",
         "label": "La teva clau pública SSH",
         "invalid": "La clau pública SSH proporcionada no és vàlida.",
         "buttons": {

@@ -657,7 +657,7 @@
           "remove": "Kendu gakoa",
           "save": "Gorde gakoa"
         },
-        "description": "Gehitu zure SSH gako publikoa profilari. Automatikoki gehitzen zaio hasten duzun edozein mahaigaineko bastioiaren SSH sarbideari (bastioi bidezko SSH sarbidea mahaigain horretan aktibatuta dagoenean); beraz, ez duzu mahaigain bakoitzera gehitu behar.",
+        "description": "Gehitu zure SSH gako publikoa profilari. Bastioiak onartzen du zure edozein mahaigainen SSH sarbiderako, eta jabe edo jabekide zaren edozein hedapenetako mahaigainetarako; beraz, ez duzu mahaigain bakoitzera gehitu behar. Ezabatzen baduzu, sarbide hori indargabetzen da.",
         "invalid": "Honek ez dirudi baliozko SSH gako publikoa.",
         "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user{'@'}host",
         "security-note": "Gehitu zure gako publikoa bakarrik. Beste pertsona baten gakoa gehitzeak zure erakundearen segurtasun-politika urra dezake.",
@@ -810,9 +810,11 @@
               "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
               "others-label": "Beste pertsona batzuen SSH gakoak (bat linea bakoitzeko)",
               "own-key": {
-                "add-link": "Gehitu zure profilean",
-                "managed": "Zure gakoa automatikoki gehituko da zure profiletik mahaigain hau hasten duzunean. Lauki hau beste pertsona batzuen gako publikoetarako baino ez da.",
-                "missing": "Oraindik ez duzu bastioiko SSH gakorik zure profilean, beraz, ez duzu automatikoki SSH sarbiderik izango."
+                "missing": {
+                  "title": "Erabiltzailearen SSH gakoa falta da",
+                  "description": "Oraindik ez duzu bastioiko SSH gakorik zure profilean; gehi dezakezu zure mahaigain guztietan automatikoki SSH sarbidea izateko.",
+                  "button": "Gehitu zure profilera"
+                }
               }
             }
           }

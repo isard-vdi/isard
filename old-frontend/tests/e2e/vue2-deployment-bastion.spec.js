@@ -10,9 +10,9 @@
 //     BastionModal in READ-ONLY mode (no authorized-keys editor)
 //   * the bastion CSV downloads from the StatusBar
 //   * the profile "Bastion SSH key" modal saves a key
-//   * profile keys are injected into the desktop's bastion target
-//     at START: [desktop-owner, deployment-owner, co-owners…],
-//     owner-first, deduped
+//   * profile keys are NOT copied into the desktop's bastion target
+//     at START (the bastion resolves them live at connection time),
+//     while the deployment config is still reconciled
 //   * role gates: co-owner has full config access, a plain
 //     deployment member gets 403 on every deployment-bastion route
 //
@@ -283,7 +283,7 @@ test.describe('Vue 2 deployment bastion', () => {
     expect(stored.ssh_key).toBe(KEY_PROFILE)
   })
 
-  test('profile keys are injected into the target at desktop start', async () => {
+  test('profile keys are not copied into the target at desktop start', async () => {
     test.skip(!bastionEnabled, 'bastion is not enabled on this stack')
     test.skip(!memberDesktopId, 'deployment desktop did not reach Stopped')
     test.setTimeout(180000)
@@ -300,13 +300,16 @@ test.describe('Vue 2 deployment bastion', () => {
       const targets = await memberApi._authFetch('GET', '/api/v4/items/bastions')
       const target = (targets || []).find((t) => t.desktop_id === memberDesktopId)
       expect(target, 'member desktop should have a bastion target').toBeTruthy()
+      // The desktop owner, the deployment owner and the co-owner all have a
+      // profile key, and none of them belongs in the target: the bastion
+      // resolves them live at connection time. The box is for other people's
+      // keys only, and nobody has put one there.
       const keys = target.ssh.authorized_keys || []
-      // Desktop-owner key first, then deployment owner + co-owner —
-      // deduped, in that order.
-      expect(keys[0]).toBe(KEY_MEMBER)
-      expect(keys).toContain(KEY_OWNER)
-      expect(keys).toContain(KEY_CO)
-      expect(new Set(keys).size).toBe(keys.length)
+      expect(keys).not.toContain(KEY_MEMBER)
+      expect(keys).not.toContain(KEY_OWNER)
+      expect(keys).not.toContain(KEY_CO)
+      // The start must still have reconciled the deployment bastion config.
+      expect(target.ssh.enabled).toBe(true)
     } finally {
       await memberApi._authFetch('PUT', `/api/v4/item/desktop/${memberDesktopId}/stop`).catch(() => {})
     }

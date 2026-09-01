@@ -1251,7 +1251,7 @@
           "remove": "Eliminar llave",
           "save": "Guardar llave"
         },
-        "description": "Añade tu propia llave pública SSH al perfil. Se añade automáticamente al acceso SSH del bastión de cualquier escritorio que inicies (cuando el acceso SSH por bastión está activado en ese escritorio), de modo que no tienes que añadirla a cada escritorio.",
+        "description": "Añade tu propia llave pública SSH al perfil. El bastión la acepta para el acceso SSH de cualquier escritorio tuyo, y de los escritorios de cualquier despliegue del que seas propietario o copropietario, de modo que no tienes que añadirla a cada escritorio. Si la eliminas, ese acceso se revoca.",
         "invalid": "Esto no parece una llave pública SSH válida.",
         "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... usuario{'@'}host",
         "security-note": "Añade solo tu propia llave pública. Añadir la llave de otra persona puede violar la política de seguridad de tu organización.",
@@ -2175,9 +2175,11 @@
               "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
               "others-label": "Claves SSH de otras personas (una por línea)",
               "own-key": {
-                "add-link": "Añádela en tu perfil",
-                "managed": "Tu propia clave se añade automáticamente desde tu perfil cuando inicias este escritorio. Esta casilla solo es para las claves públicas de otras personas.",
-                "missing": "Aún no tienes ninguna clave SSH del bastión en tu perfil, así que no tendrás acceso SSH automáticamente."
+                "missing": {
+                  "title": "Falta la clave SSH de usuario",
+                  "description": "Aún no tienes ninguna clave SSH del bastión en tu perfil; puedes añadirla para tener acceso SSH automáticamente en todos tus escritorios.",
+                  "button": "Añádela a tu perfil"
+                }
               }
             }
           }

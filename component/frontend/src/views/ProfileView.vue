@@ -127,6 +127,8 @@ const router = useRouter()
 onMounted(() => {
   if (route.query.open === 'quota') {
     showQuotaModal.value = true
+  } else if (route.query.open === 'ssh') {
+    showSshKeyModal.value = true
   }
 })
 </script>
