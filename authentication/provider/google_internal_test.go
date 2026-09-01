@@ -258,3 +258,29 @@ func TestGoogleGuessRole(t *testing.T) {
 		})
 	}
 }
+
+func TestGoogleHealthcheck(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		ExpectedErr error
+	}{
+		"should return an error if the configuration has never been loaded": {
+			ExpectedErr: ErrNotConfigured,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			g := InitGoogle(cfg.Authentication{})
+
+			err := g.Healthcheck()
+
+			assert.ErrorIs(err, tc.ExpectedErr)
+		})
+	}
+}

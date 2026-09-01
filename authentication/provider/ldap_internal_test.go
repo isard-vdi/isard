@@ -912,3 +912,29 @@ func TestLDAPLogin(t *testing.T) {
 		})
 	}
 }
+
+func TestLDAPHealthcheck(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		ExpectedErr error
+	}{
+		"should return an error if the configuration has never been loaded": {
+			ExpectedErr: ErrNotConfigured,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			p := InitLDAP("", log.New("test", "debug"), nil)
+
+			err := p.Healthcheck()
+
+			assert.ErrorIs(err, tc.ExpectedErr)
+		})
+	}
+}

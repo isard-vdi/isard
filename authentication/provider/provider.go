@@ -94,6 +94,7 @@ var (
 	ErrUserDisallowed     = errors.New("user can't use IsardVDI")
 	ErrUnknownIDP         = errors.New("unknown identity provider")
 	ErrInvalidIDP         = errors.New("invalid identity provider for this operation")
+	ErrNotConfigured      = errors.New("provider configuration not loaded")
 )
 
 func matchRegex(re *regexp.Regexp, s string) string {

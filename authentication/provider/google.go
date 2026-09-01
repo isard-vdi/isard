@@ -125,6 +125,10 @@ func (g *Google) String() string {
 }
 
 func (g *Google) Healthcheck() error {
+	if g.provider.cfg.Cfg().ClientID == "" {
+		return ErrNotConfigured
+	}
+
 	resp, err := http.PostForm("https://oauth2.googleapis.com/token", nil)
 	if err != nil {
 		return fmt.Errorf("check google oauth2 endpoint: %w", err)
