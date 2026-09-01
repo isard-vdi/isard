@@ -7,7 +7,7 @@ import ipaddress
 import logging as log
 import shlex
 import traceback
-from subprocess import check_output
+from subprocess import DEVNULL, check_output
 
 from db import vpn_rethink_conn
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
@@ -39,6 +39,23 @@ def _rule_addr(tokens, flag):
         return None
 
 
+IPTABLES = "/sbin/iptables"
+
+
+def _append_forward(rule):
+    """Append a FORWARD rule unless the chain already carries it.
+
+    Any write to a running desktop's row replays the add, so an unconditional
+    append grows one copy per event and a single delete cannot undo them.
+    """
+    try:
+        check_output((IPTABLES, "-C", "FORWARD", *rule), stderr=DEVNULL)
+        return
+    except Exception:
+        pass
+    check_output((IPTABLES, "-A", "FORWARD", *rule), text=True)
+
+
 class UserIpTools(object):
     def __init__(self):
         self.flush_chains()
@@ -54,10 +71,16 @@ class UserIpTools(object):
                 .run(conn)
             )
         for ds in domains_started:
-            if ds.get("viewer") and "guest_ip" in ds["viewer"].keys():
-                self.desktop_add(ds["user"], ds["viewer"]["guest_ip"])
+            # The value, not the key: a desktop between Started and its address
+            # arriving carries an explicit null, which used to reach desktop_add
+            # and take the whole service down on startup.
+            guest_ip = (ds.get("viewer") or {}).get("guest_ip")
+            if guest_ip:
+                self.desktop_add(ds["user"], guest_ip)
 
     def desktop_add(self, user_id, desktop_ip):
+        if not desktop_ip:
+            return
         try:
             with vpn_rethink_conn() as conn:
                 user = r.table("users").get(user_id).run(conn)
@@ -74,34 +97,8 @@ class UserIpTools(object):
             + " USER ]"
         )
 
-        check_output(
-            (
-                "/sbin/iptables",
-                "-A",
-                "FORWARD",
-                "-s",
-                user_addr,
-                "-d",
-                desktop_ip,
-                "-j",
-                "ACCEPT",
-            ),
-            text=True,
-        ).strip()
-        check_output(
-            (
-                "/sbin/iptables",
-                "-A",
-                "FORWARD",
-                "-d",
-                user_addr,
-                "-s",
-                desktop_ip,
-                "-j",
-                "ACCEPT",
-            ),
-            text=True,
-        ).strip()
+        _append_forward(("-s", user_addr, "-d", desktop_ip, "-j", "ACCEPT"))
+        _append_forward(("-d", user_addr, "-s", desktop_ip, "-j", "ACCEPT"))
         self.apply_remote_vpn(user, desktop_ip)
         return
 
@@ -244,32 +241,8 @@ class UserIpTools(object):
     def _add_remotevpn_rules(self, entries, desktop_ip):
         for entry in entries:
             for addr in self._remotevpn_addrs(entry):
-                check_output(
-                    (
-                        "/sbin/iptables",
-                        "-A",
-                        "FORWARD",
-                        "-s",
-                        desktop_ip,
-                        "-d",
-                        addr,
-                        "-j",
-                        "ACCEPT",
-                    )
-                )
-                check_output(
-                    (
-                        "/sbin/iptables",
-                        "-A",
-                        "FORWARD",
-                        "-d",
-                        desktop_ip,
-                        "-s",
-                        addr,
-                        "-j",
-                        "ACCEPT",
-                    )
-                )
+                _append_forward(("-s", desktop_ip, "-d", addr, "-j", "ACCEPT"))
+                _append_forward(("-d", desktop_ip, "-s", addr, "-j", "ACCEPT"))
 
     def _remove_remotevpn_rules(self, entries, desktop_ip):
         for entry in entries:
