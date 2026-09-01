@@ -88,7 +88,7 @@ import {
   DesktopBastionInfoModal,
   DesktopNetworksModal
 } from '@/components/desktops'
-import { DesktopStorageModal } from '@/components/desktop-card/desktop-storage-modal'
+import { AdvancedOptionsModal } from '@/components/desktop-card/advanced-options-modal'
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { BadgeMini } from '@/components/badge/mini'
@@ -357,6 +357,7 @@ const abortOperationModalData = ref<{
   operation: string
 } | null>(null)
 
+const advancedOptionsDesktop = ref<UserDesktop | null>(null)
 const {
   mutate: fetchDesktopDetails,
   isPending: fetchDesktopDetailsIsPending,
@@ -1484,7 +1485,7 @@ const missingCardRows = computed(() => {
             operation: 'abort'
           }
         "
-        @show-storage-modal="storageModalDesktop = routeDesktop"
+        @show-storage-modal="advancedOptionsDesktop = routeDesktop"
       />
 
       <template #actions>
@@ -1830,7 +1831,7 @@ const missingCardRows = computed(() => {
               }
             }
           "
-          @show-storage-modal="(dktp: UserDesktop) => (storageModalDesktop = dktp)"
+          @show-storage-modal="(dktp: UserDesktop) => (advancedOptionsDesktop = dktp)"
         />
 
         <div v-else ref="cardGridRef" class="w-full">
@@ -1936,7 +1937,7 @@ const missingCardRows = computed(() => {
                     operation: 'abort'
                   }
                 "
-                @show-storage-modal="storageModalDesktop = dktp"
+                @show-storage-modal="advancedOptionsDesktop = dktp"
               />
             </div>
           </div>
@@ -1944,10 +1945,10 @@ const missingCardRows = computed(() => {
       </template>
     </div>
 
-    <DesktopStorageModal
-      :open="storageModalDesktop !== null"
-      :desktop="storageModalDesktop ?? undefined"
-      @close="storageModalDesktop = null"
+    <AdvancedOptionsModal
+      :open="advancedOptionsDesktop !== null"
+      :desktop="advancedOptionsDesktop ?? undefined"
+      @close="advancedOptionsDesktop = null"
     />
   </main>
 </template>

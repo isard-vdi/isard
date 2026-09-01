@@ -2034,7 +2034,7 @@
           "networks": "Networks",
           "direct-link": "Direct Link",
           "recreate": "Recreate",
-          "storage": "Storage",
+          "advanced-options": "Advanced options",
           "reset": "Reset"
         },
         "overlay": {
@@ -2167,12 +2167,26 @@
           "copy-id": "Copy Desktop ID"
         }
       },
+      "advanced-options-modal": {
+        "title": "Advanced options",
+        "subtitle": "Advanced options for desktop '{name}'",
+        "options": {
+          "storage": {
+            "label": "Storage",
+            "description": "Storage disks attached to this desktop. Actions are available while the desktop is stopped."
+          }
+        },
+        "error": {
+          "title": "Action failed"
+        }
+      },
       "desktop-storage-modal": {
-        "title": "Storage — {name}",
-        "description": "Storage disks attached to this desktop. Actions are available while the desktop is stopped.",
-        "close": "Close",
         "no-storages": "This desktop has no storage attached.",
         "load-error": "Could not load storage details.",
+        "format": "Format",
+        "disk-id": "Disk ID",
+        "desktop-status": "Desktop",
+        "disk-status": "Disk",
         "virtual-size": "Virtual size",
         "actual-size": "Actual size",
         "status": {
@@ -2186,36 +2200,23 @@
           "unknown": "Unknown"
         },
         "actions": {
-          "cancel": "Cancel operation",
-          "cancel-tooltip": "Cancel the storage task currently running on this disk.",
           "increase": "Increase size",
-          "increase-tooltip": "Add capacity to the disk.",
+          "no-actions": "No actions available for this storage.",
           "increase-needs-stopped": "The desktop must be stopped to increase the disk size.",
-          "increase-needs-ready": "The disk must be ready to be resized.",
-          "no-actions": "No actions available for this storage."
+          "increase-needs-ready": "The disk must be ready to be resized."
         },
-        "cancel-modal": {
-          "title": "Cancel storage operation?",
-          "description": "Cancel the running storage task on {name}? Partial files may be cleaned up after the task is aborted.",
-          "dismiss": "Keep running",
-          "confirm": "Cancel operation",
-          "error-title": "Could not cancel the storage operation",
-          "error-description": "There was an error while trying to cancel the storage operation. Please try again later. \nIf the problem persists, contact your administrator.",
-          "fallback-error": "Could not cancel the storage operation."
-        },
-        "increase-modal": {
-          "title": "Increase disk size",
-          "description": "Add capacity to the desktop's disk. The increment is applied to the virtual size and cannot be undone.",
-          "field-label": "Increment in GB",
-          "field-placeholder": "10",
-          "help": "The disk grows by the specified amount of gigabytes. Quotas are enforced server-side.",
-          "dismiss": "Cancel",
-          "confirm": "Increase",
-          "fallback-error": "Could not increase the disk size."
-        },
-        "error": {
-          "title": "Storage action failed",
-          "close": "Dismiss"
+        "increase": {
+          "field-label": "Increase the disk space in GB",
+          "help-title": "The disk grows by the specified amount of gigabytes.",
+          "help-subtitle": "Quotas are enforced server-side.",
+          "preview": "Resulting virtual size: {size}",
+          "errors": {
+            "required": "Enter how many gigabytes you want to add.",
+            "not-a-number": "Only digits are allowed.",
+            "not-an-integer": "The increment must be a whole number of gigabytes.",
+            "too-small": "The increment must be greater than 0.",
+            "too-large": "The disk cannot exceed {max} GB. You can add {available} GB at most."
+          }
         }
       },
       "quota-exceeded-modal": {
@@ -2909,6 +2910,19 @@
         "only_works_rdp": "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option.",
         "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
         "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host."
+      }
+    },
+    "increase-storage": {
+      "errors": {
+        "generic": "Could not increase the disk size. Please try again.",
+        "validation_error": "The requested increment is not a valid number of gigabytes.",
+        "bad_request": "The increment does not fit in your disk size quota.",
+        "unauthorized": "Your session has expired. Sign in again to resize the disk.",
+        "forbidden": "You are not allowed to resize this disk.",
+        "not_found": "The disk was not found.",
+        "storage_no_consumer_retry_later": "No storage worker is available right now. Please try again in a few minutes.",
+        "storage_overloaded_retry_later": "Storage tasks are overloaded right now. Please try again in a few minutes.",
+        "internal_server": "The server could not schedule the resize. Please try again."
       }
     },
     "delete-desktop": {

@@ -1368,7 +1368,7 @@
           "info": "Información",
           "recreate": "Recrear",
           "template": "Convertir en plantilla",
-          "storage": "Almacenamiento",
+          "advanced-options": "Opciones avanzadas",
           "reset": "Reiniciar",
           "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",
           "networks": "Redes"
@@ -1518,12 +1518,26 @@
           }
         }
       },
+      "advanced-options-modal": {
+        "title": "Opciones avanzadas",
+        "subtitle": "Opciones avanzadas del escritorio '{name}'",
+        "options": {
+          "storage": {
+            "label": "Almacenamiento",
+            "description": "Discos de almacenamiento asociados a este escritorio. Las acciones están disponibles mientras el escritorio está parado."
+          }
+        },
+        "error": {
+          "title": "La acción ha fallado"
+        }
+      },
       "desktop-storage-modal": {
-        "title": "Almacenamiento — {name}",
-        "description": "Discos de almacenamiento asociados a este escritorio. Las acciones están disponibles mientras el escritorio está parado.",
-        "close": "Cerrar",
         "no-storages": "Este escritorio no tiene almacenamiento asociado.",
         "load-error": "No se han podido cargar los datos del almacenamiento.",
+        "format": "Formato",
+        "disk-id": "ID del disco",
+        "desktop-status": "Escritorio",
+        "disk-status": "Disco",
         "virtual-size": "Tamaño virtual",
         "actual-size": "Tamaño real",
         "status": {
@@ -1537,36 +1551,23 @@
           "unknown": "Desconocido"
         },
         "actions": {
-          "cancel": "Cancelar operación",
-          "cancel-tooltip": "Cancela la tarea de almacenamiento en curso sobre este disco.",
           "increase": "Aumentar tamaño",
-          "increase-tooltip": "Añade capacidad al disco.",
+          "no-actions": "No hay acciones disponibles para este almacenamiento.",
           "increase-needs-stopped": "El escritorio debe estar parado para aumentar el tamaño del disco.",
-          "increase-needs-ready": "El disco debe estar listo para redimensionarlo.",
-          "no-actions": "No hay acciones disponibles para este almacenamiento."
+          "increase-needs-ready": "El disco debe estar listo para redimensionarlo."
         },
-        "cancel-modal": {
-          "title": "¿Cancelar la operación de almacenamiento?",
-          "description": "¿Cancelar la tarea de almacenamiento en curso sobre {name}? Los archivos parciales se limpiarán después de abortar la tarea.",
-          "dismiss": "Mantener",
-          "confirm": "Cancelar operación",
-          "error-title": "No se ha podido cancelar la operación de almacenamiento",
-          "error-description": "Hubo un error al intentar cancelar la operación de almacenamiento. Por favor, inténtalo de nuevo más tarde. \nSi el problema persiste, contacta con tu administrador.",
-          "fallback-error": "No se ha podido cancelar la operación de almacenamiento."
-        },
-        "increase-modal": {
-          "title": "Aumentar el tamaño del disco",
-          "description": "Añade capacidad al disco del escritorio. El incremento se aplica al tamaño virtual y no se puede deshacer.",
-          "field-label": "Incremento en GB",
-          "field-placeholder": "10",
-          "help": "El disco crece según la cantidad de gigabytes especificada. Las cuotas se validan en el servidor.",
-          "dismiss": "Cancelar",
-          "confirm": "Aumentar",
-          "fallback-error": "No se ha podido aumentar el tamaño del disco."
-        },
-        "error": {
-          "title": "La acción de almacenamiento ha fallado",
-          "close": "Cerrar"
+        "increase": {
+          "field-label": "Incrementa el espacio del disco en GB",
+          "help-title": "El disco crece según la cantidad de gigabytes especificada.",
+          "help-subtitle": "Las cuotas se validan en el servidor.",
+          "preview": "Tamaño virtual resultante: {size}",
+          "errors": {
+            "required": "Indica cuántos gigabytes quieres añadir.",
+            "not-a-number": "Solo se admiten dígitos.",
+            "not-an-integer": "El incremento debe ser un número entero de gigabytes.",
+            "too-small": "El incremento debe ser mayor que 0.",
+            "too-large": "El disco no puede superar los {max} GB. Como máximo puedes añadir {available} GB."
+          }
         }
       },
       "direct-viewer-modal": {
@@ -2922,6 +2923,19 @@
         "only_works_rdp": "El modo 'Solo GPU' solo funciona con visores RDP. Por favor, elimina los visores que no sean RDP o elige otra opción de vídeo.",
         "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
         "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host."
+      }
+    },
+    "increase-storage": {
+      "errors": {
+        "generic": "No se ha podido aumentar el tamaño del disco. Inténtalo de nuevo.",
+        "validation_error": "El incremento solicitado no es un número de gigabytes válido.",
+        "bad_request": "El incremento no cabe en tu cuota de tamaño de disco.",
+        "unauthorized": "Tu sesión ha caducado. Vuelve a iniciar sesión para redimensionar el disco.",
+        "forbidden": "No tienes permiso para redimensionar este disco.",
+        "not_found": "No se ha encontrado el disco.",
+        "storage_no_consumer_retry_later": "Ahora mismo no hay ningún trabajador de almacenamiento disponible. Inténtalo de nuevo en unos minutos.",
+        "storage_overloaded_retry_later": "Las tareas de almacenamiento están saturadas en este momento. Inténtalo de nuevo en unos minutos.",
+        "internal_server": "El servidor no ha podido programar el redimensionado. Inténtalo de nuevo."
       }
     },
     "delete-desktop": {
