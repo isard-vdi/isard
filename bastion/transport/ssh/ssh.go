@@ -109,6 +109,25 @@ func (b *bastion) handleAuth(ctx context.Context, conn ssh.ConnMetadata, key ssh
 		}
 	}
 
+	// The HTTP transport refuses when the bastion is switched off; the admin
+	// switch means nothing if the SSH side keeps serving.
+	currentConfig := &model.Config{}
+	if err := currentConfig.Load(ctx, b.db); err != nil {
+		b.log.Error().Err(err).Msg("load the bastion config")
+
+		return nil, &ssh.BannerError{
+			Message: "service not available\n",
+		}
+	}
+
+	if !currentConfig.Bastion.Enabled {
+		b.log.Warn().Str("target", conn.User()).Msg("bastion is disabled")
+
+		return nil, &ssh.BannerError{
+			Message: "authentication failed\n",
+		}
+	}
+
 	// Get the target ID from the SSH user
 	target := &model.Target{
 		ID: conn.User(),
@@ -538,6 +557,12 @@ func (b *bastion) checkUserAuthorizedKey(ctx context.Context, userID string, key
 		}
 
 		return false, fmt.Errorf("load user from DB: %w", err)
+	}
+
+	// A deactivated user is cut off everywhere else, and their key is resolved
+	// live now, so this is the only place left that can end their SSH.
+	if !usr.Active {
+		return false, nil
 	}
 
 	if usr.SSHKey == "" {

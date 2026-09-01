@@ -73,6 +73,7 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 				m.On(r.Table("users").Get("user-with-key")).Once().Return([]any{
 					map[string]any{
 						"id":              "user-with-key",
+						"active":          true,
 						"bastion_ssh_key": authKey,
 					},
 				}, nil)
@@ -88,7 +89,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("user-without-key")).Once().Return([]any{
 					map[string]any{
-						"id": "user-without-key",
+						"id":     "user-without-key",
+						"active": true,
 					},
 				}, nil)
 
@@ -109,6 +111,7 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 				m.On(r.Table("users").Get("deployment-owner")).Once().Return([]any{
 					map[string]any{
 						"id":              "deployment-owner",
+						"active":          true,
 						"bastion_ssh_key": authKey,
 					},
 				}, nil)
@@ -124,7 +127,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("user-without-key-2")).Once().Return([]any{
 					map[string]any{
-						"id": "user-without-key-2",
+						"id":     "user-without-key-2",
+						"active": true,
 					},
 				}, nil)
 
@@ -146,6 +150,7 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 				m.On(r.Table("users").Get("deployment-owner-2")).Once().Return([]any{
 					map[string]any{
 						"id":              "deployment-owner-2",
+						"active":          true,
 						"bastion_ssh_key": otherAuthKey,
 					},
 				}, nil)
@@ -153,6 +158,7 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 				m.On(r.Table("users").Get("deployment-co-owner")).Once().Return([]any{
 					map[string]any{
 						"id":              "deployment-co-owner",
+						"active":          true,
 						"bastion_ssh_key": authKey,
 					},
 				}, nil)
@@ -170,7 +176,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("user-without-key-3")).Once().Return([]any{
 					map[string]any{
-						"id": "user-without-key-3",
+						"id":     "user-without-key-3",
+						"active": true,
 					},
 				}, nil)
 
@@ -192,7 +199,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("user-without-key-4")).Once().Return([]any{
 					map[string]any{
-						"id": "user-without-key-4",
+						"id":     "user-without-key-4",
+						"active": true,
 					},
 				}, nil)
 
@@ -215,7 +223,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 
 				m.On(r.Table("domains").Get("desktop-of-missing-user")).Once().Return([]any{
 					map[string]any{
-						"id": "desktop-of-missing-user",
+						"id":     "desktop-of-missing-user",
+						"active": true,
 					},
 				}, nil)
 			},
@@ -231,6 +240,7 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 				m.On(r.Table("users").Get("user-broken-key")).Once().Return([]any{
 					map[string]any{
 						"id":              "user-broken-key",
+						"active":          true,
 						"bastion_ssh_key": "not an SSH key at all",
 					},
 				}, nil)
@@ -266,7 +276,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("user-without-key-9")).Once().Return([]any{
 					map[string]any{
-						"id": "user-without-key-9",
+						"id":     "user-without-key-9",
+						"active": true,
 					},
 				}, nil)
 
@@ -283,7 +294,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("user-without-key-5")).Once().Return([]any{
 					map[string]any{
-						"id": "user-without-key-5",
+						"id":     "user-without-key-5",
+						"active": true,
 					},
 				}, nil)
 
@@ -307,7 +319,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("user-without-key-10")).Once().Return([]any{
 					map[string]any{
-						"id": "user-without-key-10",
+						"id":     "user-without-key-10",
+						"active": true,
 					},
 				}, nil)
 
@@ -328,6 +341,7 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 				m.On(r.Table("users").Get("deployment-owner-3")).Once().Return([]any{
 					map[string]any{
 						"id":              "deployment-owner-3",
+						"active":          true,
 						"bastion_ssh_key": otherAuthKey,
 					},
 				}, nil)
@@ -344,6 +358,7 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 				m.On(r.Table("users").Get("user-other-key")).Once().Return([]any{
 					map[string]any{
 						"id":              "user-other-key",
+						"active":          true,
 						"bastion_ssh_key": otherAuthKey,
 					},
 				}, nil)
@@ -379,7 +394,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("user-without-key-6")).Once().Return([]any{
 					map[string]any{
-						"id": "user-without-key-6",
+						"id":     "user-without-key-6",
+						"active": true,
 					},
 				}, nil)
 
@@ -396,7 +412,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("user-without-key-7")).Once().Return([]any{
 					map[string]any{
-						"id": "user-without-key-7",
+						"id":     "user-without-key-7",
+						"active": true,
 					},
 				}, nil)
 
@@ -420,7 +437,8 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("user-without-key-8")).Once().Return([]any{
 					map[string]any{
-						"id": "user-without-key-8",
+						"id":     "user-without-key-8",
+						"active": true,
 					},
 				}, nil)
 
@@ -446,6 +464,93 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 				DesktopID: "desktop-of-co-owner-db-error",
 			},
 			ExpectedErr: `check the deployment users SSH keys: check the deployment user "deployment-owner-db-error" SSH key: load user from DB: connection refused`,
+		},
+		"should not authorize a deactivated user own bastion ssh key": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Get("deactivated-owner")).Once().Return([]any{
+					map[string]any{
+						"id":              "deactivated-owner",
+						"active":          false,
+						"bastion_ssh_key": authKey,
+					},
+				}, nil)
+
+				m.On(r.Table("domains").Get("desktop-of-deactivated")).Once().Return([]any{
+					map[string]any{
+						"id":  "desktop-of-deactivated",
+						"tag": "",
+					},
+				}, nil)
+			},
+			Target: &model.Target{
+				ID:        "target-deactivated-owner",
+				UserID:    "deactivated-owner",
+				DesktopID: "desktop-of-deactivated",
+			},
+			Expected: false,
+		},
+		"should not authorize a deactivated deployment co owner": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Get("user-without-key-deact")).Once().Return([]any{
+					map[string]any{
+						"id":     "user-without-key-deact",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("domains").Get("desktop-of-deactivated-co-owner")).Once().Return([]any{
+					map[string]any{
+						"id":  "desktop-of-deactivated-co-owner",
+						"tag": "deployment-with-deactivated-co-owner",
+					},
+				}, nil)
+
+				m.On(r.Table("deployments").Get("deployment-with-deactivated-co-owner")).Once().Return([]any{
+					map[string]any{
+						"id":        "deployment-with-deactivated-co-owner",
+						"user":      "some-owner",
+						"co_owners": []any{"deactivated-co-owner"},
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("some-owner")).Once().Return([]any{
+					map[string]any{
+						"id":     "some-owner",
+						"active": true,
+					},
+				}, nil)
+
+				m.On(r.Table("users").Get("deactivated-co-owner")).Once().Return([]any{
+					map[string]any{
+						"id":              "deactivated-co-owner",
+						"active":          false,
+						"bastion_ssh_key": authKey,
+					},
+				}, nil)
+			},
+			Target: &model.Target{
+				ID:        "target-deactivated-co-owner",
+				UserID:    "user-without-key-deact",
+				DesktopID: "desktop-of-deactivated-co-owner",
+			},
+			Expected: false,
+		},
+		"should keep authorizing an active user, so the guard is not just always false": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Get("active-owner")).Once().Return([]any{
+					map[string]any{
+						"id":              "active-owner",
+						"active":          true,
+						"bastion_ssh_key": authKey,
+					},
+				}, nil)
+			},
+			Target: &model.Target{
+				ID:        "target-active-owner",
+				UserID:    "active-owner",
+				DesktopID: "desktop-of-active",
+			},
+			Expected: true,
 		},
 	}
 
