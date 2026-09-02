@@ -1,4 +1,4 @@
-# Isard main config v3.0.3
+# Isard main config v3.0.4
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -353,7 +353,9 @@ HAPROXY_LOGGING=.
 #HYPER_ENABLED=true
 ## Hypervisor with hypervisor capabilities
 #CAPABILITIES_HYPER=true
-## Disk capabilities
+## Disk capabilities. False removes isard-storage from the composition on the
+## next build: the node performs no disk operation and declares none, so it is
+## not counted among the nodes serving its storage pools.
 #CAPABILITIES_DISK=true
 
 ## Comma-separated virtualization pool ids that can be used to start desktops
@@ -712,7 +714,9 @@ WG_GUESTS_RESERVED_HOSTS=20
 #REDIS_PORT=6379
 
 # Redis workers
-## Amount of workers used by the isard-storage service
+## Amount of workers used by the isard-storage service. Whether the service
+## exists at all is CAPABILITIES_DISK; this is how many threads it runs, and 0
+## leaves the container in place serving nothing.
 ## WARNING: The increase of workers could lead to cpu overload
 #REDIS_WORKERS=1
 
