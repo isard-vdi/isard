@@ -16,6 +16,24 @@ log = logging.getLogger("engine")
 STREAM_BLOCK_MS = 5000
 STREAM_MAXLEN = 10000
 
+# How much of a rejected message to put in the log. Enough to identify the row
+# and the kind of change, short enough not to dump a whole document per failure.
+PAYLOAD_LOG_CHARS = 500
+
+
+def _payload_summary(fields):
+    """The message body, trimmed, for the log line of a dropped message.
+
+    A dropped change is only diagnosable if the log says WHICH one it was, so
+    this never raises: a summary that fails to build must not replace the
+    handler's traceback with its own.
+    """
+    try:
+        raw = fields.get("data", "")
+        return raw[:PAYLOAD_LOG_CHARS] + ("..." if len(raw) > PAYLOAD_LOG_CHARS else "")
+    except Exception:
+        return "<unavailable>"
+
 
 class RedisStreamConsumer:
     """Synchronous Redis Stream consumer with consumer groups.
@@ -77,9 +95,18 @@ class RedisStreamConsumer:
                             handler(data)
                         except Exception:
                             log.exception(
-                                f"Error processing pending message {msg_id} from {stream_name}"
+                                "Dropping pending message %s from %s (group %s): "
+                                "the handler failed and the change is lost. Payload: %s",
+                                msg_id,
+                                stream_name,
+                                self.group,
+                                _payload_summary(fields),
                             )
-                        r.xack(stream_name, self.group, msg_id)
+                        finally:
+                            # Acked either way on purpose: a message the handler
+                            # cannot process would be redelivered forever and
+                            # wedge the consumer. The log above makes it visible.
+                            r.xack(stream_name, self.group, msg_id)
                 else:
                     continue
                 break
@@ -122,9 +149,18 @@ class RedisStreamConsumer:
                                 handler(data)
                             except Exception:
                                 log.exception(
-                                    f"Error processing message {msg_id} from {stream_name}"
+                                    "Dropping message %s from %s (group %s): the "
+                                    "handler failed and the change is lost. Payload: %s",
+                                    msg_id,
+                                    stream_name,
+                                    self.group,
+                                    _payload_summary(fields),
                                 )
-                            r.xack(stream_name, self.group, msg_id)
+                            finally:
+                                # As in _process_pending: acking a rejected
+                                # message keeps the consumer moving, but never
+                                # silently.
+                                r.xack(stream_name, self.group, msg_id)
 
             except (redis.ConnectionError, redis.TimeoutError, OSError) as e:
                 log.warning(
