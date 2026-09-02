@@ -20,6 +20,11 @@ export interface WsDeletePayload {
 
 // ---------------------------------------------------------------------------
 // Desktops — emitted by DomainsThread via _parse_desktop()
+//
+// `bastion_target` is deliberately absent: it lives in the `targets` table,
+// which the domains changefeed row does not carry, so the emitter omits the
+// key rather than sending null over a shallow cache merge. Bastion state
+// arrives through the `targets_*` events below.
 // ---------------------------------------------------------------------------
 
 export interface WsDesktopProgress {
@@ -300,6 +305,34 @@ export interface WsSharedDeploymentDesktopPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Bastion targets — emitted by TargetsHandler with the raw `targets` row.
+// The delete frame carries the *target* id, not the desktop id.
+// See component/change-handler/src/isardvdi_change_handler/handlers/targets.py.
+// ---------------------------------------------------------------------------
+
+export interface WsTargetHttp {
+  enabled?: boolean
+  http_port?: number
+  https_port?: number
+  proxy_protocol?: boolean
+}
+
+export interface WsTargetSsh {
+  enabled?: boolean
+  port?: number
+  authorized_keys?: (string | null)[]
+}
+
+export interface WsTargetPayload {
+  id: string
+  desktop_id: string
+  user_id: string
+  http: WsTargetHttp
+  ssh: WsTargetSsh
+  domains?: string[]
+}
+
+// ---------------------------------------------------------------------------
 // Event name → payload type mapping
 // ---------------------------------------------------------------------------
 
@@ -308,6 +341,10 @@ export interface WsEventMap {
   desktop_update: WsDesktopPayload
   desktop_delete: WsDeletePayload
   desktops_queue: WsDesktopsQueuePayload
+
+  targets_add: WsTargetPayload
+  targets_update: WsTargetPayload
+  targets_delete: WsDeletePayload
 
   template_add: WsTemplatePayload
   template_update: WsTemplatePayload

@@ -9,7 +9,7 @@ import {
   getDesktopInfoQueryKey,
   getUserConfigOptions,
   editDesktopMutation,
-  getUserDesktopsLegacyQueryKey
+  getUserDesktopsQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import DomainConfigurationPanel from '@/components/domain/DomainConfigurationPanel.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -63,7 +63,7 @@ const submitError = ref<string | null>(null)
 const { mutate: submitEdit, isPending: submitPending } = useMutation({
   ...editDesktopMutation(),
   onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: getUserDesktopsLegacyQueryKey() })
+    await queryClient.invalidateQueries({ queryKey: getUserDesktopsQueryKey() })
     queryClient.removeQueries({
       queryKey: getDesktopInfoQueryKey({ path: { desktop_id: desktopId.value } }),
       exact: true
