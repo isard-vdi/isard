@@ -134,6 +134,16 @@ MOVED_ITEM_STATES = {
     MigrationItemState.RELEASED,
 }
 
+#: States a disk is finished in, for good or ill: the migration owes it nothing
+#: more and no longer owns it. ``failed`` is here and not in DONE_ITEM_STATES
+#: because ownership and "needs no attention" are different questions.
+SETTLED_ITEM_STATES = {
+    MigrationItemState.RELEASED,
+    MigrationItemState.SKIPPED,
+    MigrationItemState.FAILED,
+    MigrationItemState.QUARANTINED,
+}
+
 
 # --------------------------------------------------------------------------- #
 # Pure helpers (no DB) — unit tested
@@ -387,6 +397,25 @@ class StorageMigrationItem(RethinkCustomBase):
             return list(
                 r.table(cls._rdb_table)
                 .get_all([migration_id, tree_id], index="migration_tree")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def active_storage_ids(cls):
+        """Storage ids a migration still owes work on (state not settled).
+
+        Between two phases of a disk's saga no task is pending, so task
+        liveness alone reads the disk as abandoned. Read once per sweep.
+        """
+        with cls._rdb_context():
+            return set(
+                r.table(cls._rdb_table)
+                .filter(
+                    lambda it: r.expr(sorted(str(s) for s in SETTLED_ITEM_STATES))
+                    .contains(it["state"])
+                    .not_()
+                )
+                .pluck("storage_id")["storage_id"]
                 .run(cls._rdb_connection)
             )
 

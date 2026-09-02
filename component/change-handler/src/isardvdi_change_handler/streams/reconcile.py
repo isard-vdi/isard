@@ -71,6 +71,7 @@ from isardvdi_common.lib.task_index import MEDIA, STORAGE, current_task_id
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.media import Media
 from isardvdi_common.models.storage import Storage
+from isardvdi_common.models.storage_migration import StorageMigrationItem
 from isardvdi_common.models.task import (
     CoreStep,
     Task,
@@ -660,6 +661,23 @@ async def _finalize_stuck_storage(redis_manager, storage):
 _TRANSITIONAL_STORAGE_STATUSES = ["maintenance", "creating"]
 
 
+def _migration_owned_storage_ids():
+    """Disks a live migration still owes work on, read once per sweep.
+
+    A disk mid-saga is only claimed while one of its phase tasks is pending, so
+    in the gap between phases ``_task_alive`` reads it as abandoned and this
+    module finalizes a disk that is still being migrated -- freeing its parked
+    desktops to start on a source the migration is about to delete. The ledger
+    is the only thing that knows the saga is unfinished.
+    """
+    try:
+        return StorageMigrationItem.active_storage_ids()
+    except Exception:
+        # Unreadable ledger: claim nothing rather than block every heal.
+        log.exception("reconcile: could not read the migration ledger")
+        return set()
+
+
 async def _reconcile_stuck_storage(redis_manager):
     """Pass 2: finalize storages stuck in a transitional status
     (``maintenance``/``creating``) whose backing task is dead. The primary
@@ -673,9 +691,14 @@ async def _reconcile_stuck_storage(redis_manager):
     except Exception:
         log.exception("reconcile: could not list transitional storages")
         return 0
+    if not stuck:
+        return 0
+    migrating = await asyncio.to_thread(_migration_owned_storage_ids)
     healed = 0
     for storage in stuck:
         try:
+            if getattr(storage, "id", None) in migrating:
+                continue
             if _task_alive(storage):
                 continue
             healed += await _finalize_stuck_storage(redis_manager, storage)
@@ -768,9 +791,14 @@ async def _reconcile_stuck_domains(redis_manager):
     except Exception:
         log.exception("reconcile: could not list storage-lock domains")
         return 0
+    if not stuck:
+        return 0
+    migrating = await asyncio.to_thread(_migration_owned_storage_ids)
     healed = 0
     for domain in stuck:
         try:
+            if any(s.id in migrating for s in domain.storages):
+                continue
             healed += await asyncio.to_thread(_finalize_stuck_domain, domain)
         except Exception:
             log.exception(
