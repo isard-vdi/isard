@@ -20,6 +20,12 @@ from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 from simple_iptools import UserIpTools
 
 
+def _peer_field(peer, name):
+    if isinstance(peer, BaseModel):
+        return getattr(peer, name, None)
+    return (peer or {}).get(name)
+
+
 def _get_infra_mtu():
     """Get infrastructure MTU with VPN_MTU backward compat."""
     val = os.environ.get("INFRASTRUCTURE_MTU")
@@ -510,7 +516,9 @@ class Wg(object):
             # wgadmin loop starts serving changefeed events immediately.
             target = peer if new_peer == False else new_peer
             if self.table == "users":
-                if target.get("active") == True:
+                # From the source row: gen_new_peer does not carry `active`, so a
+                # lazily provisioned user was written and never brought up.
+                if _peer_field(peer, "active") == True:
                     peers_to_up.append(target)
             else:
                 peers_to_up.append(target)

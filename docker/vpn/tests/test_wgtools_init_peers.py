@@ -218,9 +218,10 @@ def test_init_peers_batches_inserts_and_backgrounds_up_peer(
     assert created_ids == {"u1", "u2", "u4", "u5"}
     assert {p["id"] for p in rv_writes} == {"rv1"}
 
-    # Background up_peer covers active targets only: u3, u4 and rv1. u1/u2 were
-    # created without 'active', so the original gating is preserved.
-    assert sorted(up_seen) == ["rv1", "u3", "u4"]
+    # Every active target, including the lazily provisioned u1 and u5: writing
+    # the config without bringing the peer up left those users with no tunnel
+    # until the next restart. u2 is inactive and stays down.
+    assert sorted(up_seen) == ["rv1", "u1", "u3", "u4", "u5"]
 
 
 # ---- (E) null vpn subtree outside init_peers ------------------------------
