@@ -405,6 +405,20 @@ flavour(){
 			parts="$parts monitor-pyroscope.infrastructure-ports"
 			echo "      - Pyroscope port 4040 exposed on $INFRASTRUCTURE_HOST_IP"
 		fi
+		# A hypervisor PUBLISHES here rather than consuming. Skipped when the
+		# vpn part is present: it already publishes that udp port on this IP.
+		if echo "$parts" | grep -q "\(^\|\s\)hypervisor\(\s\|$\)"; then
+			if echo "$parts" | grep -q "\(^\|\s\)vpn\(\s\|$\)"; then
+				echo "      - Hypervisor ports left to the vpn part (same node)"
+			elif [ -f docker-compose-open-ports.yml ]; then
+				echo "      - Hypervisor ports left to your docker-compose-open-ports.yml"
+				echo "        (now redundant: remove it and they move into docker-compose.yml)"
+			else
+				parts="$parts hypervisor.infrastructure-ports"
+				echo "      - Hypervisor ssh port 2022 exposed on $INFRASTRUCTURE_HOST_IP"
+				echo "      - Hypervisor tunnel port ${WG_HYPERS_PORT:-4443}/udp exposed on $INFRASTRUCTURE_HOST_IP"
+			fi
+		fi
 		echo ""
 	fi
 
