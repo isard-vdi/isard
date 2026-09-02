@@ -84,6 +84,8 @@ _get_domain_enrichment_cache: SynchronizedTTLCache = SynchronizedTTLCache(
 
 MAX_VGPU_PROFILES_PER_DESKTOP = 4
 
+_BASTION_TARGETS_MISSING = object()
+
 
 def validate_reservables_vgpus(vgpus, payload=None, existing_vgpus=None):
     """Validate a desktop's list of vGPU reservable ids.
@@ -231,7 +233,7 @@ class DesktopsProcessed(RethinkSharedConnection):
             return str(detail)
         try:
             decoded = json.loads(detail)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return detail
         if isinstance(decoded, str):
             return decoded
@@ -300,13 +302,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 desktop["permissions"] = permissions
                 desktop["permissions"].sort()
 
-        bastion_targets = desktop.pop("bastion_targets", None)
-        if (
-            bastion_targets
-            and isinstance(bastion_targets, list)
-            and len(bastion_targets) > 0
-        ):
-            desktop["bastion_target"] = bastion_targets[0]
+        bastion_targets = desktop.pop("bastion_targets", _BASTION_TARGETS_MISSING)
 
         parsed_desktop = {
             "id": desktop["id"],
@@ -347,8 +343,14 @@ class DesktopsProcessed(RethinkSharedConnection):
                 for disk in desktop["create_dict"]["hardware"].get("disks", [{}])
             ],
             "permissions": desktop.get("permissions", []),
-            "bastion_target": desktop.get("bastion_target"),
         }
+
+        if bastion_targets is not _BASTION_TARGETS_MISSING:
+            parsed_desktop["bastion_target"] = (
+                bastion_targets[0]
+                if isinstance(bastion_targets, list) and bastion_targets
+                else None
+            )
 
         # The group and category name are only available if defined
         if desktop.get("group_name"):

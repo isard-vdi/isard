@@ -57,7 +57,6 @@ services:
       - /opt/isard-local/haproxy/bastion_domains:/api/api/bastion_domains
       - /opt/isard/config:/usr/local/etc/isardvdi
       - /opt/isard/frontend/custom/categories:/opt/isard/frontend/custom/categories:rw
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       # Destination for the gzipped JSONL dumps written before
       # logs_desktops / logs_users retention deletes (and any future

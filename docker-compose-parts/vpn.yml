@@ -38,7 +38,6 @@ services:
       - /opt/isard/dnsmasq/static_leases:/var/lib/static_leases
       - /opt/isard-local/conntrack:/conntrack
       - /proc/sys/net/netfilter/nf_conntrack_acct:/host-proc/sys/net/netfilter/nf_conntrack_acct
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     depends_on:
       - isard-redis
