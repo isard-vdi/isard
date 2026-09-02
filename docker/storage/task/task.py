@@ -864,11 +864,15 @@ def qemu_img_info_backing_chain(
     :type storage_path: str
     :param storage_type: Format of the file on disk
     :type storage_type: str
-    :param qcow2_geometry: The geometry the writer just applied to this file, to
-        record alongside the measurement. ``preallocation`` is a create-time
-        action that ``qemu-img info`` does not report, so only the writer knows
-        it. Optional: this task is also enqueued from paths that write nothing
-        (chain checks, find/touch, engine re-measure), which pass ``None``.
+    :param qcow2_geometry: The installation geometry policy in effect when this
+        file was written, recorded alongside the measurement. ``preallocation``
+        is a create-time action ``qemu-img info`` does not report, so the policy
+        value is the record kept; note the applied value can differ (a compressed
+        convert, or a backing file with extended_l2 off, omits it from the argv).
+        Recorded only when the measure succeeds, so a non-qcow2 disk -- which
+        fails a qcow2 measure -- never carries a stamp. Optional: this task is
+        also enqueued from paths that write nothing (chain checks, find/touch,
+        engine re-measure), which pass ``None``.
     :type qcow2_geometry: dict | None
     :return: Storage data to update
     :rtype: dict
@@ -1704,6 +1708,10 @@ def convert(
     # a vmdk cannot honour qcow2 options.
     geometry_opts = []
     if format == "qcow2":
+        # qemu-img convert -c rejects any preallocation != off (verified on
+        # staging: "Compression and preallocation not supported at the same
+        # time"), so omit the preallocation term when compressing and let qemu
+        # default it. Otherwise the flat destination (no -B) preallocates.
         options = qcow2_geometry.create_options(
             {
                 "cluster_size": cluster_size,
@@ -1712,13 +1720,8 @@ def convert(
                 "preallocation": preallocation,
             },
             has_backing_file=False,
+            with_preallocation=not compression,
         )
-        # qemu-img convert -c rejects any preallocation != off (verified on
-        # staging: "Compression and preallocation not supported at the same
-        # time"), so drop preallocation from the option string when compressing
-        # and let qemu default it.
-        if compression:
-            options = options.split(",preallocation=")[0]
         geometry_opts = ["-o", options]
 
     try:

@@ -158,8 +158,10 @@ class StorageModel(BaseModel):
     qcow2_geometry: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
-            "The geometry the disk was written with: {cluster_size, extended_l2, "
-            "lazy_refcounts, preallocation}. Absent on rows written before this "
+            "The installation geometry policy in effect when the disk was "
+            "written: {cluster_size, extended_l2, lazy_refcounts, preallocation}. "
+            "The applied preallocation can differ from the recorded one (a "
+            "compressed convert omits it). Absent on rows written before this "
             "field existed, and on registry downloads -- a downloaded disk arrives "
             "byte-for-byte over curl and qemu-img never touches it, so its geometry "
             "is whatever the publisher wrote. Absence is an acceptable signal, not "

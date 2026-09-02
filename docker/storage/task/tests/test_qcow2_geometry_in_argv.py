@@ -106,6 +106,15 @@ class TestCreateArgv:
         )
         assert "preallocation" not in _opts(calls[0])
 
+    def test_non_qcow2_create_has_no_geometry(self, monkeypatch, geo):
+        import task
+
+        monkeypatch.setattr(task, "isdir", lambda p: True)
+        monkeypatch.setattr(task, "isfile", lambda p: False)
+        calls = _capture_run(monkeypatch)
+        task.create("/isard/g/d.vmdk", "vmdk", **geo)
+        assert "-o" not in calls[0]
+
     def test_preallocation_present_with_backing_when_extended_on(self, monkeypatch):
         import task
 

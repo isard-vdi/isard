@@ -39,6 +39,11 @@ _DEFAULTS = {
 _ON_OFF = ("on", "off")
 _PREALLOCATION = ("off", "metadata", "falloc", "full")
 
+# qemu-img only accepts a qcow2 cluster size that is a power of two between 512
+# and 2M; anything else fails at create time. Checking it here turns the
+# likeliest typo into a boot-time rejection instead of a per-disk failure.
+_MIN_CLUSTER = 512
+_MAX_CLUSTER = 2 * 1024 * 1024
 # extended_l2 subclusters need a >=16k cluster (a cluster is split into 32
 # subclusters, each of which must be at least 512 bytes).
 _EXTENDED_L2_MIN_CLUSTER = 16384
@@ -79,10 +84,17 @@ def validate(geometry):
             f"QCOW2_PREALLOCATION={geometry['preallocation']!r} must be one of "
             f"{_PREALLOCATION}"
         )
+    cluster = parse_cluster_size(geometry["cluster_size"])
     if (
-        geometry["extended_l2"] == "on"
-        and parse_cluster_size(geometry["cluster_size"]) < _EXTENDED_L2_MIN_CLUSTER
+        cluster < _MIN_CLUSTER
+        or cluster > _MAX_CLUSTER
+        or (cluster & (cluster - 1)) != 0
     ):
+        raise Qcow2PolicyError(
+            f"QCOW2_CLUSTER_SIZE={geometry['cluster_size']} is not a valid qcow2 "
+            "cluster size: it must be a power of two between 512 and 2M"
+        )
+    if geometry["extended_l2"] == "on" and cluster < _EXTENDED_L2_MIN_CLUSTER:
         raise Qcow2PolicyError(
             f"QCOW2_CLUSTER_SIZE={geometry['cluster_size']} is too small for "
             "extended_l2=on (minimum 16k). Either set QCOW2_CLUSTER_SIZE>=16k "
@@ -120,16 +132,24 @@ def policy():
     return _cached
 
 
-def create_options(geometry, has_backing_file):
-    """The qemu-img ``-o`` string for this ``geometry``. Moved from the worker."""
+def create_options(geometry, has_backing_file, with_preallocation=None):
+    """The qemu-img ``-o`` string for this ``geometry``.
+
+    ``with_preallocation`` overrides whether the ``preallocation=`` term is
+    appended. Left ``None`` it is derived: preallocation applies when there is no
+    backing file, or when extended_l2 is on (subcluster allocation bits make it
+    meaningful with one). A caller sets it ``False`` explicitly when qemu-img
+    would reject preallocation regardless -- e.g. ``convert -c``, which refuses
+    any preallocation other than off.
+    """
     validate(geometry)
     options = (
         f"cluster_size={geometry['cluster_size']},"
         f"extended_l2={geometry['extended_l2']},"
         f"lazy_refcounts={geometry['lazy_refcounts']}"
     )
-    # Preallocation applies when there is no backing file, or when extended_l2
-    # is on (subcluster allocation bits make it meaningful with one).
-    if not has_backing_file or geometry["extended_l2"] == "on":
+    if with_preallocation is None:
+        with_preallocation = not has_backing_file or geometry["extended_l2"] == "on"
+    if with_preallocation:
         options += f",preallocation={geometry['preallocation']}"
     return options

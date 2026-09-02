@@ -95,6 +95,21 @@ def test_validate_rejects_a_bad_preallocation():
         qg.validate(geo)
 
 
+@pytest.mark.parametrize("bad", ["3k", "1000", "256", "4M", "0"])
+def test_validate_rejects_a_cluster_size_qemu_cannot_accept(bad):
+    geo = _default()
+    geo["cluster_size"] = bad
+    with pytest.raises(qg.Qcow2PolicyError, match="cluster"):
+        qg.validate(geo)
+
+
+@pytest.mark.parametrize("good", ["512", "4k", "64k", "128k", "2M"])
+def test_validate_accepts_valid_power_of_two_cluster_sizes(good):
+    geo = _default()  # extended_l2 stays off, so any valid cluster is fine
+    geo["cluster_size"] = good
+    assert qg.validate(geo) is geo
+
+
 def test_validate_rejects_extended_l2_with_too_small_cluster():
     geo = _default()
     geo["extended_l2"] = "on"
@@ -215,3 +230,16 @@ def test_create_options_validates():
     geo["preallocation"] = "bogus"
     with pytest.raises(qg.Qcow2PolicyError):
         qg.create_options(geo, has_backing_file=False)
+
+
+def test_create_options_with_preallocation_false_omits_it_even_parentless():
+    geo = {**_default(), "preallocation": "full"}
+    opts = qg.create_options(geo, has_backing_file=False, with_preallocation=False)
+    assert "preallocation" not in opts
+    assert opts == "cluster_size=4k,extended_l2=off,lazy_refcounts=off"
+
+
+def test_create_options_with_preallocation_true_forces_it_even_with_backing():
+    geo = {**_default(), "preallocation": "metadata"}
+    opts = qg.create_options(geo, has_backing_file=True, with_preallocation=True)
+    assert "preallocation=metadata" in opts
