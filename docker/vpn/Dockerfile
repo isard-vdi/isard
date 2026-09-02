@@ -38,6 +38,10 @@ RUN apk add --no-cache \
     iptables libffi openssh openssl \
     openvswitch@community wireguard-tools
 
+# The host AppArmor profile attaches to /usr/bin/wg-quick and Docker does not
+# namespace AppArmor, so we call a copy the profile does not match.
+RUN install -D /usr/bin/wg-quick /isard/bin/wg-quick
+
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
 COPY docker/vpn/ovs /ovs

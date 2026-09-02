@@ -19,6 +19,25 @@ from pydantic import BaseModel
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 from simple_iptools import UserIpTools
 
+# Not /usr/bin/wg-quick: the host AppArmor profile attaches to that path.
+WG_QUICK = "/isard/bin/wg-quick"
+
+
+class WgQuickError(RuntimeError):
+    def __init__(self, interface, returncode, stderr):
+        self.returncode = returncode
+        self.stderr = stderr
+        hint = ""
+        if returncode == 126:
+            hint = (
+                " -- 126 is 'found but not executable': the host AppArmor profile"
+                " wg-quick is enforcing and confines this container. Check"
+                " 'grep ^wg-quick /sys/kernel/security/apparmor/profiles' on the host."
+            )
+        super().__init__(
+            f"wg-quick up {interface} failed with {returncode}: {stderr}{hint}"
+        )
+
 
 def _peer_field(peer, name):
     if isinstance(peer, BaseModel):
@@ -170,12 +189,17 @@ class Wg(object):
 
     def init_server(self):
         ## Server config
-        try:
-            subprocess.run(["ip", "address", "show", self.interface])
+        # Only tear down what is there: this runs inside wgadmin's retry loop.
+        if (
+            subprocess.run(
+                ["ip", "address", "show", self.interface],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode
+            == 0
+        ):
             log.info("Bringing down wireguard " + self.interface + " interface")
-            subprocess.run(["/usr/bin/wg-quick", "down", self.interface])
-        except:
-            log.info("Wireguard interface " + self.interface + " already exists")
+            subprocess.run([WG_QUICK, "down", self.interface])
         if self.table == "hypervisors":
             # WG interface MTU = INFRASTRUCTURE_MTU - 60 (WireGuard overhead).
             # Same formula in both tunneling modes; in geneve-only the WG
@@ -198,7 +222,12 @@ class Wg(object):
         with open("/etc/wireguard/" + self.interface + ".conf", "w") as f:
             f.write(self.config)
         log.info("Bringing up wireguard " + self.interface + " interface")
-        check_output(("/usr/bin/wg-quick", "up", self.interface), text=True).strip()
+        up = subprocess.run(
+            [WG_QUICK, "up", self.interface], text=True, capture_output=True
+        )
+        if up.returncode != 0:
+            # check_output would raise with only the exit status; the reason is on stderr.
+            raise WgQuickError(self.interface, up.returncode, up.stderr.strip())
         ## End server config
 
     _INIT_PEERS_BATCH = 100

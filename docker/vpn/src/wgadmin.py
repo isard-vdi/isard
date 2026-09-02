@@ -252,6 +252,8 @@ log.info("Starting isard-vpn...")
 # Check infrastructure mode - when GENEVE_ONLY_INFRA=true, skip WireGuard for hypers
 geneve_only_infra = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
 
+_failures = 0
+
 while True:
     try:
         # App was restarted or db was lost. The shared pool reconnects
@@ -323,8 +325,18 @@ while True:
             envelope = subscriber.parse_dict(msg)
             _process_vpn_change(envelope.change, wg_users, wg_hypers)
 
+        _failures = 0
         consumer.run(handle_change)
 
     except Exception as e:
-        log.error("START: internal error: \n" + traceback.format_exc())
-        time.sleep(2)
+        _failures += 1
+        # Back off instead of hammering: a persistent error used to retry 30x/minute
+        # forever, which floods the log and re-runs the whole init on every pass.
+        delay = min(2 * 2 ** min(_failures - 1, 6), 120)
+        log.error(
+            "START: internal error (attempt %s, retrying in %ss): \n%s",
+            _failures,
+            delay,
+            traceback.format_exc(),
+        )
+        time.sleep(delay)

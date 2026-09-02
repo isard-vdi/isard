@@ -88,6 +88,9 @@ RUN apk add --no-cache \
     spice-server swtpm tshark usbredir virglrenderer virtiofsd \
     wayland-libs-client wayland-libs-egl wayland-libs-server wireguard-tools
 
+# See docker/vpn/Dockerfile: the host wg-quick AppArmor profile attaches by path.
+RUN install -D /usr/bin/wg-quick /isard/bin/wg-quick
+
 # Swap in the patched spice-server. The package is named `spice` and declares
 # provides=spice-server, so apk replaces it without disturbing qemu's dependency.
 COPY --from=spice-build /home/builder/packages/builder/x86_64/ /tmp/spice-apks/
