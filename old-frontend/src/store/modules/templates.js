@@ -170,6 +170,11 @@ export default {
     showDeleteTemplateModal (context, show) {
       context.commit('setShowDeleteTemplateModal', show)
     },
+    socket_templateProgress (context, data) {
+      // The move tick never reaches the row, so it arrives on its own event
+      // carrying only the counters.
+      context.commit('update_templates', JSON.parse(data))
+    },
     socket_templateDelete (context, data) {
       const template = JSON.parse(data)
       context.commit('remove_template', template)

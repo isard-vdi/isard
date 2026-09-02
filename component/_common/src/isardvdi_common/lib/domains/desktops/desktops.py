@@ -188,6 +188,25 @@ def validate_reservables_vgpus(vgpus, payload=None, existing_vgpus=None):
     return vgpus
 
 
+def download_progress(raw_progress):
+    """The card's download counters, taken from the row's ``progress`` dict.
+
+    A download that just started has not reported every counter yet: omit the
+    missing ones so the schema defaults apply instead of failing validation.
+    """
+    raw_progress = raw_progress or {}
+    return {
+        key: raw_progress[source]
+        for key, source in (
+            ("percentage", "received_percent"),
+            ("throughput_average", "speed_download_average"),
+            ("time_left", "time_left"),
+            ("size", "total"),
+        )
+        if raw_progress.get(source) is not None
+    }
+
+
 class DesktopsProcessed(RethinkSharedConnection):
     _rdb_table = "domains"
 
@@ -233,7 +252,7 @@ class DesktopsProcessed(RethinkSharedConnection):
             return str(detail)
         try:
             decoded = json.loads(detail)
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             return detail
         if isinstance(decoded, str):
             return decoded
@@ -272,14 +291,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 ]
 
         if desktop["status"] == DesktopStatusEnum.downloading.value:
-            progress = {
-                "percentage": desktop.get("progress", {}).get("received_percent"),
-                "throughput_average": desktop.get("progress", {}).get(
-                    "speed_download_average"
-                ),
-                "time_left": desktop.get("progress", {}).get("time_left"),
-                "size": desktop.get("progress", {}).get("total"),
-            }
+            progress = download_progress(desktop.get("progress"))
         else:
             progress = None
         editable = True

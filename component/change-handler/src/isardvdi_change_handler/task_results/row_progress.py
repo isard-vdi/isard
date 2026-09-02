@@ -36,8 +36,11 @@ keeps downloading and only the bar stops moving. Neither combination has to be
 deployed before the other.
 """
 
+import asyncio
+import json
 import logging as log
 
+from isardvdi_common.lib.domains.desktops.desktops import download_progress
 from isardvdi_common.models.task import Task
 
 from .storage import _ITEM_CLASS_MAP
@@ -75,8 +78,52 @@ _STARTING_STATUSES = ("DownloadStarting",)
 _RUNNING_STATUS = "Downloading"
 
 
-def apply_row_progress(task_id, final=False):
-    """Persist what survives the transfer, and only that.
+def _resolve(task_id):
+    """The row a tick reports into, and the progress it states.
+
+    ``(item_class, task_name, row, progress)``, or None when the tick has
+    nothing to act on. One read for the row, shared by the write and the emit
+    below.
+    """
+    try:
+        task = Task(task_id)
+    except Exception:
+        log.exception("row_progress: failed to load Task(%s)", task_id)
+        return None
+
+    item_class, kwarg = _ROW_OF_TASK.get(task.task, (None, None))
+    if not item_class:
+        return None
+
+    item_id = (task.kwargs or {}).get(kwarg)
+    if not item_id:
+        return None
+
+    # The tick still has to SAY the transfer is running, so an empty progress
+    # payload is nothing to act on.
+    progress = (task.job.meta or {}).get(ROW_PROGRESS_META_KEY)
+    if not progress:
+        return None
+
+    model = _ITEM_CLASS_MAP.get(item_class)
+    if model is None:
+        log.warning("row_progress: no model registered for %s", item_class)
+        return None
+
+    # ``build`` and not ``exists`` + construct: one read, and None for a row
+    # deleted while its download was still running rather than a raise.
+    try:
+        row = model.build(item_id)
+    except Exception:
+        log.exception("row_progress: failed to read %s %s", item_class, item_id)
+        return None
+    if row is None:
+        return None
+    return item_class, task.task, row, progress
+
+
+def _persist(resolved, final):
+    """Write what survives the transfer, and only that.
 
     ``final`` is True for the ``result`` entry, which carries the closing
     flush, and False for every intermediate tick.
@@ -85,11 +132,10 @@ def apply_row_progress(task_id, final=False):
     next tick supersedes, it had no durability contract even before this — the
     progress consumer ACKs unconditionally whether the write landed or not —
     and it was costing a hard write per tick, which on a long copy is a hundred
-    fsyncs to move a bar. The frontend already receives it live from the task
-    event and degrades cleanly without the column: the card passes ``undefined``
-    for the bar when the row carries no progress and simply does not draw one,
-    so a page loaded mid-operation shows the row with its real status and gains
-    the bar on the next tick.
+    fsyncs to move a bar. The clients receive it live from
+    :func:`_progress_events` instead, and degrade cleanly without the column: a
+    page loaded mid-operation shows the row with its real status and gains the
+    bar on the next tick.
 
     The FINAL flush is a different thing wearing the same name and it MUST be
     written. Its ``total_bytes`` is the exact on-disk size the worker measured,
@@ -107,39 +153,10 @@ def apply_row_progress(task_id, final=False):
 
     Returns True when the row was written.
     """
+    item_class, task_name, row, progress = resolved
     try:
-        task = Task(task_id)
-    except Exception:
-        log.exception("row_progress: failed to load Task(%s)", task_id)
-        return False
-
-    item_class, kwarg = _ROW_OF_TASK.get(task.task, (None, None))
-    if not item_class:
-        return False
-
-    item_id = (task.kwargs or {}).get(kwarg)
-    if not item_id:
-        return False
-
-    # The tick still has to SAY the transfer is running, so an empty progress
-    # payload is nothing to act on.
-    progress = (task.job.meta or {}).get(ROW_PROGRESS_META_KEY)
-    if not progress:
-        return False
-
-    model = _ITEM_CLASS_MAP.get(item_class)
-    if model is None:
-        log.warning("row_progress: no model registered for %s", item_class)
-        return False
-
-    try:
-        # ``build`` and not ``exists`` + construct: one read, and None for a row
-        # deleted while its download was still running rather than a raise.
-        row = model.build(item_id)
-        if row is None:
-            return False
         starting = row.status in _STARTING_STATUSES
-        persists = final and task.task in _PERSISTS_FINAL
+        persists = final and task_name in _PERSISTS_FINAL
         if not (starting or persists):
             # An intermediate tick on a row that has already moved on: nothing
             # to write, which is the steady state of a running transfer.
@@ -148,10 +165,80 @@ def apply_row_progress(task_id, final=False):
         # a tick already in flight must not resurrect a cancelled download.
         if starting:
             row.status = _RUNNING_STATUS
-        if final and task.task in _PERSISTS_FINAL:
+        if persists:
             row.progress = progress
     except Exception:
-        log.exception("row_progress: failed to write %s %s", item_class, item_id)
+        log.exception("row_progress: failed to write %s %s", item_class, row.id)
         return False
 
     return True
+
+
+def _progress_events(resolved):
+    """The SocketIO events that carry a tick to the clients drawing its bar.
+
+    The intermediate percentage never reaches the row, so no changefeed
+    announces it: this emit is the only thing that moves a bar between the two
+    ends of a transfer.
+
+    It travels under an event of its own rather than on the row's ``_update`` /
+    ``_data``, which every client takes as a whole row — the admin tables
+    replace the row they receive, so a tick riding on one would blank every
+    column it does not carry. ``{id, progress}`` on a ``_progress`` event says
+    what it is, and a client merges it into the row it already holds.
+
+    A tick reaches whoever can be looking at that bar: the owner on
+    ``/userspace``, and on ``/administrators`` the ``admins`` room and the
+    row's category (which is where a manager sits).
+    """
+    item_class, _task_name, row, progress = resolved
+    user = getattr(row, "user", None)
+    category = getattr(row, "category", None)
+    if item_class == "media":
+        # Every media view — the two portals and the admin tables — reads the
+        # row's own counters, so the payload is the progress verbatim.
+        payload = json.dumps({"id": row.id, "progress": progress})
+        return [
+            ("media_progress", payload, "/userspace", user),
+            ("media_progress", payload, "/administrators", "admins"),
+            ("media_progress", payload, "/administrators", category),
+        ]
+    if item_class == "domain":
+        if getattr(row, "kind", None) == "template":
+            # A template being created: its list reads the raw counters too.
+            payload = json.dumps({"id": row.id, "progress": progress})
+            return [("template_progress", payload, "/userspace", user)]
+        # A desktop card reads the parsed shape ``desktop_update`` carries; the
+        # admin tables read the raw row shape ``desktop_data`` carries, so each
+        # namespace gets its own, under the name that matches its row event.
+        card = json.dumps({"id": row.id, "progress": download_progress(progress)})
+        raw = json.dumps({"id": row.id, "progress": progress})
+        return [
+            ("desktop_progress", card, "/userspace", user),
+            ("desktop_data_progress", raw, "/administrators", "admins"),
+            ("desktop_data_progress", raw, "/administrators", category),
+        ]
+    return []
+
+
+async def handle_row_progress(redis_manager, task_id, final=False):
+    """Persist what the tick leaves behind, and hand it to the clients live.
+
+    Returns True when the row was written.
+    """
+    resolved = await asyncio.to_thread(_resolve, task_id)
+    if resolved is None:
+        return False
+    written = await asyncio.to_thread(_persist, resolved, final)
+    for event, payload, namespace, room in _progress_events(resolved):
+        if not room:
+            continue
+        try:
+            await redis_manager.emit(event, payload, namespace=namespace, room=room)
+        except Exception:
+            # Best-effort: a bar that misses a tick gains the next one, and the
+            # consumer must not stall on it.
+            log.exception(
+                "row_progress: emit %s on %s/%s failed", event, namespace, room
+            )
+    return written

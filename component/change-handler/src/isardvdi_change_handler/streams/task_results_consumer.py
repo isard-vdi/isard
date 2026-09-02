@@ -71,7 +71,7 @@ from rq.job import JobStatus
 from ..task_results.feedback import emit_task_feedback
 from ..task_results.migration import send_migration_socket
 from ..task_results.registry import HANDLERS
-from ..task_results.row_progress import apply_row_progress
+from ..task_results.row_progress import handle_row_progress
 from ..task_results.storage import dedup_status_emits
 from .trim import PROGRESS_STREAM, RESULT_STREAM, compute_trim_floor
 
@@ -637,15 +637,14 @@ async def _process_entry(redis_manager, fields):
     await emit_task_feedback(redis_manager, task_id)
     # A storage worker on a node with no database states its row progress in
     # the job metadata instead of writing it; persist it here, where the
-    # database is reachable. A no-op for a worker that still writes its own.
-    # ``result`` carries it too: the final flush that closes the bar at 100 is
-    # followed by no progress event of its own.
+    # database is reachable, and hand it to the clients live — an intermediate
+    # tick never reaches the row, so no changefeed announces it.
     if kind in ("progress", "result"):
         # ``result`` IS the final flush — the closing tick is folded into it and
         # is followed by no progress event of its own — so it is the entry that
         # persists the measured size. An intermediate tick only moves the row
         # out of its starting status.
-        await asyncio.to_thread(apply_row_progress, task_id, kind == "result")
+        await handle_row_progress(redis_manager, task_id, kind == "result")
     if kind == "progress":
         return True
 

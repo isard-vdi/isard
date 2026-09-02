@@ -100,6 +100,11 @@ export default {
       const media = MediaUtils.parseMedia(JSON.parse(data), { partial: true })
       context.commit('update_media', media)
     },
+    socket_mediaProgress (context, data) {
+      // The download tick never reaches the row, so it arrives on its own
+      // event carrying only the counters: merge it into the cached one.
+      context.commit('update_media', JSON.parse(data))
+    },
     socket_mediaDelete (context, data) {
       const media = JSON.parse(data)
       context.commit('remove_media', media)
