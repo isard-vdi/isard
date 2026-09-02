@@ -31,7 +31,6 @@ from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from pydantic import UUID4, BaseModel, Field, create_model, field_serializer
 from pydantic.experimental.missing_sentinel import MISSING
 from rethinkdb import r
-from rethinkdb.errors import ReqlNonExistenceError
 
 # Process-global, shared by every RethinkBase subclass (~25 entity types) and
 # written from two paths — the @cached __getattr__ read path and _update_cache.
@@ -386,18 +385,17 @@ class RethinkBase(ABC):
         :rtype: bool
         """
         with cls._rdb_context():
-            try:
-                return bool(
-                    r.table(cls._rdb_table)
-                    .get(document_id)["id"]
-                    .run(cls._rdb_connection)
-                )
-            except ReqlNonExistenceError:
-                # Document does not exist — the only "successful absent"
-                # case. Any other error (connection, permissions, bad
-                # table, ...) must propagate rather than be masked as
-                # "not found".
-                return False
+            # ``["id"]`` on a missing row raises ReqlNonExistenceError, which
+            # the query observer logs as rdb_query_failed noise even though the
+            # absence is expected here. ``.default(False)`` returns it instead;
+            # any other error (connection, permissions, bad table, ...) still
+            # propagates rather than being masked as "not found".
+            return bool(
+                r.table(cls._rdb_table)
+                .get(document_id)["id"]
+                .default(False)
+                .run(cls._rdb_connection)
+            )
 
     @classmethod
     def get(cls, id) -> dict:
