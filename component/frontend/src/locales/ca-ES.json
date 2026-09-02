@@ -867,7 +867,10 @@
       "connecting-to": "Accedeix a l'escriptori",
       "loading": {
         "title": "Carregant l'escriptori",
-        "description": "L'escriptori s'està preparant, això pot trigar uns moments"
+        "steps": {
+          "power": "Encenent la màquina virtual",
+          "viewer": "Preparant els visors"
+        }
       },
       "error-title": "No s'ha pogut connectar",
       "error-description": "L'enllaç del visor directe no és vàlid o ha caducat.",
