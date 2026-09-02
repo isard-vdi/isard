@@ -135,6 +135,17 @@ class StorageModel(BaseModel):
     task: Optional[str]
     type: Literal["qcow2", "vmdk"]
     id: str = Field(default_factory=lambda: str(uuid4()))
+    qcow2_geometry: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "The geometry the disk was written with: {cluster_size, extended_l2, "
+            "lazy_refcounts, preallocation}. Absent on rows written before this "
+            "field existed, and on registry downloads -- a downloaded disk arrives "
+            "byte-for-byte over curl and qemu-img never touches it, so its geometry "
+            "is whatever the publisher wrote. Absence is an acceptable signal, not "
+            "an error."
+        ),
+    )
 
 
 def get_storage_id_from_path(path):
