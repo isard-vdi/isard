@@ -25,7 +25,6 @@ services:
       - /opt/isard/media:/isard/media:ro
       - /opt/isard/volatile:/isard/volatile:ro
       - /opt/isard/storage_pools:/isard/storage_pools:ro
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
       STORAGE_DOMAIN:
