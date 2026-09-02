@@ -148,6 +148,26 @@ def test_from_env_validates():
         qg.from_env(env)
 
 
+def test_env_sources_marks_env_vs_default():
+    env = {"QCOW2_CLUSTER_SIZE": "128k", "QCOW2_EXTENDED_L2": "on"}
+    sources = qg.env_sources(env)
+    assert sources["cluster_size"] == "env"
+    assert sources["extended_l2"] == "env"
+    assert sources["lazy_refcounts"] == "default"
+    assert sources["preallocation"] == "default"
+
+
+def test_env_sources_all_default_when_absent():
+    sources = qg.env_sources({})
+    assert set(sources.values()) == {"default"}
+    assert all(sources[k] == "default" for k in qg.KEYS)
+
+
+def test_env_sources_empty_string_counts_as_default():
+    sources = qg.env_sources({"QCOW2_CLUSTER_SIZE": ""})
+    assert sources["cluster_size"] == "default"
+
+
 def test_policy_is_memoised(monkeypatch):
     monkeypatch.setattr(qg, "_cached", None)
     monkeypatch.setenv("QCOW2_CLUSTER_SIZE", "128k")

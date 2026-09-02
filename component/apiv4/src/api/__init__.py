@@ -97,6 +97,43 @@ def _wire_grpc_providers():
     _bastion.configure_haproxy_bastion_client(lambda: _haproxy_bastion_stub)
 
 
+def _report_qcow2_geometry_at_boot():
+    """Surface the installation-wide qcow2 policy once, at boot.
+
+    apiv4 is the sole reader of the four QCOW2_* vars now, so a distributed
+    install that set them on the storage node instead of here would silently
+    resolve to the 4k/off defaults -- the very silent-wrong-geometry defect this
+    change exists to remove. Log the resolved policy and, when all four fell back
+    to defaults, warn loudly that they may belong on this node's cfg.
+
+    A malformed policy is logged at ERROR but does NOT stop startup: the blast
+    radius of a disk-shape typo must not be the whole API (login, viewers,
+    sessions). The enqueue sites still call ``policy()`` and re-raise per
+    request, so a create/convert/disconnect fails loudly while everything else
+    keeps serving.
+    """
+    try:
+        geometry = qcow2_geometry.policy()
+    except qcow2_geometry.Qcow2PolicyError as exc:
+        log.error(
+            "qcow2 geometry policy is invalid; disk creation/convert/disconnect "
+            "will fail per request until it is fixed: %s",
+            exc,
+        )
+        return
+    sources = qcow2_geometry.env_sources()
+    log.info("qcow2 geometry policy resolved to %s (sources: %s)", geometry, sources)
+    if all(v == "default" for v in sources.values()):
+        log.warning(
+            "all four QCOW2_* are absent from this apiv4 environment; using the "
+            "defaults %s. On a distributed install the geometry must be set in "
+            "the web/all-in-one node's cfg (the only node that enqueues disk "
+            "tasks now), not the storage node's, or every new disk silently "
+            "takes the 4k/off default.",
+            geometry,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -109,11 +146,10 @@ async def lifespan(app: FastAPI):
     # one channel per uvicorn worker process.
     _wire_grpc_providers()
 
-    # Reject a broken installation-wide qcow2 policy once, at boot, with the
-    # operator's actual mistake in the log — instead of on the first desktop
-    # create N requests later. apiv4 is where the policy is resolved and
-    # shipped in the task payload (helpers/qcow2_geometry.py).
-    qcow2_geometry.policy()
+    # Surface the installation-wide qcow2 policy once, at boot: log what it
+    # resolved to, warn if the vars are absent here, and log (not raise) a bad
+    # policy so a disk-shape typo cannot take the whole API offline.
+    _report_qcow2_geometry_at_boot()
 
     Maintenance.initialization()
     Cards.seed_stock_cards()

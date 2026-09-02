@@ -1,0 +1,74 @@
+#
+#   Copyright © 2026 IsardVDI
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""apiv4 surfaces the qcow2 geometry policy at boot, and never dies for it.
+
+apiv4 is the sole reader of the QCOW2_* vars now, so a distributed install that
+set them on the wrong node resolves to the defaults silently. The boot report
+logs the resolved policy, warns when the vars are all absent, and -- crucially --
+logs (does not raise) a bad policy, so a disk-shape typo cannot crash-loop the
+whole API.
+"""
+
+import logging
+
+import api
+import pytest
+from isardvdi_common.helpers import qcow2_geometry
+
+_VARS = (
+    "QCOW2_CLUSTER_SIZE",
+    "QCOW2_EXTENDED_L2",
+    "QCOW2_LAZY_REFCOUNTS",
+    "QCOW2_PREALLOCATION",
+)
+
+
+@pytest.fixture(autouse=True)
+def _reset_cache():
+    qcow2_geometry._cached = None
+    yield
+    qcow2_geometry._cached = None
+
+
+def _set(monkeypatch, **vals):
+    for var in _VARS:
+        monkeypatch.delenv(var, raising=False)
+    for var, value in vals.items():
+        monkeypatch.setenv(var, value)
+
+
+def test_valid_policy_logs_it_and_does_not_raise(monkeypatch, caplog):
+    _set(
+        monkeypatch,
+        QCOW2_CLUSTER_SIZE="128k",
+        QCOW2_EXTENDED_L2="on",
+        QCOW2_LAZY_REFCOUNTS="on",
+        QCOW2_PREALLOCATION="off",
+    )
+    with caplog.at_level(logging.INFO):
+        api._report_qcow2_geometry_at_boot()
+    assert any("geometry policy resolved" in r.message for r in caplog.records)
+    assert not any(r.levelno >= logging.WARNING for r in caplog.records)
+
+
+def test_all_defaults_warns_about_the_distributed_trap(monkeypatch, caplog):
+    _set(monkeypatch)  # nothing set: every key falls back to a default
+    with caplog.at_level(logging.INFO):
+        api._report_qcow2_geometry_at_boot()
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert warnings, "an all-default policy on the enqueuer must warn"
+    assert "absent" in warnings[0].message
+
+
+def test_invalid_policy_logs_error_but_does_not_raise(monkeypatch, caplog):
+    # The #5 fix: before, this crashed apiv4 startup and the container
+    # crash-looped. It must now log and let the API keep serving.
+    _set(monkeypatch, QCOW2_CLUSTER_SIZE="4k", QCOW2_EXTENDED_L2="on")
+    with caplog.at_level(logging.ERROR):
+        api._report_qcow2_geometry_at_boot()  # must NOT raise
+    errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert errors, "an invalid policy must be logged at ERROR"
+    assert "invalid" in errors[0].message

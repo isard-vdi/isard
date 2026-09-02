@@ -98,6 +98,15 @@ def from_env(environ=None):
     return validate({k: env.get(_ENV[k]) or _DEFAULTS[k] for k in KEYS})
 
 
+def env_sources(environ=None):
+    """Report where each key's value came from: ``"env"`` when the process set
+    the var, ``"default"`` when it fell back. A policy whose four keys are all
+    ``"default"`` on the enqueuer is the distributed-install trap -- the vars may
+    have been set on a different node -- so the caller can warn about it."""
+    env = os.environ if environ is None else environ
+    return {k: ("env" if (env.get(_ENV[k]) or "") != "" else "default") for k in KEYS}
+
+
 _cached = None
 
 
