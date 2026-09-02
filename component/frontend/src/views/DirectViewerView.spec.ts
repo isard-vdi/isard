@@ -186,7 +186,6 @@ vi.mock('@/components/desktop-card', () => ({
     emits: ['showInfoModal'],
     template: '<div data-test="card-info" @click="$emit(\'showInfoModal\')" />'
   },
-  DesktopCardSkeleton: { template: '<div data-test="desktop-card-skeleton" />' },
   DesktopCardOverlayButton: {
     props: ['icon', 'title', 'active', 'activeLabel', 'ariaLabel'],
     emits: ['click'],
@@ -298,6 +297,12 @@ vi.mock('@/components/ui/tooltip', () => ({
 vi.mock('@/components/icon', () => ({
   Icon: { template: '<span data-test="icon" />' }
 }))
+vi.mock('@/components/ui/spinner', () => ({
+  Spinner: { props: ['size'], template: '<span data-test="spinner" />' }
+}))
+vi.mock('@/components/direct-viewer', () => ({
+  DirectViewerLoadingHint: { template: '<p data-test="loading-hint" />' }
+}))
 
 import DirectViewerView from './DirectViewerView.vue'
 
@@ -336,10 +341,12 @@ describe('DirectViewerView', () => {
     document.body.replaceChildren()
   })
 
-  it('renders the loading skeleton while the viewer query is pending', () => {
+  it('renders the loading state with the rotating hint while the viewer query is pending', () => {
     viewerPending.value = true
     const wrapper = mountView()
-    expect(wrapper.find('[data-test="desktop-card-skeleton"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="spinner"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="loading-hint"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('views.direct-viewer.loading.title')
     expect(wrapper.text()).not.toContain('views.direct-viewer.connecting-to')
   })
 
