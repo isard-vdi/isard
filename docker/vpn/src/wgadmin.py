@@ -96,7 +96,20 @@ def ensure_geneve_port(hyper_id, hostname):
     return True
 
 
+def _change_kind(old_val, new_val):
+    if old_val is None and new_val is None:
+        return "unparsed"
+    if new_val is None:
+        return "delete"
+    if old_val is None:
+        return "insert"
+    return "update"
+
+
 def _process_vpn_change(change, wg_users, wg_hypers):
+    # Bound before the try so the handler below can still name the change even
+    # when the failure is the model_dump itself.
+    new_val = old_val = None
     try:
         new_val = change.new_val.model_dump() if change.new_val is not None else None
         old_val = change.old_val.model_dump() if change.old_val is not None else None
@@ -223,7 +236,15 @@ def _process_vpn_change(change, wg_users, wg_hypers):
                 wg_users.desktop_iptables({"old_val": old_val, "new_val": new_val})
 
     except Exception:
-        log.error("VPN change processing error: \n" + traceback.format_exc())
+        # Still swallowed so one bad change cannot stop the ones behind it, but
+        # named: otherwise a peer silently fails to come up with nothing to grep.
+        log.error(
+            "VPN change processing error for %s %s (%s):\n%s",
+            (old_val or new_val or {}).get("table", "unknown-table"),
+            (old_val or new_val or {}).get("id", "unknown-id"),
+            _change_kind(old_val, new_val),
+            traceback.format_exc(),
+        )
 
 
 log.info("Starting isard-vpn...")

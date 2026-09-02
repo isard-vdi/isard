@@ -422,8 +422,12 @@ class Helpers(RethinkSharedConnection):
                 .pluck("user", "name", "category", "group", "duplicate_parent_template")
                 .merge(
                     lambda d: {
-                        "username": r.table("users").get(d["user"])["username"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "username": r.table("users")
+                        .get(d["user"])["username"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
@@ -498,30 +502,35 @@ class Helpers(RethinkSharedConnection):
         derivated_templates = cls._derivated_templates(template_id) + cls._duplicated(
             template_id
         )
-        derivated_template_ids = [t["id"] for t in derivated_templates]
+        derivated_template_ids = list({t["id"] for t in derivated_templates})
         with cls._rdb_context():
             deployments = list(
                 r.table("deployments")
                 .get_all(r.args(derivated_template_ids), index="template")
                 .pluck("id", "name", "user", "group")
+                # ``template`` is a multi index over create_dict, so a deployment
+                # with several desktops of the same template comes back once each
+                .distinct()
                 .merge(
                     lambda d: {
+                        # A deleted owner must not break the whole tree
                         "user_data": r.table("users")
                         .get(d["user"])
+                        .default({})
                         .pluck("username", "name", "category", "group")
                     }
                 )
                 .merge(
                     lambda d: {
-                        "username": d["user_data"]["username"],
-                        "user_name": d["user_data"]["name"],
-                        "category": d["user_data"]["category"],
-                        "category_name": r.table("categories").get(
-                            d["user_data"]["category"]
-                        )["name"],
-                        "group_name": r.table("groups").get(d["user_data"]["group"])[
-                            "name"
-                        ],
+                        "username": d["user_data"]["username"].default(None),
+                        "user_name": d["user_data"]["name"].default(None),
+                        "category": d["user_data"]["category"].default(None),
+                        "category_name": r.table("categories")
+                        .get(d["user_data"]["category"].default(""))["name"]
+                        .default(None),
+                        "group_name": r.table("groups")
+                        .get(d["user_data"]["group"].default(""))["name"]
+                        .default(None),
                         "kind": "deployment",
                         "template_id": template_id,  # Return the origin template for the dependency tree
                     }
@@ -561,8 +570,12 @@ class Helpers(RethinkSharedConnection):
                 )
                 .merge(
                     lambda d: {
-                        "username": r.table("users").get(d["user"])["username"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "username": r.table("users")
+                        .get(d["user"])["username"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
@@ -593,8 +606,12 @@ class Helpers(RethinkSharedConnection):
                 )
                 .merge(
                     lambda d: {
-                        "username": r.table("users").get(d["user"])["username"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "username": r.table("users")
+                        .get(d["user"])["username"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
@@ -631,8 +648,12 @@ class Helpers(RethinkSharedConnection):
                 )
                 .merge(
                     lambda d: {
-                        "username": r.table("users").get(d["user"])["username"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "username": r.table("users")
+                        .get(d["user"])["username"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
@@ -656,8 +677,12 @@ class Helpers(RethinkSharedConnection):
                 )
                 .merge(
                     lambda d: {
-                        "username": r.table("users").get(d["user"])["username"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "username": r.table("users")
+                        .get(d["user"])["username"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)

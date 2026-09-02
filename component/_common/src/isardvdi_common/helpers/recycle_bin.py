@@ -2576,6 +2576,17 @@ class RecycleBinTemplate(RecycleBinDomain):
             for t in data
         ]
 
+        # ``data`` was read before the deployments were recycled, and recycling
+        # a deployment already took its desktops with it
+        with self._rdb_context():
+            still_there = set(
+                r.table("domains")
+                .get_all(r.args([d["id"] for d in domains]))
+                .pluck("id")["id"]
+                .run(self._rdb_connection)
+            )
+        domains = [d for d in domains if d["id"] in still_there]
+
         # Move each desktop/template to recycle_bin
         rcb_desktop = RecycleBinDesktop(id=self.id, user_id=self.agent_id)
         for domain in domains:

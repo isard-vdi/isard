@@ -115,6 +115,21 @@ def _detect_kvm_module():
     return "false"
 
 
+def _cap_disk():
+    """Whether this node really performs disk operations.
+
+    ``REDIS_WORKERS=0`` stops the storage worker fleet as surely as the
+    capability does, so a node declaring disk operations with no worker is
+    counted as serving pools nothing on it can serve.
+    """
+    if not strtobool(os.environ.get("CAPABILITIES_DISK", "true")):
+        return False
+    try:
+        return int(os.environ.get("REDIS_WORKERS", "1")) != 0
+    except ValueError:
+        return True
+
+
 def _detect_nested_virtualization():
     """Read kvm_intel / kvm_amd nested parameter from sysfs."""
     for path in (
@@ -259,7 +274,7 @@ def SetupHypervisor():
         "hyper_id": os.environ.get("HYPER_ID", "isard-hypervisor"),
         "hostname": hostname,
         "port": "2022",
-        "cap_disk": bool(strtobool(os.environ.get("CAPABILITIES_DISK", "true"))),
+        "cap_disk": _cap_disk(),
         "cap_hyper": bool(strtobool(os.environ.get("CAPABILITIES_HYPER", "true"))),
         "enabled": False,
         "description": "Added through api",

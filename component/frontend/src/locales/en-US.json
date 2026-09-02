@@ -1062,7 +1062,8 @@
     "profile": {
       "ssh-key-modal": {
         "title": "Bastion SSH key",
-        "description": "Add your own SSH public key to your profile. The bastion accepts it for the SSH access of any desktop you own, and of the desktops of any deployment you own or co-own, so you don't have to add it to each desktop. Removing it revokes that access.",
+        "description": "Add to your profile the SSH public key of the device you will connect to IsardVDI from. This key will let that device authenticate to access, over SSH and through the bastion, your desktops and the desktops of the deployments you own or co-own.\nYou only need to add the key to your profile once; there is no need to set it up manually on each desktop. If you remove the key from your profile, access through that key will be revoked.",
+        "label": "Your device's SSH public key",
         "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user{'@'}host",
         "invalid": "This doesn't look like a valid SSH public key.",
         "alert": {
