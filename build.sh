@@ -871,35 +871,6 @@ EOF
 }
 check_isard_network_mtu
 
-ensure_etc_timezone(){
-	# Ubuntu 26.04+ (and other modern systemd distros) ship NO /etc/timezone
-	# file -- only the /etc/localtime symlink. The generated compose bind-mounts
-	# `/etc/timezone:ro` into every container; when the host file is missing
-	# Docker auto-creates it as an empty DIRECTORY, which then cannot mount onto
-	# the container's /etc/timezone file and breaks every service at `up`.
-	# Materialize it from /etc/localtime (or timedatectl) so the existing mounts
-	# work on both old (file present) and new (file absent) hosts. Idempotent and
-	# best-effort: it never aborts the build if it cannot write.
-	[ -f /etc/timezone ] && return 0
-	_tz=""
-	if [ -L /etc/localtime ]; then
-		_tz=$(readlink -f /etc/localtime 2>/dev/null | sed -n 's@.*/zoneinfo/@@p')
-	fi
-	if [ -z "$_tz" ] && command -v timedatectl >/dev/null 2>&1; then
-		_tz=$(timedatectl show -p Timezone --value 2>/dev/null)
-	fi
-	[ -z "$_tz" ] && _tz="Etc/UTC"
-	# A prior failed Docker mount may have left /etc/timezone as an empty dir.
-	[ -d /etc/timezone ] && $SUDO rmdir /etc/timezone 2>/dev/null || true
-	if printf '%s\n' "$_tz" | $SUDO tee /etc/timezone >/dev/null 2>&1; then
-		echo "Created /etc/timezone ($_tz) for container bind-mounts (this host shipped none)."
-	else
-		echo "WARNING: /etc/timezone is missing and could not be created ($_tz). Containers that bind-mount it will fail to start; create it manually:  echo $_tz | sudo tee /etc/timezone" >&2
-	fi
-	return 0
-}
-ensure_etc_timezone
-
 disable_wgquick_apparmor(){
 	# Ubuntu >=25.04 ships an ENFORCING AppArmor profile 'wg-quick' in the
 	# `apparmor` package (/etc/apparmor.d/wg-quick; absent on <=24.04 LTS).
@@ -912,7 +883,7 @@ disable_wgquick_apparmor(){
 	# thing blocking it (security_opt: apparmor=unconfined would NOT help -- an
 	# unconfined process still transitions into a named profile on exec).
 	# Disable the host profile so the VPN + hypervisor work. Reversible,
-	# non-fatal, best-effort -- same spirit as ensure_etc_timezone above.
+	# non-fatal, best-effort.
 	# Opt out with SKIP_FIX_WGQUICK_APPARMOR=true.
 	[ "${SKIP_FIX_WGQUICK_APPARMOR:-false}" = "true" ] && return 0
 	[ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = "Y" ] || return 0
