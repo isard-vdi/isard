@@ -233,7 +233,7 @@ class DesktopsProcessed(RethinkSharedConnection):
             return str(detail)
         try:
             decoded = json.loads(detail)
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             return detail
         if isinstance(decoded, str):
             return decoded
@@ -272,13 +272,18 @@ class DesktopsProcessed(RethinkSharedConnection):
                 ]
 
         if desktop["status"] == DesktopStatusEnum.downloading.value:
+            raw_progress = desktop.get("progress") or {}
+            # a download that just started has no counters yet: omit the missing
+            # ones so the schema defaults apply instead of failing validation
             progress = {
-                "percentage": desktop.get("progress", {}).get("received_percent"),
-                "throughput_average": desktop.get("progress", {}).get(
-                    "speed_download_average"
-                ),
-                "time_left": desktop.get("progress", {}).get("time_left"),
-                "size": desktop.get("progress", {}).get("total"),
+                key: raw_progress[source]
+                for key, source in (
+                    ("percentage", "received_percent"),
+                    ("throughput_average", "speed_download_average"),
+                    ("time_left", "time_left"),
+                    ("size", "total"),
+                )
+                if raw_progress.get(source) is not None
             }
         else:
             progress = None
