@@ -24,7 +24,6 @@ from unittest.mock import MagicMock, mock_open
 
 import pytest
 from isardvdi_common.helpers.error_base import ErrorBase
-from rethinkdb.errors import ReqlNonExistenceError
 
 
 @pytest.fixture
@@ -135,10 +134,14 @@ class TestUpdateHyperVirtPools:
 # get_orchestrator_hypervisors
 # --------------------------------------------------------------------------- #
 class TestGetOrchestratorHypervisors:
-    def _q(self, stub):
+    def _merged(self, stub):
         # r.table("hypervisors").get(id).pluck(...).merge(...)
         hyp = stub["router"]("hypervisors")
         return hyp.get.return_value.pluck.return_value.merge.return_value
+
+    def _q(self, stub):
+        # ... .default(None)
+        return self._merged(stub).default.return_value
 
     def _q_list(self, stub):
         # r.table("hypervisors").pluck(...).merge(...)
@@ -146,13 +149,14 @@ class TestGetOrchestratorHypervisors:
         return hyp.pluck.return_value.merge.return_value
 
     def test_unknown_id_raises_not_found(self, stub_rdb):
-        self._q(stub_rdb).run.side_effect = ReqlNonExistenceError(
-            "no such row", None, None
-        )
+        # .default(None) keeps the missing row out of the rdb_query_failed log:
+        # the query resolves to None instead of raising ReqlNonExistenceError.
+        self._q(stub_rdb).run.return_value = None
         with pytest.raises(ErrorBase) as exc:
             stub_rdb["Cls"].get_orchestrator_hypervisors("gone")
         assert exc.value.error["error"] == "not_found"
         assert exc.value.status_code == 404
+        self._merged(stub_rdb).default.assert_called_once_with(None)
 
     def test_present_id_fills_defaults(self, stub_rdb):
         self._q(stub_rdb).run.return_value = {"id": "h1", "status": "Online"}

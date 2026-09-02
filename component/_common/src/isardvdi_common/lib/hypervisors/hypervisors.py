@@ -249,10 +249,13 @@ class HypervisorsProcessed(RethinkSharedConnection):
             }
         )
         if hyp_id:
-            try:
-                with cls._rdb_context():
-                    data = query.run(cls._rdb_connection)
-            except ReqlNonExistenceError:
+            # A missing row makes .pluck()/.merge() raise ReqlNonExistenceError,
+            # which the query observer logs as rdb_query_failed noise on every
+            # orchestrator poll of a hypervisor that is no longer in the table.
+            query = query.default(None)
+            with cls._rdb_context():
+                data = query.run(cls._rdb_connection)
+            if data is None:
                 raise Error(
                     "not_found", "Hypervisor with ID " + hyp_id + " does not exist."
                 )
