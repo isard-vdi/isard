@@ -33,6 +33,4 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       LOG_LEVEL:
-    depends_on:
-      - isard-redis
     restart: unless-stopped
