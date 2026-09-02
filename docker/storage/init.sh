@@ -127,9 +127,10 @@ case "$(printf '%s' "${STORAGE_POOL_VDO_STATS:-false}" | tr '[:upper:]' '[:lower
     true|t|1|yes|y|on) _vdo_stats_sidecar=1 ;;
     *) _vdo_stats_sidecar=0 ;;
 esac
-# A node with no storage workers holds no pool: its pool paths resolve to the root disk.
-if [ "${REDIS_WORKERS:-1}" -eq 0 ]; then
-    echo "storage: REDIS_WORKERS=0, this node serves no storage and publishes no pool space"
+# A node that runs no storage worker holds no pool: its pool paths resolve to the
+# root disk. Both switches that stop the fleet below must stop this too.
+if [ "${REDIS_WORKERS:-1}" -eq 0 ] || [ "${_cap_disk_enabled}" -eq 0 ]; then
+    echo "storage: REDIS_WORKERS=0 or CAPABILITIES_DISK=false, this node serves no storage and publishes no pool space"
 elif [ "${_vdo_stats_sidecar}" -eq 0 ]; then
     /utils/storage-pool-physical &
 else

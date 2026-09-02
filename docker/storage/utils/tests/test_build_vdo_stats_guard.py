@@ -63,6 +63,12 @@ def test_a_node_without_storage_workers_gets_no_sidecar():
     )
 
 
+def test_a_node_without_the_disk_capability_gets_no_sidecar():
+    assert "storage-vdo-stats" not in _parts(
+        STORAGE_POOL_VDO_STATS="true", REDIS_WORKERS="10", CAPABILITIES_DISK="False"
+    )
+
+
 def test_a_storage_node_still_gets_the_sidecar():
     assert "storage-vdo-stats" in _parts(
         STORAGE_POOL_VDO_STATS="true", REDIS_WORKERS="10"
@@ -91,8 +97,9 @@ def test_an_unreadable_worker_count_does_not_abort_the_build():
     )
 
 
-def test_the_guard_reads_the_same_variable_the_workers_do():
+def test_the_guard_reads_the_same_variables_the_workers_do():
     """Both gates must move together, or one of them stops meaning anything."""
-    init = BUILD.parent / "docker" / "storage" / "init.sh"
-    assert re.search(r"\$\{REDIS_WORKERS:-1\}", _block())
-    assert re.search(r"\$\{REDIS_WORKERS:-1\}", init.read_text(encoding="utf-8"))
+    init = (BUILD.parent / "docker" / "storage" / "init.sh").read_text(encoding="utf-8")
+    for variable in (r"\$\{REDIS_WORKERS:-1\}", r"\$\{CAPABILITIES_DISK:-true\}"):
+        assert re.search(variable, _block())
+        assert re.search(variable, init)
