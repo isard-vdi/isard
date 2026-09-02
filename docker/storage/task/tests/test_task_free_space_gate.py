@@ -242,3 +242,86 @@ def test_disconnect_measures_after_clearing_a_stale_sibling(tmp_path, monkeypatc
     task.disconnect(disk, min_free_bytes=8192, **_GEO)
 
     assert seen["stale_gone"] is True
+
+
+# --------------------------------------------------------------------------
+# convert/disconnect now honour preallocation: the gate must reserve the
+# destination's VIRTUAL size when the geometry preallocates, not the source's
+# apparent size (which is only a proxy for a sparse preallocation=off write).
+# --------------------------------------------------------------------------
+
+
+def test_convert_with_preallocation_reserves_the_virtual_size(tmp_path, monkeypatch):
+    src = _sized(tmp_path, "src.qcow2", 5000)  # tiny apparent size
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 50_000)  # ample for st_size
+    monkeypatch.setattr(task, "_qemu_virtual_size", lambda p: 1 << 40)  # 1 TiB virtual
+    ran = {}
+    monkeypatch.setattr(
+        task, "run_with_progress", lambda *a, **k: ran.setdefault("ran", True) or 0
+    )
+    geo = {**_GEO, "preallocation": "full"}
+    with pytest.raises(RuntimeError, match="refusing to convert"):
+        task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **geo)
+    assert "ran" not in ran  # refused before qemu-img started
+
+
+def test_convert_without_preallocation_uses_apparent_size(tmp_path, monkeypatch):
+    """preallocation=off writes a sparse destination, so the apparent size stays
+    the right proxy and a huge virtual size must NOT refuse the copy."""
+    src = _sized(tmp_path, "src.qcow2", 5000)
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 50_000)
+    monkeypatch.setattr(
+        task, "_qemu_virtual_size", lambda p: 1 << 40
+    )  # must be ignored
+    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
+    geo = {**_GEO, "preallocation": "off"}
+    assert task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **geo) == 0
+
+
+def test_convert_with_compression_ignores_preallocation_for_the_gate(
+    tmp_path, monkeypatch
+):
+    """Under -c the option string drops preallocation, so the destination is not
+    preallocated and the gate must fall back to the apparent size."""
+    src = _sized(tmp_path, "src.qcow2", 5000)
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 50_000)
+    monkeypatch.setattr(
+        task, "_qemu_virtual_size", lambda p: 1 << 40
+    )  # must be ignored
+    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
+    geo = {**_GEO, "preallocation": "full"}
+    assert task.convert(src, dst, "qcow2", True, min_free_bytes=8192, **geo) == 0
+
+
+def test_disconnect_with_preallocation_reserves_the_virtual_size(tmp_path, monkeypatch):
+    disk = _sized(tmp_path, "disk.qcow2", 5000)
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 50_000)
+    monkeypatch.setattr(task, "_qemu_virtual_size", lambda p: 1 << 40)
+    ran = {}
+    monkeypatch.setattr(task, "run", lambda *a, **k: ran.setdefault("ran", True))
+    geo = {**_GEO, "preallocation": "metadata"}
+    with pytest.raises(RuntimeError, match="refusing to disconnect"):
+        task.disconnect(disk, min_free_bytes=8192, **geo)
+    assert "ran" not in ran
+    assert Path(disk).exists()  # live disk untouched
+
+
+def test_convert_reserving_full_fails_closed_when_virtual_size_unknown(
+    tmp_path, monkeypatch
+):
+    src = _sized(tmp_path, "src.qcow2", 5000)
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 1 << 40)  # plenty
+    monkeypatch.setattr(task, "_qemu_virtual_size", lambda p: None)  # cannot read
+    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
+    geo = {**_GEO, "preallocation": "full"}
+    with pytest.raises(RuntimeError, match="virtual size"):
+        task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **geo)
