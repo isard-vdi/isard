@@ -10,7 +10,7 @@ import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from time import sleep
+from time import monotonic, sleep
 
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.redact import redact_secrets
@@ -56,6 +56,10 @@ from engine.services.lib.telegram import telegram_send_thread
 from engine.services.log import logs
 
 WAIT_HYP_ONLINE = 2.0
+
+
+#: A changes cursor that stayed open this long proves the connection worked.
+CURSOR_HEALTHY_SECONDS = 60
 
 
 class Engine(object):
@@ -448,6 +452,7 @@ class Engine(object):
             ui = UiActions(self.manager)
             delay = 5
             while not self.stop:
+                started = monotonic()
                 try:
                     self._consume_changes(ui)
                 except Exception as e:
@@ -461,6 +466,13 @@ class Engine(object):
                     self._close_conn()
                 if self.stop:
                     break
+                # A cursor that lived was a working connection, so the next
+                # failure starts from the floor. Measured, not inferred from a
+                # clean return: this loop almost always ends in the exception
+                # branch, so resetting there would never run — and the delay
+                # would ratchet to its cap for the life of the container.
+                if monotonic() - started >= CURSOR_HEALTHY_SECONDS:
+                    delay = 5
                 sleep(delay)
                 delay = min(delay * 2, 60)
             self.executor.shutdown(wait=False)

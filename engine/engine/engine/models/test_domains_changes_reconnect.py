@@ -13,6 +13,7 @@ the loop touches.
 
 import sys
 import threading
+from itertools import count
 from unittest.mock import MagicMock
 
 # The shared bootstrap stubs ``rethinkdb`` as a MagicMock, and no other test
@@ -61,6 +62,45 @@ def test_a_dead_cursor_reconnects_instead_of_ending_the_thread(monkeypatch):
 
     assert len(calls) == 3  # it came back twice instead of dying on the first
     assert sleeps == [5, 10]  # and backed off between attempts
+
+
+def test_a_cursor_that_lived_resets_the_backoff(monkeypatch):
+    """Otherwise the delay ratchets to its cap for the life of the container:
+    a box that has seen a few database restarts then waits a full minute before
+    even trying to reconnect, and every desktop action in that window is lost."""
+    sleeps = []
+    # every reading is 500s past the previous one, so each cursor "lived"
+    clock = count(0, 500)
+    monkeypatch.setattr("engine.models.engine.monotonic", lambda: next(clock))
+
+    def consume(t):
+        if len(sleeps) >= 3:
+            t.stop = True
+            return
+        raise Exception("db bounced")
+
+    _thread(monkeypatch, consume, sleeps).run()
+
+    # each cursor lived well past CURSOR_HEALTHY_SECONDS, so no doubling carries
+    assert sleeps == [5, 5, 5]
+
+
+def test_a_cursor_that_dies_at_once_keeps_backing_off(monkeypatch):
+    """The floor is only for connections that worked: a database that is not
+    coming back must not be hammered every 5s."""
+    sleeps = []
+    clock = count(0, 1)  # every cursor dies within a second of opening
+    monkeypatch.setattr("engine.models.engine.monotonic", lambda: next(clock))
+
+    def consume(t):
+        if len(sleeps) >= 3:
+            t.stop = True
+            return
+        raise Exception("still down")
+
+    _thread(monkeypatch, consume, sleeps).run()
+
+    assert sleeps == [5, 10, 20]
 
 
 def test_the_backoff_is_capped(monkeypatch):
