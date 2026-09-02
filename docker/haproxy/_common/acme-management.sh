@@ -12,14 +12,24 @@ if [ -n "$ACME_DOMAIN" ] && [ -n "$ACME_EMAIL" ]; then
     export LE_WORKING_DIR="/etc/acme"
 
     if [ "$1" = "register" ]; then
-        # Create the account
+        # The thumbprint answers every stateless http-01 challenge and outlives
+        # the container, so redirecting into it would truncate it on a failure.
         echo "Registering ACME account '$ACME_EMAIL' for $ACME_SERVER"
-        acme.sh --register-account --email "$ACME_EMAIL" --server "$ACME_SERVER" | grep ACCOUNT_THUMBPRINT | awk -F'ACCOUNT_THUMBPRINT=' '{ print $2 }' | xargs > /etc/acme/account-thumbprint
+        thumbprint="$(acme.sh --register-account --email "$ACME_EMAIL" --server "$ACME_SERVER" | grep ACCOUNT_THUMBPRINT | awk -F'ACCOUNT_THUMBPRINT=' '{ print $2 }' | xargs)"
+
+        if [ -n "$thumbprint" ]; then
+            printf '%s\n' "$thumbprint" > /etc/acme/account-thumbprint
+        elif [ -s /etc/acme/account-thumbprint ]; then
+            echo "WARNING: ACME registration returned no thumbprint, keeping the stored one"
+        else
+            echo "ERROR: ACME registration returned no thumbprint and none is stored, http-01 validation will fail"
+            exit 1
+        fi
 
     elif [ "$1" = "generate" ]; then
         # Setup the cron
         echo "Setting up cron"
-        echo '0 2 * * * /usr/share/acme.sh/acme.sh --cron --home "/etc/acme" > /var/log/acme-cron.log 2>&1' > /etc/crontabs/root
+        echo '0 2 * * * /usr/local/bin/acme-cron.sh' > /etc/crontabs/root
         crond
 
         # Generate the main domain certificate, retrying until HAProxy serves it

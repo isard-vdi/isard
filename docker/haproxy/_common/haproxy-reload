@@ -5,6 +5,20 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] HAProxy-reload: $1"
 }
 
+# A `docker exec` of this script inherits none of the defaults the entrypoint
+# exported into the haproxy master, and `bind ":${HTTP_PORT}"` would not parse.
+HAPROXY_ENV_FILE="${HAPROXY_ENV_FILE:-/var/run/haproxy-env}"
+if [ -r "$HAPROXY_ENV_FILE" ]; then
+    . "$HAPROXY_ENV_FILE"
+else
+    log "WARNING: $HAPROXY_ENV_FILE is missing, falling back to the default ports"
+fi
+# The reload re-execs the master with its own environment, so these only ever
+# affect the validation below.
+: "${HTTP_PORT:=80}"
+: "${HTTPS_PORT:=443}"
+export HTTP_PORT HTTPS_PORT
+
 # Verify HAProxy configuration before reloading
 if haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg >/dev/null 2>&1; then
     log "Configuration is valid, reloading HAProxy..."

@@ -40,6 +40,7 @@ COPY docker/haproxy/_common/haproxy-reload /usr/local/bin/haproxy-reload
 COPY docker/haproxy/_common/haproxy-docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY docker/haproxy/_common/acme-management.sh /usr/local/bin/acme-management.sh
 COPY docker/haproxy/_common/acme-generate-cert.sh /usr/local/bin/acme-generate-cert.sh
+COPY docker/haproxy/_common/acme-cron.sh /usr/local/bin/acme-cron.sh
 COPY docker/haproxy/_common/acme-remove-cert.sh /usr/local/bin/acme-remove-cert.sh
 
 RUN ln -s /usr/local/bin/docker-entrypoint.sh /
@@ -50,6 +51,7 @@ RUN chmod 775 \
     /usr/local/bin/haproxy-reload \
     /usr/local/bin/acme-management.sh \
     /usr/local/bin/acme-generate-cert.sh \
+    /usr/local/bin/acme-cron.sh \
     /usr/local/bin/acme-remove-cert.sh \
     /usr/local/bin/haproxy-sync
 

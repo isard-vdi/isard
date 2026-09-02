@@ -113,6 +113,26 @@ else
         export ACME_ACCOUNT_THUMBPRINT=""
 fi
 
+# Everything resolved above reaches the haproxy master alone; a `docker exec`
+# gets the container's configured environment and needs these from somewhere.
+write_haproxy_env() {
+        env_file="${HAPROXY_ENV_FILE:-/var/run/haproxy-env}"
+
+        : > "$env_file"
+        chmod 600 "$env_file"
+
+        for name in DOMAIN HTTP_PORT HTTPS_PORT WEBAPP_HOST RETHINKDB_HOST \
+                    GRAFANA_HOST ACME_SERVER ACME_DOMAIN ACME_EMAIL \
+                    ACME_ACCOUNT_THUMBPRINT; do
+                eval "value=\${$name-}"
+                # Escape embedded quotes so the file is safe to source back.
+                escaped=$(printf '%s' "$value" | sed "s/'/'\\\\''/g")
+                printf "export %s='%s'\n" "$name" "$escaped" >> "$env_file"
+        done
+}
+
+write_haproxy_env
+
 # first arg is `-f` or `--some-option`
 if [ "${1#-}" != "$1" ]; then
         set -- haproxy "$@"
