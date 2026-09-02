@@ -446,7 +446,39 @@ class Engine(object):
                 "^^^^^^^^^^^^^^^^^^^ DOMAIN CHANGES THREAD ^^^^^^^^^^^^^^^^^"
             )
             ui = UiActions(self.manager)
+            delay = 5
+            while not self.stop:
+                try:
+                    self._consume_changes(ui)
+                except Exception as e:
+                    logs.main.error(
+                        "RethinkDB changes cursor lost, reconnecting: {}".format(e)
+                    )
+                    logs.changes.debug(
+                        "Traceback: \n .{}".format(traceback.format_exc())
+                    )
+                finally:
+                    self._close_conn()
+                if self.stop:
+                    break
+                sleep(delay)
+                delay = min(delay * 2, 60)
+            self.executor.shutdown(wait=False)
+            logs.main.info("finalished thread domain changes")
 
+        def _close_conn(self):
+            """Close before reconnecting, tolerating an already-dead socket: a
+            retry loop that skipped this would leak one per attempt against a
+            database that has not come back yet."""
+            conn, self.r_conn = self.r_conn, False
+            if not conn:
+                return
+            try:
+                conn.close(noreply_wait=False)
+            except Exception:
+                logs.changes.debug("closing the dead changes connection raised")
+
+        def _consume_changes(self, ui):
             # Long-lived changes() cursor: held for the process
             # lifetime, so it MUST NOT come from the shared pool —
             # holding a pool slot forever starves every other caller.
@@ -477,6 +509,8 @@ class Engine(object):
                     if c.get("new_val", None) != None:
                         if c["new_val"]["table"] == "engine":
                             if c["new_val"]["status_all_threads"] == "Stopping":
+                                # ends the reconnect loop too, not just the cursor
+                                self.stop = True
                                 break
                             else:
                                 continue
@@ -742,9 +776,6 @@ class Engine(object):
                     logs.main.critical(
                         "Traceback: \n .{}".format(traceback.format_exc())
                     )
-
-            self.executor.shutdown(wait=False)
-            logs.main.info("finalished thread domain changes")
 
     def check_actions_domains_enabled(self):
         if len(self.t_workers) > 0 and self.threads_main_started is True:

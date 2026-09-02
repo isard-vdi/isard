@@ -35,6 +35,13 @@ _STUBBED_MODULES = [
     "isardvdi_common.redis_stream",
     "isardvdi_common.helpers.default_storage_pool",
     "rethinkdb",
+    # ``rethinkdb`` is a MagicMock here, so anything that from-imports one of
+    # its submodules needs its own entry or the import raises.
+    "rethinkdb.connection_pool",
+    "rethinkdb.errors",
+    "rethinkdb.net",
+    "isardvdi_common.connections.rethink_connection_factory",
+    "isardvdi_common.connections.rethink_shared_connection",
     "humanfriendly",
 ]
 
