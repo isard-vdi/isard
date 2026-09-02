@@ -28,10 +28,10 @@ export interface WsDeletePayload {
 // ---------------------------------------------------------------------------
 
 export interface WsDesktopProgress {
-  percentage: number | null
-  throughput_average: number | null
-  time_left: number | null
-  size: number | null
+  percentage?: number
+  throughput_average?: string
+  time_left?: string
+  size?: string
 }
 
 export interface WsDesktopScheduled {
@@ -148,7 +148,16 @@ export interface WsMediaProgress {
   speed: number
   speed_download_average: number
   received_percent?: number
+  total_percent?: number
   time_left?: string
+}
+
+/** ``{id, progress}`` on a ``*_progress`` event. The live download tick never
+ *  reaches the row, so it arrives on an event of its own instead of on the
+ *  row's ``_update``; handlers merge it into the row they already hold. */
+export interface WsProgressPayload<T> {
+  id: string
+  progress: T
 }
 
 export interface WsMediaPayload {
@@ -341,6 +350,7 @@ export interface WsEventMap {
   desktop_update: WsDesktopPayload
   desktop_delete: WsDeletePayload
   desktops_queue: WsDesktopsQueuePayload
+  desktop_progress: WsProgressPayload<WsDesktopProgress>
 
   targets_add: WsTargetPayload
   targets_update: WsTargetPayload
@@ -349,6 +359,7 @@ export interface WsEventMap {
   template_add: WsTemplatePayload
   template_update: WsTemplatePayload
   template_delete: WsDeletePayload
+  template_progress: WsProgressPayload<WsTemplateProgress>
 
   deployment_add: WsDeploymentPayload
   deployment_update: WsDeploymentPayload
@@ -362,6 +373,7 @@ export interface WsEventMap {
   media_add: WsMediaPayload
   media_update: WsMediaPayload
   media_delete: WsDeletePayload
+  media_progress: WsProgressPayload<WsMediaProgress>
 
   add_recycle_bin: WsRecycleBinAddPayload
   update_recycle_bin: WsRecycleBinUpdatePayload
