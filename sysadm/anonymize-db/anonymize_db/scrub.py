@@ -239,6 +239,8 @@ class Scrubber:
             r["email_verified"] = True
             r["api_key"] = ""
             r["accessed"] = 0
+            if isinstance(r.get("bastion_ssh_key"), str):
+                r["bastion_ssh_key"] = ""
             # Admin-authored free-text note about the person.
             if isinstance(r.get("description"), str):
                 r["description"] = ""

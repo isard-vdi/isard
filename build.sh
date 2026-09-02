@@ -594,15 +594,29 @@ create_docker_compose_file(){
 		parts="$parts redis.passwd"
 	fi
 
+	# Normalised the way init.sh normalises it, so one cfg value cannot mean two
+	# things on the same node.
+	case "$(printf '%s' "${CAPABILITIES_DISK:-true}" | tr '[:upper:]' '[:lower:]')" in
+		false|f|0|no|n|off) _cap_disk_enabled=0 ;;
+		*) _cap_disk_enabled=1 ;;
+	esac
+	if [ "$_cap_disk_enabled" -eq 0 ]
+	then
+		if [ "$FLAVOUR" = "$STORAGE_KEY" ]
+		then
+			echo "ERROR: flavour $FLAVOUR serves storage; CAPABILITIES_DISK=false leaves it with nothing to do"
+			exit 1
+		fi
+		# Without the capability isard-storage starts and goes straight to sleeping.
+		echo "CAPABILITIES_DISK is false, removing storage part"
+		parts="$(echo $parts | remove_part "storage")"
+	fi
+
 	# The VDO fill needs a privileged container; everything else about the pools
 	# is measured and published by isard-storage without one.
 	case "$(printf '%s' "${STORAGE_POOL_VDO_STATS:-false}" | tr '[:upper:]' '[:lower:]')" in
 		true|t|1|yes|y|on) _vdo_stats_enabled=1 ;;
 		*) _vdo_stats_enabled=0 ;;
-	esac
-	case "$(printf '%s' "${CAPABILITIES_DISK:-true}" | tr '[:upper:]' '[:lower:]')" in
-		false|f|0|no|n|off) _cap_disk_enabled=0 ;;
-		*) _cap_disk_enabled=1 ;;
 	esac
 	# The sidecar runs the same publisher, so a node with no storage worker would
 	# publish its root disk under the pool's key from here instead.
