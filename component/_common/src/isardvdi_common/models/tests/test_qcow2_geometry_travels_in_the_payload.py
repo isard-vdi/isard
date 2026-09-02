@@ -198,3 +198,28 @@ def test_no_disk_task_lives_under_a_core_finalize_knot():
         "disk-writing tasks found under a core-queued dependent (change-handler "
         f"would have to resolve their geometry): {violations}"
     )
+
+
+# --- the measure dependents record the applied geometry ----------------------
+
+_EXPECTED_LITERAL_STAMPS = 5
+
+
+def test_five_measure_dependents_carry_the_literal_stamp():
+    """Recording the geometry on the row is a stated goal, wired through the
+    ``qemu_img_info_backing_chain`` dependents. Five sites stamp it as a dict
+    literal (``"qcow2_geometry": geometry`` alongside ``storage_id``); pin the
+    count so deleting any one is loud. The sixth, convert, stamps conditionally
+    into a ``measure_kwargs`` variable and is covered behaviourally in
+    test_storage_policy_in_payload.py."""
+    stamped = [
+        node.lineno
+        for node in ast.walk(_TREE)
+        if isinstance(node, ast.Dict)
+        and {k.value for k in node.keys if isinstance(k, ast.Constant)}
+        >= {"storage_id", "qcow2_geometry"}
+    ]
+    assert len(stamped) == _EXPECTED_LITERAL_STAMPS, (
+        f"expected {_EXPECTED_LITERAL_STAMPS} literal measure stamps, found "
+        f"{len(stamped)} at {stamped}"
+    )
