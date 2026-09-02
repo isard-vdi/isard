@@ -127,7 +127,10 @@ case "$(printf '%s' "${STORAGE_POOL_VDO_STATS:-false}" | tr '[:upper:]' '[:lower
     true|t|1|yes|y|on) _vdo_stats_sidecar=1 ;;
     *) _vdo_stats_sidecar=0 ;;
 esac
-if [ "${_vdo_stats_sidecar}" -eq 0 ]; then
+# A node with no storage workers holds no pool: its pool paths resolve to the root disk.
+if [ "${REDIS_WORKERS:-1}" -eq 0 ]; then
+    echo "storage: REDIS_WORKERS=0, this node serves no storage and publishes no pool space"
+elif [ "${_vdo_stats_sidecar}" -eq 0 ]; then
     /utils/storage-pool-physical &
 else
     echo "storage: pool space published by isard-storage-vdo-stats"
