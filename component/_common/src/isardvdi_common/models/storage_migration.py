@@ -122,6 +122,15 @@ DONE_ITEM_STATES = {
     MigrationItemState.QUARANTINED,
 }
 
+#: Disk already ON the destination. Not ``done`` — the commit tail (verify,
+#: db_update, release) is still owed — but the bytes are copied.
+MOVED_ITEM_STATES = {
+    MigrationItemState.MOVED,
+    MigrationItemState.REBASED,
+    MigrationItemState.DB_UPDATED,
+    MigrationItemState.RELEASED,
+}
+
 
 # --------------------------------------------------------------------------- #
 # Pure helpers (no DB) — unit tested
@@ -144,6 +153,11 @@ def item_is_done(state) -> bool:
     return state in DONE_ITEM_STATES
 
 
+def item_is_migrated(state) -> bool:
+    """True once the disk itself is on the destination, commit tail aside."""
+    return state in MOVED_ITEM_STATES
+
+
 def compute_state_counts(items: Iterable) -> dict:
     """``{state: count}`` over items (dicts or objects). Enum states normalised
     to their string value so the result is plain JSON for the ledger."""
@@ -163,6 +177,12 @@ def compute_bytes_done(items: Iterable) -> int:
     )
 
 
+def compute_bytes_copied(items: Iterable) -> int:
+    """Bytes already written to the destination: ``size_bytes`` over items past
+    the move, committed or not."""
+    return sum(_size_of(it) for it in items if item_is_migrated(_state_of(it)))
+
+
 def build_totals(current: dict, items: list) -> dict:
     """Re-derive the live aggregate from item states (pure, never incremental).
 
@@ -177,7 +197,12 @@ def build_totals(current: dict, items: list) -> dict:
         "items_total": len(items),
         "state_counts": compute_state_counts(items),
         "bytes_done": compute_bytes_done(items),
+        "bytes_copied": compute_bytes_copied(items),
         "done": sum(1 for it in items if item_is_done(_state_of(it))),
+        "migrated": sum(1 for it in items if item_is_migrated(_state_of(it))),
+        "completed": sum(
+            1 for it in items if _state_of(it) == MigrationItemState.RELEASED
+        ),
     }
 
 

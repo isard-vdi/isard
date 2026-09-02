@@ -337,9 +337,12 @@ def aggregate_status(migration, items, *, include_items=False):
     rows for the UI's expand.
     """
     from isardvdi_common.models.storage_migration import (
+        MigrationItemState,
+        compute_bytes_copied,
         compute_bytes_done,
         compute_state_counts,
         item_is_done,
+        item_is_migrated,
     )
 
     by_tree = {}
@@ -357,8 +360,13 @@ def aggregate_status(migration, items, *, include_items=False):
                 "desktops": s["desktops"],
                 "media": s["media"],
                 "done": sum(1 for it in tit if item_is_done(it["state"])),
+                "migrated": sum(1 for it in tit if item_is_migrated(it["state"])),
+                "completed": sum(
+                    1 for it in tit if str(it["state"]) == MigrationItemState.RELEASED
+                ),
                 "bytes_total": s["bytes_total"],
                 "bytes_done": compute_bytes_done(tit),
+                "bytes_copied": compute_bytes_copied(tit),
                 "state_counts": compute_state_counts(tit),
             }
         )
@@ -398,7 +406,12 @@ def aggregate_status(migration, items, *, include_items=False):
             "bytes_total": bytes_total,
             "bytes_by_kind": _bytes_by_kind(items),
             "bytes_done": bytes_done,
+            "bytes_copied": compute_bytes_copied(items),
             "done": sum(1 for it in items if item_is_done(it["state"])),
+            "migrated": sum(1 for it in items if item_is_migrated(it["state"])),
+            "completed": sum(
+                1 for it in items if str(it["state"]) == MigrationItemState.RELEASED
+            ),
             "state_counts": compute_state_counts(items),
         },
         "trees": trees,

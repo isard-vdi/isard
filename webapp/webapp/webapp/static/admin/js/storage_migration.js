@@ -243,7 +243,7 @@ const MIG_STAGE_WEIGHT = {
   skipped: 1.0, quarantined: 1.0, failed: 0
 };
 
-function migBar (done, total, bytesDone, bytesTotal, stateCounts) {
+function migBar (done, total, bytesDone, bytesTotal, stateCounts, bytesCopied) {
   stateCounts = stateCounts || {};
   let weighted = 0;
   Object.keys(stateCounts).forEach(function (s) {
@@ -262,7 +262,9 @@ function migBar (done, total, bytesDone, bytesTotal, stateCounts) {
   if (moving) phase += `${moving} copying · `;
   if (committing) phase += `${committing} verifying/releasing · `;
   const title = `${pct}% complete · ${copied}/${total} copied to destination · ` +
-    `${released} committed (source freed) · ${phase}${migBytes(bytesDone)}/${migBytes(bytesTotal)} committed`;
+    `${released} committed (source freed) · ${phase}` +
+    `${migBytes(bytesCopied != null ? bytesCopied : bytesDone)}/${migBytes(bytesTotal)} copied · ` +
+    `${migBytes(bytesDone)} committed`;
   return `<div class="progress" style="position:relative;margin:0;min-width:160px;height:16px;" title="${migEscape(title)}">
       <div class="progress-bar progress-bar-success" style="width:${doneW}%;line-height:16px;"></div>
       <div class="progress-bar progress-bar-success progress-bar-striped active" style="width:${progW}%;line-height:16px;"></div>
@@ -401,7 +403,7 @@ function migTreeRows (m) {
         <td>${migShortId(t.root_storage_id || t.tree_id)}</td>
         <td>${migEscape(t.derivative_templates || 0)}</td>
         <td>${migEscape(t.desktops || 0)}</td>
-        <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts)}</td>
+        <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts, t.bytes_copied)}</td>
       </tr>`;
   });
   html += "</tbody></table>";
@@ -434,7 +436,7 @@ function migRowHtml (m) {
       <td>${migShortId(m.id)}</td>
       <td class="mig-route">${migRouteCell(m)}</td>
       <td>${migStatusCell(m)}</td>
-      <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts)}</td>
+      <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts, t.bytes_copied)}</td>
       <td>${migEta(m.eta_seconds)}</td>
       <td>${migEscape(migScheduleLabel(m))}</td>
       <td class="mig-actions-cell">${migActionButtons(m)}</td>
