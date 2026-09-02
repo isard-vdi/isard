@@ -49,6 +49,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html
 from fastapi.responses import HTMLResponse, JSONResponse
+from isardvdi_common.helpers import qcow2_geometry
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.maintenance import Maintenance
@@ -107,6 +108,12 @@ async def lifespan(app: FastAPI):
     # shared modules fetch the same long-lived stub on every call,
     # one channel per uvicorn worker process.
     _wire_grpc_providers()
+
+    # Reject a broken installation-wide qcow2 policy once, at boot, with the
+    # operator's actual mistake in the log — instead of on the first desktop
+    # create N requests later. apiv4 is where the policy is resolved and
+    # shipped in the task payload (helpers/qcow2_geometry.py).
+    qcow2_geometry.policy()
 
     Maintenance.initialization()
     Cards.seed_stock_cards()
