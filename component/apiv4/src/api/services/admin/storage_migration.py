@@ -73,6 +73,7 @@ _ACTION_TARGET = {
 #: a job in one of these terminal states can no longer be controlled
 _TERMINAL = {
     MigrationStatus.COMPLETED.value,
+    MigrationStatus.COMPLETED_WITH_SKIPS.value,
     MigrationStatus.FAILED.value,
     MigrationStatus.CANCELED.value,
 }

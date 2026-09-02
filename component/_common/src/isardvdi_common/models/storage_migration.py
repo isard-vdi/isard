@@ -68,6 +68,9 @@ class MigrationStatus(StrEnum):
     #: Mirrors WINDOW_CLOSED: stopped on purpose, not broken.
     BUDGET_REACHED = "budget_reached"
     COMPLETED = "completed"
+    #: terminal: everything the job attempted moved and verified, but it gave up
+    #: on at least one disk, which is still on the source pool.
+    COMPLETED_WITH_SKIPS = "completed_with_skips"
     FAILED = "failed"
     CANCELED = "canceled"
 
@@ -331,6 +334,9 @@ class StorageMigrationItemModel(BaseModel):
     #: restore the ORIGINAL status (e.g. "recycled") instead of hardcoding
     #: "ready". None == we never put this disk into maintenance.
     storage_orig_status: str | None = None
+    #: domains parked in ``Maintenance`` alongside their disk. ``None`` == never
+    #: parked; the empty list is a settled answer.
+    maintenance_domains: list | None = None
     attempts: int = 0
     #: consecutive occurrences (recurring) in which this disk ended ``failed``;
     #: drives the ``retry_quarantine`` budget. Reset by a non-failed occurrence.

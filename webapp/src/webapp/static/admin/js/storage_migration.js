@@ -22,7 +22,7 @@
 const MIG_API = "/api/v4/admin/storage/migrations";
 const POOLS_API = "/api/v4/storage-pools";
 const CATEGORIES_API = "/api/v4/admin/items/categories";
-const MIG_TERMINAL = ["completed", "failed", "canceled"];
+const MIG_TERMINAL = ["completed", "completed_with_skips", "failed", "canceled"];
 const MIG_DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // status -> {bootstrap label class, font-awesome icon, human tooltip}
@@ -35,6 +35,7 @@ const MIG_STATUS = {
   draining:  { cls: "info",    icon: "fa-tint",           tip: "Finishing in-flight disks before stopping." },
   quarantined: { cls: "warning", icon: "fa-exclamation-triangle", tip: "Some disks were set aside after repeated failures." },
   completed: { cls: "success", icon: "fa-check",          tip: "All disks moved and verified." },
+  completed_with_skips: { cls: "warning", icon: "fa-check", tip: "Finished, but some disks were skipped (a desktop was running and force-stop was off) and are still on the source pool." },
   failed:    { cls: "danger",  icon: "fa-times",          tip: "Migration stopped on a failure." },
   canceled:  { cls: "default", icon: "fa-ban",            tip: "Canceled by an admin." }
 };

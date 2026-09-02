@@ -15,6 +15,14 @@ def test_quiesce_stopped_is_ok():
     assert mig.quiesce_decision(None, force_stop=False) == "ok"  # template / no domain
 
 
+def test_quiesce_maintenance_is_ok_to_move():
+    """Never a running VM, so it is safe to move — and reading it as ``skip``
+    made the one status that blocks a user start also the one that made the
+    migration abandon the disk."""
+    assert mig.quiesce_decision("Maintenance", force_stop=False) == "ok"
+    assert mig.quiesce_decision("Maintenance", force_stop=True) == "ok"
+
+
 def test_quiesce_running_without_forcestop_skips():
     assert mig.quiesce_decision("Started", force_stop=False) == "skip"
     assert mig.quiesce_decision("Shutting-down", force_stop=False) == "skip"

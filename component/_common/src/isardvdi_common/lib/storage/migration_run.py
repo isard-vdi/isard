@@ -488,6 +488,7 @@ class MigrationRunner:
             verify_passed=False,
             move_delete_task_id=None,
             storage_orig_status=None,
+            maintenance_domains=None,
             autostart_domains=None,
             abandon_restarts=0,
             attempts=0,
@@ -693,9 +694,48 @@ class MigrationRunner:
                 task_id,
             )
 
+    def _park_domains(self, item):
+        """Park the disk's STOPPED domains in ``Maintenance`` while their image
+        moves, recording them in the ledger FIRST so a crash can still restore
+        them.
+
+        Parking is only safe once the storage carries a live task claim: the
+        change-handler's stuck-domain sweep promotes a maintenance domain whose
+        storage has none. ``None`` means never parked; the empty list is a
+        settled answer.
+        """
+        if item.get("maintenance_domains") is not None:
+            return
+        parked = [d for d in self._domains(item["storage_id"]) if d.status == "Stopped"]
+        self._set(item, maintenance_domains=[d.id for d in parked])
+        for d in parked:
+            try:
+                d.current_action = "move"
+                d.status = "Maintenance"
+            except Exception:
+                log.exception(
+                    "migration: could not park domain %s of %s",
+                    d.id,
+                    item["storage_id"],
+                )
+
+    def _restore_domains(self, item):
+        """Take the parked domains back to ``Stopped``. One that is no longer in
+        ``Maintenance`` belongs to whatever moved it on: re-stopping it could
+        yank a VM the engine has since started."""
+        for domain_id in item.get("maintenance_domains") or []:
+            try:
+                domain = Domain(domain_id)
+                if domain.status == "Maintenance":
+                    domain.status = "Stopped"
+                    domain.current_action = None
+            except Exception:
+                log.exception("migration: could not restore domain %s", domain_id)
+
     def _restore_storage_status(self, item):
-        """Restore a disk's storage to the status it held BEFORE we set it to
-        maintenance (recorded at move start). Only disks we actually put into
+        """Put a disk back the way we found it: its domains out of maintenance,
+        and its storage to the status it held BEFORE we set it to maintenance
+        (recorded at move start). Only disks we actually put into
         maintenance carry a recorded original, so an untouched disk (a
         never-started pending one) is left alone — never blindly forced to
         ``ready``, which would un-bin a ``recycled`` disk (saga-5).
@@ -704,6 +744,9 @@ class MigrationRunner:
         which reclaims its own dangling members, so there is no counterpart to
         undo; and the row's ``task`` field is retired, kept only so a rollback
         can still read it, which is exactly why this must not write to it."""
+        # Before the early return: a disk can carry parked domains and no
+        # recorded original.
+        self._restore_domains(item)
         orig = item.get("storage_orig_status")
         if orig is None:
             return
@@ -816,6 +859,9 @@ class MigrationRunner:
             log.exception(
                 "migration: could not set maintenance on %s", item["storage_id"]
             )
+        # ...and the domains follow their disk in, as set_maintenance would have
+        # done for us.
+        self._park_domains(item)
         queue = self._move_queue(item["src_path"])
         if not self.lane_is_drainable(Task._redis, queue):
             # transient: leave the disk pending and let the next tick retry, so a
@@ -1236,6 +1282,9 @@ class MigrationRunner:
         any_failed = any(
             str(it["state"]) == MigrationItemState.FAILED.value for it in fresh
         )
+        any_skipped = any(
+            str(it["state"]) == MigrationItemState.SKIPPED.value for it in fresh
+        )
         # in-flight == a disk mid-saga (not pending, not terminal): keeps a
         # recurring job "running" even once the window closed, so it finishes
         # cleanly rather than dropping to idle mid-chain.
@@ -1261,16 +1310,29 @@ class MigrationRunner:
             # Set the next status only on the TRANSITION (a recurring job stays in
             # ``scheduled`` across many ticks, so guard against re-reactivating /
             # re-writing every tick): finishing -> canceled; recurring -> scheduled
-            # (idle, never self-completes); one-shot -> failed/completed.
+            # (idle, never self-completes); one-shot -> failed /
+            # completed_with_skips / completed.
             target = mig.recurring_status_target(
-                True, any_in_flight, win_open, finishing, any_failed, recurring
+                True,
+                any_in_flight,
+                win_open,
+                finishing,
+                any_failed,
+                recurring,
+                any_skipped=any_skipped,
             )
             if cur != target:
                 self.reactivate()  # crash-safe autostart restore, once per settle
                 self.migration.status = target
         else:
             target = mig.recurring_status_target(
-                False, any_in_flight, win_open, finishing, any_failed, recurring
+                False,
+                any_in_flight,
+                win_open,
+                finishing,
+                any_failed,
+                recurring,
+                any_skipped=any_skipped,
             )
             if target is None:
                 # one-shot: flip running<->window_closed by the window; never

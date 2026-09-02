@@ -649,14 +649,14 @@ def plan_autostart_deactivation(items, domains_of):
 
 
 def quiesce_decision(domain_status, force_stop):
-    """Decide how to quiesce a disk's domain before moving it.
+    """Decide how to quiesce a disk's domain before moving it: ``ok`` (safe to
+    move), ``force_stop`` (running, admin opted in) or ``skip``.
 
-    ``ok`` — already safe to move (stopped, failed, or no domain/template);
-    ``force_stop`` — running and the admin opted to force-stop it;
-    ``skip`` — running and the admin did NOT opt to force-stop, so the disk
-    (and its subtree) is skipped rather than moving a live disk.
+    ``Maintenance`` is safe: a domain only ever reaches it from ``Stopped``, so
+    it is never a running VM. Force-stop cannot clear it either — that only
+    stops a ``Started`` domain.
     """
-    if domain_status in (None, "Stopped", "Failed"):
+    if domain_status in (None, "Stopped", "Failed", "Maintenance"):
         return "ok"
     return "force_stop" if force_stop else "skip"
 
@@ -969,6 +969,7 @@ def recurring_status_target(
     finishing,
     any_failed,
     recurring,
+    any_skipped=False,
 ):
     """End-of-tick next job status (pure). Returns the target status string, or
     ``None`` to mean "leave the caller's existing window branch in charge"
@@ -978,8 +979,9 @@ def recurring_status_target(
     * recurring: NEVER self-terminates — complete -> ``scheduled`` (idle);
       otherwise ``running`` while in-window or with an in-flight tree, else
       ``scheduled`` (between occurrences).
-    * one-shot: complete -> ``failed`` if any disk failed else ``completed``;
-      still draining -> ``None`` (existing window branch decides).
+    * one-shot: complete -> ``failed`` if any disk failed, else
+      ``completed_with_skips`` if any disk was skipped (they are still on the
+      source pool), else ``completed``; still draining -> ``None``.
 
     HELD — recurring FAILURE policy: ``any_failed`` is accepted but does NOT
     terminalize a recurring job here (it stays alive and retries next
@@ -993,7 +995,9 @@ def recurring_status_target(
             return "scheduled"
         return "running" if (win_open or any_in_flight) else "scheduled"
     if is_complete:
-        return "failed" if any_failed else "completed"
+        if any_failed:
+            return "failed"
+        return "completed_with_skips" if any_skipped else "completed"
     return None
 
 
