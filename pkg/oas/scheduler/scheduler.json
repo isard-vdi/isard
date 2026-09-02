@@ -11,12 +11,15 @@
           "Health"
         ],
         "summary": "Scheduler healthcheck.",
-        "description": "Liveness probe. Returns an empty body on success.",
+        "description": "Liveness probe. Returns an empty body while jobs are being scheduled, and 503 when the job store cannot reach the database or the scheduling loop is past its own next-run deadline.",
         "operationId": "get_scheduler_healthcheck",
         "security": [],
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "503": {
+            "description": "Nothing is being scheduled"
           }
         }
       }

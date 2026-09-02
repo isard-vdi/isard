@@ -24,6 +24,9 @@ type User struct {
 	ID         string `rethinkdb:"id"`
 	CategoryID string `rethinkdb:"category"`
 	SSHKey     string `rethinkdb:"bastion_ssh_key"`
+	// Deactivating a user is how an offboarding ends their access everywhere
+	// else, so the bastion has to be able to see it.
+	Active bool `rethinkdb:"active"`
 }
 
 func (u *User) Load(ctx context.Context, sess r.QueryExecutor) error {

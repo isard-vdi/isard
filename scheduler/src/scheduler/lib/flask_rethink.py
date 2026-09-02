@@ -33,11 +33,15 @@ connection count to ``RETHINKDB_POOL_SIZE``, removes per-call
 socket churn, and surfaces queries through the slow-/failed-query
 observer (P2.1).
 
-The ``RethinkDBJobStore`` (instantiated separately in
-``Scheduler.__init__``) keeps its own dedicated rdb connection per
-the APScheduler contract and is intentionally NOT routed through
-this pool — APScheduler expects sole ownership of the jobstore
-connection.
+The job store (instantiated separately in ``Scheduler.__init__``)
+keeps its own dedicated rdb connection per the APScheduler
+contract and is intentionally NOT routed through this pool —
+APScheduler expects sole ownership of the jobstore connection.
+Sole ownership is the right call, but it also means the job store
+gets none of the pool's staleness eviction, so it must heal its
+own connection: see ``rethink_jobstore.ReconnectingRethinkDBJobStore``,
+which is why ``Scheduler.__init__`` no longer builds the stock
+``RethinkDBJobStore``.
 """
 
 import logging as log
