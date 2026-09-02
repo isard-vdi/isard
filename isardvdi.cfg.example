@@ -1,4 +1,4 @@
-# Isard main config v3.0.4
+# Isard main config v3.0.5
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -278,6 +278,15 @@ HAPROXY_LOGGING=.
 #PROXY_PROTOCOL=false
 
 # ------ QCOW2 images --------------------------------------------------------
+## Installation-wide geometry for every qcow2 IsardVDI writes itself.
+## Read by isard-apiv4 (the node running the web/all-in-one flavour) when the
+## task is enqueued, and carried inside the task payload, so every storage
+## node writes the same shape regardless of its own environment. Changing a
+## value takes effect for disks created AFTER the apiv4 restart; existing
+## disks keep the geometry they were written with (visible per storage row
+## under ``qcow2_geometry``).
+## Applies to disk creation, ``convert`` (qcow2 destinations) and
+## ``disconnect`` (which rewrites the disk in place).
 ## Cluster size used when creating qcow2 disk images
 ## Default: 4k (maximum compatibility)
 ## Recommended for NFS: 2M (500x less metadata overhead vs 4k)
@@ -304,6 +313,13 @@ HAPROXY_LOGGING=.
 ## Recommended for NFS: metadata (reduces fragmentation)
 ## Options: off / metadata / falloc / full
 #QCOW2_PREALLOCATION=off
+## Free-space floor (bytes) left on the destination filesystem before a
+## convert/disconnect writes its full second copy of a disk; the operation is
+## refused rather than filling the pool. Like the geometry above, it is an
+## installation policy resolved by isard-apiv4 at enqueue time and carried in
+## the payload, so an identical operation is not refused on one storage node
+## and accepted on another. Default: 1073741824 (1 GiB).
+#STORAGE_MIN_FREE_BYTES=1073741824
 
 # ------ GPUS --------------------------------------------------------------
 ## ----- NVIDIA
