@@ -134,6 +134,27 @@ def _report_qcow2_geometry_at_boot():
         )
 
 
+def _validate_storage_min_free_at_boot():
+    """Validate STORAGE_MIN_FREE_BYTES at boot, non-fatally.
+
+    Like the geometry policy it is now resolved by the enqueuer, but it is not
+    covered by the geometry validator. A malformed value (e.g. a human-readable
+    ``1G``) would otherwise raise only at enqueue time, after the row is already
+    in maintenance. Logged at ERROR, not raised, for the same reason the geometry
+    check is: a disk-floor typo must not take the whole API offline.
+    """
+    from isardvdi_common.models.storage import storage_min_free_bytes
+
+    try:
+        storage_min_free_bytes()
+    except ValueError as exc:
+        log.error(
+            "STORAGE_MIN_FREE_BYTES is invalid; convert/disconnect will fail per "
+            "request until it is fixed: %s",
+            exc,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -150,6 +171,7 @@ async def lifespan(app: FastAPI):
     # resolved to, warn if the vars are absent here, and log (not raise) a bad
     # policy so a disk-shape typo cannot take the whole API offline.
     _report_qcow2_geometry_at_boot()
+    _validate_storage_min_free_at_boot()
 
     Maintenance.initialization()
     Cards.seed_stock_cards()

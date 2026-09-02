@@ -72,3 +72,19 @@ def test_invalid_policy_logs_error_but_does_not_raise(monkeypatch, caplog):
     errors = [r for r in caplog.records if r.levelno == logging.ERROR]
     assert errors, "an invalid policy must be logged at ERROR"
     assert "invalid" in errors[0].message
+
+
+def test_malformed_min_free_logs_error_but_does_not_raise(monkeypatch, caplog):
+    monkeypatch.setenv("STORAGE_MIN_FREE_BYTES", "1G")  # human-readable typo
+    with caplog.at_level(logging.ERROR):
+        api._validate_storage_min_free_at_boot()  # must NOT raise
+    errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert errors, "a malformed STORAGE_MIN_FREE_BYTES must be logged at ERROR"
+    assert "STORAGE_MIN_FREE_BYTES" in errors[0].message
+
+
+def test_valid_min_free_is_silent(monkeypatch, caplog):
+    monkeypatch.setenv("STORAGE_MIN_FREE_BYTES", "5368709120")
+    with caplog.at_level(logging.ERROR):
+        api._validate_storage_min_free_at_boot()
+    assert not [r for r in caplog.records if r.levelno == logging.ERROR]

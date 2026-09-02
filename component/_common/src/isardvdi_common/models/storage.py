@@ -47,8 +47,28 @@ from .task import Task
 # per-host fact: resolved by the enqueuer and carried in the payload so an
 # identical operation is not refused on one storage node and accepted on
 # another. Mirrors the worker's DEFAULT_MIN_FREE_BYTES fallback (1 GiB).
-def _storage_min_free_bytes():
-    return int(os.environ.get("STORAGE_MIN_FREE_BYTES") or 1 << 30)
+def storage_min_free_bytes():
+    """Resolve STORAGE_MIN_FREE_BYTES to an int, validating it.
+
+    Raises ``ValueError`` on a malformed value (e.g. a human-readable ``1G`` --
+    a plausible typo, since the geometry vars two lines above it in the cfg ARE
+    human-readable). Callers resolve this BEFORE flipping the row to maintenance
+    and the apiv4 boot check calls it too, so a typo fails loudly instead of
+    500ing every convert/disconnect after the row is already stuck in
+    maintenance.
+    """
+    raw = os.environ.get("STORAGE_MIN_FREE_BYTES")
+    if raw in (None, ""):
+        return 1 << 30
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"STORAGE_MIN_FREE_BYTES={raw!r} is not an integer number of bytes"
+        )
+    if value < 0:
+        raise ValueError(f"STORAGE_MIN_FREE_BYTES={raw!r} must be >= 0")
+    return value
 
 
 # Owner category is resolved on every storage-task produce; cache per user so a
@@ -1409,6 +1429,10 @@ class Storage(RethinkCustomBase):
         disconnect_queue = f"storage.{StoragePool.get_best_for_action('disconnect', path=self.directory_path).id}.{priority}"
 
         geometry = qcow2_geometry.policy()
+        # Resolved BEFORE set_maintenance: a malformed STORAGE_MIN_FREE_BYTES must
+        # raise here, not after the row is flipped to maintenance with no task to
+        # clear it.
+        min_free_bytes = storage_min_free_bytes()
         self.set_maintenance("disconnect")
         return self.create_task(
             user_id=user_id,
@@ -1420,7 +1444,7 @@ class Storage(RethinkCustomBase):
                 "kwargs": {
                     "storage_path": self.path,
                     **geometry,
-                    "min_free_bytes": _storage_min_free_bytes(),
+                    "min_free_bytes": min_free_bytes,
                 },
             },
             dependents=[
@@ -1500,6 +1524,10 @@ class Storage(RethinkCustomBase):
         dest_type = new_storage_type.lower()
 
         geometry = qcow2_geometry.policy()
+        # Resolved BEFORE set_maintenance: a malformed STORAGE_MIN_FREE_BYTES must
+        # raise here, not after this row (and the destination row) are already
+        # committed to a convert that can never finish.
+        min_free_bytes = storage_min_free_bytes()
         # Only a qcow2 destination carries the geometry: a vmdk cannot honour
         # qcow2 options, so the row must not record a geometry it does not have.
         measure_kwargs = {
@@ -1524,7 +1552,7 @@ class Storage(RethinkCustomBase):
                     "format": dest_type,
                     "compression": compress,
                     **geometry,
-                    "min_free_bytes": _storage_min_free_bytes(),
+                    "min_free_bytes": min_free_bytes,
                 },
             },
             dependents=[
