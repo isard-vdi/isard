@@ -11,7 +11,7 @@
   >
     <b-row class="ml-2 mr-2">
       <b-col cols="12">
-        <p>
+        <p style="white-space: pre-line;">
           {{ $t('forms.ssh-key.modal.description') }}
         </p>
         <b-form-group
