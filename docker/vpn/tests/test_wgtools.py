@@ -27,7 +27,7 @@ def _bare_wg(wgtools):
     wg.table = "users"
     wg.interface = "wg0"
     wg.allowed_client_nets = "0.0.0.0/0"
-    wg.clients_reserved_ips = []
+    wg.clients_reserved_ips = set()
     wg.keys = _StubKeys()
     return wg
 

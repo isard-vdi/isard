@@ -8,11 +8,17 @@ forever — integration tests live downstream.
 """
 
 import json
+import logging
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
 import redis
-from isardvdi_common.redis_stream import RedisStreamConsumer
+from isardvdi_common.redis_stream import (
+    PAYLOAD_LOG_CHARS,
+    RedisStreamConsumer,
+    _payload_summary,
+)
 
 
 class TestInit:
@@ -134,3 +140,214 @@ class TestProcessPending:
         c._process_pending(handler)
         handler.assert_not_called()
         fake_r.xack.assert_not_called()
+
+
+class TestDroppedMessagesAreLoud:
+    """A message the handler rejects is acked on purpose -- redelivering it
+    forever would wedge the consumer behind one bad change. That trade is only
+    acceptable while the loss is visible, so what the log line carries is part
+    of the contract, not decoration.
+    """
+
+    @staticmethod
+    def _one_message(payload, msg_id=b"1-0", stream="stream:a"):
+        fake_r = MagicMock()
+        fake_r.xreadgroup.side_effect = [[(stream, [(msg_id, {"data": payload})])], []]
+        return fake_r
+
+    @patch("isardvdi_common.redis_stream.redis.from_url")
+    def test_log_names_the_message_stream_and_group(self, mock_from_url, caplog):
+        payload = json.dumps({"table": "users", "change": {"old_val": {"id": "u1"}}})
+        mock_from_url.return_value = self._one_message(payload)
+
+        def failing_handler(_):
+            raise RuntimeError("boom")
+
+        c = RedisStreamConsumer(streams=["stream:a"], group="vpn-wireguard")
+        with caplog.at_level(logging.ERROR):
+            c._process_pending(failing_handler)
+
+        assert "1-0" in caplog.text
+        assert "stream:a" in caplog.text
+        assert "vpn-wireguard" in caplog.text
+
+    @patch("isardvdi_common.redis_stream.redis.from_url")
+    def test_log_carries_the_payload_so_the_lost_change_is_identifiable(
+        self, mock_from_url, caplog
+    ):
+        payload = json.dumps({"table": "users", "change": {"old_val": {"id": "u-42"}}})
+        mock_from_url.return_value = self._one_message(payload)
+
+        c = RedisStreamConsumer(streams=["stream:a"], group="g1")
+        with caplog.at_level(logging.ERROR):
+            c._process_pending(MagicMock(side_effect=RuntimeError("boom")))
+
+        assert "u-42" in caplog.text
+
+    @patch("isardvdi_common.redis_stream.redis.from_url")
+    def test_log_carries_the_handler_traceback(self, mock_from_url, caplog):
+        mock_from_url.return_value = self._one_message(json.dumps({"table": "users"}))
+
+        c = RedisStreamConsumer(streams=["stream:a"], group="g1")
+        with caplog.at_level(logging.ERROR):
+            c._process_pending(MagicMock(side_effect=RuntimeError("the-real-cause")))
+
+        assert "the-real-cause" in caplog.text
+        assert "Traceback" in caplog.text
+
+    @patch("isardvdi_common.redis_stream.redis.from_url")
+    def test_malformed_json_is_logged_and_acked(self, mock_from_url, caplog):
+        """The handler never runs for a payload that will not parse; the
+        message must still be reported and acked."""
+        fake_r = self._one_message("{not json at all")
+        mock_from_url.return_value = fake_r
+        handler = MagicMock()
+
+        c = RedisStreamConsumer(streams=["stream:a"], group="g1")
+        with caplog.at_level(logging.ERROR):
+            c._process_pending(handler)
+
+        handler.assert_not_called()
+        fake_r.xack.assert_called_once_with("stream:a", "g1", b"1-0")
+        assert "1-0" in caplog.text
+
+    @patch("isardvdi_common.redis_stream.redis.from_url")
+    def test_a_message_with_no_data_field_is_logged_and_acked(
+        self, mock_from_url, caplog
+    ):
+        fake_r = MagicMock()
+        fake_r.xreadgroup.side_effect = [[("stream:a", [(b"1-0", {})])], []]
+        mock_from_url.return_value = fake_r
+
+        c = RedisStreamConsumer(streams=["stream:a"], group="g1")
+        with caplog.at_level(logging.ERROR):
+            c._process_pending(MagicMock())
+
+        fake_r.xack.assert_called_once_with("stream:a", "g1", b"1-0")
+        assert "1-0" in caplog.text
+
+    @patch("isardvdi_common.redis_stream.redis.from_url")
+    def test_a_successful_message_logs_no_error(self, mock_from_url, caplog):
+        mock_from_url.return_value = self._one_message(json.dumps({"table": "users"}))
+
+        c = RedisStreamConsumer(streams=["stream:a"], group="g1")
+        with caplog.at_level(logging.ERROR):
+            c._process_pending(MagicMock())
+
+        assert caplog.text == ""
+
+    @patch("isardvdi_common.redis_stream.redis.from_url")
+    def test_one_bad_message_does_not_stop_the_ones_behind_it(self, mock_from_url):
+        good = json.dumps({"table": "users", "change": {"new_val": {"id": "u2"}}})
+        bad = json.dumps({"table": "users", "change": {"new_val": {"id": "u1"}}})
+        fake_r = MagicMock()
+        fake_r.xreadgroup.side_effect = [
+            [("stream:a", [(b"1-0", {"data": bad}), (b"2-0", {"data": good})])],
+            [],
+        ]
+        mock_from_url.return_value = fake_r
+
+        seen = []
+
+        def handler(data):
+            peer_id = data["change"]["new_val"]["id"]
+            if peer_id == "u1":
+                raise RuntimeError("boom")
+            seen.append(peer_id)
+
+        c = RedisStreamConsumer(streams=["stream:a"], group="g1")
+        c._process_pending(handler)
+
+        assert seen == ["u2"]
+        assert fake_r.xack.call_count == 2
+
+
+class TestRunLoopDropsAreLoudToo:
+    """The steady-state loop must behave exactly like the pending replay: the
+    two paths are separate code and drifted apart before."""
+
+    @staticmethod
+    def _stopping_redis(payload, stop_event):
+        """``run()`` replays pending messages before entering its loop, and
+        that replay drains ``xreadgroup`` until it comes back empty. So: give
+        the replay nothing, then one message to the loop, then stop."""
+        fake_r = MagicMock()
+        calls = {"n": 0}
+
+        def xreadgroup(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:  # the pending replay
+                return []
+            stop_event.set()  # one pass through the loop, then leave it
+            return [("stream:a", [(b"9-0", {"data": payload})])]
+
+        fake_r.xreadgroup.side_effect = xreadgroup
+        return fake_r
+
+    @patch("isardvdi_common.redis_stream.redis.from_url")
+    def test_handler_failure_is_logged_and_acked_in_the_run_loop(
+        self, mock_from_url, caplog
+    ):
+        stop = threading.Event()
+        payload = json.dumps({"table": "users", "change": {"old_val": {"id": "u-99"}}})
+        fake_r = self._stopping_redis(payload, stop)
+        mock_from_url.return_value = fake_r
+
+        c = RedisStreamConsumer(streams=["stream:a"], group="g1")
+        with caplog.at_level(logging.ERROR):
+            c.run(MagicMock(side_effect=RuntimeError("boom")), stop_event=stop)
+
+        fake_r.xack.assert_any_call("stream:a", "g1", b"9-0")
+        assert "9-0" in caplog.text
+        assert "u-99" in caplog.text
+
+    @patch("isardvdi_common.redis_stream.redis.from_url")
+    def test_successful_run_loop_message_logs_no_error(self, mock_from_url, caplog):
+        stop = threading.Event()
+        fake_r = self._stopping_redis(json.dumps({"table": "users"}), stop)
+        mock_from_url.return_value = fake_r
+        handler = MagicMock()
+
+        c = RedisStreamConsumer(streams=["stream:a"], group="g1")
+        with caplog.at_level(logging.ERROR):
+            c.run(handler, stop_event=stop)
+
+        assert handler.call_count == 1
+        assert caplog.text == ""
+
+
+class TestPayloadSummary:
+    """It runs inside an except block. If it can raise, it replaces the
+    handler's traceback with its own and the real cause is lost."""
+
+    def test_short_payload_is_kept_whole(self):
+        assert _payload_summary({"data": '{"id": "u1"}'}) == '{"id": "u1"}'
+
+    def test_long_payload_is_truncated_and_marked(self):
+        summary = _payload_summary({"data": "x" * (PAYLOAD_LOG_CHARS + 50)})
+        assert summary == "x" * PAYLOAD_LOG_CHARS + "..."
+
+    def test_payload_exactly_at_the_limit_is_not_marked(self):
+        summary = _payload_summary({"data": "x" * PAYLOAD_LOG_CHARS})
+        assert summary == "x" * PAYLOAD_LOG_CHARS
+        assert not summary.endswith("...")
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            pytest.param({}, id="no-data-key"),
+            pytest.param({"data": None}, id="data-is-null"),
+            pytest.param({"data": 42}, id="data-is-not-a-string"),
+            pytest.param({"data": object()}, id="data-is-unsliceable"),
+        ],
+    )
+    def test_junk_never_raises(self, fields):
+        # Whatever it returns, it must return -- never raise out of an except.
+        assert isinstance(_payload_summary(fields), str)
+
+    def test_a_fields_object_that_explodes_is_survived(self):
+        class Exploding:
+            def get(self, *args, **kwargs):
+                raise RuntimeError("nope")
+
+        assert _payload_summary(Exploding()) == "<unavailable>"
