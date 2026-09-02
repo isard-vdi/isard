@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import os
 from enum import Enum
 from time import time
 from typing import Any, Dict, List, Literal, Optional, Union
@@ -24,6 +25,7 @@ from uuid import uuid4
 
 from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
+from isardvdi_common.helpers import qcow2_geometry
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
@@ -39,6 +41,15 @@ from rq.job import JobStatus
 from ..schemas.storage import *
 from . import domain
 from .task import Task
+
+
+# The free-space floor for convert/disconnect is an installation policy, not a
+# per-host fact: resolved by the enqueuer and carried in the payload so an
+# identical operation is not refused on one storage node and accepted on
+# another. Mirrors the worker's DEFAULT_MIN_FREE_BYTES fallback (1 GiB).
+def _storage_min_free_bytes():
+    return int(os.environ.get("STORAGE_MIN_FREE_BYTES") or 1 << 30)
+
 
 # Owner category is resolved on every storage-task produce; cache per user so a
 # burst of produces for one owner does not re-hit rethinkdb.
@@ -1386,6 +1397,7 @@ class Storage(RethinkCustomBase):
         """
         disconnect_queue = f"storage.{StoragePool.get_best_for_action('disconnect', path=self.directory_path).id}.{priority}"
 
+        geometry = qcow2_geometry.policy()
         self.set_maintenance("disconnect")
         return self.create_task(
             user_id=user_id,
@@ -1396,6 +1408,8 @@ class Storage(RethinkCustomBase):
             job_kwargs={
                 "kwargs": {
                     "storage_path": self.path,
+                    **geometry,
+                    "min_free_bytes": _storage_min_free_bytes(),
                 },
             },
             dependents=[
@@ -1406,6 +1420,7 @@ class Storage(RethinkCustomBase):
                         "kwargs": {
                             "storage_id": self.id,
                             "storage_path": self.path,
+                            "qcow2_geometry": geometry,
                         }
                     },
                     "dependents": [
@@ -1473,6 +1488,17 @@ class Storage(RethinkCustomBase):
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=new_storage.directory_path).id}.background"
         dest_type = new_storage_type.lower()
 
+        geometry = qcow2_geometry.policy()
+        # Only a qcow2 destination carries the geometry: a vmdk cannot honour
+        # qcow2 options, so the row must not record a geometry it does not have.
+        measure_kwargs = {
+            "storage_id": new_storage.id,
+            "storage_path": new_storage.path,
+            "storage_type": dest_type,
+        }
+        if dest_type == "qcow2":
+            measure_kwargs["qcow2_geometry"] = geometry
+
         self.set_maintenance("convert")
         return self.create_task(
             user_id=user_id,
@@ -1486,19 +1512,15 @@ class Storage(RethinkCustomBase):
                     "dest_disk_path": new_storage.path,
                     "format": dest_type,
                     "compression": compress,
+                    **geometry,
+                    "min_free_bytes": _storage_min_free_bytes(),
                 },
             },
             dependents=[
                 {
                     "queue": queue_backing_chain,
                     "task": "qemu_img_info_backing_chain",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "storage_id": new_storage.id,
-                            "storage_path": new_storage.path,
-                            "storage_type": dest_type,
-                        }
-                    },
+                    "job_kwargs": {"kwargs": measure_kwargs},
                     "dependents": [
                         {
                             "queue": "core",
@@ -1614,6 +1636,7 @@ class Storage(RethinkCustomBase):
             new_storage.directory_path + "/" + new_storage.id + "." + new_storage.type
         )
 
+        geometry = qcow2_geometry.policy()
         self.set_maintenance("recreate")
         return self.create_task(
             user_id=user_id,
@@ -1625,6 +1648,7 @@ class Storage(RethinkCustomBase):
                 "kwargs": {
                     "storage_path": new_storage_path,
                     "storage_type": new_storage.type,
+                    **geometry,
                     **parent_args,
                 },
             },
@@ -1646,6 +1670,7 @@ class Storage(RethinkCustomBase):
                                 "kwargs": {
                                     "storage_id": new_storage.id,
                                     "storage_path": new_storage_path,
+                                    "qcow2_geometry": geometry,
                                 }
                             },
                             "dependents": [
@@ -1790,6 +1815,7 @@ class Storage(RethinkCustomBase):
         )
         storage.status_logs = [{"time": int(time()), "status": "created"}]
 
+        geometry = qcow2_geometry.policy()
         storage.set_maintenance("create")
         # ``create_task`` returns the root task id; the row's ``task`` scalar is
         # retired and no longer written, so it is the return value or nothing.
@@ -1804,6 +1830,7 @@ class Storage(RethinkCustomBase):
                     "storage_path": storage.path,
                     "storage_type": storage.type,
                     "size": size,
+                    **geometry,
                     **parent_args,
                 },
             },
@@ -1815,6 +1842,7 @@ class Storage(RethinkCustomBase):
                         "kwargs": {
                             "storage_id": storage.id,
                             "storage_path": storage.path,
+                            "qcow2_geometry": geometry,
                         }
                     },
                     "dependents": [
@@ -1979,9 +2007,11 @@ class Storage(RethinkCustomBase):
                 )
             parent_args = {}
 
+        geometry = qcow2_geometry.policy()
         create_kwargs = {
             "storage_path": self.path,
             "storage_type": self.type,
+            **geometry,
             **parent_args,
         }
         if size is not None:
@@ -2033,6 +2063,7 @@ class Storage(RethinkCustomBase):
                         "kwargs": {
                             "storage_id": self.id,
                             "storage_path": self.path,
+                            "qcow2_geometry": geometry,
                         }
                     },
                     "dependents": [
@@ -2212,6 +2243,7 @@ class Storage(RethinkCustomBase):
                 "template disk",
             )
 
+        geometry = qcow2_geometry.policy()
         template_storage.set_maintenance("create")
 
         return self.create_task(
@@ -2246,6 +2278,7 @@ class Storage(RethinkCustomBase):
                             "storage_type": self.type,
                             "parent_path": template_storage.path,
                             "parent_type": template_storage.type,
+                            **geometry,
                         }
                     },
                     "dependents": [
@@ -2287,6 +2320,7 @@ class Storage(RethinkCustomBase):
                                                 "kwargs": {
                                                     "storage_id": self.id,
                                                     "storage_path": self.path,
+                                                    "qcow2_geometry": geometry,
                                                 }
                                             },
                                             "dependents": [
