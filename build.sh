@@ -586,6 +586,13 @@ create_docker_compose_file(){
 		true|t|1|yes|y|on) _vdo_stats_enabled=1 ;;
 		*) _vdo_stats_enabled=0 ;;
 	esac
+	# The sidecar runs the same publisher, so a node with no storage worker would
+	# publish its root disk under the pool's key from here instead.
+	if [ "$_vdo_stats_enabled" -eq 1 ] && [ "${REDIS_WORKERS:-1}" = "0" ]
+	then
+		echo "STORAGE_POOL_VDO_STATS is true but REDIS_WORKERS=0; this node serves no storage, ignoring it"
+		_vdo_stats_enabled=0
+	fi
 	if [ "$_vdo_stats_enabled" -eq 1 ]
 	then
 		case " $(echo $parts) " in
