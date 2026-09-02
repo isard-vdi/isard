@@ -1254,8 +1254,9 @@
           "remove": "Eliminar llave",
           "save": "Guardar llave"
         },
-        "description": "Añade tu propia llave pública SSH al perfil. El bastión la acepta para el acceso SSH de cualquier escritorio tuyo, y de los escritorios de cualquier despliegue del que seas propietario o copropietario, de modo que no tienes que añadirla a cada escritorio. Si la eliminas, ese acceso se revoca.",
+        "description": "Añade a tu perfil la llave pública SSH del dispositivo desde el que te conectarás a IsardVDI. Esta llave permitirá que ese dispositivo se autentique para acceder mediante SSH, a través del bastión, a tus escritorios y a los escritorios de los despliegues de los que seas propietario o copropietario.\nSolo hace falta añadir la llave a tu perfil una vez; no es necesario configurarla manualmente en cada escritorio. Si eliminas la llave de tu perfil, el acceso mediante esta llave quedará revocado.",
         "invalid": "Esto no parece una llave pública SSH válida.",
+        "label": "Llave pública SSH de tu dispositivo",
         "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... usuario{'@'}host",
         "security-note": "Añade solo tu propia llave pública. Añadir la llave de otra persona puede violar la política de seguridad de tu organización.",
         "title": "Llave SSH del bastión"

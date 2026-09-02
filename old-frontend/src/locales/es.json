@@ -297,8 +297,8 @@
     "ssh-key": {
       "modal": {
         "title": "Clave SSH de bastión",
-        "description": "Añade una sola clave pública SSH a tu perfil. El bastión la acepta para el acceso SSH de cualquier escritorio tuyo, y de los escritorios de cualquier despliegue del que seas propietario o copropietario, así que no tienes que añadirla manualmente a cada escritorio. Si la eliminas, ese acceso se revoca.",
-        "label": "Tu clave pública SSH",
+        "description": "Añade a tu perfil la clave pública SSH del dispositivo desde el que te conectarás a IsardVDI. Esta clave permitirá que ese dispositivo se autentique para acceder mediante SSH, a través del bastión, a tus escritorios y a los escritorios de los despliegues de los que seas propietario o copropietario.\nSolo hace falta añadir la clave a tu perfil una vez; no es necesario configurarla manualmente en cada escritorio. Si eliminas la clave de tu perfil, el acceso mediante esta clave quedará revocado.",
+        "label": "Clave pública SSH de tu dispositivo:",
         "invalid": "La clave pública SSH proporcionada no es válida.",
         "buttons": {
           "save": "Guardar clave",

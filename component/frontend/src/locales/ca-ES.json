@@ -1254,7 +1254,8 @@
           "remove": "Elimina la clau",
           "save": "Desa la clau"
         },
-        "description": "Afegeix la teva pròpia clau pública SSH al perfil. El bastió l'accepta per a l'accés SSH de qualsevol escriptori teu, i dels escriptoris de qualsevol desplegament del qual siguis propietari o copropietari, de manera que no cal afegir-la a cada escriptori. Si l'elimines, aquest accés es revoca.",
+        "description": "Afegeix al teu perfil la clau pública SSH del dispositiu des del qual et connectaràs a IsardVDI. Aquesta clau permetrà que aquest dispositiu s'autentiqui per accedir mitjançant SSH, a través del bastió, als teus escriptoris i als escriptoris dels desplegaments dels quals siguis propietari o copropietari.\nNomés cal afegir la clau una vegada al teu perfil; no és necessari configurar-la manualment a cada escriptori. Si elimines la clau del teu perfil, l'accés mitjançant aquesta clau quedarà revocat.",
+        "label": "Clau pública SSH del teu dispositiu",
         "invalid": "Això no sembla una clau pública SSH vàlida.",
         "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... usuari{'@'}host",
         "security-note": "Afegeix només la teva pròpia clau pública. Afegir la clau d'una altra persona pot violar la política de seguretat de la teva organització.",
