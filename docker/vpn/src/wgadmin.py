@@ -55,10 +55,14 @@ def ensure_geneve_port(hyper_id, hostname):
         return False
 
     geneve_port = os.environ.get("WG_HYPERS_PORT", "4443")
-    if hyper_id not in check_output(("ovs-vsctl", "show"), text=True).strip():
+    if (
+        hyper_id
+        not in check_output(("ovs-vsctl", "--timeout=5", "show"), text=True).strip()
+    ):
         subprocess.run(
             [
                 "ovs-vsctl",
+                "--timeout=5",
                 "add-port",
                 "ovsbr0",
                 hyper_id,
@@ -74,6 +78,7 @@ def ensure_geneve_port(hyper_id, hostname):
     subprocess.run(
         [
             "ovs-vsctl",
+            "--timeout=5",
             "set",
             "Interface",
             hyper_id,
@@ -83,7 +88,7 @@ def ensure_geneve_port(hyper_id, hostname):
         ]
     )
     port = check_output(
-        ("ovs-vsctl", "get", "interface", hyper_id, "ofport"), text=True
+        ("ovs-vsctl", "--timeout=5", "get", "interface", hyper_id, "ofport"), text=True
     ).strip()
     for flow in (
         f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},actions=NORMAL",
@@ -91,7 +96,7 @@ def ensure_geneve_port(hyper_id, hostname):
         f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},actions=resubmit(,2)",
         f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
     ):
-        subprocess.run(["ovs-ofctl", "add-flow", "ovsbr0", flow])
+        subprocess.run(["ovs-ofctl", "--timeout=5", "add-flow", "ovsbr0", flow])
     log.info(f"Ensured geneve hypervisor {hyper_id} (port {port})")
     return True
 
@@ -114,11 +119,23 @@ def _process_vpn_change(change, wg_users, wg_hypers):
                 else:
                     hyper_id = old_val["id"]
                     subprocess.run(
-                        ["ovs-ofctl", "del-flows", "ovsbr0", f"in_port={hyper_id}"],
+                        [
+                            "ovs-ofctl",
+                            "--timeout=5",
+                            "del-flows",
+                            "ovsbr0",
+                            f"in_port={hyper_id}",
+                        ],
                         capture_output=True,
                     )
                     subprocess.run(
-                        ["ovs-vsctl", "--if-exists", "del-port", hyper_id],
+                        [
+                            "ovs-vsctl",
+                            "--timeout=5",
+                            "--if-exists",
+                            "del-port",
+                            hyper_id,
+                        ],
                         capture_output=True,
                     )
             elif old_val["table"] == "domains":

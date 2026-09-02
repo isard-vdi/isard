@@ -344,11 +344,14 @@ class Wg(object):
                 geneve_port_num = os.environ.get("WG_HYPERS_PORT", "4443")
                 if (
                     peer["id"]
-                    not in check_output(("ovs-vsctl", "show"), text=True).strip()
+                    not in check_output(
+                        ("ovs-vsctl", "--timeout=5", "show"), text=True
+                    ).strip()
                 ):
                     subprocess.run(
                         [
                             "ovs-vsctl",
+                            "--timeout=5",
                             "add-port",
                             "ovsbr0",
                             peer["id"],
@@ -365,6 +368,7 @@ class Wg(object):
                     subprocess.run(
                         [
                             "ovs-vsctl",
+                            "--timeout=5",
                             "set",
                             "interface",
                             peer["id"],
@@ -380,6 +384,7 @@ class Wg(object):
                 subprocess.run(
                     [
                         "ovs-vsctl",
+                        "--timeout=5",
                         "set",
                         "Interface",
                         peer["id"],
@@ -389,13 +394,21 @@ class Wg(object):
                     ]
                 )
                 port = check_output(
-                    ("ovs-vsctl", "get", "interface", peer["id"], "ofport"),
+                    (
+                        "ovs-vsctl",
+                        "--timeout=5",
+                        "get",
+                        "interface",
+                        peer["id"],
+                        "ofport",
+                    ),
                     text=True,
                 ).strip()
                 vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
                 subprocess.run(
                     [
                         "ovs-ofctl",
+                        "--timeout=5",
                         "add-flow",
                         "ovsbr0",
                         f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=NORMAL",
@@ -404,6 +417,7 @@ class Wg(object):
                 subprocess.run(
                     [
                         "ovs-ofctl",
+                        "--timeout=5",
                         "add-flow",
                         "ovsbr0",
                         f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},tp_src=68,tp_dst=67,actions=NORMAL",
@@ -412,6 +426,7 @@ class Wg(object):
                 subprocess.run(
                     [
                         "ovs-ofctl",
+                        "--timeout=5",
                         "add-flow",
                         "ovsbr0",
                         f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=resubmit(,2)",
@@ -420,6 +435,7 @@ class Wg(object):
                 subprocess.run(
                     [
                         "ovs-ofctl",
+                        "--timeout=5",
                         "add-flow",
                         "ovsbr0",
                         f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
@@ -473,13 +489,14 @@ class Wg(object):
                 wg_address = peer["vpn"]["wireguard"]["Address"]
                 if peer["id"] not in (
                     check_output(
-                        ("ovs-vsctl", "show"),
+                        ("ovs-vsctl", "--timeout=5", "show"),
                         text=True,
                     ).strip()
                 ):
                     subprocess.run(
                         [
                             "ovs-vsctl",
+                            "--timeout=5",
                             "add-port",
                             "ovsbr0",
                             peer["id"],
@@ -495,6 +512,7 @@ class Wg(object):
                     subprocess.run(
                         [
                             "ovs-vsctl",
+                            "--timeout=5",
                             "set",
                             "interface",
                             peer["id"],
@@ -512,13 +530,21 @@ class Wg(object):
                 # both the new-port and existing-port paths so fresh
                 # hypervisors are not left without the security policy.
                 port = check_output(
-                    ("ovs-vsctl", "get", "Interface", peer["id"], "ofport"),
+                    (
+                        "ovs-vsctl",
+                        "--timeout=5",
+                        "get",
+                        "Interface",
+                        peer["id"],
+                        "ofport",
+                    ),
                     text=True,
                 ).strip()
                 vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
                 subprocess.run(
                     [
                         "ovs-ofctl",
+                        "--timeout=5",
                         "add-flow",
                         "ovsbr0",
                         f"priority=451,arp,in_port={port},dl_vlan=4095,"
@@ -528,6 +554,7 @@ class Wg(object):
                 subprocess.run(
                     [
                         "ovs-ofctl",
+                        "--timeout=5",
                         "add-flow",
                         "ovsbr0",
                         f"priority=451,udp,in_port={port},dl_vlan=4095,"
@@ -538,6 +565,7 @@ class Wg(object):
                 subprocess.run(
                     [
                         "ovs-ofctl",
+                        "--timeout=5",
                         "add-flow",
                         "ovsbr0",
                         f"priority=450,ip,in_port={port},dl_vlan=4095,"
@@ -547,6 +575,7 @@ class Wg(object):
                 subprocess.run(
                     [
                         "ovs-ofctl",
+                        "--timeout=5",
                         "add-flow",
                         "ovsbr0",
                         f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
@@ -625,7 +654,14 @@ class Wg(object):
             # that matches how the rules were installed in up_peer().
             try:
                 ofport = check_output(
-                    ("ovs-vsctl", "get", "interface", peer["id"], "ofport"),
+                    (
+                        "ovs-vsctl",
+                        "--timeout=5",
+                        "get",
+                        "interface",
+                        peer["id"],
+                        "ofport",
+                    ),
                     text=True,
                 ).strip()
             except subprocess.CalledProcessError as exc:
@@ -637,7 +673,13 @@ class Wg(object):
 
             if ofport and ofport not in ("", "[]", "-1"):
                 result = subprocess.run(
-                    ["ovs-ofctl", "del-flows", "ovsbr0", f"in_port={ofport}"],
+                    [
+                        "ovs-ofctl",
+                        "--timeout=5",
+                        "del-flows",
+                        "ovsbr0",
+                        f"in_port={ofport}",
+                    ],
                     capture_output=True,
                     text=True,
                 )
@@ -653,7 +695,7 @@ class Wg(object):
             # changefeed handler and leaves subsequent ADD events unhandled.
             log.info(
                 check_output(
-                    ("ovs-vsctl", "--if-exists", "del-port", peer["id"]),
+                    ("ovs-vsctl", "--timeout=5", "--if-exists", "del-port", peer["id"]),
                     text=True,
                 ).strip()
             )
@@ -827,7 +869,13 @@ PostUp = %s
     def _remove_table2_flow(self, guest_ip):
         """Remove table 2 source IP pinning flow and ARP entry for a stopped domain."""
         subprocess.run(
-            ["ovs-ofctl", "del-flows", "ovsbr0", f"table=2,ip,nw_src={guest_ip}"],
+            [
+                "ovs-ofctl",
+                "--timeout=5",
+                "del-flows",
+                "ovsbr0",
+                f"table=2,ip,nw_src={guest_ip}",
+            ],
             capture_output=True,
         )
         subprocess.run(
@@ -839,12 +887,20 @@ PostUp = %s
         with vpn_rethink_conn() as conn:
             started_desktops = (
                 r.table("domains")
-                .get_all(["Started"], index="status")
+                # Scalar key: domains.status is a single-field index, so a list
+                # key matched nothing and this whole pass was a no-op.
+                .get_all("Started", index="status")
                 .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
                 .run(conn)
             )
         for started_desktop in started_desktops:
-            self.desktop_iptables(started_desktop)
+            # init_domains_started already installed the rules; seed the applied
+            # index so a later reap can find them.
+            self._remember_applied_desktop(
+                started_desktop["id"],
+                started_desktop.get("user"),
+                (started_desktop.get("viewer") or {}).get("guest_ip"),
+            )
 
     def user_desktop_iptables(self, data):
         # Updated

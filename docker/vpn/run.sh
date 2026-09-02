@@ -62,4 +62,5 @@ cd /
 cd /src
 
 echo "$(date): INFO: Starting vpn server"
-python3 wgadmin.py
+# exec: without it PID 1 is the shell and SIGTERM never reaches wgadmin.
+exec python3 wgadmin.py

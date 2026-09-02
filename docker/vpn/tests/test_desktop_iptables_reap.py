@@ -76,6 +76,7 @@ def test_squashed_delete_still_reaps_both(wg, wgtools_module):
     flows = [c.args[0] for c in sp.run.call_args_list]
     assert [
         "ovs-ofctl",
+        "--timeout=5",
         "del-flows",
         "ovsbr0",
         "table=2,ip,nw_src=192.168.128.5",
