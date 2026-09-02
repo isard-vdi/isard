@@ -1910,13 +1910,10 @@
         }
       }
     },
-    "message-modal": {
+    "desktop-timeout-modal": {
       "title": "Informació important",
-      "extend-time": "Ampliar {minutes} min",
-      "messages": {
-        "desktop-time-limit": "L'escriptori '{name}' s'aturarà automàticament a les {date}.",
-        "searching-resources": "Estem buscant recursos per l'escriptori. S'iniciarà en breus minuts, si us plau, esperi."
-      }
+      "description": "L'escriptori '{name}' s'aturarà automàticament a les {date}.",
+      "extend-time": "Ampliar {minutes} min"
     },
     "delete-confirmation-modal": {
       "cancel": "Cancel·la",
@@ -3029,6 +3026,17 @@
     "start-desktop": {
       "errors": {
         "generic": "No s'ha pogut iniciar l'escriptori. Torna-ho a provar."
+      }
+    },
+    "extend-desktop": {
+      "errors": {
+        "generic": "No s'ha pogut ampliar el temps de l'escriptori. Torna-ho a provar.",
+        "desktop_not_started": "L'escriptori no s'està executant.",
+        "desktop_no_scheduled_shutdown": "L'escriptori no té cap aturada programada.",
+        "desktop_no_timeout_rule": "No hi ha cap regla d'aturada que s'apliqui a aquest escriptori.",
+        "desktop_extend_not_allowed": "No es permet ampliar el temps d'aquest escriptori.",
+        "desktop_max_extensions_reached": "Has arribat al nombre màxim d'ampliacions d'aquest escriptori.",
+        "desktop_extend_time_too_short": "L'ampliació configurada és massa curta per tornar-te a avisar. Contacta amb l'administrador."
       }
     },
     "delete-deployment": {

@@ -226,22 +226,6 @@ class DomainsProcessed(RethinkSharedConnection):
             )
 
     @classmethod
-    def get_status_and_scheduled(cls, domain_id: str) -> dict | None:
-        """Return ``{status, scheduled}`` for ``domain_id`` (or ``None``).
-
-        Read by the desktop-timeout extension path; only those two
-        fields are needed to validate the precondition before
-        re-arming the scheduler.
-        """
-        with cls._rdb_context():
-            return (
-                r.table("domains")
-                .get(domain_id)
-                .pluck("status", "scheduled")
-                .run(cls._rdb_connection)
-            )
-
-    @classmethod
     def list_templates_for_admin(
         cls, fields: list[str], category_id: str | None = None
     ) -> list[dict]:

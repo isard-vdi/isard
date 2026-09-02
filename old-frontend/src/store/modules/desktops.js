@@ -634,9 +634,12 @@ export default {
       context.commit('removeBastionTarget', JSON.parse(data))
     },
     extendDesktopTimeout (context, desktopId) {
-      return axios.put(`${apiV3Segment}/item/desktop/${desktopId}/extend-timeout`).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
-      })
+      return axios.put(`${apiV3Segment}/item/desktop/${desktopId}/extend-timeout`)
+        .then(() => true)
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+          return false
+        })
     }
   }
 }
