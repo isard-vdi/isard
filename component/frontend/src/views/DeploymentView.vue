@@ -720,8 +720,9 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
                 </TooltipTrigger>
                 <TooltipContent side="top" :title="t('views.deployment.tooltips.videowall')" />
               </Tooltip>
-              <Tooltip>
+              <Tooltip v-if="false">
                 <TooltipTrigger as-child>
+                  <!-- Deployment resources -->
                   <Button
                     hierarchy="secondary-gray"
                     icon="file-attachment-04"
